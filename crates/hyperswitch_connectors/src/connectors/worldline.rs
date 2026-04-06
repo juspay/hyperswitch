@@ -762,6 +762,7 @@ impl webhooks::IncomingWebhook for Worldline {
     fn get_webhook_event_type(
         &self,
         request: &webhooks::IncomingWebhookRequestDetails<'_>,
+        _context: Option<&webhooks::WebhookContext>,
     ) -> CustomResult<api_models::webhooks::IncomingWebhookEvent, errors::ConnectorError> {
         if is_endpoint_verification(request.headers) {
             Ok(api_models::webhooks::IncomingWebhookEvent::EndpointVerification)

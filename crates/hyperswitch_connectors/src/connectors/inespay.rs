@@ -694,6 +694,7 @@ impl webhooks::IncomingWebhook for Inespay {
     fn get_webhook_event_type(
         &self,
         request: &webhooks::IncomingWebhookRequestDetails<'_>,
+        _context: Option<&webhooks::WebhookContext>,
     ) -> CustomResult<api_models::webhooks::IncomingWebhookEvent, errors::ConnectorError> {
         let data_return = get_webhook_body(request.body)
             .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;

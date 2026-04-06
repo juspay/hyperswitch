@@ -42,7 +42,7 @@ use hyperswitch_interfaces::{
     errors,
     events::connector_api_logs::ConnectorEvent,
     types::{self, Response},
-    webhooks::{IncomingWebhook, IncomingWebhookRequestDetails},
+    webhooks::{IncomingWebhook, IncomingWebhookRequestDetails, WebhookContext},
 };
 use lazy_static::lazy_static;
 use masking::{Mask, PeekInterface};
@@ -735,6 +735,7 @@ impl IncomingWebhook for Iatapay {
     fn get_webhook_event_type(
         &self,
         request: &IncomingWebhookRequestDetails<'_>,
+        _context: Option<&WebhookContext>,
     ) -> CustomResult<IncomingWebhookEvent, errors::ConnectorError> {
         let notif: iatapay::IatapayWebhookResponse = request
             .body

@@ -850,6 +850,7 @@ impl webhooks::IncomingWebhook for Mollie {
     fn get_webhook_event_type(
         &self,
         _request: &webhooks::IncomingWebhookRequestDetails<'_>,
+        _context: Option<&webhooks::WebhookContext>,
     ) -> CustomResult<api_models::webhooks::IncomingWebhookEvent, errors::ConnectorError> {
         Ok(api_models::webhooks::IncomingWebhookEvent::EventNotSupported)
     }

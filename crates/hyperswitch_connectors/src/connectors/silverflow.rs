@@ -802,6 +802,7 @@ impl webhooks::IncomingWebhook for Silverflow {
     fn get_webhook_event_type(
         &self,
         request: &webhooks::IncomingWebhookRequestDetails<'_>,
+        _context: Option<&webhooks::WebhookContext>,
     ) -> CustomResult<api_models::webhooks::IncomingWebhookEvent, errors::ConnectorError> {
         let webhook_body = String::from_utf8(request.body.to_vec())
             .change_context(errors::ConnectorError::WebhookEventTypeNotFound)?;

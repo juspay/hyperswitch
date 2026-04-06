@@ -910,6 +910,7 @@ impl webhooks::IncomingWebhook for Novalnet {
     fn get_webhook_event_type(
         &self,
         request: &webhooks::IncomingWebhookRequestDetails<'_>,
+        _context: Option<&webhooks::WebhookContext>,
     ) -> CustomResult<api_models::webhooks::IncomingWebhookEvent, errors::ConnectorError> {
         let notif = get_webhook_object_from_body(request.body)?;
 
@@ -962,6 +963,7 @@ impl webhooks::IncomingWebhook for Novalnet {
     fn get_dispute_details(
         &self,
         request: &webhooks::IncomingWebhookRequestDetails<'_>,
+        _context: Option<&webhooks::WebhookContext>,
     ) -> CustomResult<disputes::DisputePayload, errors::ConnectorError> {
         let notif = get_webhook_object_from_body(request.body)?;
 

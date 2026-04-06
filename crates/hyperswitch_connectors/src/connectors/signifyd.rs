@@ -59,7 +59,7 @@ use hyperswitch_interfaces::{
     consts::NO_ERROR_CODE,
     events::connector_api_logs::ConnectorEvent,
     types::Response,
-    webhooks::{IncomingWebhook, IncomingWebhookRequestDetails},
+    webhooks::{IncomingWebhook, IncomingWebhookRequestDetails, WebhookContext},
 };
 #[cfg(feature = "frm")]
 use masking::Mask;
@@ -705,6 +705,7 @@ impl IncomingWebhook for Signifyd {
     fn get_webhook_event_type(
         &self,
         request: &IncomingWebhookRequestDetails<'_>,
+        _context: Option<&WebhookContext>,
     ) -> CustomResult<IncomingWebhookEvent, ConnectorError> {
         let resource: signifyd::SignifydWebhookBody = request
             .body

@@ -1048,6 +1048,7 @@ impl webhooks::IncomingWebhook for Trustpay {
     fn get_webhook_event_type(
         &self,
         request: &webhooks::IncomingWebhookRequestDetails<'_>,
+        _context: Option<&webhooks::WebhookContext>,
     ) -> CustomResult<api_models::webhooks::IncomingWebhookEvent, errors::ConnectorError> {
         let response: trustpay::TrustpayWebhookResponse = request
             .body
@@ -1142,6 +1143,7 @@ impl webhooks::IncomingWebhook for Trustpay {
     fn get_dispute_details(
         &self,
         request: &webhooks::IncomingWebhookRequestDetails<'_>,
+        _context: Option<&webhooks::WebhookContext>,
     ) -> CustomResult<DisputePayload, errors::ConnectorError> {
         let trustpay_response: trustpay::TrustpayWebhookResponse = request
             .body

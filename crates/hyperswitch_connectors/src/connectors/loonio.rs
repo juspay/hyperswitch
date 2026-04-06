@@ -799,6 +799,7 @@ impl webhooks::IncomingWebhook for Loonio {
     fn get_webhook_event_type(
         &self,
         request: &webhooks::IncomingWebhookRequestDetails<'_>,
+        _context: Option<&webhooks::WebhookContext>,
     ) -> CustomResult<api_models::webhooks::IncomingWebhookEvent, errors::ConnectorError> {
         let webhook_body: loonio::LoonioWebhookBody = request
             .body

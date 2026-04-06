@@ -1498,6 +1498,31 @@ impl Profile {
     }
 
     #[cfg(feature = "v1")]
+    pub fn get_payment_routing_algorithm_id(
+        &self,
+    ) -> CustomResult<Option<common_utils::id_type::RoutingId>, api_error_response::ApiErrorResponse>
+    {
+        Ok(self
+            .routing_algorithm
+            .clone()
+            .map(|val| {
+                val.parse_value::<api_models::routing::RoutingAlgorithmRef>("RoutingAlgorithmRef")
+            })
+            .transpose()
+            .change_context(api_error_response::ApiErrorResponse::InternalServerError)
+            .attach_printable("unable to deserialize routing algorithm ref from business profile")?
+            .and_then(|algorithm| algorithm.algorithm_id))
+    }
+
+    #[cfg(feature = "v2")]
+    pub fn get_payment_routing_algorithm_id(
+        &self,
+    ) -> CustomResult<Option<common_utils::id_type::RoutingId>, api_error_response::ApiErrorResponse>
+    {
+        Ok(self.routing_algorithm_id.clone())
+    }
+
+    #[cfg(feature = "v1")]
     pub fn get_three_ds_decision_rule_algorithm_id(
         &self,
     ) -> Option<common_utils::id_type::RoutingId> {

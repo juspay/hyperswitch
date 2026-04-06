@@ -47,7 +47,7 @@ use hyperswitch_interfaces::{
     errors,
     events::connector_api_logs::ConnectorEvent,
     types::{self, Response},
-    webhooks::{IncomingWebhook, IncomingWebhookRequestDetails},
+    webhooks::{IncomingWebhook, IncomingWebhookRequestDetails, WebhookContext},
 };
 use masking::{Mask, PeekInterface};
 use transformers::{self as shift4, Shift4PaymentsRequest, Shift4RefundRequest};
@@ -955,6 +955,7 @@ impl IncomingWebhook for Shift4 {
     fn get_webhook_event_type(
         &self,
         request: &IncomingWebhookRequestDetails<'_>,
+        _context: Option<&WebhookContext>,
     ) -> CustomResult<IncomingWebhookEvent, errors::ConnectorError> {
         let details: shift4::Shift4WebhookObjectEventType = request
             .body

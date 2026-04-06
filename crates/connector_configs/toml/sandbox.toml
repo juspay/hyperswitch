@@ -3410,6 +3410,14 @@ payment_method_type = "JCB"
 payment_method_type = "DinersClub"
 [[noon.debit]]
 payment_method_type = "Discover"
+
+[noon.metadata.region]
+name = "region"
+label = "Region of your Noon Merchant Account"
+placeholder = "Enter Region of your Noon Merchant Account"
+required = false
+type = "Select"
+options = ["Global", "Ksa", "Egypt"]
 [[noon.debit]]
 payment_method_type = "CartesBancaires"
 [[noon.debit]]
@@ -7118,6 +7126,8 @@ api_key = "API Key"
 [payload.connector_auth.CurrencyAuthKey.auth_key_map.CAD]
 processing_account_id = "processing_account_id"
 api_key = "API Key"
+[payload.connector_webhook_details]
+merchant_secret = "Source verification key"
 
 [silverflow]
 [[silverflow.credit]]

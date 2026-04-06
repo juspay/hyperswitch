@@ -46,12 +46,9 @@ use hyperswitch_interfaces::{
 use masking::{ExposeInterface, Mask, Secret};
 use transformers as peachpayments;
 
-use crate::{
-    constants::headers,
-    types::ResponseRouterData,
-    utils::{self, RefundsRequestData},
-};
+use crate::{constants::headers, types::ResponseRouterData, utils};
 
+const REFUND: &str = "Refund";
 #[derive(Clone)]
 pub struct Peachpayments {
     amount_converter: &'static (dyn AmountConvertor<Output = MinorUnit> + Sync),
@@ -166,7 +163,17 @@ impl ConnectorCommon for Peachpayments {
     }
 }
 
-impl ConnectorValidation for Peachpayments {}
+impl ConnectorValidation for Peachpayments {
+    fn validate_psync_reference_id(
+        &self,
+        _data: &PaymentsSyncData,
+        _is_three_ds: bool,
+        _status: enums::AttemptStatus,
+        _connector_meta_data: Option<common_utils::pii::SecretSerdeValue>,
+    ) -> CustomResult<(), errors::ConnectorError> {
+        Ok(())
+    }
+}
 
 impl ConnectorIntegration<Session, PaymentsSessionData, PaymentsResponseData> for Peachpayments {
     //TODO: implement sessions flow
@@ -311,15 +318,11 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Pea
         req: &PaymentsSyncRouterData,
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        let connector_transaction_id = req
-            .request
-            .connector_transaction_id
-            .get_connector_transaction_id()
-            .change_context(errors::ConnectorError::MissingConnectorTransactionID)?;
+        let reference_id = req.connector_request_reference_id.clone();
         Ok(format!(
-            "{}/transactions/{}",
+            "{}/transactions/by-reference/{}",
             self.base_url(connectors),
-            connector_transaction_id
+            reference_id
         ))
     }
 
@@ -650,11 +653,11 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Peachpaym
         req: &RefundSyncRouterData,
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
-        let connector_refund_id = req.request.get_connector_refund_id()?;
+        let refund_id = req.request.refund_id.clone();
         Ok(format!(
-            "{}/transactions/{}",
+            "{}/transactions/by-reference/{}",
             self.base_url(connectors),
-            connector_refund_id
+            refund_id
         ))
     }
 
@@ -712,33 +715,56 @@ impl webhooks::IncomingWebhook for Peachpayments {
             .parse_struct("PeachpaymentsIncomingWebhook")
             .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
 
+        let description = webhook_body
+            .transaction
+            .as_ref()
+            .map(|txn| txn.transaction_type.description.clone());
+
         let reference_id = webhook_body
             .transaction
             .as_ref()
             .map(|txn| txn.reference_id.clone())
             .ok_or(errors::ConnectorError::WebhookReferenceIdNotFound)?;
 
-        Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
-            api_models::payments::PaymentIdType::PaymentAttemptId(reference_id),
-        ))
+        if description == Some(REFUND.to_string()) {
+            Ok(api_models::webhooks::ObjectReferenceId::RefundId(
+                api_models::webhooks::RefundIdType::RefundId(reference_id),
+            ))
+        } else {
+            Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
+                api_models::payments::PaymentIdType::PaymentAttemptId(reference_id),
+            ))
+        }
     }
 
     fn get_webhook_event_type(
         &self,
         request: &webhooks::IncomingWebhookRequestDetails<'_>,
+        _context: Option<&webhooks::WebhookContext>,
     ) -> CustomResult<api_models::webhooks::IncomingWebhookEvent, errors::ConnectorError> {
         let webhook_body: peachpayments::PeachpaymentsIncomingWebhook = request
             .body
             .parse_struct("PeachpaymentsIncomingWebhook")
             .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
 
+        let description = webhook_body
+            .transaction
+            .as_ref()
+            .map(|txn| txn.transaction_type.description.clone());
+
         match webhook_body.webhook_type.as_str() {
             "transaction" => {
                 if let Some(transaction) = webhook_body.transaction {
                     match transaction.transaction_result {
-                        peachpayments::PeachpaymentsPaymentStatus::Successful
-                        | peachpayments::PeachpaymentsPaymentStatus::ApprovedConfirmed => {
+                        peachpayments::PeachpaymentsPaymentStatus::Successful => {
                             Ok(api_models::webhooks::IncomingWebhookEvent::PaymentIntentSuccess)
+                        }
+                        peachpayments::PeachpaymentsPaymentStatus::ApprovedConfirmed => {
+                            if description == Some(REFUND.to_string()) {
+                                Ok(api_models::webhooks::IncomingWebhookEvent::RefundSuccess)
+                            } else {
+                                Ok(api_models::webhooks::IncomingWebhookEvent::PaymentIntentSuccess)
+                            }
                         }
                         peachpayments::PeachpaymentsPaymentStatus::Authorized
                         | peachpayments::PeachpaymentsPaymentStatus::Approved => {
@@ -749,7 +775,11 @@ impl webhooks::IncomingWebhook for Peachpayments {
                         }
                         peachpayments::PeachpaymentsPaymentStatus::Declined
                         | peachpayments::PeachpaymentsPaymentStatus::Failed => {
-                            Ok(api_models::webhooks::IncomingWebhookEvent::PaymentIntentFailure)
+                            if description == Some(REFUND.to_string()) {
+                                Ok(api_models::webhooks::IncomingWebhookEvent::RefundFailure)
+                            } else {
+                                Ok(api_models::webhooks::IncomingWebhookEvent::PaymentIntentFailure)
+                            }
                         }
                         peachpayments::PeachpaymentsPaymentStatus::Voided
                         | peachpayments::PeachpaymentsPaymentStatus::Reversed => {
@@ -814,7 +844,7 @@ static PEACHPAYMENTS_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods
                 specific_features: Some(
                     api_models::feature_matrix::PaymentMethodSpecificFeatures::Card({
                         api_models::feature_matrix::CardSpecificFeatures {
-                            three_ds: common_enums::FeatureStatus::Supported,
+                            three_ds: common_enums::FeatureStatus::NotSupported,
                             no_three_ds: common_enums::FeatureStatus::Supported,
                             supported_card_networks: supported_card_network.clone(),
                         }
@@ -833,7 +863,7 @@ static PEACHPAYMENTS_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods
                 specific_features: Some(
                     api_models::feature_matrix::PaymentMethodSpecificFeatures::Card({
                         api_models::feature_matrix::CardSpecificFeatures {
-                            three_ds: common_enums::FeatureStatus::Supported,
+                            three_ds: common_enums::FeatureStatus::NotSupported,
                             no_three_ds: common_enums::FeatureStatus::Supported,
                             supported_card_networks: supported_card_network.clone(),
                         }
@@ -863,8 +893,8 @@ static PEACHPAYMENTS_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
     integration_status: enums::ConnectorIntegrationStatus::Live,
 };
 
-static PEACHPAYMENTS_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 1] =
-    [enums::EventClass::Payments];
+static PEACHPAYMENTS_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 2] =
+    [enums::EventClass::Payments, enums::EventClass::Refunds];
 
 impl ConnectorSpecifications for Peachpayments {
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {

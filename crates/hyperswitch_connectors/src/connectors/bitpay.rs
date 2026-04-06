@@ -395,6 +395,7 @@ impl webhooks::IncomingWebhook for Bitpay {
     fn get_webhook_event_type(
         &self,
         request: &webhooks::IncomingWebhookRequestDetails<'_>,
+        _context: Option<&webhooks::WebhookContext>,
     ) -> CustomResult<IncomingWebhookEvent, errors::ConnectorError> {
         let notif: BitpayWebhookDetails = request
             .body

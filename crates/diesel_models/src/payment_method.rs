@@ -65,6 +65,7 @@ pub struct PaymentMethod {
     pub vault_type: Option<storage_enums::VaultType>,
     pub created_by: Option<String>,
     pub last_modified_by: Option<String>,
+    pub locker_fingerprint_id: Option<String>,
 }
 
 #[cfg(feature = "v2")]
@@ -156,6 +157,7 @@ pub struct PaymentMethodNew {
     pub vault_type: Option<storage_enums::VaultType>,
     pub created_by: Option<String>,
     pub last_modified_by: Option<String>,
+    pub locker_fingerprint_id: Option<String>,
 }
 
 #[cfg(feature = "v2")]
@@ -480,6 +482,7 @@ impl PaymentMethodUpdateInternal {
             swift_code: source.swift_code,
             direct_debit_token: source.direct_debit_token,
             created_at: source.created_at,
+            locker_fingerprint_id: source.locker_fingerprint_id,
             last_modified,
             payment_method: payment_method.or(source.payment_method),
             payment_method_type: payment_method_type.or(source.payment_method_type),
@@ -1014,6 +1017,7 @@ impl From<&PaymentMethodNew> for PaymentMethod {
             vault_type: payment_method_new.vault_type,
             created_by: payment_method_new.created_by.clone(),
             last_modified_by: payment_method_new.last_modified_by.clone(),
+            locker_fingerprint_id: payment_method_new.locker_fingerprint_id.clone(),
         }
     }
 }

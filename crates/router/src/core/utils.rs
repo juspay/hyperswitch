@@ -715,7 +715,21 @@ pub fn get_split_refunds(
                         Ok(None)
                     }
                 }
-                _ => Ok(None),
+                // If charges data is unavailable, pass through merchant-provided split refund data without validation
+                _ => {
+                    if let Some(common_types::refunds::SplitRefund::AdyenSplitRefund(
+                        split_refund_request,
+                    )) = split_refund_input.refund_request.clone()
+                    {
+                        Ok(Some(
+                            router_request_types::SplitRefundsRequest::AdyenSplitRefund(
+                                split_refund_request,
+                            ),
+                        ))
+                    } else {
+                        Ok(None)
+                    }
+                }
             }
         }
         Some(common_types::payments::SplitPaymentsRequest::XenditSplitPayment(_)) => {
