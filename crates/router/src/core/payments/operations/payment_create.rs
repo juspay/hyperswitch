@@ -33,7 +33,9 @@ use crate::core::payment_methods::transformers as pm_transformers;
 use crate::{
     consts,
     core::{
-        configs::dimension_state::{Dimensions, DimensionsWithProcessorAndPlatformMerchantIdAndProfileId},
+        configs::dimension_state::{
+            Dimensions, DimensionsWithProcessorAndPlatformMerchantIdAndProfileId,
+        },
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
         mandate::helpers as m_helpers,
         payment_link,

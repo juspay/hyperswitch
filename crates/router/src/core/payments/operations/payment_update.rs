@@ -19,7 +19,9 @@ use router_env::{instrument, tracing};
 use super::{BoxedOperation, Domain, GetTracker, Operation, UpdateTracker, ValidateRequest};
 use crate::{
     core::{
-        configs::dimension_state::{Dimensions, DimensionsWithProcessorAndPlatformMerchantIdAndProfileId},
+        configs::dimension_state::{
+            Dimensions, DimensionsWithProcessorAndPlatformMerchantIdAndProfileId,
+        },
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
         mandate::helpers as m_helpers,
         payment_methods::cards::create_encrypted_data,
