@@ -28,7 +28,10 @@ use smithy::SmithyModel;
 use time::PrimitiveDateTime;
 use utoipa::ToSchema;
 
-use crate::domain::{AdyenSplitData, PostCaptureVoidData, XenditSplitSubMerchantData};
+use crate::{
+    consts::PERCENTAGE_BASE,
+    domain::{AdyenSplitData, PostCaptureVoidData, XenditSplitSubMerchantData},
+};
 #[derive(
     Serialize,
     Deserialize,
@@ -1337,7 +1340,7 @@ impl InstallmentInterestRate {
                 .map_err(Report::from)
                 .attach_printable("Failed to convert amount to decimal")?;
 
-            let rate_decimal = Decimal::from_f64(self.0 / 100.0)
+            let rate_decimal = Decimal::from_f64(self.0 / PERCENTAGE_BASE)
                 .ok_or(errors::InstallmentInterestRateError::UnableToApplyInterestRate)
                 .map_err(Report::from)
                 .attach_printable("Failed to convert interest rate to decimal")?;
@@ -1361,9 +1364,9 @@ impl InstallmentInterestRate {
                 let emi = (amount_decimal * rate_decimal * factor) / (factor - one);
                 emi * n_decimal - amount_decimal
             };
-
+            // - ceil() ensures merchant always receives at least the calculated interest
             let result = total_interest
-                .round()
+                .ceil()
                 .to_i64()
                 .ok_or(errors::InstallmentInterestRateError::UnableToApplyInterestRate)
                 .map_err(Report::from)

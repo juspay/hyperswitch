@@ -2638,6 +2638,7 @@ impl PaymentMethodListInstallmentPlan {
                     .map_err(error_stack::Report::from)
                     .attach_printable("Failed to convert count to decimal")?;
 
+                // - ceil() ensures merchant always receives at least the calculated interest
                 let per_installment = MinorUnit::new(
                     (total_decimal / count_decimal)
                         .ceil()

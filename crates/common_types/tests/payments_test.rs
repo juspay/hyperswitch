@@ -31,7 +31,7 @@ fn test_calculate_emi_interest_known_value() {
     let installments = NonZeroU8::new(12).unwrap();
 
     let result = rate.calculate_emi_interest(amount, installments).unwrap();
-    assert_eq!(result.get_amount_as_i64(), 93724);
+    assert_eq!(result.get_amount_as_i64(), 93725);
 }
 
 #[test]
