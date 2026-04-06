@@ -2408,6 +2408,7 @@ impl TryFrom<&WorldpayxmlRouterData<&PayoutsRouterData<PoFulfill>>> for PaymentS
                 PaymentInstrument::try_from(card_payout)?
             }
             api_models::payouts::PayoutMethodData::Bank(_)
+            | api_models::payouts::PayoutMethodData::BankTransfer(_)
             | api_models::payouts::PayoutMethodData::Wallet(_)
             | api_models::payouts::PayoutMethodData::BankRedirect(_)
             | api_models::payouts::PayoutMethodData::Passthrough(_) => {

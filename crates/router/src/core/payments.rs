@@ -71,7 +71,7 @@ pub use hyperswitch_domain_models::{
 };
 use hyperswitch_domain_models::{
     payments::{self, payment_intent::CustomerData, ClickToPayMetaData},
-    router_data::AccessToken,
+    router_data::{AccessToken, FeatureData},
 };
 use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 #[cfg(feature = "v2")]
@@ -7823,6 +7823,95 @@ fn is_google_pay_pre_decrypt_type_connector_tokenization(
     }
 }
 
+/// Feature-related data used by connector-specific flows.
+///
+/// # 1. PayPal returning customer flow
+///
+/// For PayPal, a returning customer flow requires the PayPal vault customer id
+/// (`customer.id`) that was returned when the initial Cardholder Initiated
+/// Transaction (CIT) was created. That id is obtained from the PayPal access
+/// token and persisted in the router database as part of the stored PayPal
+/// payment method for the customer and the relevant Merchant Connector
+/// Account (MCA).
+///
+/// This function:
+/// - identifies the PayPal context from the provided `customer_id`,
+///   `payment_method_type`, and `merchant_connector_account`,
+/// - selects the latest **active** PayPal payment method for that customer
+///   and connector/MCA combination (older entries are effectively
+///   overridden when multiple CITs are created), and
+/// - reads the persisted PayPal vault customer id from that payment method
+///   and places it into `FeatureData` so it can be passed to the PayPal SDK
+///   to initialize the returning-customer flow.
+///
+/// For non-PayPal or flows without a stored PayPal payment method, this
+/// function returns `None`.
+#[cfg(feature = "v1")]
+async fn get_feature_data(
+    customer_id: Option<id_type::CustomerId>,
+    payment_method_type: Option<enums::PaymentMethodType>,
+    merchant_connector_account: &helpers::MerchantConnectorAccountType,
+    state: &SessionState,
+    merchant_id: &id_type::MerchantId,
+    key_store: &domain::MerchantKeyStore,
+    storage_scheme: storage_enums::MerchantStorageScheme,
+) -> Option<FeatureData> {
+    match (customer_id, payment_method_type) {
+        (Some(customer_id), Some(enums::PaymentMethodType::Paypal)) => {
+            let mca_id = merchant_connector_account.get_mca_id();
+            let payment_methods = state
+                .store
+                .find_payment_method_by_customer_id_merchant_id_status_pm_type(
+                    key_store,
+                    &customer_id,
+                    merchant_id,
+                    storage_enums::PaymentMethodStatus::Active,
+                    enums::PaymentMethodType::Paypal,
+                    None,
+                    storage_scheme,
+                )
+                .await
+                .inspect_err(|err| {
+                    router_env::logger::error!(
+                        error=?err,
+                        "Failed to fetch payment methods for returning customer flow, proceeding without feature data"
+                    );
+                })
+                .unwrap_or_default();
+
+            // Helper closure to extract payment reference by MCA ID
+            let get_payment_ref =
+                |pm: &hyperswitch_domain_models::payment_methods::PaymentMethod| {
+                    pm.get_common_mandate_reference()
+                        .ok()
+                        .and_then(|mandate_ref| mandate_ref.payments)
+                        .and_then(|payments| {
+                            mca_id.as_ref().and_then(|id| payments.get(id).cloned())
+                        })
+                };
+
+            let paypal_payment_ref = payment_methods
+                .iter()
+                .map(|pm| get_payment_ref(pm).map(|payment_ref| (pm.created_at, payment_ref)))
+                .max_by_key(|opt| opt.as_ref().map(|(created_at, _)| *created_at))
+                .flatten()
+                .map(|(_, pm_data)| pm_data);
+
+            paypal_payment_ref.map(|payment_ref| {
+                FeatureData::PaypalReturningCustomer(Box::new(
+                    hyperswitch_domain_models::router_data::PaypalReturningCustomerData {
+                        paypal_vault_customer_id: payment_ref
+                            .connector_mandate_request_reference_id
+                            .clone()
+                            .map(Secret::new),
+                    },
+                ))
+            })
+        }
+        _ => None,
+    }
+}
+
 fn decide_apple_pay_flow(
     state: &SessionState,
     payment_method_type: Option<enums::PaymentMethodType>,
@@ -14192,12 +14281,12 @@ impl PaymentIntentStateMetadataExt {
     pub async fn update_intent_state_metadata_for_refund(
         self,
         state: &SessionState,
-        platform: &domain::Platform,
+        processor: &domain::Processor,
         payment_intent: payments::PaymentIntent,
     ) -> CustomResult<(), errors::ApiErrorResponse> {
         let db = state.store.clone();
-        let key_store = platform.get_processor().get_key_store().clone();
-        let merchant_account = platform.get_processor().get_account().clone();
+        let key_store = processor.get_key_store().clone();
+        let merchant_account = processor.get_account().clone();
         // Update payment_intent for the refund's payment_id
         // Calculate total_refunded_amount based on all succeeded refunds for that payment_id
         let all_refunds_for_payment = db
