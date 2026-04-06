@@ -1420,6 +1420,10 @@ fn get_cards_required_fields() -> HashMap<Connector, RequiredFieldFinal> {
         (Connector::Finix, fields(vec![], vec![], card_basic())),
         (Connector::Fiserv, fields(vec![], card_basic(), vec![])),
         (
+            Connector::Fiservcommercehub,
+            fields(vec![], vec![], card_with_name()),
+        ),
+        (
             Connector::Fiuu,
             fields(
                 vec![

@@ -515,6 +515,7 @@ export const connectorDetails = {
         },
         currency: "USD",
         mandate_data: multiUseMandateData,
+        customer_acceptance: customerAcceptance,
       },
       Response: {
         status: 200,
@@ -907,6 +908,12 @@ export const connectorDetails = {
           status: "requires_customer_action",
         },
       },
+    },
+  },
+  webhook: {
+    TransactionIdConfig: {
+      path: "sourceId",
+      type: "string",
     },
   },
 };

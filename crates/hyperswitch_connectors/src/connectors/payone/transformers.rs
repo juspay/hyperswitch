@@ -16,7 +16,7 @@ use hyperswitch_domain_models::{
     types::{PayoutsResponseData, PayoutsRouterData},
 };
 use hyperswitch_interfaces::errors::ConnectorError;
-use masking::Secret;
+use hyperswitch_masking::Secret;
 use serde::{Deserialize, Serialize};
 
 #[cfg(feature = "payouts")]

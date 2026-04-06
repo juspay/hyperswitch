@@ -47,7 +47,7 @@ use hyperswitch_interfaces::{
     consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE},
     errors,
 };
-use masking::{ExposeInterface, Secret};
+use hyperswitch_masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 use url::Url;
@@ -553,10 +553,11 @@ pub struct PaypalVault {
 }
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct PaypalVaultResponse {
-    id: String,
+    id: Option<String>,
     status: String,
-    customer: CustomerId,
+    customer: Option<CustomerId>,
 }
+
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct CustomerId {
     id: String,
@@ -708,6 +709,8 @@ impl TryFrom<&SetupMandateRouterData> for PaypalZeroMandateRequest {
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
             | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
             | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_)
+            | PaymentMethodData::CardWithOptionalCVC(_)
+            | PaymentMethodData::CardWithNetworkTokenDetails(_)
             | PaymentMethodData::CardWithLimitedDetails(_)
             | PaymentMethodData::NetworkToken(_)
             | PaymentMethodData::OpenBanking(_)
@@ -1270,6 +1273,8 @@ impl TryFrom<&PaypalRouterData<&PaymentsAuthorizeRouterData>> for PaypalPayments
                     | enums::PaymentMethodType::OpenBankingUk
                     | enums::PaymentMethodType::PayBright
                     | enums::PaymentMethodType::Pix
+                    | enums::PaymentMethodType::PixAutomaticoPush
+                    | enums::PaymentMethodType::PixAutomaticoQr
                     | enums::PaymentMethodType::PaySafeCard
                     | enums::PaymentMethodType::Przelewy24
                     | enums::PaymentMethodType::PromptPay
@@ -1334,6 +1339,8 @@ impl TryFrom<&PaypalRouterData<&PaymentsAuthorizeRouterData>> for PaypalPayments
             | PaymentMethodData::CardToken(_)
             | PaymentMethodData::NetworkToken(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+            | PaymentMethodData::CardWithOptionalCVC(_)
+            | PaymentMethodData::CardWithNetworkTokenDetails(_)
             | PaymentMethodData::CardWithLimitedDetails(_)
             | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
             | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
@@ -1417,6 +1424,8 @@ impl TryFrom<&BankTransferData> for PaypalPaymentsRequest {
             | BankTransferData::DanamonVaBankTransfer { .. }
             | BankTransferData::MandiriVaBankTransfer { .. }
             | BankTransferData::Pix { .. }
+            | BankTransferData::PixAutomaticoPush { .. }
+            | BankTransferData::PixAutomaticoQr {}
             | BankTransferData::Pse {}
             | BankTransferData::InstantBankTransfer {}
             | BankTransferData::InstantBankTransferFinland {}
@@ -2360,10 +2369,10 @@ where
                     connector_mandate_id: match item.response.payment_source.clone() {
                         Some(paypal_source) => match paypal_source {
                             PaymentSourceItemResponse::Paypal(paypal_source) => {
-                                paypal_source.attributes.map(|attr| attr.vault.id)
+                                paypal_source.attributes.and_then(|attr| attr.vault.id)
                             }
                             PaymentSourceItemResponse::Card(card) => {
-                                card.attributes.map(|attr| attr.vault.id)
+                                card.attributes.and_then(|attr| attr.vault.id)
                             }
                             PaymentSourceItemResponse::Eps(_)
                             | PaymentSourceItemResponse::Ideal(_) => None,

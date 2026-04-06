@@ -34,10 +34,10 @@ use hyperswitch_domain_models::{
 };
 use hyperswitch_interfaces::api::ConnectorSpecifications;
 #[cfg(feature = "v2")]
-use masking::ExposeOptionInterface;
-use masking::Secret;
+use hyperswitch_masking::ExposeOptionInterface;
+use hyperswitch_masking::Secret;
 #[cfg(feature = "payouts")]
-use masking::{ExposeInterface, PeekInterface};
+use hyperswitch_masking::{ExposeInterface, PeekInterface};
 use maud::{html, PreEscaped};
 use regex::Regex;
 use router_env::{instrument, tracing};
@@ -67,13 +67,13 @@ use crate::{
     utils::{generate_id, OptionExt, ValueExt},
 };
 
-#[cfg(feature = "v1")]
+#[cfg(all(feature = "v1", feature = "pm_modular"))]
 #[derive(Debug, Clone, Default)]
 pub struct FeatureConfig {
     pub is_payment_method_modular_allowed: bool,
 }
 
-#[cfg(feature = "v1")]
+#[cfg(all(feature = "v1", feature = "pm_modular"))]
 pub async fn get_feature_config(
     state: &SessionState,
     platform: &domain::Platform,
@@ -86,6 +86,30 @@ pub async fn get_feature_config(
     FeatureConfig {
         is_payment_method_modular_allowed,
     }
+}
+
+#[cfg(feature = "v1")]
+pub async fn validate_legacy_endpoint_access<E>(
+    state: &SessionState,
+    platform: &domain::Platform,
+) -> error_stack::Result<(), E>
+where
+    E: From<errors::ApiErrorResponse> + error_stack::Context,
+{
+    #[cfg(feature = "pm_modular")]
+    {
+        let feature_config = get_feature_config(state, platform).await;
+        common_utils::fp_utils::when(feature_config.is_payment_method_modular_allowed, || {
+            Err(error_stack::report!(E::from(
+                errors::ApiErrorResponse::AccessForbidden {
+                    resource: "Deprecated route".to_string(),
+                },
+            )))
+        })?;
+    }
+    #[cfg(not(feature = "pm_modular"))]
+    let _ = (state, platform);
+    Ok(())
 }
 
 pub const IRRELEVANT_CONNECTOR_REQUEST_REFERENCE_ID_IN_DISPUTE_FLOW: &str =
@@ -367,7 +391,7 @@ pub async fn construct_refund_router_data<'a, F>(
         attempt_id: payment_attempt.id.get_string_repr().to_string().clone(),
         status,
         payment_method: payment_method_type,
-        payment_method_type: Some(payment_attempt.payment_method_subtype),
+        payment_method_type: payment_attempt.payment_method_subtype,
         connector_auth_type: auth_type,
         description: None,
         // Does refund need shipping/billing address ?
@@ -2858,7 +2882,7 @@ where
         .change_context(StorageError::SerializationFailed)
         .attach_printable("Unable to encode data")?;
 
-    let secret_data = Secret::<_, masking::WithType>::new(encoded_data);
+    let secret_data = Secret::<_, hyperswitch_masking::WithType>::new(encoded_data);
 
     let encrypted_data = domain::types::crypto_operation(
         key_manager_state,

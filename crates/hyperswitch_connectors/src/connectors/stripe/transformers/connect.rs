@@ -3,7 +3,7 @@ use common_utils::{ext_traits::OptionExt as _, pii::Email};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::types::{PayoutsResponseData, PayoutsRouterData};
 use hyperswitch_interfaces::errors;
-use masking::Secret;
+use hyperswitch_masking::Secret;
 use serde::{Deserialize, Serialize};
 
 use super::ErrorDetails;
@@ -440,6 +440,13 @@ impl<F> TryFrom<&PayoutsRouterData<F>> for StripeConnectRecipientAccountCreateRe
                     connector: "stripe",
                 }
                 .into()),
+                api_models::payouts::Bank::Trustly(_) => {
+                    Err(errors::ConnectorError::NotSupported {
+                        message: "Trustly payouts are not supported".to_string(),
+                        connector: "stripe",
+                    }
+                    .into())
+                }
             },
             api_models::payouts::PayoutMethodData::Wallet(_) => {
                 Err(errors::ConnectorError::NotSupported {

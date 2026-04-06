@@ -201,6 +201,7 @@ pub struct ConnectorTokenReferenceRecord {
     pub metadata: Option<pii::SecretSerdeValue>,
     pub connector_token_status: common_enums::ConnectorTokenStatus,
     pub connector_token_request_reference_id: Option<String>,
+    pub connector_customer_id: Option<String>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -468,6 +469,7 @@ impl From<diesel_models::ConnectorTokenReferenceRecord> for ConnectorTokenRefere
             metadata,
             connector_token_status,
             connector_token_request_reference_id,
+            connector_customer_id,
         } = value;
         Self {
             connector_token,
@@ -477,6 +479,7 @@ impl From<diesel_models::ConnectorTokenReferenceRecord> for ConnectorTokenRefere
             metadata,
             connector_token_status,
             connector_token_request_reference_id,
+            connector_customer_id,
         }
     }
 }
@@ -508,6 +511,7 @@ impl From<ConnectorTokenReferenceRecord> for diesel_models::ConnectorTokenRefere
             metadata,
             connector_token_status,
             connector_token_request_reference_id,
+            connector_customer_id,
         } = value;
         Self {
             connector_token,
@@ -517,6 +521,7 @@ impl From<ConnectorTokenReferenceRecord> for diesel_models::ConnectorTokenRefere
             metadata,
             connector_token_status,
             connector_token_request_reference_id,
+            connector_customer_id,
         }
     }
 }

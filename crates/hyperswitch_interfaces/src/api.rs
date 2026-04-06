@@ -43,6 +43,7 @@ use common_utils::{
     request::{Method, Request, RequestContent},
 };
 use error_stack::ResultExt;
+pub use hyperswitch_domain_models::router_request_types::CurrentFlowInfo;
 use hyperswitch_domain_models::{
     connector_endpoints::Connectors,
     errors::api_error_response::ApiErrorResponse,
@@ -81,7 +82,7 @@ use hyperswitch_domain_models::{
         VerifyWebhookSourceResponseData,
     },
 };
-use masking::Maskable;
+use hyperswitch_masking::Maskable;
 use serde_json::json;
 
 #[cfg(feature = "frm")]
@@ -405,42 +406,16 @@ impl ConnectorAccessTokenSuffix for BoxedConnector {
         &self,
         router_data: &dyn AccessTokenData,
         merchant_connector_id_or_connector_name: String,
+        current_flow: Option<CurrentFlowInfo>,
     ) -> CustomResult<String, errors::ConnectorError> {
         // 'self' is the BoxedConnector (the Box)
         // We dereference it to get the 'dyn Connector' and call the method
-        self.as_ref()
-            .get_access_token_key(router_data, merchant_connector_id_or_connector_name)
+        self.as_ref().get_access_token_key(
+            router_data,
+            merchant_connector_id_or_connector_name,
+            current_flow,
+        )
     }
-}
-
-/// Current flow information passed to the connector specifications trait
-///
-/// In order to make some desicion about the preprocessing or alternate flow
-#[derive(Clone, Debug)]
-pub enum CurrentFlowInfo<'a> {
-    /// Authorize flow information
-    Authorize {
-        /// The authentication type being used
-        auth_type: &'a enums::AuthenticationType,
-        /// The payment authorize request data
-        request_data: &'a router_request_types::PaymentsAuthorizeData,
-    },
-    /// CompleteAuthorize flow information
-    CompleteAuthorize {
-        /// The authentication type being used
-        auth_type: &'a enums::AuthenticationType,
-        /// The payment authorize request data
-        request_data: &'a router_request_types::CompleteAuthorizeData,
-        /// The payment method that is used
-        payment_method: Option<PaymentMethod>,
-    },
-    /// SetupMandate flow information
-    SetupMandate {
-        /// The authentication type being used
-        auth_type: &'a enums::AuthenticationType,
-        /// The payment setup mandate request data
-        request_data: &'a router_request_types::SetupMandateRequestData,
-    },
 }
 
 /// Alternate API flow that must be made instead of the current flow.
@@ -475,40 +450,48 @@ pub struct PreProcessingFlowResponse<'a> {
 /// The trait that provides specifications about the connector
 pub trait ConnectorSpecifications {
     /// Check if pre-authentication flow is required
-    fn is_balance_check_flow_required(&self, _current_flow: CurrentFlowInfo<'_>) -> bool {
+    fn is_balance_check_flow_required(&self, _current_flow: CurrentFlowInfo) -> bool {
         false
     }
     /// Check if pre-authentication flow is required
-    fn is_order_create_flow_required(&self, _current_flow: CurrentFlowInfo<'_>) -> bool {
+    fn is_order_create_flow_required(&self, _current_flow: CurrentFlowInfo) -> bool {
         false
     }
     /// Check if pre-authentication flow is required
-    fn is_pre_authentication_flow_required(&self, _current_flow: CurrentFlowInfo<'_>) -> bool {
+    fn is_pre_authentication_flow_required(&self, _current_flow: CurrentFlowInfo) -> bool {
         false
     }
     /// Check if authentication flow is required
-    fn is_authentication_flow_required(&self, _current_flow: CurrentFlowInfo<'_>) -> bool {
+    fn is_authentication_flow_required(&self, _current_flow: CurrentFlowInfo) -> bool {
         false
     }
     /// Check if post-authentication flow is required
-    fn is_post_authentication_flow_required(&self, _current_flow: CurrentFlowInfo<'_>) -> bool {
+    fn is_post_authentication_flow_required(&self, _current_flow: CurrentFlowInfo) -> bool {
         false
     }
-    /// Check if pre-authentication flow is required
-    fn is_settlement_split_call_required(&self, _current_flow: CurrentFlowInfo<'_>) -> bool {
+    /// Check if settlement split flow is required
+    fn is_settlement_split_call_required(&self, _current_flow: CurrentFlowInfo) -> bool {
+        false
+    }
+    /// Check if payment trigger flow is required
+    fn is_push_notification_flow_required(&self, _current_flow: CurrentFlowInfo) -> bool {
+        false
+    }
+    /// Check if generate QR flow is required
+    fn is_generate_qr_flow_required(&self, _current_flow: CurrentFlowInfo) -> bool {
         false
     }
     /// Preprocessing flow name if any, that must be made before the current flow.
     fn get_preprocessing_flow_if_needed(
         &self,
-        _current_flow: CurrentFlowInfo<'_>,
+        _current_flow: CurrentFlowInfo,
     ) -> Option<PreProcessingFlowName> {
         None
     }
     /// If Some is returned, the returned api flow must be made instead of the current flow.
     fn get_alternate_flow_if_needed(
         &self,
-        _current_flow: CurrentFlowInfo<'_>,
+        _current_flow: CurrentFlowInfo,
     ) -> Option<AlternateFlow> {
         None
     }
@@ -596,7 +579,10 @@ pub trait ConnectorSpecifications {
     }
 
     /// Is Authorize session token required before authorize
-    fn is_authorize_session_token_call_required(&self) -> bool {
+    fn is_authorize_session_token_call_required(
+        &self,
+        _current_flow: Option<CurrentFlowInfo>,
+    ) -> bool {
         false
     }
 
@@ -931,6 +917,14 @@ pub trait ConnectorValidation: ConnectorCommon + ConnectorSpecifications {
     fn is_webhook_source_verification_mandatory(&self) -> bool {
         false
     }
+
+    /// Validate if another operation is required
+    fn should_continue_further(
+        &self,
+        _payment_intent: &hyperswitch_domain_models::payments::PaymentIntent,
+    ) -> Option<bool> {
+        Some(false)
+    }
 }
 
 /// trait ConnectorRedirectResponse
@@ -1007,6 +1001,8 @@ pub trait AccessTokenData {
     fn get_payment_method_type(&self) -> Option<PaymentMethodType>;
     /// Get the merchant id from RouterData
     fn get_merchant_id(&self) -> common_utils::id_type::MerchantId;
+    /// Check if the payment is a MIT payment
+    fn is_mit_payment(&self) -> bool;
 }
 
 impl<F, Req, Res> AccessTokenData for RouterData<F, Req, Res> {
@@ -1015,6 +1011,9 @@ impl<F, Req, Res> AccessTokenData for RouterData<F, Req, Res> {
     }
     fn get_merchant_id(&self) -> common_utils::id_type::MerchantId {
         self.merchant_id.clone()
+    }
+    fn is_mit_payment(&self) -> bool {
+        self.recurring_mandate_payment_data.is_some()
     }
 }
 
@@ -1025,6 +1024,7 @@ pub trait ConnectorAccessTokenSuffix {
         &self,
         router_data: &dyn AccessTokenData,
         merchant_connector_id_or_connector_name: String,
+        _current_flow: Option<CurrentFlowInfo>,
     ) -> CustomResult<String, errors::ConnectorError> {
         Ok(common_utils::access_token::get_default_access_token_key(
             &router_data.get_merchant_id(),
