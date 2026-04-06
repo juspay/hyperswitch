@@ -40,9 +40,10 @@ pub fn validate_payment_link_config(config_json: &str) -> Result<String, JsValue
 
 #[cfg(test)]
 mod integration_tests {
+    use serde_json::json;
+
     use super::*;
     use crate::js_generator::convert_custom_message_keys_to_camel;
-    use serde_json::json;
 
     #[test]
     fn test_camel_case_conversion_for_test_mode() {

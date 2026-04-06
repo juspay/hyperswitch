@@ -2,8 +2,7 @@ use api_models::admin::PaymentLinkConfig;
 
 use crate::{
     build_payment_link_html, get_css_script, get_js_script, get_meta_tags_html,
-    types::PaymentLinkPreviewConfig,
-    PaymentLinkFormData,
+    types::PaymentLinkPreviewConfig, PaymentLinkFormData,
 };
 
 const SDK_URL: &str = env!("SDK_URL");
