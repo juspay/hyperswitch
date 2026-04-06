@@ -10,7 +10,7 @@ use router_env::{instrument, tracing};
 use super::{BoxedOperation, Domain, GetTracker, Operation, UpdateTracker, ValidateRequest};
 use crate::{
     core::{
-        configs::dimension_state::DimensionsWithProcessorAndPlatformMerchantIdAndProfileId,
+        configs::dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
         errors::{self, RouterResult, StorageErrorExt},
         payments::{self, helpers, operations, PaymentData},
     },
@@ -210,7 +210,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsPostSessionTokensRequest, Pa
         _request: Option<payments::CustomerDetails>,
         _provider: &domain::Provider,
         _initiator: Option<&domain::Initiator>,
-        _dimensions: DimensionsWithProcessorAndPlatformMerchantIdAndProfileId,
+        _dimensions: DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
     ) -> errors::CustomResult<
         (
             PaymentPostSessionTokensOperation<'a, F>,

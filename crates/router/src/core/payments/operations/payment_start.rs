@@ -11,7 +11,7 @@ use super::{BoxedOperation, Domain, GetTracker, Operation, UpdateTracker, Valida
 use crate::core::utils;
 use crate::{
     core::{
-        configs::dimension_state::DimensionsWithProcessorAndPlatformMerchantIdAndProfileId,
+        configs::dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
         payments::{helpers, operations, CustomerDetails, PaymentAddress, PaymentData},
     },
@@ -325,7 +325,7 @@ where
         _request: Option<CustomerDetails>,
         _provider: &domain::Provider,
         _initiator: Option<&domain::Initiator>,
-        _dimensions: DimensionsWithProcessorAndPlatformMerchantIdAndProfileId,
+        _dimensions: DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
     ) -> CustomResult<
         (PaymentSessionOperation<'a, F>, Option<domain::Customer>),
         errors::StorageError,

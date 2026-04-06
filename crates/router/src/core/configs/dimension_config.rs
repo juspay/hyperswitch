@@ -3,14 +3,14 @@ use scheduler::consumer::types::process_data::RetryMapping;
 
 use super::{
     dimension_state::{
-        DimensionsWithProcessorAndPlatformMerchantId,
-        DimensionsWithProcessorAndPlatformMerchantIdAndProfileId,
+        DimensionsWithProcessorAndProviderMerchantId,
+        DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
     },
     fetch_db_config_for_dimensions, DatabaseBackedConfig,
 };
 use crate::{
     consts::superposition as superposition_consts,
-    core::configs::dimension_state::DimensionsWithProcessorAndPlatformMerchantIdAndConnector,
+    core::configs::dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndConnector,
     db::StorageInterface, utils::id_type,
 };
 
@@ -126,7 +126,7 @@ config! {
     superposition_key = REQUIRES_CVV,
     output = bool,
     default = true,
-    requires = DimensionsWithProcessorAndPlatformMerchantId,
+    requires = DimensionsWithProcessorAndProviderMerchantId,
     targeting_key = id_type::CustomerId
 }
 
@@ -145,7 +145,7 @@ config! {
     superposition_key = IMPLICIT_CUSTOMER_UPDATE,
     output = bool,
     default = false,
-    requires = DimensionsWithProcessorAndPlatformMerchantIdAndProfileId,
+    requires = DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
     targeting_key = id_type::CustomerId
 }
 
@@ -165,7 +165,7 @@ config! {
     output = RetryMapping,
     default = RetryMapping::default(),
     object = true,
-    requires = DimensionsWithProcessorAndPlatformMerchantIdAndConnector,
+    requires = DimensionsWithProcessorAndProviderMerchantIdAndConnector,
     targeting_key = id_type::PayoutId
 }
 
@@ -173,7 +173,7 @@ config! {
     superposition_key = CLIENT_SESSION_VALIDATION_ENABLED,
     output = bool,
     default = true,
-    requires = DimensionsWithProcessorAndPlatformMerchantId,
+    requires = DimensionsWithProcessorAndProviderMerchantId,
     targeting_key = id_type::PaymentId
 }
 

@@ -34,7 +34,7 @@ use crate::{
     consts,
     core::{
         configs::dimension_state::{
-            Dimensions, DimensionsWithProcessorAndPlatformMerchantIdAndProfileId,
+            Dimensions, DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
         },
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
         mandate::helpers as m_helpers,
@@ -665,7 +665,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
 
         // Check if client session validation is enabled
         let dimensions = Dimensions::new()
-            .with_platform_merchant_id(platform.get_provider().get_account().get_id().clone())
+            .with_provider_merchant_id(platform.get_provider().get_account().get_id().clone())
             .with_processor_merchant_id(platform.get_processor().get_account().get_id().clone());
 
         let session_validation_enabled = dimensions
@@ -766,7 +766,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
         request: Option<CustomerDetails>,
         provider: &domain::Provider,
         initiator: Option<&domain::Initiator>,
-        dimensions: DimensionsWithProcessorAndPlatformMerchantIdAndProfileId,
+        dimensions: DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
     ) -> CustomResult<(PaymentCreateOperation<'a, F>, Option<domain::Customer>), errors::StorageError>
     {
         match provider.get_account().merchant_account_type {

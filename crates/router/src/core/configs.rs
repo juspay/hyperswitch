@@ -123,7 +123,7 @@ impl ConfigType for serde_json::Value {
 
 /// Fetch configuration value from Superposition with database fallback using dimension-aware key.
 /// This function accepts any type that implements DimensionsBase (including type aliases).
-/// This allows configs to be used with pre-defined dimension type aliases like DimensionsWithProcessorAndPlatformMerchantId or DimensionsWithProcessorAndPlatformMerchantIdAndProfileId.
+/// This allows configs to be used with pre-defined dimension type aliases like DimensionsWithProcessorAndProviderMerchantId or DimensionsWithProcessorAndProviderMerchantIdAndProfileId.
 pub async fn fetch_db_config_for_dimensions<C>(
     storage: &dyn db::StorageInterface,
     superposition_client: Option<&superposition::SuperpositionClient>,

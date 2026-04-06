@@ -20,7 +20,7 @@ use crate::{
 };
 use crate::{
     core::{
-        configs::dimension_state::DimensionsWithProcessorAndPlatformMerchantIdAndProfileId,
+        configs::dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
         mandate::helpers as m_helpers,
         payment_methods::transformers as pm_transformers,
@@ -418,7 +418,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
         request: Option<CustomerDetails>,
         provider: &domain::Provider,
         _initiator: Option<&domain::Initiator>,
-        _dimensions: DimensionsWithProcessorAndPlatformMerchantIdAndProfileId,
+        _dimensions: DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
     ) -> CustomResult<
         (PaymentRecurrenceOperation<'a, F>, Option<domain::Customer>),
         errors::StorageError,

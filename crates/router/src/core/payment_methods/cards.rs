@@ -78,7 +78,7 @@ use crate::{
     consts as router_consts,
     core::{
         configs,
-        configs::dimension_state::DimensionsWithProcessorAndPlatformMerchantId,
+        configs::dimension_state::DimensionsWithProcessorAndProviderMerchantId,
         errors::{self, StorageErrorExt},
         payment_methods::{
             network_tokenization, transformers as payment_methods, utils as payment_method_utils,
@@ -4474,7 +4474,7 @@ pub async fn do_list_customer_pm_fetch_customer_if_not_passed(
 ) -> errors::RouterResponse<api::CustomerPaymentMethodsListResponse> {
     let dimensions = configs::dimension_state::Dimensions::new()
         .with_processor_merchant_id(platform.get_processor().get_account().get_id().clone())
-        .with_platform_merchant_id(platform.get_provider().get_account().get_id().clone());
+        .with_provider_merchant_id(platform.get_provider().get_account().get_id().clone());
     let limit = req.clone().and_then(|pml_req| pml_req.limit);
 
     let auth_cust = if let Some(key) = ephemeral_api_key {
@@ -4540,7 +4540,7 @@ pub async fn list_customer_payment_method(
     payment_intent: Option<storage::PaymentIntent>,
     customer_id: &id_type::CustomerId,
     limit: Option<i64>,
-    dimensions: DimensionsWithProcessorAndPlatformMerchantId,
+    dimensions: DimensionsWithProcessorAndProviderMerchantId,
 ) -> errors::RouterResponse<api::CustomerPaymentMethodsListResponse> {
     let db = &*state.store;
     let off_session_payment_flag = payment_intent
