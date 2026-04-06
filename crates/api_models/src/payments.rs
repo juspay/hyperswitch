@@ -10562,6 +10562,8 @@ pub struct PaypalSessionTokenResponse {
     pub client_token: Option<String>,
     /// The transaction info Paypal requires
     pub transaction_info: Option<PaypalTransactionInfo>,
+    /// User token required for returning customer flow, used by client to initiate sdk
+    pub data_user_id_token: Option<String>,
 }
 
 #[derive(

@@ -25509,6 +25509,11 @@
               }
             ],
             "nullable": true
+          },
+          "data_user_id_token": {
+            "type": "string",
+            "description": "User token required for returning customer flow, used by client to initiate sdk",
+            "nullable": true
           }
         }
       },
