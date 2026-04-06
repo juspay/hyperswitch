@@ -2164,7 +2164,7 @@ async fn refunds_incoming_webhook_flow(
             )
         })?;
     let state_task = state.clone();
-    let platform_task = platform.clone();
+    let processor_task = platform.get_processor().clone();
     let payment_intent_task = payment_intent.clone();
     tokio::spawn(async move {
         if let Err(err) = PaymentIntentStateMetadataExt::from(
@@ -2173,7 +2173,7 @@ async fn refunds_incoming_webhook_flow(
                 .clone()
                 .unwrap_or_default(),
         )
-        .update_intent_state_metadata_for_refund(&state_task, &platform_task, payment_intent_task)
+        .update_intent_state_metadata_for_refund(&state_task, &processor_task, payment_intent_task)
         .await
         {
             tracing::error!(?err, "Failed to update intent state metadata for refund");
