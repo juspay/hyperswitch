@@ -6180,18 +6180,6 @@ required=true
 type="Text"
 
 [[santander.metadata.pix_automatico_push]]
-name="client_id"
-label="Client ID"
-placeholder="Enter your Client Id"
-required=true
-type="Text"
-[[santander.metadata.pix_automatico_push]]
-name="client_secret"
-label="Client Secret"
-placeholder="Enter your Client Secret"
-required=true
-type="Text"
-[[santander.metadata.pix_automatico_push]]
 name="pix_key_type"
 label="Chave Key Type"
 placeholder="Enter your Chave/Pix Key Type"
@@ -6202,22 +6190,22 @@ options=["CPF", "CNPJ", "EMAIL", "CELLULAR", "EVP"]
 name="pix_key_value"
 label="Chave Key"
 placeholder="Enter your Chave/Pix Key"
+required=true
+type="Text"
+[[santander.metadata.pix_automatico_push]]
+name="client_id"
+label="Client ID"
+placeholder="Enter your Client Id"
+required=true
+type="Text"
+[[santander.metadata.pix_automatico_push]]
+name="client_secret"
+label="Client Secret"
+placeholder="Enter your Client Secret"
 required=true
 type="Text"
 
 [[santander.metadata.pix_automatico_qr]]
-name="client_id"
-label="Client ID"
-placeholder="Enter your Client Id"
-required=true
-type="Text"
-[[santander.metadata.pix_automatico_qr]]
-name="client_secret"
-label="Client Secret"
-placeholder="Enter your Client Secret"
-required=true
-type="Text"
-[[santander.metadata.pix_automatico_qr]]
 name="pix_key_type"
 label="Chave Key Type"
 placeholder="Enter your Chave/Pix Key Type"
@@ -6228,6 +6216,18 @@ options=["CPF", "CNPJ", "EMAIL", "CELLULAR", "EVP"]
 name="pix_key_value"
 label="Chave Key"
 placeholder="Enter your Chave/Pix Key"
+required=true
+type="Text"
+[[santander.metadata.pix_automatico_qr]]
+name="client_id"
+label="Client ID"
+placeholder="Enter your Client Id"
+required=true
+type="Text"
+[[santander.metadata.pix_automatico_qr]]
+name="client_secret"
+label="Client Secret"
+placeholder="Enter your Client Secret"
 required=true
 type="Text"
 
