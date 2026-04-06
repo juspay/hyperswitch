@@ -202,13 +202,6 @@ pub enum GetMetaDataResponse {
 
 // === Saved Views API Types ===
 
-#[derive(Debug, Clone, serde::Deserialize, serde::Serialize, EnumString)]
-#[serde(rename_all = "snake_case")]
-#[strum(serialize_all = "snake_case")]
-pub enum SavedViewEntity {
-    PaymentViews,
-}
-
 #[cfg(feature = "v1")]
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
 #[serde(tag = "entity", content = "filters")]
@@ -280,6 +273,5 @@ pub struct UpdateSavedViewRequest {
 /// DELETE /user/views
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct DeleteSavedViewRequest {
-    pub entity: SavedViewEntity,
     pub view_name: String,
 }

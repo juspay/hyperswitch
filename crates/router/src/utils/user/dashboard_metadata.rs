@@ -1,6 +1,10 @@
 use std::{net::IpAddr, ops::Not, str::FromStr};
 
 use actix_web::http::header::HeaderMap;
+use api_models::user::dashboard_metadata::{
+    DeleteSavedViewRequest, GetMetaDataRequest, GetMultipleMetaDataPayload, ProdIntent,
+    SetMetaDataRequest,
+};
 #[cfg(feature = "v1")]
 use api_models::{
     payments,
@@ -8,10 +12,6 @@ use api_models::{
         CreateSavedViewRequest, PaymentListFilterConstraintsV1, SavedViewFilters,
         SavedViewFiltersV1, SavedViewOperation, UpdateSavedViewRequest,
     },
-};
-use api_models::user::dashboard_metadata::{
-    DeleteSavedViewRequest, GetMetaDataRequest, GetMultipleMetaDataPayload, ProdIntent,
-    SetMetaDataRequest,
 };
 use common_enums::EntityType;
 use common_utils::{errors::ValidationError, id_type};
