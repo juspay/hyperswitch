@@ -2952,6 +2952,9 @@ fn get_val(str: String, val: &serde_json::Value) -> Option<String> {
 pub async fn list_payment_methods(
     state: routes::SessionState,
     platform: domain::Platform,
+    // Profile resolved during JWT authentication. Used as a fallback to determine
+    // the business profile when no client_secret is provided and payment_intent is unavailable.
+    auth_profile: Option<Profile>,
     mut req: api::PaymentMethodListRequest,
 ) -> errors::RouterResponse<api::PaymentMethodListResponse> {
     let db = &*state.store;
@@ -3071,24 +3074,34 @@ pub async fn list_payment_methods(
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
 
-    let profile_id = payment_intent
-        .as_ref()
-        .and_then(|payment_intent| payment_intent.profile_id.as_ref())
-        .get_required_value("profile_id")
-        .change_context(errors::ApiErrorResponse::GenericNotFoundError {
-            message: "Profile id not found".to_string(),
-        })?;
-    let business_profile = db
-        .find_business_profile_by_profile_id(platform.get_processor().get_key_store(), profile_id)
-        .await
-        .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {
-            id: profile_id.get_string_repr().to_owned(),
-        })?;
+    let (profile_id, business_profile) =
+        match payment_intent.as_ref().and_then(|pi| pi.profile_id.clone()) {
+            Some(profile_id) => {
+                let business_profile = db
+                    .find_business_profile_by_profile_id(
+                        platform.get_processor().get_key_store(),
+                        &profile_id,
+                    )
+                    .await
+                    .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {
+                        id: profile_id.get_string_repr().to_owned(),
+                    })?;
+                (profile_id, business_profile)
+            }
+            None => {
+                let profile =
+                    auth_profile.ok_or(errors::ApiErrorResponse::GenericNotFoundError {
+                        message: "Profile id not found".to_string(),
+                    })?;
+                let profile_id = profile.get_id().clone();
+                (profile_id, profile)
+            }
+        };
 
     // filter out payment connectors based on profile_id
     let filtered_mcas = all_mcas
         .clone()
-        .filter_based_on_profile_and_connector_type(profile_id, ConnectorType::PaymentProcessor);
+        .filter_based_on_profile_and_connector_type(&profile_id, ConnectorType::PaymentProcessor);
 
     logger::debug!(mca_before_filtering=?filtered_mcas);
 
