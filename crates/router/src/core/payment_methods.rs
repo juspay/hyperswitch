@@ -1182,6 +1182,7 @@ pub async fn create_persistent_payment_method_core(
             .await
         }
         api::PaymentMethodCreateData::Wallet(wallet_data) => {
+            let wallet_data = wallet_data.clone();
             create_payment_method_wallet_core(
                 state,
                 req,
@@ -1191,7 +1192,7 @@ pub async fn create_persistent_payment_method_core(
                 &customer_id,
                 payment_method_id,
                 payment_method_billing_address,
-                wallet_data,
+                &wallet_data,
             )
             .await
         }
@@ -1887,14 +1888,14 @@ pub async fn create_payment_method_wallet_core(
     payment_method_billing_address: Option<
         Encryptable<hyperswitch_domain_models::address::Address>,
     >,
-    wallet_data: &api_models::payment_methods::WalletAdditionalDataForCard,
+    wallet_data: &api_models::payment_methods::PaymentMethodDataWalletInfo,
 ) -> RouterResult<(api::PaymentMethodResponse, domain::PaymentMethod)> {
     use crate::core::payment_methods::cards;
 
     let key_manager_state = &(state).into();
 
     let additional_payment_method_data =
-        domain::PaymentMethodsData::WalletDetails(wallet_data.clone().into());
+        domain::PaymentMethodsData::WalletDetails(wallet_data.clone());
 
     let encrypted_payment_method_data = Some(additional_payment_method_data)
         .async_map(|payment_method_data| {
@@ -2395,7 +2396,7 @@ impl PaymentMethodExt for payment_methods::PaymentMethodCreateData {
                 },
             )),
             Self::Wallet(wallet_data) => Ok(payment_methods::PaymentMethodsData::WalletDetails(
-                (*wallet_data).into(),
+                *wallet_data,
             )),
         }
     }

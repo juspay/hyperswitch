@@ -63,7 +63,7 @@ pub struct CardDetail {
 #[serde(rename_all = "snake_case")]
 pub enum PaymentMethodCreateData {
     Card(CardDetail),
-    Wallet(Box<payments::additional_info::WalletAdditionalDataForCard>),
+    Wallet(Box<api_models::payment_methods::PaymentMethodDataWalletInfo>),
 }
 
 #[derive(Clone, Debug, Deserialize)]
@@ -147,8 +147,17 @@ impl TryFrom<PaymentMethodData> for PaymentMethodCreateData {
                 let wallet_additional_data = match wallet_data {
                     hyperswitch_domain_models::payment_method_data::WalletData::ApplePay(
                         apple_pay,
-                    ) => payments::additional_info::WalletAdditionalDataForCard {
-                        last4: apple_pay.payment_method.display_name.clone(),
+                    ) => api_models::payment_methods::PaymentMethodDataWalletInfo {
+                        last4: apple_pay
+                            .payment_method
+                            .display_name
+                            .chars()
+                            .rev()
+                            .take(4)
+                            .collect::<Vec<_>>()
+                            .into_iter()
+                            .rev()
+                            .collect(),
                         card_network: apple_pay.payment_method.network.clone(),
                         card_type: Some(apple_pay.payment_method.pm_type.clone()),
                         card_exp_month: None,
@@ -157,7 +166,7 @@ impl TryFrom<PaymentMethodData> for PaymentMethodCreateData {
                     },
                     hyperswitch_domain_models::payment_method_data::WalletData::GooglePay(
                         google_pay,
-                    ) => payments::additional_info::WalletAdditionalDataForCard {
+                    ) => api_models::payment_methods::PaymentMethodDataWalletInfo {
                         last4: google_pay.info.card_details.clone(),
                         card_network: google_pay.info.card_network.clone(),
                         card_type: Some(google_pay.pm_type.clone()),

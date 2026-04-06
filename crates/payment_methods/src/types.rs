@@ -43,7 +43,7 @@ pub struct PaymentMethodResponseItem {
 #[serde(rename_all = "snake_case")]
 pub enum PaymentMethodResponseData {
     Card(CardDetailFromLocker),
-    Wallet(Box<payments::additional_info::WalletAdditionalDataForCard>),
+    Wallet(Box<api_models::payment_methods::PaymentMethodDataWalletInfo>),
 }
 
 /// V2 modular service request payload.

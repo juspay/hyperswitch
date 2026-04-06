@@ -579,7 +579,7 @@ pub enum PaymentMethodUpdateData {
 pub enum PaymentMethodCreateData {
     Card(CardDetail),
     ProxyCard(ProxyCardDetails),
-    Wallet(Box<crate::payments::additional_info::WalletAdditionalDataForCard>),
+    Wallet(Box<PaymentMethodDataWalletInfo>),
 }
 
 #[cfg(feature = "v2")]

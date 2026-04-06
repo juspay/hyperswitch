@@ -62,7 +62,6 @@ pub struct ModularPMUpdateRequest {
 #[serde(rename = "payment_method_data")]
 pub enum PaymentMethodUpdateData {
     Card(CardDetailUpdate),
-    Wallet(Box<payments::additional_info::WalletAdditionalDataForCard>),
 }
 
 /// Card update payload for the modular service.
