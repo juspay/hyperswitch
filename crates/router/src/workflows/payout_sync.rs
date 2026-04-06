@@ -98,8 +98,13 @@ impl ProcessTrackerWorkflow<SessionState> for PayoutSyncWorkFlow {
         .change_context(core_errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to get the connector data")?;
 
-        payouts::create_payout_retrieve(state, &platform, &connector_data, &mut payout_data)
-            .await?;
+        Box::pin(payouts::create_payout_retrieve(
+            state,
+            &platform,
+            &connector_data,
+            &mut payout_data,
+        ))
+        .await?;
 
         let dimensions = configs::dimension_state::Dimensions::new()
             .with_platform_merchant_id(platform.get_provider().get_account().get_id().clone())

@@ -168,3 +168,18 @@ config! {
     requires = DimensionsWithProcessorAndPlatformMerchantIdAndConnector,
     targeting_key = id_type::PayoutId
 }
+
+config! {
+    superposition_key = CLIENT_SESSION_VALIDATION_ENABLED,
+    output = bool,
+    default = true,
+    requires = DimensionsWithMerchantId,
+    targeting_key = id_type::PaymentId
+}
+
+impl DatabaseBackedConfig for ClientSessionValidationEnabled {
+    const KEY: &'static str = "client_session_validation_enabled";
+    fn db_key(_dimensions: &impl super::dimension_state::DimensionsBase) -> Option<String> {
+        None
+    }
+}

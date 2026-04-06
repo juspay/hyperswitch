@@ -62,6 +62,44 @@ pub struct TruelayerMetadata {
     kid: Option<Secret<String>>,
 }
 
+#[derive(Debug, Clone, serde::Deserialize)]
+pub struct PaysafeMetadata {
+    pub account_id: PaysafePaymentMethodDetails,
+}
+
+/// Paysafe payment method details for account_id configuration.
+/// Contains card and ACH account IDs grouped by currency.
+/// This struct is compatible with the UCS Paysafe connector expectations.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct PaysafePaymentMethodDetails {
+    // UCS proto map fields — must always be present in serialized JSON (not Option)
+    /// Card account IDs by currency
+    #[serde(default)]
+    pub card: HashMap<Currency, PaysafeCardAccountId>,
+    /// ACH account IDs by currency
+    #[serde(default)]
+    pub ach: HashMap<Currency, PaysafeAchAccountId>,
+}
+
+/// Paysafe card account ID configuration for a specific currency
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct PaysafeCardAccountId {
+    /// Non-3DS account ID
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub no_three_ds: Option<Secret<String>>,
+    /// 3DS account ID
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub three_ds: Option<Secret<String>>,
+}
+
+/// Paysafe ACH account ID configuration for a specific currency
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct PaysafeAchAccountId {
+    /// ACH account ID
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub account_id: Option<Secret<String>>,
+}
+
 /// Connector-specific configuration enum for all supported connectors
 #[derive(Debug, Clone, serde::Serialize)]
 pub enum ConnectorSpecificConfig {
@@ -146,7 +184,8 @@ pub enum ConnectorSpecificConfig {
     Paysafe {
         username: Secret<String>,
         password: Secret<String>,
-        account_id: Option<String>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        account_id: Option<PaysafePaymentMethodDetails>,
     },
     /// Trustpay connector configuration
     Trustpay {
@@ -531,10 +570,15 @@ impl ForeignTryFrom<(Connector, &ConnectorAuthType, Option<&serde_json::Value>)>
                     api_secret,
                 } => {
                     let metadata_parsed = metadata
-                        .map(|m| serde_json::from_value::<BraintreeMetadata>(m.clone()))
-                        .transpose()
-                        .change_context(errors::ApiErrorResponse::InternalServerError)
-                        .attach_printable("Failed to parse Braintree metadata")?
+                        .map(|m| {
+                            serde_json::from_value::<BraintreeMetadata>(m.clone()).map_err(|_| {
+                                error_stack::report!(errors::ApiErrorResponse::InternalServerError)
+                                    .attach_printable(
+                                        "Failed to parse Braintree metadata",
+                                    )
+                            })
+                        })
+                        .transpose()?
                         .ok_or_else(|| err("Braintree requires metadata with merchant_account_id and merchant_config_currency"))?;
 
                     Ok(Self::Braintree {
@@ -735,11 +779,16 @@ impl ForeignTryFrom<(Connector, &ConnectorAuthType, Option<&serde_json::Value>)>
                 _ => Err(err("Loonio requires BodyKey auth type")),
             },
             Connector::Paysafe => match auth {
-                ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Paysafe {
-                    username: api_key.clone(),
-                    password: key1.clone(),
-                    account_id: None,
-                }),
+                ConnectorAuthType::BodyKey { api_key, key1 } => {
+                    let account_id = metadata
+                        .and_then(|m| serde_json::from_value::<PaysafeMetadata>(m.clone()).ok())
+                        .map(|m| m.account_id);
+                    Ok(Self::Paysafe {
+                        username: api_key.clone(),
+                        password: key1.clone(),
+                        account_id,
+                    })
+                }
                 _ => Err(err("Paysafe requires BodyKey auth type")),
             },
             Connector::Payu => match auth {
