@@ -55,3 +55,9 @@ change_reason = "Initial setup"
 start_after = 60
 frequencies = [[300, 5]]
 
+[default-configs.client_session_validation_enabled]
+value = true
+schema = { type = "boolean" }
+description = "Whether client session validation is enabled for payments"
+change_reason = "Initial setup"
+

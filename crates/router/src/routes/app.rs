@@ -224,7 +224,7 @@ pub trait SessionStateInfo {
     fn get_detached_auth(&self) -> RouterResult<(Blake3, &[u8])>;
     fn session_state(&self) -> SessionState;
     fn global_store(&self) -> Box<dyn GlobalStorageInterface>;
-    fn superposition_service(&self) -> Option<Arc<SuperpositionClient>>;
+    fn superposition_service(&self) -> Arc<SuperpositionClient>;
 }
 
 impl SessionStateInfo for SessionState {
@@ -284,7 +284,7 @@ impl SessionStateInfo for SessionState {
     fn global_store(&self) -> Box<dyn GlobalStorageInterface> {
         self.global_store.to_owned()
     }
-    fn superposition_service(&self) -> Option<Arc<SuperpositionClient>> {
+    fn superposition_service(&self) -> Arc<SuperpositionClient> {
         self.superposition_service.clone()
     }
 }
