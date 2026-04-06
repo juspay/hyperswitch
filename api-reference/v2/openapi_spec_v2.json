@@ -29570,6 +29570,7 @@
         "type": "string",
         "enum": [
           "amount",
+          "attempt_count",
           "created",
           "modified"
         ]

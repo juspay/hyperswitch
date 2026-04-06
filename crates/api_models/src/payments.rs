@@ -9120,6 +9120,8 @@ pub struct Order {
 pub enum SortOn {
     /// Sort by the amount field
     Amount,
+    /// Sort by the attempt_count field
+    AttemptCount,
     /// Sort by the created_at field
     #[default]
     Created,
