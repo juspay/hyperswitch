@@ -16,7 +16,7 @@ use crate::{
     core::{
         payments::gateway::context::RouterGatewayContext,
         unified_connector_service::{
-            self, handle_unified_connector_service_response_for_create_order,
+            self, handle_unified_connector_service_response_for_payment_create_order,
         },
     },
     routes::SessionState,
@@ -128,7 +128,7 @@ where
                 let create_order_response = response.into_inner();
 
                 let (router_data_response, status_code) =
-                    handle_unified_connector_service_response_for_create_order(
+                    handle_unified_connector_service_response_for_payment_create_order(
                         create_order_response.clone(),
                         router_data.status,
                     )
