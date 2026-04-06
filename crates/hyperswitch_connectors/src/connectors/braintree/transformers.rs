@@ -1981,6 +1981,7 @@ impl
                                 client_token: Some(
                                     res.data.create_client_token.client_token.clone().expose(),
                                 ),
+                                data_user_id_token: None,
                                 transaction_info: Some(
                                     api_models::payments::PaypalTransactionInfo {
                                         flow: PaypalFlow::Checkout.into(),

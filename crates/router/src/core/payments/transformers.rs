@@ -222,6 +222,7 @@ where
         minor_amount_capturable: None,
         authorized_amount: None,
         customer_document_details: None,
+        feature_data: None,
     };
     Ok(router_data)
 }
@@ -582,6 +583,7 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
         minor_amount_capturable: None,
         authorized_amount: None,
         customer_document_details: None,
+        feature_data: None,
     };
 
     Ok(router_data)
@@ -929,6 +931,7 @@ pub async fn construct_payment_router_data_for_capture<'a>(
         minor_amount_capturable: None,
         authorized_amount: None,
         customer_document_details: None,
+        feature_data: None,
     };
 
     Ok(router_data)
@@ -1065,6 +1068,7 @@ pub async fn construct_router_data_for_psync<'a>(
         minor_amount_capturable: None,
         authorized_amount: None,
         customer_document_details: None,
+        feature_data: None,
     };
 
     Ok(router_data)
@@ -1436,6 +1440,7 @@ pub async fn construct_payment_router_data_for_sdk_session<'a>(
         minor_amount_capturable: None,
         authorized_amount: None,
         customer_document_details: None,
+        feature_data: None,
     };
 
     Ok(router_data)
@@ -1666,6 +1671,7 @@ pub async fn construct_payment_router_data_for_setup_mandate<'a>(
         minor_amount_capturable: None,
         authorized_amount: None,
         customer_document_details: None,
+        feature_data: None,
     };
 
     Ok(router_data)
@@ -1896,10 +1902,20 @@ where
         .get_customer_document_details()
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to extract customer document details from payment_intent")?;
-
+    let merchant_id = processor.get_account().get_id().clone();
+    let feature_data = payments::get_feature_data(
+        customer_id.clone(),
+        payment_method_type,
+        merchant_connector_account,
+        state,
+        &merchant_id,
+        processor.get_key_store(),
+        processor.get_account().storage_scheme,
+    )
+    .await;
     let router_data = types::RouterData {
         flow: PhantomData,
-        merchant_id: processor.get_account().get_id().clone(),
+        merchant_id,
         customer_id,
         tenant_id: state.tenant.tenant_id.clone(),
         connector: connector_id.to_owned(),
@@ -1986,6 +2002,7 @@ where
         minor_amount_capturable: None,
         authorized_amount: None,
         customer_document_details,
+        feature_data,
     };
 
     Ok(router_data)
@@ -2206,6 +2223,7 @@ pub async fn construct_payment_router_data_for_update_metadata<'a>(
             .get_customer_document_details()
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to extract customer document details from payment_intent")?,
+        feature_data: None,
     };
 
     Ok(router_data)
