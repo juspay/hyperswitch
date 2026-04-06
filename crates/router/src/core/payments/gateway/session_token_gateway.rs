@@ -15,7 +15,7 @@ use unified_connector_service_client::payments as payments_grpc;
 use crate::{
     core::{
         payments::gateway::context::RouterGatewayContext, unified_connector_service,
-        unified_connector_service::handle_unified_connector_service_response_for_session_token_create,
+        unified_connector_service::handle_unified_connector_service_response_for_create_session_token,
     },
     routes::SessionState,
     services::logger,
@@ -79,8 +79,8 @@ where
             .ok_or(ConnectorError::RequestEncodingFailed)
             .attach_printable("Failed to fetch Unified Connector Service client")?;
 
-        let authorize_session_token_request =
-            payments_grpc::PaymentServiceCreateSessionTokenRequest::foreign_try_from(router_data)
+        let create_session_token_request =
+            payments_grpc::MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenRequest::foreign_try_from(router_data)
                 .change_context(ConnectorError::RequestEncodingFailed)
                 .attach_printable("Failed to construct Payment Session Create Request")?;
 
@@ -116,23 +116,23 @@ where
         Box::pin(unified_connector_service::ucs_logging_wrapper_granular(
             router_data.clone(),
             state,
-            authorize_session_token_request,
+            create_session_token_request,
             header_payload,
             unified_connector_service_execution_mode,
-            |mut router_data, authorize_session_token_request, grpc_headers| async move {
+            |mut router_data, create_session_token_request, grpc_headers| async move {
                 let response = client
-                    .payment_session_token_create(
-                        authorize_session_token_request,
+                    .create_session_token(
+                        create_session_token_request,
                         connector_auth_metadata,
                         grpc_headers,
                     )
                     .await
-                    .attach_printable("Failed to get payment")?;
+                    .attach_printable("Failed to create session token")?;
 
                 let payment_session_token_response = response.into_inner();
 
                 let (router_data_response, status_code) =
-                    handle_unified_connector_service_response_for_session_token_create(
+                    handle_unified_connector_service_response_for_create_session_token(
                         payment_session_token_response.clone(),
                     )
                     .attach_printable("Failed to deserialize UCS response")?;

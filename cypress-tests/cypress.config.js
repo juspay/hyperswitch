@@ -1,3 +1,4 @@
+import crypto from "node:crypto";
 import { defineConfig } from "cypress";
 import mochawesome from "cypress-mochawesome-reporter/plugin.js";
 import fs from "fs";
@@ -31,6 +32,10 @@ export default defineConfig({
           // eslint-disable-next-line no-console
           console.log(message);
           return null;
+        },
+        hmac_sha256: ({ secret, message }) => {
+          const key = Buffer.from(secret, "hex");
+          return crypto.createHmac("sha256", key).update(message).digest("hex");
         },
       });
       on("after:spec", (spec, results) => {
