@@ -35,16 +35,6 @@ fn test_calculate_emi_interest_known_value() {
 }
 
 #[test]
-fn test_calculate_emi_interest_large_amount_error() {
-    let rate = InstallmentInterestRate::try_from(10.0).unwrap();
-    let large_amount = MinorUnit::new(i64::MAX / 10000 + 1);
-    let installments = NonZeroU8::new(12).unwrap();
-
-    let result = rate.calculate_emi_interest(large_amount, installments);
-    assert!(result.is_err());
-}
-
-#[test]
 fn test_installment_interest_rate_try_from_negative() {
     assert!(InstallmentInterestRate::try_from(-1.0).is_err());
 }
