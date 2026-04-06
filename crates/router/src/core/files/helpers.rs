@@ -91,10 +91,7 @@ pub async fn delete_file_using_file_id(
 ) -> CustomResult<(), errors::ApiErrorResponse> {
     let file_metadata_object = state
         .store
-        .find_file_metadata_by_merchant_id_file_id(
-            processor.get_account().get_id(),
-            &file_key,
-        )
+        .find_file_metadata_by_merchant_id_file_id(processor.get_account().get_id(), &file_key)
         .await
         .change_context(errors::ApiErrorResponse::FileNotFound)?;
     let (provider, provider_file_id) = match (
@@ -143,10 +140,7 @@ pub async fn retrieve_file_from_connector(
         Some(dispute) => Some(
             state
                 .store
-                .find_dispute_by_merchant_id_dispute_id(
-                    processor.get_account().get_id(),
-                    &dispute,
-                )
+                .find_dispute_by_merchant_id_dispute_id(processor.get_account().get_id(), &dispute)
                 .await
                 .to_not_found_response(errors::ApiErrorResponse::DisputeNotFound {
                     dispute_id: dispute,

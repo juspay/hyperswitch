@@ -20,10 +20,7 @@ pub async fn files_create_core(
     let file_id = common_utils::generate_id(consts::ID_LENGTH, "file");
     let file_key = format!(
         "{}/{}",
-        processor
-            .get_account()
-            .get_id()
-            .get_string_repr(),
+        processor.get_account().get_id().get_string_repr(),
         file_id
     );
     let file_new: diesel_models::FileMetadataNew = diesel_models::file::FileMetadataNew {
@@ -87,10 +84,7 @@ pub async fn files_delete_core(
     state
         .store
         .as_ref()
-        .delete_file_metadata_by_merchant_id_file_id(
-            processor.get_account().get_id(),
-            &req.file_id,
-        )
+        .delete_file_metadata_by_merchant_id_file_id(processor.get_account().get_id(), &req.file_id)
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Unable to delete file_metadata")?;
@@ -105,10 +99,7 @@ pub async fn files_retrieve_core(
     let file_metadata_object = state
         .store
         .as_ref()
-        .find_file_metadata_by_merchant_id_file_id(
-            processor.get_account().get_id(),
-            &req.file_id,
-        )
+        .find_file_metadata_by_merchant_id_file_id(processor.get_account().get_id(), &req.file_id)
         .await
         .change_context(errors::ApiErrorResponse::FileNotFound)
         .attach_printable("Unable to retrieve file_metadata")?;
