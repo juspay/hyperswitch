@@ -495,6 +495,12 @@ pub enum ConnectorSpecificConfig {
         password: Secret<String>,
         merchant_id: Secret<String>,
     },
+    /// Trustly connector configuration
+    Trustly {
+        username: Secret<String>,
+        password: Secret<String>,
+        private_key: Secret<String>,
+    },
 }
 
 impl ForeignTryFrom<(Connector, &ConnectorAuthType, Option<&serde_json::Value>)>
@@ -1331,6 +1337,19 @@ impl ForeignTryFrom<(Connector, &ConnectorAuthType, Option<&serde_json::Value>)>
                 }),
                 _ => Err(err("Payme requires BodyKey or SignatureKey auth type")),
             },
+            Connector::Trustly => match auth {
+                ConnectorAuthType::SignatureKey {
+                    api_key,
+                    key1,
+                    api_secret,
+                } => Ok(Self::Trustly {
+                    username: api_key.clone(),
+                    password: key1.clone(),
+                    private_key: api_secret.clone(),
+                }),
+                _ => Err(err("Trustly requires SignatureKey auth type")),
+            },
+
             // --- Unsupported connectors ---
             _ => Err(
                 error_stack::report!(errors::ApiErrorResponse::InternalServerError)

@@ -123,8 +123,19 @@ pub struct RouterData<Flow, Request, Response> {
 
     // Document details of the customer consisting of document number and type
     pub customer_document_details: Option<CustomerDocumentDetails>,
+    // feature related data
+    pub feature_data: Option<FeatureData>,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum FeatureData {
+    PaypalReturningCustomer(Box<PaypalReturningCustomerData>),
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PaypalReturningCustomerData {
+    pub paypal_vault_customer_id: Option<Secret<String>>,
+}
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct L2L3Data {
     pub order_info: Option<OrderInfo>,
