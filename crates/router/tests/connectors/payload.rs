@@ -497,13 +497,11 @@ async fn should_fail_post_capture_void_for_voided_payment() {
         .post_capture_void_payment(txn_id, None, get_default_payment_info())
         .await
         .expect("PostCaptureVoid response");
-    // Already voided payment should either fail or return voided status
     match response.response {
         Ok(types::PaymentsResponseData::PostCaptureVoidResponse {
             post_capture_void_status,
             ..
         }) => {
-            // Payload API returns Voided status even for already voided transactions
             assert_eq!(
                 post_capture_void_status,
                 common_enums::PostCaptureVoidStatus::Succeeded
