@@ -182,7 +182,7 @@ where
                     (None, None)
                 };
 
-                // #3 - Fill payment method data for cards and wallets
+                // #3 - Fill payment method data for cards
                 let payment_method_data =
                     request_payment_method_data.and_then(|method_data| match method_data {
                         domain::PaymentMethodData::CardToken(card) => {
@@ -191,32 +191,6 @@ where
                                 nick_name: card.card_holder_name.clone(),
                                 card_cvc: None,
                             }))
-                        }
-                        domain::PaymentMethodData::Wallet(wallet_data) => {
-                            let wallet_additional_data = match wallet_data {
-                                domain::WalletData::ApplePay(apple_pay) => {
-                                    api_models::payments::additional_info::WalletAdditionalDataForCard {
-                                        last4: apple_pay.payment_method.display_name.clone(),
-                                        card_network: apple_pay.payment_method.network.clone(),
-                                        card_type: Some(apple_pay.payment_method.pm_type.clone()),
-                                        card_exp_month: None,
-                                        card_exp_year: None,
-                                        auth_code: None,
-                                    }
-                                }
-                                domain::WalletData::GooglePay(google_pay) => {
-                                    api_models::payments::additional_info::WalletAdditionalDataForCard {
-                                        last4: google_pay.info.card_details.clone(),
-                                        card_network: google_pay.info.card_network.clone(),
-                                        card_type: Some(google_pay.pm_type.clone()),
-                                        card_exp_month: None,
-                                        card_exp_year: None,
-                                        auth_code: None,
-                                    }
-                                }
-                                _ => return None,
-                            };
-                            Some(PaymentMethodUpdateData::Wallet(Box::new(wallet_additional_data)))
                         }
                         _ => None,
                     });

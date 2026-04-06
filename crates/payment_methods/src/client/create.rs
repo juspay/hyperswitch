@@ -143,6 +143,39 @@ impl TryFrom<PaymentMethodData> for PaymentMethodCreateData {
                 };
                 Ok(Self::Card(card_detail))
             }
+            PaymentMethodData::Wallet(wallet_data) => {
+                let wallet_additional_data = match wallet_data {
+                    hyperswitch_domain_models::payment_method_data::WalletData::ApplePay(
+                        apple_pay,
+                    ) => payments::additional_info::WalletAdditionalDataForCard {
+                        last4: apple_pay.payment_method.display_name.clone(),
+                        card_network: apple_pay.payment_method.network.clone(),
+                        card_type: Some(apple_pay.payment_method.pm_type.clone()),
+                        card_exp_month: None,
+                        card_exp_year: None,
+                        auth_code: None,
+                    },
+                    hyperswitch_domain_models::payment_method_data::WalletData::GooglePay(
+                        google_pay,
+                    ) => payments::additional_info::WalletAdditionalDataForCard {
+                        last4: google_pay.info.card_details.clone(),
+                        card_network: google_pay.info.card_network.clone(),
+                        card_type: Some(google_pay.pm_type.clone()),
+                        card_exp_month: None,
+                        card_exp_year: None,
+                        auth_code: None,
+                    },
+                    _ => {
+                        return Err(MicroserviceClientError {
+                            operation: "PaymentMethodCreateData::try_from".to_string(),
+                            kind: MicroserviceClientErrorKind::InvalidRequest(
+                                "Unsupported wallet type for modular PM creation".to_string(),
+                            ),
+                        })
+                    }
+                };
+                Ok(Self::Wallet(Box::new(wallet_additional_data)))
+            }
             _ => Err(MicroserviceClientError {
                 operation: "CreatePaymentMethodV1Request to ModularPMCreateRequest".to_string(),
                 kind: MicroserviceClientErrorKind::InvalidRequest(

@@ -1200,7 +1200,6 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                                     logger::info!(
                                         "Payment method created in PM Modular service successfully"
                                     );
-                                    //set payment_data.payment_method_info
                                     payment_data.set_payment_method_id_in_attempt(Some(
                                         pm_info.get_id().clone(),
                                     ));
@@ -1212,6 +1211,65 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                                         err
                                     );
                                 }
+                            }
+                        }
+                        Some(api_models::payments::PaymentMethodData::Wallet(_)) => {
+                            if req.setup_future_usage == Some(common_enums::FutureUsage::OffSession)
+                            {
+                                let payment_method = req.payment_method.ok_or(
+                                    errors::ApiErrorResponse::MissingRequiredField {
+                                        field_name: "payment_method",
+                                    },
+                                )?;
+
+                                let payment_method_data = req
+                                    .payment_method_data
+                                    .as_ref()
+                                    .and_then(|pmd| pmd.payment_method_data.clone())
+                                    .map(Into::into)
+                                    .ok_or(errors::ApiErrorResponse::MissingRequiredField {
+                                        field_name: "payment_method_data",
+                                    })?;
+
+                                match pm_transformers::create_payment_method_in_modular_service(
+                                    state,
+                                    platform.get_provider().get_account().get_id(),
+                                    platform.get_processor().get_account().get_id(),
+                                    business_profile.get_id(),
+                                    payment_method,
+                                    req.payment_method_type,
+                                    payment_method_data,
+                                    payment_data
+                                        .address
+                                        .get_request_payment_method_billing()
+                                        .cloned(),
+                                    payment_data
+                                        .payment_intent
+                                        .customer_id
+                                        .clone()
+                                        .get_required_value("customer_id")?,
+                                    business_profile.is_network_tokenization_enabled,
+                                )
+                                .await
+                                {
+                                    Ok(pm_info) => {
+                                        logger::info!(
+                                            "Wallet payment method created in PM Modular service successfully"
+                                        );
+                                        payment_data.set_payment_method_id_in_attempt(Some(
+                                            pm_info.get_id().clone(),
+                                        ));
+                                        payment_data.set_payment_method_info(Some(pm_info));
+                                    }
+                                    Err(err) => {
+                                        logger::error!(
+                                            "Error creating wallet payment method in PM Modular service: {:?}",
+                                            err
+                                        );
+                                    }
+                                }
+                            } else {
+                                logger::info!("Skipping wallet PM creation - setup_future_usage is not off_session");
                             }
                         }
                         _ => {
