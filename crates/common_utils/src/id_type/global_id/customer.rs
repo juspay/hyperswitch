@@ -11,7 +11,34 @@ Example: `cell1_cus_uu1a2b3c4d5e6f7g8h9i0j1k2l3m4n5o6p`"
 
 // Database related implementations so that this field can be used directly in the database tables
 crate::impl_queryable_id_type!(GlobalCustomerId);
-crate::impl_to_sql_from_sql_global_id_type!(GlobalCustomerId);
+
+// NOTE: We intentionally do NOT use `impl_to_sql_from_sql_global_id_type!` here because that
+// macro generates a strict `FromSql` that validates GlobalId format. During the V1/V2 coexistence
+// period, V1-created rows may store a V1-format CustomerId (e.g. `cus_xxx`). 
+// We use `new_unchecked` to accept any string value.
+impl<DB> diesel::serialize::ToSql<diesel::sql_types::Text, DB> for GlobalCustomerId
+where
+    DB: diesel::backend::Backend,
+    super::GlobalId: diesel::serialize::ToSql<diesel::sql_types::Text, DB>,
+{
+    fn to_sql<'b>(
+        &'b self,
+        out: &mut diesel::serialize::Output<'b, '_, DB>,
+    ) -> diesel::serialize::Result {
+        self.0.to_sql(out)
+    }
+}
+
+impl<DB> diesel::deserialize::FromSql<diesel::sql_types::Text, DB> for GlobalCustomerId
+where
+    DB: diesel::backend::Backend,
+    String: diesel::deserialize::FromSql<diesel::sql_types::Text, DB>,
+{
+    fn from_sql(value: DB::RawValue<'_>) -> diesel::deserialize::Result<Self> {
+        let string_val = String::from_sql(value)?;
+        Ok(Self::new_unchecked(string_val))
+    }
+}
 
 impl GlobalCustomerId {
     /// Get string representation of the id

@@ -34,6 +34,7 @@ pub struct CustomerNew {
     pub created_by: Option<String>,
     pub last_modified_by: Option<String>,
     pub document_details: Option<Encryption>,
+    pub id: Option<common_utils::id_type::CustomerId>,
 }
 
 #[cfg(feature = "v1")]
@@ -66,6 +67,7 @@ impl From<CustomerNew> for Customer {
             document_details: customer_new.document_details,
             created_by: customer_new.created_by,
             last_modified_by: customer_new.last_modified_by,
+            id: customer_new.id,
         }
     }
 }
@@ -164,6 +166,7 @@ pub struct Customer {
     pub created_by: Option<String>,
     pub last_modified_by: Option<String>,
     pub document_details: Option<Encryption>,
+    pub id: Option<common_utils::id_type::CustomerId>,
 }
 
 #[cfg(feature = "v2")]
