@@ -159,6 +159,18 @@ pub trait PaymentMethodsController {
         Option<DataDuplicationCheck>,
     )>;
 
+    #[cfg(all(feature = "payouts", feature = "v1"))]
+    async fn add_bank_transfer_to_locker(
+        &self,
+        req: api::PaymentMethodCreate,
+        key_store: &merchant_key_store::MerchantKeyStore,
+        bank: &payouts::BankTransfer,
+        customer_id: &id_type::CustomerId,
+    ) -> errors::VaultResult<(
+        payment_methods::PaymentMethodResponse,
+        Option<DataDuplicationCheck>,
+    )>;
+
     #[cfg(feature = "v1")]
     async fn add_bank_debit_to_locker(
         &self,
