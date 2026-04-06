@@ -224,6 +224,7 @@ pub trait SessionStateInfo {
     fn get_detached_auth(&self) -> RouterResult<(Blake3, &[u8])>;
     fn session_state(&self) -> SessionState;
     fn global_store(&self) -> Box<dyn GlobalStorageInterface>;
+    fn superposition_service(&self) -> Option<Arc<SuperpositionClient>>;
 }
 
 impl SessionStateInfo for SessionState {
@@ -282,6 +283,9 @@ impl SessionStateInfo for SessionState {
     }
     fn global_store(&self) -> Box<dyn GlobalStorageInterface> {
         self.global_store.to_owned()
+    }
+    fn superposition_service(&self) -> Option<Arc<SuperpositionClient>> {
+        self.superposition_service.clone()
     }
 }
 
@@ -3355,5 +3359,18 @@ impl RecoveryDataBackfill {
                     super::revenue_recovery_data_backfill::update_revenue_recovery_additional_redis_data,
                 ),
             ))
+    }
+}
+
+pub struct SdkConfig;
+#[cfg(feature = "v1")]
+impl SdkConfig {
+    pub fn server(state: AppState) -> Scope {
+        web::scope("/v1/sdk/configs")
+            .app_data(web::Data::new(state))
+            .service(
+                web::resource("{profile_id}/{platform}/{sdk_config.json}")
+                    .route(web::get().to(super::superposition_sdk_config::get_sdk_config)),
+            )
     }
 }

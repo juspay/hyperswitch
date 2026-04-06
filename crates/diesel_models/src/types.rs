@@ -75,6 +75,8 @@ pub struct FeatureMetadata {
     pub pix_additional_details: Option<PixAdditionalDetails>,
     /// Extra information like fine percentage, interest percentage etc required for Pix payment method
     pub boleto_additional_details: Option<BoletoAdditionalDetails>,
+    /// Pix Automatico additional details for Push and QR flows
+    pub pix_automatico_additional_details: Option<PixAutomaticoAdditionalDetails>,
 }
 
 #[derive(Debug, Default, Clone, PartialEq, Deserialize, Serialize, FromSqlRow, AsExpression)]
@@ -136,6 +138,8 @@ pub struct FeatureMetadata {
     pub pix_additional_details: Option<PixAdditionalDetails>,
     /// Extra information like fine percentage, interest percentage etc required for Pix payment method
     pub boleto_additional_details: Option<BoletoAdditionalDetails>,
+    /// Pix Automatico additional details for Push and QR flows
+    pub pix_automatico_additional_details: Option<PixAutomaticoAdditionalDetails>,
 }
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize, FromSqlRow, AsExpression)]
@@ -166,6 +170,20 @@ pub struct ScheduledExpirationTime {
     pub validity_after_expiration: Option<u32>,
     /// Pix identification details
     pub pix_key: Option<common_enums::enums::PixKey>,
+}
+
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize, FromSqlRow, AsExpression)]
+#[diesel(sql_type = Json)]
+pub enum PixAutomaticoAdditionalDetails {
+    /// Pix Automatico Push notification flow
+    PixAutomaticoPush(PixAutomaticoPushDetails),
+}
+
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize, FromSqlRow, AsExpression)]
+#[diesel(sql_type = Json)]
+pub struct PixAutomaticoPushDetails {
+    /// Time in seconds until which the push notification is valid
+    pub time: u32,
 }
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize, FromSqlRow, AsExpression)]

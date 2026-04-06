@@ -217,7 +217,12 @@ pub async fn refunds_retrieve(
         &req,
         refund_request,
         |state, auth: auth::AuthenticationData, refund_request, _| {
-            refund_retrieve_core_with_refund_id(state, auth.platform, auth.profile, refund_request)
+            refund_retrieve_core_with_refund_id(
+                state,
+                auth.platform.get_processor().clone(),
+                auth.profile,
+                refund_request,
+            )
         },
         auth::auth_type(
             &auth::V2ApiKeyAuth {
@@ -281,7 +286,12 @@ pub async fn refunds_retrieve_with_gateway_creds(
         &req,
         refund_request,
         |state, auth: auth::AuthenticationData, refund_request, _| {
-            refund_retrieve_core_with_refund_id(state, auth.platform, auth.profile, refund_request)
+            refund_retrieve_core_with_refund_id(
+                state,
+                auth.platform.get_processor().clone(),
+                auth.profile,
+                refund_request,
+            )
         },
         auth_type,
         api_locking::LockAction::NotApplicable,
@@ -419,7 +429,7 @@ pub async fn refunds_list(
         &req,
         payload.into_inner(),
         |state, auth: auth::AuthenticationData, req, _| {
-            refund_list(state, auth.platform, None, req)
+            refund_list(state, auth.platform.get_processor().clone(), None, req)
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
@@ -495,7 +505,7 @@ pub async fn refunds_list_profile(
         |state, auth: auth::AuthenticationData, req, _| {
             refund_list(
                 state,
-                auth.platform,
+                auth.platform.get_processor().clone(),
                 auth.profile.map(|profile| vec![profile.get_id().clone()]),
                 req,
             )
@@ -534,7 +544,7 @@ pub async fn refunds_filter_list(
         &req,
         payload.into_inner(),
         |state, auth: auth::AuthenticationData, req, _| {
-            refund_filter_list(state, auth.platform, req)
+            refund_filter_list(state, auth.platform.get_processor().clone(), req)
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
@@ -566,7 +576,7 @@ pub async fn get_refunds_filters(state: web::Data<AppState>, req: HttpRequest) -
         &req,
         (),
         |state, auth: auth::AuthenticationData, _, _| {
-            get_filters_for_refunds(state, auth.platform, None)
+            get_filters_for_refunds(state, auth.platform.get_processor().clone(), None)
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
@@ -603,7 +613,7 @@ pub async fn get_refunds_filters_profile(
         |state, auth: auth::AuthenticationData, _, _| {
             get_filters_for_refunds(
                 state,
-                auth.platform,
+                auth.platform.get_processor().clone(),
                 auth.profile.map(|profile| vec![profile.get_id().clone()]),
             )
         },
@@ -639,7 +649,7 @@ pub async fn get_refunds_aggregates(
         &req,
         query_params,
         |state, auth: auth::AuthenticationData, req, _| {
-            get_aggregates_for_refunds(state, auth.platform, None, req)
+            get_aggregates_for_refunds(state, auth.platform.get_processor().clone(), None, req)
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
@@ -698,7 +708,7 @@ pub async fn get_refunds_aggregate_profile(
         |state, auth: auth::AuthenticationData, req, _| {
             get_aggregates_for_refunds(
                 state,
-                auth.platform,
+                auth.platform.get_processor().clone(),
                 auth.profile.map(|profile| vec![profile.get_id().clone()]),
                 req,
             )
