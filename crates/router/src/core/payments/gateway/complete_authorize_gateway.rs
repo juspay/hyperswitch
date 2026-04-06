@@ -10,8 +10,8 @@ use hyperswitch_interfaces::{
     connector_integration_interface::{BoxedConnectorIntegrationInterface, RouterDataConversion},
     errors::ConnectorError,
 };
+use hyperswitch_masking::ExposeInterface as UcsMaskingExposeInterface;
 use unified_connector_service_client::payments as payments_grpc;
-use unified_connector_service_masking::ExposeInterface as UcsMaskingExposeInterface;
 
 use crate::{
     core::{
@@ -76,12 +76,12 @@ where
             .attach_printable("Failed to fetch Unified Connector Service client")?;
 
         let granular_authorize_request =
-            payments_grpc::PaymentServiceAuthorizeOnlyRequest::foreign_try_from((
+            payments_grpc::PaymentServiceAuthorizeRequest::foreign_try_from((
                 router_data,
                 call_connector_action,
             ))
             .change_context(ConnectorError::RequestEncodingFailed)
-            .attach_printable("Failed to construct Payment Get Request")?;
+            .attach_printable("Failed to construct Payment Authorize Request")?;
 
         let connector_auth_metadata =
             unified_connector_service::build_unified_connector_service_auth_metadata(
@@ -117,7 +117,7 @@ where
             header_payload,
             unified_connector_service_execution_mode,
             |mut router_data, granular_authorize_request, grpc_headers| async move {
-                let response = Box::pin(client.payment_authorize_granular(
+                let response = Box::pin(client.payment_authorize(
                     granular_authorize_request,
                     connector_auth_metadata,
                     grpc_headers,
@@ -150,7 +150,7 @@ where
 
                 router_data.amount_captured = payment_authorize_response.captured_amount;
                 router_data.minor_amount_captured = payment_authorize_response
-                    .minor_captured_amount
+                    .captured_amount
                     .map(MinorUnit::new);
                 router_data.raw_connector_response = payment_authorize_response
                     .raw_connector_response

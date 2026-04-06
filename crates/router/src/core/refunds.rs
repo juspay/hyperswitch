@@ -163,7 +163,10 @@ pub async fn trigger_refund_to_gateway(
     creds_identifier: Option<String>,
     split_refunds: Option<SplitRefundsRequest>,
     all_keys_required: Option<bool>,
-) -> RouterResult<(diesel_refund::Refund, Option<masking::Secret<String>>)> {
+) -> RouterResult<(
+    diesel_refund::Refund,
+    Option<hyperswitch_masking::Secret<String>>,
+)> {
     let routed_through = payment_attempt
         .connector
         .clone()
@@ -263,6 +266,7 @@ pub async fn trigger_refund_to_gateway(
         &router_data,
         creds_identifier.as_deref(),
         &gateway_context,
+        None,
     ))
     .await?;
 
@@ -729,7 +733,10 @@ pub async fn refund_retrieve_core(
     profile_id: Option<common_utils::id_type::ProfileId>,
     request: refunds::RefundsRetrieveRequest,
     refund: diesel_refund::Refund,
-) -> RouterResult<(diesel_refund::Refund, Option<masking::Secret<String>>)> {
+) -> RouterResult<(
+    diesel_refund::Refund,
+    Option<hyperswitch_masking::Secret<String>>,
+)> {
     let db = &*state.store;
     let processor_merchant_id = platform.get_processor().get_account().get_id();
     core_utils::validate_profile_id_from_auth_layer(profile_id, &refund)?;
@@ -852,7 +859,10 @@ pub async fn sync_refund_with_gateway(
     creds_identifier: Option<String>,
     split_refunds: Option<SplitRefundsRequest>,
     all_keys_required: Option<bool>,
-) -> RouterResult<(diesel_refund::Refund, Option<masking::Secret<String>>)> {
+) -> RouterResult<(
+    diesel_refund::Refund,
+    Option<hyperswitch_masking::Secret<String>>,
+)> {
     let connector_id = refund.connector.to_string();
     let connector: api::ConnectorData = api::ConnectorData::get_connector_by_name(
         &state.conf.connectors,
@@ -944,6 +954,7 @@ pub async fn sync_refund_with_gateway(
         &router_data,
         creds_identifier.as_deref(),
         &gateway_context,
+        None,
     ))
     .await?;
 
@@ -1630,7 +1641,10 @@ pub async fn refund_retrieve_core_with_refund_id(
     platform: domain::Platform,
     profile_id: Option<common_utils::id_type::ProfileId>,
     request: refunds::RefundsRetrieveRequest,
-) -> RouterResult<(diesel_refund::Refund, Option<masking::Secret<String>>)> {
+) -> RouterResult<(
+    diesel_refund::Refund,
+    Option<hyperswitch_masking::Secret<String>>,
+)> {
     let refund_id = request.refund_id.clone();
     let db = &*state.store;
     let merchant_id = platform.get_processor().get_account().get_id();
@@ -1828,8 +1842,18 @@ impl ForeignFrom<diesel_refund::Refund> for api::RefundResponse {
     }
 }
 
-impl ForeignFrom<(diesel_refund::Refund, Option<masking::Secret<String>>)> for api::RefundResponse {
-    fn foreign_from(item: (diesel_refund::Refund, Option<masking::Secret<String>>)) -> Self {
+impl
+    ForeignFrom<(
+        diesel_refund::Refund,
+        Option<hyperswitch_masking::Secret<String>>,
+    )> for api::RefundResponse
+{
+    fn foreign_from(
+        item: (
+            diesel_refund::Refund,
+            Option<hyperswitch_masking::Secret<String>>,
+        ),
+    ) -> Self {
         let (refund, raw_connector_response) = item;
 
         Self {
@@ -1876,7 +1900,10 @@ pub async fn schedule_refund_execution(
     creds_identifier: Option<String>,
     split_refunds: Option<SplitRefundsRequest>,
     all_keys_required: Option<bool>,
-) -> RouterResult<(diesel_refund::Refund, Option<masking::Secret<String>>)> {
+) -> RouterResult<(
+    diesel_refund::Refund,
+    Option<hyperswitch_masking::Secret<String>>,
+)> {
     // refunds::RefundResponse> {
     let db = &*state.store;
     let runner = storage::ProcessTrackerRunner::RefundWorkflowRouter;

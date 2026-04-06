@@ -14,7 +14,7 @@ use diesel_models::{
     user_role::UserRoleUpdate,
 };
 use error_stack::{report, ResultExt};
-use masking::Secret;
+use hyperswitch_masking::Secret;
 use router_env::logger;
 
 use crate::{

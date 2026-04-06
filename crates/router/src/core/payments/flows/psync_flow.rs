@@ -170,12 +170,16 @@ impl Feature<api::PSync, types::PaymentsSyncData>
         creds_identifier: Option<&str>,
         gateway_context: &payments::gateway::context::RouterGatewayContext,
     ) -> RouterResult<types::AddAccessTokenResult> {
+        let current_flow = Some(hyperswitch_interfaces::api::CurrentFlowInfo::Psync {
+            request_data: Box::new(self.request.clone()),
+        });
         Box::pin(access_token::add_access_token(
             state,
             connector,
             self,
             creds_identifier,
             gateway_context,
+            current_flow,
         ))
         .await
     }

@@ -6,7 +6,7 @@ use common_utils::{
 };
 use error_stack::ResultExt;
 use hyperswitch_domain_models::merchant_key_store::MerchantKeyStore;
-use masking::{ExposeInterface, StrongSecret};
+use hyperswitch_masking::{ExposeInterface, StrongSecret};
 
 use crate::{consts::BASE64_ENGINE, errors, types::domain::UserKeyStore, SessionState};
 

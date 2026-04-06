@@ -11,9 +11,8 @@ use hyperswitch_domain_models::{
     errors::api_error_response::ApiErrorResponse, payments as domain_payments,
 };
 use hyperswitch_interfaces::api::gateway;
-use masking::ExposeInterface;
+use hyperswitch_masking::{ExposeInterface, ExposeInterface as UcsMaskingExposeInterface};
 use unified_connector_service_client::payments as payments_grpc;
-use unified_connector_service_masking::ExposeInterface as UcsMaskingExposeInterface;
 
 use super::{ConstructFlowSpecificData, Feature};
 use crate::{
@@ -131,6 +130,7 @@ impl Feature<api::ExternalVaultProxy, types::ExternalVaultProxyPaymentsData>
             self,
             creds_identifier,
             gateway_context,
+            None,
         ))
         .await
     }
@@ -144,9 +144,14 @@ impl Feature<api::ExternalVaultProxy, types::ExternalVaultProxyPaymentsData>
     where
         Self: Sized,
     {
-        self.session_token =
-            session_token::add_session_token_if_needed(self, state, connector, gateway_context)
-                .await?;
+        self.session_token = session_token::add_session_token_if_needed(
+            self,
+            state,
+            connector,
+            gateway_context,
+            None,
+        )
+        .await?;
         Ok(())
     }
 

@@ -19,7 +19,7 @@ use hyperswitch_domain_models::{
     router_response_types::GiftCardBalanceCheckResponseData,
 };
 use hyperswitch_interfaces::connector_integration_interface::RouterDataConversion;
-use masking::ExposeInterface;
+use hyperswitch_masking::ExposeInterface;
 use router_env::{instrument, tracing};
 
 use crate::{

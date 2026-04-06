@@ -7,7 +7,7 @@ use hyperswitch_domain_models::{
     router_response_types::PayoutsResponseData, types,
 };
 use hyperswitch_interfaces::{api, errors};
-use masking::{PeekInterface, Secret};
+use hyperswitch_masking::{PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 
 use super::{payout_requests::*, payout_response::*};

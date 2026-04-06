@@ -31,7 +31,7 @@ use hyperswitch_domain_models::{
 use hyperswitch_interfaces::webhooks::{
     IncomingWebhookFlowError, IncomingWebhookRequestDetails, WebhookContext, WebhookResourceData,
 };
-use masking::{ExposeInterface, PeekInterface};
+use hyperswitch_masking::{ExposeInterface, PeekInterface};
 use router_env::{instrument, tracing, RequestId};
 use unified_connector_service_client::payments as payments_grpc;
 
@@ -406,7 +406,8 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
         && is_webhook_event_supported
         && !matches!(flow_type, api::WebhookFlow::ReturnResponse);
     logger::info!(process_webhook=?process_webhook_further);
-    let mut event_object: Box<dyn masking::ErasedMaskSerialize> = Box::new(serde_json::Value::Null);
+    let mut event_object: Box<dyn hyperswitch_masking::ErasedMaskSerialize> =
+        Box::new(serde_json::Value::Null);
 
     let webhook_effect = match process_webhook_further {
         true => {
@@ -786,10 +787,10 @@ async fn process_non_ucs_webhook<'a>(
 
 /// Extract resource object from UCS WebhookResponseContent
 fn get_ucs_webhook_resource_object(
-    webhook_response_content: &payments_grpc::WebhookResponseContent,
-) -> errors::RouterResult<Box<dyn masking::ErasedMaskSerialize>> {
-    let resource_object = match &webhook_response_content.content {
-        Some(payments_grpc::webhook_response_content::Content::IncompleteTransformation(
+    event_content: &payments_grpc::EventContent,
+) -> errors::RouterResult<Box<dyn hyperswitch_masking::ErasedMaskSerialize>> {
+    let resource_object = match &event_content.content {
+        Some(payments_grpc::event_content::Content::IncompleteTransformation(
             incomplete_transformation_response,
         )) => {
             // Deserialize resource object
@@ -801,7 +802,7 @@ fn get_ucs_webhook_resource_object(
         }
         _ => {
             // Convert UCS webhook content to appropriate format
-            serde_json::to_value(webhook_response_content)
+            serde_json::to_value(event_content)
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Failed to serialize UCS webhook content")?
         }
@@ -814,7 +815,7 @@ fn extract_webhook_event_object(
     webhook_transform_data: &Option<Box<unified_connector_service::WebhookTransformData>>,
     connector: &ConnectorEnum,
     request_details: &IncomingWebhookRequestDetails<'_>,
-) -> errors::RouterResult<Box<dyn masking::ErasedMaskSerialize>> {
+) -> errors::RouterResult<Box<dyn hyperswitch_masking::ErasedMaskSerialize>> {
     match webhook_transform_data {
         Some(webhook_transform_data) => webhook_transform_data
             .webhook_content
@@ -956,31 +957,34 @@ async fn process_webhook_business_logic(
 
     logger::info!(source_verified=?source_verified);
 
-    let event_object: Box<dyn masking::ErasedMaskSerialize> = match webhook_transform_data {
-        Some(webhook_transform_data) => {
-            // Extract resource_object from UCS webhook content
-            webhook_transform_data
-                .webhook_content
-                .as_ref()
-                .map(|webhook_response_content| {
-                    get_ucs_webhook_resource_object(webhook_response_content)
-                })
-                .unwrap_or_else(|| {
-                    // Fall back to connector extraction
-                    connector
-                        .get_webhook_resource_object(request_details)
-                        .switch()
-                        .attach_printable("Could not find resource object in incoming webhook body")
-                })?
-        }
-        None => {
-            // Use traditional connector extraction
-            connector
-                .get_webhook_resource_object(request_details)
-                .switch()
-                .attach_printable("Could not find resource object in incoming webhook body")?
-        }
-    };
+    let event_object: Box<dyn hyperswitch_masking::ErasedMaskSerialize> =
+        match webhook_transform_data {
+            Some(webhook_transform_data) => {
+                // Extract resource_object from UCS webhook content
+                webhook_transform_data
+                    .webhook_content
+                    .as_ref()
+                    .map(|webhook_response_content| {
+                        get_ucs_webhook_resource_object(webhook_response_content)
+                    })
+                    .unwrap_or_else(|| {
+                        // Fall back to connector extraction
+                        connector
+                            .get_webhook_resource_object(request_details)
+                            .switch()
+                            .attach_printable(
+                                "Could not find resource object in incoming webhook body",
+                            )
+                    })?
+            }
+            None => {
+                // Use traditional connector extraction
+                connector
+                    .get_webhook_resource_object(request_details)
+                    .switch()
+                    .attach_printable("Could not find resource object in incoming webhook body")?
+            }
+        };
 
     let webhook_details = api::IncomingWebhookDetails {
         object_reference_id: object_ref_id.clone(),
@@ -994,7 +998,7 @@ async fn process_webhook_business_logic(
     };
 
     // Create shadow_event_object and shadow_webhook_details using shadow UCS data
-    let shadow_event_object: Option<Box<dyn masking::ErasedMaskSerialize>> =
+    let shadow_event_object: Option<Box<dyn hyperswitch_masking::ErasedMaskSerialize>> =
         shadow_ucs_data.as_ref().and_then(|shadow_data| {
             // Create shadow event object using UCS transform data and shadow request details
             let shadow_event_result = shadow_data
@@ -2349,7 +2353,7 @@ pub async fn get_or_update_dispute_object(
                 dispute_details.dispute_stage,
                 dispute_status,
             )
-            .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)
+            .change_context(errors::ApiErrorResponse::WebhookBadRequest)
             .attach_printable("dispute stage and status validation failed")?;
             let update_dispute = diesel_models::dispute::DisputeUpdate::Update {
                 dispute_stage: dispute_details.dispute_stage,
@@ -3327,7 +3331,7 @@ async fn update_connector_mandate_details(
                 .transpose()?;
 
             let pm_update = diesel_models::PaymentMethodUpdate::ConnectorNetworkTransactionIdAndMandateDetailsUpdate {
-                connector_mandate_details: connector_mandate_details_value.map(masking::Secret::new),
+                connector_mandate_details: connector_mandate_details_value.map(hyperswitch_masking::Secret::new),
                 network_transaction_id: webhook_connector_network_transaction_id
                     .map(|webhook_network_transaction_id| webhook_network_transaction_id.get_id().clone()),
                 last_modified_by: platform.get_initiator().and_then(|initiator| initiator.to_created_by()).map(|last_modified_by| last_modified_by.to_string()),

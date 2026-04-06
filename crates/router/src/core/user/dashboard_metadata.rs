@@ -7,8 +7,8 @@ use diesel_models::{
 use error_stack::{report, ResultExt};
 use hyperswitch_interfaces::crm::CrmPayload;
 #[cfg(feature = "email")]
-use masking::ExposeInterface;
-use masking::{PeekInterface, Secret};
+use hyperswitch_masking::ExposeInterface;
+use hyperswitch_masking::{PeekInterface, Secret};
 use router_env::logger;
 
 use crate::{

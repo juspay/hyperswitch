@@ -75,7 +75,7 @@ use hyperswitch_interfaces::{
     },
     webhooks::{IncomingWebhook, IncomingWebhookRequestDetails, WebhookContext},
 };
-use masking::{ExposeInterface, Mask, Maskable, PeekInterface, Secret};
+use hyperswitch_masking::{ExposeInterface, Mask, Maskable, PeekInterface, Secret};
 #[cfg(feature = "payouts")]
 use router_env::{instrument, tracing};
 use transformers::{
@@ -2230,7 +2230,8 @@ impl IncomingWebhook for Paypal {
     fn get_webhook_resource_object(
         &self,
         request: &IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
+    ) -> CustomResult<Box<dyn hyperswitch_masking::ErasedMaskSerialize>, errors::ConnectorError>
+    {
         let details: paypal::PaypalWebhooksBody =
             request
                 .body
@@ -2573,7 +2574,7 @@ static PAYPAL_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 3] = [
 ];
 
 impl ConnectorSpecifications for Paypal {
-    fn is_post_authentication_flow_required(&self, current_flow: api::CurrentFlowInfo<'_>) -> bool {
+    fn is_post_authentication_flow_required(&self, current_flow: api::CurrentFlowInfo) -> bool {
         match current_flow {
             api::CurrentFlowInfo::Authorize { .. } => false,
             api::CurrentFlowInfo::CompleteAuthorize {
@@ -2582,6 +2583,7 @@ impl ConnectorSpecifications for Paypal {
                 ..
             } => payment_method == Some(enums::PaymentMethod::Card),
             api::CurrentFlowInfo::SetupMandate { .. } => false,
+            api::CurrentFlowInfo::Psync { .. } => false,
         }
     }
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {

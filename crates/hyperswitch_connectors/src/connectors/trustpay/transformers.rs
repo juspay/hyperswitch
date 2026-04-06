@@ -27,7 +27,7 @@ use hyperswitch_domain_models::{
     },
 };
 use hyperswitch_interfaces::{consts, errors};
-use masking::{ExposeInterface, PeekInterface, Secret};
+use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 use reqwest::Url;
 use serde::{Deserialize, Serialize};
 
@@ -609,6 +609,8 @@ impl TryFrom<&TrustpayRouterData<&PaymentsAuthorizeRouterData>> for TrustpayPaym
             | PaymentMethodData::OpenBanking(_)
             | PaymentMethodData::CardToken(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+            | PaymentMethodData::CardWithOptionalCVC(_)
+            | PaymentMethodData::CardWithNetworkTokenDetails(_)
             | PaymentMethodData::CardWithLimitedDetails(_)
             | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
             | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
@@ -1668,7 +1670,7 @@ impl<F> TryFrom<&TrustpayRouterData<&RefundsRouterData<F>>> for TrustpayRefundRe
     fn try_from(item: &TrustpayRouterData<&RefundsRouterData<F>>) -> Result<Self, Self::Error> {
         let amount = item.amount.to_owned();
         match item.router_data.payment_method {
-            enums::PaymentMethod::BankRedirect => {
+            enums::PaymentMethod::BankRedirect | enums::PaymentMethod::BankTransfer => {
                 let auth = TrustpayAuthType::try_from(&item.router_data.connector_auth_type)
                     .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
                 Ok(Self::BankRedirectRefund(Box::new(

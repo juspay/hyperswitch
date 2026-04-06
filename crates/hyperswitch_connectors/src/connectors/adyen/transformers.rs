@@ -54,7 +54,7 @@ use hyperswitch_interfaces::{
     consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE},
     errors,
 };
-use masking::{ExposeInterface, PeekInterface, Secret};
+use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 use time::{Duration, OffsetDateTime, PrimitiveDateTime};
 use url::Url;
@@ -130,6 +130,7 @@ pub enum AdyenShopperInteraction {
 pub enum AdyenRecurringModel {
     UnscheduledCardOnFile,
     CardOnFile,
+    Subscription,
 }
 
 #[derive(Clone, Default, Debug, Serialize, Deserialize)]
@@ -1947,6 +1948,8 @@ impl TryFrom<&AdyenRouterData<&PaymentsAuthorizeRouterData>> for AdyenPaymentReq
                 | PaymentMethodData::Upi(_)
                 | PaymentMethodData::OpenBanking(_)
                 | PaymentMethodData::CardToken(_)
+                | PaymentMethodData::CardWithOptionalCVC(_)
+                | PaymentMethodData::CardWithNetworkTokenDetails(_)
                 | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
                 | PaymentMethodData::CardWithLimitedDetails(_)
                 | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
@@ -2968,6 +2971,8 @@ impl TryFrom<(&BankTransferData, &PaymentsAuthorizeRouterData)> for AdyenPayment
             | BankTransferData::InstantBankTransferFinland {}
             | BankTransferData::InstantBankTransferPoland {}
             | BankTransferData::IndonesianBankTransfer { .. }
+            | BankTransferData::PixAutomaticoPush { .. }
+            | BankTransferData::PixAutomaticoQr {}
             | BankTransferData::Pse {} => Err(errors::ConnectorError::NotImplemented(
                 utils::get_unimplemented_payment_method_error_message("Adyen"),
             )
@@ -3204,6 +3209,8 @@ impl
                     | PaymentMethodData::CardToken(_)
                     | PaymentMethodData::NetworkToken(_)
                     | PaymentMethodData::Card(_)
+                    | PaymentMethodData::CardWithOptionalCVC(_)
+                    | PaymentMethodData::CardWithNetworkTokenDetails(_)
                     | PaymentMethodData::CardWithLimitedDetails(_)
                     | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
                     | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
@@ -3236,6 +3243,8 @@ impl
                     }
 
                     PaymentMethodData::Card(_)
+                    | PaymentMethodData::CardWithOptionalCVC(_)
+                    | PaymentMethodData::CardWithNetworkTokenDetails(_)
                     | PaymentMethodData::CardRedirect(_)
                     | PaymentMethodData::Wallet(_)
                     | PaymentMethodData::PayLater(_)
@@ -3727,6 +3736,8 @@ impl
             | BankTransferData::InstantBankTransfer {}
             | BankTransferData::InstantBankTransferFinland {}
             | BankTransferData::InstantBankTransferPoland {}
+            | BankTransferData::PixAutomaticoPush { .. }
+            | BankTransferData::PixAutomaticoQr {}
             | BankTransferData::IndonesianBankTransfer { .. } => (None, None),
         };
         let application_info = get_application_info(item);

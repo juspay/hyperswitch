@@ -1,5 +1,5 @@
 use common_utils::ext_traits::ConfigExt;
-use masking::PeekInterface;
+use hyperswitch_masking::PeekInterface;
 use storage_impl::errors::ApplicationError;
 
 impl super::settings::Secrets {

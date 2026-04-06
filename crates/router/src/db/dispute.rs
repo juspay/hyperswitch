@@ -466,7 +466,7 @@ mod tests {
             enums::{DisputeStage, DisputeStatus},
         };
         use hyperswitch_domain_models::disputes::DisputeListConstraints;
-        use masking::Secret;
+        use hyperswitch_masking::Secret;
         use redis_interface::RedisSettings;
         use serde_json::Value;
         use time::macros::datetime;
@@ -756,7 +756,7 @@ mod tests {
                 dispute::DisputeUpdate,
                 enums::{DisputeStage, DisputeStatus},
             };
-            use masking::Secret;
+            use hyperswitch_masking::Secret;
             use serde_json::Value;
             use time::macros::datetime;
 

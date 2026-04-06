@@ -12,7 +12,7 @@ use common_utils::{
 };
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::type_encryption::{crypto_operation, CryptoOperation};
-use masking::{ExposeInterface, PeekInterface, SwitchStrategy};
+use hyperswitch_masking::{ExposeInterface, PeekInterface, SwitchStrategy};
 use router_env::logger;
 
 use super::{
@@ -179,7 +179,10 @@ impl<'a> NetworkTokenizationBuilder<'a, CardDetailsAssigned> {
 impl<'a> NetworkTokenizationBuilder<'a, CustomerAssigned> {
     pub fn get_optional_card_and_cvc(
         &self,
-    ) -> (Option<domain::CardDetail>, Option<masking::Secret<String>>) {
+    ) -> (
+        Option<domain::CardDetail>,
+        Option<hyperswitch_masking::Secret<String>>,
+    ) {
         (self.card.clone(), self.card_cvc.clone())
     }
     pub fn set_token_details(
@@ -269,7 +272,7 @@ impl<'a> NetworkTokenizationBuilder<'a, CardTokenStored> {
         });
         let payment_method_response = api::PaymentMethodResponse {
             merchant_id: payment_method.merchant_id.clone(),
-            customer_id: Some(payment_method.customer_id.clone()),
+            customer_id: payment_method.customer_id.clone(),
             payment_method_id: payment_method.payment_method_id.clone(),
             payment_method: payment_method.payment_method,
             payment_method_type: payment_method.payment_method_type,

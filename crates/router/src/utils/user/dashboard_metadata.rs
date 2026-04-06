@@ -20,7 +20,7 @@ use diesel_models::{
     user::dashboard_metadata::{DashboardMetadata, DashboardMetadataNew, DashboardMetadataUpdate},
 };
 use error_stack::{report, ResultExt};
-use masking::{ExposeInterface, PeekInterface, Secret};
+use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 use router_env::logger;
 
 use crate::{

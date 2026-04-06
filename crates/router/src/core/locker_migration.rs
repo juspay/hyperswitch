@@ -134,7 +134,7 @@ pub async fn call_to_locker(
             card_exp_month: card.card_exp_month,
             card_exp_year: card.card_exp_year,
             card_holder_name: card.name_on_card,
-            nick_name: card.nick_name.map(masking::Secret::new),
+            nick_name: card.nick_name.map(hyperswitch_masking::Secret::new),
             card_cvc: None,
             card_issuing_country: None,
             card_issuing_country_code: None,
@@ -154,7 +154,7 @@ pub async fn call_to_locker(
             #[cfg(feature = "payouts")]
             bank_transfer: None,
             metadata: pm.metadata,
-            customer_id: Some(pm.customer_id),
+            customer_id: pm.customer_id,
             card_network: card.card_brand,
             client_secret: None,
             payment_method_data: None,

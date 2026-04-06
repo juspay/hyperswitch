@@ -18,7 +18,7 @@ use euclid::frontend::{
     ast::Program,
     dir::{DirKeyKind, EuclidDirFilter},
 };
-use masking::{ExposeInterface, PeekInterface, Secret};
+use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 use smithy::SmithyModel;
 use time::PrimitiveDateTime;
@@ -255,7 +255,7 @@ impl CustomerAcceptance {
     }
 }
 
-impl masking::SerializableSecret for CustomerAcceptance {}
+impl hyperswitch_masking::SerializableSecret for CustomerAcceptance {}
 
 #[derive(
     Default,

@@ -745,7 +745,7 @@ impl ConnectorCommon for {{project-name | downcase | pascal_case}} {
         connectors.{{project-name}}.base_url.as_ref()
     }
 
-    fn get_auth_header(&self, auth_type:&ConnectorAuthType)-> CustomResult<Vec<(String,masking::Maskable<String>)>,errors::ConnectorError> {
+    fn get_auth_header(&self, auth_type:&ConnectorAuthType)-> CustomResult<Vec<(String,hyperswitch_masking::Maskable<String>)>,errors::ConnectorError> {
         let auth =  {{project-name | downcase}}::{{project-name | downcase | pascal_case}}AuthType::try_from(auth_type)
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
         Ok(vec![(headers::AUTHORIZATION.to_string(), auth.api_key.expose().into_masked())])
@@ -810,7 +810,7 @@ fn id(&self) -> &'static str {
    fn get_auth_header(
         &self,
         auth_type: &ConnectorAuthType,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError> {
         let auth = BillwerkAuthType::try_from(auth_type)
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
         let encoded_api_key = BASE64_ENGINE.encode(format!("{}:", auth.api_key.peek()));

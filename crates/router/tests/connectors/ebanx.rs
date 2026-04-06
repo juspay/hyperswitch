@@ -1,4 +1,4 @@
-use masking::Secret;
+use hyperswitch_masking::Secret;
 use router::types::{self, storage::enums};
 use test_utils::connector_auth;
 
