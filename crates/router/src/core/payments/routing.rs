@@ -1490,6 +1490,13 @@ impl RoutingStage for HybridRoutingStage {
             let should_include_static_request = input.state.conf.open_router.static_routing_enabled
                 && input.static_approach == common_enums::RoutingApproach::RuleBasedRouting;
 
+            let payment_id = input
+                .payment_dsl_input
+                .payment_attempt
+                .payment_id
+                .get_string_repr()
+                .to_string();
+
             let static_routing_request = if should_include_static_request {
                 Some(utils::build_static_routing_request_for_hybrid(
                     input
@@ -1497,6 +1504,7 @@ impl RoutingStage for HybridRoutingStage {
                         .get_id()
                         .get_string_repr()
                         .to_string(),
+                    payment_id.clone(),
                     input.backend_input.clone(),
                     input.fallback_config.to_vec(),
                 )?)
@@ -1510,13 +1518,6 @@ impl RoutingStage for HybridRoutingStage {
                 );
                 RoutingConnectorOutcomeWithApproach::empty()
             } else {
-                let payment_id = input
-                    .payment_dsl_input
-                    .payment_attempt
-                    .payment_id
-                    .get_string_repr()
-                    .to_string();
-
                 let hybrid_outcome = utils::decision_engine_hybrid_routing(
                     input.state,
                     input.business_profile,
