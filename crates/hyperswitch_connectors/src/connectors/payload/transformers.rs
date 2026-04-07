@@ -607,11 +607,7 @@ impl
             PaymentsResponseData,
         >,
     ) -> Result<Self, Self::Error> {
-        let response = match item.response.0 {
-            responses::PayloadPaymentsResponse::PayloadCardsResponse(card_response) => {
-                card_response
-            }
-        };
+        let responses::PayloadPaymentsResponse::PayloadCardsResponse(response) = item.response.0;
 
         let post_capture_void_status = match response.status {
             responses::PayloadPaymentStatus::Voided => {
