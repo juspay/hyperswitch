@@ -725,6 +725,7 @@ pub async fn retrieve_payment_method_with_token(
                 vault_bank_account_holder_name,
                 vault_bank_type,
                 vault_bank_holder_type,
+                vault_bank_name,
             ) = match bank_debit_detail {
                 domain::BankDebitDetail::Ach {
                     account_number,
@@ -732,12 +733,14 @@ pub async fn retrieve_payment_method_with_token(
                     bank_account_holder_name,
                     bank_type,
                     bank_holder_type,
+                    bank_name,
                 } => (
                     account_number,
                     routing_number,
                     bank_account_holder_name,
                     bank_type,
                     bank_holder_type,
+                    bank_name,
                 ),
             };
 
@@ -746,29 +749,22 @@ pub async fn retrieve_payment_method_with_token(
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("PaymentMethod not found")?;
 
-            let (
-                card_holder_name,
-                bank_account_holder_name,
-                bank_name,
-                bank_type,
-                bank_holder_type,
-            ) = if let Some(
+            let (bank_account_holder_name, bank_name, bank_type, bank_holder_type) = if let Some(
                 hyperswitch_domain_models::payment_method_data::PaymentMethodsData::BankDebit(
                     bank_debit_data,
                 ),
-            ) = payment_method_data.get_payment_methods_data()
+            ) =
+                payment_method_data.get_payment_methods_data()
             {
                 let domain::BankDebitDetailsPaymentMethod::AchBankDebit {
                     account_number_last4_digits: _,
                     routing_number_last4_digits: _,
-                    card_holder_name,
                     bank_account_holder_name,
                     bank_name,
                     bank_type,
                     bank_holder_type,
                 } = bank_debit_data;
                 (
-                    card_holder_name.clone(),
                     bank_account_holder_name.clone(),
                     bank_name,
                     bank_type,
@@ -786,10 +782,9 @@ pub async fn retrieve_payment_method_with_token(
                         BankDebitData::AchBankDebit {
                             account_number,
                             routing_number,
-                            card_holder_name,
                             bank_account_holder_name: vault_bank_account_holder_name
                                 .or(bank_account_holder_name),
-                            bank_name,
+                            bank_name: vault_bank_name.or(bank_name),
                             bank_type: vault_bank_type.or(bank_type),
                             bank_holder_type: vault_bank_holder_type.or(bank_holder_type),
                         },
@@ -929,9 +924,8 @@ pub(crate) async fn get_payment_method_create_request(
                 domain::PaymentMethodData::BankDebit(BankDebitData::AchBankDebit {
                     account_number,
                     routing_number,
-                    card_holder_name: _,
                     bank_account_holder_name,
-                    bank_name: _,
+                    bank_name,
                     bank_type,
                     bank_holder_type,
                 }) => {
@@ -959,6 +953,7 @@ pub(crate) async fn get_payment_method_create_request(
                                     bank_account_holder_name: bank_account_holder_name.clone(),
                                     bank_type: *bank_type,
                                     bank_holder_type: *bank_holder_type,
+                                    bank_name: *bank_name,
                                 },
                             ),
                         ),

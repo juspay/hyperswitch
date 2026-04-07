@@ -97,6 +97,7 @@ pub enum BankDebitDetail {
         bank_account_holder_name: Option<Secret<String>>,
         bank_type: Option<common_enums::BankType>,
         bank_holder_type: Option<common_enums::BankHolderType>,
+        bank_name: Option<common_enums::BankNames>,
     },
 }
 

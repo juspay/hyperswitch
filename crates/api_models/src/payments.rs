@@ -3012,10 +3012,6 @@ pub enum BankDebitData {
         #[smithy(value_type = "String")]
         routing_number: Secret<String>,
 
-        #[schema(value_type = String, example = "John Test")]
-        #[smithy(value_type = "Option<String>")]
-        card_holder_name: Option<Secret<String>>,
-
         #[schema(value_type = String, example = "John Doe")]
         #[smithy(value_type = "Option<String>")]
         bank_account_holder_name: Option<Secret<String>>,

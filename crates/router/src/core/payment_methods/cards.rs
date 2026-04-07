@@ -510,9 +510,8 @@ impl PaymentMethodsController for PmCards<'_> {
                     api_models::payment_methods::BankDebitDetailsPaymentMethod::AchBankDebit {
                         account_number_last4_digits: bank_debit.get_account_number_last4_digits(),
                         routing_number_last4_digits: bank_debit.get_routing_number_last4_digits(),
-                        card_holder_name: None,
                         bank_account_holder_name: bank_debit.get_bank_account_holder_name(),
-                        bank_name: None,
+                        bank_name: bank_debit.get_bank_name(),
                         bank_type: bank_debit.get_bank_type(),
                         bank_holder_type: bank_debit.get_bank_holder_type(),
                     },

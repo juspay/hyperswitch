@@ -8546,12 +8546,6 @@
             "description": "Partially masked routing number for ach bank debit payment",
             "example": "110***000"
           },
-          "card_holder_name": {
-            "type": "string",
-            "description": "Card holder's name",
-            "example": "John Doe",
-            "nullable": true
-          },
           "bank_account_holder_name": {
             "type": "string",
             "description": "Bank account's owner name",
@@ -11455,7 +11449,6 @@
                 "required": [
                   "account_number",
                   "routing_number",
-                  "card_holder_name",
                   "bank_account_holder_name",
                   "bank_name",
                   "bank_type",
@@ -11479,10 +11472,6 @@
                     "type": "string",
                     "description": "Routing number for ach bank debit payment",
                     "example": "110000000"
-                  },
-                  "card_holder_name": {
-                    "type": "string",
-                    "example": "John Test"
                   },
                   "bank_account_holder_name": {
                     "type": "string",
@@ -11695,6 +11684,14 @@
                     "allOf": [
                       {
                         "$ref": "#/components/schemas/BankHolderType"
+                      }
+                    ],
+                    "nullable": true
+                  },
+                  "bank_name": {
+                    "allOf": [
+                      {
+                        "$ref": "#/components/schemas/BankNames"
                       }
                     ],
                     "nullable": true

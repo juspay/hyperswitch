@@ -1428,7 +1428,6 @@ pub fn build_unified_connector_service_payment_method(
             hyperswitch_domain_models::payment_method_data::BankDebitData::AchBankDebit {
                 account_number,
                 routing_number,
-                card_holder_name,
                 bank_account_holder_name,
                 bank_name,
                 bank_type,
@@ -1447,7 +1446,7 @@ pub fn build_unified_connector_service_payment_method(
                 let ach = payments_grpc::Ach {
                     account_number: Some(account_number.expose().into()),
                     routing_number: Some(routing_number.expose().into()),
-                    card_holder_name: card_holder_name.map(|name| name.expose().into()),
+                    card_holder_name: None,
                     bank_account_holder_name: bank_account_holder_name
                         .map(|name| name.expose().into()),
                     bank_name: bank_name.map(Into::into).unwrap_or_default(),

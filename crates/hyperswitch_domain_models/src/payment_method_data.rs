@@ -1389,7 +1389,6 @@ pub enum BankDebitData {
     AchBankDebit {
         account_number: Secret<String>,
         routing_number: Secret<String>,
-        card_holder_name: Option<Secret<String>>,
         bank_account_holder_name: Option<Secret<String>>,
         bank_name: Option<common_enums::BankNames>,
         bank_type: Option<common_enums::BankType>,
@@ -1421,7 +1420,6 @@ impl BankDebitData {
             Self::AchBankDebit {
                 account_number,
                 routing_number,
-                card_holder_name,
                 bank_account_holder_name,
                 bank_name,
                 bank_type,
@@ -1445,7 +1443,6 @@ impl BankDebitData {
                     .chars()
                     .rev()
                     .collect::<String>(),
-                card_holder_name,
                 bank_account_holder_name,
                 bank_name,
                 bank_type,
@@ -1468,6 +1465,7 @@ pub enum BankDebitDetail {
         bank_account_holder_name: Option<Secret<String>>,
         bank_type: Option<common_enums::BankType>,
         bank_holder_type: Option<common_enums::BankHolderType>,
+        bank_name: Option<common_enums::BankNames>,
     },
 }
 
@@ -1510,12 +1508,14 @@ impl From<payment_methods::BankDebitDetail> for BankDebitDetail {
                 bank_account_holder_name,
                 bank_type,
                 bank_holder_type,
+                bank_name,
             } => Self::Ach {
                 account_number,
                 routing_number,
                 bank_account_holder_name,
                 bank_type,
                 bank_holder_type,
+                bank_name,
             },
         }
     }
@@ -1531,13 +1531,13 @@ impl From<BankDebitDetail> for BankDebitDetailsPaymentMethod {
                 bank_account_holder_name,
                 bank_type,
                 bank_holder_type,
+                bank_name,
                 ..
             } => Self::AchBankDebit {
                 account_number_last4_digits,
                 routing_number_last4_digits,
-                card_holder_name: None,
                 bank_account_holder_name,
-                bank_name: None,
+                bank_name,
                 bank_type,
                 bank_holder_type,
             },
@@ -1554,12 +1554,14 @@ impl From<BankDebitDetail> for payment_methods::BankDebitDetail {
                 bank_account_holder_name,
                 bank_type,
                 bank_holder_type,
+                bank_name,
             } => Self::Ach {
                 account_number,
                 routing_number,
                 bank_account_holder_name,
                 bank_type,
                 bank_holder_type,
+                bank_name,
             },
         }
     }
@@ -1725,13 +1727,13 @@ impl TryFrom<payment_methods::PaymentMethodCreateData> for PaymentMethodData {
                     bank_account_holder_name,
                     bank_type,
                     bank_holder_type,
+                    bank_name,
                 },
             ) => Ok(Self::BankDebit(BankDebitData::AchBankDebit {
                 account_number,
                 routing_number,
-                card_holder_name: None,
                 bank_account_holder_name,
-                bank_name: None,
+                bank_name,
                 bank_type,
                 bank_holder_type,
             })),
@@ -2713,7 +2715,6 @@ impl From<api_models::payments::BankDebitData> for BankDebitData {
             api_models::payments::BankDebitData::AchBankDebit {
                 account_number,
                 routing_number,
-                card_holder_name,
                 bank_account_holder_name,
                 bank_name,
                 bank_type,
@@ -2722,7 +2723,6 @@ impl From<api_models::payments::BankDebitData> for BankDebitData {
             } => Self::AchBankDebit {
                 account_number,
                 routing_number,
-                card_holder_name,
                 bank_account_holder_name,
                 bank_name,
                 bank_type,
@@ -2777,7 +2777,6 @@ impl From<BankDebitData> for api_models::payments::additional_info::BankDebitAdd
                 bank_name,
                 bank_type,
                 bank_holder_type,
-                card_holder_name,
                 bank_account_holder_name,
             } => Self::Ach(Box::new(
                 payment_additional_types::AchBankDebitAdditionalData {
@@ -2786,7 +2785,6 @@ impl From<BankDebitData> for api_models::payments::additional_info::BankDebitAdd
                     bank_name,
                     bank_type,
                     bank_holder_type,
-                    card_holder_name,
                     bank_account_holder_name,
                 },
             )),
@@ -3536,7 +3534,6 @@ pub enum BankDebitDetailsPaymentMethod {
     AchBankDebit {
         account_number_last4_digits: String,
         routing_number_last4_digits: String,
-        card_holder_name: Option<Secret<String>>,
         bank_account_holder_name: Option<Secret<String>>,
         bank_name: Option<common_enums::BankNames>,
         bank_type: Option<common_enums::BankType>,

@@ -647,6 +647,9 @@ pub enum BankDebitDetail {
         #[schema(value_type = Option<BankHolderType>)]
         #[serde(default)]
         bank_holder_type: Option<common_enums::BankHolderType>,
+        #[schema(value_type = Option<BankNames>)]
+        #[serde(default)]
+        bank_name: Option<common_enums::BankNames>,
     },
 }
 
@@ -701,6 +704,12 @@ impl BankDebitDetail {
             } => *bank_holder_type,
         }
     }
+
+    pub fn get_bank_name(&self) -> Option<common_enums::BankNames> {
+        match self {
+            Self::Ach { bank_name, .. } => *bank_name,
+        }
+    }
 }
 
 impl From<BankDebitDetail> for BankDebitDetailsPaymentMethod {
@@ -712,13 +721,13 @@ impl From<BankDebitDetail> for BankDebitDetailsPaymentMethod {
                 bank_account_holder_name,
                 bank_type,
                 bank_holder_type,
+                bank_name,
                 ..
             } => Self::AchBankDebit {
                 account_number_last4_digits,
                 routing_number_last4_digits,
-                card_holder_name: None,
                 bank_account_holder_name,
-                bank_name: None,
+                bank_name,
                 bank_type,
                 bank_holder_type,
             },
@@ -1429,8 +1438,6 @@ pub enum BankDebitDetailsPaymentMethod {
     AchBankDebit {
         account_number_last4_digits: String,
         routing_number_last4_digits: String,
-        #[schema(value_type=Option<String>)]
-        card_holder_name: Option<hyperswitch_masking::Secret<String>>,
         #[schema(value_type=Option<String>)]
         bank_account_holder_name: Option<hyperswitch_masking::Secret<String>>,
         #[schema(value_type = String, example = "ACH")]
@@ -3395,6 +3402,8 @@ pub struct PaymentMethodRecord {
     pub bank_type: Option<common_enums::BankType>,
     #[serde(default)]
     pub bank_holder_type: Option<common_enums::BankHolderType>,
+    #[serde(default)]
+    pub bank_name: Option<common_enums::BankNames>,
 }
 
 #[cfg(feature = "v1")]
@@ -3414,6 +3423,7 @@ impl PaymentMethodRecord {
                     bank_account_holder_name: self.bank_account_holder_name.clone(),
                     bank_type: self.bank_type,
                     bank_holder_type: self.bank_holder_type,
+                    bank_name: self.bank_name.clone(),
                 }))
             }
             _ => None,

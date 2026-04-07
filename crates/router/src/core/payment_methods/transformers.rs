@@ -584,6 +584,7 @@ pub fn generate_pm_vaulting_req_from_update_request(
                 bank_account_holder_name,
                 bank_type,
                 bank_holder_type,
+                bank_name,
             } = bank_debit_create;
 
             Ok(domain::PaymentMethodVaultingData::BankDebit(
@@ -594,6 +595,7 @@ pub fn generate_pm_vaulting_req_from_update_request(
                         .or(bank_account_holder_name),
                     bank_type,
                     bank_holder_type,
+                    bank_name,
                 },
             ))
         }
@@ -1607,13 +1609,13 @@ impl
                         bank_account_holder_name,
                         bank_type,
                         bank_holder_type,
+                        bank_name,
                     } => Ok(Self(domain::PaymentMethodData::BankDebit(
                         hyperswitch_domain_models::payment_method_data::BankDebitData::AchBankDebit {
                             account_number,
                             routing_number,
-                            card_holder_name: None,
                             bank_account_holder_name,
-                            bank_name: None,
+                            bank_name,
                             bank_type,
                             bank_holder_type,
                         },

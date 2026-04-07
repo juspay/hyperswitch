@@ -153,6 +153,7 @@ impl TryFrom<PaymentMethodData> for PaymentMethodCreateData {
                     bank_account_holder_name,
                     bank_type,
                     bank_holder_type,
+                    bank_name,
                     ..
                 } => {
                     let bank_debit_detail = BankDebitDetail::Ach {
@@ -161,6 +162,7 @@ impl TryFrom<PaymentMethodData> for PaymentMethodCreateData {
                         bank_account_holder_name,
                         bank_type,
                         bank_holder_type,
+                        bank_name,
                     };
                     Ok(Self::BankDebit(bank_debit_detail))
                 }

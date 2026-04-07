@@ -5217,12 +5217,6 @@
             "description": "Partially masked routing number for ach bank debit payment",
             "example": "110***000"
           },
-          "card_holder_name": {
-            "type": "string",
-            "description": "Card holder's name",
-            "example": "John Doe",
-            "nullable": true
-          },
           "bank_account_holder_name": {
             "type": "string",
             "description": "Bank account's owner name",
@@ -7159,7 +7153,6 @@
                 "required": [
                   "account_number",
                   "routing_number",
-                  "card_holder_name",
                   "bank_account_holder_name",
                   "bank_name",
                   "bank_type",
@@ -7183,10 +7176,6 @@
                     "type": "string",
                     "description": "Routing number for ach bank debit payment",
                     "example": "110000000"
-                  },
-                  "card_holder_name": {
-                    "type": "string",
-                    "example": "John Test"
                   },
                   "bank_account_holder_name": {
                     "type": "string",
@@ -7402,6 +7391,14 @@
                       }
                     ],
                     "nullable": true
+                  },
+                  "bank_name": {
+                    "allOf": [
+                      {
+                        "$ref": "#/components/schemas/BankNames"
+                      }
+                    ],
+                    "nullable": true
                   }
                 }
               }
@@ -7423,22 +7420,6 @@
                   "bank_account_holder_name": {
                     "type": "string",
                     "nullable": true
-                  },
-                  "bank_type": {
-                    "allOf": [
-                      {
-                        "$ref": "#/components/schemas/BankType"
-                      }
-                    ],
-                    "nullable": true
-                  },
-                  "bank_holder_type": {
-                    "allOf": [
-                      {
-                        "$ref": "#/components/schemas/BankHolderType"
-                      }
-                    ],
-                    "nullable": true
                   }
                 }
               }
@@ -7457,22 +7438,18 @@
               "ach_bank_debit": {
                 "type": "object",
                 "required": [
-                  "masked_account_number",
-                  "masked_routing_number",
+                  "account_number_last4_digits",
+                  "routing_number_last4_digits",
                   "bank_name",
                   "bank_type",
                   "bank_holder_type"
                 ],
                 "properties": {
-                  "masked_account_number": {
+                  "account_number_last4_digits": {
                     "type": "string"
                   },
-                  "masked_routing_number": {
+                  "routing_number_last4_digits": {
                     "type": "string"
-                  },
-                  "card_holder_name": {
-                    "type": "string",
-                    "nullable": true
                   },
                   "bank_account_holder_name": {
                     "type": "string",
