@@ -121,6 +121,9 @@ pub struct AcquirerConfig {
     /// Acquirer country code
     #[schema(value_type= Option<String>,example = "US")]
     pub acquirer_country_code: Option<String>,
+    /// Whether this configuration bucket is the default fallback for the profile.
+    #[serde(default)]
+    pub is_default: bool,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, FromSqlRow, AsExpression, ToSchema)]

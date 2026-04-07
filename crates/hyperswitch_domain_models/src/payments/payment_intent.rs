@@ -221,6 +221,7 @@ pub struct PaymentIntentUpdateFields {
     pub enable_partial_authorization: Option<primitive_wrappers::EnablePartialAuthorizationBool>,
     pub active_attempt_id_type: Option<common_enums::ActiveAttemptIDType>,
     pub active_attempts_group_id: Option<id_type::GlobalAttemptGroupId>,
+    pub profile_acquirer_id: Option<id_type::ProfileAcquirerId>,
 }
 
 #[cfg(feature = "v1")]
@@ -267,6 +268,7 @@ pub struct PaymentIntentUpdateFields {
     pub enable_overcapture: Option<primitive_wrappers::EnableOvercaptureBool>,
     pub shipping_cost: Option<MinorUnit>,
     pub installment_options: Option<Vec<common_types::payments::InstallmentOption>>,
+    pub profile_acquirer_id: Option<id_type::ProfileAcquirerId>,
 }
 
 #[cfg(feature = "v1")]
@@ -375,6 +377,7 @@ pub enum PaymentIntentUpdate {
         status: common_enums::IntentStatus,
         active_attempt_id: Option<id_type::GlobalAttemptId>,
         updated_by: String,
+        profile_acquirer_id: Option<id_type::ProfileAcquirerId>,
     },
     /// PostUpdate tracker of ConfirmIntent
     ConfirmIntentPostUpdate {
@@ -487,6 +490,7 @@ pub struct PaymentIntentUpdateInternal {
     pub shipping_cost: Option<MinorUnit>,
     pub state_metadata: Option<common_types::payments::PaymentIntentStateMetadata>,
     pub installment_options: Option<Vec<common_types::payments::InstallmentOption>>,
+    pub profile_acquirer_id: Option<id_type::ProfileAcquirerId>,
 }
 
 // This conversion is used in the `update_payment_intent` function
@@ -499,6 +503,7 @@ impl TryFrom<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal
                 status,
                 active_attempt_id,
                 updated_by,
+                profile_acquirer_id,
             } => Ok(Self {
                 status: Some(status),
                 active_attempt_id: Some(active_attempt_id),
@@ -1270,6 +1275,7 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 enable_overcapture: None,
                 shipping_cost: None,
                 installment_options: None,
+                profile_acquirer_id: None,
             },
         }
     }
@@ -1376,6 +1382,7 @@ impl From<PaymentIntentUpdate> for DieselPaymentIntentUpdate {
                     installment_options: value
                         .installment_options
                         .map(common_types::payments::InstallmentOptions),
+                    profile_acquirer_id: value.profile_acquirer_id,
                 }))
             }
             PaymentIntentUpdate::PaymentCreateUpdate {
@@ -1548,6 +1555,7 @@ impl From<PaymentIntentUpdateInternal> for diesel_models::PaymentIntentUpdateInt
             shipping_cost,
             state_metadata,
             installment_options,
+            profile_acquirer_id,
         } = value;
         Self {
             amount,
@@ -1602,6 +1610,7 @@ impl From<PaymentIntentUpdateInternal> for diesel_models::PaymentIntentUpdateInt
             state_metadata,
             installment_options: installment_options
                 .map(common_types::payments::InstallmentOptions),
+            profile_acquirer_id,
         }
     }
 }
@@ -2361,6 +2370,7 @@ impl behaviour::Conversion for PaymentIntent {
             active_attempts_group_id: self.active_attempts_group_id,
             state_metadata: None,
             installment_options: None,
+            profile_acquirer_id: self.profile_acquirer_id,
         })
     }
 }
@@ -2452,6 +2462,7 @@ impl behaviour::Conversion for PaymentIntent {
             installment_options: self
                 .installment_options
                 .map(common_types::payments::InstallmentOptions),
+            profile_acquirer_id: self.profile_acquirer_id,
         })
     }
 
@@ -2568,6 +2579,7 @@ impl behaviour::Conversion for PaymentIntent {
                     .partner_merchant_identifier_details,
                 state_metadata: storage_model.state_metadata,
                 installment_options: storage_model.installment_options.map(|o| o.0),
+                profile_acquirer_id: storage_model.profile_acquirer_id,
             })
         }
         .await
@@ -2657,6 +2669,7 @@ impl behaviour::Conversion for PaymentIntent {
             installment_options: self
                 .installment_options
                 .map(common_types::payments::InstallmentOptions),
+            profile_acquirer_id: self.profile_acquirer_id,
         })
     }
 }

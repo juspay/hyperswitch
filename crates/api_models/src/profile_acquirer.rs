@@ -27,6 +27,8 @@ pub struct ProfileAcquirerCreate {
     /// Parent profile id to link the acquirer account with
     #[schema(value_type= String,example = "pro_ky0yNyOXXlA5hF8JzE5q")]
     pub profile_id: common_utils::id_type::ProfileId,
+    /// Whether this configuration bucket is the default fallback for the profile.
+    pub is_default: Option<bool>,
 }
 
 #[derive(Debug, Serialize, Deserialize, ToSchema, Clone)]
@@ -58,10 +60,40 @@ pub struct ProfileAcquirerResponse {
     /// Parent profile id to link the acquirer account with
     #[schema(value_type= String,example = "pro_ky0yNyOXXlA5hF8JzE5q")]
     pub profile_id: common_utils::id_type::ProfileId,
+    /// Whether this configuration bucket is the default fallback for the profile.
+    pub is_default: bool,
+}
+
+#[derive(Debug, Serialize, Deserialize, ToSchema, Clone)]
+pub struct AcquirerBucketConfigResponse {
+    /// The merchant id assigned by the acquirer
+    #[schema(value_type= String,example = "M123456789")]
+    pub acquirer_assigned_merchant_id: String,
+    /// Merchant name
+    #[schema(value_type= String,example = "NewAge Retailer")]
+    pub merchant_name: String,
+    /// Network provider
+    #[schema(value_type= String,example = "VISA")]
+    pub network: common_enums::enums::CardNetwork,
+    /// Acquirer bin
+    #[schema(value_type= String,example = "456789")]
+    pub acquirer_bin: String,
+    /// Acquirer ica provided by acquirer
+    #[schema(value_type= Option<String>,example = "401288")]
+    pub acquirer_ica: Option<String>,
+    /// Fraud rate for the particular acquirer configuration
+    #[schema(value_type= Option<f64>,example = 0.01)]
+    pub acquirer_fraud_rate: Option<f64>,
+    /// Acquirer country code
+    #[schema(value_type= Option<String>,example = "US")]
+    pub acquirer_country_code: Option<String>,
+    /// Whether this configuration bucket is the default fallback for the profile.
+    pub is_default: bool,
 }
 
 impl common_utils::events::ApiEventMetric for ProfileAcquirerCreate {}
 impl common_utils::events::ApiEventMetric for ProfileAcquirerResponse {}
+impl common_utils::events::ApiEventMetric for AcquirerBucketConfigResponse {}
 
 impl
     From<(
@@ -87,6 +119,22 @@ impl
             acquirer_ica: acquirer_config.acquirer_ica.clone(),
             acquirer_fraud_rate: acquirer_config.acquirer_fraud_rate,
             acquirer_country_code: acquirer_config.acquirer_country_code.clone(),
+            is_default: acquirer_config.is_default,
+        }
+    }
+}
+
+impl From<&common_types::domain::AcquirerConfig> for AcquirerBucketConfigResponse {
+    fn from(acquirer_config: &common_types::domain::AcquirerConfig) -> Self {
+        Self {
+            acquirer_assigned_merchant_id: acquirer_config.acquirer_assigned_merchant_id.clone(),
+            merchant_name: acquirer_config.merchant_name.clone(),
+            network: acquirer_config.network.clone(),
+            acquirer_bin: acquirer_config.acquirer_bin.clone(),
+            acquirer_ica: acquirer_config.acquirer_ica.clone(),
+            acquirer_fraud_rate: acquirer_config.acquirer_fraud_rate,
+            acquirer_country_code: acquirer_config.acquirer_country_code.clone(),
+            is_default: acquirer_config.is_default,
         }
     }
 }
@@ -109,6 +157,8 @@ pub struct ProfileAcquirerUpdate {
     pub acquirer_fraud_rate: Option<f64>,
     #[schema(value_type = Option<String>, example = "US")]
     pub acquirer_country_code: Option<String>,
+    /// Whether this configuration bucket is the default fallback for the profile.
+    pub is_default: Option<bool>,
 }
 
 impl common_utils::events::ApiEventMetric for ProfileAcquirerUpdate {}

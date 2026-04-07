@@ -25,6 +25,43 @@ pub async fn create_profile_acquirer(
             id: request.profile_id.get_string_repr().to_owned(),
         })?;
 
+    let has_existing_default = business_profile
+        .acquirer_config_map
+        .as_ref()
+        .map(|map| {
+            map.0
+                .values()
+                .any(|bucket| bucket.iter().any(|config| config.is_default))
+        })
+        .unwrap_or(false);
+
+    let is_default = match request.is_default {
+        Some(true) => {
+            if has_existing_default {
+                return Err(error_stack::report!(errors::ApiErrorResponse::PreconditionFailed {
+                    message: "A default acquirer configuration already exists for this profile. Please unset the current default before setting a new one.".to_string(),
+                }));
+            }
+            true
+        }
+        Some(false) => {
+            // If it's the first one, we force it to be default for resolution safety.
+            if !has_existing_default {
+                true
+            } else {
+                false
+            }
+        }
+        None => {
+            // Automark as default if it's the first one.
+            if !has_existing_default {
+                true
+            } else {
+                false
+            }
+        }
+    };
+
     let incoming_acquirer_config = common_types::domain::AcquirerConfig {
         acquirer_assigned_merchant_id: request.acquirer_assigned_merchant_id.clone(),
         merchant_name: request.merchant_name.clone(),
@@ -33,31 +70,8 @@ pub async fn create_profile_acquirer(
         acquirer_ica: request.acquirer_ica.clone(),
         acquirer_fraud_rate: request.acquirer_fraud_rate,
         acquirer_country_code: request.acquirer_country_code.clone(),
+        is_default,
     };
-
-    // Cross-bucket duplicate check: reject if this exact AcquirerConfig already exists in any bucket.
-    business_profile
-        .acquirer_config_map
-        .as_ref()
-        .map_or(Ok(()), |configs_wrapper| {
-            let is_duplicate = configs_wrapper
-                .0
-                .values()
-                .any(|bucket| bucket.contains(&incoming_acquirer_config));
-            if is_duplicate {
-                Err(error_stack::report!(
-                    errors::ApiErrorResponse::GenericDuplicateError {
-                        message: format!(
-                            "Duplicate acquirer configuration found for profile_id: {}. Conflicting configuration: {:?}",
-                            request.profile_id.get_string_repr(),
-                            incoming_acquirer_config
-                        ),
-                    }
-                ))
-            } else {
-                Ok(())
-            }
-        })?;
 
     // Initialize the new bucket as a Vec containing its first AcquirerConfig entry.
     let configs_map = &mut business_profile
@@ -130,6 +144,14 @@ pub async fn update_profile_acquirer_config(
         })
         .attach_printable("no acquirer config found in business profile")?;
 
+    // Check if another bucket is already set as default BEFORE borrowing the bucket mutably.
+    let has_other_default = acquirer_config_map
+        .0
+        .iter()
+        .any(|(bucket_id, bucket_list)| {
+            bucket_id != &profile_acquirer_id && bucket_list.iter().any(|config| config.is_default)
+        });
+
     // Verify the target bucket (profile_acquirer_id) exists.
     let bucket = acquirer_config_map
         .0
@@ -156,6 +178,7 @@ pub async fn update_profile_acquirer_config(
                 acquirer_ica: None,
                 acquirer_fraud_rate: None,
                 acquirer_country_code: None,
+                is_default: false,
             });
 
         common_types::domain::AcquirerConfig {
@@ -168,30 +191,47 @@ pub async fn update_profile_acquirer_config(
             acquirer_fraud_rate: request.acquirer_fraud_rate.or(base.acquirer_fraud_rate),
             acquirer_country_code: request.acquirer_country_code.or(base.acquirer_country_code),
             network: base.network,
+            is_default: request.is_default.unwrap_or(base.is_default),
         }
     };
 
-    // Cross-bucket + cross-slot duplicate check: the final config must not identically
-    // match any config in OTHER buckets or OTHER slots within this bucket.
-    acquirer_config_map
-        .0
-        .iter()
-        .flat_map(|(bucket_id, cfgs)| cfgs.iter().enumerate().map(move |(idx, cfg)| (bucket_id, idx, cfg)))
-        .find(|(other_bucket_id, idx, existing_cfg)| {
-            let is_same_slot = *other_bucket_id == &profile_acquirer_id && existing_pos == Some(*idx);
-            !is_same_slot && *existing_cfg == &upserted_config
-        })
-        .map_or(Ok(()), |(other_bucket_id, _, _)| {
-            Err(error_stack::report!(
+    // If the updated config is set as default, ensure no OTHER bucket is already default.
+    if upserted_config.is_default {
+        if has_other_default && request.is_default == Some(true) {
+            return Err(error_stack::report!(errors::ApiErrorResponse::PreconditionFailed {
+                message: "A default acquirer configuration already exists for this profile. Please unset it before marking this bucket as default.".to_string(),
+            }));
+        }
+
+        // Sync the is_default flag across all entries in the SAME bucket
+        for config in bucket.iter_mut() {
+            config.is_default = true;
+        }
+    } else {
+        // If this specific config was explicitly set to NOT default,
+        // sync this across the entire bucket.
+        if request.is_default == Some(false) {
+            for config in bucket.iter_mut() {
+                config.is_default = false;
+            }
+        }
+    }
+
+    // intra-bucket duplicate check: if the entry already exists and has the same content,
+    // reject it as a duplicate.
+    if let Some(pos) = existing_pos {
+        if bucket.get(pos) == Some(&upserted_config) {
+            return Err(error_stack::report!(
                 errors::ApiErrorResponse::GenericDuplicateError {
                     message: format!(
-                        "Duplicate network insertion. This network already exists in bucket '{}' under profile_id '{}'.",
-                        other_bucket_id.get_string_repr(),
-                        profile_id.get_string_repr()
+                        "An identical configuration for network '{}' already exists in bucket '{}'.",
+                        upserted_config.network,
+                        profile_acquirer_id.get_string_repr()
                     ),
                 }
-            ))
-        })?;
+            ));
+        }
+    }
 
     // Upsert into the bucket: overwrite existing network slot or push a new entry.
     let bucket = acquirer_config_map

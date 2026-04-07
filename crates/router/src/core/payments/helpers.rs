@@ -8422,6 +8422,7 @@ pub async fn get_payment_external_authentication_flow_during_confirm<F: Clone>(
                 connector_data.merchant_connector_id.as_ref(),
             )
             .await?;
+            let profile_acquirer_id = payment_data.payment_intent.profile_acquirer_id.as_ref();
             let acquirer_details = match payment_connector_mca
                 .get_metadata()
                 .as_ref()
@@ -8449,25 +8450,43 @@ pub async fn get_payment_external_authentication_flow_during_confirm<F: Clone>(
                         })
                 }) {
                 Some(details) => Some(details),
-                None => match card.card_network.as_ref() {
-                    Some(network) => Some(network.clone()),
-                    None => state
-                        .store
-                        .get_card_info(&card.card_number.get_card_isin())
-                        .await
-                        .change_context(errors::ApiErrorResponse::InternalServerError)
-                        .attach_printable("Failed to fetch card info from DB")?
-                        .ok_or(errors::ApiErrorResponse::PreconditionFailed {
-                            message: "Card info not found in DB".to_string(),
-                        })?
-                        .card_network,
+                None => {
+                    let network = match card.card_network.as_ref() {
+                        Some(network) => network.clone(),
+                        None => state
+                            .store
+                            .get_card_info(&card.card_number.get_card_isin())
+                            .await
+                            .change_context(errors::ApiErrorResponse::InternalServerError)
+                            .attach_printable("Failed to fetch card info from DB")?
+                            .ok_or(errors::ApiErrorResponse::PreconditionFailed {
+                                message: "Card info not found in DB".to_string(),
+                            })?
+                            .card_network
+                            .ok_or(errors::ApiErrorResponse::PreconditionFailed {
+                                message: "Card network not found in card info".to_string(),
+                            })?,
+                    };
+
+                    let resolved = match profile_acquirer_id {
+                        Some(id) => business_profile
+                            .get_acquirer_details_for_profile_acquirer(id, network.clone())
+                            .ok_or(errors::ApiErrorResponse::PreconditionFailed {
+                                message: format!("Acquirer configuration not found for network {:?} in bucket {:?}", network, id),
+                            })?,
+                        None => business_profile
+                            .get_default_acquirer_details_from_network(network.clone())
+                            .ok_or(errors::ApiErrorResponse::PreconditionFailed {
+                                message: format!("Acquirer configuration not found for network {:?} in default bucket", network),
+                            })?,
+                    };
+
+                    Some(authentication::types::AcquirerDetails {
+                        acquirer_bin: resolved.acquirer_bin,
+                        acquirer_merchant_id: resolved.acquirer_assigned_merchant_id,
+                        acquirer_country_code: resolved.acquirer_country_code,
+                    })
                 }
-                .and_then(|network| business_profile.get_acquirer_details_from_network(network))
-                .map(|resolved| authentication::types::AcquirerDetails {
-                    acquirer_bin: resolved.acquirer_bin,
-                    acquirer_merchant_id: resolved.acquirer_assigned_merchant_id,
-                    acquirer_country_code: resolved.acquirer_country_code,
-                }),
             };
 
             Some(PaymentExternalAuthenticationFlow::PreAuthenticationFlow {

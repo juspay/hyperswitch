@@ -44,27 +44,28 @@ pub struct ProfileAcquirerConfigs {
 }
 
 impl From<ProfileAcquirerConfigs>
-    for Option<Vec<api_models::profile_acquirer::ProfileAcquirerResponse>>
+    for Option<
+        HashMap<
+            common_utils::id_type::ProfileAcquirerId,
+            Vec<api_models::profile_acquirer::AcquirerBucketConfigResponse>,
+        >,
+    >
 {
     fn from(item: ProfileAcquirerConfigs) -> Self {
-        let profile_id = item.profile_id.clone();
         item.acquirer_config_map.map(|config_map_val| {
-            let mut vec: Vec<_> = config_map_val.0.into_iter().collect();
-            vec.sort_by_key(|k| k.0.clone());
-            // Flatten each bucket (Vec<AcquirerConfig>) into individual response entries,
-            // all sharing the same profile_acquirer_id (the bucket key).
-            vec.into_iter()
-                .flat_map(|(profile_acquirer_id, acquirer_configs)| {
-                    let profile_id = profile_id.clone();
-                    acquirer_configs.into_iter().map(move |acquirer_config| {
-                        api_models::profile_acquirer::ProfileAcquirerResponse::from((
-                            profile_acquirer_id.clone(),
-                            &profile_id,
-                            &acquirer_config,
-                        ))
-                    })
+            config_map_val
+                .0
+                .into_iter()
+                .map(|(profile_acquirer_id, acquirer_configs)| {
+                    (
+                        profile_acquirer_id,
+                        acquirer_configs
+                            .iter()
+                            .map(api_models::profile_acquirer::AcquirerBucketConfigResponse::from)
+                            .collect(),
+                    )
                 })
-                .collect::<Vec<api_models::profile_acquirer::ProfileAcquirerResponse>>()
+                .collect()
         })
     }
 }

@@ -504,9 +504,11 @@ impl AuthenticationInterface for MockDb {
             hyperswitch_domain_models::authentication::AuthenticationUpdate::AcquirerDetailsUpdate {
                 acquirer_bin,
                 acquirer_merchant_id,
+                acquirer_country_code,
             } => {
                 auth_to_update.acquirer_bin = acquirer_bin;
                 auth_to_update.acquirer_merchant_id = acquirer_merchant_id;
+                auth_to_update.acquirer_country_code = acquirer_country_code;
             }
         }
 

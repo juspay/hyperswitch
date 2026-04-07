@@ -524,6 +524,7 @@ pub enum AuthenticationUpdate {
     AcquirerDetailsUpdate {
         acquirer_bin: Option<String>,
         acquirer_merchant_id: Option<String>,
+        acquirer_country_code: Option<String>,
     },
 }
 
@@ -683,9 +684,11 @@ impl From<AuthenticationUpdate> for diesel_models::authentication::Authenticatio
             AuthenticationUpdate::AcquirerDetailsUpdate {
                 acquirer_bin,
                 acquirer_merchant_id,
+                acquirer_country_code,
             } => Self::AcquirerDetailsUpdate {
                 acquirer_bin,
                 acquirer_merchant_id,
+                acquirer_country_code,
             },
         }
     }

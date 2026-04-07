@@ -2638,6 +2638,10 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
                             .payment_intent
                             .installment_options
                             .clone(),
+                        profile_acquirer_id: payment_data
+                            .payment_intent
+                            .profile_acquirer_id
+                            .clone(),
                     })),
                     &m_key_store,
                     storage_scheme,

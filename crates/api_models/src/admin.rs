@@ -23,7 +23,7 @@ use crate::{
     enums as api_enums, payment_methods,
 };
 #[cfg(feature = "v1")]
-use crate::{profile_acquirer::ProfileAcquirerResponse, routing};
+use crate::{profile_acquirer::AcquirerBucketConfigResponse, routing};
 
 #[derive(Clone, Debug, Deserialize, ToSchema, Serialize)]
 pub struct MerchantAccountListRequest {
@@ -2680,8 +2680,9 @@ pub struct ProfileResponse {
     pub is_pre_network_tokenization_enabled: bool,
 
     /// Acquirer configs
-    #[schema(value_type = Option<Vec<ProfileAcquirerResponse>>)]
-    pub acquirer_configs: Option<Vec<ProfileAcquirerResponse>>,
+    #[schema(value_type = Option<Object>)]
+    pub acquirer_configs:
+        Option<HashMap<id_type::ProfileAcquirerId, Vec<AcquirerBucketConfigResponse>>>,
 
     /// Indicates if the redirection has to open in the iframe
     #[schema(example = false)]

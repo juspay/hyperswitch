@@ -1217,6 +1217,8 @@ diesel::table! {
         state_metadata -> Nullable<Jsonb>,
         installment_options -> Nullable<Jsonb>,
         #[max_length = 64]
+        profile_acquirer_id -> Nullable<Varchar>,
+        #[max_length = 64]
         merchant_reference_id -> Nullable<Varchar>,
         billing_address -> Nullable<Bytea>,
         shipping_address -> Nullable<Bytea>,

@@ -1634,6 +1634,24 @@ impl Profile {
             .and_then(|bucket| bucket.iter().find(|cfg| cfg.network == network).cloned())
     }
 
+    /// Resolve an `AcquirerConfig` from the default bucket or fallback to the first bucket.
+    pub fn get_default_acquirer_details_from_network(
+        &self,
+        network: common_enums::CardNetwork,
+    ) -> Option<AcquirerConfig> {
+        self.acquirer_config_map.as_ref().and_then(|map| {
+            // Try finding the bucket where at least one config is marked as default
+            let default_bucket = map
+                .0
+                .values()
+                .find(|bucket| bucket.iter().any(|cfg| cfg.is_default))
+                .or_else(|| map.0.values().next()); // Fallback to the first bucket
+
+            default_bucket
+                .and_then(|bucket| bucket.iter().find(|cfg| cfg.network == network).cloned())
+        })
+    }
+
     #[cfg(feature = "v1")]
     pub fn get_payment_routing_algorithm(
         &self,
