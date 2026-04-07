@@ -336,8 +336,12 @@ pub async fn payouts_create_core(
     let (payout_id, payout_method_data, profile_id, customer, payment_method) =
         validator::validate_create_request(&state, &platform, &req).await?;
     let dimensions = configs::dimension_state::Dimensions::new()
-        .with_processor_merchant_id(ProcessorMerchantId(platform.get_processor().get_account().get_id().clone()))
-        .with_provider_merchant_id(ProviderMerchantId(platform.get_provider().get_account().get_id().clone()));
+        .with_processor_merchant_id(ProcessorMerchantId(
+            platform.get_processor().get_account().get_id().clone(),
+        ))
+        .with_provider_merchant_id(ProviderMerchantId(
+            platform.get_provider().get_account().get_id().clone(),
+        ));
 
     // Create DB entries
     let mut payout_data = payout_create_db_entries(
@@ -399,8 +403,12 @@ pub async fn payouts_confirm_core(
     req: payouts::PayoutCreateRequest,
 ) -> RouterResponse<payouts::PayoutCreateResponse> {
     let dimensions = configs::dimension_state::Dimensions::new()
-        .with_processor_merchant_id(ProcessorMerchantId(platform.get_processor().get_account().get_id().clone()))
-        .with_provider_merchant_id(ProviderMerchantId(platform.get_provider().get_account().get_id().clone()));
+        .with_processor_merchant_id(ProcessorMerchantId(
+            platform.get_processor().get_account().get_id().clone(),
+        ))
+        .with_provider_merchant_id(ProviderMerchantId(
+            platform.get_provider().get_account().get_id().clone(),
+        ));
 
     let mut payout_data = Box::pin(make_payout_data(
         &state,
@@ -465,8 +473,12 @@ pub async fn payouts_update_core(
     req: payouts::PayoutCreateRequest,
 ) -> RouterResponse<payouts::PayoutCreateResponse> {
     let dimensions = configs::dimension_state::Dimensions::new()
-        .with_processor_merchant_id(ProcessorMerchantId(platform.get_processor().get_account().get_id().clone()))
-        .with_provider_merchant_id(ProviderMerchantId(platform.get_provider().get_account().get_id().clone()));
+        .with_processor_merchant_id(ProcessorMerchantId(
+            platform.get_processor().get_account().get_id().clone(),
+        ))
+        .with_provider_merchant_id(ProviderMerchantId(
+            platform.get_provider().get_account().get_id().clone(),
+        ));
 
     let payout_id = req.payout_id.clone().get_required_value("payout_id")?;
     let mut payout_data = Box::pin(make_payout_data(
@@ -695,8 +707,12 @@ pub async fn payouts_fulfill_core(
     let payout_attempt = payout_data.payout_attempt.to_owned();
     let status = payout_attempt.status;
     let dimensions = configs::dimension_state::Dimensions::new()
-        .with_processor_merchant_id(ProcessorMerchantId(platform.get_processor().get_account().get_id().clone()))
-        .with_provider_merchant_id(ProviderMerchantId(platform.get_provider().get_account().get_id().clone()));
+        .with_processor_merchant_id(ProcessorMerchantId(
+            platform.get_processor().get_account().get_id().clone(),
+        ))
+        .with_provider_merchant_id(ProviderMerchantId(
+            platform.get_provider().get_account().get_id().clone(),
+        ));
 
     // Verify if fulfillment can be triggered
     if helpers::is_payout_terminal_state(status)

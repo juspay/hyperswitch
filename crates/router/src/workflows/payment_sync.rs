@@ -82,8 +82,12 @@ impl ProcessTrackerWorkflow<SessionState> for PaymentsSyncWorkflow {
             None,
         );
         let dimensions = configs::dimension_state::Dimensions::new()
-            .with_processor_merchant_id(ProcessorMerchantId(platform.get_processor().get_account().get_id().clone()))
-            .with_provider_merchant_id(ProviderMerchantId(platform.get_provider().get_account().get_id().clone()));
+            .with_processor_merchant_id(ProcessorMerchantId(
+                platform.get_processor().get_account().get_id().clone(),
+            ))
+            .with_provider_merchant_id(ProviderMerchantId(
+                platform.get_provider().get_account().get_id().clone(),
+            ));
         // TODO: Add support for ReqState in PT flows
         let (mut payment_data, _, _, _) = Box::pin(payment_flows::payments_operation_core::<
             api::PSync,

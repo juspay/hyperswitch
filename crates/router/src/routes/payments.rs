@@ -2374,8 +2374,12 @@ where
                 .collect()
         });
         let dimensions = Dimensions::new()
-            .with_processor_merchant_id(ProcessorMerchantId(platform.get_processor().get_account().get_id().clone()))
-            .with_provider_merchant_id(ProviderMerchantId(platform.get_provider().get_account().get_id().clone()));
+            .with_processor_merchant_id(ProcessorMerchantId(
+                platform.get_processor().get_account().get_id().clone(),
+            ))
+            .with_provider_merchant_id(ProviderMerchantId(
+                platform.get_provider().get_account().get_id().clone(),
+            ));
         match req.payment_type.unwrap_or_default() {
             api_models::enums::PaymentType::Normal
             | api_models::enums::PaymentType::RecurringMandate

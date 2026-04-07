@@ -3441,7 +3441,9 @@ where
 
         // Check if client session validation is enabled
         let dimensions = Dimensions::new()
-            .with_provider_merchant_id(ProviderMerchantId(platform.get_provider().get_account().get_id().clone()))
+            .with_provider_merchant_id(ProviderMerchantId(
+                platform.get_provider().get_account().get_id().clone(),
+            ))
             .with_processor_merchant_id(ProcessorMerchantId(processor_merchant_id.clone()));
 
         let session_validation_enabled = dimensions

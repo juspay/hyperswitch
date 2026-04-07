@@ -666,8 +666,12 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
 
         // Check if client session validation is enabled
         let dimensions = Dimensions::new()
-            .with_provider_merchant_id(ProviderMerchantId(platform.get_provider().get_account().get_id().clone()))
-            .with_processor_merchant_id(ProcessorMerchantId(platform.get_processor().get_account().get_id().clone()));
+            .with_provider_merchant_id(ProviderMerchantId(
+                platform.get_provider().get_account().get_id().clone(),
+            ))
+            .with_processor_merchant_id(ProcessorMerchantId(
+                platform.get_processor().get_account().get_id().clone(),
+            ));
 
         let session_validation_enabled = dimensions
             .get_client_session_validation_enabled(
