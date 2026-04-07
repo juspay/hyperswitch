@@ -28,6 +28,7 @@ pub enum MetaData {
     IsChangePasswordRequired(bool),
     OnboardingSurvey(api::OnboardingSurvey),
     ReconStatus(api::ReconStatus),
+    CustomDashboards(api::DashboardOperation),
 }
 
 impl From<&MetaData> for DBEnum {
@@ -57,6 +58,7 @@ impl From<&MetaData> for DBEnum {
             MetaData::IsChangePasswordRequired(_) => Self::IsChangePasswordRequired,
             MetaData::OnboardingSurvey(_) => Self::OnboardingSurvey,
             MetaData::ReconStatus(_) => Self::ReconStatus,
+            MetaData::CustomDashboards(_) => Self::CustomDashboards,
         }
     }
 }
@@ -65,4 +67,28 @@ pub struct ProductionAgreementValue {
     pub version: String,
     pub ip_address: Secret<String, common_utils::pii::IpAddress>,
     pub timestamp: PrimitiveDateTime,
+}
+
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
+pub struct CustomDashboardsValue {
+    pub dashboards: Vec<DashboardV1>,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct DashboardV1 {
+    pub dashboard_name: String,
+    pub description: Option<String>,
+    pub is_default: bool,
+    pub widgets: Vec<WidgetV1>,
+    pub created_at: String,
+    pub updated_at: String,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct WidgetV1 {
+    pub widget_id: String,
+    pub widget_name: String,
+    pub chart_type: api::ChartType,
+    pub position: api::WidgetPosition,
+    pub config: api::WidgetConfig,
 }

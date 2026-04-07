@@ -119,6 +119,9 @@ fn parse_set_request(data_enum: api::SetMetaDataRequest) -> UserResult<types::Me
             Ok(types::MetaData::OnboardingSurvey(req))
         }
         api::SetMetaDataRequest::ReconStatus(req) => Ok(types::MetaData::ReconStatus(req)),
+        api::SetMetaDataRequest::CustomDashboards(operation) => {
+            Ok(types::MetaData::CustomDashboards(operation))
+        }
     }
 }
 
@@ -148,6 +151,7 @@ fn parse_get_request(data_enum: api::GetMetaDataRequest) -> DBEnum {
         api::GetMetaDataRequest::IsChangePasswordRequired => DBEnum::IsChangePasswordRequired,
         api::GetMetaDataRequest::OnboardingSurvey => DBEnum::OnboardingSurvey,
         api::GetMetaDataRequest::ReconStatus => DBEnum::ReconStatus,
+        api::GetMetaDataRequest::CustomDashboards => DBEnum::CustomDashboards,
     }
 }
 
@@ -234,6 +238,33 @@ fn into_response(
         DBEnum::ReconStatus => {
             let resp = utils::deserialize_to_response(data)?;
             Ok(api::GetMetaDataResponse::ReconStatus(resp))
+        }
+        DBEnum::CustomDashboards => {
+            let resp: Option<types::CustomDashboardsValue> =
+                utils::deserialize_to_response(data)?;
+            Ok(api::GetMetaDataResponse::CustomDashboards(resp.map(|d| {
+                d.dashboards
+                    .into_iter()
+                    .map(|db| api::Dashboard {
+                        dashboard_name: db.dashboard_name,
+                        description: db.description,
+                        is_default: db.is_default,
+                        widgets: db
+                            .widgets
+                            .into_iter()
+                            .map(|w| api::Widget {
+                                widget_id: w.widget_id,
+                                widget_name: w.widget_name,
+                                chart_type: w.chart_type,
+                                position: w.position,
+                                config: w.config,
+                            })
+                            .collect(),
+                        created_at: db.created_at,
+                        updated_at: db.updated_at,
+                    })
+                    .collect()
+            })))
         }
     }
 }
@@ -654,6 +685,17 @@ async fn insert_metadata(
                 .await;
             }
             metadata
+        }
+        types::MetaData::CustomDashboards(operation) => {
+            utils::handle_dashboard_operations(
+                state,
+                user.user_id,
+                user.merchant_id,
+                user.org_id,
+                metadata_key,
+                operation,
+            )
+            .await
         }
     }
 }

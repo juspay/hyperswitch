@@ -29,6 +29,7 @@ pub enum SetMetaDataRequest {
     IsChangePasswordRequired,
     OnboardingSurvey(OnboardingSurvey),
     ReconStatus(ReconStatus),
+    CustomDashboards(DashboardOperation),
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
@@ -141,6 +142,7 @@ pub enum GetMetaDataRequest {
     IsChangePasswordRequired,
     OnboardingSurvey,
     ReconStatus,
+    CustomDashboards,
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
@@ -180,4 +182,138 @@ pub enum GetMetaDataResponse {
     IsChangePasswordRequired(bool),
     OnboardingSurvey(Option<OnboardingSurvey>),
     ReconStatus(Option<ReconStatus>),
+    CustomDashboards(Option<Vec<Dashboard>>),
+}
+
+// === Custom Dashboard API Types ===
+
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+#[serde(tag = "type", content = "data")]
+pub enum DashboardOperation {
+    Create(CreateDashboardRequest),
+    Update(UpdateDashboardRequest),
+    Delete(DeleteDashboardRequest),
+    AddWidget(AddWidgetRequest),
+    UpdateWidget(UpdateWidgetRequest),
+    RemoveWidget(RemoveWidgetRequest),
+    UpdateLayout(UpdateLayoutRequest),
+}
+
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+pub struct CreateDashboardRequest {
+    pub dashboard_name: String,
+    pub description: Option<String>,
+    pub widgets: Option<Vec<WidgetRequest>>,
+}
+
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+pub struct UpdateDashboardRequest {
+    pub dashboard_name: String,
+    pub new_dashboard_name: Option<String>,
+    pub description: Option<String>,
+    pub is_default: Option<bool>,
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct DeleteDashboardRequest {
+    pub dashboard_name: String,
+}
+
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+pub struct AddWidgetRequest {
+    pub dashboard_name: String,
+    pub widget: WidgetRequest,
+}
+
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+pub struct UpdateWidgetRequest {
+    pub dashboard_name: String,
+    pub widget_id: String,
+    pub widget: WidgetRequest,
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct RemoveWidgetRequest {
+    pub dashboard_name: String,
+    pub widget_id: String,
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct UpdateLayoutRequest {
+    pub dashboard_name: String,
+    pub layout: Vec<WidgetLayoutEntry>,
+}
+
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+pub struct WidgetLayoutEntry {
+    pub widget_id: String,
+    pub position: WidgetPosition,
+}
+
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+pub struct WidgetRequest {
+    pub widget_name: String,
+    pub chart_type: ChartType,
+    pub position: WidgetPosition,
+    pub config: WidgetConfig,
+}
+
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ChartType {
+    LineChart,
+    BarChart,
+    ColumnChart,
+    PieChart,
+    StackedBarChart,
+    SankeyChart,
+    FunnelChart,
+}
+
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+pub struct WidgetPosition {
+    pub x: u32,
+    pub y: u32,
+    pub w: u32,
+    pub h: u32,
+}
+
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum AnalyticsDomain {
+    Payments,
+    Refunds,
+    Disputes,
+    AuthEvents,
+}
+
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+pub struct WidgetConfig {
+    pub domain: AnalyticsDomain,
+    pub metrics: Vec<String>,
+    #[serde(default)]
+    pub group_by: Vec<String>,
+    #[serde(default)]
+    pub filters: serde_json::Value,
+    pub granularity: Option<String>,
+    pub time_range_preset: Option<String>,
+}
+
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+pub struct Dashboard {
+    pub dashboard_name: String,
+    pub description: Option<String>,
+    pub is_default: bool,
+    pub widgets: Vec<Widget>,
+    pub created_at: String,
+    pub updated_at: String,
+}
+
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+pub struct Widget {
+    pub widget_id: String,
+    pub widget_name: String,
+    pub chart_type: ChartType,
+    pub position: WidgetPosition,
+    pub config: WidgetConfig,
 }
