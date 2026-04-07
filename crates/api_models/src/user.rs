@@ -2,7 +2,7 @@ use std::fmt::Debug;
 
 use common_enums::{EntityType, TokenPurpose};
 use common_utils::{crypto::OptionalEncryptableName, id_type, pii};
-use masking::Secret;
+use hyperswitch_masking::Secret;
 use utoipa::ToSchema;
 
 use crate::user_role::UserStatus;

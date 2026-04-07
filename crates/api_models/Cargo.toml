@@ -38,6 +38,7 @@ url = { version = "2.5.4", features = ["serde"] }
 utoipa = { version = "4.2.3", features = ["preserve_order", "preserve_path_order"] }
 nutype = { version = "0.4.3", features = ["serde"] }
 deserialize_form_style_query_parameter = "0.2.2"
+superposition_types = "0.99.1"
 
 # First party crates
 cards = { version = "0.1.0", path = "../cards" }
@@ -45,7 +46,7 @@ common_enums = { version = "0.1.0", path = "../common_enums" }
 common_types = { version = "0.1.0", path = "../common_types" }
 common_utils = { version = "0.1.0", path = "../common_utils" }
 euclid = { version = "0.1.0", path = "../euclid" }
-masking = { version = "0.1.0", path = "../masking", default-features = false, features = ["alloc", "serde"] }
+hyperswitch_masking = { version = "0.0.1", default-features = false, features = ["alloc", "serde", "time"] }
 router_derive = { version = "0.1.0", path = "../router_derive" }
 smithy = { version = "0.1.0", path = "../smithy" }
 smithy-core = { version = "0.1.0", path = "../smithy-core" }

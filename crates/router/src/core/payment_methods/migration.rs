@@ -7,7 +7,7 @@ use hyperswitch_domain_models::{
     api::ApplicationResponse, errors::api_error_response as errors,
     payment_methods::StoragePaymentMethodUpdate as PaymentMethodUpdate, platform,
 };
-use masking::{ExposeInterface, PeekInterface};
+use hyperswitch_masking::{ExposeInterface, PeekInterface};
 use payment_methods::core::migration::MerchantConnectorValidator;
 use rdkafka::message::ToBytes;
 use router_env::logger;

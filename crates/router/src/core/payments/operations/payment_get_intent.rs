@@ -214,6 +214,7 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsGetIntentRequest, payments::Payme
         _state: &SessionState,
         _processor: &domain::Processor,
         _payment_data: &mut payments::PaymentIntentData<F>,
+        _business_profile: &domain::Profile,
     ) -> CustomResult<bool, errors::ApiErrorResponse> {
         Ok(false)
     }

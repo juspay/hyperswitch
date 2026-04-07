@@ -147,7 +147,7 @@ impl ProcessTrackerWorkflow<SessionState> for PaymentsSyncWorkflow {
                         .as_ref()
                         .is_none()
                 {
-                    let payment_intent_update = hyperswitch_domain_models::payments::payment_intent::PaymentIntentUpdate::PGStatusUpdate { status: api_models::enums::IntentStatus::Failed,updated_by: merchant_account.storage_scheme.to_string(), incremental_authorization_allowed: Some(false), feature_metadata: payment_data.payment_intent.feature_metadata.clone().map(masking::Secret::new), };
+                    let payment_intent_update = hyperswitch_domain_models::payments::payment_intent::PaymentIntentUpdate::PGStatusUpdate { status: api_models::enums::IntentStatus::Failed,updated_by: merchant_account.storage_scheme.to_string(), incremental_authorization_allowed: Some(false), feature_metadata: payment_data.payment_intent.feature_metadata.clone().map(hyperswitch_masking::Secret::new), };
                     let payment_attempt_update =
                         hyperswitch_domain_models::payments::payment_attempt::PaymentAttemptUpdate::ErrorUpdate {
                             connector: None,
@@ -259,7 +259,8 @@ impl ProcessTrackerWorkflow<SessionState> for PaymentsSyncWorkflow {
 ///
 /// `start_after`: The first psync should happen after 60 seconds
 ///
-/// `frequency` and `count`: The next 5 retries should have an interval of 300 seconds between them
+/// `frequencies`: Do 5 retries with an interval of 300 seconds between them.
+///     After than do 2 retries with an interval of 1800 seconds.
 pub async fn get_sync_process_schedule_time(
     db: &dyn StorageInterface,
     connector: &str,
