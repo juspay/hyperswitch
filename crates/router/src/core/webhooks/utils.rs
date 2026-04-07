@@ -149,6 +149,7 @@ pub async fn construct_webhook_router_data(
         minor_amount_capturable: None,
         authorized_amount: None,
         customer_document_details: None,
+        feature_data: None,
     };
     Ok(router_data)
 }

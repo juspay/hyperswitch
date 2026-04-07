@@ -37,6 +37,8 @@ use super::jwt;
 use crate::configs::Settings;
 #[cfg(feature = "olap")]
 use crate::consts;
+#[cfg(feature = "v1")]
+use crate::core::configs::dimension_state::Dimensions;
 #[cfg(feature = "olap")]
 use crate::core::errors::UserResult;
 #[cfg(all(feature = "partial-auth", feature = "v1"))]
@@ -47,6 +49,11 @@ use crate::{
     core::{
         api_keys,
         errors::{self, utils::StorageErrorExt, RouterResult},
+        metrics::{
+            SDK_AUTH_INVALID_SESSION_TOTAL, SDK_AUTH_LEGACY_FLOW_TOTAL,
+            SDK_AUTH_SESSION_VALIDATED_TOTAL,
+        },
+        payments::client_session::ClientSessionManager,
     },
     headers,
     routes::app::SessionStateInfo,
@@ -3428,6 +3435,81 @@ where
             self.allow_platform_self_operation,
         )
         .await?;
+
+        // Taking processor_merchant_id for client session validation as we have a unique constraint on (processor_merchant_id, payment_id)
+        let processor_merchant_id = platform.get_processor().get_account().get_id();
+
+        // Check if client session validation is enabled
+        let dimensions = Dimensions::new().with_merchant_id(processor_merchant_id.clone());
+
+        let session_validation_enabled = dimensions
+            .get_client_session_validation_enabled(
+                state.store().as_ref(),
+                state.superposition_service().as_deref(),
+                None,
+            )
+            .await;
+
+        // Validate session_id if present and validation is enabled
+        if session_validation_enabled {
+            match sdk_auth.client_session_id {
+                Some(client_session_id) => {
+                    let payment_id =
+                        crate::core::payments::helpers::get_payment_id_from_client_secret(
+                            &client_secret,
+                        )?;
+
+                    let payment_id = id_type::PaymentId::wrap(payment_id)
+                        .change_context(errors::ApiErrorResponse::Unauthorized)
+                        .attach_printable("Invalid payment_id in client_secret")?;
+
+                    // Validate session
+                    ClientSessionManager::validate_session(
+                        state,
+                        processor_merchant_id,
+                        &payment_id,
+                        &client_session_id,
+                    )
+                    .await
+                    .change_context(errors::ApiErrorResponse::Unauthorized)
+                    .attach_printable("Failed to validate client session")?
+                    .then_some(())
+                    .ok_or_else(|| {
+                        SDK_AUTH_INVALID_SESSION_TOTAL.add(
+                            1,
+                            &[router_env::opentelemetry::KeyValue::new(
+                                "merchant_id",
+                                processor_merchant_id.get_string_repr().to_string(),
+                            )],
+                        );
+                        report!(errors::ApiErrorResponse::Unauthorized)
+                            .attach_printable("Invalid Session ID")
+                    })?;
+
+                    SDK_AUTH_SESSION_VALIDATED_TOTAL.add(
+                        1,
+                        &[router_env::opentelemetry::KeyValue::new(
+                            "merchant_id",
+                            processor_merchant_id.get_string_repr().to_string(),
+                        )],
+                    );
+                }
+                None => {
+                    // Legacy flow - no session_id provided
+                    SDK_AUTH_LEGACY_FLOW_TOTAL.add(
+                        1,
+                        &[router_env::opentelemetry::KeyValue::new(
+                            "merchant_id",
+                            processor_merchant_id.get_string_repr().to_string(),
+                        )],
+                    );
+
+                    logger::info!("SDK auth without session_id - legacy flow");
+                }
+            }
+        } else {
+            logger::info!("Client session validation is disabled");
+        }
 
         let profile = state
             .store()
