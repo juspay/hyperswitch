@@ -46,6 +46,24 @@ pub async fn list_initial_delivery_attempts(
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
 
+    // For platform and connected merchants, profile_id is required because events
+    // are encrypted with the webhook recipient's key_store. Without profile_id, the
+    // query could return events encrypted with different key_stores, causing
+    // decryption failures.
+    match merchant_account.merchant_account_type {
+        common_enums::MerchantAccountType::Platform
+        | common_enums::MerchantAccountType::Connected => {
+            if profile_id.is_none() {
+                return Err(error_stack::report!(
+                    errors::ApiErrorResponse::MissingRequiredField {
+                        field_name: "profile_id"
+                    }
+                ));
+            }
+        }
+        common_enums::MerchantAccountType::Standard => {}
+    }
+
     // Events are stored under the provider merchant's merchant_id.
     // Resolve the provider so event queries use the correct merchant_id.
     let provider_merchant_account = match merchant_account.merchant_account_type {
