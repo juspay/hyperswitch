@@ -374,7 +374,7 @@ worldpayvantiv.base_url = "https://transact.vantivprelive.com/vap/communicator/o
 worldpayvantiv.secondary_base_url = "https://onlinessr.vantivprelive.com"
 worldpayvantiv.third_base_url = "https://services.vantivprelive.com"
 worldpayxml.base_url = "https://secure-test.worldpay.com/jsp/merchant/xml/paymentService.jsp"
-worldpayxml.secondary_base_url = "https://centinelapistag.cardinalcommerce.com/V2/Cruise/StepUp"
+worldpayxml.secondary_base_url = "https://centinelapistag.cardinalcommerce.com"
 xendit.base_url = "https://api.xendit.co"
 zift.base_url = "https://sandbox-secure.zift.io/"
 trustpay.base_url = "https://test-tpgw.trustpay.eu/"
@@ -1121,6 +1121,7 @@ deutschebank = { payment_method = "bank_debit" }
 paybox = { payment_method = "card" }
 nexixpay = { payment_method = "card" }
 redsys = { payment_method = "card" }
+worldpayxml = { payment_method = "card" }
 
 [connector_customer]
 payout_connector_list = "nomupay,stripe,wise,trustly"
@@ -1229,6 +1230,9 @@ connector_list = "adyen,archipel,checkout,cybersource,novalnet,nuvei,stripe,worl
 
 [card_only_mit_supported_connectors]
 connector_list = "peachpayments" # Supported connectors for card only mit
+
+[notify_iframe_exit_and_redirect]
+connector_list = "worldpayxml"
 
 [connector_request_reference_id_config]
 merchant_ids_send_payment_id_as_connector_request_id = []
