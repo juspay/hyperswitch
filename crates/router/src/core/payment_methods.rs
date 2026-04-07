@@ -759,8 +759,8 @@ pub async fn retrieve_payment_method_with_token(
             ) = payment_method_data.get_payment_methods_data()
             {
                 let domain::BankDebitDetailsPaymentMethod::AchBankDebit {
-                    masked_account_number: _,
-                    masked_routing_number: _,
+                    account_number_last4_digits: _,
+                    routing_number_last4_digits: _,
                     card_holder_name,
                     bank_account_holder_name,
                     bank_name,

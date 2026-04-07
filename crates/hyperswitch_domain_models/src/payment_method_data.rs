@@ -1427,7 +1427,7 @@ impl BankDebitData {
                 bank_type,
                 bank_holder_type,
             } => Some(BankDebitDetailsPaymentMethod::AchBankDebit {
-                masked_account_number: account_number
+                account_number_last4_digits: account_number
                     .peek()
                     .chars()
                     .rev()
@@ -1436,7 +1436,7 @@ impl BankDebitData {
                     .chars()
                     .rev()
                     .collect::<String>(),
-                masked_routing_number: routing_number
+                routing_number_last4_digits: routing_number
                     .peek()
                     .chars()
                     .rev()
@@ -1472,7 +1472,7 @@ pub enum BankDebitDetail {
 }
 
 impl BankDebitDetail {
-    pub fn get_masked_account_number(&self) -> String {
+    pub fn get_account_number_last4_digits(&self) -> String {
         match self {
             Self::Ach { account_number, .. } => account_number
                 .peek()
@@ -1486,7 +1486,7 @@ impl BankDebitDetail {
         }
     }
 
-    pub fn get_masked_routing_number(&self) -> String {
+    pub fn get_routing_number_last4_digits(&self) -> String {
         match self {
             Self::Ach { routing_number, .. } => routing_number
                 .peek()
@@ -1523,8 +1523,8 @@ impl From<payment_methods::BankDebitDetail> for BankDebitDetail {
 
 impl From<BankDebitDetail> for BankDebitDetailsPaymentMethod {
     fn from(bank_debit: BankDebitDetail) -> Self {
-        let masked_account_number = bank_debit.get_masked_account_number();
-        let masked_routing_number = bank_debit.get_masked_routing_number();
+        let account_number_last4_digits = bank_debit.get_account_number_last4_digits();
+        let routing_number_last4_digits = bank_debit.get_routing_number_last4_digits();
 
         match bank_debit {
             BankDebitDetail::Ach {
@@ -1533,8 +1533,8 @@ impl From<BankDebitDetail> for BankDebitDetailsPaymentMethod {
                 bank_holder_type,
                 ..
             } => Self::AchBankDebit {
-                masked_account_number,
-                masked_routing_number,
+                account_number_last4_digits,
+                routing_number_last4_digits,
                 card_holder_name: None,
                 bank_account_holder_name,
                 bank_name: None,
@@ -3534,8 +3534,8 @@ fn saved_in_locker_default() -> bool {
 #[serde(rename_all = "snake_case")]
 pub enum BankDebitDetailsPaymentMethod {
     AchBankDebit {
-        masked_account_number: String,
-        masked_routing_number: String,
+        account_number_last4_digits: String,
+        routing_number_last4_digits: String,
         card_holder_name: Option<Secret<String>>,
         bank_account_holder_name: Option<Secret<String>>,
         bank_name: Option<common_enums::BankNames>,

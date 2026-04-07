@@ -508,8 +508,8 @@ impl PaymentMethodsController for PmCards<'_> {
                     bank_debit,
                 )) => Some(PaymentMethodsData::BankDebit(
                     api_models::payment_methods::BankDebitDetailsPaymentMethod::AchBankDebit {
-                        masked_account_number: bank_debit.get_masked_account_number(),
-                        masked_routing_number: bank_debit.get_masked_routing_number(),
+                        account_number_last4_digits: bank_debit.get_account_number_last4_digits(),
+                        routing_number_last4_digits: bank_debit.get_routing_number_last4_digits(),
                         card_holder_name: None,
                         bank_account_holder_name: bank_debit.get_bank_account_holder_name(),
                         bank_name: None,
@@ -5172,11 +5172,11 @@ pub async fn get_masked_bank_details(
             })),
             domain::PaymentMethodsData::BankDebit(
                 domain::BankDebitDetailsPaymentMethod::AchBankDebit {
-                    masked_account_number,
+                    account_number_last4_digits,
                     ..
                 },
             ) => Ok(Some(MaskedBankDetails {
-                mask: masked_account_number,
+                mask: account_number_last4_digits,
             })),
             domain::PaymentMethodsData::WalletDetails(_) => Ok(None),
             _ => Ok(None),
