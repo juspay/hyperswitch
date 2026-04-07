@@ -579,7 +579,7 @@ pub struct PaymentMethodUpdate {
 }
 
 #[cfg(feature = "v2")]
-#[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone, PartialEq, Eq, ToSchema)]
 #[serde(deny_unknown_fields)]
 #[serde(rename_all = "snake_case")]
 #[serde(rename = "payment_method_data")]
@@ -588,7 +588,7 @@ pub enum PaymentMethodUpdateData {
     BankDebit(BankDebitDetailUpdate),
 }
 
-#[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone, PartialEq, Eq, ToSchema)]
 #[serde(deny_unknown_fields)]
 #[serde(rename_all = "snake_case")]
 pub enum BankDebitDetailUpdate {
@@ -1059,7 +1059,7 @@ impl CardDetailUpdate {
 }
 
 #[cfg(feature = "v2")]
-#[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone, PartialEq, Eq, ToSchema)]
 #[serde(deny_unknown_fields)]
 pub struct CardDetailUpdate {
     /// Card Holder Name

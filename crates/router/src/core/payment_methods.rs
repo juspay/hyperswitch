@@ -749,47 +749,42 @@ pub async fn retrieve_payment_method_with_token(
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("PaymentMethod not found")?;
 
-            let (bank_account_holder_name, bank_name, bank_type, bank_holder_type) = if let Some(
-                hyperswitch_domain_models::payment_method_data::PaymentMethodsData::BankDebit(
-                    bank_debit_data,
-                ),
-            ) =
-                payment_method_data.get_payment_methods_data()
-            {
-                let domain::BankDebitDetailsPaymentMethod::AchBankDebit {
-                    account_number_last4_digits: _,
-                    routing_number_last4_digits: _,
-                    bank_account_holder_name,
-                    bank_name,
-                    bank_type,
-                    bank_holder_type,
-                } = bank_debit_data;
-                (
-                    bank_account_holder_name.clone(),
-                    bank_name,
-                    bank_type,
-                    bank_holder_type,
-                )
-            } else {
-                return Err(report!(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("Payment method data is not bank debit"));
-            };
+            let (bank_account_holder_name, bank_name, bank_type, bank_holder_type) =
+                if let Some(domain::PaymentMethodsData::BankDebit(bank_debit_data)) =
+                    payment_method_data.get_payment_methods_data()
+                {
+                    let domain::BankDebitDetailsPaymentMethod::AchBankDebit {
+                        account_number_last4_digits: _,
+                        routing_number_last4_digits: _,
+                        bank_account_holder_name,
+                        bank_name,
+                        bank_type,
+                        bank_holder_type,
+                    } = bank_debit_data;
+                    (
+                        bank_account_holder_name.clone(),
+                        bank_name,
+                        bank_type,
+                        bank_holder_type,
+                    )
+                } else {
+                    return Err(report!(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable("Payment method data is not bank debit"));
+                };
 
             storage::PaymentMethodDataWithId {
                 payment_method: Some(enums::PaymentMethod::BankDebit),
-                payment_method_data: Some(
-                    hyperswitch_domain_models::payment_method_data::PaymentMethodData::BankDebit(
-                        BankDebitData::AchBankDebit {
-                            account_number,
-                            routing_number,
-                            bank_account_holder_name: vault_bank_account_holder_name
-                                .or(bank_account_holder_name),
-                            bank_name: vault_bank_name.or(bank_name),
-                            bank_type: vault_bank_type.or(bank_type),
-                            bank_holder_type: vault_bank_holder_type.or(bank_holder_type),
-                        },
-                    ),
-                ),
+                payment_method_data: Some(domain::PaymentMethodData::BankDebit(
+                    BankDebitData::AchBankDebit {
+                        account_number,
+                        routing_number,
+                        bank_account_holder_name: vault_bank_account_holder_name
+                            .or(bank_account_holder_name),
+                        bank_name: vault_bank_name.or(bank_name),
+                        bank_type: vault_bank_type.or(bank_type),
+                        bank_holder_type: vault_bank_holder_type.or(bank_holder_type),
+                    },
+                )),
 
                 payment_method_id: Some(bank_debit.payment_method_id.clone()),
             }
@@ -5736,65 +5731,70 @@ impl<'a> pm_types::PaymentMethodUpdateHandler<'a> {
         &self,
         vault_request_data: &domain::PaymentMethodVaultingData,
     ) -> bool {
-        let updated_pm_data = vault_request_data.get_payment_methods_data();
-        let existing_pm_data = self
-            .payment_method
-            .payment_method_data
-            .clone()
-            .map(|payment_method_data| payment_method_data.into_inner());
+        let updated =
+            Self::extract_domain_pm_metadata(vault_request_data.get_payment_methods_data());
+        let existing =
+            self.payment_method
+                .payment_method_data
+                .clone()
+                .and_then(|payment_method_data| {
+                    Self::extract_api_pm_metadata(payment_method_data.into_inner())
+                });
 
-        match (&existing_pm_data, &updated_pm_data) {
-            // Check card metadata changes
-            (
-                Some(payment_methods::PaymentMethodsData::Card(existing_card)),
-                hyperswitch_domain_models::payment_method_data::PaymentMethodsData::Card(
-                    updated_card,
-                ),
-            ) => {
-                let existing_metadata = (
-                    existing_card.card_holder_name.clone(),
-                    existing_card.nick_name.clone(),
-                );
-
-                let updated_metadata = (
-                    updated_card.card_holder_name.clone(),
-                    updated_card.nick_name.clone(),
-                );
-                existing_metadata != updated_metadata
-            }
-            // Check bank debit metadata changes
-            (
-                Some(payment_methods::PaymentMethodsData::BankDebit(existing_bank_debit)),
-                hyperswitch_domain_models::payment_method_data::PaymentMethodsData::BankDebit(
-                    updated_bank_debit,
-                ),
-            ) => {
-                let existing_metadata = match existing_bank_debit {
-                    payment_methods::BankDebitDetailsPaymentMethod::AchBankDebit {
-                        bank_account_holder_name,
-                        bank_type,
-                        bank_holder_type,
-                        ..
-                    } => (
-                        bank_account_holder_name.clone(),
-                        *bank_type,
-                        *bank_holder_type,
-                    ),
-                };
-
-                let updated_metadata = match updated_bank_debit {
-                    hyperswitch_domain_models::payment_method_data::BankDebitDetailsPaymentMethod::AchBankDebit {
-                        bank_account_holder_name,
-                        bank_type,
-                        bank_holder_type,
-                        ..
-                    } => (bank_account_holder_name.clone(), *bank_type, *bank_holder_type),
-                };
-
-                existing_metadata != updated_metadata
-            }
-            (None, _) => true,
+        match (existing, updated) {
+            (Some(existing), Some(updated)) => existing != updated,
+            (None, Some(_)) => true,
             _ => false,
+        }
+    }
+
+    fn extract_api_pm_metadata(
+        pm_data: payment_methods::PaymentMethodsData,
+    ) -> Option<payment_methods::PaymentMethodUpdateData> {
+        match pm_data {
+            payment_methods::PaymentMethodsData::Card(card) => Some(
+                payment_methods::PaymentMethodUpdateData::Card(payment_methods::CardDetailUpdate {
+                    card_holder_name: card.card_holder_name,
+                    nick_name: card.nick_name,
+                    card_cvc: None,
+                }),
+            ),
+            payment_methods::PaymentMethodsData::BankDebit(bank_debit) => match bank_debit {
+                payment_methods::BankDebitDetailsPaymentMethod::AchBankDebit {
+                    bank_account_holder_name,
+                    ..
+                } => Some(payment_methods::PaymentMethodUpdateData::BankDebit(
+                    payment_methods::BankDebitDetailUpdate::Ach {
+                        bank_account_holder_name,
+                    },
+                )),
+            },
+            _ => None,
+        }
+    }
+
+    fn extract_domain_pm_metadata(
+        pm_data: domain::PaymentMethodsData,
+    ) -> Option<payment_methods::PaymentMethodUpdateData> {
+        match pm_data {
+            domain::PaymentMethodsData::Card(card) => Some(
+                payment_methods::PaymentMethodUpdateData::Card(payment_methods::CardDetailUpdate {
+                    card_holder_name: card.card_holder_name,
+                    nick_name: card.nick_name,
+                    card_cvc: None,
+                }),
+            ),
+            domain::PaymentMethodsData::BankDebit(bank_debit) => match bank_debit {
+                domain::BankDebitDetailsPaymentMethod::AchBankDebit {
+                    bank_account_holder_name,
+                    ..
+                } => Some(payment_methods::PaymentMethodUpdateData::BankDebit(
+                    payment_methods::BankDebitDetailUpdate::Ach {
+                        bank_account_holder_name,
+                    },
+                )),
+            },
+            _ => None,
         }
     }
 
