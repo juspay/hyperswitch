@@ -8700,8 +8700,7 @@
           "acquirer_assigned_merchant_id",
           "merchant_name",
           "network",
-          "acquirer_bin",
-          "acquirer_fraud_rate"
+          "acquirer_bin"
         ],
         "properties": {
           "acquirer_assigned_merchant_id": {
@@ -8731,17 +8730,22 @@
             "nullable": true
           },
           "acquirer_fraud_rate": {
-            "type": "string",
+            "type": "number",
+            "format": "double",
             "description": "Fraud rate for the particular acquirer configuration",
-            "example": "0.01"
+            "example": 0.01,
+            "nullable": true
           }
         }
       },
       "AcquirerConfigMap": {
         "type": "object",
-        "description": "Acquirer configs",
+        "description": "Acquirer config buckets: each ProfileAcquirerId maps to an array of per-network configs",
         "additionalProperties": {
-          "$ref": "#/components/schemas/AcquirerConfig"
+          "type": "array",
+          "items": {
+            "$ref": "#/components/schemas/AcquirerConfig"
+          }
         }
       },
       "AcquirerData": {
@@ -35944,7 +35948,6 @@
           "merchant_name",
           "network",
           "acquirer_bin",
-          "acquirer_fraud_rate",
           "profile_id"
         ],
         "properties": {
@@ -35978,7 +35981,8 @@
             "type": "number",
             "format": "double",
             "description": "Fraud rate for the particular acquirer configuration",
-            "example": 0.01
+            "example": 0.01,
+            "nullable": true
           },
           "profile_id": {
             "type": "string",
@@ -35995,7 +35999,6 @@
           "merchant_name",
           "network",
           "acquirer_bin",
-          "acquirer_fraud_rate",
           "profile_id"
         ],
         "properties": {
@@ -36034,7 +36037,8 @@
             "type": "number",
             "format": "double",
             "description": "Fraud rate for the particular acquirer configuration",
-            "example": 0.01
+            "example": 0.01,
+            "nullable": true
           },
           "profile_id": {
             "type": "string",
@@ -36045,6 +36049,9 @@
       },
       "ProfileAcquirerUpdate": {
         "type": "object",
+        "required": [
+          "network"
+        ],
         "properties": {
           "acquirer_assigned_merchant_id": {
             "type": "string",
@@ -36058,8 +36065,8 @@
           },
           "network": {
             "type": "string",
-            "example": "MASTERCARD",
-            "nullable": true
+            "description": "The card network this configuration entry targets — required to locate/upsert the correct bucket slot.",
+            "example": "MASTERCARD"
           },
           "acquirer_bin": {
             "type": "string",
