@@ -1705,8 +1705,8 @@ pub async fn validate_blocking_threshold(
 #[instrument(skip_all)]
 pub fn get_customer_details_from_request_or_pm_table(
     request: &api_models::payments::PaymentsRequest,
-    payment_method: &Option<domain::PaymentMethod>,
-    mandate_type: &Option<api::MandateTransactionType>,
+    payment_method: Option<&domain::PaymentMethod>,
+    mandate_type: Option<&api::MandateTransactionType>,
 ) -> Result<
     CustomerDetails,
     error_stack::Report<hyperswitch_domain_models::errors::api_error_response::ApiErrorResponse>,
@@ -1756,7 +1756,7 @@ pub fn get_customer_details_from_request_or_pm_table(
             // Extracting customer details from Payment Methods Table in case of MIT
             payment_method
                 .clone()
-                .and_then(|data| data.customer_details)
+                .and_then(|data| data.customer_details.clone())
                 .as_ref()
                 .map(|encryptable| {
                     encryptable

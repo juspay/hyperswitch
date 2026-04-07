@@ -192,8 +192,11 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         )
         .await?;
 
-        let customer_details =
-            helpers::get_customer_details_from_request_or_pm_table(request, &None, &mandate_type)?;
+        let customer_details = helpers::get_customer_details_from_request_or_pm_table(
+            request,
+            None,
+            mandate_type.as_ref(),
+        )?;
 
         let shipping_address = helpers::create_or_find_address_for_payment_by_request(
             state,
@@ -806,30 +809,26 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
             }
         }?;
         // When no document details is passed in request but customer_id is passed, use that customers document details from customers table
-        if let Some(raw_customer_details_from_request) = request {
-            if raw_customer_details_from_request.customer_id.is_some()
-                && raw_customer_details_from_request.document_details.is_none()
-            {
-                if let Some(doc_details) = customer.as_ref().map(|doc| doc.document_details.clone())
-                {
-                    let encrypted_customer_details = core_utils::update_intent_customer_documents(
-                        payment_data.get_payment_intent(),
-                        doc_details,
-                        mandate_type,
-                        state,
-                        provider.get_key_store(),
-                        payment_data
-                            .payment_method_info
-                            .as_ref()
-                            .and_then(|pm| pm.customer_details.clone()),
-                    )
-                    .await
-                    .change_context(errors::StorageError::EncryptionError)?;
-                    payment_data.set_document_details_in_intent(encrypted_customer_details);
-                }
-            }
+        if let Some(doc_details) = request
+            .filter(|req| req.customer_id.is_some() && req.document_details.is_none())
+            .and_then(|_| customer.as_ref().and_then(|c| c.document_details.clone()))
+        {
+            let encrypted_customer_details = core_utils::update_intent_customer_documents(
+                payment_data.get_payment_intent(),
+                Some(doc_details),
+                mandate_type,
+                state,
+                provider.get_key_store(),
+                payment_data
+                    .payment_method_info
+                    .as_ref()
+                    .and_then(|pm| pm.customer_details.clone()),
+            )
+            .await
+            .change_context(errors::StorageError::EncryptionError)?;
+            payment_data.set_document_details_in_intent(encrypted_customer_details);
         }
-        return Ok((operation, customer));
+        Ok((operation, customer))
     }
 
     async fn payments_dynamic_tax_calculation<'a>(
@@ -1745,8 +1744,8 @@ impl PaymentCreate {
         // Derivation of directly supplied Customer data in our Payment Create Request
         let raw_customer_details = helpers::get_customer_details_from_request_or_pm_table(
             request,
-            &payment_method_info,
-            &mandate_type,
+            payment_method_info.as_ref(),
+            mandate_type.as_ref(),
         )?
         .get_customer_data();
         let is_payment_processor_token_flow = request.recurring_details.as_ref().and_then(

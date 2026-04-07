@@ -97,7 +97,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         )?;
 
         let customer_details =
-            helpers::get_customer_details_from_request_or_pm_table(request, &None, &None)?;
+            helpers::get_customer_details_from_request_or_pm_table(request, None, None)?;
 
         let store = state.store.clone();
         let m_payment_id = payment_intent.payment_id.clone();

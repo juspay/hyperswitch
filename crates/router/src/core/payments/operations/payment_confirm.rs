@@ -169,7 +169,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         helpers::authenticate_client_secret(request.client_secret.as_ref(), &payment_intent)?;
 
         let customer_details =
-            helpers::get_customer_details_from_request_or_pm_table(request, &None, &None)?;
+            helpers::get_customer_details_from_request_or_pm_table(request, None, None)?;
 
         payment_intent.customer_details = helpers::merge_request_and_intent_customer_data(
             state,
@@ -1115,30 +1115,26 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
             }
         }?;
         // When no document details is passed in request but customer_id is passed, use that customers document details from customers table
-        if let Some(raw_customer_details_from_request) = request {
-            if raw_customer_details_from_request.customer_id.is_some()
-                && raw_customer_details_from_request.document_details.is_none()
-            {
-                if let Some(doc_details) = customer.as_ref().map(|doc| doc.document_details.clone())
-                {
-                    let encrypted_customer_details = core_utils::update_intent_customer_documents(
-                        payment_data.get_payment_intent(),
-                        doc_details,
-                        mandate_type,
-                        state,
-                        provider.get_key_store(),
-                        payment_data
-                            .payment_method_info
-                            .as_ref()
-                            .and_then(|pm| pm.customer_details.clone()),
-                    )
-                    .await
-                    .change_context(errors::StorageError::EncryptionError)?;
-                    payment_data.set_document_details_in_intent(encrypted_customer_details);
-                }
-            }
+        if let Some(doc_details) = request
+            .filter(|req| req.customer_id.is_some() && req.document_details.is_none())
+            .and_then(|_| customer.as_ref().and_then(|c| c.document_details.clone()))
+        {
+            let encrypted_customer_details = core_utils::update_intent_customer_documents(
+                payment_data.get_payment_intent(),
+                Some(doc_details),
+                mandate_type,
+                state,
+                provider.get_key_store(),
+                payment_data
+                    .payment_method_info
+                    .as_ref()
+                    .and_then(|pm| pm.customer_details.clone()),
+            )
+            .await
+            .change_context(errors::StorageError::EncryptionError)?;
+            payment_data.set_document_details_in_intent(encrypted_customer_details);
         }
-        return Ok((operation, customer));
+        Ok((operation, customer))
     }
 
     #[cfg(feature = "v1")]

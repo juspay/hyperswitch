@@ -728,7 +728,7 @@ where
         .get_or_create_customer_details(
             state,
             &mut payment_data,
-            customer_details.clone(), // TODO: Remove this field after implicit customer update is removed
+            customer_details, // TODO: Remove this field after implicit customer update is removed
             platform.get_provider(),
             platform.get_initiator(),
             dimensions,
