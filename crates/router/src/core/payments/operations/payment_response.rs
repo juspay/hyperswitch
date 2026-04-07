@@ -2,7 +2,7 @@ use std::{collections::HashMap, ops::Deref};
 
 #[cfg(all(feature = "v1", feature = "pm_modular"))]
 use ::payment_methods::client::{
-    CardDetailUpdate, PaymentMethodUpdateData, UpdatePaymentMethodV1Payload,
+    BankDebitDetailUpdate, CardDetailUpdate, PaymentMethodUpdateData, UpdatePaymentMethodV1Payload,
 };
 use api_models::payments::{ConnectorMandateReferenceId, MandateReferenceId};
 #[cfg(feature = "dynamic_routing")]
@@ -198,7 +198,21 @@ where
                                 card_cvc: None,
                             }))
                         }
-                        _ => None, // Bank debit details are not getting updated in the modular update call as of now only acknowledgement_status is getting updated for the bank debit payment methods
+                        domain::PaymentMethodData::BankDebit(
+                            domain::BankDebitData::AchBankDebit {
+                                bank_account_holder_name,
+                                bank_type,
+                                bank_holder_type,
+                                ..
+                            },
+                        ) => Some(PaymentMethodUpdateData::BankDebit(
+                            BankDebitDetailUpdate::Ach {
+                                bank_account_holder_name: bank_account_holder_name.clone(),
+                                bank_type: *bank_type,
+                                bank_holder_type: *bank_holder_type,
+                            },
+                        )),
+                        _ => None,
                     });
                 let acknowledgement_status = should_update
                     .then_some(common_enums::AcknowledgementStatus::Authenticated)

@@ -367,7 +367,20 @@ impl PaymentMethodUpdate {
             Some(payment_methods::PaymentMethodUpdateData::Card(card_update)) => {
                 card_update.card_holder_name.is_some() || card_update.nick_name.is_some()
             }
-            _ => false,
+            Some(payment_methods::PaymentMethodUpdateData::BankDebit(bank_debit_update)) => {
+                match bank_debit_update {
+                    payment_methods::BankDebitDetailUpdate::Ach {
+                        bank_account_holder_name,
+                        bank_type,
+                        bank_holder_type,
+                    } => {
+                        bank_account_holder_name.is_some()
+                            || bank_type.is_some()
+                            || bank_holder_type.is_some()
+                    }
+                }
+            }
+            None => false,
         }
     }
 
@@ -401,8 +414,22 @@ impl
                     card_cvc: card_data.card_cvc.clone(),
                 }),
             ),
-            payment_methods::PaymentMethodCreateData::ProxyCard(_)
-            | payment_methods::PaymentMethodCreateData::BankDebit(_) => None,
+            payment_methods::PaymentMethodCreateData::BankDebit(
+                payment_methods::BankDebitDetail::Ach {
+                    bank_account_holder_name,
+                    bank_type,
+                    bank_holder_type,
+                    ..
+                },
+            ) => Some(payment_methods::PaymentMethodUpdateData::BankDebit(
+                payment_methods::BankDebitDetailUpdate::Ach {
+                    bank_account_holder_name: bank_account_holder_name.clone(),
+                    bank_type: *bank_type,
+                    bank_holder_type: *bank_holder_type,
+                },
+            )),
+            #[cfg(feature = "v2")]
+            payment_methods::PaymentMethodCreateData::ProxyCard(_) => None,
         };
 
         Self {

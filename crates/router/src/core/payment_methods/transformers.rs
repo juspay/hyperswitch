@@ -572,6 +572,33 @@ pub fn generate_pm_vaulting_req_from_update_request(
             nick_name: update_card.nick_name.or(card_create.nick_name),
             card_cvc: None,
         })),
+        (
+            domain::PaymentMethodVaultingData::BankDebit(bank_debit_create),
+            api::PaymentMethodUpdateData::BankDebit(api::BankDebitDetailUpdate::Ach {
+                bank_account_holder_name: updated_bank_account_holder_name,
+                bank_type: updated_bank_type,
+                bank_holder_type: updated_bank_holder_type,
+            }),
+        ) => {
+            let payment_method_data::BankDebitDetail::Ach {
+                account_number,
+                routing_number,
+                bank_account_holder_name,
+                bank_type,
+                bank_holder_type,
+            } = bank_debit_create;
+
+            Ok(domain::PaymentMethodVaultingData::BankDebit(
+                payment_method_data::BankDebitDetail::Ach {
+                    account_number,
+                    routing_number,
+                    bank_account_holder_name: updated_bank_account_holder_name
+                        .or(bank_account_holder_name),
+                    bank_type: updated_bank_type.or(bank_type),
+                    bank_holder_type: updated_bank_holder_type.or(bank_holder_type),
+                },
+            ))
+        }
         _ => Err(errors::VaultError::PaymentMethodNotSupported)
             .attach_printable("Payment method type not supported for update"),
     }

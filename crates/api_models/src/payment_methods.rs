@@ -585,6 +585,21 @@ pub struct PaymentMethodUpdate {
 #[serde(rename = "payment_method_data")]
 pub enum PaymentMethodUpdateData {
     Card(CardDetailUpdate),
+    BankDebit(BankDebitDetailUpdate),
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
+#[serde(deny_unknown_fields)]
+#[serde(rename_all = "snake_case")]
+pub enum BankDebitDetailUpdate {
+    Ach {
+        #[schema(value_type = Option<String>)]
+        bank_account_holder_name: Option<hyperswitch_masking::Secret<String>>,
+        #[schema(value_type = Option<BankType>)]
+        bank_type: Option<common_enums::BankType>,
+        #[schema(value_type = Option<BankHolderType>)]
+        bank_holder_type: Option<common_enums::BankHolderType>,
+    },
 }
 
 #[cfg(feature = "v2")]
@@ -3969,7 +3984,20 @@ impl PaymentMethodSessionUpdateSavedPaymentMethod {
             Some(PaymentMethodUpdateData::Card(card_update)) => {
                 card_update.card_holder_name.is_some() || card_update.nick_name.is_some()
             }
-            _ => false,
+            Some(PaymentMethodUpdateData::BankDebit(bank_debit_update)) => {
+                match bank_debit_update {
+                    BankDebitDetailUpdate::Ach {
+                        bank_account_holder_name,
+                        bank_type,
+                        bank_holder_type,
+                    } => {
+                        bank_account_holder_name.is_some()
+                            || bank_type.is_some()
+                            || bank_holder_type.is_some()
+                    }
+                }
+            }
+            None => false,
         }
     }
 }

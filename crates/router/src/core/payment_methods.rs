@@ -5737,25 +5737,68 @@ impl<'a> pm_types::PaymentMethodUpdateHandler<'a> {
         Ok(())
     }
 
-    fn is_card_metadata_changed_for_same_fingerprint(
+    fn is_pm_metadata_changed_for_same_fingerprint(
         &self,
         vault_request_data: &domain::PaymentMethodVaultingData,
     ) -> bool {
-        let updated_card_metadata = vault_request_data
-            .get_payment_methods_data()
-            .get_card_details()
-            .map(|card_details| (card_details.card_holder_name, card_details.nick_name));
-
-        let existing_card_metadata = self
+        let updated_pm_data = vault_request_data.get_payment_methods_data();
+        let existing_pm_data = self
             .payment_method
             .payment_method_data
             .clone()
-            .and_then(|payment_method_data| payment_method_data.into_inner().get_card_details())
-            .map(|card_details| (card_details.card_holder_name, card_details.nick_name));
+            .map(|payment_method_data| payment_method_data.into_inner());
 
-        match (existing_card_metadata, updated_card_metadata) {
-            (Some(existing), Some(updated)) => existing != updated,
-            (None, Some(_)) => true,
+        match (&existing_pm_data, &updated_pm_data) {
+            // Check card metadata changes
+            (
+                Some(payment_methods::PaymentMethodsData::Card(existing_card)),
+                hyperswitch_domain_models::payment_method_data::PaymentMethodsData::Card(
+                    updated_card,
+                ),
+            ) => {
+                let existing_metadata = (
+                    existing_card.card_holder_name.clone(),
+                    existing_card.nick_name.clone(),
+                );
+
+                let updated_metadata = (
+                    updated_card.card_holder_name.clone(),
+                    updated_card.nick_name.clone(),
+                );
+                existing_metadata != updated_metadata
+            }
+            // Check bank debit metadata changes
+            (
+                Some(payment_methods::PaymentMethodsData::BankDebit(existing_bank_debit)),
+                hyperswitch_domain_models::payment_method_data::PaymentMethodsData::BankDebit(
+                    updated_bank_debit,
+                ),
+            ) => {
+                let existing_metadata = match existing_bank_debit {
+                    payment_methods::BankDebitDetailsPaymentMethod::AchBankDebit {
+                        bank_account_holder_name,
+                        bank_type,
+                        bank_holder_type,
+                        ..
+                    } => (
+                        bank_account_holder_name.clone(),
+                        *bank_type,
+                        *bank_holder_type,
+                    ),
+                };
+
+                let updated_metadata = match updated_bank_debit {
+                    hyperswitch_domain_models::payment_method_data::BankDebitDetailsPaymentMethod::AchBankDebit {
+                        bank_account_holder_name,
+                        bank_type,
+                        bank_holder_type,
+                        ..
+                    } => (bank_account_holder_name.clone(), *bank_type, *bank_holder_type),
+                };
+
+                existing_metadata != updated_metadata
+            }
+            (None, _) => true,
             _ => false,
         }
     }
@@ -5845,7 +5888,7 @@ impl<'a> pm_types::PaymentMethodUpdateHandler<'a> {
 
         match is_stored_payment_method_same_as_in_request {
             Some(true) => {
-                if self.is_card_metadata_changed_for_same_fingerprint(&vault_request_data) {
+                if self.is_pm_metadata_changed_for_same_fingerprint(&vault_request_data) {
                     logger::info!(
                         "Payment method fingerprint is same, updating only payment method metadata in db"
                     );
