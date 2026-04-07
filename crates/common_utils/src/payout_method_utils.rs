@@ -336,3 +336,29 @@ pub struct PassthroughAdditionalData {
     #[schema(value_type = PaymentMethodType, example = "paypal")]
     pub token_type: common_enums::PaymentMethodType,
 }
+
+impl From<&AdditionalPayoutMethodData> for common_enums::PaymentMethodType {
+    fn from(data: &AdditionalPayoutMethodData) -> Self {
+        match data {
+            // debit represent card payout methods, todo: consider renaming it to card in future
+            AdditionalPayoutMethodData::Card(_) => Self::Debit,
+            AdditionalPayoutMethodData::Bank(bank) => match **bank {
+                BankAdditionalData::Ach(_) => Self::Ach,
+                BankAdditionalData::Bacs(_) => Self::Bacs,
+                BankAdditionalData::Sepa(_) => Self::SepaBankTransfer,
+                BankAdditionalData::Pix(_) => Self::Pix,
+                BankAdditionalData::Trustly(_) => Self::Trustly,
+            },
+            AdditionalPayoutMethodData::Wallet(wallet) => match **wallet {
+                WalletAdditionalData::ApplePayDecrypt(_) => Self::ApplePay,
+                WalletAdditionalData::Paypal(_) => Self::Paypal,
+                WalletAdditionalData::Venmo(_) => Self::Venmo,
+            },
+            AdditionalPayoutMethodData::BankRedirect(bank_redirect) => match **bank_redirect {
+                BankRedirectAdditionalData::Interac(_) => Self::Interac,
+                BankRedirectAdditionalData::OpenBankingUk(_) => Self::OpenBankingUk,
+            },
+            AdditionalPayoutMethodData::Passthrough(passthrough) => passthrough.token_type,
+        }
+    }
+}
