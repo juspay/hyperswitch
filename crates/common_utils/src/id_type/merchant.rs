@@ -232,6 +232,10 @@ impl MerchantId {
             ),
         }
     }
+    /// get_authentication_service_eligible_key
+    pub fn get_authentication_service_eligible_key(&self) -> String {
+        format!("authentication_service_eligible_{}", self.get_string_repr())
+    }
     /// allow payment update via client auth default should be false
     pub fn get_payment_update_enabled_for_client_auth_key(&self) -> String {
         format!(

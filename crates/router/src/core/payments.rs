@@ -777,6 +777,7 @@ where
 
         let is_eligible_for_uas = helpers::is_merchant_eligible_authentication_service(
             platform.get_processor().get_account().get_id(),
+            platform.get_processor().get_account().get_org_id(),
             state,
         )
         .await?;
@@ -10809,6 +10810,7 @@ pub async fn payment_external_authentication<F: Clone + Sync>(
 
     let authentication_response = if helpers::is_merchant_eligible_authentication_service(
         platform.get_processor().get_account().get_id(),
+        platform.get_processor().get_account().get_org_id(),
         &state,
     )
     .await?
