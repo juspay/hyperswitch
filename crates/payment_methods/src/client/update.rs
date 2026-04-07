@@ -83,10 +83,6 @@ pub enum BankDebitDetailUpdate {
     Ach {
         /// Bank account holder name.
         bank_account_holder_name: Option<Secret<String>>,
-        /// Bank type.
-        bank_type: Option<common_enums::BankType>,
-        /// Bank holder type (personal/business).
-        bank_holder_type: Option<common_enums::BankHolderType>,
     },
 }
 

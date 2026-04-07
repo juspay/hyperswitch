@@ -595,10 +595,6 @@ pub enum BankDebitDetailUpdate {
     Ach {
         #[schema(value_type = Option<String>)]
         bank_account_holder_name: Option<hyperswitch_masking::Secret<String>>,
-        #[schema(value_type = Option<BankType>)]
-        bank_type: Option<common_enums::BankType>,
-        #[schema(value_type = Option<BankHolderType>)]
-        bank_holder_type: Option<common_enums::BankHolderType>,
     },
 }
 
@@ -3988,13 +3984,7 @@ impl PaymentMethodSessionUpdateSavedPaymentMethod {
                 match bank_debit_update {
                     BankDebitDetailUpdate::Ach {
                         bank_account_holder_name,
-                        bank_type,
-                        bank_holder_type,
-                    } => {
-                        bank_account_holder_name.is_some()
-                            || bank_type.is_some()
-                            || bank_holder_type.is_some()
-                    }
+                    } => bank_account_holder_name.is_some(),
                 }
             }
             None => false,

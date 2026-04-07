@@ -576,8 +576,6 @@ pub fn generate_pm_vaulting_req_from_update_request(
             domain::PaymentMethodVaultingData::BankDebit(bank_debit_create),
             api::PaymentMethodUpdateData::BankDebit(api::BankDebitDetailUpdate::Ach {
                 bank_account_holder_name: updated_bank_account_holder_name,
-                bank_type: updated_bank_type,
-                bank_holder_type: updated_bank_holder_type,
             }),
         ) => {
             let payment_method_data::BankDebitDetail::Ach {
@@ -594,8 +592,8 @@ pub fn generate_pm_vaulting_req_from_update_request(
                     routing_number,
                     bank_account_holder_name: updated_bank_account_holder_name
                         .or(bank_account_holder_name),
-                    bank_type: updated_bank_type.or(bank_type),
-                    bank_holder_type: updated_bank_holder_type.or(bank_holder_type),
+                    bank_type,
+                    bank_holder_type,
                 },
             ))
         }

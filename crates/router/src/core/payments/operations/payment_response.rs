@@ -201,15 +201,11 @@ where
                         domain::PaymentMethodData::BankDebit(
                             domain::BankDebitData::AchBankDebit {
                                 bank_account_holder_name,
-                                bank_type,
-                                bank_holder_type,
                                 ..
                             },
                         ) => Some(PaymentMethodUpdateData::BankDebit(
                             BankDebitDetailUpdate::Ach {
                                 bank_account_holder_name: bank_account_holder_name.clone(),
-                                bank_type: *bank_type,
-                                bank_holder_type: *bank_holder_type,
                             },
                         )),
                         _ => None,

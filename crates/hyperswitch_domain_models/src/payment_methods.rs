@@ -371,13 +371,7 @@ impl PaymentMethodUpdate {
                 match bank_debit_update {
                     payment_methods::BankDebitDetailUpdate::Ach {
                         bank_account_holder_name,
-                        bank_type,
-                        bank_holder_type,
-                    } => {
-                        bank_account_holder_name.is_some()
-                            || bank_type.is_some()
-                            || bank_holder_type.is_some()
-                    }
+                    } => bank_account_holder_name.is_some(),
                 }
             }
             None => false,
@@ -424,8 +418,6 @@ impl
             ) => Some(payment_methods::PaymentMethodUpdateData::BankDebit(
                 payment_methods::BankDebitDetailUpdate::Ach {
                     bank_account_holder_name: bank_account_holder_name.clone(),
-                    bank_type: *bank_type,
-                    bank_holder_type: *bank_holder_type,
                 },
             )),
             #[cfg(feature = "v2")]
