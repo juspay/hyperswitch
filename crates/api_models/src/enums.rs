@@ -57,9 +57,12 @@ pub enum PayoutConnectors {
     Payone,
     Paypal,
     Stripe,
+    Truelayer,
+    Trustly,
     Wise,
     Worldpay,
     Worldpayxml,
+    Envoy,
 }
 
 #[cfg(feature = "v2")]
@@ -98,9 +101,12 @@ impl From<PayoutConnectors> for RoutableConnectors {
             PayoutConnectors::Payone => Self::Payone,
             PayoutConnectors::Paypal => Self::Paypal,
             PayoutConnectors::Stripe => Self::Stripe,
+            PayoutConnectors::Truelayer => Self::Truelayer,
+            PayoutConnectors::Trustly => Self::Trustly,
             PayoutConnectors::Wise => Self::Wise,
             PayoutConnectors::Worldpay => Self::Worldpay,
             PayoutConnectors::Worldpayxml => Self::Worldpayxml,
+            PayoutConnectors::Envoy => Self::Envoy,
         }
     }
 }
@@ -120,9 +126,12 @@ impl From<PayoutConnectors> for Connector {
             PayoutConnectors::Payone => Self::Payone,
             PayoutConnectors::Paypal => Self::Paypal,
             PayoutConnectors::Stripe => Self::Stripe,
+            PayoutConnectors::Truelayer => Self::Truelayer,
+            PayoutConnectors::Trustly => Self::Trustly,
             PayoutConnectors::Wise => Self::Wise,
             PayoutConnectors::Worldpay => Self::Worldpay,
             PayoutConnectors::Worldpayxml => Self::Worldpayxml,
+            PayoutConnectors::Envoy => Self::Envoy,
         }
     }
 }
@@ -143,9 +152,12 @@ impl TryFrom<Connector> for PayoutConnectors {
             Connector::Payone => Ok(Self::Payone),
             Connector::Paypal => Ok(Self::Paypal),
             Connector::Stripe => Ok(Self::Stripe),
+            Connector::Truelayer => Ok(Self::Truelayer),
+            Connector::Trustly => Ok(Self::Trustly),
             Connector::Wise => Ok(Self::Wise),
             Connector::Worldpay => Ok(Self::Worldpay),
             Connector::Worldpayxml => Ok(Self::Worldpayxml),
+            Connector::Envoy => Ok(Self::Envoy),
             _ => Err(format!("Invalid payout connector {value}")),
         }
     }

@@ -6,7 +6,9 @@ pub mod helpers;
 use actix_web::{web, Responder};
 use error_stack::report;
 use hyperswitch_domain_models::{ext_traits::OptionExt, payments::HeaderPayload};
-use masking::{PeekInterface, Secret};
+#[cfg(feature = "v1")]
+use hyperswitch_interfaces::api::ConnectorValidation;
+use hyperswitch_masking::{PeekInterface, Secret};
 use router_env::{env, instrument, logger, tracing, types, Flow};
 
 use super::app::ReqState;
@@ -14,11 +16,14 @@ use super::app::ReqState;
 use crate::core::payment_method_balance;
 #[cfg(feature = "v2")]
 use crate::core::revenue_recovery::api as recovery;
+#[cfg(feature = "v1")]
+use crate::routes::payments::payments::operations::payment_recurrence::PaymentRecurrence;
 use crate::{
     self as app,
     core::{
+        configs::dimension_state::Dimensions,
         errors::{self, http_not_implemented},
-        payments::{self, PaymentRedirectFlow},
+        payments::{self, transformers::ToResponse, OperationSessionGetters, PaymentRedirectFlow},
     },
     routes::lock_utils,
     services::{api, authentication as auth},
@@ -28,7 +33,7 @@ use crate::{
             payments::{self as payment_types, PaymentIdTypeExt},
         },
         domain,
-        transformers::ForeignTryFrom,
+        transformers::{ForeignTryFrom, ForeignTryInto},
     },
 };
 
@@ -105,6 +110,8 @@ pub async fn payments_create(
             })),
             &auth::InternalMerchantIdProfileIdAuth(auth::JWTAuth {
                 permission: Permission::ProfilePaymentWrite,
+                allow_connected: true,
+                allow_platform: false,
             }),
             req.headers(),
         ),
@@ -218,6 +225,8 @@ pub async fn payments_create_intent(
                 },
                 &auth::JWTAuth {
                     permission: Permission::ProfilePaymentWrite,
+                    allow_connected: false,
+                    allow_platform: false,
                 },
                 req.headers(),
             ),
@@ -284,6 +293,8 @@ pub async fn payments_get_intent(
             )),
             &auth::JWTAuth {
                 permission: Permission::ProfileRevenueRecoveryRead,
+                allow_connected: false,
+                allow_platform: false,
             },
             req.headers(),
         ),
@@ -342,6 +353,8 @@ pub async fn revenue_recovery_get_intent(
             )),
             &auth::JWTAuth {
                 permission: Permission::ProfileRevenueRecoveryRead,
+                allow_connected: false,
+                allow_platform: false,
             },
             req.headers(),
         ),
@@ -403,6 +416,8 @@ pub async fn list_payment_attempts(
             },
             &auth::JWTAuth {
                 permission: Permission::ProfilePaymentRead,
+                allow_connected: false,
+                allow_platform: false,
             },
             req.headers(),
         ),
@@ -441,6 +456,8 @@ pub async fn payments_create_and_confirm_intent(
                 },
                 &auth::JWTAuth {
                     permission: Permission::ProfilePaymentWrite,
+                    allow_connected: false,
+                    allow_platform: false,
                 },
                 req.headers(),
             ),
@@ -668,6 +685,8 @@ pub async fn payments_retrieve(
             &*auth_type,
             &auth::JWTAuth {
                 permission: Permission::ProfilePaymentRead,
+                allow_connected: true,
+                allow_platform: false,
             },
             req.headers(),
         ),
@@ -1747,6 +1766,8 @@ pub async fn payments_cancel(
             },
             &auth::JWTAuth {
                 permission: Permission::ProfilePaymentWrite,
+                allow_connected: false,
+                allow_platform: false,
             },
             req.headers(),
         ),
@@ -1831,6 +1852,8 @@ pub async fn payments_list(
             }),
             &auth::JWTAuth {
                 permission: Permission::MerchantPaymentRead,
+                allow_connected: true,
+                allow_platform: false,
             },
             req.headers(),
         ),
@@ -1863,6 +1886,8 @@ pub async fn revenue_recovery_invoices_list(
             },
             &auth::JWTAuth {
                 permission: Permission::MerchantPaymentRead,
+                allow_connected: false,
+                allow_platform: false,
             },
             req.headers(),
         ),
@@ -1894,6 +1919,8 @@ pub async fn payments_list(
             },
             &auth::JWTAuth {
                 permission: Permission::MerchantPaymentRead,
+                allow_connected: true,
+                allow_platform: false,
             },
             req.headers(),
         ),
@@ -1931,6 +1958,8 @@ pub async fn profile_payments_list(
             }),
             &auth::JWTAuth {
                 permission: Permission::ProfilePaymentRead,
+                allow_connected: true,
+                allow_platform: false,
             },
             req.headers(),
         ),
@@ -1958,6 +1987,8 @@ pub async fn payments_list_by_filter(
         },
         &auth::JWTAuth {
             permission: Permission::MerchantPaymentRead,
+            allow_connected: true,
+            allow_platform: false,
         },
         api_locking::LockAction::NotApplicable,
     ))
@@ -1988,6 +2019,8 @@ pub async fn profile_payments_list_by_filter(
         },
         &auth::JWTAuth {
             permission: Permission::ProfilePaymentRead,
+            allow_connected: true,
+            allow_platform: false,
         },
         api_locking::LockAction::NotApplicable,
     ))
@@ -2013,6 +2046,8 @@ pub async fn get_filters_for_payments(
         },
         &auth::JWTAuth {
             permission: Permission::MerchantPaymentRead,
+            allow_connected: true,
+            allow_platform: false,
         },
         api_locking::LockAction::NotApplicable,
     ))
@@ -2036,6 +2071,8 @@ pub async fn get_payment_filters(
         },
         &auth::JWTAuth {
             permission: Permission::MerchantPaymentRead,
+            allow_connected: true,
+            allow_platform: false,
         },
         api_locking::LockAction::NotApplicable,
     ))
@@ -2063,6 +2100,8 @@ pub async fn get_payment_filters_profile(
         },
         &auth::JWTAuth {
             permission: Permission::ProfilePaymentRead,
+            allow_connected: true,
+            allow_platform: false,
         },
         api_locking::LockAction::NotApplicable,
     ))
@@ -2090,6 +2129,8 @@ pub async fn get_payment_filters_profile(
         },
         &auth::JWTAuth {
             permission: Permission::ProfilePaymentRead,
+            allow_connected: true,
+            allow_platform: false,
         },
         api_locking::LockAction::NotApplicable,
     ))
@@ -2115,6 +2156,8 @@ pub async fn get_payments_aggregates(
         },
         &auth::JWTAuth {
             permission: Permission::MerchantPaymentRead,
+            allow_connected: true,
+            allow_platform: false,
         },
         api_locking::LockAction::NotApplicable,
     ))
@@ -2181,6 +2224,8 @@ pub async fn payments_approve(
                 }),
                 &auth::JWTAuth {
                     permission: Permission::ProfilePaymentWrite,
+                    allow_connected: true,
+                    allow_platform: false,
                 },
                 http_req.headers(),
             ),
@@ -2251,6 +2296,8 @@ pub async fn payments_reject(
                 }),
                 &auth::JWTAuth {
                     permission: Permission::ProfilePaymentWrite,
+                    allow_connected: true,
+                    allow_platform: false,
                 },
                 http_req.headers(),
             ),
@@ -2320,31 +2367,113 @@ where
         .await
     } else {
         let eligible_connectors = req.connector.clone();
+        let eligible_routable_connectors = eligible_connectors.clone().map(|connectors| {
+            connectors
+                .into_iter()
+                .flat_map(|c| c.foreign_try_into())
+                .collect()
+        });
+        let dimensions = Dimensions::new()
+            .with_merchant_id(platform.get_processor().get_account().get_id().clone());
         match req.payment_type.unwrap_or_default() {
             api_models::enums::PaymentType::Normal
             | api_models::enums::PaymentType::RecurringMandate
-            | api_models::enums::PaymentType::NewMandate => {
-                payments::payments_core::<
-                    api_types::Authorize,
-                    payment_types::PaymentsResponse,
-                    _,
-                    _,
-                    _,
-                    payments::PaymentData<api_types::Authorize>,
-                >(
-                    state,
-                    req_state,
-                    platform,
-                    profile_id,
-                    operation,
-                    req,
+            | api_models::enums::PaymentType::NewMandate
+            | api_models::enums::PaymentType::Installment => {
+                let (payment_data, _req, connector_http_status_code, external_latency) =
+                    Box::pin(payments::payments_operation_core::<
+                        api_types::Authorize,
+                        _,
+                        _,
+                        _,
+                        payments::PaymentData<api_types::Authorize>,
+                    >(
+                        &state,
+                        req_state.clone(),
+                        &platform,
+                        profile_id.clone(),
+                        operation.clone(),
+                        req.clone(),
+                        payments::CallConnectorAction::Trigger,
+                        None,
+                        auth_flow,
+                        eligible_routable_connectors.clone(),
+                        header_payload.clone(),
+                        dimensions.clone(),
+                    ))
+                    .await?;
+
+                let connector = payment_data.get_payment_attempt_connector();
+
+                if let Some(connector_name) = connector {
+                    let connector_data = api_types::ConnectorData::get_connector_by_name(
+                        &state.conf.connectors,
+                        connector_name,
+                        api_types::GetToken::Connector,
+                        None,
+                    )?;
+                    let should_continue_further = connector_data
+                        .connector
+                        .should_continue_further(&payment_data.payment_intent.clone())
+                        .unwrap_or(false);
+                    if should_continue_further {
+                        logger::info!(
+                            "Re-invoking payments_operation_core | should_continue_further: {} | payment_id: {:?}",
+                            should_continue_further,
+                            payment_data.get_payment_intent().payment_id,
+                        );
+                        let (pd, _req, connector_status_code, ext_latency) =
+                            Box::pin(payments::payments_operation_core::<
+                                api_types::SetupMandate,
+                                _,
+                                _,
+                                _,
+                                payments::PaymentData<api_types::SetupMandate>,
+                            >(
+                                &state,
+                                req_state,
+                                &platform,
+                                profile_id,
+                                PaymentRecurrence,
+                                req,
+                                payments::CallConnectorAction::Trigger,
+                                None,
+                                auth_flow,
+                                eligible_routable_connectors,
+                                header_payload.clone(),
+                                dimensions,
+                            ))
+                            .await?;
+                        let total_ext_latency = match (external_latency, ext_latency) {
+                            (Some(l1), Some(l2)) => Some(l1 + l2),
+                            (Some(l), None) | (None, Some(l)) => Some(l),
+                            (None, None) => None,
+                        };
+                        return payment_types::PaymentsResponse::generate_response(
+                            pd,
+                            auth_flow,
+                            &state.base_url,
+                            operation,
+                            &state.conf.connector_request_reference_id_config,
+                            connector_status_code,
+                            total_ext_latency,
+                            header_payload.x_hs_latency,
+                            &platform,
+                        );
+                    }
+                }
+
+                payment_types::PaymentsResponse::generate_response(
+                    payment_data,
                     auth_flow,
-                    payments::CallConnectorAction::Trigger,
-                    None,
-                    eligible_connectors,
-                    header_payload,
+                    &state.base_url,
+                    operation,
+                    &state.conf.connector_request_reference_id_config,
+                    connector_http_status_code,
+                    external_latency,
+                    header_payload.x_hs_latency,
+                    &platform,
                 )
-                .await
             }
             api_models::enums::PaymentType::SetupMandate => {
                 payments::payments_core::<
@@ -3124,6 +3253,8 @@ pub async fn get_payments_aggregates_profile(
         },
         &auth::JWTAuth {
             permission: Permission::ProfilePaymentRead,
+            allow_connected: true,
+            allow_platform: false,
         },
         api_locking::LockAction::NotApplicable,
     ))
@@ -3153,6 +3284,8 @@ pub async fn get_payments_aggregates_profile(
         },
         &auth::JWTAuth {
             permission: Permission::ProfilePaymentRead,
+            allow_connected: true,
+            allow_platform: false,
         },
         api_locking::LockAction::NotApplicable,
     ))
@@ -3608,6 +3741,8 @@ pub async fn payment_status(
             },
             &auth::JWTAuth {
                 permission: Permission::ProfilePaymentRead,
+                allow_connected: false,
+                allow_platform: false,
             },
             req.headers(),
         ),
@@ -3664,6 +3799,8 @@ pub async fn payments_status_with_gateway_creds(
                 },
                 &auth::JWTAuth {
                     permission: Permission::ProfilePaymentWrite,
+                    allow_connected: false,
+                    allow_platform: false,
                 },
                 req.headers(),
             ),
@@ -3872,6 +4009,8 @@ pub async fn payments_capture(
             },
             &auth::JWTAuth {
                 permission: Permission::ProfileAccountWrite,
+                allow_connected: false,
+                allow_platform: false,
             },
             req.headers(),
         ),

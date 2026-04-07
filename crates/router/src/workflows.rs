@@ -17,3 +17,6 @@ pub mod process_dispute;
 pub mod dispute_list;
 
 pub mod invoice_sync;
+
+#[cfg(feature = "payouts")]
+pub mod payout_sync;

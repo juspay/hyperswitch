@@ -92,6 +92,8 @@ impl<T: DatabaseStore> PayoutAttemptInterface for KVRouterStore<T> {
                         .merchant_order_reference_id
                         .clone(),
                     payout_connector_metadata: new_payout_attempt.payout_connector_metadata.clone(),
+                    processor_merchant_id: new_payout_attempt.processor_merchant_id.clone(),
+                    created_by: new_payout_attempt.created_by.clone(),
                 };
 
                 let redis_entry = kv::TypedSql {
@@ -576,6 +578,8 @@ impl DataModelExt for PayoutAttempt {
             additional_payout_method_data: self.additional_payout_method_data,
             merchant_order_reference_id: self.merchant_order_reference_id,
             payout_connector_metadata: self.payout_connector_metadata,
+            processor_merchant_id: self.processor_merchant_id,
+            created_by: self.created_by.map(|created_by| created_by.to_string()),
         }
     }
 
@@ -605,6 +609,10 @@ impl DataModelExt for PayoutAttempt {
             additional_payout_method_data: storage_model.additional_payout_method_data,
             merchant_order_reference_id: storage_model.merchant_order_reference_id,
             payout_connector_metadata: storage_model.payout_connector_metadata,
+            processor_merchant_id: storage_model.processor_merchant_id,
+            created_by: storage_model
+                .created_by
+                .and_then(|created_by| created_by.parse::<common_utils::types::CreatedBy>().ok()),
         }
     }
 }
@@ -637,6 +645,8 @@ impl DataModelExt for PayoutAttemptNew {
             additional_payout_method_data: self.additional_payout_method_data,
             merchant_order_reference_id: self.merchant_order_reference_id,
             payout_connector_metadata: self.payout_connector_metadata,
+            processor_merchant_id: self.processor_merchant_id,
+            created_by: self.created_by.map(|created_by| created_by.to_string()),
         }
     }
 
@@ -666,6 +676,10 @@ impl DataModelExt for PayoutAttemptNew {
             additional_payout_method_data: storage_model.additional_payout_method_data,
             merchant_order_reference_id: storage_model.merchant_order_reference_id,
             payout_connector_metadata: storage_model.payout_connector_metadata,
+            processor_merchant_id: storage_model.processor_merchant_id,
+            created_by: storage_model
+                .created_by
+                .and_then(|created_by| created_by.parse::<common_utils::types::CreatedBy>().ok()),
         }
     }
 }

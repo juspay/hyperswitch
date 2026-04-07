@@ -4,6 +4,7 @@ pub mod api_keys;
 pub mod apple_pay_certificates_migration;
 pub mod authentication;
 pub mod blocklist;
+pub mod card_issuer;
 pub mod cards_info;
 pub mod chat;
 pub mod conditional_configs;
@@ -48,6 +49,7 @@ pub mod relay;
 pub mod revenue_recovery_data_backfill;
 pub mod routing;
 pub mod subscription;
+pub mod superposition_sdk_config;
 pub mod surcharge_decision_configs;
 pub mod three_ds_decision_rule;
 #[cfg(feature = "tokenization_v2")]

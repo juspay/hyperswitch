@@ -1,13 +1,16 @@
 use actix_web::http::header::HeaderMap;
 use api_models::{
-    cards_info as card_info_types, enums as api_enums, gsm as gsm_api_types, payment_methods,
-    payments, routing::ConnectorSelection,
+    card_issuer as card_issuer_types, cards_info as card_info_types, enums as api_enums,
+    gsm as gsm_api_types, payment_methods,
+    payments::{self, CustomerDetails},
+    routing::ConnectorSelection,
 };
 use common_utils::{
     consts::X_HS_LATENCY,
     crypto::Encryptable,
     ext_traits::{Encode, StringExt, ValueExt},
     fp_utils::when,
+    new_type::CardIssuerName,
     pii,
     types::ConnectorTransactionIdTrait,
 };
@@ -15,7 +18,7 @@ use diesel_models::enums as storage_enums;
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::payments::payment_intent::CustomerData;
 use hyperswitch_interfaces::api::ConnectorSpecifications;
-use masking::{ExposeInterface, PeekInterface, Secret};
+use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 
 use super::domain;
 #[cfg(feature = "v2")]
@@ -99,7 +102,7 @@ impl
     ) -> Self {
         Self {
             merchant_id: item.merchant_id.to_owned(),
-            customer_id: Some(item.customer_id.to_owned()),
+            customer_id: item.customer_id.to_owned(),
             payment_method_id: item.get_id().clone(),
             payment_method: item.get_payment_method_type(),
             payment_method_type: item.get_payment_method_subtype(),
@@ -397,6 +400,8 @@ impl ForeignFrom<api_enums::PaymentMethodType> for api_enums::PaymentMethod {
             | api_enums::PaymentMethodType::InstantBankTransferPoland
             | api_enums::PaymentMethodType::SepaBankTransfer
             | api_enums::PaymentMethodType::IndonesianBankTransfer
+            | api_enums::PaymentMethodType::PixAutomaticoPush
+            | api_enums::PaymentMethodType::PixAutomaticoQr
             | api_enums::PaymentMethodType::Pix => Self::BankTransfer,
             api_enums::PaymentMethodType::Givex
             | api_enums::PaymentMethodType::PaySafeCard
@@ -642,7 +647,7 @@ impl
             crate::core::api_keys::PlaintextApiKey,
         ),
     ) -> Self {
-        use masking::StrongSecret;
+        use hyperswitch_masking::StrongSecret;
 
         let (api_key, plaintext_api_key) = item;
         Self {
@@ -1323,6 +1328,7 @@ impl ForeignFrom<&api_models::payouts::PayoutMethodData> for api_enums::PaymentM
     fn foreign_from(value: &api_models::payouts::PayoutMethodData) -> Self {
         match value {
             api_models::payouts::PayoutMethodData::Bank(bank) => Self::foreign_from(bank),
+            api_models::payouts::PayoutMethodData::BankTransfer(bank) => Self::foreign_from(bank),
             api_models::payouts::PayoutMethodData::Card(_) => Self::Debit,
             api_models::payouts::PayoutMethodData::Wallet(wallet) => Self::foreign_from(wallet),
             api_models::payouts::PayoutMethodData::BankRedirect(bank_redirect) => {
@@ -1343,6 +1349,20 @@ impl ForeignFrom<&api_models::payouts::Bank> for api_enums::PaymentMethodType {
             api_models::payouts::Bank::Bacs(_) => Self::Bacs,
             api_models::payouts::Bank::Sepa(_) => Self::SepaBankTransfer,
             api_models::payouts::Bank::Pix(_) => Self::Pix,
+            api_models::payouts::Bank::Trustly(_) => Self::Trustly,
+        }
+    }
+}
+
+#[cfg(feature = "payouts")]
+impl ForeignFrom<&api_models::payouts::BankTransfer> for api_enums::PaymentMethodType {
+    fn foreign_from(value: &api_models::payouts::BankTransfer) -> Self {
+        match value {
+            api_models::payouts::BankTransfer::Ach(_) => Self::Ach,
+            api_models::payouts::BankTransfer::Bacs(_) => Self::Bacs,
+            api_models::payouts::BankTransfer::Sepa(_) => Self::SepaBankTransfer,
+            api_models::payouts::BankTransfer::Pix(_) => Self::Pix,
+            api_models::payouts::BankTransfer::Trustly(_) => Self::Trustly,
         }
     }
 }
@@ -1363,6 +1383,7 @@ impl ForeignFrom<&api_models::payouts::BankRedirect> for api_enums::PaymentMetho
     fn foreign_from(value: &api_models::payouts::BankRedirect) -> Self {
         match value {
             api_models::payouts::BankRedirect::Interac(_) => Self::Interac,
+            api_models::payouts::BankRedirect::OpenBankingUk(_) => Self::OpenBankingUk,
         }
     }
 }
@@ -1372,6 +1393,7 @@ impl ForeignFrom<&api_models::payouts::PayoutMethodData> for api_enums::PaymentM
     fn foreign_from(value: &api_models::payouts::PayoutMethodData) -> Self {
         match value {
             api_models::payouts::PayoutMethodData::Bank(_) => Self::BankTransfer,
+            api_models::payouts::PayoutMethodData::BankTransfer(_) => Self::BankTransfer,
             api_models::payouts::PayoutMethodData::Card(_) => Self::Card,
             api_models::payouts::PayoutMethodData::Wallet(_) => Self::Wallet,
             api_models::payouts::PayoutMethodData::BankRedirect(_) => Self::BankRedirect,
@@ -1390,6 +1412,7 @@ impl ForeignTryFrom<&api_models::payouts::PayoutMethodData> for api_models::enum
     ) -> Result<Self, Self::Error> {
         match value {
             api_models::payouts::PayoutMethodData::Bank(_) => Ok(Self::Bank),
+            api_models::payouts::PayoutMethodData::BankTransfer(_) => Ok(Self::Bank),
             api_models::payouts::PayoutMethodData::Card(_) => Ok(Self::Card),
             api_models::payouts::PayoutMethodData::Wallet(_) => Ok(Self::Wallet),
             api_models::payouts::PayoutMethodData::BankRedirect(_) => Ok(Self::BankRedirect),
@@ -1713,6 +1736,17 @@ impl
                 .or_else(|| {
                     customer.and_then(|cust| cust.name.as_ref().map(|n| n.clone().into_inner()))
                 }),
+            customer: Some(CustomerDetails {
+                name: None,
+                email: None,
+                phone: None,
+                id: None,
+                phone_country_code: None,
+                tax_registration_id: None,
+                document_details: customer_details_from_pi
+                    .as_ref()
+                    .and_then(|doc_details| doc_details.customer_document_details.clone()),
+            }),
             ..Self::default()
         })
     }
@@ -2211,6 +2245,54 @@ impl ForeignFrom<diesel_models::business_profile::CardTestingGuardConfig>
     }
 }
 
+impl ForeignFrom<api_models::admin::PaymentMethodBlockingConfig>
+    for diesel_models::business_profile::PaymentMethodBlockingConfig
+{
+    fn foreign_from(item: api_models::admin::PaymentMethodBlockingConfig) -> Self {
+        Self {
+            card: item.card.map(|c| c.foreign_into()),
+        }
+    }
+}
+
+impl ForeignFrom<api_models::admin::CardBlockingConfig>
+    for diesel_models::business_profile::CardBlockingConfig
+{
+    fn foreign_from(item: api_models::admin::CardBlockingConfig) -> Self {
+        Self {
+            issuing_country: item.issuing_country,
+            card_types: item.card_types,
+            card_subtypes: item.card_subtypes,
+            issuers: item.issuers,
+            block_if_bin_info_unavailable: item.block_if_bin_info_unavailable,
+        }
+    }
+}
+
+impl ForeignFrom<diesel_models::business_profile::PaymentMethodBlockingConfig>
+    for api_models::admin::PaymentMethodBlockingConfig
+{
+    fn foreign_from(item: diesel_models::business_profile::PaymentMethodBlockingConfig) -> Self {
+        Self {
+            card: item.card.map(|c| c.foreign_into()),
+        }
+    }
+}
+
+impl ForeignFrom<diesel_models::business_profile::CardBlockingConfig>
+    for api_models::admin::CardBlockingConfig
+{
+    fn foreign_from(item: diesel_models::business_profile::CardBlockingConfig) -> Self {
+        Self {
+            issuing_country: item.issuing_country,
+            card_types: item.card_types,
+            card_subtypes: item.card_subtypes,
+            issuers: item.issuers,
+            block_if_bin_info_unavailable: item.block_if_bin_info_unavailable,
+        }
+    }
+}
+
 impl ForeignFrom<api_models::admin::WebhookDetails>
     for diesel_models::business_profile::WebhookDetails
 {
@@ -2497,5 +2579,21 @@ impl ForeignFrom<&revenue_recovery_redis_operation::PaymentProcessorTokenStatus>
             signature_network: None,
             auth_code: None,
         }
+    }
+}
+
+impl ForeignTryFrom<storage::CardIssuer> for card_issuer_types::CardIssuerResponse {
+    type Error = error_stack::Report<errors::ApiErrorResponse>;
+
+    fn foreign_try_from(from: storage::CardIssuer) -> Result<Self, Self::Error> {
+        let issuer_name = CardIssuerName::try_new(from.issuer_name).change_context(
+            errors::ApiErrorResponse::InvalidDataValue {
+                field_name: "issuer_name",
+            },
+        )?;
+        Ok(Self {
+            id: from.id,
+            issuer_name,
+        })
     }
 }

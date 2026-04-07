@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use common_utils::types::{StringMinorUnit, TimeRange};
-use masking::{Deserialize, Serialize};
+use hyperswitch_masking::{Deserialize, Serialize};
 use serde::de::Error;
 use smithy::SmithyModel;
 use time::PrimitiveDateTime;

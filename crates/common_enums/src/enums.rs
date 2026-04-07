@@ -18,7 +18,7 @@ use diesel::{
     serialize::{Output, ToSql},
     sql_types::Text,
 };
-use masking::Secret;
+use hyperswitch_masking::Secret;
 pub use payments::ProductType;
 use serde::{de, Deserialize, Deserializer, Serialize, Serializer};
 use smithy::SmithyModel;
@@ -181,7 +181,6 @@ impl AttemptStatus {
             | Self::Charged
             | Self::AutoRefunded
             | Self::Voided
-            | Self::VoidedPostCharge
             | Self::VoidFailed
             | Self::CaptureFailed
             | Self::Failure
@@ -204,7 +203,8 @@ impl AttemptStatus {
             | Self::PaymentMethodAwaited
             | Self::ConfirmationAwaited
             | Self::DeviceDataCollectionPending
-            | Self::IntegrityFailure => false,
+            | Self::IntegrityFailure
+            | Self::VoidedPostCharge => false,
         }
     }
 
@@ -309,15 +309,16 @@ pub enum ApplePayPaymentMethodType {
     Copy,
     Debug,
     Default,
-    Hash,
-    Eq,
     PartialEq,
+    Eq,
+    Hash,
     serde::Deserialize,
     serde::Serialize,
     SmithyModel,
     strum::Display,
     strum::EnumString,
     strum::EnumIter,
+    strum::VariantNames,
     ToSchema,
 )]
 #[router_derive::diesel_enum(storage_type = "db_enum")]
@@ -777,6 +778,7 @@ pub enum CallConnectorAction {
     HandleResponse(Vec<u8>),
     UCSConsumeResponse(Vec<u8>),
     UCSHandleResponse(Vec<u8>),
+    HandleResponseWithoutBuildRequest,
 }
 
 /// The three-letter ISO 4217 currency code (e.g., "USD", "EUR") for the payment amount. This field is mandatory for creating a payment.
@@ -2352,6 +2354,8 @@ pub enum PaymentMethodType {
     Paypal,
     Paze,
     Pix,
+    PixAutomaticoQr,
+    PixAutomaticoPush,
     PaySafeCard,
     Przelewy24,
     PromptPay,
@@ -2485,6 +2489,8 @@ impl PaymentMethodType {
             Self::Paypal => "PayPal",
             Self::Paze => "Paze",
             Self::Pix => "Pix",
+            Self::PixAutomaticoQr => "Pix Automático QR",
+            Self::PixAutomaticoPush => "Pix Automático Push",
             Self::PaySafeCard => "PaySafeCard",
             Self::Przelewy24 => "Przelewy24",
             Self::PromptPay => "PromptPay",
@@ -2493,7 +2499,7 @@ impl PaymentMethodType {
             Self::RedPagos => "RedPagos",
             Self::SamsungPay => "Samsung Pay",
             Self::Sepa => "SEPA Direct Debit",
-            Self::SepaGuarenteedDebit => "SEPA Guarenteed Direct Debit",
+            Self::SepaGuarenteedDebit => "SEPA Guaranteed Direct Debit",
             Self::SepaBankTransfer => "SEPA Bank Transfer",
             Self::Sofort => "Sofort",
             Self::Skrill => "Skrill",
@@ -2528,7 +2534,7 @@ impl PaymentMethodType {
     }
 }
 
-impl masking::SerializableSecret for PaymentMethodType {}
+impl hyperswitch_masking::SerializableSecret for PaymentMethodType {}
 
 /// Indicates the type of payment method. Eg: 'card', 'wallet', etc.
 #[derive(
@@ -2590,6 +2596,27 @@ impl PaymentMethod {
             | Self::RealTimePayment
             | Self::Upi
             | Self::Voucher
+            | Self::OpenBanking
+            | Self::MobilePayment
+            | Self::NetworkToken => false,
+        }
+    }
+
+    pub fn supports_installments(&self) -> bool {
+        match self {
+            Self::Card => true,
+            Self::CardRedirect
+            | Self::PayLater
+            | Self::Wallet
+            | Self::BankRedirect
+            | Self::BankTransfer
+            | Self::Crypto
+            | Self::BankDebit
+            | Self::Reward
+            | Self::RealTimePayment
+            | Self::Upi
+            | Self::Voucher
+            | Self::GiftCard
             | Self::OpenBanking
             | Self::MobilePayment
             | Self::NetworkToken => false,
@@ -2788,6 +2815,7 @@ pub enum PaymentType {
     NewMandate,
     SetupMandate,
     RecurringMandate,
+    Installment,
 }
 
 /// SCA Exemptions types available for authentication
@@ -2933,6 +2961,40 @@ pub enum RelayStatus {
     Pending,
     Success,
     Failure,
+}
+
+impl RelayStatus {
+    pub fn get_void_status(attempt_status: AttemptStatus) -> Self {
+        match attempt_status {
+            AttemptStatus::Failure
+            | AttemptStatus::AuthenticationFailed
+            | AttemptStatus::RouterDeclined
+            | AttemptStatus::AuthorizationFailed
+            | AttemptStatus::CaptureFailed
+            | AttemptStatus::VoidFailed
+            | AttemptStatus::IntegrityFailure
+            | AttemptStatus::AutoRefunded
+            | AttemptStatus::Expired => Self::Failure,
+            AttemptStatus::Pending
+            | AttemptStatus::PaymentMethodAwaited
+            | AttemptStatus::Authorized
+            | AttemptStatus::PartiallyAuthorized
+            | AttemptStatus::AuthenticationSuccessful
+            | AttemptStatus::ConfirmationAwaited
+            | AttemptStatus::DeviceDataCollectionPending
+            | AttemptStatus::VoidInitiated
+            | AttemptStatus::Unresolved
+            | AttemptStatus::Charged
+            | AttemptStatus::PartialChargedAndChargeable
+            | AttemptStatus::CodInitiated
+            | AttemptStatus::PartialCharged
+            | AttemptStatus::Authorizing
+            | AttemptStatus::CaptureInitiated
+            | AttemptStatus::AuthenticationPending
+            | AttemptStatus::Started => Self::Pending,
+            AttemptStatus::Voided | AttemptStatus::VoidedPostCharge => Self::Success,
+        }
+    }
 }
 
 #[derive(
@@ -3127,6 +3189,388 @@ pub enum PanOrToken {
 pub enum CardType {
     Credit,
     Debit,
+}
+
+// TODO: This enum will be updated with all card subtype values
+#[derive(
+    Clone,
+    Debug,
+    Eq,
+    Hash,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumIter,
+    strum::EnumString,
+    utoipa::ToSchema,
+    Copy,
+)]
+#[strum(serialize_all = "UPPERCASE")]
+#[serde(rename_all = "snake_case")]
+pub enum CardSubtype {
+    Aarp,
+    Airmilespremier,
+    Atmcard,
+    Atmonly,
+    #[strum(serialize = "ATMONLY-CASHLINECARD")]
+    AtmonlyCashlinecard,
+    #[strum(serialize = "BEST PRICE SAVE MAX")]
+    BestPriceSaveMax,
+    #[strum(serialize = "BEST PRICE SAVE SMART")]
+    BestPriceSaveSmart,
+    Bharat,
+    #[strum(serialize = "BHARAT CASHBACK")]
+    BharatCashback,
+    #[strum(serialize = "BHARAT PLATINUM")]
+    BharatPlatinum,
+    Black,
+    Blackcard,
+    Blue,
+    #[strum(serialize = "BLUE&REVOLVING")]
+    BlueAndRevolving,
+    Blueairmilescashbackcard,
+    Bluecash,
+    Blueforbusiness,
+    Bmiplus,
+    Bonus,
+    Business,
+    #[strum(serialize = "BUSINESS GOLD")]
+    BusinessGold,
+    #[strum(serialize = "BUSINESS MONEYBACK")]
+    BusinessMoneyback,
+    #[strum(serialize = "BUSINESS PLATINUM")]
+    BusinessPlatinum,
+    #[strum(serialize = "BUSINESS PREPAID")]
+    BusinessPrepaid,
+    #[strum(serialize = "BUSINESS REGALIA")]
+    BusinessRegalia,
+    #[strum(serialize = "BUSINESS REGALIA FIRST")]
+    BusinessRegaliaFirst,
+    Businesscard,
+    Businesselite,
+    Businessimmediatedebit,
+    Businessloan,
+    Cashback,
+    Cashrebate,
+    Centurion,
+    Centurionservicio,
+    Chargecard,
+    Checkcard,
+    Classic,
+    Classicpremium,
+    Commercial,
+    Commercialtransportebt,
+    Companion,
+    Consumer,
+    Consumercard,
+    #[strum(serialize = "CORP.GOLDD&RANGES")]
+    CorpGolddAndRanges,
+    #[strum(serialize = "CORP.GOLDS&RANGES")]
+    CorpGoldsAndRanges,
+    #[strum(serialize = "CORP.GREEND&RANGES")]
+    CorpGreendAndRanges,
+    #[strum(serialize = "CORP.GREENS&RANGES")]
+    CorpGreensAndRanges,
+    #[strum(serialize = "CORP.PURCHASINGCARD")]
+    CorpPurchasingcard,
+    #[strum(serialize = "CORPO.CO.S&RANGES")]
+    CorpoCoSAndRanges,
+    Corporate,
+    #[strum(serialize = "CORPORATE PLATINUM")]
+    CorporatePlatinum,
+    #[strum(serialize = "CORPORATE PREMIUM")]
+    CorporatePremium,
+    Corporatecard,
+    Corporateexecutive,
+    Corporatefleetcard,
+    Corporategold,
+    Corporategoldyplatinum,
+    Corporategreen,
+    Corporategreenebta,
+    Corporatepurchasing,
+    Corporaterevolving,
+    Corporatet,
+    #[strum(serialize = "CORPORATET&E")]
+    CorporateTAndE,
+    Corporation,
+    Credit,
+    Ctslandcard,
+    Debit,
+    Delayeddebit,
+    Delta,
+    #[strum(serialize = "DINERS CLUB BLACK")]
+    DinersClubBlack,
+    #[strum(serialize = "DINERS CLUB MILES")]
+    DinersClubMiles,
+    #[strum(serialize = "DINERS CLUB PREMIUM")]
+    DinersClubPremium,
+    #[strum(serialize = "DINERS CLUB PRIVILEGE")]
+    DinersClubPrivilege,
+    #[strum(serialize = "DINERS CLUB REWARDZ")]
+    DinersClubRewardz,
+    #[strum(serialize = "DOCTORS PLATINUM")]
+    DoctorsPlatinum,
+    #[strum(serialize = "DOCTORS REGALIA")]
+    DoctorsRegalia,
+    #[strum(serialize = "DOCTORS SUPERIA")]
+    DoctorsSuperia,
+    Dorada,
+    #[strum(serialize = "DUMMY LOGO")]
+    DummyLogo,
+    #[strum(serialize = "EASY EMI")]
+    EasyEmi,
+    #[strum(serialize = "EDGE PLATINUM")]
+    EdgePlatinum,
+    Electricorange,
+    Electron,
+    Electronic,
+    Electronicunembossed,
+    Embossed,
+    Executivebusiness,
+    Express,
+    Firstcitizen,
+    #[strum(serialize = "FIRSTCITIZEN BLACK")]
+    FirstcitizenBlack,
+    Fleetcard,
+    #[strum(serialize = "FLIPKART WHOLESALE")]
+    FlipkartWholesale,
+    Freedom,
+    #[strum(serialize = "FREEDOM PLATINUM")]
+    FreedomPlatinum,
+    #[strum(serialize = "GENERAL PURPOSE RE-LOADABLE CARD")]
+    GeneralPurposeReLoadableCard,
+    Gift,
+    #[strum(serialize = "GIFT CARDS")]
+    GiftCards,
+    Globalpayment,
+    Gmcard,
+    Gold,
+    #[strum(serialize = "GOLD PERSONAL")]
+    GoldPersonal,
+    #[strum(serialize = "GOLD/PLATINUM")]
+    GoldPlatinum,
+    #[strum(serialize = "GOLD/PREM")]
+    GoldPrem,
+    Goldcashbackcard,
+    Goldgrccyblue,
+    Goldimmediatedebit,
+    Goldpremium,
+    Governmentcommercialcard,
+    Governmentservicesloan,
+    Green,
+    Gsacard,
+    #[strum(serialize = "GSACORPORATET&E")]
+    GsacorporateTAndE,
+    Gsapurchasing,
+    #[strum(serialize = "HSANON-SUBSTANTIATED")]
+    HsanonSubstantiated,
+    Icard,
+    Ikeacard,
+    Immediatedebit,
+    #[strum(serialize = "INDIAN OIL")]
+    IndianOil,
+    #[strum(serialize = "INDIGO 6E REWARDS")]
+    Indigo6eRewards,
+    Individual,
+    Infinia,
+    Infinite,
+    #[strum(serialize = "INTERMILES DINERS CLUB")]
+    IntermilesDinersClub,
+    #[strum(serialize = "INTERMILES PREMIUM")]
+    IntermilesPremium,
+    #[strum(serialize = "INTERMILES SIGNATURE")]
+    IntermilesSignature,
+    #[strum(serialize = "IX RBL 09")]
+    IxRbl09,
+    #[strum(serialize = "IX RBL 24")]
+    IxRbl24,
+    #[strum(serialize = "IX SLICE 01")]
+    IxSlice01,
+    #[strum(serialize = "IX SLICE 02")]
+    IxSlice02,
+    #[strum(serialize = "JCB CLASSIC")]
+    JcbClassic,
+    #[strum(serialize = "JCB PLATINUM")]
+    JcbPlatinum,
+    #[strum(serialize = "JCB SELECT")]
+    JcbSelect,
+    #[strum(serialize = "JUMBO LOAN")]
+    JumboLoan,
+    Lowescard,
+    Mastercard,
+    Mastermoney,
+    #[strum(serialize = "MICRO-BUSINESSCARD")]
+    MicroBusinesscard,
+    Millennia,
+    #[strum(serialize = "MONEYBACK INSTA")]
+    MoneybackInsta,
+    #[strum(serialize = "MONEYBACK PLATINUM")]
+    MoneybackPlatinum,
+    #[strum(serialize = "MONEYBACK PLUS")]
+    MoneybackPlus,
+    #[strum(serialize = "MONEYBACK ST")]
+    MoneybackSt,
+    Newworld,
+    Newworldimmediatedebit,
+    Optima,
+    Others,
+    Ourocard,
+    Paymentcard,
+    Paypass,
+    #[strum(serialize = "PAYROLL CARDS")]
+    PayrollCards,
+    Paytm,
+    #[strum(serialize = "PAYTM BUSINESS")]
+    PaytmBusiness,
+    #[strum(serialize = "PAYTM MOBILE")]
+    PaytmMobile,
+    #[strum(serialize = "PAYTM SELECT")]
+    PaytmSelect,
+    Peony,
+    Peonymoneylink,
+    Pinelabs,
+    #[strum(serialize = "PINELABS PRO")]
+    PinelabsPro,
+    Platinum,
+    Platinum1,
+    #[strum(serialize = "PLATINUM EDGE")]
+    PlatinumEdge,
+    #[strum(serialize = "PLATINUM FREEDOM")]
+    PlatinumFreedom,
+    #[strum(serialize = "PLATINUM PLUS")]
+    PlatinumPlus,
+    #[strum(serialize = "PLATINUM SOLITAIRE")]
+    PlatinumSolitaire,
+    #[strum(serialize = "PLATINUM TIMES")]
+    PlatinumTimes,
+    Platinumimmediatedebit,
+    Platinumtravel,
+    Plus,
+    Pmjdy,
+    Premier,
+    Premium,
+    Premiumcard,
+    Premiumplus,
+    Prepaid,
+    #[strum(serialize = "PREPAID-ELECTRON")]
+    PrepaidElectron,
+    #[strum(serialize = "PREPAID-PRIVATELABEL")]
+    PrepaidPrivatelabel,
+    Prepaidcash,
+    Prepaidtravelmoney,
+    Private,
+    Privatelabel,
+    Pro,
+    Proprietary,
+    #[strum(serialize = "PROPRIETARY ATM")]
+    ProprietaryAtm,
+    Purchasing,
+    Quantum,
+    Rebate,
+    Regalia,
+    #[strum(serialize = "REGALIA FIRST")]
+    RegaliaFirst,
+    Revolving,
+    Rewards,
+    Rewardsonly,
+    #[strum(serialize = "RUPAY SELECT")]
+    RupaySelect,
+    Salute,
+    #[strum(serialize = "SAP CONCUR SOLUTIONS BLACK CORPORATE")]
+    SapConcurSolutionsBlackCorporate,
+    #[strum(serialize = "SAP CONCUR SOLUTIONS PRIME CORPORATE")]
+    SapConcurSolutionsPrimeCorporate,
+    Sbsgoldyblue,
+    Sears,
+    Signature,
+    Signaturebusiness,
+    Signaturebusinessplatinum,
+    Silver,
+    #[serde(rename = "6e_rewards")]
+    SixERewards,
+    #[serde(rename = "6e_rewards_xl")]
+    SixERewardsXl,
+    Smallbusiness,
+    Smallbusinesscard,
+    Smallbusinesssbsgreen,
+    Smallcorporate,
+    Smallcorporatecard,
+    Solitaire,
+    #[strum(serialize = "SOLITAIRE PLATINUM")]
+    SolitairePlatinum,
+    Standard,
+    Standardunembossed,
+    #[strum(serialize = "TATA NEU INFINITY")]
+    TataNeuInfinity,
+    #[strum(serialize = "TATA NEU PLUS")]
+    TataNeuPlus,
+    #[strum(serialize = "TEACHERS PLATINUM")]
+    TeachersPlatinum,
+    #[strum(serialize = "TEST PLASTIC")]
+    TestPlastic,
+    Titanium,
+    #[strum(serialize = "TITANIUM EDGE")]
+    TitaniumEdge,
+    #[strum(serialize = "TITANIUM PERSONAL")]
+    TitaniumPersonal,
+    #[strum(serialize = "TITANIUM TIMES")]
+    TitaniumTimes,
+    Tjpersonal,
+    Travelmoney,
+    #[strum(serialize = "UAT RANGE")]
+    UatRange,
+    Unembossed,
+    Virginatlantic,
+    Virtual,
+    #[strum(serialize = "VISA BUSINESS")]
+    VisaBusiness,
+    #[strum(serialize = "VISA BUSINESS ENHANCED")]
+    VisaBusinessEnhanced,
+    #[strum(serialize = "VISA CLASSIC")]
+    VisaClassic,
+    #[strum(serialize = "VISA CORPORATE T&E")]
+    VisaCorporateTAndE,
+    #[strum(serialize = "VISA ELECTRON")]
+    VisaElectron,
+    #[strum(serialize = "VISA ENHANCED")]
+    VisaEnhanced,
+    #[strum(serialize = "VISA GOLD")]
+    VisaGold,
+    #[strum(serialize = "VISA INFINITE")]
+    VisaInfinite,
+    #[strum(serialize = "VISA INFINITE BUSINESS")]
+    VisaInfiniteBusiness,
+    #[strum(serialize = "VISA PLATINUM")]
+    VisaPlatinum,
+    #[strum(serialize = "VISA PLATINUM BUSINESS")]
+    VisaPlatinumBusiness,
+    #[strum(serialize = "VISA PURCHASING")]
+    VisaPurchasing,
+    #[strum(serialize = "VISA PURCHASING WITH FLEET")]
+    VisaPurchasingWithFleet,
+    #[strum(serialize = "VISA REWARDS")]
+    VisaRewards,
+    #[strum(serialize = "VISA SIGNATURE")]
+    VisaSignature,
+    #[strum(serialize = "VISA SIGNATURE BUSINESS")]
+    VisaSignatureBusiness,
+    #[strum(serialize = "VISA TRADITIONAL")]
+    VisaTraditional,
+    Visacash,
+    Visacommerce,
+    Vpay,
+    World,
+    #[strum(serialize = "WORLD MASTER")]
+    WorldMaster,
+    Worldblack,
+    Worldcard,
+    Worlddebitembossed,
+    Worldelite,
+    Worldeliteforbusiness,
+    Worldembossed,
+    Worldforbusiness,
+    Worldsigniaimmediatedebit,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, strum::EnumString, strum::Display)]
@@ -8456,7 +8900,11 @@ impl PayoutStatus {
     }
 
     pub fn is_non_terminal_status(&self) -> bool {
-        !matches!(
+        !self.is_terminal_status()
+    }
+
+    pub fn is_terminal_status(&self) -> bool {
+        matches!(
             self,
             Self::Success | Self::Failed | Self::Cancelled | Self::Expired | Self::Reversed
         )
@@ -9987,6 +10435,12 @@ pub enum FeatureStatus {
     Supported,
 }
 
+impl FeatureStatus {
+    pub fn is_supported(&self) -> bool {
+        matches!(self, Self::Supported)
+    }
+}
+
 /// The type of tokenization to use for the payment method
 #[derive(
     Clone,
@@ -10125,6 +10579,7 @@ pub enum TriggeredBy {
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
+/// Specifies the category of a Merchant Initiated Transaction (MIT). In the case of MIT, `mit_category` tells what kind of MIT is being processed. In the case of CIT, it tells the future intended MIT type.
 pub enum MitCategory {
     /// A fixed purchase amount split into multiple scheduled payments until the total is paid.
     Installment,
@@ -10191,6 +10646,7 @@ pub enum ProcessTrackerRunner {
     ProcessDisputeWorkflow,
     DisputeListWorkflow,
     InvoiceSyncflow,
+    PayoutSyncWorkFlow,
 }
 
 #[derive(
@@ -10755,4 +11211,44 @@ pub enum WebhookRegistrationStatus {
     Success,
     // Webhook registration has failed
     Failure,
+}
+
+/// The status of a post-capture void operation
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Default,
+    Eq,
+    PartialOrd,
+    Ord,
+    Hash,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    SmithyModel,
+    strum::Display,
+    strum::VariantNames,
+    strum::EnumIter,
+    strum::EnumString,
+    ToSchema,
+)]
+#[router_derive::diesel_enum(storage_type = "text")]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+pub enum PostCaptureVoidStatus {
+    Succeeded,
+    #[default]
+    Pending,
+    Failed,
+}
+
+impl PostCaptureVoidStatus {
+    pub fn is_post_capture_void_failure(self) -> bool {
+        match self {
+            Self::Failed => true,
+            Self::Pending | Self::Succeeded => false,
+        }
+    }
 }

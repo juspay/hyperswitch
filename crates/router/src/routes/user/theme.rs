@@ -2,7 +2,7 @@ use actix_multipart::form::MultipartForm;
 use actix_web::{web, HttpRequest, HttpResponse};
 use api_models::user::theme as theme_api;
 use common_utils::types::user::ThemeLineage;
-use masking::Secret;
+use hyperswitch_masking::Secret;
 use router_env::Flow;
 
 use crate::{
@@ -156,6 +156,8 @@ pub async fn create_user_theme(
         },
         &auth::JWTAuth {
             permission: Permission::OrganizationThemeWrite,
+            allow_connected: true,
+            allow_platform: true,
         },
         api_locking::LockAction::NotApplicable,
     ))
@@ -179,6 +181,8 @@ pub async fn get_user_theme_using_theme_id(
         },
         &auth::JWTAuth {
             permission: Permission::OrganizationThemeRead,
+            allow_connected: true,
+            allow_platform: true,
         },
         api_locking::LockAction::NotApplicable,
     ))
@@ -205,6 +209,8 @@ pub async fn update_user_theme(
         },
         &auth::JWTAuth {
             permission: Permission::OrganizationThemeWrite,
+            allow_connected: true,
+            allow_platform: true,
         },
         api_locking::LockAction::NotApplicable,
     ))
@@ -229,6 +235,8 @@ pub async fn delete_user_theme(
         },
         &auth::JWTAuth {
             permission: Permission::OrganizationThemeWrite,
+            allow_connected: true,
+            allow_platform: true,
         },
         api_locking::LockAction::NotApplicable,
     ))
@@ -258,6 +266,8 @@ pub async fn upload_file_to_user_theme_storage(
         },
         &auth::JWTAuth {
             permission: Permission::OrganizationThemeWrite,
+            allow_connected: true,
+            allow_platform: true,
         },
         api_locking::LockAction::NotApplicable,
     ))
@@ -282,6 +292,8 @@ pub async fn list_all_themes_in_lineage(
         },
         &auth::JWTAuth {
             permission: Permission::OrganizationThemeRead,
+            allow_connected: true,
+            allow_platform: true,
         },
         api_locking::LockAction::NotApplicable,
     ))
@@ -306,6 +318,8 @@ pub async fn get_user_theme_using_lineage(
         },
         &auth::JWTAuth {
             permission: Permission::OrganizationThemeRead,
+            allow_connected: true,
+            allow_platform: true,
         },
         api_locking::LockAction::NotApplicable,
     ))

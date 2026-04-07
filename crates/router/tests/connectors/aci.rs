@@ -5,7 +5,7 @@ use hyperswitch_domain_models::{
     payment_method_data::{Card, PaymentMethodData},
     router_request_types::AuthenticationData,
 };
-use masking::Secret;
+use hyperswitch_masking::Secret;
 use router::types::{self, storage::enums, PaymentAddress};
 
 use crate::{

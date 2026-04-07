@@ -545,6 +545,8 @@ mod storage {
                         processor_transaction_data: new.processor_transaction_data.clone(),
                         issuer_error_code: None,
                         issuer_error_message: None,
+                        processor_merchant_id: new.processor_merchant_id.clone(),
+                        created_by: new.created_by.clone(),
                         // Below fields are deprecated. Please add any new fields above this line.
                         connector_refund_data: None,
                         connector_transaction_data: None,
@@ -1152,6 +1154,8 @@ impl RefundInterface for MockDb {
             processor_transaction_data: new.processor_transaction_data.clone(),
             issuer_error_code: None,
             issuer_error_message: None,
+            processor_merchant_id: new.processor_merchant_id.clone(),
+            created_by: new.created_by.clone(),
             // Below fields are deprecated. Please add any new fields above this line.
             connector_refund_data: None,
             connector_transaction_data: None,
@@ -1203,6 +1207,8 @@ impl RefundInterface for MockDb {
             unified_message: None,
             processor_refund_data: new.processor_refund_data.clone(),
             processor_transaction_data: new.processor_transaction_data.clone(),
+            processor_merchant_id: new.processor_merchant_id.clone(),
+            created_by: new.created_by.clone(),
         };
         refunds.push(refund.clone());
         Ok(refund)

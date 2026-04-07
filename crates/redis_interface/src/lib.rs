@@ -23,12 +23,8 @@ use std::sync::{atomic, Arc};
 
 use common_utils::errors::CustomResult;
 use error_stack::ResultExt;
-pub use fred::interfaces::PubsubInterface;
-use fred::{
-    clients::Transaction,
-    interfaces::ClientLike,
-    prelude::{EventInterface, TransactionInterface},
-};
+pub use fred::interfaces::{EventInterface, PubsubInterface};
+use fred::{clients::Transaction, interfaces::ClientLike, prelude::TransactionInterface};
 
 pub use self::types::*;
 
@@ -134,10 +130,14 @@ impl RedisConnectionPool {
                 max_in_flight_commands: conf.max_in_flight_commands,
                 policy: fred::types::BackpressurePolicy::Drain,
             },
+            broadcast_channel_capacity: conf.broadcast_channel_capacity,
         };
 
         let connection_config = fred::types::ConnectionConfig {
-            unresponsive_timeout: std::time::Duration::from_secs(conf.unresponsive_timeout),
+            unresponsive: fred::types::UnresponsiveConfig {
+                max_timeout: Some(std::time::Duration::from_secs(conf.unresponsive_timeout)),
+                interval: std::time::Duration::from_secs(conf.unresponsive_check_interval),
+            },
             ..fred::types::ConnectionConfig::default()
         };
 

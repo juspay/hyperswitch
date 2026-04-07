@@ -136,7 +136,7 @@ pub struct PaymentMethodListContext {
     pub card_details: Option<api::CardDetailFromLocker>,
     pub hyperswitch_token_data: Option<PaymentTokenData>,
     #[cfg(feature = "payouts")]
-    pub bank_transfer_details: Option<api::BankPayout>,
+    pub bank_transfer_details: Option<api::BankTransferPayout>,
 }
 
 #[cfg(feature = "v2")]
@@ -178,4 +178,5 @@ pub struct PaymentMethodStatusTrackingData {
     pub prev_status: enums::PaymentMethodStatus,
     pub curr_status: enums::PaymentMethodStatus,
     pub merchant_id: common_utils::id_type::MerchantId,
+    pub last_modified_by: Option<String>,
 }

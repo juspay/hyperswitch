@@ -19,11 +19,14 @@ use router_env::{instrument, tracing};
 use super::{BoxedOperation, Domain, GetTracker, Operation, UpdateTracker, ValidateRequest};
 use crate::{
     core::{
-        configs::dimension_state::DimensionsWithMerchantId,
+        configs::dimension_state::{Dimensions, DimensionsWithMerchantIdAndProfileId},
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
         mandate::helpers as m_helpers,
         payment_methods::cards::create_encrypted_data,
-        payments::{self, helpers, operations, CustomerDetails, PaymentAddress, PaymentData},
+        payments::{
+            self, client_session::ClientSessionManager, helpers, operations, CustomerDetails,
+            PaymentAddress, PaymentData,
+        },
         utils as core_utils,
     },
     events::audit_events::{AuditEvent, AuditEventType},
@@ -56,7 +59,9 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         platform: &domain::Platform,
         auth_flow: services::AuthFlow,
         _header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
-        _payment_method_wrapper: Option<operations::PaymentMethodWithRawData>,
+        #[cfg(feature = "pm_modular")] _payment_method_wrapper: Option<
+            operations::PaymentMethodWithRawData,
+        >,
     ) -> RouterResult<operations::GetTrackerResponse<'a, F, api::PaymentsRequest, PaymentData<F>>>
     {
         let (mut payment_intent, mut payment_attempt, currency): (_, _, storage_enums::Currency);
@@ -499,6 +504,10 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         });
 
         payment_intent.shipping_cost = request.shipping_cost.or(payment_intent.shipping_cost);
+        payment_intent.installment_options = request
+            .installment_options
+            .clone()
+            .or(payment_intent.installment_options);
         payment_attempt
             .net_amount
             .set_order_tax_amount(request.order_tax_amount.or(order_tax_amount));
@@ -559,6 +568,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             is_manual_retry_enabled: None,
             is_l2_l3_enabled: business_profile.is_l2_l3_enabled,
             external_authentication_data: None,
+            client_session_id: None,
         };
 
         let get_trackers_response = operations::GetTrackerResponse {
@@ -582,7 +592,8 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
         payment_data: &mut PaymentData<F>,
         request: Option<CustomerDetails>,
         provider: &domain::Provider,
-        dimensions: DimensionsWithMerchantId,
+        initiator: Option<&domain::Initiator>,
+        dimensions: DimensionsWithMerchantIdAndProfileId,
     ) -> CustomResult<(PaymentUpdateOperation<'a, F>, Option<domain::Customer>), errors::StorageError>
     {
         match provider.get_account().merchant_account_type {
@@ -593,6 +604,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                     payment_data,
                     request,
                     provider,
+                    initiator,
                     dimensions,
                 )
                 .await
@@ -637,7 +649,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
         payment_data: &mut PaymentData<F>,
         _connector_call_type: &ConnectorCallType,
         business_profile: &domain::Profile,
-        platform: &domain::Platform,
+        processor: &domain::Processor,
     ) -> CustomResult<(), errors::ApiErrorResponse> {
         let is_tax_connector_enabled = business_profile.get_is_tax_connector_enabled();
         let skip_external_tax_calculation = payment_data
@@ -657,7 +669,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                 .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
                     &business_profile.merchant_id,
                     merchant_connector_id,
-                    platform.get_processor().get_key_store(),
+                    processor.get_key_store(),
                 )
                 .await
                 .to_not_found_response(
@@ -681,7 +693,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
 
             let router_data = core_utils::construct_payments_dynamic_tax_calculation_router_data(
                 state,
-                platform,
+                processor,
                 payment_data,
                 &mca,
             )
@@ -766,7 +778,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
 
     async fn get_connector<'a>(
         &'a self,
-        _platform: &domain::Platform,
+        _processor: &domain::Processor,
         state: &SessionState,
         request: &api::PaymentsRequest,
         _payment_intent: &storage::PaymentIntent,
@@ -780,6 +792,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
         _state: &SessionState,
         _processor: &domain::Processor,
         _payment_data: &mut PaymentData<F>,
+        _business_profile: &domain::Profile,
     ) -> CustomResult<bool, errors::ApiErrorResponse> {
         Ok(false)
     }
@@ -916,6 +929,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
                                 .get_order_tax_amount(),
                             surcharge_amount,
                             tax_amount,
+                            None,
                         ),
                     shipping_cost: payment_data.payment_intent.shipping_cost,
                     order_tax_amount: payment_data
@@ -1051,7 +1065,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
                         .payment_intent
                         .feature_metadata
                         .clone()
-                        .map(masking::Secret::new),
+                        .map(hyperswitch_masking::Secret::new),
                     tax_status: payment_data.payment_intent.tax_status,
                     discount_amount: payment_data.payment_intent.discount_amount,
                     order_date: payment_data.payment_intent.order_date,
@@ -1062,12 +1076,51 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
                         .enable_partial_authorization,
                     enable_overcapture: payment_data.payment_intent.enable_overcapture,
                     shipping_cost,
+                    installment_options: payment_data.payment_intent.installment_options,
                 })),
                 key_store,
                 storage_scheme,
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+
+        let processor_merchant_id = processor.get_account().get_id().clone();
+        let payment_id = payment_data.payment_intent.payment_id.clone();
+
+        // Check if client session validation is enabled
+        let dimensions = Dimensions::new().with_merchant_id(processor_merchant_id.clone());
+
+        let session_validation_enabled = dimensions
+            .get_client_session_validation_enabled(
+                state.store.as_ref(),
+                state.superposition_service.as_deref(),
+                None,
+            )
+            .await;
+
+        // Recreate session only if validation is enabled
+        if session_validation_enabled {
+            let (new_client_session_id, invalidation_report) =
+                ClientSessionManager::recreate_session(
+                    state,
+                    &processor_merchant_id,
+                    &payment_id,
+                    payment_data.payment_intent.session_expiry,
+                )
+                .await
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to refresh client session during payment update")?;
+
+            services::logger::debug!(
+                payment_id = %payment_id.get_string_repr(),
+                session_existed = invalidation_report.session_existed,
+                "Client session recreated during update"
+            );
+
+            // Update payment_data with new session_id
+            payment_data.client_session_id = Some(new_client_session_id);
+        }
+
         let amount = payment_data.amount;
         req_state
             .event_context
@@ -1163,6 +1216,11 @@ impl<F: Send + Clone + Sync> ValidateRequest<F, api::PaymentsRequest, PaymentDat
                 message: "Invalid straight through routing rules format".to_string(),
             })
             .attach_printable("Invalid straight through routing rules format")?;
+
+        request.validate_installment_options().map_err(|err| {
+            let message = format!("invalid installment options: {err}");
+            err.change_context(errors::ApiErrorResponse::InvalidRequestData { message })
+        })?;
 
         Ok((
             Box::new(self),

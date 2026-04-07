@@ -3,7 +3,7 @@ use api_models::recon as recon_api;
 use common_utils::{ext_traits::AsyncExt, types::user::ThemeLineage};
 use error_stack::ResultExt;
 #[cfg(feature = "email")]
-use masking::{ExposeInterface, PeekInterface, Secret};
+use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 
 #[cfg(feature = "email")]
 use crate::{
@@ -236,7 +236,7 @@ pub async fn verify_recon_token(
 ) -> UserResponse<recon_api::VerifyTokenResponse> {
     let user = user_with_role.user;
     let user_in_db = user
-        .get_user_from_db(&state)
+        .get_active_user_from_db(&state)
         .await
         .attach_printable_lazy(|| {
             format!(

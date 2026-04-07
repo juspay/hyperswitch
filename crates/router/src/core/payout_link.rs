@@ -216,7 +216,7 @@ pub async fn initiate_payout_link(
             ));
 
             let js_data = payouts::PayoutLinkDetails {
-                publishable_key: masking::Secret::new(
+                publishable_key: hyperswitch_masking::Secret::new(
                     platform
                         .get_processor()
                         .get_account()
@@ -331,7 +331,7 @@ pub async fn filter_payout_methods(
     payout: &hyperswitch_domain_models::payouts::payouts::Payouts,
     address: Option<&domain::Address>,
 ) -> errors::RouterResult<Vec<link_utils::EnabledPaymentMethod>> {
-    use masking::ExposeInterface;
+    use hyperswitch_masking::ExposeInterface;
 
     let db = &*state.store;
     //Fetch all merchant connector accounts

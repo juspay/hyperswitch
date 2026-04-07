@@ -1420,6 +1420,10 @@ fn get_cards_required_fields() -> HashMap<Connector, RequiredFieldFinal> {
         (Connector::Finix, fields(vec![], vec![], card_basic())),
         (Connector::Fiserv, fields(vec![], card_basic(), vec![])),
         (
+            Connector::Fiservcommercehub,
+            fields(vec![], vec![], card_with_name()),
+        ),
+        (
             Connector::Fiuu,
             fields(
                 vec![
@@ -1607,6 +1611,7 @@ fn get_cards_required_fields() -> HashMap<Connector, RequiredFieldFinal> {
         ),
         (Connector::Rapyd, fields(vec![], card_with_name(), vec![])),
         (Connector::Redsys, fields(vec![], card_basic(), vec![])),
+        (Connector::Revolv3, fields(vec![], vec![], card_with_name())),
         (Connector::Shift4, fields(vec![], card_basic(), vec![])),
         (Connector::Silverflow, fields(vec![], vec![], card_basic())),
         (Connector::Square, fields(vec![], vec![], card_basic())),
