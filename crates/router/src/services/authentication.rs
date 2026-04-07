@@ -38,7 +38,7 @@ use crate::configs::Settings;
 #[cfg(feature = "olap")]
 use crate::consts;
 #[cfg(feature = "v1")]
-use crate::core::configs::dimension_state::Dimensions;
+use crate::core::configs::dimension_state::{Dimensions, ProcessorMerchantId, ProviderMerchantId};
 #[cfg(feature = "olap")]
 use crate::core::errors::UserResult;
 #[cfg(all(feature = "partial-auth", feature = "v1"))]
@@ -3441,8 +3441,8 @@ where
 
         // Check if client session validation is enabled
         let dimensions = Dimensions::new()
-            .with_provider_merchant_id(platform.get_provider().get_account().get_id().clone())
-            .with_processor_merchant_id(processor_merchant_id.clone());
+            .with_provider_merchant_id(ProviderMerchantId(platform.get_provider().get_account().get_id().clone()))
+            .with_processor_merchant_id(ProcessorMerchantId(processor_merchant_id.clone()));
 
         let session_validation_enabled = dimensions
             .get_client_session_validation_enabled(

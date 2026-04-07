@@ -21,6 +21,7 @@ use crate::{
     core::{
         configs::dimension_state::{
             Dimensions, DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
+            ProcessorMerchantId, ProviderMerchantId,
         },
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
         mandate::helpers as m_helpers,
@@ -1092,8 +1093,8 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
 
         // Check if client session validation is enabled
         let dimensions = Dimensions::new()
-            .with_provider_merchant_id(provider_merchant_id.clone())
-            .with_processor_merchant_id(processor_merchant_id.clone());
+            .with_provider_merchant_id(ProviderMerchantId(provider_merchant_id.clone()))
+            .with_processor_merchant_id(ProcessorMerchantId(processor_merchant_id.clone()));
 
         let session_validation_enabled = dimensions
             .get_client_session_validation_enabled(

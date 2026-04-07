@@ -4,6 +4,14 @@ use common_enums::connector_enums::Connector;
 use common_utils::id_type;
 use external_services::superposition;
 
+/// Provider = the platform/Hyperswitch merchant account.
+#[derive(Debug, Clone)]
+pub struct ProviderMerchantId(pub id_type::MerchantId);
+
+/// Processor = the connected merchant account on the payment processor side.
+#[derive(Debug, Clone)]
+pub struct ProcessorMerchantId(pub id_type::MerchantId);
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, thiserror::Error)]
 pub enum DimensionError {
     #[error("provider_merchant_id not available in dimension state")]
@@ -69,8 +77,8 @@ pub struct HasConnector;
 /// * `Cn` - Connector type: `HasConnector` (present) or `NoConnector` (absent)
 #[derive(Clone)]
 pub struct Dimensions<Pm, M, O, P, Cn> {
-    provider_merchant_id: Option<id_type::MerchantId>,
-    processor_merchant_id: Option<id_type::MerchantId>,
+    provider_merchant_id: Option<ProviderMerchantId>,
+    processor_merchant_id: Option<ProcessorMerchantId>,
     organization_id: Option<id_type::OrganizationId>,
     profile_id: Option<id_type::ProfileId>,
     connector: Option<Connector>,
@@ -94,7 +102,7 @@ impl Dimensions<NoProviderMerchantId, NoProcessorMerchantId, NoOrgId, NoProfileI
 impl<M, O, P, Cn> Dimensions<NoProviderMerchantId, M, O, P, Cn> {
     pub fn with_provider_merchant_id(
         &self,
-        id: id_type::MerchantId,
+        id: ProviderMerchantId,
     ) -> Dimensions<HasProviderMerchantId, M, O, P, Cn> {
         Dimensions {
             provider_merchant_id: Some(id),
@@ -111,7 +119,7 @@ impl<M, O, P, Cn> Dimensions<NoProviderMerchantId, M, O, P, Cn> {
 impl<Pm, O, P, Cn> Dimensions<Pm, NoProcessorMerchantId, O, P, Cn> {
     pub fn with_processor_merchant_id(
         &self,
-        id: id_type::MerchantId,
+        id: ProcessorMerchantId,
     ) -> Dimensions<Pm, HasProcessorMerchantId, O, P, Cn> {
         Dimensions {
             provider_merchant_id: self.provider_merchant_id.clone(),
@@ -247,6 +255,7 @@ impl<M, O, P, Cn> Dimensions<HasProviderMerchantId, M, O, P, Cn> {
     pub fn provider_merchant_id(&self) -> Result<&id_type::MerchantId, DimensionError> {
         self.provider_merchant_id
             .as_ref()
+            .map(|id| &id.0)
             .ok_or(DimensionError::MissingProviderMerchantId)
     }
 }
@@ -256,6 +265,7 @@ impl<Pm, O, P, Cn> Dimensions<Pm, HasProcessorMerchantId, O, P, Cn> {
     pub fn processor_merchant_id(&self) -> Result<&id_type::MerchantId, DimensionError> {
         self.processor_merchant_id
             .as_ref()
+            .map(|id| &id.0)
             .ok_or(DimensionError::MissingProcessorMerchantId)
     }
 }
@@ -288,11 +298,11 @@ impl<Pm, M, O, P> Dimensions<Pm, M, O, P, HasConnector> {
 // Optional getters (available in any state)
 impl<Pm, M, O, P, Cn> Dimensions<Pm, M, O, P, Cn> {
     pub fn get_provider_merchant_id(&self) -> Option<&id_type::MerchantId> {
-        self.provider_merchant_id.as_ref()
+        self.provider_merchant_id.as_ref().map(|id| &id.0)
     }
 
     pub fn get_processor_merchant_id(&self) -> Option<&id_type::MerchantId> {
-        self.processor_merchant_id.as_ref()
+        self.processor_merchant_id.as_ref().map(|id| &id.0)
     }
 
     pub fn get_organization_id(&self) -> Option<&id_type::OrganizationId> {
@@ -315,11 +325,11 @@ impl<Pm, M, O, P, Cn> Dimensions<Pm, M, O, P, Cn> {
         let mut ctx = superposition::ConfigContext::new();
 
         if let Some(ref pm_id) = self.provider_merchant_id {
-            ctx = ctx.with("provider_merchant_id", pm_id.get_string_repr());
+            ctx = ctx.with("provider_merchant_id", pm_id.0.get_string_repr());
         }
 
         if let Some(ref mid) = self.processor_merchant_id {
-            ctx = ctx.with("processor_merchant_id", mid.get_string_repr());
+            ctx = ctx.with("processor_merchant_id", mid.0.get_string_repr());
         }
 
         if let Some(ref oid) = self.organization_id {

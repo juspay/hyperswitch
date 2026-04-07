@@ -126,7 +126,12 @@ use crate::core::routing::helpers as routing_helpers;
 #[cfg(feature = "v1")]
 use crate::core::{
     blocklist::utils as blocklist_utils,
-    configs::{self as configs, dimension_state::DimensionsWithProcessorAndProviderMerchantId},
+    configs::{
+        self as configs,
+        dimension_state::{
+            DimensionsWithProcessorAndProviderMerchantId, ProcessorMerchantId, ProviderMerchantId,
+        },
+    },
 };
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 use crate::types::api::convert_connector_data_to_routable_connectors;
@@ -2552,8 +2557,8 @@ where
             .collect()
     });
     let dimensions = configs::dimension_state::Dimensions::new()
-        .with_processor_merchant_id(platform.get_processor().get_account().get_id().clone())
-        .with_provider_merchant_id(platform.get_provider().get_account().get_id().clone());
+        .with_processor_merchant_id(ProcessorMerchantId(platform.get_processor().get_account().get_id().clone()))
+        .with_provider_merchant_id(ProviderMerchantId(platform.get_provider().get_account().get_id().clone()));
     let (payment_data, _req, connector_http_status_code, external_latency) =
         payments_operation_core::<_, _, _, _, _>(
             &state,
@@ -2617,8 +2622,8 @@ where
     PaymentResponse: Operation<F, FData, Data = D>,
 {
     let dimensions = configs::dimension_state::Dimensions::new()
-        .with_processor_merchant_id(platform.get_processor().get_account().get_id().clone())
-        .with_provider_merchant_id(platform.get_provider().get_account().get_id().clone());
+        .with_processor_merchant_id(ProcessorMerchantId(platform.get_processor().get_account().get_id().clone()))
+        .with_provider_merchant_id(ProviderMerchantId(platform.get_provider().get_account().get_id().clone()));
     let (payment_data, _req, connector_http_status_code, external_latency) =
         proxy_for_payments_operation_core::<_, _, _, _, _>(
             &state,
