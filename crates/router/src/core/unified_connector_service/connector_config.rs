@@ -495,6 +495,17 @@ pub enum ConnectorSpecificConfig {
         password: Secret<String>,
         merchant_id: Secret<String>,
     },
+    /// Trustly connector configuration
+    Trustly {
+        username: Secret<String>,
+        password: Secret<String>,
+        private_key: Secret<String>,
+    },
+    /// Itaubank connector configuration
+    Itaubank {
+        client_id: Secret<String>,
+        client_secret: Secret<String>,
+    },
 }
 
 impl ForeignTryFrom<(Connector, &ConnectorAuthType, Option<&serde_json::Value>)>
@@ -1330,6 +1341,26 @@ impl ForeignTryFrom<(Connector, &ConnectorAuthType, Option<&serde_json::Value>)>
                     payme_client_key: Some(key1.clone()),
                 }),
                 _ => Err(err("Payme requires BodyKey or SignatureKey auth type")),
+            },
+            Connector::Trustly => match auth {
+                ConnectorAuthType::SignatureKey {
+                    api_key,
+                    key1,
+                    api_secret,
+                } => Ok(Self::Trustly {
+                    username: api_key.clone(),
+                    password: key1.clone(),
+                    private_key: api_secret.clone(),
+                }),
+                _ => Err(err("Trustly requires SignatureKey auth type")),
+            },
+
+            Connector::Itaubank => match auth {
+                ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Itaubank {
+                    client_secret: api_key.clone(),
+                    client_id: key1.clone(),
+                }),
+                _ => Err(err("Itaubank requires BodyKey auth type")),
             },
             // --- Unsupported connectors ---
             _ => Err(

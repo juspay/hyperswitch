@@ -203,6 +203,16 @@ pub async fn construct_payout_router_data<'a, F>(
 
     let browser_info = payout_data.browser_info.to_owned();
 
+    let payment_method_type =
+        payout_data
+            .payout_method_data
+            .as_ref()
+            .map(From::from)
+            .or(payout_attempt
+                .additional_payout_method_data
+                .as_ref()
+                .map(From::from));
+
     let router_data = types::RouterData {
         flow: PhantomData,
         merchant_id: platform.get_processor().get_account().get_id().to_owned(),
@@ -219,10 +229,10 @@ pub async fn construct_payout_router_data<'a, F>(
         payment_id: common_utils::id_type::PaymentId::get_irrelevant_id("payout")
             .get_string_repr()
             .to_owned(),
-        attempt_id: "".to_string(),
+        attempt_id: payout_attempt.payout_attempt_id.clone(),
         status: enums::AttemptStatus::Failure,
         payment_method: enums::PaymentMethod::default(),
-        payment_method_type: None,
+        payment_method_type,
         connector_auth_type,
         description: payout_data.payouts.description.clone(),
         address,
@@ -293,6 +303,7 @@ pub async fn construct_payout_router_data<'a, F>(
         minor_amount_capturable: None,
         authorized_amount: None,
         customer_document_details: None,
+        feature_data: None,
     };
 
     Ok(router_data)
@@ -304,7 +315,7 @@ pub async fn construct_payout_router_data<'a, F>(
 pub async fn construct_refund_router_data<'a, F>(
     state: &'a SessionState,
     connector_enum: Connector,
-    platform: &domain::Platform,
+    processor: &domain::Processor,
     payment_intent: &'a storage::PaymentIntent,
     payment_attempt: &storage::PaymentAttempt,
     refund: &'a diesel_refund::Refund,
@@ -326,7 +337,7 @@ pub async fn construct_refund_router_data<'a, F>(
             merchant_connector_account,
         ) => Some(helpers::create_webhook_url(
             &state.base_url.clone(),
-            platform.get_processor().get_account().get_id(),
+            processor.get_account().get_id(),
             merchant_connector_account.get_id().get_string_repr(),
         )),
         // TODO: Implement for connectors that require a webhook URL to be included in the request payload.
@@ -383,7 +394,7 @@ pub async fn construct_refund_router_data<'a, F>(
 
     let router_data = types::RouterData {
         flow: PhantomData,
-        merchant_id: platform.get_processor().get_account().get_id().clone(),
+        merchant_id: processor.get_account().get_id().clone(),
         customer_id,
         tenant_id: state.tenant.tenant_id.clone(),
         connector: connector_enum.to_string(),
@@ -470,6 +481,7 @@ pub async fn construct_refund_router_data<'a, F>(
         minor_amount_capturable: None,
         authorized_amount: None,
         customer_document_details: None,
+        feature_data: None,
     };
 
     Ok(router_data)
@@ -481,7 +493,7 @@ pub async fn construct_refund_router_data<'a, F>(
 pub async fn construct_refund_router_data<'a, F>(
     state: &'a SessionState,
     connector_id: &str,
-    platform: &domain::Platform,
+    processor: &domain::Processor,
     money: (MinorUnit, enums::Currency),
     payment_intent: &'a storage::PaymentIntent,
     payment_attempt: &storage::PaymentAttempt,
@@ -511,7 +523,7 @@ pub async fn construct_refund_router_data<'a, F>(
 
     let webhook_url = Some(helpers::create_webhook_url(
         &state.base_url.clone(),
-        platform.get_processor().get_account().get_id(),
+        processor.get_account().get_id(),
         merchant_connector_account_id_or_connector_name,
     ));
     let test_mode: Option<bool> = merchant_connector_account.is_test_mode_on();
@@ -580,7 +592,7 @@ pub async fn construct_refund_router_data<'a, F>(
 
     let router_data = types::RouterData {
         flow: PhantomData,
-        merchant_id: platform.get_processor().get_account().get_id().clone(),
+        merchant_id: processor.get_account().get_id().clone(),
         customer_id: payment_intent.customer_id.to_owned(),
         tenant_id: state.tenant.tenant_id.clone(),
         connector: connector_id.to_string(),
@@ -666,6 +678,7 @@ pub async fn construct_refund_router_data<'a, F>(
             .get_customer_document_details()
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to extract customer document details from payment_intent")?,
+        feature_data: None,
     };
 
     Ok(router_data)
@@ -698,6 +711,59 @@ pub fn validate_id(id: String, key: &str) -> Result<String, errors::ApiErrorResp
     } else {
         Ok(id)
     }
+}
+
+#[cfg(feature = "v1")]
+pub async fn build_platform_from_refund_core(
+    state: &SessionState,
+    refund_core: &diesel_refund::RefundCoreWorkflow,
+) -> RouterResult<domain::Platform> {
+    let provider_key_store = state
+        .store
+        .get_merchant_key_store_by_merchant_id(
+            &refund_core.merchant_id,
+            &state.store.get_master_key().to_vec().into(),
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)
+        .attach_printable("Error while fetching the key store for provider merchant")?;
+
+    let provider_account = state
+        .store
+        .find_merchant_account_by_merchant_id(&refund_core.merchant_id, &provider_key_store)
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)
+        .attach_printable("Error while fetching the merchant account for provider")?;
+
+    let processor_merchant_id = refund_core
+        .processor_merchant_id
+        .as_ref()
+        .unwrap_or(&refund_core.merchant_id);
+
+    let processor_key_store = state
+        .store
+        .get_merchant_key_store_by_merchant_id(
+            processor_merchant_id,
+            &state.store.get_master_key().to_vec().into(),
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)
+        .attach_printable("Error while fetching the key store for processor merchant")?;
+
+    let processor_account = state
+        .store
+        .find_merchant_account_by_merchant_id(processor_merchant_id, &processor_key_store)
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)
+        .attach_printable("Error while fetching the merchant account for processor")?;
+
+    Ok(domain::Platform::new(
+        provider_account,
+        provider_key_store,
+        processor_account,
+        processor_key_store,
+        None,
+    ))
 }
 
 #[cfg(feature = "v1")]
@@ -1129,6 +1195,7 @@ pub async fn construct_accept_dispute_router_data<'a>(
             .get_customer_document_details()
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to extract customer document details from payment_intent")?,
+        feature_data: None,
     };
     Ok(router_data)
 }
@@ -1239,6 +1306,7 @@ pub async fn construct_submit_evidence_router_data<'a>(
             .get_customer_document_details()
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to extract customer document details from payment_intent")?,
+        feature_data: None,
     };
     Ok(router_data)
 }
@@ -1355,6 +1423,7 @@ pub async fn construct_upload_file_router_data<'a>(
         minor_amount_capturable: None,
         authorized_amount: None,
         customer_document_details: None,
+        feature_data: None,
     };
     Ok(router_data)
 }
@@ -1432,6 +1501,7 @@ pub async fn construct_dispute_list_router_data<'a>(
         minor_amount_capturable: None,
         authorized_amount: None,
         customer_document_details: None,
+        feature_data: None,
     })
 }
 
@@ -1544,6 +1614,7 @@ pub async fn construct_dispute_sync_router_data<'a>(
             .get_customer_document_details()
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to extract customer document details from payment_intent")?,
+        feature_data: None,
     };
     Ok(router_data)
 }
@@ -1679,6 +1750,7 @@ pub async fn construct_payments_dynamic_tax_calculation_router_data<F: Clone>(
             .get_customer_document_details()
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to extract customer document details from payment_intent")?,
+        feature_data: None,
     };
     Ok(router_data)
 }
@@ -1792,6 +1864,7 @@ pub async fn construct_defend_dispute_router_data<'a>(
             .get_customer_document_details()
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to extract customer document details from payment_intent")?,
+        feature_data: None,
     };
     Ok(router_data)
 }
@@ -1895,6 +1968,7 @@ pub async fn construct_retrieve_file_router_data<'a>(
         minor_amount_capturable: None,
         authorized_amount: None,
         customer_document_details: None,
+        feature_data: None,
     };
     Ok(router_data)
 }
@@ -2154,6 +2228,51 @@ pub fn get_modular_authentication_request_poll_id(
     authentication_id: &common_utils::id_type::AuthenticationId,
 ) -> String {
     authentication_id.get_external_authentication_request_poll_id()
+}
+
+pub fn get_html_redirect_response_after_ddc(
+    return_url_with_query_params: String,
+    redirect_mode: &str, // "required" or "if_required"
+) -> RouterResult<String> {
+    Ok(html! {
+        head {
+            title { "Redirect Form" }
+            (PreEscaped(format!(r#"
+                <script>
+                    const return_url = "{return_url_with_query_params}";
+                    const message = {{
+                        next_action: {{
+                            type: "redirect_to_url",
+                            url: return_url,
+                            redirect_mode: "{redirect_mode}"
+                        }}
+                    }};
+
+                    try {{
+                        // If inside iframe, notify SDK via postMessage
+                        if (window.self !== window.parent) {{
+                            window.parent.postMessage(message, '*');
+                        }}
+                        // If not inside iframe, perform direct redirect
+                        else {{
+                            window.location.href = return_url;
+                        }}
+                    }} catch (err) {{
+                        // Fallback: attempt postMessage again
+                        window.parent.postMessage(message, '*');
+                        
+                        // Force redirect after timeout as safety net
+                        setTimeout(function() {{
+                            window.location.href = return_url;
+                        }}, 10000);
+
+                        console.log(err.message);
+                    }}
+                </script>
+            "#)))
+        }
+    }
+    .into_string())
 }
 
 pub fn get_html_redirect_response_popup(

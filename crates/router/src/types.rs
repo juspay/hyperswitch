@@ -758,6 +758,48 @@ pub struct UcsPaymentSetupRecurringResponseData {
     pub minor_amount_captured: Option<MinorUnit>,
 }
 
+#[cfg(feature = "payouts")]
+pub struct UcsPayoutCreateResponseData {
+    pub router_data_response: Result<PayoutsResponseData, ErrorResponse>,
+    pub status_code: u16,
+}
+
+#[cfg(feature = "payouts")]
+pub struct UcsPayoutTransferResponseData {
+    pub router_data_response: Result<PayoutsResponseData, ErrorResponse>,
+    pub status_code: u16,
+}
+
+#[cfg(feature = "payouts")]
+pub struct UcsPayoutGetResponseData {
+    pub router_data_response: Result<PayoutsResponseData, ErrorResponse>,
+    pub status_code: u16,
+}
+
+#[cfg(feature = "payouts")]
+pub struct UcsPayoutVoidResponseData {
+    pub router_data_response: Result<PayoutsResponseData, ErrorResponse>,
+    pub status_code: u16,
+}
+
+#[cfg(feature = "payouts")]
+pub struct UcsPayoutStageResponseData {
+    pub router_data_response: Result<PayoutsResponseData, ErrorResponse>,
+    pub status_code: u16,
+}
+
+#[cfg(feature = "payouts")]
+pub struct UcsPayoutCreateRecipientResponseData {
+    pub router_data_response: Result<PayoutsResponseData, ErrorResponse>,
+    pub status_code: u16,
+}
+
+#[cfg(feature = "payouts")]
+pub struct UcsPayoutEnrollDisburseAccountResponseData {
+    pub router_data_response: Result<PayoutsResponseData, ErrorResponse>,
+    pub status_code: u16,
+}
+
 #[derive(Debug, Clone, Copy)]
 pub enum Redirection {
     Redirect,
@@ -1411,6 +1453,7 @@ impl<F1, F2, T1, T2> ForeignFrom<(&RouterData<F1, T1, PaymentsResponseData>, T2)
             minor_amount_capturable: data.minor_amount_capturable,
             authorized_amount: data.authorized_amount,
             customer_document_details: data.customer_document_details.clone(),
+            feature_data: data.feature_data.clone(),
         }
     }
 }
@@ -1485,6 +1528,7 @@ impl<F1, F2>
             minor_amount_capturable: None,
             authorized_amount: None,
             customer_document_details: None,
+            feature_data: data.feature_data.clone(),
         }
     }
 }
