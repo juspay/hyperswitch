@@ -133,8 +133,6 @@ pub struct Address {
     pub country: Option<CountryAlpha2>,
 }
 
-
-
 fn build_billing(
     item: &AffirmRouterData<&PaymentsAuthorizeRouterData>,
 ) -> Result<Billing, error_stack::Report<errors::ConnectorError>> {
