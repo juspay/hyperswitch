@@ -40,8 +40,8 @@ use hyperswitch_domain_models::{
 };
 use hyperswitch_interfaces::{
     api::{
-        self, ConnectorCommon, ConnectorCommonExt, ConnectorIntegration, ConnectorSpecifications,
-        ConnectorValidation,
+        self, ConnectorCommon, ConnectorCommonExt, ConnectorIntegration, ConnectorRedirectResponse,
+        ConnectorSpecifications, ConnectorValidation,
     },
     configs::Connectors,
     consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE},
@@ -784,6 +784,31 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Affirm {
     }
 }
 
+impl ConnectorRedirectResponse for Affirm {
+    fn get_flow_type(
+        &self,
+        _query_params: &str,
+        json_payload: Option<serde_json::Value>,
+        action: common_enums::PaymentAction,
+    ) -> CustomResult<common_enums::CallConnectorAction, errors::ConnectorError> {
+        match action {
+            common_enums::PaymentAction::PSync => match json_payload {
+                // Handle the case where the redirection is cancelled
+                None => Ok(common_enums::CallConnectorAction::StatusUpdate {
+                    status: common_enums::AttemptStatus::AuthenticationFailed,
+                    error_code: None,
+                    error_message: Some("Redirection Cancelled".to_string()),
+                }),
+                Some(_) => Ok(common_enums::CallConnectorAction::Trigger),
+            },
+            common_enums::PaymentAction::CompleteAuthorize
+            | common_enums::PaymentAction::PaymentAuthenticateCompleteAuthorize => {
+                Ok(common_enums::CallConnectorAction::Trigger)
+            }
+        }
+    }
+}
+
 #[async_trait::async_trait]
 impl webhooks::IncomingWebhook for Affirm {
     fn get_webhook_object_reference_id(
@@ -834,9 +859,9 @@ static AFFIRM_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = Laz
 
 static AFFIRM_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
     display_name: "Affirm",
-    description: "Affirm connector is a payment gateway integration that processes Affirm’s buy now, pay later financing by managing payment authorization, capture, refunds, and transaction sync via Affirm’s API.",
+    description: "Affirm connector is a payment gateway integration that processes Affirm's buy now, pay later financing by managing payment authorization, capture, refunds, and transaction sync via Affirm’s API.",
     connector_type: enums::HyperswitchConnectorCategory::PaymentGateway,
-    integration_status: enums::ConnectorIntegrationStatus::Alpha,
+    integration_status: enums::ConnectorIntegrationStatus::Beta,
 };
 
 static AFFIRM_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 0] = [];

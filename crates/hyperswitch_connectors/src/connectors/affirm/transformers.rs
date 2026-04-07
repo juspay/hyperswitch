@@ -89,15 +89,6 @@ pub struct Merchant {
     pub user_confirmation_url: String,
     pub user_cancel_url: String,
 }
-
-#[derive(Debug, Serialize)]
-pub struct Item {
-    pub display_name: String,
-    pub sku: String,
-    pub unit_price: MinorUnit,
-    pub qty: i64,
-}
-
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Shipping {
     pub name: Name,
@@ -417,15 +408,6 @@ impl<F> TryFrom<&AffirmRouterData<&RefundsRouterData<F>>> for AffirmRefundReques
     }
 }
 
-#[allow(dead_code)]
-#[derive(Debug, Copy, Serialize, Default, Deserialize, Clone)]
-pub enum RefundStatus {
-    Succeeded,
-    Failed,
-    #[default]
-    Processing,
-}
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub struct AffirmRefundResponse {
@@ -472,16 +454,15 @@ impl TryFrom<RefundsResponseRouterData<RSync, AffirmRsyncResponse>> for RefundsR
 #[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
 pub struct AffirmErrorResponse {
     pub status_code: u16,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub code: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub message: Option<String>,
-    #[serde(rename = "type", skip_serializing_if = "Option::is_none")]
+    #[serde(rename = "type")]
     pub error_type: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
 pub struct AffirmCaptureRequest {
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub order_id: Option<String>,
     pub amount: MinorUnit,
 }
@@ -508,27 +489,7 @@ pub struct AffirmCaptureResponse {
     pub amount: MinorUnit,
     pub created: String,
     pub currency: Currency,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub fee: Option<MinorUnit>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-#[serde(rename_all = "snake_case")]
-pub enum AffirmEventType {
-    Auth,
-    AuthExpired,
-    Capture,
-    ChargeOff,
-    Confirm,
-    ConfirmationExpired,
-    ExpireAuthorization,
-    ExpireConfirmation,
-    Refund,
-    SplitCapture,
-    Update,
-    Void,
-    PartialVoid,
-    RefundVoided,
 }
 
 impl TryFrom<PaymentsCaptureResponseRouterData<AffirmCaptureResponse>>

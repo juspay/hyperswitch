@@ -2065,7 +2065,6 @@ default_imp_for_connector_redirect_response!(
     connectors::Aci,
     connectors::Adyen,
     connectors::Adyenplatform,
-    connectors::Affirm,
     connectors::Amazonpay,
     connectors::Archipel,
     connectors::Authipay,
