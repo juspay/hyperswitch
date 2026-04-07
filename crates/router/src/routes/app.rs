@@ -3151,6 +3151,9 @@ impl User {
                 .service(
                     web::resource("/user/{user_id}")
                         .route(web::get().to(user::get_user_details_internal)),
+                )
+                .service(
+                    web::resource("/members").route(web::get().to(user::list_members_for_entity)),
                 ),
         );
 
