@@ -903,4 +903,10 @@ export const connectorDetails = {
       },
     },
   },
+  webhook: {
+    TransactionIdConfig: {
+      path: "resource.supplementary_data.related_ids.order_id",
+      type: "string",
+    },
+  },
 };

@@ -910,4 +910,10 @@ export const connectorDetails = {
       },
     },
   },
+  webhook: {
+    TransactionIdConfig: {
+      path: "sourceId",
+      type: "string",
+    },
+  },
 };
