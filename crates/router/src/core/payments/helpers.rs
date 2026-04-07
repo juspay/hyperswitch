@@ -1755,7 +1755,6 @@ pub fn get_customer_details_from_request_or_pm_table(
         Some(api::MandateTransactionType::RecurringMandateTransaction) => {
             // Extracting customer details from Payment Methods Table in case of MIT
             payment_method
-                .clone()
                 .and_then(|data| data.customer_details.clone())
                 .as_ref()
                 .map(|encryptable| {

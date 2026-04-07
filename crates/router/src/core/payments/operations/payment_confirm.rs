@@ -33,8 +33,6 @@ use tracing_futures::Instrument;
 use super::{BoxedOperation, Domain, GetTracker, Operation, UpdateTracker, ValidateRequest};
 #[cfg(feature = "pm_modular")]
 use crate::core::payment_methods::{transformers as pm_transformers, utils as pm_utils};
-#[cfg(feature = "pm_modular")]
-use crate::core::payments::OperationSessionSetters;
 #[cfg(feature = "v1")]
 use crate::{
     consts,
