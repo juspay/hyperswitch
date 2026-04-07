@@ -15,7 +15,6 @@ use hyperswitch_domain_models::{
 use hyperswitch_interfaces::errors;
 use hyperswitch_masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
 
 use crate::{
     types::{
@@ -44,9 +43,12 @@ impl<T> From<(MinorUnit, T)> for AffirmRouterData<T> {
 #[derive(Debug, Serialize)]
 pub struct AffirmPaymentsRequest {
     pub merchant: Merchant,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub shipping: Option<Shipping>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub billing: Option<Billing>,
     pub total: MinorUnit,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub order_id: Option<String>,
 }
 
@@ -117,57 +119,32 @@ pub struct Billing {
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Name {
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub first: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub last: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub full: Option<Secret<String>>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Address {
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub line1: Option<Secret<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub line2: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub city: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub state: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub zipcode: Option<Secret<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub country: Option<CountryAlpha2>,
 }
 
-#[derive(Debug, Serialize)]
-pub struct Metadata {
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub shipping_type: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub entity_name: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub platform_type: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub platform_version: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub platform_affirm: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub webhook_session_id: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub mode: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub customer: Option<Value>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub itinerary: Option<Vec<Value>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub checkout_channel_type: Option<String>,
-    #[serde(rename = "BOPIS", skip_serializing_if = "Option::is_none")]
-    pub bopis: Option<bool>,
-}
-
-#[derive(Debug, Serialize)]
-pub struct Discount {
-    pub discount_amount: MinorUnit,
-    pub discount_display_name: String,
-    pub discount_code: Option<String>,
-}
-
 fn validate_payment_currency(
-    currency: &Currency,
+    currency: Currency,
 ) -> Result<(), error_stack::Report<errors::ConnectorError>> {
     if matches!(currency, Currency::USD | Currency::CAD | Currency::GBP) {
         Ok(())
@@ -242,7 +219,7 @@ impl TryFrom<&AffirmRouterData<&PaymentsAuthorizeRouterData>> for AffirmPayments
                     user_cancel_url: request.get_router_return_url()?,
                 };
 
-                validate_payment_currency(&item.router_data.request.currency)?;
+                validate_payment_currency(item.router_data.request.currency)?;
 
                 Ok(Self {
                     merchant,
@@ -305,19 +282,6 @@ pub struct AffirmCompleteAuthorizeResponse {
     pub checkout_id: Option<String>,
     pub id: String,
     pub order_id: Option<String>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub struct LoanInformation {
-    pub fees: Option<LoanFees>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub struct LoanFees {
-    pub amount: Option<MinorUnit>,
-    pub description: Option<String>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
@@ -510,8 +474,9 @@ pub struct AffirmErrorResponse {
     pub status_code: u16,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub code: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub message: Option<String>,
-    #[serde(rename = "type")]
+    #[serde(rename = "type", skip_serializing_if = "Option::is_none")]
     pub error_type: Option<String>,
 }
 
@@ -543,6 +508,7 @@ pub struct AffirmCaptureResponse {
     pub amount: MinorUnit,
     pub created: String,
     pub currency: Currency,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub fee: Option<MinorUnit>,
 }
 
