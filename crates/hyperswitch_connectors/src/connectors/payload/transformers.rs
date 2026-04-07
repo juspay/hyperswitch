@@ -11,7 +11,10 @@ use hyperswitch_domain_models::{
         AdditionalPaymentMethodConnectorResponse, ConnectorAuthType, ConnectorResponseData,
         ErrorResponse, RouterData,
     },
-    router_flow_types::{payments::PostCaptureVoid, refunds::{Execute, RSync}},
+    router_flow_types::{
+        payments::PostCaptureVoid,
+        refunds::{Execute, RSync},
+    },
     router_request_types::{PaymentsCancelPostCaptureData, ResponseId},
     router_response_types::{
         ConnectorCustomerResponseData, MandateReference, PaymentsResponseData, RefundsResponseData,
