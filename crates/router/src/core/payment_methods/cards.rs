@@ -78,9 +78,7 @@ use crate::{
     consts as router_consts,
     core::{
         configs,
-        configs::dimension_state::{
-            DimensionsWithProcessorAndProviderMerchantId, ProcessorMerchantId, ProviderMerchantId,
-        },
+        configs::dimension_state::DimensionsWithProcessorAndProviderMerchantId,
         errors::{self, StorageErrorExt},
         payment_methods::{
             network_tokenization, transformers as payment_methods, utils as payment_method_utils,
@@ -4572,12 +4570,8 @@ pub async fn do_list_customer_pm_fetch_customer_if_not_passed(
     ephemeral_api_key: Option<&str>,
 ) -> errors::RouterResponse<api::CustomerPaymentMethodsListResponse> {
     let dimensions = configs::dimension_state::Dimensions::new()
-        .with_processor_merchant_id(ProcessorMerchantId(
-            platform.get_processor().get_account().get_id().clone(),
-        ))
-        .with_provider_merchant_id(ProviderMerchantId(
-            platform.get_provider().get_account().get_id().clone(),
-        ));
+        .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
+        .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id());
     let limit = req.clone().and_then(|pml_req| pml_req.limit);
 
     let auth_cust = if let Some(key) = ephemeral_api_key {

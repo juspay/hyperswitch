@@ -16,8 +16,7 @@ use crate::{
         configs::{
             self,
             dimension_state::{
-                DimensionsWithProcessorAndProviderMerchantIdAndConnector, ProcessorMerchantId,
-                ProviderMerchantId,
+                DimensionsWithProcessorAndProviderMerchantIdAndConnector,
             },
         },
         payouts, webhooks,
@@ -114,10 +113,8 @@ impl ProcessTrackerWorkflow<SessionState> for PayoutSyncWorkFlow {
         .await?;
 
         let dimensions = configs::dimension_state::Dimensions::new()
-            .with_provider_merchant_id(ProviderMerchantId(
-                platform.get_provider().get_account().get_id().clone(),
-            ))
-            .with_processor_merchant_id(ProcessorMerchantId(merchant_id.clone()))
+            .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id())
+            .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
             .with_connector(connector_data.connector_name);
 
         if payout_data.payout_attempt.status.is_terminal_status() {

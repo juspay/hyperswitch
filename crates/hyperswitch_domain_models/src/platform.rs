@@ -1,5 +1,25 @@
 pub use crate::{merchant_account::MerchantAccount, merchant_key_store::MerchantKeyStore};
 
+/// Provider = the platform/governing merchant account.
+#[derive(Debug, Clone)]
+pub struct ProviderMerchantId(common_utils::id_type::MerchantId);
+
+impl ProviderMerchantId {
+    pub fn inner(&self) -> &common_utils::id_type::MerchantId {
+        &self.0
+    }
+}
+
+/// Processor = the merchant account whose credentials are used to execute the operation.
+#[derive(Debug, Clone)]
+pub struct ProcessorMerchantId(common_utils::id_type::MerchantId);
+
+impl ProcessorMerchantId {
+    pub fn inner(&self) -> &common_utils::id_type::MerchantId {
+        &self.0
+    }
+}
+
 /// Provider = The business owner or the governing entity in the hierarchy.
 /// In a platform-connected setup this is represented by the platform merchant.
 /// For a standard merchant, both provider and processor are represented by the same entity.
@@ -22,6 +42,11 @@ impl Provider {
     /// Returns a reference to the key store associated with the provider.
     pub fn get_key_store(&self) -> &MerchantKeyStore {
         &self.key_store
+    }
+
+    /// Returns the provider merchant 
+    pub fn get_provider_merchant_id(&self) -> ProviderMerchantId {
+        ProviderMerchantId(self.account.get_id().clone())
     }
 }
 
@@ -46,6 +71,11 @@ impl Processor {
     /// Returns a reference to the key store associated with the processor.
     pub fn get_key_store(&self) -> &MerchantKeyStore {
         &self.key_store
+    }
+
+    /// Returns the processor merchant ID 
+    pub fn get_processor_merchant_id(&self) -> ProcessorMerchantId {
+        ProcessorMerchantId(self.account.get_id().clone())
     }
 }
 

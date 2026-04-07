@@ -14,6 +14,7 @@ use crate::core::utils as core_utils;
 use crate::{
     consts,
     core::{
+        configs::{self as configs, dimension_state::DimensionsWithProcessorAndProviderMerchantId},
         errors::{self, RouterResult, StorageErrorExt},
         payments::{
             self, complete_connector_service,
@@ -392,6 +393,11 @@ where
     types::RouterData<F, FData, types::PaymentsResponseData>: Feature<F, FData>,
     dyn api::Connector: services::api::ConnectorIntegration<F, FData, types::PaymentsResponseData>,
 {
+    let dimensions: DimensionsWithProcessorAndProviderMerchantId =
+        configs::dimension_state::Dimensions::new()
+            .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
+            .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id());
+
     metrics::AUTO_RETRY_PAYMENT_COUNT.add(1, &[]);
 
     modify_trackers(
@@ -472,6 +478,7 @@ where
         hyperswitch_domain_models::payments::HeaderPayload::default(),
         frm_suggestion,
         call_connector_service_response,
+        &dimensions,
     )
     .await?;
     Ok(router_data)
