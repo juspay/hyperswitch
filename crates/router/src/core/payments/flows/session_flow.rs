@@ -1340,6 +1340,7 @@ fn create_paypal_sdk_session_token(
                     sdk_next_action: payment_types::SdkNextAction {
                         next_action: payment_types::NextActionCall::PostSessionTokens,
                     },
+                    data_user_id_token: None,
                     client_token: None,
                     transaction_info: None,
                 },
