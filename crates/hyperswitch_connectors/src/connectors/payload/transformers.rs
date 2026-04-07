@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use api_models::webhooks::IncomingWebhookEvent;
-use common_enums::enums;
+use common_enums::{self as common_enums, enums};
 use common_utils::{ext_traits::ValueExt, types::StringMajorUnit};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
@@ -11,8 +11,8 @@ use hyperswitch_domain_models::{
         AdditionalPaymentMethodConnectorResponse, ConnectorAuthType, ConnectorResponseData,
         ErrorResponse, RouterData,
     },
-    router_flow_types::refunds::{Execute, RSync},
-    router_request_types::ResponseId,
+    router_flow_types::{payments::PostCaptureVoid, refunds::{Execute, RSync}},
+    router_request_types::{PaymentsCancelPostCaptureData, ResponseId},
     router_response_types::{
         ConnectorCustomerResponseData, MandateReference, PaymentsResponseData, RefundsResponseData,
     },
@@ -584,6 +584,64 @@ impl<T> TryFrom<&PayloadRouterData<T>> for requests::PayloadCancelRequest {
     fn try_from(_item: &PayloadRouterData<T>) -> Result<Self, Self::Error> {
         Ok(Self {
             status: responses::PayloadPaymentStatus::Voided,
+        })
+    }
+}
+
+impl
+    TryFrom<
+        ResponseRouterData<
+            PostCaptureVoid,
+            responses::PayloadPostCaptureVoidResponse,
+            PaymentsCancelPostCaptureData,
+            PaymentsResponseData,
+        >,
+    > for RouterData<PostCaptureVoid, PaymentsCancelPostCaptureData, PaymentsResponseData>
+{
+    type Error = Error;
+    fn try_from(
+        item: ResponseRouterData<
+            PostCaptureVoid,
+            responses::PayloadPostCaptureVoidResponse,
+            PaymentsCancelPostCaptureData,
+            PaymentsResponseData,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let response = match item.response.0 {
+            responses::PayloadPaymentsResponse::PayloadCardsResponse(card_response) => {
+                card_response
+            }
+        };
+
+        let post_capture_void_status = match response.status {
+            responses::PayloadPaymentStatus::Voided => {
+                common_enums::PostCaptureVoidStatus::Succeeded
+            }
+            responses::PayloadPaymentStatus::Processing => {
+                common_enums::PostCaptureVoidStatus::Pending
+            }
+            responses::PayloadPaymentStatus::Declined
+            | responses::PayloadPaymentStatus::Rejected => {
+                common_enums::PostCaptureVoidStatus::Failed
+            }
+            responses::PayloadPaymentStatus::Authorized
+            | responses::PayloadPaymentStatus::Processed => {
+                common_enums::PostCaptureVoidStatus::Failed
+            }
+        };
+
+        let description = post_capture_void_status
+            .is_post_capture_void_failure()
+            .then_some(response.status_message.clone())
+            .flatten();
+
+        Ok(Self {
+            response: Ok(PaymentsResponseData::PostCaptureVoidResponse {
+                post_capture_void_status,
+                connector_reference_id: Some(response.transaction_id.clone()),
+                description,
+            }),
+            ..item.data
         })
     }
 }
