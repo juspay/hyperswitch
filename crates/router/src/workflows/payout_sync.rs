@@ -41,6 +41,8 @@ impl ProcessTrackerWorkflow<SessionState> for PayoutSyncWorkFlow {
         process: storage::ProcessTracker,
     ) -> Result<(), errors::ProcessTrackerError> {
         // Gather context
+
+        use hyperswitch_domain_models::payments::HeaderPayload;
         let db = &*state.store;
         let tracking_data: api::PayoutRetrieveRequest = process
             .tracking_data
@@ -96,12 +98,13 @@ impl ProcessTrackerWorkflow<SessionState> for PayoutSyncWorkFlow {
         .change_context(core_errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to get the connector data")?;
 
-        Box::pin(payouts::create_payout_retrieve(
+        payouts::create_payout_retrieve(
             state,
             &platform,
+            HeaderPayload::default(),
             &connector_data,
             &mut payout_data,
-        ))
+        )
         .await?;
 
         let dimensions = configs::dimension_state::Dimensions::new()
@@ -223,7 +226,7 @@ impl PayoutSyncWorkFlow {
         let value = dimensions
             .get_payout_tracker_mapping(
                 state.store.as_ref(),
-                state.superposition_service.as_deref(),
+                &state.superposition_service,
                 Some(&payout_id),
             )
             .await;

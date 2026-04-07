@@ -39,7 +39,7 @@ url = { version = "2.5.4", features = ["serde"] }
 utoipa = { version = "4.2.3", features = ["preserve_order", "preserve_path_order"] }
 nutype = { version = "0.4.3", features = ["serde"] }
 deserialize_form_style_query_parameter = "0.2.2"
-superposition_types = "0.99.1"
+superposition_types = "0.102.0"
 
 # First party crates
 cards = { version = "0.1.0", path = "../cards" }
