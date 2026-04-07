@@ -43,6 +43,7 @@ use hyperswitch_interfaces::{
         self, ConnectorCommon, ConnectorCommonExt, ConnectorIntegration, ConnectorSpecifications,
         ConnectorValidation,
     },
+    consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE},
     configs::Connectors,
     errors,
     events::connector_api_logs::ConnectorEvent,
@@ -158,9 +159,9 @@ impl ConnectorCommon for Affirm {
 
         Ok(ErrorResponse {
             status_code: response.status_code,
-            code: response.code,
-            message: response.message,
-            reason: Some(response.error_type),
+            code: response.code.unwrap_or(NO_ERROR_CODE.to_string()),
+            message: response.error_type.unwrap_or(NO_ERROR_MESSAGE.to_string()),
+            reason: response.message,
             attempt_status: None,
             connector_transaction_id: None,
             connector_response_reference_id: None,
@@ -565,16 +566,15 @@ impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Af
     ) -> CustomResult<String, errors::ConnectorError> {
         let endpoint = self.base_url(connectors);
         let transaction_id = req.request.connector_transaction_id.clone();
-
         Ok(format!("{endpoint}/v1/transactions/{transaction_id}/void"))
     }
 
     fn get_request_body(
         &self,
-        req: &PaymentsCancelRouterData,
+        _req: &PaymentsCancelRouterData,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_req = affirm::AffirmCancelRequest::try_from(req)?;
+        let connector_req = affirm::AffirmCancelRequest{};
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
@@ -812,7 +812,7 @@ impl webhooks::IncomingWebhook for Affirm {
 
 static AFFIRM_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = LazyLock::new(|| {
     let supported_capture_methods = vec![
-        enums::CaptureMethod::Automatic,
+        enums::CaptureMethod::SequentialAutomatic,
         enums::CaptureMethod::Manual,
     ];
 
