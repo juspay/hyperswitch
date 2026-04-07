@@ -18484,6 +18484,22 @@
           }
         }
       },
+      "DDCData": {
+        "type": "object",
+        "required": [
+          "iframe_url"
+        ],
+        "properties": {
+          "iframe_url": {
+            "type": "string"
+          },
+          "timeout_ms": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          }
+        }
+      },
       "DeRoutableConnectorChoice": {
         "type": "object",
         "description": "Connector representation used in API request/response.\n\nRepresents a Merchant Connector Account.",
@@ -25586,6 +25602,25 @@
                 "type": "string",
                 "enum": [
                   "invoke_hidden_iframe"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "The data required to trigger the DDC (Device Data Collection) flow by rendering the provided URL in a hidden iframe.",
+            "required": [
+              "ddc_data",
+              "type"
+            ],
+            "properties": {
+              "ddc_data": {
+                "$ref": "#/components/schemas/DDCData"
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "invoke_ddc"
                 ]
               }
             }
@@ -34061,7 +34096,8 @@
           "wise",
           "worldpay",
           "worldpayxml",
-          "envoy"
+          "envoy",
+          "itaubank"
         ]
       },
       "PayoutCreatePayoutLinkConfig": {
@@ -38888,6 +38924,12 @@
             "type": "string",
             "description": "Identifier of the user/system triggering routing evaluation.\n\nExample:\n```json\n\"created_by\": \"some_id\"\n```",
             "example": "profile_123"
+          },
+          "payment_id": {
+            "type": "string",
+            "description": "Payment ID for debugging and tracing routing decisions.\n\nExample:\n```json\n\"payment_id\": \"pay_abc123\"\n```",
+            "example": "pay_abc123",
+            "nullable": true
           },
           "parameters": {
             "type": "object",

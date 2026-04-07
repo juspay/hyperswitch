@@ -2123,7 +2123,7 @@ impl IncomingWebhook for Adyen {
         _context: Option<&WebhookContext>,
     ) -> CustomResult<api_models::webhooks::IncomingWebhookEvent, errors::ConnectorError> {
         let notif = get_webhook_object_from_body(request.body)
-            .change_context(errors::ConnectorError::WebhookEventTypeNotFound)?;
+            .change_context(errors::ConnectorError::WebhookResponseEncodingFailed)?;
 
         Ok(transformers::get_adyen_webhook_event(
             notif.event_code,
@@ -2138,7 +2138,7 @@ impl IncomingWebhook for Adyen {
     ) -> CustomResult<Box<dyn hyperswitch_masking::ErasedMaskSerialize>, errors::ConnectorError>
     {
         let notif = get_webhook_object_from_body(request.body)
-            .change_context(errors::ConnectorError::WebhookEventTypeNotFound)?;
+            .change_context(errors::ConnectorError::WebhookResponseEncodingFailed)?;
 
         let response = adyen::AdyenWebhookResponse::from(notif);
 

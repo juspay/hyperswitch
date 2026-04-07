@@ -12780,6 +12780,22 @@
         },
         "additionalProperties": false
       },
+      "DDCData": {
+        "type": "object",
+        "required": [
+          "iframe_url"
+        ],
+        "properties": {
+          "iframe_url": {
+            "type": "string"
+          },
+          "timeout_ms": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          }
+        }
+      },
       "DecisionEngineEliminationData": {
         "type": "object",
         "required": [
@@ -18840,6 +18856,25 @@
                 ]
               }
             }
+          },
+          {
+            "type": "object",
+            "description": "The data required to trigger the DDC (Device Data Collection) flow by rendering the provided URL in a hidden iframe.",
+            "required": [
+              "ddc_data",
+              "type"
+            ],
+            "properties": {
+              "ddc_data": {
+                "$ref": "#/components/schemas/DDCData"
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "invoke_ddc"
+                ]
+              }
+            }
           }
         ],
         "discriminator": {
@@ -24507,7 +24542,8 @@
           "wise",
           "worldpay",
           "worldpayxml",
-          "envoy"
+          "envoy",
+          "itaubank"
         ]
       },
       "PayoutCreatePayoutLinkConfig": {

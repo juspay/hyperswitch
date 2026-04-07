@@ -3532,6 +3532,7 @@ pub trait PaymentRedirectFlow: Sync {
         payment_flow_response: &Self::PaymentFlowResponse,
         payment_id: id_type::PaymentId,
         connector: String,
+        state: &SessionState,
     ) -> RouterResult<services::ApplicationResponse<api::RedirectionResponse>>;
 
     #[cfg(feature = "v2")]
@@ -3606,7 +3607,7 @@ pub trait PaymentRedirectFlow: Sync {
             )
             .await?;
 
-        self.generate_response(&payment_flow_response, resource_id, connector)
+        self.generate_response(&payment_flow_response, resource_id, connector, &state)
     }
 
     #[cfg(feature = "v2")]
@@ -3732,6 +3733,7 @@ impl PaymentRedirectFlow for PaymentRedirectCompleteAuthorize {
         payment_flow_response: &Self::PaymentFlowResponse,
         payment_id: id_type::PaymentId,
         connector: String,
+        state: &SessionState,
     ) -> RouterResult<services::ApplicationResponse<api::RedirectionResponse>> {
         let payments_response = &payment_flow_response.payments_response;
         // There might be multiple redirections needed for some flows
@@ -3757,9 +3759,9 @@ impl PaymentRedirectFlow for PaymentRedirectCompleteAuthorize {
                         api_models::payments::NextActionData::InvokeHiddenIframe{ .. } => None,
                         api_models::payments::NextActionData::InvokeUpiIntentSdk{ .. } => None,
                         api_models::payments::NextActionData::InvokeUpiQrFlow{ .. } => None,
+                        api_models::payments::NextActionData::InvokeDdc { .. } => None,
                     })
                     .ok_or(errors::ApiErrorResponse::InternalServerError)
-
                     .attach_printable(
                         "did not receive redirect to url when status is requires customer action",
                     )?;
@@ -3778,10 +3780,42 @@ impl PaymentRedirectFlow for PaymentRedirectCompleteAuthorize {
                 payment_id,
                 &payment_flow_response.business_profile,
                 payments_response,
-                connector,
+                connector.clone(),
             ),
             _ => Err(errors::ApiErrorResponse::InternalServerError).attach_printable_lazy(|| format!("Could not proceed with payment as payment status {} cannot be handled during redirection",payments_response.status))?
         }?;
+
+        let connector_enum: enums::Connector = connector
+            .parse()
+            .map_err(|err| {
+                logger::error!(
+                    "Invalid connector name received. Parsing Failed with error : {:?}",
+                    err
+                );
+                errors::ApiErrorResponse::InternalServerError
+            })
+            .attach_printable_lazy(|| format!("Invalid connector name received: {}", connector))?;
+
+        if state
+            .conf
+            .notify_iframe_exit_and_redirect
+            .connector_list
+            .contains(&connector_enum)
+        {
+            let html = core_utils::get_html_redirect_response_after_ddc(
+                redirection_response.return_url_with_query_params,
+                "required", // hard-coded for now, need to update as we add support for other connectors
+            )?;
+            return Ok(services::ApplicationResponse::Form(Box::new(
+                services::RedirectionFormData {
+                    redirect_form: services::RedirectForm::Html { html_data: html },
+                    payment_method_data: None,
+                    amount: payments_response.amount.to_string(),
+                    currency: payments_response.currency.clone(),
+                },
+            )));
+        }
+
         if payments_response
             .is_iframe_redirection_enabled
             .unwrap_or(false)
@@ -3888,6 +3922,7 @@ impl PaymentRedirectFlow for PaymentRedirectSync {
         payment_flow_response: &Self::PaymentFlowResponse,
         payment_id: id_type::PaymentId,
         connector: String,
+        state: &SessionState,
     ) -> RouterResult<services::ApplicationResponse<api::RedirectionResponse>> {
         let payments_response = &payment_flow_response.payments_response;
         let redirect_response = helpers::get_handle_response_url(
@@ -3896,6 +3931,35 @@ impl PaymentRedirectFlow for PaymentRedirectSync {
             payments_response,
             connector.clone(),
         )?;
+
+        let connector_enum: enums::Connector = connector
+            .parse()
+            .map_err(|err| {
+                logger::error!("Failed to parse connector: {:?}", err);
+                errors::ApiErrorResponse::InternalServerError
+            })
+            .attach_printable_lazy(|| format!("Invalid connector name received: {}", connector))?;
+
+        if state
+            .conf
+            .notify_iframe_exit_and_redirect
+            .connector_list
+            .contains(&connector_enum)
+        {
+            let html = core_utils::get_html_redirect_response_after_ddc(
+                redirect_response.return_url_with_query_params,
+                "required", // hard-coded for now, need to update as we add support for other connectors
+            )?;
+            return Ok(services::ApplicationResponse::Form(Box::new(
+                services::RedirectionFormData {
+                    redirect_form: services::RedirectForm::Html { html_data: html },
+                    payment_method_data: None,
+                    amount: payments_response.amount.to_string(),
+                    currency: payments_response.currency.clone(),
+                },
+            )));
+        }
+
         if payments_response
             .is_iframe_redirection_enabled
             .unwrap_or(false)
@@ -4342,6 +4406,7 @@ impl PaymentRedirectFlow for PaymentAuthenticateCompleteAuthorize {
         payment_flow_response: &Self::PaymentFlowResponse,
         payment_id: id_type::PaymentId,
         connector: String,
+        _state: &SessionState,
     ) -> RouterResult<services::ApplicationResponse<api::RedirectionResponse>> {
         let payments_response = &payment_flow_response.payments_response;
         let redirect_response = helpers::get_handle_response_url(
@@ -5023,6 +5088,7 @@ where
         previous_gateway,
         call_connector_action.clone(),
         shadow_ucs_call_connector_action.clone(),
+        common_enums::TransactionType::Payment,
     )
     .await?;
 
@@ -5601,6 +5667,7 @@ where
         previous_gateway,
         call_connector_action.clone(),
         None,
+        common_enums::TransactionType::Payment,
     )
     .await?;
 
@@ -5727,6 +5794,7 @@ where
             previous_gateway,
             call_connector_action.clone(),
             None,
+            common_enums::TransactionType::Payment,
         )
         .await?;
         let lineage_ids = grpc_client::LineageIds::new(
@@ -5923,6 +5991,7 @@ where
         None,
         call_connector_action.clone(),
         None,
+        common_enums::TransactionType::Payment,
     )
     .await?;
 
@@ -7079,6 +7148,7 @@ where
         None, // No previous gateway information required for session flow
         call_connector_action.clone(),
         None,
+        common_enums::TransactionType::Payment,
     )
     .await?;
 

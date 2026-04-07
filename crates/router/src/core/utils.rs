@@ -196,6 +196,16 @@ pub async fn construct_payout_router_data<'a, F>(
 
     let browser_info = payout_data.browser_info.to_owned();
 
+    let payment_method_type =
+        payout_data
+            .payout_method_data
+            .as_ref()
+            .map(From::from)
+            .or(payout_attempt
+                .additional_payout_method_data
+                .as_ref()
+                .map(From::from));
+
     let router_data = types::RouterData {
         flow: PhantomData,
         merchant_id: platform.get_processor().get_account().get_id().to_owned(),
@@ -212,10 +222,10 @@ pub async fn construct_payout_router_data<'a, F>(
         payment_id: common_utils::id_type::PaymentId::get_irrelevant_id("payout")
             .get_string_repr()
             .to_owned(),
-        attempt_id: "".to_string(),
+        attempt_id: payout_attempt.payout_attempt_id.clone(),
         status: enums::AttemptStatus::Failure,
         payment_method: enums::PaymentMethod::default(),
-        payment_method_type: None,
+        payment_method_type,
         connector_auth_type,
         description: payout_data.payouts.description.clone(),
         address,
@@ -2211,6 +2221,51 @@ pub fn get_modular_authentication_request_poll_id(
     authentication_id: &common_utils::id_type::AuthenticationId,
 ) -> String {
     authentication_id.get_external_authentication_request_poll_id()
+}
+
+pub fn get_html_redirect_response_after_ddc(
+    return_url_with_query_params: String,
+    redirect_mode: &str, // "required" or "if_required"
+) -> RouterResult<String> {
+    Ok(html! {
+        head {
+            title { "Redirect Form" }
+            (PreEscaped(format!(r#"
+                <script>
+                    const return_url = "{return_url_with_query_params}";
+                    const message = {{
+                        next_action: {{
+                            type: "redirect_to_url",
+                            url: return_url,
+                            redirect_mode: "{redirect_mode}"
+                        }}
+                    }};
+
+                    try {{
+                        // If inside iframe, notify SDK via postMessage
+                        if (window.self !== window.parent) {{
+                            window.parent.postMessage(message, '*');
+                        }}
+                        // If not inside iframe, perform direct redirect
+                        else {{
+                            window.location.href = return_url;
+                        }}
+                    }} catch (err) {{
+                        // Fallback: attempt postMessage again
+                        window.parent.postMessage(message, '*');
+                        
+                        // Force redirect after timeout as safety net
+                        setTimeout(function() {{
+                            window.location.href = return_url;
+                        }}, 10000);
+
+                        console.log(err.message);
+                    }}
+                </script>
+            "#)))
+        }
+    }
+    .into_string())
 }
 
 pub fn get_html_redirect_response_popup(
