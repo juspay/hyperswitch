@@ -627,7 +627,7 @@ pub struct RetrieveFileResponse {
 }
 
 #[cfg(feature = "payouts")]
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug, Default, Serialize)]
 pub struct PayoutsResponseData {
     pub status: Option<common_enums::PayoutStatus>,
     pub connector_payout_id: Option<String>,
