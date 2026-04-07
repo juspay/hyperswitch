@@ -1403,13 +1403,14 @@ internal_api_key = "test_internal_api_key" # API key for internal merchant id an
 payments_base_url = "http://localhost:8080"
 
 [superposition]
-enabled = false                                 # Enable or disable Superposition integration (default: false)
+enabled = true                                 # Enable or disable Superposition integration (default: false)
 endpoint = "http://superposition:8080"          # Superposition service endpoint URL
 token = "your_superposition_token"              # Superposition token
 org_id = "your_org_id"                          # Organization ID in Superposition
 workspace_id = "your_workspace_id"              # Workspace ID in Superposition
 polling_interval = 15                           # Polling interval in seconds for configuration updates
 request_timeout =  60                           # Request timeout in seconds for Superposition API calls (optional, default: none)
+backup_file_path = "./config/superposition_seed.toml" # Path to a local file for fallback configuration. Used when the Superposition HTTP service is unavailable. If set, the client will fall back to reading configuration from this file instead of failing completely. This ensures graceful degradation during network outages or service disruptions.
 
 [micro_services]
 # Base URLs for modular microservices
