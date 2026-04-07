@@ -31,6 +31,8 @@ pub enum MetaData {
     ReconStatus(api::ReconStatus),
     #[cfg(feature = "v1")]
     PaymentViews(api::SavedViewOperation),
+    #[cfg(feature = "v1")]
+    CustomDashboards(api::DashboardOperation),
 }
 
 impl From<&MetaData> for DBEnum {
@@ -62,6 +64,8 @@ impl From<&MetaData> for DBEnum {
             MetaData::ReconStatus(_) => Self::ReconStatus,
             #[cfg(feature = "v1")]
             MetaData::PaymentViews(_) => Self::PaymentViews,
+            #[cfg(feature = "v1")]
+            MetaData::CustomDashboards(_) => Self::CustomDashboards,
         }
     }
 }
@@ -86,4 +90,31 @@ pub struct SavedViewV1 {
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
 pub struct PaymentViewsValue {
     pub views: Vec<SavedViewV1>,
+}
+
+#[cfg(feature = "v1")]
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
+pub struct CustomDashboardsValue {
+    pub dashboards: Vec<DashboardV1>,
+}
+
+#[cfg(feature = "v1")]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct DashboardV1 {
+    pub dashboard_name: String,
+    pub description: Option<String>,
+    pub is_default: bool,
+    pub widgets: Vec<WidgetV1>,
+    pub created_at: String,
+    pub updated_at: String,
+}
+
+#[cfg(feature = "v1")]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct WidgetV1 {
+    pub widget_id: String,
+    pub widget_name: String,
+    pub chart_type: api::ChartType,
+    pub position: api::WidgetPosition,
+    pub config: api::WidgetConfig,
 }

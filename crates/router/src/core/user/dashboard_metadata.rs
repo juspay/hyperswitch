@@ -123,6 +123,10 @@ fn parse_set_request(data_enum: api::SetMetaDataRequest) -> UserResult<types::Me
         api::SetMetaDataRequest::PaymentViews(operation) => {
             Ok(types::MetaData::PaymentViews(operation))
         }
+        #[cfg(feature = "v1")]
+        api::SetMetaDataRequest::CustomDashboards(operation) => {
+            Ok(types::MetaData::CustomDashboards(operation))
+        }
     }
 }
 
@@ -154,6 +158,8 @@ fn parse_get_request(data_enum: api::GetMetaDataRequest) -> DBEnum {
         api::GetMetaDataRequest::ReconStatus => DBEnum::ReconStatus,
         #[cfg(feature = "v1")]
         api::GetMetaDataRequest::PaymentViews => DBEnum::PaymentViews,
+        #[cfg(feature = "v1")]
+        api::GetMetaDataRequest::CustomDashboards => DBEnum::CustomDashboards,
     }
 }
 
@@ -254,6 +260,34 @@ fn into_response(
                         )),
                         created_at: v.created_at.to_string(),
                         updated_at: v.updated_at.to_string(),
+                    })
+                    .collect()
+            })))
+        }
+        #[cfg(feature = "v1")]
+        DBEnum::CustomDashboards => {
+            let resp: Option<types::CustomDashboardsValue> =
+                utils::deserialize_to_response(data)?;
+            Ok(api::GetMetaDataResponse::CustomDashboards(resp.map(|d| {
+                d.dashboards
+                    .into_iter()
+                    .map(|db| api::Dashboard {
+                        dashboard_name: db.dashboard_name,
+                        description: db.description,
+                        is_default: db.is_default,
+                        widgets: db
+                            .widgets
+                            .into_iter()
+                            .map(|w| api::Widget {
+                                widget_id: w.widget_id,
+                                widget_name: w.widget_name,
+                                chart_type: w.chart_type,
+                                position: w.position,
+                                config: w.config,
+                            })
+                            .collect(),
+                        created_at: db.created_at,
+                        updated_at: db.updated_at,
                     })
                     .collect()
             })))
@@ -681,6 +715,10 @@ async fn insert_metadata(
         #[cfg(feature = "v1")]
         types::MetaData::PaymentViews(operation) => {
             utils::handle_saved_view_operations(state, user, metadata_key, operation).await
+        }
+        #[cfg(feature = "v1")]
+        types::MetaData::CustomDashboards(operation) => {
+            utils::handle_dashboard_operations(state, user, metadata_key, operation).await
         }
     }
 }

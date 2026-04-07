@@ -2,9 +2,12 @@ use std::{net::IpAddr, ops::Not, str::FromStr};
 
 use actix_web::http::header::HeaderMap;
 #[cfg(feature = "v1")]
-use api_models::user::dashboard_metadata::{
-    CreateSavedViewRequest, PaymentListFilterConstraintsV1, SavedViewFilters, SavedViewFiltersV1,
-    SavedViewOperation, UpdateSavedViewRequest,
+use api_models::{
+    payments,
+    user::dashboard_metadata::{
+        CreateSavedViewRequest, DashboardOperation, PaymentListFilterConstraintsV1,
+        SavedViewFilters, SavedViewFiltersV1, SavedViewOperation, UpdateSavedViewRequest,
+    },
 };
 use api_models::user::dashboard_metadata::{
     DeleteSavedViewRequest, GetMetaDataRequest, GetMultipleMetaDataPayload, ProdIntent,
@@ -29,6 +32,8 @@ use crate::{
 };
 
 pub const MAX_SAVED_VIEWS: usize = 5;
+pub const MAX_DASHBOARDS: usize = 10;
+pub const MAX_WIDGETS_PER_DASHBOARD: usize = 20;
 
 pub async fn insert_merchant_scoped_metadata_to_db(
     state: &SessionState,
@@ -268,6 +273,8 @@ pub fn separate_metadata_type_based_on_scope(
             | DBEnum::ProdIntent => merchant_scoped.push(key),
             #[cfg(feature = "v1")]
             DBEnum::PaymentViews => profile_user_scoped.push(key),
+            #[cfg(feature = "v1")]
+            DBEnum::CustomDashboards => profile_user_scoped.push(key),
             DBEnum::Feedback | DBEnum::IsChangePasswordRequired => user_scoped.push(key),
         }
     }
@@ -613,6 +620,358 @@ async fn delete_saved_view(
             }
 
             Ok(views_data)
+        },
+    )
+    .await
+}
+
+// === Custom Dashboard Operations ===
+
+#[cfg(feature = "v1")]
+pub async fn handle_dashboard_operations(
+    state: &SessionState,
+    user: UserFromToken,
+    metadata_key: DBEnum,
+    operation: DashboardOperation,
+) -> UserResult<DashboardMetadata> {
+    let profile_id = get_profile_id_from_role(state, &user).await?;
+    match operation {
+        DashboardOperation::Create(request) => {
+            create_dashboard(state, user, metadata_key, profile_id, request).await
+        }
+        DashboardOperation::Update(request) => {
+            update_dashboard(state, user, metadata_key, profile_id, request).await
+        }
+        DashboardOperation::Delete(request) => {
+            delete_dashboard(state, user, metadata_key, profile_id, request).await
+        }
+        DashboardOperation::AddWidget(request) => {
+            add_widget_to_dashboard(state, user, metadata_key, profile_id, request).await
+        }
+        DashboardOperation::UpdateWidget(request) => {
+            update_widget_in_dashboard(state, user, metadata_key, profile_id, request).await
+        }
+        DashboardOperation::RemoveWidget(request) => {
+            remove_widget_from_dashboard(state, user, metadata_key, profile_id, request).await
+        }
+        DashboardOperation::UpdateLayout(request) => {
+            update_dashboard_layout(state, user, metadata_key, profile_id, request).await
+        }
+    }
+}
+
+#[cfg(feature = "v1")]
+async fn create_dashboard(
+    state: &SessionState,
+    user: UserFromToken,
+    metadata_key: DBEnum,
+    profile_id: Option<String>,
+    request: api_models::user::dashboard_metadata::CreateDashboardRequest,
+) -> UserResult<DashboardMetadata> {
+    if request.dashboard_name.trim().is_empty() {
+        return Err(report!(UserErrors::InvalidDashboardName))
+            .attach_printable("Dashboard name cannot be empty");
+    }
+
+    let now = common_utils::date_time::now();
+    let widgets: Vec<types::WidgetV1> = request
+        .widgets
+        .unwrap_or_default()
+        .into_iter()
+        .map(|w| types::WidgetV1 {
+            widget_id: uuid::Uuid::new_v4().to_string(),
+            widget_name: w.widget_name,
+            chart_type: w.chart_type,
+            position: w.position,
+            config: w.config,
+        })
+        .collect();
+
+    let new_dashboard = types::DashboardV1 {
+        dashboard_name: request.dashboard_name.clone(),
+        description: request.description,
+        is_default: false,
+        widgets,
+        created_at: now.to_string(),
+        updated_at: now.to_string(),
+    };
+
+    modify_dashboard_metadata(
+        state,
+        user,
+        metadata_key,
+        profile_id,
+        |existing: Option<types::CustomDashboardsValue>| {
+            let mut data = existing.unwrap_or(types::CustomDashboardsValue {
+                dashboards: vec![],
+            });
+
+            if data.dashboards.len() >= MAX_DASHBOARDS {
+                return Err(report!(UserErrors::MaxDashboardsReached))
+                    .attach_printable("Maximum of 10 dashboards reached");
+            }
+
+            if data
+                .dashboards
+                .iter()
+                .any(|d| d.dashboard_name == request.dashboard_name)
+            {
+                return Err(report!(UserErrors::DashboardNameAlreadyExists))
+                    .attach_printable("A dashboard with this name already exists");
+            }
+
+            data.dashboards.push(new_dashboard);
+            Ok(data)
+        },
+    )
+    .await
+}
+
+#[cfg(feature = "v1")]
+async fn update_dashboard(
+    state: &SessionState,
+    user: UserFromToken,
+    metadata_key: DBEnum,
+    profile_id: Option<String>,
+    request: api_models::user::dashboard_metadata::UpdateDashboardRequest,
+) -> UserResult<DashboardMetadata> {
+    modify_dashboard_metadata(
+        state,
+        user,
+        metadata_key,
+        profile_id,
+        |existing: Option<types::CustomDashboardsValue>| {
+            let mut data = existing.ok_or(report!(UserErrors::DashboardNotFound))?;
+
+            if request.is_default == Some(true) {
+                for d in &mut data.dashboards {
+                    d.is_default = false;
+                }
+            }
+
+            // Check for duplicate name before taking mutable borrow
+            if let Some(ref new_name) = request.new_dashboard_name {
+                if new_name.trim().is_empty() {
+                    return Err(report!(UserErrors::InvalidDashboardName));
+                }
+                if data.dashboards.iter().any(|d| {
+                    d.dashboard_name == *new_name && d.dashboard_name != request.dashboard_name
+                }) {
+                    return Err(report!(UserErrors::DashboardNameAlreadyExists));
+                }
+            }
+
+            let dashboard = data
+                .dashboards
+                .iter_mut()
+                .find(|d| d.dashboard_name == request.dashboard_name)
+                .ok_or(report!(UserErrors::DashboardNotFound))?;
+
+            if let Some(ref new_name) = request.new_dashboard_name {
+                dashboard.dashboard_name = new_name.clone();
+            }
+            if let Some(desc) = request.description {
+                dashboard.description = Some(desc);
+            }
+            if let Some(is_default) = request.is_default {
+                dashboard.is_default = is_default;
+            }
+            dashboard.updated_at = common_utils::date_time::now().to_string();
+
+            Ok(data)
+        },
+    )
+    .await
+}
+
+#[cfg(feature = "v1")]
+async fn delete_dashboard(
+    state: &SessionState,
+    user: UserFromToken,
+    metadata_key: DBEnum,
+    profile_id: Option<String>,
+    request: api_models::user::dashboard_metadata::DeleteDashboardRequest,
+) -> UserResult<DashboardMetadata> {
+    modify_dashboard_metadata(
+        state,
+        user,
+        metadata_key,
+        profile_id,
+        |existing: Option<types::CustomDashboardsValue>| {
+            let mut data = existing.ok_or(report!(UserErrors::DashboardNotFound))?;
+
+            let initial_len = data.dashboards.len();
+            data.dashboards
+                .retain(|d| d.dashboard_name != request.dashboard_name);
+
+            if data.dashboards.len() == initial_len {
+                return Err(report!(UserErrors::DashboardNotFound))
+                    .attach_printable("Dashboard with this name not found");
+            }
+
+            Ok(data)
+        },
+    )
+    .await
+}
+
+#[cfg(feature = "v1")]
+async fn add_widget_to_dashboard(
+    state: &SessionState,
+    user: UserFromToken,
+    metadata_key: DBEnum,
+    profile_id: Option<String>,
+    request: api_models::user::dashboard_metadata::AddWidgetRequest,
+) -> UserResult<DashboardMetadata> {
+    modify_dashboard_metadata(
+        state,
+        user,
+        metadata_key,
+        profile_id,
+        |existing: Option<types::CustomDashboardsValue>| {
+            let mut data = existing.ok_or(report!(UserErrors::DashboardNotFound))?;
+
+            let dashboard = data
+                .dashboards
+                .iter_mut()
+                .find(|d| d.dashboard_name == request.dashboard_name)
+                .ok_or(report!(UserErrors::DashboardNotFound))?;
+
+            if dashboard.widgets.len() >= MAX_WIDGETS_PER_DASHBOARD {
+                return Err(report!(UserErrors::MaxWidgetsReached))
+                    .attach_printable("Maximum of 20 widgets per dashboard reached");
+            }
+
+            let new_widget = types::WidgetV1 {
+                widget_id: uuid::Uuid::new_v4().to_string(),
+                widget_name: request.widget.widget_name,
+                chart_type: request.widget.chart_type,
+                position: request.widget.position,
+                config: request.widget.config,
+            };
+
+            dashboard.widgets.push(new_widget);
+            dashboard.updated_at = common_utils::date_time::now().to_string();
+
+            Ok(data)
+        },
+    )
+    .await
+}
+
+#[cfg(feature = "v1")]
+async fn update_widget_in_dashboard(
+    state: &SessionState,
+    user: UserFromToken,
+    metadata_key: DBEnum,
+    profile_id: Option<String>,
+    request: api_models::user::dashboard_metadata::UpdateWidgetRequest,
+) -> UserResult<DashboardMetadata> {
+    modify_dashboard_metadata(
+        state,
+        user,
+        metadata_key,
+        profile_id,
+        |existing: Option<types::CustomDashboardsValue>| {
+            let mut data = existing.ok_or(report!(UserErrors::DashboardNotFound))?;
+
+            let dashboard = data
+                .dashboards
+                .iter_mut()
+                .find(|d| d.dashboard_name == request.dashboard_name)
+                .ok_or(report!(UserErrors::DashboardNotFound))?;
+
+            let widget = dashboard
+                .widgets
+                .iter_mut()
+                .find(|w| w.widget_id == request.widget_id)
+                .ok_or(report!(UserErrors::WidgetNotFound))?;
+
+            widget.widget_name = request.widget.widget_name;
+            widget.chart_type = request.widget.chart_type;
+            widget.position = request.widget.position;
+            widget.config = request.widget.config;
+            dashboard.updated_at = common_utils::date_time::now().to_string();
+
+            Ok(data)
+        },
+    )
+    .await
+}
+
+#[cfg(feature = "v1")]
+async fn remove_widget_from_dashboard(
+    state: &SessionState,
+    user: UserFromToken,
+    metadata_key: DBEnum,
+    profile_id: Option<String>,
+    request: api_models::user::dashboard_metadata::RemoveWidgetRequest,
+) -> UserResult<DashboardMetadata> {
+    modify_dashboard_metadata(
+        state,
+        user,
+        metadata_key,
+        profile_id,
+        |existing: Option<types::CustomDashboardsValue>| {
+            let mut data = existing.ok_or(report!(UserErrors::DashboardNotFound))?;
+
+            let dashboard = data
+                .dashboards
+                .iter_mut()
+                .find(|d| d.dashboard_name == request.dashboard_name)
+                .ok_or(report!(UserErrors::DashboardNotFound))?;
+
+            let initial_len = dashboard.widgets.len();
+            dashboard
+                .widgets
+                .retain(|w| w.widget_id != request.widget_id);
+
+            if dashboard.widgets.len() == initial_len {
+                return Err(report!(UserErrors::WidgetNotFound))
+                    .attach_printable("Widget with this id not found");
+            }
+
+            dashboard.updated_at = common_utils::date_time::now().to_string();
+            Ok(data)
+        },
+    )
+    .await
+}
+
+#[cfg(feature = "v1")]
+async fn update_dashboard_layout(
+    state: &SessionState,
+    user: UserFromToken,
+    metadata_key: DBEnum,
+    profile_id: Option<String>,
+    request: api_models::user::dashboard_metadata::UpdateLayoutRequest,
+) -> UserResult<DashboardMetadata> {
+    modify_dashboard_metadata(
+        state,
+        user,
+        metadata_key,
+        profile_id,
+        |existing: Option<types::CustomDashboardsValue>| {
+            let mut data = existing.ok_or(report!(UserErrors::DashboardNotFound))?;
+
+            let dashboard = data
+                .dashboards
+                .iter_mut()
+                .find(|d| d.dashboard_name == request.dashboard_name)
+                .ok_or(report!(UserErrors::DashboardNotFound))?;
+
+            for entry in &request.layout {
+                if let Some(widget) = dashboard
+                    .widgets
+                    .iter_mut()
+                    .find(|w| w.widget_id == entry.widget_id)
+                {
+                    widget.position = entry.position.clone();
+                }
+            }
+
+            dashboard.updated_at = common_utils::date_time::now().to_string();
+            Ok(data)
         },
     )
     .await

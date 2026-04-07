@@ -34,6 +34,8 @@ pub enum SetMetaDataRequest {
     ReconStatus(ReconStatus),
     #[cfg(feature = "v1")]
     PaymentViews(SavedViewOperation),
+    #[cfg(feature = "v1")]
+    CustomDashboards(DashboardOperation),
 }
 
 #[cfg(feature = "v1")]
@@ -157,6 +159,8 @@ pub enum GetMetaDataRequest {
     ReconStatus,
     #[cfg(feature = "v1")]
     PaymentViews,
+    #[cfg(feature = "v1")]
+    CustomDashboards,
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
@@ -198,6 +202,8 @@ pub enum GetMetaDataResponse {
     ReconStatus(Option<ReconStatus>),
     #[cfg(feature = "v1")]
     PaymentViews(Option<Vec<SavedView>>),
+    #[cfg(feature = "v1")]
+    CustomDashboards(Option<Vec<Dashboard>>),
 }
 
 // === Saved Views API Types ===
@@ -285,6 +291,120 @@ pub struct DeleteSavedViewRequest {
     pub view_name: String,
 }
 
+// === Custom Dashboard API Types ===
+
+#[cfg(feature = "v1")]
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+#[serde(tag = "type", content = "data")]
+pub enum DashboardOperation {
+    Create(CreateDashboardRequest),
+    Update(UpdateDashboardRequest),
+    Delete(DeleteDashboardRequest),
+    AddWidget(AddWidgetRequest),
+    UpdateWidget(UpdateWidgetRequest),
+    RemoveWidget(RemoveWidgetRequest),
+    UpdateLayout(UpdateLayoutRequest),
+}
+
+#[cfg(feature = "v1")]
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+pub struct CreateDashboardRequest {
+    pub dashboard_name: String,
+    pub description: Option<String>,
+    pub widgets: Option<Vec<WidgetRequest>>,
+}
+
+#[cfg(feature = "v1")]
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+pub struct UpdateDashboardRequest {
+    pub dashboard_name: String,
+    pub new_dashboard_name: Option<String>,
+    pub description: Option<String>,
+    pub is_default: Option<bool>,
+}
+
+#[cfg(feature = "v1")]
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct DeleteDashboardRequest {
+    pub dashboard_name: String,
+}
+
+#[cfg(feature = "v1")]
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+pub struct AddWidgetRequest {
+    pub dashboard_name: String,
+    pub widget: WidgetRequest,
+}
+
+#[cfg(feature = "v1")]
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+pub struct UpdateWidgetRequest {
+    pub dashboard_name: String,
+    pub widget_id: String,
+    pub widget: WidgetRequest,
+}
+
+#[cfg(feature = "v1")]
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct RemoveWidgetRequest {
+    pub dashboard_name: String,
+    pub widget_id: String,
+}
+
+#[cfg(feature = "v1")]
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct UpdateLayoutRequest {
+    pub dashboard_name: String,
+    pub layout: Vec<WidgetLayoutEntry>,
+}
+
+#[cfg(feature = "v1")]
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+pub struct WidgetLayoutEntry {
+    pub widget_id: String,
+    pub position: WidgetPosition,
+}
+
+#[cfg(feature = "v1")]
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+pub struct WidgetRequest {
+    pub widget_name: String,
+    pub chart_type: ChartType,
+    pub position: WidgetPosition,
+    pub config: WidgetConfig,
+}
+
+#[cfg(feature = "v1")]
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ChartType {
+    LineChart,
+    BarChart,
+    ColumnChart,
+    PieChart,
+    StackedBarChart,
+    SankeyChart,
+    FunnelChart,
+}
+
+#[cfg(feature = "v1")]
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+pub struct WidgetPosition {
+    pub x: u32,
+    pub y: u32,
+    pub w: u32,
+    pub h: u32,
+}
+
+#[cfg(feature = "v1")]
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum AnalyticsDomain {
+    Payments,
+    Refunds,
+    Disputes,
+    AuthEvents,
+}
 #[cfg(feature = "v1")]
 impl From<payments::PaymentListFilterConstraints> for PaymentListFilterConstraintsV1 {
     fn from(item: payments::PaymentListFilterConstraints) -> Self {
@@ -379,4 +499,38 @@ impl From<PaymentListFilterConstraintsV1> for payments::PaymentListFilterConstra
             customer_email,
         }
     }
+}
+
+#[cfg(feature = "v1")]
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+pub struct WidgetConfig {
+    pub domain: AnalyticsDomain,
+    pub metrics: Vec<String>,
+    #[serde(default)]
+    pub group_by: Vec<String>,
+    #[serde(default)]
+    pub filters: serde_json::Value,
+    pub granularity: Option<String>,
+    pub time_range_preset: Option<String>,
+}
+
+#[cfg(feature = "v1")]
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+pub struct Dashboard {
+    pub dashboard_name: String,
+    pub description: Option<String>,
+    pub is_default: bool,
+    pub widgets: Vec<Widget>,
+    pub created_at: String,
+    pub updated_at: String,
+}
+
+#[cfg(feature = "v1")]
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+pub struct Widget {
+    pub widget_id: String,
+    pub widget_name: String,
+    pub chart_type: ChartType,
+    pub position: WidgetPosition,
+    pub config: WidgetConfig,
 }

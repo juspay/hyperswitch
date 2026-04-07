@@ -239,6 +239,8 @@ pub enum DashboardMetadata {
     ReconStatus,
     #[cfg(feature = "v1")]
     PaymentViews,
+    #[cfg(feature = "v1")]
+    CustomDashboards,
 }
 
 #[derive(
