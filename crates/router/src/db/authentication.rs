@@ -501,6 +501,13 @@ impl AuthenticationInterface for MockDb {
                 auth_to_update.trans_status = Some(trans_status);
                 auth_to_update.authentication_status = authentication_status;
             }
+            hyperswitch_domain_models::authentication::AuthenticationUpdate::AcquirerDetailsUpdate {
+                acquirer_bin,
+                acquirer_merchant_id,
+            } => {
+                auth_to_update.acquirer_bin = acquirer_bin;
+                auth_to_update.acquirer_merchant_id = acquirer_merchant_id;
+            }
         }
 
         auth_to_update.modified_at = common_utils::date_time::now();

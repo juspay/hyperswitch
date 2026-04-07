@@ -47,16 +47,22 @@ impl From<ProfileAcquirerConfigs>
     for Option<Vec<api_models::profile_acquirer::ProfileAcquirerResponse>>
 {
     fn from(item: ProfileAcquirerConfigs) -> Self {
+        let profile_id = item.profile_id.clone();
         item.acquirer_config_map.map(|config_map_val| {
             let mut vec: Vec<_> = config_map_val.0.into_iter().collect();
             vec.sort_by_key(|k| k.0.clone());
+            // Flatten each bucket (Vec<AcquirerConfig>) into individual response entries,
+            // all sharing the same profile_acquirer_id (the bucket key).
             vec.into_iter()
-                .map(|(profile_acquirer_id, acquirer_config)| {
-                    api_models::profile_acquirer::ProfileAcquirerResponse::from((
-                        profile_acquirer_id,
-                        &item.profile_id,
-                        &acquirer_config,
-                    ))
+                .flat_map(|(profile_acquirer_id, acquirer_configs)| {
+                    let profile_id = profile_id.clone();
+                    acquirer_configs.into_iter().map(move |acquirer_config| {
+                        api_models::profile_acquirer::ProfileAcquirerResponse::from((
+                            profile_acquirer_id.clone(),
+                            &profile_id,
+                            &acquirer_config,
+                        ))
+                    })
                 })
                 .collect::<Vec<api_models::profile_acquirer::ProfileAcquirerResponse>>()
         })

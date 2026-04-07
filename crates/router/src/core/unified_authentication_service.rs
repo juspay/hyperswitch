@@ -738,37 +738,20 @@ pub async fn authentication_create_core(
             .unwrap_or(business_profile.force_3ds_challenge),
     );
 
-    // Priority logic: First check req.acquirer_details, then fallback to profile_acquirer_id lookup
+    // Priority logic: Use acquirer_details from request if explicitly supplied.
+    // If profile_acquirer_id is provided instead, we defer acquirer resolution to
+    // authentication_eligibility_core where the card network becomes available via the card number.
     let (acquirer_bin, acquirer_merchant_id, acquirer_country_code) =
         if let Some(acquirer_details) = &req.acquirer_details {
-            // Priority 1: Use acquirer_details from request if present
             (
                 acquirer_details.acquirer_bin.clone(),
                 acquirer_details.acquirer_merchant_id.clone(),
                 acquirer_details.merchant_country_code.clone(),
             )
         } else {
-            // Priority 2: Fallback to profile_acquirer_id lookup
-            let acquirer_details = req.profile_acquirer_id.clone().and_then(|acquirer_id| {
-                business_profile
-                    .acquirer_config_map
-                    .and_then(|acquirer_config_map| {
-                        acquirer_config_map.0.get(&acquirer_id).cloned()
-                    })
-            });
-
-            acquirer_details
-                .as_ref()
-                .map(|details| {
-                    (
-                        Some(details.acquirer_bin.clone()),
-                        Some(details.acquirer_assigned_merchant_id.clone()),
-                        business_profile
-                            .merchant_country_code
-                            .map(|code| code.get_country_code().to_owned()),
-                    )
-                })
-                .unwrap_or((None, None, None))
+            // profile_acquirer_id path: do NOT resolve here — network is unknown.
+            // The profile_acquirer_id is saved on the Authentication record and resolved later.
+            (None, None, None)
         };
 
     let customer_details = req
@@ -1135,14 +1118,77 @@ pub async fn authentication_eligibility_core(
         .ok_or(ApiErrorResponse::InternalServerError)
         .attach_printable("no amount found in authentication table")?;
 
+    // Extract the card network from payment method data.
+    // The `Card` and related variants expose `card_network` which identifies which
+    // slot in the bucket we should look up.
+    let mut card_network = match &payment_method_data {
+        domain::PaymentMethodData::Card(card) => card.card_network.clone(),
+        domain::PaymentMethodData::CardWithOptionalCVC(card) => card.card_network.clone(),
+        domain::PaymentMethodData::CardWithNetworkTokenDetails(card) => {
+            card.card_details.card_network.clone()
+        }
+        domain::PaymentMethodData::CardDetailsForNetworkTransactionId(card) => {
+            card.card_network.clone()
+        }
+        _ => None,
+    };
+
+    if card_network.is_none() {
+        let card_isin = match &payment_method_data {
+            domain::PaymentMethodData::Card(card) => Some(card.card_number.get_card_isin()),
+            domain::PaymentMethodData::CardWithOptionalCVC(card) => {
+                Some(card.card_number.get_card_isin())
+            }
+            domain::PaymentMethodData::CardWithNetworkTokenDetails(card) => {
+                Some(card.card_details.card_number.get_card_isin())
+            }
+            domain::PaymentMethodData::CardDetailsForNetworkTransactionId(card) => {
+                Some(card.card_number.get_card_isin())
+            }
+            _ => None,
+        };
+
+        if let Some(isin) = card_isin {
+            if let Ok(Some(card_info)) = db.get_card_info(&isin).await {
+                card_network = card_info.card_network;
+            }
+        }
+    }
+
+    // Resolve the AcquirerConfig by matching the card network against the bucket stored
+    // under the authentication's profile_acquirer_id.
     let acquirer_details = authentication
         .profile_acquirer_id
         .clone()
-        .and_then(|acquirer_id| {
+        .zip(card_network.clone())
+        .and_then(|(acquirer_id, network)| {
             business_profile
                 .acquirer_config_map
-                .and_then(|acquirer_config_map| acquirer_config_map.0.get(&acquirer_id).cloned())
+                .as_ref()
+                .and_then(|acquirer_config_map| acquirer_config_map.0.get(&acquirer_id))
+                .and_then(|bucket| bucket.iter().find(|cfg| cfg.network == network).cloned())
         });
+
+    // If we resolved acquirer details from the bucket, persist them to the authentication record.
+    // This is deferred from authentication_create_core because the card network was unknown then.
+    if let Some(ref resolved) = acquirer_details {
+        if authentication.acquirer_bin.is_none() || authentication.acquirer_merchant_id.is_none() {
+            let key_manager_state_ref = &key_manager_state;
+            db
+                .update_authentication_by_merchant_id_authentication_id(
+                    authentication.clone(),
+                    hyperswitch_domain_models::authentication::AuthenticationUpdate::AcquirerDetailsUpdate {
+                        acquirer_bin: Some(resolved.acquirer_bin.clone()),
+                        acquirer_merchant_id: Some(resolved.acquirer_assigned_merchant_id.clone()),
+                    },
+                    platform.get_processor().get_key_store(),
+                    key_manager_state_ref,
+                )
+                .await
+                .change_context(ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to persist resolved acquirer details to authentication record")?;
+        }
+    }
 
     let metadata: Option<ThreeDsMetaData> = three_ds_connector_account
         .get_metadata()
@@ -1202,8 +1248,16 @@ pub async fn authentication_eligibility_core(
             None,
             merchant_details.as_ref(),
             domain_address.as_ref(),
-            authentication.acquirer_bin.clone(),
-            authentication.acquirer_merchant_id.clone(),
+            // Prefer the freshly-resolved acquirer_bin; fall back to what was already in DB.
+            acquirer_details
+                .as_ref()
+                .map(|d| d.acquirer_bin.clone())
+                .or_else(|| authentication.acquirer_bin.clone()),
+            // Prefer the freshly-resolved acquirer_merchant_id; fall back to DB value.
+            acquirer_details
+                .as_ref()
+                .map(|d| d.acquirer_assigned_merchant_id.clone())
+                .or_else(|| authentication.acquirer_merchant_id.clone()),
             Some(routing_region),
         )
         .await?;

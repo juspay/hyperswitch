@@ -1607,16 +1607,17 @@ impl Profile {
         &self,
         network: common_enums::CardNetwork,
     ) -> Option<AcquirerConfig> {
-        // iterate over acquirer_config_map and find the acquirer config for the given network
+        // Flatten all buckets and search across them for an AcquirerConfig matching the network.
         self.acquirer_config_map
             .as_ref()
             .and_then(|acquirer_config_map| {
                 acquirer_config_map
                     .0
-                    .iter()
-                    .find(|&(_, acquirer_config)| acquirer_config.network == network)
+                    .values()
+                    .flat_map(|bucket| bucket.iter())
+                    .find(|cfg| cfg.network == network)
+                    .cloned()
             })
-            .map(|(_, acquirer_config)| acquirer_config.clone())
     }
 
     #[cfg(feature = "v1")]

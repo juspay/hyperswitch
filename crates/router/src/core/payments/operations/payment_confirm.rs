@@ -1598,7 +1598,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                     acquirer: acquirer_config.as_ref().map(|acquirer| {
                         api_models::three_ds_decision_rule::AcquirerData {
                             country: acquirer_country,
-                            fraud_rate: Some(acquirer.acquirer_fraud_rate),
+                            fraud_rate: acquirer.acquirer_fraud_rate,
                         }
                     }),
                 },
@@ -1860,13 +1860,25 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                     platform.get_initiator(),
                 )
                 .await?;
+            // Resolve acquirer details from the bucket using the card network from payment_method_data.
+            // The bucket is keyed by profile_acquirer_id; within it we match the card's network.
+            let resolved_card_network = payment_data
+                .payment_method_data
+                .as_ref()
+                .and_then(|pmd| match pmd {
+                    domain::PaymentMethodData::Card(card) => card.card_network.clone(),
+                    domain::PaymentMethodData::CardWithOptionalCVC(card) => card.card_network.clone(),
+                    _ => None,
+                });
             let acquirer_configs = authentication
                 .profile_acquirer_id
                 .clone()
-                .and_then(|acquirer_id| {
+                .zip(resolved_card_network)
+                .and_then(|(acquirer_id, network)| {
                     business_profile
                         .acquirer_config_map.as_ref()
-                        .and_then(|acquirer_config_map| acquirer_config_map.0.get(&acquirer_id).cloned())
+                        .and_then(|acquirer_config_map| acquirer_config_map.0.get(&acquirer_id))
+                        .and_then(|bucket| bucket.iter().find(|cfg| cfg.network == network).cloned())
                 });
             let metadata: Option<ThreeDsMetaData> = three_ds_connector_account
                 .get_metadata()
