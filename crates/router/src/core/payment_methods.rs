@@ -4251,32 +4251,34 @@ impl RawPaymentMethodFetchAccess {
             }
 
             Self::Allowed => {
-                // Wallets don't store raw data in the vault — only additional info + PSP tokens
-                if payment_method.payment_method_type == Some(enums::PaymentMethod::Wallet) {
+                let is_wallet =
+                    payment_method.payment_method_type == Some(enums::PaymentMethod::Wallet);
+
+                if is_wallet {
                     logger::debug!("Skipping raw payment method fetch for wallet payment method");
-                    return Ok(None);
-                }
-
-                let vault_data = vault::retrieve_payment_method_data_from_storage(
-                    state,
-                    platform,
-                    profile,
-                    payment_method,
-                    storage_type,
-                )
-                .await
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Failed to retrieve payment method from vault")?
-                .data;
-
-                let payment_method_vault_data = vault_data
-                    .populated_payment_methods_data_and_get_payment_method_vaulting_data(
-                        payment_method.payment_method_data.as_ref(),
+                    Ok(None)
+                } else {
+                    let vault_data = vault::retrieve_payment_method_data_from_storage(
+                        state,
+                        platform,
+                        profile,
+                        payment_method,
+                        storage_type,
                     )
-                    .attach_printable(
-                        "Failed to get card details for payment method vaulting data",
-                    )?;
-                Ok(Some(payment_method_vault_data))
+                    .await
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Failed to retrieve payment method from vault")?
+                    .data;
+
+                    let data = vault_data
+                        .populated_payment_methods_data_and_get_payment_method_vaulting_data(
+                            payment_method.payment_method_data.as_ref(),
+                        )
+                        .attach_printable(
+                            "Failed to get card details for payment method vaulting data",
+                        )?;
+                    Ok(Some(data))
+                }
             }
         }
     }
