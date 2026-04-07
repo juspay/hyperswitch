@@ -218,7 +218,10 @@ impl PaymentMethodIntentConfirm {
                 )
             }
             api_enums::PaymentMethod::Wallet => {
-                matches!(payment_method_data, PaymentMethodCreateData::Wallet(_))
+                matches!(
+                    payment_method_data,
+                    PaymentMethodCreateData::Wallet(_) | PaymentMethodCreateData::Paypal(_)
+                )
             }
             _ => false,
         }
@@ -525,7 +528,10 @@ impl PaymentMethodCreate {
                 )
             }
             api_enums::PaymentMethod::Wallet => {
-                matches!(payment_method_data, PaymentMethodCreateData::Wallet(_))
+                matches!(
+                    payment_method_data,
+                    PaymentMethodCreateData::Wallet(_) | PaymentMethodCreateData::Paypal(_)
+                )
             }
             _ => false,
         }
@@ -599,6 +605,7 @@ pub enum PaymentMethodCreateData {
     Card(CardDetail),
     ProxyCard(ProxyCardDetails),
     Wallet(Box<PaymentMethodDataWalletInfo>),
+    Paypal(Box<crate::payments::PaypalRedirection>),
 }
 
 #[cfg(feature = "v2")]

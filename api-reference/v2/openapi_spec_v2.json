@@ -21119,6 +21119,28 @@
                 "$ref": "#/components/schemas/ProxyCardDetails"
               }
             }
+          },
+          {
+            "type": "object",
+            "required": [
+              "wallet"
+            ],
+            "properties": {
+              "wallet": {
+                "$ref": "#/components/schemas/PaymentMethodDataWalletInfo"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "paypal"
+            ],
+            "properties": {
+              "paypal": {
+                "$ref": "#/components/schemas/PaymentMethodDataPaypalInfo"
+              }
+            }
           }
         ]
       },
@@ -21584,6 +21606,46 @@
             }
           }
         ]
+      },
+      "PaymentMethodDataWalletInfo": {
+        "type": "object",
+        "required": [
+          "last4",
+          "card_network"
+        ],
+        "properties": {
+          "last4": {
+            "type": "string",
+            "description": "Last 4 digits of the card number"
+          },
+          "card_network": {
+            "type": "string",
+            "description": "The information of the payment method"
+          },
+          "type": {
+            "type": "string",
+            "description": "The type of payment method",
+            "nullable": true
+          },
+          "card_exp_month": {
+            "type": "string",
+            "description": "The card's expiry month",
+            "example": "10",
+            "nullable": true
+          },
+          "card_exp_year": {
+            "type": "string",
+            "description": "The card's expiry year",
+            "example": "25",
+            "nullable": true
+          },
+          "auth_code": {
+            "type": "string",
+            "description": "Unique authorisation code for the payment",
+            "example": "003225",
+            "nullable": true
+          }
+        }
       },
       "PaymentMethodDeleteResponse": {
         "type": "object",

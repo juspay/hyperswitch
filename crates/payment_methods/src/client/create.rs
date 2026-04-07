@@ -64,6 +64,7 @@ pub struct CardDetail {
 pub enum PaymentMethodCreateData {
     Card(CardDetail),
     Wallet(Box<api_models::payment_methods::PaymentMethodDataWalletInfo>),
+    Paypal(Box<payments::PaypalRedirection>),
 }
 
 #[derive(Clone, Debug, Deserialize)]
@@ -143,11 +144,9 @@ impl TryFrom<PaymentMethodData> for PaymentMethodCreateData {
                 };
                 Ok(Self::Card(card_detail))
             }
-            PaymentMethodData::Wallet(wallet_data) => {
-                let wallet_additional_data = match wallet_data {
-                    hyperswitch_domain_models::payment_method_data::WalletData::ApplePay(
-                        apple_pay,
-                    ) => api_models::payment_methods::PaymentMethodDataWalletInfo {
+            PaymentMethodData::Wallet(wallet_data) => match wallet_data {
+                hyperswitch_domain_models::payment_method_data::WalletData::ApplePay(apple_pay) => {
+                    let wallet_info = api_models::payment_methods::PaymentMethodDataWalletInfo {
                         last4: apple_pay
                             .payment_method
                             .display_name
@@ -163,28 +162,37 @@ impl TryFrom<PaymentMethodData> for PaymentMethodCreateData {
                         card_exp_month: None,
                         card_exp_year: None,
                         auth_code: None,
-                    },
-                    hyperswitch_domain_models::payment_method_data::WalletData::GooglePay(
-                        google_pay,
-                    ) => api_models::payment_methods::PaymentMethodDataWalletInfo {
+                    };
+                    Ok(Self::Wallet(Box::new(wallet_info)))
+                }
+                hyperswitch_domain_models::payment_method_data::WalletData::GooglePay(
+                    google_pay,
+                ) => {
+                    let wallet_info = api_models::payment_methods::PaymentMethodDataWalletInfo {
                         last4: google_pay.info.card_details.clone(),
                         card_network: google_pay.info.card_network.clone(),
                         card_type: Some(google_pay.pm_type.clone()),
                         card_exp_month: None,
                         card_exp_year: None,
                         auth_code: None,
-                    },
-                    _ => {
-                        return Err(MicroserviceClientError {
-                            operation: "PaymentMethodCreateData::try_from".to_string(),
-                            kind: MicroserviceClientErrorKind::InvalidRequest(
-                                "Unsupported wallet type for modular PM creation".to_string(),
-                            ),
-                        })
-                    }
-                };
-                Ok(Self::Wallet(Box::new(wallet_additional_data)))
-            }
+                    };
+                    Ok(Self::Wallet(Box::new(wallet_info)))
+                }
+                hyperswitch_domain_models::payment_method_data::WalletData::PaypalRedirect(
+                    paypal,
+                ) => {
+                    let paypal_info = payments::PaypalRedirection {
+                        email: paypal.email,
+                    };
+                    Ok(Self::Paypal(Box::new(paypal_info)))
+                }
+                _ => Err(MicroserviceClientError {
+                    operation: "PaymentMethodCreateData::try_from".to_string(),
+                    kind: MicroserviceClientErrorKind::InvalidRequest(
+                        "Unsupported wallet type for modular PM creation".to_string(),
+                    ),
+                }),
+            },
             _ => Err(MicroserviceClientError {
                 operation: "CreatePaymentMethodV1Request to ModularPMCreateRequest".to_string(),
                 kind: MicroserviceClientErrorKind::InvalidRequest(

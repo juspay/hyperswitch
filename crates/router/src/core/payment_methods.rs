@@ -1188,7 +1188,8 @@ pub async fn create_persistent_payment_method_core(
             .await
         }
         api::PaymentMethodCreateData::Wallet(wallet_data) => {
-            let wallet_data = wallet_data.clone();
+            let additional_data =
+                domain::PaymentMethodsData::WalletDetails(*wallet_data.clone());
             create_payment_method_wallet_core(
                 state,
                 req,
@@ -1198,7 +1199,23 @@ pub async fn create_persistent_payment_method_core(
                 &customer_id,
                 payment_method_id,
                 payment_method_billing_address,
-                &wallet_data,
+                additional_data,
+            )
+            .await
+        }
+        api::PaymentMethodCreateData::Paypal(paypal_data) => {
+            let additional_data =
+                domain::PaymentMethodsData::PaypalDetails(*paypal_data.clone());
+            create_payment_method_wallet_core(
+                state,
+                req,
+                platform,
+                profile,
+                merchant_id,
+                &customer_id,
+                payment_method_id,
+                payment_method_billing_address,
+                additional_data,
             )
             .await
         }
@@ -1282,6 +1299,11 @@ pub async fn create_volatile_payment_method_core(
         api::PaymentMethodCreateData::Wallet(_) => {
             Err(report!(errors::ApiErrorResponse::UnprocessableEntity {
                 message: "Wallet payment method cannot be created as volatile".to_string()
+            }))
+        }
+        api::PaymentMethodCreateData::Paypal(_) => {
+            Err(report!(errors::ApiErrorResponse::UnprocessableEntity {
+                message: "Paypal payment method cannot be created as volatile".to_string()
             }))
         }
     }
@@ -1894,14 +1916,11 @@ pub async fn create_payment_method_wallet_core(
     payment_method_billing_address: Option<
         Encryptable<hyperswitch_domain_models::address::Address>,
     >,
-    wallet_data: &payment_methods::PaymentMethodDataWalletInfo,
+    additional_payment_method_data: domain::PaymentMethodsData,
 ) -> RouterResult<(api::PaymentMethodResponse, domain::PaymentMethod)> {
     use crate::core::payment_methods::cards;
 
     let key_manager_state = &(state).into();
-
-    let additional_payment_method_data =
-        domain::PaymentMethodsData::WalletDetails(wallet_data.clone());
 
     let encrypted_payment_method_data = Some(additional_payment_method_data)
         .async_map(|payment_method_data| {
@@ -2404,6 +2423,9 @@ impl PaymentMethodExt for payment_methods::PaymentMethodCreateData {
             Self::Wallet(wallet_data) => Ok(payment_methods::PaymentMethodsData::WalletDetails(
                 *wallet_data,
             )),
+            Self::Paypal(paypal_data) => Ok(payment_methods::PaymentMethodsData::PaypalDetails(
+                *paypal_data,
+            )),
         }
     }
 
@@ -2412,7 +2434,7 @@ impl PaymentMethodExt for payment_methods::PaymentMethodCreateData {
             Self::ProxyCard(card_details) => Some(payment_methods::ExternalVaultTokenData {
                 tokenized_card_number: card_details.card_number,
             }),
-            Self::Card(_) | Self::Wallet(_) => None,
+            Self::Card(_) | Self::Wallet(_) | Self::Paypal(_) => None,
         }
     }
 }
@@ -5821,8 +5843,12 @@ impl<'a> pm_types::PaymentMethodUpdateHandler<'a> {
 
     fn validate(&self) -> RouterResult<()> {
         let payment_method = &self.payment_method;
+        let is_wallet_connector_token_update =
+            payment_method.payment_method_type == Some(enums::PaymentMethod::Wallet)
+                && self.request.connector_token_details.is_some();
         when(
-            payment_method.status == enums::PaymentMethodStatus::Inactive,
+            payment_method.status == enums::PaymentMethodStatus::Inactive
+                && !is_wallet_connector_token_update,
             || {
                 Err(errors::ApiErrorResponse::InvalidRequestData {
                     message: "Inactive Payment Method cannot be updated".to_string(),

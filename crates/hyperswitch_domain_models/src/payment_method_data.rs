@@ -5,7 +5,8 @@ use api_models::{
     mandates,
     payment_methods::{self},
     payments::{
-        additional_info as payment_additional_types, AdditionalNetworkTokenInfo, ExtendedCardInfo,
+        additional_info as payment_additional_types, AdditionalNetworkTokenInfo,
+        ExtendedCardInfo,
     },
 };
 use common_enums::{enums as api_enums, GooglePayCardFundingSource};
@@ -1613,6 +1614,12 @@ impl TryFrom<payment_methods::PaymentMethodCreateData> for PaymentMethodData {
                 .into(),
             ),
             payment_methods::PaymentMethodCreateData::Wallet(_) => Err(
+                common_utils::errors::ValidationError::IncorrectValueProvided {
+                    field_name: "Payment method data",
+                }
+                .into(),
+            ),
+            payment_methods::PaymentMethodCreateData::Paypal(_) => Err(
                 common_utils::errors::ValidationError::IncorrectValueProvided {
                     field_name: "Payment method data",
                 }
@@ -3336,6 +3343,7 @@ pub enum PaymentMethodsData {
     WalletDetails(payment_methods::PaymentMethodDataWalletInfo), //PaymentMethodDataWalletInfo and its transformations should be moved to the domain models
     NetworkToken(NetworkTokenDetailsPaymentMethod),
     BankDebit(BankDebitDetailsPaymentMethod),
+    PaypalDetails(api_models::payments::PaypalRedirection),
 }
 
 impl PaymentMethodsData {
@@ -3380,7 +3388,8 @@ impl PaymentMethodsData {
             Self::BankDetails(_)
             | Self::WalletDetails(_)
             | Self::NetworkToken(_)
-            | Self::BankDebit(_) => None,
+            | Self::BankDebit(_)
+            | Self::PaypalDetails(_) => None,
         }
     }
     pub fn get_card_details(&self) -> Option<CardDetailsPaymentMethod> {

@@ -403,6 +403,7 @@ impl
             ),
             payment_methods::PaymentMethodCreateData::ProxyCard(_) => None,
             payment_methods::PaymentMethodCreateData::Wallet(_) => None,
+            payment_methods::PaymentMethodCreateData::Paypal(_) => None,
         };
 
         Self {

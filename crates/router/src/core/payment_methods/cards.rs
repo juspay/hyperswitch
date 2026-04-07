@@ -5292,6 +5292,12 @@ pub async fn get_pm_list_context_for_bank_debit(
                 }
                 .into())
             }
+            domain::PaymentMethodsData::PaypalDetails(_) => {
+                Err(errors::ApiErrorResponse::UnprocessableEntity {
+                    message: "Paypal is not a valid entity".to_string(),
+                }
+                .into())
+            }
         },
         None => Ok(None),
     }

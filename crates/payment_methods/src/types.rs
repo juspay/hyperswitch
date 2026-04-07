@@ -44,6 +44,7 @@ pub struct PaymentMethodResponseItem {
 pub enum PaymentMethodResponseData {
     Card(Box<CardDetailFromLocker>),
     Wallet(Box<api_models::payment_methods::PaymentMethodDataWalletInfo>),
+    Paypal(Box<payments::PaypalRedirection>),
 }
 
 /// V2 modular service request payload.
