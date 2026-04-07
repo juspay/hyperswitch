@@ -6751,6 +6751,11 @@ pub enum NextActionData {
         #[smithy(value_type = "IframeData")]
         iframe_data: IframeData,
     },
+    /// The data required to trigger the DDC (Device Data Collection) flow by rendering the provided URL in a hidden iframe.
+    InvokeDdc {
+        #[smithy(value_type = "DDCData")]
+        ddc_data: DDCData,
+    },
 }
 
 #[derive(
@@ -6778,6 +6783,15 @@ pub enum IframeData {
         #[smithy(value_type = "Option<String>")]
         message_version: Option<String>,
     },
+}
+
+#[derive(
+    Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel,
+)]
+pub struct DDCData {
+    #[schema(value_type = String)]
+    pub iframe_url: Url,
+    pub timeout_ms: Option<i32>,
 }
 
 #[derive(
@@ -7094,6 +7108,18 @@ pub struct PaymentsConnectorThreeDsInvokeData {
     pub three_ds_method_data: String,
     pub message_version: Option<String>,
     pub three_ds_method_data_submission: bool,
+}
+
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
+pub struct PaymentConnectorInvokeDDCMetadata {
+    pub iframe_url: String,
+    pub timeout_ms: Option<i32>,
+}
+
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
+pub struct PaymentConnectorInvokeDDCData {
+    pub iframe_url: Url,
+    pub timeout_ms: Option<i32>,
 }
 
 #[derive(
@@ -10562,6 +10588,8 @@ pub struct PaypalSessionTokenResponse {
     pub client_token: Option<String>,
     /// The transaction info Paypal requires
     pub transaction_info: Option<PaypalTransactionInfo>,
+    /// User token required for returning customer flow, used by client to initiate sdk
+    pub data_user_id_token: Option<String>,
 }
 
 #[derive(
