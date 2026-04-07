@@ -231,6 +231,7 @@ pub async fn trigger_refund_to_gateway(
             None, // No previous gateway information required for refunds
             payments::CallConnectorAction::Trigger,
             None,
+            common_enums::TransactionType::Payment,
         )
         .await?;
 
@@ -919,6 +920,7 @@ pub async fn sync_refund_with_gateway(
             None, // No previous gateway information required for refunds
             payments::CallConnectorAction::Trigger,
             None,
+            common_enums::TransactionType::Payment,
         )
         .await?;
 
