@@ -1,4 +1,4 @@
-FROM rust:bookworm as builder
+FROM public.ecr.aws/docker/library/rust:bookworm as builder
 
 ARG EXTRA_FEATURES=""
 ARG VERSION_FEATURE_SET="v1"
@@ -43,7 +43,7 @@ RUN cargo build \
 
 
 
-FROM debian:bookworm
+FROM public.ecr.aws/docker/library/debian:bookworm
 
 # Placing config and binary executable in different directories
 ARG CONFIG_DIR=/local/config
