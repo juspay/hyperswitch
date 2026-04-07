@@ -256,6 +256,8 @@ bank_redirect.ideal.connector_list = "adyen"
 bank_redirect.bancontact_card.connector_list = "adyen"
 bank_redirect.trustly.connector_list = "adyen"
 bank_redirect.open_banking_uk.connector_list = "adyen"
+bank_transfer.pix_automatico_push = { connector_list = "santander" }
+bank_transfer.pix_automatico_qr = { connector_list = "santander" }
 
 [mandates.supported_payment_methods]
 bank_debit.ach = { connector_list = "gocardless,adyen,stripe,payload" }
