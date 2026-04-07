@@ -1724,7 +1724,6 @@ impl PaymentsRequest {
             Ok(())
         }
     }
-
 }
 
 #[cfg(feature = "v1")]
