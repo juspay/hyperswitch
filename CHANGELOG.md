@@ -4,6 +4,23 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.02.02.0-hotfix16
+
+### Features
+
+- **connector:** Add MIT category mapping for Checkout.com mandate payments ([#11731](https://github.com/juspay/hyperswitch/pull/11731)) ([`44b8bca`](https://github.com/juspay/hyperswitch/commit/44b8bcab5f905b2e74e58ea4508184f7f3d37c04))
+- **core:**
+  - Implement NTID flow for Decrypted Wallet Token and also Implement for checkout connector ([#11720](https://github.com/juspay/hyperswitch/pull/11720)) ([`538dcdf`](https://github.com/juspay/hyperswitch/commit/538dcdf271711248606da17fa33ad48d63fd93ba))
+  - Enable config-based UAS eligibility at org and merchant level ([#11729](https://github.com/juspay/hyperswitch/pull/11729)) ([`8d3be17`](https://github.com/juspay/hyperswitch/commit/8d3be1725475fbcabf50cf9933ff4bb5f15d84bd))
+
+### Refactors
+
+- **connector:** [Adyen] [paypal] fix error propogation in webhook flows ([#11730](https://github.com/juspay/hyperswitch/pull/11730)) ([`2f95d54`](https://github.com/juspay/hyperswitch/commit/2f95d54a1dd534ffaf6c5a2273047513e5c52bd8))
+
+**Full Changelog:** [`2026.02.02.0-hotfix15...2026.02.02.0-hotfix16`](https://github.com/juspay/hyperswitch/compare/2026.02.02.0-hotfix15...2026.02.02.0-hotfix16)
+
+- - -
+
 ## 2026.02.02.0-hotfix15
 
 ### Features
