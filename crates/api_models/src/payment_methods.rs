@@ -3423,7 +3423,7 @@ impl PaymentMethodRecord {
                     bank_account_holder_name: self.bank_account_holder_name.clone(),
                     bank_type: self.bank_type,
                     bank_holder_type: self.bank_holder_type,
-                    bank_name: self.bank_name.clone(),
+                    bank_name: self.bank_name,
                 }))
             }
             _ => None,
