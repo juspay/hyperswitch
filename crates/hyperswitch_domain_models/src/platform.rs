@@ -40,7 +40,6 @@ impl ProviderMerchantId {
     }
 }
 
-
 /// Processor = The merchant account whose processor credentials are used
 /// to execute the operation.
 #[derive(Clone, Debug)]
