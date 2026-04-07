@@ -20589,6 +20589,18 @@
             "enum": [
               "order_details_product_name"
             ]
+          },
+          {
+            "type": "string",
+            "enum": [
+              "user_branch_code"
+            ]
+          },
+          {
+            "type": "string",
+            "enum": [
+              "user_bank_identifier"
+            ]
           }
         ],
         "description": "Possible field type of required fields in payment_method_data"
