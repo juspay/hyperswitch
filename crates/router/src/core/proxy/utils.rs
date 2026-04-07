@@ -138,7 +138,7 @@ impl ProxyRequestWrapper {
             proxy_api_models::TokenType::PaymentMethodToken => {
                 // 1. Resolve parent token (if any) -> storage type & optional token data
                 let (storage_type, card_token_data_opt) =
-                    resolve_storage_type_from_token(&state, token).await?;
+                    resolve_storage_type_from_token(state, token).await?;
 
                 let pm_id = PaymentMethodId {
                     payment_method_id: token.clone(),
@@ -146,7 +146,7 @@ impl ProxyRequestWrapper {
 
                 // 2. Fetch payment method record based on resolved storage type
                 let (storage_type, payment_method) = fetch_payment_method_by_storage(
-                    &state,
+                    state,
                     platform,
                     &pm_id,
                     storage_type,
@@ -158,11 +158,9 @@ impl ProxyRequestWrapper {
 
                 match storage_type {
                     common_enums::enums::StorageType::Persistent => {
-                        println!("Storage type is Persistenttt");
                         Ok(ProxyRecord::PaymentMethodRecord(Box::new(payment_method)))
                     }
                     common_enums::enums::StorageType::Volatile => {
-                        println!("Storage type is Volatileee");
                         Ok(ProxyRecord::VolatilePaymentMethodRecord(Box::new(
                             payment_method,
                         )))
