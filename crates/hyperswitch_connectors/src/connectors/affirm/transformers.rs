@@ -13,10 +13,9 @@ use hyperswitch_domain_models::{
     },
 };
 use hyperswitch_interfaces::errors;
-use hyperswitch_masking::{Secret, ExposeInterface};
+use hyperswitch_masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-
 
 use crate::{
     types::{
@@ -170,7 +169,7 @@ pub struct Discount {
 fn validate_payment_currency(
     currency: &Currency,
 ) -> Result<(), error_stack::Report<errors::ConnectorError>> {
-    if matches!(currency, Currency::USD| Currency::CAD| Currency::GBP) {
+    if matches!(currency, Currency::USD | Currency::CAD | Currency::GBP) {
         Ok(())
     } else {
         Err(errors::ConnectorError::NotSupported {
@@ -282,14 +281,13 @@ impl From<AffirmTransactionStatus> for common_enums::AttemptStatus {
             AffirmTransactionStatus::Captured => Self::Charged,
             AffirmTransactionStatus::Voided => Self::Voided,
             AffirmTransactionStatus::PartiallyCaptured => Self::PartialCharged,
-            AffirmTransactionStatus::Disputed 
-            | AffirmTransactionStatus::DisputeRefunded 
-            | AffirmTransactionStatus::PartiallyRefunded 
+            AffirmTransactionStatus::Disputed
+            | AffirmTransactionStatus::DisputeRefunded
+            | AffirmTransactionStatus::PartiallyRefunded
             | AffirmTransactionStatus::Refunded => Self::Unresolved,
         }
     }
 }
-
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct AffirmPaymentsResponse {
@@ -308,7 +306,6 @@ pub struct AffirmCompleteAuthorizeResponse {
     pub id: String,
     pub order_id: Option<String>,
 }
-
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -356,7 +353,7 @@ pub struct AffirmRsyncResponse {
     pub amount: MinorUnit,
     pub amount_refunded: MinorUnit,
     pub id: String,
-    pub order_id: String
+    pub order_id: String,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -475,7 +472,6 @@ pub struct AffirmRefundResponse {
     pub fee: Option<MinorUnit>,
 }
 
-
 impl TryFrom<RefundsResponseRouterData<Execute, AffirmRefundResponse>>
     for RefundsRouterData<Execute>
 {
@@ -498,7 +494,7 @@ impl TryFrom<RefundsResponseRouterData<RSync, AffirmRsyncResponse>> for RefundsR
     fn try_from(
         item: RefundsResponseRouterData<RSync, AffirmRsyncResponse>,
     ) -> Result<Self, Self::Error> {
-        // Affirm refunds are synchronous 
+        // Affirm refunds are synchronous
         Ok(Self {
             response: Ok(RefundsResponseData {
                 connector_refund_id: item.data.request.connector_transaction_id.to_string(),
@@ -536,10 +532,7 @@ impl TryFrom<&AffirmRouterData<&PaymentsCaptureRouterData>> for AffirmCaptureReq
 
         let amount = item.amount;
 
-        Ok(Self {
-            amount,
-            order_id,
-        })
+        Ok(Self { amount, order_id })
     }
 }
 

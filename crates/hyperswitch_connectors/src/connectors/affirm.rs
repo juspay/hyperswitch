@@ -43,8 +43,8 @@ use hyperswitch_interfaces::{
         self, ConnectorCommon, ConnectorCommonExt, ConnectorIntegration, ConnectorSpecifications,
         ConnectorValidation,
     },
-    consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE},
     configs::Connectors,
+    consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE},
     errors,
     events::connector_api_logs::ConnectorEvent,
     types::{self, Response},
@@ -574,7 +574,7 @@ impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Af
         _req: &PaymentsCancelRouterData,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_req = affirm::AffirmCancelRequest{};
+        let connector_req = affirm::AffirmCancelRequest {};
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
