@@ -2586,6 +2586,8 @@ pub enum PaymentMethodDataType {
     DanamonVaBankTransfer,
     MandiriVaBankTransfer,
     Pix,
+    PixAutomaticoPush,
+    PixAutomaticoQr,
     Pse,
     Crypto,
     MandatePayment,

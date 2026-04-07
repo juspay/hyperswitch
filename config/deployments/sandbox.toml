@@ -31,7 +31,7 @@ adyenplatform.base_url = "https://balanceplatform-api-test.adyen.com/"
 affirm.base_url = "https://sandbox.affirm.com/api"
 airwallex.base_url = "https://api-demo.airwallex.com/"
 amazonpay.base_url = "https://pay-api.amazon.com/sandbox/v2"
-applepay.base_url = "https://apple-pay-gateway.apple.com/"
+applepay.base_url = "https://apple-pay-gateway-cert.apple.com/"
 archipel.base_url = "https://{{merchant_endpoint_prefix}}/ArchiPEL/Transaction/v1"
 authipay.base_url = "https://prod.emea.api.fiservapps.com/sandbox/ipp/payments-gateway/v2"
 authorizedotnet.base_url = "https://apitest.authorize.net/xml/v1/request.api"
@@ -180,7 +180,7 @@ worldpayvantiv.base_url = "https://transact.vantivprelive.com/vap/communicator/o
 worldpayvantiv.secondary_base_url = "https://onlinessr.vantivprelive.com"
 worldpayvantiv.third_base_url = "https://services.vantivprelive.com"
 worldpayxml.base_url = "https://secure-test.worldpay.com/jsp/merchant/xml/paymentService.jsp"
-worldpayxml.secondary_base_url = "https://centinelapistag.cardinalcommerce.com/V2/Cruise/StepUp"
+worldpayxml.secondary_base_url = "https://centinelapistag.cardinalcommerce.com"
 xendit.base_url = "https://api.xendit.co"
 zift.base_url = "https://sandbox-secure.zift.io/"
 zen.base_url = "https://api.zen-test.com/"
@@ -301,6 +301,9 @@ connector_list = "adyen,archipel,checkout,cybersource,novalnet,nuvei,stripe,worl
 
 [card_only_mit_supported_connectors]
 connector_list = "peachpayments" # Supported connectors for card only mit
+
+[notify_iframe_exit_and_redirect]
+connector_list = "worldpayxml"
 
 [payouts]
 payout_eligibility = true               # Defaults the eligibility of a payout method to true in case connector does not provide checks for payout eligibility
@@ -719,6 +722,9 @@ open_banking_uk = { currency = "GBP,EUR,PLN" }
 [payout_method_filters.trustly]
 trustly = { currency = "BGN,GBP,EUR,PLN,CZK,DKK,HRK,HUF,NOK,PLN,RON,SEK" }
 
+[pm_filters.trustly]
+trustly = { currency = "BGN,GBP,EUR,PLN,CZK,DKK,HRK,HUF,NOK,PLN,RON,SEK" }
+
 [pm_filters.redsys]
 credit = { currency = "AUD,BGN,CAD,CHF,COP,CZK,DKK,EUR,GBP,HRK,HUF,ILS,INR,JPY,MYR,NOK,NZD,PEN,PLN,RUB,SAR,SEK,SGD,THB,USD,ZAR", country="ES" }
 debit = { currency = "AUD,BGN,CAD,CHF,COP,CZK,DKK,EUR,GBP,HRK,HUF,ILS,INR,JPY,MYR,NOK,NZD,PEN,PLN,RUB,SAR,SEK,SGD,THB,USD,ZAR", country="ES" }
@@ -885,6 +891,8 @@ eft = { country = "NG, ZA, GH, KE, CI", currency = "NGN, GHS, ZAR, KES, USD" }
 [pm_filters.santander]
 pix = { country = "BR", currency = "BRL" }
 boleto = { country = "BR", currency = "BRL" }
+pix_automatico_qr = { country = "BR", currency = "BRL" }
+pix_automatico_push = { country = "BR", currency = "BRL" }
 
 [pm_filters.calida]
 bluecode = { country = "AT,BE,BG,HR,CY,CZ,DK,EE,FI,FR,DE,GR,HU,IE,IT,LV,LT,LU,MT,NL,PL,PT,RO,SK,SI,ES,SE,IS,LI,NO", currency = "EUR" }
@@ -957,6 +965,7 @@ deutschebank = { payment_method = "bank_debit" }
 paybox = { payment_method = "card" }
 nexixpay = { payment_method = "card" }
 redsys = { payment_method = "card" }
+worldpayxml = { payment_method = "card" }
 
 #tokenization configuration which describe token lifetime and payment method for specific connector
 [tokenization]
@@ -1020,7 +1029,7 @@ connector_list = "juspaythreedsserver, ctp_mastercard, ctp_visa"
 connector_list = "worldpayvantiv"
 
 [grpc_client.unified_connector_service]
-ucs_only_connectors = "paytm, phonepe, hyperpg, revolv3, truelayer, fiservcommercehub"    # Comma-separated list of connectors that use UCS only
+ucs_only_connectors = "paytm, phonepe, hyperpg, revolv3, truelayer, fiservcommercehub, trustly"    # Comma-separated list of connectors that use UCS only
 ucs_psync_disabled_connectors = "cashtocode"    # Comma-separated list of connectors to disable UCS PSync call
 
 # Merchant Advice Code Configuration

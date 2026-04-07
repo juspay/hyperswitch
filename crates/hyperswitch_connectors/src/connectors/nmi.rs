@@ -1183,7 +1183,7 @@ static NMI_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 2] =
     [enums::EventClass::Payments, enums::EventClass::Refunds];
 
 impl ConnectorSpecifications for Nmi {
-    fn is_pre_authentication_flow_required(&self, current_flow: api::CurrentFlowInfo<'_>) -> bool {
+    fn is_pre_authentication_flow_required(&self, current_flow: api::CurrentFlowInfo) -> bool {
         match current_flow {
             api::CurrentFlowInfo::Authorize {
                 auth_type,
@@ -1194,6 +1194,7 @@ impl ConnectorSpecifications for Nmi {
                 auth_type,
                 request_data,
             } => auth_type.is_three_ds() && request_data.is_card(),
+            api::CurrentFlowInfo::Psync { .. } => false,
         }
     }
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
