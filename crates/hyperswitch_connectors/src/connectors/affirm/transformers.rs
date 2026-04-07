@@ -133,19 +133,7 @@ pub struct Address {
     pub country: Option<CountryAlpha2>,
 }
 
-fn validate_payment_currency(
-    currency: Currency,
-) -> Result<(), error_stack::Report<errors::ConnectorError>> {
-    if matches!(currency, Currency::USD | Currency::CAD | Currency::GBP) {
-        Ok(())
-    } else {
-        Err(errors::ConnectorError::NotSupported {
-            message: format!("{} payments", currency),
-            connector: "affirm",
-        }
-        .into())
-    }
-}
+
 
 fn build_billing(
     item: &AffirmRouterData<&PaymentsAuthorizeRouterData>,
@@ -213,8 +201,6 @@ impl TryFrom<&AffirmRouterData<&PaymentsAuthorizeRouterData>> for AffirmPayments
                     user_confirmation_url: request.get_complete_authorize_url()?,
                     user_cancel_url: request.get_router_return_url()?,
                 };
-
-                validate_payment_currency(item.router_data.request.currency)?;
 
                 Ok(Self {
                     merchant,
