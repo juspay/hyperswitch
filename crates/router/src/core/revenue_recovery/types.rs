@@ -41,6 +41,7 @@ use crate::{
         revenue_recovery::{self as revenue_recovery_core, pcr, perform_calculate_workflow},
         webhooks::{
             create_event_and_trigger_outgoing_webhook, recovery_incoming as recovery_incoming_flow,
+            utils,
         },
     },
     db::StorageInterface,
@@ -1592,16 +1593,15 @@ impl RevenueRecoveryOutgoingWebhook {
                     api_models::webhooks::OutgoingWebhookContent::PaymentDetails(Box::new(
                         response,
                     ));
-                let webhook_recipient =
-                    crate::core::webhooks::utils::resolve_webhook_recipient_from_created_by(
-                        state,
-                        platform,
-                        profile,
-                        payment_intent.created_by.as_ref(),
-                    )
-                    .await
-                    .change_context(errors::RecoveryError::InvalidTask)
-                    .attach_printable("Failed to resolve webhook recipient for revenue recovery")?;
+                let webhook_recipient = utils::resolve_webhook_recipient_from_created_by(
+                    state,
+                    platform,
+                    profile,
+                    payment_intent.created_by.as_ref(),
+                )
+                .await
+                .change_context(errors::RecoveryError::InvalidTask)
+                .attach_printable("Failed to resolve webhook recipient for revenue recovery")?;
 
                 create_event_and_trigger_outgoing_webhook(
                     state.clone(),

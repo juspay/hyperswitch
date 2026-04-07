@@ -77,7 +77,7 @@ pub(crate) struct OutgoingWebhookTrackingData {
     pub(crate) merchant_id: common_utils::id_type::MerchantId,
     /// The business profile of the webhook recipient (initiator's profile).
     pub(crate) business_profile_id: common_utils::id_type::ProfileId,
-    /// The processor merchant id whose credentials were used for payment processing.
+    /// The merchant_id of the merchant whose connector credentials were used for payment processing.
     /// In standard setups this equals `merchant_id`.
     pub(crate) processor_merchant_id: Option<common_utils::id_type::MerchantId>,
     /// Whether the operation was initiated by the platform merchant.

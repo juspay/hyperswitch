@@ -72,7 +72,7 @@ pub struct Event {
     /// Indicates whether the event was ultimately delivered.
     pub is_overall_delivery_successful: Option<bool>,
 
-    /// The processor merchant id whose credentials are used for payment processing.
+    /// The merchant_id of the merchant whose connector credentials are used for payment processing.
     pub processor_merchant_id: Option<common_utils::id_type::MerchantId>,
 }
 
