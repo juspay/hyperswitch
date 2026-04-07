@@ -777,6 +777,7 @@ export const connectorDetails = {
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
+        currency: "MYR",
         billing: billingAddress,
         mandate_data: null,
         customer_acceptance: customerAcceptance,
