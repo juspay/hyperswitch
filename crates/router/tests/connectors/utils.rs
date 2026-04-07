@@ -270,6 +270,23 @@ pub trait ConnectorActions: Connector {
         return Ok(response);
     }
 
+    async fn post_capture_void_payment(
+        &self,
+        transaction_id: String,
+        payment_data: Option<types::PaymentsCancelPostCaptureData>,
+        payment_info: Option<PaymentInfo>,
+    ) -> Result<types::PaymentsCancelPostCaptureRouterData, Report<ConnectorError>> {
+        let integration = self.get_data().connector.get_connector_integration();
+        let request = self.generate_data(
+            types::PaymentsCancelPostCaptureData {
+                connector_transaction_id: transaction_id,
+                ..payment_data.unwrap_or_default()
+            },
+            payment_info,
+        );
+        Box::pin(call_connector(request, integration)).await
+    }
+
     async fn refund_payment(
         &self,
         transaction_id: String,

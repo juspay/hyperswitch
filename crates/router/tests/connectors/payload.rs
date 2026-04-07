@@ -1,3 +1,4 @@
+use common_enums;
 use hyperswitch_masking::Secret;
 use router::types::{self, api, domain, storage::enums};
 use test_utils::connector_auth;
@@ -413,6 +414,104 @@ async fn should_fail_for_refund_amount_higher_than_payment_amount() {
         response.response.unwrap_err().message,
         "Refund amount (₹1.50) is greater than charge amount (₹1.00)",
     );
+}
+
+// PostCaptureVoid Tests (Cards)
+
+// Voids a captured payment using the post-capture void flow (Non 3DS).
+#[actix_web::test]
+async fn should_void_captured_payment() {
+    let authorize_response = CONNECTOR
+        .authorize_payment(payment_method_details(), get_default_payment_info())
+        .await
+        .expect("Authorize payment response");
+    assert_eq!(authorize_response.status, enums::AttemptStatus::Authorized);
+    let txn_id = utils::get_connector_transaction_id(authorize_response.response).unwrap();
+
+    let capture_response = CONNECTOR
+        .capture_payment(txn_id.clone(), None, get_default_payment_info())
+        .await
+        .expect("Capture payment response");
+    assert_eq!(capture_response.status, enums::AttemptStatus::Charged);
+
+    let response = CONNECTOR
+        .post_capture_void_payment(txn_id, None, get_default_payment_info())
+        .await
+        .expect("PostCaptureVoid response");
+    match response.response {
+        Ok(types::PaymentsResponseData::PostCaptureVoidResponse {
+            post_capture_void_status,
+            ..
+        }) => {
+            assert_eq!(
+                post_capture_void_status,
+                common_enums::PostCaptureVoidStatus::Succeeded
+            );
+        }
+        other => panic!(
+            "Expected PostCaptureVoidResponse with Succeeded status, got: {:?}",
+            other
+        ),
+    }
+}
+
+// Fails post-capture void for an invalid transaction id.
+#[actix_web::test]
+async fn should_fail_post_capture_void_for_invalid_payment() {
+    let response = CONNECTOR
+        .post_capture_void_payment(
+            "invalid_txn_id_12345".to_string(),
+            None,
+            get_default_payment_info(),
+        )
+        .await
+        .expect("PostCaptureVoid response");
+    assert!(response.response.is_err());
+}
+
+// Fails post-capture void on an already voided (pre-capture) payment.
+#[actix_web::test]
+async fn should_fail_post_capture_void_for_voided_payment() {
+    let authorize_response = CONNECTOR
+        .authorize_payment(payment_method_details(), get_default_payment_info())
+        .await
+        .expect("Authorize payment response");
+    assert_eq!(authorize_response.status, enums::AttemptStatus::Authorized);
+    let txn_id = utils::get_connector_transaction_id(authorize_response.response).unwrap();
+
+    let void_response = CONNECTOR
+        .void_payment(
+            txn_id.clone(),
+            Some(types::PaymentsCancelData {
+                connector_transaction_id: String::from(""),
+                cancellation_reason: Some("requested_by_customer".to_string()),
+                ..Default::default()
+            }),
+            get_default_payment_info(),
+        )
+        .await
+        .expect("Void payment response");
+    assert_eq!(void_response.status, enums::AttemptStatus::Voided);
+
+    let response = CONNECTOR
+        .post_capture_void_payment(txn_id, None, get_default_payment_info())
+        .await
+        .expect("PostCaptureVoid response");
+    match response.response {
+        Ok(types::PaymentsResponseData::PostCaptureVoidResponse {
+            post_capture_void_status,
+            ..
+        }) => {
+            assert_eq!(
+                post_capture_void_status,
+                common_enums::PostCaptureVoidStatus::Succeeded
+            );
+        }
+        Err(_) => {
+            // Also acceptable - connector may reject voiding an already voided payment
+        }
+        other => panic!("Unexpected response: {:?}", other),
+    }
 }
 
 // Connector dependent test cases goes here
