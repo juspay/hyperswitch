@@ -5,8 +5,7 @@ use api_models::{
     mandates,
     payment_methods::{self},
     payments::{
-        additional_info as payment_additional_types, AdditionalNetworkTokenInfo,
-        ExtendedCardInfo,
+        additional_info as payment_additional_types, AdditionalNetworkTokenInfo, ExtendedCardInfo,
     },
 };
 use common_enums::{enums as api_enums, GooglePayCardFundingSource};

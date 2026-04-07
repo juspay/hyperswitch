@@ -882,10 +882,6 @@ impl transformers::ForeignTryFrom<(domain::PaymentMethod, String)>
                 api_models::payment_methods::PaymentMethodsData::WalletDetails(..) => {
                     todo!()
                 }
-                api_models::payment_methods::PaymentMethodsData::NetworkToken(..) => todo!(),
-                api_models::payment_methods::PaymentMethodsData::PaypalDetails(..) => {
-                    todo!()
-                }
             });
 
         let payment_method_billing = item
@@ -951,10 +947,6 @@ impl transformers::ForeignTryFrom<domain::PaymentMethod> for PaymentMethodRespon
                 api_models::payment_methods::PaymentMethodsData::BankDetails(..) => todo!(),
                 api_models::payment_methods::PaymentMethodsData::BankDebit(..) => todo!(),
                 api_models::payment_methods::PaymentMethodsData::WalletDetails(..) => {
-                    todo!()
-                }
-                api_models::payment_methods::PaymentMethodsData::NetworkToken(..) => todo!(),
-                api_models::payment_methods::PaymentMethodsData::PaypalDetails(..) => {
                     todo!()
                 }
             });
