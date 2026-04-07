@@ -605,6 +605,7 @@ pub enum PaymentMethodCreateData {
     Card(CardDetail),
     ProxyCard(ProxyCardDetails),
     Wallet(Box<PaymentMethodDataWalletInfo>),
+    #[schema(value_type = PaypalRedirection)]
     Paypal(Box<payments::PaypalRedirection>),
 }
 

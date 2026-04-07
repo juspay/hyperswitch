@@ -21138,7 +21138,7 @@
             ],
             "properties": {
               "paypal": {
-                "$ref": "#/components/schemas/PaymentMethodDataPaypalInfo"
+                "$ref": "#/components/schemas/PaypalRedirection"
               }
             }
           }
