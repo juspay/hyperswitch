@@ -295,11 +295,13 @@ impl UnifiedConnectorServiceClient {
     /// Performs SDK Session Token Create
     pub async fn create_sdk_session_token(
         &self,
-        create_sdk_session_token_request: payments_grpc::MerchantAuthenticationServiceCreateSdkSessionTokenRequest,
+        create_sdk_session_token_request: payments_grpc::MerchantAuthenticationServiceCreateClientAuthenticationTokenRequest,
         connector_auth_metadata: ConnectorAuthMetadata,
         grpc_headers: GrpcHeadersUcs,
     ) -> UnifiedConnectorServiceResult<
-        tonic::Response<payments_grpc::MerchantAuthenticationServiceCreateSdkSessionTokenResponse>,
+        tonic::Response<
+            payments_grpc::MerchantAuthenticationServiceCreateClientAuthenticationTokenResponse,
+        >,
     > {
         let mut request = tonic::Request::new(create_sdk_session_token_request);
 
@@ -310,15 +312,15 @@ impl UnifiedConnectorServiceClient {
 
         self.merchant_authentication_service_client
             .clone()
-            .create_sdk_session_token(request)
+            .create_client_authentication_token(request)
             .await
             .change_context(UnifiedConnectorServiceError::CreateSdkSessionTokenFailure)
             .inspect_err(|error| {
                 logger::error!(
                     grpc_error=?error,
-                    method="create_sdk_session_token",
+                    method="create_client_authentication_token",
                     connector_name=?connector_name,
-                    "UCS create_sdk_session_token gRPC call failed"
+                    "UCS create client authentication token gRPC call failed"
                 )
             })
     }
@@ -482,12 +484,12 @@ impl UnifiedConnectorServiceClient {
     /// Performs Session token create
     pub async fn create_session_token(
         &self,
-        create_session_token_request: payments_grpc::MerchantAuthenticationServiceCreateSessionTokenRequest,
+        create_session_token_request: payments_grpc::MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenRequest,
         connector_auth_metadata: ConnectorAuthMetadata,
         grpc_headers: GrpcHeadersUcs,
     ) -> UnifiedConnectorServiceResult<
-        tonic::Response<payments_grpc::MerchantAuthenticationServiceCreateSessionTokenResponse>,
-    > {
+        tonic::Response<payments_grpc::MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenResponse>,
+    >{
         let mut request = tonic::Request::new(create_session_token_request);
 
         let connector_name = connector_auth_metadata.connector_name.clone();
@@ -497,15 +499,15 @@ impl UnifiedConnectorServiceClient {
 
         self.merchant_authentication_service_client
             .clone()
-            .create_session_token(request)
+            .create_server_session_authentication_token(request)
             .await
             .change_context(UnifiedConnectorServiceError::CreateSessionTokenFailure)
             .inspect_err(|error| {
                 logger::error!(
                     grpc_error=?error,
-                    method="create_session_token",
+                    method="create_server_session_authentication_token",
                     connector_name=?connector_name,
-                    "UCS create_session_token gRPC call failed"
+                    "UCS createm server session authentication token gRPC call failed"
                 )
             })
     }
@@ -817,11 +819,13 @@ impl UnifiedConnectorServiceClient {
     /// Performs Create Access Token Granular
     pub async fn create_access_token(
         &self,
-        create_access_token_request: payments_grpc::MerchantAuthenticationServiceCreateAccessTokenRequest,
+        create_access_token_request: payments_grpc::MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest,
         connector_auth_metadata: ConnectorAuthMetadata,
         grpc_headers: GrpcHeadersUcs,
     ) -> UnifiedConnectorServiceResult<
-        tonic::Response<payments_grpc::MerchantAuthenticationServiceCreateAccessTokenResponse>,
+        tonic::Response<
+            payments_grpc::MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse,
+        >,
     > {
         let mut request = tonic::Request::new(create_access_token_request);
         let connector_name = connector_auth_metadata.connector_name.clone();
@@ -831,15 +835,15 @@ impl UnifiedConnectorServiceClient {
 
         self.merchant_authentication_service_client
             .clone()
-            .create_access_token(request)
+            .create_server_authentication_token(request)
             .await
             .change_context(UnifiedConnectorServiceError::CreateAccessTokenFailure)
             .inspect_err(|error| {
                 logger::error!(
                     grpc_error=?error,
-                    method="create_access_token",
+                    method="create_server_authentication_token",
                     connector_name=?connector_name,
-                    "UCS create access token gRPC call failed"
+                    "UCS create server authentication token gRPC call failed"
                 )
             })
     }
