@@ -94,6 +94,7 @@ services:
     command: /local/bin/router -f /local/config/docker_compose.toml
     ports:
       - "8080:8080"
+      - "6669:6669"
     networks:
       - router_net
     volumes:
