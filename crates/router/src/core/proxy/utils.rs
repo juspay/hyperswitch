@@ -160,11 +160,9 @@ impl ProxyRequestWrapper {
                     common_enums::enums::StorageType::Persistent => {
                         Ok(ProxyRecord::PaymentMethodRecord(Box::new(payment_method)))
                     }
-                    common_enums::enums::StorageType::Volatile => {
-                        Ok(ProxyRecord::VolatilePaymentMethodRecord(Box::new(
-                            payment_method,
-                        )))
-                    }
+                    common_enums::enums::StorageType::Volatile => Ok(
+                        ProxyRecord::VolatilePaymentMethodRecord(Box::new(payment_method)),
+                    ),
                 }
             }
         }
