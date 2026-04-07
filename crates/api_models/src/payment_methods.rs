@@ -605,7 +605,7 @@ pub enum PaymentMethodCreateData {
     Card(CardDetail),
     ProxyCard(ProxyCardDetails),
     Wallet(Box<PaymentMethodDataWalletInfo>),
-    Paypal(Box<crate::payments::PaypalRedirection>),
+    Paypal(Box<payments::PaypalRedirection>),
 }
 
 #[cfg(feature = "v2")]

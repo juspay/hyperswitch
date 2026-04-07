@@ -4251,6 +4251,12 @@ impl RawPaymentMethodFetchAccess {
             }
 
             Self::Allowed => {
+                // Wallets don't store raw data in the vault — only additional info + PSP tokens
+                if payment_method.payment_method_type == Some(enums::PaymentMethod::Wallet) {
+                    logger::debug!("Skipping raw payment method fetch for wallet payment method");
+                    return Ok(None);
+                }
+
                 let vault_data = vault::retrieve_payment_method_data_from_storage(
                     state,
                     platform,
