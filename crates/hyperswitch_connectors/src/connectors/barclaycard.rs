@@ -1658,7 +1658,7 @@ static BARCLAYCARD_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
 static BARCLAYCARD_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 0] = [];
 
 impl ConnectorSpecifications for Barclaycard {
-    fn is_pre_authentication_flow_required(&self, current_flow: api::CurrentFlowInfo<'_>) -> bool {
+    fn is_pre_authentication_flow_required(&self, current_flow: api::CurrentFlowInfo) -> bool {
         match current_flow {
             api::CurrentFlowInfo::Authorize {
                 request_data,
@@ -1667,10 +1667,11 @@ impl ConnectorSpecifications for Barclaycard {
             // No alternate flow for complete authorize
             api::CurrentFlowInfo::CompleteAuthorize { .. } => false,
             api::CurrentFlowInfo::SetupMandate { .. } => false,
+            api::CurrentFlowInfo::Psync { .. } => false,
         }
     }
     /// Check if authentication flow is required
-    fn is_authentication_flow_required(&self, current_flow: api::CurrentFlowInfo<'_>) -> bool {
+    fn is_authentication_flow_required(&self, current_flow: api::CurrentFlowInfo) -> bool {
         match current_flow {
             api::CurrentFlowInfo::Authorize { .. } => {
                 // during authorize flow, there is no post_authentication call needed
@@ -1692,10 +1693,11 @@ impl ConnectorSpecifications for Barclaycard {
                 }
             }
             api::CurrentFlowInfo::SetupMandate { .. } => false,
+            api::CurrentFlowInfo::Psync { .. } => false,
         }
     }
     /// Check if post-authentication flow is required
-    fn is_post_authentication_flow_required(&self, current_flow: api::CurrentFlowInfo<'_>) -> bool {
+    fn is_post_authentication_flow_required(&self, current_flow: api::CurrentFlowInfo) -> bool {
         match current_flow {
             api::CurrentFlowInfo::Authorize { .. } => {
                 // during authorize flow, there is no post_authentication call needed
@@ -1717,6 +1719,7 @@ impl ConnectorSpecifications for Barclaycard {
                 }
             }
             api::CurrentFlowInfo::SetupMandate { .. } => false,
+            api::CurrentFlowInfo::Psync { .. } => false,
         }
     }
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {

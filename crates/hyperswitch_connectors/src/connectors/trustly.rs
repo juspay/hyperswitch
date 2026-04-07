@@ -5,7 +5,7 @@ use std::sync::LazyLock;
 use common_enums::enums;
 use common_utils::{
     errors::CustomResult,
-    ext_traits::ByteSliceExt,
+    ext_traits::{ByteSliceExt, ValueExt},
     request::{Method, Request, RequestBuilder, RequestContent},
     types::{AmountConvertor, StringMajorUnit, StringMajorUnitForConnector},
 };
@@ -51,6 +51,7 @@ use hyperswitch_interfaces::{
     errors::ConnectorError,
     types::{PayoutFulfillType, PayoutSyncType},
 };
+use hyperswitch_masking::ExposeInterface;
 use transformers as trustly;
 
 use crate::{constants::headers, types::ResponseRouterData, utils};
@@ -826,26 +827,142 @@ impl ConnectorIntegration<PoSync, PayoutsData, PayoutsResponseData> for Trustly 
 
 #[async_trait::async_trait]
 impl webhooks::IncomingWebhook for Trustly {
+    async fn verify_webhook_source(
+        &self,
+        request: &webhooks::IncomingWebhookRequestDetails<'_>,
+        merchant_id: &common_utils::id_type::MerchantId,
+        connector_webhook_details: Option<common_utils::pii::SecretSerdeValue>,
+        _connector_account_details: common_utils::crypto::Encryptable<
+            hyperswitch_masking::Secret<serde_json::Value>,
+        >,
+        connector_label: &str,
+    ) -> CustomResult<bool, ConnectorError> {
+        let webhook_body: trustly::TrustlyWebhookBody = request
+            .body
+            .parse_struct("TrustlyWebhookBody")
+            .change_context(ConnectorError::ResponseDeserializationFailed)?;
+
+        let connector_webhook_secrets = self
+            .get_webhook_source_verification_merchant_secret(
+                merchant_id,
+                connector_label,
+                connector_webhook_details,
+            )
+            .await
+            .change_context(ConnectorError::WebhookSourceVerificationFailed)?;
+
+        trustly::verify_webhook_signature(&webhook_body, connector_webhook_secrets.secret)
+    }
+
     fn get_webhook_object_reference_id(
         &self,
-        _request: &webhooks::IncomingWebhookRequestDetails<'_>,
+        request: &webhooks::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api_models::webhooks::ObjectReferenceId, ConnectorError> {
+        let webhook_body: trustly::TrustlyWebhookBody = request
+            .body
+            .parse_struct("TrustlyWebhookBody")
+            .change_context(ConnectorError::ResponseDeserializationFailed)?;
+        let message_id = webhook_body.params.data.messageid.clone();
+
+        if trustly::is_payment_webhook_event(webhook_body.method.clone(), message_id.clone()) {
+            return Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
+                api_models::payments::PaymentIdType::ConnectorTransactionId(
+                    webhook_body.params.data.orderid,
+                ),
+            ));
+        }
+        if trustly::is_refund_webhook_event(webhook_body.method.clone(), message_id.clone()) {
+            return Ok(api_models::webhooks::ObjectReferenceId::RefundId(
+                api_models::webhooks::RefundIdType::ConnectorRefundId(
+                    webhook_body.params.data.orderid,
+                ),
+            ));
+        }
+        #[cfg(feature = "payouts")]
+        if trustly::is_payout_webhook_event(webhook_body.method.clone(), message_id.clone()) {
+            return Ok(api_models::webhooks::ObjectReferenceId::PayoutId(
+                api_models::webhooks::PayoutIdType::ConnectorPayoutId(
+                    webhook_body.params.data.orderid,
+                ),
+            ));
+        }
         Err(report!(ConnectorError::WebhooksNotImplemented))
     }
 
     fn get_webhook_event_type(
         &self,
-        _request: &webhooks::IncomingWebhookRequestDetails<'_>,
+        request: &webhooks::IncomingWebhookRequestDetails<'_>,
         _context: Option<&webhooks::WebhookContext>,
     ) -> CustomResult<api_models::webhooks::IncomingWebhookEvent, ConnectorError> {
-        Err(report!(ConnectorError::WebhooksNotImplemented))
+        let webhook_body: trustly::TrustlyWebhookBody = request
+            .body
+            .parse_struct("TrustlyWebhookBody")
+            .change_context(ConnectorError::ResponseDeserializationFailed)?;
+
+        trustly::get_payout_webhook_event(webhook_body.method)
     }
 
     fn get_webhook_resource_object(
         &self,
-        _request: &webhooks::IncomingWebhookRequestDetails<'_>,
+        request: &webhooks::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<Box<dyn hyperswitch_masking::ErasedMaskSerialize>, ConnectorError> {
-        Err(report!(ConnectorError::WebhooksNotImplemented))
+        let webhook_body: trustly::TrustlyWebhookBody = request
+            .body
+            .parse_struct("TrustlyWebhookBody")
+            .change_context(ConnectorError::ResponseDeserializationFailed)?;
+        let event = trustly::get_payout_webhook_event(webhook_body.method)?;
+        Ok(Box::new(event))
+    }
+
+    fn get_webhook_api_response(
+        &self,
+        request: &webhooks::IncomingWebhookRequestDetails<'_>,
+        _error_kind: Option<webhooks::IncomingWebhookFlowError>,
+        connector_authentication_type: Option<
+            common_utils::crypto::Encryptable<hyperswitch_masking::Secret<serde_json::Value>>,
+        >,
+    ) -> CustomResult<
+        hyperswitch_domain_models::api::ApplicationResponse<serde_json::Value>,
+        ConnectorError,
+    > {
+        let request_body: trustly::TrustlyWebhookBody = request
+            .body
+            .parse_struct("TrustlyWebhookBody")
+            .change_context(ConnectorError::ResponseDeserializationFailed)?;
+
+        let data = trustly::TrustlyWebhookResponseResultData {
+            status: "OK".to_string(),
+        };
+
+        let connector_auth_type: ConnectorAuthType = connector_authentication_type
+            .ok_or(ConnectorError::FailedToObtainAuthType)?
+            .parse_value("ConnectorAuthType")
+            .change_context(ConnectorError::FailedToObtainAuthType)?;
+        let auth = trustly::TrustlyAuthType::try_from(&connector_auth_type)
+            .change_context(ConnectorError::FailedToObtainAuthType)?;
+
+        let signature = trustly::generate_trustly_signature(
+            request_body.method.as_str(),
+            &request_body.params.uuid,
+            &data,
+            &auth.private_key.expose(),
+        )?;
+
+        let response = trustly::TrustlyWebhookResponse {
+            result: trustly::TrustlyWebhookResponseResult {
+                signature: signature.into(),
+                uuid: request_body.params.uuid,
+                method: request_body.method.as_str().to_string(),
+                data,
+            },
+            version: request_body.version,
+        };
+
+        let response_value = serde_json::to_value(response)
+            .change_context(ConnectorError::ResponseDeserializationFailed)?;
+        Ok(hyperswitch_domain_models::api::ApplicationResponse::Json(
+            response_value,
+        ))
     }
 }
 
