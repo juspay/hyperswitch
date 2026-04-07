@@ -52,6 +52,10 @@ impl Refund {
         conn: &PgPooledConn,
         refund: RefundUpdate,
     ) -> StorageResult<Self> {
+        let processor_merchant_id = self
+            .processor_merchant_id
+            .clone()
+            .unwrap_or_else(|| self.merchant_id.clone());
         match generics::generic_update_with_unique_predicate_get_result::<
             <Self as HasTable>::Table,
             _,
@@ -61,7 +65,7 @@ impl Refund {
             conn,
             dsl::refund_id
                 .eq(self.refund_id.to_owned())
-                .and(dsl::merchant_id.eq(self.merchant_id.clone())),
+                .and(dsl::merchant_id.eq(processor_merchant_id)),
             RefundUpdateInternal::from(refund),
         )
         .await
@@ -92,13 +96,13 @@ impl Refund {
     // Fallback function for stagger release - queries by merchant_id when processor_merchant_id is NULL
     pub async fn find_by_merchant_id_refund_id(
         conn: &PgPooledConn,
-        merchant_id: &common_utils::id_type::MerchantId,
+        processor_merchant_id: &common_utils::id_type::MerchantId,
         refund_id: &str,
     ) -> StorageResult<Self> {
         generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
             conn,
             dsl::merchant_id
-                .eq(merchant_id.to_owned())
+                .eq(processor_merchant_id.to_owned())
                 .and(dsl::refund_id.eq(refund_id.to_owned())),
         )
         .await
@@ -123,14 +127,14 @@ impl Refund {
     // Fallback function for stagger release - queries by merchant_id when processor_merchant_id is NULL
     pub async fn find_by_merchant_id_connector_refund_id_connector(
         conn: &PgPooledConn,
-        merchant_id: &common_utils::id_type::MerchantId,
+        processor_merchant_id: &common_utils::id_type::MerchantId,
         connector_refund_id: &str,
         connector: &str,
     ) -> StorageResult<Self> {
         generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
             conn,
             dsl::merchant_id
-                .eq(merchant_id.to_owned())
+                .eq(processor_merchant_id.to_owned())
                 .and(dsl::connector_refund_id.eq(connector_refund_id.to_owned()))
                 .and(dsl::connector.eq(connector.to_owned())),
         )
@@ -155,12 +159,12 @@ impl Refund {
     pub async fn find_by_internal_reference_id_merchant_id(
         conn: &PgPooledConn,
         internal_reference_id: &str,
-        merchant_id: &common_utils::id_type::MerchantId,
+        processor_merchant_id: &common_utils::id_type::MerchantId,
     ) -> StorageResult<Self> {
         generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
             conn,
             dsl::merchant_id
-                .eq(merchant_id.to_owned())
+                .eq(processor_merchant_id.to_owned())
                 .and(dsl::internal_reference_id.eq(internal_reference_id.to_owned())),
         )
         .await
