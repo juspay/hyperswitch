@@ -44,7 +44,7 @@ impl Provider {
         &self.key_store
     }
 
-    /// Returns the provider merchant 
+    /// Returns the provider merchant
     pub fn get_provider_merchant_id(&self) -> ProviderMerchantId {
         ProviderMerchantId(self.account.get_id().clone())
     }
@@ -73,7 +73,7 @@ impl Processor {
         &self.key_store
     }
 
-    /// Returns the processor merchant ID 
+    /// Returns the processor merchant ID
     pub fn get_processor_merchant_id(&self) -> ProcessorMerchantId {
         ProcessorMerchantId(self.account.get_id().clone())
     }

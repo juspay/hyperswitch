@@ -110,6 +110,8 @@ use super::{
     },
 };
 #[cfg(feature = "v1")]
+use crate::core::blocklist::utils as blocklist_utils;
+#[cfg(feature = "v1")]
 use crate::core::card_testing_guard::utils as card_testing_guard_utils;
 #[cfg(feature = "v1")]
 use crate::core::debit_routing;
@@ -123,15 +125,6 @@ use crate::core::revenue_recovery::get_workflow_entries;
 use crate::core::revenue_recovery::map_to_recovery_payment_item;
 #[cfg(feature = "v1")]
 use crate::core::routing::helpers as routing_helpers;
-#[cfg(feature = "v1")]
-use crate::core::{
-    blocklist::utils as blocklist_utils,
-};
-
-use crate::core::configs::{
-    self as configs,
-    dimension_state::DimensionsWithProcessorAndProviderMerchantId,
-};
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 use crate::types::api::convert_connector_data_to_routable_connectors;
 use crate::{
@@ -140,6 +133,7 @@ use crate::{
     },
     consts,
     core::{
+        configs::{self as configs, dimension_state::DimensionsWithProcessorAndProviderMerchantId},
         errors::{self, CustomResult, RouterResponse, RouterResult},
         payment_methods::{cards, network_tokenization},
         payments::helpers::{

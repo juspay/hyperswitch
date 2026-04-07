@@ -3,7 +3,6 @@ use std::marker::PhantomData;
 use common_enums::connector_enums::Connector;
 use common_utils::id_type;
 use external_services::superposition;
-
 pub use hyperswitch_domain_models::platform::{ProcessorMerchantId, ProviderMerchantId};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, thiserror::Error)]
