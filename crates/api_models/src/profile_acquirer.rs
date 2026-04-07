@@ -21,6 +21,9 @@ pub struct ProfileAcquirerCreate {
     /// Fraud rate for the particular acquirer configuration
     #[schema(value_type= Option<f64>,example = 0.01)]
     pub acquirer_fraud_rate: Option<f64>,
+    /// Acquirer country code
+    #[schema(value_type= Option<String>,example = "US")]
+    pub acquirer_country_code: Option<String>,
     /// Parent profile id to link the acquirer account with
     #[schema(value_type= String,example = "pro_ky0yNyOXXlA5hF8JzE5q")]
     pub profile_id: common_utils::id_type::ProfileId,
@@ -49,6 +52,9 @@ pub struct ProfileAcquirerResponse {
     /// Fraud rate for the particular acquirer configuration
     #[schema(value_type= Option<f64>,example = 0.01)]
     pub acquirer_fraud_rate: Option<f64>,
+    /// Acquirer country code
+    #[schema(value_type= Option<String>,example = "US")]
+    pub acquirer_country_code: Option<String>,
     /// Parent profile id to link the acquirer account with
     #[schema(value_type= String,example = "pro_ky0yNyOXXlA5hF8JzE5q")]
     pub profile_id: common_utils::id_type::ProfileId,
@@ -80,6 +86,7 @@ impl
             acquirer_bin: acquirer_config.acquirer_bin.clone(),
             acquirer_ica: acquirer_config.acquirer_ica.clone(),
             acquirer_fraud_rate: acquirer_config.acquirer_fraud_rate,
+            acquirer_country_code: acquirer_config.acquirer_country_code.clone(),
         }
     }
 }
@@ -100,6 +107,8 @@ pub struct ProfileAcquirerUpdate {
     pub acquirer_ica: Option<String>,
     #[schema(value_type = Option<f64>, example = "0.02")]
     pub acquirer_fraud_rate: Option<f64>,
+    #[schema(value_type = Option<String>, example = "US")]
+    pub acquirer_country_code: Option<String>,
 }
 
 impl common_utils::events::ApiEventMetric for ProfileAcquirerUpdate {}

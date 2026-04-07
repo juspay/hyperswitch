@@ -118,6 +118,9 @@ pub struct AcquirerConfig {
     /// Fraud rate for the particular acquirer configuration
     #[schema(value_type= Option<f64>,example = 0.01)]
     pub acquirer_fraud_rate: Option<f64>,
+    /// Acquirer country code
+    #[schema(value_type= Option<String>,example = "US")]
+    pub acquirer_country_code: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, FromSqlRow, AsExpression, ToSchema)]

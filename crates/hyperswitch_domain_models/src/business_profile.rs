@@ -1620,6 +1620,20 @@ impl Profile {
             })
     }
 
+    /// Resolve an `AcquirerConfig` for a specific `profile_acquirer_id` bucket and `network`.
+    /// Use this when the authentication record already has a `profile_acquirer_id` scoped to a
+    /// particular acquirer, so the lookup is restricted to that bucket only.
+    pub fn get_acquirer_details_for_profile_acquirer(
+        &self,
+        profile_acquirer_id: &common_utils::id_type::ProfileAcquirerId,
+        network: common_enums::CardNetwork,
+    ) -> Option<AcquirerConfig> {
+        self.acquirer_config_map
+            .as_ref()
+            .and_then(|map| map.0.get(profile_acquirer_id))
+            .and_then(|bucket| bucket.iter().find(|cfg| cfg.network == network).cloned())
+    }
+
     #[cfg(feature = "v1")]
     pub fn get_payment_routing_algorithm(
         &self,

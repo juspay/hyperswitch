@@ -8422,27 +8422,54 @@ pub async fn get_payment_external_authentication_flow_during_confirm<F: Clone>(
                 connector_data.merchant_connector_id.as_ref(),
             )
             .await?;
-            let acquirer_details = payment_connector_mca
+            let acquirer_details = match payment_connector_mca
                 .get_metadata()
-                .clone()
+                .as_ref()
                 .and_then(|metadata| {
-                    metadata
-                    .peek()
-                    .clone()
-                    .parse_value::<authentication::types::AcquirerDetails>("AcquirerDetails")
-                    .change_context(errors::ApiErrorResponse::PreconditionFailed {
-                        message:
-                            "acquirer_bin and acquirer_merchant_id not found in Payment Connector's Metadata"
-                                .to_string(),
-                    })
-                    .inspect_err(|err| {
-                        logger::error!(
-                            "Failed to parse acquirer details from Payment Connector's Metadata: {:?}",
-                            err
-                        );
-                    })
-                    .ok()
-                });
+                    let metadata_val = metadata.peek();
+                    metadata_val
+                        .get("acquirer_details")
+                        .cloned()
+                        .or_else(|| metadata_val.get("acquirer_bin").map(|_| metadata_val.clone()))
+                        .and_then(|val| {
+                            val.parse_value::<authentication::types::AcquirerDetails>(
+                                "AcquirerDetails",
+                            )
+                            .change_context(errors::ApiErrorResponse::PreconditionFailed {
+                                message: "acquirer_bin and acquirer_merchant_id not found in Payment Connector's Metadata"
+                                    .to_string(),
+                            })
+                            .inspect_err(|err| {
+                                logger::error!(
+                                    "Failed to parse acquirer details from Payment Connector's Metadata: {:?}",
+                                    err
+                                );
+                            })
+                            .ok()
+                        })
+                }) {
+                Some(details) => Some(details),
+                None => match card.card_network.as_ref() {
+                    Some(network) => Some(network.clone()),
+                    None => state
+                        .store
+                        .get_card_info(&card.card_number.get_card_isin())
+                        .await
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable("Failed to fetch card info from DB")?
+                        .ok_or(errors::ApiErrorResponse::PreconditionFailed {
+                            message: "Card info not found in DB".to_string(),
+                        })?
+                        .card_network,
+                }
+                .and_then(|network| business_profile.get_acquirer_details_from_network(network))
+                .map(|resolved| authentication::types::AcquirerDetails {
+                    acquirer_bin: resolved.acquirer_bin,
+                    acquirer_merchant_id: resolved.acquirer_assigned_merchant_id,
+                    acquirer_country_code: resolved.acquirer_country_code,
+                }),
+            };
+
             Some(PaymentExternalAuthenticationFlow::PreAuthenticationFlow {
                 card: Box::new(card),
                 token,

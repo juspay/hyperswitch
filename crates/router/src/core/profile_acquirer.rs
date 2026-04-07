@@ -32,6 +32,7 @@ pub async fn create_profile_acquirer(
         acquirer_bin: request.acquirer_bin.clone(),
         acquirer_ica: request.acquirer_ica.clone(),
         acquirer_fraud_rate: request.acquirer_fraud_rate,
+        acquirer_country_code: request.acquirer_country_code.clone(),
     };
 
     // Cross-bucket duplicate check: reject if this exact AcquirerConfig already exists in any bucket.
@@ -142,68 +143,66 @@ pub async fn update_profile_acquirer_config(
     let target_network = request.network.clone();
     let existing_pos = bucket.iter().position(|cfg| cfg.network == target_network);
 
-    // Build the upserted config: start from existing slot values (or blank defaults for a new slot).
-    let mut upserted_config = existing_pos
-        .and_then(|pos| bucket.get(pos).cloned())
-        .unwrap_or_else(|| common_types::domain::AcquirerConfig {
-            network: target_network.clone(),
-            acquirer_assigned_merchant_id: String::new(),
-            merchant_name: String::new(),
-            acquirer_bin: String::new(),
-            acquirer_ica: None,
-            acquirer_fraud_rate: None,
-        });
+    // Build the upserted config by applying partial-update fields over the existing slot
+    // (or blank defaults for a new slot) — all in one immutable expression.
+    let upserted_config = {
+        let base = existing_pos
+            .and_then(|pos| bucket.get(pos).cloned())
+            .unwrap_or_else(|| common_types::domain::AcquirerConfig {
+                network: target_network.clone(),
+                acquirer_assigned_merchant_id: String::new(),
+                merchant_name: String::new(),
+                acquirer_bin: String::new(),
+                acquirer_ica: None,
+                acquirer_fraud_rate: None,
+                acquirer_country_code: None,
+            });
 
-    // Apply partial-update fields over the config.
-    if let Some(val) = request.acquirer_assigned_merchant_id {
-        upserted_config.acquirer_assigned_merchant_id = val;
-    }
-    if let Some(val) = request.merchant_name {
-        upserted_config.merchant_name = val;
-    }
-    if let Some(val) = request.acquirer_bin {
-        upserted_config.acquirer_bin = val;
-    }
-    if let Some(val) = request.acquirer_ica {
-        upserted_config.acquirer_ica = Some(val);
-    }
-    if let Some(val) = request.acquirer_fraud_rate {
-        upserted_config.acquirer_fraud_rate = Some(val);
-    }
+        common_types::domain::AcquirerConfig {
+            acquirer_assigned_merchant_id: request
+                .acquirer_assigned_merchant_id
+                .unwrap_or(base.acquirer_assigned_merchant_id),
+            merchant_name: request.merchant_name.unwrap_or(base.merchant_name),
+            acquirer_bin: request.acquirer_bin.unwrap_or(base.acquirer_bin),
+            acquirer_ica: request.acquirer_ica.or(base.acquirer_ica),
+            acquirer_fraud_rate: request.acquirer_fraud_rate.or(base.acquirer_fraud_rate),
+            acquirer_country_code: request.acquirer_country_code.or(base.acquirer_country_code),
+            network: base.network,
+        }
+    };
 
     // Cross-bucket + cross-slot duplicate check: the final config must not identically
     // match any config in OTHER buckets or OTHER slots within this bucket.
-    for (other_bucket_id, cfgs) in acquirer_config_map.0.iter() {
-        for (idx, existing_cfg) in cfgs.iter().enumerate() {
-            let is_same_slot =
-                other_bucket_id == &profile_acquirer_id && (existing_pos == Some(idx));
-            if !is_same_slot && existing_cfg == &upserted_config {
-                return Err(error_stack::report!(
-                    errors::ApiErrorResponse::GenericDuplicateError {
-                        message: format!(
-                            "Duplicate acquirer configuration. This configuration already exists in bucket '{}' under profile_id '{}'.",
-                            other_bucket_id.get_string_repr(),
-                            profile_id.get_string_repr()
-                        ),
-                    }
-                ));
-            }
-        }
-    }
+    acquirer_config_map
+        .0
+        .iter()
+        .flat_map(|(bucket_id, cfgs)| cfgs.iter().enumerate().map(move |(idx, cfg)| (bucket_id, idx, cfg)))
+        .find(|(other_bucket_id, idx, existing_cfg)| {
+            let is_same_slot = *other_bucket_id == &profile_acquirer_id && existing_pos == Some(*idx);
+            !is_same_slot && *existing_cfg == &upserted_config
+        })
+        .map_or(Ok(()), |(other_bucket_id, _, _)| {
+            Err(error_stack::report!(
+                errors::ApiErrorResponse::GenericDuplicateError {
+                    message: format!(
+                        "Duplicate network insertion. This network already exists in bucket '{}' under profile_id '{}'.",
+                        other_bucket_id.get_string_repr(),
+                        profile_id.get_string_repr()
+                    ),
+                }
+            ))
+        })?;
 
-    // Upsert into the bucket: overwrite if the network slot existed, otherwise push a new entry.
+    // Upsert into the bucket: overwrite existing network slot or push a new entry.
     let bucket = acquirer_config_map
         .0
         .get_mut(&profile_acquirer_id)
         .ok_or(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("bucket was verified above but vanished")?;
 
-    if let Some(pos) = existing_pos {
-        if let Some(entry) = bucket.get_mut(pos) {
-            *entry = upserted_config.clone();
-        }
-    } else {
-        bucket.push(upserted_config.clone());
+    match existing_pos {
+        Some(pos) => bucket[pos] = upserted_config.clone(),
+        None => bucket.push(upserted_config.clone()),
     }
 
     let updated_map_for_db_update = business_profile.acquirer_config_map.clone();

@@ -1159,14 +1159,10 @@ pub async fn authentication_eligibility_core(
     // under the authentication's profile_acquirer_id.
     let acquirer_details = authentication
         .profile_acquirer_id
-        .clone()
+        .as_ref()
         .zip(card_network.clone())
         .and_then(|(acquirer_id, network)| {
-            business_profile
-                .acquirer_config_map
-                .as_ref()
-                .and_then(|acquirer_config_map| acquirer_config_map.0.get(&acquirer_id))
-                .and_then(|bucket| bucket.iter().find(|cfg| cfg.network == network).cloned())
+            business_profile.get_acquirer_details_for_profile_acquirer(acquirer_id, network)
         });
 
     // If we resolved acquirer details from the bucket, persist them to the authentication record.
