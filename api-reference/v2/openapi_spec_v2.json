@@ -7409,6 +7409,43 @@
           }
         ]
       },
+      "BankDebitDetailUpdate": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "ach"
+            ],
+            "properties": {
+              "ach": {
+                "type": "object",
+                "properties": {
+                  "bank_account_holder_name": {
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "bank_type": {
+                    "allOf": [
+                      {
+                        "$ref": "#/components/schemas/BankType"
+                      }
+                    ],
+                    "nullable": true
+                  },
+                  "bank_holder_type": {
+                    "allOf": [
+                      {
+                        "$ref": "#/components/schemas/BankHolderType"
+                      }
+                    ],
+                    "nullable": true
+                  }
+                }
+              }
+            }
+          }
+        ]
+      },
       "BankDebitDetailsPaymentMethod": {
         "oneOf": [
           {
@@ -22629,6 +22666,17 @@
             "properties": {
               "card": {
                 "$ref": "#/components/schemas/CardDetailUpdate"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "bank_debit"
+            ],
+            "properties": {
+              "bank_debit": {
+                "$ref": "#/components/schemas/BankDebitDetailUpdate"
               }
             }
           }
