@@ -45,8 +45,7 @@ pub struct AffirmPaymentsRequest {
     pub merchant: Merchant,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub shipping: Option<Shipping>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub billing: Option<Billing>,
+    pub billing: Billing,
     pub total: MinorUnit,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub order_id: Option<String>,
@@ -148,11 +147,13 @@ fn validate_payment_currency(
     }
 }
 
-fn build_billing(item: &AffirmRouterData<&PaymentsAuthorizeRouterData>) -> Option<Billing> {
-    Some(Billing {
+fn build_billing(
+    item: &AffirmRouterData<&PaymentsAuthorizeRouterData>,
+) -> Result<Billing, error_stack::Report<errors::ConnectorError>> {
+    Ok(Billing {
         name: Name {
-            first: item.router_data.get_optional_billing_first_name(),
-            last: item.router_data.get_optional_billing_last_name(),
+            first: Some(item.router_data.get_billing_first_name()?),
+            last: Some(item.router_data.get_billing_last_name()?),
             full: item.router_data.get_optional_billing_full_name(),
         },
         address: Address {
@@ -169,23 +170,26 @@ fn build_billing(item: &AffirmRouterData<&PaymentsAuthorizeRouterData>) -> Optio
 }
 
 fn build_shipping(item: &AffirmRouterData<&PaymentsAuthorizeRouterData>) -> Option<Shipping> {
-    Some(Shipping {
-        name: Name {
-            first: item.router_data.get_optional_shipping_first_name(),
-            last: item.router_data.get_optional_shipping_last_name(),
-            full: item.router_data.get_optional_shipping_full_name(),
-        },
-        address: Address {
-            line1: item.router_data.get_optional_shipping_line1(),
-            line2: item.router_data.get_optional_shipping_line2(),
-            city: item.router_data.get_optional_shipping_city(),
-            state: item.router_data.get_optional_shipping_state(),
-            zipcode: item.router_data.get_optional_shipping_zip(),
-            country: item.router_data.get_optional_shipping_country(),
-        },
-        phone_number: item.router_data.get_optional_shipping_phone_number(),
-        email: item.router_data.get_optional_shipping_email(),
-    })
+    item.router_data
+        .get_shipping_address_with_phone_number()
+        .ok()
+        .map(|_| Shipping {
+            name: Name {
+                first: item.router_data.get_optional_shipping_first_name(),
+                last: item.router_data.get_optional_shipping_last_name(),
+                full: item.router_data.get_optional_shipping_full_name(),
+            },
+            address: Address {
+                line1: item.router_data.get_optional_shipping_line1(),
+                line2: item.router_data.get_optional_shipping_line2(),
+                city: item.router_data.get_optional_shipping_city(),
+                state: item.router_data.get_optional_shipping_state(),
+                zipcode: item.router_data.get_optional_shipping_zip(),
+                country: item.router_data.get_optional_shipping_country(),
+            },
+            phone_number: item.router_data.get_optional_shipping_phone_number(),
+            email: item.router_data.get_optional_shipping_email(),
+        })
 }
 
 impl TryFrom<&AffirmRouterData<&PaymentsAuthorizeRouterData>> for AffirmPaymentsRequest {
@@ -196,7 +200,7 @@ impl TryFrom<&AffirmRouterData<&PaymentsAuthorizeRouterData>> for AffirmPayments
     ) -> Result<Self, Self::Error> {
         let router_data = &item.router_data;
         let request = &router_data.request;
-        let billing = build_billing(item);
+        let billing = build_billing(item)?;
         let shipping = build_shipping(item);
 
         match request.payment_method_data.clone() {
