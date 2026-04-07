@@ -21826,6 +21826,17 @@
           {
             "type": "object",
             "required": [
+              "bank_debit"
+            ],
+            "properties": {
+              "bank_debit": {
+                "$ref": "#/components/schemas/BankDebitDetailsPaymentMethod"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
               "bank"
             ],
             "properties": {
