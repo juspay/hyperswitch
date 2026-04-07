@@ -1188,22 +1188,14 @@ pub async fn create_persistent_payment_method_core(
             .await
         }
         api::PaymentMethodCreateData::Wallet(wallet_data) => {
-            let additional_data = domain::PaymentMethodsData::WalletDetails(*wallet_data.clone());
-            create_payment_method_wallet_core(
-                state,
-                req,
-                platform,
-                profile,
-                merchant_id,
-                &customer_id,
-                payment_method_id,
-                payment_method_billing_address,
-                additional_data,
-            )
-            .await
-        }
-        api::PaymentMethodCreateData::Paypal(paypal_data) => {
-            let additional_data = domain::PaymentMethodsData::PaypalDetails(*paypal_data.clone());
+            let additional_data = match wallet_data {
+                api::WalletCreateData::ApplePay(data) | api::WalletCreateData::GooglePay(data) => {
+                    domain::PaymentMethodsData::WalletDetails(*data.clone())
+                }
+                api::WalletCreateData::PayPal(data) => {
+                    domain::PaymentMethodsData::PaypalDetails(*data.clone())
+                }
+            };
             create_payment_method_wallet_core(
                 state,
                 req,
@@ -1297,11 +1289,6 @@ pub async fn create_volatile_payment_method_core(
         api::PaymentMethodCreateData::Wallet(_) => {
             Err(report!(errors::ApiErrorResponse::UnprocessableEntity {
                 message: "Wallet payment method cannot be created as volatile".to_string()
-            }))
-        }
-        api::PaymentMethodCreateData::Paypal(_) => {
-            Err(report!(errors::ApiErrorResponse::UnprocessableEntity {
-                message: "Paypal payment method cannot be created as volatile".to_string()
             }))
         }
     }
@@ -1954,6 +1941,7 @@ pub async fn create_payment_method_wallet_core(
         None,
         None,
         platform.get_initiator(),
+        enums::PaymentMethodStatus::New,
     )
     .await?;
 
@@ -2069,6 +2057,7 @@ pub async fn create_payment_method_proxy_card_core(
         encrypted_external_vault_token_data,
         vault_type,
         platform.get_initiator(),
+        enums::PaymentMethodStatus::Inactive,
     )
     .await?;
 
@@ -2418,13 +2407,18 @@ impl PaymentMethodExt for payment_methods::PaymentMethodCreateData {
                     co_badged_card_data: None,
                 },
             )),
-            Self::Wallet(wallet_data) => Ok(payment_methods::PaymentMethodsData::WalletDetails(
-                *wallet_data,
-            )),
-            Self::Paypal(_) => Err(errors::ApiErrorResponse::UnprocessableEntity {
-                message: "Paypal payment method does not support this operation".to_string(),
-            }
-            .into()),
+            Self::Wallet(wallet_data) => match wallet_data {
+                api::WalletCreateData::ApplePay(data) | api::WalletCreateData::GooglePay(data) => {
+                    Ok(payment_methods::PaymentMethodsData::WalletDetails(*data))
+                }
+                api::WalletCreateData::PayPal(_) => {
+                    Err(errors::ApiErrorResponse::UnprocessableEntity {
+                        message: "PayPal payment method does not support this operation"
+                            .to_string(),
+                    }
+                    .into())
+                }
+            },
         }
     }
 
@@ -2433,7 +2427,7 @@ impl PaymentMethodExt for payment_methods::PaymentMethodCreateData {
             Self::ProxyCard(card_details) => Some(payment_methods::ExternalVaultTokenData {
                 tokenized_card_number: card_details.card_number,
             }),
-            Self::Card(_) | Self::Wallet(_) | Self::Paypal(_) => None,
+            Self::Card(_) | Self::Wallet(_) => None,
         }
     }
 }
@@ -3029,6 +3023,7 @@ pub async fn create_payment_method_for_confirm(
     >,
     vault_type: Option<common_enums::VaultType>,
     initiator: Option<&domain::Initiator>,
+    status: enums::PaymentMethodStatus,
 ) -> CustomResult<domain::PaymentMethod, errors::ApiErrorResponse> {
     let db = &*state.store;
     let current_time = common_utils::date_time::now();
@@ -3047,7 +3042,7 @@ pub async fn create_payment_method_for_confirm(
                 connector_mandate_details: None,
                 customer_acceptance: None,
                 client_secret: None,
-                status: enums::PaymentMethodStatus::Inactive,
+                status,
                 network_transaction_id: None,
                 created_at: current_time,
                 last_modified: current_time,
@@ -5850,12 +5845,8 @@ impl<'a> pm_types::PaymentMethodUpdateHandler<'a> {
 
     fn validate(&self) -> RouterResult<()> {
         let payment_method = &self.payment_method;
-        let is_wallet_connector_token_update = payment_method.payment_method_type
-            == Some(enums::PaymentMethod::Wallet)
-            && self.request.connector_token_details.is_some();
         when(
-            payment_method.status == enums::PaymentMethodStatus::Inactive
-                && !is_wallet_connector_token_update,
+            payment_method.status == enums::PaymentMethodStatus::Inactive,
             || {
                 Err(errors::ApiErrorResponse::InvalidRequestData {
                     message: "Inactive Payment Method cannot be updated".to_string(),

@@ -61,10 +61,17 @@ pub struct CardDetail {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
+pub enum WalletCreateData {
+    ApplePay(Box<api_models::payment_methods::PaymentMethodDataWalletInfo>),
+    GooglePay(Box<api_models::payment_methods::PaymentMethodDataWalletInfo>),
+    PayPal(Box<payments::PaypalRedirection>),
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
 pub enum PaymentMethodCreateData {
     Card(CardDetail),
-    Wallet(Box<api_models::payment_methods::PaymentMethodDataWalletInfo>),
-    Paypal(Box<payments::PaypalRedirection>),
+    Wallet(WalletCreateData),
 }
 
 #[derive(Clone, Debug, Deserialize)]
@@ -163,7 +170,9 @@ impl TryFrom<PaymentMethodData> for PaymentMethodCreateData {
                         card_exp_year: None,
                         auth_code: None,
                     };
-                    Ok(Self::Wallet(Box::new(wallet_info)))
+                    Ok(Self::Wallet(WalletCreateData::ApplePay(Box::new(
+                        wallet_info,
+                    ))))
                 }
                 hyperswitch_domain_models::payment_method_data::WalletData::GooglePay(
                     google_pay,
@@ -176,7 +185,9 @@ impl TryFrom<PaymentMethodData> for PaymentMethodCreateData {
                         card_exp_year: None,
                         auth_code: None,
                     };
-                    Ok(Self::Wallet(Box::new(wallet_info)))
+                    Ok(Self::Wallet(WalletCreateData::GooglePay(Box::new(
+                        wallet_info,
+                    ))))
                 }
                 hyperswitch_domain_models::payment_method_data::WalletData::PaypalRedirect(
                     paypal,
@@ -184,7 +195,9 @@ impl TryFrom<PaymentMethodData> for PaymentMethodCreateData {
                     let paypal_info = payments::PaypalRedirection {
                         email: paypal.email,
                     };
-                    Ok(Self::Paypal(Box::new(paypal_info)))
+                    Ok(Self::Wallet(WalletCreateData::PayPal(Box::new(
+                        paypal_info,
+                    ))))
                 }
                 _ => Err(MicroserviceClientError {
                     operation: "PaymentMethodCreateData::try_from".to_string(),

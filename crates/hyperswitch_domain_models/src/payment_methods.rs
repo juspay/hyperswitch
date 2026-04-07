@@ -401,9 +401,8 @@ impl
                     card_cvc: card_data.card_cvc.clone(),
                 }),
             ),
-            payment_methods::PaymentMethodCreateData::ProxyCard(_) => None,
-            payment_methods::PaymentMethodCreateData::Wallet(_) => None,
-            payment_methods::PaymentMethodCreateData::Paypal(_) => None,
+            payment_methods::PaymentMethodCreateData::ProxyCard(_)
+            | payment_methods::PaymentMethodCreateData::Wallet(_) => None,
         };
 
         Self {

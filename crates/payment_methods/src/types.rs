@@ -37,14 +37,23 @@ pub struct PaymentMethodResponseItem {
     pub network_tokenization: Option<NetworkTokenResponse>,
     pub psp_tokenization_enabled: bool,
 }
+/// V2 WalletResponseData enum
+#[derive(Clone, Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+#[serde(rename_all = "snake_case")]
+pub enum WalletResponseData {
+    ApplePay(Box<api_models::payment_methods::PaymentMethodDataWalletInfo>),
+    GooglePay(Box<api_models::payment_methods::PaymentMethodDataWalletInfo>),
+    PayPal(Box<payments::PaypalRedirection>),
+}
+
 /// V2 PaymentMethodResponseData enum
 #[derive(Clone, Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 #[serde(rename_all = "snake_case")]
 pub enum PaymentMethodResponseData {
     Card(Box<CardDetailFromLocker>),
-    Wallet(Box<api_models::payment_methods::PaymentMethodDataWalletInfo>),
-    Paypal(Box<payments::PaypalRedirection>),
+    Wallet(WalletResponseData),
 }
 
 /// V2 modular service request payload.

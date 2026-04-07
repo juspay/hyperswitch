@@ -218,10 +218,7 @@ impl PaymentMethodIntentConfirm {
                 )
             }
             api_enums::PaymentMethod::Wallet => {
-                matches!(
-                    payment_method_data,
-                    PaymentMethodCreateData::Wallet(_) | PaymentMethodCreateData::Paypal(_)
-                )
+                matches!(payment_method_data, PaymentMethodCreateData::Wallet(_))
             }
             _ => false,
         }
@@ -528,10 +525,7 @@ impl PaymentMethodCreate {
                 )
             }
             api_enums::PaymentMethod::Wallet => {
-                matches!(
-                    payment_method_data,
-                    PaymentMethodCreateData::Wallet(_) | PaymentMethodCreateData::Paypal(_)
-                )
+                matches!(payment_method_data, PaymentMethodCreateData::Wallet(_))
             }
             _ => false,
         }
@@ -600,13 +594,22 @@ pub enum PaymentMethodUpdateData {
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
 #[serde(deny_unknown_fields)]
 #[serde(rename_all = "snake_case")]
+pub enum WalletCreateData {
+    ApplePay(Box<PaymentMethodDataWalletInfo>),
+    GooglePay(Box<PaymentMethodDataWalletInfo>),
+    #[schema(value_type = PaypalRedirection)]
+    PayPal(Box<payments::PaypalRedirection>),
+}
+
+#[cfg(feature = "v2")]
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
+#[serde(deny_unknown_fields)]
+#[serde(rename_all = "snake_case")]
 #[serde(rename = "payment_method_data")]
 pub enum PaymentMethodCreateData {
     Card(CardDetail),
     ProxyCard(ProxyCardDetails),
-    Wallet(Box<PaymentMethodDataWalletInfo>),
-    #[schema(value_type = PaypalRedirection)]
-    Paypal(Box<payments::PaypalRedirection>),
+    Wallet(WalletCreateData),
 }
 
 #[cfg(feature = "v2")]

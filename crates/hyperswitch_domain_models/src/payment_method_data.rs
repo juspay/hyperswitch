@@ -1618,12 +1618,6 @@ impl TryFrom<payment_methods::PaymentMethodCreateData> for PaymentMethodData {
                 }
                 .into(),
             ),
-            payment_methods::PaymentMethodCreateData::Paypal(_) => Err(
-                common_utils::errors::ValidationError::IncorrectValueProvided {
-                    field_name: "Payment method data",
-                }
-                .into(),
-            ),
         }
     }
 }

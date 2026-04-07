@@ -346,12 +346,6 @@ impl TryFrom<payment_methods::PaymentMethodCreateData> for PaymentMethodVaulting
                 }
                 .into(),
             ),
-            payment_methods::PaymentMethodCreateData::Paypal(_) => Err(
-                errors::api_error_response::ApiErrorResponse::UnprocessableEntity {
-                    message: "Paypal for PaymentMethodCreateData".to_string(),
-                }
-                .into(),
-            ),
         }
     }
 }
