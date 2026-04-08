@@ -345,7 +345,7 @@ pub async fn create_merchant_account(
                 key_manager_state,
                 EncryptionTransferRequest {
                     identifier: identifier.clone(),
-                    key: masking::StrongSecret::new(BASE64_ENGINE.encode(key)),
+                    key: hyperswitch_masking::StrongSecret::new(BASE64_ENGINE.encode(key)),
                 },
             )
             .await
