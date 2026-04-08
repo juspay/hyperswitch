@@ -1,7 +1,7 @@
 use api_models::enums as api_enums;
 use common_utils::{ext_traits::OptionExt, fp_utils::when, pii::Email};
 use error_stack::{report, ResultExt};
-use masking::Secret;
+use hyperswitch_masking::Secret;
 use router_env::logger;
 
 use super::{
@@ -67,7 +67,7 @@ impl<'a> NetworkTokenizationBuilder<'a, TokenizeWithPmId> {
     ) -> NetworkTokenizationBuilder<'a, PmFetched> {
         let payment_method_response = api::PaymentMethodResponse {
             merchant_id: payment_method.merchant_id.clone(),
-            customer_id: Some(payment_method.customer_id.clone()),
+            customer_id: payment_method.customer_id.clone(),
             payment_method_id: payment_method.payment_method_id.clone(),
             payment_method: payment_method.payment_method,
             payment_method_type: payment_method.payment_method_type,
@@ -149,6 +149,9 @@ impl<'a> NetworkTokenizationBuilder<'a, PmValidated> {
             card_issuing_country: optional_card_info
                 .as_ref()
                 .and_then(|card_info| card_info.card_issuing_country.clone()),
+            card_issuing_country_code: optional_card_info
+                .as_ref()
+                .and_then(|card_info| card_info.country_code.clone()),
             co_badged_card_data: None,
         };
         NetworkTokenizationBuilder {
@@ -221,7 +224,7 @@ impl<'a> NetworkTokenizationBuilder<'a, PmTokenStored> {
     ) -> NetworkTokenizationBuilder<'a, PmTokenUpdated> {
         let payment_method_response = api::PaymentMethodResponse {
             merchant_id: payment_method.merchant_id.clone(),
-            customer_id: Some(payment_method.customer_id.clone()),
+            customer_id: payment_method.customer_id.clone(),
             payment_method_id: payment_method.payment_method_id.clone(),
             payment_method: payment_method.payment_method,
             payment_method_type: payment_method.payment_method_type,
@@ -314,7 +317,17 @@ impl CardNetworkTokenizeExecutor<'_, domain::TokenizePaymentMethodRequest> {
             .change_context(errors::ApiErrorResponse::MissingRequiredField {
                 field_name: "customer",
             })?;
-        when(payment_method.customer_id != customer_id_in_req, || {
+
+        let customer_id = payment_method
+            .customer_id
+            .clone()
+            .get_required_value("customer_id")
+            .change_context(errors::ApiErrorResponse::MissingRequiredField {
+                field_name: "customer",
+            })
+            .attach_printable("Missing customer_id in domain payment method")?;
+
+        when(customer_id != customer_id_in_req, || {
             Err(report!(errors::ApiErrorResponse::InvalidRequestData {
                 message: "Payment method does not belong to the customer".to_string()
             }))
@@ -354,7 +367,7 @@ impl CardNetworkTokenizeExecutor<'_, domain::TokenizePaymentMethodRequest> {
         let db = &*self.state.store;
         let customer = db
             .find_customer_by_customer_id_merchant_id(
-                &payment_method.customer_id,
+                &customer_id,
                 self.merchant_account.get_id(),
                 self.key_store,
                 self.merchant_account.storage_scheme,
@@ -364,7 +377,7 @@ impl CardNetworkTokenizeExecutor<'_, domain::TokenizePaymentMethodRequest> {
             .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
         let customer_details = api::CustomerDetails {
-            id: customer.customer_id.clone(),
+            id: Some(customer.customer_id.clone()),
             name: customer.name.clone().map(|name| name.into_inner()),
             email: customer.email.clone().map(Email::from),
             phone: customer.phone.clone().map(|phone| phone.into_inner()),
@@ -373,6 +386,7 @@ impl CardNetworkTokenizeExecutor<'_, domain::TokenizePaymentMethodRequest> {
                 .tax_registration_id
                 .clone()
                 .map(|tax_registration_id| tax_registration_id.into_inner()),
+            document_details: None,
         };
 
         Ok((locker_id, customer_details))
@@ -383,6 +397,7 @@ impl CardNetworkTokenizeExecutor<'_, domain::TokenizePaymentMethodRequest> {
         payment_method: domain::PaymentMethod,
         network_token_details: &NetworkTokenizationResponse,
         card_details: &domain::CardDetail,
+        initiator: Option<&domain::Initiator>,
     ) -> RouterResult<domain::PaymentMethod> {
         // Form encrypted network token data
         let enc_token_data = self
@@ -394,7 +409,10 @@ impl CardNetworkTokenizeExecutor<'_, domain::TokenizePaymentMethodRequest> {
             network_token_requestor_reference_id: network_token_details.1.clone(),
             network_token_locker_id: Some(store_token_response.card_reference.clone()),
             network_token_payment_method_data: Some(enc_token_data.into()),
-            last_modified_by: None,
+            last_modified_by: initiator
+                .and_then(|initiator| initiator.to_created_by())
+                .map(|last_modified_by| last_modified_by.to_string()),
+            network_tokenization_data: None,
         };
         self.state
             .store

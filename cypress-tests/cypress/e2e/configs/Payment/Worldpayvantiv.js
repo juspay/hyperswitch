@@ -1,5 +1,6 @@
 import { customerAcceptance } from "./Commons";
 import { getCustomExchange } from "./Modifiers";
+const TIMEOUT = 5000;
 
 const successfulNo3DSCardDetails = {
   card_number: "4470330769941000",
@@ -76,6 +77,12 @@ export const connectorDetails = {
       },
     },
     PaymentConfirmWithShippingCost: {
+      Configs: {
+        DELAY: {
+          STATUS: true,
+          TIMEOUT: TIMEOUT,
+        },
+      },
       Request: {
         payment_method: "card",
         payment_method_data: {
@@ -87,7 +94,7 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "succeeded",
+          status: "processing",
           shipping_cost: 50,
           amount: 5000,
           net_amount: 5050,
@@ -107,6 +114,12 @@ export const connectorDetails = {
       },
     }),
     "3DSAutoCapture": getCustomExchange({
+      Configs: {
+        DELAY: {
+          STATUS: true,
+          TIMEOUT: TIMEOUT,
+        },
+      },
       Request: {
         payment_method: "card",
         amount: 5000,
@@ -119,6 +132,12 @@ export const connectorDetails = {
       },
     }),
     No3DSManualCapture: {
+      Configs: {
+        DELAY: {
+          STATUS: true,
+          TIMEOUT: TIMEOUT,
+        },
+      },
       Request: {
         description: "Test description",
         payment_method: "card",
@@ -132,11 +151,17 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "requires_capture",
+          status: "processing",
         },
       },
     },
     No3DSAutoCapture: {
+      Configs: {
+        DELAY: {
+          STATUS: true,
+          TIMEOUT: TIMEOUT,
+        },
+      },
       Request: {
         payment_method: "card",
         amount: 5000,
@@ -155,30 +180,48 @@ export const connectorDetails = {
       },
     },
     Capture: {
+      Configs: {
+        DELAY: {
+          STATUS: true,
+          TIMEOUT: TIMEOUT,
+        },
+      },
       Request: {
         amount_to_capture: 5000,
       },
       Response: {
         status: 200,
         body: {
-          status: "succeeded",
+          status: "processing",
           amount: 5000,
         },
       },
     },
     PartialCapture: {
+      Configs: {
+        DELAY: {
+          STATUS: true,
+          TIMEOUT: TIMEOUT,
+        },
+      },
       Request: {
         amount_to_capture: 2000,
       },
       Response: {
         status: 200,
         body: {
-          status: "partially_captured",
+          status: "processing",
           amount: 5000,
         },
       },
     },
     Void: {
+      Configs: {
+        DELAY: {
+          STATUS: true,
+          TIMEOUT: TIMEOUT,
+        },
+      },
       Request: {},
       Response: {
         status: 200,
@@ -235,6 +278,8 @@ export const connectorDetails = {
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
+        mandate_data: null,
+        customer_acceptance: customerAcceptance,
       },
       Response: {
         status: 200,
@@ -276,16 +321,22 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "requires_capture",
+          status: "processing",
         },
       },
     },
     VoidAfterConfirm: {
+      Configs: {
+        DELAY: {
+          STATUS: true,
+          TIMEOUT: TIMEOUT,
+        },
+      },
       Request: {},
       Response: {
         status: 200,
         body: {
-          status: "cancelled",
+          status: "processing",
           amount: 5000,
         },
       },
@@ -297,7 +348,7 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "succeeded",
+          status: "pending",
         },
       },
     },
@@ -308,7 +359,7 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "succeeded",
+          status: "pending",
         },
       },
     },
@@ -390,13 +441,19 @@ export const connectorDetails = {
       },
     },
     Refund: {
+      Configs: {
+        DELAY: {
+          STATUS: true,
+          TIMEOUT: TIMEOUT,
+        },
+      },
       Request: {
         amount: 5000,
       },
       Response: {
         status: 200,
         body: {
-          status: "succeeded",
+          status: "pending",
         },
       },
     },
@@ -415,7 +472,7 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "succeeded",
+          status: "pending",
         },
       },
     },

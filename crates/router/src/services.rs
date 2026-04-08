@@ -13,6 +13,8 @@ pub mod pm_auth;
 
 pub mod card_testing_guard;
 #[cfg(feature = "olap")]
+pub mod oidc_provider;
+#[cfg(feature = "olap")]
 pub mod openidconnect;
 
 use std::sync::Arc;
@@ -22,7 +24,7 @@ use error_stack::ResultExt;
 pub use hyperswitch_interfaces::connector_integration_v2::{
     BoxedConnectorIntegrationV2, ConnectorIntegrationAnyV2, ConnectorIntegrationV2,
 };
-use masking::{ExposeInterface, StrongSecret};
+use hyperswitch_masking::{ExposeInterface, StrongSecret};
 #[cfg(feature = "kv_store")]
 use storage_impl::kv_router_store::KVRouterStore;
 use storage_impl::{errors::StorageResult, redis::RedisStore, RouterStore};

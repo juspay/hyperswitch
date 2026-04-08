@@ -3,7 +3,7 @@ use common_utils::{
     types::{MinorUnit, StringMinorUnit},
 };
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable, Selectable};
-use masking::Secret;
+use hyperswitch_masking::Secret;
 use serde::Serialize;
 use time::PrimitiveDateTime;
 
@@ -35,6 +35,8 @@ pub struct DisputeNew {
     pub dispute_amount: MinorUnit,
     pub organization_id: common_utils::id_type::OrganizationId,
     pub dispute_currency: Option<storage_enums::Currency>,
+    pub processor_merchant_id: Option<common_utils::id_type::MerchantId>,
+    pub created_by: Option<String>,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Identifiable, Queryable, Selectable)]
@@ -66,6 +68,18 @@ pub struct Dispute {
     pub dispute_amount: MinorUnit,
     pub organization_id: common_utils::id_type::OrganizationId,
     pub dispute_currency: Option<storage_enums::Currency>,
+    pub processor_merchant_id: Option<common_utils::id_type::MerchantId>,
+    pub created_by: Option<String>,
+}
+
+impl Dispute {
+    /// Returns true if the dispute_status is either DisputeLost, or the option is None
+    pub fn is_not_lost_or_none(option: &Option<Self>) -> bool {
+        option
+            .as_ref()
+            .map(|d| d.dispute_status != common_enums::DisputeStatus::DisputeLost)
+            .unwrap_or(true)
+    }
 }
 
 #[derive(Debug)]

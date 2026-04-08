@@ -3,7 +3,9 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     enums,
-    frontend::dir::enums::{CustomerDeviceDisplaySize, CustomerDevicePlatform, CustomerDeviceType},
+    frontend::dir::enums::{
+        CustomerDeviceDisplaySize, CustomerDevicePlatform, CustomerDeviceType, TransactionInitiator,
+    },
 };
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -18,6 +20,7 @@ pub struct PaymentMethodInput {
     pub payment_method: Option<enums::PaymentMethod>,
     pub payment_method_type: Option<enums::PaymentMethodType>,
     pub card_network: Option<enums::CardNetwork>,
+    pub card_discovery: Option<enums::CardDiscovery>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -32,6 +35,7 @@ pub struct PaymentInput {
     pub billing_country: Option<enums::Country>,
     pub business_label: Option<String>,
     pub setup_future_usage: Option<enums::SetupFutureUsage>,
+    pub transaction_initiator: Option<TransactionInitiator>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

@@ -30,7 +30,7 @@ use hyperswitch_domain_models::{
     },
 };
 use hyperswitch_interfaces::{consts, errors};
-use masking::{ExposeInterface, PeekInterface, Secret};
+use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 use strum::Display;
 use url::Url;
@@ -496,7 +496,8 @@ impl TryFrom<&FiuuRouterData<&PaymentsAuthorizeRouterData>> for FiuuPaymentReque
                         }
                         RealTimePaymentData::Fps {}
                         | RealTimePaymentData::PromptPay {}
-                        | RealTimePaymentData::VietQr {} => {
+                        | RealTimePaymentData::VietQr {}
+                        | RealTimePaymentData::Qris {} => {
                             Err(errors::ConnectorError::NotImplemented(
                                 utils::get_unimplemented_payment_method_error_message("fiuu"),
                             )
@@ -608,7 +609,12 @@ impl TryFrom<&FiuuRouterData<&PaymentsAuthorizeRouterData>> for FiuuPaymentReque
                 | PaymentMethodData::CardToken(_)
                 | PaymentMethodData::OpenBanking(_)
                 | PaymentMethodData::NetworkToken(_)
-                | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
+                | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+                | PaymentMethodData::CardWithOptionalCVC(_)
+                | PaymentMethodData::CardWithNetworkTokenDetails(_)
+                | PaymentMethodData::CardWithLimitedDetails(_)
+                | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
+                | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
                     Err(errors::ConnectorError::NotImplemented(
                         utils::get_unimplemented_payment_method_error_message("fiuu"),
                     )
@@ -881,6 +887,7 @@ impl TryFrom<PaymentsResponseRouterData<FiuuPaymentsResponse>> for PaymentsAutho
                     network_txn_id: None,
                     connector_response_reference_id: None,
                     incremental_authorization_allowed: None,
+                    authentication_data: None,
                     charges: None,
                 }),
                 ..item.data
@@ -893,6 +900,7 @@ impl TryFrom<PaymentsResponseRouterData<FiuuPaymentsResponse>> for PaymentsAutho
                     status_code: item.http_code,
                     attempt_status: None,
                     connector_transaction_id: None,
+                    connector_response_reference_id: None,
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
@@ -921,6 +929,7 @@ impl TryFrom<PaymentsResponseRouterData<FiuuPaymentsResponse>> for PaymentsAutho
                             network_txn_id: None,
                             connector_response_reference_id: None,
                             incremental_authorization_allowed: None,
+                            authentication_data: None,
                             charges: None,
                         }),
                         ..item.data
@@ -967,6 +976,7 @@ impl TryFrom<PaymentsResponseRouterData<FiuuPaymentsResponse>> for PaymentsAutho
                             status_code: item.http_code,
                             attempt_status: None,
                             connector_transaction_id: Some(data.txn_id),
+                            connector_response_reference_id: None,
                             network_advice_code: None,
                             network_decline_code: None,
                             network_error_message: None,
@@ -981,6 +991,7 @@ impl TryFrom<PaymentsResponseRouterData<FiuuPaymentsResponse>> for PaymentsAutho
                             network_txn_id: None,
                             connector_response_reference_id: None,
                             incremental_authorization_allowed: None,
+                            authentication_data: None,
                             charges: None,
                         })
                     };
@@ -1017,6 +1028,7 @@ impl TryFrom<PaymentsResponseRouterData<FiuuPaymentsResponse>> for PaymentsAutho
                                 status_code: item.http_code,
                                 attempt_status: None,
                                 connector_transaction_id: recurring_response.tran_id.clone(),
+                                connector_response_reference_id: None,
                                 network_advice_code: None,
                                 network_decline_code: None,
                                 network_error_message: None,
@@ -1031,6 +1043,7 @@ impl TryFrom<PaymentsResponseRouterData<FiuuPaymentsResponse>> for PaymentsAutho
                                 network_txn_id: None,
                                 connector_response_reference_id: None,
                                 incremental_authorization_allowed: None,
+                                authentication_data: None,
                                 charges: None,
                             })
                         };
@@ -1050,6 +1063,7 @@ impl TryFrom<PaymentsResponseRouterData<FiuuPaymentsResponse>> for PaymentsAutho
                             network_txn_id: None,
                             connector_response_reference_id: None,
                             incremental_authorization_allowed: None,
+                            authentication_data: None,
                             charges: None,
                         });
                         Self {
@@ -1154,6 +1168,7 @@ impl TryFrom<RefundsResponseRouterData<Execute, FiuuRefundResponse>>
                     status_code: item.http_code,
                     attempt_status: None,
                     connector_transaction_id: None,
+                    connector_response_reference_id: None,
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
@@ -1182,6 +1197,7 @@ impl TryFrom<RefundsResponseRouterData<Execute, FiuuRefundResponse>>
                             status_code: item.http_code,
                             attempt_status: None,
                             connector_transaction_id: Some(refund_data.refund_id.to_string()),
+                            connector_response_reference_id: None,
                             network_advice_code: None,
                             network_decline_code: None,
                             network_error_message: None,
@@ -1384,6 +1400,7 @@ impl TryFrom<PaymentsSyncResponseRouterData<FiuuPaymentResponse>> for PaymentsSy
                         reason: error_details.reason,
                         attempt_status: Some(enums::AttemptStatus::Failure),
                         connector_transaction_id: Some(txn_id.clone()),
+                        connector_response_reference_id: None,
                         network_advice_code: None,
                         network_decline_code: None,
                         network_error_message: None,
@@ -1403,11 +1420,15 @@ impl TryFrom<PaymentsSyncResponseRouterData<FiuuPaymentResponse>> for PaymentsSy
                         .map(|id| id.clone().expose()),
                     connector_response_reference_id: None,
                     incremental_authorization_allowed: None,
+                    authentication_data: None,
                     charges: None,
                 };
                 Ok(Self {
                     status,
-                    response: error_response.map_or_else(|| Ok(payments_response_data), Err),
+                    response: match error_response {
+                        Some(err) => Err(err),
+                        None => Ok(payments_response_data),
+                    },
                     ..item.data
                 })
             }
@@ -1452,6 +1473,7 @@ impl TryFrom<PaymentsSyncResponseRouterData<FiuuPaymentResponse>> for PaymentsSy
                         reason: error_details.reason,
                         attempt_status: Some(enums::AttemptStatus::Failure),
                         connector_transaction_id: Some(txn_id.clone()),
+                        connector_response_reference_id: None,
                         network_advice_code: None,
                         network_decline_code: None,
                         network_error_message: None,
@@ -1468,11 +1490,15 @@ impl TryFrom<PaymentsSyncResponseRouterData<FiuuPaymentResponse>> for PaymentsSy
                     network_txn_id: None,
                     connector_response_reference_id: None,
                     incremental_authorization_allowed: None,
+                    authentication_data: None,
                     charges: None,
                 };
                 Ok(Self {
                     status,
-                    response: error_response.map_or_else(|| Ok(payments_response_data), Err),
+                    response: match error_response {
+                        Some(err) => Err(err),
+                        None => Ok(payments_response_data),
+                    },
                     ..item.data
                 })
             }
@@ -1623,6 +1649,7 @@ impl TryFrom<PaymentsCaptureResponseRouterData<PaymentCaptureResponse>>
                 reason: optional_message,
                 attempt_status: None,
                 connector_transaction_id: Some(item.response.tran_id.clone()),
+                connector_response_reference_id: None,
                 network_advice_code: None,
                 network_decline_code: None,
                 network_error_message: None,
@@ -1641,11 +1668,15 @@ impl TryFrom<PaymentsCaptureResponseRouterData<PaymentCaptureResponse>>
             network_txn_id: None,
             connector_response_reference_id: None,
             incremental_authorization_allowed: None,
+            authentication_data: None,
             charges: None,
         };
         Ok(Self {
             status,
-            response: error_response.map_or_else(|| Ok(payments_response_data), Err),
+            response: match error_response {
+                Some(err) => Err(err),
+                None => Ok(payments_response_data),
+            },
             ..item.data
         })
     }
@@ -1739,6 +1770,7 @@ impl TryFrom<PaymentsCancelResponseRouterData<FiuuPaymentCancelResponse>>
                 reason: optional_message,
                 attempt_status: None,
                 connector_transaction_id: Some(item.response.tran_id.clone()),
+                connector_response_reference_id: None,
                 network_advice_code: None,
                 network_decline_code: None,
                 network_error_message: None,
@@ -1757,11 +1789,15 @@ impl TryFrom<PaymentsCancelResponseRouterData<FiuuPaymentCancelResponse>>
             network_txn_id: None,
             connector_response_reference_id: None,
             incremental_authorization_allowed: None,
+            authentication_data: None,
             charges: None,
         };
         Ok(Self {
             status,
-            response: error_response.map_or_else(|| Ok(payments_response_data), Err),
+            response: match error_response {
+                Some(err) => Err(err),
+                None => Ok(payments_response_data),
+            },
             ..item.data
         })
     }
@@ -1838,6 +1874,7 @@ impl TryFrom<RefundsResponseRouterData<RSync, FiuuRefundSyncResponse>>
                     status_code: item.http_code,
                     attempt_status: None,
                     connector_transaction_id: None,
+                    connector_response_reference_id: None,
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,

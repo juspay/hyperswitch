@@ -26,6 +26,10 @@ const CONSTANTS = {
   ],
 };
 
+function normalizeConnectorForRedirect(connectorId) {
+  return connectorId === "stripeconnect" ? "stripe" : connectorId;
+}
+
 export function handleRedirection(
   redirectionType,
   urls,
@@ -33,12 +37,14 @@ export function handleRedirection(
   paymentMethodType,
   handlerMetadata
 ) {
+  const resolvedConnectorId = normalizeConnectorForRedirect(connectorId);
+
   switch (redirectionType) {
     case "bank_redirect":
       bankRedirectRedirection(
         urls.redirectionUrl,
         urls.expectedUrl,
-        connectorId,
+        resolvedConnectorId,
         paymentMethodType
       );
       break;
@@ -46,25 +52,94 @@ export function handleRedirection(
       bankTransferRedirection(
         urls.redirectionUrl,
         urls.expectedUrl,
-        connectorId,
+        resolvedConnectorId,
         paymentMethodType,
         handlerMetadata.nextActionType
       );
       break;
     case "three_ds":
-      threeDsRedirection(urls.redirectionUrl, urls.expectedUrl, connectorId);
+      threeDsRedirection(
+        urls.redirectionUrl,
+        urls.expectedUrl,
+        resolvedConnectorId
+      );
       break;
     case "upi":
       upiRedirection(
         urls.redirectionUrl,
         urls.expectedUrl,
-        connectorId,
+        resolvedConnectorId,
+        paymentMethodType
+      );
+      break;
+    case "reward":
+      rewardRedirection(
+        urls.redirectionUrl,
+        urls.expectedUrl,
+        resolvedConnectorId,
+        paymentMethodType
+      );
+      break;
+    case "crypto":
+      cryptoRedirection(
+        urls.redirectionUrl,
+        urls.expectedUrl,
+        resolvedConnectorId,
         paymentMethodType
       );
       break;
     default:
       throw new Error(`Unknown redirection type: ${redirectionType}`);
   }
+}
+
+function cryptoRedirection(
+  redirectionUrl,
+  expectedUrl,
+  connectorId,
+  paymentMethodType
+) {
+  // Crypto payments are async → never verify return URL
+  const verifyUrl = false;
+
+  if (redirectionUrl && redirectionUrl.href) {
+    cy.visit(redirectionUrl.href);
+
+    // Ensure redirect happened
+    waitForRedirect(redirectionUrl.href);
+
+    cy.wait(CONSTANTS.WAIT_TIME / 5);
+
+    //  Verify QR is present
+    cy.get("canvas.BbpsQr__canvas", { timeout: 5000 })
+      .should("exist")
+      .and("be.visible");
+
+    handleFlow(
+      redirectionUrl,
+      expectedUrl,
+      connectorId,
+      ({ paymentMethodType }) => {
+        switch (paymentMethodType) {
+          case "crypto_currency":
+            cy.log("Handling crypto currency payment redirection");
+            break;
+
+          default:
+            throw new Error(
+              `Unsupported crypto payment method type: ${paymentMethodType}`
+            );
+        }
+      },
+      { paymentMethodType }
+    );
+  } else {
+    cy.log("Skipping crypto redirection - no valid redirect URL provided");
+  }
+
+  cy.then(() => {
+    verifyReturnUrl(redirectionUrl, expectedUrl, verifyUrl);
+  });
 }
 
 function bankTransferRedirection(
@@ -74,6 +149,7 @@ function bankTransferRedirection(
   paymentMethodType,
   nextActionType
 ) {
+  connectorId = normalizeConnectorForRedirect(connectorId);
   let verifyUrl = true; // Default to true, can be set to false based on conditions
   switch (nextActionType) {
     case "bank_transfer_steps_and_charges_details":
@@ -187,6 +263,7 @@ function bankRedirectRedirection(
   connectorId,
   paymentMethodType
 ) {
+  connectorId = normalizeConnectorForRedirect(connectorId);
   let verifyUrl = false;
 
   cy.visit(redirectionUrl.href);
@@ -314,7 +391,7 @@ function bankRedirectRedirection(
       redirectionUrl,
       expectedUrl,
       connectorId,
-      ({ connectorId, paymentMethodType }) => {
+      ({ connectorId, paymentMethodType, constants }) => {
         // Renamed expectedUrl arg for clarity
         // This callback now runs either in cy.origin (if redirected) or directly (if iframe)
         switch (connectorId) {
@@ -609,6 +686,44 @@ function bankRedirectRedirection(
             }
             break;
 
+          case "loonio":
+            switch (paymentMethodType) {
+              case "interac":
+                cy.contains("p", "Pay with Interac e-transfer").click();
+
+                verifyUrl = true;
+                break;
+              default:
+                throw new Error(
+                  `Unsupported loonio payment method type: ${paymentMethodType}`
+                );
+            }
+            break;
+
+          case "gigadat":
+            switch (paymentMethodType) {
+              case "interac":
+                cy.contains("button", /Return To Merchant/i, {
+                  timeout: constants.TIMEOUT / 3,
+                })
+                  .should("be.visible")
+                  .click();
+
+                cy.contains("button", /^Yes$/i, {
+                  timeout: constants.TIMEOUT / 3,
+                })
+                  .should("be.visible")
+                  .click();
+
+                verifyUrl = true;
+                break;
+              default:
+                throw new Error(
+                  `Unsupported loonio payment method type: ${paymentMethodType}`
+                );
+            }
+            break;
+
           case "multisafepay":
             if (["sofort", "eps", "mbway"].includes(paymentMethodType)) {
               // Multisafe pay has CSRF blocking cannot actually test redirection flow via cypress
@@ -618,6 +733,190 @@ function bankRedirectRedirection(
             } else {
               throw new Error(
                 `Unsupported multisafe payment method type: ${paymentMethodType}`
+              );
+            }
+            break;
+
+          case "calida":
+            switch (paymentMethodType) {
+              case "bluecode":
+                cy.log("Handling Bluecode redirect flow");
+
+                cy.contains("body", /Open your Bluecode compatible App/i, {
+                  timeout: constants.TIMEOUT / 3,
+                }).should("be.visible");
+
+                // Bluecode shows a QR that the shopper scans inside their wallet app.
+                cy.get(
+                  "canvas:visible, img:visible, svg:visible, picture:visible",
+                  {
+                    timeout: constants.TIMEOUT / 2,
+                  }
+                )
+                  .first()
+                  .scrollIntoView()
+                  .should("be.visible")
+                  .then(($el) => {
+                    cy.log(
+                      "Verified Bluecode QR code is visible",
+                      $el.prop("tagName")
+                    );
+                  });
+
+                cy.contains("button, a", /Cancel/i, {
+                  timeout: constants.TIMEOUT / 3,
+                }).should("be.visible");
+
+                verifyUrl = false;
+                break;
+              default:
+                throw new Error(
+                  `Unsupported Calida payment method type: ${paymentMethodType}`
+                );
+            }
+            break;
+
+          case "volt":
+            if (paymentMethodType === "open_banking_uk") {
+              cy.log("Handling Volt OpenBankingUk redirect flow");
+              const clickableSelector =
+                "button, [role='button'], div[role='option'], li, span, label";
+              const selectBank = () =>
+                cy
+                  .contains(clickableSelector, /Barclays Sandbox/i, {
+                    timeout: constants.TIMEOUT,
+                  })
+                  .scrollIntoView()
+                  .should("be.visible")
+                  .then(($el) => {
+                    const candidate = $el.closest(clickableSelector);
+                    if (candidate.length) {
+                      cy.wrap(candidate).click();
+                    } else {
+                      cy.wrap($el).click();
+                    }
+                  });
+              selectBank();
+              cy.contains("button, a", /Continue on Desktop/i, {
+                timeout: constants.TIMEOUT,
+              })
+                .should("be.visible")
+                .click();
+              verifyUrl = true;
+            } else {
+              throw new Error(
+                `Unsupported Volt payment method type: ${paymentMethodType}`
+              );
+            }
+            break;
+
+          case "fiuu":
+            if (paymentMethodType === "online_banking_fpx") {
+              cy.log("Handling FIUU OnlineBankingFpx redirect flow");
+
+              cy.get("body", { timeout: constants.TIMEOUT }).then(($body) => {
+                if ($body.find("#txtUsername").length > 0) {
+                  cy.get("#txtUsername").clear().type("Gaara", { delay: 10 });
+                }
+
+                if ($body.find("#txtPassword").length > 0) {
+                  cy.get("#txtPassword")
+                    .clear()
+                    .type("letmepaywithsand", { delay: 10 });
+                }
+
+                if ($body.find("#login-btn").length > 0) {
+                  cy.get("#login-btn").click();
+                }
+              });
+
+              cy.get("body", { timeout: constants.TIMEOUT }).then(($body) => {
+                const requestTacButton = $body.find(
+                  "button.pay-btn:contains('Request TAC')"
+                );
+                if (requestTacButton.length > 0) {
+                  cy.wrap(requestTacButton).click();
+                }
+              });
+
+              cy.get("body", { timeout: constants.TIMEOUT }).then(($body) => {
+                const otpText = $body.find("div.otp").text();
+                const otpMatch = otpText.match(/\d+/);
+
+                if (otpMatch) {
+                  cy.get("#otp-input")
+                    .should("be.visible")
+                    .should("be.enabled")
+                    .clear()
+                    .type(otpMatch[0]);
+                } else {
+                  cy.log("FIUU FPX OTP text not found; proceeding without OTP");
+                }
+              });
+
+              cy.contains("button.pay-btn", /Pay Now|Request TAC/i, {
+                timeout: constants.TIMEOUT,
+              })
+                .should("be.visible")
+                .click();
+
+              verifyUrl = true;
+            } else {
+              throw new Error(
+                `Unsupported FIUU payment method type: ${paymentMethodType}`
+              );
+            }
+            break;
+
+          case "mollie":
+            if (
+              [
+                "eps",
+                "ideal",
+                "giropay",
+                "sofort",
+                "przelewy24",
+                "bancontact_card",
+              ].includes(paymentMethodType)
+            ) {
+              cy.log(`Handling Mollie ${paymentMethodType} redirect flow`);
+
+              // Mollie test mode shows radio buttons to select payment status
+              cy.get("body").then(($body) => {
+                const paidSelector = 'input[type="radio"][value="paid"]';
+                const authorizedSelector =
+                  'input[type="radio"][value="authorized"]';
+
+                if ($body.find(paidSelector).length) {
+                  cy.get(paidSelector, { timeout: constants.WAIT_TIME })
+                    .click()
+                    .log("Selected: Paid");
+                } else if ($body.find(authorizedSelector).length) {
+                  cy.get(authorizedSelector, { timeout: constants.WAIT_TIME })
+                    .click()
+                    .log("Selected: Authorized");
+                } else {
+                  cy.log(
+                    "No payment status selector found, page may auto-redirect"
+                  );
+                }
+              });
+
+              // Click the Continue button if present
+              cy.get("body").then(($body) => {
+                if ($body.find('button:contains("Continue")').length > 0) {
+                  cy.contains("button", "Continue", {
+                    timeout: constants.WAIT_TIME,
+                  })
+                    .should("be.visible")
+                    .click();
+                }
+              });
+
+              verifyUrl = true;
+            } else {
+              throw new Error(
+                `Unsupported Mollie payment method type: ${paymentMethodType}`
               );
             }
             break;
@@ -1075,6 +1374,7 @@ function threeDsRedirection(redirectionUrl, expectedUrl, connectorId) {
           break;
 
         case "worldpay":
+        case "worldpayxml":
           cy.get("iframe", { timeout: constants.WAIT_TIME })
             .its("0.contentDocument.body")
             .within(() => {
@@ -1116,6 +1416,28 @@ function threeDsRedirection(redirectionUrl, expectedUrl, connectorId) {
 
           cy.get("div.autenticada").click();
           cy.get('input[value="Enviar"]').click();
+          break;
+        case "mollie":
+          cy.get("body").then(($body) => {
+            const paidSelector = 'input[type="radio"][value="paid"]';
+
+            if ($body.find(paidSelector).length) {
+              cy.get(paidSelector, { timeout: 500 }) // Short timeout as we already checked existence
+                .click()
+                .log("Selected: Paid");
+            } else {
+              const authorizedSelector =
+                'input[type="radio"][value="authorized"]';
+
+              cy.get(authorizedSelector, { timeout: constants.WAIT_TIME })
+                .should("exist")
+                .click()
+                .log("Selected: Authorized");
+            }
+          });
+          cy.contains("button", "Continue", { timeout: constants.WAIT_TIME })
+            .should("be.visible")
+            .click();
           break;
         default:
           cy.wait(constants.WAIT_TIME);
@@ -1166,6 +1488,58 @@ function upiRedirection(
     }
   } else {
     return;
+  }
+
+  cy.then(() => {
+    verifyReturnUrl(redirectionUrl, expectedUrl, verifyUrl);
+  });
+}
+
+function rewardRedirection(
+  redirectionUrl,
+  expectedUrl,
+  connectorId,
+  paymentMethodType
+) {
+  let verifyUrl = false;
+
+  // Skip if redirectionUrl is null (happens when nextActionUrl is invalid)
+  if (redirectionUrl && redirectionUrl.href) {
+    cy.visit(redirectionUrl.href);
+    waitForRedirect(redirectionUrl.href);
+
+    handleFlow(
+      redirectionUrl,
+      expectedUrl,
+      connectorId,
+      ({ connectorId, paymentMethodType }) => {
+        switch (connectorId) {
+          case "cashtocode":
+            // Cashtocode reward payment redirects
+            switch (paymentMethodType) {
+              case "evoucher":
+              case "classic":
+                cy.log(`Handling Cashtocode ${paymentMethodType} payment`);
+                // Cashtocode reward payments don't reach terminal state
+                // Skip return URL verification
+                verifyUrl = false;
+                break;
+              default:
+                throw new Error(
+                  `Unsupported Cashtocode payment method type: ${paymentMethodType}`
+                );
+            }
+            break;
+          default:
+            // Default handling for other connectors that may support reward payments
+            cy.log(`Handling reward payment for connector: ${connectorId}`);
+            verifyUrl = false;
+        }
+      },
+      { paymentMethodType }
+    );
+  } else {
+    cy.log("Skipping reward redirection - no valid redirect URL provided");
   }
 
   cy.then(() => {

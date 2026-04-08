@@ -19,7 +19,7 @@ use hyperswitch_interfaces::{
     consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE},
     errors,
 };
-use masking::{ExposeInterface, Secret};
+use hyperswitch_masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -120,7 +120,12 @@ impl TryFrom<&types::TokenizationRouterData> for BillwerkTokenRequest {
             | PaymentMethodData::OpenBanking(_)
             | PaymentMethodData::CardToken(_)
             | PaymentMethodData::NetworkToken(_)
-            | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
+            | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+            | PaymentMethodData::CardWithOptionalCVC(_)
+            | PaymentMethodData::CardWithNetworkTokenDetails(_)
+            | PaymentMethodData::CardWithLimitedDetails(_)
+            | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
+            | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("billwerk"),
                 )
@@ -279,6 +284,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, BillwerkPaymentsResponse, T, PaymentsRe
                 status_code: item.http_code,
                 attempt_status: None,
                 connector_transaction_id: Some(item.response.handle.clone()),
+                connector_response_reference_id: Some(item.response.handle.clone()),
                 network_advice_code: None,
                 network_decline_code: None,
                 network_error_message: None,
@@ -295,11 +301,15 @@ impl<F, T> TryFrom<ResponseRouterData<F, BillwerkPaymentsResponse, T, PaymentsRe
             network_txn_id: None,
             connector_response_reference_id: Some(item.response.handle),
             incremental_authorization_allowed: None,
+            authentication_data: None,
             charges: None,
         };
         Ok(Self {
             status: enums::AttemptStatus::from(item.response.state),
-            response: error_response.map_or_else(|| Ok(payments_response), Err),
+            response: match error_response {
+                Some(err) => Err(err),
+                None => Ok(payments_response),
+            },
             ..item.data
         })
     }

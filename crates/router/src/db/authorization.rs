@@ -16,15 +16,15 @@ pub trait AuthorizationInterface {
         authorization: storage::AuthorizationNew,
     ) -> CustomResult<storage::Authorization, errors::StorageError>;
 
-    async fn find_all_authorizations_by_merchant_id_payment_id(
+    async fn find_all_authorizations_by_processor_merchant_id_payment_id(
         &self,
-        merchant_id: &common_utils::id_type::MerchantId,
+        processor_merchant_id: &common_utils::id_type::MerchantId,
         payment_id: &common_utils::id_type::PaymentId,
     ) -> CustomResult<Vec<storage::Authorization>, errors::StorageError>;
 
-    async fn update_authorization_by_merchant_id_authorization_id(
+    async fn update_authorization_by_processor_merchant_id_authorization_id(
         &self,
-        merchant_id: common_utils::id_type::MerchantId,
+        processor_merchant_id: common_utils::id_type::MerchantId,
         authorization_id: String,
         authorization: storage::AuthorizationUpdate,
     ) -> CustomResult<storage::Authorization, errors::StorageError>;
@@ -45,33 +45,73 @@ impl AuthorizationInterface for Store {
     }
 
     #[instrument(skip_all)]
-    async fn find_all_authorizations_by_merchant_id_payment_id(
+    async fn find_all_authorizations_by_processor_merchant_id_payment_id(
         &self,
-        merchant_id: &common_utils::id_type::MerchantId,
+        processor_merchant_id: &common_utils::id_type::MerchantId,
         payment_id: &common_utils::id_type::PaymentId,
     ) -> CustomResult<Vec<storage::Authorization>, errors::StorageError> {
         let conn = connection::pg_connection_read(self).await?;
-        storage::Authorization::find_by_merchant_id_payment_id(&conn, merchant_id, payment_id)
+        // Stagger release fallback: first try processor_merchant_id, if empty fallback to merchant_id
+        // For old records processor_merchant_id is NULL, so we use merchant_id (which has the same value)
+        let authorizations = storage::Authorization::find_by_processor_merchant_id_payment_id(
+            &conn,
+            processor_merchant_id,
+            payment_id,
+        )
+        .await
+        .map_err(|error| report!(errors::StorageError::from(error)))?;
+
+        if authorizations.is_empty() {
+            storage::Authorization::find_by_merchant_id_payment_id(
+                &conn,
+                processor_merchant_id,
+                payment_id,
+            )
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))
+        } else {
+            Ok(authorizations)
+        }
     }
 
     #[instrument(skip_all)]
-    async fn update_authorization_by_merchant_id_authorization_id(
+    async fn update_authorization_by_processor_merchant_id_authorization_id(
         &self,
-        merchant_id: common_utils::id_type::MerchantId,
+        processor_merchant_id: common_utils::id_type::MerchantId,
         authorization_id: String,
         authorization: storage::AuthorizationUpdate,
     ) -> CustomResult<storage::Authorization, errors::StorageError> {
         let conn = connection::pg_connection_write(self).await?;
-        storage::Authorization::update_by_merchant_id_authorization_id(
+        // Stagger release fallback: first try processor_merchant_id, if not found fallback to merchant_id
+        // For old records processor_merchant_id is NULL, so we use merchant_id (which has the same value)
+        let result = storage::Authorization::update_by_processor_merchant_id_authorization_id(
             &conn,
-            merchant_id,
-            authorization_id,
-            authorization,
+            processor_merchant_id.clone(),
+            authorization_id.clone(),
+            authorization.clone(),
         )
-        .await
-        .map_err(|error| report!(errors::StorageError::from(error)))
+        .await;
+
+        match result {
+            Ok(auth) => Ok(auth),
+            Err(error) => {
+                if matches!(
+                    error.current_context(),
+                    diesel_models::errors::DatabaseError::NotFound
+                ) {
+                    storage::Authorization::update_by_merchant_id_authorization_id(
+                        &conn,
+                        processor_merchant_id,
+                        authorization_id,
+                        authorization,
+                    )
+                    .await
+                    .map_err(|error| report!(errors::StorageError::from(error)))
+                } else {
+                    Err(report!(errors::StorageError::from(error)))
+                }
+            }
+        }
     }
 }
 
@@ -102,46 +142,75 @@ impl AuthorizationInterface for MockDb {
             error_message: authorization.error_message,
             connector_authorization_id: authorization.connector_authorization_id,
             previously_authorized_amount: authorization.previously_authorized_amount,
+            processor_merchant_id: authorization.processor_merchant_id,
         };
         authorizations.push(authorization.clone());
         Ok(authorization)
     }
 
-    async fn find_all_authorizations_by_merchant_id_payment_id(
+    async fn find_all_authorizations_by_processor_merchant_id_payment_id(
         &self,
-        merchant_id: &common_utils::id_type::MerchantId,
+        processor_merchant_id: &common_utils::id_type::MerchantId,
         payment_id: &common_utils::id_type::PaymentId,
     ) -> CustomResult<Vec<storage::Authorization>, errors::StorageError> {
         let authorizations = self.authorizations.lock().await;
+        // Stagger release fallback: first try processor_merchant_id, if empty fallback to merchant_id
+        // For old records processor_merchant_id is NULL, so we use merchant_id (which has the same value)
         let authorizations_found: Vec<storage::Authorization> = authorizations
             .iter()
-            .filter(|a| a.merchant_id == *merchant_id && a.payment_id == *payment_id)
+            .filter(|a| {
+                a.processor_merchant_id.as_ref() == Some(processor_merchant_id)
+                    && a.payment_id == *payment_id
+            })
             .cloned()
             .collect();
 
-        Ok(authorizations_found)
+        if authorizations_found.is_empty() {
+            Ok(authorizations
+                .iter()
+                .filter(|a| a.merchant_id == *processor_merchant_id && a.payment_id == *payment_id)
+                .cloned()
+                .collect())
+        } else {
+            Ok(authorizations_found)
+        }
     }
 
-    async fn update_authorization_by_merchant_id_authorization_id(
+    async fn update_authorization_by_processor_merchant_id_authorization_id(
         &self,
-        merchant_id: common_utils::id_type::MerchantId,
+        processor_merchant_id: common_utils::id_type::MerchantId,
         authorization_id: String,
         authorization_update: storage::AuthorizationUpdate,
     ) -> CustomResult<storage::Authorization, errors::StorageError> {
         let mut authorizations = self.authorizations.lock().await;
-        authorizations
-            .iter_mut()
-            .find(|authorization| authorization.authorization_id == authorization_id && authorization.merchant_id == merchant_id)
-            .map(|authorization| {
-                let authorization_updated =
-                    AuthorizationUpdateInternal::from(authorization_update)
-                        .create_authorization(authorization.clone());
-                *authorization = authorization_updated.clone();
-                authorization_updated
+        // Stagger release fallback: first try processor_merchant_id, if not found fallback to merchant_id
+        // For old records processor_merchant_id is NULL, so we use merchant_id (which has the same value)
+        let index = authorizations
+            .iter()
+            .position(|authorization| {
+                authorization.authorization_id == authorization_id
+                    && authorization.processor_merchant_id.as_ref() == Some(&processor_merchant_id)
+            })
+            .or_else(|| {
+                authorizations.iter().position(|authorization| {
+                    authorization.authorization_id == authorization_id
+                        && authorization.merchant_id == processor_merchant_id
+                })
+            });
+
+        index
+            .and_then(|idx| {
+                authorizations.get_mut(idx).map(|auth| {
+                    let authorization_updated =
+                        AuthorizationUpdateInternal::from(authorization_update)
+                            .create_authorization(auth.clone());
+                    *auth = authorization_updated.clone();
+                    authorization_updated
+                })
             })
             .ok_or(
                 errors::StorageError::ValueNotFound(format!(
-                    "cannot find authorization for authorization_id = {authorization_id} and merchant_id = {merchant_id:?}"
+                    "cannot find authorization for authorization_id = {authorization_id} and processor_merchant_id = {processor_merchant_id:?}"
                 ))
                 .into(),
             )

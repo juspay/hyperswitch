@@ -1,16 +1,21 @@
 pub mod transformers;
 
-use std::sync::LazyLock;
+use std::{collections::HashMap, sync::LazyLock};
 
+use api_models::webhooks::IncomingWebhookEvent;
 use base64::Engine;
 use common_enums::{enums, CaptureMethod, ConnectorIntegrationStatus, PaymentMethodType};
 use common_utils::{
+    crypto::{HmacSha256, VerifySignature},
     errors::CustomResult,
-    ext_traits::BytesExt,
+    ext_traits::{ByteSliceExt, BytesExt},
     request::{Method, Request, RequestBuilder, RequestContent},
-    types::{AmountConvertor, MinorUnit, MinorUnitForConnector},
+    types::{
+        AmountConvertor, MinorUnit, MinorUnitForConnector, StringMinorUnit,
+        StringMinorUnitForConnector,
+    },
 };
-use error_stack::{report, ResultExt};
+use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     payment_method_data::PaymentMethodData,
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
@@ -40,15 +45,17 @@ use hyperswitch_interfaces::{
         ConnectorValidation,
     },
     configs::Connectors,
+    disputes::DisputePayload,
     errors,
     events::connector_api_logs::ConnectorEvent,
     types::{self, Response},
     webhooks,
 };
-use masking::{ExposeInterface, Mask};
+use hyperswitch_masking::{ExposeInterface, Mask};
 use transformers as finix;
 
 use crate::{
+    connectors::finix::transformers::FinixWebhookSignature,
     constants::headers,
     types::ResponseRouterData,
     utils::{self, PaymentMethodDataType},
@@ -57,12 +64,14 @@ use crate::{
 #[derive(Clone)]
 pub struct Finix {
     amount_converter: &'static (dyn AmountConvertor<Output = MinorUnit> + Sync),
+    amount_converter_webhooks: &'static (dyn AmountConvertor<Output = StringMinorUnit> + Sync),
 }
 
 impl Finix {
     pub fn new() -> &'static Self {
         &Self {
             amount_converter: &MinorUnitForConnector,
+            amount_converter_webhooks: &StringMinorUnitForConnector,
         }
     }
 }
@@ -88,7 +97,8 @@ impl ConnectorIntegration<CreateConnectorCustomer, ConnectorCustomerData, Paymen
         &self,
         req: &RouterData<CreateConnectorCustomer, ConnectorCustomerData, PaymentsResponseData>,
         connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         self.build_headers(req, connectors)
     }
 
@@ -174,7 +184,8 @@ impl ConnectorIntegration<PaymentMethodToken, PaymentMethodTokenizationData, Pay
         &self,
         req: &RouterData<PaymentMethodToken, PaymentMethodTokenizationData, PaymentsResponseData>,
         connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         self.build_headers(req, connectors)
     }
 
@@ -258,7 +269,8 @@ where
         &self,
         req: &RouterData<Flow, Request, Response>,
         _connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         let mut header = vec![(
             headers::CONTENT_TYPE.to_string(),
             self.get_content_type().to_string().into(),
@@ -289,7 +301,8 @@ impl ConnectorCommon for Finix {
     fn get_auth_header(
         &self,
         auth_type: &ConnectorAuthType,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         let auth = finix::FinixAuthType::try_from(auth_type)
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
         let credentials = format!(
@@ -328,6 +341,7 @@ impl ConnectorCommon for Finix {
             reason: None,
             attempt_status: None,
             connector_transaction_id: None,
+            connector_response_reference_id: None,
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
@@ -372,7 +386,8 @@ impl ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsRespons
         &self,
         req: &RouterData<SetupMandate, SetupMandateRequestData, PaymentsResponseData>,
         connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         self.build_headers(req, connectors)
     }
     fn get_content_type(&self) -> &'static str {
@@ -454,7 +469,8 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         &self,
         req: &PaymentsAuthorizeRouterData,
         connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         self.build_headers(req, connectors)
     }
 
@@ -550,7 +566,8 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Fin
         &self,
         req: &PaymentsSyncRouterData,
         connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         self.build_headers(req, connectors)
     }
 
@@ -601,10 +618,12 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Fin
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<PaymentsSyncRouterData, errors::ConnectorError> {
-        let response: finix::FinixPaymentsResponse = res
+        let combined_response: finix::FinixCombinedPaymentResponse = res
             .response
             .parse_struct("finix PaymentsSyncResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        let response = combined_response.get_payment_response()?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
         let response_id = response.id.clone();
@@ -635,7 +654,8 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
         &self,
         req: &PaymentsCaptureRouterData,
         connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         self.build_headers(req, connectors)
     }
 
@@ -727,7 +747,8 @@ impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Fi
         &self,
         req: &PaymentsCancelRouterData,
         connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         self.build_headers(req, connectors)
     }
 
@@ -811,7 +832,8 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Finix {
         &self,
         req: &RefundsRouterData<Execute>,
         connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         self.build_headers(req, connectors)
     }
 
@@ -872,10 +894,11 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Finix {
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<RefundsRouterData<Execute>, errors::ConnectorError> {
-        let response: finix::FinixPaymentsResponse = res
+        let combined_response: finix::FinixCombinedPaymentResponse = res
             .response
             .parse_struct("FinixPaymentsResponse")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        let response = combined_response.get_payment_response()?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
         RouterData::try_from(ResponseRouterData {
@@ -899,7 +922,8 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Finix {
         &self,
         req: &RefundSyncRouterData,
         connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         self.build_headers(req, connectors)
     }
 
@@ -967,30 +991,6 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Finix {
         event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
         self.build_error_response(res, event_builder)
-    }
-}
-
-#[async_trait::async_trait]
-impl webhooks::IncomingWebhook for Finix {
-    fn get_webhook_object_reference_id(
-        &self,
-        _request: &webhooks::IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<api_models::webhooks::ObjectReferenceId, errors::ConnectorError> {
-        Err(report!(errors::ConnectorError::WebhooksNotImplemented))
-    }
-
-    fn get_webhook_event_type(
-        &self,
-        _request: &webhooks::IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<api_models::webhooks::IncomingWebhookEvent, errors::ConnectorError> {
-        Err(report!(errors::ConnectorError::WebhooksNotImplemented))
-    }
-
-    fn get_webhook_resource_object(
-        &self,
-        _request: &webhooks::IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
-        Err(report!(errors::ConnectorError::WebhooksNotImplemented))
     }
 }
 
@@ -1067,16 +1067,6 @@ static FINIX_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = Lazy
             specific_features: None,
         },
     );
-    finix_supported_payment_methods.add(
-        common_enums::PaymentMethod::Wallet,
-        PaymentMethodType::ApplePay,
-        PaymentMethodDetails {
-            mandates: enums::FeatureStatus::NotSupported,
-            refunds: enums::FeatureStatus::Supported,
-            supported_capture_methods: default_capture_methods.clone(),
-            specific_features: None,
-        },
-    );
     finix_supported_payment_methods
 });
 
@@ -1110,5 +1100,134 @@ impl ConnectorSpecifications for Finix {
     }
     fn should_call_tokenization_before_setup_mandate(&self) -> bool {
         false
+    }
+}
+fn is_test_webhook(request: &webhooks::IncomingWebhookRequestDetails<'_>) -> bool {
+    let req_data = String::from_utf8(request.body.to_vec());
+    req_data == Ok("{}".to_string())
+}
+pub fn decode_finix_signature(
+    header_value: &actix_web::http::header::HeaderMap,
+) -> Result<FinixWebhookSignature, errors::ConnectorError> {
+    let security_header = header_value
+        .get("Finix-Signature")
+        .ok_or(errors::ConnectorError::WebhookSignatureNotFound)?
+        .to_str()
+        .map_err(|_| errors::ConnectorError::WebhookSignatureNotFound)?
+        .to_owned();
+
+    let map: HashMap<&str, &str> = security_header
+        .split(',')
+        .map(|kv| {
+            let mut parts = kv.trim().splitn(2, '=');
+            let key = parts
+                .next()
+                .ok_or(errors::ConnectorError::WebhookSignatureNotFound)?;
+            let value = parts
+                .next()
+                .ok_or(errors::ConnectorError::WebhookSignatureNotFound)?;
+            Ok((key, value))
+        })
+        .collect::<Result<_, _>>()?;
+
+    let timestamp = map
+        .get("timestamp")
+        .ok_or(errors::ConnectorError::WebhookSignatureNotFound)?
+        .to_string();
+
+    let sig = map
+        .get("sig")
+        .ok_or(errors::ConnectorError::WebhookSignatureNotFound)?
+        .as_bytes()
+        .to_vec();
+
+    Ok(FinixWebhookSignature { timestamp, sig })
+}
+#[async_trait::async_trait]
+impl webhooks::IncomingWebhook for Finix {
+    fn get_webhook_source_verification_algorithm(
+        &self,
+        _request: &webhooks::IncomingWebhookRequestDetails<'_>,
+    ) -> CustomResult<Box<dyn VerifySignature + Send>, errors::ConnectorError> {
+        Ok(Box::new(HmacSha256))
+    }
+
+    fn get_webhook_source_verification_signature(
+        &self,
+        request: &webhooks::IncomingWebhookRequestDetails<'_>,
+        _connector_webhook_secrets: &api_models::webhooks::ConnectorWebhookSecrets,
+    ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
+        let security_header_kvs = decode_finix_signature(request.headers)?;
+
+        hex::decode(security_header_kvs.sig)
+            .change_context(errors::ConnectorError::WebhookSignatureNotFound)
+    }
+    fn get_webhook_source_verification_message(
+        &self,
+        request: &webhooks::IncomingWebhookRequestDetails<'_>,
+        _merchant_id: &common_utils::id_type::MerchantId,
+        _connector_webhook_secrets: &api_models::webhooks::ConnectorWebhookSecrets,
+    ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
+        let security_header_kvs = decode_finix_signature(request.headers)?;
+
+        Ok(format!(
+            "{}:{}",
+            &security_header_kvs.timestamp,
+            String::from_utf8_lossy(request.body)
+        )
+        .into_bytes())
+    }
+    fn get_webhook_object_reference_id(
+        &self,
+        request: &webhooks::IncomingWebhookRequestDetails<'_>,
+    ) -> CustomResult<api_models::webhooks::ObjectReferenceId, errors::ConnectorError> {
+        let webhook_body: finix::FinixWebhookBody =
+            request
+                .body
+                .parse_struct("FinixWebhookBody")
+                .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
+
+        webhook_body.get_webhook_object_reference_id()
+    }
+
+    fn get_webhook_event_type(
+        &self,
+        request: &webhooks::IncomingWebhookRequestDetails<'_>,
+        _context: Option<&webhooks::WebhookContext>,
+    ) -> CustomResult<IncomingWebhookEvent, errors::ConnectorError> {
+        if is_test_webhook(request) {
+            return Ok(IncomingWebhookEvent::SetupWebhook);
+        }
+        let webhook_body: finix::FinixWebhookBody =
+            request
+                .body
+                .parse_struct("FinixWebhookBody")
+                .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
+
+        webhook_body.get_webhook_event_type()
+    }
+    fn get_dispute_details(
+        &self,
+        request: &webhooks::IncomingWebhookRequestDetails<'_>,
+        _context: Option<&webhooks::WebhookContext>,
+    ) -> CustomResult<DisputePayload, errors::ConnectorError> {
+        let webhook_body: finix::FinixWebhookBody =
+            request
+                .body
+                .parse_struct("FinixWebhookBody")
+                .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
+        webhook_body.get_dispute_details()
+    }
+    fn get_webhook_resource_object(
+        &self,
+        request: &webhooks::IncomingWebhookRequestDetails<'_>,
+    ) -> CustomResult<Box<dyn hyperswitch_masking::ErasedMaskSerialize>, errors::ConnectorError>
+    {
+        let webhook_body: finix::FinixWebhookBody =
+            request
+                .body
+                .parse_struct("FinixWebhookBody")
+                .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
+        Ok(Box::new(webhook_body))
     }
 }

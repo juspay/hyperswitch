@@ -13,6 +13,8 @@ pub mod fraud_check;
 #[cfg(feature = "frm")]
 pub mod fraud_check_v2;
 pub mod gateway;
+pub mod merchant_connector_webhook_management;
+pub mod merchant_connector_webhook_management_v2;
 pub mod payments;
 pub mod payments_v2;
 #[cfg(feature = "payouts")]
@@ -41,6 +43,7 @@ use common_utils::{
     request::{Method, Request, RequestContent},
 };
 use error_stack::ResultExt;
+pub use hyperswitch_domain_models::router_request_types::CurrentFlowInfo;
 use hyperswitch_domain_models::{
     connector_endpoints::Connectors,
     errors::api_error_response::ApiErrorResponse,
@@ -50,29 +53,36 @@ use hyperswitch_domain_models::{
         RouterData,
     },
     router_data_v2::{
-        flow_common_types::{AuthenticationTokenFlowData, WebhookSourceVerifyData},
+        flow_common_types::{
+            AuthenticationTokenFlowData, ConnectorWebhookConfigurationFlowData,
+            WebhookSourceVerifyData,
+        },
         AccessTokenFlowData, MandateRevokeFlowData, UasFlowData,
     },
     router_flow_types::{
-        mandate_revoke::MandateRevoke, AccessTokenAuth, AccessTokenAuthentication, Authenticate,
-        AuthenticationConfirmation, PostAuthenticate, PreAuthenticate, VerifyWebhookSource,
+        mandate_revoke::MandateRevoke,
+        merchant_connector_webhook_management::ConnectorWebhookRegister, AccessTokenAuth,
+        AccessTokenAuthentication, Authenticate, AuthenticationConfirmation, PostAuthenticate,
+        PreAuthenticate, ProcessIncomingWebhook, VerifyWebhookSource,
     },
     router_request_types::{
         self,
+        merchant_connector_webhook_management::ConnectorWebhookRegisterRequest,
         unified_authentication_service::{
             UasAuthenticationRequestData, UasAuthenticationResponseData,
             UasConfirmationRequestData, UasPostAuthenticationRequestData,
-            UasPreAuthenticationRequestData,
+            UasPreAuthenticationRequestData, UasWebhookRequestData,
         },
         AccessTokenAuthenticationRequestData, AccessTokenRequestData, MandateRevokeRequestData,
         VerifyWebhookSourceRequestData,
     },
     router_response_types::{
-        self, ConnectorInfo, MandateRevokeResponseData, PaymentMethodDetails,
-        SupportedPaymentMethods, VerifyWebhookSourceResponseData,
+        self, merchant_connector_webhook_management::ConnectorWebhookRegisterResponse,
+        ConnectorInfo, MandateRevokeResponseData, PaymentMethodDetails, SupportedPaymentMethods,
+        VerifyWebhookSourceResponseData,
     },
 };
-use masking::Maskable;
+use hyperswitch_masking::Maskable;
 use serde_json::json;
 
 #[cfg(feature = "frm")]
@@ -83,7 +93,10 @@ pub use self::fraud_check_v2::*;
 pub use self::payouts::*;
 #[cfg(feature = "payouts")]
 pub use self::payouts_v2::*;
-pub use self::{payments::*, refunds::*, vault::*, vault_v2::*};
+pub use self::{
+    merchant_connector_webhook_management::*, merchant_connector_webhook_management_v2::*,
+    payments::*, refunds::*, vault::*, vault_v2::*,
+};
 use crate::{
     api::subscriptions::Subscriptions, connector_integration_v2::ConnectorIntegrationV2, consts,
     errors, events::connector_api_logs::ConnectorEvent, metrics, types, webhooks,
@@ -111,6 +124,8 @@ pub trait Connector:
     + revenue_recovery::RevenueRecovery
     + ExternalVault
     + Subscriptions
+    + ConnectorAccessTokenSuffix
+    + WebhookRegister
 {
 }
 
@@ -120,6 +135,7 @@ impl<
             + ConnectorRedirectResponse
             + Send
             + webhooks::IncomingWebhook
+            + WebhookRegister
             + ConnectorAccessToken
             + ConnectorAuthenticationToken
             + disputes::Dispute
@@ -134,7 +150,8 @@ impl<
             + UnifiedAuthenticationService
             + revenue_recovery::RevenueRecovery
             + ExternalVault
-            + Subscriptions,
+            + Subscriptions
+            + ConnectorAccessTokenSuffix,
     > Connector for T
 {
 }
@@ -282,6 +299,7 @@ pub trait ConnectorIntegration<T, Req, Resp>:
             status_code: res.status_code,
             attempt_status: None,
             connector_transaction_id: None,
+            connector_response_reference_id: None,
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
@@ -374,6 +392,7 @@ pub trait ConnectorCommon {
             reason: None,
             attempt_status: None,
             connector_transaction_id: None,
+            connector_response_reference_id: None,
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
@@ -382,25 +401,21 @@ pub trait ConnectorCommon {
     }
 }
 
-impl ConnectorAccessTokenSuffix for BoxedConnector {}
-
-/// Current flow information passed to the connector specifications trait
-///
-/// In order to make some desicion about the preprocessing or alternate flow
-#[derive(Clone, Debug)]
-pub enum CurrentFlowInfo<'a> {
-    /// Authorize flow information
-    Authorize {
-        /// The authentication type being used
-        auth_type: &'a enums::AuthenticationType,
-        /// The payment authorize request data
-        request_data: &'a router_request_types::PaymentsAuthorizeData,
-    },
-    /// CompleteAuthorize flow information
-    CompleteAuthorize {
-        /// The payment authorize request data
-        request_data: &'a router_request_types::CompleteAuthorizeData,
-    },
+impl ConnectorAccessTokenSuffix for BoxedConnector {
+    fn get_access_token_key(
+        &self,
+        router_data: &dyn AccessTokenData,
+        merchant_connector_id_or_connector_name: String,
+        current_flow: Option<CurrentFlowInfo>,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        // 'self' is the BoxedConnector (the Box)
+        // We dereference it to get the 'dyn Connector' and call the method
+        self.as_ref().get_access_token_key(
+            router_data,
+            merchant_connector_id_or_connector_name,
+            current_flow,
+        )
+    }
 }
 
 /// Alternate API flow that must be made instead of the current flow.
@@ -417,9 +432,9 @@ pub enum AlternateFlow {
 /// Or PostAuthenticate flow must be made before CompleteAuthorize flow for cybersource.
 #[derive(Debug, Clone, Copy)]
 pub enum PreProcessingFlowName {
-    /// Authentication flow must be made before the actual flow
+    /// Authentication flow
     Authenticate,
-    /// Post-authentication flow must be made before the actual flow
+    /// Post-authentication flow
     PostAuthenticate,
 }
 
@@ -434,28 +449,49 @@ pub struct PreProcessingFlowResponse<'a> {
 
 /// The trait that provides specifications about the connector
 pub trait ConnectorSpecifications {
+    /// Check if pre-authentication flow is required
+    fn is_balance_check_flow_required(&self, _current_flow: CurrentFlowInfo) -> bool {
+        false
+    }
+    /// Check if pre-authentication flow is required
+    fn is_order_create_flow_required(&self, _current_flow: CurrentFlowInfo) -> bool {
+        false
+    }
+    /// Check if pre-authentication flow is required
+    fn is_pre_authentication_flow_required(&self, _current_flow: CurrentFlowInfo) -> bool {
+        false
+    }
+    /// Check if authentication flow is required
+    fn is_authentication_flow_required(&self, _current_flow: CurrentFlowInfo) -> bool {
+        false
+    }
+    /// Check if post-authentication flow is required
+    fn is_post_authentication_flow_required(&self, _current_flow: CurrentFlowInfo) -> bool {
+        false
+    }
+    /// Check if settlement split flow is required
+    fn is_settlement_split_call_required(&self, _current_flow: CurrentFlowInfo) -> bool {
+        false
+    }
+    /// Check if payment trigger flow is required
+    fn is_push_notification_flow_required(&self, _current_flow: CurrentFlowInfo) -> bool {
+        false
+    }
+    /// Check if generate QR flow is required
+    fn is_generate_qr_flow_required(&self, _current_flow: CurrentFlowInfo) -> bool {
+        false
+    }
     /// Preprocessing flow name if any, that must be made before the current flow.
     fn get_preprocessing_flow_if_needed(
         &self,
-        _current_flow: CurrentFlowInfo<'_>,
+        _current_flow: CurrentFlowInfo,
     ) -> Option<PreProcessingFlowName> {
         None
-    }
-    /// Based on the current flow and preprocessing_flow_response, decide if the main flow must be called or not
-    ///
-    /// By default, always continue with the main flow after the preprocessing flow.
-    fn decide_should_continue_after_preprocessing(
-        &self,
-        _current_flow: CurrentFlowInfo<'_>,
-        _pre_processing_flow_name: PreProcessingFlowName,
-        _preprocessing_flow_response: PreProcessingFlowResponse<'_>,
-    ) -> bool {
-        true
     }
     /// If Some is returned, the returned api flow must be made instead of the current flow.
     fn get_alternate_flow_if_needed(
         &self,
-        _current_flow: CurrentFlowInfo<'_>,
+        _current_flow: CurrentFlowInfo,
     ) -> Option<AlternateFlow> {
         None
     }
@@ -543,7 +579,10 @@ pub trait ConnectorSpecifications {
     }
 
     /// Is Authorize session token required before authorize
-    fn is_authorize_session_token_call_required(&self) -> bool {
+    fn is_authorize_session_token_call_required(
+        &self,
+        _current_flow: Option<CurrentFlowInfo>,
+    ) -> bool {
         false
     }
 
@@ -570,6 +609,18 @@ pub trait ConnectorSpecifications {
     /// Check if connector needs tokenization call before setup mandate flow
     fn should_call_tokenization_before_setup_mandate(&self) -> bool {
         true
+    }
+
+    /// Check if connector should trigger handle response without initiating a call to the connector
+    fn should_trigger_handle_response_without_body(&self) -> bool {
+        false
+    }
+
+    /// Get connector's API webhook configuration object
+    fn get_api_webhook_config(
+        &self,
+    ) -> &'static common_types::connector_webhook_configuration::WebhookSetupCapabilities {
+        &consts::DEFAULT_WEBHOOK_SETUP_CAPABILITIES
     }
 }
 
@@ -665,6 +716,13 @@ pub trait UnifiedAuthenticationService:
     + UasPostAuthentication
     + UasAuthenticationConfirmation
     + UasAuthentication
+    + UasProcessWebhook
+{
+}
+
+///trait UasProcessWebhook
+pub trait UasProcessWebhook:
+    ConnectorIntegration<ProcessIncomingWebhook, UasWebhookRequestData, UasAuthenticationResponseData>
 {
 }
 
@@ -711,6 +769,7 @@ pub trait UnifiedAuthenticationServiceV2:
     + UasPostAuthenticationV2
     + UasAuthenticationV2
     + UasAuthenticationConfirmationV2
+    + UasProcessWebhookV2
 {
 }
 
@@ -743,6 +802,28 @@ pub trait UasAuthenticationConfirmationV2:
     UasFlowData,
     UasConfirmationRequestData,
     UasAuthenticationResponseData,
+>
+{
+}
+
+///trait UasProcessWebhookV2
+pub trait UasProcessWebhookV2:
+    ConnectorIntegrationV2<
+    ProcessIncomingWebhook,
+    UasFlowData,
+    UasWebhookRequestData,
+    UasAuthenticationResponseData,
+>
+{
+}
+
+/// trait ConnectorVerifyWebhookSource
+pub trait WebhookRegisterV2:
+    ConnectorIntegrationV2<
+    ConnectorWebhookRegister,
+    ConnectorWebhookConfigurationFlowData,
+    ConnectorWebhookRegisterRequest,
+    ConnectorWebhookRegisterResponse,
 >
 {
 }
@@ -841,6 +922,14 @@ pub trait ConnectorValidation: ConnectorCommon + ConnectorSpecifications {
     fn is_webhook_source_verification_mandatory(&self) -> bool {
         false
     }
+
+    /// Validate if another operation is required
+    fn should_continue_further(
+        &self,
+        _payment_intent: &hyperswitch_domain_models::payments::PaymentIntent,
+    ) -> Option<bool> {
+        Some(false)
+    }
 }
 
 /// trait ConnectorRedirectResponse
@@ -910,16 +999,40 @@ pub trait ConnectorTransactionId: ConnectorCommon + Sync {
     }
 }
 
+/// Trait to provide data required for access token key generation
+/// Add methods as required
+pub trait AccessTokenData {
+    /// Get the payment method type from RouterData
+    fn get_payment_method_type(&self) -> Option<PaymentMethodType>;
+    /// Get the merchant id from RouterData
+    fn get_merchant_id(&self) -> common_utils::id_type::MerchantId;
+    /// Check if the payment is a MIT payment
+    fn is_mit_payment(&self) -> bool;
+}
+
+impl<F, Req, Res> AccessTokenData for RouterData<F, Req, Res> {
+    fn get_payment_method_type(&self) -> Option<PaymentMethodType> {
+        self.payment_method_type
+    }
+    fn get_merchant_id(&self) -> common_utils::id_type::MerchantId {
+        self.merchant_id.clone()
+    }
+    fn is_mit_payment(&self) -> bool {
+        self.recurring_mandate_payment_data.is_some()
+    }
+}
+
 /// Trait ConnectorAccessTokenSuffix
 pub trait ConnectorAccessTokenSuffix {
     /// Function to get dynamic access token key suffix from Connector
-    fn get_access_token_key<F, Req, Res>(
+    fn get_access_token_key(
         &self,
-        router_data: &RouterData<F, Req, Res>,
+        router_data: &dyn AccessTokenData,
         merchant_connector_id_or_connector_name: String,
+        _current_flow: Option<CurrentFlowInfo>,
     ) -> CustomResult<String, errors::ConnectorError> {
         Ok(common_utils::access_token::get_default_access_token_key(
-            &router_data.merchant_id,
+            &router_data.get_merchant_id(),
             merchant_connector_id_or_connector_name,
         ))
     }

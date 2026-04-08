@@ -319,6 +319,9 @@ impl PaymentAttemptBatchNew {
             is_stored_credential: self.is_stored_credential,
             authorized_amount: self.authorized_amount,
             tokenization: self.tokenization,
+            error_details: None,
+            retry_type: None,
+            installment_data: None,
         }
     }
 }

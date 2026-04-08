@@ -2,7 +2,7 @@ use api_models::enums::PayoutConnectors;
 use common_enums as storage_enums;
 use common_utils::{
     id_type, payout_method_utils, pii,
-    types::{UnifiedCode, UnifiedMessage},
+    types::{self, UnifiedCode, UnifiedMessage},
 };
 use serde::{Deserialize, Serialize};
 use storage_enums::MerchantStorageScheme;
@@ -93,6 +93,8 @@ pub struct PayoutAttempt {
     pub additional_payout_method_data: Option<payout_method_utils::AdditionalPayoutMethodData>,
     pub merchant_order_reference_id: Option<String>,
     pub payout_connector_metadata: Option<pii::SecretSerdeValue>,
+    pub processor_merchant_id: Option<id_type::MerchantId>,
+    pub created_by: Option<types::CreatedBy>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -121,6 +123,8 @@ pub struct PayoutAttemptNew {
     pub additional_payout_method_data: Option<payout_method_utils::AdditionalPayoutMethodData>,
     pub merchant_order_reference_id: Option<String>,
     pub payout_connector_metadata: Option<pii::SecretSerdeValue>,
+    pub processor_merchant_id: Option<id_type::MerchantId>,
+    pub created_by: Option<types::CreatedBy>,
 }
 
 #[derive(Debug, Clone)]
@@ -152,6 +156,14 @@ pub enum PayoutAttemptUpdate {
     },
     AdditionalPayoutMethodDataUpdate {
         additional_payout_method_data: Option<payout_method_utils::AdditionalPayoutMethodData>,
+    },
+    ManualUpdate {
+        status: Option<storage_enums::PayoutStatus>,
+        error_code: Option<String>,
+        error_message: Option<String>,
+        unified_code: Option<UnifiedCode>,
+        unified_message: Option<UnifiedMessage>,
+        connector_payout_id: Option<String>,
     },
 }
 
@@ -229,6 +241,22 @@ impl From<PayoutAttemptUpdate> for PayoutAttemptUpdateInternal {
                 additional_payout_method_data,
             } => Self {
                 additional_payout_method_data,
+                ..Default::default()
+            },
+            PayoutAttemptUpdate::ManualUpdate {
+                status,
+                error_code,
+                error_message,
+                unified_code,
+                unified_message,
+                connector_payout_id,
+            } => Self {
+                status,
+                error_code,
+                error_message,
+                unified_code,
+                unified_message,
+                connector_payout_id,
                 ..Default::default()
             },
         }

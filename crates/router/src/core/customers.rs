@@ -1,3 +1,6 @@
+use api_models::customers::CustomerDocumentDetails;
+#[cfg(feature = "v2")]
+use api_models::payment_methods::PaymentMethodId;
 use common_types::primitive_wrappers::CustomerListLimit;
 use common_utils::{
     crypto::Encryptable,
@@ -10,13 +13,17 @@ use common_utils::{
     },
 };
 use error_stack::{report, ResultExt};
-use hyperswitch_domain_models::payment_methods as payment_methods_domain;
-use masking::{ExposeInterface, Secret, SwitchStrategy};
+use hyperswitch_domain_models::{
+    payment_methods as payment_methods_domain, type_encryption::AsyncLift,
+};
+use hyperswitch_masking::{ExposeInterface, Secret, SwitchStrategy};
 use payment_methods::controller::PaymentMethodsController;
 use router_env::{instrument, tracing};
 
 #[cfg(feature = "v2")]
 use crate::core::payment_methods::cards::create_encrypted_data;
+#[cfg(feature = "v2")]
+use crate::core::payment_methods::delete_payment_method_by_record;
 #[cfg(feature = "v1")]
 use crate::utils::CustomerAddress;
 use crate::{
@@ -30,9 +37,11 @@ use crate::{
     services,
     types::{
         api::customers,
-        domain::{self, types},
+        domain::{
+            self,
+            types::{self, CryptoOperation},
+        },
         storage::{self, enums},
-        transformers::ForeignFrom,
     },
 };
 
@@ -42,9 +51,19 @@ pub const REDACTED: &str = "Redacted";
 pub async fn create_customer(
     state: SessionState,
     provider: domain::Provider,
+    initiator: Option<domain::Initiator>,
     customer_data: customers::CustomerRequest,
     connector_customer_details: Option<Vec<payment_methods_domain::ConnectorCustomerDetails>>,
 ) -> errors::CustomerResponse<customers::CustomerResponse> {
+    customer_data
+        .document_details
+        .as_ref()
+        .map(|doc_details| doc_details.validate())
+        .transpose()
+        .map_err(|err| errors::CustomersErrorResponse::InvalidRequestData {
+            message: err.to_string(),
+        })?;
+
     let db: &dyn StorageInterface = state.store.as_ref();
     let key_manager_state = &(&state).into();
 
@@ -75,6 +94,7 @@ pub async fn create_customer(
             db,
             &merchant_reference_id,
             &provider,
+            initiator.as_ref(),
             key_manager_state,
             &state,
         )
@@ -92,6 +112,7 @@ pub async fn create_customer(
     customer_data.generate_response(&customer)
 }
 
+#[allow(clippy::too_many_arguments)]
 #[async_trait::async_trait]
 trait CustomerCreateBridge {
     async fn create_domain_model_from_request<'a>(
@@ -102,6 +123,7 @@ trait CustomerCreateBridge {
         db: &'a dyn StorageInterface,
         merchant_reference_id: &'a Option<id_type::CustomerId>,
         provider: &'a domain::Provider,
+        initiator: Option<&'a domain::Initiator>,
         key_manager_state: &'a KeyManagerState,
         state: &'a SessionState,
     ) -> errors::CustomResult<domain::Customer, errors::CustomersErrorResponse>;
@@ -123,6 +145,7 @@ impl CustomerCreateBridge for customers::CustomerRequest {
         db: &'a dyn StorageInterface,
         merchant_reference_id: &'a Option<id_type::CustomerId>,
         provider: &'a domain::Provider,
+        initiator: Option<&'a domain::Initiator>,
         key_manager_state: &'a KeyManagerState,
         state: &'a SessionState,
     ) -> errors::CustomResult<domain::Customer, errors::CustomersErrorResponse> {
@@ -141,6 +164,39 @@ impl CustomerCreateBridge for customers::CustomerRequest {
             state,
         };
 
+        let document_details_encrypted = self
+            .document_details
+            .clone()
+            .async_lift(|inner| async move {
+                let encoded_inner = inner
+                    .map(|details| CustomerDocumentDetails::to(&details))
+                    .transpose()
+                    .change_context(errors::CustomersErrorResponse::InternalServerError)
+                    .attach_printable(
+                        "Failed to encode customer document details for encryption",
+                    )?;
+
+                let crypto_result = types::crypto_operation(
+                    &state.into(),
+                    common_utils::type_name!(domain::Customer),
+                    CryptoOperation::EncryptOptional(encoded_inner),
+                    Identifier::Merchant(merchant_id.clone()),
+                    provider.get_key_store().key.peek(),
+                )
+                .await
+                .change_context(errors::CustomersErrorResponse::InternalServerError)
+                .attach_printable("Crypto operation failed during document details encryption")?;
+
+                let final_val = crypto_result
+                    .try_into_optionaloperation()
+                    .change_context(errors::CustomersErrorResponse::InternalServerError)
+                    .attach_printable("Failed to parse encrypted document details")?;
+
+                Ok(final_val)
+            })
+            .await
+            .attach_printable("Unable to encrypt document_details")?;
+
         let address_from_db = customer_billing_address_struct
             .encrypt_customer_address_and_set_to_db(db)
             .await?;
@@ -148,16 +204,14 @@ impl CustomerCreateBridge for customers::CustomerRequest {
         let encrypted_data = types::crypto_operation(
             key_manager_state,
             type_name!(domain::Customer),
-            types::CryptoOperation::BatchEncrypt(
-                domain::FromRequestEncryptableCustomer::to_encryptable(
-                    domain::FromRequestEncryptableCustomer {
-                        name: self.name.clone(),
-                        email: self.email.clone().map(|a| a.expose().switch_strategy()),
-                        phone: self.phone.clone(),
-                        tax_registration_id: self.tax_registration_id.clone(),
-                    },
-                ),
-            ),
+            CryptoOperation::BatchEncrypt(domain::FromRequestEncryptableCustomer::to_encryptable(
+                domain::FromRequestEncryptableCustomer {
+                    name: self.name.clone(),
+                    email: self.email.clone().map(|a| a.expose().switch_strategy()),
+                    phone: self.phone.clone(),
+                    tax_registration_id: self.tax_registration_id.clone(),
+                },
+            )),
             Identifier::Merchant(provider.get_key_store().merchant_id.clone()),
             key,
         )
@@ -206,9 +260,9 @@ impl CustomerCreateBridge for customers::CustomerRequest {
             updated_by: None,
             version: common_types::consts::API_VERSION,
             tax_registration_id: encryptable_customer.tax_registration_id,
-            // TODO: Populate created_by from authentication context once it is integrated in auth data
-            created_by: None,
-            last_modified_by: None,
+            document_details: document_details_encrypted,
+            created_by: initiator.and_then(|initiator| initiator.to_created_by()),
+            last_modified_by: initiator.and_then(|initiator| initiator.to_created_by()),
         })
     }
 
@@ -218,7 +272,9 @@ impl CustomerCreateBridge for customers::CustomerRequest {
     ) -> errors::CustomerResponse<customers::CustomerResponse> {
         let address = self.get_address();
         Ok(services::ApplicationResponse::Json(
-            customers::CustomerResponse::foreign_from((customer.clone(), address)),
+            customers::CustomerResponse::try_from((customer.clone(), address))
+                .change_context(errors::CustomersErrorResponse::InternalServerError)
+                .attach_printable("Failed to convert domain customer to CustomerResponse")?,
         ))
     }
 }
@@ -234,6 +290,7 @@ impl CustomerCreateBridge for customers::CustomerRequest {
         _db: &'a dyn StorageInterface,
         merchant_reference_id: &'a Option<id_type::CustomerId>,
         provider: &'a domain::Provider,
+        initiator: Option<&'a domain::Initiator>,
         key_state: &'a KeyManagerState,
         state: &'a SessionState,
     ) -> errors::CustomResult<domain::Customer, errors::CustomersErrorResponse> {
@@ -318,14 +375,14 @@ impl CustomerCreateBridge for customers::CustomerRequest {
             modified_at: common_utils::date_time::now(),
             default_payment_method_id: None,
             updated_by: None,
-            default_billing_address: encrypted_customer_billing_address.map(Into::into),
-            default_shipping_address: encrypted_customer_shipping_address.map(Into::into),
+            default_billing_address: encrypted_customer_billing_address,
+            default_shipping_address: encrypted_customer_shipping_address,
             version: common_types::consts::API_VERSION,
             status: common_enums::DeleteStatus::Active,
             tax_registration_id: encryptable_customer.tax_registration_id,
-            // TODO: Populate created_by from authentication context once it is integrated in auth data
-            created_by: None,
-            last_modified_by: None,
+            document_details: None,
+            created_by: initiator.and_then(|initiator| initiator.to_created_by()),
+            last_modified_by: initiator.and_then(|initiator| initiator.to_created_by()),
         })
     }
 
@@ -334,7 +391,9 @@ impl CustomerCreateBridge for customers::CustomerRequest {
         customer: &'a domain::Customer,
     ) -> errors::CustomerResponse<customers::CustomerResponse> {
         Ok(services::ApplicationResponse::Json(
-            customers::CustomerResponse::foreign_from(customer.clone()),
+            customers::CustomerResponse::try_from(customer.clone())
+                .change_context(errors::CustomersErrorResponse::InternalServerError)
+                .attach_printable("Failed to convert domain customer to CustomerResponse")?,
         ))
     }
 }
@@ -514,7 +573,9 @@ pub async fn retrieve_customer(
         None => None,
     };
     Ok(services::ApplicationResponse::Json(
-        customers::CustomerResponse::foreign_from((response, address)),
+        customers::CustomerResponse::try_from((response, address))
+            .change_context(errors::CustomersErrorResponse::InternalServerError)
+            .attach_printable("Failed to convert domain customer to CustomerResponse")?,
     ))
 }
 
@@ -537,7 +598,9 @@ pub async fn retrieve_customer(
         .switch()?;
 
     Ok(services::ApplicationResponse::Json(
-        customers::CustomerResponse::foreign_from(response),
+        customers::CustomerResponse::try_from(response)
+            .change_context(errors::CustomersErrorResponse::InternalServerError)
+            .attach_printable("Failed to convert domain customer to CustomerResponse")?,
     ))
 }
 
@@ -571,14 +634,20 @@ pub async fn list_customers(
     #[cfg(feature = "v1")]
     let customers = domain_customers
         .into_iter()
-        .map(|domain_customer| customers::CustomerResponse::foreign_from((domain_customer, None)))
-        .collect();
+        .map(|domain_customer| {
+            customers::CustomerResponse::try_from((domain_customer, None))
+                .change_context(errors::CustomersErrorResponse::InternalServerError)
+                .attach_printable("Failed to convert domain customer to CustomerResponse")
+        })
+        .collect::<Result<_, _>>()?;
 
     #[cfg(feature = "v2")]
     let customers = domain_customers
         .into_iter()
-        .map(customers::CustomerResponse::foreign_from)
-        .collect();
+        .map(customers::CustomerResponse::try_from)
+        .collect::<Result<Vec<_>, _>>()
+        .change_context(errors::CustomersErrorResponse::InternalServerError)
+        .attach_printable("Failed to convert domain customer to CustomerResponse")?;
 
     Ok(services::ApplicationResponse::Json(customers))
 }
@@ -613,15 +682,19 @@ pub async fn list_customers_with_count(
     let customers: Vec<customers::CustomerResponse> = domain_customers
         .0
         .into_iter()
-        .map(|domain_customer| customers::CustomerResponse::foreign_from((domain_customer, None)))
-        .collect();
+        .map(|domain_customer| customers::CustomerResponse::try_from((domain_customer, None)))
+        .collect::<Result<Vec<_>, _>>()
+        .change_context(errors::CustomersErrorResponse::InternalServerError)
+        .attach_printable("Failed to convert domain customer to CustomerResponse")?;
 
     #[cfg(feature = "v2")]
-    let customers: Vec<customers::CustomerResponse> = domain_customers
+    let customers = domain_customers
         .0
         .into_iter()
-        .map(customers::CustomerResponse::foreign_from)
-        .collect();
+        .map(customers::CustomerResponse::try_from)
+        .collect::<Result<Vec<_>, _>>()
+        .change_context(errors::CustomersErrorResponse::InternalServerError)
+        .attach_printable("Failed to convert domain customer to CustomerResponse")?;
 
     Ok(services::ApplicationResponse::Json(
         customers::CustomerListResponse {
@@ -635,13 +708,20 @@ pub async fn list_customers_with_count(
 #[instrument(skip_all)]
 pub async fn delete_customer(
     state: SessionState,
-    provider: domain::Provider,
+    platform: domain::Platform,
     id: id_type::GlobalCustomerId,
+    profile: domain::Profile,
 ) -> errors::CustomerResponse<customers::CustomerDeleteResponse> {
     let db = &*state.store;
     let key_manager_state = &(&state).into();
-    id.redact_customer_details_and_generate_response(db, &provider, key_manager_state, &state)
-        .await
+    id.redact_customer_details_and_generate_response(
+        db,
+        &platform,
+        key_manager_state,
+        &state,
+        profile,
+    )
+    .await
 }
 
 #[cfg(feature = "v2")]
@@ -650,10 +730,12 @@ impl CustomerDeleteBridge for id_type::GlobalCustomerId {
     async fn redact_customer_details_and_generate_response<'a>(
         &'a self,
         db: &'a dyn StorageInterface,
-        provider: &'a domain::Provider,
+        platform: &'a domain::Platform,
         key_manager_state: &'a KeyManagerState,
         state: &'a SessionState,
+        profile: domain::Profile,
     ) -> errors::CustomerResponse<customers::CustomerDeleteResponse> {
+        let provider = platform.get_provider();
         let customer_orig = db
             .find_customer_by_global_id(
                 self,
@@ -677,27 +759,11 @@ impl CustomerDeleteBridge for id_type::GlobalCustomerId {
             .find_payment_method_list_by_global_customer_id(provider.get_key_store(), self, None)
             .await
         {
-            // check this in review
             Ok(customer_payment_methods) => {
                 for pm in customer_payment_methods.into_iter() {
-                    if pm.get_payment_method_type() == Some(enums::PaymentMethod::Card) {
-                        cards::delete_card_by_locker_id(
-                            state,
-                            self,
-                            provider.get_account().get_id(),
-                        )
+                    delete_payment_method_by_record(db, state, platform, &profile, pm)
                         .await
                         .switch()?;
-                    }
-                    // No solution as of now, need to discuss this further with payment_method_v2
-
-                    // db.delete_payment_method(
-                    //     key_manager_state,
-                    //     key_store,
-                    //     pm,
-                    // )
-                    // .await
-                    // .switch()?;
                 }
             }
             Err(error) => {
@@ -748,8 +814,12 @@ impl CustomerDeleteBridge for id_type::GlobalCustomerId {
                 default_shipping_address: None,
                 default_payment_method_id: None,
                 status: Some(common_enums::DeleteStatus::Redacted),
-                tax_registration_id: Some(redacted_encrypted_value),
-                last_modified_by: None,
+                tax_registration_id: Some(redacted_encrypted_value.clone()),
+                document_details: None,
+                last_modified_by: platform
+                    .get_initiator()
+                    .and_then(|initiator| initiator.to_created_by())
+                    .map(|last_modified_by| last_modified_by.to_string()),
             }));
 
         db.update_customer_by_global_id(
@@ -773,15 +843,28 @@ impl CustomerDeleteBridge for id_type::GlobalCustomerId {
         Ok(services::ApplicationResponse::Json(response))
     }
 }
-
+#[cfg(feature = "v1")]
 #[async_trait::async_trait]
 trait CustomerDeleteBridge {
     async fn redact_customer_details_and_generate_response<'a>(
         &'a self,
         db: &'a dyn StorageInterface,
         provider: &'a domain::Provider,
+        initiator: Option<&'a domain::Initiator>,
         key_manager_state: &'a KeyManagerState,
         state: &'a SessionState,
+    ) -> errors::CustomerResponse<customers::CustomerDeleteResponse>;
+}
+#[cfg(feature = "v2")]
+#[async_trait::async_trait]
+trait CustomerDeleteBridge {
+    async fn redact_customer_details_and_generate_response<'a>(
+        &'a self,
+        db: &'a dyn StorageInterface,
+        platform: &'a domain::Platform,
+        key_manager_state: &'a KeyManagerState,
+        state: &'a SessionState,
+        profile: domain::Profile,
     ) -> errors::CustomerResponse<customers::CustomerDeleteResponse>;
 }
 
@@ -790,12 +873,19 @@ trait CustomerDeleteBridge {
 pub async fn delete_customer(
     state: SessionState,
     provider: domain::Provider,
+    initiator: Option<domain::Initiator>,
     customer_id: id_type::CustomerId,
 ) -> errors::CustomerResponse<customers::CustomerDeleteResponse> {
     let db = &*state.store;
     let key_manager_state = &(&state).into();
     customer_id
-        .redact_customer_details_and_generate_response(db, &provider, key_manager_state, &state)
+        .redact_customer_details_and_generate_response(
+            db,
+            &provider,
+            initiator.as_ref(),
+            key_manager_state,
+            &state,
+        )
         .await
 }
 
@@ -806,6 +896,7 @@ impl CustomerDeleteBridge for id_type::CustomerId {
         &'a self,
         db: &'a dyn StorageInterface,
         provider: &'a domain::Provider,
+        initiator: Option<&'a domain::Initiator>,
         key_manager_state: &'a KeyManagerState,
         state: &'a SessionState,
     ) -> errors::CustomerResponse<customers::CustomerDeleteResponse> {
@@ -898,7 +989,7 @@ impl CustomerDeleteBridge for id_type::CustomerId {
         let redacted_encrypted_value: Encryptable<Secret<_>> = types::crypto_operation(
             key_manager_state,
             type_name!(storage::Address),
-            types::CryptoOperation::Encrypt(REDACTED.to_string().into()),
+            CryptoOperation::Encrypt(REDACTED.to_string().into()),
             identifier.clone(),
             key,
         )
@@ -958,7 +1049,7 @@ impl CustomerDeleteBridge for id_type::CustomerId {
                 types::crypto_operation(
                     key_manager_state,
                     type_name!(storage::Customer),
-                    types::CryptoOperation::Encrypt(REDACTED.to_string().into()),
+                    CryptoOperation::Encrypt(REDACTED.to_string().into()),
                     identifier,
                     key,
                 )
@@ -973,7 +1064,10 @@ impl CustomerDeleteBridge for id_type::CustomerId {
             connector_customer: Box::new(None),
             address_id: None,
             tax_registration_id: Some(redacted_encrypted_value.clone()),
-            last_modified_by: None,
+            document_details: Box::new(None),
+            last_modified_by: initiator
+                .and_then(|initiator| initiator.to_created_by())
+                .map(|last_modified_by| last_modified_by.to_string()),
         };
 
         db.update_customer_by_customer_id_merchant_id(
@@ -1002,8 +1096,19 @@ impl CustomerDeleteBridge for id_type::CustomerId {
 pub async fn update_customer(
     state: SessionState,
     provider: domain::Provider,
+    initiator: Option<domain::Initiator>,
     update_customer: customers::CustomerUpdateRequestInternal,
 ) -> errors::CustomerResponse<customers::CustomerResponse> {
+    update_customer
+        .request
+        .document_details
+        .as_ref()
+        .map(|doc| doc.validate())
+        .transpose()
+        .map_err(|err| errors::CustomersErrorResponse::InvalidRequestData {
+            message: err.to_string(),
+        })?;
+
     let db = state.store.as_ref();
     let key_manager_state = &(&state).into();
     //Add this in update call if customer can be updated anywhere else
@@ -1033,6 +1138,7 @@ pub async fn update_customer(
             &None,
             db,
             &provider,
+            initiator.as_ref(),
             key_manager_state,
             &state,
             &customer,
@@ -1042,6 +1148,7 @@ pub async fn update_customer(
     update_customer.request.generate_response(&updated_customer)
 }
 
+#[allow(clippy::too_many_arguments)]
 #[async_trait::async_trait]
 trait CustomerUpdateBridge {
     async fn create_domain_model_from_request<'a>(
@@ -1051,6 +1158,7 @@ trait CustomerUpdateBridge {
         >,
         db: &'a dyn StorageInterface,
         provider: &'a domain::Provider,
+        initiator: Option<&'a domain::Initiator>,
         key_manager_state: &'a KeyManagerState,
         state: &'a SessionState,
         domain_customer: &'a domain::Customer,
@@ -1208,6 +1316,7 @@ impl CustomerUpdateBridge for customers::CustomerUpdateRequest {
         >,
         db: &'a dyn StorageInterface,
         provider: &'a domain::Provider,
+        initiator: Option<&'a domain::Initiator>,
         key_manager_state: &'a KeyManagerState,
         state: &'a SessionState,
         domain_customer: &'a domain::Customer,
@@ -1229,19 +1338,17 @@ impl CustomerUpdateBridge for customers::CustomerUpdateRequest {
         let encrypted_data = types::crypto_operation(
             key_manager_state,
             type_name!(domain::Customer),
-            types::CryptoOperation::BatchEncrypt(
-                domain::FromRequestEncryptableCustomer::to_encryptable(
-                    domain::FromRequestEncryptableCustomer {
-                        name: self.name.clone(),
-                        email: self
-                            .email
-                            .as_ref()
-                            .map(|a| a.clone().expose().switch_strategy()),
-                        phone: self.phone.clone(),
-                        tax_registration_id: self.tax_registration_id.clone(),
-                    },
-                ),
-            ),
+            CryptoOperation::BatchEncrypt(domain::FromRequestEncryptableCustomer::to_encryptable(
+                domain::FromRequestEncryptableCustomer {
+                    name: self.name.clone(),
+                    email: self
+                        .email
+                        .as_ref()
+                        .map(|a| a.clone().expose().switch_strategy()),
+                    phone: self.phone.clone(),
+                    tax_registration_id: self.tax_registration_id.clone(),
+                },
+            )),
             Identifier::Merchant(provider.get_key_store().merchant_id.clone()),
             key,
         )
@@ -1252,6 +1359,36 @@ impl CustomerUpdateBridge for customers::CustomerUpdateRequest {
         let encryptable_customer =
             domain::FromRequestEncryptableCustomer::from_encryptable(encrypted_data)
                 .change_context(errors::CustomersErrorResponse::InternalServerError)?;
+
+        let document_details = hyperswitch_domain_models::type_encryption::crypto_operation(
+            key_manager_state,
+            type_name!(CustomerDocumentDetails),
+            CryptoOperation::EncryptOptional(
+                self.document_details
+                    .as_ref()
+                    .map(|details| {
+                        details.to().map_err(|e| {
+                            error_stack::Report::new(
+                                errors::CustomersErrorResponse::InternalServerError,
+                            )
+                            .attach_printable(format!("Failed to encode details: {:?}", e))
+                        })
+                    })
+                    .transpose()?,
+            ),
+            Identifier::Merchant(provider.get_account().get_id().clone()),
+            key,
+        )
+        .await
+        .map_err(|e| {
+            error_stack::Report::new(errors::CustomersErrorResponse::InternalServerError)
+                .attach_printable(e)
+        })?
+        .try_into_optionaloperation()
+        .map_err(|e| {
+            error_stack::Report::new(errors::CustomersErrorResponse::InternalServerError)
+                .attach_printable(e)
+        })?;
 
         let response = db
             .update_customer_by_customer_id_merchant_id(
@@ -1270,12 +1407,17 @@ impl CustomerUpdateBridge for customers::CustomerUpdateRequest {
                     }),
                     phone: Box::new(encryptable_customer.phone),
                     tax_registration_id: encryptable_customer.tax_registration_id,
+                    document_details: Box::new(document_details),
                     phone_country_code: self.phone_country_code.clone(),
                     metadata: Box::new(self.metadata.clone()),
                     description: self.description.clone(),
                     connector_customer: Box::new(None),
                     address_id: address.clone().map(|addr| addr.address_id),
-                    last_modified_by: None,
+                    last_modified_by: initiator.and_then(|initiator| {
+                        initiator
+                            .to_created_by()
+                            .map(|last_modified_by| last_modified_by.to_string())
+                    }),
                 },
                 provider.get_key_store(),
                 provider.get_account().storage_scheme,
@@ -1292,7 +1434,9 @@ impl CustomerUpdateBridge for customers::CustomerUpdateRequest {
     ) -> errors::CustomerResponse<customers::CustomerResponse> {
         let address = self.get_address();
         Ok(services::ApplicationResponse::Json(
-            customers::CustomerResponse::foreign_from((customer.clone(), address)),
+            customers::CustomerResponse::try_from((customer.clone(), address))
+                .change_context(errors::CustomersErrorResponse::InternalServerError)
+                .attach_printable("Failed to convert domain customer to CustomerResponse")?,
         ))
     }
 }
@@ -1307,6 +1451,7 @@ impl CustomerUpdateBridge for customers::CustomerUpdateRequest {
         >,
         db: &'a dyn StorageInterface,
         provider: &'a domain::Provider,
+        initiator: Option<&'a domain::Initiator>,
         key_manager_state: &'a KeyManagerState,
         state: &'a SessionState,
         domain_customer: &'a domain::Customer,
@@ -1380,15 +1525,20 @@ impl CustomerUpdateBridge for customers::CustomerUpdateRequest {
                     })),
                     phone: Box::new(encryptable_customer.phone),
                     tax_registration_id: encryptable_customer.tax_registration_id,
+                    document_details: None,
                     phone_country_code: self.phone_country_code.clone(),
                     metadata: self.metadata.clone(),
                     description: self.description.clone(),
                     connector_customer: Box::new(None),
-                    default_billing_address: encrypted_customer_billing_address.map(Into::into),
-                    default_shipping_address: encrypted_customer_shipping_address.map(Into::into),
+                    default_billing_address: encrypted_customer_billing_address,
+                    default_shipping_address: encrypted_customer_shipping_address,
                     default_payment_method_id: Some(self.default_payment_method_id.clone()),
                     status: None,
-                    last_modified_by: None,
+                    last_modified_by: initiator.and_then(|initiator| {
+                        initiator
+                            .to_created_by()
+                            .map(|last_modified_by| last_modified_by.to_string())
+                    }),
                 })),
                 provider.get_key_store(),
                 provider.get_account().storage_scheme,
@@ -1403,7 +1553,9 @@ impl CustomerUpdateBridge for customers::CustomerUpdateRequest {
         customer: &'a domain::Customer,
     ) -> errors::CustomerResponse<customers::CustomerResponse> {
         Ok(services::ApplicationResponse::Json(
-            customers::CustomerResponse::foreign_from(customer.clone()),
+            customers::CustomerResponse::try_from(customer.clone())
+                .change_context(errors::CustomersErrorResponse::InternalServerError)
+                .attach_printable("Failed to convert domain customer to CustomerResponse")?,
         ))
     }
 }
@@ -1417,6 +1569,7 @@ pub async fn migrate_customers(
         match create_customer(
             state.clone(),
             platform.get_provider().clone(),
+            platform.get_initiator().cloned(),
             customer_migration.customer,
             customer_migration.connector_customer_details,
         )

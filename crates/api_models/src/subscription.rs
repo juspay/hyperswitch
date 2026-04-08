@@ -1,4 +1,4 @@
-use common_enums::{connector_enums::InvoiceStatus, SubscriptionStatus};
+use common_enums::{InvoiceStatus, SubscriptionStatus};
 use common_types::payments::CustomerAcceptance;
 use common_utils::{
     errors::ValidationError,
@@ -10,7 +10,7 @@ use common_utils::{
     },
     types::{MinorUnit, Url},
 };
-use masking::Secret;
+use hyperswitch_masking::Secret;
 use utoipa::ToSchema;
 
 use crate::{

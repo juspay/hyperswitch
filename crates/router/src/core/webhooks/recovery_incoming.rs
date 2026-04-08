@@ -18,12 +18,13 @@ use hyperswitch_domain_models::{
     types as router_types,
 };
 use hyperswitch_interfaces::webhooks as interface_webhooks;
-use masking::{PeekInterface, Secret};
+use hyperswitch_masking::{PeekInterface, Secret};
 use router_env::{instrument, logger, tracing};
 use services::kafka;
 use storage::business_status;
 
 use crate::{
+    consts,
     core::{
         self, admin,
         errors::{self, CustomResult},
@@ -917,10 +918,13 @@ impl RevenueRecoveryAttempt {
 
         let gsm_record = helpers::get_gsm_record(
             state,
+            connector_name,
+            REVENUE_RECOVERY,
+            consts::DEFAULT_SUBFLOW_STR,
             error_code.clone(),
             error_message,
-            connector_name,
-            REVENUE_RECOVERY.to_string(),
+            None, // issuer_error_code
+            None, // card_network
         )
         .await;
 

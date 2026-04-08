@@ -21,7 +21,7 @@ use hyperswitch_domain_models::{
     types as recovery_router_data_types,
 };
 use hyperswitch_interfaces::errors;
-use masking::Secret;
+use hyperswitch_masking::Secret;
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 
@@ -213,6 +213,7 @@ impl
                         card_issuer: None,
                         card_type: None,
                         card_issuing_country: None,
+                        card_issuing_country_code: None,
                         bank_code: None,
                         last4: None,
                         card_extended_bin: None,
@@ -223,6 +224,7 @@ impl
                         authentication_data: None,
                         is_regulated: None,
                         signature_network: None,
+                        auth_code: None,
                     },
                 },
             ),

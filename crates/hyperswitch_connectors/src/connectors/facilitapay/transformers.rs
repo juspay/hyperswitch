@@ -21,7 +21,7 @@ use hyperswitch_domain_models::{
 use hyperswitch_interfaces::{
     consts, errors, events::connector_api_logs::ConnectorEvent, types::Response,
 };
-use masking::{ExposeInterface, Secret};
+use hyperswitch_masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 use url::Url;
@@ -178,6 +178,8 @@ impl TryFrom<&FacilitapayRouterData<&types::PaymentsAuthorizeRouterData>>
                 | BankTransferData::InstantBankTransferFinland {}
                 | BankTransferData::InstantBankTransferPoland {}
                 | BankTransferData::IndonesianBankTransfer { .. }
+                | BankTransferData::PixAutomaticoPush { .. }
+                | BankTransferData::PixAutomaticoQr {}
                 | BankTransferData::LocalBankTransfer { .. } => {
                     Err(errors::ConnectorError::NotImplemented(
                         "Selected payment method through Facilitapay".to_string(),
@@ -202,7 +204,12 @@ impl TryFrom<&FacilitapayRouterData<&types::PaymentsAuthorizeRouterData>>
             | PaymentMethodData::CardToken(_)
             | PaymentMethodData::OpenBanking(_)
             | PaymentMethodData::NetworkToken(_)
-            | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
+            | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+            | PaymentMethodData::CardWithOptionalCVC(_)
+            | PaymentMethodData::CardWithNetworkTokenDetails(_)
+            | PaymentMethodData::CardWithLimitedDetails(_)
+            | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
+            | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     "Selected payment method through Facilitapay".to_string(),
                 )
@@ -269,6 +276,7 @@ pub fn parse_facilitapay_error_response(
         reason: Some(raw_error),
         attempt_status: None,
         connector_transaction_id: None,
+        connector_response_reference_id: None,
         network_advice_code: None,
         network_decline_code: None,
         network_error_message: None,
@@ -444,6 +452,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, FacilitapayPaymentsResponse, T, Payment
                     status_code: item.http_code,
                     attempt_status: None,
                     connector_transaction_id: Some(item.response.data.transaction_id),
+                    connector_response_reference_id: None,
                     network_decline_code: None,
                     network_advice_code: None,
                     network_error_message: None,
@@ -460,6 +469,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, FacilitapayPaymentsResponse, T, Payment
                     network_txn_id: None,
                     connector_response_reference_id: Some(item.response.data.transaction_id),
                     incremental_authorization_allowed: None,
+                    authentication_data: None,
                     charges: None,
                 })
             },
@@ -550,6 +560,7 @@ impl TryFrom<PaymentsCancelResponseRouterData<FacilitapayVoidResponse>>
                     status_code: item.http_code,
                     attempt_status: None,
                     connector_transaction_id: Some(item.response.data.void_id.clone()),
+                    connector_response_reference_id: None,
                     network_decline_code: None,
                     network_advice_code: None,
                     network_error_message: None,
@@ -566,6 +577,7 @@ impl TryFrom<PaymentsCancelResponseRouterData<FacilitapayVoidResponse>>
                     network_txn_id: None,
                     connector_response_reference_id: Some(item.response.data.void_id),
                     incremental_authorization_allowed: None,
+                    authentication_data: None,
                     charges: None,
                 })
             },

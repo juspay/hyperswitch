@@ -582,6 +582,7 @@ pub async fn perform_calculate_workflow(
         revenue_recovery_payment_data.key_store.clone(),
         revenue_recovery_payment_data.merchant_account.clone(),
         revenue_recovery_payment_data.key_store.clone(),
+        None,
     );
 
     let retry_algorithm_type = match profile
@@ -1128,6 +1129,7 @@ pub async fn resume_revenue_recovery_process_tracker(
         revenue_recovery_payment_data.key_store.clone(),
         revenue_recovery_payment_data.merchant_account.clone(),
         revenue_recovery_payment_data.key_store.clone(),
+        None,
     );
     let create_intent_response = payments::payments_intent_core::<
         router_api_types::PaymentGetIntent,
@@ -1496,7 +1498,7 @@ pub fn map_to_recovery_payment_item(
             .and_then(|p| p.payment_method_type.into()),
         payment_method_subtype: payment_attempt
             .as_ref()
-            .and_then(|p| p.payment_method_subtype.into()),
+            .and_then(|p| p.payment_method_subtype),
         connector: payment_attempt.as_ref().and_then(|p| p.connector.clone()),
         merchant_connector_id: payment_attempt
             .as_ref()

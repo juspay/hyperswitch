@@ -1,13 +1,14 @@
 use std::str::FromStr;
 
+use cards::NetworkToken;
 use common_enums::enums;
 use common_utils::{id_type, pii::Email, request::Method, types::StringMajorUnit};
 use error_stack::report;
 use hyperswitch_domain_models::{
-    network_tokenization::NetworkTokenNumber,
     payment_method_data::{
         BankRedirectData, Card, NetworkTokenData, PayLaterData, PaymentMethodData, WalletData,
     },
+    payment_methods::storage_enums::MitCategory,
     router_data::{ConnectorAuthType, ErrorResponse, RouterData},
     router_flow_types::SetupMandate,
     router_request_types::{
@@ -23,7 +24,7 @@ use hyperswitch_domain_models::{
     },
 };
 use hyperswitch_interfaces::errors;
-use masking::{ExposeInterface, Secret};
+use hyperswitch_masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
 use url::Url;
 
@@ -38,25 +39,37 @@ use crate::{
 
 type Error = error_stack::Report<errors::ConnectorError>;
 
-trait GetCaptureMethod {
+trait AttemptStatusMapper {
     fn get_capture_method(&self) -> Option<enums::CaptureMethod>;
+
+    fn map_success_status(&self, auto_capture: bool) -> enums::AttemptStatus {
+        if auto_capture {
+            enums::AttemptStatus::Charged
+        } else {
+            enums::AttemptStatus::Authorized
+        }
+    }
 }
 
-impl GetCaptureMethod for PaymentsAuthorizeData {
+impl AttemptStatusMapper for PaymentsAuthorizeData {
     fn get_capture_method(&self) -> Option<enums::CaptureMethod> {
         self.capture_method
     }
 }
 
-impl GetCaptureMethod for PaymentsSyncData {
+impl AttemptStatusMapper for PaymentsSyncData {
     fn get_capture_method(&self) -> Option<enums::CaptureMethod> {
         self.capture_method
     }
 }
 
-impl GetCaptureMethod for PaymentsCancelData {
+impl AttemptStatusMapper for PaymentsCancelData {
     fn get_capture_method(&self) -> Option<enums::CaptureMethod> {
         None
+    }
+
+    fn map_success_status(&self, _auto_capture: bool) -> enums::AttemptStatus {
+        enums::AttemptStatus::Voided
     }
 }
 
@@ -457,7 +470,7 @@ pub struct AciNetworkTokenData {
     #[serde(rename = "tokenAccount.type")]
     pub token_type: AciTokenAccountType,
     #[serde(rename = "tokenAccount.number")]
-    pub token_number: NetworkTokenNumber,
+    pub token_number: NetworkToken,
     #[serde(rename = "tokenAccount.expiryMonth")]
     pub token_expiry_month: Secret<String>,
     #[serde(rename = "tokenAccount.expiryYear")]
@@ -558,6 +571,8 @@ pub enum InstructionMode {
 #[serde(rename_all = "UPPERCASE")]
 pub enum InstructionType {
     Unscheduled,
+    Recurring,
+    Installment,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -579,6 +594,10 @@ pub struct Instruction {
 
     #[serde(rename = "standingInstruction.source")]
     source: InstructionSource,
+
+    #[serde(rename = "standingInstruction.initialTransactionId")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    initial_transaction_id: Option<String>,
 
     create_registration: Option<bool>,
 }
@@ -642,7 +661,12 @@ impl TryFrom<&AciRouterData<&PaymentsAuthorizeRouterData>> for AciPaymentsReques
             | PaymentMethodData::Voucher(_)
             | PaymentMethodData::OpenBanking(_)
             | PaymentMethodData::CardToken(_)
-            | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
+            | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+            | PaymentMethodData::CardWithOptionalCVC(_)
+            | PaymentMethodData::CardWithNetworkTokenDetails(_)
+            | PaymentMethodData::CardWithLimitedDetails(_)
+            | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
+            | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("Aci"),
                 ))?
@@ -831,13 +855,29 @@ fn get_instruction_details(
             mode: InstructionMode::Initial,
             transaction_type: InstructionType::Unscheduled,
             source: InstructionSource::CardholderInitiatedTransaction,
+            initial_transaction_id: None,
             create_registration: Some(true),
         });
     } else if item.router_data.request.mandate_id.is_some() {
+        let initial_transaction_id = item
+            .router_data
+            .request
+            .get_connector_mandate_request_reference_id()
+            .ok();
+
+        let transaction_type = match item.router_data.request.mit_category.as_ref() {
+            Some(MitCategory::Installment) => InstructionType::Installment,
+            Some(MitCategory::Recurring) => InstructionType::Recurring,
+            Some(MitCategory::Unscheduled) | Some(MitCategory::Resubmission) | None => {
+                InstructionType::Unscheduled
+            }
+        };
+
         return Some(Instruction {
             mode: InstructionMode::Repeated,
-            transaction_type: InstructionType::Unscheduled,
+            transaction_type,
             source: InstructionSource::MerchantInitiatedTransaction,
+            initial_transaction_id,
             create_registration: None,
         });
     }
@@ -939,15 +979,13 @@ pub enum AciPaymentStatus {
     RedirectShopper,
 }
 
-fn map_aci_attempt_status(item: AciPaymentStatus, auto_capture: bool) -> enums::AttemptStatus {
+fn map_aci_attempt_status<T: AttemptStatusMapper>(
+    request: &T,
+    item: AciPaymentStatus,
+    auto_capture: bool,
+) -> enums::AttemptStatus {
     match item {
-        AciPaymentStatus::Succeeded => {
-            if auto_capture {
-                enums::AttemptStatus::Charged
-            } else {
-                enums::AttemptStatus::Authorized
-            }
-        }
+        AciPaymentStatus::Succeeded => request.map_success_status(auto_capture),
         AciPaymentStatus::Failed => enums::AttemptStatus::Failure,
         AciPaymentStatus::Pending => enums::AttemptStatus::Authorizing,
         AciPaymentStatus::RedirectShopper => enums::AttemptStatus::AuthenticationPending,
@@ -1033,7 +1071,7 @@ pub struct ErrorParameters {
 impl<F, Req> TryFrom<ResponseRouterData<F, AciPaymentsResponse, Req, PaymentsResponseData>>
     for RouterData<F, Req, PaymentsResponseData>
 where
-    Req: GetCaptureMethod,
+    Req: AttemptStatusMapper,
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
@@ -1073,18 +1111,18 @@ where
                 connector_mandate_id: Some(id.expose()),
                 payment_method_id: None,
                 mandate_metadata: None,
-                connector_mandate_request_reference_id: None,
+                connector_mandate_request_reference_id: Some(item.response.id.clone()),
             });
 
-        let auto_capture = matches!(
-            item.data.request.get_capture_method(),
-            Some(enums::CaptureMethod::Automatic) | None
-        );
-
         let status = if redirection_data.is_some() {
-            map_aci_attempt_status(AciPaymentStatus::RedirectShopper, auto_capture)
+            enums::AttemptStatus::AuthenticationPending
         } else {
+            let auto_capture = matches!(
+                item.data.request.get_capture_method(),
+                Some(enums::CaptureMethod::Automatic) | None
+            );
             map_aci_attempt_status(
+                &item.data.request,
                 AciPaymentStatus::from_str(&item.response.result.code)?,
                 auto_capture,
             )
@@ -1098,6 +1136,7 @@ where
                 status_code: item.http_code,
                 attempt_status: Some(status),
                 connector_transaction_id: Some(item.response.id.clone()),
+                connector_response_reference_id: Some(item.response.id.clone()),
                 network_decline_code: None,
                 network_advice_code: None,
                 network_error_message: None,
@@ -1112,6 +1151,7 @@ where
                 network_txn_id: None,
                 connector_response_reference_id: Some(item.response.id),
                 incremental_authorization_allowed: None,
+                authentication_data: None,
                 charges: None,
             })
         };
@@ -1234,6 +1274,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, AciCaptureResponse, T, PaymentsResponse
                 status_code: item.http_code,
                 attempt_status: Some(status),
                 connector_transaction_id: Some(item.response.id.clone()),
+                connector_response_reference_id: Some(item.response.id.clone()),
                 network_decline_code: None,
                 network_advice_code: None,
                 network_error_message: None,
@@ -1248,6 +1289,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, AciCaptureResponse, T, PaymentsResponse
                 network_txn_id: None,
                 connector_response_reference_id: Some(item.response.referenced_id.clone()),
                 incremental_authorization_allowed: None,
+                authentication_data: None,
                 charges: None,
             })
         };
@@ -1311,6 +1353,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, AciVoidResponse, T, PaymentsResponseDat
                 network_txn_id: None,
                 connector_response_reference_id: Some(item.response.referenced_id.clone()),
                 incremental_authorization_allowed: None,
+                authentication_data: None,
                 charges: None,
             })
         };
@@ -1410,6 +1453,7 @@ impl<F> TryFrom<RefundsResponseRouterData<F, AciRefundResponse>> for RefundsRout
                 status_code: item.http_code,
                 attempt_status: None,
                 connector_transaction_id: Some(item.response.id.clone()),
+                connector_response_reference_id: None,
                 network_decline_code: None,
                 network_advice_code: None,
                 network_error_message: None,
@@ -1452,7 +1496,7 @@ impl
             connector_mandate_id: Some(item.response.id.clone()),
             payment_method_id: None,
             mandate_metadata: None,
-            connector_mandate_request_reference_id: None,
+            connector_mandate_request_reference_id: Some(item.response.id.clone()),
         });
 
         let status = if SUCCESSFUL_CODES.contains(&item.response.result.code.as_str()) {
@@ -1471,6 +1515,7 @@ impl
                 status_code: item.http_code,
                 attempt_status: Some(status),
                 connector_transaction_id: Some(item.response.id.clone()),
+                connector_response_reference_id: Some(item.response.id.clone()),
                 network_decline_code: None,
                 network_advice_code: None,
                 network_error_message: None,
@@ -1485,6 +1530,7 @@ impl
                 network_txn_id: None,
                 connector_response_reference_id: Some(item.response.id),
                 incremental_authorization_allowed: None,
+                authentication_data: None,
                 charges: None,
             })
         };
@@ -1498,6 +1544,7 @@ impl
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "UPPERCASE")]
 pub enum AciWebhookEventType {
     Payment,
 }

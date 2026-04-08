@@ -60,6 +60,7 @@ pub async fn list_payment_methods(
                 &state,
                 platform.get_provider(),
                 customer_id,
+                false, // include_new field is false because we want to fetch saved payment methods for the customer, and not fetch new payment methods based on the current request
             )
             .await?,
         ),
@@ -407,7 +408,8 @@ fn get_pm_subtype_specific_data(
         | common_enums::PaymentMethod::Upi
         | common_enums::PaymentMethod::Voucher
         | common_enums::PaymentMethod::GiftCard
-        | common_enums::PaymentMethod::MobilePayment => None,
+        | common_enums::PaymentMethod::MobilePayment
+        | common_enums::PaymentMethod::NetworkToken => None,
     }
 }
 

@@ -8,6 +8,7 @@ use hyperswitch_domain_models::{
     payment_method_data::PaymentMethodData,
     router_data::{ConnectorAuthType, ErrorResponse, RouterData},
     router_data_v2::RouterDataV2,
+    router_request_types::CurrentFlowInfo,
     router_response_types::{ConnectorInfo, SupportedPaymentMethods},
 };
 
@@ -23,7 +24,9 @@ use crate::{
     disputes, errors,
     events::connector_api_logs::ConnectorEvent,
     types,
-    webhooks::{IncomingWebhook, IncomingWebhookFlowError, IncomingWebhookRequestDetails},
+    webhooks::{
+        IncomingWebhook, IncomingWebhookFlowError, IncomingWebhookRequestDetails, WebhookContext,
+    },
 };
 
 /// RouterDataConversion trait
@@ -139,6 +142,33 @@ impl ConnectorEnum {
             Self::Old(connector) => connector.validate_file_upload(purpose, file_size, file_type),
             Self::New(connector) => {
                 connector.validate_file_upload_v2(purpose, file_size, file_type)
+            }
+        }
+    }
+    /// This keeps the generics <F, Req, Res> so existing callers don't break
+    pub fn get_access_token_key<F, Req, Res>(
+        &self,
+        router_data: &RouterData<F, Req, Res>,
+        merchant_connector_id_or_connector_name: String,
+        current_flow: Option<CurrentFlowInfo>,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        match self {
+            Self::Old(connector) => {
+                // router_data is automatically coerced to &dyn AccessTokenData
+                connector.get_access_token_key(
+                    // router_data as &dyn AccessTokenData,
+                    router_data,
+                    merchant_connector_id_or_connector_name,
+                    current_flow,
+                )
+            }
+            Self::New(connector) => {
+                connector.get_access_token_key(
+                    // router_data as &dyn AccessTokenData,
+                    router_data,
+                    merchant_connector_id_or_connector_name,
+                    current_flow,
+                )
             }
         }
     }
@@ -273,7 +303,9 @@ impl IncomingWebhook for ConnectorEnum {
         request: &IncomingWebhookRequestDetails<'_>,
         merchant_id: &common_utils::id_type::MerchantId,
         connector_webhook_details: Option<common_utils::pii::SecretSerdeValue>,
-        connector_account_details: crypto::Encryptable<masking::Secret<serde_json::Value>>,
+        connector_account_details: crypto::Encryptable<
+            hyperswitch_masking::Secret<serde_json::Value>,
+        >,
         connector_name: &str,
     ) -> CustomResult<bool, errors::ConnectorError> {
         match self {
@@ -326,17 +358,19 @@ impl IncomingWebhook for ConnectorEnum {
     fn get_webhook_event_type(
         &self,
         request: &IncomingWebhookRequestDetails<'_>,
+        snapshot: Option<&WebhookContext>,
     ) -> CustomResult<IncomingWebhookEvent, errors::ConnectorError> {
         match self {
-            Self::Old(connector) => connector.get_webhook_event_type(request),
-            Self::New(connector) => connector.get_webhook_event_type(request),
+            Self::Old(connector) => connector.get_webhook_event_type(request, snapshot),
+            Self::New(connector) => connector.get_webhook_event_type(request, snapshot),
         }
     }
 
     fn get_webhook_resource_object(
         &self,
         request: &IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
+    ) -> CustomResult<Box<dyn hyperswitch_masking::ErasedMaskSerialize>, errors::ConnectorError>
+    {
         match self {
             Self::Old(connector) => connector.get_webhook_resource_object(request),
             Self::New(connector) => connector.get_webhook_resource_object(request),
@@ -347,20 +381,32 @@ impl IncomingWebhook for ConnectorEnum {
         &self,
         request: &IncomingWebhookRequestDetails<'_>,
         error_kind: Option<IncomingWebhookFlowError>,
+        connector_authentication_type: Option<
+            crypto::Encryptable<hyperswitch_masking::Secret<serde_json::Value>>,
+        >,
     ) -> CustomResult<ApplicationResponse<serde_json::Value>, errors::ConnectorError> {
         match self {
-            Self::Old(connector) => connector.get_webhook_api_response(request, error_kind),
-            Self::New(connector) => connector.get_webhook_api_response(request, error_kind),
+            Self::Old(connector) => connector.get_webhook_api_response(
+                request,
+                error_kind,
+                connector_authentication_type,
+            ),
+            Self::New(connector) => connector.get_webhook_api_response(
+                request,
+                error_kind,
+                connector_authentication_type,
+            ),
         }
     }
 
     fn get_dispute_details(
         &self,
         request: &IncomingWebhookRequestDetails<'_>,
+        snapshot: Option<&WebhookContext>,
     ) -> CustomResult<disputes::DisputePayload, errors::ConnectorError> {
         match self {
-            Self::Old(connector) => connector.get_dispute_details(request),
-            Self::New(connector) => connector.get_dispute_details(request),
+            Self::Old(connector) => connector.get_dispute_details(request, snapshot),
+            Self::New(connector) => connector.get_dispute_details(request, snapshot),
         }
     }
 
@@ -529,31 +575,69 @@ impl ConnectorValidation for ConnectorEnum {
             Self::New(connector) => connector.is_webhook_source_verification_mandatory(),
         }
     }
-}
 
-impl ConnectorSpecifications for ConnectorEnum {
-    fn decide_should_continue_after_preprocessing(
+    fn should_continue_further(
         &self,
-        current_flow: api::CurrentFlowInfo<'_>,
-        pre_processing_flow_name: api::PreProcessingFlowName,
-        preprocessing_flow_response: api::PreProcessingFlowResponse<'_>,
-    ) -> bool {
+        payment_intent: &hyperswitch_domain_models::payments::PaymentIntent,
+    ) -> Option<bool> {
         match self {
-            Self::Old(connector) => connector.decide_should_continue_after_preprocessing(
-                current_flow,
-                pre_processing_flow_name,
-                preprocessing_flow_response,
-            ),
-            Self::New(connector) => connector.decide_should_continue_after_preprocessing(
-                current_flow,
-                pre_processing_flow_name,
-                preprocessing_flow_response,
-            ),
+            Self::Old(connector) => connector.should_continue_further(payment_intent),
+            Self::New(connector) => connector.should_continue_further(payment_intent),
+        }
+    }
+}
+impl ConnectorSpecifications for ConnectorEnum {
+    fn is_balance_check_flow_required(&self, current_flow: CurrentFlowInfo) -> bool {
+        match self {
+            Self::Old(connector) => connector.is_balance_check_flow_required(current_flow),
+            Self::New(connector) => connector.is_balance_check_flow_required(current_flow),
+        }
+    }
+    fn is_order_create_flow_required(&self, current_flow: CurrentFlowInfo) -> bool {
+        match self {
+            Self::Old(connector) => connector.is_order_create_flow_required(current_flow),
+            Self::New(connector) => connector.is_order_create_flow_required(current_flow),
+        }
+    }
+    fn is_pre_authentication_flow_required(&self, current_flow: CurrentFlowInfo) -> bool {
+        match self {
+            Self::Old(connector) => connector.is_pre_authentication_flow_required(current_flow),
+            Self::New(connector) => connector.is_pre_authentication_flow_required(current_flow),
+        }
+    }
+    fn is_authentication_flow_required(&self, current_flow: CurrentFlowInfo) -> bool {
+        match self {
+            Self::Old(connector) => connector.is_authentication_flow_required(current_flow),
+            Self::New(connector) => connector.is_authentication_flow_required(current_flow),
+        }
+    }
+    fn is_post_authentication_flow_required(&self, current_flow: CurrentFlowInfo) -> bool {
+        match self {
+            Self::Old(connector) => connector.is_post_authentication_flow_required(current_flow),
+            Self::New(connector) => connector.is_post_authentication_flow_required(current_flow),
+        }
+    }
+    fn is_settlement_split_call_required(&self, current_flow: CurrentFlowInfo) -> bool {
+        match self {
+            Self::Old(connector) => connector.is_settlement_split_call_required(current_flow),
+            Self::New(connector) => connector.is_settlement_split_call_required(current_flow),
+        }
+    }
+    fn is_push_notification_flow_required(&self, current_flow: CurrentFlowInfo) -> bool {
+        match self {
+            Self::Old(connector) => connector.is_push_notification_flow_required(current_flow),
+            Self::New(connector) => connector.is_push_notification_flow_required(current_flow),
+        }
+    }
+    fn is_generate_qr_flow_required(&self, current_flow: CurrentFlowInfo) -> bool {
+        match self {
+            Self::Old(connector) => connector.is_generate_qr_flow_required(current_flow),
+            Self::New(connector) => connector.is_generate_qr_flow_required(current_flow),
         }
     }
     fn get_preprocessing_flow_if_needed(
         &self,
-        current_flow_info: api::CurrentFlowInfo<'_>,
+        current_flow_info: CurrentFlowInfo,
     ) -> Option<api::PreProcessingFlowName> {
         match self {
             Self::Old(connector) => connector.get_preprocessing_flow_if_needed(current_flow_info),
@@ -562,7 +646,7 @@ impl ConnectorSpecifications for ConnectorEnum {
     }
     fn get_alternate_flow_if_needed(
         &self,
-        current_flow: api::CurrentFlowInfo<'_>,
+        current_flow: CurrentFlowInfo,
     ) -> Option<api::AlternateFlow> {
         match self {
             Self::Old(connector) => connector.get_alternate_flow_if_needed(current_flow),
@@ -637,10 +721,17 @@ impl ConnectorSpecifications for ConnectorEnum {
     }
 
     /// Check if the connector needs authorize session token call
-    fn is_authorize_session_token_call_required(&self) -> bool {
+    fn is_authorize_session_token_call_required(
+        &self,
+        current_flow: Option<CurrentFlowInfo>,
+    ) -> bool {
         match self {
-            Self::Old(connector) => connector.is_authorize_session_token_call_required(),
-            Self::New(connector) => connector.is_authorize_session_token_call_required(),
+            Self::Old(connector) => {
+                connector.is_authorize_session_token_call_required(current_flow)
+            }
+            Self::New(connector) => {
+                connector.is_authorize_session_token_call_required(current_flow)
+            }
         }
     }
 
@@ -724,6 +815,22 @@ impl ConnectorSpecifications for ConnectorEnum {
             Self::New(connector) => connector.should_call_tokenization_before_setup_mandate(),
         }
     }
+
+    fn should_trigger_handle_response_without_body(&self) -> bool {
+        match self {
+            Self::Old(connector) => connector.should_trigger_handle_response_without_body(),
+            Self::New(connector) => connector.should_trigger_handle_response_without_body(),
+        }
+    }
+
+    fn get_api_webhook_config(
+        &self,
+    ) -> &'static common_types::connector_webhook_configuration::WebhookSetupCapabilities {
+        match self {
+            Self::Old(connector) => connector.get_api_webhook_config(),
+            Self::New(connector) => connector.get_api_webhook_config(),
+        }
+    }
 }
 
 impl ConnectorCommon for ConnectorEnum {
@@ -744,7 +851,8 @@ impl ConnectorCommon for ConnectorEnum {
     fn get_auth_header(
         &self,
         auth_type: &ConnectorAuthType,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         match self {
             Self::Old(connector) => connector.get_auth_header(auth_type),
             Self::New(connector) => connector.get_auth_header(auth_type),
@@ -773,23 +881,6 @@ impl ConnectorCommon for ConnectorEnum {
         match self {
             Self::Old(connector) => connector.build_error_response(res, event_builder),
             Self::New(connector) => connector.build_error_response(res, event_builder),
-        }
-    }
-}
-
-impl ConnectorAccessTokenSuffix for ConnectorEnum {
-    fn get_access_token_key<F, Req, Res>(
-        &self,
-        router_data: &RouterData<F, Req, Res>,
-        merchant_connector_id_or_connector_name: String,
-    ) -> CustomResult<String, errors::ConnectorError> {
-        match self {
-            Self::Old(connector) => {
-                connector.get_access_token_key(router_data, merchant_connector_id_or_connector_name)
-            }
-            Self::New(connector) => {
-                connector.get_access_token_key(router_data, merchant_connector_id_or_connector_name)
-            }
         }
     }
 }
@@ -986,3 +1077,6 @@ impl api::ConnectorTransactionId for ConnectorEnum {
         }
     }
 }
+
+//re-add if stops working
+// impl ConnectorAccessTokenSuffix for BoxedConnectorV2 {}

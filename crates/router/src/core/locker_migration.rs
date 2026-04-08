@@ -1,6 +1,4 @@
 use ::payment_methods::controller::PaymentMethodsController;
-#[cfg(feature = "v1")]
-use api_models::enums as api_enums;
 use api_models::locker_migration::MigrateCardResponse;
 use common_utils::{errors::CustomResult, id_type};
 #[cfg(feature = "v1")]
@@ -69,6 +67,7 @@ pub async fn rust_locker_migration(
         key_store.clone(),
         merchant_account.clone(),
         key_store.clone(),
+        None,
     );
     for customer in domain_customers {
         let result = db
@@ -123,7 +122,7 @@ pub async fn call_to_locker(
         .await;
 
         let card = match card {
-            Ok(card) => card,
+            Ok(card) => card.get_card(),
             Err(err) => {
                 logger::error!("Failed to fetch card from Basilisk HS locker : {:?}", err);
                 continue;
@@ -135,9 +134,10 @@ pub async fn call_to_locker(
             card_exp_month: card.card_exp_month,
             card_exp_year: card.card_exp_year,
             card_holder_name: card.name_on_card,
-            nick_name: card.nick_name.map(masking::Secret::new),
+            nick_name: card.nick_name.map(hyperswitch_masking::Secret::new),
             card_cvc: None,
             card_issuing_country: None,
+            card_issuing_country_code: None,
             card_network: None,
             card_issuer: None,
             card_type: None,
@@ -153,8 +153,10 @@ pub async fn call_to_locker(
             wallet: None,
             #[cfg(feature = "payouts")]
             bank_transfer: None,
+            #[cfg(feature = "payouts")]
+            bank_transfer_data: None,
             metadata: pm.metadata,
-            customer_id: Some(pm.customer_id),
+            customer_id: pm.customer_id,
             card_network: card.card_brand,
             client_secret: None,
             payment_method_data: None,
@@ -170,7 +172,6 @@ pub async fn call_to_locker(
                 pm_create,
                 &card_details,
                 customer_id,
-                api_enums::LockerChoice::HyperswitchCardVault,
                 Some(pm.locker_id.as_ref().unwrap_or(&pm.payment_method_id)),
 
             )

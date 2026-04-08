@@ -33,7 +33,7 @@ use hyperswitch_interfaces::{
     types::{self, Response},
     webhooks,
 };
-use masking::{Mask, PeekInterface};
+use hyperswitch_masking::{Mask, PeekInterface};
 use transformers as vgs;
 
 use crate::{constants::headers, types::ResponseRouterData};
@@ -71,7 +71,8 @@ where
         &self,
         req: &RouterData<Flow, Request, Response>,
         _connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         let access_token = req
             .access_token
             .clone()
@@ -104,7 +105,8 @@ impl ConnectorCommon for Vgs {
     fn get_auth_header(
         &self,
         _auth_type: &ConnectorAuthType,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         Ok(vec![])
     }
 
@@ -133,6 +135,7 @@ impl ConnectorCommon for Vgs {
             reason: error.detail.clone(),
             attempt_status: None,
             connector_transaction_id: None,
+            connector_response_reference_id: None,
             network_decline_code: None,
             network_advice_code: None,
             network_error_message: None,
@@ -182,7 +185,8 @@ impl ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken> 
         &self,
         _req: &RefreshTokenRouterData,
         _connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         Ok(vec![(
             headers::CONTENT_TYPE.to_string(),
             types::RefreshTokenType::get_content_type(self)
@@ -260,6 +264,7 @@ impl ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken> 
             reason: Some(response.error_description),
             attempt_status: None,
             connector_transaction_id: None,
+            connector_response_reference_id: None,
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
@@ -286,7 +291,8 @@ impl ConnectorIntegration<ExternalVaultInsertFlow, VaultRequestData, VaultRespon
         &self,
         req: &VaultRouterData<ExternalVaultInsertFlow>,
         connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         self.build_headers(req, connectors)
     }
 
@@ -373,7 +379,8 @@ impl ConnectorIntegration<ExternalVaultRetrieveFlow, VaultRequestData, VaultResp
         &self,
         req: &VaultRouterData<ExternalVaultRetrieveFlow>,
         connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         self.build_headers(req, connectors)
     }
 
@@ -440,6 +447,7 @@ impl webhooks::IncomingWebhook for Vgs {
     fn get_webhook_event_type(
         &self,
         _request: &webhooks::IncomingWebhookRequestDetails<'_>,
+        _context: Option<&webhooks::WebhookContext>,
     ) -> CustomResult<api_models::webhooks::IncomingWebhookEvent, errors::ConnectorError> {
         Err(report!(errors::ConnectorError::WebhooksNotImplemented))
     }
@@ -447,7 +455,8 @@ impl webhooks::IncomingWebhook for Vgs {
     fn get_webhook_resource_object(
         &self,
         _request: &webhooks::IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
+    ) -> CustomResult<Box<dyn hyperswitch_masking::ErasedMaskSerialize>, errors::ConnectorError>
+    {
         Err(report!(errors::ConnectorError::WebhooksNotImplemented))
     }
 }

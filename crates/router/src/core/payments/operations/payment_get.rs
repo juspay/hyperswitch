@@ -194,7 +194,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentStatusData<F>, PaymentsRetriev
         payment_attempt.encoded_data = request
             .param
             .as_ref()
-            .map(|val| masking::Secret::new(val.clone()));
+            .map(|val| hyperswitch_masking::Secret::new(val.clone()));
 
         let should_sync_with_connector =
             request.force_sync && payment_intent.status.should_force_sync_with_connector();
@@ -284,8 +284,7 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsRetrieveRequest, PaymentStatusDat
         _state: &'a SessionState,
         _payment_data: &mut PaymentStatusData<F>,
         _storage_scheme: storage_enums::MerchantStorageScheme,
-        _key_store: &domain::MerchantKeyStore,
-        _customer: &Option<domain::Customer>,
+        _platform: &domain::Platform,
         _business_profile: &domain::Profile,
         _should_retry_with_pan: bool,
     ) -> RouterResult<(
@@ -369,11 +368,8 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentStatusData<F>, PaymentsRetrieveReq
         &'b self,
         _state: &'b SessionState,
         _req_state: ReqState,
+        _processor: &domain::Processor,
         payment_data: PaymentStatusData<F>,
-        _customer: Option<domain::Customer>,
-        _storage_scheme: storage_enums::MerchantStorageScheme,
-        _updated_customer: Option<storage::CustomerUpdate>,
-        _key_store: &domain::MerchantKeyStore,
         _frm_suggestion: Option<FrmSuggestion>,
         _header_payload: hyperswitch_domain_models::payments::HeaderPayload,
     ) -> RouterResult<(BoxedConfirmOperation<'b, F>, PaymentStatusData<F>)>

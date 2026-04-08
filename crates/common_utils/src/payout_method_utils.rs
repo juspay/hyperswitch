@@ -1,7 +1,7 @@
 //! This module has common utilities for payout method data in HyperSwitch
 
 use diesel::{sql_types::Jsonb, AsExpression, FromSqlRow};
-use masking::Secret;
+use hyperswitch_masking::Secret;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
@@ -25,7 +25,7 @@ pub enum AdditionalPayoutMethodData {
     /// Additional data for Bank Redirect payout method
     BankRedirect(Box<BankRedirectAdditionalData>),
     /// Additional data for Passthrough payout method
-    Passthrough(Box<PassthroughAddtionalData>),
+    Passthrough(Box<PassthroughAdditionalData>),
 }
 
 crate::impl_to_sql_from_sql_json!(AdditionalPayoutMethodData);
@@ -85,6 +85,8 @@ pub enum BankAdditionalData {
     Ach(Box<AchBankTransferAdditionalData>),
     /// Additional data for bacs bank transfer payout method
     Bacs(Box<BacsBankTransferAdditionalData>),
+    /// Additional data for Trustly bank transfer payout method
+    Trustly(Box<TrustlyBankTransferAdditionalData>),
     /// Additional data for sepa bank transfer payout method
     Sepa(Box<SepaBankTransferAdditionalData>),
     /// Additional data for pix bank transfer payout method
@@ -199,6 +201,26 @@ pub struct PixBankTransferAdditionalData {
     pub bank_branch: Option<String>,
 }
 
+/// Masked payout method details for Trustly bank transfer payout method
+#[derive(
+    Default, Eq, PartialEq, Clone, Debug, Deserialize, Serialize, FromSqlRow, AsExpression, ToSchema,
+)]
+#[diesel(sql_type = Jsonb)]
+pub struct TrustlyBankTransferAdditionalData {
+    /// International Bank Account Number (iban) - used in many countries for identifying a bank along with it's customer.
+    #[schema(value_type = String, example = "token_12345")]
+    pub iban: Option<Secret<String>>,
+    /// country code of the customer's bank account.
+    #[schema(value_type = CountryAlpha2, example = "US")]
+    pub country_code: common_enums::CountryAlpha2,
+    /// The account number, identifying the end-user's account in the bank.
+    #[schema(value_type = String, example = "69706212")]
+    pub account_number: Option<Secret<String>>,
+    /// The bank number identifying the end-user's bank in the given clearing house.
+    #[schema(value_type = String, example = "6112")]
+    pub bank_number: Option<Secret<String>>,
+}
+
 /// Masked payout method details for wallet payout method
 #[derive(
     Eq, PartialEq, Clone, Debug, Deserialize, Serialize, FromSqlRow, AsExpression, ToSchema,
@@ -279,6 +301,8 @@ pub struct ApplePayDecryptAdditionalData {
 #[diesel(sql_type = Jsonb)]
 #[serde(untagged)]
 pub enum BankRedirectAdditionalData {
+    /// Additional data for OpenBankingUK bank redirect payout method
+    OpenBankingUk(Box<OpenBankingUkAdditionalData>),
     /// Additional data for interac bank redirect payout method
     Interac(Box<InteracAdditionalData>),
 }
@@ -294,16 +318,56 @@ pub struct InteracAdditionalData {
     pub email: Option<MaskedEmail>,
 }
 
+/// Masked payout method details for OpenBankingUK bank redirect payout method
+#[derive(
+    Default, Eq, PartialEq, Clone, Debug, Deserialize, Serialize, FromSqlRow, AsExpression, ToSchema,
+)]
+#[diesel(sql_type = Jsonb)]
+pub struct OpenBankingUkAdditionalData {
+    /// Account holder name
+    #[schema(value_type = String, example = "John Doe")]
+    pub account_holder_name: Secret<String>,
+    /// International Bank Account Number (iban) - used in many countries for identifying a bank along with it's customer.
+    #[schema(value_type = String, example = "DE89370400440532013000")]
+    pub iban: Secret<String>,
+}
+
 /// additional payout method details for passthrough payout method
 #[derive(
     Eq, PartialEq, Clone, Debug, Deserialize, Serialize, FromSqlRow, AsExpression, ToSchema,
 )]
 #[diesel(sql_type = Jsonb)]
-pub struct PassthroughAddtionalData {
+pub struct PassthroughAdditionalData {
     /// Psp_token of the passthrough flow
     #[schema(value_type = String, example = "token_12345")]
     pub psp_token: MaskedPspToken,
     /// token_type of the passthrough flow
     #[schema(value_type = PaymentMethodType, example = "paypal")]
     pub token_type: common_enums::PaymentMethodType,
+}
+
+impl From<&AdditionalPayoutMethodData> for common_enums::PaymentMethodType {
+    fn from(data: &AdditionalPayoutMethodData) -> Self {
+        match data {
+            // debit represent card payout methods, todo: consider renaming it to card in future
+            AdditionalPayoutMethodData::Card(_) => Self::Debit,
+            AdditionalPayoutMethodData::Bank(bank) => match **bank {
+                BankAdditionalData::Ach(_) => Self::Ach,
+                BankAdditionalData::Bacs(_) => Self::Bacs,
+                BankAdditionalData::Sepa(_) => Self::SepaBankTransfer,
+                BankAdditionalData::Pix(_) => Self::Pix,
+                BankAdditionalData::Trustly(_) => Self::Trustly,
+            },
+            AdditionalPayoutMethodData::Wallet(wallet) => match **wallet {
+                WalletAdditionalData::ApplePayDecrypt(_) => Self::ApplePay,
+                WalletAdditionalData::Paypal(_) => Self::Paypal,
+                WalletAdditionalData::Venmo(_) => Self::Venmo,
+            },
+            AdditionalPayoutMethodData::BankRedirect(bank_redirect) => match **bank_redirect {
+                BankRedirectAdditionalData::Interac(_) => Self::Interac,
+                BankRedirectAdditionalData::OpenBankingUk(_) => Self::OpenBankingUk,
+            },
+            AdditionalPayoutMethodData::Passthrough(passthrough) => passthrough.token_type,
+        }
+    }
 }

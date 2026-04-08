@@ -4,23 +4,25 @@ use hyperswitch_domain_models::{
     router_flow_types::{
         payments::{
             Approve, Authorize, AuthorizeSessionToken, CalculateTax, Capture, CompleteAuthorize,
-            CreateConnectorCustomer, ExtendAuthorization, IncrementalAuthorization, PSync,
-            PaymentMethodToken, PostCaptureVoid, PostProcessing, PostSessionTokens, PreProcessing,
-            Reject, SdkSessionUpdate, Session, SetupMandate, UpdateMetadata, Void,
+            CreateConnectorCustomer, ExtendAuthorization, GenerateQr, IncrementalAuthorization,
+            PSync, PaymentMethodToken, PostCaptureVoid, PostProcessing, PostSessionTokens,
+            PreProcessing, PushNotification, Reject, SdkSessionUpdate, Session,
+            SettlementSplitCreate, SetupMandate, UpdateMetadata, Void,
         },
         Authenticate, CreateOrder, ExternalVaultProxy, GiftCardBalanceCheck, PostAuthenticate,
         PreAuthenticate,
     },
     router_request_types::{
         AuthorizeSessionTokenData, CompleteAuthorizeData, ConnectorCustomerData,
-        CreateOrderRequestData, ExternalVaultProxyPaymentsData, GiftCardBalanceCheckRequestData,
-        PaymentMethodTokenizationData, PaymentsApproveData, PaymentsAuthenticateData,
-        PaymentsAuthorizeData, PaymentsCancelData, PaymentsCancelPostCaptureData,
-        PaymentsCaptureData, PaymentsExtendAuthorizationData, PaymentsIncrementalAuthorizationData,
-        PaymentsPostAuthenticateData, PaymentsPostProcessingData, PaymentsPostSessionTokensData,
-        PaymentsPreAuthenticateData, PaymentsPreProcessingData, PaymentsRejectData,
-        PaymentsSessionData, PaymentsSyncData, PaymentsTaxCalculationData,
-        PaymentsUpdateMetadataData, SdkPaymentsSessionUpdateData, SetupMandateRequestData,
+        CreateOrderRequestData, ExternalVaultProxyPaymentsData, GenerateQrRequestData,
+        GiftCardBalanceCheckRequestData, PaymentMethodTokenizationData, PaymentsApproveData,
+        PaymentsAuthenticateData, PaymentsAuthorizeData, PaymentsCancelData,
+        PaymentsCancelPostCaptureData, PaymentsCaptureData, PaymentsExtendAuthorizationData,
+        PaymentsIncrementalAuthorizationData, PaymentsPostAuthenticateData,
+        PaymentsPostProcessingData, PaymentsPostSessionTokensData, PaymentsPreAuthenticateData,
+        PaymentsPreProcessingData, PaymentsRejectData, PaymentsSessionData, PaymentsSyncData,
+        PaymentsTaxCalculationData, PaymentsUpdateMetadataData, PushNotificationRequestData,
+        SdkPaymentsSessionUpdateData, SettlementSplitRequestData, SetupMandateRequestData,
     },
     router_response_types::{
         GiftCardBalanceCheckResponseData, PaymentsResponseData, TaxCalculationResponseData,
@@ -49,8 +51,9 @@ pub trait Payment:
     + MandateSetup
     + PaymentSession
     + PaymentToken
-    + PaymentsPreProcessing
     + PaymentsPostProcessing
+    + PaymentsPushNotification
+    + PaymentsGenerateQr
     + ConnectorCustomer
     + PaymentIncrementalAuthorization
     + PaymentExtendAuthorization
@@ -59,6 +62,7 @@ pub trait Payment:
     + PaymentUpdateMetadata
     + PaymentsCreateOrder
     + ExternalVaultProxyPaymentsCreateV1
+    + PaymentsSettlementSplitCreate
     + PaymentsGiftCardBalanceCheck
 {
 }
@@ -215,6 +219,18 @@ pub trait PaymentsPostProcessing:
 {
 }
 
+/// trait PaymentsPushNotification
+pub trait PaymentsPushNotification:
+    api::ConnectorIntegration<PushNotification, PushNotificationRequestData, PaymentsResponseData>
+{
+}
+
+/// trait PaymentsGenerateQr
+pub trait PaymentsGenerateQr:
+    api::ConnectorIntegration<GenerateQr, GenerateQrRequestData, PaymentsResponseData>
+{
+}
+
 /// trait PaymentsCreateOrder
 pub trait PaymentsCreateOrder:
     api::ConnectorIntegration<CreateOrder, CreateOrderRequestData, PaymentsResponseData>
@@ -224,6 +240,12 @@ pub trait PaymentsCreateOrder:
 /// trait ExternalVaultProxyPaymentsCreate
 pub trait ExternalVaultProxyPaymentsCreateV1:
     api::ConnectorIntegration<ExternalVaultProxy, ExternalVaultProxyPaymentsData, PaymentsResponseData>
+{
+}
+
+/// trait PaymentsSettlementSplitCreate
+pub trait PaymentsSettlementSplitCreate:
+    api::ConnectorIntegration<SettlementSplitCreate, SettlementSplitRequestData, PaymentsResponseData>
 {
 }
 

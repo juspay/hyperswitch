@@ -58,9 +58,9 @@ use hyperswitch_interfaces::{
     errors,
     events::connector_api_logs::ConnectorEvent,
     types::{self, PaymentsVoidType, Response},
-    webhooks::{IncomingWebhook, IncomingWebhookRequestDetails},
+    webhooks::{IncomingWebhook, IncomingWebhookRequestDetails, WebhookContext},
 };
-use masking::Mask;
+use hyperswitch_masking::Mask;
 #[cfg(feature = "payouts")]
 use payout_requests::WorldpayPayoutRequest;
 #[cfg(feature = "payouts")]
@@ -82,8 +82,8 @@ use crate::{
     constants::headers,
     types::ResponseRouterData,
     utils::{
-        convert_amount, get_header_key_value, is_mandate_supported, ForeignTryFrom,
-        PaymentMethodDataType, RefundsRequestData,
+        convert_amount, get_header_key_value, is_html_response_from_headers, is_mandate_supported,
+        ForeignTryFrom, PaymentMethodDataType, RefundsRequestData,
     },
 };
 
@@ -111,7 +111,8 @@ where
         &self,
         req: &RouterData<Flow, Request, Response>,
         _connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         let mut headers = vec![
             (
                 headers::ACCEPT.to_string(),
@@ -149,7 +150,8 @@ impl ConnectorCommon for Worldpay {
     fn get_auth_header(
         &self,
         auth_type: &ConnectorAuthType,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         let auth = worldpay::WorldpayAuthType::try_from(auth_type)
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
         Ok(vec![(
@@ -164,9 +166,21 @@ impl ConnectorCommon for Worldpay {
         event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
         let response = if !res.response.is_empty() {
-            res.response
-                .parse_struct("WorldpayErrorResponse")
-                .change_context(errors::ConnectorError::ResponseDeserializationFailed)?
+            // Check if the response is HTML (likely a 404 error from Worldpay)
+            if is_html_response_from_headers(res.headers.as_ref()) {
+                // Log the HTML body for debugging purposes (contains RequestID and other details)
+                router_env::logger::info!(
+                    "Worldpay returned HTML response: status_code={}, body={}",
+                    res.status_code,
+                    String::from_utf8_lossy(&res.response)
+                );
+                // For HTML responses (like 404), create a default error response
+                WorldpayErrorResponse::default(res.status_code)
+            } else {
+                res.response
+                    .parse_struct("WorldpayErrorResponse")
+                    .change_context(errors::ConnectorError::ResponseDeserializationFailed)?
+            }
         } else {
             WorldpayErrorResponse::default(res.status_code)
         };
@@ -181,6 +195,7 @@ impl ConnectorCommon for Worldpay {
             reason: response.validation_errors.map(|e| e.to_string()),
             attempt_status: Some(enums::AttemptStatus::Failure),
             connector_transaction_id: None,
+            connector_response_reference_id: None,
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
@@ -214,7 +229,8 @@ impl ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsRespons
         &self,
         req: &SetupMandateRouterData,
         connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         self.build_headers(req, connectors)
     }
 
@@ -240,7 +256,7 @@ impl ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsRespons
         let connector_router_data = worldpay::WorldpayRouterData::try_from((
             &self.get_currency_unit(),
             req.request.currency,
-            req.request.minor_amount.unwrap_or_default(),
+            req.request.minor_amount,
             req,
         ))?;
         let connector_req =
@@ -294,7 +310,7 @@ impl ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsRespons
                 http_code: res.status_code,
             },
             optional_correlation_id,
-            data.request.amount.unwrap_or(0),
+            data.request.amount,
         ))
         .change_context(errors::ConnectorError::ResponseHandlingFailed)
     }
@@ -331,7 +347,8 @@ impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Wo
         &self,
         req: &PaymentsCancelRouterData,
         connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         self.build_headers(req, connectors)
     }
 
@@ -405,6 +422,7 @@ impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Wo
                         network_txn_id: None,
                         connector_response_reference_id: optional_correlation_id,
                         incremental_authorization_allowed: None,
+                        authentication_data: None,
                         charges: None,
                     }),
                     ..data.clone()
@@ -433,7 +451,8 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Wor
         &self,
         req: &PaymentsSyncRouterData,
         connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         self.build_headers(req, connectors)
     }
 
@@ -479,9 +498,21 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Wor
         event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
         let response = if !res.response.is_empty() {
-            res.response
-                .parse_struct("WorldpayErrorResponse")
-                .change_context(errors::ConnectorError::ResponseDeserializationFailed)?
+            // Check if the response is HTML (likely a 404 error from Worldpay)
+            if is_html_response_from_headers(res.headers.as_ref()) {
+                // Log the HTML body for debugging purposes (contains RequestID and other details)
+                router_env::logger::info!(
+                    "Worldpay returned HTML response: status_code={}, body={}",
+                    res.status_code,
+                    String::from_utf8_lossy(&res.response)
+                );
+                // For HTML responses (like 404), create a default error response
+                WorldpayErrorResponse::default(res.status_code)
+            } else {
+                res.response
+                    .parse_struct("WorldpayErrorResponse")
+                    .change_context(errors::ConnectorError::ResponseDeserializationFailed)?
+            }
         } else {
             WorldpayErrorResponse::default(res.status_code)
         };
@@ -496,6 +527,7 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Wor
             reason: response.validation_errors.map(|e| e.to_string()),
             attempt_status: None,
             connector_transaction_id: None,
+            connector_response_reference_id: None,
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
@@ -548,6 +580,7 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Wor
                 network_txn_id: None,
                 connector_response_reference_id: optional_correlation_id,
                 incremental_authorization_allowed: None,
+                authentication_data: None,
                 charges: None,
             }),
             ..data.clone()
@@ -561,7 +594,8 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
         &self,
         req: &PaymentsCaptureRouterData,
         connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         self.build_headers(req, connectors)
     }
 
@@ -649,6 +683,7 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
                         network_txn_id: None,
                         connector_response_reference_id: optional_correlation_id,
                         incremental_authorization_allowed: None,
+                        authentication_data: None,
                         charges: None,
                     }),
                     ..data.clone()
@@ -686,7 +721,8 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         &self,
         req: &PaymentsAuthorizeRouterData,
         connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         self.build_headers(req, connectors)
     }
 
@@ -800,7 +836,8 @@ impl ConnectorIntegration<CompleteAuthorize, CompleteAuthorizeData, PaymentsResp
         &self,
         req: &PaymentsCompleteAuthorizeRouterData,
         connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         self.build_headers(req, connectors)
     }
 
@@ -922,7 +959,8 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Worldpa
         &self,
         req: &RefundsRouterData<Execute>,
         connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         self.build_headers(req, connectors)
     }
 
@@ -1034,7 +1072,8 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Worldpay 
         &self,
         req: &RefundSyncRouterData,
         connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         self.build_headers(req, connectors)
     }
 
@@ -1129,7 +1168,8 @@ impl ConnectorIntegration<PoFulfill, PayoutsData, PayoutsResponseData> for World
         &self,
         req: &PayoutsRouterData<PoFulfill>,
         _connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         let auth = worldpay_payout::WorldpayPayoutAuthType::try_from(&req.connector_auth_type)
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
         let headers = vec![
@@ -1265,7 +1305,9 @@ impl IncomingWebhook for Worldpay {
         request: &IncomingWebhookRequestDetails<'_>,
         merchant_id: &common_utils::id_type::MerchantId,
         connector_webhook_details: Option<common_utils::pii::SecretSerdeValue>,
-        _connector_account_details: crypto::Encryptable<masking::Secret<serde_json::Value>>,
+        _connector_account_details: crypto::Encryptable<
+            hyperswitch_masking::Secret<serde_json::Value>,
+        >,
         connector_label: &str,
     ) -> CustomResult<bool, errors::ConnectorError> {
         let connector_webhook_secrets = self
@@ -1312,6 +1354,7 @@ impl IncomingWebhook for Worldpay {
     fn get_webhook_event_type(
         &self,
         request: &IncomingWebhookRequestDetails<'_>,
+        _context: Option<&WebhookContext>,
     ) -> CustomResult<IncomingWebhookEvent, errors::ConnectorError> {
         let body: WorldpayWebhookEventType = request
             .body
@@ -1338,7 +1381,8 @@ impl IncomingWebhook for Worldpay {
     fn get_webhook_resource_object(
         &self,
         request: &IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
+    ) -> CustomResult<Box<dyn hyperswitch_masking::ErasedMaskSerialize>, errors::ConnectorError>
+    {
         let body: WorldpayWebhookEventType = request
             .body
             .parse_struct("WorldpayWebhookEventType")

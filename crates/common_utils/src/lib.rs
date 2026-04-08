@@ -1,7 +1,7 @@
 #![warn(missing_docs, missing_debug_implementations)]
 #![doc = include_str!(concat!(env!("CARGO_MANIFEST_DIR" ), "/", "README.md"))]
 
-use masking::{PeekInterface, Secret};
+use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 
 pub mod access_token;
 pub mod consts;
@@ -48,7 +48,7 @@ pub mod date_time {
     use std::time::Instant;
     use std::{marker::PhantomData, num::NonZeroU8};
 
-    use masking::{Deserialize, Serialize};
+    use hyperswitch_masking::{Deserialize, Serialize};
     use time::{
         format_description::{
             well_known::iso8601::{Config, EncodedConfig, Iso8601, TimePrecision},
@@ -327,6 +327,38 @@ mod base64_serializer {
     use base64_serde::base64_serde_type;
 
     base64_serde_type!(pub Base64Serializer, crate::consts::BASE64_ENGINE);
+}
+
+/// Merges two optional JSON values into a single JSON object.
+/// If both values are objects, their key-value pairs are merged.
+/// If only one value exists, it is returned.
+/// If neither exists, None is returned.
+pub fn merge_json_values(
+    first: Option<pii::SecretSerdeValue>,
+    second: Option<pii::SecretSerdeValue>,
+) -> Option<pii::SecretSerdeValue> {
+    match first.clone().zip(second.clone()) {
+        Some((first, second)) => {
+            let first_value = first.expose();
+            let second_value = second.expose();
+
+            match (first_value, second_value) {
+                (
+                    serde_json::Value::Object(mut first_map),
+                    serde_json::Value::Object(second_map),
+                ) => {
+                    // if the first and second has the same keys then the value will be updated with that of the second
+                    first_map.extend(second_map);
+                    Some(pii::SecretSerdeValue::new(serde_json::Value::Object(
+                        first_map,
+                    )))
+                }
+                // ideally both Value should of variant Object but if one of them is not an object, it follows the previous behaviour i.e pass payment method metadata
+                (first_val, _) => Some(pii::SecretSerdeValue::new(first_val)),
+            }
+        }
+        None => first.or(second),
+    }
 }
 
 #[cfg(test)]

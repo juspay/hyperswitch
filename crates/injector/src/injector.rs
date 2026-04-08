@@ -4,7 +4,7 @@ pub mod core {
     use async_trait::async_trait;
     use common_utils::request::{Method, RequestBuilder, RequestContent};
     use error_stack::{self, ResultExt};
-    use masking::{self, ExposeInterface};
+    use hyperswitch_masking::{self, ExposeInterface};
     use nom::{
         bytes::complete::{tag, take_while1},
         character::complete::{char, multispace0},
@@ -62,9 +62,9 @@ pub mod core {
     /// Create HTTP client using the proven external_services create_client logic
     fn create_client(
         proxy_config: &Proxy,
-        client_certificate: Option<masking::Secret<String>>,
-        client_certificate_key: Option<masking::Secret<String>>,
-        ca_certificate: Option<masking::Secret<String>>,
+        client_certificate: Option<hyperswitch_masking::Secret<String>>,
+        client_certificate_key: Option<hyperswitch_masking::Secret<String>>,
+        ca_certificate: Option<hyperswitch_masking::Secret<String>>,
     ) -> error_stack::Result<reqwest::Client, InjectorError> {
         logger::debug!(
             has_client_cert = client_certificate.is_some(),
@@ -170,8 +170,8 @@ pub mod core {
     }
 
     fn create_identity_from_certificate_and_key(
-        encoded_certificate: masking::Secret<String>,
-        encoded_certificate_key: masking::Secret<String>,
+        encoded_certificate: hyperswitch_masking::Secret<String>,
+        encoded_certificate_key: hyperswitch_masking::Secret<String>,
     ) -> error_stack::Result<reqwest::Identity, InjectorError> {
         let cert_str = encoded_certificate.expose();
         let key_str = encoded_certificate_key.expose();
@@ -188,7 +188,7 @@ pub mod core {
     }
 
     fn create_certificate(
-        encoded_certificate: masking::Secret<String>,
+        encoded_certificate: hyperswitch_masking::Secret<String>,
     ) -> error_stack::Result<Vec<reqwest::Certificate>, InjectorError> {
         let cert_str = encoded_certificate.expose();
 
@@ -279,8 +279,8 @@ pub mod core {
         // Add headers
         for (key, value) in &request.headers {
             let header_value = match value {
-                masking::Maskable::Masked(secret) => secret.clone().expose(),
-                masking::Maskable::Normal(normal) => normal.clone(),
+                hyperswitch_masking::Maskable::Masked(secret) => secret.clone().expose(),
+                hyperswitch_masking::Maskable::Normal(normal) => normal.clone(),
             };
             req_builder = req_builder.header(key, header_value);
         }
@@ -629,11 +629,16 @@ pub mod core {
             logger::debug!("Constructed URL: {}", url);
 
             // Convert headers to common_utils Headers format safely
-            let headers: Vec<(String, masking::Maskable<String>)> = config
+            let headers: Vec<(String, hyperswitch_masking::Maskable<String>)> = config
                 .headers
                 .clone()
                 .into_iter()
-                .map(|(k, v)| (k, masking::Maskable::new_normal(v.expose().clone())))
+                .map(|(k, v)| {
+                    (
+                        k,
+                        hyperswitch_masking::Maskable::new_normal(v.expose().clone()),
+                    )
+                })
                 .collect();
 
             // Determine method and request content
@@ -882,11 +887,11 @@ mod tests {
         let mut headers = HashMap::new();
         headers.insert(
             "Content-Type".to_string(),
-            masking::Secret::new("application/x-www-form-urlencoded".to_string()),
+            hyperswitch_masking::Secret::new("application/x-www-form-urlencoded".to_string()),
         );
         headers.insert(
             "Authorization".to_string(),
-            masking::Secret::new("Bearer Test".to_string()),
+            hyperswitch_masking::Secret::new("Bearer Test".to_string()),
         );
 
         let specific_token_data = common_utils::pii::SecretSerdeValue::new(serde_json::json!({
@@ -961,11 +966,11 @@ mod tests {
         let mut headers = HashMap::new();
         headers.insert(
             "Content-Type".to_string(),
-            masking::Secret::new("application/x-www-form-urlencoded".to_string()),
+            hyperswitch_masking::Secret::new("application/x-www-form-urlencoded".to_string()),
         );
         headers.insert(
             "Authorization".to_string(),
-            masking::Secret::new("Bearer TEST".to_string()),
+            hyperswitch_masking::Secret::new("Bearer TEST".to_string()),
         );
 
         let specific_token_data = common_utils::pii::SecretSerdeValue::new(serde_json::json!({

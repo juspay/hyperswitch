@@ -27,32 +27,36 @@ type UnifiedConnectorServiceResult = CustomResult<
 #[allow(missing_docs)]
 pub fn handle_unified_connector_service_response_for_payment_get(
     response: payments_grpc::PaymentServiceGetResponse,
+    prev_status: AttemptStatus,
 ) -> UnifiedConnectorServiceResult {
     let status_code = transformers::convert_connector_service_status_code(response.status_code)?;
 
     let router_data_response =
-        Result::<(PaymentsResponseData, AttemptStatus), ErrorResponse>::foreign_try_from(response)?;
+        Result::<(PaymentsResponseData, AttemptStatus), ErrorResponse>::foreign_try_from((
+            response,
+            prev_status,
+        ))?;
 
     Ok((router_data_response, status_code))
 }
 
 /// Extracts the payments response from UCS webhook content
 pub fn get_payments_response_from_ucs_webhook_content(
-    webhook_content: payments_grpc::WebhookResponseContent,
+    event_content: payments_grpc::EventContent,
 ) -> CustomResult<payments_grpc::PaymentServiceGetResponse, UnifiedConnectorServiceError> {
-    match webhook_content.content {
-        Some(unified_connector_service_client::payments::webhook_response_content::Content::PaymentsResponse(payments_response)) => {
+    match event_content.content {
+        Some(unified_connector_service_client::payments::event_content::Content::PaymentsResponse(payments_response)) => {
             Ok(payments_response)
         },
-        Some(unified_connector_service_client::payments::webhook_response_content::Content::RefundsResponse(_)) => {
+        Some(unified_connector_service_client::payments::event_content::Content::RefundsResponse(_)) => {
             Err(UnifiedConnectorServiceError::WebhookProcessingFailure)
                 .attach_printable("UCS webhook contains refunds response but payments response was expected")?
         },
-        Some(unified_connector_service_client::payments::webhook_response_content::Content::DisputesResponse(_)) => {
+        Some(unified_connector_service_client::payments::event_content::Content::DisputesResponse(_)) => {
             Err(UnifiedConnectorServiceError::WebhookProcessingFailure)
                 .attach_printable("UCS webhook contains disputes response but payments response was expected")?
         },
-        Some(unified_connector_service_client::payments::webhook_response_content::Content::IncompleteTransformation(_)) => {
+        Some(unified_connector_service_client::payments::event_content::Content::IncompleteTransformation(_)) => {
             Err(UnifiedConnectorServiceError::WebhookProcessingFailure)
                 .attach_printable("UCS webhook contains incomplete transformation but payments response was expected")?
         },

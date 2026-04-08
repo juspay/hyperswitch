@@ -44,8 +44,8 @@ use hyperswitch_interfaces::{
     types::{self, Response},
     webhooks,
 };
+use hyperswitch_masking::{Mask, Maskable, PeekInterface};
 use lazy_static::lazy_static;
-use masking::{Mask, Maskable, PeekInterface};
 use transformers as dlocal;
 
 use crate::{
@@ -170,6 +170,7 @@ impl ConnectorCommon for Dlocal {
             reason: Some(response.message),
             attempt_status: None,
             connector_transaction_id: None,
+            connector_response_reference_id: None,
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
@@ -700,6 +701,7 @@ impl webhooks::IncomingWebhook for Dlocal {
     fn get_webhook_event_type(
         &self,
         _request: &webhooks::IncomingWebhookRequestDetails<'_>,
+        _context: Option<&webhooks::WebhookContext>,
     ) -> CustomResult<IncomingWebhookEvent, errors::ConnectorError> {
         Ok(IncomingWebhookEvent::EventNotSupported)
     }
@@ -707,7 +709,8 @@ impl webhooks::IncomingWebhook for Dlocal {
     fn get_webhook_resource_object(
         &self,
         _request: &webhooks::IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
+    ) -> CustomResult<Box<dyn hyperswitch_masking::ErasedMaskSerialize>, errors::ConnectorError>
+    {
         Err(report!(errors::ConnectorError::WebhooksNotImplemented))
     }
 }

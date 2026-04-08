@@ -9,7 +9,7 @@ use hyperswitch_domain_models::{
     vault::{PaymentMethodCustomVaultingData, PaymentMethodVaultingData},
 };
 use hyperswitch_interfaces::errors;
-use masking::Secret;
+use hyperswitch_masking::Secret;
 use serde::{Deserialize, Serialize};
 
 use crate::types::ResponseRouterData;
@@ -126,6 +126,7 @@ impl
                     status_code: item.http_code,
                     attempt_status: None,
                     connector_transaction_id: None,
+                    connector_response_reference_id: None,
                     network_decline_code: None,
                     network_advice_code: None,
                     network_error_message: None,
@@ -216,6 +217,7 @@ impl
                     status_code: item.http_code,
                     attempt_status: None,
                     connector_transaction_id: None,
+                    connector_response_reference_id: None,
                     network_decline_code: None,
                     network_advice_code: None,
                     network_error_message: None,

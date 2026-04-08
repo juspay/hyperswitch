@@ -1,8 +1,8 @@
 import {
-  customerAcceptance,
   connectorDetails as commonConnectorDetails,
-  singleUseMandateData,
+  customerAcceptance,
   multiUseMandateData,
+  singleUseMandateData,
 } from "./Commons";
 import { getCustomExchange } from "./Modifiers";
 
@@ -11,21 +11,13 @@ const DUPLICATION_TIMEOUT = 30000; // 30 seconds
 const successfulNo3DSCardDetails = {
   card_number: "4242424242424242",
   card_exp_month: "12",
-  card_exp_year: "25",
+  card_exp_year: "30",
   card_holder_name: "John Doe",
   card_cvc: "123",
 };
 
 const successfulThreeDSTestCardDetails = {
   ...successfulNo3DSCardDetails,
-};
-
-const failedNo3DSCardDetails = {
-  card_number: "4111111111119903",
-  card_exp_month: "01",
-  card_exp_year: "25",
-  card_holder_name: "John Doe",
-  card_cvc: "123",
 };
 
 export const connectorDetails = {
@@ -165,7 +157,7 @@ export const connectorDetails = {
       Configs: {
         DELAY: {
           STATUS: true,
-          TIMEOUT: DUPLICATION_TIMEOUT / 2, // 15 seconds
+          TIMEOUT: DUPLICATION_TIMEOUT,
         },
       },
       Request: {
@@ -190,7 +182,7 @@ export const connectorDetails = {
       Request: {
         payment_method: "card",
         payment_method_data: {
-          card: failedNo3DSCardDetails,
+          card: successfulNo3DSCardDetails, //payload doesnt support failed cards
         },
         customer_acceptance: null,
         setup_future_usage: "on_session",
@@ -198,11 +190,9 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "failed",
-          error_code: "card_declined",
-          error_message: "Your card was declined",
-          unified_code: "UE_9000",
-          unified_message: "Something went wrong",
+          status: "succeeded",
+          payment_method: "card",
+          attempt_count: 1,
         },
       },
     },
@@ -299,7 +289,7 @@ export const connectorDetails = {
       Configs: {
         DELAY: {
           STATUS: true,
-          TIMEOUT: DUPLICATION_TIMEOUT / 2, // 15 seconds
+          TIMEOUT: DUPLICATION_TIMEOUT,
         },
       },
       Request: {
@@ -369,7 +359,7 @@ export const connectorDetails = {
       Configs: {
         DELAY: {
           STATUS: true,
-          TIMEOUT: DUPLICATION_TIMEOUT / 2, // 15 seconds
+          TIMEOUT: DUPLICATION_TIMEOUT,
         },
       },
       Request: {
@@ -472,7 +462,7 @@ export const connectorDetails = {
       Configs: {
         DELAY: {
           STATUS: true,
-          TIMEOUT: DUPLICATION_TIMEOUT / 2, // 15 seconds
+          TIMEOUT: DUPLICATION_TIMEOUT,
         },
       },
       Request: {
@@ -633,6 +623,7 @@ export const connectorDetails = {
           card: successfulNo3DSCardDetails,
         },
         setup_future_usage: "off_session",
+        mandate_data: null,
         customer_acceptance: customerAcceptance,
       },
       Response: {
@@ -659,6 +650,7 @@ export const connectorDetails = {
         },
         currency: "USD",
         mandate_data: singleUseMandateData,
+        customer_acceptance: customerAcceptance,
       },
       Response: {
         status: 200,
@@ -692,6 +684,12 @@ export const connectorDetails = {
           status: "requires_capture",
         },
       },
+    },
+  },
+  webhook: {
+    TransactionIdConfig: {
+      path: "triggered_on.id",
+      type: "string",
     },
   },
 };

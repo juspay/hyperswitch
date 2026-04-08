@@ -1,0 +1,1 @@
+pub use hyperswitch_interfaces::api::merchant_connector_webhook_management_v2::WebhookRegisterV2;

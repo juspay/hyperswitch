@@ -239,8 +239,7 @@ impl<F: Clone + Send> Domain<F, PaymentsCaptureRequest, PaymentCaptureData<F>> f
         _state: &'a SessionState,
         _payment_data: &mut PaymentCaptureData<F>,
         _storage_scheme: storage_enums::MerchantStorageScheme,
-        _key_store: &domain::MerchantKeyStore,
-        _customer: &Option<domain::Customer>,
+        _platform: &domain::Platform,
         _business_profile: &domain::Profile,
         _should_retry_with_pan: bool,
     ) -> RouterResult<(
@@ -295,17 +294,16 @@ impl<F: Clone> UpdateTracker<F, PaymentCaptureData<F>, PaymentsCaptureRequest> f
         &'b self,
         state: &'b SessionState,
         _req_state: ReqState,
+        processor: &domain::Processor,
         mut payment_data: PaymentCaptureData<F>,
-        _customer: Option<domain::Customer>,
-        storage_scheme: storage_enums::MerchantStorageScheme,
-        _updated_customer: Option<storage::CustomerUpdate>,
-        key_store: &domain::MerchantKeyStore,
         _frm_suggestion: Option<FrmSuggestion>,
         _header_payload: hyperswitch_domain_models::payments::HeaderPayload,
     ) -> RouterResult<(BoxedConfirmOperation<'b, F>, PaymentCaptureData<F>)>
     where
         F: 'b + Send,
     {
+        let storage_scheme = processor.get_account().storage_scheme;
+        let key_store = processor.get_key_store();
         let payment_attempt_update = hyperswitch_domain_models::payments::payment_attempt::PaymentAttemptUpdate::PreCaptureUpdate { amount_to_capture: payment_data.payment_attempt.amount_details.get_amount_to_capture(), updated_by: storage_scheme.to_string() };
 
         let payment_attempt = state

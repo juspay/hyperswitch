@@ -1,8 +1,8 @@
 //! Contains new types with restrictions
-use masking::{ExposeInterface, PeekInterface, Secret};
+use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 
 use crate::{
-    consts::MAX_ALLOWED_MERCHANT_NAME_LENGTH,
+    consts::{MAX_ALLOWED_CARD_ISSUER_NAME_LENGTH, MAX_ALLOWED_MERCHANT_NAME_LENGTH},
     pii::{Email, UpiVpaMaskingStrategy},
     transformers::ForeignFrom,
 };
@@ -13,7 +13,15 @@ use crate::{
 )]
 pub struct MerchantName(String);
 
-impl masking::SerializableSecret for MerchantName {}
+impl hyperswitch_masking::SerializableSecret for MerchantName {}
+
+#[nutype::nutype(
+    derive(Clone, Serialize, Deserialize, Debug, PartialEq, Eq, Hash),
+    validate(len_char_min = 1, len_char_max = MAX_ALLOWED_CARD_ISSUER_NAME_LENGTH)
+)]
+pub struct CardIssuerName(String);
+
+impl hyperswitch_masking::SerializableSecret for CardIssuerName {}
 
 /// Function for masking alphanumeric characters in a string.
 ///
@@ -112,6 +120,13 @@ impl From<String> for MaskedBankAccount {
     fn from(src: String) -> Self {
         let masked_value = apply_mask(src.as_ref(), 4, 4);
         Self(Secret::from(masked_value))
+    }
+}
+
+impl MaskedBankAccount {
+    /// Expose the inner secret
+    pub fn expose_inner(self) -> String {
+        self.0.expose()
     }
 }
 impl From<Secret<String>> for MaskedBankAccount {
@@ -253,7 +268,7 @@ impl From<Secret<String>> for MaskedPspToken {
 
 #[cfg(test)]
 mod apply_mask_fn_test {
-    use masking::PeekInterface;
+    use hyperswitch_masking::PeekInterface;
 
     use crate::new_type::{
         apply_mask, MaskedBankAccount, MaskedIban, MaskedRoutingNumber, MaskedSortCode,

@@ -1,4 +1,4 @@
-use common_enums::connector_enums::{Connector, InvoiceStatus};
+use common_enums::{connector_enums::Connector, InvoiceStatus};
 use common_utils::{id_type::GenerateId, pii::SecretSerdeValue, types::MinorUnit};
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable, Selectable};
 use serde::{Deserialize, Serialize};

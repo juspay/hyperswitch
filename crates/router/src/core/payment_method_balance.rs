@@ -19,7 +19,7 @@ use hyperswitch_domain_models::{
     router_response_types::GiftCardBalanceCheckResponseData,
 };
 use hyperswitch_interfaces::connector_integration_interface::RouterDataConversion;
-use masking::ExposeInterface;
+use hyperswitch_masking::ExposeInterface;
 use router_env::{instrument, tracing};
 
 use crate::{
@@ -78,7 +78,7 @@ pub async fn payments_check_gift_card_balance_core(
         domain::MerchantConnectorAccountTypeDetails::MerchantConnectorAccount(Box::new(
             helpers::get_merchant_connector_account_v2(
                 state,
-                platform.get_processor().get_key_store(),
+                platform.get_processor(),
                 Some(&gift_card_connector_id),
             )
             .await
@@ -87,10 +87,7 @@ pub async fn payments_check_gift_card_balance_core(
             )?,
         ));
 
-    let connector_name = merchant_connector_account
-        .get_connector_name()
-        .ok_or(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Connector name not present for gift card balance check")?; // always get the connector name from this call
+    let connector_name = merchant_connector_account.get_connector_name(); // always get the connector name from this call
 
     let connector_data = api::ConnectorData::get_connector_by_name(
         &state.conf.connectors,
@@ -250,14 +247,14 @@ pub async fn payments_check_and_apply_pm_data_core(
                     )
                 }
                 None => {
-                    match payments_check_gift_card_balance_core(
+                    match Box::pin(payments_check_gift_card_balance_core(
                         &state,
                         &platform,
                         &profile,
                         &_req_state,
                         pm.clone(),
                         &payment_id,
-                    )
+                    ))
                     .await
                     {
                         Ok((balance, currency)) => {

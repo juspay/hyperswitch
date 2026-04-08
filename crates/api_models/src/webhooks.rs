@@ -177,7 +177,7 @@ pub enum WebhookResponseTracker {
     #[cfg(feature = "v2")]
     Refund {
         payment_id: common_utils::id_type::GlobalPaymentId,
-        refund_id: String,
+        refund_id: common_utils::id_type::GlobalRefundId,
         status: common_enums::RefundStatus,
     },
     #[cfg(feature = "v1")]
@@ -223,6 +223,14 @@ impl WebhookResponseTracker {
     }
 
     #[cfg(feature = "v1")]
+    pub fn get_refund_id(&self) -> Option<String> {
+        match self {
+            Self::Refund { refund_id, .. } => Some(refund_id.to_owned()),
+            _ => None,
+        }
+    }
+
+    #[cfg(feature = "v1")]
     pub fn get_payment_method_id(&self) -> Option<String> {
         match self {
             Self::PaymentMethod {
@@ -249,6 +257,14 @@ impl WebhookResponseTracker {
             #[cfg(feature = "payouts")]
             Self::Payout { .. } => None,
             Self::Relay { .. } => None,
+        }
+    }
+
+    #[cfg(feature = "v2")]
+    pub fn get_refund_id(&self) -> Option<common_utils::id_type::GlobalRefundId> {
+        match self {
+            Self::Refund { refund_id, .. } => Some(refund_id.to_owned()),
+            _ => None,
         }
     }
 }
@@ -476,7 +492,7 @@ pub enum OutgoingWebhookContent {
 #[derive(Debug, Clone, Serialize)]
 pub struct ConnectorWebhookSecrets {
     pub secret: Vec<u8>,
-    pub additional_secret: Option<masking::Secret<String>>,
+    pub additional_secret: Option<hyperswitch_masking::Secret<String>>,
 }
 
 #[cfg(all(feature = "v2", feature = "revenue_recovery"))]

@@ -125,11 +125,8 @@ impl<F: Clone + Sync> UpdateTracker<F, payments::PaymentIntentData<F>, PaymentsG
         &'b self,
         _state: &'b SessionState,
         _req_state: ReqState,
+        _processor: &domain::Processor,
         payment_data: payments::PaymentIntentData<F>,
-        _customer: Option<domain::Customer>,
-        _storage_scheme: enums::MerchantStorageScheme,
-        _updated_customer: Option<storage::CustomerUpdate>,
-        _key_store: &domain::MerchantKeyStore,
         _frm_suggestion: Option<FrmSuggestion>,
         _header_payload: hyperswitch_domain_models::payments::HeaderPayload,
     ) -> RouterResult<(
@@ -188,8 +185,7 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsGetIntentRequest, payments::Payme
         _state: &'a SessionState,
         _payment_data: &mut payments::PaymentIntentData<F>,
         _storage_scheme: enums::MerchantStorageScheme,
-        _merchant_key_store: &domain::MerchantKeyStore,
-        _customer: &Option<domain::Customer>,
+        _platform: &domain::Platform,
         _business_profile: &domain::Profile,
         _should_retry_with_pan: bool,
     ) -> RouterResult<(
@@ -216,8 +212,9 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsGetIntentRequest, payments::Payme
     async fn guard_payment_against_blocklist<'a>(
         &'a self,
         _state: &SessionState,
-        _platform: &domain::Platform,
+        _processor: &domain::Processor,
         _payment_data: &mut payments::PaymentIntentData<F>,
+        _business_profile: &domain::Profile,
     ) -> CustomResult<bool, errors::ApiErrorResponse> {
         Ok(false)
     }

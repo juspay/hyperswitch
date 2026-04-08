@@ -341,6 +341,27 @@ pub enum DirKeyKind {
     )]
     #[serde(rename = "acquirer_fraud_rate")]
     AcquirerFraudRate,
+    #[strum(
+        serialize = "transaction_initiator",
+        detailed_message = "Initiator of transaction either Customer or Merchant",
+        props(Category = "Payments")
+    )]
+    #[serde(rename = "transaction_initiator")]
+    TransactionInitiator,
+    #[strum(
+        serialize = "network_token",
+        detailed_message = "Supported types of network token payment method",
+        props(Category = "Payment Method Types")
+    )]
+    #[serde(rename = "network_token")]
+    NetworkTokenType,
+    #[strum(
+        serialize = "card_discovery",
+        detailed_message = "Method by which the card was discovered (manual entry, saved card, click to pay)",
+        props(Category = "3DS Decision")
+    )]
+    #[serde(rename = "card_discovery")]
+    CardDiscovery,
 }
 
 pub trait EuclidDirFilter: Sized
@@ -399,6 +420,9 @@ impl DirKeyKind {
             Self::CustomerDeviceDisplaySize => types::DataType::EnumVariant,
             Self::AcquirerCountry => types::DataType::EnumVariant,
             Self::AcquirerFraudRate => types::DataType::Number,
+            Self::TransactionInitiator => types::DataType::EnumVariant,
+            Self::NetworkTokenType => types::DataType::EnumVariant,
+            Self::CardDiscovery => types::DataType::EnumVariant,
         }
     }
     pub fn get_value_set(&self) -> Option<Vec<DirValue>> {
@@ -505,7 +529,7 @@ impl DirKeyKind {
                     .collect(),
             ),
             Self::Connector => Some(
-                common_enums::RoutableConnectors::iter()
+                crate::enums::RoutableConnectors::iter()
                     .map(|connector| {
                         DirValue::Connector(Box::new(ast::ConnectorChoice { connector }))
                     })
@@ -564,6 +588,21 @@ impl DirKeyKind {
                     .collect(),
             ),
             Self::AcquirerFraudRate => None,
+            Self::TransactionInitiator => Some(
+                enums::TransactionInitiator::iter()
+                    .map(DirValue::TransactionInitiator)
+                    .collect(),
+            ),
+            Self::NetworkTokenType => Some(
+                enums::NetworkTokenType::iter()
+                    .map(DirValue::NetworkTokenType)
+                    .collect(),
+            ),
+            Self::CardDiscovery => Some(
+                enums::CardDiscovery::iter()
+                    .map(DirValue::CardDiscovery)
+                    .collect(),
+            ),
         }
     }
 }
@@ -651,6 +690,12 @@ pub enum DirValue {
     AcquirerCountry(enums::Country),
     #[serde(rename = "acquirer_fraud_rate")]
     AcquirerFraudRate(types::NumValue),
+    #[serde(rename = "transaction_initiator")]
+    TransactionInitiator(enums::TransactionInitiator),
+    #[serde(rename = "network_token")]
+    NetworkTokenType(enums::NetworkTokenType),
+    #[serde(rename = "card_discovery")]
+    CardDiscovery(enums::CardDiscovery),
 }
 
 impl DirValue {
@@ -695,6 +740,9 @@ impl DirValue {
             Self::CustomerDeviceDisplaySize(_) => (DirKeyKind::CustomerDeviceDisplaySize, None),
             Self::AcquirerCountry(_) => (DirKeyKind::AcquirerCountry, None),
             Self::AcquirerFraudRate(_) => (DirKeyKind::AcquirerFraudRate, None),
+            Self::TransactionInitiator(_) => (DirKeyKind::TransactionInitiator, None),
+            Self::NetworkTokenType(_) => (DirKeyKind::NetworkTokenType, None),
+            Self::CardDiscovery(_) => (DirKeyKind::CardDiscovery, None),
         };
 
         DirKey::new(kind, data)
@@ -740,6 +788,9 @@ impl DirValue {
             Self::CustomerDeviceDisplaySize(_) => None,
             Self::AcquirerCountry(_) => None,
             Self::AcquirerFraudRate(_) => None,
+            Self::TransactionInitiator(_) => None,
+            Self::NetworkTokenType(_) => None,
+            Self::CardDiscovery(_) => None,
         }
     }
 
@@ -796,6 +847,8 @@ impl DirValue {
             (Self::CustomerDeviceDisplaySize(s1), Self::CustomerDeviceDisplaySize(s2)) => s1 == s2,
             (Self::AcquirerCountry(c1), Self::AcquirerCountry(c2)) => c1 == c2,
             (Self::AcquirerFraudRate(r1), Self::AcquirerFraudRate(r2)) => r1 == r2,
+            (Self::TransactionInitiator(ti1), Self::TransactionInitiator(ti2)) => ti1 == ti2,
+            (Self::NetworkTokenType(ntt1), Self::NetworkTokenType(ntt2)) => ntt1 == ntt2,
             _ => false,
         }
     }
@@ -924,7 +977,7 @@ pub type DirIfCondition = Vec<DirComparison>;
 #[derive(Debug, Clone)]
 pub struct DirIfStatement {
     pub condition: DirIfCondition,
-    pub nested: Option<Vec<DirIfStatement>>,
+    pub nested: Option<Vec<Self>>,
 }
 
 #[derive(Debug, Clone)]

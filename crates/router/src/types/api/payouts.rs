@@ -1,11 +1,12 @@
 pub use api_models::payouts::{
     AchBankTransfer, BacsBankTransfer, Bank as BankPayout, BankRedirect as BankRedirectPayout,
-    CardPayout, Passthrough as PassthroughPayout, PaymentMethodTypeInfo, PayoutActionRequest,
-    PayoutAttemptResponse, PayoutCreateRequest, PayoutCreateResponse,
-    PayoutEnabledPaymentMethodsInfo, PayoutLinkResponse, PayoutListConstraints,
-    PayoutListFilterConstraints, PayoutListFilters, PayoutListFiltersV2, PayoutListResponse,
-    PayoutMethodData, PayoutMethodDataResponse, PayoutRequest, PayoutRetrieveBody,
-    PayoutRetrieveRequest, PixBankTransfer, RequiredFieldsOverrideRequest, SepaBankTransfer,
+    BankTransfer as BankTransferPayout, CardPayout, Passthrough as PassthroughPayout,
+    PaymentMethodTypeInfo, PayoutActionRequest, PayoutAttemptResponse, PayoutCreateRequest,
+    PayoutCreateResponse, PayoutEnabledPaymentMethodsInfo, PayoutLinkResponse,
+    PayoutListConstraints, PayoutListFilterConstraints, PayoutListFilters, PayoutListFiltersV2,
+    PayoutListResponse, PayoutMethodData, PayoutMethodDataResponse, PayoutRequest,
+    PayoutRetrieveBody, PayoutRetrieveRequest, PayoutsManualUpdateRequest, PixBankTransfer,
+    RequiredFieldsOverrideRequest, SepaBankTransfer, TrustlyBankTransfer, TrustlyBankTransferData,
     Wallet as WalletPayout,
 };
 pub use hyperswitch_domain_models::router_flow_types::payouts::{

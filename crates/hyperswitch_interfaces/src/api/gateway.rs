@@ -12,7 +12,7 @@ use common_enums::{CallConnectorAction, ExecutionMode, ExecutionPath};
 use common_utils::{errors::CustomResult, request::Request};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::router_data::RouterData;
-use router_env::logger;
+use router_env::{logger, tracing::Instrument};
 
 use crate::{
     api_client::{self, ApiClientWrapper},
@@ -34,6 +34,25 @@ pub trait GatewayContext: Clone + Send + Sync {
     fn execution_mode(&self) -> ExecutionMode;
 }
 
+/// Trait to extract RouterData from various output types
+///
+pub trait GetRouterData<F, Req, Resp> {
+    /// Get a reference to the RouterData
+    fn get_router_data(&self) -> &RouterData<F, Req, Resp>;
+}
+
+impl<F, Req, Resp> GetRouterData<F, Req, Resp> for RouterData<F, Req, Resp> {
+    fn get_router_data(&self) -> &Self {
+        self
+    }
+}
+
+impl<F, Req, Resp, T> GetRouterData<F, Req, Resp> for (RouterData<F, Req, Resp>, Option<T>) {
+    fn get_router_data(&self) -> &RouterData<F, Req, Resp> {
+        &self.0
+    }
+}
+
 /// Payment gateway trait
 ///
 /// Defines the interface for executing payment operations through different gateway types.
@@ -48,8 +67,15 @@ pub trait GatewayContext: Clone + Send + Sync {
 /// * `Context` - Gateway context type (must implement GatewayContext trait)
 #[async_trait]
 #[allow(clippy::too_many_arguments)]
-pub trait PaymentGateway<State, ConnectorData, F, Req, Resp, Context>: Send + Sync
-where
+pub trait PaymentGateway<
+    State,
+    ConnectorData,
+    F,
+    Req,
+    Resp,
+    Context,
+    FlowOutput = RouterData<F, Req, Resp>,
+>: Send + Sync where
     State: Clone + Send + Sync + 'static + ApiClientWrapper,
     ConnectorData: Clone + RouterDataConversion<F, Req, Resp> + Send + Sync + 'static,
     F: Clone + std::fmt::Debug + Send + Sync + 'static,
@@ -67,7 +93,50 @@ where
         connector_request: Option<Request>,
         return_raw_connector_response: Option<bool>,
         context: Context,
-    ) -> CustomResult<RouterData<F, Req, Resp>, ConnectorError>;
+    ) -> CustomResult<FlowOutput, ConnectorError>;
+}
+
+/// Payout gateway trait
+///
+/// Defines the interface for executing payout operations through different gateway types.
+/// Implementations include DirectGateway and flow-specific UCS gateways.
+///
+/// # Type Parameters
+/// * `State` - Application state (e.g., SessionState)
+/// * `ConnectorData` - Connector-specific data type
+/// * `F` - Flow type (e.g., domain::Authorize, domain::PSync)
+/// * `Req` - Request data type
+/// * `Resp` - Response data type
+/// * `Context` - Gateway context type (must implement GatewayContext trait)
+#[async_trait]
+#[allow(clippy::too_many_arguments)]
+pub trait PayoutGateway<
+    State,
+    ConnectorData,
+    F,
+    Req,
+    Resp,
+    Context,
+    FlowOutput = RouterData<F, Req, Resp>,
+>: Send + Sync where
+    State: Clone + Send + Sync + 'static + ApiClientWrapper,
+    ConnectorData: Clone + RouterDataConversion<F, Req, Resp> + Send + Sync + 'static,
+    F: Clone + std::fmt::Debug + Send + Sync + 'static,
+    Req: std::fmt::Debug + Clone + Send + Sync + 'static,
+    Resp: std::fmt::Debug + Clone + Send + Sync + 'static,
+    Context: GatewayContext,
+{
+    /// Execute payout gateway operation
+    async fn execute(
+        self: Box<Self>,
+        state: &State,
+        connector_integration: BoxedConnectorIntegrationInterface<F, ConnectorData, Req, Resp>,
+        router_data: &RouterData<F, Req, Resp>,
+        call_connector_action: CallConnectorAction,
+        connector_request: Option<Request>,
+        return_raw_connector_response: Option<bool>,
+        context: Context,
+    ) -> CustomResult<FlowOutput, ConnectorError>;
 }
 
 /// Direct gateway implementation
@@ -112,14 +181,98 @@ where
     }
 }
 
+#[async_trait]
+impl<State, ConnectorData, F, Req, Resp, Context>
+    PayoutGateway<State, ConnectorData, F, Req, Resp, Context> for DirectGateway
+where
+    State: Clone + Send + Sync + 'static + ApiClientWrapper,
+    ConnectorData: Clone + RouterDataConversion<F, Req, Resp> + Send + Sync + 'static,
+    F: Clone + std::fmt::Debug + Send + Sync + 'static,
+    Req: std::fmt::Debug + Clone + Send + Sync + 'static,
+    Resp: std::fmt::Debug + Clone + Send + Sync + 'static,
+    Context: GatewayContext + 'static,
+{
+    async fn execute(
+        self: Box<Self>,
+        state: &State,
+        connector_integration: BoxedConnectorIntegrationInterface<F, ConnectorData, Req, Resp>,
+        router_data: &RouterData<F, Req, Resp>,
+        call_connector_action: CallConnectorAction,
+        connector_request: Option<Request>,
+        return_raw_connector_response: Option<bool>,
+        _context: Context,
+    ) -> CustomResult<RouterData<F, Req, Resp>, ConnectorError> {
+        // Direct gateway delegates to the existing execute_connector_processing_step
+        // This maintains backward compatibility with the traditional HTTP-based flow
+        api_client::execute_connector_processing_step(
+            state,
+            connector_integration,
+            router_data,
+            call_connector_action,
+            connector_request,
+            return_raw_connector_response,
+        )
+        .await
+    }
+}
+
+#[async_trait]
+impl<State, ConnectorData, F, Req, Resp, Context, T>
+    PaymentGateway<
+        State,
+        ConnectorData,
+        F,
+        Req,
+        Resp,
+        Context,
+        (RouterData<F, Req, Resp>, Option<T>),
+    > for DirectGateway
+where
+    State: Clone + Send + Sync + 'static + ApiClientWrapper,
+    ConnectorData: Clone + RouterDataConversion<F, Req, Resp> + Send + Sync + 'static,
+    F: Clone + std::fmt::Debug + Send + Sync + 'static,
+    Req: std::fmt::Debug + Clone + Send + Sync + 'static,
+    Resp: std::fmt::Debug + Clone + Send + Sync + 'static,
+    Context: GatewayContext + 'static,
+{
+    async fn execute(
+        self: Box<Self>,
+        state: &State,
+        connector_integration: BoxedConnectorIntegrationInterface<F, ConnectorData, Req, Resp>,
+        router_data: &RouterData<F, Req, Resp>,
+        call_connector_action: CallConnectorAction,
+        connector_request: Option<Request>,
+        return_raw_connector_response: Option<bool>,
+        _context: Context,
+    ) -> CustomResult<(RouterData<F, Req, Resp>, Option<T>), ConnectorError> {
+        // Direct gateway delegates to the existing execute_connector_processing_step
+        // This maintains backward compatibility with the traditional HTTP-based flow
+        api_client::execute_connector_processing_step(
+            state,
+            connector_integration,
+            router_data,
+            call_connector_action,
+            connector_request,
+            return_raw_connector_response,
+        )
+        .await
+        .map(|router_data| (router_data, None))
+    }
+}
+
 /// Flow gateway trait for determining execution path
 ///
 /// This trait allows flows to specify which gateway implementation should be used
 /// based on the execution path. Each flow implements this trait to provide
 /// flow-specific gateway selection logic.
-pub trait FlowGateway<State, ConnectorData, Req, Resp, Context>:
-    Clone + std::fmt::Debug + Send + Sync + 'static
-where
+pub trait FlowGateway<
+    State,
+    ConnectorData,
+    Req,
+    Resp,
+    Context,
+    FlowOutput = RouterData<Self, Req, Resp>,
+>: Clone + std::fmt::Debug + Send + Sync + 'static where
     State: Clone + Send + Sync + 'static + ApiClientWrapper,
     ConnectorData: Clone + RouterDataConversion<Self, Req, Resp> + Send + Sync + 'static,
     Req: std::fmt::Debug + Clone + Send + Sync + 'static,
@@ -133,14 +286,43 @@ where
     /// - Flow-specific UCS gateway for gRPC integration
     fn get_gateway(
         execution_path: ExecutionPath,
-    ) -> Box<dyn PaymentGateway<State, ConnectorData, Self, Req, Resp, Context>>;
+    ) -> Box<dyn PaymentGateway<State, ConnectorData, Self, Req, Resp, Context, FlowOutput>>;
+}
+
+/// Payout Flow gateway trait for determining execution path
+///
+/// This trait allows flows to specify which gateway implementation should be used
+/// based on the execution path. Each flow implements this trait to provide
+/// flow-specific gateway selection logic.
+pub trait PayoutFlowGateway<
+    State,
+    ConnectorData,
+    Req,
+    Resp,
+    Context,
+    FlowOutput = RouterData<Self, Req, Resp>,
+>: Clone + std::fmt::Debug + Send + Sync + 'static where
+    State: Clone + Send + Sync + 'static + ApiClientWrapper,
+    ConnectorData: Clone + RouterDataConversion<Self, Req, Resp> + Send + Sync + 'static,
+    Req: std::fmt::Debug + Clone + Send + Sync + 'static,
+    Resp: std::fmt::Debug + Clone + Send + Sync + 'static,
+    Context: GatewayContext,
+{
+    /// Get the appropriate gateway for this flow based on execution path
+    ///
+    /// Returns a boxed gateway implementation that can be either:
+    /// - DirectGateway for traditional HTTP connector integration
+    /// - Flow-specific UCS gateway for gRPC integration
+    fn get_payout_gateway(
+        execution_path: ExecutionPath,
+    ) -> Box<dyn PayoutGateway<State, ConnectorData, Self, Req, Resp, Context, FlowOutput>>;
 }
 
 /// Execute payment gateway operation (backward compatible version)
 ///
 /// This version maintains backward compatibility by using direct execution when no context is provided.
 /// Use `execute_payment_gateway_with_context` for UCS support.
-pub async fn execute_payment_gateway<State, ConnectorData, F, Req, Resp, Context>(
+pub async fn execute_payment_gateway<State, ConnectorData, F, Req, Resp, Context, FlowOutput>(
     state: &State,
     connector_integration: BoxedConnectorIntegrationInterface<F, ConnectorData, Req, Resp>,
     router_data: &RouterData<F, Req, Resp>,
@@ -148,7 +330,7 @@ pub async fn execute_payment_gateway<State, ConnectorData, F, Req, Resp, Context
     connector_request: Option<Request>,
     return_raw_connector_response: Option<bool>,
     context: Context,
-) -> CustomResult<RouterData<F, Req, Resp>, ConnectorError>
+) -> CustomResult<FlowOutput, ConnectorError>
 where
     State: Clone + Send + Sync + 'static + ApiClientWrapper + helpers::GetComparisonServiceConfig,
     ConnectorData: Clone + RouterDataConversion<F, Req, Resp> + Send + Sync + 'static,
@@ -157,31 +339,19 @@ where
         + Send
         + Sync
         + 'static
-        + FlowGateway<State, ConnectorData, Req, Resp, Context>,
+        + FlowGateway<State, ConnectorData, Req, Resp, Context, FlowOutput>,
     Req: std::fmt::Debug + Clone + Send + Sync + serde::Serialize + 'static,
     Resp: std::fmt::Debug + Clone + Send + Sync + serde::Serialize + 'static,
     Context: GatewayContext + 'static,
+    FlowOutput: Clone + Send + Sync + GetRouterData<F, Req, Resp> + 'static,
 {
     let execution_path = context.execution_path();
 
     match execution_path {
         ExecutionPath::Direct => {
-            // Use direct execution for backward compatibility
-            api_client::execute_connector_processing_step(
-                state,
-                connector_integration,
-                router_data,
-                call_connector_action,
-                connector_request,
-                return_raw_connector_response,
-            )
-            .await
-        }
-        ExecutionPath::UnifiedConnectorService => {
-            let gateway: Box<dyn PaymentGateway<State, ConnectorData, F, Req, Resp, Context>> =
-                F::get_gateway(execution_path);
-
-            // Execute through selected gateway
+            let gateway: Box<
+                dyn PaymentGateway<State, ConnectorData, F, Req, Resp, Context, FlowOutput>,
+            > = F::get_gateway(ExecutionPath::Direct);
             gateway
                 .execute(
                     state,
@@ -193,61 +363,224 @@ where
                     context,
                 )
                 .await
-                .attach_printable("Gateway execution failed")
+        }
+        ExecutionPath::UnifiedConnectorService => {
+            let gateway: Box<
+                dyn PaymentGateway<State, ConnectorData, F, Req, Resp, Context, FlowOutput>,
+            > = F::get_gateway(ExecutionPath::UnifiedConnectorService);
+
+            // Execute through selected gateway
+            let ucs_result = gateway
+                .execute(
+                    state,
+                    connector_integration,
+                    router_data,
+                    call_connector_action,
+                    connector_request,
+                    return_raw_connector_response,
+                    context,
+                )
+                .await
+                .attach_printable("Gateway execution failed")?;
+            Ok(ucs_result)
         }
         ExecutionPath::ShadowUnifiedConnectorService => {
-            let direct_router_data = api_client::execute_connector_processing_step(
-                state,
-                connector_integration.clone_box(),
-                router_data,
-                call_connector_action.clone(),
-                connector_request,
-                return_raw_connector_response,
-            )
-            .await?;
+            let gateway: Box<
+                dyn PaymentGateway<State, ConnectorData, F, Req, Resp, Context, FlowOutput>,
+            > = F::get_gateway(ExecutionPath::Direct);
+            let direct_router_data = gateway
+                .execute(
+                    state,
+                    connector_integration.clone_box(),
+                    router_data,
+                    call_connector_action.clone(),
+                    connector_request,
+                    return_raw_connector_response,
+                    context.clone(),
+                )
+                .await?;
             let state_clone = state.clone();
             let router_data_clone = router_data.clone();
             let direct_router_data_clone = direct_router_data.clone();
             let return_raw_connector_response_clone = return_raw_connector_response;
-            let context_clone = context.clone();
-            tokio::spawn(async move {
-                let gateway: Box<dyn PaymentGateway<State, ConnectorData, F, Req, Resp, Context>> =
-                    F::get_gateway(execution_path);
-                let ucs_shadow_result = gateway
-                    .execute(
-                        &state_clone,
-                        connector_integration,
-                        &router_data_clone,
-                        call_connector_action,
-                        None,
-                        return_raw_connector_response_clone,
-                        context_clone,
-                    )
-                    .await
-                    .attach_printable("Gateway execution failed");
-                // Send comparison data asynchronously
-                match ucs_shadow_result {
-                    Ok(ucs_router_data) => {
-                        // Send comparison data asynchronously
-                        if let Some(comparison_service_config) =
-                            state_clone.get_comparison_service_config()
-                        {
-                            let request_id = state_clone.get_request_id_str();
-                            let _ = helpers::serialize_router_data_and_send_to_comparison_service(
-                                &state_clone,
-                                direct_router_data_clone,
-                                ucs_router_data,
-                                comparison_service_config,
-                                request_id,
-                            )
-                            .await;
-                        };
-                    }
-                    Err(e) => {
-                        logger::error!("UCS shadow execution failed: {:?}", e);
+            let context_clone = context;
+            tokio::spawn(
+                async move {
+                    let gateway: Box<
+                        dyn PaymentGateway<State, ConnectorData, F, Req, Resp, Context, FlowOutput>,
+                    > = F::get_gateway(ExecutionPath::ShadowUnifiedConnectorService);
+                    let ucs_shadow_result = gateway
+                        .execute(
+                            &state_clone,
+                            connector_integration,
+                            &router_data_clone,
+                            call_connector_action,
+                            None,
+                            return_raw_connector_response_clone,
+                            context_clone,
+                        )
+                        .await
+                        .attach_printable("Gateway execution failed");
+                    // Send comparison data asynchronously
+                    match ucs_shadow_result {
+                        Ok(ucs_router_data) => {
+                            // Send comparison data asynchronously
+                            if let Some(comparison_service_config) =
+                                state_clone.get_comparison_service_config()
+                            {
+                                let request_id = state_clone.get_request_id_str();
+                                let _ =
+                                    helpers::serialize_router_data_and_send_to_comparison_service(
+                                        &state_clone,
+                                        direct_router_data_clone.get_router_data().clone(),
+                                        ucs_router_data.get_router_data().clone(),
+                                        comparison_service_config,
+                                        request_id,
+                                    )
+                                    .await;
+                            };
+                        }
+                        Err(e) => {
+                            logger::error!(error=?e, "UCS shadow execution failed");
+                        }
                     }
                 }
-            });
+                .instrument(router_env::tracing::Span::current()),
+            );
+            Ok(direct_router_data)
+        }
+    }
+}
+
+/// Execute payout gateway operation (backward compatible version)
+///
+/// This version maintains backward compatibility by using direct execution when no context is provided.
+/// Use `execute_payout_gateway_with_context` for UCS support.
+pub async fn execute_payout_gateway<State, ConnectorData, F, Req, Resp, Context, FlowOutput>(
+    state: &State,
+    connector_integration: BoxedConnectorIntegrationInterface<F, ConnectorData, Req, Resp>,
+    router_data: &RouterData<F, Req, Resp>,
+    call_connector_action: CallConnectorAction,
+    connector_request: Option<Request>,
+    return_raw_connector_response: Option<bool>,
+    context: Context,
+) -> CustomResult<FlowOutput, ConnectorError>
+where
+    State: Clone + Send + Sync + 'static + ApiClientWrapper + helpers::GetComparisonServiceConfig,
+    ConnectorData: Clone + RouterDataConversion<F, Req, Resp> + Send + Sync + 'static,
+    F: Clone
+        + std::fmt::Debug
+        + Send
+        + Sync
+        + 'static
+        + PayoutFlowGateway<State, ConnectorData, Req, Resp, Context, FlowOutput>,
+    Req: std::fmt::Debug + Clone + Send + Sync + serde::Serialize + 'static,
+    Resp: std::fmt::Debug + Clone + Send + Sync + serde::Serialize + 'static,
+    Context: GatewayContext + 'static,
+    FlowOutput: Clone + Send + Sync + GetRouterData<F, Req, Resp> + 'static,
+{
+    let execution_path = context.execution_path();
+
+    match execution_path {
+        ExecutionPath::Direct => {
+            let gateway: Box<
+                dyn PayoutGateway<State, ConnectorData, F, Req, Resp, Context, FlowOutput>,
+            > = F::get_payout_gateway(ExecutionPath::Direct);
+            gateway
+                .execute(
+                    state,
+                    connector_integration,
+                    router_data,
+                    call_connector_action,
+                    connector_request,
+                    return_raw_connector_response,
+                    context,
+                )
+                .await
+        }
+        ExecutionPath::UnifiedConnectorService => {
+            let gateway: Box<
+                dyn PayoutGateway<State, ConnectorData, F, Req, Resp, Context, FlowOutput>,
+            > = F::get_payout_gateway(ExecutionPath::UnifiedConnectorService);
+
+            // Execute through selected gateway
+            let ucs_result = gateway
+                .execute(
+                    state,
+                    connector_integration,
+                    router_data,
+                    call_connector_action,
+                    connector_request,
+                    return_raw_connector_response,
+                    context,
+                )
+                .await
+                .attach_printable("Gateway execution failed")?;
+            Ok(ucs_result)
+        }
+        ExecutionPath::ShadowUnifiedConnectorService => {
+            let gateway: Box<
+                dyn PayoutGateway<State, ConnectorData, F, Req, Resp, Context, FlowOutput>,
+            > = F::get_payout_gateway(ExecutionPath::Direct);
+            let direct_router_data = gateway
+                .execute(
+                    state,
+                    connector_integration.clone_box(),
+                    router_data,
+                    call_connector_action.clone(),
+                    connector_request,
+                    return_raw_connector_response,
+                    context.clone(),
+                )
+                .await?;
+            let state_clone = state.clone();
+            let router_data_clone = router_data.clone();
+            let direct_router_data_clone = direct_router_data.clone();
+            let return_raw_connector_response_clone = return_raw_connector_response;
+            let context_clone = context;
+            tokio::spawn(
+                async move {
+                    let gateway: Box<
+                        dyn PayoutGateway<State, ConnectorData, F, Req, Resp, Context, FlowOutput>,
+                    > = F::get_payout_gateway(ExecutionPath::ShadowUnifiedConnectorService);
+                    let ucs_shadow_result = gateway
+                        .execute(
+                            &state_clone,
+                            connector_integration,
+                            &router_data_clone,
+                            call_connector_action,
+                            None,
+                            return_raw_connector_response_clone,
+                            context_clone,
+                        )
+                        .await
+                        .attach_printable("Gateway execution failed");
+                    // Send comparison data asynchronously
+                    match ucs_shadow_result {
+                        Ok(ucs_router_data) => {
+                            // Send comparison data asynchronously
+                            if let Some(comparison_service_config) =
+                                state_clone.get_comparison_service_config()
+                            {
+                                let request_id = state_clone.get_request_id_str();
+                                let _ =
+                                    helpers::serialize_router_data_and_send_to_comparison_service(
+                                        &state_clone,
+                                        direct_router_data_clone.get_router_data().clone(),
+                                        ucs_router_data.get_router_data().clone(),
+                                        comparison_service_config,
+                                        request_id,
+                                    )
+                                    .await;
+                            };
+                        }
+                        Err(e) => {
+                            logger::error!(error=?e, "UCS shadow execution failed");
+                        }
+                    }
+                }
+                .instrument(router_env::tracing::Span::current()),
+            );
             Ok(direct_router_data)
         }
     }

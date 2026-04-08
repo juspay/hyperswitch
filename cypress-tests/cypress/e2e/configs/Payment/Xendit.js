@@ -25,8 +25,8 @@ const paymentMethodData3ds = {
     last4: "1091",
     card_type: "CREDIT",
     card_network: "Visa",
-    card_issuer: "INTL HDQTRS-CENTER OWNED",
-    card_issuing_country: "UNITEDSTATES",
+    card_issuer: "Intl Hdqtrs Center Owned",
+    card_issuing_country: "UNITED STATES OF AMERICA",
     card_isin: "400000",
     card_extended_bin: null,
     card_exp_month: "12",
@@ -34,6 +34,7 @@ const paymentMethodData3ds = {
     card_holder_name: "joseph Doe",
     payment_checks: null,
     authentication_data: null,
+    auth_code: null,
   },
   billing: {
     address: null,

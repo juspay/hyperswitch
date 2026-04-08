@@ -9,6 +9,7 @@ pub enum ApiIdentifier {
     Organization,
     MerchantAccount,
     MerchantConnector,
+    MerchantConnectorWebhookManagement,
     Configs,
     Customers,
     Ephemeral,
@@ -51,6 +52,8 @@ pub enum ApiIdentifier {
     ThreeDsDecisionRule,
     GenericTokenization,
     RecoveryRecovery,
+    Superposition,
+    CardIssuers,
 }
 
 impl From<Flow> for ApiIdentifier {
@@ -63,9 +66,10 @@ impl From<Flow> for ApiIdentifier {
             | Flow::MerchantTransferKey
             | Flow::MerchantAccountList
             | Flow::EnablePlatformAccount => Self::MerchantAccount,
-            Flow::OrganizationCreate | Flow::OrganizationRetrieve | Flow::OrganizationUpdate => {
-                Self::Organization
-            }
+            Flow::OrganizationCreate
+            | Flow::OrganizationRetrieve
+            | Flow::OrganizationUpdate
+            | Flow::ConvertOrganizationToPlatform => Self::Organization,
             Flow::RoutingCreateConfig
             | Flow::RoutingLinkConfig
             | Flow::RoutingUnlinkConfig
@@ -125,6 +129,7 @@ impl From<Flow> for ApiIdentifier {
             Flow::PaymentMethodsCreate
             | Flow::PaymentMethodsMigrate
             | Flow::PaymentMethodsBatchUpdate
+            | Flow::PaymentMethodsBatchRetrieve
             | Flow::PaymentMethodsList
             | Flow::CustomerPaymentMethodsList
             | Flow::GetPaymentMethodTokenData
@@ -137,7 +142,8 @@ impl From<Flow> for ApiIdentifier {
             | Flow::ListCountriesCurrencies
             | Flow::DefaultPaymentMethodsSet
             | Flow::PaymentMethodSave
-            | Flow::TotalPaymentMethodCount => Self::PaymentMethods,
+            | Flow::TotalPaymentMethodCount
+            | Flow::PaymentMethodGetTokenDetails => Self::PaymentMethods,
             Flow::PmAuthLinkTokenCreate | Flow::PmAuthExchangeToken => Self::PaymentMethodAuth,
             Flow::PaymentsCreate
             | Flow::PaymentsRetrieve
@@ -187,6 +193,7 @@ impl From<Flow> for ApiIdentifier {
             | Flow::PayoutsFilter
             | Flow::PayoutsAccounts
             | Flow::PayoutsConfirm
+            | Flow::PayoutsManualUpdate
             | Flow::PayoutLinkInitiate
             | Flow::PayoutsAggregate => Self::Payouts,
             Flow::RefundsCreate
@@ -288,6 +295,10 @@ impl From<Flow> for ApiIdentifier {
             | Flow::UserTransferKey
             | Flow::GetSsoAuthUrl
             | Flow::SignInWithSso
+            | Flow::OidcDiscovery
+            | Flow::OidcJwks
+            | Flow::OidcAuthorize
+            | Flow::OidcToken
             | Flow::ListOrgForUser
             | Flow::ListMerchantsForUserInOrg
             | Flow::ListProfileForUserInOrgAndMerchant
@@ -303,10 +314,16 @@ impl From<Flow> for ApiIdentifier {
             | Flow::UpdateUserTheme
             | Flow::DeleteUserTheme
             | Flow::GetUserThemeUsingThemeId
+            | Flow::GetUserThemeConfigVersion
             | Flow::UploadFileToUserThemeStorage
             | Flow::GetUserThemeUsingLineage
             | Flow::ListAllThemesInLineage
-            | Flow::CloneConnector => Self::User,
+            | Flow::CloneConnector
+            | Flow::EmbeddedTokenInfo
+            | Flow::GetEmbeddedToken
+            | Flow::GetUserDetailsInternal
+            | Flow::ListUsersInternal
+            | Flow::ListMembersForEntity => Self::User,
 
             Flow::GetDataFromHyperswitchAiFlow | Flow::ListAllChatInteractions => Self::AiWorkflow,
 
@@ -363,11 +380,19 @@ impl From<Flow> for ApiIdentifier {
             Flow::Proxy => Self::Proxy,
             Flow::ProfileAcquirerCreate | Flow::ProfileAcquirerUpdate => Self::ProfileAcquirer,
             Flow::ThreeDsDecisionRuleExecute => Self::ThreeDsDecisionRule,
-            Flow::TokenizationCreate | Flow::TokenizationRetrieve | Flow::TokenizationDelete => {
-                Self::GenericTokenization
-            }
+            Flow::TokenizationCreate
+            | Flow::TokenizationRetrieve
+            | Flow::TokenizationDelete
+            | Flow::NetworkTokenEligibilityCheck => Self::GenericTokenization,
 
             Flow::RecoveryDataBackfill | Flow::RevenueRecoveryRedis => Self::RecoveryRecovery,
+            Flow::GetSuperpositionSdkConfig => Self::Superposition,
+            Flow::MerchantConnectorWebhookRegister | Flow::MerchantConnectorWebhookList => {
+                Self::MerchantConnectorWebhookManagement
+            }
+            Flow::AddCardIssuer | Flow::UpdateCardIssuer | Flow::ListCardIssuers => {
+                Self::CardIssuers
+            }
         }
     }
 }

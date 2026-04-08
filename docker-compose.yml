@@ -62,7 +62,7 @@ services:
     command: >
       bash -c "
       apt-get update && apt-get install -y curl xz-utils &&
-      curl --proto '=https' --tlsv1.2 -LsSf https://github.com/diesel-rs/diesel/releases/latest/download/diesel_cli-installer.sh | bash &&
+      curl --proto '=https' --tlsv1.2 -LsSf https://github.com/diesel-rs/diesel/releases/download/v2.3.5/diesel_cli-installer.sh | bash &&
       if ! command -v just >/dev/null 2>&1; then
         curl --proto '=https' --tlsv1.2 -sSf https://just.systems/install.sh | bash -s -- --to /usr/local/bin
       fi &&
@@ -76,6 +76,33 @@ services:
     environment:
       # format -> postgresql://DB_USER:DB_PASSWORD@HOST:PORT/DATABASE_NAME
       - DATABASE_URL=postgresql://db_user:db_pass@pg:5432/hyperswitch_db
+
+  superposition:
+    image: ghcr.io/juspay/superposition-demo:latest
+    ports:
+      - "8081:8080"
+    networks:
+      - router_net
+    environment:
+      - API_HOSTNAME=http://localhost:8081
+
+  superposition-init:
+    image: alpine:latest
+    depends_on:
+      superposition:
+        condition: service_started
+    networks:
+      - router_net
+    volumes:
+      - ./config/superposition_seed.toml:/seed.toml:ro
+      - ./scripts/seed_superposition.sh:/seed_superposition.sh:ro
+    environment:
+      - SUPERPOSITION_URL=http://superposition:8080
+      - SEED_FILE=/seed.toml
+      - WORKSPACE_ID=dev
+      - ORG_ID=localorg
+    command: sh -c "apk add --no-cache curl jq yq && sh /seed_superposition.sh"
+    restart: "no"
 
   mailhog:
     image: docker.io/mailhog/mailhog
@@ -105,6 +132,8 @@ services:
       redis-standalone:
         condition: service_healthy
       migration_runner:
+        condition: service_completed_successfully
+      superposition-init:
         condition: service_completed_successfully
     labels:
       logs: "promtail"

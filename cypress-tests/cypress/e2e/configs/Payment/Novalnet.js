@@ -397,6 +397,8 @@ export const connectorDetails = {
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
+        mandate_data: null,
+        customer_acceptance: customerAcceptance,
       },
       Response: {
         status: 200,
@@ -752,6 +754,14 @@ export const connectorDetails = {
           },
         ],
       },
+    },
+  },
+  webhook: {
+    TransactionIdConfig: {
+      // Defines how to locate and parse the payment reference ID from connector-specific webhook payloads
+      path: "event.tid",
+      // Type of payment reference ID
+      type: "number",
     },
   },
 };

@@ -1,15 +1,15 @@
-import { customerAcceptance } from "./Commons";
+import { cardRequiredField, customerAcceptance } from "./Commons";
 
 const successfulNo3DSCardDetails = {
   card_number: "5105105105105100",
   card_exp_month: "12",
   card_exp_year: "2030",
   card_holder_name: "joseph Doe",
-  card_cvc: "123",
+  card_cvc: "444",
 };
 
 const successfulThreeDSTestCardDetails = {
-  card_number: "5105105105105100",
+  card_number: "4111111111111111",
   card_exp_month: "12",
   card_exp_year: "2031",
   card_holder_name: "joseph Doe",
@@ -59,6 +59,38 @@ const billingAddress = {
   email: "johndoe@gmail.com",
 };
 
+const blockedPaymentErrorBody = {
+  status: 200,
+  expectBlockedPayment: true,
+  body: {
+    error: {
+      type: "blocked",
+      message: "This payment method is blocked",
+      code: "HE_03",
+      reason: "Blocked",
+    },
+  },
+};
+
+const requiredFields = {
+  payment_methods: [
+    {
+      payment_method: "card",
+      payment_method_types: [
+        {
+          payment_method_type: "credit",
+          card_networks: [
+            {
+              eligible_connectors: ["fiuu"],
+            },
+          ],
+          required_fields: cardRequiredField,
+        },
+      ],
+    },
+  ],
+};
+
 export const connectorDetails = {
   real_time_payment_pm: {
     DuitNow: {
@@ -72,6 +104,33 @@ export const connectorDetails = {
         },
         billing: billingAddress,
         currency: "MYR",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+          net_amount: 6000,
+          amount_received: null,
+          amount: 6000,
+        },
+      },
+    },
+  },
+  bank_redirect_pm: {
+    OnlineBankingFpx: {
+      Request: {
+        payment_method: "bank_redirect",
+        payment_method_type: "online_banking_fpx",
+        amount: 6000,
+        currency: "MYR",
+        payment_method_data: {
+          bank_redirect: {
+            online_banking_fpx: {
+              issuer: "affin_bank",
+            },
+          },
+        },
+        billing: billingAddress,
       },
       Response: {
         status: 200,
@@ -658,6 +717,9 @@ export const connectorDetails = {
       },
     },
     ZeroAuthMandate: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
       Request: {
         payment_method: "card",
         payment_method_data: {
@@ -691,6 +753,9 @@ export const connectorDetails = {
       },
     },
     ZeroAuthPaymentIntent: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
       Request: {
         amount: 0,
         setup_future_usage: "off_session",
@@ -712,7 +777,10 @@ export const connectorDetails = {
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
+        currency: "MYR",
         billing: billingAddress,
+        mandate_data: null,
+        customer_acceptance: customerAcceptance,
       },
       Response: {
         status: 200,
@@ -847,6 +915,160 @@ export const connectorDetails = {
           status: "requires_payment_method",
         },
       },
+    },
+    ManualRetryPaymentDisabled: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "USD",
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+      Response: {
+        status: 400,
+        body: {
+          type: "invalid_request",
+          message:
+            "You cannot confirm this payment because it has status failed, you can enable `manual_retry` in profile to try this payment again",
+          code: "IR_16",
+        },
+      },
+    },
+    ManualRetryPaymentEnabled: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "USD",
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+          payment_method: "card",
+          attempt_count: 2,
+        },
+      },
+    },
+    ManualRetryPaymentCutoffExpired: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "USD",
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+      Response: {
+        status: 400,
+        body: {
+          type: "invalid_request",
+          message:
+            "You cannot confirm this payment using `manual_retry` because the allowed duration has expired",
+          code: "IR_16",
+        },
+      },
+    },
+  },
+  pm_list: {
+    PmListResponse: {
+      PmListNull: {
+        payment_methods: [],
+      },
+      pmListDynamicFieldWithoutBilling: requiredFields,
+      pmListDynamicFieldWithBilling: requiredFields,
+      pmListDynamicFieldWithNames: requiredFields,
+      pmListDynamicFieldWithEmail: requiredFields,
+    },
+  },
+  webhook: {
+    TransactionIdConfig: {
+      // Defines how to locate and parse the payment reference ID from connector-specific webhook payloads
+      path: "orderid",
+      // Type of payment reference ID
+      type: "string",
+      // Fiuu webhook handler uses PaymentAttemptId for lookup, not ConnectorTransactionId
+      source: "paymentAttemptID",
+    },
+  },
+  payment_method_blocking_pm: {
+    BlockIssuingCountry: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: {
+            card_number: "4000000000000002",
+            card_exp_month: "03",
+            card_exp_year: "30",
+            card_holder_name: "joseph Doeeee",
+            card_cvc: "737",
+            card_network: "Visa",
+          },
+        },
+        billing: billingAddress,
+        currency: "MYR",
+      },
+      Response: blockedPaymentErrorBody,
+    },
+    BlockCardType: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: {
+            card_number: "4111111111111111",
+            card_exp_month: "03",
+            card_exp_year: "30",
+            card_holder_name: "joseph Doeeee",
+            card_cvc: "737",
+            card_network: "Visa",
+          },
+        },
+        billing: billingAddress,
+        currency: "MYR",
+      },
+      Response: blockedPaymentErrorBody,
+    },
+    BlockCardSubtype: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: {
+            card_number: "378282246310005",
+            card_exp_month: "03",
+            card_exp_year: "30",
+            card_holder_name: "joseph Doeeee",
+            card_cvc: "737",
+            card_network: "Visa",
+          },
+        },
+        currency: "MYR",
+        billing: billingAddress,
+      },
+      Response: blockedPaymentErrorBody,
+    },
+    BlockIfBinInfoUnavailable: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: {
+            card_number: "6304000000000000",
+            card_exp_month: "03",
+            card_exp_year: "30",
+            card_holder_name: "joseph Doeeee",
+            card_cvc: "737",
+            card_network: "Visa",
+          },
+        },
+        billing: billingAddress,
+        currency: "MYR",
+      },
+      Response: blockedPaymentErrorBody,
     },
   },
 };

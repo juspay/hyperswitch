@@ -3,7 +3,7 @@ use std::ops::Deref;
 
 use base64::Engine;
 use error_stack::ResultExt;
-use masking::{ExposeInterface, Secret};
+use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 use ring::{
     aead::{self, BoundKey, OpeningKey, SealingKey, UnboundKey},
     hmac, rand as ring_rand,
@@ -11,10 +11,15 @@ use ring::{
 };
 #[cfg(feature = "logs")]
 use router_env::logger;
-use rsa::{pkcs8::DecodePublicKey, signature::Verifier};
+use rsa::{
+    pkcs1::DecodeRsaPrivateKey,
+    pkcs8::{DecodePrivateKey, DecodePublicKey},
+    signature::Verifier,
+    traits::PublicKeyParts,
+};
 
 use crate::{
-    consts::BASE64_ENGINE,
+    consts::{BASE64_ENGINE, BASE64_ENGINE_URL_SAFE_NO_PAD},
     errors::{self, CustomResult},
     pii::{self, EncryptionStrategy},
 };
@@ -529,7 +534,7 @@ impl VerifySignature for RsaSha256 {
 
         let verifying_key = rsa::pkcs1v15::VerifyingKey::<rsa::sha2::Sha256>::new(rsa_public_key);
 
-        // transfrom the signature
+        // transform the signature
         let decoded_signature = BASE64_ENGINE
             .decode(signature)
             .change_context(errors::CryptoError::SignatureVerificationFailed)
@@ -626,7 +631,7 @@ pub struct Encryptable<T: Clone> {
     encrypted: Secret<Vec<u8>, EncryptionStrategy>,
 }
 
-impl<T: Clone, S: masking::Strategy<T>> Encryptable<Secret<T, S>> {
+impl<T: Clone, S: hyperswitch_masking::Strategy<T>> Encryptable<Secret<T, S>> {
     /// constructor function to be used by the encryptor and decryptor to generate the data type
     pub fn new(
         masked_data: Secret<T, S>,
@@ -691,9 +696,9 @@ impl<T: Clone> Deref for Encryptable<Secret<T>> {
     }
 }
 
-impl<T: Clone> masking::Serialize for Encryptable<T>
+impl<T: Clone> hyperswitch_masking::Serialize for Encryptable<T>
 where
-    T: masking::Serialize,
+    T: hyperswitch_masking::Serialize,
 {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
@@ -728,6 +733,35 @@ pub type OptionalSecretValue = Option<Secret<serde_json::Value>>;
 pub type EncryptableName = Encryptable<Secret<String>>;
 /// Type alias for `Encryptable<Secret<String>>` used for `email` field
 pub type EncryptableEmail = Encryptable<Secret<String, pii::EmailStrategy>>;
+
+/// Extract RSA public key components (n, e) from a private key PEM for JWKS
+/// Returns base64url-encoded modulus and exponent
+pub fn extract_rsa_public_key_components(
+    private_key_pem: &Secret<String>,
+) -> CustomResult<(String, String), errors::CryptoError> {
+    let pem_str = private_key_pem.peek();
+    let parsed_pem = pem::parse(pem_str).change_context(errors::CryptoError::EncodingFailed)?;
+
+    let private_key = match parsed_pem.tag() {
+        "PRIVATE KEY" => rsa::RsaPrivateKey::from_pkcs8_der(parsed_pem.contents())
+            .change_context(errors::CryptoError::InvalidKeyLength),
+        "RSA PRIVATE KEY" => rsa::RsaPrivateKey::from_pkcs1_der(parsed_pem.contents())
+            .change_context(errors::CryptoError::InvalidKeyLength),
+        tag => Err(errors::CryptoError::InvalidKeyLength).attach_printable(format!(
+            "Unexpected PEM tag: {tag}. Expected 'PRIVATE KEY' or 'RSA PRIVATE KEY'"
+        )),
+    }
+    .attach_printable("Failed to extract RSA public key components from private key")?;
+
+    let public_key = private_key.to_public_key();
+    let n_bytes = public_key.n().to_bytes_be();
+    let e_bytes = public_key.e().to_bytes_be();
+
+    let n_b64 = BASE64_ENGINE_URL_SAFE_NO_PAD.encode(n_bytes);
+    let e_b64 = BASE64_ENGINE_URL_SAFE_NO_PAD.encode(e_bytes);
+
+    Ok((n_b64, e_b64))
+}
 
 /// Represents the RSA-PSS-SHA256 signing algorithm
 #[derive(Debug)]

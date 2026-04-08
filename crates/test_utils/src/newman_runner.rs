@@ -7,8 +7,8 @@ use std::{
 };
 
 use anyhow::{Context, Result};
-use clap::{arg, command, Parser, ValueEnum};
-use masking::PeekInterface;
+use clap::{Parser, ValueEnum};
+use hyperswitch_masking::PeekInterface;
 use regex::Regex;
 
 use crate::connector_auth::{

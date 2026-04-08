@@ -4,7 +4,7 @@ use api_models::revenue_recovery_data_backfill::{self, AccountUpdateHistoryRecor
 use common_enums::enums::CardNetwork;
 use common_utils::{date_time, errors::CustomResult, id_type};
 use error_stack::ResultExt;
-use masking::{ExposeInterface, PeekInterface, Secret};
+use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 use redis_interface::{DelReply, SetnxReply};
 use router_env::{instrument, logger, tracing};
 use serde::{Deserialize, Deserializer, Serialize};
@@ -66,6 +66,7 @@ impl From<&PaymentProcessorTokenDetails> for api_models::payments::AdditionalCar
             last4: data.last_four_digits.clone(),
             card_isin: data.card_isin.clone(),
             card_issuing_country: None,
+            card_issuing_country_code: None,
             bank_code: None,
             card_extended_bin: None,
             card_holder_name: None,
@@ -73,6 +74,7 @@ impl From<&PaymentProcessorTokenDetails> for api_models::payments::AdditionalCar
             authentication_data: None,
             is_regulated: None,
             signature_network: None,
+            auth_code: None,
         }
     }
 }

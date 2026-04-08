@@ -9,7 +9,7 @@ use common_utils::{
 };
 use error_stack::ResultExt;
 use hyperswitch_domain_models::payments::PaymentAttemptRecordData;
-use masking::PeekInterface;
+use hyperswitch_masking::PeekInterface;
 use router_env::{instrument, tracing};
 
 use super::{BoxedOperation, Domain, GetTracker, Operation, UpdateTracker, ValidateRequest};
@@ -150,7 +150,7 @@ impl<F: Send + Clone + Sync>
             .transpose()
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to encode payment_method_billing address")?
-            .map(masking::Secret::new);
+            .map(hyperswitch_masking::Secret::new);
 
         let batch_encrypted_data = domain_types::crypto_operation(
                 key_manager_state,
@@ -183,6 +183,7 @@ impl<F: Send + Clone + Sync>
                 storage_scheme,
                 request,
                 encrypted_data,
+                platform.get_initiator(),
             )
             .await?;
 
@@ -244,11 +245,8 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentAttemptRecordData<F>, PaymentsAtte
         &'b self,
         state: &'b SessionState,
         _req_state: ReqState,
+        processor: &domain::Processor,
         mut payment_data: PaymentAttemptRecordData<F>,
-        _customer: Option<domain::Customer>,
-        storage_scheme: enums::MerchantStorageScheme,
-        _updated_customer: Option<storage::CustomerUpdate>,
-        key_store: &domain::MerchantKeyStore,
         _frm_suggestion: Option<FrmSuggestion>,
         _header_payload: hyperswitch_domain_models::payments::HeaderPayload,
     ) -> RouterResult<(
@@ -258,6 +256,8 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentAttemptRecordData<F>, PaymentsAtte
     where
         F: 'b + Send,
     {
+        let storage_scheme = processor.get_account().storage_scheme;
+        let key_store = processor.get_key_store();
         let feature_metadata = payment_data.get_updated_feature_metadata()?;
         let active_attempt_id = match payment_data.revenue_recovery_data.triggered_by {
             common_enums::TriggeredBy::Internal => Some(payment_data.payment_attempt.id.clone()),
@@ -341,8 +341,7 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsAttemptRecordRequest, PaymentAtte
         _state: &'a SessionState,
         _payment_data: &mut PaymentAttemptRecordData<F>,
         _storage_scheme: enums::MerchantStorageScheme,
-        _merchant_key_store: &domain::MerchantKeyStore,
-        _customer: &Option<domain::Customer>,
+        _platform: &domain::Platform,
         _business_profile: &domain::Profile,
         _should_retry_with_pan: bool,
     ) -> RouterResult<(

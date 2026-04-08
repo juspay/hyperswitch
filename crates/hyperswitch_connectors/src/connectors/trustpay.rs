@@ -15,25 +15,26 @@ use common_utils::{
 };
 use error_stack::{Report, ResultExt};
 use hyperswitch_domain_models::{
+    payment_method_data,
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
     router_flow_types::{
         access_token_auth::AccessTokenAuth,
         payments::{Authorize, Capture, PSync, PaymentMethodToken, Session, SetupMandate, Void},
         refunds::{Execute, RSync},
-        PreProcessing,
+        CreateOrder, PreProcessing,
     },
     router_request_types::{
-        AccessTokenRequestData, PaymentMethodTokenizationData, PaymentsAuthorizeData,
-        PaymentsCancelData, PaymentsCaptureData, PaymentsPreProcessingData, PaymentsSessionData,
-        PaymentsSyncData, RefundsData, SetupMandateRequestData,
+        AccessTokenRequestData, CreateOrderRequestData, PaymentMethodTokenizationData,
+        PaymentsAuthorizeData, PaymentsCancelData, PaymentsCaptureData, PaymentsPreProcessingData,
+        PaymentsSessionData, PaymentsSyncData, RefundsData, SetupMandateRequestData,
     },
     router_response_types::{
         ConnectorInfo, PaymentMethodDetails, PaymentsResponseData, RefundsResponseData,
         SupportedPaymentMethods, SupportedPaymentMethodsExt,
     },
     types::{
-        PaymentsAuthorizeRouterData, PaymentsPreProcessingRouterData, PaymentsSyncRouterData,
-        RefreshTokenRouterData, RefundSyncRouterData, RefundsRouterData,
+        CreateOrderRouterData, PaymentsAuthorizeRouterData, PaymentsPreProcessingRouterData,
+        PaymentsSyncRouterData, RefreshTokenRouterData, RefundSyncRouterData, RefundsRouterData,
     },
 };
 use hyperswitch_interfaces::{
@@ -47,12 +48,12 @@ use hyperswitch_interfaces::{
     errors,
     events::connector_api_logs::ConnectorEvent,
     types::{
-        PaymentsAuthorizeType, PaymentsPreProcessingType, PaymentsSyncType, RefreshTokenType,
-        RefundExecuteType, RefundSyncType, Response,
+        CreateOrderType, PaymentsAuthorizeType, PaymentsPreProcessingType, PaymentsSyncType,
+        RefreshTokenType, RefundExecuteType, RefundSyncType, Response,
     },
     webhooks,
 };
-use masking::{Mask, PeekInterface};
+use hyperswitch_masking::{Mask, PeekInterface};
 use transformers as trustpay;
 
 use crate::{
@@ -88,7 +89,8 @@ where
         &self,
         req: &RouterData<Flow, Request, Response>,
         _connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         match req.payment_method {
             enums::PaymentMethod::BankRedirect | enums::PaymentMethod::BankTransfer => {
                 let token = req
@@ -139,7 +141,8 @@ impl ConnectorCommon for Trustpay {
     fn get_auth_header(
         &self,
         auth_type: &ConnectorAuthType,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         let auth = trustpay::TrustpayAuthType::try_from(auth_type)
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
         Ok(vec![(
@@ -189,6 +192,7 @@ impl ConnectorCommon for Trustpay {
                         .or(response_data.payment_description),
                     attempt_status: None,
                     connector_transaction_id: response_data.instance_id,
+                    connector_response_reference_id: None,
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
@@ -258,7 +262,8 @@ impl ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken> 
         &self,
         req: &RefreshTokenRouterData,
         _connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         let auth = trustpay::TrustpayAuthType::try_from(&req.connector_auth_type)
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
         let auth_value = auth
@@ -349,6 +354,7 @@ impl ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken> 
             reason: response.result_info.additional_info,
             attempt_status: None,
             connector_transaction_id: None,
+            connector_response_reference_id: None,
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
@@ -363,7 +369,8 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Tru
         &self,
         req: &PaymentsSyncRouterData,
         connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         self.build_headers(req, connectors)
     }
 
@@ -498,6 +505,101 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Tru
 impl api::PaymentCapture for Trustpay {}
 impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> for Trustpay {}
 
+impl api::PaymentsCreateOrder for Trustpay {}
+impl ConnectorIntegration<CreateOrder, CreateOrderRequestData, PaymentsResponseData> for Trustpay {
+    fn get_headers(
+        &self,
+        req: &CreateOrderRouterData,
+        _connectors: &Connectors,
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
+        let mut header = vec![(
+            headers::CONTENT_TYPE.to_string(),
+            PaymentsPreProcessingType::get_content_type(self)
+                .to_string()
+                .into(),
+        )];
+        let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
+        header.append(&mut api_key);
+        Ok(header)
+    }
+
+    fn get_content_type(&self) -> &'static str {
+        self.common_get_content_type()
+    }
+
+    fn get_url(
+        &self,
+        _req: &CreateOrderRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        Ok(format!("{}{}", self.base_url(connectors), "api/v1/intent"))
+    }
+
+    fn get_request_body(
+        &self,
+        req: &CreateOrderRouterData,
+        _connectors: &Connectors,
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        let req_currency = req.request.currency;
+        let req_amount = req.request.minor_amount;
+
+        let amount = utils::convert_amount(self.amount_converter, req_amount, req_currency)?;
+
+        let connector_router_data = trustpay::TrustpayRouterData::try_from((amount, req))?;
+        let connector_req =
+            trustpay::TrustpayCreateIntentRequest::try_from(&connector_router_data)?;
+        Ok(RequestContent::FormUrlEncoded(Box::new(connector_req)))
+    }
+
+    fn build_request(
+        &self,
+        req: &CreateOrderRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
+        let req = Some(
+            RequestBuilder::new()
+                .method(Method::Post)
+                .attach_default_headers()
+                .headers(CreateOrderType::get_headers(self, req, connectors)?)
+                .url(&CreateOrderType::get_url(self, req, connectors)?)
+                .set_body(CreateOrderType::get_request_body(self, req, connectors)?)
+                .build(),
+        );
+        Ok(req)
+    }
+
+    fn handle_response(
+        &self,
+        data: &CreateOrderRouterData,
+        event_builder: Option<&mut ConnectorEvent>,
+        res: Response,
+    ) -> CustomResult<CreateOrderRouterData, errors::ConnectorError> {
+        let response: trustpay::TrustpayCreateIntentResponse = res
+            .response
+            .parse_struct("TrustpayCreateIntentResponse")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+
+        RouterData::try_from(ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
+        .change_context(errors::ConnectorError::ResponseHandlingFailed)
+    }
+
+    fn get_error_response(
+        &self,
+        res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res, event_builder)
+    }
+}
+
 impl api::PaymentsPreProcessing for Trustpay {}
 
 impl ConnectorIntegration<PreProcessing, PaymentsPreProcessingData, PaymentsResponseData>
@@ -507,7 +609,8 @@ impl ConnectorIntegration<PreProcessing, PaymentsPreProcessingData, PaymentsResp
         &self,
         req: &PaymentsPreProcessingRouterData,
         _connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         let mut header = vec![(
             headers::CONTENT_TYPE.to_string(),
             PaymentsPreProcessingType::get_content_type(self)
@@ -537,7 +640,7 @@ impl ConnectorIntegration<PreProcessing, PaymentsPreProcessingData, PaymentsResp
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let req_currency = req.request.get_currency()?;
-        let req_amount = req.request.get_minor_amount()?;
+        let req_amount = req.request.get_minor_amount();
 
         let amount = utils::convert_amount(self.amount_converter, req_amount, req_currency)?;
 
@@ -610,7 +713,8 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         &self,
         req: &PaymentsAuthorizeRouterData,
         connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         self.build_headers(req, connectors)
     }
 
@@ -714,7 +818,8 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Trustpa
         &self,
         req: &RefundsRouterData<Execute>,
         connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         self.build_headers(req, connectors)
     }
 
@@ -811,7 +916,8 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Trustpay 
         &self,
         req: &RefundSyncRouterData,
         connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         self.build_headers(req, connectors)
     }
 
@@ -951,6 +1057,7 @@ impl webhooks::IncomingWebhook for Trustpay {
     fn get_webhook_event_type(
         &self,
         request: &webhooks::IncomingWebhookRequestDetails<'_>,
+        _context: Option<&webhooks::WebhookContext>,
     ) -> CustomResult<api_models::webhooks::IncomingWebhookEvent, errors::ConnectorError> {
         let response: trustpay::TrustpayWebhookResponse = request
             .body
@@ -995,7 +1102,8 @@ impl webhooks::IncomingWebhook for Trustpay {
     fn get_webhook_resource_object(
         &self,
         request: &webhooks::IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
+    ) -> CustomResult<Box<dyn hyperswitch_masking::ErasedMaskSerialize>, errors::ConnectorError>
+    {
         let details: trustpay::TrustpayWebhookResponse = request
             .body
             .parse_struct("TrustpayWebhookResponse")
@@ -1045,6 +1153,7 @@ impl webhooks::IncomingWebhook for Trustpay {
     fn get_dispute_details(
         &self,
         request: &webhooks::IncomingWebhookRequestDetails<'_>,
+        _context: Option<&webhooks::WebhookContext>,
     ) -> CustomResult<DisputePayload, errors::ConnectorError> {
         let trustpay_response: trustpay::TrustpayWebhookResponse = request
             .body
@@ -1207,7 +1316,7 @@ static TRUSTPAY_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
                         api_models::feature_matrix::CardSpecificFeatures {
                             three_ds: common_enums::FeatureStatus::NotSupported,
                             no_three_ds: common_enums::FeatureStatus::Supported,
-                            supported_card_networks: supported_card_network,
+                            supported_card_networks: supported_card_network.clone(),
                         }
                     }),
                 ),
@@ -1335,6 +1444,28 @@ static TRUSTPAY_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
             },
         );
 
+        trustpay_supported_payment_methods.add(
+            enums::PaymentMethod::NetworkToken,
+            enums::PaymentMethodType::NetworkToken,
+            PaymentMethodDetails {
+                mandates: enums::FeatureStatus::NotSupported,
+                refunds: enums::FeatureStatus::Supported,
+                supported_capture_methods: vec![
+                    enums::CaptureMethod::Automatic,
+                    enums::CaptureMethod::SequentialAutomatic,
+                ],
+                specific_features: Some(
+                    api_models::feature_matrix::PaymentMethodSpecificFeatures::Card({
+                        api_models::feature_matrix::CardSpecificFeatures {
+                            three_ds: common_enums::FeatureStatus::Supported,
+                            no_three_ds: common_enums::FeatureStatus::Supported,
+                            supported_card_networks: supported_card_network.clone(),
+                        }
+                    }),
+                ),
+            },
+        );
+
         trustpay_supported_payment_methods
     });
 
@@ -1352,6 +1483,20 @@ static TRUSTPAY_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 3] = [
 ];
 
 impl ConnectorSpecifications for Trustpay {
+    fn is_order_create_flow_required(&self, current_flow: api::CurrentFlowInfo) -> bool {
+        match current_flow {
+            api::CurrentFlowInfo::Authorize {
+                auth_type: _,
+                request_data,
+            } => matches!(
+                &request_data.payment_method_data,
+                payment_method_data::PaymentMethodData::Wallet(_)
+            ),
+            api::CurrentFlowInfo::CompleteAuthorize { .. } => false,
+            api::CurrentFlowInfo::SetupMandate { .. } => false,
+            api::CurrentFlowInfo::Psync { .. } => false,
+        }
+    }
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
         Some(&TRUSTPAY_CONNECTOR_INFO)
     }

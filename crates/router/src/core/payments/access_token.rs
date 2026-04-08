@@ -2,7 +2,10 @@ use std::fmt::Debug;
 
 use common_utils::ext_traits::AsyncExt;
 use error_stack::ResultExt;
-use hyperswitch_interfaces::api::{gateway, ConnectorAccessTokenSuffix, ConnectorSpecifications};
+use hyperswitch_interfaces::{
+    api::{gateway, ConnectorSpecifications},
+    consts as interfaces_consts,
+};
 
 use crate::{
     consts,
@@ -121,6 +124,7 @@ pub async fn add_access_token<
     router_data: &types::RouterData<F, Req, Res>,
     creds_identifier: Option<&str>,
     gateway_context: &gateway_context::RouterGatewayContext,
+    current_flow: Option<hyperswitch_domain_models::router_request_types::CurrentFlowInfo>,
 ) -> RouterResult<types::AddAccessTokenResult> {
     if connector
         .connector_name
@@ -144,12 +148,18 @@ pub async fn add_access_token<
 
         let key = connector
             .connector
-            .get_access_token_key(router_data, merchant_connector_id_or_connector_name.clone())
+            .get_access_token_key(
+                router_data,
+                merchant_connector_id_or_connector_name.clone(),
+                current_flow.clone(),
+            )
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable(format!(
                 "Failed to get access token key for connector: {:?}",
                 connector.connector_name
             ))?;
+
+        router_env::logger::debug!("Fetching access token from Redis using key: {key}");
 
         let old_access_token = store
             .get_access_token(key.clone())
@@ -192,6 +202,7 @@ pub async fn add_access_token<
                 let refresh_token_request_data = types::AccessTokenRequestData::try_from((
                     router_data.connector_auth_type.clone(),
                     authentication_token,
+                    current_flow,
                 ))
                 .attach_printable(
                     "Could not create access token request, invalid connector account credentials",
@@ -302,12 +313,13 @@ pub async fn refresh_connector_auth(
             // further payment flow will not be continued
             if connector_error.current_context().is_connector_timeout() {
                 let error_response = types::ErrorResponse {
-                    code: consts::REQUEST_TIMEOUT_ERROR_CODE.to_string(),
-                    message: consts::REQUEST_TIMEOUT_ERROR_MESSAGE.to_string(),
-                    reason: Some(consts::REQUEST_TIMEOUT_ERROR_MESSAGE.to_string()),
+                    code: interfaces_consts::REQUEST_TIMEOUT_ERROR_CODE.to_string(),
+                    message: interfaces_consts::REQUEST_TIMEOUT_ERROR_MESSAGE.to_string(),
+                    reason: Some(interfaces_consts::REQUEST_TIMEOUT_ERROR_MESSAGE.to_string()),
                     status_code: 504,
                     attempt_status: None,
                     connector_transaction_id: None,
+                    connector_response_reference_id: None,
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
@@ -394,12 +406,13 @@ pub async fn execute_authentication_token<
             // Handle timeout errors
             if connector_error.current_context().is_connector_timeout() {
                 let error_response = types::ErrorResponse {
-                    code: consts::REQUEST_TIMEOUT_ERROR_CODE.to_string(),
-                    message: consts::REQUEST_TIMEOUT_ERROR_MESSAGE.to_string(),
-                    reason: Some(consts::REQUEST_TIMEOUT_ERROR_MESSAGE.to_string()),
+                    code: interfaces_consts::REQUEST_TIMEOUT_ERROR_CODE.to_string(),
+                    message: interfaces_consts::REQUEST_TIMEOUT_ERROR_MESSAGE.to_string(),
+                    reason: Some(interfaces_consts::REQUEST_TIMEOUT_ERROR_MESSAGE.to_string()),
                     status_code: 504,
                     attempt_status: None,
                     connector_transaction_id: None,
+                    connector_response_reference_id: None,
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,

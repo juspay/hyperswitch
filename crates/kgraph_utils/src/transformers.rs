@@ -105,6 +105,7 @@ impl IntoDirValue for api_enums::PaymentMethod {
             Self::CardRedirect => Ok(dirval!(PaymentMethod = CardRedirect)),
             Self::OpenBanking => Ok(dirval!(PaymentMethod = OpenBanking)),
             Self::MobilePayment => Ok(dirval!(PaymentMethod = MobilePayment)),
+            Self::NetworkToken => Ok(dirval!(PaymentMethod = NetworkToken)),
         }
     }
 }
@@ -171,9 +172,12 @@ impl IntoDirValue for (api_enums::PaymentMethodType, api_enums::PaymentMethod) {
                 | api_enums::PaymentMethod::MobilePayment
                 | api_enums::PaymentMethod::Voucher
                 | api_enums::PaymentMethod::OpenBanking
-                | api_enums::PaymentMethod::GiftCard => Err(KgraphError::ContextConstructionError(
-                    Box::new(AnalysisErrorType::NotSupported),
-                )),
+                | api_enums::PaymentMethod::GiftCard
+                | api_enums::PaymentMethod::NetworkToken => {
+                    Err(KgraphError::ContextConstructionError(Box::new(
+                        AnalysisErrorType::NotSupported,
+                    )))
+                }
             },
             api_enums::PaymentMethodType::Bacs => match self.1 {
                 api_enums::PaymentMethod::BankDebit => Ok(dirval!(BankDebitType = Bacs)),
@@ -190,9 +194,12 @@ impl IntoDirValue for (api_enums::PaymentMethodType, api_enums::PaymentMethod) {
                 | api_enums::PaymentMethod::MobilePayment
                 | api_enums::PaymentMethod::Voucher
                 | api_enums::PaymentMethod::OpenBanking
-                | api_enums::PaymentMethod::GiftCard => Err(KgraphError::ContextConstructionError(
-                    Box::new(AnalysisErrorType::NotSupported),
-                )),
+                | api_enums::PaymentMethod::GiftCard
+                | api_enums::PaymentMethod::NetworkToken => {
+                    Err(KgraphError::ContextConstructionError(Box::new(
+                        AnalysisErrorType::NotSupported,
+                    )))
+                }
             },
             api_enums::PaymentMethodType::Becs => Ok(dirval!(BankDebitType = Becs)),
             api_enums::PaymentMethodType::Sepa => Ok(dirval!(BankDebitType = Sepa)),
@@ -213,6 +220,12 @@ impl IntoDirValue for (api_enums::PaymentMethodType, api_enums::PaymentMethod) {
             api_enums::PaymentMethodType::Cashapp => Ok(dirval!(WalletType = Cashapp)),
             api_enums::PaymentMethodType::Multibanco => Ok(dirval!(BankTransferType = Multibanco)),
             api_enums::PaymentMethodType::Pix => Ok(dirval!(BankTransferType = Pix)),
+            api_enums::PaymentMethodType::PixAutomaticoPush => {
+                Ok(dirval!(BankTransferType = PixAutomaticoPush))
+            }
+            api_enums::PaymentMethodType::PixAutomaticoQr => {
+                Ok(dirval!(BankTransferType = PixAutomaticoQr))
+            }
             api_enums::PaymentMethodType::Pse => Ok(dirval!(BankTransferType = Pse)),
             api_enums::PaymentMethodType::Interac => Ok(dirval!(BankRedirectType = Interac)),
             api_enums::PaymentMethodType::OnlineBankingCzechRepublic => {
@@ -288,6 +301,7 @@ impl IntoDirValue for (api_enums::PaymentMethodType, api_enums::PaymentMethod) {
             api_enums::PaymentMethodType::InstantBankTransferPoland => {
                 Ok(dirval!(BankTransferType = InstantBankTransferPoland))
             }
+            api_enums::PaymentMethodType::Qris => Ok(dirval!(RealTimePaymentType = Qris)),
             api_enums::PaymentMethodType::PermataBankTransfer => {
                 Ok(dirval!(BankTransferType = PermataBankTransfer))
             }
@@ -330,6 +344,9 @@ impl IntoDirValue for (api_enums::PaymentMethodType, api_enums::PaymentMethod) {
             }
             api_enums::PaymentMethodType::OpenBanking => {
                 Ok(dirval!(BankRedirectType = OpenBanking))
+            }
+            api_enums::PaymentMethodType::NetworkToken => {
+                Ok(dirval!(NetworkTokenType = NetworkToken))
             }
         }
     }

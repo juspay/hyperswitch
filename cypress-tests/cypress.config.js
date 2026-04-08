@@ -1,3 +1,4 @@
+import crypto from "node:crypto";
 import { defineConfig } from "cypress";
 import mochawesome from "cypress-mochawesome-reporter/plugin.js";
 import fs from "fs";
@@ -32,6 +33,10 @@ export default defineConfig({
           console.log(message);
           return null;
         },
+        hmac_sha256: ({ secret, message }) => {
+          const key = Buffer.from(secret, "hex");
+          return crypto.createHmac("sha256", key).update(message).digest("hex");
+        },
       });
       on("after:spec", (spec, results) => {
         // Clean up resources after each spec
@@ -61,6 +66,7 @@ export default defineConfig({
       return config;
     },
     experimentalRunAllSpecs: true,
+    retries: 2,
 
     specPattern: "cypress/e2e/**/*.cy.{js,jsx,ts,tsx}",
     supportFile: "cypress/support/e2e.js",

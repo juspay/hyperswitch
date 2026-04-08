@@ -167,6 +167,11 @@ impl TryFrom<&str> for RequestId {
 }
 
 impl RequestId {
+    /// Generate a new request ID using UUID v7.
+    pub fn new_generated() -> Self {
+        Self(generate_uuid_v7().into())
+    }
+
     /// Extract request ID from ServiceRequest header or generate UUID v7.
     ///
     /// This is the core logic: try to extract from the specified header,
@@ -250,6 +255,64 @@ impl RequestIdentifier {
         Self {
             use_incoming_id,
             ..self
+        }
+    }
+
+    /// Get the header name used for request ID extraction.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use router_env::RequestIdentifier;
+    ///
+    /// let identifier = RequestIdentifier::new("x-request-id");
+    /// assert_eq!(identifier.header_name(), "x-request-id");
+    /// ```
+    pub fn header_name(&self) -> &str {
+        &self.header_name
+    }
+
+    /// Get the configured strategy for reusing incoming request IDs.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use router_env::{IdReuse, RequestIdentifier};
+    ///
+    /// let identifier = RequestIdentifier::new("x-request-id")
+    ///     .use_incoming_id(IdReuse::IgnoreIncoming);
+    /// assert_eq!(identifier.id_reuse_strategy(), IdReuse::IgnoreIncoming);
+    /// ```
+    pub fn id_reuse_strategy(&self) -> IdReuse {
+        self.use_incoming_id
+    }
+}
+
+impl IdReuse {
+    /// Reuse the existing request ID or create a new one based on the configured strategy.
+    ///
+    /// Returns the request ID and a flag indicating whether it was newly generated.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use router_env::{IdReuse, RequestId};
+    ///
+    /// let existing = RequestId::new_generated();
+    /// let (id, generated) = IdReuse::UseIncoming.get_or_create_request_id(Some(&existing));
+    /// assert_eq!(id, existing);
+    /// assert!(!generated);
+    ///
+    /// let (_id, generated) = IdReuse::IgnoreIncoming.get_or_create_request_id(None);
+    /// assert!(generated);
+    /// ```
+    pub fn get_or_create_request_id(&self, existing: Option<&RequestId>) -> (RequestId, bool) {
+        match self {
+            Self::UseIncoming => existing
+                .cloned()
+                .map(|id| (id, false))
+                .unwrap_or_else(|| (RequestId::new_generated(), true)),
+            Self::IgnoreIncoming => (RequestId::new_generated(), true),
         }
     }
 }

@@ -57,7 +57,7 @@ serde_with = "3.12.0"
 sha1 = { version = "0.10.6" }
 sha2 = "0.10"
 strum = { version = "0.26", features = ["derive"] }
-time = "0.3.41"
+time = { version = "0.3.41", features = ["macros"] }
 unicode-normalization = "0.1.24"
 utoipa = { version = "4.2.3", features = ["preserve_order", "preserve_path_order", "time"] }
 url = "2.5.4"
@@ -72,7 +72,7 @@ common_types = { version = "0.1.0", path = "../common_types" }
 common_utils = { version = "0.1.0", path = "../common_utils", features = ["async_ext", "logs", "metrics", "crypto_openssl"] }
 hyperswitch_domain_models = { version = "0.1.0", path = "../hyperswitch_domain_models", default-features = false }
 hyperswitch_interfaces = { version = "0.1.0", path = "../hyperswitch_interfaces", default-features = false }
-masking = { version = "0.1.0", path = "../masking" }
+hyperswitch_masking = "0.0.1"
 router_env = { version = "0.1.0", path = "../router_env", features = ["log_extra_implicit_fields", "log_custom_entries_to_extra"] }
 
 [lints]

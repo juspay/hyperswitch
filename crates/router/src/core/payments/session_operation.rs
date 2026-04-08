@@ -17,7 +17,7 @@ use hyperswitch_interfaces::{
     api::Connector as ConnectorTrait,
     connector_integration_v2::{ConnectorIntegrationV2, ConnectorV2},
 };
-use masking::ExposeInterface;
+use hyperswitch_masking::ExposeInterface;
 use router_env::{env::Env, instrument, tracing};
 
 use crate::{
@@ -187,11 +187,8 @@ where
                 .update_trackers(
                     state,
                     req_state,
+                    platform.get_processor(),
                     payment_data.clone(),
-                    customer.clone(),
-                    platform.get_processor().get_account().storage_scheme,
-                    None,
-                    platform.get_processor().get_key_store(),
                     None,
                     header_payload.clone(),
                 )
@@ -199,7 +196,7 @@ where
             // todo: call surcharge manager for session token call.
             Box::pin(call_multiple_connectors_service(
                 state,
-                &platform,
+                platform.get_processor(),
                 connectors,
                 &operation,
                 payment_data,

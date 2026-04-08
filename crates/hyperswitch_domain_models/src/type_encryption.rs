@@ -2,13 +2,13 @@ use async_trait::async_trait;
 use common_utils::{
     crypto,
     encryption::Encryption,
-    errors::{self, CustomResult},
+    errors::{CryptoError, CustomResult},
     ext_traits::AsyncExt,
     metrics::utils::record_operation_time,
     types::keymanager::{Identifier, KeyManagerState},
 };
 use encrypt::TypeEncryption;
-use masking::Secret;
+use hyperswitch_masking::Secret;
 use router_env::{instrument, tracing};
 use rustc_hash::FxHashMap;
 
@@ -29,17 +29,17 @@ mod encrypt {
     };
     use error_stack::ResultExt;
     use http::Method;
-    use masking::{PeekInterface, Secret};
+    use hyperswitch_masking::{PeekInterface, Secret};
     use router_env::{instrument, logger, tracing};
     use rustc_hash::FxHashMap;
 
-    use super::{metrics, EncryptedJsonType};
+    use super::{metrics, obtain_data_to_decrypt_locally, EncryptedJsonType};
 
     #[async_trait]
     pub trait TypeEncryption<
         T,
         V: crypto::EncodeMessage + crypto::DecodeMessage,
-        S: masking::Strategy<T>,
+        S: hyperswitch_masking::Strategy<T>,
     >: Sized
     {
         async fn encrypt_via_api(
@@ -99,21 +99,10 @@ mod encrypt {
         ) -> CustomResult<FxHashMap<String, Self>, errors::CryptoError>;
     }
 
-    fn is_encryption_service_enabled(_state: &KeyManagerState) -> bool {
-        #[cfg(feature = "encryption_service")]
-        {
-            _state.enabled
-        }
-        #[cfg(not(feature = "encryption_service"))]
-        {
-            false
-        }
-    }
-
     #[async_trait]
     impl<
             V: crypto::DecodeMessage + crypto::EncodeMessage + Send + 'static,
-            S: masking::Strategy<String> + Send + Sync,
+            S: hyperswitch_masking::Strategy<String> + Send + Sync,
         > TypeEncryption<String, V, S> for crypto::Encryptable<Secret<String, S>>
     {
         // Do not remove the `skip_all` as the key would be logged otherwise
@@ -126,7 +115,7 @@ mod encrypt {
             crypt_algo: V,
         ) -> CustomResult<Self, errors::CryptoError> {
             // If encryption service is not enabled, fall back to application encryption or else call encryption service
-            if !is_encryption_service_enabled(state) {
+            if !state.is_encryption_service_enabled() {
                 Self::encrypt(masked_data, key, crypt_algo).await
             } else {
                 let result: Result<
@@ -161,7 +150,7 @@ mod encrypt {
             crypt_algo: V,
         ) -> CustomResult<Self, errors::CryptoError> {
             // If encryption service is not enabled, fall back to application encryption or else call encryption service
-            if !is_encryption_service_enabled(state) {
+            if !state.is_encryption_service_enabled() {
                 Self::decrypt(encrypted_data, key, crypt_algo).await
             } else {
                 let result: Result<
@@ -215,7 +204,7 @@ mod encrypt {
             crypt_algo: V,
         ) -> CustomResult<Self, errors::CryptoError> {
             metrics::APPLICATION_DECRYPTION_COUNT.add(1, &[]);
-            let encrypted = encrypted_data.into_inner();
+            let encrypted = obtain_data_to_decrypt_locally(encrypted_data.into_inner())?;
             let data = crypt_algo.decode_message(key, encrypted.clone())?;
 
             let value: String = std::str::from_utf8(&data)
@@ -235,7 +224,7 @@ mod encrypt {
             crypt_algo: V,
         ) -> CustomResult<FxHashMap<String, Self>, errors::CryptoError> {
             // If encryption service is not enabled, fall back to application encryption or else call encryption service
-            if !is_encryption_service_enabled(state) {
+            if !state.is_encryption_service_enabled() {
                 Self::batch_encrypt(masked_data, key, crypt_algo).await
             } else {
                 let result: Result<
@@ -270,7 +259,7 @@ mod encrypt {
             crypt_algo: V,
         ) -> CustomResult<FxHashMap<String, Self>, errors::CryptoError> {
             // If encryption service is not enabled, fall back to application encryption or else call encryption service
-            if !is_encryption_service_enabled(state) {
+            if !state.is_encryption_service_enabled() {
                 Self::batch_decrypt(encrypted_data, key, crypt_algo).await
             } else {
                 let result: Result<
@@ -336,7 +325,8 @@ mod encrypt {
             encrypted_data
                 .into_iter()
                 .map(|(k, v)| {
-                    let data = crypt_algo.decode_message(key, v.clone().into_inner())?;
+                    let encrypted = obtain_data_to_decrypt_locally(v.clone().into_inner())?;
+                    let data = crypt_algo.decode_message(key, encrypted)?;
                     let value: String = std::str::from_utf8(&data)
                         .change_context(errors::CryptoError::DecodingFailed)?
                         .to_string();
@@ -349,7 +339,7 @@ mod encrypt {
     #[async_trait]
     impl<
             V: crypto::DecodeMessage + crypto::EncodeMessage + Send + 'static,
-            S: masking::Strategy<serde_json::Value> + Send + Sync,
+            S: hyperswitch_masking::Strategy<serde_json::Value> + Send + Sync,
         > TypeEncryption<serde_json::Value, V, S>
         for crypto::Encryptable<Secret<serde_json::Value, S>>
     {
@@ -363,7 +353,7 @@ mod encrypt {
             crypt_algo: V,
         ) -> CustomResult<Self, errors::CryptoError> {
             // If encryption service is not enabled, fall back to application encryption or else call encryption service
-            if !is_encryption_service_enabled(state) {
+            if !state.is_encryption_service_enabled() {
                 Self::encrypt(masked_data, key, crypt_algo).await
             } else {
                 let result: Result<
@@ -398,7 +388,7 @@ mod encrypt {
             crypt_algo: V,
         ) -> CustomResult<Self, errors::CryptoError> {
             // If encryption service is not enabled, fall back to application encryption or else call encryption service
-            if !is_encryption_service_enabled(state) {
+            if !state.is_encryption_service_enabled() {
                 Self::decrypt(encrypted_data, key, crypt_algo).await
             } else {
                 let result: Result<
@@ -453,7 +443,7 @@ mod encrypt {
             crypt_algo: V,
         ) -> CustomResult<Self, errors::CryptoError> {
             metrics::APPLICATION_DECRYPTION_COUNT.add(1, &[]);
-            let encrypted = encrypted_data.into_inner();
+            let encrypted = obtain_data_to_decrypt_locally(encrypted_data.into_inner())?;
             let data = crypt_algo.decode_message(key, encrypted.clone())?;
 
             let value: serde_json::Value = serde_json::from_slice(&data)
@@ -471,7 +461,7 @@ mod encrypt {
             crypt_algo: V,
         ) -> CustomResult<FxHashMap<String, Self>, errors::CryptoError> {
             // If encryption service is not enabled, fall back to application encryption or else call encryption service
-            if !is_encryption_service_enabled(state) {
+            if !state.is_encryption_service_enabled() {
                 Self::batch_encrypt(masked_data, key, crypt_algo).await
             } else {
                 let result: Result<
@@ -506,7 +496,7 @@ mod encrypt {
             crypt_algo: V,
         ) -> CustomResult<FxHashMap<String, Self>, errors::CryptoError> {
             // If encryption service is not enabled, fall back to application encryption or else call encryption service
-            if !is_encryption_service_enabled(state) {
+            if !state.is_encryption_service_enabled() {
                 Self::batch_decrypt(encrypted_data, key, crypt_algo).await
             } else {
                 let result: Result<
@@ -571,7 +561,8 @@ mod encrypt {
             encrypted_data
                 .into_iter()
                 .map(|(k, v)| {
-                    let data = crypt_algo.decode_message(key, v.clone().into_inner().clone())?;
+                    let encrypted = obtain_data_to_decrypt_locally(v.clone().into_inner())?;
+                    let data = crypt_algo.decode_message(key, encrypted)?;
 
                     let value: serde_json::Value = serde_json::from_slice(&data)
                         .change_context(errors::CryptoError::DecodingFailed)?;
@@ -596,7 +587,7 @@ mod encrypt {
             bytes: Secret<Vec<u8>>,
         ) -> CustomResult<Secret<Self, S>, errors::ParsingError>
         where
-            S: masking::Strategy<Self>,
+            S: hyperswitch_masking::Strategy<Self>,
         {
             bytes
                 .peek()
@@ -611,7 +602,7 @@ mod encrypt {
     impl<
             T: std::fmt::Debug + Clone + serde::Serialize + serde::de::DeserializeOwned + Send,
             V: crypto::DecodeMessage + crypto::EncodeMessage + Send + 'static,
-            S: masking::Strategy<EncryptedJsonType<T>> + Send + Sync,
+            S: hyperswitch_masking::Strategy<EncryptedJsonType<T>> + Send + Sync,
         > TypeEncryption<EncryptedJsonType<T>, V, S>
         for crypto::Encryptable<Secret<EncryptedJsonType<T>, S>>
     {
@@ -821,7 +812,7 @@ mod encrypt {
     #[async_trait]
     impl<
             V: crypto::DecodeMessage + crypto::EncodeMessage + Send + 'static,
-            S: masking::Strategy<Vec<u8>> + Send + Sync,
+            S: hyperswitch_masking::Strategy<Vec<u8>> + Send + Sync,
         > TypeEncryption<Vec<u8>, V, S> for crypto::Encryptable<Secret<Vec<u8>, S>>
     {
         // Do not remove the `skip_all` as the key would be logged otherwise
@@ -834,7 +825,7 @@ mod encrypt {
             crypt_algo: V,
         ) -> CustomResult<Self, errors::CryptoError> {
             // If encryption service is not enabled, fall back to application encryption or else call encryption service
-            if !is_encryption_service_enabled(state) {
+            if !state.is_encryption_service_enabled() {
                 Self::encrypt(masked_data, key, crypt_algo).await
             } else {
                 let result: Result<
@@ -869,7 +860,7 @@ mod encrypt {
             crypt_algo: V,
         ) -> CustomResult<Self, errors::CryptoError> {
             // If encryption service is not enabled, fall back to application encryption or else call encryption service
-            if !is_encryption_service_enabled(state) {
+            if !state.is_encryption_service_enabled() {
                 Self::decrypt(encrypted_data, key, crypt_algo).await
             } else {
                 let result: Result<
@@ -922,7 +913,7 @@ mod encrypt {
             crypt_algo: V,
         ) -> CustomResult<Self, errors::CryptoError> {
             metrics::APPLICATION_DECRYPTION_COUNT.add(1, &[]);
-            let encrypted = encrypted_data.into_inner();
+            let encrypted = obtain_data_to_decrypt_locally(encrypted_data.into_inner())?;
             let data = crypt_algo.decode_message(key, encrypted.clone())?;
             Ok(Self::new(data.into(), encrypted))
         }
@@ -937,7 +928,7 @@ mod encrypt {
             crypt_algo: V,
         ) -> CustomResult<FxHashMap<String, Self>, errors::CryptoError> {
             // If encryption service is not enabled, fall back to application encryption or else call encryption service
-            if !is_encryption_service_enabled(state) {
+            if !state.is_encryption_service_enabled() {
                 Self::batch_encrypt(masked_data, key, crypt_algo).await
             } else {
                 let result: Result<
@@ -972,7 +963,7 @@ mod encrypt {
             crypt_algo: V,
         ) -> CustomResult<FxHashMap<String, Self>, errors::CryptoError> {
             // If encryption service is not enabled, fall back to application encryption or else call encryption service
-            if !is_encryption_service_enabled(state) {
+            if !state.is_encryption_service_enabled() {
                 Self::batch_decrypt(encrypted_data, key, crypt_algo).await
             } else {
                 let result: Result<
@@ -1039,7 +1030,10 @@ mod encrypt {
                         k,
                         Self::new(
                             crypt_algo
-                                .decode_message(key, v.clone().into_inner().clone())?
+                                .decode_message(
+                                    key,
+                                    obtain_data_to_decrypt_locally(v.clone().into_inner())?,
+                                )?
                                 .into(),
                             v.into_inner(),
                         ),
@@ -1134,11 +1128,28 @@ async fn encrypt<E: Clone, S>(
     key: &[u8],
 ) -> CustomResult<crypto::Encryptable<Secret<E, S>>, CryptoError>
 where
-    S: masking::Strategy<E>,
+    S: hyperswitch_masking::Strategy<E>,
     crypto::Encryptable<Secret<E, S>>: TypeEncryption<E, crypto::GcmAes256, S>,
 {
     record_operation_time(
         crypto::Encryptable::encrypt_via_api(state, inner, identifier, key, crypto::GcmAes256),
+        &metrics::ENCRYPTION_TIME,
+        &[],
+    )
+    .await
+}
+
+#[inline]
+async fn encrypt_locally<E: Clone, S>(
+    inner: Secret<E, S>,
+    key: &[u8],
+) -> CustomResult<crypto::Encryptable<Secret<E, S>>, CryptoError>
+where
+    S: hyperswitch_masking::Strategy<E>,
+    crypto::Encryptable<Secret<E, S>>: TypeEncryption<E, crypto::GcmAes256, S>,
+{
+    record_operation_time(
+        crypto::Encryptable::encrypt(inner, key, crypto::GcmAes256),
         &metrics::ENCRYPTION_TIME,
         &[],
     )
@@ -1153,7 +1164,7 @@ async fn batch_encrypt<E: Clone, S>(
     key: &[u8],
 ) -> CustomResult<FxHashMap<String, crypto::Encryptable<Secret<E, S>>>, CryptoError>
 where
-    S: masking::Strategy<E>,
+    S: hyperswitch_masking::Strategy<E>,
     crypto::Encryptable<Secret<E, S>>: TypeEncryption<E, crypto::GcmAes256, S>,
 {
     if !inner.is_empty() {
@@ -1183,7 +1194,7 @@ async fn encrypt_optional<E: Clone, S>(
 ) -> CustomResult<Option<crypto::Encryptable<Secret<E, S>>>, CryptoError>
 where
     Secret<E, S>: Send,
-    S: masking::Strategy<E>,
+    S: hyperswitch_masking::Strategy<E>,
     crypto::Encryptable<Secret<E, S>>: TypeEncryption<E, crypto::GcmAes256, S>,
 {
     inner
@@ -1193,7 +1204,7 @@ where
 }
 
 #[inline]
-async fn decrypt_optional<T: Clone, S: masking::Strategy<T>>(
+async fn decrypt_optional<T: Clone, S: hyperswitch_masking::Strategy<T>>(
     state: &KeyManagerState,
     inner: Option<Encryption>,
     identifier: Identifier,
@@ -1209,7 +1220,7 @@ where
 }
 
 #[inline]
-async fn decrypt<T: Clone, S: masking::Strategy<T>>(
+async fn decrypt<T: Clone, S: hyperswitch_masking::Strategy<T>>(
     state: &KeyManagerState,
     inner: Encryption,
     identifier: Identifier,
@@ -1227,6 +1238,22 @@ where
 }
 
 #[inline]
+async fn decrypt_locally<T: Clone, S: hyperswitch_masking::Strategy<T>>(
+    inner: Encryption,
+    key: &[u8],
+) -> CustomResult<crypto::Encryptable<Secret<T, S>>, CryptoError>
+where
+    crypto::Encryptable<Secret<T, S>>: TypeEncryption<T, crypto::GcmAes256, S>,
+{
+    record_operation_time(
+        crypto::Encryptable::decrypt(inner, key, crypto::GcmAes256),
+        &metrics::DECRYPTION_TIME,
+        &[],
+    )
+    .await
+}
+
+#[inline]
 async fn batch_decrypt<E: Clone, S>(
     state: &KeyManagerState,
     inner: FxHashMap<String, Encryption>,
@@ -1234,7 +1261,7 @@ async fn batch_decrypt<E: Clone, S>(
     key: &[u8],
 ) -> CustomResult<FxHashMap<String, crypto::Encryptable<Secret<E, S>>>, CryptoError>
 where
-    S: masking::Strategy<E>,
+    S: hyperswitch_masking::Strategy<E>,
     crypto::Encryptable<Secret<E, S>>: TypeEncryption<E, crypto::GcmAes256, S>,
 {
     if !inner.is_empty() {
@@ -1255,20 +1282,20 @@ where
     }
 }
 
-pub enum CryptoOperation<T: Clone, S: masking::Strategy<T>> {
+pub enum CryptoOperation<T: Clone, S: hyperswitch_masking::Strategy<T>> {
     Encrypt(Secret<T, S>),
     EncryptOptional(Option<Secret<T, S>>),
+    EncryptLocally(Secret<T, S>),
     Decrypt(Encryption),
     DecryptOptional(Option<Encryption>),
+    DecryptLocally(Encryption),
     BatchEncrypt(FxHashMap<String, Secret<T, S>>),
     BatchDecrypt(FxHashMap<String, Encryption>),
 }
 
-use errors::CryptoError;
-
 #[derive(router_derive::TryGetEnumVariant)]
 #[error(CryptoError::EncodingFailed)]
-pub enum CryptoOutput<T: Clone, S: masking::Strategy<T>> {
+pub enum CryptoOutput<T: Clone, S: hyperswitch_masking::Strategy<T>> {
     Operation(crypto::Encryptable<Secret<T, S>>),
     OptionalOperation(Option<crypto::Encryptable<Secret<T, S>>>),
     BatchOperation(FxHashMap<String, crypto::Encryptable<Secret<T, S>>>),
@@ -1276,7 +1303,7 @@ pub enum CryptoOutput<T: Clone, S: masking::Strategy<T>> {
 
 // Do not remove the `skip_all` as the key would be logged otherwise
 #[instrument(skip_all, fields(table = table_name))]
-pub async fn crypto_operation<T: Clone + Send, S: masking::Strategy<T>>(
+pub async fn crypto_operation<T: Clone + Send, S: hyperswitch_masking::Strategy<T>>(
     state: &KeyManagerState,
     table_name: &str,
     operation: CryptoOperation<T, S>,
@@ -1296,6 +1323,10 @@ where
             let data = encrypt_optional(state, data, identifier, key).await?;
             Ok(CryptoOutput::OptionalOperation(data))
         }
+        CryptoOperation::EncryptLocally(data) => {
+            let data = encrypt_locally(data, key).await?;
+            Ok(CryptoOutput::Operation(data))
+        }
         CryptoOperation::Decrypt(data) => {
             let data = decrypt(state, data, identifier, key).await?;
             Ok(CryptoOutput::Operation(data))
@@ -1303,6 +1334,10 @@ where
         CryptoOperation::DecryptOptional(data) => {
             let data = decrypt_optional(state, data, identifier, key).await?;
             Ok(CryptoOutput::OptionalOperation(data))
+        }
+        CryptoOperation::DecryptLocally(data) => {
+            let data = decrypt_locally(data, key).await?;
+            Ok(CryptoOutput::Operation(data))
         }
         CryptoOperation::BatchEncrypt(data) => {
             let data = batch_encrypt(state, data, identifier, key).await?;
@@ -1313,6 +1348,71 @@ where
             Ok(CryptoOutput::BatchOperation(data))
         }
     }
+}
+
+#[inline]
+fn obtain_data_to_decrypt_locally<S>(
+    encrypted_data: Secret<Vec<u8>, S>,
+) -> CustomResult<Secret<Vec<u8>, S>, CryptoError>
+where
+    S: hyperswitch_masking::Strategy<Vec<u8>>,
+{
+    use base64::Engine;
+    use common_utils::consts::BASE64_ENGINE;
+    use error_stack::ResultExt;
+    use hyperswitch_masking::PeekInterface;
+
+    if let Some((_version, base64_encoded_data)) = split_version_prefix(encrypted_data.peek()) {
+        // Data encrypted by encryption service.
+        // Split data at colon (to remove version prefix), base64 decode and then proceed with decryption.
+        router_env::logger::debug!("Attempting to decrypt data encrypted by encryption service");
+        BASE64_ENGINE
+            .decode(base64_encoded_data)
+            .change_context(CryptoError::DecodingFailed)
+            .attach_printable("base64 decoding encrypted data failed")
+            .map(Secret::new)
+    } else {
+        // Data encrypted by hyperswitch locally, proceed with decryption directly.
+        router_env::logger::debug!("Attempting to decrypt data encrypted locally");
+        Ok(encrypted_data)
+    }
+}
+
+#[inline]
+/// Attempt to split a version prefix (e.g., "v1:", "v2:") from encrypted bytes.
+/// Only checks the first few bytes to avoid false positives from ':' appearing in encrypted data.
+/// Returns (version_prefix, data_after_colon) if a valid version prefix is found, `None` otherwise.
+fn split_version_prefix(encrypted_bytes: &[u8]) -> Option<(&[u8], &[u8])> {
+    // Only check first 5 bytes for version pattern
+    const MAX_PREFIX_LEN: usize = 5;
+
+    // A valid version prefix must start with 'v'
+    if encrypted_bytes.first() != Some(&b'v') {
+        return None;
+    }
+
+    // Search limit to find the ':' is bounded by input length,
+    // so all get() calls with indices < search_limit should succeed
+    let search_limit = MAX_PREFIX_LEN.min(encrypted_bytes.len());
+
+    for index in 1..search_limit {
+        match encrypted_bytes.get(index) {
+            // Checking for index > 1 to ensure at least one digit exists between 'v' and ':'
+            Some(&b':') if index > 1 => {
+                let prefix = encrypted_bytes.get(..index)?;
+                let rest = encrypted_bytes.get(index + 1..)?;
+                return Some((prefix, rest));
+            }
+
+            Some(&b) if b.is_ascii_digit() => continue,
+
+            // Invalid character in version prefix
+            _ => return None,
+        }
+    }
+
+    // No colon found within the search limit
+    None
 }
 
 pub(crate) mod metrics {
@@ -1327,4 +1427,181 @@ pub(crate) mod metrics {
     counter_metric!(DECRYPTION_API_FAILURES, GLOBAL_METER);
     counter_metric!(APPLICATION_ENCRYPTION_COUNT, GLOBAL_METER);
     counter_metric!(APPLICATION_DECRYPTION_COUNT, GLOBAL_METER);
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_split_version_prefix_valid_minimal() {
+        let input = b"v1:data";
+        let result = split_version_prefix(input);
+        assert_eq!(result, Some((&b"v1"[..], &b"data"[..])));
+    }
+
+    #[test]
+    fn test_split_version_prefix_valid_multiple_digits() {
+        let input = b"v12:data";
+        let result = split_version_prefix(input);
+        assert_eq!(result, Some((&b"v12"[..], &b"data"[..])));
+
+        let input = b"v123:data";
+        let result = split_version_prefix(input);
+        assert_eq!(result, Some((&b"v123"[..], &b"data"[..])));
+    }
+
+    #[test]
+    fn test_split_version_prefix_valid_empty_data() {
+        let input = b"v1:";
+        let result = split_version_prefix(input);
+        assert_eq!(result, Some((&b"v1"[..], &b""[..])));
+    }
+
+    #[test]
+    fn test_split_version_prefix_valid_single_char_data() {
+        let input = b"v1:x";
+        let result = split_version_prefix(input);
+        assert_eq!(result, Some((&b"v1"[..], &b"x"[..])));
+    }
+
+    #[test]
+    fn test_split_version_prefix_valid_at_boundary() {
+        // "v99:" is 4 bytes total, within the 5-byte limit
+        let input = b"v99:data";
+        let result = split_version_prefix(input);
+        assert_eq!(result, Some((&b"v99"[..], &b"data"[..])));
+    }
+
+    #[test]
+    fn test_split_version_prefix_valid_long_data() {
+        let input = b"v1:this_is_a_very_long_piece_of_data";
+        let result = split_version_prefix(input);
+        assert_eq!(
+            result,
+            Some((&b"v1"[..], &b"this_is_a_very_long_piece_of_data"[..]))
+        );
+    }
+
+    #[test]
+    fn test_split_version_prefix_invalid_no_digits() {
+        // "v:" has no digits between 'v' and ':'
+        let input = b"v:data";
+        let result = split_version_prefix(input);
+        assert_eq!(result, None);
+    }
+
+    #[test]
+    fn test_split_version_prefix_invalid_non_digit() {
+        let input = b"vx:data";
+        let result = split_version_prefix(input);
+        assert_eq!(result, None);
+    }
+
+    #[test]
+    fn test_split_version_prefix_invalid_digit_then_non_digit() {
+        let input = b"v1x:data";
+        let result = split_version_prefix(input);
+        assert_eq!(result, None);
+    }
+
+    #[test]
+    fn test_split_version_prefix_invalid_missing_colon() {
+        let input = b"v1";
+        let result = split_version_prefix(input);
+        assert_eq!(result, None);
+
+        let input = b"v123";
+        let result = split_version_prefix(input);
+        assert_eq!(result, None);
+    }
+
+    #[test]
+    fn test_split_version_prefix_invalid_no_v_prefix() {
+        let input = b"x1:data";
+        let result = split_version_prefix(input);
+        assert_eq!(result, None);
+
+        let input = b"1:data";
+        let result = split_version_prefix(input);
+        assert_eq!(result, None);
+    }
+
+    #[test]
+    fn test_split_version_prefix_invalid_uppercase_v() {
+        let input = b"V1:data";
+        let result = split_version_prefix(input);
+        assert_eq!(result, None);
+    }
+
+    #[test]
+    fn test_split_version_prefix_invalid_empty_input() {
+        let input = b"";
+        let result = split_version_prefix(input);
+        assert_eq!(result, None);
+    }
+
+    #[test]
+    fn test_split_version_prefix_invalid_just_v() {
+        let input = b"v";
+        let result = split_version_prefix(input);
+        assert_eq!(result, None);
+    }
+
+    #[test]
+    fn test_split_version_prefix_invalid_exceeds_limit() {
+        // "v999:" is 5 bytes, which equals MAX_PREFIX_LEN
+        // The search_limit will be 5, so the loop goes from 1..5 (indices 1,2,3,4)
+        // Index 4 would be ':', but we need to check if this is found
+        let input = b"v999:data";
+        let result = split_version_prefix(input);
+        assert_eq!(result, Some((&b"v999"[..], &b"data"[..])));
+
+        // "v9999:" is 6 bytes, exceeds MAX_PREFIX_LEN of 5
+        // The search_limit will be 5, loop from 1..5 (indices 1,2,3,4)
+        // Index 4 is '9', not ':', so no colon found within limit
+        let input = b"v9999:data";
+        let result = split_version_prefix(input);
+        assert_eq!(result, None);
+    }
+
+    #[test]
+    fn test_split_version_prefix_binary_data_after_colon() {
+        let input = b"v1:\x00\x01\x02\xff";
+        let result = split_version_prefix(input);
+        assert_eq!(result, Some((&b"v1"[..], &b"\x00\x01\x02\xff"[..])));
+    }
+
+    #[test]
+    fn test_split_version_prefix_special_chars_in_data() {
+        let input = b"v2:data!@#$%^&*()";
+        let result = split_version_prefix(input);
+        assert_eq!(result, Some((&b"v2"[..], &b"data!@#$%^&*()"[..])));
+    }
+
+    #[test]
+    fn test_split_version_prefix_colon_in_data() {
+        // Colon after the first colon should be part of data
+        let input = b"v1:data:more:colons";
+        let result = split_version_prefix(input);
+        assert_eq!(result, Some((&b"v1"[..], &b"data:more:colons"[..])));
+    }
+
+    #[test]
+    fn test_split_version_prefix_zero_version() {
+        let input = b"v0:data";
+        let result = split_version_prefix(input);
+        assert_eq!(result, Some((&b"v0"[..], &b"data"[..])));
+    }
+
+    #[test]
+    fn test_split_version_prefix_leading_zeros() {
+        let input = b"v01:data";
+        let result = split_version_prefix(input);
+        assert_eq!(result, Some((&b"v01"[..], &b"data"[..])));
+
+        let input = b"v001:data";
+        let result = split_version_prefix(input);
+        assert_eq!(result, Some((&b"v001"[..], &b"data"[..])));
+    }
 }

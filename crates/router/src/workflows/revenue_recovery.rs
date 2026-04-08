@@ -30,7 +30,7 @@ use hyperswitch_domain_models::{
     router_flow_types::Authorize,
 };
 #[cfg(feature = "v2")]
-use masking::{ExposeInterface, PeekInterface, Secret};
+use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 #[cfg(feature = "v2")]
 use rand::Rng;
 use router_env::{
@@ -65,6 +65,7 @@ use crate::types::storage::{
 use crate::workflows::revenue_recovery::pcr::api;
 #[cfg(feature = "v2")]
 use crate::{
+    consts,
     core::{
         payments,
         revenue_recovery::{self as pcr},
@@ -119,6 +120,7 @@ impl ProcessTrackerWorkflow<SessionState> for ExecutePcrWorkflow {
             revenue_recovery_payment_data.key_store.clone(),
             revenue_recovery_payment_data.merchant_account.clone(),
             revenue_recovery_payment_data.key_store.clone(),
+            None,
         );
         let (payment_data, _, _) = payments::payments_intent_operation_core::<
             api_types::PaymentGetIntent,
@@ -1077,7 +1079,7 @@ pub async fn call_decider_for_payment_processor_tokens_select_closest_time(
             // Unlock the customer status only if all tokens are hard declined and payment intent is in Failed status
             let _unlocked = match payment_intent.status {
                 common_enums::enums::IntentStatus::Failed => {
-                    let lock_released = RedisTokenManager::unlock_connector_customer_status(
+                    RedisTokenManager::unlock_connector_customer_status(
                         state,
                         connector_customer_id,
                         &payment_intent.id,
@@ -1087,8 +1089,7 @@ pub async fn call_decider_for_payment_processor_tokens_select_closest_time(
                         errors::ProcessTrackerError::ERedisError(
                             errors::RedisError::RedisConnectionError.into(),
                         ),
-                    )?;
-                    lock_released
+                    )?
                 }
                 _ => false,
             };
@@ -1153,10 +1154,13 @@ pub async fn check_hard_decline(
 
     let gsm_record = payments::helpers::get_gsm_record(
         state,
+        connector_name,
+        REVENUE_RECOVERY,
+        consts::DEFAULT_SUBFLOW_STR,
         error_code,
         error_message,
-        connector_name,
-        REVENUE_RECOVERY.to_string(),
+        None, // issuer_error_code not available in recovery context
+        None, // card_network
     )
     .await;
 

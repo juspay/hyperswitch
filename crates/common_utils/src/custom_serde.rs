@@ -295,3 +295,75 @@ mod tests {
         assert!(deser.is_ok())
     }
 }
+
+/// Use only the date part of a [`PrimitiveDateTime`] when serializing and deserializing.
+pub mod date_only {
+    use serde::{de, Deserialize, Deserializer, Serialize, Serializer};
+    use time::{Date, PrimitiveDateTime, Time};
+
+    /// Serialize a [`PrimitiveDateTime`] as a YYYY-MM-DD string.
+    pub fn serialize<S>(date_time: &PrimitiveDateTime, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let date = date_time.date();
+        // Format: 2026-09-10
+        format!(
+            "{}-{:02}-{:02}",
+            date.year(),
+            u8::from(date.month()),
+            date.day()
+        )
+        .serialize(serializer)
+    }
+
+    /// Deserialize a [`PrimitiveDateTime`] from a YYYY-MM-DD string.
+    pub fn deserialize<'a, D>(deserializer: D) -> Result<PrimitiveDateTime, D::Error>
+    where
+        D: Deserializer<'a>,
+    {
+        // 1. Deserialize into a Date object (handles YYYY-MM-DD)
+        let date = Date::deserialize(deserializer)
+            .map_err(|e| de::Error::custom(format!("Failed to parse Date (YYYY-MM-DD): {e}")))?;
+
+        // 2. Combine with midnight time to create PrimitiveDateTime
+        let time = Time::MIDNIGHT;
+        Ok(PrimitiveDateTime::new(date, time))
+    }
+}
+
+/// Use only the date part of an [`Option<PrimitiveDateTime>`] when serializing and deserializing.
+pub mod date_only_optional {
+    use serde::{Deserialize, Deserializer, Serializer}; // Added Deserialize here
+    use time::PrimitiveDateTime;
+
+    use super::date_only;
+
+    /// Serialize an [`Option<PrimitiveDateTime>`] as a YYYY-MM-DD string or null.
+    pub fn serialize<S>(
+        date_time: &Option<PrimitiveDateTime>,
+        serializer: S,
+    ) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        match date_time {
+            Some(dt) => date_only::serialize(dt, serializer),
+            None => serializer.serialize_none(),
+        }
+    }
+
+    /// Deserialize an [`Option<PrimitiveDateTime>`] from a YYYY-MM-DD string or null.
+    pub fn deserialize<'a, D>(deserializer: D) -> Result<Option<PrimitiveDateTime>, D::Error>
+    where
+        D: Deserializer<'a>,
+    {
+        // Use Option's built-in wrapper, but tell it to use our
+        // specific date_only logic for the inner value
+        #[derive(serde::Deserialize)]
+        struct Helper(#[serde(with = "date_only")] PrimitiveDateTime);
+
+        let helper = Option::<Helper>::deserialize(deserializer)?;
+        Ok(helper.map(|h| h.0))
+    }
+}

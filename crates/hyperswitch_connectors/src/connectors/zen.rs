@@ -43,9 +43,11 @@ use hyperswitch_interfaces::{
     errors,
     events::connector_api_logs::ConnectorEvent,
     types::{PaymentsAuthorizeType, PaymentsSyncType, RefundExecuteType, RefundSyncType, Response},
-    webhooks::{IncomingWebhook, IncomingWebhookFlowError, IncomingWebhookRequestDetails},
+    webhooks::{
+        IncomingWebhook, IncomingWebhookFlowError, IncomingWebhookRequestDetails, WebhookContext,
+    },
 };
-use masking::{Mask, PeekInterface, Secret};
+use hyperswitch_masking::{Mask, PeekInterface, Secret};
 use transformers::{self as zen, ZenPaymentStatus, ZenWebhookTxnType};
 use uuid::Uuid;
 
@@ -68,7 +70,7 @@ impl api::RefundExecute for Zen {}
 impl api::RefundSync for Zen {}
 
 impl Zen {
-    fn get_default_header() -> (String, masking::Maskable<String>) {
+    fn get_default_header() -> (String, hyperswitch_masking::Maskable<String>) {
         ("request-id".to_string(), Uuid::new_v4().to_string().into())
     }
 }
@@ -81,7 +83,8 @@ where
         &self,
         req: &RouterData<Flow, Request, Response>,
         _connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         let mut headers = vec![(
             headers::CONTENT_TYPE.to_string(),
             self.get_content_type().to_string().into(),
@@ -114,7 +117,8 @@ impl ConnectorCommon for Zen {
     fn get_auth_header(
         &self,
         auth_type: &ConnectorAuthType,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         let auth = zen::ZenAuthType::try_from(auth_type)?;
         Ok(vec![(
             headers::AUTHORIZATION.to_string(),
@@ -148,6 +152,7 @@ impl ConnectorCommon for Zen {
             reason: None,
             attempt_status: None,
             connector_transaction_id: None,
+            connector_response_reference_id: None,
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
@@ -196,7 +201,8 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         &self,
         req: &PaymentsAuthorizeRouterData,
         connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         let mut headers = self.build_headers(req, connectors)?;
         let api_headers = match req.request.payment_method_data {
             PaymentMethodData::Wallet(_) => None,
@@ -297,7 +303,8 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Zen
         &self,
         req: &PaymentsSyncRouterData,
         connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         let mut headers = self.build_headers(req, connectors)?;
         headers.push(Self::get_default_header());
         Ok(headers)
@@ -395,7 +402,8 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Zen {
         &self,
         req: &RefundsRouterData<Execute>,
         connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         let mut headers = self.build_headers(req, connectors)?;
         headers.push(Self::get_default_header());
         Ok(headers)
@@ -480,7 +488,8 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Zen {
         &self,
         req: &RefundSyncRouterData,
         connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         let mut headers = self.build_headers(req, connectors)?;
         headers.push(Self::get_default_header());
         Ok(headers)
@@ -645,6 +654,7 @@ impl IncomingWebhook for Zen {
     fn get_webhook_event_type(
         &self,
         request: &IncomingWebhookRequestDetails<'_>,
+        _context: Option<&WebhookContext>,
     ) -> CustomResult<IncomingWebhookEvent, errors::ConnectorError> {
         let details: zen::ZenWebhookEventType = request
             .body
@@ -669,7 +679,8 @@ impl IncomingWebhook for Zen {
     fn get_webhook_resource_object(
         &self,
         request: &IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
+    ) -> CustomResult<Box<dyn hyperswitch_masking::ErasedMaskSerialize>, errors::ConnectorError>
+    {
         let reference_object: serde_json::Value = serde_json::from_slice(request.body)
             .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?;
         Ok(Box::new(reference_object))
@@ -678,6 +689,7 @@ impl IncomingWebhook for Zen {
         &self,
         _request: &IncomingWebhookRequestDetails<'_>,
         _error_kind: Option<IncomingWebhookFlowError>,
+        _connector_authentication_type: Option<crypto::Encryptable<Secret<serde_json::Value>>>,
     ) -> CustomResult<ApplicationResponse<serde_json::Value>, errors::ConnectorError> {
         Ok(ApplicationResponse::Json(serde_json::json!({
             "status": "ok"

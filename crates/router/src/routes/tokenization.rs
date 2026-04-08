@@ -11,7 +11,7 @@ use common_utils::{
 #[cfg(all(feature = "v2", feature = "tokenization_v2"))]
 use error_stack::ResultExt;
 #[cfg(all(feature = "v2", feature = "tokenization_v2"))]
-use masking::Secret;
+use hyperswitch_masking::Secret;
 #[cfg(all(feature = "v2", feature = "tokenization_v2"))]
 use router_env::{instrument, logger, tracing, Flow};
 #[cfg(all(feature = "v2", feature = "tokenization_v2"))]
@@ -48,16 +48,15 @@ pub async fn create_token_vault_api(
         |state, auth: auth::AuthenticationData, request, _| async move {
             tokenization::create_vault_token_core(
                 state,
-                &auth.merchant_account,
-                &auth.key_store,
+                auth.platform.get_provider().clone(),
                 request,
             )
             .await
         },
         auth::api_or_client_auth(
             &auth::V2ApiKeyAuth {
-                is_connected_allowed: false,
-                is_platform_allowed: false,
+                allow_connected_scope_operation: false,
+                allow_platform_self_operation: false,
             },
             &auth::V2ClientAuth(common_utils::types::authentication::ResourceId::Customer(
                 customer_id,
@@ -88,13 +87,12 @@ pub async fn delete_tokenized_data_api(
         &req,
         payload,
         |state, auth: auth::AuthenticationData, req, _| {
-            let platform = auth.into();
-            tokenization::delete_tokenized_data_core(state, platform, &token_id, req)
+            tokenization::delete_tokenized_data_core(state, auth.platform, &token_id, req)
         },
         auth::api_or_client_auth(
             &auth::V2ApiKeyAuth {
-                is_connected_allowed: false,
-                is_platform_allowed: false,
+                allow_connected_scope_operation: false,
+                allow_platform_self_operation: false,
             },
             &auth::V2ClientAuth(
                 common_utils::types::authentication::ResourceId::PaymentMethodSession(session_id),

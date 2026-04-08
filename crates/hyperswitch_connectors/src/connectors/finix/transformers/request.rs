@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use common_enums::Currency;
 use common_utils::{pii::Email, types::MinorUnit};
-use masking::Secret;
+use hyperswitch_masking::Secret;
 use serde::{Deserialize, Serialize};
 
 use super::*;
@@ -16,6 +16,7 @@ pub struct FinixPaymentsRequest {
     pub tags: Option<FinixTags>,
     pub three_d_secure: Option<FinixThreeDSecure>,
     pub idempotency_id: Option<String>,
+    pub statement_descriptor: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

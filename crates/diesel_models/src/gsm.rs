@@ -41,6 +41,9 @@ pub struct GatewayStatusMap {
     pub clear_pan_possible: bool,
     pub feature_data: Option<common_types::domain::GsmFeatureData>,
     pub feature: Option<common_enums::GsmFeature>,
+    pub standardised_code: Option<common_enums::StandardisedCode>,
+    pub description: Option<String>,
+    pub user_guidance_message: Option<String>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Insertable)]
@@ -61,6 +64,9 @@ pub struct GatewayStatusMappingNew {
     pub clear_pan_possible: bool,
     pub feature_data: Option<common_types::domain::GsmFeatureData>,
     pub feature: Option<common_enums::GsmFeature>,
+    pub standardised_code: Option<common_enums::StandardisedCode>,
+    pub description: Option<String>,
+    pub user_guidance_message: Option<String>,
 }
 
 #[derive(
@@ -84,6 +90,9 @@ pub struct GatewayStatusMapperUpdateInternal {
     pub clear_pan_possible: Option<bool>,
     pub feature_data: Option<common_types::domain::GsmFeatureData>,
     pub feature: Option<common_enums::GsmFeature>,
+    pub standardised_code: Option<common_enums::StandardisedCode>,
+    pub description: Option<String>,
+    pub user_guidance_message: Option<String>,
 }
 
 #[derive(Debug)]
@@ -98,6 +107,9 @@ pub struct GatewayStatusMappingUpdate {
     pub clear_pan_possible: Option<bool>,
     pub feature_data: Option<common_types::domain::GsmFeatureData>,
     pub feature: Option<common_enums::GsmFeature>,
+    pub standardised_code: Option<common_enums::StandardisedCode>,
+    pub description: Option<String>,
+    pub user_guidance_message: Option<String>,
 }
 
 impl From<GatewayStatusMappingUpdate> for GatewayStatusMapperUpdateInternal {
@@ -113,6 +125,9 @@ impl From<GatewayStatusMappingUpdate> for GatewayStatusMapperUpdateInternal {
             clear_pan_possible,
             feature_data,
             feature,
+            standardised_code,
+            description,
+            user_guidance_message,
         } = value;
         Self {
             status,
@@ -131,6 +146,9 @@ impl From<GatewayStatusMappingUpdate> for GatewayStatusMapperUpdateInternal {
             clear_pan_possible,
             feature_data,
             feature,
+            standardised_code,
+            description,
+            user_guidance_message,
         }
     }
 }

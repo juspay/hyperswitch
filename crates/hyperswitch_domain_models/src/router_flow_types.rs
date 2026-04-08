@@ -4,6 +4,7 @@ pub mod dispute;
 pub mod files;
 pub mod fraud_check;
 pub mod mandate_revoke;
+pub mod merchant_connector_webhook_management;
 pub mod payments;
 pub mod payouts;
 pub mod refunds;

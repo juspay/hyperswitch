@@ -516,6 +516,8 @@ export const connectorDetails = {
           card: successfulNo3DSCardDetails,
         },
         billing: billingAddress,
+        mandate_data: null,
+        customer_acceptance: customerAcceptance,
       },
       Response: {
         status: 501,

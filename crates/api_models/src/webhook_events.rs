@@ -1,7 +1,7 @@
 use std::collections::HashSet;
 
 use common_enums::{EventClass, EventType, WebhookDeliveryAttempt};
-use masking::Secret;
+use hyperswitch_masking::Secret;
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 use utoipa::ToSchema;
@@ -56,6 +56,8 @@ pub enum EventListConstraintsInternal {
     },
     ObjectIdFilter {
         object_id: String,
+    },
+    EventIdFilter {
         event_id: String,
     },
 }

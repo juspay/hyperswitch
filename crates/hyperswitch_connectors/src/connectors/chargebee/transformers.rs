@@ -35,7 +35,7 @@ use hyperswitch_domain_models::{
     },
 };
 use hyperswitch_interfaces::errors;
-use masking::{ExposeInterface, Secret};
+use hyperswitch_masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 
@@ -314,6 +314,7 @@ convert_connector_response_to_domain_response!(
                 network_txn_id: None,
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
+                authentication_data: None,
                 charges: None,
             }),
             ..item.data
@@ -710,6 +711,7 @@ impl TryFrom<ChargebeeWebhookBody> for revenue_recovery::RevenueRecoveryAttemptD
                 card_issuer: None,
                 card_type: None,
                 card_issuing_country: None,
+                card_issuing_country_code: None,
                 bank_code: None,
                 last4: None,
                 card_extended_bin: None,
@@ -720,6 +722,7 @@ impl TryFrom<ChargebeeWebhookBody> for revenue_recovery::RevenueRecoveryAttemptD
                 authentication_data: None,
                 is_regulated: None,
                 signature_network: None,
+                auth_code: None,
             },
         })
     }

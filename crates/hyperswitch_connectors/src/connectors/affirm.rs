@@ -40,16 +40,17 @@ use hyperswitch_domain_models::{
 };
 use hyperswitch_interfaces::{
     api::{
-        self, ConnectorCommon, ConnectorCommonExt, ConnectorIntegration, ConnectorSpecifications,
-        ConnectorValidation,
+        self, ConnectorCommon, ConnectorCommonExt, ConnectorIntegration, ConnectorRedirectResponse,
+        ConnectorSpecifications, ConnectorValidation,
     },
     configs::Connectors,
+    consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE},
     errors,
     events::connector_api_logs::ConnectorEvent,
     types::{self, Response},
     webhooks,
 };
-use masking::{Mask, PeekInterface};
+use hyperswitch_masking::{Mask, PeekInterface};
 use transformers as affirm;
 
 use crate::{constants::headers, types::ResponseRouterData, utils};
@@ -95,7 +96,8 @@ where
         &self,
         req: &RouterData<Flow, Request, Response>,
         _connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         let mut header = vec![(
             headers::CONTENT_TYPE.to_string(),
             self.get_content_type().to_string().into(),
@@ -126,7 +128,8 @@ impl ConnectorCommon for Affirm {
     fn get_auth_header(
         &self,
         auth_type: &ConnectorAuthType,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         let auth = affirm::AffirmAuthType::try_from(auth_type)
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
         let encoded_api_key = BASE64_ENGINE.encode(format!(
@@ -156,11 +159,12 @@ impl ConnectorCommon for Affirm {
 
         Ok(ErrorResponse {
             status_code: response.status_code,
-            code: response.code,
-            message: response.message,
-            reason: Some(response.error_type),
+            code: response.code.unwrap_or(NO_ERROR_CODE.to_string()),
+            message: response.error_type.unwrap_or(NO_ERROR_MESSAGE.to_string()),
+            reason: response.message,
             attempt_status: None,
             connector_transaction_id: None,
+            connector_response_reference_id: None,
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
@@ -208,7 +212,8 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         &self,
         req: &PaymentsAuthorizeRouterData,
         connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         self.build_headers(req, connectors)
     }
 
@@ -299,7 +304,8 @@ impl ConnectorIntegration<CompleteAuthorize, CompleteAuthorizeData, PaymentsResp
         &self,
         req: &PaymentsCompleteAuthorizeRouterData,
         connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         self.build_headers(req, connectors)
     }
 
@@ -381,7 +387,8 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Aff
         &self,
         req: &PaymentsSyncRouterData,
         connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         self.build_headers(req, connectors)
     }
 
@@ -452,7 +459,8 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
         &self,
         req: &PaymentsCaptureRouterData,
         connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         self.build_headers(req, connectors)
     }
 
@@ -542,7 +550,8 @@ impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Af
         &self,
         req: &PaymentsCancelRouterData,
         connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         self.build_headers(req, connectors)
     }
 
@@ -557,16 +566,15 @@ impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Af
     ) -> CustomResult<String, errors::ConnectorError> {
         let endpoint = self.base_url(connectors);
         let transaction_id = req.request.connector_transaction_id.clone();
-
         Ok(format!("{endpoint}/v1/transactions/{transaction_id}/void"))
     }
 
     fn get_request_body(
         &self,
-        req: &PaymentsCancelRouterData,
+        _req: &PaymentsCancelRouterData,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_req = affirm::AffirmCancelRequest::try_from(req)?;
+        let connector_req = affirm::AffirmCancelRequest {};
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
@@ -623,7 +631,8 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Affirm 
         &self,
         req: &RefundsRouterData<Execute>,
         connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         self.build_headers(req, connectors)
     }
 
@@ -712,7 +721,8 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Affirm {
         &self,
         req: &RefundSyncRouterData,
         connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         self.build_headers(req, connectors)
     }
 
@@ -774,6 +784,31 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Affirm {
     }
 }
 
+impl ConnectorRedirectResponse for Affirm {
+    fn get_flow_type(
+        &self,
+        _query_params: &str,
+        json_payload: Option<serde_json::Value>,
+        action: common_enums::PaymentAction,
+    ) -> CustomResult<common_enums::CallConnectorAction, errors::ConnectorError> {
+        match action {
+            common_enums::PaymentAction::PSync => match json_payload {
+                // Handle the case where the redirection is cancelled
+                None => Ok(common_enums::CallConnectorAction::StatusUpdate {
+                    status: common_enums::AttemptStatus::AuthenticationFailed,
+                    error_code: None,
+                    error_message: Some("Redirection Cancelled".to_string()),
+                }),
+                Some(_) => Ok(common_enums::CallConnectorAction::Trigger),
+            },
+            common_enums::PaymentAction::CompleteAuthorize
+            | common_enums::PaymentAction::PaymentAuthenticateCompleteAuthorize => {
+                Ok(common_enums::CallConnectorAction::Trigger)
+            }
+        }
+    }
+}
+
 #[async_trait::async_trait]
 impl webhooks::IncomingWebhook for Affirm {
     fn get_webhook_object_reference_id(
@@ -786,6 +821,7 @@ impl webhooks::IncomingWebhook for Affirm {
     fn get_webhook_event_type(
         &self,
         _request: &webhooks::IncomingWebhookRequestDetails<'_>,
+        _context: Option<&webhooks::WebhookContext>,
     ) -> CustomResult<api_models::webhooks::IncomingWebhookEvent, errors::ConnectorError> {
         Err(report!(errors::ConnectorError::WebhooksNotImplemented))
     }
@@ -793,14 +829,15 @@ impl webhooks::IncomingWebhook for Affirm {
     fn get_webhook_resource_object(
         &self,
         _request: &webhooks::IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
+    ) -> CustomResult<Box<dyn hyperswitch_masking::ErasedMaskSerialize>, errors::ConnectorError>
+    {
         Err(report!(errors::ConnectorError::WebhooksNotImplemented))
     }
 }
 
 static AFFIRM_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = LazyLock::new(|| {
     let supported_capture_methods = vec![
-        enums::CaptureMethod::Automatic,
+        enums::CaptureMethod::SequentialAutomatic,
         enums::CaptureMethod::Manual,
     ];
 
@@ -822,9 +859,9 @@ static AFFIRM_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = Laz
 
 static AFFIRM_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
     display_name: "Affirm",
-    description: "Affirm connector is a payment gateway integration that processes Affirm’s buy now, pay later financing by managing payment authorization, capture, refunds, and transaction sync via Affirm’s API.",
+    description: "Affirm connector is a payment gateway integration that processes Affirm's buy now, pay later financing by managing payment authorization, capture, refunds, and transaction sync via Affirm’s API.",
     connector_type: enums::HyperswitchConnectorCategory::PaymentGateway,
-    integration_status: enums::ConnectorIntegrationStatus::Alpha,
+    integration_status: enums::ConnectorIntegrationStatus::Beta,
 };
 
 static AFFIRM_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 0] = [];

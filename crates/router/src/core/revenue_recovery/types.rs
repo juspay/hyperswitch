@@ -34,6 +34,7 @@ use time::PrimitiveDateTime;
 
 use super::errors::StorageErrorExt;
 use crate::{
+    consts,
     core::{
         errors::{self, RouterResult},
         payments::{self, helpers, operations::Operation, transformers::GenerateResponse},
@@ -1220,10 +1221,13 @@ impl Action {
             .attach_printable("unable to derive payment connector from payment attempt")?;
         let gsm_record = helpers::get_gsm_record(
             state,
+            connector_name,
+            REVENUE_RECOVERY,
+            consts::DEFAULT_SUBFLOW_STR,
             error_code,
             error_message,
-            connector_name,
-            REVENUE_RECOVERY.to_string(),
+            None, // issuer_error_code not available in recovery context
+            None, // card_network
         )
         .await;
         let is_hard_decline = gsm_record
@@ -1540,7 +1544,7 @@ pub fn construct_invoice_record_back_router_data(
             merchant_reference_id,
             amount: payment_attempt.get_total_amount(),
             currency: payment_intent.amount_details.currency,
-            payment_method_type: Some(payment_attempt.payment_method_subtype),
+            payment_method_type: payment_attempt.payment_method_subtype,
             attempt_status: payment_attempt.status,
             connector_transaction_id: payment_attempt
                 .connector_payment_id

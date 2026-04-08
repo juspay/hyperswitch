@@ -1,7 +1,10 @@
-use common_utils::{errors as common_utils_errors, request};
+use common_utils::{
+    consts::{X_CONNECTOR_NAME, X_SUB_FLOW_NAME},
+    errors as common_utils_errors, request,
+};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::router_data;
-use masking;
+use hyperswitch_masking;
 use router_env::{logger, tracing};
 
 use crate::{api_client, consts, errors, types};
@@ -13,13 +16,19 @@ pub trait ForeignTryFrom<F>: Sized {
     fn foreign_try_from(from: F) -> Result<Self, Self::Error>;
 }
 
+/// Trait for infallibly converting from one foreign type to another
+pub trait ForeignFrom<F>: Sized {
+    /// Convert from a foreign type to the current type
+    fn foreign_from(from: F) -> Self;
+}
+
 /// Data structure to hold comparison data between Hyperswitch and UCS
 #[derive(serde::Serialize, Debug)]
 pub struct ComparisonData {
     /// Hyperswitch router data
-    pub hyperswitch_data: masking::Secret<serde_json::Value>,
+    pub hyperswitch_data: hyperswitch_masking::Secret<serde_json::Value>,
     /// Unified Connector Service router data
-    pub unified_connector_service_data: masking::Secret<serde_json::Value>,
+    pub unified_connector_service_data: hyperswitch_masking::Secret<serde_json::Value>,
 }
 
 /// Trait to get comparison service configuration
@@ -44,15 +53,18 @@ where
 {
     logger::info!("Simulating UCS call for shadow mode comparison");
 
+    let connector_name = hyperswitch_router_data.connector.clone();
+    let sub_flow_name = api_client::get_flow_name::<F>().ok();
+
     let [hyperswitch_data, unified_connector_service_data] = [
         (hyperswitch_router_data, "hyperswitch"),
         (unified_connector_service_router_data, "ucs"),
     ]
     .map(|(data, source)| {
         serde_json::to_value(data)
-            .map(masking::Secret::new)
+            .map(hyperswitch_masking::Secret::new)
             .unwrap_or_else(|e| {
-                masking::Secret::new(serde_json::json!({
+                hyperswitch_masking::Secret::new(serde_json::json!({
                     "error": e.to_string(),
                     "source": source
                 }))
@@ -67,6 +79,8 @@ where
         state,
         comparison_data,
         comparison_service_config,
+        connector_name,
+        sub_flow_name,
         request_id,
     )
     .await
@@ -81,6 +95,8 @@ pub async fn send_comparison_data(
     state: &dyn api_client::ApiClientWrapper,
     comparison_data: ComparisonData,
     comparison_service_config: types::ComparisonServiceConfig,
+    connector_name: String,
+    sub_flow_name: Option<String>,
     request_id: Option<String>,
 ) -> common_utils_errors::CustomResult<(), errors::HttpClientError> {
     let mut request = request::RequestBuilder::new()
@@ -91,8 +107,23 @@ pub async fn send_comparison_data(
         .set_body(request::RequestContent::Json(Box::new(comparison_data)))
         .build();
 
+    request.add_header(
+        X_CONNECTOR_NAME,
+        hyperswitch_masking::Maskable::Normal(connector_name),
+    );
+
+    if let Some(sub_flow_name) = sub_flow_name.filter(|name| !name.is_empty()) {
+        request.add_header(
+            X_SUB_FLOW_NAME,
+            hyperswitch_masking::Maskable::Normal(sub_flow_name),
+        );
+    }
+
     if let Some(req_id) = request_id {
-        request.add_header(consts::X_REQUEST_ID, masking::Maskable::Normal(req_id));
+        request.add_header(
+            consts::X_REQUEST_ID,
+            hyperswitch_masking::Maskable::Normal(req_id),
+        );
     }
 
     let _ = state

@@ -86,7 +86,7 @@ describe("UCS Comprehensive Test", () => {
       const data = getConnectorDetails(globalState.get("connectorId"))[
         "card_pm"
       ]["No3DSAutoCapture"];
-      cy.retrievePaymentCallTest(globalState, data);
+      cy.retrievePaymentCallTest({ globalState, data });
     });
 
     it("create+confirm-payment-call-test", () => {
@@ -106,7 +106,7 @@ describe("UCS Comprehensive Test", () => {
       const data = getConnectorDetails(globalState.get("connectorId"))[
         "card_pm"
       ]["No3DSAutoCapture"];
-      cy.retrievePaymentCallTest(globalState, data);
+      cy.retrievePaymentCallTest({ globalState, data });
     });
   });
 
@@ -177,7 +177,7 @@ describe("UCS Comprehensive Test", () => {
       const data = getConnectorDetails(globalState.get("connectorId"))[
         "card_pm"
       ]["No3DSManualCapture"];
-      cy.retrievePaymentCallTest(globalState, data);
+      cy.retrievePaymentCallTest({ globalState, data });
     });
   });
 

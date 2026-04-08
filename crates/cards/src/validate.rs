@@ -2,7 +2,7 @@ use std::{collections::HashMap, fmt, ops::Deref, str::FromStr, sync::LazyLock};
 
 use common_utils::errors::ValidationError;
 use error_stack::report;
-use masking::{PeekInterface, Strategy, StrongSecret, WithType};
+use hyperswitch_masking::{PeekInterface, Strategy, StrongSecret, WithType};
 use regex::Regex;
 #[cfg(not(target_arch = "wasm32"))]
 use router_env::{logger, which as router_env_which, Env};
@@ -278,6 +278,18 @@ impl Deref for NetworkToken {
     }
 }
 
+impl From<NetworkToken> for CardNumber {
+    fn from(network_token: NetworkToken) -> Self {
+        Self(network_token.0)
+    }
+}
+
+impl From<CardNumber> for NetworkToken {
+    fn from(card_number: CardNumber) -> Self {
+        Self(card_number.0)
+    }
+}
+
 impl<'de> Deserialize<'de> for CardNumber {
     fn deserialize<D: Deserializer<'de>>(d: D) -> Result<Self, D::Error> {
         let s = String::deserialize(d)?;
@@ -317,7 +329,7 @@ where
 
 #[cfg(test)]
 mod tests {
-    use masking::Secret;
+    use hyperswitch_masking::Secret;
 
     use super::*;
 
@@ -361,7 +373,7 @@ mod tests {
     fn card_number_no_whitespace() {
         let s = "3714    4963  5398 431";
         assert_eq!(
-            CardNumber::from_str(s).unwrap().to_string(),
+            format!("{:?}", CardNumber::from_str(s).unwrap().0),
             "371449*********"
         );
     }
@@ -389,8 +401,10 @@ mod tests {
     #[test]
     fn test_valid_card_number_deserialization() {
         let card_number = serde_json::from_str::<CardNumber>(r#""3714 4963 5398 431""#).unwrap();
-        let secret = card_number.to_string();
-        assert_eq!(r#""371449*********""#, format!("{secret:?}"));
+        assert_eq!(
+            r#""371449*********""#,
+            format!("{:?}", card_number.get_card_no())
+        );
     }
 
     #[test]

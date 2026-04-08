@@ -56,6 +56,14 @@ pub enum Flow {
     HealthCheck,
     /// Deep health Check
     DeepHealthCheck,
+    /// OIDC Discovery endpoint
+    OidcDiscovery,
+    /// OIDC JWKS endpoint
+    OidcJwks,
+    /// OIDC Authorize endpoint
+    OidcAuthorize,
+    /// OIDC Token endpoint
+    OidcToken,
     /// Organization create flow
     OrganizationCreate,
     /// Organization retrieve flow
@@ -84,6 +92,10 @@ pub enum Flow {
     MerchantConnectorsList,
     /// Merchant Transfer Keys
     MerchantTransferKey,
+    /// Merchant Connector Webhook register flow.
+    MerchantConnectorWebhookRegister,
+    /// Merchant Connector Webhook list flow.
+    MerchantConnectorWebhookList,
     /// ConfigKey create flow.
     ConfigKeyCreate,
     /// ConfigKey fetch flow.
@@ -120,10 +132,14 @@ pub enum Flow {
     PaymentMethodsMigrate,
     /// Payment methods batch update flow.
     PaymentMethodsBatchUpdate,
+    /// Payment methods batch retrieve flow.
+    PaymentMethodsBatchRetrieve,
     /// Payment methods list flow.
     PaymentMethodsList,
     /// Payment method save flow
     PaymentMethodSave,
+    /// Get token details using temporary token
+    PaymentMethodGetTokenDetails,
     /// Customer payment methods list flow.
     CustomerPaymentMethodsList,
     /// Payment methods token data get flow.
@@ -144,6 +160,8 @@ pub enum Flow {
     PaymentMethodsDelete,
     /// Network token status check flow.
     NetworkTokenStatusCheck,
+    /// Network token eligibility check flow.
+    NetworkTokenEligibilityCheck,
     /// Default Payment method flow.
     DefaultPaymentMethodsSet,
     /// Payments create flow.
@@ -293,6 +311,12 @@ pub enum Flow {
     ToggleDynamicRouting,
     /// Update dynamic routing config
     UpdateDynamicRoutingConfigs,
+    /// Add a card issuer to the catalog
+    AddCardIssuer,
+    /// Update a card issuer in the catalog
+    UpdateCardIssuer,
+    /// List card issuers from the catalog
+    ListCardIssuers,
     /// Add record to blocklist
     AddToBlocklist,
     /// Delete record from blocklist
@@ -387,6 +411,8 @@ pub enum Flow {
     UserSignUp,
     /// User Sign Up
     UserSignUpWithMerchantId,
+    /// Convert Organization to Platform
+    ConvertOrganizationToPlatform,
     /// User Sign In
     UserSignIn,
     /// User transfer key
@@ -575,6 +601,8 @@ pub enum Flow {
     ListAllThemesInLineage,
     /// Get user theme using lineage
     GetUserThemeUsingLineage,
+    /// Get user theme version
+    GetUserThemeConfigVersion,
     /// List initial webhook delivery attempts
     WebhookEventInitialDeliveryAttemptList,
     /// List delivery attempts for a webhook event
@@ -593,6 +621,9 @@ pub enum Flow {
     RefundsManualUpdate,
     /// Manually update the payment details like status, error code, error message etc.
     PaymentsManualUpdate,
+    #[cfg(feature = "payouts")]
+    /// Manually update the payout details like status, error code, error message etc.
+    PayoutsManualUpdate,
     /// Dynamic Tax Calcultion
     SessionUpdateTaxCalculation,
     ProxyConfirmIntent,
@@ -700,6 +731,18 @@ pub enum Flow {
     ApplyPaymentMethodData,
     /// Payouts aggregates flow
     PayoutsAggregate,
+    // Get embedded token flow
+    GetEmbeddedToken,
+    // Get embedded token info flow
+    EmbeddedTokenInfo,
+    /// Superposition SDK Config Get flow
+    GetSuperpositionSdkConfig,
+    // Get user details internal
+    GetUserDetailsInternal,
+    // List users internal
+    ListUsersInternal,
+    // List members for entity
+    ListMembersForEntity,
 }
 
 /// Trait for providing generic behaviour to flow metric

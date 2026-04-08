@@ -82,9 +82,8 @@ pub async fn revoke_mandate(
 
             let merchant_connector_account = payment_helper::get_merchant_connector_account(
                 &state,
-                platform.get_processor().get_account().get_id(),
+                platform.get_processor(),
                 None,
-                platform.get_processor().get_key_store(),
                 &profile_id,
                 &mandate.connector.clone(),
                 mandate.merchant_connector_id.as_ref(),
@@ -180,7 +179,7 @@ pub async fn update_connector_mandate_id(
         .map(|md| {
             md.encode_to_value()
                 .change_context(errors::ApiErrorResponse::InternalServerError)
-                .map(masking::Secret::new)
+                .map(hyperswitch_masking::Secret::new)
         })
         .transpose()?;
 
@@ -358,7 +357,7 @@ where
                 .map(|md| {
                     md.encode_to_value()
                         .change_context(errors::ApiErrorResponse::MandateSerializationFailed)
-                        .map(masking::Secret::new)
+                        .map(hyperswitch_masking::Secret::new)
                 })
                 .transpose()?;
 

@@ -14,7 +14,7 @@ use hyperswitch_domain_models::{
     },
 };
 use hyperswitch_interfaces::{api::CurrencyUnit, errors::ConnectorError};
-use masking::{ExposeInterface, Secret};
+use hyperswitch_masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -152,7 +152,8 @@ impl TryFrom<&PayeezyRouterData<&PaymentsAuthorizeRouterData>> for PayeezyPaymen
             | PaymentMethod::Upi
             | PaymentMethod::Voucher
             | PaymentMethod::OpenBanking
-            | PaymentMethod::GiftCard => {
+            | PaymentMethod::GiftCard
+            | PaymentMethod::NetworkToken => {
                 Err(ConnectorError::NotImplemented("Payment methods".to_string()).into())
             }
         }
@@ -274,7 +275,12 @@ fn get_payment_method_data(
         | PaymentMethodData::OpenBanking(_)
         | PaymentMethodData::CardToken(_)
         | PaymentMethodData::NetworkToken(_)
-        | PaymentMethodData::CardDetailsForNetworkTransactionId(_) => {
+        | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+        | PaymentMethodData::CardWithOptionalCVC(_)
+        | PaymentMethodData::CardWithNetworkTokenDetails(_)
+        | PaymentMethodData::CardWithLimitedDetails(_)
+        | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
+        | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
             Err(ConnectorError::NotImplemented(
                 get_unimplemented_payment_method_error_message("Payeezy"),
             ))?
@@ -449,6 +455,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, PayeezyPaymentsResponse, T, PaymentsRes
                         .unwrap_or(item.response.transaction_id),
                 ),
                 incremental_authorization_allowed: None,
+                authentication_data: None,
                 charges: None,
             }),
             ..item.data

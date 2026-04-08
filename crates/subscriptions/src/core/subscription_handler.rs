@@ -13,7 +13,7 @@ use hyperswitch_domain_models::{
     router_response_types::{self, subscriptions as subscription_response_types},
     subscription::{Subscription, SubscriptionStatus},
 };
-use masking::Secret;
+use hyperswitch_masking::Secret;
 
 use super::errors;
 use crate::{
@@ -116,8 +116,9 @@ impl<'a> SubscriptionHandler<'a> {
             Some(customer_response) => {
                 match customer::update_connector_customer_in_customers(
                     merchant_connector_id.get_string_repr(),
-                    Some(customer),
+                    customer.connector_customer.as_ref(),
                     Some(customer_response.connector_customer_id),
+                    platform.get_initiator(),
                 )
                 .await
                 {

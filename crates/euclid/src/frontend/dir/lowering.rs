@@ -120,6 +120,8 @@ impl From<enums::BankTransferType> for global_enums::PaymentMethodType {
         match value {
             enums::BankTransferType::Multibanco => Self::Multibanco,
             enums::BankTransferType::Pix => Self::Pix,
+            enums::BankTransferType::PixAutomaticoPush => Self::PixAutomaticoPush,
+            enums::BankTransferType::PixAutomaticoQr => Self::PixAutomaticoQr,
             enums::BankTransferType::Pse => Self::Pse,
             enums::BankTransferType::Ach => Self::Ach,
             enums::BankTransferType::SepaBankTransfer => Self::Sepa,
@@ -165,6 +167,14 @@ impl From<enums::MobilePaymentType> for global_enums::PaymentMethodType {
     fn from(value: enums::MobilePaymentType) -> Self {
         match value {
             enums::MobilePaymentType::DirectCarrierBilling => Self::DirectCarrierBilling,
+        }
+    }
+}
+
+impl From<enums::NetworkTokenType> for global_enums::PaymentMethodType {
+    fn from(value: enums::NetworkTokenType) -> Self {
+        match value {
+            enums::NetworkTokenType::NetworkToken => Self::NetworkToken,
         }
     }
 }
@@ -228,6 +238,7 @@ impl From<enums::RealTimePaymentType> for global_enums::PaymentMethodType {
             enums::RealTimePaymentType::DuitNow => Self::DuitNow,
             enums::RealTimePaymentType::PromptPay => Self::PromptPay,
             enums::RealTimePaymentType::VietQr => Self::VietQr,
+            enums::RealTimePaymentType::Qris => Self::Qris,
         }
     }
 }
@@ -290,6 +301,9 @@ fn lower_value(dir_value: dir::DirValue) -> Result<EuclidValue, AnalysisErrorTyp
         }
         dir::DirValue::AcquirerCountry(country) => EuclidValue::AcquirerCountry(country),
         dir::DirValue::AcquirerFraudRate(num_value) => EuclidValue::AcquirerFraudRate(num_value),
+        dir::DirValue::TransactionInitiator(ti) => EuclidValue::TransactionInitiator(ti),
+        dir::DirValue::NetworkTokenType(nt) => EuclidValue::PaymentMethodType(nt.into()),
+        dir::DirValue::CardDiscovery(cd) => EuclidValue::CardDiscovery(cd),
     })
 }
 

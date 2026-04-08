@@ -1,4 +1,4 @@
-use common_enums::{enums, MerchantCategoryCode};
+use common_enums::{enums, MerchantCategoryCode, RoutingRegion};
 use common_types::payments::MerchantCountryCode;
 use common_utils::{ext_traits::OptionExt as _, types::FloatMajorUnit};
 use hyperswitch_domain_models::{
@@ -13,10 +13,11 @@ use hyperswitch_domain_models::{
     types::{
         UasAuthenticationConfirmationRouterData, UasAuthenticationRouterData,
         UasPostAuthenticationRouterData, UasPreAuthenticationRouterData,
+        UasProcessWebhookRouterData,
     },
 };
 use hyperswitch_interfaces::errors;
-use masking::Secret;
+use hyperswitch_masking::Secret;
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 
@@ -42,7 +43,7 @@ use error_stack::ResultExt;
 #[derive(Debug, Serialize)]
 pub struct UnifiedAuthenticationServicePreAuthenticateRequest {
     pub authenticate_by: String,
-    pub session_id: common_utils::id_type::AuthenticationId,
+    pub session_id: String,
     pub source_authentication_id: common_utils::id_type::AuthenticationId,
     pub authentication_info: Option<AuthenticationInfo>,
     pub service_details: Option<CtpServiceDetails>,
@@ -52,6 +53,7 @@ pub struct UnifiedAuthenticationServicePreAuthenticateRequest {
     pub transaction_details: Option<TransactionDetails>,
     pub acquirer_details: Option<Acquirer>,
     pub billing_address: Option<Address>,
+    pub routing_region: Option<RoutingRegion>,
 }
 
 #[derive(Debug, Serialize)]
@@ -200,6 +202,7 @@ pub struct MerchantDetails {
     pub three_ds_requestor_name: Option<String>,
     pub merchant_country_code: Option<MerchantCountryCode>,
     pub notification_url: Option<url::Url>,
+    pub webhook_url: Option<url::Url>,
 }
 
 #[derive(Default, Clone, Debug, Serialize, PartialEq, Deserialize)]
@@ -255,7 +258,7 @@ impl TryFrom<&UnifiedAuthenticationServiceRouterData<&UasPreAuthenticationRouter
             UnifiedAuthenticationServiceAuthType::try_from(&item.router_data.connector_auth_type)?;
         Ok(Self {
             authenticate_by: item.router_data.connector.clone(),
-            session_id: authentication_id.clone(),
+            session_id: item.router_data.payment_id.clone(),
             source_authentication_id: authentication_id,
             authentication_info,
             service_details: Some(CtpServiceDetails {
@@ -280,7 +283,69 @@ impl TryFrom<&UnifiedAuthenticationServiceRouterData<&UasPreAuthenticationRouter
                             .and_then(|service_session_ids| service_session_ids.x_src_flow_id),
                     },
                 ),
-                merchant_details: None,
+                merchant_details: Some(MerchantDetails {
+                    merchant_id: item
+                        .router_data
+                        .request
+                        .merchant_details
+                        .as_ref()
+                        .and_then(|details| details.merchant_id.clone()),
+                    merchant_name: item
+                        .router_data
+                        .request
+                        .merchant_details
+                        .as_ref()
+                        .and_then(|details| details.merchant_name.clone()),
+                    merchant_category_code: item
+                        .router_data
+                        .request
+                        .merchant_details
+                        .as_ref()
+                        .and_then(|details| details.merchant_category_code.clone()),
+                    configuration_id: None,
+                    endpoint_prefix: item
+                        .router_data
+                        .request
+                        .merchant_details
+                        .as_ref()
+                        .and_then(|details| details.endpoint_prefix.clone()),
+                    three_ds_requestor_url: item
+                        .router_data
+                        .request
+                        .merchant_details
+                        .as_ref()
+                        .and_then(|details| details.three_ds_requestor_url.clone()),
+                    three_ds_requestor_id: item
+                        .router_data
+                        .request
+                        .merchant_details
+                        .as_ref()
+                        .and_then(|details| details.three_ds_requestor_id.clone()),
+                    three_ds_requestor_name: item
+                        .router_data
+                        .request
+                        .merchant_details
+                        .as_ref()
+                        .and_then(|details| details.three_ds_requestor_name.clone()),
+                    merchant_country_code: item
+                        .router_data
+                        .request
+                        .merchant_details
+                        .as_ref()
+                        .and_then(|details| details.merchant_country_code.clone()),
+                    notification_url: item
+                        .router_data
+                        .request
+                        .merchant_details
+                        .as_ref()
+                        .and_then(|details| details.notification_url.clone()),
+                    webhook_url: item
+                        .router_data
+                        .request
+                        .merchant_details
+                        .as_ref()
+                        .and_then(|details| details.webhook_url.clone()),
+                }),
             }),
             customer_details: None,
             pmt_details: None,
@@ -310,6 +375,7 @@ impl TryFrom<&UnifiedAuthenticationServiceRouterData<&UasPreAuthenticationRouter
                 three_ds_data: None,
                 message_category: None,
             }),
+            routing_region: item.router_data.request.routing_region.clone(),
         })
     }
 }
@@ -386,7 +452,11 @@ impl<F, T>
                     message_version: maximum_supported_3ds_version,
                     connector_metadata: None,
                     directory_server_id: three_ds_eligibility_response
-                        .and_then(|response| response.directory_server_id),
+                        .as_ref()
+                        .and_then(|response| response.directory_server_id.clone()),
+                    scheme_id: three_ds_eligibility_response
+                        .as_ref()
+                        .and_then(|response| response.scheme_id.clone()),
                 },
             }),
             ..item.data
@@ -399,6 +469,7 @@ pub struct UnifiedAuthenticationServicePostAuthenticateRequest {
     pub authenticate_by: String,
     pub source_authentication_id: common_utils::id_type::AuthenticationId,
     pub auth_creds: ConnectorAuthType,
+    pub routing_region: Option<RoutingRegion>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -417,8 +488,8 @@ pub struct AuthenticationDetails {
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct UasTokenDetails {
-    pub payment_token: cards::CardNumber,
-    pub payment_account_reference: String,
+    pub payment_token: cards::NetworkToken,
+    pub payment_account_reference: Option<String>,
     pub token_expiration_month: Secret<String>,
     pub token_expiration_year: Secret<String>,
 }
@@ -452,6 +523,7 @@ impl TryFrom<&UasPostAuthenticationRouterData>
                 },
             )?,
             auth_creds: item.connector_auth_type.clone(),
+            routing_region: item.request.routing_region.clone(),
         })
     }
 }
@@ -591,6 +663,7 @@ impl TryFrom<&UasPreAuthenticationRouterData>
             three_ds_requestor_name: merchant_data.three_ds_requestor_name,
             configuration_id: None,
             notification_url: merchant_data.notification_url,
+            webhook_url: merchant_data.webhook_url,
         };
 
         let acquirer = Acquirer {
@@ -634,12 +707,12 @@ impl TryFrom<&UasPreAuthenticationRouterData>
                 post_code: address_wrap.address.clone().and_then(|address| address.zip),
                 state: address_wrap.address.and_then(|address| address.state),
             });
-
+        let authentication_info = item.request.authentication_info.clone();
         Ok(Self {
             authenticate_by: item.connector.clone(),
-            session_id: authentication_id.clone(),
+            session_id: item.payment_id.clone(),
             source_authentication_id: authentication_id,
-            authentication_info: None,
+            authentication_info,
             service_details,
             customer_details: None,
             pmt_details: item
@@ -662,6 +735,7 @@ impl TryFrom<&UasPreAuthenticationRouterData>
             transaction_details: None,
             acquirer_details: Some(acquirer),
             billing_address,
+            routing_region: item.request.routing_region.clone(),
         })
     }
 }
@@ -821,6 +895,8 @@ pub struct UnifiedAuthenticationServiceAuthenticateRequest {
     pub device_details: DeviceDetails,
     pub customer_details: Option<CustomerDetails>,
     pub auth_creds: UnifiedAuthenticationServiceAuthType,
+    pub authentication_info: Option<AuthenticationInfo>,
+    pub routing_region: Option<RoutingRegion>,
 }
 
 #[derive(Default, Debug, Serialize, PartialEq)]
@@ -975,7 +1051,7 @@ impl TryFrom<&UnifiedAuthenticationServiceRouterData<&UasAuthenticationRouterDat
         };
         let auth_type =
             UnifiedAuthenticationServiceAuthType::try_from(&item.router_data.connector_auth_type)?;
-
+        let authentication_info = item.router_data.request.authentication_info.clone();
         Ok(Self {
             authenticate_by: item.router_data.connector.clone(),
             source_authentication_id: authentication_id,
@@ -983,6 +1059,8 @@ impl TryFrom<&UnifiedAuthenticationServiceRouterData<&UasAuthenticationRouterDat
             auth_creds: auth_type,
             device_details,
             customer_details: None,
+            authentication_info,
+            routing_region: item.router_data.request.routing_region.clone(),
         })
     }
 }
@@ -1057,6 +1135,7 @@ impl<F, T>
                     status_code: item.http_code,
                     attempt_status: None,
                     connector_transaction_id: None,
+                    connector_response_reference_id: None,
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
@@ -1069,5 +1148,100 @@ impl<F, T>
             response,
             ..item.data
         })
+    }
+}
+
+#[derive(Debug, Serialize, Clone)]
+pub struct WebhookRequest {
+    pub authenticate_by: String,
+    pub body: Vec<u8>,
+    pub routing_region: Option<RoutingRegion>,
+}
+
+impl TryFrom<&UasProcessWebhookRouterData> for WebhookRequest {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(item: &UasProcessWebhookRouterData) -> Result<Self, Self::Error> {
+        Ok(Self {
+            authenticate_by: item.connector.clone(),
+            body: item.request.body.clone(),
+            routing_region: item.request.routing_region.clone(),
+        })
+    }
+}
+
+impl<F, T> TryFrom<ResponseRouterData<F, WebhookResponseResult, T, UasAuthenticationResponseData>>
+    for RouterData<F, T, UasAuthenticationResponseData>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: ResponseRouterData<F, WebhookResponseResult, T, UasAuthenticationResponseData>,
+    ) -> Result<Self, Self::Error> {
+        let response = match item.response {
+            WebhookResponseResult::Success(auth_response) => {
+                let webhook_response = *auth_response;
+                Ok(UasAuthenticationResponseData::Webhook {
+                    trans_status: webhook_response.trans_status,
+                    authentication_value: webhook_response.authentication_value,
+                    eci: webhook_response.eci,
+                    three_ds_server_transaction_id: webhook_response.three_ds_server_transaction_id,
+                    authentication_id: webhook_response.authentication_id,
+                    results_request: webhook_response.results_request,
+                    results_response: webhook_response.results_response,
+                })
+            }
+            WebhookResponseResult::Failure(error_response) => {
+                Err(hyperswitch_domain_models::router_data::ErrorResponse {
+                    code: hyperswitch_interfaces::consts::NO_ERROR_CODE.to_string(),
+                    message: error_response.error.clone(),
+                    reason: None,
+                    status_code: item.http_code,
+                    attempt_status: None,
+                    connector_transaction_id: None,
+                    network_advice_code: None,
+                    network_decline_code: None,
+                    network_error_message: None,
+                    connector_metadata: None,
+                    connector_response_reference_id: None,
+                })
+            }
+        };
+
+        Ok(Self {
+            response,
+            ..item.data
+        })
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(untagged)]
+pub enum WebhookResponseResult {
+    Success(Box<WebhookResponse>),
+    Failure(UnifiedAuthenticationServiceErrorResponse),
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct WebhookResponse {
+    /// trans_status
+    pub trans_status: common_enums::TransactionStatus,
+    /// authentication_value
+    pub authentication_value: Option<Secret<String>>,
+    /// eci
+    pub eci: Option<String>,
+    /// three_ds server transaction id
+    pub three_ds_server_transaction_id: String,
+    /// authentication_id
+    pub authentication_id: Option<common_utils::id_type::AuthenticationId>,
+    /// The received Results Request from the Directory Server.
+    pub results_request: Option<common_utils::pii::SecretSerdeValue>,
+    /// The sent Results Response to the Directory Server.
+    pub results_response: Option<common_utils::pii::SecretSerdeValue>,
+}
+
+impl WebhookResponse {
+    /// Convert the WebhookResponse to Bytes using JSON serialization
+    pub fn to_bytes(&self) -> Result<actix_web::web::Bytes, serde_json::Error> {
+        let json_bytes = serde_json::to_vec(self)?;
+        Ok(actix_web::web::Bytes::from(json_bytes))
     }
 }

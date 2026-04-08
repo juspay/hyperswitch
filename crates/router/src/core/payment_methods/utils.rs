@@ -12,8 +12,8 @@ use common_utils::ext_traits::{OptionExt, StringExt};
 use error_stack::ResultExt;
 use euclid::frontend::dir;
 use hyperswitch_constraint_graph as cgraph;
+use hyperswitch_masking::ExposeInterface;
 use kgraph_utils::{error::KgraphError, transformers::IntoDirValue};
-use masking::ExposeInterface;
 #[cfg(feature = "v1")]
 use router_env::logger;
 use storage_impl::redis::cache::{CacheKey, PM_FILTERS_CGRAPH_CACHE};
@@ -25,13 +25,14 @@ use crate::{
         errors,
         storage::{self, enums as storage_enums},
     },
+    routes::payment_methods as pm_routes,
     services::logger,
 };
 
 pub fn make_pm_graph(
     builder: &mut cgraph::ConstraintGraphBuilder<dir::DirValue>,
     domain_id: cgraph::DomainId,
-    payment_methods: &[masking::Secret<serde_json::value::Value>],
+    payment_methods: &[hyperswitch_masking::Secret<serde_json::value::Value>],
     connector: String,
     pm_config_mapping: &settings::ConnectorFilters,
     supported_payment_methods_for_mandate: &settings::SupportedPaymentMethodsForMandate,
@@ -832,6 +833,25 @@ pub async fn get_merchant_config_for_eligibility_check(
     }
 }
 
+pub async fn get_organization_eligibility_config_for_pm_modular_service(
+    db: &dyn StorageInterface,
+    organization_id: &common_utils::id_type::OrganizationId,
+) -> bool {
+    let config = db
+        .find_config_by_key_unwrap_or(
+            &organization_id.get_should_call_pm_modular_service_key(),
+            Some("false".to_string()),
+        )
+        .await;
+    match config {
+        Ok(conf) => conf.config == "true",
+        Err(error) => {
+            logger::error!(?error);
+            false
+        }
+    }
+}
+
 pub async fn get_sdk_next_action_for_payment_method_list(
     db: &dyn StorageInterface,
     merchant_id: &common_utils::id_type::MerchantId,
@@ -852,7 +872,6 @@ pub async fn get_sdk_next_action_for_payment_method_list(
 pub(super) async fn retrieve_payment_token_data(
     state: &SessionState,
     token: String,
-    payment_method: Option<&storage_enums::PaymentMethod>,
 ) -> errors::RouterResult<storage::PaymentTokenData> {
     let redis_conn = state
         .store
@@ -860,14 +879,7 @@ pub(super) async fn retrieve_payment_token_data(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to get redis connection")?;
 
-    let key = format!(
-        "pm_token_{}_{}_hyperswitch",
-        token,
-        payment_method
-            .get_required_value("payment_method")
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Payment method is required")?
-    );
+    let key = format!("pm_token_{}_hyperswitch", token);
 
     let token_data_string = redis_conn
         .get_key::<Option<String>>(&key.into())
@@ -885,6 +897,32 @@ pub(super) async fn retrieve_payment_token_data(
         .parse_struct("PaymentTokenData")
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("failed to deserialize hyperswitch token data")
+}
+
+#[cfg(feature = "v2")]
+pub(super) async fn retrieve_payment_method_id_from_payment_method_token_data(
+    state: &SessionState,
+    token: String,
+) -> errors::RouterResult<common_utils::id_type::GlobalPaymentMethodId> {
+    let payment_method_token_data =
+        pm_routes::ParentPaymentMethodToken::create_key_for_token(&token)
+            .get_data_for_token(state)
+            .await
+            .attach_printable("Failed to retrieve payment method token data")?;
+
+    let payment_method_id = match payment_method_token_data {
+        storage::payment_method::PaymentTokenData::PermanentCard(card) => {
+            Some(card.payment_method_id)
+        }
+        _ => None,
+    }
+    .get_required_value("payment_method_id from payment method token data")
+    .change_context(errors::ApiErrorResponse::GenericNotFoundError {
+        message: "payment_method_id".to_string(),
+    })
+    .attach_printable("Failed to get payment method id from payment method token data")?;
+
+    Ok(payment_method_id)
 }
 
 #[cfg(feature = "v2")]

@@ -12,7 +12,7 @@ use common_utils::{
 use error_stack::{report, ResultExt};
 use futures::future;
 use hyperswitch_domain_models::api::{GenericLinks, GenericLinksData};
-use masking::{PeekInterface, Secret};
+use hyperswitch_masking::{PeekInterface, Secret};
 use router_env::logger;
 use time::PrimitiveDateTime;
 
@@ -77,15 +77,15 @@ pub async fn form_payment_link_data(
 pub async fn form_payment_link_data(
     state: &SessionState,
     platform: domain::Platform,
-    merchant_id: common_utils::id_type::MerchantId,
+    processor_merchant_id: common_utils::id_type::MerchantId,
     payment_id: common_utils::id_type::PaymentId,
 ) -> RouterResult<(PaymentLink, PaymentLinkData, PaymentLinkConfig)> {
     let db = &*state.store;
 
     let payment_intent = db
-        .find_payment_intent_by_payment_id_merchant_id(
+        .find_payment_intent_by_payment_id_processor_merchant_id(
             &payment_id,
-            &merchant_id,
+            &processor_merchant_id,
             platform.get_processor().get_key_store(),
             platform.get_processor().get_account().storage_scheme,
         )
@@ -211,9 +211,9 @@ pub async fn form_payment_link_data(
 
     let attempt_id = payment_intent.active_attempt.get_id().clone();
     let payment_attempt = db
-        .find_payment_attempt_by_payment_id_merchant_id_attempt_id(
+        .find_payment_attempt_by_payment_id_processor_merchant_id_attempt_id(
             &payment_intent.payment_id,
-            &merchant_id,
+            &processor_merchant_id,
             &attempt_id.clone(),
             platform.get_processor().get_account().storage_scheme,
             platform.get_processor().get_key_store(),
@@ -245,9 +245,9 @@ pub async fn form_payment_link_data(
 
         let attempt_id = payment_intent.active_attempt.get_id().clone();
         let payment_attempt = db
-            .find_payment_attempt_by_payment_id_merchant_id_attempt_id(
+            .find_payment_attempt_by_payment_id_processor_merchant_id_attempt_id(
                 &payment_intent.payment_id,
-                &merchant_id,
+                &processor_merchant_id,
                 &attempt_id.clone(),
                 platform.get_processor().get_account().storage_scheme,
                 platform.get_processor().get_key_store(),
@@ -627,7 +627,7 @@ pub fn get_payment_link_config_based_on_priority(
         .map(|name| name.into_inner().peek().to_owned())
         .unwrap_or_default();
     let (domain_name, business_theme_configs, allowed_domains, branding_visibility) =
-        if let Some(ref business_config) = business_link_config {
+        if let Some(business_config) = business_link_config {
             (
                 business_config
                     .domain_name
@@ -638,19 +638,18 @@ pub fn get_payment_link_config_based_on_priority(
                     })
                     .unwrap_or_else(|| default_domain_name.clone()),
                 payment_link_config_id
-                    .as_ref()
                     .and_then(|id| {
                         business_config
                             .business_specific_configs
                             .as_ref()
-                            .and_then(|specific_configs| specific_configs.get(id).cloned())
+                            .and_then(|specific_configs| specific_configs.get(&id).cloned())
                     })
-                    .or(business_config.default_config.clone()),
-                business_config.allowed_domains.clone(),
+                    .or(business_config.default_config),
+                business_config.allowed_domains,
                 business_config.branding_visibility,
             )
         } else {
-            (default_domain_name.clone(), None, None, None)
+            (default_domain_name, None, None, None)
         };
 
     let (
@@ -756,47 +755,6 @@ pub fn get_payment_link_config_based_on_priority(
             color_icon_card_cvc_error,
         };
 
-    let has_custom_tnc = payment_link_config.custom_message_for_card_terms.is_some()
-        || payment_link_config
-            .custom_message_for_payment_method_types
-            .is_some();
-    let is_default_domain = domain_name == default_domain_name;
-    let is_test_mode = payment_create_link_config
-        .and_then(|mode| mode.theme_config.payment_test_mode)
-        .unwrap_or(false);
-    let is_production = matches!(router_env::env::which(), router_env::Env::Production);
-
-    // We do further checks only when Merchant is using our default domain and has passed custom T&C -> Which is not allowed to do
-    if is_default_domain && has_custom_tnc {
-        match (is_test_mode, is_production) {
-            // Custom T&C cannot be passed when base url is default domain
-            (false, true) => {
-                return Err(errors::ApiErrorResponse::InvalidRequestData {
-                    message: format!(
-                        "payment_link_config.custom_message_for_card_terms cannot be passed when base url is set to: {domain_name}"
-                    ),
-                }
-                .into())
-            }
-            // Test mode must be true to pass custom tnc
-            (false, false) => {
-                return Err(errors::ApiErrorResponse::InvalidRequestData {
-                    message: "To pass payment_link_config.custom_message_for_card_terms, set payment_link_config.payment_test_mode = true".to_string()
-                }
-                .into(),
-            )}
-            // Test Mode cannot be set to True when Env is Production
-            (true, true) => {
-                return Err(errors::ApiErrorResponse::InvalidRequestData {
-                    message: "Cannot set payment_link_config.payment_test_mode = true in Production".to_string()
-                }
-                .into(),
-            )}
-            // Test mode is true and the env is non Production so we are allowed to pass custom T&C with our default domain
-            (true,false) => ()
-        }
-    }
-
     Ok((payment_link_config, domain_name))
 }
 
@@ -834,15 +792,15 @@ pub async fn get_payment_link_status(
 pub async fn get_payment_link_status(
     state: SessionState,
     platform: domain::Platform,
-    merchant_id: common_utils::id_type::MerchantId,
+    processor_merchant_id: common_utils::id_type::MerchantId,
     payment_id: common_utils::id_type::PaymentId,
 ) -> RouterResponse<services::PaymentLinkFormData> {
     let db = &*state.store;
 
     let payment_intent = db
-        .find_payment_intent_by_payment_id_merchant_id(
+        .find_payment_intent_by_payment_id_processor_merchant_id(
             &payment_id,
-            &merchant_id,
+            &processor_merchant_id,
             platform.get_processor().get_key_store(),
             platform.get_processor().get_account().storage_scheme,
         )
@@ -851,9 +809,9 @@ pub async fn get_payment_link_status(
 
     let attempt_id = payment_intent.active_attempt.get_id().clone();
     let payment_attempt = db
-        .find_payment_attempt_by_payment_id_merchant_id_attempt_id(
+        .find_payment_attempt_by_payment_id_processor_merchant_id_attempt_id(
             &payment_intent.payment_id,
-            &merchant_id,
+            &processor_merchant_id,
             &attempt_id.clone(),
             platform.get_processor().get_account().storage_scheme,
             platform.get_processor().get_key_store(),

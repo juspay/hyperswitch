@@ -12,7 +12,7 @@ use common_utils::{
 };
 use diesel_models::process_tracker::business_status;
 use error_stack::ResultExt;
-use masking::PeekInterface;
+use hyperswitch_masking::PeekInterface;
 use router_env::tracing::{self, instrument};
 use scheduler::{
     consumer::{self, workflows::ProcessTrackerWorkflow},
@@ -157,6 +157,7 @@ impl ProcessTrackerWorkflow<SessionState> for OutgoingWebhookRetryWorkflow {
                     key_store.clone(),
                     merchant_account.clone(),
                     key_store.clone(),
+                    None,
                 );
                 // TODO: Add request state for the PT flows as well
                 let (content, event_type) = Box::pin(get_outgoing_webhook_content_and_event_type(
@@ -180,7 +181,7 @@ impl ProcessTrackerWorkflow<SessionState> for OutgoingWebhookRetryWorkflow {
                         };
 
                         let request_content = webhooks_core::get_outgoing_webhook_request(
-                            &platform,
+                            platform.get_processor(),
                             outgoing_webhook,
                             &business_profile,
                         )
@@ -377,6 +378,7 @@ async fn get_outgoing_webhook_content_and_event_type(
         key_store.clone(),
         merchant_account.clone(),
         key_store.clone(),
+        None,
     );
 
     match tracking_data.event_class {

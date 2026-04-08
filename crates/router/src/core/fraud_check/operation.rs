@@ -52,7 +52,6 @@ pub trait Domain<F, D>: Send + Sync {
         payment_data: &mut D,
         frm_data: &mut FrmData,
         platform: &domain::Platform,
-        customer: &Option<domain::Customer>,
     ) -> RouterResult<Option<FrmRouterData>>
     where
         F: Send + Clone;
@@ -63,7 +62,6 @@ pub trait Domain<F, D>: Send + Sync {
         payment_data: &mut D,
         frm_data: &mut FrmData,
         platform: &domain::Platform,
-        customer: &Option<domain::Customer>,
     ) -> RouterResult<FrmRouterData>
     where
         F: Send + Clone;
@@ -80,7 +78,6 @@ pub trait Domain<F, D>: Send + Sync {
         _frm_configs: FrmConfigsObject,
         _frm_suggestion: &mut Option<FrmSuggestion>,
         _payment_data: &mut D,
-        _customer: &Option<domain::Customer>,
         _should_continue_capture: &mut bool,
     ) -> RouterResult<Option<FrmData>>
     where

@@ -38,6 +38,8 @@ pub struct Payouts {
     pub client_secret: Option<String>,
     pub priority: Option<storage_enums::PayoutSendPriority>,
     pub organization_id: Option<common_utils::id_type::OrganizationId>,
+    pub processor_merchant_id: Option<common_utils::id_type::MerchantId>,
+    pub created_by: Option<String>,
 }
 
 #[derive(
@@ -80,6 +82,8 @@ pub struct PayoutsNew {
     pub client_secret: Option<String>,
     pub priority: Option<storage_enums::PayoutSendPriority>,
     pub organization_id: Option<common_utils::id_type::OrganizationId>,
+    pub processor_merchant_id: Option<common_utils::id_type::MerchantId>,
+    pub created_by: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -112,6 +116,9 @@ pub enum PayoutsUpdate {
     },
     StatusUpdate {
         status: storage_enums::PayoutStatus,
+    },
+    ManualUpdate {
+        status: Option<storage_enums::PayoutStatus>,
     },
 }
 
@@ -214,6 +221,10 @@ impl From<PayoutsUpdate> for PayoutsUpdateInternal {
             },
             PayoutsUpdate::StatusUpdate { status } => Self {
                 status: Some(status),
+                ..Default::default()
+            },
+            PayoutsUpdate::ManualUpdate { status } => Self {
+                status,
                 ..Default::default()
             },
         }

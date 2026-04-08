@@ -2,7 +2,7 @@ use std::fmt::Debug;
 
 use common_enums::{EntityType, TokenPurpose};
 use common_utils::{crypto::OptionalEncryptableName, id_type, pii};
-use masking::Secret;
+use hyperswitch_masking::Secret;
 use utoipa::ToSchema;
 
 use crate::user_role::UserStatus;
@@ -18,6 +18,7 @@ pub struct SignUpWithMerchantIdRequest {
     pub email: pii::Email,
     pub password: Secret<String>,
     pub company_name: String,
+    pub organization_type: Option<common_enums::OrganizationType>,
 }
 
 pub type SignUpWithMerchantIdResponse = AuthorizeResponse;
@@ -445,6 +446,17 @@ pub struct UserKeyTransferRequest {
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct ListUsersInternalRequest {
+    pub user_ids: Vec<String>,
+}
+
+#[cfg(feature = "v1")]
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct ListMembersQueryParam {
+    pub access_level: EntityType,
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct UserTransferKeyResponse {
     pub total_transferred: usize,
 }
@@ -469,4 +481,30 @@ pub struct UserMerchantAccountResponse {
 pub struct ListProfilesForUserInOrgAndMerchantAccountResponse {
     pub profile_id: id_type::ProfileId,
     pub profile_name: String,
+}
+
+#[derive(Debug, serde::Serialize)]
+pub struct IssueEmbeddedTokenResponse {
+    pub token: Secret<String>,
+}
+
+#[derive(Debug, serde::Serialize)]
+pub struct EmbeddedTokenInfoResponse {
+    pub org_id: id_type::OrganizationId,
+    pub merchant_id: id_type::MerchantId,
+    pub merchant_account_version: common_enums::ApiVersion,
+    pub profile_id: id_type::ProfileId,
+}
+
+#[derive(Debug, serde::Serialize)]
+pub struct GetUserInternalDetailsResponse {
+    pub user_id: String,
+    pub name: Secret<String>,
+    pub email: pii::Email,
+    pub is_active: bool,
+}
+
+#[derive(Debug, serde::Serialize)]
+pub struct ListUsersInternalResponse {
+    pub users: Vec<GetUserInternalDetailsResponse>,
 }

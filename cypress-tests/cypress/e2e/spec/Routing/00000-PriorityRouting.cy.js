@@ -125,7 +125,7 @@ describe("Priority Based Routing Test", () => {
     });
 
     it("retrieve-payment-call-test", () => {
-      cy.retrievePaymentCallTest(globalState, null);
+      cy.retrievePaymentCallTest({ globalState });
     });
   });
 
@@ -203,7 +203,7 @@ describe("Priority Based Routing Test", () => {
     });
 
     it("retrieve-payment-call-test", () => {
-      cy.retrievePaymentCallTest(globalState, null);
+      cy.retrievePaymentCallTest({ globalState });
     });
   });
 });

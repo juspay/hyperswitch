@@ -48,6 +48,12 @@ pub struct SetupMandate;
 pub struct PreProcessing;
 
 #[derive(Debug, Clone)]
+pub struct PushNotification;
+
+#[derive(Debug, Clone)]
+pub struct GenerateQr;
+
+#[derive(Debug, Clone)]
 pub struct IncrementalAuthorization;
 
 #[derive(Debug, Clone)]
@@ -91,3 +97,6 @@ pub struct ExternalVaultProxy;
 
 #[derive(Debug, Clone)]
 pub struct GiftCardBalanceCheck;
+
+#[derive(Debug, Clone)]
+pub struct SettlementSplitCreate;

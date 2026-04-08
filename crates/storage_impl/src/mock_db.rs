@@ -59,7 +59,7 @@ pub struct MockDb {
     pub payout_attempt: Arc<Mutex<Vec<store::payout_attempt::PayoutAttempt>>>,
     #[cfg(feature = "payouts")]
     pub payouts: Arc<Mutex<Vec<store::payouts::Payouts>>>,
-    pub authentications: Arc<Mutex<Vec<store::authentication::Authentication>>>,
+    pub authentications: Arc<Mutex<Vec<hyperswitch_domain_models::authentication::Authentication>>>,
     pub roles: Arc<Mutex<Vec<store::role::Role>>>,
     pub user_key_store: Arc<Mutex<Vec<store::user_key_store::UserKeyStore>>>,
     pub user_authentication_methods:
@@ -67,6 +67,7 @@ pub struct MockDb {
     pub themes: Arc<Mutex<Vec<store::user::theme::Theme>>>,
     pub hyperswitch_ai_interactions:
         Arc<Mutex<Vec<store::hyperswitch_ai_interaction::HyperswitchAiInteraction>>>,
+    pub card_issuers: Arc<Mutex<Vec<store::card_issuer::CardIssuer>>>,
     pub key_manager_state: Option<KeyManagerState>,
 }
 
@@ -125,6 +126,7 @@ impl MockDb {
             user_authentication_methods: Default::default(),
             themes: Default::default(),
             hyperswitch_ai_interactions: Default::default(),
+            card_issuers: Default::default(),
             key_manager_state: Some(key_manager_state),
         })
     }

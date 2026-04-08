@@ -2,17 +2,18 @@
 pub use api_models::payment_methods::{
     CardDetail, CardDetailFromLocker, CardDetailsPaymentMethod, CardNetworkTokenizeRequest,
     CardNetworkTokenizeResponse, CardType, CustomerPaymentMethodResponseItem,
-    DeleteTokenizeByTokenRequest, GetTokenizePayloadRequest, GetTokenizePayloadResponse,
-    ListCountriesCurrenciesRequest, MigrateCardDetail, NetworkTokenDetailsPaymentMethod,
-    NetworkTokenDetailsResponse, NetworkTokenResponse, PaymentMethodCollectLinkRenderRequest,
-    PaymentMethodCollectLinkRequest, PaymentMethodCreate, PaymentMethodCreateData,
-    PaymentMethodDeleteResponse, PaymentMethodId, PaymentMethodIntentConfirm,
-    PaymentMethodIntentCreate, PaymentMethodListData, PaymentMethodListResponseForSession,
-    PaymentMethodMigrate, PaymentMethodMigrateResponse, PaymentMethodResponse,
-    PaymentMethodResponseData, PaymentMethodUpdate, PaymentMethodUpdateData, PaymentMethodsData,
-    ProxyCardDetails, RequestPaymentMethodTypes, TokenDataResponse, TokenDetailsResponse,
-    TokenizePayloadEncrypted, TokenizePayloadRequest, TokenizedCardValue1, TokenizedCardValue2,
-    TokenizedWalletValue1, TokenizedWalletValue2, TotalPaymentMethodCountResponse,
+    DeleteTokenizeByTokenRequest, GetNetworkTokenEiligibilityResponse, GetTokenizePayloadRequest,
+    GetTokenizePayloadResponse, ListCountriesCurrenciesRequest, MigrateCardDetail,
+    NetworkTokenDetailsPaymentMethod, NetworkTokenDetailsResponse, NetworkTokenEligibilityRequest,
+    NetworkTokenResponse, PaymentMethodCollectLinkRenderRequest, PaymentMethodCollectLinkRequest,
+    PaymentMethodCreate, PaymentMethodCreateData, PaymentMethodDeleteResponse, PaymentMethodId,
+    PaymentMethodIntentConfirm, PaymentMethodIntentCreate, PaymentMethodListData,
+    PaymentMethodListResponseForSession, PaymentMethodMigrate, PaymentMethodMigrateResponse,
+    PaymentMethodResponse, PaymentMethodResponseData, PaymentMethodUpdate, PaymentMethodUpdateData,
+    PaymentMethodsData, ProxyCardDetails, RequestPaymentMethodTypes, TokenDataResponse,
+    TokenDetailsResponse, TokenizePayloadEncrypted, TokenizePayloadRequest, TokenizedCardValue1,
+    TokenizedCardValue2, TokenizedWalletValue1, TokenizedWalletValue2,
+    TotalPaymentMethodCountResponse,
 };
 #[cfg(feature = "v1")]
 pub use api_models::payment_methods::{
@@ -63,10 +64,23 @@ impl PaymentMethodCreateExt for PaymentMethodCreate {
 impl PaymentMethodCreateExt for PaymentMethodCreate {
     fn validate(&self) -> RouterResult<()> {
         utils::when(
-            !validate_payment_method_type_against_payment_method(
-                self.payment_method_type,
-                self.payment_method_subtype,
-            ),
+            self.payment_method_type != api_models::enums::PaymentMethod::Card
+                && self.payment_method_subtype.is_none(),
+            || {
+                Err(report!(errors::ApiErrorResponse::MissingRequiredField {
+                    field_name: "payment_method_subtype"
+                }))
+            },
+        )?;
+
+        utils::when(
+            self.payment_method_subtype
+                .is_some_and(|payment_method_subtype| {
+                    !validate_payment_method_type_against_payment_method(
+                        self.payment_method_type,
+                        payment_method_subtype,
+                    )
+                }),
             || {
                 Err(report!(errors::ApiErrorResponse::InvalidRequestData {
                     message: "Invalid 'payment_method_type' provided".to_string()
@@ -119,6 +133,43 @@ impl PaymentMethodCreateExt for PaymentMethodIntentConfirm {
                 .attach_printable("Invalid payment method data"))
             },
         )?;
+        Ok(())
+    }
+}
+
+#[cfg(feature = "v2")]
+pub(crate) trait PaymentMethodSessionExt {
+    fn validate(
+        &self,
+        payment_method_session: &hyperswitch_domain_models::payment_methods::PaymentMethodSession,
+    ) -> RouterResult<()>;
+}
+
+#[cfg(feature = "v2")]
+impl PaymentMethodSessionExt for api_models::payment_methods::PaymentMethodSessionConfirmRequest {
+    fn validate(
+        &self,
+        payment_method_session: &hyperswitch_domain_models::payment_methods::PaymentMethodSession,
+    ) -> RouterResult<()> {
+        utils::when(
+            self.payment_method_type != api_models::enums::PaymentMethod::Card
+                && self.payment_method_subtype.is_none(),
+            || {
+                Err(report!(errors::ApiErrorResponse::MissingRequiredField {
+                    field_name: "payment_method_subtype"
+                }))
+            },
+        )?;
+
+        utils::when(
+            payment_method_session.psp_tokenization.is_some() && self.customer_acceptance.is_none(),
+            || {
+                Err(report!(errors::ApiErrorResponse::MissingRequiredField {
+                    field_name: "customer_acceptance"
+                }))
+            },
+        )?;
+
         Ok(())
     }
 }

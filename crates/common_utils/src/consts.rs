@@ -46,6 +46,9 @@ pub fn default_payouts_list_limit() -> u32 {
 /// surcharge percentage maximum precision length
 pub const SURCHARGE_PERCENTAGE_PRECISION_LENGTH: u8 = 2;
 
+/// installment interest rate maximum precision length
+pub const INSTALLMENT_INTEREST_RATE_PRECISION_LENGTH: u8 = 2;
+
 /// Header Key for application overhead of a request
 pub const X_HS_LATENCY: &str = "x-hs-latency";
 
@@ -124,6 +127,9 @@ pub const WILDCARD_DOMAIN_REGEX: &str = r"^((\*|https?)?://)?((\*\.|[A-Za-z0-9][
 /// Maximum allowed length for MerchantName
 pub const MAX_ALLOWED_MERCHANT_NAME_LENGTH: usize = 64;
 
+/// Maximum allowed length for CardIssuerName
+pub const MAX_ALLOWED_CARD_ISSUER_NAME_LENGTH: usize = 255;
+
 /// Default locale
 pub const DEFAULT_LOCALE: &str = "en";
 
@@ -166,8 +172,14 @@ pub const X_FLOW_NAME: &str = "x-flow";
 /// Connector name
 pub const X_CONNECTOR_NAME: &str = "x-connector";
 
+/// Sub-flow name
+pub const X_SUB_FLOW_NAME: &str = "x-sub-flow";
+
 /// Unified Connector Service Mode
 pub const X_UNIFIED_CONNECTOR_SERVICE_MODE: &str = "x-shadow-mode";
+
+/// Config Override Header for UCS
+pub const X_CONFIG_OVERRIDE: &str = "x-config-override";
 
 /// Chat Session ID
 pub const X_CHAT_SESSION_ID: &str = "x-chat-session-id";
@@ -220,3 +232,9 @@ pub const DEFAULT_LIST_LIMIT: i64 = 100;
 
 /// Default offset for list operations (can be used across different entities)
 pub const DEFAULT_LIST_OFFSET: i64 = 0;
+
+/// Default number of card issuers returned in a list request
+pub const DEFAULT_CARD_ISSUER_LIST_LIMIT: u8 = 30;
+
+/// Length of a generated card issuer ID
+pub const CARD_ISSUER_ID_LENGTH: u8 = 5;

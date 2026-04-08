@@ -32,12 +32,13 @@ pub enum TokenizeDataRequest {
 #[derive(Clone, Debug)]
 pub struct TokenizeCardRequest {
     pub raw_card_number: CardNumber,
-    pub card_expiry_month: masking::Secret<String>,
-    pub card_expiry_year: masking::Secret<String>,
-    pub card_cvc: Option<masking::Secret<String>>,
-    pub card_holder_name: Option<masking::Secret<String>>,
-    pub nick_name: Option<masking::Secret<String>>,
+    pub card_expiry_month: hyperswitch_masking::Secret<String>,
+    pub card_expiry_year: hyperswitch_masking::Secret<String>,
+    pub card_cvc: Option<hyperswitch_masking::Secret<String>>,
+    pub card_holder_name: Option<hyperswitch_masking::Secret<String>>,
+    pub nick_name: Option<hyperswitch_masking::Secret<String>>,
     pub card_issuing_country: Option<String>,
+    pub card_issuing_country_code: Option<String>,
     pub card_network: Option<enums::CardNetwork>,
     pub card_issuer: Option<String>,
     pub card_type: Option<payment_methods_api::CardType>,
@@ -46,19 +47,20 @@ pub struct TokenizeCardRequest {
 #[derive(Clone, Debug)]
 pub struct TokenizePaymentMethodRequest {
     pub payment_method_id: String,
-    pub card_cvc: Option<masking::Secret<String>>,
+    pub card_cvc: Option<hyperswitch_masking::Secret<String>>,
 }
 
 #[derive(Default, Debug, serde::Deserialize, serde::Serialize)]
 pub struct CardNetworkTokenizeRecord {
     // Card details
     pub raw_card_number: Option<CardNumber>,
-    pub card_expiry_month: Option<masking::Secret<String>>,
-    pub card_expiry_year: Option<masking::Secret<String>>,
-    pub card_cvc: Option<masking::Secret<String>>,
-    pub card_holder_name: Option<masking::Secret<String>>,
-    pub nick_name: Option<masking::Secret<String>>,
+    pub card_expiry_month: Option<hyperswitch_masking::Secret<String>>,
+    pub card_expiry_year: Option<hyperswitch_masking::Secret<String>>,
+    pub card_cvc: Option<hyperswitch_masking::Secret<String>>,
+    pub card_holder_name: Option<hyperswitch_masking::Secret<String>>,
+    pub nick_name: Option<hyperswitch_masking::Secret<String>>,
     pub card_issuing_country: Option<String>,
+    pub card_issuing_country_code: Option<String>,
     pub card_network: Option<enums::CardNetwork>,
     pub card_issuer: Option<String>,
     pub card_type: Option<payment_methods_api::CardType>,
@@ -71,26 +73,28 @@ pub struct CardNetworkTokenizeRecord {
     // Customer details
     pub customer_id: id_type::CustomerId,
     #[serde(rename = "name")]
-    pub customer_name: Option<masking::Secret<String>>,
+    pub customer_name: Option<hyperswitch_masking::Secret<String>>,
     #[serde(rename = "email")]
     pub customer_email: Option<pii::Email>,
     #[serde(rename = "phone")]
-    pub customer_phone: Option<masking::Secret<String>>,
+    pub customer_phone: Option<hyperswitch_masking::Secret<String>>,
     #[serde(rename = "phone_country_code")]
     pub customer_phone_country_code: Option<String>,
     #[serde(rename = "tax_registration_id")]
-    pub customer_tax_registration_id: Option<masking::Secret<String>>,
+    pub customer_tax_registration_id: Option<hyperswitch_masking::Secret<String>>,
+    #[serde(rename = "document_details")]
+    pub customer_document_details: Option<api_models::customers::CustomerDocumentDetails>,
     // Billing details
     pub billing_address_city: Option<String>,
     pub billing_address_country: Option<enums::CountryAlpha2>,
-    pub billing_address_line1: Option<masking::Secret<String>>,
-    pub billing_address_line2: Option<masking::Secret<String>>,
-    pub billing_address_line3: Option<masking::Secret<String>>,
-    pub billing_address_zip: Option<masking::Secret<String>>,
-    pub billing_address_state: Option<masking::Secret<String>>,
-    pub billing_address_first_name: Option<masking::Secret<String>>,
-    pub billing_address_last_name: Option<masking::Secret<String>>,
-    pub billing_phone_number: Option<masking::Secret<String>>,
+    pub billing_address_line1: Option<hyperswitch_masking::Secret<String>>,
+    pub billing_address_line2: Option<hyperswitch_masking::Secret<String>>,
+    pub billing_address_line3: Option<hyperswitch_masking::Secret<String>>,
+    pub billing_address_zip: Option<hyperswitch_masking::Secret<String>>,
+    pub billing_address_state: Option<hyperswitch_masking::Secret<String>>,
+    pub billing_address_first_name: Option<hyperswitch_masking::Secret<String>>,
+    pub billing_address_last_name: Option<hyperswitch_masking::Secret<String>>,
+    pub billing_phone_number: Option<hyperswitch_masking::Secret<String>>,
     pub billing_phone_country_code: Option<String>,
     pub billing_email: Option<pii::Email>,
 
@@ -102,12 +106,13 @@ pub struct CardNetworkTokenizeRecord {
 impl ForeignFrom<&CardNetworkTokenizeRecord> for payments_api::CustomerDetails {
     fn foreign_from(record: &CardNetworkTokenizeRecord) -> Self {
         Self {
-            id: record.customer_id.clone(),
+            id: Some(record.customer_id.clone()),
             name: record.customer_name.clone(),
             email: record.customer_email.clone(),
             phone: record.customer_phone.clone(),
             phone_country_code: record.customer_phone_country_code.clone(),
             tax_registration_id: record.customer_tax_registration_id.clone(),
+            document_details: record.customer_document_details.clone(),
         }
     }
 }
@@ -161,6 +166,7 @@ impl ForeignTryFrom<CardNetworkTokenizeRecord> for payment_methods_api::CardNetw
                             card_holder_name: record.card_holder_name,
                             nick_name: record.nick_name,
                             card_issuing_country: record.card_issuing_country,
+                            card_issuing_country_code: record.card_issuing_country_code,
                             card_network: record.card_network,
                             card_issuer: record.card_issuer,
                             card_type: record.card_type.clone(),
@@ -195,12 +201,13 @@ impl ForeignTryFrom<CardNetworkTokenizeRecord> for payment_methods_api::CardNetw
 impl ForeignFrom<&TokenizeCardRequest> for payment_methods_api::MigrateCardDetail {
     fn foreign_from(card: &TokenizeCardRequest) -> Self {
         Self {
-            card_number: masking::Secret::new(card.raw_card_number.get_card_no()),
+            card_number: hyperswitch_masking::Secret::new(card.raw_card_number.get_card_no()),
             card_exp_month: card.card_expiry_month.clone(),
             card_exp_year: card.card_expiry_year.clone(),
             card_holder_name: card.card_holder_name.clone(),
             nick_name: card.nick_name.clone(),
             card_issuing_country: card.card_issuing_country.clone(),
+            card_issuing_country_code: card.card_issuing_country_code.clone(),
             card_network: card.card_network.clone(),
             card_issuer: card.card_issuer.clone(),
             card_type: card
@@ -215,12 +222,13 @@ impl ForeignTryFrom<CustomerDetails> for payments_api::CustomerDetails {
     type Error = error_stack::Report<errors::ValidationError>;
     fn foreign_try_from(customer: CustomerDetails) -> Result<Self, Self::Error> {
         Ok(Self {
-            id: customer.customer_id.get_required_value("customer_id")?,
+            id: Some(customer.customer_id.get_required_value("customer_id")?),
             name: customer.name,
             email: customer.email,
             phone: customer.phone,
             phone_country_code: customer.phone_country_code,
             tax_registration_id: customer.tax_registration_id,
+            document_details: customer.document_details,
         })
     }
 }
@@ -249,6 +257,7 @@ impl ForeignFrom<payment_methods_api::TokenizeDataRequest> for TokenizeDataReque
                     card_holder_name: card.card_holder_name,
                     nick_name: card.nick_name,
                     card_issuing_country: card.card_issuing_country,
+                    card_issuing_country_code: card.card_issuing_country_code,
                     card_network: card.card_network,
                     card_issuer: card.card_issuer,
                     card_type: card.card_type,
@@ -267,12 +276,13 @@ impl ForeignFrom<payment_methods_api::TokenizeDataRequest> for TokenizeDataReque
 impl ForeignFrom<payments_api::CustomerDetails> for CustomerDetails {
     fn foreign_from(req: payments_api::CustomerDetails) -> Self {
         Self {
-            customer_id: Some(req.id),
+            customer_id: req.id,
             name: req.name,
             email: req.email,
             phone: req.phone,
             phone_country_code: req.phone_country_code,
             tax_registration_id: req.tax_registration_id,
+            document_details: req.document_details,
         }
     }
 }

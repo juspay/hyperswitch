@@ -33,16 +33,17 @@ pub async fn add_entry_to_blocklist(
         &req,
         json_payload.into_inner(),
         |state, auth: auth::AuthenticationData, body, _| {
-            let platform = auth.into();
-            blocklist::add_entry_to_blocklist(state, platform, body)
+            blocklist::add_entry_to_blocklist(state, auth.platform, body)
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
-                is_connected_allowed: false,
-                is_platform_allowed: false,
+                allow_connected_scope_operation: false,
+                allow_platform_self_operation: false,
             }),
             &auth::JWTAuth {
                 permission: Permission::MerchantAccountWrite,
+                allow_connected: false,
+                allow_platform: false,
             },
             req.headers(),
         ),
@@ -75,16 +76,17 @@ pub async fn remove_entry_from_blocklist(
         &req,
         json_payload.into_inner(),
         |state, auth: auth::AuthenticationData, body, _| {
-            let platform = auth.into();
-            blocklist::remove_entry_from_blocklist(state, platform, body)
+            blocklist::remove_entry_from_blocklist(state, auth.platform, body)
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
-                is_connected_allowed: false,
-                is_platform_allowed: false,
+                allow_connected_scope_operation: false,
+                allow_platform_self_operation: false,
             }),
             &auth::JWTAuth {
                 permission: Permission::MerchantAccountWrite,
+                allow_connected: false,
+                allow_platform: false,
             },
             req.headers(),
         ),
@@ -100,7 +102,7 @@ pub async fn remove_entry_from_blocklist(
         ("data_kind" = BlocklistDataKind, Query, description = "Kind of the fingerprint list requested"),
     ),
     responses(
-        (status = 200, description = "Blocked Fingerprints", body = BlocklistResponse),
+        (status = 200, description = "Blocked Fingerprints", body = ListBlocklistResponse),
         (status = 400, description = "Invalid Data")
     ),
     tag = "Blocklist",
@@ -116,29 +118,34 @@ pub async fn list_blocked_payment_methods(
     let payload = query_payload.into_inner();
 
     let api_auth = auth::ApiKeyAuth {
-        is_connected_allowed: false,
-        is_platform_allowed: false,
+        allow_connected_scope_operation: false,
+        allow_platform_self_operation: false,
     };
 
-    let (auth_type, _) =
-        match auth::check_client_secret_and_get_auth(req.headers(), &payload, api_auth) {
-            Ok(auth) => auth,
-            Err(err) => return api::log_and_return_error_response(report!(err)),
-        };
+    let (auth_type, _) = match auth::check_sdk_auth_and_get_auth(req.headers(), &payload, api_auth)
+    {
+        Ok(auth) => auth,
+        Err(err) => return api::log_and_return_error_response(report!(err)),
+    };
 
     Box::pin(api::server_wrap(
         flow,
         state,
         &req,
         payload,
-        |state, auth: auth::AuthenticationData, query, _| {
-            let platform = auth.into();
-            blocklist::list_blocklist_entries(state, platform, query)
+        |state, auth, mut query, _| {
+            if let Some(client_secret) = auth.client_secret {
+                query.client_secret = Some(client_secret);
+            }
+
+            blocklist::list_blocklist_entries(state, auth.platform, query)
         },
         auth::auth_type(
             &*auth_type,
             &auth::JWTAuth {
                 permission: Permission::MerchantAccountRead,
+                allow_connected: false,
+                allow_platform: false,
             },
             req.headers(),
         ),
@@ -173,16 +180,17 @@ pub async fn toggle_blocklist_guard(
         &req,
         query_payload.into_inner(),
         |state, auth: auth::AuthenticationData, query, _| {
-            let platform = auth.into();
-            blocklist::toggle_blocklist_guard(state, platform, query)
+            blocklist::toggle_blocklist_guard(state, auth.platform, query)
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
-                is_connected_allowed: false,
-                is_platform_allowed: false,
+                allow_connected_scope_operation: false,
+                allow_platform_self_operation: false,
             }),
             &auth::JWTAuth {
                 permission: Permission::MerchantAccountWrite,
+                allow_connected: false,
+                allow_platform: false,
             },
             req.headers(),
         ),

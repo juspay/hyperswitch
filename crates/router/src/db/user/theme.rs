@@ -273,6 +273,7 @@ impl ThemeInterface for MockDb {
             email_background_color: new_theme.email_background_color,
             email_entity_name: new_theme.email_entity_name,
             email_entity_logo_url: new_theme.email_entity_logo_url,
+            theme_config_version: new_theme.theme_config_version,
         };
         themes.push(theme.clone());
 
@@ -342,6 +343,8 @@ impl ThemeInterface for MockDb {
             .iter_mut()
             .find(|theme| theme.theme_id == theme_id)
             .map(|theme| {
+                let now = common_utils::date_time::now();
+                let theme_config_version = now.assume_utc().unix_timestamp().to_string();
                 match theme_update {
                     ThemeUpdate::EmailConfig { email_config } => {
                         theme.email_primary_color = email_config.primary_color;
@@ -350,7 +353,11 @@ impl ThemeInterface for MockDb {
                         theme.email_entity_name = email_config.entity_name;
                         theme.email_entity_logo_url = email_config.entity_logo_url;
                     }
+                    ThemeUpdate::ThemeConfig => {
+                        theme.theme_config_version = theme_config_version;
+                    }
                 }
+                theme.last_modified_at = now;
                 theme.clone()
             })
             .ok_or_else(|| {

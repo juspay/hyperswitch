@@ -60,7 +60,7 @@ fn build_test_data(
     //     connector_type: api_enums::ConnectorType::FizOperations,
     //     connector_name: "stripe".to_string(),
     //     id: common_utils::generate_merchant_connector_account_id_of_default_length(),
-    //     connector_account_details: masking::Secret::new(serde_json::json!({})),
+    //     connector_account_details: hyperswitch_masking::Secret::new(serde_json::json!({})),
     //     disabled: None,
     //     metadata: None,
     //     payment_methods_enabled: Some(pms_enabled),
@@ -81,7 +81,7 @@ fn build_test_data(
         connector_name: "stripe".to_string(),
         merchant_connector_id:
             common_utils::generate_merchant_connector_account_id_of_default_length(),
-        connector_account_details: masking::Secret::new(serde_json::json!({})),
+        connector_account_details: hyperswitch_masking::Secret::new(serde_json::json!({})),
         test_mode: None,
         disabled: None,
         metadata: None,
@@ -98,6 +98,7 @@ fn build_test_data(
         status: api_enums::ConnectorStatus::Inactive,
         additional_merchant_data: None,
         connector_wallets_details: None,
+        webhook_setup_capabilities: None,
     };
     let config = CountryCurrencyFilter {
         connector_configs: HashMap::new(),

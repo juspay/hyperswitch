@@ -23,17 +23,18 @@ pub async fn create_profile_acquirer(
         state,
         &req,
         payload,
-        |state: super::SessionState, auth_data, req, _| {
-            let platform = auth_data.into();
-            crate::core::profile_acquirer::create_profile_acquirer(state, req, platform)
+        |state: super::SessionState, auth_data: auth::AuthenticationData, req, _| {
+            crate::core::profile_acquirer::create_profile_acquirer(state, req, auth_data.platform)
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
-                is_connected_allowed: false,
-                is_platform_allowed: true,
+                allow_connected_scope_operation: false,
+                allow_platform_self_operation: false,
             }),
             &auth::JWTAuth {
                 permission: Permission::ProfileAccountWrite,
+                allow_connected: false,
+                allow_platform: false,
             },
             req.headers(),
         ),
@@ -62,23 +63,24 @@ pub async fn profile_acquirer_update(
         state,
         &req,
         payload,
-        |state: super::SessionState, auth_data, req, _| {
-            let platform = auth_data.into();
+        |state: super::SessionState, auth_data: auth::AuthenticationData, req, _| {
             crate::core::profile_acquirer::update_profile_acquirer_config(
                 state,
                 profile_id.clone(),
                 profile_acquirer_id.clone(),
                 req,
-                platform,
+                auth_data.platform,
             )
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
-                is_connected_allowed: false,
-                is_platform_allowed: true,
+                allow_connected_scope_operation: false,
+                allow_platform_self_operation: false,
             }),
             &auth::JWTAuth {
                 permission: Permission::ProfileAccountWrite,
+                allow_connected: false,
+                allow_platform: false,
             },
             req.headers(),
         ),

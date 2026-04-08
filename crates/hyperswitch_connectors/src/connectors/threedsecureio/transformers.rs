@@ -18,8 +18,8 @@ use hyperswitch_domain_models::{
     router_response_types::AuthenticationResponseData,
 };
 use hyperswitch_interfaces::{api::CurrencyUnit, consts::NO_ERROR_MESSAGE, errors};
+use hyperswitch_masking::{ExposeInterface, Secret};
 use iso_currency::Currency;
-use masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, to_string};
 
@@ -106,6 +106,7 @@ impl
                     .change_context(errors::ConnectorError::ParsingFailed)?,
                     connector_metadata: Some(connector_metadata),
                     directory_server_id: None,
+                    scheme_id: pre_authn_response.scheme,
                 })
             }
             ThreedsecureioPreAuthenticationResponse::Failure(error_response) => {
@@ -119,6 +120,7 @@ impl
                     status_code: item.http_code,
                     attempt_status: None,
                     connector_transaction_id: None,
+                    connector_response_reference_id: None,
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
@@ -203,6 +205,7 @@ impl
                     status_code: item.http_code,
                     attempt_status: None,
                     connector_transaction_id: None,
+                    connector_response_reference_id: None,
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,
@@ -215,6 +218,7 @@ impl
                     status_code: item.http_code,
                     attempt_status: None,
                     connector_transaction_id: None,
+                    connector_response_reference_id: None,
                     network_advice_code: None,
                     network_decline_code: None,
                     network_error_message: None,

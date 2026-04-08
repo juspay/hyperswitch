@@ -96,12 +96,13 @@ impl From<StripeCard> for payments::Card {
             card_number: card.number,
             card_exp_month: card.exp_month,
             card_exp_year: card.exp_year,
-            card_holder_name: Some(masking::Secret::new("stripe_cust".to_owned())),
+            card_holder_name: Some(hyperswitch_masking::Secret::new("stripe_cust".to_owned())),
             card_cvc: card.cvc,
             card_issuer: None,
             card_network: None,
             bank_code: None,
             card_issuing_country: None,
+            card_issuing_country_code: None,
             card_type: None,
             nick_name: None,
         }
@@ -227,10 +228,11 @@ impl TryFrom<StripeSetupIntentRequest> for payments::PaymentsRequest {
                     field_name: "currency",
                 })?,
             email: item.receipt_email,
-            name: item
-                .billing_details
-                .as_ref()
-                .and_then(|b| b.name.as_ref().map(|x| masking::Secret::new(x.to_owned()))),
+            name: item.billing_details.as_ref().and_then(|b| {
+                b.name
+                    .as_ref()
+                    .map(|x| hyperswitch_masking::Secret::new(x.to_owned()))
+            }),
             phone: item.shipping.as_ref().and_then(|s| s.phone.clone()),
             description: item.description,
             return_url: item.return_url,
@@ -407,6 +409,9 @@ pub enum StripeNextAction {
     InvokeUpiQrFlow {
         sdk_uri: url::Url,
     },
+    InvokeDdc {
+        ddc_data: payments::DDCData,
+    },
 }
 
 pub(crate) fn into_stripe_next_action(
@@ -445,6 +450,7 @@ pub(crate) fn into_stripe_next_action(
             qr_code_url,
             display_text,
             border_color,
+            raw_qr_data: _,
         } => StripeNextAction::QrCodeInformation {
             image_data_url,
             display_to_timestamp,
@@ -492,6 +498,9 @@ pub(crate) fn into_stripe_next_action(
                 sdk_uri: qr_code_url,
             }
         }
+        payments::NextActionData::InvokeDdc { ddc_data } => {
+            StripeNextAction::InvokeDdc { ddc_data }
+        }
     })
 }
 
@@ -500,7 +509,7 @@ pub struct StripeSetupIntentResponse {
     pub id: id_type::PaymentId,
     pub object: String,
     pub status: StripeSetupStatus,
-    pub client_secret: Option<masking::Secret<String>>,
+    pub client_secret: Option<hyperswitch_masking::Secret<String>>,
     pub metadata: Option<Value>,
     #[serde(with = "common_utils::custom_serde::iso8601::option")]
     pub created: Option<time::PrimitiveDateTime>,

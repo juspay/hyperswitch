@@ -1,6 +1,7 @@
 use std::str::FromStr;
 
 pub use common_enums::*;
+pub use euclid::enums::RoutableConnectors;
 use smithy::SmithyModel;
 use utoipa::ToSchema;
 
@@ -56,9 +57,13 @@ pub enum PayoutConnectors {
     Payone,
     Paypal,
     Stripe,
+    Truelayer,
+    Trustly,
     Wise,
     Worldpay,
     Worldpayxml,
+    Envoy,
+    Itaubank,
 }
 
 #[cfg(feature = "v2")]
@@ -69,6 +74,16 @@ pub enum UpdateActiveAttempt {
     #[schema(value_type = Option<String>)]
     Set(common_utils::id_type::GlobalAttemptId),
     /// To unset the active attempt id
+    Unset,
+}
+
+/// Generic enum to handle updating or clearing a field
+#[derive(Debug, ToSchema, Clone, serde::Deserialize, serde::Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum SetOrUnset<T> {
+    /// Set the field to a specific value
+    Set(T),
+    /// Clear/unset the field
     Unset,
 }
 
@@ -87,9 +102,13 @@ impl From<PayoutConnectors> for RoutableConnectors {
             PayoutConnectors::Payone => Self::Payone,
             PayoutConnectors::Paypal => Self::Paypal,
             PayoutConnectors::Stripe => Self::Stripe,
+            PayoutConnectors::Truelayer => Self::Truelayer,
+            PayoutConnectors::Trustly => Self::Trustly,
             PayoutConnectors::Wise => Self::Wise,
             PayoutConnectors::Worldpay => Self::Worldpay,
             PayoutConnectors::Worldpayxml => Self::Worldpayxml,
+            PayoutConnectors::Envoy => Self::Envoy,
+            PayoutConnectors::Itaubank => Self::Itaubank,
         }
     }
 }
@@ -109,9 +128,13 @@ impl From<PayoutConnectors> for Connector {
             PayoutConnectors::Payone => Self::Payone,
             PayoutConnectors::Paypal => Self::Paypal,
             PayoutConnectors::Stripe => Self::Stripe,
+            PayoutConnectors::Truelayer => Self::Truelayer,
+            PayoutConnectors::Trustly => Self::Trustly,
             PayoutConnectors::Wise => Self::Wise,
             PayoutConnectors::Worldpay => Self::Worldpay,
             PayoutConnectors::Worldpayxml => Self::Worldpayxml,
+            PayoutConnectors::Envoy => Self::Envoy,
+            PayoutConnectors::Itaubank => Self::Itaubank,
         }
     }
 }
@@ -132,9 +155,13 @@ impl TryFrom<Connector> for PayoutConnectors {
             Connector::Payone => Ok(Self::Payone),
             Connector::Paypal => Ok(Self::Paypal),
             Connector::Stripe => Ok(Self::Stripe),
+            Connector::Truelayer => Ok(Self::Truelayer),
+            Connector::Trustly => Ok(Self::Trustly),
             Connector::Wise => Ok(Self::Wise),
             Connector::Worldpay => Ok(Self::Worldpay),
             Connector::Worldpayxml => Ok(Self::Worldpayxml),
+            Connector::Envoy => Ok(Self::Envoy),
+            Connector::Itaubank => Ok(Self::Itaubank),
             _ => Err(format!("Invalid payout connector {value}")),
         }
     }
@@ -160,6 +187,7 @@ pub enum FrmConnectors {
     /// Signifyd Risk Manager. Official docs: https://docs.signifyd.com/
     Signifyd,
     Riskified,
+    Cybersourcedecisionmanager,
 }
 
 #[derive(
@@ -207,6 +235,18 @@ impl From<VaultConnectors> for Connector {
             VaultConnectors::Vgs => Self::Vgs,
             VaultConnectors::HyperswitchVault => Self::HyperswitchVault,
             VaultConnectors::Tokenex => Self::Tokenex,
+        }
+    }
+}
+
+impl TryFrom<Connector> for VaultConnectors {
+    type Error = String;
+    fn try_from(value: Connector) -> Result<Self, Self::Error> {
+        match value {
+            Connector::Vgs => Ok(Self::Vgs),
+            Connector::HyperswitchVault => Ok(Self::HyperswitchVault),
+            Connector::Tokenex => Ok(Self::Tokenex),
+            _ => Err(format!("Connector {value} is not a valid vault connector")),
         }
     }
 }
@@ -280,6 +320,7 @@ pub enum FieldType {
     UserShippingAddressPincode,
     UserShippingAddressState,
     UserShippingAddressCountry { options: Vec<String> },
+    UserDocumentType { options: Vec<String> },
     UserSocialSecurityNumber,
     UserBlikCode,
     UserBank,
@@ -441,11 +482,6 @@ pub enum RetryAction {
     ManualRetry,
     /// Denotes that the payment is requeued
     Requeue,
-}
-
-#[derive(Clone, Copy)]
-pub enum LockerChoice {
-    HyperswitchCardVault,
 }
 
 #[derive(

@@ -8,10 +8,14 @@ use std::{
 use api_models::{
     admin as admin_api, organization as api_org, user as user_api, user_role as user_role_api,
 };
+use base64::Engine;
 use common_enums::EntityType;
 use common_utils::{
-    crypto::Encryptable, id_type, new_type::MerchantName, pii, type_name,
-    types::keymanager::Identifier,
+    crypto::Encryptable,
+    id_type,
+    new_type::MerchantName,
+    pii, type_name,
+    types::keymanager::{EncryptionTransferRequest, Identifier},
 };
 use diesel_models::{
     enums::{TotpStatus, UserRoleVersion, UserStatus},
@@ -21,12 +25,10 @@ use diesel_models::{
 };
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::api::ApplicationResponse;
-use masking::{ExposeInterface, PeekInterface, Secret};
+use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 use rand::distributions::{Alphanumeric, DistString};
 use time::PrimitiveDateTime;
 use unicode_segmentation::UnicodeSegmentation;
-#[cfg(feature = "keymanager_create")]
-use {base64::Engine, common_utils::types::keymanager::EncryptionTransferRequest};
 
 use crate::{
     consts,
@@ -47,6 +49,7 @@ use crate::{
 pub mod dashboard_metadata;
 pub mod decision_manager;
 pub use decision_manager::*;
+pub mod oidc;
 pub mod user_authentication_method;
 
 use super::{types as domain_types, UserKeyStore};
@@ -269,8 +272,9 @@ impl NewUserOrganization {
 impl TryFrom<user_api::SignUpWithMerchantIdRequest> for NewUserOrganization {
     type Error = error_stack::Report<UserErrors>;
     fn try_from(value: user_api::SignUpWithMerchantIdRequest) -> UserResult<Self> {
+        let org_type = value.organization_type.unwrap_or_default();
         let new_organization = api_org::OrganizationNew::new(
-            common_enums::OrganizationType::Standard,
+            org_type,
             Some(UserCompanyName::new(value.company_name)?.get_secret()),
         );
         let db_organization = ForeignFrom::foreign_from(new_organization);
@@ -416,7 +420,7 @@ pub struct NewUserMerchant {
     company_name: Option<UserCompanyName>,
     new_organization: NewUserOrganization,
     product_type: Option<common_enums::MerchantProductType>,
-    merchant_account_type: Option<common_enums::MerchantAccountRequestType>,
+    merchant_account_type: Option<common_enums::MerchantAccountType>,
 }
 
 impl TryFrom<UserCompanyName> for MerchantName {
@@ -509,6 +513,7 @@ impl NewUserMerchant {
             pm_collect_link_config: None,
             product_type: self.get_product_type(),
             merchant_account_type: self.merchant_account_type,
+            network_tokenization_credentials: None,
         })
     }
 
@@ -614,12 +619,13 @@ impl NewUserMerchant {
             merchant_key_store.clone(),
             merchant_account.clone(),
             merchant_key_store.clone(),
+            None,
         );
 
         Box::pin(admin::create_profile(
             state,
             profile_create_request,
-            platform,
+            platform.get_processor().clone(),
         ))
         .await
         .change_context(UserErrors::InternalServerError)
@@ -669,12 +675,20 @@ impl TryFrom<user_api::SignUpWithMerchantIdRequest> for NewUserMerchant {
         let merchant_id = MerchantId::new(value.company_name.clone())?;
         let new_organization = NewUserOrganization::try_from(value)?;
         let product_type = Some(consts::user::DEFAULT_PRODUCT_TYPE);
+        let merchant_account_type = match new_organization.0.organization_type {
+            common_enums::OrganizationType::Platform => {
+                Some(common_enums::MerchantAccountType::Platform)
+            }
+            common_enums::OrganizationType::Standard => {
+                Some(common_enums::MerchantAccountType::Standard)
+            }
+        };
         Ok(Self {
             company_name,
             merchant_id: id_type::MerchantId::try_from(merchant_id)?,
             new_organization,
             product_type,
-            merchant_account_type: None,
+            merchant_account_type,
         })
     }
 }
@@ -745,7 +759,7 @@ impl TryFrom<UserMerchantCreateRequestWithToken> for NewUserMerchant {
                 user_merchant_create.company_name.clone(),
             )?),
             product_type: user_merchant_create.product_type,
-            merchant_account_type: user_merchant_create.merchant_account_type,
+            merchant_account_type: user_merchant_create.merchant_account_type.map(Into::into),
             new_organization: NewUserOrganization::from((
                 user_from_storage,
                 user_merchant_create,
@@ -782,7 +796,6 @@ pub struct MerchantAccountIdentifier {
 
 #[derive(Clone)]
 pub struct NewUser {
-    user_id: String,
     name: UserName,
     email: UserEmail,
     password: Option<NewUserPassword>,
@@ -804,10 +817,6 @@ impl Deref for NewUserPassword {
 }
 
 impl NewUser {
-    pub fn get_user_id(&self) -> String {
-        self.user_id.clone()
-    }
-
     pub fn get_email(&self) -> UserEmail {
         self.email.clone()
     }
@@ -826,27 +835,60 @@ impl NewUser {
             .map(|password| password.deref().clone())
     }
 
-    pub async fn insert_user_in_db(
+    pub async fn insert_or_reactivate_user_in_db(
         &self,
         db: &dyn GlobalStorageInterface,
     ) -> UserResult<UserFromStorage> {
-        match db.insert_user(self.clone().try_into()?).await {
-            Ok(user) => Ok(user.into()),
+        let existing_user = match db.find_user_by_user_email(&self.get_email()).await {
+            Ok(user) => Some(UserFromStorage::from(user)),
             Err(e) => {
-                if e.current_context().is_db_unique_violation() {
-                    Err(e.change_context(UserErrors::UserExists))
+                if e.current_context().is_db_not_found() {
+                    None
                 } else {
-                    Err(e.change_context(UserErrors::InternalServerError))
+                    return Err(e.change_context(UserErrors::InternalServerError));
                 }
             }
+        };
+
+        if existing_user.as_ref().is_some_and(|user| user.is_active()) {
+            return Err(report!(UserErrors::UserExists));
+        }
+
+        match existing_user {
+            Some(user_from_db) => {
+                let hashed_password = self
+                    .get_password()
+                    .map(|user_password| {
+                        password::generate_password_hash(user_password.get_secret())
+                    })
+                    .transpose()?;
+                let last_password_modified_at =
+                    hashed_password.is_some().then(common_utils::date_time::now);
+                db.reactivate_user_by_user_id(
+                    user_from_db.get_user_id(),
+                    storage_user::ReactivateUserUpdate {
+                        new_name: Some(self.get_name().expose()),
+                        new_password: hashed_password,
+                        last_password_modified_at,
+                    },
+                )
+                .await
+                .map(|user| user.into())
+                .change_context(UserErrors::InternalServerError)
+            }
+            None => db
+                .insert_user(self.clone().try_into()?)
+                .await
+                .map(UserFromStorage::from)
+                .change_context(UserErrors::InternalServerError),
         }
         .attach_printable("Error while inserting user")
     }
 
-    pub async fn check_if_already_exists_in_db(&self, state: SessionState) -> UserResult<()> {
+    pub async fn check_if_user_is_active_in_db(&self, state: SessionState) -> UserResult<()> {
         if state
             .global_store
-            .find_user_by_email(&self.get_email())
+            .find_active_user_by_user_email(&self.get_email())
             .await
             .is_ok()
         {
@@ -859,13 +901,49 @@ impl NewUser {
         &self,
         state: SessionState,
     ) -> UserResult<UserFromStorage> {
-        self.check_if_already_exists_in_db(state.clone()).await?;
+        self.check_if_user_is_active_in_db(state.clone()).await?;
         let db = state.global_store.as_ref();
         let merchant_id = self.get_new_merchant().get_merchant_id();
         self.new_merchant
             .create_new_merchant_and_insert_in_db(state.clone())
             .await?;
-        let created_user = self.insert_user_in_db(db).await;
+
+        // If Platform org, update organization with platform_merchant_id
+        match self.new_merchant.new_organization.0.organization_type {
+            common_enums::OrganizationType::Platform => {
+                common_utils::fp_utils::when(
+                    !matches!(
+                        self.new_merchant.merchant_account_type,
+                        Some(common_enums::MerchantAccountType::Platform)
+                    ),
+                    || {
+                        Err(
+                            report!(UserErrors::InvalidPlatformOperation).attach_printable(
+                                "Merchant account type must be Platform for Platform organization",
+                            ),
+                        )
+                    },
+                )?;
+
+                let org_update =
+                    diesel_models::organization::OrganizationUpdate::UpdatePlatformMerchant {
+                        platform_merchant_id: merchant_id.clone(),
+                    };
+
+                state
+                    .accounts_store
+                    .update_organization_by_org_id(
+                        &self.new_merchant.new_organization.get_organization_id(),
+                        org_update,
+                    )
+                    .await
+                    .change_context(UserErrors::InternalServerError)
+                    .attach_printable("Failed to update organization with platform_merchant_id")?;
+            }
+            common_enums::OrganizationType::Standard => {}
+        }
+
+        let created_user = self.insert_or_reactivate_user_in_db(db).await;
         if created_user.is_err() {
             let _ = admin::merchant_account_delete(state, merchant_id).await;
         };
@@ -876,9 +954,9 @@ impl NewUser {
         self,
         role_id: String,
         user_status: UserStatus,
+        user_id: String,
     ) -> NewUserRole<NoLevel> {
         let now = common_utils::date_time::now();
-        let user_id = self.get_user_id();
 
         NewUserRole {
             status: user_status,
@@ -897,6 +975,7 @@ impl NewUser {
         state: SessionState,
         role_id: String,
         user_status: UserStatus,
+        user_id: String,
     ) -> UserResult<UserRole> {
         let org_id = self
             .get_new_merchant()
@@ -904,7 +983,7 @@ impl NewUser {
             .get_organization_id();
 
         let org_user_role = self
-            .get_no_level_user_role(role_id, user_status)
+            .get_no_level_user_role(role_id, user_status, user_id)
             .add_entity(OrganizationLevel {
                 tenant_id: state.tenant.tenant_id.clone(),
                 org_id,
@@ -926,7 +1005,7 @@ impl TryFrom<NewUser> for storage_user::UserNew {
 
         let now = common_utils::date_time::now();
         Ok(Self {
-            user_id: value.get_user_id(),
+            user_id: uuid::Uuid::new_v4().to_string(),
             name: value.get_name(),
             email: value.get_email().into_inner(),
             password: hashed_password,
@@ -940,6 +1019,7 @@ impl TryFrom<NewUser> for storage_user::UserNew {
                 .password
                 .and_then(|password_inner| password_inner.is_temporary.not().then_some(now)),
             lineage_context: None,
+            is_active: true,
         })
     }
 }
@@ -954,14 +1034,12 @@ impl TryFrom<user_api::SignUpWithMerchantIdRequest> for NewUser {
             password: UserPassword::new(value.password.clone())?,
             is_temporary: false,
         };
-        let user_id = uuid::Uuid::new_v4().to_string();
         let new_merchant = NewUserMerchant::try_from(value)?;
 
         Ok(Self {
             name,
             email,
             password: Some(password),
-            user_id,
             new_merchant,
         })
     }
@@ -971,7 +1049,6 @@ impl TryFrom<user_api::SignUpRequest> for NewUser {
     type Error = error_stack::Report<UserErrors>;
 
     fn try_from(value: user_api::SignUpRequest) -> UserResult<Self> {
-        let user_id = uuid::Uuid::new_v4().to_string();
         let email = value.email.clone().try_into()?;
         let name = UserName::try_from(value.email.clone())?;
         let password = NewUserPassword {
@@ -981,7 +1058,6 @@ impl TryFrom<user_api::SignUpRequest> for NewUser {
         let new_merchant = NewUserMerchant::try_from(value)?;
 
         Ok(Self {
-            user_id,
             name,
             email,
             password: Some(password),
@@ -994,13 +1070,11 @@ impl TryFrom<user_api::ConnectAccountRequest> for NewUser {
     type Error = error_stack::Report<UserErrors>;
 
     fn try_from(value: user_api::ConnectAccountRequest) -> UserResult<Self> {
-        let user_id = uuid::Uuid::new_v4().to_string();
         let email = value.email.clone().try_into()?;
         let name = UserName::try_from(value.email.clone())?;
         let new_merchant = NewUserMerchant::try_from(value)?;
 
         Ok(Self {
-            user_id,
             name,
             email,
             password: None,
@@ -1015,7 +1089,6 @@ impl TryFrom<(user_api::CreateInternalUserRequest, id_type::OrganizationId)> for
     fn try_from(
         (value, org_id): (user_api::CreateInternalUserRequest, id_type::OrganizationId),
     ) -> UserResult<Self> {
-        let user_id = uuid::Uuid::new_v4().to_string();
         let email = value.email.clone().try_into()?;
         let name = UserName::new(value.name.clone())?;
         let password = NewUserPassword {
@@ -1025,7 +1098,6 @@ impl TryFrom<(user_api::CreateInternalUserRequest, id_type::OrganizationId)> for
         let new_merchant = NewUserMerchant::try_from((value, org_id))?;
 
         Ok(Self {
-            user_id,
             name,
             email,
             password: Some(password),
@@ -1034,36 +1106,9 @@ impl TryFrom<(user_api::CreateInternalUserRequest, id_type::OrganizationId)> for
     }
 }
 
-impl TryFrom<UserMerchantCreateRequestWithToken> for NewUser {
-    type Error = error_stack::Report<UserErrors>;
-
-    fn try_from(value: UserMerchantCreateRequestWithToken) -> Result<Self, Self::Error> {
-        let user = value.0.clone();
-        let new_merchant = NewUserMerchant::try_from(value)?;
-        let password = user
-            .0
-            .password
-            .map(UserPassword::new_password_without_validation)
-            .transpose()?
-            .map(|password| NewUserPassword {
-                password,
-                is_temporary: false,
-            });
-
-        Ok(Self {
-            user_id: user.0.user_id,
-            name: UserName::new(user.0.name)?,
-            email: user.0.email.clone().try_into()?,
-            password,
-            new_merchant,
-        })
-    }
-}
-
 impl TryFrom<InviteeUserRequestWithInvitedUserToken> for NewUser {
     type Error = error_stack::Report<UserErrors>;
     fn try_from(value: InviteeUserRequestWithInvitedUserToken) -> UserResult<Self> {
-        let user_id = uuid::Uuid::new_v4().to_string();
         let email = value.0.email.clone().try_into()?;
         let name = UserName::new(value.0.name.clone())?;
         let password = cfg!(not(feature = "email")).then_some(NewUserPassword {
@@ -1073,7 +1118,6 @@ impl TryFrom<InviteeUserRequestWithInvitedUserToken> for NewUser {
         let new_merchant = NewUserMerchant::try_from(value)?;
 
         Ok(Self {
-            user_id,
             name,
             email,
             password,
@@ -1091,7 +1135,6 @@ impl TryFrom<(user_api::CreateTenantUserRequest, MerchantAccountIdentifier)> for
             MerchantAccountIdentifier,
         ),
     ) -> UserResult<Self> {
-        let user_id = uuid::Uuid::new_v4().to_string();
         let email = value.email.clone().try_into()?;
         let name = UserName::new(value.name.clone())?;
         let password = NewUserPassword {
@@ -1101,7 +1144,6 @@ impl TryFrom<(user_api::CreateTenantUserRequest, MerchantAccountIdentifier)> for
         let new_merchant = NewUserMerchant::from((value, merchant_account_identifier));
 
         Ok(Self {
-            user_id,
             name,
             email,
             password: Some(password),
@@ -1172,6 +1214,9 @@ impl UserFromStorage {
     }
 
     pub fn is_password_rotate_required(&self, state: &SessionState) -> UserResult<bool> {
+        if self.0.password.is_none() {
+            return Ok(true);
+        }
         let last_password_modified_at =
             if let Some(last_password_modified_at) = self.0.last_password_modified_at {
                 last_password_modified_at.date()
@@ -1211,25 +1256,22 @@ impl UserFromStorage {
                 .change_context(UserErrors::InternalServerError)
                 .attach_printable("Unable to generate aes 256 key")?;
 
-            #[cfg(feature = "keymanager_create")]
-            {
-                common_utils::keymanager::transfer_key_to_key_manager(
-                    key_manager_state,
-                    EncryptionTransferRequest {
-                        identifier: Identifier::User(self.get_user_id().to_string()),
-                        key: consts::BASE64_ENGINE.encode(key),
-                    },
-                )
-                .await
-                .change_context(UserErrors::InternalServerError)?;
-            }
+            common_utils::keymanager::transfer_key_to_key_manager(
+                key_manager_state,
+                EncryptionTransferRequest {
+                    identifier: Identifier::User(self.get_user_id().to_string()),
+                    key: hyperswitch_masking::StrongSecret::new(consts::BASE64_ENGINE.encode(key)),
+                },
+            )
+            .await
+            .change_context(UserErrors::InternalServerError)?;
 
             let key_store = UserKeyStore {
                 user_id: self.get_user_id().to_string(),
                 key: domain_types::crypto_operation(
                     key_manager_state,
                     type_name!(UserKeyStore),
-                    domain_types::CryptoOperation::Encrypt(key.to_vec().into()),
+                    domain_types::CryptoOperation::EncryptLocally(key.to_vec().into()),
                     Identifier::User(self.get_user_id().to_string()),
                     master_key,
                 )
@@ -1260,6 +1302,10 @@ impl UserFromStorage {
         self.0.totp_recovery_codes.clone()
     }
 
+    pub fn is_active(&self) -> bool {
+        self.0.is_active.unwrap_or(true)
+    }
+
     pub async fn decrypt_and_get_totp_secret(
         &self,
         state: &SessionState,
@@ -1277,17 +1323,19 @@ impl UserFromStorage {
             .await
             .change_context(UserErrors::InternalServerError)?;
 
-        Ok(domain_types::crypto_operation::<String, masking::WithType>(
-            key_manager_state,
-            type_name!(storage_user::User),
-            domain_types::CryptoOperation::DecryptOptional(self.0.totp_secret.clone()),
-            Identifier::User(user_key_store.user_id.clone()),
-            user_key_store.key.peek(),
+        Ok(
+            domain_types::crypto_operation::<String, hyperswitch_masking::WithType>(
+                key_manager_state,
+                type_name!(storage_user::User),
+                domain_types::CryptoOperation::DecryptOptional(self.0.totp_secret.clone()),
+                Identifier::User(user_key_store.user_id.clone()),
+                user_key_store.key.peek(),
+            )
+            .await
+            .and_then(|val| val.try_into_optionaloperation())
+            .change_context(UserErrors::InternalServerError)?
+            .map(Encryptable::into_inner),
         )
-        .await
-        .and_then(|val| val.try_into_optionaloperation())
-        .change_context(UserErrors::InternalServerError)?
-        .map(Encryptable::into_inner))
     }
 }
 

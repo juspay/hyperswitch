@@ -41,9 +41,9 @@ use hyperswitch_interfaces::{
         PaymentsAuthorizeType, PaymentsCaptureType, PaymentsSyncType, RefundExecuteType,
         RefundSyncType, Response,
     },
-    webhooks::{IncomingWebhook, IncomingWebhookRequestDetails},
+    webhooks::{IncomingWebhook, IncomingWebhookRequestDetails, WebhookContext},
 };
-use masking::{Mask as _, Maskable};
+use hyperswitch_masking::{Mask as _, Maskable};
 use transformers as dummyconnector;
 
 use crate::{
@@ -158,6 +158,7 @@ impl<const T: u8> ConnectorCommon for DummyConnector<T> {
             reason: response.error.reason,
             attempt_status: None,
             connector_transaction_id: None,
+            connector_response_reference_id: None,
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
@@ -639,6 +640,7 @@ impl<const T: u8> IncomingWebhook for DummyConnector<T> {
     fn get_webhook_event_type(
         &self,
         _request: &IncomingWebhookRequestDetails<'_>,
+        _context: Option<&WebhookContext>,
     ) -> CustomResult<IncomingWebhookEvent, ConnectorError> {
         Ok(IncomingWebhookEvent::EventNotSupported)
     }
@@ -646,9 +648,11 @@ impl<const T: u8> IncomingWebhook for DummyConnector<T> {
     fn get_webhook_resource_object(
         &self,
         _request: &IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, ConnectorError> {
+    ) -> CustomResult<Box<dyn hyperswitch_masking::ErasedMaskSerialize>, ConnectorError> {
         Err(report!(ConnectorError::WebhooksNotImplemented))
     }
 }
 
 impl<const T: u8> ConnectorSpecifications for DummyConnector<T> {}
+
+impl<const T: u8> hyperswitch_interfaces::api::ConnectorAccessTokenSuffix for DummyConnector<T> {}

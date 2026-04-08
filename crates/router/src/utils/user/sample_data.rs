@@ -61,6 +61,7 @@ pub async fn generate_sample_data(
         key_store.clone(),
         merchant_from_db.clone(),
         key_store,
+        None,
     );
     #[cfg(feature = "v1")]
     let (profile_id_result, business_country_default, business_label_default) = {
@@ -297,6 +298,8 @@ pub async fn generate_sample_data(
             billing_descriptor: None,
             tokenization: None,
             partner_merchant_identifier_details: None,
+            state_metadata: None,
+            installment_options: None,
         };
         let (connector_transaction_id, processor_transaction_data) =
             ConnectorTransactionId::form_id_and_data(attempt_id.clone());
@@ -439,6 +442,8 @@ pub async fn generate_sample_data(
                 organization_id: org_id.clone(),
                 processor_refund_data: None,
                 processor_transaction_data,
+                processor_merchant_id: None,
+                created_by: None,
             })
         } else {
             None
@@ -481,6 +486,8 @@ pub async fn generate_sample_data(
                     dispute_amount: MinorUnit::new(amount * 100),
                     organization_id: org_id.clone(),
                     dispute_currency: Some(payment_intent.currency.unwrap_or_default()),
+                    processor_merchant_id: None,
+                    created_by: None,
                 })
             } else {
                 None

@@ -454,11 +454,13 @@ impl From<errors::ApiErrorResponse> for StripeErrorCode {
         match value {
             errors::ApiErrorResponse::Unauthorized
             | errors::ApiErrorResponse::InvalidJwtToken
+            | errors::ApiErrorResponse::InvalidBasicAuth
             | errors::ApiErrorResponse::GenericUnauthorized { .. }
             | errors::ApiErrorResponse::AccessForbidden { .. }
             | errors::ApiErrorResponse::InvalidCookie
             | errors::ApiErrorResponse::InvalidEphemeralKey
             | errors::ApiErrorResponse::InvalidPaymentIdProvided { .. }
+            | errors::ApiErrorResponse::ExpiredJwtToken
             | errors::ApiErrorResponse::CookieNotFound => Self::Unauthorized,
             errors::ApiErrorResponse::InvalidRequestUrl
             | errors::ApiErrorResponse::InvalidHttpMethod
@@ -865,8 +867,6 @@ impl ErrorSwitch<StripeErrorCode> for errors::ApiErrorResponse {
     }
 }
 
-impl crate::services::EmbedError for error_stack::Report<StripeErrorCode> {}
-
 impl ErrorSwitch<StripeErrorCode> for CustomersErrorResponse {
     fn switch(&self) -> StripeErrorCode {
         use StripeErrorCode as SC;
@@ -879,6 +879,7 @@ impl ErrorSwitch<StripeErrorCode> for CustomersErrorResponse {
             Self::MandateActive => SC::MandateActive,
             Self::CustomerNotFound => SC::CustomerNotFound,
             Self::CustomerAlreadyExists => SC::DuplicateCustomer,
+            Self::AccessForbidden { .. } => SC::Unauthorized,
         }
     }
 }

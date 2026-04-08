@@ -1,6 +1,5 @@
-use masking::Secret;
+use hyperswitch_masking::Secret;
 use serde::{Deserialize, Serialize};
-
 // PaymentsResponse
 #[derive(Default, Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "lowercase")]
@@ -19,6 +18,12 @@ pub enum PayloadPaymentStatus {
 pub enum PayloadPaymentsResponse {
     PayloadCardsResponse(PayloadCardsResponseData),
 }
+
+/// Newtype wrapping `PayloadPaymentsResponse` for the PostCaptureVoid flow.
+/// A distinct type is required so its `TryFrom` impl does not conflict with
+/// the blanket `TryFrom<ResponseRouterData<F, PayloadPaymentsResponse, ...>>` impl.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PayloadPostCaptureVoidResponse(pub PayloadPaymentsResponse);
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "snake_case")]
@@ -124,6 +129,31 @@ pub enum PayloadWebhooksTrigger {
     #[serde(rename = "transaction:operation:clear")]
     TransactionOperationClear,
 }
+impl PayloadWebhooksTrigger {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            Self::Payment => "payment",
+            Self::Processed => "processed",
+            Self::Authorized => "authorized",
+            Self::Credit => "credit",
+            Self::Refund => "refund",
+            Self::Reversal => "reversal",
+            Self::Void => "void",
+            Self::AutomaticPayment => "automatic_payment",
+            Self::Decline => "decline",
+            Self::Deposit => "deposit",
+            Self::Reject => "reject",
+            Self::PaymentActivationStatus => "payment_activation:status",
+            Self::PaymentLinkStatus => "payment_link:status",
+            Self::ProcessingStatus => "processing_status",
+            Self::BankAccountReject => "bank_account_reject",
+            Self::Chargeback => "chargeback",
+            Self::ChargebackReversal => "chargeback_reversal",
+            Self::TransactionOperation => "transaction:operation",
+            Self::TransactionOperationClear => "transaction:operation:clear",
+        }
+    }
+}
 
 // Webhook response structures
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -143,4 +173,30 @@ pub struct PayloadEventDetails {
     pub transaction_id: Option<String>,
     pub object: String,
     pub value: Option<serde_json::Value>, // Changed to handle any value type including null
+}
+
+// Response struct for ACH SetupMandate using /payment_methods API
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PayloadPaymentMethodResponse {
+    pub id: String, // Payment method ID (pm_xxx)
+    pub account_holder: Option<Secret<String>>,
+    pub customer_id: String, // Same as account_id sent
+    pub verification_status: PayloadVerificationStatus,
+    pub status: String, // "active"
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "kebab-case")]
+pub enum PayloadVerificationStatus {
+    Verified,
+    OwnerVerified,
+    NotVerified,
+    #[serde(other)]
+    Other,
+}
+
+impl PayloadVerificationStatus {
+    pub fn is_verified(&self) -> bool {
+        matches!(self, Self::Verified | Self::OwnerVerified)
+    }
 }

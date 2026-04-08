@@ -39,6 +39,8 @@ pub struct PayoutAttempt {
     pub additional_payout_method_data: Option<payout_method_utils::AdditionalPayoutMethodData>,
     pub merchant_order_reference_id: Option<String>,
     pub payout_connector_metadata: Option<pii::SecretSerdeValue>,
+    pub processor_merchant_id: Option<common_utils::id_type::MerchantId>,
+    pub created_by: Option<String>,
 }
 
 #[derive(
@@ -80,6 +82,8 @@ pub struct PayoutAttemptNew {
     pub additional_payout_method_data: Option<payout_method_utils::AdditionalPayoutMethodData>,
     pub merchant_order_reference_id: Option<String>,
     pub payout_connector_metadata: Option<pii::SecretSerdeValue>,
+    pub processor_merchant_id: Option<common_utils::id_type::MerchantId>,
+    pub created_by: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -110,6 +114,14 @@ pub enum PayoutAttemptUpdate {
     },
     AdditionalPayoutMethodDataUpdate {
         additional_payout_method_data: Option<payout_method_utils::AdditionalPayoutMethodData>,
+    },
+    ManualUpdate {
+        status: Option<storage_enums::PayoutStatus>,
+        error_code: Option<String>,
+        error_message: Option<String>,
+        unified_code: Option<UnifiedCode>,
+        unified_message: Option<UnifiedMessage>,
+        connector_payout_id: Option<String>,
     },
 }
 
@@ -216,6 +228,22 @@ impl From<PayoutAttemptUpdate> for PayoutAttemptUpdateInternal {
                 additional_payout_method_data,
             } => Self {
                 additional_payout_method_data,
+                ..Default::default()
+            },
+            PayoutAttemptUpdate::ManualUpdate {
+                status,
+                error_code,
+                error_message,
+                unified_code,
+                unified_message,
+                connector_payout_id,
+            } => Self {
+                status,
+                error_code,
+                error_message,
+                unified_code,
+                unified_message,
+                connector_payout_id,
                 ..Default::default()
             },
         }

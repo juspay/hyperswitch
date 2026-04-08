@@ -2,13 +2,14 @@ use common_utils::{
     consts::DEFAULT_LOCALE,
     ext_traits::{OptionExt, ValueExt},
 };
+use hyperswitch_domain_models::payments::HeaderPayload;
 use scheduler::{
     consumer::{self, workflows::ProcessTrackerWorkflow},
     errors,
 };
 
 use crate::{
-    core::payouts,
+    core::{configs, payouts},
     errors as core_errors,
     routes::SessionState,
     types::{api, domain, storage},
@@ -34,6 +35,9 @@ impl ProcessTrackerWorkflow<SessionState> for AttachPayoutAccountWorkflow {
             .merchant_id
             .clone()
             .get_required_value("merchant_id")?;
+        let dimensions =
+            configs::dimension_state::Dimensions::new().with_merchant_id(merchant_id.clone());
+
         let key_store = db
             .get_merchant_key_store_by_merchant_id(
                 &merchant_id,
@@ -52,6 +56,7 @@ impl ProcessTrackerWorkflow<SessionState> for AttachPayoutAccountWorkflow {
             key_store.clone(),
             merchant_account,
             key_store,
+            None,
         );
         let mut payout_data = Box::pin(payouts::make_payout_data(
             state,
@@ -62,7 +67,16 @@ impl ProcessTrackerWorkflow<SessionState> for AttachPayoutAccountWorkflow {
         ))
         .await?;
 
-        payouts::payouts_core(state, &platform, &mut payout_data, None, None).await?;
+        payouts::payouts_core(
+            state,
+            &platform,
+            HeaderPayload::default(),
+            &mut payout_data,
+            None,
+            None,
+            dimensions,
+        )
+        .await?;
 
         Ok(())
     }

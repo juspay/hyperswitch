@@ -1,10 +1,13 @@
+pub mod dimension_config;
+pub mod dimension_state;
 use common_utils::errors::CustomResult;
 use error_stack::ResultExt;
-use external_services::superposition::ConfigContext;
+use external_services::superposition::{self, ConfigContext};
 
 use crate::{
     core::errors::{self, utils::StorageErrorExt, RouterResponse},
-    routes::SessionState,
+    db,
+    routes::{metrics, SessionState},
     services::ApplicationResponse,
     types::{api, transformers::ForeignInto},
 };
@@ -53,224 +56,242 @@ pub async fn config_delete(state: SessionState, key: String) -> RouterResponse<a
     Ok(ApplicationResponse::Json(config.foreign_into()))
 }
 
-/// Get a boolean configuration value with superposition and database fallback
-pub async fn get_config_bool(
-    state: &SessionState,
-    superposition_key: &str,
-    db_key: &str,
-    context: Option<ConfigContext>,
-    default_value: bool,
-) -> CustomResult<bool, errors::StorageError> {
-    // Try superposition first if available
-    let superposition_result = if let Some(ref superposition_client) = state.superposition_service {
-        match superposition_client
-            .get_bool_value(superposition_key, context.as_ref())
-            .await
-        {
-            Ok(value) => Some(value),
-            Err(err) => {
-                router_env::logger::warn!(
-                    "Failed to retrieve config from superposition, falling back to database: {:?}",
-                    err
-                );
-                None
-            }
-        }
-    } else {
-        None
-    };
+/// Trait for types that can be stored and retrieved as a configuration value
+pub trait ConfigType: Sized {
+    /// Parse the value from database string representation
+    fn from_config_str(config_str: &str) -> CustomResult<Self, errors::StorageError>;
 
-    // Use superposition result or fall back to database
-    if let Some(value) = superposition_result {
-        Ok(value)
-    } else {
-        let config = state
-            .store
-            .find_config_by_key_unwrap_or(db_key, Some(default_value.to_string()))
-            .await?;
+    /// Convert the value to a string for database storage
+    fn to_config_string(&self) -> CustomResult<String, errors::StorageError>;
+}
 
-        config
-            .config
-            .parse::<bool>()
+impl ConfigType for String {
+    fn from_config_str(config_str: &str) -> CustomResult<Self, errors::StorageError> {
+        Ok(config_str.to_string())
+    }
+
+    fn to_config_string(&self) -> CustomResult<String, errors::StorageError> {
+        Ok(self.clone())
+    }
+}
+
+impl ConfigType for bool {
+    fn from_config_str(config_str: &str) -> CustomResult<Self, errors::StorageError> {
+        config_str
+            .parse::<Self>()
             .change_context(errors::StorageError::DeserializationFailed)
     }
-}
 
-/// Get a string configuration value with superposition and database fallback
-pub async fn get_config_string(
-    state: &SessionState,
-    superposition_key: &str,
-    db_key: &str,
-    context: Option<ConfigContext>,
-    default_value: String,
-) -> CustomResult<String, errors::StorageError> {
-    // Try superposition first if available
-    let superposition_result = if let Some(ref superposition_client) = state.superposition_service {
-        match superposition_client
-            .get_string_value(superposition_key, context.as_ref())
-            .await
-        {
-            Ok(value) => Some(value),
-            Err(err) => {
-                router_env::logger::warn!(
-                    "Failed to retrieve config from superposition, falling back to database: {:?}",
-                    err
-                );
-                None
-            }
-        }
-    } else {
-        None
-    };
-
-    // Use superposition result or fall back to database
-    if let Some(value) = superposition_result {
-        Ok(value)
-    } else {
-        let config = state
-            .store
-            .find_config_by_key_unwrap_or(db_key, Some(default_value))
-            .await?;
-
-        Ok(config.config)
+    fn to_config_string(&self) -> CustomResult<String, errors::StorageError> {
+        Ok(self.to_string())
     }
 }
 
-/// Get an integer configuration value with superposition and database fallback
-pub async fn get_config_int(
-    state: &SessionState,
-    superposition_key: &str,
-    db_key: &str,
-    context: Option<ConfigContext>,
-    default_value: i64,
-) -> CustomResult<i64, errors::StorageError> {
-    // Try superposition first if available
-    let superposition_result = if let Some(ref superposition_client) = state.superposition_service {
-        match superposition_client
-            .get_int_value(superposition_key, context.as_ref())
-            .await
-        {
-            Ok(value) => Some(value),
-            Err(err) => {
-                router_env::logger::warn!(
-                    "Failed to retrieve config from superposition, falling back to database: {:?}",
-                    err
-                );
-                None
-            }
-        }
-    } else {
-        None
-    };
-
-    // Use superposition result or fall back to database
-    if let Some(value) = superposition_result {
-        Ok(value)
-    } else {
-        let config = state
-            .store
-            .find_config_by_key_unwrap_or(db_key, Some(default_value.to_string()))
-            .await?;
-
-        config
-            .config
-            .parse::<i64>()
+impl ConfigType for i64 {
+    fn from_config_str(config_str: &str) -> CustomResult<Self, errors::StorageError> {
+        config_str
+            .parse::<Self>()
             .change_context(errors::StorageError::DeserializationFailed)
     }
-}
 
-/// Get a float configuration value with superposition and database fallback
-pub async fn get_config_float(
-    state: &SessionState,
-    superposition_key: &str,
-    db_key: &str,
-    context: Option<ConfigContext>,
-    default_value: f64,
-) -> CustomResult<f64, errors::StorageError> {
-    // Try superposition first if available
-    let superposition_result = if let Some(ref superposition_client) = state.superposition_service {
-        match superposition_client
-            .get_float_value(superposition_key, context.as_ref())
-            .await
-        {
-            Ok(value) => Some(value),
-            Err(err) => {
-                router_env::logger::warn!(
-                    "Failed to retrieve config from superposition, falling back to database: {:?}",
-                    err
-                );
-                None
-            }
-        }
-    } else {
-        None
-    };
-
-    // Use superposition result or fall back to database
-    if let Some(value) = superposition_result {
-        Ok(value)
-    } else {
-        let config = state
-            .store
-            .find_config_by_key_unwrap_or(db_key, Some(default_value.to_string()))
-            .await?;
-
-        config
-            .config
-            .parse::<f64>()
-            .change_context(errors::StorageError::DeserializationFailed)
+    fn to_config_string(&self) -> CustomResult<String, errors::StorageError> {
+        Ok(self.to_string())
     }
 }
 
-/// Get an object configuration value with superposition and database fallback
-pub async fn get_config_object<T>(
-    state: &SessionState,
-    superposition_key: &str,
-    db_key: &str,
-    context: Option<ConfigContext>,
-    default_value: T,
-) -> CustomResult<T, errors::StorageError>
+impl ConfigType for f64 {
+    fn from_config_str(config_str: &str) -> CustomResult<Self, errors::StorageError> {
+        config_str
+            .parse::<Self>()
+            .change_context(errors::StorageError::DeserializationFailed)
+    }
+
+    fn to_config_string(&self) -> CustomResult<String, errors::StorageError> {
+        Ok(self.to_string())
+    }
+}
+
+impl ConfigType for serde_json::Value {
+    fn from_config_str(config_str: &str) -> CustomResult<Self, errors::StorageError> {
+        serde_json::from_str(config_str).change_context(errors::StorageError::DeserializationFailed)
+    }
+
+    fn to_config_string(&self) -> CustomResult<String, errors::StorageError> {
+        serde_json::to_string(self).change_context(errors::StorageError::SerializationFailed)
+    }
+}
+
+/// Fetch configuration value from Superposition with database fallback using dimension-aware key.
+/// This function accepts any type that implements DimensionsBase (including type aliases).
+/// This allows configs to be used with pre-defined dimension type aliases like DimensionsWithMerchantId or DimensionsWithMerchantIdAndProfileId.
+pub async fn fetch_db_config_for_dimensions<C>(
+    storage: &dyn db::StorageInterface,
+    superposition_client: &superposition::SuperpositionClient,
+    dimensions: &impl dimension_state::DimensionsBase,
+    targeting_key: Option<&C::TargetingKey>,
+) -> C::Output
 where
-    T: serde::de::DeserializeOwned + serde::Serialize,
+    C: DatabaseBackedConfig,
+    C::Output: ConfigType,
+    open_feature::Client: superposition::GetValue<C::Output>,
 {
-    // Try superposition first if available
-    let superposition_result = if let Some(ref superposition_client) = state.superposition_service {
-        match superposition_client
-            .get_object_value(superposition_key, context.as_ref())
-            .await
-        {
-            Ok(json_value) => Some(
-                serde_json::from_value::<T>(json_value)
-                    .change_context(errors::StorageError::DeserializationFailed),
-            ),
-            Err(err) => {
-                router_env::logger::warn!(
-                    "Failed to retrieve config from superposition, falling back to database: {:?}",
-                    err
+    let db_key = <C as DatabaseBackedConfig>::db_key(dimensions);
+    let context = dimensions.to_superposition_context();
+
+    fetch_db_config::<C>(
+        storage,
+        superposition_client,
+        db_key.as_deref(),
+        context,
+        targeting_key,
+    )
+    .await
+}
+
+/// This trait extends external_services::superposition::Config with database-specific metadata
+/// and enforces that implementations must provide db_key construction.
+pub trait DatabaseBackedConfig: superposition::Config {
+    /// The database key prefix/suffix for this config
+    const KEY: &'static str;
+
+    /// Generate the database key for this config based on dimensions
+    fn db_key(dimensions: &impl dimension_state::DimensionsBase) -> Option<String>;
+}
+
+/// Fetch configuration value from Superposition with database fallback.
+/// This function is specifically for DatabaseBackedConfig types and enforces
+/// that database fallback is used when superposition fetch fails.
+pub async fn fetch_db_config<C>(
+    storage: &dyn db::StorageInterface,
+    superposition_client: &superposition::SuperpositionClient,
+    db_key: Option<&str>,
+    context: Option<ConfigContext>,
+    targeting_key: Option<&C::TargetingKey>,
+) -> C::Output
+where
+    C: DatabaseBackedConfig,
+    C::Output: ConfigType,
+    open_feature::Client: superposition::GetValue<C::Output>,
+{
+    let config_type = C::KEY;
+    let default_value = C::default_value();
+
+    let superposition_result = C::fetch(superposition_client, context, targeting_key).await;
+
+    match superposition_result {
+        Ok(value) => value,
+        Err(_) => match db_key {
+            Some(db_key) => {
+                router_env::logger::info!(
+                    "Retrieving config from database for key '{}'",
+                    config_type
                 );
-                None
+
+                let config_result = storage
+                    .find_config_by_key_unwrap_or(
+                        db_key,
+                        Some(default_value.to_config_string().unwrap_or_default()),
+                    )
+                    .await;
+
+                match config_result
+                    .ok()
+                    .and_then(|config| C::Output::from_config_str(&config.config).ok())
+                {
+                    Some(value) => {
+                        metrics::CONFIG_DATABASE_FETCH.add(
+                            1,
+                            router_env::metric_attributes!(("config_type", config_type)),
+                        );
+                        value
+                    }
+                    None => {
+                        router_env::logger::info!(
+                            "Using default config value for key '{}'",
+                            config_type
+                        );
+                        metrics::CONFIG_DEFAULT_FALLBACK.add(
+                            1,
+                            router_env::metric_attributes!(("config_type", config_type)),
+                        );
+                        default_value
+                    }
+                }
             }
-        }
-    } else {
-        None
-    };
-
-    // Use superposition result or fall back to database
-    if let Some(superposition_result) = superposition_result {
-        superposition_result
-    } else {
-        let config = state
-            .store
-            .find_config_by_key_unwrap_or(
-                db_key,
-                Some(
-                    serde_json::to_string(&default_value)
-                        .change_context(errors::StorageError::SerializationFailed)?,
-                ),
-            )
-            .await?;
-
-        serde_json::from_str::<T>(&config.config)
-            .change_context(errors::StorageError::DeserializationFailed)
+            None => {
+                router_env::logger::info!(
+                    "No database key provided for config '{}', using default value",
+                    config_type
+                );
+                metrics::CONFIG_DEFAULT_FALLBACK.add(
+                    1,
+                    router_env::metric_attributes!(("config_type", config_type)),
+                );
+                default_value
+            }
+        },
     }
+}
+
+/// Fetch object-type config with JSON-to-Type conversion.
+/// Used when Config Output is serde_json::Value but caller wants a specific type.
+pub async fn fetch_db_config_object<C, T>(
+    storage: &dyn db::StorageInterface,
+    superposition_client: &superposition::SuperpositionClient,
+    db_key: Option<&str>,
+    context: Option<ConfigContext>,
+    targeting_key: Option<&C::TargetingKey>,
+) -> T
+where
+    C: DatabaseBackedConfig<Output = serde_json::Value>,
+    T: for<'de> serde::Deserialize<'de> + Default,
+    open_feature::Client: superposition::GetValue<serde_json::Value>,
+{
+    let json_value = fetch_db_config::<C>(
+        storage,
+        superposition_client,
+        db_key,
+        context,
+        targeting_key,
+    )
+    .await;
+    let config_type = C::KEY;
+
+    serde_json::from_value(json_value).unwrap_or_else(|e| {
+        router_env::logger::error!(
+            "Failed to deserialize {}: {:?}, using default",
+            stringify!(T),
+            e
+        );
+        metrics::CONFIG_DEFAULT_FALLBACK.add(
+            1,
+            router_env::metric_attributes!(("config_type", config_type)),
+        );
+        T::default()
+    })
+}
+
+/// Fetch dimension-aware object-type config with JSON deserialization.
+pub async fn fetch_db_config_for_objects<C, T>(
+    storage: &dyn db::StorageInterface,
+    superposition_client: &superposition::SuperpositionClient,
+    dimensions: &impl dimension_state::DimensionsBase,
+    targeting_key: Option<&C::TargetingKey>,
+) -> T
+where
+    C: DatabaseBackedConfig<Output = serde_json::Value>,
+    T: for<'de> serde::Deserialize<'de> + Default,
+    open_feature::Client: superposition::GetValue<serde_json::Value>,
+{
+    let db_key = <C as DatabaseBackedConfig>::db_key(dimensions);
+    let context = dimensions.to_superposition_context();
+
+    fetch_db_config_object::<C, T>(
+        storage,
+        superposition_client,
+        db_key.as_deref(),
+        context,
+        targeting_key,
+    )
+    .await
 }

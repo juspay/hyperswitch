@@ -9,7 +9,7 @@ license.workspace = true
 
 [features]
 default = ["olap", "frm"]
-encryption_service = []
+encryption_service = ["common_utils/encryption_service"]
 olap = []
 payouts = ["api_models/payouts"]
 frm = ["api_models/frm"]
@@ -24,10 +24,10 @@ revenue_recovery= []
 api_models = { version = "0.1.0", path = "../api_models", features = ["errors"] }
 cards = { version = "0.1.0", path = "../cards" }
 common_enums = { version = "0.1.0", path = "../common_enums" }
-common_utils = { version = "0.1.0", path = "../common_utils", features = ["async_ext", "metrics", "encryption_service", "keymanager"] }
+common_utils = { version = "0.1.0", path = "../common_utils", features = ["async_ext", "metrics", "keymanager"] }
 common_types = { version = "0.1.0", path = "../common_types" }
 diesel_models = { version = "0.1.0", path = "../diesel_models", features = ["kv_store"], default-features = false }
-masking = { version = "0.1.0", path = "../masking" }
+hyperswitch_masking = "0.0.1"
 payment_link = { version = "0.1.0", path = "../payment_link", default-features = false }
 router_derive = { version = "0.1.0", path = "../router_derive" }
 router_env = { version = "0.1.0", path = "../router_env" }
@@ -35,6 +35,7 @@ router_env = { version = "0.1.0", path = "../router_env" }
 # Third party deps
 actix-web = "4.11.0"
 async-trait = "0.1.88"
+base64 = "0.22.1"
 error-stack = "0.4.1"
 futures = "0.3.31"
 http = "0.2.12"

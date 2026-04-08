@@ -25,7 +25,7 @@ mod business_profile {
 }
 
 mod platform {
-    pub use hyperswitch_domain_models::platform::{Platform, Processor, Provider};
+    pub use hyperswitch_domain_models::platform::{Initiator, Platform, Processor, Provider};
 }
 mod customers {
     pub use hyperswitch_domain_models::customer::*;
@@ -33,10 +33,6 @@ mod customers {
 
 pub mod callback_mapper {
     pub use hyperswitch_domain_models::callback_mapper::CallbackMapper;
-}
-
-mod network_tokenization {
-    pub use hyperswitch_domain_models::network_tokenization::*;
 }
 
 #[cfg(feature = "v2")]
@@ -68,6 +64,10 @@ pub mod authentication {
     pub use hyperswitch_domain_models::router_request_types::authentication::*;
 }
 
+pub mod merchant_connector_webhook_management {
+    pub use hyperswitch_domain_models::router_request_types::merchant_connector_webhook_management::*;
+}
+
 #[cfg(feature = "v2")]
 pub mod vault {
     pub use hyperswitch_domain_models::vault::*;
@@ -94,8 +94,8 @@ pub use callback_mapper::*;
 pub use consts::*;
 pub use event::*;
 pub use merchant_connector_account::*;
+pub use merchant_connector_webhook_management::*;
 pub use merchant_key_store::*;
-pub use network_tokenization::*;
 pub use payment_attempt::*;
 pub use payment_method_data::*;
 pub use payment_methods::*;

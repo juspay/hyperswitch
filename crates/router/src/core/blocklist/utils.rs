@@ -1,9 +1,9 @@
 use api_models::blocklist as api_blocklist;
 use common_enums::MerchantDecision;
 use common_utils::errors::CustomResult;
-use diesel_models::configs;
+use diesel_models::{business_profile::CardBlockingConfig, configs};
 use error_stack::ResultExt;
-use masking::StrongSecret;
+use hyperswitch_masking::StrongSecret;
 
 use super::{errors, transformers::generate_fingerprint, SessionState};
 use crate::{
@@ -91,20 +91,36 @@ pub async fn list_blocklist_entries_for_merchant(
     state: &SessionState,
     merchant_id: &common_utils::id_type::MerchantId,
     query: api_blocklist::ListBlocklistQuery,
-) -> RouterResult<Vec<api_blocklist::BlocklistResponse>> {
-    state
+) -> RouterResult<api_blocklist::ListBlocklistResponse> {
+    let entries = state
         .store
         .list_blocklist_entries_by_merchant_id_data_kind(
             merchant_id,
-            query.data_kind,
+            query.data_kind.clone(),
             query.limit.into(),
             query.offset.into(),
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::GenericNotFoundError {
             message: "no blocklist records found".to_string(),
-        })
-        .map(|v| v.into_iter().map(ForeignInto::foreign_into).collect())
+        })?;
+
+    let total_count = state
+        .store
+        .get_blocklist_entries_count_by_merchant_id_data_kind(merchant_id, query.data_kind)
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::GenericNotFoundError {
+            message: "no blocklist records found".to_string(),
+        })?;
+
+    let data: Vec<api_blocklist::BlocklistResponse> =
+        entries.into_iter().map(ForeignInto::foreign_into).collect();
+
+    Ok(api_blocklist::ListBlocklistResponse {
+        count: data.len(),
+        total_count,
+        data,
+    })
 }
 
 fn validate_card_bin(bin: &str) -> RouterResult<()> {
@@ -292,21 +308,21 @@ async fn delete_card_bin_blocklist_entry(
 
 pub async fn should_payment_be_blocked(
     state: &SessionState,
-    platform: &domain::Platform,
-    payment_method_data: &Option<domain::PaymentMethodData>,
+    processor: &domain::Processor,
+    payment_method_data: &Option<domain::EligibilityPaymentMethodData>,
+    business_profile: &domain::Profile,
 ) -> CustomResult<bool, errors::ApiErrorResponse> {
     let db = &state.store;
-    let merchant_id = platform.get_processor().get_account().get_id();
+    let merchant_id = processor.get_account().get_id();
     let merchant_fingerprint_secret = get_merchant_fingerprint_secret(state, merchant_id).await?;
 
     // Hashed Fingerprint to check whether or not this payment should be blocked.
     let card_number_fingerprint =
-        if let Some(domain::PaymentMethodData::Card(card)) = payment_method_data {
+        if let Some(domain::EligibilityPaymentMethodData::Card(card)) = payment_method_data {
             generate_fingerprint(
                 state,
                 StrongSecret::new(card.card_number.get_card_no()),
                 StrongSecret::new(merchant_fingerprint_secret.clone()),
-                api_models::enums::LockerChoice::HyperswitchCardVault,
             )
             .await
             .attach_printable("error in pm fingerprint creation")
@@ -326,7 +342,9 @@ pub async fn should_payment_be_blocked(
     let card_bin_fingerprint = payment_method_data
         .as_ref()
         .and_then(|pm_data| match pm_data {
-            domain::PaymentMethodData::Card(card) => Some(card.card_number.get_card_isin()),
+            domain::EligibilityPaymentMethodData::Card(card) => {
+                Some(card.card_number.get_card_isin())
+            }
             _ => None,
         });
 
@@ -335,7 +353,7 @@ pub async fn should_payment_be_blocked(
         payment_method_data
             .as_ref()
             .and_then(|pm_data| match pm_data {
-                domain::PaymentMethodData::Card(card) => {
+                domain::EligibilityPaymentMethodData::Card(card) => {
                     Some(card.card_number.get_extended_card_bin())
                 }
                 _ => None,
@@ -379,35 +397,54 @@ pub async fn should_payment_be_blocked(
             }
         }
     }
+
+    if !should_payment_be_blocked
+        && payment_method_data
+            .as_ref()
+            .is_some_and(|pmd| pmd.is_eligible_for_profile_config_blocklist())
+    {
+        should_payment_be_blocked = should_payment_be_blocked_by_profile_config(
+            state,
+            payment_method_data,
+            business_profile,
+        )
+        .await?;
+    }
+
     Ok(should_payment_be_blocked)
 }
 
 pub async fn validate_data_for_blocklist<F>(
     state: &SessionState,
-    platform: &domain::Platform,
+    processor: &domain::Processor,
     payment_data: &mut PaymentData<F>,
+    business_profile: &domain::Profile,
 ) -> CustomResult<bool, errors::ApiErrorResponse>
 where
     F: Send + Clone,
 {
     let db = &state.store;
-    let should_payment_be_blocked =
-        should_payment_be_blocked(state, platform, &payment_data.payment_method_data).await?;
-    if should_payment_be_blocked {
-        // Update db for attempt and intent status.
+    let should_block = should_payment_be_blocked(
+        state,
+        processor,
+        &payment_data
+            .payment_method_data
+            .clone()
+            .map(domain::EligibilityPaymentMethodData::from),
+        business_profile,
+    )
+    .await?;
+
+    if should_block {
         db.update_payment_intent(
             payment_data.payment_intent.clone(),
             storage::PaymentIntentUpdate::RejectUpdate {
                 status: common_enums::IntentStatus::Failed,
                 merchant_decision: Some(MerchantDecision::Rejected.to_string()),
-                updated_by: platform
-                    .get_processor()
-                    .get_account()
-                    .storage_scheme
-                    .to_string(),
+                updated_by: processor.get_account().storage_scheme.to_string(),
             },
-            platform.get_processor().get_key_store(),
-            platform.get_processor().get_account().storage_scheme,
+            processor.get_key_store(),
+            processor.get_account().storage_scheme,
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
@@ -420,17 +457,13 @@ where
             status: common_enums::AttemptStatus::Failure,
             error_code: Some(Some("HE-03".to_string())),
             error_message: Some(Some("This payment method is blocked".to_string())),
-            updated_by: platform
-                .get_processor()
-                .get_account()
-                .storage_scheme
-                .to_string(),
+            updated_by: processor.get_account().storage_scheme.to_string(),
         };
         db.update_payment_attempt_with_attempt_id(
             payment_data.payment_attempt.clone(),
             attempt_update,
-            platform.get_processor().get_account().storage_scheme,
-            platform.get_processor().get_key_store(),
+            processor.get_account().storage_scheme,
+            processor.get_key_store(),
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
@@ -456,6 +489,85 @@ where
     }
 }
 
+pub async fn should_payment_be_blocked_by_profile_config(
+    state: &SessionState,
+    payment_method_data: &Option<domain::EligibilityPaymentMethodData>,
+    business_profile: &domain::Profile,
+) -> CustomResult<bool, errors::ApiErrorResponse> {
+    let mut should_block = false;
+
+    let card_config = business_profile
+        .payment_method_blocking
+        .as_ref()
+        .and_then(|config| config.card.as_ref());
+
+    let card_isin = payment_method_data
+        .as_ref()
+        .and_then(|pm_data| match pm_data {
+            domain::EligibilityPaymentMethodData::Card(card) => {
+                Some(card.card_number.get_card_isin())
+            }
+            _ => None,
+        });
+
+    if let (Some(card_config), Some(card_isin)) = (card_config, card_isin) {
+        let card_info = state
+            .store
+            .get_card_info(&card_isin)
+            .await
+            .map_err(|error| logger::warn!(card_info_error=?error))
+            .ok()
+            .flatten();
+
+        match card_info {
+            None => {
+                should_block = card_config.should_block_if_bin_info_unavailable();
+            }
+            Some(info) => {
+                should_block = CardBlockingConfig::should_block_by_attribute(
+                    &card_config.issuing_country,
+                    info.country_code.as_deref(),
+                ) || CardBlockingConfig::should_block_by_attribute(
+                    &card_config.card_types,
+                    info.card_type.as_deref(),
+                ) || CardBlockingConfig::should_block_by_attribute(
+                    &card_config.card_subtypes,
+                    info.card_subtype.as_deref(),
+                );
+
+                // Check card issuer — profile stores IDs, cards_info has name
+                if !should_block {
+                    if let (Some(blocked_ids), Some(issuer_name)) =
+                        (&card_config.issuers, &info.card_issuer)
+                    {
+                        let issuer_ids = blocked_ids
+                            .iter()
+                            .filter_map(|id| {
+                                common_utils::id_type::CardIssuerId::try_from_string(id.clone())
+                                    .ok()
+                            })
+                            .collect();
+                        let resolved_names = state
+                            .store
+                            .get_card_issuers_by_ids(issuer_ids)
+                            .await
+                            .map_err(|error| logger::warn!(card_issuer_lookup_error=?error))
+                            .unwrap_or_default()
+                            .into_iter()
+                            .map(|i| i.issuer_name)
+                            .collect::<std::collections::HashSet<_>>();
+                        if resolved_names.contains(issuer_name.as_str()) {
+                            should_block = true;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    Ok(should_block)
+}
+
 pub async fn generate_payment_fingerprint(
     state: &SessionState,
     merchant_id: common_utils::id_type::MerchantId,
@@ -469,7 +581,6 @@ pub async fn generate_payment_fingerprint(
                 state,
                 StrongSecret::new(card.card_number.get_card_no()),
                 StrongSecret::new(merchant_fingerprint_secret),
-                api_models::enums::LockerChoice::HyperswitchCardVault,
             )
             .await
             .attach_printable("error in pm fingerprint creation")

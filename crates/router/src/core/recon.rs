@@ -3,7 +3,7 @@ use api_models::recon as recon_api;
 use common_utils::{ext_traits::AsyncExt, types::user::ThemeLineage};
 use error_stack::ResultExt;
 #[cfg(feature = "email")]
-use masking::{ExposeInterface, PeekInterface, Secret};
+use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 
 #[cfg(feature = "email")]
 use crate::{
@@ -147,7 +147,7 @@ pub async fn generate_recon_token(
 
 pub async fn recon_merchant_account_update(
     state: SessionState,
-    auth: authentication::AuthenticationData,
+    processor: domain::Processor,
     req: recon_api::ReconUpdateMerchantRequest,
 ) -> RouterResponse<api_types::MerchantAccountResponse> {
     let db = &*state.store;
@@ -155,13 +155,13 @@ pub async fn recon_merchant_account_update(
     let updated_merchant_account = storage::MerchantAccountUpdate::ReconUpdate {
         recon_status: req.recon_status,
     };
-    let merchant_id = auth.merchant_account.get_id().clone();
+    let merchant_id = processor.get_account().get_id().clone();
 
     let updated_merchant_account = db
         .update_merchant(
-            auth.merchant_account.clone(),
+            processor.get_account().clone(),
             updated_merchant_account,
-            &auth.key_store,
+            processor.get_key_store(),
         )
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -177,7 +177,7 @@ pub async fn recon_merchant_account_update(
             &state.clone(),
             ThemeLineage::Merchant {
                 tenant_id: state.tenant.tenant_id.clone(),
-                org_id: auth.merchant_account.get_org_id().clone(),
+                org_id: processor.get_account().get_org_id().clone(),
                 merchant_id: merchant_id.clone(),
             },
         )
@@ -236,7 +236,7 @@ pub async fn verify_recon_token(
 ) -> UserResponse<recon_api::VerifyTokenResponse> {
     let user = user_with_role.user;
     let user_in_db = user
-        .get_user_from_db(&state)
+        .get_active_user_from_db(&state)
         .await
         .attach_printable_lazy(|| {
             format!(

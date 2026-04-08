@@ -15,7 +15,7 @@ use unified_connector_service_client::payments as payments_grpc;
 use crate::{
     core::{
         payments::gateway::context::RouterGatewayContext, unified_connector_service,
-        unified_connector_service::handle_unified_connector_service_response_for_payment_register,
+        unified_connector_service::handle_unified_connector_service_response_for_payment_setup_recurring,
     },
     routes::SessionState,
     services::logger,
@@ -63,11 +63,10 @@ where
         ConnectorError,
     > {
         let merchant_connector_account = context.merchant_connector_account;
-        let platform = context.platform;
+        let processor = &context.processor;
         let lineage_ids = context.lineage_ids;
         let header_payload = context.header_payload;
         let unified_connector_service_execution_mode = context.execution_mode;
-        let merchant_order_reference_id = header_payload.x_reference_id.clone();
         let client = state
             .grpc_client
             .unified_connector_service_client
@@ -75,60 +74,77 @@ where
             .ok_or(ConnectorError::RequestEncodingFailed)
             .attach_printable("Failed to fetch Unified Connector Service client")?;
 
-        let setup_mandate_request =
-            payments_grpc::PaymentServiceRegisterRequest::foreign_try_from(router_data)
+        let payment_setup_recurring_request =
+            payments_grpc::PaymentServiceSetupRecurringRequest::foreign_try_from(router_data)
                 .change_context(ConnectorError::RequestEncodingFailed)
                 .attach_printable("Failed to construct Payment Get Request")?;
 
         let connector_auth_metadata =
             unified_connector_service::build_unified_connector_service_auth_metadata(
                 merchant_connector_account,
-                &platform,
+                processor,
                 router_data.connector.clone(),
             )
             .change_context(ConnectorError::RequestEncodingFailed)
             .attach_printable("Failed to construct request metadata")?;
-        let merchant_reference_id = header_payload
-            .x_reference_id
-            .clone()
-            .or(merchant_order_reference_id)
-            .map(|id| id_type::PaymentReferenceId::from_str(id.as_str()))
-            .transpose()
-            .inspect_err(|err| logger::warn!(error=?err, "Invalid Merchant ReferenceId found"))
+        let merchant_reference_id = unified_connector_service::parse_merchant_reference_id(
+            header_payload
+                .x_reference_id
+                .as_deref()
+                .unwrap_or(router_data.payment_id.as_str()),
+        )
+        .map(ucs_types::UcsReferenceId::Payment);
+
+        let resource_id = id_type::PaymentResourceId::from_str(router_data.attempt_id.as_str())
+            .inspect_err(
+                |err| logger::warn!(error=?err, "Invalid Payment AttemptId for UCS resource id"),
+            )
             .ok()
-            .flatten()
-            .map(ucs_types::UcsReferenceId::Payment);
+            .map(ucs_types::UcsResourceId::PaymentAttempt);
+
         let header_payload = state
             .get_grpc_headers_ucs(unified_connector_service_execution_mode)
             .external_vault_proxy_metadata(None)
             .merchant_reference_id(merchant_reference_id)
+            .resource_id(resource_id)
             .lineage_ids(lineage_ids);
-        let updated_router_data = Box::pin(unified_connector_service::ucs_logging_wrapper_new(
+        Box::pin(unified_connector_service::ucs_logging_wrapper_granular(
             router_data.clone(),
             state,
-            setup_mandate_request,
+            payment_setup_recurring_request,
             header_payload,
-            |mut router_data, setup_mandate_request, grpc_headers| async move {
-                let response = Box::pin(client.payment_setup_mandate_granular(
-                    setup_mandate_request,
+            unified_connector_service_execution_mode,
+            |mut router_data, payment_setup_recurring_request, grpc_headers| async move {
+                let response = Box::pin(client.payment_setup_recurring(
+                    payment_setup_recurring_request,
                     connector_auth_metadata,
                     grpc_headers,
                 ))
                 .await
-                .attach_printable("Failed to get payment")?;
+                .attach_printable("Failed to setup recurring payment")?;
 
-                let setup_mandate_response = response.into_inner();
+                let setup_recurring_response = response.into_inner();
 
-                let ucs_data = handle_unified_connector_service_response_for_payment_register(
-                    setup_mandate_response.clone(),
-                )
-                .attach_printable("Failed to deserialize UCS response")?;
+                let ucs_data =
+                    handle_unified_connector_service_response_for_payment_setup_recurring(
+                        setup_recurring_response.clone(),
+                        router_data.status,
+                    )
+                    .attach_printable("Failed to deserialize UCS response")?;
 
-                let router_data_response =
-                    ucs_data.router_data_response.map(|(response, status)| {
+                let router_data_response = match ucs_data.router_data_response {
+                    Ok((response, status)) => {
                         router_data.status = status;
-                        response
-                    });
+                        Ok(response)
+                    }
+                    Err(err) => {
+                        logger::debug!("Error in UCS router data response");
+                        if let Some(attempt_status) = err.attempt_status {
+                            router_data.status = attempt_status;
+                        }
+                        Err(err)
+                    }
+                };
                 router_data.response = router_data_response;
                 router_data.connector_http_status_code = Some(ucs_data.status_code);
 
@@ -137,13 +153,19 @@ where
                     router_data.connector_customer = Some(connector_customer_id);
                 });
 
-                Ok((router_data, setup_mandate_response))
+                ucs_data.connector_response.map(|connector_response| {
+                    router_data.connector_response = Some(connector_response);
+                });
+
+                router_data.amount_captured = ucs_data.amount_captured;
+                router_data.minor_amount_captured = ucs_data.minor_amount_captured;
+
+                Ok((router_data, (), setup_recurring_response))
             },
         ))
         .await
-        .change_context(ConnectorError::ResponseHandlingFailed)?;
-
-        Ok(updated_router_data)
+        .map(|(router_data, _)| router_data)
+        .change_context(ConnectorError::ResponseHandlingFailed)
     }
 }
 
