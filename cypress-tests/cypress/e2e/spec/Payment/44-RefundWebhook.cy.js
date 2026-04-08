@@ -5,9 +5,8 @@ import { payment_methods_enabled } from "../../configs/Payment/Commons";
 
 let globalState;
 let connector;
-let expectedIntentStatus;
 
-describe("Payment Webhook Tests", () => {
+describe("Refund Webhook Tests", () => {
   before("seed global state", function () {
     let skip = false;
 
@@ -19,7 +18,7 @@ describe("Payment Webhook Tests", () => {
         if (
           utils.shouldIncludeConnector(
             connector,
-            utils.CONNECTOR_LISTS.INCLUDE.PAYMENTS_WEBHOOK
+            utils.CONNECTOR_LISTS.INCLUDE.REFUNDS_WEBHOOK
           )
         ) {
           skip = true;
@@ -47,6 +46,15 @@ describe("Payment Webhook Tests", () => {
   it("Create merchant connector account", () => {
     const connectorBody = structuredClone(fixtures.createConnectorBody);
 
+    const webhookConfig = getConnectorDetails(globalState.get("connectorId"))[
+      "webhook"
+    ];
+    if (webhookConfig?.webhookSecret) {
+      connectorBody.connector_webhook_details = {
+        merchant_secret: webhookConfig.webhookSecret,
+      };
+    }
+
     cy.createConnectorCallTest(
       "payment_processor",
       connectorBody,
@@ -55,7 +63,7 @@ describe("Payment Webhook Tests", () => {
     );
   });
 
-  context("NoThreeDS Manual payment flow test", () => {
+  context("NoThreeDS Auto Capture + Refund flow", () => {
     it("create-payment-call-test", () => {
       const data = getConnectorDetails(globalState.get("connectorId"))[
         "card_pm"
@@ -74,57 +82,77 @@ describe("Payment Webhook Tests", () => {
       cy.paymentMethodsCallTest(globalState);
     });
 
-    it("Confirm No 3DS", () => {
+    it("Confirm No 3DS Auto Capture", () => {
       const data = getConnectorDetails(globalState.get("connectorId"))[
         "card_pm"
       ]["No3DSAutoCapture"];
 
-      cy.confirmCallTest(fixtures.confirmBody, data, true, globalState).then(
-        () => {
-          expectedIntentStatus = globalState.get("paymentIntentStatus");
-        }
-      );
+      cy.confirmCallTest(fixtures.confirmBody, data, true, globalState);
+    });
+
+    it("refund-call-test", () => {
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "card_pm"
+      ]["Refund"];
+
+      cy.refundCallTest(fixtures.refundBody, data, globalState);
+    });
+
+    it("sync-refund-call-test", () => {
+      // Sync to ensure connectorRefundId is populated in globalState
+      // before sending the refund webhook
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "card_pm"
+      ]["SyncRefund"];
+
+      cy.syncRefundCallTest(data, globalState);
     });
   });
 
-  context("Webhook Processing - Status Update & Retrieval", () => {
-    let paymentId;
+  context("Refund Webhook Processing - Status Update & Retrieval", function () {
     let merchantId;
+    let refundId;
 
-    before(() => {
+    before(function () {
       connector = globalState.get("connectorId");
       merchantId = globalState.get("merchantId");
-      paymentId = globalState.get("paymentID");
+      refundId = globalState.get("refundId");
+
+      // Skip this context if connectorRefundId is not available
+      // (sandbox connectors may not return it)
+      if (!globalState.get("connectorRefundId")) {
+        this.skip();
+      }
     });
 
-    it("Update-payment_status", () => {
-      const PaymentsManualUpdateRequestBody = {
-        attempt_status: "pending",
-        attempt_id: `${paymentId}_1`,
+    it("Update-refund_status", () => {
+      const refundManualUpdateRequestBody = {
         merchant_id: merchantId,
-        payment_id: paymentId,
+        status: "pending",
       };
 
-      cy.manualPaymentStatusUpdateTest(
+      cy.manualRefundStatusUpdateTest(
         globalState,
-        PaymentsManualUpdateRequestBody
+        refundManualUpdateRequestBody
       );
     });
 
-    it("send-webhook", () => {
-      // Clone webhook fixture
+    it("send-refund-webhook", () => {
       const webhookBody = structuredClone(
-        fixtures.IncomingWebhookBody.webhookBodies[connector]["payment"]
+        fixtures.IncomingWebhookBody.webhookBodies[connector]["refund"]
       );
 
-      // Extract webhook configuration for the specified connector
       const webhookConfig = getConnectorDetails(connector)["webhook"];
 
-      cy.IncomingWebhookTest(globalState, webhookBody, webhookConfig);
+      cy.IncomingRefundWebhookTest(globalState, webhookBody, webhookConfig);
     });
 
-    it("Retrieve Payment Call Test", () => {
-      cy.retrievePaymentCallTest({ globalState, expectedIntentStatus });
+    it("Sync Refund Call Test", () => {
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "card_pm"
+      ]["SyncRefund"];
+
+      cy.syncRefundCallTest(data, globalState);
     });
   });
 });

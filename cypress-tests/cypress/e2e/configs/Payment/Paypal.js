@@ -908,5 +908,9 @@ export const connectorDetails = {
       path: "resource.supplementary_data.related_ids.order_id",
       type: "string",
     },
+    RefundIdConfig: {
+      path: "resource.id",
+      type: "string",
+    },
   },
 };

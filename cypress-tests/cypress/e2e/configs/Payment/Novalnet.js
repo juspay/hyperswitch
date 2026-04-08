@@ -765,5 +765,9 @@ export const connectorDetails = {
       // Type of payment reference ID
       type: "number",
     },
+    RefundIdConfig: {
+      path: "event.tid",
+      type: "number",
+    },
   },
 };

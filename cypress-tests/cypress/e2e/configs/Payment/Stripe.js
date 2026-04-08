@@ -1073,5 +1073,9 @@ export const connectorDetails = {
       // Type of payment reference ID
       type: "string",
     },
+    RefundIdConfig: {
+      path: "data.object.id",
+      type: "string",
+    },
   },
 };

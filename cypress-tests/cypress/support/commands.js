@@ -3415,6 +3415,10 @@ Cypress.Commands.add("refundCallTest", (requestBody, data, globalState) => {
       expect(response.headers["content-type"]).to.include("application/json");
       if (response.status === 200) {
         globalState.set("refundId", response.body.refund_id);
+        globalState.set(
+          "connectorRefundId",
+          response.body.connector_refund_id
+        );
         for (const key in resData.body) {
           expect(resData.body[key]).to.equal(response.body[key]);
         }
@@ -3444,6 +3448,12 @@ Cypress.Commands.add("syncRefundCallTest", (data, globalState) => {
 
     cy.wrap(response).then(() => {
       expect(response.headers["content-type"]).to.include("application/json");
+      if (response.status === 200) {
+        globalState.set(
+          "connectorRefundId",
+          response.body.connector_refund_id
+        );
+      }
       for (const key in resData.body) {
         expect(resData.body[key]).to.equal(response.body[key]);
       }
@@ -5615,6 +5625,40 @@ Cypress.Commands.add(
 );
 
 Cypress.Commands.add(
+  "manualRefundStatusUpdateTest",
+  (globalState, refundManualUpdateRequestBody) => {
+    const merchantId = globalState.get("merchantId");
+    const refundId = globalState.get("refundId");
+    const completeUrl = `${Cypress.env("BASEURL")}/refunds/${refundId}/manual-update`;
+    const adminApiKey = globalState.get("adminApiKey");
+
+    cy.request({
+      method: "PUT",
+      url: completeUrl,
+      headers: {
+        "Content-Type": "application/json",
+        "api-key": adminApiKey,
+        "X-Merchant-Id": merchantId,
+      },
+      body: refundManualUpdateRequestBody,
+      failOnStatusCode: false,
+    }).then((response) => {
+      logRequestId(response.headers["x-request-id"]);
+
+      cy.wrap(response).then(() => {
+        if (response.status === 200) {
+          expect(response.status).to.eq(200);
+        } else {
+          throw new Error(
+            `Refund Manual Update Call Failed with error code "${response.body.error.code}" error message "${response.body.error.message}"`
+          );
+        }
+      });
+    });
+  }
+);
+
+Cypress.Commands.add(
   "IncomingWebhookTest",
   (globalState, webhookBody, webhookConfig) => {
     const connector = globalState.get("connectorId");
@@ -5684,6 +5728,74 @@ Cypress.Commands.add(
     }
 
     return sendRequest();
+  }
+);
+
+Cypress.Commands.add(
+  "IncomingRefundWebhookTest",
+  (globalState, webhookBody, webhookConfig) => {
+    const connector = globalState.get("connectorId");
+    const merchantId = globalState.get("merchantId");
+    const completeUrl = `${Cypress.env("BASEURL")}/webhooks/${merchantId}/${connector}`;
+
+    // Normalize connector refund ID into the webhook body
+    const refundConfig = webhookConfig.RefundIdConfig;
+    const refundId =
+      refundConfig.source === "refundId"
+        ? globalState.get("refundId")
+        : globalState.get("connectorRefundId");
+
+    cy.task(
+      "cli_log",
+      `refundId for webhook: ${refundId}, source: ${refundConfig.source || "connectorRefundId"}`
+    );
+
+    if (!refundId) {
+      cy.task(
+        "cli_log",
+        "Skipping refund webhook: refund ID is not available (sandbox connector may not return it)"
+      );
+      globalState.set("refundWebhookSkipped", true);
+
+      return;
+    }
+
+    setNormalizedValue(webhookBody, refundConfig, refundId);
+
+    const contentType = webhookConfig.contentType || "application/json";
+
+    const body =
+      contentType === "application/x-www-form-urlencoded"
+        ? Object.entries(webhookBody)
+            .map(
+              ([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`
+            )
+            .join("&")
+        : webhookBody;
+
+    const headers = {
+      "Content-Type": contentType,
+    };
+
+    return cy
+      .request({
+        method: "POST",
+        url: completeUrl,
+        headers,
+        body,
+        failOnStatusCode: false,
+      })
+      .then((response) => {
+        logRequestId(response.headers["x-request-id"]);
+
+        if (response.status !== 200) {
+          throw new Error(
+            `Refund webhook failed with error code "${response.body?.error?.code}" error message "${response.body?.error?.message}"`
+          );
+        }
+
+        return cy.wrap(response);
+      });
   }
 );
 
