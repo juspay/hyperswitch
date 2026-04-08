@@ -149,9 +149,9 @@ function parseMethodFlows(methodFlowInput) {
 
   return methodFlowInput.includes(",")
     ? methodFlowInput
-        .split(",")
-        .map((flow) => flow.trim())
-        .filter((flow) => flow.length > 0)
+      .split(",")
+      .map((flow) => flow.trim())
+      .filter((flow) => flow.length > 0)
     : [methodFlowInput.trim()];
 }
 
@@ -1729,12 +1729,12 @@ Cypress.Commands.add(
           const responsePaymentMethods = response.body["payment_methods"];
           const responseRequiredFields =
             responsePaymentMethods[0]["payment_method_types"][0][
-              "required_fields"
+            "required_fields"
             ];
 
           const expectedRequiredFields =
             data["payment_methods"][0]["payment_method_types"][0][
-              "required_fields"
+            "required_fields"
             ];
 
           Object.keys(expectedRequiredFields).forEach((key) => {
@@ -2307,13 +2307,23 @@ Cypress.Commands.add(
 
           if (response.body.capture_method === "automatic") {
             if (response.body.authentication_type === "three_ds") {
-              expect(response.body)
-                .to.have.property("next_action")
-                .to.have.property("redirect_to_url");
-              globalState.set(
-                "nextActionUrl",
-                response.body.next_action.redirect_to_url
-              );
+              if (response.body.next_action.type === "invoke_ddc") {
+                expect(response.body.next_action)
+                  .to.have.property("type")
+                  .to.equal("invoke_ddc");
+                globalState.set(
+                  "nextActionUrl",
+                  response.body.next_action.ddc_data.iframe_url
+                );
+              } else {
+                expect(response.body)
+                  .to.have.property("next_action")
+                  .to.have.property("redirect_to_url");
+                globalState.set(
+                  "nextActionUrl",
+                  response.body.next_action.redirect_to_url
+                );
+              }
               for (const key in resData.body) {
                 expect(resData.body[key], [key]).to.deep.equal(
                   response.body[key]
@@ -2341,13 +2351,23 @@ Cypress.Commands.add(
             }
           } else if (response.body.capture_method === "manual") {
             if (response.body.authentication_type === "three_ds") {
-              expect(response.body)
-                .to.have.property("next_action")
-                .to.have.property("redirect_to_url");
-              globalState.set(
-                "nextActionUrl",
-                response.body.next_action.redirect_to_url
-              );
+              expect(response.body).to.have.property("next_action");
+              if (response.body.next_action.type === "invoke_ddc") {
+                expect(response.body.next_action)
+                  .to.have.property("type")
+                  .to.equal("invoke_ddc");
+                globalState.set(
+                  "nextActionUrl",
+                  response.body.next_action.ddc_data.iframe_url
+                );
+              } else {
+                expect(response.body.next_action)
+                  .to.have.property("redirect_to_url");
+                globalState.set(
+                  "nextActionUrl",
+                  response.body.next_action.redirect_to_url
+                );
+              }
               for (const key in resData.body) {
                 expect(resData.body[key], [key]).to.deep.equal(
                   response.body[key]
@@ -2777,13 +2797,23 @@ Cypress.Commands.add(
 
           if (response.body.capture_method === "automatic") {
             if (response.body.authentication_type === "three_ds") {
-              expect(response.body)
-                .to.have.property("next_action")
-                .to.have.property("redirect_to_url");
-              globalState.set(
-                "nextActionUrl",
-                response.body.next_action.redirect_to_url
-              );
+              expect(response.body).to.have.property("next_action");
+              if (response.body.next_action.type === "invoke_ddc") {
+                expect(response.body.next_action)
+                  .to.have.property("type")
+                  .to.equal("invoke_ddc");
+                globalState.set(
+                  "nextActionUrl",
+                  response.body.next_action.ddc_data.iframe_url
+                );
+              } else {
+                expect(response.body.next_action)
+                  .to.have.property("redirect_to_url");
+                globalState.set(
+                  "nextActionUrl",
+                  response.body.next_action.redirect_to_url
+                );
+              }
               for (const key in resData.body) {
                 expect(resData.body[key], [key]).to.deep.equal(
                   response.body[key]
@@ -2802,13 +2832,23 @@ Cypress.Commands.add(
             }
           } else if (response.body.capture_method === "manual") {
             if (response.body.authentication_type === "three_ds") {
-              expect(response.body)
-                .to.have.property("next_action")
-                .to.have.property("redirect_to_url");
-              globalState.set(
-                "nextActionUrl",
-                response.body.next_action.redirect_to_url
-              );
+              if (response.body.next_action.type === "invoke_ddc") {
+                expect(response.body.next_action)
+                  .to.have.property("type")
+                  .to.equal("invoke_ddc");
+                globalState.set(
+                  "nextActionUrl",
+                  response.body.next_action.ddc_data.iframe_url
+                );
+              } else {
+                expect(response.body)
+                  .to.have.property("next_action")
+                  .to.have.property("redirect_to_url");
+                globalState.set(
+                  "nextActionUrl",
+                  response.body.next_action.redirect_to_url
+                );
+              }
               for (const key in resData.body) {
                 expect(resData.body[key], [key]).to.deep.equal(
                   response.body[key]
@@ -3240,13 +3280,13 @@ Cypress.Commands.add(
             for (const key in response.body.attempts) {
               if (
                 response.body.attempts[key].attempt_id ===
-                  `${payment_id}_${attempt}` &&
+                `${payment_id}_${attempt}` &&
                 response.body.status === "succeeded"
               ) {
                 expect(response.body.attempts[key].status).to.equal("charged");
               } else if (
                 response.body.attempts[key].attempt_id ===
-                  `${payment_id}_${attempt}` &&
+                `${payment_id}_${attempt}` &&
                 response.body.status === "requires_customer_action"
               ) {
                 expect(response.body.attempts[key].status).to.equal(
@@ -3430,14 +3470,26 @@ Cypress.Commands.add(
           if (response.body.capture_method === "automatic") {
             expect(response.body).to.have.property("mandate_id");
             if (response.body.authentication_type === "three_ds") {
-              expect(response.body)
-                .to.have.property("next_action")
-                .to.have.property("redirect_to_url");
-              const nextActionUrl = response.body.next_action.redirect_to_url;
-              globalState.set(
-                "nextActionUrl",
-                response.body.next_action.redirect_to_url
-              );
+              let nextActionUrl = null;
+              if (response.body.next_action.type === "invoke_ddc") {
+                expect(response.body.next_action)
+                  .to.have.property("type")
+                  .to.equal("invoke_ddc");
+                nextActionUrl = response.body.next_action.ddc_data.iframe_url;
+                globalState.set(
+                  "nextActionUrl",
+                  response.body.next_action.ddc_data.iframe_url
+                );
+              } else {
+                expect(response.body)
+                  .to.have.property("next_action")
+                  .to.have.property("redirect_to_url");
+                nextActionUrl = response.body.next_action.redirect_to_url;
+                globalState.set(
+                  "nextActionUrl",
+                  response.body.next_action.redirect_to_url
+                );
+              }
               cy.log(nextActionUrl);
               for (const key in resData.body) {
                 expect(resData.body[key], [key]).to.deep.equal(
@@ -3468,14 +3520,26 @@ Cypress.Commands.add(
             }
           } else if (response.body.capture_method === "manual") {
             if (response.body.authentication_type === "three_ds") {
-              expect(response.body)
-                .to.have.property("next_action")
-                .to.have.property("redirect_to_url");
-              const nextActionUrl = response.body.next_action.redirect_to_url;
-              globalState.set(
-                "nextActionUrl",
-                response.body.next_action.redirect_to_url
-              );
+              let nextActionUrl = null;
+              if (response.body.next_action.type === "invoke_ddc") {
+                expect(response.body.next_action)
+                  .to.have.property("type")
+                  .to.equal("invoke_ddc");
+                nextActionUrl = response.body.next_action.ddc_data.iframe_url;
+                globalState.set(
+                  "nextActionUrl",
+                  response.body.next_action.ddc_data.iframe_url
+                );
+              } else {
+                expect(response.body)
+                  .to.have.property("next_action")
+                  .to.have.property("redirect_to_url");
+                nextActionUrl = response.body.next_action.redirect_to_url;
+                globalState.set(
+                  "nextActionUrl",
+                  response.body.next_action.redirect_to_url
+                );
+              }
               cy.log(nextActionUrl);
               for (const key in resData.body) {
                 expect(resData.body[key], [key]).to.deep.equal(
@@ -5520,10 +5584,10 @@ Cypress.Commands.add(
     let body =
       contentType === "application/x-www-form-urlencoded"
         ? Object.entries(webhookBody)
-            .map(
-              ([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`
-            )
-            .join("&")
+          .map(
+            ([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`
+          )
+          .join("&")
         : webhookBody;
 
     const headers = {
