@@ -39,10 +39,11 @@ use hyperswitch_domain_models::{
 };
 use hyperswitch_interfaces::{
     api::{
-        self, ConnectorCommon, ConnectorCommonExt, ConnectorIntegration, ConnectorSpecifications,
-        ConnectorValidation,
+        self, ConnectorCommon, ConnectorCommonExt, ConnectorIntegration, ConnectorRedirectResponse,
+        ConnectorSpecifications, ConnectorValidation,
     },
     configs::Connectors,
+    consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE},
     errors,
     events::connector_api_logs::ConnectorEvent,
     types::{self, Response},
@@ -157,9 +158,9 @@ impl ConnectorCommon for Affirm {
 
         Ok(ErrorResponse {
             status_code: response.status_code,
-            code: response.code,
-            message: response.message,
-            reason: Some(response.error_type),
+            code: response.code.unwrap_or(NO_ERROR_CODE.to_string()),
+            message: response.error_type.unwrap_or(NO_ERROR_MESSAGE.to_string()),
+            reason: response.message,
             attempt_status: None,
             connector_transaction_id: None,
             connector_response_reference_id: None,
@@ -550,16 +551,15 @@ impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Af
     ) -> CustomResult<String, errors::ConnectorError> {
         let endpoint = self.base_url(connectors);
         let transaction_id = req.request.connector_transaction_id.clone();
-
         Ok(format!("{endpoint}/v1/transactions/{transaction_id}/void"))
     }
 
     fn get_request_body(
         &self,
-        req: &PaymentsCancelRouterData,
+        _req: &PaymentsCancelRouterData,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        let connector_req = affirm::AffirmCancelRequest::try_from(req)?;
+        let connector_req = affirm::AffirmCancelRequest {};
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 
@@ -769,6 +769,31 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Affirm {
     }
 }
 
+impl ConnectorRedirectResponse for Affirm {
+    fn get_flow_type(
+        &self,
+        _query_params: &str,
+        json_payload: Option<serde_json::Value>,
+        action: common_enums::PaymentAction,
+    ) -> CustomResult<common_enums::CallConnectorAction, errors::ConnectorError> {
+        match action {
+            common_enums::PaymentAction::PSync => match json_payload {
+                // Handle the case where the redirection is cancelled
+                None => Ok(common_enums::CallConnectorAction::StatusUpdate {
+                    status: common_enums::AttemptStatus::AuthenticationFailed,
+                    error_code: None,
+                    error_message: Some("Redirection Cancelled".to_string()),
+                }),
+                Some(_) => Ok(common_enums::CallConnectorAction::Trigger),
+            },
+            common_enums::PaymentAction::CompleteAuthorize
+            | common_enums::PaymentAction::PaymentAuthenticateCompleteAuthorize => {
+                Ok(common_enums::CallConnectorAction::Trigger)
+            }
+        }
+    }
+}
+
 #[async_trait::async_trait]
 impl webhooks::IncomingWebhook for Affirm {
     fn get_webhook_object_reference_id(
@@ -797,7 +822,7 @@ impl webhooks::IncomingWebhook for Affirm {
 
 static AFFIRM_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = LazyLock::new(|| {
     let supported_capture_methods = vec![
-        enums::CaptureMethod::Automatic,
+        enums::CaptureMethod::SequentialAutomatic,
         enums::CaptureMethod::Manual,
     ];
 
@@ -819,9 +844,9 @@ static AFFIRM_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = Laz
 
 static AFFIRM_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
     display_name: "Affirm",
-    description: "Affirm connector is a payment gateway integration that processes Affirm’s buy now, pay later financing by managing payment authorization, capture, refunds, and transaction sync via Affirm’s API.",
+    description: "Affirm connector is a payment gateway integration that processes Affirm's buy now, pay later financing by managing payment authorization, capture, refunds, and transaction sync via Affirm’s API.",
     connector_type: enums::HyperswitchConnectorCategory::PaymentGateway,
-    integration_status: enums::ConnectorIntegrationStatus::Alpha,
+    integration_status: enums::ConnectorIntegrationStatus::Beta,
 };
 
 static AFFIRM_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 0] = [];
