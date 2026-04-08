@@ -3337,6 +3337,7 @@ Cypress.Commands.add(
     const paymentId = globalState.get("paymentID");
     const baseUrl = globalState.get("baseUrl");
     const apiKey = globalState.get("apiKey");
+    const maxRetries = globalState.get("max_auto_retries_enabled");
 
     cy.request({
       method: "GET",
@@ -3363,15 +3364,13 @@ Cypress.Commands.add(
       }
 
       if (response.body.attempts && response.body.attempts.length > 0) {
-        expect(response.body.attempts).to.be.an("array");
+        // Expected attempts = initial attempt (1) + max_auto_retries
+        const expectedAttempts = (maxRetries || 0) + 1;
+        
+        expect(response.body.attempts.length).to.equal(expectedAttempts);
+        expect(response.body.attempt_count).to.equal(attempt || expectedAttempts);
 
-        if (attempt) {
-          expect(response.body.attempt_count).to.equal(attempt);
-        }
-
-        const attempts = response.body.attempts;
-
-        attempts.forEach((attemptObj) => {
+        response.body.attempts.forEach((attemptObj) => {
           expect(attemptObj.attempt_id).to.include(paymentId);
           expect(attemptObj.connector).to.not.be.null;
         });
