@@ -12,6 +12,8 @@ use hyperswitch_interfaces::micro_service::{MicroserviceClientError, Microservic
 use hyperswitch_masking::Secret;
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
+
+use crate::types::PaymentMethodResponseData;
 /// V1-facing create flow type.
 #[derive(Debug)]
 pub struct CreatePaymentMethod;
@@ -92,12 +94,6 @@ pub struct ModularPaymentMethodResponse {
     pub network_token: Option<api_models::payment_methods::NetworkTokenResponse>,
     pub storage_type: Option<common_enums::StorageType>,
     pub billing: Option<hyperswitch_domain_models::address::Address>,
-}
-
-#[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]
-#[serde(rename_all = "snake_case")]
-pub enum PaymentMethodResponseData {
-    Card(api_models::payment_methods::CardDetailFromLocker),
 }
 
 #[derive(Clone, Debug)]
