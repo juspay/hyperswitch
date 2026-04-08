@@ -1189,12 +1189,17 @@ pub async fn create_persistent_payment_method_core(
         }
         api::PaymentMethodCreateData::Wallet(wallet_data) => {
             let additional_data = match wallet_data {
-                api::WalletCreateData::ApplePay(data) | api::WalletCreateData::GooglePay(data) => {
-                    domain::PaymentMethodsData::WalletDetails(*data.clone())
+                api::WalletCreateData::ApplePay(data) => domain::PaymentMethodsData::WalletDetails(
+                    domain::WalletPaymentMethodData::ApplePay(*data.clone()),
+                ),
+                api::WalletCreateData::GooglePay(data) => {
+                    domain::PaymentMethodsData::WalletDetails(
+                        domain::WalletPaymentMethodData::GooglePay(*data.clone()),
+                    )
                 }
-                api::WalletCreateData::PayPal(data) => {
-                    domain::PaymentMethodsData::PaypalDetails(*data.clone())
-                }
+                api::WalletCreateData::PayPal(data) => domain::PaymentMethodsData::WalletDetails(
+                    domain::WalletPaymentMethodData::PayPal(*data.clone()),
+                ),
             };
             create_payment_method_wallet_core(
                 state,
@@ -2408,15 +2413,20 @@ impl PaymentMethodExt for payment_methods::PaymentMethodCreateData {
                 },
             )),
             Self::Wallet(wallet_data) => match wallet_data {
-                api::WalletCreateData::ApplePay(data) | api::WalletCreateData::GooglePay(data) => {
-                    Ok(payment_methods::PaymentMethodsData::WalletDetails(*data))
+                api::WalletCreateData::ApplePay(data) => {
+                    Ok(payment_methods::PaymentMethodsData::WalletDetails(
+                        domain::WalletPaymentMethodData::ApplePay(*data),
+                    ))
                 }
-                api::WalletCreateData::PayPal(_) => {
-                    Err(errors::ApiErrorResponse::UnprocessableEntity {
-                        message: "PayPal payment method does not support this operation"
-                            .to_string(),
-                    }
-                    .into())
+                api::WalletCreateData::GooglePay(data) => {
+                    Ok(payment_methods::PaymentMethodsData::WalletDetails(
+                        domain::WalletPaymentMethodData::GooglePay(*data),
+                    ))
+                }
+                api::WalletCreateData::PayPal(data) => {
+                    Ok(payment_methods::PaymentMethodsData::WalletDetails(
+                        domain::WalletPaymentMethodData::PayPal(*data),
+                    ))
                 }
             },
         }

@@ -3330,13 +3330,19 @@ pub fn get_googlepay_wallet_info(
 }
 
 #[derive(Clone, Debug, PartialEq, serde::Deserialize, serde::Serialize)]
+pub enum WalletPaymentMethodData {
+    ApplePay(payment_methods::PaymentMethodDataWalletInfo),
+    GooglePay(payment_methods::PaymentMethodDataWalletInfo),
+    PayPal(api_models::payments::PaypalRedirection),
+}
+
+#[derive(Clone, Debug, PartialEq, serde::Deserialize, serde::Serialize)]
 pub enum PaymentMethodsData {
     Card(CardDetailsPaymentMethod),
     BankDetails(payment_methods::PaymentMethodDataBankCreds), //PaymentMethodDataBankCreds and its transformations should be moved to the domain models
-    WalletDetails(payment_methods::PaymentMethodDataWalletInfo), //PaymentMethodDataWalletInfo and its transformations should be moved to the domain models
+    WalletDetails(WalletPaymentMethodData),
     NetworkToken(NetworkTokenDetailsPaymentMethod),
     BankDebit(BankDebitDetailsPaymentMethod),
-    PaypalDetails(api_models::payments::PaypalRedirection),
 }
 
 impl PaymentMethodsData {
@@ -3381,8 +3387,7 @@ impl PaymentMethodsData {
             Self::BankDetails(_)
             | Self::WalletDetails(_)
             | Self::NetworkToken(_)
-            | Self::BankDebit(_)
-            | Self::PaypalDetails(_) => None,
+            | Self::BankDebit(_) => None,
         }
     }
     pub fn get_card_details(&self) -> Option<CardDetailsPaymentMethod> {

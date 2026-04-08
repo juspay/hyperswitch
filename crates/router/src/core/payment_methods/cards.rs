@@ -2186,7 +2186,22 @@ pub async fn update_customer_payment_method(
             .into());
         }
 
-        let updated_pmd = PaymentMethodsData::WalletDetails(wallet_update);
+        let wallet_variant = match pm.get_payment_method_subtype() {
+            Some(common_enums::PaymentMethodType::ApplePay) => {
+                domain::WalletPaymentMethodData::ApplePay(wallet_update)
+            }
+            Some(common_enums::PaymentMethodType::GooglePay) => {
+                domain::WalletPaymentMethodData::GooglePay(wallet_update)
+            }
+            _ => {
+                return Err((errors::ApiErrorResponse::InvalidRequestData {
+                    message: "Unsupported wallet type for update".to_string(),
+                })
+                .into());
+            }
+        };
+
+        let updated_pmd = domain::PaymentMethodsData::WalletDetails(wallet_variant);
         let key_manager_state = (&state).into();
         let pm_data_encrypted =
             create_encrypted_data(&key_manager_state, provider.get_key_store(), updated_pmd)
@@ -5289,12 +5304,6 @@ pub async fn get_pm_list_context_for_bank_debit(
             domain::PaymentMethodsData::NetworkToken(_) => {
                 Err(errors::ApiErrorResponse::UnprocessableEntity {
                     message: "Network Token is not a valid entity".to_string(),
-                }
-                .into())
-            }
-            domain::PaymentMethodsData::PaypalDetails(_) => {
-                Err(errors::ApiErrorResponse::UnprocessableEntity {
-                    message: "Paypal is not a valid entity".to_string(),
                 }
                 .into())
             }

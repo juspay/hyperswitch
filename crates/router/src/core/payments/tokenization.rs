@@ -335,13 +335,19 @@ where
                         _,
                         domain::PaymentMethodData::Wallet(domain::WalletData::ApplePay(applepay)),
                     ) => Some(domain::PaymentMethodsData::WalletDetails(
-                        get_applepay_wallet_info(applepay, payment_method_token.clone()),
+                        domain::WalletPaymentMethodData::ApplePay(get_applepay_wallet_info(
+                            applepay,
+                            payment_method_token.clone(),
+                        )),
                     )),
                     (
                         _,
                         domain::PaymentMethodData::Wallet(domain::WalletData::GooglePay(googlepay)),
                     ) => Some(domain::PaymentMethodsData::WalletDetails(
-                        get_googlepay_wallet_info(googlepay, payment_method_token),
+                        domain::WalletPaymentMethodData::GooglePay(get_googlepay_wallet_info(
+                            googlepay,
+                            payment_method_token,
+                        )),
                     )),
                     (_, domain::PaymentMethodData::BankDebit(bank_debit_data)) => bank_debit_data
                         .get_bank_debit_details()
