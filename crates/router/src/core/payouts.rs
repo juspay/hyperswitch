@@ -194,7 +194,7 @@ pub async fn make_connector_decision(
                 header_payload.clone(),
                 &routing_data.connector_data,
                 payout_data,
-                &dimensions,
+                dimensions,
             ))
             .await?;
 
@@ -213,7 +213,7 @@ pub async fn make_connector_decision(
                         routing_data.connector_data,
                         payout_data,
                         platform,
-                        &dimensions,
+                        dimensions,
                         header_payload.clone(),
                     ))
                     .await?;
@@ -233,7 +233,7 @@ pub async fn make_connector_decision(
                 header_payload.clone(),
                 &connector_data,
                 payout_data,
-                &dimensions,
+                dimensions,
             ))
             .await?;
 
@@ -253,7 +253,7 @@ pub async fn make_connector_decision(
                         connector_data.clone(),
                         payout_data,
                         platform,
-                        &dimensions,
+                        dimensions,
                         header_payload.clone(),
                     ))
                     .await?;
@@ -272,7 +272,7 @@ pub async fn make_connector_decision(
                         connector_data,
                         payout_data,
                         platform,
-                        &dimensions,
+                        dimensions,
                         header_payload,
                     ))
                     .await?;
