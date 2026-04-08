@@ -1311,8 +1311,6 @@ impl TryFrom<Vec<NonZeroU8>> for InstallmentCounts {
 pub struct InstallmentInterestRate(f64);
 
 impl InstallmentInterestRate {
-    /// apply the interest rate to amount and ceil the result
-    /// The interest rate is applied per-installment, then multiplied by the number of installments
     pub fn apply_and_ceil_result(
         &self,
         amount: MinorUnit,
@@ -1321,7 +1319,6 @@ impl InstallmentInterestRate {
         let max_amount = i64::MAX / 10000;
         let amount = amount.get_amount_as_i64();
         if amount > max_amount {
-            // value gets rounded off after i64::MAX/10000
             Err(error_stack::report!(
                 errors::InstallmentInterestRateError::UnableToApplyInterestRate
             ))
@@ -1334,7 +1331,6 @@ impl InstallmentInterestRate {
                 .parse::<f64>()
                 .change_context(errors::InstallmentInterestRateError::UnableToApplyInterestRate)
                 .attach_printable("Failed to parse amount as f64")?;
-            // Calculate per-installment interest, then multiply by number of installments
             let interest_per_installment = amount_f64 * (self.0 / 100.0);
             let total_interest = interest_per_installment * f64::from(number_of_installments.get());
             let ceiled = total_interest.ceil();
