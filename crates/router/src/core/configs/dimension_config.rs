@@ -284,9 +284,8 @@ impl DatabaseBackedConfig for AuthenticationServiceEligible {
     fn db_key(_dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
         None
     }
-
 }
-config!{
+config! {
     superposition_key = PAYOUT_TRACKER_MAPPING,
     output = RetryMapping,
     default = RetryMapping::default(),

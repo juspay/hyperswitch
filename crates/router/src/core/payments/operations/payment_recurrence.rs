@@ -626,8 +626,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
             .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
         let payment_experience = payment_data.payment_attempt.payment_experience;
-        let dimensions = dimensions
-            .with_profile_id(profile_id.clone());
+        let dimensions = dimensions.with_profile_id(profile_id.clone());
         let additional_pm_data = payment_data
             .payment_method_data
             .as_ref()
