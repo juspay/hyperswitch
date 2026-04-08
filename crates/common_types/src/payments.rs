@@ -1311,12 +1311,22 @@ impl TryFrom<Vec<NonZeroU8>> for InstallmentCounts {
 pub struct InstallmentInterestRate(f64);
 
 impl InstallmentInterestRate {
+    /// Applies the interest rate to the amount and returns the result rounded up.
+    ///
+    /// This method calculates the total interest over the specified number of installments
+    /// by multiplying the per-installment interest by the installment count. The rate
+    /// is expected to be the per-installment (e.g., monthly) interest rate.
+    ///
+    /// # Arguments
+    ///
+    /// * `amount` - The principal amount to apply interest to
+    /// * `number_of_installments` - The number of installments over which interest is charged
     pub fn apply_and_ceil_result(
         &self,
         amount: MinorUnit,
         number_of_installments: NonZeroU8,
     ) -> errors::CustomResult<MinorUnit, errors::InstallmentInterestRateError> {
-        let max_amount = i64::MAX / 10000;
+        let max_amount = i64::MAX / 10000; // value gets rounded off after i64::MAX/10000
         let amount = amount.get_amount_as_i64();
         if amount > max_amount {
             Err(error_stack::report!(
