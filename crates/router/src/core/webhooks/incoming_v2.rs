@@ -210,7 +210,11 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
             );
 
             let response = connector
-                .get_webhook_api_response(&request_details, None)
+                .get_webhook_api_response(
+                    &request_details,
+                    None,
+                    Some(merchant_connector_account.connector_account_details.clone()),
+                )
                 .switch()
                 .attach_printable("Failed while early return in case of event type parsing")?;
 
@@ -386,7 +390,7 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
                             profile,
                             source_verified,
                             &connector,
-                            merchant_connector_account,
+                            merchant_connector_account.clone(),
                             &connector_name,
                             &request_details,
                             event_type,
@@ -412,7 +416,11 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
     };
 
     let response = connector
-        .get_webhook_api_response(&request_details, None)
+        .get_webhook_api_response(
+            &request_details,
+            None,
+            Some(merchant_connector_account.connector_account_details.clone()),
+        )
         .switch()
         .attach_printable("Could not get incoming webhook api response from connector")?;
 

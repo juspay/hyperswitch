@@ -309,15 +309,16 @@ pub enum ApplePayPaymentMethodType {
     Copy,
     Debug,
     Default,
-    Hash,
-    Eq,
     PartialEq,
+    Eq,
+    Hash,
     serde::Deserialize,
     serde::Serialize,
     SmithyModel,
     strum::Display,
     strum::EnumString,
     strum::EnumIter,
+    strum::VariantNames,
     ToSchema,
 )]
 #[router_derive::diesel_enum(storage_type = "db_enum")]
@@ -777,6 +778,7 @@ pub enum CallConnectorAction {
     HandleResponse(Vec<u8>),
     UCSConsumeResponse(Vec<u8>),
     UCSHandleResponse(Vec<u8>),
+    HandleResponseWithoutBuildRequest,
 }
 
 /// The three-letter ISO 4217 currency code (e.g., "USD", "EUR") for the payment amount. This field is mandatory for creating a payment.
@@ -2352,6 +2354,8 @@ pub enum PaymentMethodType {
     Paypal,
     Paze,
     Pix,
+    PixAutomaticoQr,
+    PixAutomaticoPush,
     PaySafeCard,
     Przelewy24,
     PromptPay,
@@ -2485,6 +2489,8 @@ impl PaymentMethodType {
             Self::Paypal => "PayPal",
             Self::Paze => "Paze",
             Self::Pix => "Pix",
+            Self::PixAutomaticoQr => "Pix Automático QR",
+            Self::PixAutomaticoPush => "Pix Automático Push",
             Self::PaySafeCard => "PaySafeCard",
             Self::Przelewy24 => "Przelewy24",
             Self::PromptPay => "PromptPay",
@@ -3286,7 +3292,7 @@ pub enum CardSubtype {
     Corporaterevolving,
     Corporatet,
     #[strum(serialize = "CORPORATET&E")]
-    CorporatetAndE,
+    CorporateTAndE,
     Corporation,
     Credit,
     Ctslandcard,
@@ -3340,8 +3346,6 @@ pub enum CardSubtype {
     Globalpayment,
     Gmcard,
     Gold,
-    #[strum(serialize = "GOLD&PLATINUM")]
-    GoldAndPlatinum,
     #[strum(serialize = "GOLD PERSONAL")]
     GoldPersonal,
     #[strum(serialize = "GOLD/PLATINUM")]
@@ -3357,7 +3361,7 @@ pub enum CardSubtype {
     Green,
     Gsacard,
     #[strum(serialize = "GSACORPORATET&E")]
-    GsacorporatetAndE,
+    GsacorporateTAndE,
     Gsapurchasing,
     #[strum(serialize = "HSANON-SUBSTANTIATED")]
     HsanonSubstantiated,
@@ -10575,6 +10579,7 @@ pub enum TriggeredBy {
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
+/// Specifies the category of a Merchant Initiated Transaction (MIT). In the case of MIT, `mit_category` tells what kind of MIT is being processed. In the case of CIT, it tells the future intended MIT type.
 pub enum MitCategory {
     /// A fixed purchase amount split into multiple scheduled payments until the total is paid.
     Installment,
