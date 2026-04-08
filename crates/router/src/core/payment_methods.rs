@@ -754,8 +754,8 @@ pub async fn retrieve_payment_method_with_token(
                     payment_method_data.get_payment_methods_data()
                 {
                     let domain::BankDebitDetailsPaymentMethod::AchBankDebit {
-                        account_number_last4_digits: _,
-                        routing_number_last4_digits: _,
+                        masked_account_number: _,
+                        masked_routing_number: _,
                         bank_account_holder_name,
                         bank_name,
                         bank_type,
@@ -850,8 +850,52 @@ pub(crate) fn get_payment_method_create_request(
             };
             Ok(payment_method_request)
         }
+        api_models::payments::PaymentMethodData::BankDebit(bank_debit) => {
+            let bank_debit_detail = match bank_debit {
+                api_models::payments::BankDebitData::AchBankDebit {
+                    account_number,
+                    routing_number,
+                    bank_account_holder_name,
+                    bank_name,
+                    bank_type,
+                    bank_holder_type,
+                    ..
+                } => payment_methods::BankDebitDetail::Ach {
+                    account_number: account_number.clone(),
+                    routing_number: routing_number.clone(),
+                    bank_account_holder_name: bank_account_holder_name.clone(),
+                    bank_name: *bank_name,
+                    bank_type: *bank_type,
+                    bank_holder_type: *bank_holder_type,
+                },
+                _ => {
+                    return Err(report!(errors::ApiErrorResponse::UnprocessableEntity {
+                        message: "unsupported bank debit type in payment method session"
+                            .to_string()
+                    })
+                    .attach_printable(
+                        "Only ACH bank debit is supported in payment method sessions",
+                    ))
+                }
+            };
+
+            let payment_method_request = payment_methods::PaymentMethodCreate {
+                payment_method_type,
+                payment_method_subtype,
+                metadata: None,
+                customer_id,
+                payment_method_data: payment_methods::PaymentMethodCreateData::BankDebit(
+                    bank_debit_detail,
+                ),
+                billing: billing_address.map(ToOwned::to_owned),
+                psp_tokenization: None,
+                network_tokenization: None,
+                storage_type,
+            };
+            Ok(payment_method_request)
+        }
         _ => Err(report!(errors::ApiErrorResponse::UnprocessableEntity {
-            message: "only card payment methods are supported for tokenization".to_string()
+            message: "payment method type is not supported in payment method session".to_string()
         })
         .attach_printable("Payment method data is incorrect")),
     }
@@ -2969,6 +3013,9 @@ pub async fn get_external_vault_token(
         storage::PaymentTokenData::PermanentCard(card_token_data) => {
             card_token_data.payment_method_id
         }
+        storage::PaymentTokenData::BankDebit(bank_debit_token_data) => {
+            bank_debit_token_data.payment_method_id
+        }
         storage::PaymentTokenData::TemporaryGeneric(_) => {
             Err(errors::ApiErrorResponse::NotImplemented {
                 message: errors::NotImplementedMessage::Reason(
@@ -3651,16 +3698,29 @@ fn get_pm_list_context(
                 }
             })
         }
-        Some(payment_methods::PaymentMethodsData::BankDebit(_))
-        | Some(payment_methods::PaymentMethodsData::WalletDetails(_))
-        | None => Some(PaymentMethodListContext::TemporaryToken {
-            token_data: is_payment_associated.then_some(
-                storage::PaymentTokenData::temporary_generic(generate_id(
-                    consts::ID_LENGTH,
-                    "token",
+        Some(payment_methods::PaymentMethodsData::BankDebit(bank_debit)) => {
+            Some(PaymentMethodListContext::BankDebit {
+                bank_debit_details: bank_debit,
+                token_data: is_payment_associated.then_some(storage::PaymentTokenData::bank_debit(
+                    payment_method.get_id().clone(),
+                    payment_method
+                        .locker_id
+                        .as_ref()
+                        .map(|id| id.get_string_repr().to_owned()),
+                    storage_type,
                 )),
-            ),
-        }),
+            })
+        }
+        Some(payment_methods::PaymentMethodsData::WalletDetails(_)) | None => {
+            Some(PaymentMethodListContext::TemporaryToken {
+                token_data: is_payment_associated.then_some(
+                    storage::PaymentTokenData::temporary_generic(generate_id(
+                        consts::ID_LENGTH,
+                        "token",
+                    )),
+                ),
+            })
+        }
     };
 
     Ok(payment_method_retrieval_context)
@@ -3687,6 +3747,10 @@ fn get_pm_list_token_data(
             token_data,
         } => Ok(token_data),
         PaymentMethodListContext::TemporaryToken { token_data } => Ok(token_data),
+        PaymentMethodListContext::BankDebit {
+            bank_debit_details: _,
+            token_data,
+        } => Ok(token_data),
     }
 }
 
@@ -3844,12 +3908,12 @@ pub async fn retrieve_payment_method(
     let db = state.store.as_ref();
 
     // 1. Resolve parent token (if any) -> storage type & optional token data
-    let (storage_type, card_token_data_opt) =
+    let (storage_type, pm_token_data_opt) =
         resolve_storage_type_from_token(&state, &pm.payment_method_id).await?;
 
     // 2. Fetch payment method record based on resolved storage type
     let (storage_type, payment_method) =
-        fetch_payment_method_by_storage(&state, &platform, &pm, storage_type, card_token_data_opt)
+        fetch_payment_method_by_storage(&state, &platform, &pm, storage_type, pm_token_data_opt)
             .await
             .change_context(errors::ApiErrorResponse::PaymentMethodNotFound)
             .attach_printable("Failed to fetch payment method by storage")?;
@@ -3941,22 +4005,30 @@ async fn fetch_payment_method_by_storage(
     platform: &domain::Platform,
     pm_incoming: &api::PaymentMethodId,
     storage_type: common_enums::StorageType,
-    card_token_data_opt: Option<storage::CardTokenData>,
+    pm_token_data_opt: Option<storage::PaymentTokenData>,
 ) -> RouterResult<(common_enums::StorageType, domain::PaymentMethod)> {
     let db = state.store.as_ref();
     match storage_type {
         common_enums::StorageType::Volatile => {
             logger::debug!("Fetching volatile payment method");
             // When it is Volatile storage payment token data will be always present in redis
-            let token_data = card_token_data_opt
-                .as_ref()
-                .ok_or(report!(errors::ApiErrorResponse::PaymentMethodNotFound))
-                .attach_printable("Failed to get card token data for volatile storage")?;
+            let pm_id = pm_token_data_opt
+                .and_then(|token| match token {
+                    storage::PaymentTokenData::PermanentCard(card) => Some(card.payment_method_id),
+                    storage::PaymentTokenData::BankDebit(bank_debit) => {
+                        Some(bank_debit.payment_method_id)
+                    }
+                    _ => None,
+                })
+                .ok_or_else(|| {
+                    report!(errors::ApiErrorResponse::PaymentMethodNotFound)
+                        .attach_printable("Failed to get token data for volatile storage")
+                })?;
 
             let volatile_payment_method = fetch_volatile_payment_method_record(
                 state,
                 platform.get_provider().get_key_store(),
-                token_data.payment_method_id.get_string_repr(),
+                pm_id.get_string_repr(),
             )
             .await
             .attach_printable("Failed to get volatile payment method record")?;
@@ -3967,14 +4039,19 @@ async fn fetch_payment_method_by_storage(
             // In S2S calls, id passed in the request could be payment method id as well
             // If a temporary token is passed after the redis expiration it will also be treated as
             // a persistent GlobalPaymentMethodId, but for temp tokens GlobalPaymentMethodId will fail
-            let pm_id = match card_token_data_opt {
-                Some(data) => data.payment_method_id.clone(),
+            let pm_id = match pm_token_data_opt {
+                Some(storage::PaymentTokenData::PermanentCard(card)) => Ok(card.payment_method_id),
+                Some(storage::PaymentTokenData::BankDebit(bank_debit)) => {
+                    Ok(bank_debit.payment_method_id)
+                }
+                Some(_) => Err(report!(errors::ApiErrorResponse::PaymentMethodNotFound)
+                    .attach_printable("Unexpected token data variant for payment method fetch")),
                 None => id_type::GlobalPaymentMethodId::generate_from_string(
                     pm_incoming.payment_method_id.clone(),
                 )
                 .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Unable to generate GlobalPaymentMethodId")?,
-            };
+                .attach_printable("Unable to generate GlobalPaymentMethodId"),
+            }?;
 
             fetch_payment_method_with_fallback(state, platform, &pm_id, storage_type)
                 .await
@@ -4062,7 +4139,7 @@ async fn fetch_volatile_payment_method_record(
 async fn resolve_storage_type_from_token(
     state: &SessionState,
     token: &String,
-) -> RouterResult<(common_enums::StorageType, Option<storage::CardTokenData>)> {
+) -> RouterResult<(common_enums::StorageType, Option<storage::PaymentTokenData>)> {
     // Try redis lookup for parent token
     let token_data_res = pm_routes::ParentPaymentMethodToken::create_key_for_token(token)
         .get_data_for_token(state)
@@ -4074,7 +4151,17 @@ async fn resolve_storage_type_from_token(
             match token_data {
                 storage::PaymentTokenData::PermanentCard(card) => {
                     let storage_type = card.storage_type;
-                    Ok((storage_type, Some(card)))
+                    Ok((
+                        storage_type,
+                        Some(storage::PaymentTokenData::PermanentCard(card)),
+                    ))
+                }
+                storage::PaymentTokenData::BankDebit(bank_debit) => {
+                    let storage_type = bank_debit.storage_type;
+                    Ok((
+                        storage_type,
+                        Some(storage::PaymentTokenData::BankDebit(bank_debit)),
+                    ))
                 }
                 // Any token kind other than PermanentCard is invalid for retrieving a saved payment method.
                 // Only PermanentCard is currently supported; all other enum variants should be removed.
@@ -5674,6 +5761,14 @@ pub async fn payment_method_get_token_details_core(
             Ok(services::ApplicationResponse::Json(
                 payment_methods::PaymentMethodGetTokenDetailsResponse {
                     id: card_token_data.payment_method_id,
+                    payment_method_token: temporary_token,
+                },
+            ))
+        }
+        Ok(storage::PaymentTokenData::BankDebit(bank_debit_token_data)) => {
+            Ok(services::ApplicationResponse::Json(
+                payment_methods::PaymentMethodGetTokenDetailsResponse {
+                    id: bank_debit_token_data.payment_method_id,
                     payment_method_token: temporary_token,
                 },
             ))

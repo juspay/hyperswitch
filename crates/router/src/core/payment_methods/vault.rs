@@ -2063,6 +2063,9 @@ pub async fn retrieve_payment_method_from_vault_using_payment_token(
         storage::PaymentTokenData::PermanentCard(card_token_data) => {
             card_token_data.payment_method_id
         }
+        storage::PaymentTokenData::BankDebit(bank_debit_token_data) => {
+            bank_debit_token_data.payment_method_id
+        }
         storage::PaymentTokenData::TemporaryGeneric(_) => {
             Err(errors::ApiErrorResponse::NotImplemented {
                 message: errors::NotImplementedMessage::Reason(
