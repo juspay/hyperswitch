@@ -1,4 +1,4 @@
-suse crate::{
+use crate::{
     core::api_locking::{self, GetLockingInput},
     services::authorization::permissions::Permission,
 };

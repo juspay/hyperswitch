@@ -361,7 +361,7 @@ dependencies = [
  "error-stack 0.4.1",
  "futures 0.3.31",
  "hyperswitch_interfaces",
- "masking 0.1.0",
+ "hyperswitch_masking",
  "opensearch",
  "reqwest 0.11.27",
  "router_env",
@@ -467,7 +467,7 @@ dependencies = [
  "deserialize_form_style_query_parameter",
  "error-stack 0.4.1",
  "euclid",
- "masking 0.1.0",
+ "hyperswitch_masking",
  "mime",
  "nutype",
  "reqwest 0.11.27",
@@ -1283,7 +1283,7 @@ dependencies = [
  "pin-project-lite",
  "rustversion",
  "serde",
- "sync_wrapper 1.0.1",
+ "sync_wrapper 1.0.2",
  "tower 0.4.13",
  "tower-layer",
  "tower-service",
@@ -1315,7 +1315,7 @@ dependencies = [
  "serde_json",
  "serde_path_to_error",
  "serde_urlencoded",
- "sync_wrapper 1.0.1",
+ "sync_wrapper 1.0.2",
  "tokio 1.48.0",
  "tower 0.5.2",
  "tower-layer",
@@ -1357,7 +1357,7 @@ dependencies = [
  "mime",
  "pin-project-lite",
  "rustversion",
- "sync_wrapper 1.0.1",
+ "sync_wrapper 1.0.2",
  "tower-layer",
  "tower-service",
  "tracing",
@@ -1734,7 +1734,7 @@ version = "0.1.0"
 dependencies = [
  "common_utils",
  "error-stack 0.4.1",
- "masking 0.1.0",
+ "hyperswitch_masking",
  "regex",
  "router_env",
  "serde",
@@ -2003,7 +2003,7 @@ name = "common_enums"
 version = "0.1.0"
 dependencies = [
  "diesel",
- "masking 0.1.0",
+ "hyperswitch_masking",
  "router_derive",
  "serde",
  "serde_json",
@@ -2024,7 +2024,7 @@ dependencies = [
  "diesel",
  "error-stack 0.4.1",
  "euclid",
- "masking 0.1.0",
+ "hyperswitch_masking",
  "serde",
  "serde_json",
  "smithy",
@@ -2051,7 +2051,7 @@ dependencies = [
  "globset",
  "hex",
  "http 0.2.12",
- "masking 0.1.0",
+ "hyperswitch_masking",
  "md5",
  "nanoid",
  "nutype",
@@ -2129,7 +2129,7 @@ dependencies = [
 [[package]]
 name = "config_patch_derive"
 version = "0.1.0"
-source = "git+https://github.com/juspay/connector-service?rev=23ae5acea8cfb1f1d35517dc95b7da8d101df5b9#23ae5acea8cfb1f1d35517dc95b7da8d101df5b9"
+source = "git+https://github.com/juspay/connector-service?tag=2026.03.04.0-hotfix1#1e9287e60753e247c8ea584fbe5fde28e0563b1a"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -2825,7 +2825,7 @@ dependencies = [
  "common_utils",
  "diesel",
  "error-stack 0.4.1",
- "masking 0.1.0",
+ "hyperswitch_masking",
  "router_derive",
  "router_env",
  "serde",
@@ -2919,7 +2919,7 @@ dependencies = [
  "error-stack 0.4.1",
  "external_services",
  "hyperswitch_interfaces",
- "masking 0.1.0",
+ "hyperswitch_masking",
  "mime",
  "redis_interface",
  "reqwest 0.11.27",
@@ -3234,7 +3234,7 @@ name = "events"
 version = "0.1.0"
 dependencies = [
  "error-stack 0.4.1",
- "masking 0.1.0",
+ "hyperswitch_masking",
  "router_env",
  "serde",
  "serde_json",
@@ -3266,12 +3266,12 @@ dependencies = [
  "hyper-proxy",
  "hyper-util",
  "hyperswitch_interfaces",
+ "hyperswitch_masking",
  "lettre",
- "masking 0.1.0",
  "once_cell",
  "open-feature",
- "prost",
- "prost-types",
+ "prost 0.14.3",
+ "prost-types 0.14.3",
  "quick-xml",
  "reqwest 0.11.27",
  "router_env",
@@ -3283,8 +3283,9 @@ dependencies = [
  "thiserror 1.0.69",
  "time",
  "tokio 1.48.0",
- "tonic 0.13.1",
- "tonic-build",
+ "tonic 0.14.5",
+ "tonic-prost",
+ "tonic-prost-build",
  "tonic-reflection",
  "tonic-types",
  "typed-builder 0.21.2",
@@ -3373,9 +3374,9 @@ checksum = "0399f9d26e5191ce32c498bebd31e7a3ceabc2745f0ac54af3f335126c3f24b3"
 
 [[package]]
 name = "fixedbitset"
-version = "0.4.2"
+version = "0.5.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0ce7134b9999ecaf8bcd65542e436736ef32ddca1b3e06094cb6ec5755203b80"
+checksum = "1d674e81391d1e1ab681a28d99df07927c6d4aa5b027d7da16ba32d1d21ecd99"
 
 [[package]]
 name = "flate2"
@@ -3633,17 +3634,17 @@ dependencies = [
 [[package]]
 name = "g2h"
 version = "0.5.0"
-source = "git+https://github.com/juspay/g2h?rev=ebe5d2c38716abd7b1def43a6a0123a5e4193489#ebe5d2c38716abd7b1def43a6a0123a5e4193489"
+source = "git+https://github.com/juspay/g2h?rev=399d5257744cabffe88d9871a1192eacbbe9f484#399d5257744cabffe88d9871a1192eacbbe9f484"
 dependencies = [
  "cargo_metadata 0.19.2",
  "heck 0.5.0",
  "proc-macro2",
- "prost",
+ "prost 0.14.3",
  "prost-build",
- "prost-types",
+ "prost-types 0.14.3",
  "quote",
  "thiserror 2.0.12",
- "tonic-build",
+ "tonic-prost-build",
 ]
 
 [[package]]
@@ -3800,20 +3801,21 @@ dependencies = [
 [[package]]
 name = "grpc-api-types"
 version = "0.1.0"
-source = "git+https://github.com/juspay/connector-service?rev=23ae5acea8cfb1f1d35517dc95b7da8d101df5b9#23ae5acea8cfb1f1d35517dc95b7da8d101df5b9"
+source = "git+https://github.com/juspay/connector-service?tag=2026.03.04.0-hotfix1#1e9287e60753e247c8ea584fbe5fde28e0563b1a"
 dependencies = [
  "axum 0.8.4",
  "error-stack 0.5.0",
  "g2h",
  "heck 0.5.0",
  "http 1.3.1",
- "masking 0.1.0 (git+https://github.com/juspay/hyperswitch?tag=2025.11.24.0)",
- "prost",
+ "hyperswitch_masking",
+ "prost 0.14.3",
  "prost-build",
- "prost-types",
+ "prost-types 0.14.3",
  "serde",
- "tonic 0.13.1",
+ "tonic 0.14.5",
  "tonic-build",
+ "tonic-prost",
  "ucs_cards",
 ]
 
@@ -3966,12 +3968,6 @@ name = "hex"
 version = "0.4.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7f24254aa9a54b5c858eaee2f5bccdb46aaf0e486a595ed5fd8f86ba55232a70"
-
-[[package]]
-name = "histogram"
-version = "0.6.9"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "12cb882ccb290b8646e554b157ab0b71e64e8d5bef775cd66b6531e52d302669"
 
 [[package]]
 name = "hkdf"
@@ -4319,12 +4315,12 @@ dependencies = [
  "http 0.2.12",
  "hyperswitch_domain_models",
  "hyperswitch_interfaces",
+ "hyperswitch_masking",
  "image",
  "iso_currency",
  "isocountry",
  "josekit",
  "lazy_static",
- "masking 0.1.0",
  "mime",
  "nanoid",
  "num-traits",
@@ -4384,7 +4380,7 @@ dependencies = [
  "error-stack 0.4.1",
  "futures 0.3.31",
  "http 0.2.12",
- "masking 0.1.0",
+ "hyperswitch_masking",
  "mime",
  "payment_link",
  "router_derive",
@@ -4413,8 +4409,7 @@ dependencies = [
  "error-stack 0.4.1",
  "http 0.2.12",
  "hyperswitch_domain_models",
- "masking 0.1.0",
- "masking 0.1.0 (git+https://github.com/juspay/hyperswitch?tag=2025.11.24.0)",
+ "hyperswitch_masking",
  "mime",
  "reqwest 0.11.27",
  "router_env",
@@ -4426,6 +4421,24 @@ dependencies = [
  "time",
  "tokio 1.48.0",
  "url",
+]
+
+[[package]]
+name = "hyperswitch_masking"
+version = "0.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6d110ac2d2ce7a5f84c7172e710ca1241fd5ecec6e77aa83a85071b8d52e04f3"
+dependencies = [
+ "bytes 1.10.1",
+ "diesel",
+ "erased-serde 0.4.6",
+ "prost 0.14.3",
+ "serde",
+ "serde_json",
+ "subtle",
+ "time",
+ "url",
+ "zeroize",
 ]
 
 [[package]]
@@ -4679,7 +4692,7 @@ dependencies = [
  "base64 0.22.1",
  "common_utils",
  "error-stack 0.4.1",
- "masking 0.1.0",
+ "hyperswitch_masking",
  "nom 7.1.3",
  "reqwest 0.12.7",
  "router_env",
@@ -4891,7 +4904,7 @@ dependencies = [
  "criterion",
  "euclid",
  "hyperswitch_constraint_graph",
- "masking 0.1.0",
+ "hyperswitch_masking",
  "serde",
  "serde_json",
  "strum 0.26.3",
@@ -4984,7 +4997,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "07033963ba89ebaf1584d767badaa2e8fcec21aedea6b8c0346d487d49c28667"
 dependencies = [
  "cfg-if 1.0.0",
- "windows-targets 0.52.6",
+ "windows-targets 0.53.5",
 ]
 
 [[package]]
@@ -5120,15 +5133,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "112b39cec0b298b6c1999fee3e31427f74f676e4cb9879ed1a121b43661a4154"
 
 [[package]]
-name = "lz4_flex"
-version = "0.11.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "75761162ae2b0e580d7e7c390558127e5f01b4194debd6221fd8c207fc80e3f5"
-dependencies = [
- "twox-hash",
-]
-
-[[package]]
 name = "mac"
 version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5152,40 +5156,6 @@ dependencies = [
  "string_cache",
  "string_cache_codegen",
  "tendril",
-]
-
-[[package]]
-name = "masking"
-version = "0.1.0"
-dependencies = [
- "bytes 1.10.1",
- "diesel",
- "erased-serde 0.4.6",
- "prost",
- "scylla",
- "serde",
- "serde_json",
- "subtle",
- "time",
- "url",
- "zeroize",
-]
-
-[[package]]
-name = "masking"
-version = "0.1.0"
-source = "git+https://github.com/juspay/hyperswitch?tag=2025.11.24.0#19723f8c9c6c89057624061fef429f6f574dd358"
-dependencies = [
- "bytes 1.10.1",
- "diesel",
- "erased-serde 0.4.6",
- "prost",
- "serde",
- "serde_json",
- "subtle",
- "time",
- "url",
- "zeroize",
 ]
 
 [[package]]
@@ -5902,7 +5872,7 @@ dependencies = [
  "opentelemetry",
  "opentelemetry-proto",
  "opentelemetry_sdk",
- "prost",
+ "prost 0.13.5",
  "thiserror 1.0.69",
  "tokio 1.48.0",
  "tonic 0.12.3",
@@ -5916,7 +5886,7 @@ checksum = "a6e05acbfada5ec79023c85368af14abd0b307c015e9064d249b2a950ef459a6"
 dependencies = [
  "opentelemetry",
  "opentelemetry_sdk",
- "prost",
+ "prost 0.13.5",
  "tonic 0.12.3",
 ]
 
@@ -6129,7 +6099,7 @@ dependencies = [
  "error-stack 0.4.1",
  "hyperswitch_domain_models",
  "hyperswitch_interfaces",
- "masking 0.1.0",
+ "hyperswitch_masking",
  "rdkafka",
  "router_env",
  "scheduler",
@@ -6223,11 +6193,12 @@ dependencies = [
 
 [[package]]
 name = "petgraph"
-version = "0.6.5"
+version = "0.8.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b4c5cc86750666a3ed20bdaf5ca2a0344f9c67674cae0515bec2da16fbaa47db"
+checksum = "8701b58ea97060d5e5b155d383a69952a60943f0e6dfe30b04c287beb0b27455"
 dependencies = [
  "fixedbitset",
+ "hashbrown 0.15.2",
  "indexmap 2.9.0",
 ]
 
@@ -6441,7 +6412,7 @@ dependencies = [
  "common_utils",
  "error-stack 0.4.1",
  "http 0.2.12",
- "masking 0.1.0",
+ "hyperswitch_masking",
  "mime",
  "serde",
  "serde_json",
@@ -6616,24 +6587,35 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2796faa41db3ec313a31f7624d9286acf277b52de526150b7e69f3debf891ee5"
 dependencies = [
  "bytes 1.10.1",
- "prost-derive",
+ "prost-derive 0.13.5",
+]
+
+[[package]]
+name = "prost"
+version = "0.14.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d2ea70524a2f82d518bce41317d0fae74151505651af45faf1ffbd6fd33f0568"
+dependencies = [
+ "bytes 1.10.1",
+ "prost-derive 0.14.3",
 ]
 
 [[package]]
 name = "prost-build"
-version = "0.13.5"
+version = "0.14.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "be769465445e8c1474e9c5dac2018218498557af32d9ed057325ec9a41ae81bf"
+checksum = "343d3bd7056eda839b03204e68deff7d1b13aba7af2b2fd16890697274262ee7"
 dependencies = [
  "heck 0.5.0",
  "itertools 0.13.0",
  "log",
  "multimap",
- "once_cell",
  "petgraph",
  "prettyplease",
- "prost",
- "prost-types",
+ "prost 0.14.3",
+ "prost-types 0.14.3",
+ "pulldown-cmark 0.13.3",
+ "pulldown-cmark-to-cmark",
  "regex",
  "syn 2.0.101",
  "tempfile",
@@ -6653,12 +6635,34 @@ dependencies = [
 ]
 
 [[package]]
+name = "prost-derive"
+version = "0.14.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "27c6023962132f4b30eb4c172c91ce92d933da334c59c23cddee82358ddafb0b"
+dependencies = [
+ "anyhow",
+ "itertools 0.13.0",
+ "proc-macro2",
+ "quote",
+ "syn 2.0.101",
+]
+
+[[package]]
 name = "prost-types"
 version = "0.13.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "52c2c1bf36ddb1a1c396b3601a3cec27c2462e45f07c386894ec3ccf5332bd16"
 dependencies = [
- "prost",
+ "prost 0.13.5",
+]
+
+[[package]]
+name = "prost-types"
+version = "0.14.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8991c4cbdb8bc5b11f0b074ffe286c30e523de90fee5ba8132f1399f23cb3dd7"
+dependencies = [
+ "prost 0.14.3",
 ]
 
 [[package]]
@@ -6699,6 +6703,26 @@ dependencies = [
  "bitflags 2.9.0",
  "memchr",
  "unicase",
+]
+
+[[package]]
+name = "pulldown-cmark"
+version = "0.13.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7c3a14896dfa883796f1cb410461aef38810ea05f2b2c33c5aded3649095fdad"
+dependencies = [
+ "bitflags 2.9.0",
+ "memchr",
+ "unicase",
+]
+
+[[package]]
+name = "pulldown-cmark-to-cmark"
+version = "22.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "50793def1b900256624a709439404384204a5dc3a6ec580281bfaac35e882e90"
+dependencies = [
+ "pulldown-cmark 0.13.3",
 ]
 
 [[package]]
@@ -6891,15 +6915,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "99d9a13982dcf210057a8a78572b2217b667c3beacbf3a0d8b454f6f82837d38"
 dependencies = [
  "getrandom 0.3.3",
-]
-
-[[package]]
-name = "rand_pcg"
-version = "0.3.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "59cad018caf63deb318e5a4586d99a24424a364f40f1e5778c29aca23f4fc73e"
-dependencies = [
- "rand_core 0.6.4",
 ]
 
 [[package]]
@@ -7167,7 +7182,7 @@ dependencies = [
  "serde",
  "serde_json",
  "serde_urlencoded",
- "sync_wrapper 1.0.1",
+ "sync_wrapper 1.0.2",
  "system-configuration 0.6.1",
  "tokio 1.48.0",
  "tokio-native-tls",
@@ -7331,13 +7346,12 @@ dependencies = [
  "hyperswitch_constraint_graph",
  "hyperswitch_domain_models",
  "hyperswitch_interfaces",
+ "hyperswitch_masking",
  "infer",
  "injector",
  "josekit",
  "jsonwebtoken",
  "kgraph_utils",
- "masking 0.1.0",
- "masking 0.1.0 (git+https://github.com/juspay/hyperswitch?tag=2025.11.24.0)",
  "maud",
  "mimalloc",
  "mime",
@@ -7350,7 +7364,7 @@ dependencies = [
  "payment_link",
  "payment_methods",
  "pm_auth",
- "prost-types",
+ "prost-types 0.14.3",
  "rand 0.8.5",
  "rand_chacha 0.3.1",
  "rdkafka",
@@ -7473,7 +7487,7 @@ dependencies = [
 [[package]]
 name = "rust-grpc-client"
 version = "0.1.0"
-source = "git+https://github.com/juspay/connector-service?rev=23ae5acea8cfb1f1d35517dc95b7da8d101df5b9#23ae5acea8cfb1f1d35517dc95b7da8d101df5b9"
+source = "git+https://github.com/juspay/connector-service?tag=2026.03.04.0-hotfix1#1e9287e60753e247c8ea584fbe5fde28e0563b1a"
 dependencies = [
  "grpc-api-types",
 ]
@@ -7910,65 +7924,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "scylla"
-version = "0.15.0"
-source = "git+https://github.com/juspay/scylla-rust-driver.git?rev=5700aa2847b25437cdd4fcf34d707aa90dca8b89#5700aa2847b25437cdd4fcf34d707aa90dca8b89"
-dependencies = [
- "arc-swap",
- "async-trait",
- "byteorder",
- "bytes 1.10.1",
- "chrono",
- "dashmap",
- "futures 0.3.31",
- "hashbrown 0.14.5",
- "histogram",
- "itertools 0.13.0",
- "lazy_static",
- "lz4_flex",
- "rand 0.8.5",
- "rand_pcg",
- "scylla-cql",
- "scylla-macros",
- "smallvec 1.15.0",
- "snap",
- "socket2 0.5.10",
- "thiserror 1.0.69",
- "tokio 1.48.0",
- "tracing",
- "uuid",
-]
-
-[[package]]
-name = "scylla-cql"
-version = "0.4.0"
-source = "git+https://github.com/juspay/scylla-rust-driver.git?rev=5700aa2847b25437cdd4fcf34d707aa90dca8b89#5700aa2847b25437cdd4fcf34d707aa90dca8b89"
-dependencies = [
- "async-trait",
- "byteorder",
- "bytes 1.10.1",
- "lz4_flex",
- "scylla-macros",
- "snap",
- "stable_deref_trait",
- "thiserror 1.0.69",
- "tokio 1.48.0",
- "uuid",
- "yoke",
-]
-
-[[package]]
-name = "scylla-macros"
-version = "0.7.0"
-source = "git+https://github.com/juspay/scylla-rust-driver.git?rev=5700aa2847b25437cdd4fcf34d707aa90dca8b89#5700aa2847b25437cdd4fcf34d707aa90dca8b89"
-dependencies = [
- "darling 0.20.11",
- "proc-macro2",
- "quote",
- "syn 2.0.101",
-]
-
-[[package]]
 name = "sdd"
 version = "3.0.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -8070,10 +8025,11 @@ checksum = "388a1df253eca08550bef6c72392cfe7c30914bf41df5269b68cbd6ff8f570a3"
 
 [[package]]
 name = "serde"
-version = "1.0.219"
+version = "1.0.228"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5f0e2c6ed6606019b4e29e69dbaba95b11854410e5347d525002456dbbb786b6"
+checksum = "9a8e94ea7f378bd32cbbd37198a4a91436180c5bb472411e48b5ec2e2124ae9e"
 dependencies = [
+ "serde_core",
  "serde_derive",
 ]
 
@@ -8110,10 +8066,19 @@ dependencies = [
 ]
 
 [[package]]
-name = "serde_derive"
-version = "1.0.219"
+name = "serde_core"
+version = "1.0.228"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5b0276cf7f2c73365f7157c8123c21cd9a50fbbd844757af28ca1f5925fc2a00"
+checksum = "41d385c7d4ca58e59fc732af25c3983b67ac852c1a25000afe1175de458b67ad"
+dependencies = [
+ "serde_derive",
+]
+
+[[package]]
+name = "serde_derive"
+version = "1.0.228"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d540f220d3187173da220f885ab66608367b6574e925011a9353e4badda91d79"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -8410,7 +8375,7 @@ dependencies = [
  "cargo_metadata 0.14.2",
  "error-chain",
  "glob",
- "pulldown-cmark",
+ "pulldown-cmark 0.9.6",
  "tempfile",
  "walkdir",
 ]
@@ -8490,12 +8455,6 @@ dependencies = [
  "router_env",
  "smithy-core",
 ]
-
-[[package]]
-name = "snap"
-version = "1.1.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1b6b67fb9a61334225b5b790716f609cd58395f895b3fe8b328786812a40bc3b"
 
 [[package]]
 name = "socket2"
@@ -8793,7 +8752,7 @@ dependencies = [
  "error-stack 0.4.1",
  "futures 0.3.31",
  "hyperswitch_domain_models",
- "masking 0.1.0",
+ "hyperswitch_masking",
  "moka",
  "redis_interface",
  "router_derive",
@@ -8918,7 +8877,7 @@ dependencies = [
  "error-stack 0.4.1",
  "hyperswitch_domain_models",
  "hyperswitch_interfaces",
- "masking 0.1.0",
+ "hyperswitch_masking",
  "router_env",
  "scheduler",
  "serde",
@@ -9152,9 +9111,9 @@ checksum = "2047c6ded9c721764247e62cd3b03c09ffc529b2ba5b10ec482ae507a4a70160"
 
 [[package]]
 name = "sync_wrapper"
-version = "1.0.1"
+version = "1.0.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a7065abeca94b6a8a577f9bd45aa0867a2238b74e8eb67cf10d492bc39351394"
+checksum = "0bf256ce5efdfa370213c1dabab5935a12e49f2c58d15e9eac2870d3b4f27263"
 dependencies = [
  "futures-core",
 ]
@@ -9330,7 +9289,7 @@ dependencies = [
  "base64 0.22.1",
  "clap",
  "common_enums",
- "masking 0.1.0",
+ "hyperswitch_masking",
  "rand 0.8.5",
  "regex",
  "reqwest 0.11.27",
@@ -9900,7 +9859,7 @@ dependencies = [
  "hyper-util",
  "percent-encoding",
  "pin-project",
- "prost",
+ "prost 0.13.5",
  "socket2 0.5.10",
  "tokio 1.48.0",
  "tokio-stream",
@@ -9916,6 +9875,25 @@ version = "0.13.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7e581ba15a835f4d9ea06c55ab1bd4dce26fc53752c69a04aac00703bfb49ba9"
 dependencies = [
+ "base64 0.22.1",
+ "bytes 1.10.1",
+ "http 1.3.1",
+ "http-body 1.0.1",
+ "http-body-util",
+ "percent-encoding",
+ "pin-project",
+ "tokio-stream",
+ "tower-layer",
+ "tower-service",
+ "tracing",
+]
+
+[[package]]
+name = "tonic"
+version = "0.14.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "fec7c61a0695dc1887c1b53952990f3ad2e3a31453e1f49f10e75424943a93ec"
+dependencies = [
  "async-trait",
  "axum 0.8.4",
  "base64 0.22.1",
@@ -9929,8 +9907,8 @@ dependencies = [
  "hyper-util",
  "percent-encoding",
  "pin-project",
- "prost",
- "socket2 0.5.10",
+ "socket2 0.6.1",
+ "sync_wrapper 1.0.2",
  "tokio 1.48.0",
  "tokio-stream",
  "tower 0.5.2",
@@ -9941,29 +9919,55 @@ dependencies = [
 
 [[package]]
 name = "tonic-build"
-version = "0.13.1"
+version = "0.14.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "eac6f67be712d12f0b41328db3137e0d0757645d8904b4cb7d51cd9c2279e847"
+checksum = "1882ac3bf5ef12877d7ed57aad87e75154c11931c2ba7e6cde5e22d63522c734"
 dependencies = [
  "prettyplease",
  "proc-macro2",
- "prost-build",
- "prost-types",
  "quote",
  "syn 2.0.101",
 ]
 
 [[package]]
-name = "tonic-reflection"
-version = "0.13.1"
+name = "tonic-prost"
+version = "0.14.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f9687bd5bfeafebdded2356950f278bba8226f0b32109537c4253406e09aafe1"
+checksum = "a55376a0bbaa4975a3f10d009ad763d8f4108f067c7c2e74f3001fb49778d309"
 dependencies = [
- "prost",
- "prost-types",
+ "bytes 1.10.1",
+ "prost 0.14.3",
+ "tonic 0.14.5",
+]
+
+[[package]]
+name = "tonic-prost-build"
+version = "0.14.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f3144df636917574672e93d0f56d7edec49f90305749c668df5101751bb8f95a"
+dependencies = [
+ "prettyplease",
+ "proc-macro2",
+ "prost-build",
+ "prost-types 0.14.3",
+ "quote",
+ "syn 2.0.101",
+ "tempfile",
+ "tonic-build",
+]
+
+[[package]]
+name = "tonic-reflection"
+version = "0.14.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "aaf0685a51e6d02b502ba0764002e766b7f3042aed13d9234925b6ffbfa3fca7"
+dependencies = [
+ "prost 0.14.3",
+ "prost-types 0.14.3",
  "tokio 1.48.0",
  "tokio-stream",
- "tonic 0.13.1",
+ "tonic 0.14.5",
+ "tonic-prost",
 ]
 
 [[package]]
@@ -9972,8 +9976,8 @@ version = "0.13.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "07439468da24d5f211d3f3bd7b63665d8f45072804457e838a87414a478e2db8"
 dependencies = [
- "prost",
- "prost-types",
+ "prost 0.13.5",
+ "prost-types 0.13.5",
  "tonic 0.13.1",
 ]
 
@@ -10024,7 +10028,7 @@ dependencies = [
  "indexmap 2.9.0",
  "pin-project-lite",
  "slab",
- "sync_wrapper 1.0.1",
+ "sync_wrapper 1.0.2",
  "tokio 1.48.0",
  "tokio-util",
  "tower-layer",
@@ -10193,16 +10197,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e421abadd41a4225275504ea4d6566923418b7f05506fbc9c0fe86ba7396114b"
 
 [[package]]
-name = "twox-hash"
-version = "1.6.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "97fee6b57c6a41524a810daee9286c02d7752c4253064d0b05472833a438f675"
-dependencies = [
- "cfg-if 1.0.0",
- "static_assertions",
-]
-
-[[package]]
 name = "typed-builder"
 version = "0.21.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -10263,12 +10257,12 @@ checksum = "ed646292ffc8188ef8ea4d1e0e0150fb15a5c2e12ad9b8fc191ae7a8a7f3c4b9"
 [[package]]
 name = "ucs_cards"
 version = "0.1.0"
-source = "git+https://github.com/juspay/connector-service?rev=23ae5acea8cfb1f1d35517dc95b7da8d101df5b9#23ae5acea8cfb1f1d35517dc95b7da8d101df5b9"
+source = "git+https://github.com/juspay/connector-service?tag=2026.03.04.0-hotfix1#1e9287e60753e247c8ea584fbe5fde28e0563b1a"
 dependencies = [
  "bytes 1.10.1",
  "error-stack 0.4.1",
- "masking 0.1.0 (git+https://github.com/juspay/hyperswitch?tag=2025.11.24.0)",
- "prost",
+ "hyperswitch_masking",
+ "prost 0.14.3",
  "regex",
  "serde",
  "thiserror 1.0.69",
@@ -10279,7 +10273,7 @@ dependencies = [
 [[package]]
 name = "ucs_common_enums"
 version = "0.1.0"
-source = "git+https://github.com/juspay/connector-service?rev=23ae5acea8cfb1f1d35517dc95b7da8d101df5b9#23ae5acea8cfb1f1d35517dc95b7da8d101df5b9"
+source = "git+https://github.com/juspay/connector-service?tag=2026.03.04.0-hotfix1#1e9287e60753e247c8ea584fbe5fde28e0563b1a"
 dependencies = [
  "serde",
  "strum 0.26.3",
@@ -10290,7 +10284,7 @@ dependencies = [
 [[package]]
 name = "ucs_common_utils"
 version = "0.1.0"
-source = "git+https://github.com/juspay/connector-service?rev=23ae5acea8cfb1f1d35517dc95b7da8d101df5b9#23ae5acea8cfb1f1d35517dc95b7da8d101df5b9"
+source = "git+https://github.com/juspay/connector-service?tag=2026.03.04.0-hotfix1#1e9287e60753e247c8ea584fbe5fde28e0563b1a"
 dependencies = [
  "anyhow",
  "base64 0.21.7",
@@ -10301,7 +10295,7 @@ dependencies = [
  "error-stack 0.4.1",
  "hex",
  "http 1.3.1",
- "masking 0.1.0 (git+https://github.com/juspay/hyperswitch?tag=2025.11.24.0)",
+ "hyperswitch_masking",
  "md5",
  "nanoid",
  "once_cell",
@@ -10319,7 +10313,7 @@ dependencies = [
  "strum 0.26.3",
  "thiserror 1.0.69",
  "time",
- "tonic 0.13.1",
+ "tonic 0.14.5",
  "tracing",
  "ucs_common_enums",
  "url",
