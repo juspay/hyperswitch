@@ -301,6 +301,7 @@ diesel::table! {
         is_l2_l3_enabled -> Nullable<Bool>,
         network_tokenization_credentials -> Nullable<Bytea>,
         payment_method_blocking -> Nullable<Jsonb>,
+        default_fallback_routing -> Nullable<Jsonb>,
     }
 }
 
@@ -439,6 +440,8 @@ diesel::table! {
         #[max_length = 255]
         last_modified_by -> Nullable<Varchar>,
         document_details -> Nullable<Bytea>,
+        #[max_length = 64]
+        id -> Nullable<Varchar>,
     }
 }
 

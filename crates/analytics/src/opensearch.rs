@@ -902,6 +902,7 @@ impl OpenSearchQueryBuilder {
                     Some(order) => {
                         let sort_on = match order.on {
                             SortOn::Amount => self.get_amount_field(*index).to_string(),
+                            SortOn::AttemptCount => "attempt_count".to_string(),
                             SortOn::Created => "@timestamp".to_string(),
                             SortOn::Modified => "modified_at".to_string(),
                         };

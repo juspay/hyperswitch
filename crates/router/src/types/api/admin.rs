@@ -541,5 +541,6 @@ pub async fn create_profile_from_merchant_account(
         is_l2_l3_enabled: request.is_l2_l3_enabled.unwrap_or(false),
         network_tokenization_credentials: None, // since credentials are at merchant level, they should not be in the profile, tracked in issue #15134
         payment_method_blocking: None,
+        default_fallback_routing: None,
     }))
 }

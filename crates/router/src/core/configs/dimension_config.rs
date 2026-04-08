@@ -66,7 +66,7 @@ macro_rules! config {
                 pub async fn [<get_ $key:lower>](
                     &self,
                     storage: &dyn StorageInterface,
-                    superposition_client: Option<&superposition::SuperpositionClient>,
+                    superposition_client: &superposition::SuperpositionClient,
                     targeting_key: Option<&$targeting_type>,
                 ) -> $output {
                     // Fetch JSON and convert to $output using the conversion function
@@ -109,7 +109,7 @@ macro_rules! config {
                 pub async fn [<get_ $key:lower>](
                     &self,
                     storage: &dyn StorageInterface,
-                    superposition_client: Option<&superposition::SuperpositionClient>,
+                    superposition_client: &superposition::SuperpositionClient,
                     targeting_key: Option<&$targeting_type>,
                 ) -> $output {
                     fetch_db_config_for_dimensions::<[<$key:camel>]>(storage, superposition_client, self, targeting_key).await
@@ -164,4 +164,19 @@ config! {
     object = true,
     requires = DimensionsWithMerchantIdAndConnector,
     targeting_key = id_type::PayoutId
+}
+
+config! {
+    superposition_key = CLIENT_SESSION_VALIDATION_ENABLED,
+    output = bool,
+    default = true,
+    requires = DimensionsWithMerchantId,
+    targeting_key = id_type::PaymentId
+}
+
+impl DatabaseBackedConfig for ClientSessionValidationEnabled {
+    const KEY: &'static str = "client_session_validation_enabled";
+    fn db_key(_dimensions: &impl super::dimension_state::DimensionsBase) -> Option<String> {
+        None
+    }
 }

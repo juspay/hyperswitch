@@ -1684,6 +1684,8 @@ struct MerchantDefaultConfigUpdate<'a> {
     merchant_id: &'a id_type::MerchantId,
     profile_id: &'a id_type::ProfileId,
     transaction_type: &'a api_enums::TransactionType,
+    business_profile: &'a domain::Profile,
+    key_store: &'a domain::MerchantKeyStore,
 }
 #[cfg(feature = "v1")]
 impl MerchantDefaultConfigUpdate<'_> {
@@ -1721,7 +1723,7 @@ impl MerchantDefaultConfigUpdate<'_> {
                 .await?;
             }
             if !default_routing_config_for_profile.contains(&choice.clone()) {
-                default_routing_config_for_profile.push(choice);
+                default_routing_config_for_profile.push(choice.clone());
                 routing::helpers::update_merchant_default_config(
                     self.store,
                     self.profile_id.get_string_repr(),
@@ -1729,6 +1731,44 @@ impl MerchantDefaultConfigUpdate<'_> {
                     self.transaction_type,
                 )
                 .await?;
+            }
+            // Update the business_profile.default_fallback_routing column
+            let mut profile_fallback_config = if let Some(default_fallback_routing) =
+                &self.business_profile.default_fallback_routing
+            {
+                default_fallback_routing
+                    .clone()
+                    .expose()
+                    .parse_value::<Vec<routing_types::RoutableConnectorChoice>>(
+                        "Vec<RoutableConnectorChoice>",
+                    )
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Business Profile default config has invalid structure")?
+            } else {
+                Vec::new()
+            };
+            if !profile_fallback_config.contains(&choice) {
+                profile_fallback_config.push(choice);
+                let default_fallback_routing = Secret::from(
+                    profile_fallback_config
+                        .encode_to_value()
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable("Failed to convert routing ref to value")?,
+                );
+                let profile_update = domain::ProfileUpdate::DefaultRoutingFallbackUpdate {
+                    default_fallback_routing: Some(default_fallback_routing),
+                };
+                self.store
+                    .update_profile_by_profile_id(
+                        self.key_store,
+                        self.business_profile.clone(),
+                        profile_update,
+                    )
+                    .await
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable(
+                        "Failed to update routing algorithm ref in business profile",
+                    )?;
             }
         }
         Ok(())
@@ -1780,6 +1820,46 @@ impl MerchantDefaultConfigUpdate<'_> {
                     self.transaction_type,
                 )
                 .await?;
+            }
+            // Update the business_profile.default_fallback_routing column
+            let mut profile_fallback_config = if let Some(default_fallback_routing) =
+                &self.business_profile.default_fallback_routing
+            {
+                default_fallback_routing
+                    .clone()
+                    .expose()
+                    .parse_value::<Vec<routing_types::RoutableConnectorChoice>>(
+                        "Vec<RoutableConnectorChoice>",
+                    )
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Business Profile default config has invalid structure")?
+            } else {
+                Vec::new()
+            };
+            if profile_fallback_config.contains(&choice) {
+                profile_fallback_config.retain(|mca| {
+                    mca.merchant_connector_id.as_ref() != Some(self.merchant_connector_id)
+                });
+                let default_fallback_routing = Secret::from(
+                    profile_fallback_config
+                        .encode_to_value()
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable("Failed to convert routing ref to value")?,
+                );
+                let profile_update = domain::ProfileUpdate::DefaultRoutingFallbackUpdate {
+                    default_fallback_routing: Some(default_fallback_routing),
+                };
+                self.store
+                    .update_profile_by_profile_id(
+                        self.key_store,
+                        self.business_profile.clone(),
+                        profile_update,
+                    )
+                    .await
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable(
+                        "Failed to update routing algorithm ref in business profile",
+                    )?;
             }
         }
         Ok(())
@@ -2732,6 +2812,8 @@ pub async fn create_connector(
         merchant_id,
         profile_id: business_profile.get_id(),
         transaction_type: &req.get_transaction_type(),
+        business_profile: &business_profile,
+        key_store: processor.get_key_store(),
     };
 
     #[cfg(feature = "v2")]
@@ -2982,6 +3064,15 @@ pub async fn update_connector(
     // redact cgraph cache on connector updation
     redact_cgraph_cache(&state, &merchant_id, &profile_id).await?;
 
+    // Fetch business profile for routing update
+    #[cfg(feature = "v1")]
+    let business_profile = db
+        .find_business_profile_by_profile_id(&key_store, &mca.profile_id)
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {
+            id: mca.profile_id.get_string_repr().to_owned(),
+        })?;
+
     // redact routing cache on connector updation
     #[cfg(feature = "v1")]
     let merchant_config = MerchantDefaultConfigUpdate {
@@ -2997,6 +3088,8 @@ pub async fn update_connector(
         merchant_id: &merchant_id,
         profile_id: &mca.profile_id,
         transaction_type: &mca.connector_type.into(),
+        business_profile: &business_profile,
+        key_store: &key_store,
     };
 
     #[cfg(feature = "v1")]
@@ -3053,6 +3146,14 @@ pub async fn delete_connector(
             id: merchant_connector_id.get_string_repr().to_string(),
         })?;
 
+    // Fetch business profile for routing update
+    let business_profile = db
+        .find_business_profile_by_profile_id(&key_store, &mca.profile_id)
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {
+            id: mca.profile_id.get_string_repr().to_owned(),
+        })?;
+
     // delete the mca from the config as well
     let merchant_default_config_delete = MerchantDefaultConfigUpdate {
         routable_connector: &Some(
@@ -3067,6 +3168,8 @@ pub async fn delete_connector(
         merchant_id: &merchant_id,
         profile_id: &mca.profile_id,
         transaction_type: &mca.connector_type.into(),
+        business_profile: &business_profile,
+        key_store: &key_store,
     };
 
     merchant_default_config_delete
@@ -3574,6 +3677,7 @@ impl ProfileCreateBridge for api::ProfileCreate {
             is_l2_l3_enabled: self.is_l2_l3_enabled.unwrap_or(false),
             network_tokenization_credentials,
             payment_method_blocking: self.payment_method_blocking.map(ForeignInto::foreign_into),
+            default_fallback_routing: None,
         }))
     }
 

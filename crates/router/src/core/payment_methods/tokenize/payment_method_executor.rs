@@ -67,7 +67,7 @@ impl<'a> NetworkTokenizationBuilder<'a, TokenizeWithPmId> {
     ) -> NetworkTokenizationBuilder<'a, PmFetched> {
         let payment_method_response = api::PaymentMethodResponse {
             merchant_id: payment_method.merchant_id.clone(),
-            customer_id: Some(payment_method.customer_id.clone()),
+            customer_id: payment_method.customer_id.clone(),
             payment_method_id: payment_method.payment_method_id.clone(),
             payment_method: payment_method.payment_method,
             payment_method_type: payment_method.payment_method_type,
@@ -224,7 +224,7 @@ impl<'a> NetworkTokenizationBuilder<'a, PmTokenStored> {
     ) -> NetworkTokenizationBuilder<'a, PmTokenUpdated> {
         let payment_method_response = api::PaymentMethodResponse {
             merchant_id: payment_method.merchant_id.clone(),
-            customer_id: Some(payment_method.customer_id.clone()),
+            customer_id: payment_method.customer_id.clone(),
             payment_method_id: payment_method.payment_method_id.clone(),
             payment_method: payment_method.payment_method,
             payment_method_type: payment_method.payment_method_type,
@@ -317,7 +317,17 @@ impl CardNetworkTokenizeExecutor<'_, domain::TokenizePaymentMethodRequest> {
             .change_context(errors::ApiErrorResponse::MissingRequiredField {
                 field_name: "customer",
             })?;
-        when(payment_method.customer_id != customer_id_in_req, || {
+
+        let customer_id = payment_method
+            .customer_id
+            .clone()
+            .get_required_value("customer_id")
+            .change_context(errors::ApiErrorResponse::MissingRequiredField {
+                field_name: "customer",
+            })
+            .attach_printable("Missing customer_id in domain payment method")?;
+
+        when(customer_id != customer_id_in_req, || {
             Err(report!(errors::ApiErrorResponse::InvalidRequestData {
                 message: "Payment method does not belong to the customer".to_string()
             }))
@@ -357,7 +367,7 @@ impl CardNetworkTokenizeExecutor<'_, domain::TokenizePaymentMethodRequest> {
         let db = &*self.state.store;
         let customer = db
             .find_customer_by_customer_id_merchant_id(
-                &payment_method.customer_id,
+                &customer_id,
                 self.merchant_account.get_id(),
                 self.key_store,
                 self.merchant_account.storage_scheme,

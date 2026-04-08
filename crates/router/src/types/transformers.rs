@@ -102,7 +102,7 @@ impl
     ) -> Self {
         Self {
             merchant_id: item.merchant_id.to_owned(),
-            customer_id: Some(item.customer_id.to_owned()),
+            customer_id: item.customer_id.to_owned(),
             payment_method_id: item.get_id().clone(),
             payment_method: item.get_payment_method_type(),
             payment_method_type: item.get_payment_method_subtype(),
@@ -400,6 +400,8 @@ impl ForeignFrom<api_enums::PaymentMethodType> for api_enums::PaymentMethod {
             | api_enums::PaymentMethodType::InstantBankTransferPoland
             | api_enums::PaymentMethodType::SepaBankTransfer
             | api_enums::PaymentMethodType::IndonesianBankTransfer
+            | api_enums::PaymentMethodType::PixAutomaticoPush
+            | api_enums::PaymentMethodType::PixAutomaticoQr
             | api_enums::PaymentMethodType::Pix => Self::BankTransfer,
             api_enums::PaymentMethodType::Givex
             | api_enums::PaymentMethodType::PaySafeCard
@@ -1326,6 +1328,7 @@ impl ForeignFrom<&api_models::payouts::PayoutMethodData> for api_enums::PaymentM
     fn foreign_from(value: &api_models::payouts::PayoutMethodData) -> Self {
         match value {
             api_models::payouts::PayoutMethodData::Bank(bank) => Self::foreign_from(bank),
+            api_models::payouts::PayoutMethodData::BankTransfer(bank) => Self::foreign_from(bank),
             api_models::payouts::PayoutMethodData::Card(_) => Self::Debit,
             api_models::payouts::PayoutMethodData::Wallet(wallet) => Self::foreign_from(wallet),
             api_models::payouts::PayoutMethodData::BankRedirect(bank_redirect) => {
@@ -1347,6 +1350,19 @@ impl ForeignFrom<&api_models::payouts::Bank> for api_enums::PaymentMethodType {
             api_models::payouts::Bank::Sepa(_) => Self::SepaBankTransfer,
             api_models::payouts::Bank::Pix(_) => Self::Pix,
             api_models::payouts::Bank::Trustly(_) => Self::Trustly,
+        }
+    }
+}
+
+#[cfg(feature = "payouts")]
+impl ForeignFrom<&api_models::payouts::BankTransfer> for api_enums::PaymentMethodType {
+    fn foreign_from(value: &api_models::payouts::BankTransfer) -> Self {
+        match value {
+            api_models::payouts::BankTransfer::Ach(_) => Self::Ach,
+            api_models::payouts::BankTransfer::Bacs(_) => Self::Bacs,
+            api_models::payouts::BankTransfer::Sepa(_) => Self::SepaBankTransfer,
+            api_models::payouts::BankTransfer::Pix(_) => Self::Pix,
+            api_models::payouts::BankTransfer::Trustly(_) => Self::Trustly,
         }
     }
 }
@@ -1377,6 +1393,7 @@ impl ForeignFrom<&api_models::payouts::PayoutMethodData> for api_enums::PaymentM
     fn foreign_from(value: &api_models::payouts::PayoutMethodData) -> Self {
         match value {
             api_models::payouts::PayoutMethodData::Bank(_) => Self::BankTransfer,
+            api_models::payouts::PayoutMethodData::BankTransfer(_) => Self::BankTransfer,
             api_models::payouts::PayoutMethodData::Card(_) => Self::Card,
             api_models::payouts::PayoutMethodData::Wallet(_) => Self::Wallet,
             api_models::payouts::PayoutMethodData::BankRedirect(_) => Self::BankRedirect,
@@ -1395,6 +1412,7 @@ impl ForeignTryFrom<&api_models::payouts::PayoutMethodData> for api_models::enum
     ) -> Result<Self, Self::Error> {
         match value {
             api_models::payouts::PayoutMethodData::Bank(_) => Ok(Self::Bank),
+            api_models::payouts::PayoutMethodData::BankTransfer(_) => Ok(Self::Bank),
             api_models::payouts::PayoutMethodData::Card(_) => Ok(Self::Card),
             api_models::payouts::PayoutMethodData::Wallet(_) => Ok(Self::Wallet),
             api_models::payouts::PayoutMethodData::BankRedirect(_) => Ok(Self::BankRedirect),
