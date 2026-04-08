@@ -23,6 +23,21 @@ impl Provider {
     pub fn get_key_store(&self) -> &MerchantKeyStore {
         &self.key_store
     }
+
+    /// Returns the provider merchant
+    pub fn get_provider_merchant_id(&self) -> ProviderMerchantId {
+        ProviderMerchantId(self.account.get_id().clone())
+    }
+}
+
+/// Provider Merchant ID
+#[derive(Debug, Clone)]
+pub struct ProviderMerchantId(common_utils::id_type::MerchantId);
+
+impl ProviderMerchantId {
+    pub fn inner(&self) -> &common_utils::id_type::MerchantId {
+        &self.0
+    }
 }
 
 /// Processor = The merchant account whose processor credentials are used
@@ -46,6 +61,21 @@ impl Processor {
     /// Returns a reference to the key store associated with the processor.
     pub fn get_key_store(&self) -> &MerchantKeyStore {
         &self.key_store
+    }
+
+    /// Returns the processor merchant ID
+    pub fn get_processor_merchant_id(&self) -> ProcessorMerchantId {
+        ProcessorMerchantId(self.account.get_id().clone())
+    }
+}
+
+/// Processor Merchant ID
+#[derive(Debug, Clone)]
+pub struct ProcessorMerchantId(common_utils::id_type::MerchantId);
+
+impl ProcessorMerchantId {
+    pub fn inner(&self) -> &common_utils::id_type::MerchantId {
+        &self.0
     }
 }
 
