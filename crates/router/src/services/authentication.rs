@@ -16,12 +16,12 @@ use common_utils::{date_time, fp_utils, id_type};
 use diesel_models::ephemeral_key;
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::sdk_auth::SdkAuthorization;
+#[cfg(feature = "v2")]
+use hyperswitch_masking::ExposeInterface;
+use hyperswitch_masking::PeekInterface;
 use jsonwebtoken::{
     decode, errors::ErrorKind::ExpiredSignature, Algorithm, DecodingKey, Validation,
 };
-#[cfg(feature = "v2")]
-use masking::ExposeInterface;
-use masking::PeekInterface;
 use router_env::logger;
 use serde::Serialize;
 
@@ -37,6 +37,8 @@ use super::jwt;
 use crate::configs::Settings;
 #[cfg(feature = "olap")]
 use crate::consts;
+#[cfg(feature = "v1")]
+use crate::core::configs::dimension_state::Dimensions;
 #[cfg(feature = "olap")]
 use crate::core::errors::UserResult;
 #[cfg(all(feature = "partial-auth", feature = "v1"))]
@@ -47,6 +49,11 @@ use crate::{
     core::{
         api_keys,
         errors::{self, utils::StorageErrorExt, RouterResult},
+        metrics::{
+            SDK_AUTH_INVALID_SESSION_TOTAL, SDK_AUTH_LEGACY_FLOW_TOTAL,
+            SDK_AUTH_SESSION_VALIDATED_TOTAL,
+        },
+        payments::client_session::ClientSessionManager,
     },
     headers,
     routes::app::SessionStateInfo,
@@ -422,7 +429,7 @@ pub trait BasicAuthProvider {
     fn get_credentials<A>(
         state: &A,
         identifier: &str,
-    ) -> RouterResult<(Self::Identity, masking::Secret<String>)>
+    ) -> RouterResult<(Self::Identity, hyperswitch_masking::Secret<String>)>
     where
         A: SessionStateInfo;
 }
@@ -448,7 +455,7 @@ impl BasicAuthProvider for OidcAuthProvider {
     fn get_credentials<A>(
         state: &A,
         identifier: &str,
-    ) -> RouterResult<(Self::Identity, masking::Secret<String>)>
+    ) -> RouterResult<(Self::Identity, hyperswitch_masking::Secret<String>)>
     where
         A: SessionStateInfo,
     {
@@ -2030,7 +2037,8 @@ where
             get_api_key(request_headers).change_context(errors::ApiErrorResponse::Unauthorized)?;
         let conf = state.conf();
 
-        let admin_api_key: &masking::Secret<String> = &conf.secrets.get_inner().admin_api_key;
+        let admin_api_key: &hyperswitch_masking::Secret<String> =
+            &conf.secrets.get_inner().admin_api_key;
 
         if request_api_key == admin_api_key.peek() {
             let (key_store, merchant) =
@@ -3427,6 +3435,81 @@ where
             self.allow_platform_self_operation,
         )
         .await?;
+
+        // Taking processor_merchant_id for client session validation as we have a unique constraint on (processor_merchant_id, payment_id)
+        let processor_merchant_id = platform.get_processor().get_account().get_id();
+
+        // Check if client session validation is enabled
+        let dimensions = Dimensions::new().with_merchant_id(processor_merchant_id.clone());
+
+        let session_validation_enabled = dimensions
+            .get_client_session_validation_enabled(
+                state.store().as_ref(),
+                state.superposition_service().as_ref(),
+                None,
+            )
+            .await;
+
+        // Validate session_id if present and validation is enabled
+        if session_validation_enabled {
+            match sdk_auth.client_session_id {
+                Some(client_session_id) => {
+                    let payment_id =
+                        crate::core::payments::helpers::get_payment_id_from_client_secret(
+                            &client_secret,
+                        )?;
+
+                    let payment_id = id_type::PaymentId::wrap(payment_id)
+                        .change_context(errors::ApiErrorResponse::Unauthorized)
+                        .attach_printable("Invalid payment_id in client_secret")?;
+
+                    // Validate session
+                    ClientSessionManager::validate_session(
+                        state,
+                        processor_merchant_id,
+                        &payment_id,
+                        &client_session_id,
+                    )
+                    .await
+                    .change_context(errors::ApiErrorResponse::Unauthorized)
+                    .attach_printable("Failed to validate client session")?
+                    .then_some(())
+                    .ok_or_else(|| {
+                        SDK_AUTH_INVALID_SESSION_TOTAL.add(
+                            1,
+                            &[router_env::opentelemetry::KeyValue::new(
+                                "merchant_id",
+                                processor_merchant_id.get_string_repr().to_string(),
+                            )],
+                        );
+                        report!(errors::ApiErrorResponse::Unauthorized)
+                            .attach_printable("Invalid Session ID")
+                    })?;
+
+                    SDK_AUTH_SESSION_VALIDATED_TOTAL.add(
+                        1,
+                        &[router_env::opentelemetry::KeyValue::new(
+                            "merchant_id",
+                            processor_merchant_id.get_string_repr().to_string(),
+                        )],
+                    );
+                }
+                None => {
+                    // Legacy flow - no session_id provided
+                    SDK_AUTH_LEGACY_FLOW_TOTAL.add(
+                        1,
+                        &[router_env::opentelemetry::KeyValue::new(
+                            "merchant_id",
+                            processor_merchant_id.get_string_repr().to_string(),
+                        )],
+                    );
+
+                    logger::info!("SDK auth without session_id - legacy flow");
+                }
+            }
+        } else {
+            logger::info!("Client session validation is disabled");
+        }
 
         let profile = state
             .store()
@@ -6019,7 +6102,7 @@ pub fn strip_basic_auth_token(token: &str) -> RouterResult<&str> {
 
 fn parse_basic_auth_credentials(
     headers: &HeaderMap,
-) -> RouterResult<(String, masking::Secret<String>)> {
+) -> RouterResult<(String, hyperswitch_masking::Secret<String>)> {
     let authorization_header = get_header_value_by_key(headers::AUTHORIZATION.to_string(), headers)
         .change_context(errors::ApiErrorResponse::InvalidBasicAuth)?
         .get_required_value(headers::AUTHORIZATION)?;
@@ -6046,7 +6129,7 @@ fn parse_basic_auth_credentials(
 
     Ok((
         identifier.to_string(),
-        masking::Secret::new(secret.to_string()),
+        hyperswitch_masking::Secret::new(secret.to_string()),
     ))
 }
 

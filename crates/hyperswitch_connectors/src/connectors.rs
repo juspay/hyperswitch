@@ -44,6 +44,7 @@ pub mod envoy;
 pub mod facilitapay;
 pub mod finix;
 pub mod fiserv;
+pub mod fiservcommercehub;
 pub mod fiservemea;
 pub mod fiuu;
 pub mod flexiti;
@@ -157,11 +158,11 @@ pub use self::{
     cybersourcedecisionmanager::Cybersourcedecisionmanager, datatrans::Datatrans,
     deutschebank::Deutschebank, digitalvirgo::Digitalvirgo, dlocal::Dlocal, dwolla::Dwolla,
     ebanx::Ebanx, elavon::Elavon, envoy::Envoy, facilitapay::Facilitapay, finix::Finix,
-    fiserv::Fiserv, fiservemea::Fiservemea, fiuu::Fiuu, flexiti::Flexiti, forte::Forte,
-    getnet::Getnet, gigadat::Gigadat, globalpay::Globalpay, globepay::Globepay,
-    gocardless::Gocardless, gpayments::Gpayments, helcim::Helcim, hipay::Hipay, hyperpg::Hyperpg,
-    hyperswitch_vault::HyperswitchVault, hyperwallet::Hyperwallet, iatapay::Iatapay,
-    inespay::Inespay, itaubank::Itaubank, jpmorgan::Jpmorgan,
+    fiserv::Fiserv, fiservcommercehub::Fiservcommercehub, fiservemea::Fiservemea, fiuu::Fiuu,
+    flexiti::Flexiti, forte::Forte, getnet::Getnet, gigadat::Gigadat, globalpay::Globalpay,
+    globepay::Globepay, gocardless::Gocardless, gpayments::Gpayments, helcim::Helcim, hipay::Hipay,
+    hyperpg::Hyperpg, hyperswitch_vault::HyperswitchVault, hyperwallet::Hyperwallet,
+    iatapay::Iatapay, inespay::Inespay, itaubank::Itaubank, jpmorgan::Jpmorgan,
     juspaythreedsserver::Juspaythreedsserver, katapult::Katapult, klarna::Klarna, loonio::Loonio,
     mifinity::Mifinity, mollie::Mollie, moneris::Moneris, mpgs::Mpgs, multisafepay::Multisafepay,
     netcetera::Netcetera, nexinets::Nexinets, nexixpay::Nexixpay, nmi::Nmi, nomupay::Nomupay,

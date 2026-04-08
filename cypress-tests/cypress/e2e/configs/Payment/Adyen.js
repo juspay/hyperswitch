@@ -748,6 +748,7 @@ export const connectorDetails = {
     },
     PaymentIntentWithInstallments: {
       Request: {
+        amount: 6000,
         currency: "BRL",
         installment_options: [
           {
@@ -766,6 +767,8 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "requires_payment_method",
+          amount: 6000,
+          currency: "BRL",
         },
       },
     },
@@ -1028,6 +1031,55 @@ export const connectorDetails = {
     PmListResponse: {
       PmListNull: {
         payment_methods: [],
+      },
+      PmListWithInstallmentsNull: {
+        intent_data: {
+          status: "requires_payment_method",
+          amount: 6000,
+          currency: "USD",
+          installment_options: null,
+        },
+      },
+      PmListWithInstallmentsBRL: {
+        intent_data: {
+          status: "requires_payment_method",
+          amount: 6000,
+          currency: "BRL",
+          installment_options: [
+            {
+              payment_method: "card",
+              available_plans: [
+                {
+                  number_of_installments: 3,
+                  billing_frequency: "month",
+                  interest_rate: 5,
+                  amount_details: {
+                    amount_per_installment: 21,
+                    total_amount: 63,
+                  },
+                },
+                {
+                  number_of_installments: 6,
+                  billing_frequency: "month",
+                  interest_rate: 5,
+                  amount_details: {
+                    amount_per_installment: 10.5,
+                    total_amount: 63,
+                  },
+                },
+                {
+                  number_of_installments: 12,
+                  billing_frequency: "month",
+                  interest_rate: 5,
+                  amount_details: {
+                    amount_per_installment: 5.25,
+                    total_amount: 63,
+                  },
+                },
+              ],
+            },
+          ],
+        },
       },
       pmListDynamicFieldWithoutBilling: {
         payment_methods: [

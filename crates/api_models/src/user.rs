@@ -2,7 +2,7 @@ use std::fmt::Debug;
 
 use common_enums::{EntityType, TokenPurpose};
 use common_utils::{crypto::OptionalEncryptableName, id_type, pii};
-use masking::Secret;
+use hyperswitch_masking::Secret;
 use utoipa::ToSchema;
 
 use crate::user_role::UserStatus;
@@ -448,6 +448,12 @@ pub struct UserKeyTransferRequest {
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct ListUsersInternalRequest {
     pub user_ids: Vec<String>,
+}
+
+#[cfg(feature = "v1")]
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct ListMembersQueryParam {
+    pub access_level: EntityType,
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]

@@ -2,7 +2,7 @@ use std::fmt::Debug;
 
 use common_utils::ext_traits::AsyncExt;
 use error_stack::{report, ResultExt};
-use masking::PeekInterface;
+use hyperswitch_masking::PeekInterface;
 use maud::html;
 use rand::{distributions::Uniform, prelude::Distribution};
 use tokio::time as tokio;

@@ -1,7 +1,7 @@
 use std::str::FromStr;
 
 use cards::CardNumber;
-use masking::Secret;
+use hyperswitch_masking::Secret;
 use router::types::{self, domain, storage::enums};
 use test_utils::connector_auth;
 

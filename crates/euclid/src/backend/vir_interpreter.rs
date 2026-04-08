@@ -148,6 +148,7 @@ mod test {
                 payment_method: Some(enums::PaymentMethod::PayLater),
                 payment_method_type: Some(enums::PaymentMethodType::Affirm),
                 card_network: None,
+                card_discovery: None,
             },
             mandate: inputs::MandateData {
                 mandate_acceptance_type: None,
@@ -193,6 +194,7 @@ mod test {
                 payment_method: Some(enums::PaymentMethod::PayLater),
                 payment_method_type: Some(enums::PaymentMethodType::Affirm),
                 card_network: None,
+                card_discovery: None,
             },
             mandate: inputs::MandateData {
                 mandate_acceptance_type: None,
@@ -239,6 +241,7 @@ mod test {
                 payment_method: Some(enums::PaymentMethod::PayLater),
                 payment_method_type: Some(enums::PaymentMethodType::Affirm),
                 card_network: None,
+                card_discovery: None,
             },
             mandate: inputs::MandateData {
                 mandate_acceptance_type: None,
@@ -285,6 +288,7 @@ mod test {
                 payment_method: Some(enums::PaymentMethod::PayLater),
                 payment_method_type: Some(enums::PaymentMethodType::Affirm),
                 card_network: None,
+                card_discovery: None,
             },
             mandate: inputs::MandateData {
                 mandate_acceptance_type: None,
@@ -331,6 +335,7 @@ mod test {
                 payment_method: Some(enums::PaymentMethod::PayLater),
                 payment_method_type: Some(enums::PaymentMethodType::Affirm),
                 card_network: None,
+                card_discovery: None,
             },
             mandate: inputs::MandateData {
                 mandate_acceptance_type: Some(enums::MandateAcceptanceType::Online),
@@ -377,6 +382,7 @@ mod test {
                 payment_method: Some(enums::PaymentMethod::PayLater),
                 payment_method_type: Some(enums::PaymentMethodType::Affirm),
                 card_network: None,
+                card_discovery: None,
             },
             mandate: inputs::MandateData {
                 mandate_acceptance_type: None,
@@ -423,6 +429,7 @@ mod test {
                 payment_method: Some(enums::PaymentMethod::PayLater),
                 payment_method_type: Some(enums::PaymentMethodType::Affirm),
                 card_network: None,
+                card_discovery: None,
             },
             mandate: inputs::MandateData {
                 mandate_acceptance_type: None,
@@ -469,6 +476,7 @@ mod test {
                 payment_method: Some(enums::PaymentMethod::PayLater),
                 payment_method_type: Some(enums::PaymentMethodType::Affirm),
                 card_network: None,
+                card_discovery: None,
             },
             mandate: inputs::MandateData {
                 mandate_acceptance_type: None,
@@ -515,6 +523,7 @@ mod test {
                 payment_method: Some(enums::PaymentMethod::PayLater),
                 payment_method_type: Some(enums::PaymentMethodType::Affirm),
                 card_network: None,
+                card_discovery: None,
             },
             mandate: inputs::MandateData {
                 mandate_acceptance_type: None,
@@ -563,6 +572,7 @@ mod test {
                 payment_method: Some(enums::PaymentMethod::PayLater),
                 payment_method_type: Some(enums::PaymentMethodType::Affirm),
                 card_network: None,
+                card_discovery: None,
             },
             mandate: inputs::MandateData {
                 mandate_acceptance_type: None,
@@ -609,6 +619,7 @@ mod test {
                 payment_method: Some(enums::PaymentMethod::PayLater),
                 payment_method_type: Some(enums::PaymentMethodType::Affirm),
                 card_network: None,
+                card_discovery: None,
             },
             mandate: inputs::MandateData {
                 mandate_acceptance_type: None,
@@ -664,6 +675,7 @@ mod test {
                 payment_method: Some(enums::PaymentMethod::PayLater),
                 payment_method_type: Some(enums::PaymentMethodType::Affirm),
                 card_network: None,
+                card_discovery: None,
             },
             mandate: inputs::MandateData {
                 mandate_acceptance_type: None,

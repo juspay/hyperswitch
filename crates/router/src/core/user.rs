@@ -21,7 +21,7 @@ use diesel_models::{
     user_authentication_method::{UserAuthenticationMethodNew, UserAuthenticationMethodUpdate},
 };
 use error_stack::{report, ResultExt};
-use masking::{ExposeInterface, PeekInterface, Secret};
+use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 use router_env::{env, logger};
 use storage_impl::errors::StorageError;
 #[cfg(not(feature = "email"))]
@@ -30,8 +30,6 @@ use user_api::dashboard_metadata::SetMetaDataRequest;
 #[cfg(feature = "v1")]
 use super::admin;
 use super::errors::{StorageErrorExt, UserErrors, UserResponse, UserResult};
-#[cfg(feature = "v1")]
-use crate::types::transformers::ForeignFrom;
 use crate::{
     consts,
     core::encryption::send_request_to_key_service_for_user,
@@ -47,6 +45,8 @@ use crate::{
         user::{theme as theme_utils, two_factor_auth as tfa_utils},
     },
 };
+#[cfg(feature = "v1")]
+use crate::{db::user_role::ListUserRolesByOrgIdPayload, types::transformers::ForeignFrom};
 #[cfg(feature = "email")]
 use crate::{services::email::types as email_types, utils::user as user_utils};
 
@@ -2407,9 +2407,9 @@ pub async fn update_totp(
             &user_token.user_id,
             storage_user::UserUpdate::TotpUpdate {
                 totp_status: None,
-                totp_secret: Some(
+                totp_secret: Some(Some(
                     // TODO: Impl conversion trait for User and move this there
-                    domain::types::crypto_operation::<String, masking::WithType>(
+                    domain::types::crypto_operation::<String, hyperswitch_masking::WithType>(
                         &(&state).into(),
                         type_name!(storage_user::User),
                         domain::types::CryptoOperation::Encrypt(totp.get_secret_base32().into()),
@@ -2420,7 +2420,7 @@ pub async fn update_totp(
                     .and_then(|val| val.try_into_operation())
                     .change_context(UserErrors::InternalServerError)?
                     .into(),
-                ),
+                )),
 
                 totp_recovery_codes: None,
             },
@@ -2459,11 +2459,11 @@ pub async fn generate_recovery_codes(
             storage_user::UserUpdate::TotpUpdate {
                 totp_status: None,
                 totp_secret: None,
-                totp_recovery_codes: Some(
+                totp_recovery_codes: Some(Some(
                     recovery_codes
                         .get_hashed()
                         .change_context(UserErrors::InternalServerError)?,
-                ),
+                )),
             },
         )
         .await
@@ -2550,7 +2550,7 @@ pub async fn verify_recovery_code(
             storage_user::UserUpdate::TotpUpdate {
                 totp_status: None,
                 totp_secret: None,
-                totp_recovery_codes: Some(recovery_codes),
+                totp_recovery_codes: Some(Some(recovery_codes)),
             },
         )
         .await
@@ -4016,6 +4016,105 @@ pub async fn list_users_internal(
     let users = state
         .global_store
         .list_users_by_user_ids(req.user_ids)
+        .await
+        .change_context(UserErrors::InternalServerError)
+        .attach_printable("Failed to fetch users from database")?;
+
+    let users_minimal_details = users
+        .into_iter()
+        .map(domain::UserFromStorage::from)
+        .map(|user| user_api::GetUserInternalDetailsResponse {
+            user_id: user.get_user_id().to_string(),
+            name: user.get_name(),
+            email: user.get_email(),
+            is_active: user.is_active(),
+        })
+        .collect();
+
+    Ok(ApplicationResponse::Json(
+        user_api::ListUsersInternalResponse {
+            users: users_minimal_details,
+        },
+    ))
+}
+
+#[cfg(feature = "v1")]
+pub async fn list_members_for_entity(
+    state: SessionState,
+    auth: auth::AuthenticationData,
+    access_level: EntityType,
+) -> UserResponse<user_api::ListUsersInternalResponse> {
+    let merchant_id = auth.platform.get_processor().get_account().get_id();
+
+    let profile = auth
+        .profile
+        .ok_or(report!(UserErrors::InternalServerError))
+        .attach_printable("Profile is required for list_members_for_entity")?;
+
+    let profile_id = profile.get_id();
+    let org_id = auth.platform.get_processor().get_account().get_org_id();
+    let tenant_id = &state.tenant.tenant_id;
+
+    let entity_types_to_query: Vec<EntityType> = match access_level {
+        EntityType::Profile => {
+            vec![
+                EntityType::Organization,
+                EntityType::Merchant,
+                EntityType::Profile,
+            ]
+        }
+        EntityType::Merchant => {
+            vec![EntityType::Organization, EntityType::Merchant]
+        }
+        EntityType::Organization => {
+            vec![EntityType::Organization]
+        }
+        EntityType::Tenant => {
+            return Err(report!(UserErrors::InvalidRoleOperation))
+                .attach_printable("Tenant-level access is not supported for this endpoint");
+        }
+    };
+
+    let user_ids =
+        futures::future::try_join_all(entity_types_to_query.into_iter().map(|entity_type| {
+            let state = &state;
+            async move {
+                let (merchant_id_filter, profile_id_filter) = match entity_type {
+                    EntityType::Organization => (None, None),
+                    EntityType::Merchant => (Some(merchant_id), None),
+                    EntityType::Profile => (Some(merchant_id), Some(profile_id)),
+                    EntityType::Tenant => {
+                        return Err(report!(UserErrors::InternalServerError))
+                            .attach_printable("Unexpected tenant entity type in query list");
+                    }
+                };
+
+                state
+                    .global_store
+                    .list_user_roles_by_org_id(ListUserRolesByOrgIdPayload {
+                        user_id: None,
+                        tenant_id,
+                        org_id,
+                        merchant_id: merchant_id_filter,
+                        profile_id: profile_id_filter,
+                        entity_type: Some(entity_type),
+                        version: None,
+                        limit: None,
+                    })
+                    .await
+                    .change_context(UserErrors::InternalServerError)
+                    .attach_printable(format!("Failed to fetch user roles for {:?}", entity_type))
+            }
+        }))
+        .await?
+        .into_iter()
+        .flatten()
+        .map(|user_role| user_role.user_id)
+        .collect::<HashSet<_>>();
+
+    let users = state
+        .global_store
+        .find_active_users_by_user_ids(user_ids.into_iter().collect())
         .await
         .change_context(UserErrors::InternalServerError)
         .attach_printable("Failed to fetch users from database")?;

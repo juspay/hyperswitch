@@ -47,7 +47,7 @@ pub use hyperswitch_interfaces::{
         BoxedConnectorIntegrationV2, ConnectorIntegrationAnyV2, ConnectorIntegrationV2,
     },
 };
-use masking::{Maskable, PeekInterface};
+use hyperswitch_masking::{Maskable, PeekInterface};
 pub use payment_link::{PaymentLinkFormData, PaymentLinkStatusData};
 use router_env::{instrument, tracing, RequestId, Tag};
 use serde::Serialize;
@@ -190,7 +190,7 @@ where
     let mut app_state = state.get_ref().clone();
 
     let start_instant = Instant::now();
-    let serialized_request = masking::masked_serialize(&payload)
+    let serialized_request = hyperswitch_masking::masked_serialize(&payload)
         .attach_printable("Failed to serialize json request")
         .change_context(errors::ApiErrorResponse::InternalServerError.switch())?;
 
@@ -294,13 +294,13 @@ where
 
             if let ApplicationResponse::Json(data) = res {
                 serialized_response.replace(
-                    masking::masked_serialize(&data)
+                    hyperswitch_masking::masked_serialize(&data)
                         .attach_printable("Failed to serialize json response")
                         .change_context(errors::ApiErrorResponse::InternalServerError.switch())?,
                 );
             } else if let ApplicationResponse::JsonWithHeaders((data, headers)) = res {
                 serialized_response.replace(
-                    masking::masked_serialize(&data)
+                    hyperswitch_masking::masked_serialize(&data)
                         .attach_printable("Failed to serialize json response")
                         .change_context(errors::ApiErrorResponse::InternalServerError.switch())?,
                 );
@@ -1650,6 +1650,92 @@ pub fn build_redirection_form(
                 }
             }
         },
+        RedirectForm::WorldpayxmlDDCForm { bin, jwt } => {
+            let base_url = config.connectors.worldpayxml.secondary_base_url;
+            maud::html! {
+                (maud::DOCTYPE)
+                html {
+                    head {
+                        meta name="viewport" content="width=device-width, initial-scale=1";
+                    }
+                body style="background-color: #ffffff; padding: 20px; font-family: Arial, Helvetica, Sans-Serif;" {
+                    div id="loader1" class="lottie" style="height: 150px; display: block; position: relative; margin-left: auto; margin-right: auto;" { "" }
+
+                        h3 style="text-align: center;" { "Please wait while we perform Device Data Collection ..." }
+                        iframe id="ddcFrame" height="1" width="1" style="display: none;" {}
+
+                        (PreEscaped(format!(r#"<script>
+                            {logging_template}
+                            window.onload = function() {{
+                                var iframe = document.getElementById('ddcFrame');
+                                var iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
+
+                                var formHtml = '<form id="collectionForm" method="POST" action="{base_url}/V2/Cruise/Collect">' +
+                                    '<input type="hidden" name="Bin" value="{bin}" />' +
+                                    '<input type="hidden" name="JWT" value="{jwt}" />' +
+                                    '</form>';
+
+                                iframeDoc.open();
+                                iframeDoc.write(formHtml);
+                                iframeDoc.close();
+
+                                var form = iframeDoc.getElementById('collectionForm');
+                                form.submit();
+                            }}
+
+                            window.addEventListener("message", function(event) {{
+                                try {{
+                                    var data = JSON.parse(event.data);
+                                    var responseForm = document.createElement('form');
+                                    responseForm.action=window.location.pathname.replace(
+                                        new RegExp("payments/redirect/(\\w+)/(\\w+)/\\w+"),
+                                        "payments/$1/$2/redirect/complete/worldpayxml"
+                                    );
+                                    responseForm.method='POST';
+
+                                    var item1=document.createElement('input');
+                                    item1.type='hidden';
+                                    item1.name='SessionId';
+                                    item1.value=data.Payload.SessionId;
+                                    responseForm.appendChild(item1);
+
+                                    var item2=document.createElement('input');
+                                    item2.type='hidden';
+                                    item2.name='ActionCode';
+                                    item2.value=data.Payload.ActionCode;
+                                    responseForm.appendChild(item2);
+
+                                    document.body.appendChild(responseForm);
+                                    responseForm.submit();
+                                }} catch (e) {{
+                                    var responseForm = document.createElement('form');
+                                    responseForm.action=window.location.pathname.replace(
+                                        new RegExp("payments/redirect/(\\w+)/(\\w+)/\\w+"),
+                                        "payments/$1/$2/redirect/complete/worldpayxml"
+                                    );
+                                    responseForm.method='POST';
+
+                                    var item1=document.createElement('input');
+                                    item1.type='hidden';
+                                    item1.name='SessionId';
+                                    item1.value=null;
+                                    responseForm.appendChild(item1);
+
+                                    var item2=document.createElement('input');
+                                    item2.type='hidden';
+                                    item2.name='ActionCode';
+                                    item2.value="FAILURE";
+                                    responseForm.appendChild(item2);
+
+                                    document.body.appendChild(responseForm);
+                                    responseForm.submit();
+                                }}
+                            }}, false);
+                        </script>"#)))
+                    }
+                }
+            }
+        }
         RedirectForm::WorldpayxmlRedirectForm { jwt } => {
             let base_url = config.connectors.worldpayxml.secondary_base_url;
             maud::html! {
@@ -1683,7 +1769,7 @@ pub fn build_redirection_form(
                         //  <iframe id="challengeFrame" name="challengeFrame"; width: 400px; height: 400px;"></iframe>
                         // "#))
 
-                        (PreEscaped(format!(r#"<form id="challengeForm" method="POST" action={base_url}>
+                        (PreEscaped(format!(r#"<form id="challengeForm" method="POST" action="{base_url}/V2/Cruise/StepUp">
                     <input type="hidden" name="JWT" value="{jwt}">
                 </form>"#)))
 
