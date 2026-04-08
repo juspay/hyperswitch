@@ -8741,6 +8741,10 @@
             "description": "Acquirer country code",
             "example": "US",
             "nullable": true
+          },
+          "is_default": {
+            "type": "boolean",
+            "description": "Whether this configuration bucket is the default fallback for the profile."
           }
         }
       },
@@ -10349,6 +10353,11 @@
           "email": {
             "type": "string",
             "description": "Optional email address of the customer.\nUsed for customer identification, communication, and possibly for 3DS or fraud checks.",
+            "nullable": true
+          },
+          "profile_acquirer_id": {
+            "type": "string",
+            "description": "Profile Acquirer ID get from profile acquirer configuration",
             "nullable": true
           }
         }
@@ -29918,6 +29927,11 @@
               }
             ],
             "nullable": true
+          },
+          "profile_acquirer_id": {
+            "type": "string",
+            "description": "Identification for the profile acquirer to be used for this payment.",
+            "nullable": true
           }
         }
       },
@@ -30461,6 +30475,11 @@
                 "$ref": "#/components/schemas/InstallmentRequest"
               }
             ],
+            "nullable": true
+          },
+          "profile_acquirer_id": {
+            "type": "string",
+            "description": "Identification for the profile acquirer to be used for this payment.",
             "nullable": true
           }
         }
@@ -32103,6 +32122,11 @@
               }
             ],
             "nullable": true
+          },
+          "profile_acquirer_id": {
+            "type": "string",
+            "description": "Identification for the profile acquirer to be used for this payment.",
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -33574,6 +33598,11 @@
                 "$ref": "#/components/schemas/InstallmentRequest"
               }
             ],
+            "nullable": true
+          },
+          "profile_acquirer_id": {
+            "type": "string",
+            "description": "Identification for the profile acquirer to be used for this payment.",
             "nullable": true
           }
         }
@@ -36000,6 +36029,11 @@
             "type": "string",
             "description": "Parent profile id to link the acquirer account with",
             "example": "pro_ky0yNyOXXlA5hF8JzE5q"
+          },
+          "is_default": {
+            "type": "boolean",
+            "description": "Whether this configuration bucket is the default fallback for the profile.",
+            "nullable": true
           }
         }
       },
@@ -36011,7 +36045,8 @@
           "merchant_name",
           "network",
           "acquirer_bin",
-          "profile_id"
+          "profile_id",
+          "is_default"
         ],
         "properties": {
           "profile_acquirer_id": {
@@ -36062,6 +36097,10 @@
             "type": "string",
             "description": "Parent profile id to link the acquirer account with",
             "example": "pro_ky0yNyOXXlA5hF8JzE5q"
+          },
+          "is_default": {
+            "type": "boolean",
+            "description": "Whether this configuration bucket is the default fallback for the profile."
           }
         }
       },
@@ -36105,6 +36144,11 @@
           "acquirer_country_code": {
             "type": "string",
             "example": "US",
+            "nullable": true
+          },
+          "is_default": {
+            "type": "boolean",
+            "description": "Whether this configuration bucket is the default fallback for the profile.",
             "nullable": true
           }
         },
@@ -36716,10 +36760,7 @@
             "example": false
           },
           "acquirer_configs": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/ProfileAcquirerResponse"
-            },
+            "type": "object",
             "description": "Acquirer configs",
             "nullable": true
           },
