@@ -21,7 +21,7 @@ use hyperswitch_masking::ExposeInterface;
 use router_env::{env::Env, instrument, tracing};
 
 use crate::{
-    core::{        
+    core::{
         configs::dimension_state,
         errors::{self, utils::StorageErrorExt, RouterResult},
         payments::{
