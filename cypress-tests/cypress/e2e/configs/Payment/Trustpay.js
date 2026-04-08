@@ -443,6 +443,23 @@ export const connectorDetails = {
         },
       },
     },
+    SaveCardUse3DSAutoCaptureOffSession: {
+      Request: {
+        payment_method: "card",
+        payment_method_type: "debit",
+        payment_method_data: {
+          card: successfulThreeDSTestCardDetails,
+        },
+        setup_future_usage: "off_session",
+        customer_acceptance: customerAcceptance,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+    },
     PaymentMethodIdMandateNo3DSAutoCapture: {
       Configs: {
         TRIGGER_SKIP: true,
@@ -803,28 +820,94 @@ export const connectorDetails = {
     },
   },
   bank_transfer_pm: {
-    InstantBankTransferFinland: getCustomExchange(
-      {
-        Response: {
-          status: 200,
-          body: {
-            status: "requires_customer_action",
-          },
+    PaymentIntent: (paymentMethodType) => ({
+      Configs: {
+        CONNECTOR_CREDENTIAL: {
+          value: "connector_2",
         },
       },
-      commonConnectorDetails.bank_transfer_pm.InstantBankTransferFinland
-    ),
-    InstantBankTransferPoland: getCustomExchange(
-      {
-        Response: {
-          status: 200,
-          body: {
-            status: "requires_customer_action",
-          },
+      Request: {
+        currency: paymentMethodType === "InstantBankTransferPoland" ? "PLN" : "EUR",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
         },
       },
-      commonConnectorDetails.bank_transfer_pm.InstantBankTransferPoland
-    ),
+    }),
+    InstantBankTransferFinland: {
+      Configs: {
+        CONNECTOR_CREDENTIAL: {
+          value: "connector_2",
+        },
+      },
+      Request: {
+        payment_method: "bank_transfer",
+        payment_method_type: "instant_bank_transfer_finland",
+        payment_method_data: {
+          bank_transfer: {
+            instant_bank_transfer_finland: {},
+          },
+        },
+        billing: {
+          address: {
+            line1: "1467",
+            line2: "Harrison Street",
+            line3: "Harrison Street",
+            city: "San Fransico",
+            state: "California",
+            zip: "94122",
+            country: "FI",
+            first_name: "john",
+            last_name: "doe",
+          },
+        },
+        currency: "EUR",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+    },
+    InstantBankTransferPoland: {
+      Configs: {
+        CONNECTOR_CREDENTIAL: {
+          value: "connector_2",
+        },
+      },
+      Request: {
+        payment_method: "bank_transfer",
+        payment_method_type: "instant_bank_transfer_poland",
+        payment_method_data: {
+          bank_transfer: {
+            instant_bank_transfer_poland: {},
+          },
+        },
+        billing: {
+          address: {
+            line1: "1467",
+            line2: "Harrison Street",
+            line3: "Harrison Street",
+            city: "San Fransico",
+            state: "California",
+            zip: "94122",
+            country: "PL",
+            first_name: "john",
+            last_name: "doe",
+          },
+        },
+        currency: "PLN",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+    },
   },
   webhook: {
     TransactionIdConfig: {
