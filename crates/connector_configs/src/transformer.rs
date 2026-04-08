@@ -55,7 +55,7 @@ impl DashboardRequestPayload {
                 }
                 (Connector::Globepay, AliPay)
                 | (Connector::Globepay, WeChatPay)
-                | (Connector::Stripe, WeChatPay) 
+                | (Connector::Stripe, WeChatPay)
                 | (Connector::Xendit, Qris) => {
                     Some(api_models::enums::PaymentExperience::DisplayQrCode)
                 }
