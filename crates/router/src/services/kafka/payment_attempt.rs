@@ -179,7 +179,7 @@ pub struct KafkaPaymentAttempt<'a> {
     pub connector_metadata: Option<String>,
     // TODO: These types should implement copy ideally
     pub payment_experience: Option<&'a storage_enums::PaymentExperience>,
-    pub payment_method_type: &'a storage_enums::PaymentMethodType,
+    pub payment_method_type: Option<&'a storage_enums::PaymentMethodType>,
     pub payment_method_data: Option<String>,
     pub error_reason: Option<&'a String>,
     pub multiple_capture_count: Option<i16>,
@@ -212,7 +212,7 @@ pub struct KafkaPaymentAttempt<'a> {
     pub processor_merchant_id: &'a id_type::MerchantId,
     pub created_by: Option<&'a types::CreatedBy>,
     pub payment_method_type_v2: storage_enums::PaymentMethod,
-    pub payment_method_subtype: storage_enums::PaymentMethodType,
+    pub payment_method_subtype: Option<storage_enums::PaymentMethodType>,
     pub routing_result: Option<serde_json::Value>,
     pub authentication_applied: Option<common_enums::AuthenticationType>,
     pub external_reference_id: Option<String>,
@@ -316,7 +316,7 @@ impl<'a> KafkaPaymentAttempt<'a> {
             error_code: error.as_ref().map(|error_details| &error_details.code),
             connector_metadata: connector_metadata.as_ref().map(|v| v.peek().to_string()),
             payment_experience: payment_experience.as_ref(),
-            payment_method_type: payment_method_subtype,
+            payment_method_type: payment_method_subtype.as_ref(),
             payment_method_data: payment_method_data.as_ref().map(|v| v.peek().to_string()),
             error_reason: error
                 .as_ref()
