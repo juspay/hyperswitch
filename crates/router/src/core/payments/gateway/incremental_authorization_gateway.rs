@@ -16,7 +16,7 @@ use crate::{
     core::{
         payments::gateway::context::RouterGatewayContext,
         unified_connector_service::{
-            self, handle_unified_connector_service_response_for_incremental_authorization,
+            self, handle_unified_connector_service_response_for_payment_incremental_authorization,
         },
     },
     routes::SessionState,
@@ -128,7 +128,7 @@ where
                 header_payload,
                 unified_connector_service_execution_mode,
                 |mut router_data, incremental_authorization_request, grpc_headers| async move {
-                    let response = Box::pin(client.incremental_authorization(
+                    let response = Box::pin(client.payment_incremental_authorization(
                         incremental_authorization_request,
                         connector_auth_metadata,
                         grpc_headers,
@@ -139,7 +139,7 @@ where
                     let incremental_authorization_response = response.into_inner();
 
                     let (router_data_response, status_code) =
-                        handle_unified_connector_service_response_for_incremental_authorization(
+                        handle_unified_connector_service_response_for_payment_incremental_authorization(
                             incremental_authorization_response.clone(),
                         )
                         .attach_printable("Failed to deserialize UCS response")?;

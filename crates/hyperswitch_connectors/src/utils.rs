@@ -2630,6 +2630,7 @@ pub trait PaymentsSyncRequestData {
     fn get_connector_transaction_id(&self) -> CustomResult<String, errors::ConnectorError>;
     fn is_mandate_payment(&self) -> bool;
     fn get_optional_connector_transaction_id(&self) -> Option<String>;
+    fn get_connector_mandate_id(&self) -> Option<String>;
 }
 
 impl PaymentsSyncRequestData for PaymentsSyncData {
@@ -2663,6 +2664,19 @@ impl PaymentsSyncRequestData for PaymentsSyncData {
             ResponseId::ConnectorTransactionId(txn_id) => Some(txn_id),
             _ => None,
         }
+    }
+    fn get_connector_mandate_id(&self) -> Option<String> {
+        self.mandate_id
+            .as_ref()
+            .and_then(|mandate_ids| match &mandate_ids.mandate_reference_id {
+                Some(payments::MandateReferenceId::ConnectorMandateId(connector_mandate_ids)) => {
+                    connector_mandate_ids.get_connector_mandate_id()
+                }
+                Some(payments::MandateReferenceId::NetworkMandateId(_))
+                | Some(payments::MandateReferenceId::NetworkTokenWithNTI(_))
+                | Some(payments::MandateReferenceId::CardWithLimitedData)
+                | None => None,
+            })
     }
 }
 
@@ -6713,6 +6727,8 @@ pub enum PaymentMethodDataType {
     DanamonVaBankTransfer,
     MandiriVaBankTransfer,
     Pix,
+    PixAutomaticoPush,
+    PixAutomaticoQr,
     Pse,
     Crypto,
     MandatePayment,
@@ -6916,6 +6932,10 @@ impl From<PaymentMethodData> for PaymentMethodDataType {
                     Self::MandiriVaBankTransfer
                 }
                 payment_method_data::BankTransferData::Pix { .. } => Self::Pix,
+                payment_method_data::BankTransferData::PixAutomaticoPush { .. } => {
+                    Self::PixAutomaticoPush
+                }
+                payment_method_data::BankTransferData::PixAutomaticoQr {} => Self::PixAutomaticoQr,
                 payment_method_data::BankTransferData::Pse {} => Self::Pse,
                 payment_method_data::BankTransferData::LocalBankTransfer { .. } => {
                     Self::LocalBankTransfer
@@ -7632,6 +7652,7 @@ pub(crate) fn convert_payment_authorize_router_response<F1, F2, T1, T2>(
         minor_amount_capturable: data.minor_amount_capturable,
         authorized_amount: data.authorized_amount,
         customer_document_details: data.customer_document_details.clone(),
+        feature_data: data.feature_data.clone(),
     }
 }
 

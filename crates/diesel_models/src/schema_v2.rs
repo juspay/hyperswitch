@@ -445,12 +445,12 @@ diesel::table! {
         last_modified_by -> Nullable<Varchar>,
         document_details -> Nullable<Bytea>,
         #[max_length = 64]
+        id -> Varchar,
+        #[max_length = 64]
         merchant_reference_id -> Nullable<Varchar>,
         default_billing_address -> Nullable<Bytea>,
         default_shipping_address -> Nullable<Bytea>,
         status -> Nullable<DeleteStatus>,
-        #[max_length = 64]
-        id -> Varchar,
         #[max_length = 64]
         customer_id -> Nullable<Varchar>,
     }
