@@ -4,6 +4,32 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.04.08.0
+
+### Features
+
+- **connector:** [PAYLOAD] add PostCaptureVoid support for cards ([#11746](https://github.com/juspay/hyperswitch/pull/11746)) ([`aa1248c`](https://github.com/juspay/hyperswitch/commit/aa1248cb172db43354e1c814e864c13db27a44a8))
+- **customers:** Add modular customer support for v1 payments ([#11716](https://github.com/juspay/hyperswitch/pull/11716)) ([`d26c9db`](https://github.com/juspay/hyperswitch/commit/d26c9db9f4908dec161aac4e1445433110c5dff3))
+- **payouts:** Add payout gateway and rollout config for UCS ([#11683](https://github.com/juspay/hyperswitch/pull/11683)) ([`fc9503f`](https://github.com/juspay/hyperswitch/commit/fc9503fe1ea33724529d849ad6e23ffdf1dd8c23))
+- **superposition:** Enforce Superposition service availability at startup ([#11404](https://github.com/juspay/hyperswitch/pull/11404)) ([`20775cc`](https://github.com/juspay/hyperswitch/commit/20775cc072145f221cfc59f2544eb6d749311f8e))
+- **users:** Add API to list users with access to a given entity_type ([#11631](https://github.com/juspay/hyperswitch/pull/11631)) ([`297f110`](https://github.com/juspay/hyperswitch/commit/297f1105f480f896c6f4c38069880903c50d8b8f))
+
+### Bug Fixes
+
+- **connector:**
+  - [CYBERSOURCE] EU MIT fix ([#11709](https://github.com/juspay/hyperswitch/pull/11709)) ([`9ab9e15`](https://github.com/juspay/hyperswitch/commit/9ab9e15c78628b6f391f0aa9c3e989982cbdf7c2))
+  - Properly handle peachpayments metadata validation in UCS config ([#11690](https://github.com/juspay/hyperswitch/pull/11690)) ([`1a7fbb9`](https://github.com/juspay/hyperswitch/commit/1a7fbb9dbb1b3fe7689556fde2a27a1e14123edd))
+- **connectors:** [Affirm] fix one time payments, manual capture , void and refunds ([#11732](https://github.com/juspay/hyperswitch/pull/11732)) ([`501abf4`](https://github.com/juspay/hyperswitch/commit/501abf489a6f41545b46c502dfce06d341c7eb5a))
+- **migrations:** Truncate index name to comply with PostgreSQL identifier limit ([#11743](https://github.com/juspay/hyperswitch/pull/11743)) ([`c7339b2`](https://github.com/juspay/hyperswitch/commit/c7339b29016e470da63e9a193725218374dc7265))
+
+### Refactors
+
+- **configs:** Update applepay base url for development and sandbox env ([#11711](https://github.com/juspay/hyperswitch/pull/11711)) ([`8615b89`](https://github.com/juspay/hyperswitch/commit/8615b896a72f70d5218ca0c06da471317f63f957))
+
+**Full Changelog:** [`2026.04.07.0...2026.04.08.0`](https://github.com/juspay/hyperswitch/compare/2026.04.07.0...2026.04.08.0)
+
+- - -
+
 ## 2026.04.07.0
 
 ### Features
