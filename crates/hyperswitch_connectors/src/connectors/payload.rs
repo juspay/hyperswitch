@@ -1259,7 +1259,7 @@ impl ConnectorSpecifications for Payload {
     }
     fn should_call_connector_customer(
         &self,
-        _payment_attempt: &hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt,
+        payment_attempt: &hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt,
     ) -> bool {
         #[cfg(feature = "v1")]
         return payment_attempt.customer_acceptance.is_some()

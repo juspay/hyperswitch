@@ -3262,7 +3262,7 @@ pub struct ProfileUpdate {
         Option<common_enums::enums::RevenueRecoveryAlgorithmType>,
 
     /// Revenue Recovery smart feature patch. Only provided keys are updated.
-    pub revenue_recovery_smart_features: Option<RevenueRecoveryFeaturesPatch>,
+    pub revenue_recovery_smart_features: Option<RevenueRecoveryFeatures>,
 
     /// Enable split payments, i.e., split the amount between multiple payment methods
     #[schema(value_type = Option<SplitTxnsEnabled>, default = "skip")]
@@ -3276,7 +3276,7 @@ pub struct ProfileUpdate {
 #[cfg(feature = "v2")]
 #[derive(Clone, Debug, Deserialize, ToSchema, Serialize)]
 #[serde(deny_unknown_fields)]
-pub struct RevenueRecoveryFeaturesPatch {
+pub struct RevenueRecoveryFeatures {
     /// Enable/disable account updater for revenue recovery
     pub account_update: Option<bool>,
 }
