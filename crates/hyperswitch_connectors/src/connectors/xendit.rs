@@ -1174,7 +1174,7 @@ static XENDIT_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
 static XENDIT_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 1] = [enums::EventClass::Payments];
 
 impl ConnectorSpecifications for Xendit {
-    fn is_settlement_split_call_required(&self, current_flow: api::CurrentFlowInfo<'_>) -> bool {
+    fn is_settlement_split_call_required(&self, current_flow: api::CurrentFlowInfo) -> bool {
         match current_flow {
             api::CurrentFlowInfo::Authorize { request_data, .. } => {
                 matches!(request_data.payment_method_data, PaymentMethodData::Card(_))
@@ -1189,6 +1189,7 @@ impl ConnectorSpecifications for Xendit {
             }
             api::CurrentFlowInfo::SetupMandate { .. }
             | api::CurrentFlowInfo::CompleteAuthorize { .. } => false,
+            api::CurrentFlowInfo::Psync { .. } => false,
         }
     }
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {

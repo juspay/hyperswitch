@@ -2,6 +2,7 @@ use common_utils::{
     consts::DEFAULT_LOCALE,
     ext_traits::{OptionExt, ValueExt},
 };
+use hyperswitch_domain_models::payments::HeaderPayload;
 use scheduler::{
     consumer::{self, workflows::ProcessTrackerWorkflow},
     errors,
@@ -66,7 +67,16 @@ impl ProcessTrackerWorkflow<SessionState> for AttachPayoutAccountWorkflow {
         ))
         .await?;
 
-        payouts::payouts_core(state, &platform, &mut payout_data, None, None, dimensions).await?;
+        payouts::payouts_core(
+            state,
+            &platform,
+            HeaderPayload::default(),
+            &mut payout_data,
+            None,
+            None,
+            dimensions,
+        )
+        .await?;
 
         Ok(())
     }
