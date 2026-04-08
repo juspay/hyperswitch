@@ -2398,7 +2398,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                 .payment_intent
                 .feature_metadata
                 .clone()
-                .map(masking::Secret::new),
+                .map(hyperswitch_masking::Secret::new),
         },
         Ok(_) => storage::PaymentIntentUpdate::ResponseUpdate {
             status: api_models::enums::IntentStatus::foreign_from(
@@ -2414,7 +2414,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                 .payment_intent
                 .feature_metadata
                 .clone()
-                .map(masking::Secret::new),
+                .map(hyperswitch_masking::Secret::new),
         },
     };
 

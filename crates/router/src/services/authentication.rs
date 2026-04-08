@@ -15,6 +15,7 @@ use common_utils::{date_time, fp_utils, id_type};
 #[cfg(feature = "v2")]
 use diesel_models::ephemeral_key;
 use error_stack::{report, ResultExt};
+use hyperswitch_masking::PeekInterface;
 use jsonwebtoken::{
     decode, errors::ErrorKind::ExpiredSignature, Algorithm, DecodingKey, Validation,
 };
