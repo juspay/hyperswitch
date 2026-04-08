@@ -15,8 +15,8 @@ use hyperswitch_domain_models::{
 use crate::{
     api,
     api::{
-        BoxedConnectorIntegration, CaptureSyncMethod, Connector, ConnectorAccessTokenSuffix,
-        ConnectorCommon, ConnectorIntegration, ConnectorRedirectResponse, ConnectorSpecifications,
+        BoxedConnectorIntegration, CaptureSyncMethod, Connector, ConnectorCommon,
+        ConnectorIntegration, ConnectorRedirectResponse, ConnectorSpecifications,
         ConnectorValidation, CurrencyUnit,
     },
     authentication::ExternalAuthenticationPayload,
@@ -142,33 +142,6 @@ impl ConnectorEnum {
             Self::Old(connector) => connector.validate_file_upload(purpose, file_size, file_type),
             Self::New(connector) => {
                 connector.validate_file_upload_v2(purpose, file_size, file_type)
-            }
-        }
-    }
-    /// This keeps the generics <F, Req, Res> so existing callers don't break
-    pub fn get_access_token_key<F, Req, Res>(
-        &self,
-        router_data: &RouterData<F, Req, Res>,
-        merchant_connector_id_or_connector_name: String,
-        current_flow: Option<CurrentFlowInfo>,
-    ) -> CustomResult<String, errors::ConnectorError> {
-        match self {
-            Self::Old(connector) => {
-                // router_data is automatically coerced to &dyn AccessTokenData
-                connector.get_access_token_key(
-                    // router_data as &dyn AccessTokenData,
-                    router_data,
-                    merchant_connector_id_or_connector_name,
-                    current_flow,
-                )
-            }
-            Self::New(connector) => {
-                connector.get_access_token_key(
-                    // router_data as &dyn AccessTokenData,
-                    router_data,
-                    merchant_connector_id_or_connector_name,
-                    current_flow,
-                )
             }
         }
     }
@@ -576,13 +549,29 @@ impl ConnectorValidation for ConnectorEnum {
         }
     }
 
-    fn should_continue_further(
+    fn get_access_token_key(
         &self,
-        payment_intent: &hyperswitch_domain_models::payments::PaymentIntent,
-    ) -> Option<bool> {
+        merchant_id: &common_utils::id_type::MerchantId,
+        merchant_connector_id_or_connector_name: String,
+        current_flow: Option<CurrentFlowInfo>,
+        payment_method_type: Option<common_enums::enums::PaymentMethodType>,
+        is_mit_payment: Option<bool>,
+    ) -> CustomResult<String, errors::ConnectorError> {
         match self {
-            Self::Old(connector) => connector.should_continue_further(payment_intent),
-            Self::New(connector) => connector.should_continue_further(payment_intent),
+            Self::Old(connector) => connector.get_access_token_key(
+                merchant_id,
+                merchant_connector_id_or_connector_name,
+                current_flow,
+                payment_method_type,
+                is_mit_payment,
+            ),
+            Self::New(connector) => connector.get_access_token_key(
+                merchant_id,
+                merchant_connector_id_or_connector_name,
+                current_flow,
+                payment_method_type,
+                is_mit_payment,
+            ),
         }
     }
 }
@@ -806,6 +795,20 @@ impl ConnectorSpecifications for ConnectorEnum {
         match self {
             Self::Old(connector) => connector.should_call_connector_customer(payment_attempt),
             Self::New(connector) => connector.should_call_connector_customer(payment_attempt),
+        }
+    }
+
+    fn is_payment_recurrence_operation_needed(
+        &self,
+        payment_intent: &hyperswitch_domain_models::payments::PaymentIntent,
+    ) -> Option<bool> {
+        match self {
+            Self::Old(connector) => {
+                connector.is_payment_recurrence_operation_needed(payment_intent)
+            }
+            Self::New(connector) => {
+                connector.is_payment_recurrence_operation_needed(payment_intent)
+            }
         }
     }
 
@@ -1077,6 +1080,3 @@ impl api::ConnectorTransactionId for ConnectorEnum {
         }
     }
 }
-
-//re-add if stops working
-// impl ConnectorAccessTokenSuffix for BoxedConnectorV2 {}
