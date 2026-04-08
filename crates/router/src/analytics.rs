@@ -54,15 +54,14 @@ pub mod routes {
         let provider_account = platform.get_provider().get_account();
 
         let org_id = processor_account.get_org_id().clone();
-        let merchant_account_type = processor_account.merchant_account_type;
 
-        let (merchant_ids, processor_merchant_ids) = match merchant_account_type {
+        let (merchant_ids, processor_merchant_ids) = match processor_account.merchant_account_type {
             MerchantAccountType::Connected => (
                 vec![provider_account.get_id().clone()], // Platform's ID
                 Some(vec![processor_account.get_id().clone()]), // Connected merchant's ID
             ),
             MerchantAccountType::Standard | MerchantAccountType::Platform => {
-                (vec![processor_account.get_id().clone()], None)
+                (vec![provider_account.get_id().clone()], None)
             }
         };
 
@@ -82,15 +81,14 @@ pub mod routes {
         let provider_account = platform.get_provider().get_account();
 
         let org_id = processor_account.get_org_id().clone();
-        let merchant_account_type = processor_account.merchant_account_type;
 
-        let (merchant_id, processor_merchant_id) = match merchant_account_type {
+        let (merchant_id, processor_merchant_id) = match processor_account.merchant_account_type {
             MerchantAccountType::Connected => (
                 provider_account.get_id().clone(),        // Platform's ID
                 Some(processor_account.get_id().clone()), // Connected merchant's ID
             ),
             MerchantAccountType::Standard | MerchantAccountType::Platform => {
-                (processor_account.get_id().clone(), None)
+                (provider_account.get_id().clone(), None)
             }
         };
 
@@ -532,7 +530,7 @@ pub mod routes {
                         )
                         .service(
                             web::resource("/filters/payments")
-                                .route(web::post().to(get_payment_intents_filters)),
+                                .route(web::post().to(get_merchant_payment_intents_filters)),
                         )
                         .service(
                             web::scope("/merchant")
@@ -541,8 +539,9 @@ pub mod routes {
                                         .route(web::post().to(get_merchant_payment_intent_metrics)),
                                 )
                                 .service(
-                                    web::resource("/filters/payments")
-                                        .route(web::post().to(get_payment_intents_filters)),
+                                    web::resource("/filters/payments").route(
+                                        web::post().to(get_merchant_payment_intents_filters),
+                                    ),
                                 ),
                         )
                         .service(
@@ -605,7 +604,7 @@ pub mod routes {
             &req,
             payload,
             |state, auth: AuthenticationData, req, _| async move {
-                let auth = build_merchant_level_auth_info(&auth.platform);
+                let auth_info = build_merchant_level_auth_info(&auth.platform);
                 let validator_response = request_validator(
                     AnalyticsRequest {
                         payment_attempt: Some(req.clone()),
@@ -615,7 +614,7 @@ pub mod routes {
                 )
                 .await?;
                 let ex_rates = validator_response;
-                analytics::payments::get_metrics(&state.pool, &ex_rates, &auth, req)
+                analytics::payments::get_metrics(&state.pool, &ex_rates, &auth_info, req)
                     .await
                     .map(ApplicationResponse::Json)
             },
@@ -652,7 +651,7 @@ pub mod routes {
             &req,
             payload,
             |state, auth: AuthenticationData, req, _| async move {
-                let auth = build_org_level_auth_info(&auth.platform);
+                let auth_info = build_org_level_auth_info(&auth.platform);
 
                 let validator_response = request_validator(
                     AnalyticsRequest {
@@ -663,7 +662,7 @@ pub mod routes {
                 )
                 .await?;
                 let ex_rates = validator_response;
-                analytics::payments::get_metrics(&state.pool, &ex_rates, &auth, req)
+                analytics::payments::get_metrics(&state.pool, &ex_rates, &auth_info, req)
                     .await
                     .map(ApplicationResponse::Json)
             },
@@ -1494,7 +1493,7 @@ pub mod routes {
     }
 
     #[cfg(feature = "v1")]
-    pub async fn get_payment_intents_filters(
+    pub async fn get_merchant_payment_intents_filters(
         state: web::Data<AppState>,
         req: actix_web::HttpRequest,
         json_payload: web::Json<GetPaymentIntentFiltersRequest>,
@@ -1511,11 +1510,18 @@ pub mod routes {
                     .await
                     .map(ApplicationResponse::Json)
             },
-            &auth::JWTAuth {
-                permission: Permission::MerchantAnalyticsRead,
-                allow_connected: true,
-                allow_platform: false,
-            },
+            auth::auth_type(
+                &auth::PlatformOrgAdminAuth {
+                    is_admin_auth_allowed: false,
+                    organization_id: None,
+                },
+                &auth::JWTAuth {
+                    permission: Permission::MerchantAnalyticsRead,
+                    allow_connected: false,
+                    allow_platform: false,
+                },
+                req.headers(),
+            ),
             api_locking::LockAction::NotApplicable,
         ))
         .await
@@ -4039,7 +4045,7 @@ pub mod routes {
             },
             &auth::JWTAuth {
                 permission: Permission::MerchantAnalyticsRead,
-                allow_connected: false,
+                allow_connected: true,
                 allow_platform: false,
             },
             api_locking::LockAction::NotApplicable,
@@ -4073,7 +4079,7 @@ pub mod routes {
                 },
                 &auth::JWTAuth {
                     permission: Permission::OrganizationAnalyticsRead,
-                    allow_connected: false,
+                    allow_connected: true,
                     allow_platform: false,
                 },
                 req.headers(),
@@ -4110,7 +4116,7 @@ pub mod routes {
             },
             &auth::JWTAuth {
                 permission: Permission::ProfileAnalyticsRead,
-                allow_connected: false,
+                allow_connected: true,
                 allow_platform: false,
             },
             api_locking::LockAction::NotApplicable,
