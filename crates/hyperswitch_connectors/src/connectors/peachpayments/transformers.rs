@@ -2,11 +2,15 @@ use std::str::FromStr;
 
 use cards::{CardNumber, NetworkToken};
 use common_enums::enums as storage_enums;
+use common_types::payments::{ApplePayPredecryptData, GPayPredecryptData};
 use common_utils::{errors::CustomResult, pii, types::MinorUnit};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
-    payment_method_data::{Card, CardWithLimitedDetails, NetworkTokenData, PaymentMethodData},
-    router_data::{ConnectorAuthType, ErrorResponse, RouterData},
+    payment_method_data::{
+        ApplePayWalletData, Card, CardWithLimitedDetails, GooglePayWalletData, NetworkTokenData,
+        PaymentMethodData, WalletData,
+    },
+    router_data::{ConnectorAuthType, ErrorResponse, PaymentMethodToken, RouterData},
     router_flow_types::refunds::{Execute, RSync},
     router_request_types::{RefundsData, ResponseId},
     router_response_types::{PaymentsResponseData, RefundsResponseData},
@@ -27,7 +31,7 @@ use crate::{
     types::ResponseRouterData,
     utils::{
         self, CardData, CardWithLimitedData as _, NetworkTokenData as _,
-        RouterData as OtherRouterData,
+        PaymentsAuthorizeRequestData, RouterData as OtherRouterData,
     },
 };
 
@@ -259,6 +263,88 @@ impl From<common_enums::CardNetwork> for CardNetworkLowercase {
     }
 }
 
+fn parse_wallet_card_network(network: &str) -> Option<CardNetworkLowercase> {
+    match network.to_lowercase().as_str() {
+        "visa" => Some(CardNetworkLowercase::Visa),
+        "mastercard" => Some(CardNetworkLowercase::Mastercard),
+        "amex" | "americanexpress" | "american express" => Some(CardNetworkLowercase::Amex),
+        "discover" => Some(CardNetworkLowercase::Discover),
+        "jcb" => Some(CardNetworkLowercase::Jcb),
+        "diners" | "dinersclub" | "diners club" => Some(CardNetworkLowercase::Diners),
+        "cartesbancaires" | "cartes bancaires" => Some(CardNetworkLowercase::CartesBancaires),
+        "unionpay" | "union pay" => Some(CardNetworkLowercase::UnionPay),
+        "interac" => Some(CardNetworkLowercase::Interac),
+        "rupay" => Some(CardNetworkLowercase::RuPay),
+        "maestro" => Some(CardNetworkLowercase::Maestro),
+        _ => None,
+    }
+}
+
+fn get_apple_pay_data(
+    apple_pay_wallet_data: &ApplePayWalletData,
+    payment_method_token: Option<&PaymentMethodToken>,
+) -> Result<ApplePayPredecryptData, error_stack::Report<errors::ConnectorError>> {
+    if let Some(PaymentMethodToken::ApplePayDecrypt(decrypted_data)) = payment_method_token {
+        return Ok(*decrypted_data.clone());
+    }
+
+    match &apple_pay_wallet_data.payment_data {
+        common_types::payments::ApplePayPaymentData::Decrypted(decrypted_data) => {
+            Ok(decrypted_data.clone())
+        }
+        common_types::payments::ApplePayPaymentData::Encrypted(_) => {
+            Err(errors::ConnectorError::MissingRequiredField {
+                field_name: "decrypted apple pay data",
+            })?
+        }
+    }
+}
+
+fn get_google_pay_data(
+    google_pay_wallet_data: &GooglePayWalletData,
+    payment_method_token: Option<&PaymentMethodToken>,
+) -> Result<GPayPredecryptData, error_stack::Report<errors::ConnectorError>> {
+    if let Some(PaymentMethodToken::GooglePayDecrypt(decrypted_data)) = payment_method_token {
+        return Ok(*decrypted_data.clone());
+    }
+
+    match &google_pay_wallet_data.tokenization_data {
+        common_types::payments::GpayTokenizationData::Decrypted(decrypted_data) => {
+            Ok(decrypted_data.clone())
+        }
+        common_types::payments::GpayTokenizationData::Encrypted(_) => {
+            Err(errors::ConnectorError::MissingRequiredField {
+                field_name: "decrypted google pay data",
+            })?
+        }
+    }
+}
+
+fn build_cof_data(router_data: &PaymentsAuthorizeRouterData) -> CardOnFileData {
+    if router_data.request.is_mit_payment() {
+        // Subsequent merchant-initiated transaction
+        CardOnFileData {
+            _type: CofType::Recurring,
+            source: CofSource::Mit,
+            mode: CofMode::Subsequent,
+        }
+    } else if router_data.request.is_customer_initiated_mandate_payment() {
+        // Initial customer-initiated mandate setup
+        CardOnFileData {
+            _type: CofType::Adhoc,
+            source: CofSource::Cit,
+            mode: CofMode::Initial,
+        }
+    } else {
+        // Regular one-time payment (still need COF data for network token payments)
+        CardOnFileData {
+            _type: CofType::Adhoc,
+            source: CofSource::Cit,
+            mode: CofMode::Initial,
+        }
+    }
+}
+
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct AmountDetails {
@@ -426,6 +512,51 @@ impl TryFrom<&PeachpaymentsRouterData<&PaymentsAuthorizeRouterData>>
             PaymentMethodData::CardWithLimitedDetails(card_with_limited_details) => {
                 Self::try_from((item, card_with_limited_details))
             }
+            PaymentMethodData::Wallet(wallet_data) => match wallet_data {
+                WalletData::ApplePay(apple_pay_data) => {
+                    let payment_method_token = item.router_data.payment_method_token.as_ref();
+                    Self::try_from((item, apple_pay_data, payment_method_token))
+                }
+                WalletData::GooglePay(google_pay_data) => {
+                    let payment_method_token = item.router_data.payment_method_token.as_ref();
+                    Self::try_from((item, google_pay_data, payment_method_token))
+                }
+                WalletData::AliPayQr(_)
+                | WalletData::AliPayRedirect(_)
+                | WalletData::AliPayHkRedirect(_)
+                | WalletData::AmazonPay(_)
+                | WalletData::AmazonPayRedirect(_)
+                | WalletData::Paysera(_)
+                | WalletData::Skrill(_)
+                | WalletData::BluecodeRedirect {}
+                | WalletData::MomoRedirect(_)
+                | WalletData::KakaoPayRedirect(_)
+                | WalletData::GoPayRedirect(_)
+                | WalletData::GcashRedirect(_)
+                | WalletData::ApplePayRedirect(_)
+                | WalletData::ApplePayThirdPartySdk(_)
+                | WalletData::DanaRedirect {}
+                | WalletData::GooglePayRedirect(_)
+                | WalletData::GooglePayThirdPartySdk(_)
+                | WalletData::MbWayRedirect(_)
+                | WalletData::MobilePayRedirect(_)
+                | WalletData::PaypalSdk(_)
+                | WalletData::PaypalRedirect(_)
+                | WalletData::Paze(_)
+                | WalletData::SamsungPay(_)
+                | WalletData::TwintRedirect {}
+                | WalletData::VippsRedirect {}
+                | WalletData::TouchNGoRedirect(_)
+                | WalletData::WeChatPayRedirect(_)
+                | WalletData::CashappQr(_)
+                | WalletData::SwishQr(_)
+                | WalletData::WeChatPayQr(_)
+                | WalletData::RevolutPay(_)
+                | WalletData::Mifinity(_) => Err(errors::ConnectorError::NotImplemented(
+                    "Wallet payment method".to_string(),
+                )
+                .into()),
+            },
             _ => Err(errors::ConnectorError::NotImplemented("Payment method".to_string()).into()),
         }
     }
@@ -491,17 +622,15 @@ impl
             None
         };
 
+        let cof_data = build_cof_data(item.router_data);
+
         let ecommerce_data = EcommercePaymentOnlyTransactionData::NetworkToken(
             EcommerceNetworkTokenPaymentOnlyTransactionData {
                 merchant_information,
                 routing_reference,
                 network_token_data,
                 amount,
-                cof_data: CardOnFileData {
-                    _type: CofType::Adhoc,
-                    source: CofSource::Cit,
-                    mode: CofMode::Initial,
-                },
+                cof_data,
                 rrn: item.router_data.request.merchant_order_reference_id.clone(),
                 pre_auth_inc_ext_capture_flow,
             },
@@ -681,6 +810,202 @@ impl
         }))
     }
 }
+
+impl
+    TryFrom<(
+        &PeachpaymentsRouterData<&PaymentsAuthorizeRouterData>,
+        ApplePayWalletData,
+        Option<&PaymentMethodToken>,
+    )> for PeachpaymentsPaymentsRequest
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        (item, apple_pay_wallet_data, payment_method_token): (
+            &PeachpaymentsRouterData<&PaymentsAuthorizeRouterData>,
+            ApplePayWalletData,
+            Option<&PaymentMethodToken>,
+        ),
+    ) -> Result<Self, Self::Error> {
+        let apple_pay_data = get_apple_pay_data(&apple_pay_wallet_data, payment_method_token)?;
+
+        let amount_in_cents = item.amount;
+
+        let connector_merchant_config =
+            PeachPaymentsConnectorMetadataObject::try_from(&item.router_data.connector_meta_data)?;
+
+        let merchant_information = MerchantInformation {
+            client_merchant_reference_id: connector_merchant_config.client_merchant_reference_id,
+        };
+
+        let routing_reference = RoutingReference {
+            merchant_payment_method_route_id: connector_merchant_config
+                .merchant_payment_method_route_id,
+        };
+
+        // Get the card network from wallet metadata if available
+        let scheme = parse_wallet_card_network(&apple_pay_wallet_data.payment_method.network);
+
+        let network_token_data = NetworkTokenDetails {
+            token: apple_pay_data
+                .application_primary_account_number
+                .clone()
+                .into(),
+            expiry_year: apple_pay_data.get_two_digit_expiry_year().change_context(
+                errors::ConnectorError::InvalidDataFormat {
+                    field_name: "application_expiration_year",
+                },
+            )?,
+            expiry_month: apple_pay_data.application_expiration_month.clone(),
+            cryptogram: Some(
+                apple_pay_data
+                    .payment_data
+                    .online_payment_cryptogram
+                    .clone(),
+            ),
+            eci: apple_pay_data.payment_data.eci_indicator.clone(),
+            scheme,
+        };
+
+        let amount = AmountDetails {
+            amount: amount_in_cents,
+            currency_code: item.router_data.request.currency,
+            display_amount: None,
+        };
+
+        let pre_auth_inc_ext_capture_flow = if matches!(
+            item.router_data.request.capture_method,
+            Some(common_enums::CaptureMethod::Manual)
+        ) {
+            Some(PreAuthIncExtCaptureFlow {
+                dcc_mode: DccMode::NoDcc,
+                txn_ref_nr: item.router_data.connector_request_reference_id.clone(),
+            })
+        } else {
+            None
+        };
+
+        let cof_data = build_cof_data(item.router_data);
+
+        let ecommerce_data = EcommercePaymentOnlyTransactionData::NetworkToken(
+            EcommerceNetworkTokenPaymentOnlyTransactionData {
+                merchant_information,
+                routing_reference,
+                network_token_data,
+                amount,
+                cof_data,
+                rrn: item.router_data.request.merchant_order_reference_id.clone(),
+                pre_auth_inc_ext_capture_flow,
+            },
+        );
+
+        let send_date_time = OffsetDateTime::now_utc()
+            .format(&time::format_description::well_known::Iso8601::DEFAULT)
+            .map_err(|_| errors::ConnectorError::RequestEncodingFailed)?;
+
+        Ok(Self::NetworkToken(PeachpaymentsPaymentsNTRequest {
+            payment_method: "ecommerce_card_payment_only".to_string(),
+            reference_id: item.router_data.connector_request_reference_id.clone(),
+            ecommerce_card_payment_only_transaction_data: ecommerce_data,
+            send_date_time,
+        }))
+    }
+}
+
+impl
+    TryFrom<(
+        &PeachpaymentsRouterData<&PaymentsAuthorizeRouterData>,
+        GooglePayWalletData,
+        Option<&PaymentMethodToken>,
+    )> for PeachpaymentsPaymentsRequest
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        (item, google_pay_wallet_data, payment_method_token): (
+            &PeachpaymentsRouterData<&PaymentsAuthorizeRouterData>,
+            GooglePayWalletData,
+            Option<&PaymentMethodToken>,
+        ),
+    ) -> Result<Self, Self::Error> {
+        let google_pay_data = get_google_pay_data(&google_pay_wallet_data, payment_method_token)?;
+
+        let amount_in_cents = item.amount;
+
+        let connector_merchant_config =
+            PeachPaymentsConnectorMetadataObject::try_from(&item.router_data.connector_meta_data)?;
+
+        let merchant_information = MerchantInformation {
+            client_merchant_reference_id: connector_merchant_config.client_merchant_reference_id,
+        };
+
+        let routing_reference = RoutingReference {
+            merchant_payment_method_route_id: connector_merchant_config
+                .merchant_payment_method_route_id,
+        };
+
+        // Get the card network from wallet info if available
+        let scheme = parse_wallet_card_network(&google_pay_wallet_data.info.card_network);
+
+        let network_token_data = NetworkTokenDetails {
+            token: google_pay_data
+                .application_primary_account_number
+                .clone()
+                .into(),
+            expiry_year: google_pay_data.get_two_digit_expiry_year().change_context(
+                errors::ConnectorError::InvalidDataFormat {
+                    field_name: "card_exp_year",
+                },
+            )?,
+            expiry_month: google_pay_data.card_exp_month.clone(),
+            cryptogram: google_pay_data.cryptogram.clone(),
+            eci: google_pay_data.eci_indicator.clone(),
+            scheme,
+        };
+
+        let amount = AmountDetails {
+            amount: amount_in_cents,
+            currency_code: item.router_data.request.currency,
+            display_amount: None,
+        };
+
+        let pre_auth_inc_ext_capture_flow = if matches!(
+            item.router_data.request.capture_method,
+            Some(common_enums::CaptureMethod::Manual)
+        ) {
+            Some(PreAuthIncExtCaptureFlow {
+                dcc_mode: DccMode::NoDcc,
+                txn_ref_nr: item.router_data.connector_request_reference_id.clone(),
+            })
+        } else {
+            None
+        };
+
+        let cof_data = build_cof_data(item.router_data);
+
+        let ecommerce_data = EcommercePaymentOnlyTransactionData::NetworkToken(
+            EcommerceNetworkTokenPaymentOnlyTransactionData {
+                merchant_information,
+                routing_reference,
+                network_token_data,
+                amount,
+                cof_data,
+                rrn: item.router_data.request.merchant_order_reference_id.clone(),
+                pre_auth_inc_ext_capture_flow,
+            },
+        );
+
+        let send_date_time = OffsetDateTime::now_utc()
+            .format(&time::format_description::well_known::Iso8601::DEFAULT)
+            .map_err(|_| errors::ConnectorError::RequestEncodingFailed)?;
+
+        Ok(Self::NetworkToken(PeachpaymentsPaymentsNTRequest {
+            payment_method: "ecommerce_card_payment_only".to_string(),
+            reference_id: item.router_data.connector_request_reference_id.clone(),
+            ecommerce_card_payment_only_transaction_data: ecommerce_data,
+            send_date_time,
+        }))
+    }
+}
+
 // Auth Struct for Card Gateway API
 pub struct PeachpaymentsAuthType {
     pub(crate) api_key: Secret<String>,
