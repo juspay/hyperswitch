@@ -909,6 +909,7 @@ export const connectorDetails = {
       type: "string",
     },
     RefundIdConfig: {
+      // PayPal refund webhooks use resource.id as the connector refund reference
       path: "resource.id",
       type: "string",
     },

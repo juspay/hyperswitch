@@ -5650,7 +5650,7 @@ Cypress.Commands.add(
           expect(response.status).to.eq(200);
         } else {
           throw new Error(
-            `Refund Manual Update Call Failed with error code "${response.body.error.code}" error message "${response.body.error.message}"`
+            `Refund Manual Update Call Failed with error code "${response.body?.error?.code}" error message "${response.body?.error?.message}"`
           );
         }
       });
@@ -5755,7 +5755,6 @@ Cypress.Commands.add(
         "cli_log",
         "Skipping refund webhook: refund ID is not available (sandbox connector may not return it)"
       );
-      globalState.set("refundWebhookSkipped", true);
 
       return;
     }
