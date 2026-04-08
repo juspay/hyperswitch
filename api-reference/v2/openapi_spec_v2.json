@@ -7438,17 +7438,17 @@
               "ach_bank_debit": {
                 "type": "object",
                 "required": [
-                  "account_number_last4_digits",
-                  "routing_number_last4_digits",
+                  "masked_account_number",
+                  "masked_routing_number",
                   "bank_name",
                   "bank_type",
                   "bank_holder_type"
                 ],
                 "properties": {
-                  "account_number_last4_digits": {
+                  "masked_account_number": {
                     "type": "string"
                   },
-                  "routing_number_last4_digits": {
+                  "masked_routing_number": {
                     "type": "string"
                   },
                   "bank_account_holder_name": {
