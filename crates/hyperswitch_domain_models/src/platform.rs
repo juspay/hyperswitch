@@ -1,6 +1,5 @@
 pub use crate::{merchant_account::MerchantAccount, merchant_key_store::MerchantKeyStore};
 
-
 /// Provider = The business owner or the governing entity in the hierarchy.
 /// In a platform-connected setup this is represented by the platform merchant.
 /// For a standard merchant, both provider and processor are represented by the same entity.
@@ -40,7 +39,6 @@ impl ProviderMerchantId {
         &self.0
     }
 }
-
 
 /// Processor = The merchant account whose processor credentials are used
 /// to execute the operation.
