@@ -928,10 +928,31 @@ pub struct BusinessGenericLinkConfig {
 
 common_utils::impl_to_sql_from_sql_json!(BusinessPayoutLinkConfig);
 
+#[derive(Debug, Clone, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub struct RevenueRecoveryFeaturesEnablement {
+    /// Enable/disable account update feature
+    pub account_update: bool,
+}
+
+impl RevenueRecoveryFeaturesEnablement {
+    /// Create a new instance with all features disabled by default
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// Check if account update is enabled
+    pub fn is_account_update_enabled(&self) -> bool {
+        self.account_update
+    }
+}
+
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, diesel::AsExpression)]
 #[diesel(sql_type = diesel::sql_types::Jsonb)]
 pub struct RevenueRecoveryAlgorithmData {
     pub monitoring_configured_timestamp: time::PrimitiveDateTime,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub smart_features: Option<RevenueRecoveryFeaturesEnablement>,
 }
 
 impl RevenueRecoveryAlgorithmData {
@@ -939,6 +960,14 @@ impl RevenueRecoveryAlgorithmData {
         let total_threshold_time = self.monitoring_configured_timestamp
             + Duration::seconds(monitoring_threshold_in_seconds);
         common_utils::date_time::now() >= total_threshold_time
+    }
+
+    /// Check if account update feature is enabled
+    pub fn is_account_update_enabled(&self) -> bool {
+        self.smart_features
+            .as_ref()
+            .map(|features| features.is_account_update_enabled())
+            .unwrap_or(false)
     }
 }
 

@@ -2737,6 +2737,7 @@ pub async fn create_connector(
                 key_manager_state,
                 processor.get_key_store(),
                 common_enums::RevenueRecoveryAlgorithmType::Monitoring,
+                None,
             )
             .await?;
     }
@@ -4286,6 +4287,25 @@ impl ProfileUpdateBridge for api::ProfileUpdate {
         };
 
         let revenue_recovery_retry_algorithm_type = self.revenue_recovery_retry_algorithm_type;
+        let revenue_recovery_retry_algorithm_data =
+            self.revenue_recovery_smart_features.map(|feature_patch| {
+                let mut algorithm_data = business_profile
+                    .revenue_recovery_retry_algorithm_data
+                    .clone()
+                    .unwrap_or(
+                        diesel_models::business_profile::RevenueRecoveryAlgorithmData {
+                            monitoring_configured_timestamp: date_time::now(),
+                            smart_features: None,
+                        },
+                    );
+
+                let mut smart_features = algorithm_data.smart_features.unwrap_or_default();
+                feature_patch
+                    .account_update
+                    .map(|account_update| smart_features.account_update = account_update);
+                algorithm_data.smart_features = Some(smart_features);
+                algorithm_data
+            });
 
         Ok(domain::ProfileUpdate::Update(Box::new(
             domain::ProfileGeneralUpdate {
@@ -4337,6 +4357,7 @@ impl ProfileUpdateBridge for api::ProfileUpdate {
                 merchant_category_code: self.merchant_category_code,
                 merchant_country_code: self.merchant_country_code,
                 revenue_recovery_retry_algorithm_type,
+                revenue_recovery_retry_algorithm_data,
                 split_txns_enabled: self.split_txns_enabled,
                 billing_processor_id: self.billing_processor_id,
             },
@@ -4506,17 +4527,32 @@ impl ProfileWrapper {
             .attach_printable("Failed to update routing algorithm ref in business profile")?;
         Ok(())
     }
+
     pub async fn update_revenue_recovery_algorithm_under_profile(
         self,
         db: &dyn StorageInterface,
         key_manager_state: &KeyManagerState,
         merchant_key_store: &domain::MerchantKeyStore,
         revenue_recovery_retry_algorithm_type: common_enums::RevenueRecoveryAlgorithmType,
+        smart_features: Option<diesel_models::business_profile::RevenueRecoveryFeaturesEnablement>,
     ) -> RouterResult<()> {
-        let recovery_algorithm_data =
-            diesel_models::business_profile::RevenueRecoveryAlgorithmData {
-                monitoring_configured_timestamp: date_time::now(),
-            };
+        let mut recovery_algorithm_data = self
+            .profile
+            .revenue_recovery_retry_algorithm_data
+            .clone()
+            .unwrap_or(
+                diesel_models::business_profile::RevenueRecoveryAlgorithmData {
+                    monitoring_configured_timestamp: date_time::now(),
+                    smart_features: None,
+                },
+            );
+
+        recovery_algorithm_data.monitoring_configured_timestamp = date_time::now();
+
+        if let Some(features) = smart_features {
+            recovery_algorithm_data.smart_features = Some(features);
+        }
+
         let profile_update = domain::ProfileUpdate::RevenueRecoveryAlgorithmUpdate {
             revenue_recovery_retry_algorithm_type,
             revenue_recovery_retry_algorithm_data: Some(recovery_algorithm_data),

@@ -479,6 +479,15 @@ impl Decision {
     }
 }
 
+/// Check if account updater feature is enabled from profile settings
+fn is_account_updater_enabled_from_profile(profile: &domain::Profile) -> bool {
+    profile
+        .revenue_recovery_retry_algorithm_data
+        .as_ref()
+        .map(|data| data.is_account_update_enabled())
+        .unwrap_or(false) // Default to disabled if not configured
+}
+
 #[derive(Debug, Clone)]
 pub enum Action {
     SyncPayment(PaymentAttempt),
@@ -527,7 +536,8 @@ impl Action {
         // handle proxy api's response
         match response {
             Ok(payment_data) => {
-                let account_updater_action = storage::revenue_recovery_redis_operation::RedisTokenManager::handle_account_updater_token_update(
+                if is_account_updater_enabled_from_profile(profile) {
+                    let account_updater_action = storage::revenue_recovery_redis_operation::RedisTokenManager::handle_account_updater_token_update(
                     state,
                     &connector_customer_id,
                     scheduled_token,
@@ -542,27 +552,33 @@ impl Action {
                 })
                 .ok();
 
-                let _account_updater_result = account_updater_action
-                    .async_map(|action| {
-                        let customer_id = connector_customer_id.clone();
-                        let payment_attempt_id = payment_data.payment_attempt.id.clone();
-                        async move {
-                            action
-                                .handle_account_updater_action(
-                                    state,
-                                    customer_id.as_str(),
-                                    scheduled_token,
-                                    &payment_attempt_id,
-                                )
-                                .await
-                        }
-                    })
-                    .await
-                    .transpose()
-                    .inspect_err(|e| {
-                        logger::error!("Failed to handle account updater action: {:?}", e);
-                    })
-                    .ok();
+                    let _account_updater_result = account_updater_action
+                        .async_map(|action| {
+                            let customer_id = connector_customer_id.clone();
+                            let payment_attempt_id = payment_data.payment_attempt.id.clone();
+                            async move {
+                                action
+                                    .handle_account_updater_action(
+                                        state,
+                                        customer_id.as_str(),
+                                        scheduled_token,
+                                        &payment_attempt_id,
+                                    )
+                                    .await
+                            }
+                        })
+                        .await
+                        .transpose()
+                        .inspect_err(|e| {
+                            logger::error!("Failed to handle account updater action: {:?}", e);
+                        })
+                        .ok();
+                } else {
+                    logger::info!(
+                        "Account updater feature is disabled in profile settings, skipping token update"
+                    );
+                }
+
                 let intent_status: RevenueRecoveryPaymentIntentStatus =
                     payment_data.payment_intent.status.foreign_into();
                 let event_status = common_enums::EventType::from(intent_status.clone());

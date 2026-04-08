@@ -3261,6 +3261,9 @@ pub struct ProfileUpdate {
     pub revenue_recovery_retry_algorithm_type:
         Option<common_enums::enums::RevenueRecoveryAlgorithmType>,
 
+    /// Revenue Recovery smart feature patch. Only provided keys are updated.
+    pub revenue_recovery_smart_features: Option<RevenueRecoveryFeatures>,
+
     /// Enable split payments, i.e., split the amount between multiple payment methods
     #[schema(value_type = Option<SplitTxnsEnabled>, default = "skip")]
     pub split_txns_enabled: Option<common_enums::SplitTxnsEnabled>,
@@ -3268,6 +3271,14 @@ pub struct ProfileUpdate {
     /// Merchant Connector id to be stored for billing_processor connector
     #[schema(value_type = Option<String>)]
     pub billing_processor_id: Option<id_type::MerchantConnectorAccountId>,
+}
+
+#[cfg(feature = "v2")]
+#[derive(Clone, Debug, Deserialize, ToSchema, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct RevenueRecoveryFeatures {
+    /// Enable/disable account updater for revenue recovery
+    pub account_update: Option<bool>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]

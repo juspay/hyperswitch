@@ -1810,6 +1810,7 @@ pub struct ProfileGeneralUpdate {
     pub merchant_category_code: Option<api_enums::MerchantCategoryCode>,
     pub merchant_country_code: Option<common_types::payments::MerchantCountryCode>,
     pub revenue_recovery_retry_algorithm_type: Option<common_enums::RevenueRecoveryAlgorithmType>,
+    pub revenue_recovery_retry_algorithm_data: Option<RevenueRecoveryAlgorithmData>,
     pub split_txns_enabled: Option<common_enums::SplitTxnsEnabled>,
     pub billing_processor_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
 }
@@ -1893,6 +1894,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                     merchant_category_code,
                     merchant_country_code,
                     revenue_recovery_retry_algorithm_type,
+                    revenue_recovery_retry_algorithm_data,
                     split_txns_enabled,
                     billing_processor_id,
                 } = *update;
@@ -1943,7 +1945,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                     is_debit_routing_enabled,
                     merchant_business_country,
                     revenue_recovery_retry_algorithm_type,
-                    revenue_recovery_retry_algorithm_data: None,
+                    revenue_recovery_retry_algorithm_data,
                     is_iframe_redirection_enabled,
                     is_external_vault_enabled,
                     external_vault_connector_details,
