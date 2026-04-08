@@ -3596,17 +3596,16 @@ checksum = "28dd6caf6059519a65843af8fe2a3ae298b14b80179855aeb4adc2c1934ee619"
 
 [[package]]
 name = "fred"
-version = "8.0.6"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4b8e3a1339ed45ad8fde94530c4bdcbd5f371a3c6bd3bf57682923792830aa37"
+version = "7.1.2"
+source = "git+https://github.com/su-shivanshmathur/fred.rs?branch=test%2Fdebug-build#9a148fb0aa0a6e1c8b69ce01439af3d9f406596a"
 dependencies = [
  "arc-swap",
  "async-trait",
  "bytes 1.10.1",
  "bytes-utils",
- "crossbeam-queue 0.3.12",
  "float-cmp",
  "futures 0.3.31",
+ "lazy_static",
  "log 0.4.27",
  "parking_lot 0.12.3",
  "rand 0.8.5",
