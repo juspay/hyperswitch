@@ -5580,7 +5580,6 @@ pub async fn get_additional_payment_data(
     Option<api_models::payments::AdditionalPaymentData>,
     error_stack::Report<errors::ApiErrorResponse>,
 > {
-
     match pm_data {
         domain::PaymentMethodData::Card(card_data) => {
             //todo!

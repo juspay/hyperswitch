@@ -2399,8 +2399,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
         let customer_id = payment_data.payment_intent.customer_id.as_ref();
 
         let payment_experience = payment_data.payment_attempt.payment_experience;
-        let dimensions = dimensions
-            .with_profile_id(profile_id.clone());
+        let dimensions = dimensions.with_profile_id(profile_id.clone());
         let additional_pm_data = payment_data
             .payment_method_data
             .as_ref()

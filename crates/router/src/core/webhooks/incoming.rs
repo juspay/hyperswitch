@@ -39,7 +39,8 @@ use super::{types, utils, MERCHANT_ID};
 use crate::{
     consts,
     core::{
-        api_locking, configs::dimension_state,
+        api_locking,
+        configs::dimension_state,
         errors::{self, ConnectorErrorExt, CustomResult, RouterResponse, StorageErrorExt},
         metrics, payment_methods,
         payment_methods::cards,

@@ -9,7 +9,8 @@ use router_env::{instrument, tracing};
 
 use super::{BoxedOperation, Domain, GetTracker, Operation, UpdateTracker, ValidateRequest};
 use crate::{
-    core::{        configs::dimension_state,
+    core::{
+        configs::dimension_state,
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
         mandate::helpers as m_helpers,
         payments::{

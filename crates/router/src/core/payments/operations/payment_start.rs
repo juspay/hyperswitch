@@ -10,7 +10,8 @@ use super::{BoxedOperation, Domain, GetTracker, Operation, UpdateTracker, Valida
 #[cfg(feature = "pm_modular")]
 use crate::core::utils;
 use crate::{
-    core::{        configs::dimension_state,
+    core::{
+        configs::dimension_state,
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
         payments::{helpers, operations, CustomerDetails, PaymentAddress, PaymentData},
     },
