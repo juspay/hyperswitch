@@ -377,7 +377,6 @@ pub enum PaymentIntentUpdate {
         status: common_enums::IntentStatus,
         active_attempt_id: Option<id_type::GlobalAttemptId>,
         updated_by: String,
-        profile_acquirer_id: Option<id_type::ProfileAcquirerId>,
     },
     /// PostUpdate tracker of ConfirmIntent
     ConfirmIntentPostUpdate {
@@ -503,7 +502,6 @@ impl TryFrom<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal
                 status,
                 active_attempt_id,
                 updated_by,
-                profile_acquirer_id,
             } => Ok(Self {
                 status: Some(status),
                 active_attempt_id: Some(active_attempt_id),
@@ -546,6 +544,7 @@ impl TryFrom<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal
                 is_iframe_redirection_enabled: None,
                 enable_partial_authorization: None,
                 state_metadata: None,
+                profile_acquirer_id: None,
             }),
 
             PaymentIntentUpdate::ConfirmIntentPostUpdate {
@@ -595,6 +594,7 @@ impl TryFrom<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal
                 is_iframe_redirection_enabled: None,
                 enable_partial_authorization: None,
                 state_metadata: None,
+                profile_acquirer_id: None,
             }),
             PaymentIntentUpdate::SyncUpdate {
                 status,
@@ -642,6 +642,7 @@ impl TryFrom<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal
                 is_iframe_redirection_enabled: None,
                 enable_partial_authorization: None,
                 state_metadata: None,
+                profile_acquirer_id: None,
             }),
             PaymentIntentUpdate::CaptureUpdate {
                 status,
@@ -689,6 +690,7 @@ impl TryFrom<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal
                 is_iframe_redirection_enabled: None,
                 enable_partial_authorization: None,
                 state_metadata: None,
+                profile_acquirer_id: None,
             }),
             PaymentIntentUpdate::SessionIntentUpdate {
                 prerouting_algorithm,
@@ -739,6 +741,7 @@ impl TryFrom<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal
                 is_iframe_redirection_enabled: None,
                 enable_partial_authorization: None,
                 state_metadata: None,
+                profile_acquirer_id: None,
             }),
             PaymentIntentUpdate::UpdateIntent(boxed_intent) => {
                 let PaymentIntentUpdateFields {
@@ -779,6 +782,7 @@ impl TryFrom<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal
                     enable_partial_authorization,
                     active_attempt_id_type,
                     active_attempts_group_id,
+                    profile_acquirer_id,
                 } = *boxed_intent;
                 Ok(Self {
                     status: None,
@@ -828,6 +832,7 @@ impl TryFrom<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal
                     is_iframe_redirection_enabled,
                     enable_partial_authorization,
                     state_metadata: None,
+                    profile_acquirer_id,
                 })
             }
             PaymentIntentUpdate::RecordUpdate {
@@ -878,6 +883,7 @@ impl TryFrom<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal
                 is_iframe_redirection_enabled: None,
                 enable_partial_authorization: None,
                 state_metadata: None,
+                profile_acquirer_id: None,
             }),
             PaymentIntentUpdate::VoidUpdate { status, updated_by } => Ok(Self {
                 status: Some(status),
@@ -922,6 +928,7 @@ impl TryFrom<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal
                 is_iframe_redirection_enabled: None,
                 enable_partial_authorization: None,
                 state_metadata: None,
+                profile_acquirer_id: None,
             }),
             PaymentIntentUpdate::AttemptGroupUpdate {
                 updated_by,
@@ -969,6 +976,7 @@ impl TryFrom<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal
                 is_iframe_redirection_enabled: None,
                 enable_partial_authorization: None,
                 state_metadata: None,
+                profile_acquirer_id: None,
             }),
             PaymentIntentUpdate::SplitPaymentStatusUpdate { status, updated_by } => Ok(Self {
                 status: Some(status),
@@ -1012,6 +1020,7 @@ impl TryFrom<PaymentIntentUpdate> for diesel_models::PaymentIntentUpdateInternal
                 is_iframe_redirection_enabled: None,
                 enable_partial_authorization: None,
                 state_metadata: None,
+                profile_acquirer_id: None,
             }),
         }
     }
@@ -1995,6 +2004,7 @@ impl behaviour::Conversion for PaymentIntent {
             is_iframe_redirection_enabled,
             is_payment_id_from_merchant,
             enable_partial_authorization,
+            profile_acquirer_id,
         } = self;
         Ok(DieselPaymentIntent {
             skip_external_tax_calculation: Some(amount_details.get_external_tax_action_as_bool()),
@@ -2106,6 +2116,7 @@ impl behaviour::Conversion for PaymentIntent {
             partner_merchant_identifier_details: None,
             state_metadata: None,
             installment_options: None,
+            profile_acquirer_id,
         })
     }
     async fn convert_back(
@@ -2259,6 +2270,7 @@ impl behaviour::Conversion for PaymentIntent {
                 enable_partial_authorization: storage_model
                     .enable_partial_authorization
                     .unwrap_or(false.into()),
+                profile_acquirer_id: storage_model.profile_acquirer_id,
             })
         }
         .await

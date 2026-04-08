@@ -258,6 +258,7 @@ impl<'a> KafkaPaymentIntentEvent<'a> {
             is_iframe_redirection_enabled,
             is_payment_id_from_merchant,
             enable_partial_authorization,
+            profile_acquirer_id: _,
         } = intent;
 
         Self {

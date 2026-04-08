@@ -1623,6 +1623,7 @@ impl Profile {
     /// Resolve an `AcquirerConfig` for a specific `profile_acquirer_id` bucket and `network`.
     /// Use this when the authentication record already has a `profile_acquirer_id` scoped to a
     /// particular acquirer, so the lookup is restricted to that bucket only.
+    #[cfg(feature = "v1")]
     pub fn get_acquirer_details_for_profile_acquirer(
         &self,
         profile_acquirer_id: &common_utils::id_type::ProfileAcquirerId,
@@ -1635,6 +1636,7 @@ impl Profile {
     }
 
     /// Resolve an `AcquirerConfig` from the default bucket or fallback to the first bucket.
+    #[cfg(feature = "v1")]
     pub fn get_default_acquirer_details_from_network(
         &self,
         network: common_enums::CardNetwork,

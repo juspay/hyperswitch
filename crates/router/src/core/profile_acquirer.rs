@@ -36,31 +36,13 @@ pub async fn create_profile_acquirer(
         .unwrap_or(false);
 
     let is_default = match request.is_default {
-        Some(true) => {
-            if has_existing_default {
-                return Err(error_stack::report!(errors::ApiErrorResponse::PreconditionFailed {
-                    message: "A default acquirer configuration already exists for this profile. Please unset the current default before setting a new one.".to_string(),
-                }));
-            }
-            true
+        Some(true) if has_existing_default => {
+            Err(error_stack::report!(errors::ApiErrorResponse::PreconditionFailed {
+                message: "A default acquirer configuration already exists for this profile. Please unset the current default before setting a new one.".to_string(),
+            }))
         }
-        Some(false) => {
-            // If it's the first one, we force it to be default for resolution safety.
-            if !has_existing_default {
-                true
-            } else {
-                false
-            }
-        }
-        None => {
-            // Automark as default if it's the first one.
-            if !has_existing_default {
-                true
-            } else {
-                false
-            }
-        }
-    };
+        _ => Ok(false)
+    }?;
 
     let incoming_acquirer_config = common_types::domain::AcquirerConfig {
         acquirer_assigned_merchant_id: request.acquirer_assigned_merchant_id.clone(),
@@ -241,7 +223,11 @@ pub async fn update_profile_acquirer_config(
         .attach_printable("bucket was verified above but vanished")?;
 
     match existing_pos {
-        Some(pos) => bucket[pos] = upserted_config.clone(),
+        Some(pos) => {
+            if let Some(slot) = bucket.get_mut(pos) {
+                *slot = upserted_config.clone();
+            }
+        }
         None => bucket.push(upserted_config.clone()),
     }
 

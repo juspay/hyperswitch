@@ -1061,6 +1061,7 @@ impl PaymentIntent {
             enable_partial_authorization: request
                 .enable_partial_authorization
                 .unwrap_or(false.into()),
+            profile_acquirer_id: None,
         })
     }
 
