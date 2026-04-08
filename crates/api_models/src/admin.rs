@@ -302,12 +302,9 @@ pub struct CardBlockingConfig {
 }
 
 /// Wallet-specific blocking configuration for Apple Pay and Google Pay
-/// This configuration affects the session token response to restrict card types in wallet flows
 #[derive(Clone, Debug, Deserialize, Serialize, ToSchema)]
 pub struct WalletBlockingConfig {
     /// Set of card types to block for wallet payments (e.g., ["Credit", "Debit"])
-    /// For Apple Pay: If Credit is blocked, "supportsDebit" will be added to merchant_capabilities
-    /// For Google Pay: If Credit is blocked, allow_credit_cards will be set to false
     #[schema(value_type = Option<Vec<CardType>>)]
     pub card_types: Option<HashSet<common_enums::CardType>>,
 }
