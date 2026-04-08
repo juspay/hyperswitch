@@ -5191,6 +5191,15 @@
           "propertyName": "type"
         }
       },
+      "AccountType": {
+        "type": "string",
+        "description": "Account type for Santander Pix Automatico recurring charges",
+        "enum": [
+          "current",
+          "savings",
+          "payment"
+        ]
+      },
       "AchBankDebitAdditionalData": {
         "type": "object",
         "required": [
@@ -7000,12 +7009,16 @@
             "$ref": "#/components/schemas/BacsBankTransfer"
           },
           {
+            "$ref": "#/components/schemas/TrustlyBankTransfer"
+          },
+          {
             "$ref": "#/components/schemas/SepaBankTransfer"
           },
           {
             "$ref": "#/components/schemas/PixBankTransfer"
           }
-        ]
+        ],
+        "description": "Deprecated - Use `BankTransfer` instead"
       },
       "BankAdditionalData": {
         "oneOf": [
@@ -7014,6 +7027,9 @@
           },
           {
             "$ref": "#/components/schemas/BacsBankTransferAdditionalData"
+          },
+          {
+            "$ref": "#/components/schemas/TrustlyBankTransferAdditionalData"
           },
           {
             "$ref": "#/components/schemas/SepaBankTransferAdditionalData"
@@ -8123,6 +8139,118 @@
           }
         ]
       },
+      "BankTransfer": {
+        "oneOf": [
+          {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AchBankTransfer"
+              },
+              {
+                "type": "object",
+                "required": [
+                  "payout_method_type"
+                ],
+                "properties": {
+                  "payout_method_type": {
+                    "type": "string",
+                    "enum": [
+                      "ach"
+                    ]
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/BacsBankTransfer"
+              },
+              {
+                "type": "object",
+                "required": [
+                  "payout_method_type"
+                ],
+                "properties": {
+                  "payout_method_type": {
+                    "type": "string",
+                    "enum": [
+                      "bacs"
+                    ]
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SepaBankTransfer"
+              },
+              {
+                "type": "object",
+                "required": [
+                  "payout_method_type"
+                ],
+                "properties": {
+                  "payout_method_type": {
+                    "type": "string",
+                    "enum": [
+                      "sepa"
+                    ]
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PixBankTransfer"
+              },
+              {
+                "type": "object",
+                "required": [
+                  "payout_method_type"
+                ],
+                "properties": {
+                  "payout_method_type": {
+                    "type": "string",
+                    "enum": [
+                      "pix"
+                    ]
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/TrustlyBankTransferData"
+              },
+              {
+                "type": "object",
+                "required": [
+                  "payout_method_type"
+                ],
+                "properties": {
+                  "payout_method_type": {
+                    "type": "string",
+                    "enum": [
+                      "trustly"
+                    ]
+                  }
+                }
+              }
+            ]
+          }
+        ],
+        "discriminator": {
+          "propertyName": "payout_method_type"
+        }
+      },
       "BankTransferAdditionalData": {
         "oneOf": [
           {
@@ -8254,6 +8382,28 @@
             "properties": {
               "pix": {
                 "$ref": "#/components/schemas/PixBankTransferAdditionalData"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "pix_automatico_push"
+            ],
+            "properties": {
+              "pix_automatico_push": {
+                "$ref": "#/components/schemas/PixAutomaticoPushAdditionalData"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "pix_automatico_qr"
+            ],
+            "properties": {
+              "pix_automatico_qr": {
+                "type": "object"
               }
             }
           },
@@ -8627,6 +8777,48 @@
           {
             "type": "object",
             "required": [
+              "pix_automatico_qr"
+            ],
+            "properties": {
+              "pix_automatico_qr": {
+                "type": "object"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "pix_automatico_push"
+            ],
+            "properties": {
+              "pix_automatico_push": {
+                "type": "object",
+                "properties": {
+                  "account_number": {
+                    "type": "string",
+                    "description": "Account number for Pix Automatico Push payment method",
+                    "example": "550689",
+                    "nullable": true
+                  },
+                  "branch_code": {
+                    "type": "string",
+                    "description": "Branch code for Pix Automatico Push payment method",
+                    "example": "2569",
+                    "nullable": true
+                  },
+                  "bank_identifier": {
+                    "type": "string",
+                    "description": "Bank identifier for Pix Automatico Push payment method",
+                    "example": "91193552",
+                    "nullable": true
+                  }
+                }
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
               "pse"
             ],
             "properties": {
@@ -8853,6 +9045,32 @@
           }
         }
       },
+      "BeneficiaryDetails": {
+        "type": "object",
+        "description": "Represents the end-recipient of a payout or fund transfer.",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "The full legal name of the individual or entity receiving the funds.",
+            "example": "João da Silva",
+            "nullable": true
+          },
+          "document_number": {
+            "type": "string",
+            "description": "The customer's unique identification number (e.g., Tax ID, SSN, Passport Number).\nUsed by processors to verify the identity of the recipient and prevent fraud.\nLength of the document number depends upon the document_type.\nFor CPF/CNPJ it is typically 11/14 digits long.",
+            "example": "9615865832",
+            "nullable": true
+          },
+          "document_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/DocumentKind"
+              }
+            ],
+            "nullable": true
+          }
+        }
+      },
       "BillingConnectorAdditionalCardInfo": {
         "type": "object",
         "required": [
@@ -9075,6 +9293,64 @@
           "flexible_amount",
           "installment"
         ]
+      },
+      "BoletoPaymentTypeConstraints": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "type"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "fixed_amount"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "type",
+              "details"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "flexible_amount"
+                ]
+              },
+              "details": {
+                "$ref": "#/components/schemas/FlexibleAmountDetails"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "type",
+              "details"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "installment"
+                ]
+              },
+              "details": {
+                "$ref": "#/components/schemas/InstallmentDetails"
+              }
+            }
+          }
+        ],
+        "description": "Represents the rules for legal protest (official debt registration) for non-payment, including the type of protest and the number of days after which the protest is initiated.",
+        "discriminator": {
+          "propertyName": "type"
+        }
       },
       "BoletoVoucherData": {
         "type": "object",
@@ -9353,6 +9629,14 @@
               }
             }
           }
+        ]
+      },
+      "CalculationType": {
+        "type": "string",
+        "description": "Defines how the payment amount is calculated for penalties or discounts, either as a percentage or as a flat amount.",
+        "enum": [
+          "percentage",
+          "flat_amount"
         ]
       },
       "CaptureMethod": {
@@ -10457,6 +10741,28 @@
           }
         }
       },
+      "CollectionActions": {
+        "type": "object",
+        "description": "Represents the legal or administrative actions that may be taken for non-payment, such as protest rules and automatic write-off timelines.",
+        "properties": {
+          "legal_protest": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ProtestRules"
+              }
+            ],
+            "nullable": true
+          },
+          "auto_write_off_days": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Days after which the bill is automatically cancelled/written off",
+            "example": 60,
+            "nullable": true,
+            "minimum": 0
+          }
+        }
+      },
       "Comparison": {
         "type": "object",
         "description": "Represents a single comparison condition.",
@@ -10554,6 +10860,7 @@
           "finix",
           "fiserv",
           "fiservemea",
+          "fiservcommercehub",
           "fiuu",
           "flexiti",
           "forte",
@@ -10621,6 +10928,7 @@
           "tesouro",
           "tokenex",
           "tokenio",
+          "trustly",
           "truelayer",
           "trustpay",
           "trustpayments",
@@ -10790,6 +11098,14 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/PeachpaymentsData"
+              }
+            ],
+            "nullable": true
+          },
+          "santander": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SantanderConnectorMetadataData"
               }
             ],
             "nullable": true
@@ -12464,6 +12780,22 @@
         },
         "additionalProperties": false
       },
+      "DDCData": {
+        "type": "object",
+        "required": [
+          "iframe_url"
+        ],
+        "properties": {
+          "iframe_url": {
+            "type": "string"
+          },
+          "timeout_ms": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          }
+        }
+      },
       "DecisionEngineEliminationData": {
         "type": "object",
         "required": [
@@ -12684,6 +13016,33 @@
             "nullable": true
           }
         }
+      },
+      "DiscountTier": {
+        "type": "object",
+        "properties": {
+          "amount": {
+            "type": "string",
+            "description": "The discount value (e.g., \"5.50\").",
+            "example": "5.50",
+            "nullable": true
+          },
+          "end_date": {
+            "type": "string",
+            "description": "The ISO-8601 date until which this discount is valid",
+            "example": "2027-12-31",
+            "nullable": true
+          }
+        }
+      },
+      "DiscountType": {
+        "type": "string",
+        "description": "Defines the type of discount applied to a payment, such as whether it's a fixed date discount, a daily calendar discount, or a daily business discount.",
+        "enum": [
+          "standard",
+          "fixed_date",
+          "daily_calendar",
+          "daily_business"
+        ]
       },
       "DisplayAmountOnSdk": {
         "type": "object",
@@ -13673,6 +14032,14 @@
               }
             ],
             "nullable": true
+          },
+          "pix_automatico_additional_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PixAutomaticoAdditionalDetails"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -14150,6 +14517,32 @@
           }
         ],
         "description": "Possible field type of required fields in payment_method_data"
+      },
+      "FlexibleAmountDetails": {
+        "type": "object",
+        "description": "Represents the rules for legal protest (official debt registration) for non-payment, including the type of protest and the number of days after which the protest is initiated.",
+        "properties": {
+          "min_value": {
+            "type": "string",
+            "description": "Minimum value allowed (e.g., \"10.00\")",
+            "example": "38.02",
+            "nullable": true
+          },
+          "max_value": {
+            "type": "string",
+            "description": "Maximum value allowed (e.g., \"5000.00\")",
+            "example": "38.02",
+            "nullable": true
+          },
+          "value_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CalculationType"
+              }
+            ],
+            "nullable": true
+          }
+        }
       },
       "ForceSync": {
         "type": "string",
@@ -15619,6 +16012,28 @@
           "connected"
         ]
       },
+      "InstallmentDetails": {
+        "type": "object",
+        "description": "Represents the rules for legal protest (official debt registration) for non-payment, including the type of protest and the number of days after which the protest is initiated.",
+        "properties": {
+          "max_partial_payments": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Maximum number of partial payments allowed (Up to 99 for Santander).",
+            "example": 99,
+            "nullable": true,
+            "minimum": 0
+          },
+          "value_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CalculationType"
+              }
+            ],
+            "nullable": true
+          }
+        }
+      },
       "IntentStatus": {
         "type": "string",
         "description": "Represents the overall status of a payment intent.\nThe status transitions through various states depending on the payment method, confirmation, capture method, and any subsequent actions (like customer authentication or manual capture).",
@@ -15671,6 +16086,24 @@
         "properties": {
           "customer_info": {
             "type": "object",
+            "nullable": true
+          }
+        }
+      },
+      "InterestDetail": {
+        "type": "object",
+        "description": "Represents the rules for applying discounts to a payment, such as a percentage discount or a fixed amount discount, along with any applicable grace periods.",
+        "properties": {
+          "interest_percentage": {
+            "type": "string",
+            "description": "Percentage of Juros (Interest). Pattern: ^[0-9]{1,3}\\.[0-9]{2}$",
+            "example": "5.00",
+            "nullable": true
+          },
+          "iof_percentage": {
+            "type": "string",
+            "description": "Percentage of IOF (Financial Operations Tax). Pattern: \\d{3}$\\.\\d{5}\nOnly provided if the agreement is \"Cobra IOF na Barra ou Cadastro\"",
+            "example": "32.45325",
             "nullable": true
           }
         }
@@ -18420,6 +18853,25 @@
                 "type": "string",
                 "enum": [
                   "invoke_hidden_iframe"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "The data required to trigger the DDC (Device Data Collection) flow by rendering the provided URL in a hidden iframe.",
+            "required": [
+              "ddc_data",
+              "type"
+            ],
+            "properties": {
+              "ddc_data": {
+                "$ref": "#/components/schemas/DDCData"
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "invoke_ddc"
                 ]
               }
             }
@@ -21588,6 +22040,14 @@
             "type": "string",
             "description": "The return url to which the customer should be redirected to after adding the payment method",
             "nullable": true
+          },
+          "customer_acceptance": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CustomerAcceptance"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -21948,6 +22408,8 @@
           "paypal",
           "paze",
           "pix",
+          "pix_automatico_qr",
+          "pix_automatico_push",
           "pay_safe_card",
           "przelewy24",
           "prompt_pay",
@@ -22319,8 +22781,7 @@
         "description": "Request for Payment Intent Confirm",
         "required": [
           "payment_method_data",
-          "payment_method_type",
-          "payment_method_subtype"
+          "payment_method_type"
         ],
         "properties": {
           "return_url": {
@@ -22344,7 +22805,12 @@
             "$ref": "#/components/schemas/PaymentMethod"
           },
           "payment_method_subtype": {
-            "$ref": "#/components/schemas/PaymentMethodType"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentMethodType"
+              }
+            ],
+            "nullable": true
           },
           "shipping": {
             "allOf": [
@@ -23204,8 +23670,7 @@
           "amount_details",
           "customer_id",
           "payment_method_data",
-          "payment_method_type",
-          "payment_method_subtype"
+          "payment_method_type"
         ],
         "properties": {
           "amount_details": {
@@ -23397,7 +23862,12 @@
             "$ref": "#/components/schemas/PaymentMethod"
           },
           "payment_method_subtype": {
-            "$ref": "#/components/schemas/PaymentMethodType"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentMethodType"
+              }
+            ],
+            "nullable": true
           },
           "customer_acceptance": {
             "allOf": [
@@ -24068,10 +24538,12 @@
           "paypal",
           "stripe",
           "truelayer",
+          "trustly",
           "wise",
           "worldpay",
           "worldpayxml",
-          "envoy"
+          "envoy",
+          "itaubank"
         ]
       },
       "PayoutCreatePayoutLinkConfig": {
@@ -24907,6 +25379,17 @@
                 "$ref": "#/components/schemas/Passthrough"
               }
             }
+          },
+          {
+            "type": "object",
+            "required": [
+              "bank_transfer"
+            ],
+            "properties": {
+              "bank_transfer": {
+                "$ref": "#/components/schemas/BankTransfer"
+              }
+            }
           }
         ],
         "description": "The payout method information required for carrying out a payout"
@@ -25186,6 +25669,11 @@
               }
             ],
             "nullable": true
+          },
+          "data_user_id_token": {
+            "type": "string",
+            "description": "User token required for returning customer flow, used by client to initiate sdk",
+            "nullable": true
           }
         }
       },
@@ -25273,6 +25761,48 @@
           }
         }
       },
+      "PenaltyDetail": {
+        "type": "object",
+        "description": "Represents the rules for applying discounts to a payment, such as a percentage discount or a fixed amount discount, along with any applicable grace periods.",
+        "properties": {
+          "value": {
+            "type": "string",
+            "description": "The numeric value (as a string to preserve decimal precision)",
+            "example": "2.00",
+            "nullable": true
+          },
+          "grace_period_days": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Grace period: Days after due date before this applies",
+            "example": 1,
+            "nullable": true,
+            "minimum": 0
+          }
+        }
+      },
+      "PenaltyRules": {
+        "type": "object",
+        "description": "Represents the rules for applying discounts to a payment, such as a percentage discount or a fixed amount discount, along with any applicable grace periods.",
+        "properties": {
+          "fixed_penalty": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PenaltyDetail"
+              }
+            ],
+            "nullable": true
+          },
+          "interest": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/InterestDetail"
+              }
+            ],
+            "nullable": true
+          }
+        }
+      },
       "PhoneDetails": {
         "type": "object",
         "properties": {
@@ -25315,6 +25845,124 @@
             }
           }
         ]
+      },
+      "PixAutomaticoAdditionalDetails": {
+        "oneOf": [
+          {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PixAutomaticoPushDetails"
+              },
+              {
+                "type": "object",
+                "required": [
+                  "type"
+                ],
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "enum": [
+                      "pix_automatico_push"
+                    ]
+                  }
+                }
+              }
+            ]
+          }
+        ],
+        "discriminator": {
+          "propertyName": "type"
+        }
+      },
+      "PixAutomaticoCitData": {
+        "type": "object",
+        "description": "Data for Santander Pix Automatico CIT (Customer Initiated Transaction) - used during mandate setup",
+        "properties": {
+          "contract_id": {
+            "type": "string",
+            "description": "Contract ID to identify the recurring payment contract",
+            "example": "pm_16503867",
+            "nullable": true
+          },
+          "retry_policy": {
+            "type": "boolean",
+            "description": "Enable retry policy for failed payments (maps to PERMITE_3R_7D if true)",
+            "example": true,
+            "nullable": true
+          },
+          "mandate_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SantanderMandateDetails"
+              }
+            ],
+            "nullable": true
+          }
+        }
+      },
+      "PixAutomaticoMitData": {
+        "type": "object",
+        "description": "Data for Santander Pix Automatico MIT (Merchant Initiated Transaction) - used during recurring charge creation",
+        "properties": {
+          "receiver_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SantanderPixAutomaticoReceiverDetails"
+              }
+            ],
+            "nullable": true
+          },
+          "mandate_execution_date": {
+            "type": "string",
+            "description": "Execution date for the mandate charge (maps to data_de_vencimento). Format: YYYY-MM-DD.\nIf not provided, defaults to current date + 1 day.",
+            "example": "2026-12-31",
+            "nullable": true
+          },
+          "auto_adjust_date": {
+            "type": "boolean",
+            "description": "Whether to automatically adjust the due date to the next business day if it falls on a non-business day.\nMaps to ajuste_dia_util in Santander API. Defaults to true if not provided.",
+            "example": true,
+            "nullable": true
+          }
+        }
+      },
+      "PixAutomaticoPushAdditionalData": {
+        "type": "object",
+        "properties": {
+          "account_number": {
+            "type": "string",
+            "description": "Account number for Pix Automatico Push payment method",
+            "example": "550689",
+            "nullable": true
+          },
+          "branch_code": {
+            "type": "string",
+            "description": "Branch code for Pix Automatico Push payment method",
+            "example": "2569",
+            "nullable": true
+          },
+          "bank_identifier": {
+            "type": "string",
+            "description": "Bank identifier for Pix Automatico Push payment method",
+            "example": "91193552",
+            "nullable": true
+          }
+        }
+      },
+      "PixAutomaticoPushDetails": {
+        "type": "object",
+        "required": [
+          "time"
+        ],
+        "properties": {
+          "time": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Time in seconds until which the push notification is valid",
+            "example": 3600,
+            "minimum": 0
+          }
+        }
       },
       "PixBankTransfer": {
         "type": "object",
@@ -26277,6 +26925,35 @@
           }
         }
       },
+      "ProtestRules": {
+        "type": "object",
+        "required": [
+          "protest_type",
+          "days_after_due_date"
+        ],
+        "properties": {
+          "protest_type": {
+            "$ref": "#/components/schemas/ProtestType"
+          },
+          "days_after_due_date": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Number of days after the due date to initiate the protest",
+            "example": 30,
+            "minimum": 0
+          }
+        }
+      },
+      "ProtestType": {
+        "type": "string",
+        "description": "Defines the type of protest for non-payment, such as whether the count is based on calendar days, business days, or if the protest logic is determined by a pre-signed contract with the bank.",
+        "enum": [
+          "disabled",
+          "calendar_days",
+          "business_days",
+          "contract_default"
+        ]
+      },
       "ProxyCardDetails": {
         "type": "object",
         "required": [
@@ -26429,6 +27106,21 @@
           }
         }
       },
+      "RawCardWithNTDetails": {
+        "type": "object",
+        "required": [
+          "card_details",
+          "network_token_details"
+        ],
+        "properties": {
+          "card_details": {
+            "$ref": "#/components/schemas/CardDetail"
+          },
+          "network_token_details": {
+            "$ref": "#/components/schemas/CardDetail"
+          }
+        }
+      },
       "RawPaymentMethodData": {
         "oneOf": [
           {
@@ -26439,6 +27131,17 @@
             "properties": {
               "card": {
                 "$ref": "#/components/schemas/CardDetail"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "card_with_n_t"
+            ],
+            "properties": {
+              "card_with_n_t": {
+                "$ref": "#/components/schemas/RawCardWithNTDetails"
               }
             }
           }
@@ -27669,6 +28372,7 @@
           "finix",
           "fiserv",
           "fiservemea",
+          "fiservcommercehub",
           "fiuu",
           "flexiti",
           "forte",
@@ -27731,6 +28435,7 @@
           "stripebilling",
           "tesouro",
           "truelayer",
+          "trustly",
           "trustpay",
           "trustpayments",
           "tokenio",
@@ -28210,6 +28915,82 @@
           }
         }
       },
+      "SantanderBoletoData": {
+        "type": "object",
+        "description": "Represents the specific data and rules related to Santander Boleto payments, including discounts, penalties, collection actions, payment constraints, beneficiary details, and document kind.",
+        "properties": {
+          "discount_rules": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SantanderPaymentDiscountRules"
+              }
+            ],
+            "nullable": true
+          },
+          "penalties": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PenaltyRules"
+              }
+            ],
+            "nullable": true
+          },
+          "collection_actions": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CollectionActions"
+              }
+            ],
+            "nullable": true
+          },
+          "payment_constraints": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/BoletoPaymentTypeConstraints"
+              }
+            ],
+            "nullable": true
+          },
+          "beneficiary": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/BeneficiaryDetails"
+              }
+            ],
+            "nullable": true
+          },
+          "document_kind": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/BoletoDocumentKind"
+              }
+            ],
+            "nullable": true
+          }
+        }
+      },
+      "SantanderConnectorMetadataData": {
+        "type": "object",
+        "description": "Represents the connector-specific metadata for Santander payments, including boleto data and related rules.",
+        "properties": {
+          "boleto": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SantanderBoletoData"
+              }
+            ],
+            "nullable": true
+          },
+          "pix_automatico": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SantanderPixAutomaticoData"
+              }
+            ],
+            "nullable": true
+          }
+        }
+      },
       "SantanderData": {
         "type": "object",
         "properties": {
@@ -28219,6 +29000,126 @@
           }
         },
         "additionalProperties": false
+      },
+      "SantanderMandateDetails": {
+        "type": "object",
+        "properties": {
+          "amount": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Maximum amount for each recurring charge",
+            "example": 6540,
+            "nullable": true,
+            "minimum": 0
+          },
+          "start_date": {
+            "type": "string",
+            "description": "Start date for the recurring charges. Format: YYYY-MM-DD. If not provided, the mandate will be valid immediately.",
+            "example": "2026-12-31",
+            "nullable": true
+          },
+          "end_date": {
+            "type": "string",
+            "description": "End date for the recurring charges. Format: YYYY-MM-DD. If not provided, the mandate will be valid indefinitely.",
+            "example": "2026-12-31",
+            "nullable": true
+          },
+          "periodicity": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SantanderMandatePeriodicity"
+              }
+            ],
+            "nullable": true
+          }
+        }
+      },
+      "SantanderMandatePeriodicity": {
+        "type": "string",
+        "enum": [
+          "weekly",
+          "monthly",
+          "quarterly",
+          "semiannually",
+          "annually"
+        ]
+      },
+      "SantanderPaymentDiscountRules": {
+        "type": "object",
+        "description": "Defines the type of discount applied to a payment, such as whether it's a fixed date discount, a daily calendar discount, or a daily business discount.",
+        "required": [
+          "tiers"
+        ],
+        "properties": {
+          "discount_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/DiscountType"
+              }
+            ],
+            "nullable": true
+          },
+          "tiers": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DiscountTier"
+            },
+            "description": "A generic vector of discount tiers"
+          }
+        }
+      },
+      "SantanderPixAutomaticoData": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "cit"
+            ],
+            "properties": {
+              "cit": {
+                "$ref": "#/components/schemas/PixAutomaticoCitData"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "mit"
+            ],
+            "properties": {
+              "mit": {
+                "$ref": "#/components/schemas/PixAutomaticoMitData"
+              }
+            }
+          }
+        ],
+        "description": "Represents the specific data for Santander Pix Automatico (recurring PIX payments)\nSplit into CIT (Customer Initiated Transaction) and MIT (Merchant Initiated Transaction) variants"
+      },
+      "SantanderPixAutomaticoReceiverDetails": {
+        "type": "object",
+        "description": "Represents the receiver details for Santander Pix Automatico recurring charges",
+        "properties": {
+          "branch_code": {
+            "type": "string",
+            "description": "Branch code (agencia) of the receiver's bank account",
+            "example": "0001",
+            "nullable": true
+          },
+          "account_number": {
+            "type": "string",
+            "description": "Account number (conta) of the receiver",
+            "example": "130333323",
+            "nullable": true
+          },
+          "account_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AccountType"
+              }
+            ],
+            "nullable": true
+          }
+        }
       },
       "ScaExemptionType": {
         "type": "string",
@@ -28834,6 +29735,7 @@
         "type": "string",
         "enum": [
           "amount",
+          "attempt_count",
           "created",
           "modified"
         ]
@@ -29963,6 +30865,94 @@
           "internal",
           "external"
         ]
+      },
+      "TrustlyBankTransfer": {
+        "type": "object",
+        "required": [
+          "iban",
+          "country_code",
+          "account_number",
+          "bank_number"
+        ],
+        "properties": {
+          "iban": {
+            "type": "string",
+            "description": "International Bank Account Number (iban) - used in many countries for identifying a bank along with it's customer.",
+            "example": "token_12345"
+          },
+          "country_code": {
+            "$ref": "#/components/schemas/CountryAlpha2"
+          },
+          "account_number": {
+            "type": "string",
+            "description": "The account number, identifying the end-user's account in the bank.",
+            "example": "69706212"
+          },
+          "bank_number": {
+            "type": "string",
+            "description": "The bank number identifying the end-user's bank in the given clearing house.",
+            "example": "6112"
+          }
+        }
+      },
+      "TrustlyBankTransferAdditionalData": {
+        "type": "object",
+        "description": "Masked payout method details for Trustly bank transfer payout method",
+        "required": [
+          "iban",
+          "country_code",
+          "account_number",
+          "bank_number"
+        ],
+        "properties": {
+          "iban": {
+            "type": "string",
+            "description": "International Bank Account Number (iban) - used in many countries for identifying a bank along with it's customer.",
+            "example": "token_12345"
+          },
+          "country_code": {
+            "$ref": "#/components/schemas/CountryAlpha2"
+          },
+          "account_number": {
+            "type": "string",
+            "description": "The account number, identifying the end-user's account in the bank.",
+            "example": "69706212"
+          },
+          "bank_number": {
+            "type": "string",
+            "description": "The bank number identifying the end-user's bank in the given clearing house.",
+            "example": "6112"
+          }
+        }
+      },
+      "TrustlyBankTransferData": {
+        "type": "object",
+        "required": [
+          "iban",
+          "bank_country_code",
+          "bank_account_number",
+          "bank_number"
+        ],
+        "properties": {
+          "iban": {
+            "type": "string",
+            "description": "International Bank Account Number (iban) - used in many countries for identifying a bank along with it's customer.",
+            "example": "token_12345"
+          },
+          "bank_country_code": {
+            "$ref": "#/components/schemas/CountryAlpha2"
+          },
+          "bank_account_number": {
+            "type": "string",
+            "description": "The account number, identifying the end-user's account in the bank.",
+            "example": "69706212"
+          },
+          "bank_number": {
+            "type": "string",
+            "description": "The bank number identifying the end-user's bank in the given clearing house.",
+            "example": "6112"
+          }
+        }
       },
       "UIWidgetFormLayout": {
         "type": "string",

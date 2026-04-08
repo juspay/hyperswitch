@@ -39,8 +39,8 @@ use diesel_models::{
 };
 use error_stack::ResultExt;
 #[cfg(feature = "v2")]
-use masking::ExposeInterface;
-use masking::{PeekInterface, Secret};
+use hyperswitch_masking::ExposeInterface;
+use hyperswitch_masking::{PeekInterface, Secret};
 #[cfg(feature = "v1")]
 use router_env::logger;
 use rustc_hash::FxHashMap;
@@ -804,7 +804,7 @@ pub struct PaymentAttempt {
     /// The reference to the payment at the connector side
     pub connector_payment_id: Option<String>,
     /// The payment method subtype for the payment attempt.
-    pub payment_method_subtype: storage_enums::PaymentMethodType,
+    pub payment_method_subtype: Option<storage_enums::PaymentMethodType>,
     /// The authentication type that was applied for the payment attempt.
     pub authentication_applied: Option<common_enums::AuthenticationType>,
     /// A reference to the payment at connector side. This is returned by the connector
@@ -851,8 +851,7 @@ impl PaymentAttempt {
 
     #[cfg(feature = "v2")]
     pub fn get_payment_method_type(&self) -> Option<storage_enums::PaymentMethodType> {
-        // TODO: check if we can fix this
-        Some(self.payment_method_subtype)
+        self.payment_method_subtype
     }
 
     #[cfg(feature = "v1")]
@@ -1074,8 +1073,7 @@ impl PaymentAttempt {
                 .unwrap_or(common_enums::PaymentMethod::Card),
             payment_method_id: None,
             connector_payment_id: None,
-            payment_method_subtype: payment_method_subtype_data
-                .unwrap_or(common_enums::PaymentMethodType::Credit),
+            payment_method_subtype: payment_method_subtype_data,
             authentication_applied: None,
             external_reference_id: None,
             payment_method_billing_address,
@@ -1174,8 +1172,7 @@ impl PaymentAttempt {
                 .unwrap_or(common_enums::PaymentMethod::Card),
             payment_method_id: request.payment_method_id.clone(),
             connector_payment_id: None,
-            payment_method_subtype: payment_method_subtype_data
-                .unwrap_or(common_enums::PaymentMethodType::Credit),
+            payment_method_subtype: payment_method_subtype_data,
             authentication_applied: None,
             external_reference_id: None,
             payment_method_billing_address,
@@ -1295,7 +1292,7 @@ impl PaymentAttempt {
             payment_method_type: request.payment_method_type,
             payment_method_id: None,
             connector_payment_id,
-            payment_method_subtype: request.payment_method_subtype,
+            payment_method_subtype: Some(request.payment_method_subtype),
             authentication_applied: None,
             external_reference_id: None,
             payment_method_billing_address,
@@ -1678,22 +1675,23 @@ impl PaymentAttempt {
             match (self.payment_method_type, self.payment_method_subtype) {
                 (
                     storage_enums::PaymentMethod::Upi,
-                    storage_enums::PaymentMethodType::UpiIntent,
+                    Some(storage_enums::PaymentMethodType::UpiIntent),
                 ) => sdk_uri_opt
                     .zip(wait_screen_info)
                     .map(|(sdk_uri, wait_info)| {
                         api_models::payments::NextActionData::from_upi_intent(sdk_uri, wait_info)
                     }),
-                (storage_enums::PaymentMethod::Upi, storage_enums::PaymentMethodType::UpiQr) => {
-                    sdk_uri_opt
-                        .zip(wait_screen_info)
-                        .map(|(sdk_uri, wait_info)| {
-                            api_models::payments::NextActionData::from_upi_qr(sdk_uri, wait_info)
-                        })
-                }
                 (
                     storage_enums::PaymentMethod::Upi,
-                    storage_enums::PaymentMethodType::UpiCollect,
+                    Some(storage_enums::PaymentMethodType::UpiQr),
+                ) => sdk_uri_opt
+                    .zip(wait_screen_info)
+                    .map(|(sdk_uri, wait_info)| {
+                        api_models::payments::NextActionData::from_upi_qr(sdk_uri, wait_info)
+                    }),
+                (
+                    storage_enums::PaymentMethod::Upi,
+                    Some(storage_enums::PaymentMethodType::UpiCollect),
                 ) => wait_screen_info.map(api_models::payments::NextActionData::from_wait_screen),
                 _ => None,
             },

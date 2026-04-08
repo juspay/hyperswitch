@@ -83,7 +83,7 @@ use hyperswitch_interfaces::{
         IncomingWebhook, IncomingWebhookFlowError, IncomingWebhookRequestDetails, WebhookContext,
     },
 };
-use masking::{ExposeInterface, Mask, Maskable, Secret};
+use hyperswitch_masking::{ExposeInterface, Mask, Maskable, Secret};
 use ring::hmac;
 use router_env::{instrument, tracing};
 use transformers as adyen;
@@ -360,7 +360,9 @@ impl ConnectorValidation for Adyen {
                 | PaymentMethodType::Bluecode
                 | PaymentMethodType::SepaGuarenteedDebit
                 | PaymentMethodType::OpenBanking
-                | PaymentMethodType::NetworkToken => {
+                | PaymentMethodType::NetworkToken
+                | PaymentMethodType::PixAutomaticoPush
+                | PaymentMethodType::PixAutomaticoQr => {
                     capture_method_not_supported!(connector, capture_method, payment_method_type)
                 }
             },
@@ -2110,7 +2112,7 @@ impl IncomingWebhook for Adyen {
         _context: Option<&WebhookContext>,
     ) -> CustomResult<api_models::webhooks::IncomingWebhookEvent, errors::ConnectorError> {
         let notif = get_webhook_object_from_body(request.body)
-            .change_context(errors::ConnectorError::WebhookEventTypeNotFound)?;
+            .change_context(errors::ConnectorError::WebhookResponseEncodingFailed)?;
 
         Ok(transformers::get_adyen_webhook_event(
             notif.event_code,
@@ -2122,9 +2124,10 @@ impl IncomingWebhook for Adyen {
     fn get_webhook_resource_object(
         &self,
         request: &IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
+    ) -> CustomResult<Box<dyn hyperswitch_masking::ErasedMaskSerialize>, errors::ConnectorError>
+    {
         let notif = get_webhook_object_from_body(request.body)
-            .change_context(errors::ConnectorError::WebhookEventTypeNotFound)?;
+            .change_context(errors::ConnectorError::WebhookResponseEncodingFailed)?;
 
         let response = adyen::AdyenWebhookResponse::from(notif);
 
@@ -2135,6 +2138,9 @@ impl IncomingWebhook for Adyen {
         &self,
         _request: &IncomingWebhookRequestDetails<'_>,
         _error_kind: Option<IncomingWebhookFlowError>,
+        _connector_authentication_type: Option<
+            common_utils::crypto::Encryptable<Secret<serde_json::Value>>,
+        >,
     ) -> CustomResult<ApplicationResponse<serde_json::Value>, errors::ConnectorError> {
         Ok(ApplicationResponse::TextPlain("[accepted]".to_string()))
     }
@@ -3441,7 +3447,7 @@ static ADYEN_SUPPORTED_WEBHOOK_FLOWS: &[enums::EventClass] = &[
 ];
 
 impl ConnectorSpecifications for Adyen {
-    fn is_balance_check_flow_required(&self, current_flow: api::CurrentFlowInfo<'_>) -> bool {
+    fn is_balance_check_flow_required(&self, current_flow: api::CurrentFlowInfo) -> bool {
         match current_flow {
             api::CurrentFlowInfo::Authorize { request_data, .. } => {
                 matches!(&request_data.payment_method_data, payment_method_data::PaymentMethodData::GiftCard(giftcard_data) if giftcard_data.is_givex())
@@ -3452,6 +3458,7 @@ impl ConnectorSpecifications for Adyen {
             api::CurrentFlowInfo::CompleteAuthorize { request_data, .. } => {
                 matches!(&request_data.payment_method_data, Some(payment_method_data::PaymentMethodData::GiftCard(giftcard_data)) if giftcard_data.is_givex())
             }
+            api::CurrentFlowInfo::Psync { .. } => false,
         }
     }
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {

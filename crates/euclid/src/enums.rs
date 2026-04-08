@@ -1,7 +1,7 @@
 use common_enums::connector_enums::Connector;
 pub use common_enums::{
-    AuthenticationType, CaptureMethod, CardNetwork, Country, CountryAlpha2, Currency,
-    FutureUsage as SetupFutureUsage, PaymentMethod, PaymentMethodType,
+    AuthenticationType, CaptureMethod, CardDiscovery, CardNetwork, Country, CountryAlpha2,
+    Currency, FutureUsage as SetupFutureUsage, PaymentMethod, PaymentMethodType,
 };
 use strum::VariantNames;
 use utoipa::ToSchema;
@@ -36,6 +36,7 @@ collect_variants!(CaptureMethod);
 collect_variants!(Currency);
 collect_variants!(Country);
 collect_variants!(SetupFutureUsage);
+collect_variants!(CardDiscovery);
 #[cfg(feature = "payouts")]
 collect_variants!(PayoutType);
 #[cfg(feature = "payouts")]
@@ -268,6 +269,7 @@ pub enum RoutableConnectors {
     Finix,
     Fiserv,
     Fiservemea,
+    Fiservcommercehub,
     Fiuu,
     Flexiti,
     Forte,
@@ -333,6 +335,7 @@ pub enum RoutableConnectors {
     Tesouro,
     // Taxjar,
     Truelayer,
+    Trustly,
     Trustpay,
     Trustpayments,
     // Thunes
@@ -428,6 +431,7 @@ impl TryFrom<Connector> for RoutableConnectors {
             Connector::Finix => Ok(Self::Finix),
             Connector::Fiserv => Ok(Self::Fiserv),
             Connector::Fiservemea => Ok(Self::Fiservemea),
+            Connector::Fiservcommercehub => Ok(Self::Fiservcommercehub),
             Connector::Fiuu => Ok(Self::Fiuu),
             Connector::Flexiti => Ok(Self::Flexiti),
             Connector::Forte => Ok(Self::Forte),
@@ -479,6 +483,7 @@ impl TryFrom<Connector> for RoutableConnectors {
             Connector::Stripebilling => Ok(Self::Stripebilling),
             Connector::Tokenio => Ok(Self::Tokenio),
             Connector::Tesouro => Ok(Self::Tesouro),
+            Connector::Trustly => Ok(Self::Trustly),
             Connector::Truelayer => Ok(Self::Truelayer),
             Connector::Trustpay => Ok(Self::Trustpay),
             Connector::Trustpayments => Ok(Self::Trustpayments),
@@ -585,6 +590,7 @@ impl From<RoutableConnectors> for Connector {
             RoutableConnectors::Finix => Self::Finix,
             RoutableConnectors::Fiserv => Self::Fiserv,
             RoutableConnectors::Fiservemea => Self::Fiservemea,
+            RoutableConnectors::Fiservcommercehub => Self::Fiservcommercehub,
             RoutableConnectors::Fiuu => Self::Fiuu,
             RoutableConnectors::Flexiti => Self::Flexiti,
             RoutableConnectors::Forte => Self::Forte,
@@ -643,6 +649,7 @@ impl From<RoutableConnectors> for Connector {
             RoutableConnectors::Tesouro => Self::Tesouro,
             RoutableConnectors::Tokenio => Self::Tokenio,
             RoutableConnectors::Truelayer => Self::Truelayer,
+            RoutableConnectors::Trustly => Self::Trustly,
             RoutableConnectors::Trustpay => Self::Trustpay,
             RoutableConnectors::Trustpayments => Self::Trustpayments,
             // RoutableConnectors::Tokenio => Self::Tokenio,

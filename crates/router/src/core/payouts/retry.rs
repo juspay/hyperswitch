@@ -2,6 +2,7 @@ use std::vec::IntoIter;
 
 use common_enums::PayoutRetryType;
 use error_stack::ResultExt;
+use hyperswitch_domain_models::payments::HeaderPayload;
 use router_env::{
     logger,
     tracing::{self, instrument},
@@ -11,6 +12,7 @@ use super::{call_connector_payout, PayoutData};
 use crate::{
     consts,
     core::{
+        configs::dimension_state::DimensionsWithProcessorAndProviderMerchantId,
         errors::{self, RouterResult, StorageErrorExt},
         payouts,
     },
@@ -28,6 +30,8 @@ pub async fn do_gsm_multiple_connector_actions(
     original_connector_data: api::ConnectorData,
     payout_data: &mut PayoutData,
     platform: &domain::Platform,
+    dimensions: &DimensionsWithProcessorAndProviderMerchantId,
+    header_payload: HeaderPayload,
 ) -> RouterResult<()> {
     let mut retries = None;
 
@@ -66,7 +70,9 @@ pub async fn do_gsm_multiple_connector_actions(
                     &state.clone(),
                     connector.to_owned(),
                     platform,
+                    header_payload.clone(),
                     payout_data,
+                    dimensions,
                 ))
                 .await?;
 
@@ -85,6 +91,8 @@ pub async fn do_gsm_single_connector_actions(
     original_connector_data: api::ConnectorData,
     payout_data: &mut PayoutData,
     platform: &domain::Platform,
+    dimensions: &DimensionsWithProcessorAndProviderMerchantId,
+    header_payload: HeaderPayload,
 ) -> RouterResult<()> {
     let mut retries = None;
 
@@ -121,7 +129,9 @@ pub async fn do_gsm_single_connector_actions(
                     &state.clone(),
                     original_connector_data.to_owned(),
                     platform,
+                    header_payload.clone(),
                     payout_data,
+                    dimensions,
                 ))
                 .await?;
 
@@ -203,7 +213,9 @@ pub async fn do_retry(
     state: &routes::SessionState,
     connector: api::ConnectorData,
     platform: &domain::Platform,
+    header_payload: HeaderPayload,
     payout_data: &mut PayoutData,
+    dimensions: &DimensionsWithProcessorAndProviderMerchantId,
 ) -> RouterResult<()> {
     metrics::AUTO_RETRY_PAYOUT_COUNT.add(1, &[]);
 
@@ -212,8 +224,10 @@ pub async fn do_retry(
     Box::pin(call_connector_payout(
         state,
         platform,
+        header_payload,
         &connector,
         payout_data,
+        dimensions,
     ))
     .await
 }
@@ -283,6 +297,8 @@ pub async fn modify_trackers(
             .additional_payout_method_data
             .to_owned(),
         payout_connector_metadata: None,
+        processor_merchant_id: payout_data.payout_attempt.processor_merchant_id.clone(),
+        created_by: payout_data.payout_attempt.created_by.clone(),
     };
     payout_data.payout_attempt = db
         .insert_payout_attempt(

@@ -18,7 +18,7 @@ use common_utils::{
     payout_method_utils,
     pii::{self, Email},
 };
-use masking::{ExposeInterface, PeekInterface, Secret};
+use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 use time::Date;
 
@@ -29,6 +29,8 @@ use crate::router_data::PaymentMethodToken;
 #[derive(PartialEq, Clone, Debug, Serialize, Deserialize)]
 pub enum PaymentMethodData {
     Card(Card),
+    CardWithOptionalCVC(CardWithOptionalCVC),
+    CardWithNetworkTokenDetails(Box<CardWithNetworkTokenDetails>),
     CardDetailsForNetworkTransactionId(CardDetailsForNetworkTransactionId),
     CardWithLimitedDetails(CardWithLimitedDetails),
     NetworkTokenDetailsForNetworkTransactionId(NetworkTokenDetailsForNetworkTransactionId),
@@ -206,6 +208,15 @@ impl PaymentMethodData {
                 Self::Card(card) => {
                     Self::Card(card.apply_additional_card_info(*additional_card_info))
                 }
+                Self::CardWithOptionalCVC(card_with_optional_cvc) => Self::CardWithOptionalCVC(
+                    card_with_optional_cvc.apply_additional_card_info(*additional_card_info),
+                ),
+                Self::CardWithNetworkTokenDetails(card_with_network_token_details) => {
+                    Self::CardWithNetworkTokenDetails(Box::new(
+                        card_with_network_token_details
+                            .apply_additional_card_info(*additional_card_info),
+                    ))
+                }
                 Self::CardWithLimitedDetails(card_with_limited_details) => {
                     Self::CardWithLimitedDetails(
                         card_with_limited_details.apply_additional_card_info(*additional_card_info),
@@ -227,6 +238,8 @@ impl PaymentMethodData {
     pub fn get_payment_method(&self) -> Option<common_enums::PaymentMethod> {
         match self {
             Self::Card(_)
+            | Self::CardWithOptionalCVC(_)
+            | Self::CardWithNetworkTokenDetails(_)
             | Self::NetworkToken(_)
             | Self::CardDetailsForNetworkTransactionId(_)
             | Self::NetworkTokenDetailsForNetworkTransactionId(_)
@@ -263,10 +276,13 @@ impl PaymentMethodData {
     }
 
     pub fn get_co_badged_card_data(&self) -> Option<&payment_methods::CoBadgedCardData> {
-        if let Self::Card(card) = self {
-            card.co_badged_card_data.as_ref()
-        } else {
-            None
+        match self {
+            Self::Card(card) => card.co_badged_card_data.as_ref(),
+            Self::CardWithOptionalCVC(card) => card.co_badged_card_data.as_ref(),
+            Self::CardWithNetworkTokenDetails(card) => {
+                card.card_details.co_badged_card_data.as_ref()
+            }
+            _ => None,
         }
     }
 
@@ -288,6 +304,53 @@ impl PaymentMethodData {
             .iter()
             .find(|info| &info.network == network)
             .and_then(|info| info.saving_percentage)
+    }
+}
+
+/// Card data for eligibility/blocklist checks — only card_number is required
+#[derive(PartialEq, Clone, Debug, Serialize, Deserialize)]
+pub struct EligibilityCard {
+    pub card_number: cards::CardNumber,
+    pub card_exp_month: Option<Secret<String>>,
+    pub card_exp_year: Option<Secret<String>>,
+    pub card_cvc: Option<Secret<String>>,
+    pub card_issuer: Option<String>,
+    pub card_network: Option<common_enums::CardNetwork>,
+    pub card_type: Option<String>,
+    pub card_issuing_country: Option<String>,
+    pub card_issuing_country_code: Option<String>,
+    pub bank_code: Option<String>,
+    pub nick_name: Option<Secret<String>>,
+    pub card_holder_name: Option<Secret<String>>,
+    pub co_badged_card_data: Option<payment_methods::CoBadgedCardData>,
+}
+
+/// Payment method data for eligibility/blocklist checks — mirrors PaymentMethodData but uses EligibilityCard
+#[derive(PartialEq, Clone, Debug, Serialize, Deserialize)]
+pub enum EligibilityPaymentMethodData {
+    Card(EligibilityCard),
+    CardRedirect(CardRedirectData),
+    Wallet(WalletData),
+    PayLater(PayLaterData),
+    BankRedirect(BankRedirectData),
+    BankDebit(BankDebitData),
+    BankTransfer(Box<BankTransferData>),
+    Crypto(CryptoData),
+    MandatePayment,
+    Reward,
+    RealTimePayment(Box<RealTimePaymentData>),
+    Upi(UpiData),
+    Voucher(VoucherData),
+    GiftCard(Box<GiftCardData>),
+    CardToken(CardToken),
+    OpenBanking(OpenBankingData),
+    NetworkToken(NetworkTokenData),
+    MobilePayment(MobilePaymentData),
+}
+
+impl EligibilityPaymentMethodData {
+    pub fn is_eligible_for_profile_config_blocklist(&self) -> bool {
+        matches!(self, Self::Card(_))
     }
 }
 
@@ -339,6 +402,78 @@ impl Card {
             bank_code: self.bank_code.clone().or(additional_card_info.bank_code),
             nick_name: self.nick_name.clone(),
             co_badged_card_data: self.co_badged_card_data.clone(),
+        }
+    }
+}
+
+#[derive(PartialEq, Clone, Debug, Serialize, Deserialize, Default)]
+pub struct CardWithOptionalCVC {
+    pub card_number: cards::CardNumber,
+    pub card_exp_month: Secret<String>,
+    pub card_exp_year: Secret<String>,
+    pub card_cvc: Option<Secret<String>>,
+    pub card_issuer: Option<String>,
+    pub card_network: Option<common_enums::CardNetwork>,
+    pub card_type: Option<String>,
+    pub card_issuing_country: Option<String>,
+    pub card_issuing_country_code: Option<String>,
+    pub bank_code: Option<String>,
+    pub nick_name: Option<Secret<String>>,
+    pub card_holder_name: Option<Secret<String>>,
+    pub co_badged_card_data: Option<payment_methods::CoBadgedCardData>,
+}
+
+impl CardWithOptionalCVC {
+    fn apply_additional_card_info(
+        &self,
+        additional_card_info: api_models::payments::AdditionalCardInfo,
+    ) -> Self {
+        Self {
+            card_number: self.card_number.clone(),
+            card_exp_month: self.card_exp_month.clone(),
+            card_exp_year: self.card_exp_year.clone(),
+            card_holder_name: self.card_holder_name.clone(),
+            card_cvc: self.card_cvc.clone(),
+            card_issuer: self
+                .card_issuer
+                .clone()
+                .or(additional_card_info.card_issuer),
+            card_network: self
+                .card_network
+                .clone()
+                .or(additional_card_info.card_network.clone()),
+            card_type: self.card_type.clone().or(additional_card_info.card_type),
+            card_issuing_country: self
+                .card_issuing_country
+                .clone()
+                .or(additional_card_info.card_issuing_country),
+            card_issuing_country_code: self
+                .card_issuing_country_code
+                .clone()
+                .or(additional_card_info.card_issuing_country_code),
+            bank_code: self.bank_code.clone().or(additional_card_info.bank_code),
+            nick_name: self.nick_name.clone(),
+            co_badged_card_data: self.co_badged_card_data.clone(),
+        }
+    }
+}
+
+#[derive(PartialEq, Clone, Debug, Serialize, Deserialize, Default)]
+pub struct CardWithNetworkTokenDetails {
+    pub card_details: CardWithOptionalCVC,
+    pub network_token_details: NetworkTokenDetailsForNetworkTransactionId,
+}
+
+impl CardWithNetworkTokenDetails {
+    fn apply_additional_card_info(
+        &self,
+        additional_card_info: api_models::payments::AdditionalCardInfo,
+    ) -> Self {
+        Self {
+            card_details: self
+                .card_details
+                .apply_additional_card_info(additional_card_info.clone()),
+            network_token_details: self.network_token_details.clone(),
         }
     }
 }
@@ -1352,6 +1487,12 @@ pub enum BankTransferData {
         /// The expiration date and time for the Pix QR code
         expiry_date: Option<time::PrimitiveDateTime>,
     },
+    PixAutomaticoPush {
+        account_number: Option<Secret<String>>,
+        branch_code: Option<Secret<String>>,
+        bank_identifier: Option<Secret<String>>,
+    },
+    PixAutomaticoQr {},
     Pse {},
     LocalBankTransfer {
         bank_code: Option<String>,
@@ -1634,6 +1775,183 @@ impl
             nick_name,
             card_holder_name,
             co_badged_card_data: co_badged_card_data_optional,
+        }
+    }
+}
+
+impl From<CardWithOptionalCVC> for EligibilityCard {
+    fn from(card: CardWithOptionalCVC) -> Self {
+        Self {
+            card_number: card.card_number,
+            card_exp_month: Some(card.card_exp_month),
+            card_exp_year: Some(card.card_exp_year),
+            card_cvc: card.card_cvc,
+            card_issuer: card.card_issuer,
+            card_network: card.card_network,
+            card_type: card.card_type,
+            card_issuing_country: card.card_issuing_country,
+            card_issuing_country_code: card.card_issuing_country_code,
+            bank_code: card.bank_code,
+            nick_name: card.nick_name,
+            card_holder_name: card.card_holder_name,
+            co_badged_card_data: card.co_badged_card_data,
+        }
+    }
+}
+
+impl From<Box<CardWithNetworkTokenDetails>> for EligibilityCard {
+    fn from(card: Box<CardWithNetworkTokenDetails>) -> Self {
+        Self::from(card.card_details)
+    }
+}
+
+impl
+    From<(
+        api_models::payments::EligibilityCard,
+        Option<payment_methods::CoBadgedCardData>,
+    )> for EligibilityCard
+{
+    fn from(
+        (eligibility_card, co_badged_card_data_optional): (
+            api_models::payments::EligibilityCard,
+            Option<payment_methods::CoBadgedCardData>,
+        ),
+    ) -> Self {
+        let api_models::payments::EligibilityCard {
+            card_number,
+            card_exp_month,
+            card_exp_year,
+            card_cvc,
+            card_holder_name,
+            card_issuer,
+            card_network,
+            card_type,
+            card_issuing_country,
+            card_issuing_country_code,
+            bank_code,
+            nick_name,
+        } = eligibility_card;
+
+        Self {
+            card_number,
+            card_exp_month,
+            card_exp_year,
+            card_cvc,
+            card_issuer,
+            card_network,
+            card_type,
+            card_issuing_country,
+            card_issuing_country_code,
+            bank_code,
+            nick_name,
+            card_holder_name,
+            co_badged_card_data: co_badged_card_data_optional,
+        }
+    }
+}
+
+impl From<api_models::payments::EligibilityPaymentMethodData> for EligibilityPaymentMethodData {
+    fn from(value: api_models::payments::EligibilityPaymentMethodData) -> Self {
+        match value {
+            api_models::payments::EligibilityPaymentMethodData::Card(eligibility_card) => {
+                Self::Card(EligibilityCard::from((eligibility_card, None)))
+            }
+            api_models::payments::EligibilityPaymentMethodData::CardRedirect(card_redirect) => {
+                Self::CardRedirect(From::from(card_redirect))
+            }
+            api_models::payments::EligibilityPaymentMethodData::Wallet(wallet_data) => {
+                Self::Wallet(From::from(wallet_data))
+            }
+            api_models::payments::EligibilityPaymentMethodData::PayLater(pay_later_data) => {
+                Self::PayLater(From::from(pay_later_data))
+            }
+            api_models::payments::EligibilityPaymentMethodData::BankRedirect(
+                bank_redirect_data,
+            ) => Self::BankRedirect(From::from(bank_redirect_data)),
+            api_models::payments::EligibilityPaymentMethodData::BankDebit(bank_debit_data) => {
+                Self::BankDebit(From::from(bank_debit_data))
+            }
+            api_models::payments::EligibilityPaymentMethodData::BankTransfer(
+                bank_transfer_data,
+            ) => Self::BankTransfer(Box::new(From::from(*bank_transfer_data))),
+            api_models::payments::EligibilityPaymentMethodData::RealTimePayment(
+                real_time_payment_data,
+            ) => Self::RealTimePayment(Box::new(From::from(*real_time_payment_data))),
+            api_models::payments::EligibilityPaymentMethodData::Crypto(crypto_data) => {
+                Self::Crypto(From::from(crypto_data))
+            }
+            api_models::payments::EligibilityPaymentMethodData::MandatePayment => {
+                Self::MandatePayment
+            }
+            api_models::payments::EligibilityPaymentMethodData::Reward => Self::Reward,
+            api_models::payments::EligibilityPaymentMethodData::Upi(upi_data) => {
+                Self::Upi(From::from(upi_data))
+            }
+            api_models::payments::EligibilityPaymentMethodData::Voucher(voucher_data) => {
+                Self::Voucher(From::from(voucher_data))
+            }
+            api_models::payments::EligibilityPaymentMethodData::GiftCard(gift_card_data) => {
+                Self::GiftCard(Box::new(From::from(*gift_card_data)))
+            }
+            api_models::payments::EligibilityPaymentMethodData::CardToken(card_token) => {
+                Self::CardToken(From::from(card_token))
+            }
+            api_models::payments::EligibilityPaymentMethodData::OpenBanking(open_banking_data) => {
+                Self::OpenBanking(From::from(open_banking_data))
+            }
+            api_models::payments::EligibilityPaymentMethodData::MobilePayment(
+                mobile_payment_data,
+            ) => Self::MobilePayment(From::from(mobile_payment_data)),
+            api_models::payments::EligibilityPaymentMethodData::NetworkToken(
+                network_token_data,
+            ) => Self::NetworkToken(From::from(network_token_data)),
+        }
+    }
+}
+
+impl From<PaymentMethodData> for EligibilityPaymentMethodData {
+    fn from(value: PaymentMethodData) -> Self {
+        match value {
+            PaymentMethodData::Card(card) => Self::Card(EligibilityCard {
+                card_number: card.card_number,
+                card_exp_month: Some(card.card_exp_month),
+                card_exp_year: Some(card.card_exp_year),
+                card_cvc: Some(card.card_cvc),
+                card_issuer: card.card_issuer,
+                card_network: card.card_network,
+                card_type: card.card_type,
+                card_issuing_country: card.card_issuing_country,
+                card_issuing_country_code: card.card_issuing_country_code,
+                bank_code: card.bank_code,
+                nick_name: card.nick_name,
+                card_holder_name: card.card_holder_name,
+                co_badged_card_data: card.co_badged_card_data,
+            }),
+            PaymentMethodData::CardRedirect(v) => Self::CardRedirect(v),
+            PaymentMethodData::Wallet(v) => Self::Wallet(v),
+            PaymentMethodData::PayLater(v) => Self::PayLater(v),
+            PaymentMethodData::BankRedirect(v) => Self::BankRedirect(v),
+            PaymentMethodData::BankDebit(v) => Self::BankDebit(v),
+            PaymentMethodData::BankTransfer(v) => Self::BankTransfer(v),
+            PaymentMethodData::Crypto(v) => Self::Crypto(v),
+            PaymentMethodData::MandatePayment => Self::MandatePayment,
+            PaymentMethodData::Reward => Self::Reward,
+            PaymentMethodData::RealTimePayment(v) => Self::RealTimePayment(v),
+            PaymentMethodData::Upi(v) => Self::Upi(v),
+            PaymentMethodData::Voucher(v) => Self::Voucher(v),
+            PaymentMethodData::GiftCard(v) => Self::GiftCard(v),
+            PaymentMethodData::CardToken(v) => Self::CardToken(v),
+            PaymentMethodData::OpenBanking(v) => Self::OpenBanking(v),
+            PaymentMethodData::NetworkToken(v) => Self::NetworkToken(v),
+            PaymentMethodData::MobilePayment(v) => Self::MobilePayment(v),
+            PaymentMethodData::CardWithOptionalCVC(card) => Self::Card(card.into()),
+            PaymentMethodData::CardWithNetworkTokenDetails(card) => Self::Card(card.into()),
+            PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+            | PaymentMethodData::CardWithLimitedDetails(_)
+            | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_)
+            | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_) => {
+                Self::MandatePayment
+            }
         }
     }
 }
@@ -2444,6 +2762,16 @@ impl From<api_models::payments::BankTransferData> for BankTransferData {
                 destination_bank_account_id,
                 expiry_date,
             },
+            api_models::payments::BankTransferData::PixAutomaticoPush {
+                account_number,
+                branch_code,
+                bank_identifier,
+            } => Self::PixAutomaticoPush {
+                account_number,
+                branch_code,
+                bank_identifier,
+            },
+            api_models::payments::BankTransferData::PixAutomaticoQr {} => Self::PixAutomaticoQr {},
             api_models::payments::BankTransferData::Pse {} => Self::Pse {},
             api_models::payments::BankTransferData::LocalBankTransfer { bank_code } => {
                 Self::LocalBankTransfer { bank_code }
@@ -2503,6 +2831,18 @@ impl From<BankTransferData> for api_models::payments::additional_info::BankTrans
                     expiry_date,
                 },
             )),
+            BankTransferData::PixAutomaticoPush {
+                account_number,
+                branch_code,
+                bank_identifier,
+            } => Self::PixAutomaticoPush(Box::new(
+                api_models::payments::additional_info::PixAutomaticoPushAdditionalData {
+                    account_number,
+                    branch_code,
+                    bank_identifier,
+                },
+            )),
+            BankTransferData::PixAutomaticoQr {} => Self::PixAutomaticoQr {},
             BankTransferData::Pse {} => Self::Pse {},
             BankTransferData::LocalBankTransfer { bank_code } => Self::LocalBankTransfer(Box::new(
                 api_models::payments::additional_info::LocalBankTransferAdditionalData {
@@ -2822,6 +3162,8 @@ impl GetPaymentMethodType for BankTransferData {
             Self::DanamonVaBankTransfer { .. } => api_enums::PaymentMethodType::DanamonVa,
             Self::MandiriVaBankTransfer { .. } => api_enums::PaymentMethodType::MandiriVa,
             Self::Pix { .. } => api_enums::PaymentMethodType::Pix,
+            Self::PixAutomaticoPush { .. } => api_enums::PaymentMethodType::PixAutomaticoPush,
+            Self::PixAutomaticoQr {} => api_enums::PaymentMethodType::PixAutomaticoQr,
             Self::Pse {} => api_enums::PaymentMethodType::Pse,
             Self::LocalBankTransfer { .. } => api_enums::PaymentMethodType::LocalBankTransfer,
             Self::InstantBankTransfer {} => api_enums::PaymentMethodType::InstantBankTransfer,

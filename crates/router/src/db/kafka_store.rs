@@ -37,7 +37,7 @@ use hyperswitch_domain_models::{
 };
 #[cfg(not(feature = "payouts"))]
 use hyperswitch_domain_models::{PayoutAttemptInterface, PayoutsInterface};
-use masking::Secret;
+use hyperswitch_masking::Secret;
 use redis_interface::{errors::RedisError, RedisConnectionPool, RedisEntryId};
 use router_env::{instrument, logger, tracing};
 use scheduler::{
@@ -2157,6 +2157,30 @@ impl PaymentMethodInterface for KafkaStore {
                 customer_id,
                 merchant_id,
                 status,
+                limit,
+                storage_scheme,
+            )
+            .await
+    }
+
+    #[cfg(feature = "v1")]
+    async fn find_payment_method_by_customer_id_merchant_id_status_pm_type(
+        &self,
+        key_store: &domain::MerchantKeyStore,
+        customer_id: &id_type::CustomerId,
+        merchant_id: &id_type::MerchantId,
+        status: common_enums::PaymentMethodStatus,
+        payment_method_type: common_enums::PaymentMethodType,
+        limit: Option<i64>,
+        storage_scheme: MerchantStorageScheme,
+    ) -> CustomResult<Vec<domain::PaymentMethod>, errors::StorageError> {
+        self.diesel_store
+            .find_payment_method_by_customer_id_merchant_id_status_pm_type(
+                key_store,
+                customer_id,
+                merchant_id,
+                status,
+                payment_method_type,
                 limit,
                 storage_scheme,
             )
