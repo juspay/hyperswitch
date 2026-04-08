@@ -2414,19 +2414,15 @@ impl PaymentMethodExt for payment_methods::PaymentMethodCreateData {
             )),
             Self::Wallet(wallet_data) => match wallet_data {
                 api::WalletCreateData::ApplePay(data) => {
-                    Ok(payment_methods::PaymentMethodsData::WalletDetails(
-                        domain::WalletPaymentMethodData::ApplePay(*data),
-                    ))
+                    Ok(payment_methods::PaymentMethodsData::WalletDetails(*data))
                 }
                 api::WalletCreateData::GooglePay(data) => {
-                    Ok(payment_methods::PaymentMethodsData::WalletDetails(
-                        domain::WalletPaymentMethodData::GooglePay(*data),
-                    ))
+                    Ok(payment_methods::PaymentMethodsData::WalletDetails(*data))
                 }
-                api::WalletCreateData::PayPal(data) => {
-                    Ok(payment_methods::PaymentMethodsData::WalletDetails(
-                        domain::WalletPaymentMethodData::PayPal(*data),
-                    ))
+                api::WalletCreateData::PayPal(_) => {
+                    Err(report!(errors::ApiErrorResponse::UnprocessableEntity {
+                        message: "PayPal does not have additional payment method data".to_string()
+                    }))
                 }
             },
         }
