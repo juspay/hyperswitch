@@ -4849,7 +4849,7 @@ where
             payment_data.clone(),
             frm_suggestion,
             header_payload.clone(),
-            &dimensions,
+            dimensions,
         )
         .await?;
     *payment_data = new_payment_data;

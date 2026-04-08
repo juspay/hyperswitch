@@ -608,7 +608,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                     request,
                     provider,
                     initiator,
-                    &dimensions,
+                    dimensions,
                 )
                 .await
             }
