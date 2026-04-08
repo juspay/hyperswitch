@@ -14,7 +14,7 @@ use crate::core::utils as core_utils;
 use crate::{
     consts,
     core::{
-        configs::{self as configs, dimension_state::DimensionsWithProcessorAndProviderMerchantId},
+        configs,
         errors::{self, RouterResult, StorageErrorExt},
         payments::{
             self, complete_connector_service,
