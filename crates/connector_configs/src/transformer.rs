@@ -3,7 +3,7 @@ use std::str::FromStr;
 use api_models::{
     enums::{
         Connector, PaymentMethod,
-        PaymentMethodType::{self, AliPay, ApplePay, GooglePay, Klarna, Paypal, WeChatPay, Qris},
+        PaymentMethodType::{self, AliPay, ApplePay, GooglePay, Klarna, Paypal, Qris, WeChatPay},
     },
     payment_methods,
     refunds::MinorUnit,
