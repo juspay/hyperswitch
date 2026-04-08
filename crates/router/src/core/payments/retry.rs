@@ -14,8 +14,7 @@ use crate::core::utils as core_utils;
 use crate::{
     consts,
     core::{
-        configs,
-        configs::dimension_state::DimensionsWithMerchantIdAndProfileId,
+        configs::dimension_state,
         errors::{self, RouterResult, StorageErrorExt},
         payments::{
             self, complete_connector_service,
@@ -52,7 +51,7 @@ pub async fn do_gsm_actions<'a, F, ApiRequest, FData, D>(
     frm_suggestion: Option<storage_enums::FrmSuggestion>,
     business_profile: &domain::Profile,
     #[cfg(feature = "pm_modular")] feature_config: &core_utils::FeatureConfig,
-    dimensions: &DimensionsWithMerchantIdAndProfileId,
+    dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
 ) -> RouterResult<types::RouterData<F, FData, types::PaymentsResponseData>>
 where
     F: Clone + Send + Sync + std::fmt::Debug + 'static,
@@ -252,7 +251,7 @@ where
 pub async fn is_step_up_enabled_for_merchant_connector(
     state: &app::SessionState,
     connector_name: types::Connector,
-    dimensions: &DimensionsWithMerchantIdAndProfileId,
+    dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
     customer_id: Option<&common_utils::id_type::CustomerId>,
 ) -> bool {
     let dimensions = dimensions.with_connector(connector_name);
@@ -391,7 +390,7 @@ where
     types::RouterData<F, FData, types::PaymentsResponseData>: Feature<F, FData>,
     dyn api::Connector: services::api::ConnectorIntegration<F, FData, types::PaymentsResponseData>,
 {
-    let dimensions = configs::dimension_state::Dimensions::new()
+    let dimensions = dimension_state::Dimensions::new()
         .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
         .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id());
 
@@ -881,7 +880,7 @@ pub fn make_new_payment_attempt(
 #[cfg(feature = "v1")]
 pub async fn config_should_call_gsm(
     state: &app::SessionState,
-    dimensions: &DimensionsWithMerchantIdAndProfileId,
+    dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
     profile: &domain::Profile,
     customer_id: Option<&common_utils::id_type::CustomerId>,
 ) -> bool {

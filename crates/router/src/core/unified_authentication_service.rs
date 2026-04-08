@@ -55,7 +55,7 @@ use crate::{
     consts,
     core::{
         authentication::utils as auth_utils,
-        configs::{self as configs, dimension_state::DimensionsWithMerchantId},
+        configs::dimension_state,
         errors::utils::StorageErrorExt,
         metrics, payment_methods,
         payments::{helpers, validate_customer_details_for_click_to_pay},
@@ -1434,7 +1434,7 @@ trait EligibilityCheck {
         &self,
         state: &SessionState,
         platform: &domain::Platform,
-        dimensions: &DimensionsWithMerchantId,
+        dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
         authentication_id: &common_utils::id_type::AuthenticationId,
     ) -> CustomResult<bool, ApiErrorResponse>;
 
@@ -1482,7 +1482,7 @@ impl EligibilityCheck for StoreEligibilityCheckData {
         &self,
         state: &SessionState,
         _platform: &domain::Platform,
-        dimensions: &DimensionsWithMerchantId,
+        dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
         authentication_id: &common_utils::id_type::AuthenticationId,
     ) -> CustomResult<bool, ApiErrorResponse> {
         Ok(dimensions
@@ -1540,7 +1540,7 @@ pub struct EligibilityHandler {
     state: SessionState,
     platform: domain::Platform,
     authentication_eligibility_check_request: AuthenticationEligibilityCheckRequest,
-    dimensions: DimensionsWithMerchantId,
+    dimensions: dimension_state::DimensionsWithProcessorAndProviderMerchantId,
 }
 
 #[cfg(feature = "v1")]
@@ -1549,7 +1549,7 @@ impl EligibilityHandler {
         state: SessionState,
         platform: domain::Platform,
         authentication_eligibility_check_request: AuthenticationEligibilityCheckRequest,
-        dimensions: DimensionsWithMerchantId,
+        dimensions: dimension_state::DimensionsWithProcessorAndProviderMerchantId,
     ) -> Self {
         Self {
             state,
@@ -1599,8 +1599,9 @@ pub async fn authentication_eligibility_check_core(
     let merchant_account = platform.get_processor().get_account();
     let merchant_id = merchant_account.get_id();
     let key_manager_state = (&state).into();
-    let dimensions =
-        configs::dimension_state::Dimensions::new().with_merchant_id(merchant_id.clone());
+    let dimensions = dimension_state::Dimensions::new()
+        .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
+        .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id());
 
     let authentication = db
         .find_authentication_by_merchant_id_authentication_id(

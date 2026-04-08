@@ -1,19 +1,8 @@
 use external_services::superposition;
 use scheduler::consumer::types::process_data::RetryMapping;
 
-use super::{
-    dimension_state::{
-        DimensionsWithProcessorAndProviderMerchantId,
-        DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
-
-    },
-    fetch_db_config_for_dimensions, DatabaseBackedConfig,
-};
-use crate::{
-    consts::superposition as superposition_consts,
-    core::configs::dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndConnector,
-    db::StorageInterface, utils::id_type,
-};
+use super::{dimension_state, fetch_db_config_for_dimensions, DatabaseBackedConfig};
+use crate::{consts::superposition as superposition_consts, db::StorageInterface, utils::id_type};
 
 /// Macro to generate config struct and superposition::Config trait implementation.
 /// Note: Manually implement `DatabaseBackedConfig` for the config struct:
@@ -82,7 +71,7 @@ macro_rules! config {
 
             impl DatabaseBackedConfig for [<$key:camel>] {
                 const KEY: &'static str = stringify!([<$key:snake>]);
-                fn db_key(_dimensions: &impl super::dimension_state::DimensionsBase) -> Option<String> {
+                fn db_key(_dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
                     None
                 }
             }
@@ -127,13 +116,13 @@ config! {
     superposition_key = REQUIRES_CVV,
     output = bool,
     default = true,
-    requires = DimensionsWithProcessorAndProviderMerchantId,
+    requires = dimension_state::DimensionsWithProcessorAndProviderMerchantId,
     targeting_key = id_type::CustomerId
 }
 
 impl DatabaseBackedConfig for RequiresCvv {
     const KEY: &'static str = "requires_cvv";
-    fn db_key(dimensions: &impl super::dimension_state::DimensionsBase) -> Option<String> {
+    fn db_key(dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
         let merchant_id = dimensions
             .get_processor_merchant_id()
             .map(|id| id.get_string_repr())
@@ -146,13 +135,13 @@ config! {
     superposition_key = IMPLICIT_CUSTOMER_UPDATE,
     output = bool,
     default = false,
-    requires = DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
+    requires = dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
     targeting_key = id_type::CustomerId
 }
 
 impl DatabaseBackedConfig for ImplicitCustomerUpdate {
     const KEY: &'static str = "implicit_customer_update";
-    fn db_key(dimensions: &impl super::dimension_state::DimensionsBase) -> Option<String> {
+    fn db_key(dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
         let merchant_id = dimensions
             .get_provider_merchant_id()
             .map(|id| id.get_string_repr())
@@ -165,16 +154,16 @@ config! {
     superposition_key = SHOULD_CALL_GSM,
     output = bool,
     default = false,
-    requires = DimensionsWithMerchantIdAndProfileId,
+    requires = dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
     targeting_key = id_type::CustomerId
 }
 
 impl DatabaseBackedConfig for ShouldCallGsm {
     const KEY: &'static str = "should_call_gsm";
 
-    fn db_key(dimensions: &impl super::dimension_state::DimensionsBase) -> Option<String> {
+    fn db_key(dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
         let merchant_id = dimensions
-            .get_merchant_id()
+            .get_processor_merchant_id()
             .map(|id| id.get_string_repr())
             .unwrap_or_default();
         Some(format!("{}_{}", merchant_id, Self::KEY))
@@ -185,16 +174,16 @@ config! {
     superposition_key = SHOULD_PERFORM_ELIGIBILITY,
     output = bool,
     default = false,
-    requires = DimensionsWithMerchantId,
+    requires = dimension_state::DimensionsWithProcessorAndProviderMerchantId,
     targeting_key = id_type::CustomerId
 }
 
 impl DatabaseBackedConfig for ShouldPerformEligibility {
     const KEY: &'static str = "should_perform_eligibility";
 
-    fn db_key(dimensions: &impl super::dimension_state::DimensionsBase) -> Option<String> {
+    fn db_key(dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
         let merchant_id = dimensions
-            .get_merchant_id()
+            .get_processor_merchant_id()
             .map(|id| id.get_string_repr())
             .unwrap_or_default();
         // Matches the existing key format: "should_perform_eligibility_{merchant_id}"
@@ -206,16 +195,16 @@ config! {
     superposition_key = SHOULD_ENABLE_MIT_WITH_LIMITED_CARD_DATA,
     output = bool,
     default = false,
-    requires = DimensionsWithMerchantIdAndProfileId,
+    requires = dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
     targeting_key = id_type::PaymentId
 }
 
 impl DatabaseBackedConfig for ShouldEnableMitWithLimitedCardData {
     const KEY: &'static str = "should_enable_mit_with_limited_card_data";
 
-    fn db_key(dimensions: &impl super::dimension_state::DimensionsBase) -> Option<String> {
+    fn db_key(dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
         let merchant_id = dimensions
-            .get_merchant_id()
+            .get_processor_merchant_id()
             .map(|id| id.get_string_repr())
             .unwrap_or_default();
         Some(format!("{}_{}", merchant_id, Self::KEY))
@@ -226,16 +215,16 @@ config! {
     superposition_key = SHOULD_STORE_ELIGIBILITY_CHECK_DATA_FOR_AUTHENTICATION,
     output = bool,
     default = false,
-    requires = DimensionsWithMerchantId,
+    requires = dimension_state::DimensionsWithProcessorAndProviderMerchantId,
     targeting_key = id_type::AuthenticationId
 }
 
 impl DatabaseBackedConfig for ShouldStoreEligibilityCheckDataForAuthentication {
     const KEY: &'static str = "should_store_eligibility_check_data_for_authentication";
 
-    fn db_key(dimensions: &impl super::dimension_state::DimensionsBase) -> Option<String> {
+    fn db_key(dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
         let merchant_id = dimensions
-            .get_merchant_id()
+            .get_processor_merchant_id()
             .map(|id| id.get_string_repr())
             .unwrap_or_default();
         // Matches the existing key format: "should_store_eligibility_check_data_for_authentication_{merchant_id}"
@@ -247,7 +236,7 @@ config! {
     superposition_key = STEP_UP_ENABLED,
     output = bool,
     default = false,
-    requires = DimensionsWithMerchantIdAndProfileIdAndConnector,
+    requires = dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileIdAndConnector,
     targeting_key = id_type::CustomerId
 }
 
@@ -256,7 +245,7 @@ impl DatabaseBackedConfig for StepUpEnabled {
 
     // The old DB format stored a Vec<Connector> under "step_up_enabled_{merchant_id}".
     // That schema is not compatible with a per-connector boolean, so no DB fallback.
-    fn db_key(_dimensions: &impl super::dimension_state::DimensionsBase) -> Option<String> {
+    fn db_key(_dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
         None
     }
 }
@@ -265,14 +254,14 @@ config! {
     superposition_key = ENABLE_EXTENDED_CARD_BIN,
     output = bool,
     default = false,
-    requires = DimensionsWithMerchantIdAndProfileId,
+    requires = dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
     targeting_key = id_type::CustomerId
 }
 
 impl DatabaseBackedConfig for EnableExtendedCardBin {
     const KEY: &'static str = "enable_extended_card_bin";
 
-    fn db_key(dimensions: &impl super::dimension_state::DimensionsBase) -> Option<String> {
+    fn db_key(dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
         let profile_id = dimensions
             .get_profile_id()
             .map(|id| id.get_string_repr())
@@ -286,18 +275,23 @@ config! {
     superposition_key = AUTHENTICATION_SERVICE_ELIGIBLE,
     output = bool,
     default = false,
-    requires = DimensionsWithOrgIdAndMerchantId,
+    requires = dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndOrgId,
     targeting_key = id_type::CustomerId
 }
 
 impl DatabaseBackedConfig for AuthenticationServiceEligible {
     const KEY: &'static str = "authentication_service_eligible";
+    fn db_key(_dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
+        None
+    }
 
+}
+config!{
     superposition_key = PAYOUT_TRACKER_MAPPING,
     output = RetryMapping,
     default = RetryMapping::default(),
     object = true,
-    requires = DimensionsWithProcessorAndProviderMerchantIdAndConnector,
+    requires = dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndConnector,
     targeting_key = id_type::PayoutId
 }
 
@@ -305,13 +299,13 @@ config! {
     superposition_key = CLIENT_SESSION_VALIDATION_ENABLED,
     output = bool,
     default = true,
-    requires = DimensionsWithProcessorAndProviderMerchantId,
+    requires = dimension_state::DimensionsWithProcessorAndProviderMerchantId,
     targeting_key = id_type::PaymentId
 }
 
 impl DatabaseBackedConfig for ClientSessionValidationEnabled {
     const KEY: &'static str = "client_session_validation_enabled";
-    fn db_key(_dimensions: &impl super::dimension_state::DimensionsBase) -> Option<String> {
+    fn db_key(_dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
         None
     }
 }

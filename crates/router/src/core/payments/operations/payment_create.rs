@@ -33,10 +33,7 @@ use crate::core::payment_methods::transformers as pm_transformers;
 use crate::{
     consts,
     core::{
-        configs::dimension_state::{
-            Dimensions, DimensionsWithProcessorAndProviderMerchantId,
-            DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
-        },
+        configs::dimension_state,
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
         mandate::helpers as m_helpers,
         payment_link,
@@ -666,7 +663,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         let unified_address = address.unify_with_payment_method_data_billing(add);
 
         // Check if client session validation is enabled
-        let dimensions = Dimensions::new()
+        let dimensions = dimension_state::Dimensions::new()
             .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id())
             .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id());
 
@@ -768,7 +765,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
         request: Option<CustomerDetails>,
         provider: &domain::Provider,
         initiator: Option<&domain::Initiator>,
-        dimensions: &&DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
+        dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
     ) -> CustomResult<(PaymentCreateOperation<'a, F>, Option<domain::Customer>), errors::StorageError>
     {
         match provider.get_account().merchant_account_type {
@@ -1042,7 +1039,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
         mut payment_data: PaymentData<F>,
         _frm_suggestion: Option<FrmSuggestion>,
         _header_payload: hyperswitch_domain_models::payments::HeaderPayload,
-        _dimensions: &DimensionsWithProcessorAndProviderMerchantId,
+        _dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
     ) -> RouterResult<(PaymentCreateOperation<'b, F>, PaymentData<F>)>
     where
         F: 'b + Send,
@@ -1362,11 +1359,14 @@ impl PaymentCreate {
                     payment_method_data_request.payment_method_data.as_ref()
                 });
 
+        let dimensions = dimension_state::Dimensions::new()
+                .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
+                .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id());
+
         let created_at @ modified_at @ last_synced = common_utils::date_time::now();
         let status = helpers::payment_attempt_status_fsm(payment_method_data, request.confirm);
         let (amount, currency) = (money.0, Some(money.1));
 
-        let merchant_id = platform.get_processor().get_account().get_id().clone();
         let mut additional_pm_data = request
             .payment_method_data
             .as_ref()
@@ -1377,12 +1377,13 @@ impl PaymentCreate {
             .or(payment_method_recurring_details)
             .zip(Some(profile_id.clone())) // since data is consumed by async move, profile_id needs to be send separately
             .async_map(|(payment_method_data, profile_id)| async move {
+                let dimensions = dimensions
+                    .with_profile_id(profile_id);
                 helpers::get_additional_payment_data(
                     &payment_method_data,
                     &*state.store,
                     state.superposition_service.as_deref(),
-                    &merchant_id,
-                    &profile_id,
+                    &dimensions,
                     customer_id,
                     None,
                 )

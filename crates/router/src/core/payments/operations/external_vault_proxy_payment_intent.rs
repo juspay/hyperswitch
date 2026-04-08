@@ -17,7 +17,7 @@ use router_env::{instrument, tracing};
 use super::{Domain, GetTracker, Operation, PostUpdateTracker, UpdateTracker, ValidateRequest};
 use crate::{
     core::{
-        configs::dimension_state::DimensionsWithProcessorAndProviderMerchantId,
+        dimension_state::DimensionsWithProcessorAndProviderMerchantId,
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
         payment_methods::{self, PaymentMethodExt},
         payments::{

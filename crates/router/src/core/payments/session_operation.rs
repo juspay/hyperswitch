@@ -22,7 +22,7 @@ use router_env::{env::Env, instrument, tracing};
 
 use crate::{
     core::{
-        configs::dimension_state::{Dimensions, DimensionsWithProcessorAndProviderMerchantId},
+        dimension_state::{Dimensions, DimensionsWithProcessorAndProviderMerchantId},
         errors::{self, utils::StorageErrorExt, RouterResult},
         payments::{
             self as payments_core, call_multiple_connectors_service,

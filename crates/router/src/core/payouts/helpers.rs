@@ -24,7 +24,7 @@ use crate::core::payments::route_connector_v1_for_payouts;
 use crate::{
     consts,
     core::{
-        configs::dimension_state::DimensionsWithMerchantIdAndProfileId,
+        configs::dimension_state,
         errors::{self, RouterResult, StorageErrorExt},
         payment_methods::{
             cards,
@@ -1526,7 +1526,7 @@ pub async fn get_translated_unified_code_and_message(
 pub async fn get_additional_payout_data(
     pm_data: &api::PayoutMethodData,
     state: &SessionState,
-    dimensions: &DimensionsWithMerchantIdAndProfileId,
+    dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
     customer_id: Option<&id_type::CustomerId>,
 ) -> Option<payout_additional::AdditionalPayoutMethodData> {
     let db = &*state.store;

@@ -61,7 +61,7 @@ use crate::core::routing::transformers::OpenRouterDecideGatewayRequestExt;
 use crate::routes::app::SessionStateInfo;
 use crate::{
     core::{
-        configs::dimension_state::DimensionsWithMerchantIdAndProfileId,
+        configs::dimension_state,
         errors, errors as oss_errors,
         payments::{
             routing::utils::DecisionEngineApiHandler, OperationSessionGetters,
@@ -1230,7 +1230,7 @@ pub async fn try_pre_routing_connectors<F, D>(
     business_profile: &domain::Profile,
     payment_data: &mut D,
     routing_data: &mut RoutingData,
-    dimensions: &DimensionsWithMerchantIdAndProfileId,
+    dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
 ) -> errors::RouterResult<Option<api::ConnectorCallType>>
 where
     F: Send + Clone,

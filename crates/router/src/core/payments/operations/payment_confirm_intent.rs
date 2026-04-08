@@ -11,7 +11,7 @@ use super::{Domain, GetTracker, Operation, UpdateTracker, ValidateRequest};
 use crate::{
     core::{
         admin,
-        configs::dimension_state::DimensionsWithProcessorAndProviderMerchantId,
+        dimension_state::DimensionsWithProcessorAndProviderMerchantId,
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
         payment_methods,
         payments::{

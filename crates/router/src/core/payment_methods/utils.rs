@@ -856,7 +856,7 @@ pub async fn get_organization_eligibility_config_for_pm_modular_service(
 
 pub async fn get_sdk_next_action_for_payment_method_list(
     state: &SessionState,
-    dimensions: &dimension_state::DimensionsWithMerchantId,
+    dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
     customer_id: Option<&common_utils::id_type::CustomerId>,
 ) -> api_models::payments::SdkNextAction {
     let should_perform_eligibility_check = dimensions

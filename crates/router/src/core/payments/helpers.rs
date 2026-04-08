@@ -89,7 +89,7 @@ use crate::{
     consts::{self, BASE64_ENGINE},
     core::{
         authentication,
-        configs::{self as configs, dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId},
+        configs::dimension_state,
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
         mandate::helpers::MandateGenericData,
         payment_methods::{
@@ -1928,7 +1928,7 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R, D>(
     _payment_data: &mut PaymentData<F>,
     _req: Option<CustomerDetails>,
     _provider: &domain::Provider,
-    _dimensions: &DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
+    _dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
 ) -> CustomResult<(BoxedOperation<'a, F, R, D>, Option<domain::Customer>), errors::StorageError> {
     todo!()
 }
@@ -1943,7 +1943,7 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R, D>(
     req: Option<CustomerDetails>,
     provider: &domain::Provider,
     initiator: Option<&domain::Initiator>,
-    dimensions: &&DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
+    dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
 ) -> CustomResult<(BoxedOperation<'a, F, R, D>, Option<domain::Customer>), errors::StorageError> {
     let merchant_id = provider.get_account().get_id();
     let storage_scheme = provider.get_account().storage_scheme;
@@ -5573,17 +5573,13 @@ pub async fn get_additional_payment_data(
     pm_data: &domain::PaymentMethodData,
     db: &dyn StorageInterface,
     superposition_service: Option<&external_services::superposition::SuperpositionClient>,
-    merchant_id: &id_type::MerchantId,
-    profile_id: &id_type::ProfileId,
+    dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
     customer_id: Option<&id_type::CustomerId>,
     payment_method_token: Option<&PaymentMethodToken>,
 ) -> Result<
     Option<api_models::payments::AdditionalPaymentData>,
     error_stack::Report<errors::ApiErrorResponse>,
 > {
-    let dimensions = configs::dimension_state::Dimensions::new()
-        .with_merchant_id(merchant_id.clone())
-        .with_profile_id(profile_id.clone());
 
     match pm_data {
         domain::PaymentMethodData::Card(card_data) => {
@@ -5871,17 +5867,13 @@ pub async fn get_additional_payment_data(
         }
         domain::PaymentMethodData::CardWithOptionalCVC(card_data) => {
             let card_isin = Some(card_data.card_number.get_card_isin());
-            let enable_extended_bin =db
-            .find_config_by_key_unwrap_or(
-                format!("{}_enable_extended_card_bin", profile_id.get_string_repr()).as_str(),
-             Some("false".to_string()))
-            .await.map_err(|err| services::logger::error!(message="Failed to fetch the config", extended_card_bin_error=?err)).ok();
-
-            let card_extended_bin = match enable_extended_bin {
-                Some(config) if config.config == "true" => {
-                    Some(card_data.card_number.get_extended_card_bin())
-                }
-                _ => None,
+            let enable_extended_bin = dimensions
+                .get_enable_extended_card_bin(db, superposition_service, customer_id)
+                .await;
+            let card_extended_bin = if enable_extended_bin {
+                Some(card_data.card_number.get_extended_card_bin())
+            } else {
+                None
             };
 
             // Added an additional check for card_data.co_badged_card_data.is_some()
@@ -6019,7 +6011,9 @@ pub async fn get_additional_payment_data(
                     card_with_network_token_details.card_details.clone(),
                 ),
                 db,
-                profile_id,
+                superposition_service,
+                dimensions,
+                customer_id,
                 payment_method_token,
             ))
             .await
@@ -9004,7 +8998,7 @@ pub fn validate_platform_request_for_marketplace(
 }
 
 pub async fn is_merchant_eligible_authentication_service(
-    dimensions: &configs::dimension_state::DimensionsWithOrgIdAndMerchantId,
+    dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndOrgId,
     state: &SessionState,
 ) -> RouterResult<bool> {
     Ok(dimensions
