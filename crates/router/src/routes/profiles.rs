@@ -346,49 +346,6 @@ pub async fn profile_update(
     .await
 }
 
-#[cfg(feature = "v2")]
-#[instrument(skip_all, fields(flow = ?Flow::ProfileUpdate))]
-pub async fn profile_update_revenue_recovery_features(
-    state: web::Data<AppState>,
-    req: HttpRequest,
-    path: web::Path<common_utils::id_type::ProfileId>,
-    json_payload: web::Json<api_models::admin::RevenueRecoveryFeaturesUpdateRequest>,
-) -> HttpResponse {
-    let flow = Flow::ProfileUpdate;
-    let profile_id = path.into_inner();
-
-    Box::pin(api::server_wrap(
-        flow,
-        state,
-        &req,
-        json_payload.into_inner(),
-        |state,
-         auth::AuthenticationDataWithoutProfile {
-             merchant_account, ..
-         },
-         req,
-         _| {
-            crate::core::admin::update_revenue_recovery_features(
-                state,
-                merchant_account.get_id().clone(),
-                profile_id.clone(),
-                req,
-            )
-        },
-        auth::auth_type(
-            &auth::AdminApiAuthWithMerchantIdFromHeader,
-            &auth::JWTAuthMerchantFromHeader {
-                required_permission: permissions::Permission::MerchantAccountWrite,
-                allow_connected: true,
-                allow_platform: false,
-            },
-            req.headers(),
-        ),
-        api_locking::LockAction::NotApplicable,
-    ))
-    .await
-}
-
 #[instrument(skip_all, fields(flow = ?Flow::ProfileDelete))]
 pub async fn profile_delete(
     state: web::Data<AppState>,
