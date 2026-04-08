@@ -9703,6 +9703,10 @@ pub struct GpayAllowedMethodsParameters {
     #[serde(skip_serializing_if = "Option::is_none")]
     #[smithy(value_type = "Option<bool>")]
     pub assurance_details_required: Option<bool>,
+    /// Set to false if you don't want to allow credit cards
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[smithy(value_type = "Option<bool>")]
+    pub allow_credit_cards: Option<bool>,
 }
 
 #[derive(
