@@ -49,7 +49,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         platform: &domain::Platform,
         _auth_flow: services::AuthFlow,
         _header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
-        #[cfg(feature = "pm_modular")] _payment_method_wrapper: Option<
+        #[cfg(feature = "pm_modular")] payment_method_wrapper: Option<
             operations::PaymentMethodWithRawData,
         >,
     ) -> RouterResult<operations::GetTrackerResponse<'a, F, api::PaymentsRequest, PaymentData<F>>>
@@ -126,6 +126,12 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             reason: "Expected one out of recurring_details and mandate_data but got both".into(),
         })?;
 
+        #[cfg(feature = "pm_modular")]
+        let payment_method_info_from_modular =
+            payment_method_wrapper.clone().map(|pm| pm.payment_method.0);
+        #[cfg(not(feature = "pm_modular"))]
+        let payment_method_info_from_modular = None;
+
         let m_helpers::MandateGenericData {
             token,
             payment_method,
@@ -141,7 +147,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             platform,
             payment_attempt.payment_method_id.clone(),
             payment_intent.customer_id.as_ref(),
-            None,
+            payment_method_info_from_modular,
         ))
         .await?;
         let customer_acceptance: Option<CustomerAcceptance> =
