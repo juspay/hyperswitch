@@ -182,10 +182,9 @@ pub async fn make_connector_decision(
     state: &SessionState,
     platform: &domain::Platform,
     header_payload: HeaderPayload,
-    dimensions: &crate::core::configs::dimension_state::DimensionsWithMerchantId,
     connector_call_type: api::ConnectorCallType,
     payout_data: &mut PayoutData,
-    dimensions: DimensionsWithProcessorAndProviderMerchantId,
+    dimensions: &DimensionsWithProcessorAndProviderMerchantId,
 ) -> RouterResult<()> {
     match connector_call_type {
         api::ConnectorCallType::PreDetermined(routing_data) => {
@@ -195,7 +194,7 @@ pub async fn make_connector_decision(
                 header_payload.clone(),
                 &routing_data.connector_data,
                 payout_data,
-                &dimensions,
+                dimensions,
             ))
             .await?;
 
@@ -212,10 +211,9 @@ pub async fn make_connector_decision(
                     Box::pin(retry::do_gsm_single_connector_actions(
                         state,
                         routing_data.connector_data,
-                        dimensions,
                         payout_data,
                         platform,
-                        &dimensions,
+                        dimensions,
                         header_payload.clone(),
                     ))
                     .await?;
@@ -235,7 +233,7 @@ pub async fn make_connector_decision(
                 header_payload.clone(),
                 &connector_data,
                 payout_data,
-                &dimensions,
+                dimensions,
             ))
             .await?;
 
@@ -252,11 +250,10 @@ pub async fn make_connector_decision(
                     Box::pin(retry::do_gsm_multiple_connector_actions(
                         state,
                         routing_data,
-                        dimensions,
                         connector_data.clone(),
                         payout_data,
                         platform,
-                        &dimensions,
+                        dimensions,
                         header_payload.clone(),
                     ))
                     .await?;
@@ -273,10 +270,9 @@ pub async fn make_connector_decision(
                     Box::pin(retry::do_gsm_single_connector_actions(
                         state,
                         connector_data,
-                        dimensions,
                         payout_data,
                         platform,
-                        &dimensions,
+                        dimensions,
                         header_payload,
                     ))
                     .await?;
@@ -300,13 +296,9 @@ pub async fn payouts_core(
     payout_data: &mut PayoutData,
     routing_algorithm: Option<serde_json::Value>,
     eligible_connectors: Option<Vec<api_enums::PayoutConnectors>>,
-    dimensions: DimensionsWithProcessorAndProviderMerchantId,
+    dimensions: &DimensionsWithProcessorAndProviderMerchantId,
 ) -> RouterResult<()> {
     let payout_attempt = &payout_data.payout_attempt;
-
-    let dimensions: crate::core::configs::dimension_state::DimensionsWithMerchantId =
-        crate::core::configs::dimension_state::Dimensions::new()
-            .with_merchant_id(platform.get_processor().get_account().get_id().clone());
 
     // Form connector data
     let connector_call_type = get_connector_choice(
@@ -324,7 +316,6 @@ pub async fn payouts_core(
         state,
         platform,
         header_payload,
-        &dimensions,
         connector_call_type,
         payout_data,
         dimensions,
@@ -406,7 +397,7 @@ pub async fn payouts_create_core(
             &mut payout_data,
             req.routing.clone(),
             req.connector.clone(),
-            dimensions,
+            &dimensions,
         )
         .await?
     };
@@ -476,7 +467,7 @@ pub async fn payouts_confirm_core(
         &mut payout_data,
         req.routing.clone(),
         req.connector.clone(),
-        dimensions,
+        &dimensions,
     )
     .await?;
 
@@ -553,7 +544,7 @@ pub async fn payouts_update_core(
             &mut payout_data,
             req.routing.clone(),
             req.connector.clone(),
-            dimensions,
+            &dimensions,
         )
         .await?;
     }

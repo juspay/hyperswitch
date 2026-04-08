@@ -75,7 +75,7 @@ impl ProcessTrackerWorkflow<SessionState> for AttachPayoutAccountWorkflow {
             &mut payout_data,
             None,
             None,
-            dimensions,
+            &dimensions,
         )
         .await?;
 

@@ -67,3 +67,15 @@ schema = { type = "boolean" }
 description = "Whether client session validation is enabled for payments"
 change_reason = "Initial setup"
 
+[default-configs.max_auto_single_connector_payout_retries]
+value = 0
+schema = { type = "integer" }
+description = "Maximum auto retries for single-connector payout retry flow"
+change_reason = "Initial setup"
+
+[default-configs.max_auto_multiple_connector_payout_retries]
+value = 0
+schema = { type = "integer" }
+description = "Maximum auto retries for multi-connector payout retry flow"
+change_reason = "Initial setup"
+

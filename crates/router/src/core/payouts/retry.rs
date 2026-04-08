@@ -27,7 +27,6 @@ use crate::{
 pub async fn do_gsm_multiple_connector_actions(
     state: &app::SessionState,
     mut connectors_routing_data: IntoIter<api::ConnectorRoutingData>,
-    dimensions: &dimension_state::DimensionsWithMerchantId,
     original_connector_data: api::ConnectorData,
     payout_data: &mut PayoutData,
     platform: &domain::Platform,
@@ -91,7 +90,6 @@ pub async fn do_gsm_multiple_connector_actions(
 pub async fn do_gsm_single_connector_actions(
     state: &app::SessionState,
     original_connector_data: api::ConnectorData,
-    dimensions: &dimension_state::DimensionsWithMerchantId,
     payout_data: &mut PayoutData,
     platform: &domain::Platform,
     dimensions: &DimensionsWithProcessorAndProviderMerchantId,
@@ -151,7 +149,7 @@ pub async fn do_gsm_single_connector_actions(
 pub async fn get_retries(
     state: &app::SessionState,
     retries: Option<i32>,
-    dimensions: &dimension_state::DimensionsWithMerchantId,
+    dimensions: &DimensionsWithProcessorAndProviderMerchantId,
     customer_id: Option<&common_utils::id_type::CustomerId>,
     retry_type: PayoutRetryType,
 ) -> Option<i32> {
@@ -159,7 +157,7 @@ pub async fn get_retries(
         Some(retries) => Some(retries),
         None => {
             let storage = state.store.as_ref();
-            let superposition_client = state.superposition_service.as_deref();
+            let superposition_client = state.superposition_service.as_ref();
             let targeting_key = customer_id;
 
             let retries_i64 = match retry_type {
