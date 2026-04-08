@@ -227,16 +227,3 @@ The core team of 150+ engineers building Hyperswitch. Keep up the great work! ðŸ
 <a href="https://github.com/juspay/hyperswitch/graphs/contributors">
   <img src="https://contributors-img.web.app/image?repo=juspay/hyperswitch" alt="Contributors"/>
 </a>
-
-## Developer Notes: Revenue Recovery Feature Flags (v2)
-
-Revenue Recovery smart feature flags (for example `account_update`) are updated through the existing profile update API in v2 using `revenue_recovery_smart_features`.
-
-Only provided feature keys are patched, and existing values in `revenue_recovery_retry_algorithm_data` are preserved for other keys.
-
-### Test Cases
-
-- Profile update request without `revenue_recovery_smart_features` should not change `revenue_recovery_retry_algorithm_data`.
-- Profile update request with `revenue_recovery_smart_features.account_update = true` should only toggle `smart_features.account_update`.
-- Profile update request with `revenue_recovery_smart_features.account_update = false` should only toggle `smart_features.account_update`.
-- Monitoring/algorithm transitions should continue preserving existing `smart_features` when no new feature payload is provided.
