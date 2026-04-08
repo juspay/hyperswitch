@@ -111,12 +111,10 @@ describe("Refund Webhook Tests", () => {
 
   context("Refund Webhook Processing - Status Update & Retrieval", function () {
     let merchantId;
-    let refundId;
 
     before(function () {
       connector = globalState.get("connectorId");
       merchantId = globalState.get("merchantId");
-      refundId = globalState.get("refundId");
 
       // Skip this context if connectorRefundId is not available
       // (sandbox connectors may not return it)

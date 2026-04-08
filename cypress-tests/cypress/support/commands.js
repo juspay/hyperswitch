@@ -3415,10 +3415,7 @@ Cypress.Commands.add("refundCallTest", (requestBody, data, globalState) => {
       expect(response.headers["content-type"]).to.include("application/json");
       if (response.status === 200) {
         globalState.set("refundId", response.body.refund_id);
-        globalState.set(
-          "connectorRefundId",
-          response.body.connector_refund_id
-        );
+        globalState.set("connectorRefundId", response.body.connector_refund_id);
         for (const key in resData.body) {
           expect(resData.body[key]).to.equal(response.body[key]);
         }
@@ -3449,10 +3446,7 @@ Cypress.Commands.add("syncRefundCallTest", (data, globalState) => {
     cy.wrap(response).then(() => {
       expect(response.headers["content-type"]).to.include("application/json");
       if (response.status === 200) {
-        globalState.set(
-          "connectorRefundId",
-          response.body.connector_refund_id
-        );
+        globalState.set("connectorRefundId", response.body.connector_refund_id);
       }
       for (const key in resData.body) {
         expect(resData.body[key]).to.equal(response.body[key]);
