@@ -1,7 +1,10 @@
 pub use ::payment_methods::controller::{DataDuplicationCheck, DeleteCardResp};
 use api_models::payment_methods::Card;
 #[cfg(feature = "v2")]
-use api_models::{enums as api_enums, payment_methods::PaymentMethodResponseItem};
+use api_models::{
+    enums as api_enums,
+    payment_methods::{PaymentMethodResponseItem, WalletPaymentMethodResponseData},
+};
 use common_enums::CardNetwork;
 #[cfg(feature = "v1")]
 use common_utils::{crypto::Encryptable, request::Headers, types::keymanager::KeyManagerState};
@@ -601,12 +604,12 @@ pub fn generate_payment_method_response(
                 match payment_method.payment_method_subtype {
                     Some(common_enums::PaymentMethodType::ApplePay) => {
                         Some(api::PaymentMethodResponseData::Wallet(
-                            api::WalletPaymentMethodResponseData::ApplePay(info),
+                            WalletPaymentMethodResponseData::ApplePay(info),
                         ))
                     }
                     Some(common_enums::PaymentMethodType::GooglePay) => {
                         Some(api::PaymentMethodResponseData::Wallet(
-                            api::WalletPaymentMethodResponseData::GooglePay(info),
+                            WalletPaymentMethodResponseData::GooglePay(info),
                         ))
                     }
                     _ => None,
@@ -614,7 +617,7 @@ pub fn generate_payment_method_response(
             }
             api::PaymentMethodsData::PayPal(paypal) => {
                 Some(api::PaymentMethodResponseData::Wallet(
-                    api::WalletPaymentMethodResponseData::PayPal(paypal),
+                    WalletPaymentMethodResponseData::PayPal(paypal),
                 ))
             }
             _ => None,

@@ -1086,7 +1086,7 @@ pub enum WalletPaymentMethodResponseData {
     ApplePay(PaymentMethodDataWalletInfo),
     GooglePay(PaymentMethodDataWalletInfo),
     #[schema(value_type = PaypalRedirection)]
-    PayPal(crate::payments::PaypalRedirection),
+    PayPal(payments::PaypalRedirection),
 }
 
 #[cfg(feature = "v2")]
@@ -1376,7 +1376,7 @@ pub enum PaymentMethodsData {
     Card(CardDetailsPaymentMethod),
     BankDetails(PaymentMethodDataBankCreds),
     WalletDetails(PaymentMethodDataWalletInfo),
-    PayPal(crate::payments::PaypalRedirection),
+    PayPal(payments::PaypalRedirection),
     BankDebit(BankDebitDetailsPaymentMethod),
 }
 
