@@ -229,7 +229,7 @@ impl PayoutSyncWorkFlow {
         let value = dimensions
             .get_payout_tracker_mapping(
                 state.store.as_ref(),
-                state.superposition_service.as_deref(),
+                &state.superposition_service,
                 Some(&payout_id),
             )
             .await;
