@@ -71,7 +71,7 @@ pub use hyperswitch_domain_models::{
 };
 use hyperswitch_domain_models::{
     payments::{self, payment_intent::CustomerData, ClickToPayMetaData},
-    router_data::AccessToken,
+    router_data::{AccessToken, FeatureData},
 };
 use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 #[cfg(feature = "v2")]
@@ -3532,6 +3532,7 @@ pub trait PaymentRedirectFlow: Sync {
         payment_flow_response: &Self::PaymentFlowResponse,
         payment_id: id_type::PaymentId,
         connector: String,
+        state: &SessionState,
     ) -> RouterResult<services::ApplicationResponse<api::RedirectionResponse>>;
 
     #[cfg(feature = "v2")]
@@ -3606,7 +3607,7 @@ pub trait PaymentRedirectFlow: Sync {
             )
             .await?;
 
-        self.generate_response(&payment_flow_response, resource_id, connector)
+        self.generate_response(&payment_flow_response, resource_id, connector, &state)
     }
 
     #[cfg(feature = "v2")]
@@ -3732,6 +3733,7 @@ impl PaymentRedirectFlow for PaymentRedirectCompleteAuthorize {
         payment_flow_response: &Self::PaymentFlowResponse,
         payment_id: id_type::PaymentId,
         connector: String,
+        state: &SessionState,
     ) -> RouterResult<services::ApplicationResponse<api::RedirectionResponse>> {
         let payments_response = &payment_flow_response.payments_response;
         // There might be multiple redirections needed for some flows
@@ -3757,9 +3759,9 @@ impl PaymentRedirectFlow for PaymentRedirectCompleteAuthorize {
                         api_models::payments::NextActionData::InvokeHiddenIframe{ .. } => None,
                         api_models::payments::NextActionData::InvokeUpiIntentSdk{ .. } => None,
                         api_models::payments::NextActionData::InvokeUpiQrFlow{ .. } => None,
+                        api_models::payments::NextActionData::InvokeDdc { .. } => None,
                     })
                     .ok_or(errors::ApiErrorResponse::InternalServerError)
-
                     .attach_printable(
                         "did not receive redirect to url when status is requires customer action",
                     )?;
@@ -3778,10 +3780,42 @@ impl PaymentRedirectFlow for PaymentRedirectCompleteAuthorize {
                 payment_id,
                 &payment_flow_response.business_profile,
                 payments_response,
-                connector,
+                connector.clone(),
             ),
             _ => Err(errors::ApiErrorResponse::InternalServerError).attach_printable_lazy(|| format!("Could not proceed with payment as payment status {} cannot be handled during redirection",payments_response.status))?
         }?;
+
+        let connector_enum: enums::Connector = connector
+            .parse()
+            .map_err(|err| {
+                logger::error!(
+                    "Invalid connector name received. Parsing Failed with error : {:?}",
+                    err
+                );
+                errors::ApiErrorResponse::InternalServerError
+            })
+            .attach_printable_lazy(|| format!("Invalid connector name received: {}", connector))?;
+
+        if state
+            .conf
+            .notify_iframe_exit_and_redirect
+            .connector_list
+            .contains(&connector_enum)
+        {
+            let html = core_utils::get_html_redirect_response_after_ddc(
+                redirection_response.return_url_with_query_params,
+                "required", // hard-coded for now, need to update as we add support for other connectors
+            )?;
+            return Ok(services::ApplicationResponse::Form(Box::new(
+                services::RedirectionFormData {
+                    redirect_form: services::RedirectForm::Html { html_data: html },
+                    payment_method_data: None,
+                    amount: payments_response.amount.to_string(),
+                    currency: payments_response.currency.clone(),
+                },
+            )));
+        }
+
         if payments_response
             .is_iframe_redirection_enabled
             .unwrap_or(false)
@@ -3888,6 +3922,7 @@ impl PaymentRedirectFlow for PaymentRedirectSync {
         payment_flow_response: &Self::PaymentFlowResponse,
         payment_id: id_type::PaymentId,
         connector: String,
+        state: &SessionState,
     ) -> RouterResult<services::ApplicationResponse<api::RedirectionResponse>> {
         let payments_response = &payment_flow_response.payments_response;
         let redirect_response = helpers::get_handle_response_url(
@@ -3896,6 +3931,35 @@ impl PaymentRedirectFlow for PaymentRedirectSync {
             payments_response,
             connector.clone(),
         )?;
+
+        let connector_enum: enums::Connector = connector
+            .parse()
+            .map_err(|err| {
+                logger::error!("Failed to parse connector: {:?}", err);
+                errors::ApiErrorResponse::InternalServerError
+            })
+            .attach_printable_lazy(|| format!("Invalid connector name received: {}", connector))?;
+
+        if state
+            .conf
+            .notify_iframe_exit_and_redirect
+            .connector_list
+            .contains(&connector_enum)
+        {
+            let html = core_utils::get_html_redirect_response_after_ddc(
+                redirect_response.return_url_with_query_params,
+                "required", // hard-coded for now, need to update as we add support for other connectors
+            )?;
+            return Ok(services::ApplicationResponse::Form(Box::new(
+                services::RedirectionFormData {
+                    redirect_form: services::RedirectForm::Html { html_data: html },
+                    payment_method_data: None,
+                    amount: payments_response.amount.to_string(),
+                    currency: payments_response.currency.clone(),
+                },
+            )));
+        }
+
         if payments_response
             .is_iframe_redirection_enabled
             .unwrap_or(false)
@@ -4342,6 +4406,7 @@ impl PaymentRedirectFlow for PaymentAuthenticateCompleteAuthorize {
         payment_flow_response: &Self::PaymentFlowResponse,
         payment_id: id_type::PaymentId,
         connector: String,
+        _state: &SessionState,
     ) -> RouterResult<services::ApplicationResponse<api::RedirectionResponse>> {
         let payments_response = &payment_flow_response.payments_response;
         let redirect_response = helpers::get_handle_response_url(
@@ -5023,6 +5088,7 @@ where
         previous_gateway,
         call_connector_action.clone(),
         shadow_ucs_call_connector_action.clone(),
+        common_enums::TransactionType::Payment,
     )
     .await?;
 
@@ -5601,6 +5667,7 @@ where
         previous_gateway,
         call_connector_action.clone(),
         None,
+        common_enums::TransactionType::Payment,
     )
     .await?;
 
@@ -5727,6 +5794,7 @@ where
             previous_gateway,
             call_connector_action.clone(),
             None,
+            common_enums::TransactionType::Payment,
         )
         .await?;
         let lineage_ids = grpc_client::LineageIds::new(
@@ -5923,6 +5991,7 @@ where
         None,
         call_connector_action.clone(),
         None,
+        common_enums::TransactionType::Payment,
     )
     .await?;
 
@@ -7079,6 +7148,7 @@ where
         None, // No previous gateway information required for session flow
         call_connector_action.clone(),
         None,
+        common_enums::TransactionType::Payment,
     )
     .await?;
 
@@ -7820,6 +7890,95 @@ fn is_google_pay_pre_decrypt_type_connector_tokenization(
         // because the filter is only relevant for Google Pay pre-decrypt tokenization.
         // Returning true ensures that other payment methods or token types are not blocked.
         true
+    }
+}
+
+/// Feature-related data used by connector-specific flows.
+///
+/// # 1. PayPal returning customer flow
+///
+/// For PayPal, a returning customer flow requires the PayPal vault customer id
+/// (`customer.id`) that was returned when the initial Cardholder Initiated
+/// Transaction (CIT) was created. That id is obtained from the PayPal access
+/// token and persisted in the router database as part of the stored PayPal
+/// payment method for the customer and the relevant Merchant Connector
+/// Account (MCA).
+///
+/// This function:
+/// - identifies the PayPal context from the provided `customer_id`,
+///   `payment_method_type`, and `merchant_connector_account`,
+/// - selects the latest **active** PayPal payment method for that customer
+///   and connector/MCA combination (older entries are effectively
+///   overridden when multiple CITs are created), and
+/// - reads the persisted PayPal vault customer id from that payment method
+///   and places it into `FeatureData` so it can be passed to the PayPal SDK
+///   to initialize the returning-customer flow.
+///
+/// For non-PayPal or flows without a stored PayPal payment method, this
+/// function returns `None`.
+#[cfg(feature = "v1")]
+async fn get_feature_data(
+    customer_id: Option<id_type::CustomerId>,
+    payment_method_type: Option<enums::PaymentMethodType>,
+    merchant_connector_account: &helpers::MerchantConnectorAccountType,
+    state: &SessionState,
+    merchant_id: &id_type::MerchantId,
+    key_store: &domain::MerchantKeyStore,
+    storage_scheme: storage_enums::MerchantStorageScheme,
+) -> Option<FeatureData> {
+    match (customer_id, payment_method_type) {
+        (Some(customer_id), Some(enums::PaymentMethodType::Paypal)) => {
+            let mca_id = merchant_connector_account.get_mca_id();
+            let payment_methods = state
+                .store
+                .find_payment_method_by_customer_id_merchant_id_status_pm_type(
+                    key_store,
+                    &customer_id,
+                    merchant_id,
+                    storage_enums::PaymentMethodStatus::Active,
+                    enums::PaymentMethodType::Paypal,
+                    None,
+                    storage_scheme,
+                )
+                .await
+                .inspect_err(|err| {
+                    router_env::logger::error!(
+                        error=?err,
+                        "Failed to fetch payment methods for returning customer flow, proceeding without feature data"
+                    );
+                })
+                .unwrap_or_default();
+
+            // Helper closure to extract payment reference by MCA ID
+            let get_payment_ref =
+                |pm: &hyperswitch_domain_models::payment_methods::PaymentMethod| {
+                    pm.get_common_mandate_reference()
+                        .ok()
+                        .and_then(|mandate_ref| mandate_ref.payments)
+                        .and_then(|payments| {
+                            mca_id.as_ref().and_then(|id| payments.get(id).cloned())
+                        })
+                };
+
+            let paypal_payment_ref = payment_methods
+                .iter()
+                .map(|pm| get_payment_ref(pm).map(|payment_ref| (pm.created_at, payment_ref)))
+                .max_by_key(|opt| opt.as_ref().map(|(created_at, _)| *created_at))
+                .flatten()
+                .map(|(_, pm_data)| pm_data);
+
+            paypal_payment_ref.map(|payment_ref| {
+                FeatureData::PaypalReturningCustomer(Box::new(
+                    hyperswitch_domain_models::router_data::PaypalReturningCustomerData {
+                        paypal_vault_customer_id: payment_ref
+                            .connector_mandate_request_reference_id
+                            .clone()
+                            .map(Secret::new),
+                    },
+                ))
+            })
+        }
+        _ => None,
     }
 }
 
@@ -14192,12 +14351,12 @@ impl PaymentIntentStateMetadataExt {
     pub async fn update_intent_state_metadata_for_refund(
         self,
         state: &SessionState,
-        platform: &domain::Platform,
+        processor: &domain::Processor,
         payment_intent: payments::PaymentIntent,
     ) -> CustomResult<(), errors::ApiErrorResponse> {
         let db = state.store.clone();
-        let key_store = platform.get_processor().get_key_store().clone();
-        let merchant_account = platform.get_processor().get_account().clone();
+        let key_store = processor.get_key_store().clone();
+        let merchant_account = processor.get_account().clone();
         // Update payment_intent for the refund's payment_id
         // Calculate total_refunded_amount based on all succeeded refunds for that payment_id
         let all_refunds_for_payment = db

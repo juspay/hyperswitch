@@ -2042,7 +2042,7 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R, D>(
                     let implicit_customer_update = dimensions
                         .get_implicit_customer_update(
                             state.store.as_ref(),
-                            state.superposition_service.as_deref(),
+                            state.superposition_service.as_ref(),
                             Some(&customer_id),
                         )
                         .await;
@@ -5099,6 +5099,7 @@ pub fn router_data_type_conversion<F1, F2, Req1, Req2, Res1, Res2>(
         minor_amount_capturable: router_data.minor_amount_capturable,
         authorized_amount: router_data.authorized_amount,
         customer_document_details: router_data.customer_document_details,
+        feature_data: router_data.feature_data,
     }
 }
 

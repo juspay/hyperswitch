@@ -3153,6 +3153,17 @@ fn get_pay_later_required_fields() -> HashMap<enums::PaymentMethodType, Connecto
                         common: HashMap::new(),
                     },
                 ),
+                (
+                    Connector::Affirm,
+                    RequiredFieldFinal {
+                        mandate: HashMap::new(),
+                        non_mandate: HashMap::from([
+                            RequiredField::BillingUserFirstName.to_tuple(),
+                            RequiredField::BillingUserLastName.to_tuple(),
+                        ]),
+                        common: HashMap::new(),
+                    },
+                ),
             ]),
         ),
         (

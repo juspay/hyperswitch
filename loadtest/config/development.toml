@@ -93,7 +93,7 @@ adyen.dispute_base_url = "https://ca-test.adyen.com/"
 adyen.management_base_url = "https://management-test.adyen.com/"
 airwallex.base_url = "https://api-demo.airwallex.com/"
 amazonpay.base_url = "https://pay-api.amazon.com/sandbox/v2"
-applepay.base_url = "https://apple-pay-gateway.apple.com/"
+applepay.base_url = "https://apple-pay-gateway-cert.apple.com/"
 archipel.base_url = "https://{{merchant_endpoint_prefix}}/ArchiPEL/Transaction/v1"
 authipay.base_url = "https://prod.emea.api.fiservapps.com/sandbox/ipp/payments-gateway/v2/"
 authorizedotnet.base_url = "https://apitest.authorize.net/xml/v1/request.api"
@@ -244,7 +244,7 @@ worldpayvantiv.base_url = "https://transact.vantivprelive.com/vap/communicator/o
 worldpayvantiv.secondary_base_url = "https://onlinessr.vantivprelive.com"
 worldpayvantiv.third_base_url = "https://services.vantivprelive.com"
 worldpayxml.base_url = "https://secure-test.worldpay.com/jsp/merchant/xml/paymentService.jsp"
-worldpayxml.secondary_base_url = "https://centinelapistag.cardinalcommerce.com/V2/Cruise/StepUp"
+worldpayxml.secondary_base_url = "https://centinelapistag.cardinalcommerce.com"
 xendit.base_url = "https://api.xendit.co"
 zift.base_url = "https://sandbox-secure.zift.io/"
 wise.base_url = "https://api.sandbox.transferwise.tech/"
@@ -460,6 +460,9 @@ open_banking_uk = { currency = "GBP,EUR,PLN" }
 [payout_method_filters.trustly]
 trustly = { currency = "BGN,GBP,EUR,PLN,CZK,DKK,HRK,HUF,NOK,PLN,RON,SEK" }
 
+[pm_filters.trustly]
+trustly = { currency = "BGN,GBP,EUR,PLN,CZK,DKK,HRK,HUF,NOK,PLN,RON,SEK" }
+
 [pm_filters.adyen]
 boleto = { country = "BR", currency = "BRL" }
 sofort = { country = "AT,BE,DE,ES,CH,NL", currency = "CHF,EUR" }
@@ -468,7 +471,7 @@ klarna = { country = "AU,AT,BE,CA,CZ,DK,FI,FR,DE,GR,IE,IT,NO,PL,PT,RO,ES,SE,CH,N
 ideal = { country = "NL", currency = "EUR" }
 
 [pm_filters.affirm]
-affirm = { country = "CA,US", currency = "CAD,USD" }
+affirm = { currency = "USD" }
 
 [pm_filters.amazonpay]
 amazon_pay = { country = "US", currency = "USD" }
@@ -847,6 +850,9 @@ connector_list = "adyen,archipel,checkout,cybersource,novalnet,stripe,worldpay,w
 [card_only_mit_supported_connectors]
 connector_list = "peachpayments" # Supported connectors for card only mit
 
+[notify_iframe_exit_and_redirect]
+connector_list = "worldpayxml"
+
 [analytics]
 source = "sqlx"
 
@@ -903,6 +909,7 @@ sts_role_session_name = ""
 paybox = { payment_method = "card" }
 redsys = { payment_method = "card" }
 barclaycard = { payment_method = "card" }
+worldpayxml = { payment_method = "card" }
 
 [billing_connectors_payment_sync]
 billing_connectors_which_require_payment_sync = "stripebilling, recurly"
