@@ -492,10 +492,13 @@ async fn create_applepay_session_token(
             required_shipping_contact_fields
         };
 
+        #[cfg(feature = "v1")]
         let wallet_blocking_config = business_profile
             .payment_method_blocking
             .as_ref()
             .and_then(|config| config.wallet.as_ref());
+        #[cfg(feature = "v2")]
+        let wallet_blocking_config = None;
 
         // Get apple pay payment request
         let applepay_payment_request = get_apple_pay_payment_request(
@@ -1071,10 +1074,13 @@ fn create_gpay_session_token(
                 enums::PaymentMethodType::GooglePay,
             );
 
+        #[cfg(feature = "v1")]
         let wallet_blocking_config = business_profile
             .payment_method_blocking
             .as_ref()
             .and_then(|config| config.wallet.as_ref());
+        #[cfg(feature = "v2")]
+        let wallet_blocking_config = None;
 
         if google_pay_wallets_details.is_some() {
             let gpay_data = router_data
