@@ -74,11 +74,11 @@ describe("Auto Retry Tests", () => {
 
           cy.UpdateBusinessProfileTest(
             updateBusinessProfileBody,
-            false,
-            false,
-            false,
-            false,
-            false,
+            false, // is_connector_agnostic_enabled
+            false, // collect_billing_address_from_wallet_connector
+            false, // collect_shipping_address_from_wallet_connector
+            false, // always_collect_billing_address_from_wallet_connector
+            false, // always_collect_shipping_address_from_wallet_connector
             globalState
           );
 
@@ -171,11 +171,11 @@ describe("Auto Retry Tests", () => {
 
           cy.UpdateBusinessProfileTest(
             body,
-            false,
-            false,
-            false,
-            false,
-            false,
+            false, // is_connector_agnostic_enabled
+            false, // collect_billing_address_from_wallet_connector
+            false, // collect_shipping_address_from_wallet_connector
+            false, // always_collect_billing_address_from_wallet_connector
+            false, // always_collect_shipping_address_from_wallet_connector
             globalState
           );
 

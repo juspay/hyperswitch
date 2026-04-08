@@ -3338,10 +3338,11 @@ Cypress.Commands.add(
     const baseUrl = globalState.get("baseUrl");
     const apiKey = globalState.get("apiKey");
     const maxRetries = globalState.get("max_auto_retries_enabled");
+    const url = `${baseUrl}/payments/${paymentId}?force_sync=true&expand_attempts=true`;
 
     cy.request({
       method: "GET",
-      url: `${baseUrl}/payments/${paymentId}?force_sync=true&expand_attempts=true`,
+      url: url,
       headers: {
         "Content-Type": "application/json",
         "api-key": apiKey,
@@ -3366,9 +3367,11 @@ Cypress.Commands.add(
       if (response.body.attempts && response.body.attempts.length > 0) {
         // Expected attempts = initial attempt (1) + max_auto_retries
         const expectedAttempts = (maxRetries || 0) + 1;
-        
+
         expect(response.body.attempts.length).to.equal(expectedAttempts);
-        expect(response.body.attempt_count).to.equal(attempt || expectedAttempts);
+        expect(response.body.attempt_count).to.equal(
+          attempt || expectedAttempts
+        );
 
         response.body.attempts.forEach((attemptObj) => {
           expect(attemptObj.attempt_id).to.include(paymentId);
