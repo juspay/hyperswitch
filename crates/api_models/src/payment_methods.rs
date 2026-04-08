@@ -1076,6 +1076,17 @@ impl CardDetailUpdate {
 #[serde(rename = "payment_method_data")]
 pub enum PaymentMethodResponseData {
     Card(CardDetailFromLocker),
+    Wallet(WalletPaymentMethodResponseData),
+}
+
+#[cfg(feature = "v2")]
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum WalletPaymentMethodResponseData {
+    ApplePay(PaymentMethodDataWalletInfo),
+    GooglePay(PaymentMethodDataWalletInfo),
+    #[schema(value_type = PaypalRedirection)]
+    PayPal(crate::payments::PaypalRedirection),
 }
 
 #[cfg(feature = "v2")]
@@ -1365,6 +1376,7 @@ pub enum PaymentMethodsData {
     Card(CardDetailsPaymentMethod),
     BankDetails(PaymentMethodDataBankCreds),
     WalletDetails(PaymentMethodDataWalletInfo),
+    PayPal(crate::payments::PaypalRedirection),
     BankDebit(BankDebitDetailsPaymentMethod),
 }
 

@@ -597,6 +597,26 @@ pub fn generate_payment_method_response(
             api::PaymentMethodsData::Card(card) => Some(api::PaymentMethodResponseData::Card(
                 api::CardDetailFromLocker::from(card),
             )),
+            api::PaymentMethodsData::WalletDetails(info) => {
+                match payment_method.payment_method_subtype {
+                    Some(common_enums::PaymentMethodType::ApplePay) => {
+                        Some(api::PaymentMethodResponseData::Wallet(
+                            api::WalletPaymentMethodResponseData::ApplePay(info),
+                        ))
+                    }
+                    Some(common_enums::PaymentMethodType::GooglePay) => {
+                        Some(api::PaymentMethodResponseData::Wallet(
+                            api::WalletPaymentMethodResponseData::GooglePay(info),
+                        ))
+                    }
+                    _ => None,
+                }
+            }
+            api::PaymentMethodsData::PayPal(paypal) => {
+                Some(api::PaymentMethodResponseData::Wallet(
+                    api::WalletPaymentMethodResponseData::PayPal(paypal),
+                ))
+            }
             _ => None,
         });
     let mut connector_tokens = payment_method
@@ -879,7 +899,8 @@ impl transformers::ForeignTryFrom<(domain::PaymentMethod, String)>
                 }
                 api_models::payment_methods::PaymentMethodsData::BankDetails(..) => todo!(),
                 api_models::payment_methods::PaymentMethodsData::BankDebit(..) => todo!(),
-                api_models::payment_methods::PaymentMethodsData::WalletDetails(..) => {
+                api_models::payment_methods::PaymentMethodsData::WalletDetails(..)
+                | api_models::payment_methods::PaymentMethodsData::PayPal(..) => {
                     todo!()
                 }
             });
@@ -946,7 +967,8 @@ impl transformers::ForeignTryFrom<domain::PaymentMethod> for PaymentMethodRespon
                 }
                 api_models::payment_methods::PaymentMethodsData::BankDetails(..) => todo!(),
                 api_models::payment_methods::PaymentMethodsData::BankDebit(..) => todo!(),
-                api_models::payment_methods::PaymentMethodsData::WalletDetails(..) => {
+                api_models::payment_methods::PaymentMethodsData::WalletDetails(..)
+                | api_models::payment_methods::PaymentMethodsData::PayPal(..) => {
                     todo!()
                 }
             });

@@ -1912,7 +1912,28 @@ pub async fn create_payment_method_wallet_core(
 
     let key_manager_state = &(state).into();
 
-    let encrypted_payment_method_data = Some(additional_payment_method_data)
+    let api_payment_method_data = match additional_payment_method_data {
+        domain::PaymentMethodsData::WalletDetails(domain::WalletPaymentMethodData::ApplePay(
+            info,
+        ))
+        | domain::PaymentMethodsData::WalletDetails(domain::WalletPaymentMethodData::GooglePay(
+            info,
+        )) => payment_methods::PaymentMethodsData::WalletDetails(info),
+        domain::PaymentMethodsData::WalletDetails(domain::WalletPaymentMethodData::PayPal(
+            paypal,
+        )) => payment_methods::PaymentMethodsData::PayPal(paypal),
+        other => {
+            return Err(errors::ApiErrorResponse::InvalidRequestData {
+                message: format!(
+                    "Unexpected payment method data variant in wallet core: {:?}",
+                    std::mem::discriminant(&other)
+                ),
+            }
+            .into());
+        }
+    };
+
+    let encrypted_payment_method_data = Some(api_payment_method_data)
         .async_map(|payment_method_data| {
             cards::create_encrypted_data(
                 key_manager_state,
@@ -3177,7 +3198,8 @@ fn convert_from_saved_payment_method_data(
         }
         payment_methods::PaymentMethodsData::BankDetails(_)
         | payment_methods::PaymentMethodsData::BankDebit(_)
-        | payment_methods::PaymentMethodsData::WalletDetails(_) => {
+        | payment_methods::PaymentMethodsData::WalletDetails(_)
+        | payment_methods::PaymentMethodsData::PayPal(_) => {
             Err(errors::ApiErrorResponse::UnprocessableEntity {
                 message: "External vaulting is not supported for this payment method type"
                     .to_string(),
@@ -3781,6 +3803,7 @@ fn get_pm_list_context(
         }
         Some(payment_methods::PaymentMethodsData::BankDebit(_))
         | Some(payment_methods::PaymentMethodsData::WalletDetails(_))
+        | Some(payment_methods::PaymentMethodsData::PayPal(_))
         | None => Some(PaymentMethodListContext::TemporaryToken {
             token_data: is_payment_associated.then_some(
                 storage::PaymentTokenData::temporary_generic(generate_id(
