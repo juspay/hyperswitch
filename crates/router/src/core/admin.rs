@@ -940,6 +940,7 @@ impl MerchantAccountCreateBridge for api::MerchantAccountCreate {
                     version: common_types::consts::API_VERSION,
                     product_type: self.product_type,
                     merchant_account_type,
+                    network_tokenization_credentials: None,
                 }),
             )
         }
@@ -1326,6 +1327,7 @@ impl MerchantAccountUpdateBridge for api::MerchantAccountUpdate {
                 .attach_printable("Unable to encrypt merchant details")?,
             metadata: metadata.map(Box::new),
             publishable_key: None,
+            network_tokenization_credentials: Box::new(None),
         })
     }
 }

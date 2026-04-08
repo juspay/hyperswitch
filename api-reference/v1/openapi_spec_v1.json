@@ -22384,7 +22384,8 @@
           "token_service_api_key",
           "public_key",
           "private_key",
-          "key_id"
+          "key_id",
+          "webhook_source_verification_key"
         ],
         "properties": {
           "token_service_api_key": {
@@ -22409,6 +22410,12 @@
             "type": "string",
             "description": "The key_id used in encryption",
             "example": "key_1ac9895a6d85414897213gahdac838a8",
+            "maxLength": 255
+          },
+          "webhook_source_verification_key": {
+            "type": "string",
+            "description": "The key_id used in encryption",
+            "example": "1ac9895a6d85414897213gahdac838a8",
             "maxLength": 255
           }
         },

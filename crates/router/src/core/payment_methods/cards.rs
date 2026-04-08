@@ -142,6 +142,7 @@ impl PaymentMethodsController for PmCards<'_> {
         vault_source_details: Option<domain::PaymentMethodVaultSourceDetails>,
         payment_method_customer_details_encrypted: crypto::OptionalEncryptableValue,
         locker_fingerprint_id: Option<String>,
+        network_tokenization_data: crypto::OptionalEncryptableValue,
         initiator: Option<&domain::Initiator>,
     ) -> errors::CustomResult<domain::PaymentMethod, errors::ApiErrorResponse> {
         let db = &*self.state.store;
@@ -206,7 +207,7 @@ impl PaymentMethodsController for PmCards<'_> {
                     last_modified_by: initiator.and_then(|initiator| initiator.to_created_by()),
                     customer_details: payment_method_customer_details_encrypted,
                     locker_fingerprint_id,
-                    network_tokenization_data: None, // setting this to None as write path will be introduced in a later PR
+                    network_tokenization_data,
                     storage_type: None,
                 },
                 self.provider.get_account().storage_scheme,
@@ -344,6 +345,7 @@ impl PaymentMethodsController for PmCards<'_> {
                         None,
                         Default::default(),
                         resp.locker_fingerprint_id.clone(),
+                        None,
                         initiator,
                     )
                     .await
@@ -496,6 +498,7 @@ impl PaymentMethodsController for PmCards<'_> {
         network_token_payment_method_data: crypto::OptionalEncryptableValue,
         vault_source_details: Option<domain::PaymentMethodVaultSourceDetails>,
         locker_fingerprint_id: Option<String>,
+        network_tokenization_data: crypto::OptionalEncryptableValue,
         initiator: Option<&domain::Initiator>,
     ) -> errors::RouterResult<domain::PaymentMethod> {
         let pm_card_details = match &resp.card {
@@ -553,6 +556,7 @@ impl PaymentMethodsController for PmCards<'_> {
             vault_source_details,
             None,
             locker_fingerprint_id,
+            network_tokenization_data,
             initiator,
         )
         .await
@@ -1231,16 +1235,16 @@ impl PaymentMethodsController for PmCards<'_> {
                 )
                 .await?;
 
-            if let Some(network_token_ref_id) = key.network_token_requestor_reference_id {
+            if let Some(_network_token_ref_id) = key.network_token_requestor_reference_id.clone() {
                 let resp =
                     network_tokenization::delete_network_token_from_locker_and_token_service(
                         self.state,
                         &customer_id,
                         &key.merchant_id,
                         key.payment_method_id.clone(),
-                        key.network_token_locker_id,
-                        network_token_ref_id,
+                        key.network_token_locker_id.clone(),
                         self.provider,
+                        &key,
                     )
                     .await?;
 
@@ -1566,6 +1570,7 @@ impl PaymentMethodsController for PmCards<'_> {
                         None,
                         Default::default(), //Currently this method is used for adding payment method via PaymentMethodCreate API which doesn't support external vault. hence Default i.e. InternalVault is passed for vault source and type
                         resp.locker_fingerprint_id.clone(),
+                        None,
                         initiator,
                     )
                     .await?;
@@ -1638,6 +1643,7 @@ pub async fn get_client_secret_or_add_payment_method(
                 None,
                 None,
                 Default::default(), //Currently this method is used for adding payment method via PaymentMethodCreate API which doesn't support external vault. hence Default i.e. InternalVault is passed for vault type
+                None,
                 None,
                 None,
                 initiator,
@@ -2523,6 +2529,7 @@ pub async fn update_payment_method_metadata_and_network_token_data_and_last_used
     network_token_requestor_reference_id: Option<String>,
     network_token_locker_id: Option<String>,
     pm_network_token_data_encrypted: Option<Encryptable<Secret<serde_json::Value>>>,
+    network_tokenization_data: Option<Encryptable<Secret<serde_json::Value>>>,
     storage_scheme: MerchantStorageScheme,
     initiator: Option<&domain::Initiator>,
 ) -> errors::CustomResult<(), errors::VaultError> {
@@ -2542,7 +2549,7 @@ pub async fn update_payment_method_metadata_and_network_token_data_and_last_used
         metadata: pm_metadata,
         last_used_at: Some(common_utils::date_time::now()),
         connector_mandate_details: None,
-        network_tokenization_data: None, // setting this to None as write path will be introduced in a later PR
+        network_tokenization_data: network_tokenization_data.map(Encryption::from),
     };
 
     db.update_payment_method(key_store, pm, pm_update, storage_scheme)
@@ -2560,6 +2567,7 @@ pub async fn update_payment_method_network_token_data(
     network_token_requestor_reference_id: Option<String>,
     network_token_locker_id: Option<String>,
     pm_network_token_data_encrypted: Option<Encryptable<Secret<serde_json::Value>>>,
+    network_tokenization_data: Option<Encryptable<Secret<serde_json::Value>>>,
     storage_scheme: MerchantStorageScheme,
     initiator: Option<&domain::Initiator>,
 ) -> errors::CustomResult<(), errors::VaultError> {
@@ -2570,7 +2578,7 @@ pub async fn update_payment_method_network_token_data(
         last_modified_by: initiator
             .and_then(|initiator| initiator.to_created_by())
             .map(|last_modified_by| last_modified_by.to_string()),
-        network_tokenization_data: None, // setting this to None as write path will be introduced in a later PR
+        network_tokenization_data: network_tokenization_data.map(Encryption::from),
     };
 
     db.update_payment_method(key_store, pm, pm_update, storage_scheme)
@@ -2666,6 +2674,7 @@ pub async fn update_payment_method_connector_mandate_details_and_network_token_d
     network_token_requestor_reference_id: Option<String>,
     network_token_locker_id: Option<String>,
     pm_network_token_data_encrypted: Option<Encryptable<Secret<serde_json::Value>>>,
+    network_tokenization_data: Option<Encryptable<Secret<serde_json::Value>>>,
     storage_scheme: MerchantStorageScheme,
     initiator: Option<&domain::Initiator>,
 ) -> errors::CustomResult<(), errors::VaultError> {
@@ -2693,7 +2702,7 @@ pub async fn update_payment_method_connector_mandate_details_and_network_token_d
         metadata: None,
         last_used_at: None,
         connector_mandate_details: connector_mandate_details_value.map(Box::new),
-        network_tokenization_data: None, // setting this to None as write path will be introduced in a later PR
+        network_tokenization_data: network_tokenization_data.map(Encryption::from),
     };
 
     db.update_payment_method(key_store, pm, pm_update, storage_scheme)

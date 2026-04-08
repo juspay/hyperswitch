@@ -1597,9 +1597,9 @@ pub struct PaymentMethodResponse {
 /// This struct is used to store the network tokenization data associated with a payment method in the database.
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
 pub struct PaymentMethodNetworkTokenData {
-    network_token_requestor_reference_id: Secret<String>,
-    network_token_locker_id: Secret<String>,
-    network_token_payment_method_data: crate::payment_method_data::PaymentMethodsData,
+    pub network_token_requestor_reference_id: Secret<String>,
+    pub network_token_locker_id: Secret<String>,
+    pub network_token_payment_method_data: crate::payment_method_data::PaymentMethodsData,
 }
 
 /// The domain type for Network Tokenization Data stored in payment methods table.

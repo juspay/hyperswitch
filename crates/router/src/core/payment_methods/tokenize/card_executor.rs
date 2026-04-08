@@ -615,6 +615,7 @@ impl CardNetworkTokenizeExecutor<'_, domain::TokenizeCardRequest> {
             Default::default(), // this method is used only for card bulk tokenization, and currently external vault is not supported for this hence passing Default i.e. InternalVault
             None,
             None,
+            None,
             platform.get_initiator(),
         )
         .await

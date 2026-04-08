@@ -2752,6 +2752,7 @@ pub async fn retrieve_payment_method_data_with_permanent_token(
                 state,
                 network_token_requestor_ref_id,
                 &payment_method_info,
+                platform.get_processor().get_account(),
             )
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)

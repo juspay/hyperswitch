@@ -1343,18 +1343,13 @@ async fn network_token_incoming_webhooks_core<W: types::OutgoingWebhookType>(
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Could not convert webhook effect to string")?;
 
-    let network_tokenization_service = &state
+    let _ = state
         .conf
         .network_tokenization_service
         .as_ref()
         .ok_or(errors::NetworkTokenizationError::NetworkTokenizationServiceNotConfigured)
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Network Tokenization Service not configured")?;
-
-    //source verification
-    network_tokenization_incoming::Authorization::new(request_details.headers.get("Authorization"))
-        .verify_webhook_source(network_tokenization_service.get_inner())
-        .await?;
 
     let response: network_tokenization_incoming::NetworkTokenWebhookResponse = request_details
         .body
@@ -1375,6 +1370,18 @@ async fn network_token_incoming_webhooks_core<W: types::OutgoingWebhookType>(
             state,
             &merchant_id,
         )
+        .await?;
+
+    //source verification
+    let nt_configs = payment_methods::network_tokenization::get_network_tokenization_config(
+        state,
+        platform.get_processor().get_account(),
+    )
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("Network Tokenization Service not configured")?;
+
+    network_tokenization_incoming::Authorization::new(request_details.headers.get("Authorization"))
+        .verify_webhook_source(nt_configs.webhook_source_verification_key.clone())
         .await?;
     let payment_method =
         network_tokenization_incoming::fetch_payment_method_for_network_token_webhooks(

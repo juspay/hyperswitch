@@ -1043,7 +1043,7 @@ fn get_card_network_with_us_local_debit_network_override(
 pub async fn get_card_nt_eligibility(
     state: &SessionState,
     req: api::NetworkTokenEligibilityRequest,
-    _platform: &domain::Platform,
+    platform: &domain::Platform,
     profile: &domain::Profile,
 ) -> RouterResponse<api::GetNetworkTokenEiligibilityResponse> {
     when(!profile.is_network_tokenization_enabled, || {
@@ -1052,10 +1052,14 @@ pub async fn get_card_nt_eligibility(
         }))
     })?;
 
-    let response = network_tokenization::make_nt_eligibility_call(state, req)
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Unable to fetch network token eligibility from tokenization service")?;
+    let response = network_tokenization::make_nt_eligibility_call(
+        state,
+        req,
+        platform.get_processor().get_account(),
+    )
+    .await
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("Unable to fetch network token eligibility from tokenization service")?;
 
     Ok(services::ApplicationResponse::Json(
         api::GetNetworkTokenEiligibilityResponse {
@@ -1512,6 +1516,7 @@ impl PaymentMethodResolver {
                         req.network_tokenization.clone(),
                         profile.is_network_tokenization_enabled,
                         &customer_id,
+                        payment_method.network_tokenization_data.clone(),
                     )
                     .await
                 } else {
@@ -1617,6 +1622,7 @@ async fn execute_payment_method_create(
         req.network_tokenization.clone(),
         profile.is_network_tokenization_enabled,
         customer_id,
+        payment_method.network_tokenization_data.clone(),
     )
     .await;
 
@@ -1981,6 +1987,7 @@ pub struct NetworkTokenPaymentMethodDetails {
     network_token_requestor_reference_id: String,
     network_token_locker_id: String,
     network_token_pmd: Encryptable<Secret<serde_json::Value>>,
+    network_tokenization_data: Encryptable<Secret<serde_json::Value>>,
 }
 
 #[cfg(feature = "v2")]
@@ -1991,6 +1998,59 @@ pub struct BinEnriched<T> {
 }
 
 #[cfg(feature = "v2")]
+async fn generate_network_token_data_for_payment_methods(
+    platform: &domain::Platform,
+    network_token_response: Option<domain::NetworkTokenDetails>,
+    network_token_locker_id: Option<String>,
+    network_token_requestor_ref_id: Option<String>,
+    existing_network_token_data: Option<
+        Encryptable<domain::PaymentMethodNetworkTokenizationDataDomainType>,
+    >,
+) -> RouterResult<Option<domain::PaymentMethodNetworkTokenizationDataDomainType>> {
+    let network_token_data = existing_network_token_data
+        .as_ref()
+        .map(|data| data.get_inner().clone());
+    if let Some(((nt_resp, nt_locker_id), nt_ref_id)) = network_token_response
+        .as_ref()
+        .zip(network_token_locker_id)
+        .zip(network_token_requestor_ref_id)
+    {
+        let network_token_vaulting_data =
+            domain::PaymentMethodVaultingData::NetworkToken(nt_resp.clone());
+
+        let new_token_data = domain::PaymentMethodNetworkTokenData {
+            network_token_requestor_reference_id: Secret::new(nt_ref_id),
+            network_token_locker_id: Secret::new(nt_locker_id),
+            network_token_payment_method_data: network_token_vaulting_data
+                .get_payment_methods_data(),
+        };
+
+        let merchant_id_key = platform.get_processor().get_account().get_id().to_owned();
+
+        if let Some(existing_nt_data) = network_token_data {
+            let mut new_network_token_data = existing_nt_data.clone();
+            let mut map = new_network_token_data.merchant_map.unwrap_or_default();
+            map.insert(merchant_id_key, new_token_data);
+            new_network_token_data.merchant_map = Some(map);
+
+            Ok(Some(new_network_token_data))
+        } else {
+            let mut map = std::collections::HashMap::new();
+            map.insert(merchant_id_key, new_token_data);
+
+            Ok(Some(
+                domain::PaymentMethodNetworkTokenizationDataDomainType {
+                    merchant_map: Some(map),
+                    profile_map: None,
+                },
+            ))
+        }
+    } else {
+        Ok(network_token_data)
+    }
+}
+
+#[cfg(feature = "v2")]
 pub async fn network_tokenize_and_vault_the_pmd(
     state: &SessionState,
     payment_method_data: &domain::PaymentMethodVaultingData,
@@ -1998,6 +2058,9 @@ pub async fn network_tokenize_and_vault_the_pmd(
     network_tokenization: Option<common_types::payment_methods::NetworkTokenization>,
     network_tokenization_enabled_for_profile: bool,
     customer_id: &id_type::GlobalCustomerId,
+    existing_network_token_data: Option<
+        Encryptable<domain::PaymentMethodNetworkTokenizationDataDomainType>,
+    >,
 ) -> Option<NetworkTokenPaymentMethodDetails> {
     let network_token_pm_details_result: CustomResult<
         NetworkTokenPaymentMethodDetails,
@@ -2028,10 +2091,12 @@ pub async fn network_tokenize_and_vault_the_pmd(
                 state,
                 card_data,
                 customer_id,
+                platform.get_processor().get_account(),
             )
             .await?;
 
-        let network_token_vaulting_data = domain::PaymentMethodVaultingData::NetworkToken(resp);
+        let network_token_vaulting_data =
+            domain::PaymentMethodVaultingData::NetworkToken(resp.clone());
         let vaulting_resp = vault::add_payment_method_to_vault(
             state,
             platform,
@@ -2053,10 +2118,33 @@ pub async fn network_tokenize_and_vault_the_pmd(
         .change_context(errors::NetworkTokenizationError::NetworkTokenDetailsEncryptionFailed)
         .attach_printable("Failed to encrypt PaymentMethodsData")?;
 
+        let encrypted_network_tokenization_data = generate_network_token_data_for_payment_methods(
+            platform,
+            Some(resp),
+            Some(vaulting_resp.vault_id.get_string_repr().clone()),
+            Some(network_token_req_ref_id.clone()),
+            existing_network_token_data,
+        )
+        .await
+        .change_context(errors::NetworkTokenizationError::NetworkTokenDetailsEncryptionFailed)?
+        .async_map(|data| {
+            cards::create_encrypted_data(
+                key_manager_state,
+                platform.get_provider().get_key_store(),
+                data,
+            )
+        })
+        .await
+        .transpose()
+        .change_context(errors::NetworkTokenizationError::NetworkTokenDetailsEncryptionFailed)
+        .attach_printable("Failed to encrypt NetworkTokenizationData")?
+        .ok_or(errors::NetworkTokenizationError::NetworkTokenDetailsEncryptionFailed)?;
+
         Ok(NetworkTokenPaymentMethodDetails {
             network_token_requestor_reference_id: network_token_req_ref_id,
             network_token_locker_id: vaulting_resp.vault_id.get_string_repr().clone(),
             network_token_pmd,
+            network_tokenization_data: encrypted_network_tokenization_data,
         })
     }
     .await;
@@ -2526,8 +2614,14 @@ pub async fn get_token_data_for_payment_method(
         .await
         .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?;
 
-    let token_data_response =
-        generate_token_data_response(&state, request, profile, &payment_method).await?;
+    let token_data_response = generate_token_data_response(
+        &state,
+        request,
+        profile,
+        &payment_method,
+        provider.get_account(),
+    )
+    .await?;
 
     Ok(hyperswitch_domain_models::api::ApplicationResponse::Json(
         token_data_response,
@@ -2541,6 +2635,7 @@ pub async fn generate_token_data_response(
     request: payment_methods::GetTokenDataRequest,
     profile: domain::Profile,
     payment_method: &domain::PaymentMethod,
+    merchant_account: &domain::MerchantAccount,
 ) -> RouterResult<api::TokenDataResponse> {
     let token_details = match request.token_type {
         common_enums::TokenDataType::NetworkToken => {
@@ -2562,6 +2657,7 @@ pub async fn generate_token_data_response(
                 state,
                 network_token_requestor_ref_id,
                 payment_method,
+                merchant_account,
             )
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -3164,14 +3260,17 @@ pub async fn create_pm_additional_data_update(
             .clone()
             .map(|data| data.network_token_requestor_reference_id),
         network_token_locker_id: nt_data.clone().map(|data| data.network_token_locker_id),
-        network_token_payment_method_data: nt_data.map(|data| data.network_token_pmd.into()),
-        connector_mandate_details: connector_mandate_details_update,
+        network_token_payment_method_data: nt_data
+            .as_ref()
+            .map(|data| data.network_token_pmd.clone().into()),
+        connector_mandate_details: Box::new(connector_mandate_details_update),
         locker_fingerprint_id: vault_fingerprint_id,
         external_vault_source,
         network_transaction_id,
         last_modified_by: initiator
             .and_then(|initiator| initiator.to_created_by())
             .map(|last_modified_by| last_modified_by.to_string()),
+        network_tokenization_data: nt_data.map(|data| data.network_tokenization_data.into()),
     };
 
     Ok(pm_update)
@@ -4205,10 +4304,14 @@ impl RawPaymentMethodFetchAccess {
                 .data;
 
                 let check_token_status_response =
-                    network_tokenization::do_status_check_for_network_token(state, payment_method)
-                        .await
-                        .change_context(errors::ApiErrorResponse::InternalServerError)
-                        .attach_printable("Failed to check network token status")?;
+                    network_tokenization::do_status_check_for_network_token(
+                        state,
+                        payment_method,
+                        platform.get_processor().get_account(),
+                    )
+                    .await
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Failed to check network token status")?;
 
                 match (
                     check_token_status_response.payload.token_status,
@@ -5600,69 +5703,74 @@ pub async fn check_network_token_status(
     let payment_method = fetch_payment_method(&state, &provider, &payment_method_id).await?;
 
     // Call the network token status check function
-    let network_token_status_check_response = if payment_method.status
-        == common_enums::PaymentMethodStatus::Active
-    {
-        // Check if the payment method has network token data
-        when(
-            payment_method
-                .network_token_requestor_reference_id
-                .is_none(),
-            || {
-                Err(errors::ApiErrorResponse::InvalidDataValue {
-                    field_name: "payment_method_id",
-                })
-            },
-        )?;
-        match network_tokenization::do_status_check_for_network_token(&state, &payment_method).await
-        {
-            Ok(network_token_details) => {
-                let status = match network_token_details.payload.token_status {
-                    pm_types::TokenStatus::Active => api_enums::TokenStatus::Active,
-                    pm_types::TokenStatus::Suspended => api_enums::TokenStatus::Suspended,
-                    pm_types::TokenStatus::Inactive => api_enums::TokenStatus::Inactive,
-                    pm_types::TokenStatus::Expired => api_enums::TokenStatus::Expired,
-                    pm_types::TokenStatus::Deleted => api_enums::TokenStatus::Deleted,
-                };
+    let network_token_status_check_response =
+        if payment_method.status == common_enums::PaymentMethodStatus::Active {
+            // Check if the payment method has network token data
+            when(
+                payment_method
+                    .network_token_requestor_reference_id
+                    .is_none(),
+                || {
+                    Err(errors::ApiErrorResponse::InvalidDataValue {
+                        field_name: "payment_method_id",
+                    })
+                },
+            )?;
+            let merchant_account = provider.get_account();
+            match network_tokenization::check_token_status_from_tokenization_service(
+                &state,
+                &payment_method,
+                merchant_account,
+            )
+            .await
+            {
+                Ok(network_token_details) => {
+                    let status = match network_token_details.payload.token_status {
+                        pm_types::TokenStatus::Active => api_enums::TokenStatus::Active,
+                        pm_types::TokenStatus::Suspended => api_enums::TokenStatus::Suspended,
+                        pm_types::TokenStatus::Inactive => api_enums::TokenStatus::Inactive,
+                        pm_types::TokenStatus::Expired => api_enums::TokenStatus::Expired,
+                        pm_types::TokenStatus::Deleted => api_enums::TokenStatus::Deleted,
+                    };
 
-                payment_methods::NetworkTokenStatusCheckResponse::SuccessResponse(
-                    payment_methods::NetworkTokenStatusCheckSuccessResponse {
-                        status,
-                        token_expiry_month: network_token_details.payload.token_expiry_month,
-                        token_expiry_year: network_token_details.payload.token_expiry_year,
-                        card_last_four: network_token_details.payload.card_last_four,
-                        card_expiry_month: network_token_details.payload.card_expiry_month,
-                        card_expiry_year: network_token_details.payload.card_expiry_year,
-                        token_last_four: network_token_details.payload.token_last_four,
-                        payment_method_id,
-                        customer_id: payment_method
-                            .customer_id
-                            .clone()
-                            .get_required_value("GlobalCustomerId")?,
-                    },
-                )
+                    payment_methods::NetworkTokenStatusCheckResponse::SuccessResponse(
+                        payment_methods::NetworkTokenStatusCheckSuccessResponse {
+                            status,
+                            token_expiry_month: network_token_details.payload.token_expiry_month,
+                            token_expiry_year: network_token_details.payload.token_expiry_year,
+                            card_last_four: network_token_details.payload.card_last_four,
+                            card_expiry_month: network_token_details.payload.card_expiry_month,
+                            card_expiry_year: network_token_details.payload.card_expiry_year,
+                            token_last_four: network_token_details.payload.token_last_four,
+                            payment_method_id,
+                            customer_id: payment_method
+                                .customer_id
+                                .clone()
+                                .get_required_value("GlobalCustomerId")?,
+                        },
+                    )
+                }
+                Err(e) => {
+                    let err_message = e.current_context().to_string();
+                    logger::debug!("Network token status check failed: {:?}", e);
+
+                    payment_methods::NetworkTokenStatusCheckResponse::FailureResponse(
+                        payment_methods::NetworkTokenStatusCheckFailureResponse {
+                            error_message: err_message,
+                        },
+                    )
+                }
             }
-            Err(e) => {
-                let err_message = e.current_context().to_string();
-                logger::debug!("Network token status check failed: {:?}", e);
+        } else {
+            let err_message = "Payment Method is not active".to_string();
+            logger::debug!("Payment Method is not active");
 
-                payment_methods::NetworkTokenStatusCheckResponse::FailureResponse(
-                    payment_methods::NetworkTokenStatusCheckFailureResponse {
-                        error_message: err_message,
-                    },
-                )
-            }
-        }
-    } else {
-        let err_message = "Payment Method is not active".to_string();
-        logger::debug!("Payment Method is not active");
-
-        payment_methods::NetworkTokenStatusCheckResponse::FailureResponse(
-            payment_methods::NetworkTokenStatusCheckFailureResponse {
-                error_message: err_message,
-            },
-        )
-    };
+            payment_methods::NetworkTokenStatusCheckResponse::FailureResponse(
+                payment_methods::NetworkTokenStatusCheckFailureResponse {
+                    error_message: err_message,
+                },
+            )
+        };
     Ok(services::ApplicationResponse::Json(
         network_token_status_check_response,
     ))

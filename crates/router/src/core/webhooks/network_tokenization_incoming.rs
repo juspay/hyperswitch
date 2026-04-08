@@ -14,7 +14,6 @@ use hyperswitch_masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    configs::settings,
     core::{
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
         payment_methods::cards,
@@ -210,13 +209,11 @@ impl Authorization {
 
     pub async fn verify_webhook_source(
         self,
-        nt_service: &settings::NetworkTokenizationService,
+        webhook_source_verification_key: Secret<String>,
     ) -> CustomResult<(), errors::ApiErrorResponse> {
-        let secret = nt_service.webhook_source_verification_key.clone();
-
         let source_verified = match self.header {
             Some(authorization_header) => match authorization_header.to_str() {
-                Ok(header_value) => Ok(header_value == secret.expose()),
+                Ok(header_value) => Ok(header_value == webhook_source_verification_key.expose()),
                 Err(err) => {
                     logger::error!(?err, "Failed to parse authorization header");
                     Err(errors::ApiErrorResponse::WebhookAuthenticationFailed)
