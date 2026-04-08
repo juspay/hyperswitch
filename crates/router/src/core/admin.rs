@@ -4287,16 +4287,17 @@ impl ProfileUpdateBridge for api::ProfileUpdate {
         };
 
         let revenue_recovery_retry_algorithm_type = self.revenue_recovery_retry_algorithm_type;
-        let revenue_recovery_retry_algorithm_data = self
-            .revenue_recovery_smart_features
-            .map(|feature_patch| {
+        let revenue_recovery_retry_algorithm_data =
+            self.revenue_recovery_smart_features.map(|feature_patch| {
                 let mut algorithm_data = business_profile
                     .revenue_recovery_retry_algorithm_data
                     .clone()
-                    .unwrap_or(diesel_models::business_profile::RevenueRecoveryAlgorithmData {
-                        monitoring_configured_timestamp: date_time::now(),
-                        smart_features: None,
-                    });
+                    .unwrap_or(
+                        diesel_models::business_profile::RevenueRecoveryAlgorithmData {
+                            monitoring_configured_timestamp: date_time::now(),
+                            smart_features: None,
+                        },
+                    );
 
                 let mut smart_features = algorithm_data.smart_features.unwrap_or_default();
                 feature_patch
