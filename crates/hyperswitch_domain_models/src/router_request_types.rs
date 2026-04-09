@@ -1645,7 +1645,7 @@ pub struct UploadFileRequestData {
 }
 
 #[cfg(feature = "payouts")]
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct PayoutsData {
     pub payout_id: id_type::PayoutId,
     pub amount: i64,
@@ -1667,7 +1667,7 @@ pub struct PayoutsData {
     pub additional_payout_method_data: Option<payout_method_utils::AdditionalPayoutMethodData>,
 }
 
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, Default, Clone, Serialize)]
 pub struct CustomerDetails {
     pub customer_id: Option<id_type::CustomerId>,
     pub name: Option<Secret<String, hyperswitch_masking::WithType>>,
