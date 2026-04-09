@@ -227,20 +227,24 @@ impl TryFrom<&PaymentsAuthorizeRouterData> for NexinetsPaymentsRequest {
             }?,
             _ => None,
         };
-        let meta = item.request.authentication_data.as_ref().map(|auth_data| {
-            NexinetsMeta {
+        let meta = item
+            .request
+            .authentication_data
+            .as_ref()
+            .map(|auth_data| NexinetsMeta {
                 three_ds_data: NexinetsThreeDsData {
                     authentication_value: auth_data.cavv.clone(),
                     eci: auth_data.eci.clone(),
                     transaction_id: auth_data.ds_trans_id.clone(),
-                    version: Some(auth_data
-                        .message_version
-                        .as_ref()
-                        .map(|v| v.to_string())
-                        .unwrap_or_else(|| "2.1.0".to_string())),
+                    version: Some(
+                        auth_data
+                            .message_version
+                            .as_ref()
+                            .map(|v| v.to_string())
+                            .unwrap_or_else(|| "2.1.0".to_string()),
+                    ),
                 },
-            }
-        });
+            });
         Ok(Self {
             initial_amount: item.request.amount,
             currency: item.request.currency,
@@ -679,6 +683,7 @@ fn get_payment_details_and_product(
         | PaymentMethodData::CardToken(_)
         | PaymentMethodData::NetworkToken(_)
         | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+        | PaymentMethodData::CardWithNetworkTokenDetails(_)
         | PaymentMethodData::CardWithOptionalCVC(_)
         | PaymentMethodData::CardWithLimitedDetails(_)
         | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
