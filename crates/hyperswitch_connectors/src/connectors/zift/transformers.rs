@@ -4,7 +4,10 @@ use common_utils::types::StringMinorUnit;
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     payment_method_data::PaymentMethodData,
-    router_data::{ConnectorAuthType, ErrorResponse, RouterData},
+    router_data::{
+        AdditionalPaymentMethodConnectorResponse, ConnectorAuthType, ConnectorResponseData,
+        ErrorResponse, RouterData,
+    },
     router_flow_types::{refunds::Execute, PSync},
     router_request_types::{
         PaymentsAuthorizeData, PaymentsSyncData, ResponseId, SetupMandateRequestData,
@@ -408,6 +411,10 @@ pub struct ZiftAuthPaymentsResponse {
     pub transaction_id: Option<i64>,
     pub transaction_code: Option<String>,
     pub token: Option<String>,
+    #[serde(rename = "avsResponse")]
+    pub avs_response: Option<String>,
+    #[serde(rename = "cscResponse")]
+    pub csc_response: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -512,6 +519,25 @@ impl<F>
                 }
             })?;
 
+            let connector_response_data =
+                if item.response.avs_response.is_some() || item.response.csc_response.is_some() {
+                    let payment_checks = serde_json::json!({
+                        "avs_response": item.response.avs_response,
+                        "csc_response": item.response.csc_response,
+                    });
+                    Some(ConnectorResponseData::with_additional_payment_method_data(
+                        AdditionalPaymentMethodConnectorResponse::Card {
+                            authentication_data: None,
+                            payment_checks: Some(payment_checks),
+                            card_network: None,
+                            domestic_network: None,
+                            auth_code: None,
+                        },
+                    ))
+                } else {
+                    None
+                };
+
             Ok(Self {
                 status,
                 response: Ok(PaymentsResponseData::TransactionResponse {
@@ -525,6 +551,7 @@ impl<F>
                     authentication_data: None,
                     charges: None,
                 }),
+                connector_response: connector_response_data,
                 ..item.data
             })
         } else {

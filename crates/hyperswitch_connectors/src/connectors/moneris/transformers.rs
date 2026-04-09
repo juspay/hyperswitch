@@ -3,7 +3,10 @@ use common_utils::types::MinorUnit;
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     payment_method_data::PaymentMethodData,
-    router_data::{AccessToken, ConnectorAuthType, RouterData},
+    router_data::{
+        AccessToken, AdditionalPaymentMethodConnectorResponse, ConnectorAuthType,
+        ConnectorResponseData, RouterData,
+    },
     router_flow_types::refunds::{Execute, RSync},
     router_request_types::ResponseId,
     router_response_types::{MandateReference, PaymentsResponseData, RefundsResponseData},
@@ -292,6 +295,8 @@ pub struct MonerisPaymentsResponse {
     payment_status: MonerisPaymentStatus,
     payment_id: String,
     payment_method: MonerisPaymentMethodData,
+    avs_result: Option<String>,
+    cvd_result: Option<String>,
 }
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -307,6 +312,24 @@ impl<F, T> TryFrom<ResponseRouterData<F, MonerisPaymentsResponse, T, PaymentsRes
     fn try_from(
         item: ResponseRouterData<F, MonerisPaymentsResponse, T, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
+        let connector_response_data =
+            if item.response.avs_result.is_some() || item.response.cvd_result.is_some() {
+                let payment_checks = serde_json::json!({
+                    "avs_result": item.response.avs_result,
+                    "cvd_result": item.response.cvd_result,
+                });
+                Some(ConnectorResponseData::with_additional_payment_method_data(
+                    AdditionalPaymentMethodConnectorResponse::Card {
+                        authentication_data: None,
+                        payment_checks: Some(payment_checks),
+                        card_network: None,
+                        domestic_network: None,
+                        auth_code: None,
+                    },
+                ))
+            } else {
+                None
+            };
         Ok(Self {
             status: common_enums::AttemptStatus::from(item.response.payment_status),
             response: Ok(PaymentsResponseData::TransactionResponse {
@@ -331,6 +354,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, MonerisPaymentsResponse, T, PaymentsRes
                 authentication_data: None,
                 charges: None,
             }),
+            connector_response: connector_response_data,
             ..item.data
         })
     }
