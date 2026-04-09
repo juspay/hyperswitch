@@ -2204,6 +2204,19 @@ impl From<AttemptStatus> for PaymentMethodStatus {
     }
 }
 
+impl PaymentMethodStatus {
+    /// Checks if transitioning from `self` to `target` status is valid.
+    /// This defines the allowed status transitions for payment method updates.
+    pub fn can_transition_to(self, target: Self) -> bool {
+        match self {
+            Self::Processing | Self::AwaitingData => false,
+            Self::Active => false,
+            Self::Inactive => target == Self::Active || target == Self::New,
+            Self::New => target == Self::Active || target == Self::Inactive,
+        }
+    }
+}
+
 /// To indicate the type of payment experience that the customer would go through
 #[derive(
     Eq,
@@ -11036,6 +11049,15 @@ pub enum StorageType {
 pub enum AcknowledgementStatus {
     Authenticated,
     Failed,
+}
+
+impl From<AcknowledgementStatus> for PaymentMethodStatus {
+    fn from(ack: AcknowledgementStatus) -> Self {
+        match ack {
+            AcknowledgementStatus::Authenticated => Self::Active,
+            AcknowledgementStatus::Failed => Self::Inactive,
+        }
+    }
 }
 
 /// Represents the type of retry for a payment attempt
