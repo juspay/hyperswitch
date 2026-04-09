@@ -309,7 +309,7 @@ pub async fn get_or_populate_redis<T, F, Fut>(
     fun: F,
 ) -> CustomResult<T, StorageError>
 where
-    T: serde::Serialize + serde::de::DeserializeOwned + Debug,
+    T: serde::Serialize + serde::de::DeserializeOwned + Debug + Clone + Send + Sync + 'static,
     F: FnOnce() -> Fut + Send,
     Fut: futures::Future<Output = CustomResult<T, StorageError>> + Send,
 {
@@ -321,7 +321,7 @@ where
     let get_data_set_redis = || async {
         let data = fun().await?;
         redis
-            .serialize_and_set_key(&key.into(), &data)
+            .serialize_and_set_key(&key.into(), data.clone())
             .await
             .change_context(StorageError::KVError)?;
         Ok::<_, Report<StorageError>>(data)

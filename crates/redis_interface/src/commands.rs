@@ -114,10 +114,12 @@ impl super::RedisConnectionPool {
         value: V,
     ) -> CustomResult<(), errors::RedisError>
     where
-        V: serde::Serialize + Debug,
+        V: serde::Serialize + Debug + Send + 'static,
     {
-        let serialized = value
-            .encode_to_vec()
+        let serialized = tokio::task::spawn_blocking(move || value.encode_to_vec())
+            .await
+            .inspect_err(|err| tracing::error!("Blocking serialization failed: {:?}", err))
+            .change_context(errors::RedisError::JsonSerializationFailed)?
             .change_context(errors::RedisError::JsonSerializationFailed)?;
 
         self.set_key(key, serialized.as_slice()).await
@@ -322,14 +324,15 @@ impl super::RedisConnectionPool {
         type_name: &'static str,
     ) -> CustomResult<T, errors::RedisError>
     where
-        T: serde::de::DeserializeOwned,
+        T: serde::de::DeserializeOwned + Send + 'static,
     {
         let value_bytes = self.get_key::<Vec<u8>>(key).await?;
 
         fp_utils::when(value_bytes.is_empty(), || Err(errors::RedisError::NotFound))?;
-
-        value_bytes
-            .parse_struct(type_name)
+        tokio::task::spawn_blocking(move || value_bytes.parse_struct::<T>(type_name))
+            .await
+            .inspect_err(|err| tracing::error!("Blocking deserialization failed: {:?}", err))
+            .change_context(errors::RedisError::JsonDeserializationFailed)?
             .change_context(errors::RedisError::JsonDeserializationFailed)
     }
 
@@ -1640,7 +1643,7 @@ mod tests {
                 ];
 
                 // Set serialized data for first two keys
-                for (i, data) in test_data.iter().enumerate() {
+                for (i, data) in test_data.clone().into_iter().enumerate() {
                     let _ = pool
                         .serialize_and_set_key(keys.get(i).expect("should not be none"), data)
                         .await;

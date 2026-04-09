@@ -224,7 +224,7 @@ impl<T: DatabaseStore> KVRouterStore<T> {
     ) -> error_stack::Result<D, errors::StorageError>
     where
         D: DomainType,
-        M: StorageModel<D>,
+        M: StorageModel<D> + 'static,
         R: futures::Future<Output = error_stack::Result<M, DatabaseError>> + Send,
     {
         let database_call = || async {
@@ -293,7 +293,7 @@ impl<T: DatabaseStore> KVRouterStore<T> {
     ) -> error_stack::Result<Option<D>, errors::StorageError>
     where
         D: DomainType,
-        M: StorageModel<D>,
+        M: StorageModel<D> + 'static,
         R: futures::Future<Output = error_stack::Result<Option<M>, DatabaseError>> + Send,
     {
         let database_call = || async {
@@ -374,7 +374,7 @@ impl<T: DatabaseStore> KVRouterStore<T> {
     ) -> error_stack::Result<D, errors::StorageError>
     where
         D: Debug + Sync + Conversion,
-        M: StorageModel<D>,
+        M: StorageModel<D> + 'static,
         R: futures::Future<Output = error_stack::Result<M, DatabaseError>> + Send,
     {
         let storage_scheme = Box::pin(decide_storage_scheme::<_, M>(
@@ -450,7 +450,7 @@ impl<T: DatabaseStore> KVRouterStore<T> {
     ) -> error_stack::Result<D, errors::StorageError>
     where
         D: Debug + Sync + Conversion,
-        M: StorageModel<D>,
+        M: StorageModel<D> + 'static,
         R: futures::Future<Output = error_stack::Result<M, DatabaseError>> + Send,
     {
         match operation {
@@ -516,7 +516,7 @@ impl<T: DatabaseStore> KVRouterStore<T> {
     ) -> error_stack::Result<Vec<D>, errors::StorageError>
     where
         D: Debug + Sync + Conversion,
-        M: StorageModel<D>,
+        M: StorageModel<D> + 'static,
         R: futures::Future<Output = error_stack::Result<Vec<M>, DatabaseError>> + Send,
     {
         let db_call = || async {
