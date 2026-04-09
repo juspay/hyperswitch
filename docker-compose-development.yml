@@ -83,11 +83,10 @@ services:
         RUN apt-get update && \
             apt-get install -y protobuf-compiler
         RUN rustup component add rustfmt clippy
-    command: cargo run --bin router --features router_env/tokio-console -- -f ./config/docker_compose.toml
+    command: cargo run --bin router -- -f ./config/docker_compose.toml
     working_dir: /app
     ports:
       - "8080:8080"
-      - "6669:6669"
     networks:
       - router_net
     volumes:
