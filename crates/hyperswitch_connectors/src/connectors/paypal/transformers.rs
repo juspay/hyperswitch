@@ -532,9 +532,7 @@ fn build_paypal_external_authentication(
             cavv: Some(auth_data.cavv.clone()),
             ds_transaction_id: auth_data.ds_trans_id.clone(),
             acs_transaction_id: auth_data.acs_trans_id.clone(),
-            three_ds_server_transaction_id: auth_data
-                .threeds_server_transaction_id
-                .clone(),
+            three_ds_server_transaction_id: auth_data.threeds_server_transaction_id.clone(),
         },
     }
 }
@@ -791,6 +789,7 @@ impl TryFrom<&SetupMandateRouterData> for PaypalZeroMandateRequest {
             | PaymentMethodData::CardWithOptionalCVC(_)
             | PaymentMethodData::CardWithLimitedDetails(_)
             | PaymentMethodData::NetworkToken(_)
+            | PaymentMethodData::CardWithNetworkTokenDetails(_)
             | PaymentMethodData::OpenBanking(_)
             | PaymentMethodData::MobilePayment(_) => Err(errors::ConnectorError::NotImplemented(
                 utils::get_unimplemented_payment_method_error_message("Paypal"),
@@ -1435,6 +1434,7 @@ impl TryFrom<&PaypalRouterData<&PaymentsAuthorizeRouterData>> for PaypalPayments
             | PaymentMethodData::NetworkToken(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
             | PaymentMethodData::CardWithOptionalCVC(_)
+            | PaymentMethodData::CardWithNetworkTokenDetails(_)
             | PaymentMethodData::CardWithLimitedDetails(_)
             | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
             | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
@@ -2546,9 +2546,9 @@ where
                         .clone()
                     {
                         Some(paypal_source) => match paypal_source {
-                            PaymentSourceItemResponse::Paypal(paypal_source) => paypal_source
-                                .attributes
-                                .and_then(|attr| attr.vault.customer.map(|cus| cus.id)),
+                            PaymentSourceItemResponse::Paypal(paypal_source) => {
+                                paypal_source.attributes.map(|attr| attr.vault.customer.id)
+                            }
                             PaymentSourceItemResponse::Card(_)
                             | PaymentSourceItemResponse::Eps(_)
                             | PaymentSourceItemResponse::Ideal(_) => None,
