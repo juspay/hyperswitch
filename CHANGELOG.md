@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.01.28.1-hotfix7
+
+### Features
+
+- **connector:** [Cybersource] added 3ds support to setup mandate flow in Cybersource ([#11767](https://github.com/juspay/hyperswitch/pull/11767)) ([`bef7e41`](https://github.com/juspay/hyperswitch/commit/bef7e41658708025c1f3d9aedbc31afdf7065612))
+
+**Full Changelog:** [`2026.01.28.1-hotfix6...2026.01.28.1-hotfix7`](https://github.com/juspay/hyperswitch/compare/2026.01.28.1-hotfix6...2026.01.28.1-hotfix7)
+
+- - -
+
 ## 2026.01.28.1-hotfix6
 
 ### Bug Fixes
