@@ -4,6 +4,20 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.04.09.0
+
+### Features
+
+- **analytics:** Add processor_merchant_id and created_by fields to clickhouse tables ([#11608](https://github.com/juspay/hyperswitch/pull/11608)) ([`63409c8`](https://github.com/juspay/hyperswitch/commit/63409c82ee24878a2190223552a24a6aade20663))
+
+### Bug Fixes
+
+- **customer:** Change `customers_id_index` from unique to non-unique to support V1 customer backfill ([#11750](https://github.com/juspay/hyperswitch/pull/11750)) ([`d4c03b5`](https://github.com/juspay/hyperswitch/commit/d4c03b55d1e455a0defd5606873b34b67d7cb4dd))
+
+**Full Changelog:** [`2026.04.08.0...2026.04.09.0`](https://github.com/juspay/hyperswitch/compare/2026.04.08.0...2026.04.09.0)
+
+- - -
+
 ## 2026.04.08.0
 
 ### Features
