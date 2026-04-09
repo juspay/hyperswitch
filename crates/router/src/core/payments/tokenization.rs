@@ -302,7 +302,7 @@ where
                         save_payment_method_data.attempt_status,
                     );
                     pm_status = Some(payment_method_status);
-                    save_card_and_network_token_in_locker(
+                    Box::pin(save_card_and_network_token_in_locker(
                         state,
                         customer_id.clone(),
                         payment_method_status,
@@ -313,7 +313,7 @@ where
                         payment_method_create_request.clone(),
                         is_network_tokenization_enabled,
                         business_profile,
-                    )
+                    ))
                     .await?
                 };
                 let network_token_locker_id = match network_token_resp {

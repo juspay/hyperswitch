@@ -1,10 +1,18 @@
 use common_utils::errors::CustomResult;
 use external_services::superposition;
+use scheduler::consumer::types::process_data::RetryMapping;
 
 // Re-export dimension types for convenience
-pub use super::dimension_state::{DimensionsWithMerchantId, DimensionsWithMerchantIdAndProfileId};
+pub use super::dimension_state::{
+        DimensionsWithProcessorAndProviderMerchantId,
+        DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
+    };
 use super::{fetch_db_config_for_dimensions, DatabaseBackedConfig};
-use crate::{consts::superposition as superposition_consts, db::StorageInterface, utils::id_type};
+use crate::{
+    consts::superposition as superposition_consts,
+    core::configs::dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndConnector,
+    db::StorageInterface, utils::id_type,
+};
 
 /// Macro to generate write support for configs.
 /// This adds `WritableConfig` trait implementation and `set_<key>()` method.
@@ -111,7 +119,7 @@ macro_rules! config {
                 pub async fn [<get_ $key:lower>](
                     &self,
                     storage: &dyn StorageInterface,
-                    superposition_client: Option<&superposition::SuperpositionClient>,
+                    superposition_client: &superposition::SuperpositionClient,
                     targeting_key: Option<&$targeting_type>,
                 ) -> $output {
                     // Fetch JSON and convert to $output using the conversion function
@@ -154,7 +162,7 @@ macro_rules! config {
                 pub async fn [<get_ $key:lower>](
                     &self,
                     storage: &dyn StorageInterface,
-                    superposition_client: Option<&superposition::SuperpositionClient>,
+                    superposition_client: &superposition::SuperpositionClient,
                     targeting_key: Option<&$targeting_type>,
                 ) -> $output {
                     fetch_db_config_for_dimensions::<[<$key:camel>]>(storage, superposition_client, self, targeting_key).await
@@ -168,7 +176,7 @@ config! {
     superposition_key = REQUIRES_CVV,
     output = bool,
     default = true,
-    requires = DimensionsWithMerchantId,
+    requires = DimensionsWithProcessorAndProviderMerchantId,
     targeting_key = id_type::CustomerId
 }
 
@@ -176,7 +184,7 @@ impl DatabaseBackedConfig for RequiresCvv {
     const KEY: &'static str = "requires_cvv";
     fn db_key(dimensions: &impl super::dimension_state::DimensionsBase) -> Option<String> {
         let merchant_id = dimensions
-            .get_merchant_id()
+            .get_processor_merchant_id()
             .map(|id| id.get_string_repr())
             .unwrap_or_default();
         Some(format!("{}_{}", merchant_id, Self::KEY))
@@ -187,7 +195,7 @@ config! {
     superposition_key = IMPLICIT_CUSTOMER_UPDATE,
     output = bool,
     default = false,
-    requires = DimensionsWithMerchantIdAndProfileId,
+    requires = DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
     targeting_key = id_type::CustomerId
 }
 
@@ -195,7 +203,7 @@ impl DatabaseBackedConfig for ImplicitCustomerUpdate {
     const KEY: &'static str = "implicit_customer_update";
     fn db_key(dimensions: &impl super::dimension_state::DimensionsBase) -> Option<String> {
         let merchant_id = dimensions
-            .get_merchant_id()
+            .get_provider_merchant_id()
             .map(|id| id.get_string_repr())
             .unwrap_or_default();
         Some(format!("{}_{}", merchant_id, Self::KEY))
@@ -226,4 +234,28 @@ writable_config! {
     superposition_key = FINGERPRINT_SECRET,
     input = String,
     requires = DimensionsWithMerchantId
+}
+
+config! {
+    superposition_key = PAYOUT_TRACKER_MAPPING,
+    output = RetryMapping,
+    default = RetryMapping::default(),
+    object = true,
+    requires = DimensionsWithProcessorAndProviderMerchantIdAndConnector,
+    targeting_key = id_type::PayoutId
+}
+
+config! {
+    superposition_key = CLIENT_SESSION_VALIDATION_ENABLED,
+    output = bool,
+    default = true,
+    requires = DimensionsWithProcessorAndProviderMerchantId,
+    targeting_key = id_type::PaymentId
+}
+
+impl DatabaseBackedConfig for ClientSessionValidationEnabled {
+    const KEY: &'static str = "client_session_validation_enabled";
+    fn db_key(_dimensions: &impl super::dimension_state::DimensionsBase) -> Option<String> {
+        None
+    }
 }

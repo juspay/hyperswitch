@@ -110,7 +110,7 @@ nexinets.base_url = "https://api.payengine.de/v1"
 nexixpay.base_url = "https://xpay.nexigroup.com/api/phoenix-0.0/psp/api/v1"
 nmi.base_url = "https://secure.nmi.com/"
 nomupay.base_url = "https://payout-api.nomupay.com"
-noon.base_url = "https://api{{noon_region}}.noonpayments.com/"
+noon.base_url = "https://api{{region}}.noonpayments.com/"
 nordea.base_url = "https://open.nordeaopenbanking.com"
 noon.key_mode = "Live"
 novalnet.base_url = "https://payport.novalnet.de/v2"
@@ -180,7 +180,7 @@ worldpayvantiv.base_url = "https://transact.vantivcnp.com/vap/communicator/onlin
 worldpayvantiv.secondary_base_url = "https://onlinessr.vantivcnp.com"
 worldpayvantiv.third_base_url = "https://services.vantivprelive.com" # pre-live environment
 worldpayxml.base_url = "https://secure.worldpay.com/jsp/merchant/xml/paymentService.jsp"
-worldpayxml.secondary_base_url = "https://centinelapi.cardinalcommerce.com/V2/Cruise/StepUp"
+worldpayxml.secondary_base_url = "https://centinelapi.cardinalcommerce.com"
 xendit.base_url = "https://api.xendit.co"
 zift.base_url = "https://secure.zift.io/"
 zen.base_url = "https://api.zen.com/"
@@ -295,6 +295,9 @@ connector_list = "adyen,archipel,checkout,cybersource,stripe,nuvei,worldpayvanti
 [card_only_mit_supported_connectors]
 connector_list = "peachpayments" # Supported connectors for card only mit
 
+[notify_iframe_exit_and_redirect]
+connector_list = "worldpayxml"
+
 [payouts]
 payout_eligibility = true            # Defaults the eligibility of a payout method to true in case connector does not provide checks for payout eligibility
 
@@ -391,7 +394,7 @@ walley = { country = "SE,NO,DK,FI", currency = "DKK,EUR,NOK,SEK" }
 we_chat_pay = { country = "AU,NZ,CN,JP,HK,SG,ES,GB,SE,NO,AT,NL,DE,CY,CH,BE,FR,DK,LI,MT,SI,GR,PT,IT,CA,US", currency = "AUD,CAD,CNY,EUR,GBP,HKD,JPY,NZD,SGD,USD" }
 
 [pm_filters.affirm]
-affirm = { country = "CA,US", currency = "CAD,USD" }
+affirm = { currency = "USD" }
 
 [pm_filters.airwallex]
 credit = { country = "AU,HK,SG,NZ,US", currency = "AED,AFN,ALL,AMD,ANG,AOA,ARS,AUD,AWG,AZN,BAM,BBD,BDT,BGN,BHD,BIF,BMD,BND,BOB,BRL,BSD,BTN,BWP,BYN,BZD,CAD,CDF,CHF,CLP,CNY,COP,CRC,CUP,CVE,CZK,DJF,DKK,DOP,DZD,EGP,ERN,ETB,EUR,FJD,FKP,GBP,GEL,GHS,GIP,GMD,GNF,GTQ,GYD,HKD,HNL,HRK,HTG,HUF,IDR,ILS,INR,IQD,IRR,ISK,JMD,JOD,JPY,KES,KGS,KHR,KMF,KPW,KRW,KWD,KYD,KZT,LAK,LBP,LKR,LRD,LSL,LYD,MAD,MDL,MGA,MKD,MMK,MNT,MOP,MRU,MUR,MVR,MWK,MXN,MYR,MZN,NAD,NGN,NIO,NOK,NPR,NZD,OMR,PAB,PEN,PGK,PHP,PKR,PLN,PYG,QAR,RON,RSD,RUB,RWF,SAR,SBD,SCR,SDG,SEK,SGD,SHP,SLE,SLL,SOS,SRD,SSP,STN,SVC,SYP,SZL,THB,TJS,TMT,TND,TOP,TRY,TTD,TWD,TZS,UAH,UGX,USD,UYU,UZS,VES,VND,VUV,WST,XAF,XCD,XOF,XPF,YER,ZAR,ZMW,ZWL" }
@@ -711,6 +714,9 @@ open_banking_uk = { currency = "GBP,EUR,PLN" }
 [payout_method_filters.trustly]
 trustly = { currency = "BGN,GBP,EUR,PLN,CZK,DKK,HRK,HUF,NOK,PLN,RON,SEK" }
 
+[pm_filters.trustly]
+trustly = { currency = "BGN,GBP,EUR,PLN,CZK,DKK,HRK,HUF,NOK,PLN,RON,SEK" }
+
 [pm_filters.redsys]
 credit = { currency = "AUD,BGN,CAD,CHF,COP,CZK,DKK,EUR,GBP,HRK,HUF,ILS,INR,JPY,MYR,NOK,NZD,PEN,PLN,RUB,SAR,SEK,SGD,THB,USD,ZAR", country="ES" }
 debit = { currency = "AUD,BGN,CAD,CHF,COP,CZK,DKK,EUR,GBP,HRK,HUF,ILS,INR,JPY,MYR,NOK,NZD,PEN,PLN,RUB,SAR,SEK,SGD,THB,USD,ZAR", country="ES" }
@@ -873,6 +879,8 @@ eft = { country = "NG, ZA, GH, KE, CI", currency = "NGN, GHS, ZAR, KES, USD" }
 [pm_filters.santander]
 pix = { country = "BR", currency = "BRL" }
 boleto = { country = "BR", currency = "BRL" }
+pix_automatico_qr = { country = "BR", currency = "BRL" }
+pix_automatico_push = { country = "BR", currency = "BRL" }
 
 [pm_filters.calida]
 bluecode = { country = "AT,BE,BG,HR,CY,CZ,DK,EE,FI,FR,DE,GR,HU,IE,IT,LV,LT,LU,MT,NL,PL,PT,RO,SK,SI,ES,SE,IS,LI,NO", currency = "EUR" }
@@ -950,6 +958,7 @@ deutschebank = { payment_method = "bank_debit" }
 paybox = { payment_method = "card" }
 nexixpay = { payment_method = "card" }
 redsys = { payment_method = "card" }
+worldpayxml = { payment_method = "card" }
 
 #tokenization configuration which describe token lifetime and payment method for specific connector
 [tokenization]
@@ -1010,7 +1019,7 @@ click_to_pay = {connector_list = "adyen, cybersource, trustpay"}
 connector_list = "juspaythreedsserver, ctp_mastercard, ctp_visa"
 
 [grpc_client.unified_connector_service]
-ucs_only_connectors = "paytm, phonepe, hyperpg, revolv3, truelayer, fiservcommercehub"    # Comma-separated list of connectors that use UCS only
+ucs_only_connectors = "paytm, phonepe, hyperpg, revolv3, truelayer, fiservcommercehub, trustly"    # Comma-separated list of connectors that use UCS only
 ucs_psync_disabled_connectors = "cashtocode"    # Comma-separated list of connectors to disable UCS PSync call
 
 # Merchant Advice Code Configuration
