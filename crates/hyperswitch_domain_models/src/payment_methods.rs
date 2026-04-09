@@ -420,7 +420,6 @@ impl
                     bank_account_holder_name: bank_account_holder_name.clone(),
                 },
             )),
-            #[cfg(feature = "v2")]
             payment_methods::PaymentMethodCreateData::ProxyCard(_) => None,
         };
 

@@ -1442,11 +1442,11 @@ pub enum BankDebitDetailsPaymentMethod {
         masked_routing_number: String,
         #[schema(value_type=Option<String>)]
         bank_account_holder_name: Option<hyperswitch_masking::Secret<String>>,
-        #[schema(value_type = String, example = "ACH")]
+        #[schema(value_type = String, example = "ach")]
         bank_name: Option<common_enums::BankNames>,
-        #[schema(value_type = String, example = "Checking")]
+        #[schema(value_type = String, example = "checking")]
         bank_type: Option<common_enums::BankType>,
-        #[schema(value_type = String, example = "Personal")]
+        #[schema(value_type = String, example = "personal")]
         bank_holder_type: Option<common_enums::BankHolderType>,
     },
 }
@@ -1460,11 +1460,11 @@ pub enum BankDebitDetailsPaymentMethod {
         routing_number_last4_digits: String,
         #[schema(value_type=Option<String>)]
         bank_account_holder_name: Option<hyperswitch_masking::Secret<String>>,
-        #[schema(value_type = String, example = "ACH")]
+        #[schema(value_type = String, example = "ach")]
         bank_name: Option<common_enums::BankNames>,
-        #[schema(value_type = String, example = "Checking")]
+        #[schema(value_type = String, example = "checking")]
         bank_type: Option<common_enums::BankType>,
-        #[schema(value_type = String, example = "Personal")]
+        #[schema(value_type = String, example = "personal")]
         bank_holder_type: Option<common_enums::BankHolderType>,
     },
 }

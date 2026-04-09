@@ -1840,7 +1840,7 @@ pub async fn get_fingerprint_id_for_payment_method(
 
 #[cfg(feature = "v2")]
 #[instrument(skip_all)]
-async fn get_fingerprint_id_from_vault<D: domain::VaultingDataInterface + serde::Serialize>(
+async fn get_fingerprint_id_from_vault<D: serde::Serialize>(
     state: &routes::SessionState,
     data: &D,
     key: String,

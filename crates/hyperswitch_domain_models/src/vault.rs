@@ -332,46 +332,6 @@ impl<'de> Deserialize<'de> for V1VaultEntityId {
 }
 
 #[cfg(feature = "v2")]
-pub trait VaultingDataInterface {
-    fn get_vaulting_data_key(&self) -> String;
-}
-
-#[cfg(feature = "v2")]
-impl VaultingDataInterface for PaymentMethodVaultingData {
-    fn get_vaulting_data_key(&self) -> String {
-        match &self {
-            Self::Card(card) => card.card_number.get_card_no(),
-            Self::NetworkToken(network_token) => network_token.network_token.get_card_no(),
-            Self::CardNumber(card_number) => card_number.get_card_no(),
-            Self::BankDebit(bank_debit) => match bank_debit {
-                payment_method_data::BankDebitDetail::Ach {
-                    account_number,
-                    routing_number,
-                    ..
-                } => format!("{}_{}", account_number.peek(), routing_number.peek()),
-            },
-        }
-    }
-}
-#[cfg(feature = "v2")]
-impl VaultingDataInterface for FingerprintData {
-    fn get_vaulting_data_key(&self) -> String {
-        match self {
-            Self::Card(card) => card.card_number.get_card_no(),
-            Self::NetworkToken(network_token) => network_token.network_token.get_card_no(),
-            Self::CardNumber(card_number) => card_number.get_card_no(),
-            Self::BankDebit(bank_debit) => {
-                format!(
-                    "{}_{}",
-                    bank_debit.account_number.peek(),
-                    bank_debit.routing_number.peek()
-                )
-            }
-        }
-    }
-}
-
-#[cfg(feature = "v2")]
 impl TryFrom<payment_methods::PaymentMethodCreateData> for PaymentMethodVaultingData {
     type Error = error_stack::Report<errors::api_error_response::ApiErrorResponse>;
     fn try_from(item: payment_methods::PaymentMethodCreateData) -> Result<Self, Self::Error> {

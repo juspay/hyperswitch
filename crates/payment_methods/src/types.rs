@@ -1,4 +1,4 @@
-use api_models::payment_methods::{CardDetailFromLocker, NetworkTokenResponse};
+use api_models::payment_methods::{BankDebitDetail, CardDetailFromLocker, NetworkTokenResponse};
 use common_enums::{PaymentMethod, PaymentMethodType};
 use common_utils::{id_type, pii};
 use hyperswitch_masking::Secret;
@@ -97,19 +97,6 @@ pub enum RawPaymentMethodData {
 pub struct RawCardWithNTDetails {
     pub card_details: CardDetail,
     pub network_token_details: CardDetail,
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum BankDebitDetail {
-    Ach {
-        account_number: Secret<String>,
-        routing_number: Secret<String>,
-        bank_account_holder_name: Option<Secret<String>>,
-        bank_type: Option<common_enums::BankType>,
-        bank_holder_type: Option<common_enums::BankHolderType>,
-        bank_name: Option<common_enums::BankNames>,
-    },
 }
 
 /// V2 ConnectorTokenDetails (for deserialization, ignored in transformation)

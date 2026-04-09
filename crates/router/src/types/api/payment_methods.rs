@@ -171,21 +171,13 @@ impl PaymentMethodSessionExt for api_models::payment_methods::PaymentMethodSessi
             },
         )?;
 
-        // Bank debit payment methods don't support network tokenization
         utils::when(
             self.payment_method_type == api_models::enums::PaymentMethod::BankDebit
-                && payment_method_session
-                    .network_tokenization
-                    .as_ref()
-                    .is_some_and(|nt| {
-                        nt.enable == api_models::enums::NetworkTokenizationToggle::Enable
-                    }),
+                && self.payment_method_subtype.is_none(),
             || {
-                Err(report!(errors::ApiErrorResponse::InvalidRequestData {
-                    message: "network_tokenization is not supported for bank debit payment methods"
-                        .to_string()
-                })
-                .attach_printable("Bank debit does not support network tokenization"))
+                Err(report!(errors::ApiErrorResponse::MissingRequiredField {
+                    field_name: "payment_method_subtype"
+                }))
             },
         )?;
 

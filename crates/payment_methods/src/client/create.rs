@@ -1,6 +1,5 @@
 //! Create payment method flow types and dummy models.
-
-use api_models::payments;
+use api_models::{payment_methods::BankDebitDetail, payments};
 use cards::CardNumber;
 use common_utils::{
     id_type, pii,
@@ -13,7 +12,6 @@ use hyperswitch_masking::Secret;
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 
-use crate::types::BankDebitDetail;
 /// V1-facing create flow type.
 #[derive(Debug)]
 pub struct CreatePaymentMethod;

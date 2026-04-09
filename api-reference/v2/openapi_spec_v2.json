@@ -7457,15 +7457,15 @@
                   },
                   "bank_name": {
                     "type": "string",
-                    "example": "ACH"
+                    "example": "ach"
                   },
                   "bank_type": {
                     "type": "string",
-                    "example": "Checking"
+                    "example": "checking"
                   },
                   "bank_holder_type": {
                     "type": "string",
-                    "example": "Personal"
+                    "example": "personal"
                   }
                 }
               }
