@@ -150,13 +150,13 @@ pub async fn customers_retrieve(
 pub async fn customers_retrieve(
     state: web::Data<AppState>,
     req: HttpRequest,
-    path: web::Path<id_type::GlobalCustomerId>,
+    path: web::Path<String>,
 ) -> HttpResponse {
     use crate::services::authentication::sdk_or_api_or_client_auth;
 
     let flow = Flow::CustomersRetrieve;
 
-    let id = path.into_inner();
+    let id = id_type::GlobalCustomerId::new_unchecked(path.into_inner());
 
     let v2_client_auth = auth::V2ClientAuth(
         common_utils::types::authentication::ResourceId::Customer(id.clone()),
@@ -392,11 +392,11 @@ pub async fn customers_update(
 pub async fn customers_update(
     state: web::Data<AppState>,
     req: HttpRequest,
-    path: web::Path<id_type::GlobalCustomerId>,
+    path: web::Path<String>,
     json_payload: web::Json<customers::CustomerUpdateRequest>,
 ) -> HttpResponse {
     let flow = Flow::CustomersUpdate;
-    let id = path.into_inner();
+    let id = id_type::GlobalCustomerId::new_unchecked(path.into_inner());
     let request = json_payload.into_inner();
     let request_internal = customers::CustomerUpdateRequestInternal { id, request };
 
@@ -435,10 +435,10 @@ pub async fn customers_update(
 pub async fn customers_delete(
     state: web::Data<AppState>,
     req: HttpRequest,
-    path: web::Path<id_type::GlobalCustomerId>,
+    path: web::Path<String>,
 ) -> impl Responder {
     let flow = Flow::CustomersDelete;
-    let id = path.into_inner();
+    let id = id_type::GlobalCustomerId::new_unchecked(path.into_inner());
 
     Box::pin(api::server_wrap(
         flow,
