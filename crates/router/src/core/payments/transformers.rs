@@ -1541,6 +1541,7 @@ pub async fn construct_payment_router_data_for_setup_mandate<'a>(
         billing_descriptor: None,
         split_payments: None,
         partner_merchant_identifier_details: None,
+        authentication_data: None,
     };
     let connector_mandate_request_reference_id = payment_data
         .payment_attempt
@@ -6005,6 +6006,16 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::SetupMandateRequ
             partner_merchant_identifier_details: payment_data
                 .payment_intent
                 .partner_merchant_identifier_details,
+            authentication_data: payment_data
+                .authentication
+                .as_ref()
+                .map(AuthenticationData::foreign_try_from)
+                .transpose()?
+                .or(payment_data
+                    .external_authentication_data
+                    .as_ref()
+                    .map(AuthenticationData::foreign_try_from)
+                    .transpose()?),
         })
     }
 }
