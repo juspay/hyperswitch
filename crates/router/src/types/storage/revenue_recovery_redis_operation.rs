@@ -379,11 +379,14 @@ impl RedisTokenManager {
         }
         let seconds = &state.conf.revenue_recovery.redis_ttl_in_seconds;
 
+        // Convert HashMap to Vec for hset_multiple
+        let items: Vec<_> = serialized_payment_processor_tokens.into_iter().collect();
+
         // Update or add tokens
         redis_conn
             .set_hash_fields(
                 &tokens_key.into(),
-                serialized_payment_processor_tokens,
+                &items,
                 Some(*seconds),
             )
             .await
