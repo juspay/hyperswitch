@@ -913,9 +913,6 @@ fn apply_wallet_blocking_to_apple_pay_capabilities(
         if wallet_config.is_credit_blocked() {
             capabilities.push("supportsDebit".to_string());
         }
-        if wallet_config.is_debit_blocked() {
-            capabilities.push("supportsCredit".to_string());
-        }
     }
     capabilities
 }
