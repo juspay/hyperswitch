@@ -1787,13 +1787,13 @@ pub async fn create_org_merchant_for_user(
         default_product_type,
     )?;
 
-    admin::create_merchant_account(
+    Box::pin(admin::create_merchant_account(
         state.clone(),
         merchant_account_create_request,
         Some(auth::AuthenticationDataWithOrg {
             organization_id: org.get_organization_id(),
         }),
-    )
+    ))
     .await
     .change_context(UserErrors::InternalServerError)
     .attach_printable("Error while creating a merchant")?;

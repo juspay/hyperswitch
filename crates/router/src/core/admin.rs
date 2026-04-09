@@ -410,7 +410,11 @@ pub async fn create_merchant_account(
     );
     add_publishable_key_to_decision_service(&state, &platform);
 
-    insert_merchant_configs_with_superposition(&state, &merchant_id).await?;
+    Box::pin(insert_merchant_configs_with_superposition(
+        &state,
+        &merchant_id,
+    ))
+    .await?;
 
     Ok(service_api::ApplicationResponse::Json(
         api::MerchantAccountResponse::foreign_try_from(merchant_account)

@@ -308,7 +308,7 @@ pub type DimensionsWithMerchantId = Dimensions<HasMerchantId, NoOrgId, NoProfile
 impl DimensionsWithMerchantId {
     /// Create a DimensionsWithMerchantId from a merchant_id
     pub fn from_merchant_id(merchant_id: id_type::MerchantId) -> Self {
-        Dimensions {
+        Self {
             merchant_id: Some(merchant_id),
             organization_id: None,
             profile_id: None,
