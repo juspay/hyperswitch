@@ -1,10 +1,18 @@
 use external_services::superposition;
+use scheduler::consumer::types::process_data::RetryMapping;
 
 use super::{
-    dimension_state::{DimensionsWithMerchantId, DimensionsWithMerchantIdAndProfileId},
+    dimension_state::{
+        DimensionsWithProcessorAndProviderMerchantId,
+        DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
+    },
     fetch_db_config_for_dimensions, DatabaseBackedConfig,
 };
-use crate::{consts::superposition as superposition_consts, db::StorageInterface, utils::id_type};
+use crate::{
+    consts::superposition as superposition_consts,
+    core::configs::dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndConnector,
+    db::StorageInterface, utils::id_type,
+};
 
 /// Macro to generate config struct and superposition::Config trait implementation.
 /// Note: Manually implement `DatabaseBackedConfig` for the config struct:
@@ -118,7 +126,7 @@ config! {
     superposition_key = REQUIRES_CVV,
     output = bool,
     default = true,
-    requires = DimensionsWithMerchantId,
+    requires = DimensionsWithProcessorAndProviderMerchantId,
     targeting_key = id_type::CustomerId
 }
 
@@ -126,7 +134,7 @@ impl DatabaseBackedConfig for RequiresCvv {
     const KEY: &'static str = "requires_cvv";
     fn db_key(dimensions: &impl super::dimension_state::DimensionsBase) -> Option<String> {
         let merchant_id = dimensions
-            .get_merchant_id()
+            .get_processor_merchant_id()
             .map(|id| id.get_string_repr())
             .unwrap_or_default();
         Some(format!("{}_{}", merchant_id, Self::KEY))
@@ -137,7 +145,7 @@ config! {
     superposition_key = IMPLICIT_CUSTOMER_UPDATE,
     output = bool,
     default = false,
-    requires = DimensionsWithMerchantIdAndProfileId,
+    requires = DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
     targeting_key = id_type::CustomerId
 }
 
@@ -145,9 +153,33 @@ impl DatabaseBackedConfig for ImplicitCustomerUpdate {
     const KEY: &'static str = "implicit_customer_update";
     fn db_key(dimensions: &impl super::dimension_state::DimensionsBase) -> Option<String> {
         let merchant_id = dimensions
-            .get_merchant_id()
+            .get_provider_merchant_id()
             .map(|id| id.get_string_repr())
             .unwrap_or_default();
         Some(format!("{}_{}", merchant_id, Self::KEY))
+    }
+}
+
+config! {
+    superposition_key = PAYOUT_TRACKER_MAPPING,
+    output = RetryMapping,
+    default = RetryMapping::default(),
+    object = true,
+    requires = DimensionsWithProcessorAndProviderMerchantIdAndConnector,
+    targeting_key = id_type::PayoutId
+}
+
+config! {
+    superposition_key = CLIENT_SESSION_VALIDATION_ENABLED,
+    output = bool,
+    default = true,
+    requires = DimensionsWithProcessorAndProviderMerchantId,
+    targeting_key = id_type::PaymentId
+}
+
+impl DatabaseBackedConfig for ClientSessionValidationEnabled {
+    const KEY: &'static str = "client_session_validation_enabled";
+    fn db_key(_dimensions: &impl super::dimension_state::DimensionsBase) -> Option<String> {
+        None
     }
 }

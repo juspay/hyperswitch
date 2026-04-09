@@ -9,6 +9,15 @@ pub struct RetryMapping {
     pub frequencies: Vec<(i32, i32)>, // (frequency, count)
 }
 
+impl Default for RetryMapping {
+    fn default() -> Self {
+        Self {
+            start_after: 60,
+            frequencies: vec![(300, 5)],
+        }
+    }
+}
+
 #[derive(Serialize, Deserialize)]
 pub struct ConnectorPTMapping {
     pub default_mapping: RetryMapping,
