@@ -668,7 +668,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         let session_validation_enabled = dimensions
             .get_client_session_validation_enabled(
                 state.store.as_ref(),
-                state.superposition_service.as_deref(),
+                state.superposition_service.as_ref(),
                 None,
             )
             .await;
