@@ -1189,17 +1189,15 @@ pub async fn create_persistent_payment_method_core(
         }
         api::PaymentMethodCreateData::Wallet(wallet_data) => {
             let additional_data = match wallet_data {
-                api::WalletCreateData::ApplePay(data) => domain::PaymentMethodsData::WalletDetails(
-                    domain::WalletPaymentMethodData::ApplePay(*data.clone()),
-                ),
-                api::WalletCreateData::GooglePay(data) => {
-                    domain::PaymentMethodsData::WalletDetails(
-                        domain::WalletPaymentMethodData::GooglePay(*data.clone()),
-                    )
+                api::WalletCreateData::ApplePay(data) => {
+                    payment_methods::PaymentMethodsData::WalletDetails(*data.clone())
                 }
-                api::WalletCreateData::PayPal(data) => domain::PaymentMethodsData::WalletDetails(
-                    domain::WalletPaymentMethodData::PayPal(*data.clone()),
-                ),
+                api::WalletCreateData::GooglePay(data) => {
+                    payment_methods::PaymentMethodsData::WalletDetails(*data.clone())
+                }
+                api::WalletCreateData::PayPal(data) => {
+                    payment_methods::PaymentMethodsData::PayPal(*data.clone())
+                }
             };
             create_payment_method_wallet_core(
                 state,
@@ -1906,34 +1904,13 @@ pub async fn create_payment_method_wallet_core(
     payment_method_billing_address: Option<
         Encryptable<hyperswitch_domain_models::address::Address>,
     >,
-    additional_payment_method_data: domain::PaymentMethodsData,
+    additional_payment_method_data: payment_methods::PaymentMethodsData,
 ) -> RouterResult<(api::PaymentMethodResponse, domain::PaymentMethod)> {
     use crate::core::payment_methods::cards;
 
     let key_manager_state = &(state).into();
 
-    let api_payment_method_data = match additional_payment_method_data {
-        domain::PaymentMethodsData::WalletDetails(domain::WalletPaymentMethodData::ApplePay(
-            info,
-        ))
-        | domain::PaymentMethodsData::WalletDetails(domain::WalletPaymentMethodData::GooglePay(
-            info,
-        )) => payment_methods::PaymentMethodsData::WalletDetails(info),
-        domain::PaymentMethodsData::WalletDetails(domain::WalletPaymentMethodData::PayPal(
-            paypal,
-        )) => payment_methods::PaymentMethodsData::PayPal(paypal),
-        other => {
-            return Err(errors::ApiErrorResponse::InvalidRequestData {
-                message: format!(
-                    "Unexpected payment method data variant in wallet core: {:?}",
-                    std::mem::discriminant(&other)
-                ),
-            }
-            .into());
-        }
-    };
-
-    let encrypted_payment_method_data = Some(api_payment_method_data)
+    let encrypted_payment_method_data = Some(additional_payment_method_data)
         .async_map(|payment_method_data| {
             cards::create_encrypted_data(
                 key_manager_state,

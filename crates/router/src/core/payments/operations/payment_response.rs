@@ -99,8 +99,9 @@ where
             (Some(false), Some(pm_id)) => {
                 let should_update = resp.status.should_update_payment_method();
                 logger::info!(
-                    "Is payment method eligible for modular update: {}",
-                    should_update
+                    "Is payment method eligible for modular update: {}, payment_method: {:?}",
+                    should_update,
+                    payment_data.payment_attempt.payment_method
                 );
 
                 if should_update {
