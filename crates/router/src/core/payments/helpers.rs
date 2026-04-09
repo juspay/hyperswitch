@@ -5734,7 +5734,7 @@ pub async fn get_additional_payment_data(
             } else {
                 None
             };
-            
+
             // Added an additional check for card_data.co_badged_card_data.is_some()
             // because is_cobadged_card() only returns true if the card number matches a specific regex.
             // However, this regex does not cover all possible co-badged networks.
