@@ -16,7 +16,7 @@ describe("Card - Mandates using Network Transaction Id flow test", () => {
         // Skip the test if the connector is not in the inclusion list
         // This is done because only cybersource is known to support at present
         if (
-          !utils.shouldIncludeConnector(
+          utils.shouldIncludeConnector(
             connector,
             utils.CONNECTOR_LISTS.INCLUDE.MANDATES_USING_NTID_PROXY
           )
