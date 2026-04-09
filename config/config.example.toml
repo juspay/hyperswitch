@@ -709,7 +709,7 @@ upi_collect = { country = "IN", currency = "INR" }
 upi_intent = { country = "IN", currency = "INR" }
 
 [pm_filters.truelayer]
-open_banking_uk = { currency = "GBP,EUR" }
+open_banking = { currency = "GBP,EUR" }
 
 [payout_method_filters.truelayer]
 open_banking_uk = { currency = "GBP,EUR,PLN" }
