@@ -213,6 +213,7 @@ impl<F: Clone + Send + Sync>
         &'a self,
         _state: &SessionState,
         _processor: &domain::Processor,
+        _dimensions: &DimensionsWithProcessorAndProviderMerchantId,
         _payment_data: &mut payments::PaymentAttemptListData<F>,
         _business_profile: &domain::Profile,
     ) -> CustomResult<bool, errors::ApiErrorResponse> {

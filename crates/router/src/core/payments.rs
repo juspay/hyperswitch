@@ -133,7 +133,7 @@ use crate::{
     },
     consts,
     core::{
-        configs::{self as configs, dimension_state::DimensionsWithProcessorAndProviderMerchantId},
+        configs::dimension_state,
         errors::{self, CustomResult, RouterResponse, RouterResult},
         payment_methods::{cards, network_tokenization},
         payments::helpers::{
@@ -636,7 +636,7 @@ pub async fn payments_operation_core<'a, F, Req, Op, FData, D>(
     auth_flow: services::AuthFlow,
     eligible_connectors: Option<Vec<enums::RoutableConnectors>>,
     header_payload: HeaderPayload,
-    dimensions: DimensionsWithProcessorAndProviderMerchantId,
+    dimensions: dimension_state::DimensionsWithProcessorAndProviderMerchantId,
 ) -> RouterResult<(D, Req, Option<u16>, Option<u128>)>
 where
     F: Send + Clone + Sync + Debug + 'static,
@@ -1509,7 +1509,7 @@ pub async fn proxy_for_payments_operation_core<F, Req, Op, FData, D>(
     auth_flow: services::AuthFlow,
     header_payload: HeaderPayload,
     return_raw_connector_response: Option<bool>,
-    dimensions: DimensionsWithProcessorAndProviderMerchantId,
+    dimensions: dimension_state::DimensionsWithProcessorAndProviderMerchantId,
 ) -> RouterResult<(D, Req, Option<u16>, Option<u128>)>
 where
     F: Send + Clone + Sync,
@@ -2572,7 +2572,7 @@ where
             .flat_map(|c| c.foreign_try_into())
             .collect()
     });
-    let dimensions = configs::dimension_state::Dimensions::new()
+    let dimensions = dimension_state::Dimensions::new()
         .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
         .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id());
     let (payment_data, _req, connector_http_status_code, external_latency) =
@@ -2637,7 +2637,7 @@ where
     // To perform router related operation for PaymentResponse
     PaymentResponse: Operation<F, FData, Data = D>,
 {
-    let dimensions = configs::dimension_state::Dimensions::new()
+    let dimensions = dimension_state::Dimensions::new()
         .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
         .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id());
     let (payment_data, _req, connector_http_status_code, external_latency) =
@@ -4821,7 +4821,7 @@ pub async fn complete_connector_service<F, RouterDReq, ApiRequest, D>(
     header_payload: HeaderPayload,
     frm_suggestion: Option<storage_enums::FrmSuggestion>,
     call_connector_service_response: ConnectorServiceIntermediateState<F, RouterDReq>,
-    dimensions: &DimensionsWithProcessorAndProviderMerchantId,
+    dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
 ) -> RouterResult<(
     RouterData<F, RouterDReq, router_types::PaymentsResponseData>,
     helpers::MerchantConnectorAccountType,
@@ -4934,6 +4934,10 @@ where
     dyn api::Connector:
         services::api::ConnectorIntegration<F, RouterDReq, router_types::PaymentsResponseData>,
 {
+    let dimensions = dimension_state::Dimensions::new()
+        .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id())
+        .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id());
+
     let merchant_connector_account = construct_profile_id_and_get_mca(
         state,
         platform.get_processor(),
@@ -5033,6 +5037,7 @@ where
     blocklist_guard(
         state,
         platform.get_processor(),
+        &dimensions,
         operation,
         payment_data,
         business_profile,
@@ -5315,7 +5320,7 @@ pub async fn complete_connector_service<F, RouterDReq, ApiRequest, D>(
     header_payload: HeaderPayload,
     frm_suggestion: Option<storage_enums::FrmSuggestion>,
     call_connector_service_response: ConnectorServiceIntermediateState<F, RouterDReq>,
-    dimensions: &DimensionsWithProcessorAndProviderMerchantId,
+    dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
 ) -> RouterResult<(
     RouterData<F, RouterDReq, router_types::PaymentsResponseData>,
     domain::MerchantConnectorAccountTypeDetails,
@@ -5905,7 +5910,7 @@ pub async fn call_unified_connector_service_for_external_proxy<F, RouterDReq, Ap
     external_vault_merchant_connector_account_type_details: domain::MerchantConnectorAccountTypeDetails,
     mut router_data: RouterData<F, RouterDReq, router_types::PaymentsResponseData>,
     _updated_customer: Option<storage::CustomerUpdate>,
-    dimensions: &DimensionsWithProcessorAndProviderMerchantId,
+    dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
 ) -> RouterResult<RouterData<F, RouterDReq, router_types::PaymentsResponseData>>
 where
     F: Send + Clone + Sync,
@@ -5988,7 +5993,7 @@ where
     dyn api::Connector:
         services::api::ConnectorIntegration<F, RouterDReq, router_types::PaymentsResponseData>,
 {
-    let dimensions = configs::dimension_state::Dimensions::new()
+    let dimensions = dimension_state::Dimensions::new()
         .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
         .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id());
 
@@ -6876,6 +6881,7 @@ pub async fn get_merchant_bank_data_for_open_banking_connectors(
 async fn blocklist_guard<F, ApiRequest, D>(
     state: &SessionState,
     processor: &domain::Processor,
+    dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
     operation: &BoxedOperation<'_, F, ApiRequest, D>,
     payment_data: &mut D,
     business_profile: &domain::Profile,
@@ -6906,7 +6912,7 @@ where
     if blocklist_guard_enabled {
         Ok(operation
             .to_domain()?
-            .guard_payment_against_blocklist(state, processor, payment_data, business_profile)
+            .guard_payment_against_blocklist(state, processor, dimensions, payment_data, business_profile)
             .await?)
     } else {
         Ok(false)
@@ -11961,9 +11967,14 @@ impl EligibilityCheck for BlockListCheck {
         payment_elgibility_data: &PaymentEligibilityData,
         business_profile: &domain::Profile,
     ) -> CustomResult<CheckResult, errors::ApiErrorResponse> {
+        let dimensions = dimension_state::Dimensions::new()
+            .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
+            .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id());
+
         let should_payment_be_blocked = blocklist_utils::should_payment_be_blocked(
             state,
             platform.get_processor(),
+            &dimensions,
             &payment_elgibility_data.payment_method_data,
             business_profile,
         )

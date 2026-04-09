@@ -38,24 +38,19 @@ macro_rules! writable_config {
             impl $requirement {
                 pub async fn [<set_ $key:lower>](
                     &self,
-                    superposition_client: Option<&superposition::SuperpositionClient>,
+                    superposition_client: &superposition::SuperpositionClient,
                     value: &$input,
                     org_id: &str,
                     workspace_id: &str,
                     change_reason: Option<&str>,
                 ) -> CustomResult<(), superposition::SuperpositionError> {
-                    let client = superposition_client.ok_or_else(|| {
-                        error_stack::report!(superposition::SuperpositionError::ClientError(
-                            "Superposition client not available".to_string()
-                        ))
-                    })?;
 
                     let context = self.to_superposition_context()
                         .ok_or_else(|| error_stack::report!(superposition::SuperpositionError::ClientError(
                             "Missing required context dimensions".to_string()
                         )))?;
 
-                    client
+                    superposition_client
                         .set_config_value::<[<$key:camel>]>(value, &context, org_id, workspace_id, change_reason)
                         .await
                 }
@@ -214,7 +209,7 @@ config! {
     superposition_key = FINGERPRINT_SECRET,
     output = String,
     default = String::new(),
-    requires = DimensionsWithMerchantId,
+    requires = DimensionsWithProcessorAndProviderMerchantId,
     targeting_key = id_type::MerchantId
 }
 
@@ -222,7 +217,7 @@ impl DatabaseBackedConfig for FingerprintSecret {
     const KEY: &'static str = "fingerprint_secret";
     fn db_key(dimensions: &impl super::dimension_state::DimensionsBase) -> Option<String> {
         let merchant_id = dimensions
-            .get_merchant_id()
+            .get_processor_merchant_id()
             .map(|id| id.get_string_repr())
             .unwrap_or_default();
         Some(format!("{}_{}", merchant_id, Self::KEY))
@@ -233,7 +228,7 @@ impl DatabaseBackedConfig for FingerprintSecret {
 writable_config! {
     superposition_key = FINGERPRINT_SECRET,
     input = String,
-    requires = DimensionsWithMerchantId
+    requires = DimensionsWithProcessorAndProviderMerchantId
 }
 
 config! {

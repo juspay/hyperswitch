@@ -34,6 +34,7 @@ use crate::types::transformers::ForeignFrom;
 use crate::{
     consts,
     core::{
+        configs::dimension_state,
         connector_validation::ConnectorAuthTypeAndMetadataValidation,
         disputes,
         encryption::transfer_encryption_key,
@@ -76,12 +77,9 @@ pub fn create_merchant_publishable_key() -> String {
 /// Insert merchant configs using Superposition for fingerprint_secret
 pub async fn insert_merchant_configs_with_superposition(
     state: &SessionState,
-    merchant_id: &id_type::MerchantId,
+    dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
 ) -> RouterResult<()> {
-    use crate::core::configs::dimension_config::DimensionsWithMerchantId;
     let fingerprint_secret = utils::generate_id(consts::FINGERPRINT_SECRET_LENGTH, "fs");
-    let dimensions = DimensionsWithMerchantId::from_merchant_id(merchant_id.clone());
-
     // Get org_id and workspace_id from state config
     let conf = state.conf();
     let superposition_config = conf.superposition.get_inner();
@@ -90,7 +88,7 @@ pub async fn insert_merchant_configs_with_superposition(
 
     dimensions
         .set_fingerprint_secret(
-            state.superposition_service.as_deref(),
+            state.superposition_service.as_ref(),
             &fingerprint_secret,
             org_id,
             workspace_id,
@@ -409,11 +407,16 @@ pub async fn create_merchant_account(
         key_store.clone(),
         None,
     );
+
+    let dimensions = dimension_state::Dimensions::new()
+        .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id())
+        .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id());
+
     add_publishable_key_to_decision_service(&state, &platform);
 
     Box::pin(insert_merchant_configs_with_superposition(
         &state,
-        &merchant_id,
+        &dimensions,
     ))
     .await?;
 
