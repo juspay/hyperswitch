@@ -712,10 +712,11 @@ impl BankDebitDetail {
     }
 }
 
+#[cfg(feature = "v2")]
 impl From<BankDebitDetail> for BankDebitDetailsPaymentMethod {
     fn from(bank_debit: BankDebitDetail) -> Self {
-        let masked_account_number = bank_debit.get_masked_account_number();
-        let masked_routing_number = bank_debit.get_masked_routing_number();
+        let account_number_last4_digits = bank_debit.get_masked_account_number();
+        let routing_number_last4_digits = bank_debit.get_masked_routing_number();
         match bank_debit {
             BankDebitDetail::Ach {
                 bank_account_holder_name,
@@ -724,8 +725,8 @@ impl From<BankDebitDetail> for BankDebitDetailsPaymentMethod {
                 bank_name,
                 ..
             } => Self::AchBankDebit {
-                masked_account_number,
-                masked_routing_number,
+                account_number_last4_digits,
+                routing_number_last4_digits,
                 bank_account_holder_name,
                 bank_name,
                 bank_type,
@@ -1432,12 +1433,31 @@ pub struct CardDetailsPaymentMethod {
     pub co_badged_card_data: Option<CoBadgedCardDataToBeSaved>,
 }
 
+#[cfg(feature = "v1")]
 #[derive(serde::Deserialize, serde::Serialize, Debug, Clone, Eq, PartialEq, ToSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum BankDebitDetailsPaymentMethod {
     AchBankDebit {
         masked_account_number: String,
         masked_routing_number: String,
+        #[schema(value_type=Option<String>)]
+        bank_account_holder_name: Option<hyperswitch_masking::Secret<String>>,
+        #[schema(value_type = String, example = "ACH")]
+        bank_name: Option<common_enums::BankNames>,
+        #[schema(value_type = String, example = "Checking")]
+        bank_type: Option<common_enums::BankType>,
+        #[schema(value_type = String, example = "Personal")]
+        bank_holder_type: Option<common_enums::BankHolderType>,
+    },
+}
+
+#[cfg(feature = "v2")]
+#[derive(serde::Deserialize, serde::Serialize, Debug, Clone, Eq, PartialEq, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum BankDebitDetailsPaymentMethod {
+    AchBankDebit {
+        account_number_last4_digits: String,
+        routing_number_last4_digits: String,
         #[schema(value_type=Option<String>)]
         bank_account_holder_name: Option<hyperswitch_masking::Secret<String>>,
         #[schema(value_type = String, example = "ACH")]

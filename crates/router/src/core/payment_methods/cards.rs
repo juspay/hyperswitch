@@ -5190,11 +5190,13 @@ pub async fn get_masked_bank_details(
         let payment_method_data = pm.payment_method_data.clone().map(|x| x.into_inner());
         match payment_method_data {
             Some(pmd) => match pmd {
-                PaymentMethodsData::Card(_) => Ok(None),
-                PaymentMethodsData::BankDetails(bank_details) => Ok(Some(MaskedBankDetails {
-                    mask: bank_details.mask,
-                })),
-                PaymentMethodsData::WalletDetails(_) => Ok(None),
+                domain::PaymentMethodsData::Card(_) => Ok(None),
+                domain::PaymentMethodsData::BankDetails(bank_details) => {
+                    Ok(Some(MaskedBankDetails {
+                        mask: bank_details.mask,
+                    }))
+                }
+                domain::PaymentMethodsData::WalletDetails(_) => Ok(None),
                 _ => Ok(None),
             },
             None => Err(report!(errors::ApiErrorResponse::InternalServerError))

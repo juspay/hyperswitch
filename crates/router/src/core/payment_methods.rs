@@ -2941,7 +2941,9 @@ pub async fn create_payment_method_for_confirm(
     encrypted_payment_method_billing_address: Option<
         Encryptable<hyperswitch_domain_models::address::Address>,
     >,
-    encrypted_payment_method_data: Option<Encryptable<payment_methods::PaymentMethodsData>>,
+    encrypted_payment_method_data: Option<
+        Encryptable<domain::payment_method_data::PaymentMethodsData>,
+    >,
     encrypted_external_vault_token_data: Option<
         Encryptable<payment_methods::ExternalVaultTokenData>,
     >,
@@ -3062,12 +3064,12 @@ pub async fn get_external_vault_token(
 
 #[cfg(feature = "v2")]
 fn convert_from_saved_payment_method_data(
-    vault_additional_data: payment_methods::PaymentMethodsData,
+    vault_additional_data: domain::payment_method_data::PaymentMethodsData,
     external_vault_token_data: payment_methods::ExternalVaultTokenData,
     vault_token: domain::VaultToken,
 ) -> RouterResult<domain::ExternalVaultPaymentMethodData> {
     match vault_additional_data {
-        payment_methods::PaymentMethodsData::Card(card_details) => {
+        domain::payment_method_data::PaymentMethodsData::Card(card_details) => {
             Ok(domain::ExternalVaultPaymentMethodData::Card(Box::new(
                 domain::ExternalVaultCard {
                     card_number: external_vault_token_data.tokenized_card_number,
@@ -3095,9 +3097,10 @@ fn convert_from_saved_payment_method_data(
                 },
             )))
         }
-        payment_methods::PaymentMethodsData::BankDetails(_)
-        | payment_methods::PaymentMethodsData::BankDebit(_)
-        | payment_methods::PaymentMethodsData::WalletDetails(_) => {
+        domain::payment_method_data::PaymentMethodsData::BankDetails(_)
+        | domain::payment_method_data::PaymentMethodsData::BankDebit(_)
+        | domain::payment_method_data::PaymentMethodsData::WalletDetails(_)
+        | domain::payment_method_data::PaymentMethodsData::NetworkToken(_) => {
             Err(errors::ApiErrorResponse::UnprocessableEntity {
                 message: "External vaulting is not supported for this payment method type"
                     .to_string(),
@@ -3177,7 +3180,7 @@ pub async fn create_pm_additional_data_update(
         .transpose()?
         .map(|encoded_data| {
             encoded_data.deserialize_inner_value(|value| {
-                value.parse_value::<payment_methods::PaymentMethodsData>("PaymentMethodsData")
+                value.parse_value::<domain::PaymentMethodsData>("PaymentMethodsData")
             })
         })
         .transpose()
@@ -3641,9 +3644,9 @@ fn get_pm_list_context(
         .map(|payment_method_data| payment_method_data.into_inner());
 
     let payment_method_retrieval_context = match payment_method_data {
-        Some(payment_methods::PaymentMethodsData::Card(card)) => {
+        Some(domain::payment_method_data::PaymentMethodsData::Card(card)) => {
             Some(PaymentMethodListContext::Card {
-                card_details: api::CardDetailFromLocker::from(card),
+                card_details: card.to_card_details_from_locker(),
                 token_data: is_payment_associated.then_some(
                     storage::PaymentTokenData::permanent_card(
                         payment_method.get_id().clone(),
@@ -3664,7 +3667,7 @@ fn get_pm_list_context(
                 ),
             })
         }
-        Some(payment_methods::PaymentMethodsData::BankDetails(bank_details)) => {
+        Some(domain::payment_method_data::PaymentMethodsData::BankDetails(bank_details)) => {
             let get_bank_account_token_data =
                 || -> CustomResult<payment_methods::BankAccountTokenData,errors::ApiErrorResponse> {
                     let connector_details = bank_details
@@ -3698,9 +3701,9 @@ fn get_pm_list_context(
                 }
             })
         }
-        Some(payment_methods::PaymentMethodsData::BankDebit(bank_debit)) => {
+        Some(domain::payment_method_data::PaymentMethodsData::BankDebit(bank_debit)) => {
             Some(PaymentMethodListContext::BankDebit {
-                bank_debit_details: bank_debit,
+                bank_debit_details: bank_debit.into(),
                 token_data: is_payment_associated.then_some(storage::PaymentTokenData::bank_debit(
                     payment_method.get_id().clone(),
                     payment_method
@@ -3711,16 +3714,16 @@ fn get_pm_list_context(
                 )),
             })
         }
-        Some(payment_methods::PaymentMethodsData::WalletDetails(_)) | None => {
-            Some(PaymentMethodListContext::TemporaryToken {
-                token_data: is_payment_associated.then_some(
-                    storage::PaymentTokenData::temporary_generic(generate_id(
-                        consts::ID_LENGTH,
-                        "token",
-                    )),
-                ),
-            })
-        }
+        Some(domain::payment_method_data::PaymentMethodsData::WalletDetails(_))
+        | Some(domain::payment_method_data::PaymentMethodsData::NetworkToken(_))
+        | None => Some(PaymentMethodListContext::TemporaryToken {
+            token_data: is_payment_associated.then_some(
+                storage::PaymentTokenData::temporary_generic(generate_id(
+                    consts::ID_LENGTH,
+                    "token",
+                )),
+            ),
+        }),
     };
 
     Ok(payment_method_retrieval_context)
@@ -5833,38 +5836,13 @@ impl<'a> pm_types::PaymentMethodUpdateHandler<'a> {
                 .payment_method_data
                 .clone()
                 .and_then(|payment_method_data| {
-                    Self::extract_api_pm_metadata(payment_method_data.into_inner())
+                    Self::extract_domain_pm_metadata(payment_method_data.into_inner())
                 });
 
         match (existing, updated) {
             (Some(existing), Some(updated)) => existing != updated,
             (None, Some(_)) => true,
             _ => false,
-        }
-    }
-
-    fn extract_api_pm_metadata(
-        pm_data: payment_methods::PaymentMethodsData,
-    ) -> Option<payment_methods::PaymentMethodUpdateData> {
-        match pm_data {
-            payment_methods::PaymentMethodsData::Card(card) => Some(
-                payment_methods::PaymentMethodUpdateData::Card(payment_methods::CardDetailUpdate {
-                    card_holder_name: card.card_holder_name,
-                    nick_name: card.nick_name,
-                    card_cvc: None,
-                }),
-            ),
-            payment_methods::PaymentMethodsData::BankDebit(bank_debit) => match bank_debit {
-                payment_methods::BankDebitDetailsPaymentMethod::AchBankDebit {
-                    bank_account_holder_name,
-                    ..
-                } => Some(payment_methods::PaymentMethodUpdateData::BankDebit(
-                    payment_methods::BankDebitDetailUpdate::Ach {
-                        bank_account_holder_name,
-                    },
-                )),
-            },
-            _ => None,
         }
     }
 

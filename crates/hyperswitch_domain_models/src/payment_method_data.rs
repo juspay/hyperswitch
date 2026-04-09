@@ -3541,6 +3541,29 @@ pub enum BankDebitDetailsPaymentMethod {
     },
 }
 
+#[cfg(feature = "v2")]
+impl From<BankDebitDetailsPaymentMethod> for payment_methods::BankDebitDetailsPaymentMethod {
+    fn from(domain_bank_debit: BankDebitDetailsPaymentMethod) -> Self {
+        match domain_bank_debit {
+            BankDebitDetailsPaymentMethod::AchBankDebit {
+                masked_account_number,
+                masked_routing_number,
+                bank_account_holder_name,
+                bank_name,
+                bank_type,
+                bank_holder_type,
+            } => Self::AchBankDebit {
+                account_number_last4_digits: masked_account_number,
+                routing_number_last4_digits: masked_routing_number,
+                bank_account_holder_name,
+                bank_name,
+                bank_type,
+                bank_holder_type,
+            },
+        }
+    }
+}
+
 #[cfg(feature = "v1")]
 #[derive(Clone, Debug, PartialEq, serde::Deserialize, serde::Serialize)]
 pub struct CardDetailsPaymentMethod {
@@ -3660,6 +3683,27 @@ impl CardDetailsPaymentMethod {
             .transpose()
             .ok()
             .flatten()
+    }
+}
+
+#[cfg(feature = "v2")]
+impl From<CardDetailsPaymentMethod> for payment_methods::CardDetailsPaymentMethod {
+    fn from(domain_card: CardDetailsPaymentMethod) -> Self {
+        Self {
+            last4_digits: domain_card.last4_digits,
+            issuer_country: domain_card.issuer_country.clone(),
+            issuer_country_code: domain_card.issuer_country,
+            expiry_month: domain_card.expiry_month,
+            expiry_year: domain_card.expiry_year,
+            nick_name: domain_card.nick_name,
+            card_holder_name: domain_card.card_holder_name,
+            card_isin: domain_card.card_isin,
+            card_issuer: domain_card.card_issuer,
+            card_network: domain_card.card_network,
+            card_type: domain_card.card_type,
+            saved_to_locker: domain_card.saved_to_locker,
+            co_badged_card_data: None,
+        }
     }
 }
 

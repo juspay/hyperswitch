@@ -1,6 +1,4 @@
-use api_models::payment_methods::{
-    BankDebitDetailsPaymentMethod, CardDetailFromLocker, NetworkTokenResponse,
-};
+use api_models::payment_methods::{CardDetailFromLocker, NetworkTokenResponse};
 use common_enums::{PaymentMethod, PaymentMethodType};
 use common_utils::{id_type, pii};
 use hyperswitch_masking::Secret;
@@ -44,6 +42,19 @@ pub struct PaymentMethodResponseItem {
 pub enum PaymentMethodResponseData {
     Card(Box<CardDetailFromLocker>),
     BankDebit(BankDebitDetailsPaymentMethod),
+}
+
+#[derive(Deserialize, Serialize, Debug, Clone)]
+#[serde(rename_all = "snake_case")]
+pub enum BankDebitDetailsPaymentMethod {
+    AchBankDebit {
+        account_number_last4_digits: String,
+        routing_number_last4_digits: String,
+        bank_account_holder_name: Option<Secret<String>>,
+        bank_name: Option<common_enums::BankNames>,
+        bank_type: Option<common_enums::BankType>,
+        bank_holder_type: Option<common_enums::BankHolderType>,
+    },
 }
 
 /// V2 modular service request payload.

@@ -83,7 +83,9 @@ impl PaymentMethodVaultingData {
     #[cfg(feature = "v2")]
     pub fn populated_payment_methods_data_and_get_payment_method_vaulting_data(
         &self,
-        payment_methods_data_optional: Option<&Encryptable<payment_methods::PaymentMethodsData>>,
+        payment_methods_data_optional: Option<
+            &Encryptable<payment_method_data::PaymentMethodsData>,
+        >,
     ) -> CustomResult<Self, errors::api_error_response::ApiErrorResponse> {
         match self {
             Self::Card(card_details) => {
@@ -133,7 +135,7 @@ impl PaymentMethodVaultingData {
     pub fn populated_payment_methods_data_for_payment_method_vaulting_data_card_number(
         card_number: &cards::CardNumber,
         card_cvc: Option<hyperswitch_masking::Secret<String>>,
-        payment_methods_data: &Encryptable<payment_methods::PaymentMethodsData>,
+        payment_methods_data: &Encryptable<payment_method_data::PaymentMethodsData>,
     ) -> CustomResult<payment_methods::CardDetail, errors::api_error_response::ApiErrorResponse>
     {
         let stored_card_metadata = payment_methods_data
@@ -147,7 +149,7 @@ impl PaymentMethodVaultingData {
         let card_with_details = payment_method_data::CardNumberWithStoredDetails::new(
             card_number.clone(),
             card_cvc.clone(),
-            stored_card_metadata.into(),
+            stored_card_metadata,
         );
 
         payment_methods::CardDetail::try_from(card_with_details)

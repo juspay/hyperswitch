@@ -621,11 +621,11 @@ pub fn generate_payment_method_response(
         .clone()
         .map(|data| data.into_inner())
         .and_then(|data| match data {
-            api::PaymentMethodsData::Card(card) => {
-                Some(api::PaymentMethodResponseData::Card(card.into()))
-            }
-            api::PaymentMethodsData::BankDebit(bank_debit) => {
-                Some(api::PaymentMethodResponseData::BankDebit(bank_debit))
+            payment_method_data::PaymentMethodsData::Card(card) => Some(
+                api::PaymentMethodResponseData::Card(card.to_card_details_from_locker()),
+            ),
+            payment_method_data::PaymentMethodsData::BankDebit(bank_debit) => {
+                Some(api::PaymentMethodResponseData::BankDebit(bank_debit.into()))
             }
             _ => None,
         });
@@ -901,19 +901,18 @@ impl transformers::ForeignTryFrom<(domain::PaymentMethod, String)>
             .payment_method_data
             .map(|payment_method_data| payment_method_data.into_inner())
             .map(|payment_method_data| match payment_method_data {
-                api_models::payment_methods::PaymentMethodsData::Card(
-                    card_details_payment_method,
-                ) => {
-                    let card_details = api::CardDetailFromLocker::from(card_details_payment_method);
+                payment_method_data::PaymentMethodsData::Card(card_details_payment_method) => {
+                    let card_details = card_details_payment_method.to_card_details_from_locker();
                     api_models::payment_methods::PaymentMethodListData::Card(card_details)
                 }
-                api_models::payment_methods::PaymentMethodsData::BankDetails(..) => todo!(),
-                api_models::payment_methods::PaymentMethodsData::BankDebit(bank_debit_details) => {
+                payment_method_data::PaymentMethodsData::BankDetails(..) => todo!(),
+                payment_method_data::PaymentMethodsData::BankDebit(bank_debit_details) => {
                     api_models::payment_methods::PaymentMethodListData::BankDebit(
-                        bank_debit_details,
+                        bank_debit_details.into(),
                     )
                 }
-                api_models::payment_methods::PaymentMethodsData::WalletDetails(..) => {
+                payment_method_data::PaymentMethodsData::WalletDetails(..)
+                | payment_method_data::PaymentMethodsData::NetworkToken(_) => {
                     todo!()
                 }
             });
@@ -972,19 +971,18 @@ impl transformers::ForeignTryFrom<domain::PaymentMethod> for PaymentMethodRespon
             .payment_method_data
             .map(|payment_method_data| payment_method_data.into_inner())
             .map(|payment_method_data| match payment_method_data {
-                api_models::payment_methods::PaymentMethodsData::Card(
-                    card_details_payment_method,
-                ) => {
-                    let card_details = api::CardDetailFromLocker::from(card_details_payment_method);
+                payment_method_data::PaymentMethodsData::Card(card_details_payment_method) => {
+                    let card_details = card_details_payment_method.to_card_details_from_locker();
                     api_models::payment_methods::PaymentMethodListData::Card(card_details)
                 }
-                api_models::payment_methods::PaymentMethodsData::BankDetails(..) => todo!(),
-                api_models::payment_methods::PaymentMethodsData::BankDebit(bank_debit_details) => {
+                payment_method_data::PaymentMethodsData::BankDetails(..) => todo!(),
+                payment_method_data::PaymentMethodsData::BankDebit(bank_debit_details) => {
                     api_models::payment_methods::PaymentMethodListData::BankDebit(
-                        bank_debit_details,
+                        bank_debit_details.into(),
                     )
                 }
-                api_models::payment_methods::PaymentMethodsData::WalletDetails(..) => {
+                payment_method_data::PaymentMethodsData::WalletDetails(..)
+                | payment_method_data::PaymentMethodsData::NetworkToken(_) => {
                     todo!()
                 }
             });

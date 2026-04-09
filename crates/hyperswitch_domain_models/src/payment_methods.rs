@@ -118,7 +118,7 @@ pub struct PaymentMethod {
     pub payment_method_type: Option<storage_enums::PaymentMethod>,
     pub payment_method_subtype: Option<storage_enums::PaymentMethodType>,
     #[encrypt(ty = Value)]
-    pub payment_method_data: Option<Encryptable<PaymentMethodsData>>,
+    pub payment_method_data: Option<Encryptable<domain_payment_method_data::PaymentMethodsData>>,
     pub locker_id: Option<VaultId>,
     pub last_used_at: PrimitiveDateTime,
     pub connector_mandate_details: Option<CommonMandateReference>,
