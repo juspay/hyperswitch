@@ -1,6 +1,4 @@
-use api_models::{
-    payment_methods::{CardDetailFromLocker, NetworkTokenResponse},
-};
+use api_models::payment_methods::{CardDetailFromLocker, NetworkTokenResponse};
 use common_enums::{PaymentMethod, PaymentMethodType};
 use common_utils::{id_type, pii};
 use serde::{Deserialize, Serialize};

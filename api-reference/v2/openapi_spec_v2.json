@@ -21127,18 +21127,7 @@
             ],
             "properties": {
               "wallet": {
-                "$ref": "#/components/schemas/PaymentMethodDataWalletInfo"
-              }
-            }
-          },
-          {
-            "type": "object",
-            "required": [
-              "paypal"
-            ],
-            "properties": {
-              "paypal": {
-                "$ref": "#/components/schemas/PaypalRedirection"
+                "$ref": "#/components/schemas/WalletCreateData"
               }
             }
           }
@@ -21966,6 +21955,17 @@
             "properties": {
               "card": {
                 "$ref": "#/components/schemas/CardDetailFromLocker"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "wallet"
+            ],
+            "properties": {
+              "wallet": {
+                "$ref": "#/components/schemas/WalletPaymentMethodResponseData"
               }
             }
           }

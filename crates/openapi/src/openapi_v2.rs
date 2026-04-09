@@ -324,6 +324,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payment_methods::PaymentMethodGetTokenDetailsResponse,
         api_models::payment_methods::RawCardWithNTDetails,
         api_models::payment_methods::PaymentMethodDataWalletInfo,
+        api_models::payment_methods::WalletCreateData,
         api_models::enums::TokenStatus,
         api_models::poll::PollResponse,
         api_models::poll::PollStatus,
