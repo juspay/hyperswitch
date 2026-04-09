@@ -23,6 +23,7 @@ use std::sync::{atomic, Arc};
 
 use common_utils::errors::CustomResult;
 use error_stack::ResultExt;
+use redis::AsyncCommands;
 
 pub use self::types::*;
 
@@ -114,6 +115,20 @@ impl SubscriberClient {
 
         let mut subs = self.subscriptions.write().await;
         subs.insert(channel.to_string());
+
+        Ok(())
+    }
+
+    /// Unsubscribe from a channel and remove it from tracking
+    pub async fn unsubscribe(&self, channel: &str) -> CustomResult<(), errors::RedisError> {
+        let mut pubsub = self.pubsub.lock().await;
+        pubsub
+            .unsubscribe(channel)
+            .await
+            .change_context(errors::RedisError::SubscribeError)?;
+
+        let mut subs = self.subscriptions.write().await;
+        subs.remove(channel);
 
         Ok(())
     }
@@ -216,10 +231,7 @@ impl RedisClient {
         message: RedisValue,
     ) -> CustomResult<usize, errors::RedisError> {
         let mut conn = self.inner.clone();
-        redis::cmd("PUBLISH")
-            .arg(channel)
-            .arg(message)
-            .query_async::<usize>(&mut conn)
+        conn.publish::<_, _, usize>(channel, message)
             .await
             .change_context(errors::RedisError::PublishError)
     }
@@ -320,9 +332,7 @@ impl RedisConnectionPool {
         loop {
             interval.tick().await;
             let mut conn = self.pool.clone();
-            let result = redis::cmd("PING")
-                .query_async::<String>(&mut conn)
-                .await;
+            let result: Result<String, _> = conn.ping().await;
 
             match result {
                 Ok(_) => {
@@ -360,7 +370,7 @@ impl RedisConnectionPool {
             let mut conn = self.pool.clone();
             let result = tokio::time::timeout(
                 std::time::Duration::from_secs(max_timeout),
-                redis::cmd("PING").query_async::<String>(&mut conn),
+                conn.ping::<String>(),
             )
             .await;
 

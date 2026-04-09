@@ -80,6 +80,8 @@ impl redis::ToRedisArgs for RedisValue {
     }
 }
 
+impl redis::ToSingleRedisArg for RedisValue {}
+
 #[derive(Debug, serde::Deserialize, Clone)]
 #[serde(default)]
 pub struct RedisSettings {
