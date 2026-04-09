@@ -5892,9 +5892,8 @@ impl<'a> pm_types::PaymentMethodUpdateHandler<'a> {
 
         // Validate status transition
         // Invalid transitions are silently ignored - status won't be updated
-        let pm_status = pm_status.filter(|&new_status| {
-            self.payment_method.status.can_transition_to(new_status)
-        });
+        let pm_status = pm_status
+            .filter(|&new_status| self.payment_method.status.can_transition_to(new_status));
 
         let db = self.state.store.as_ref();
 
