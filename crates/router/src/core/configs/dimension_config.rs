@@ -4,9 +4,9 @@ use scheduler::consumer::types::process_data::RetryMapping;
 
 // Re-export dimension types for convenience
 pub use super::dimension_state::{
-        DimensionsWithProcessorAndProviderMerchantId,
-        DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
-    };
+    DimensionsWithProcessorAndProviderMerchantId,
+    DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
+};
 use super::{fetch_db_config_for_dimensions, DatabaseBackedConfig};
 use crate::{
     consts::superposition as superposition_consts,

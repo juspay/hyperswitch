@@ -191,7 +191,11 @@ impl SuperpositionClient {
 
         router_env::logger::info!("Superposition SDK client initialized successfully");
 
-        Ok(Self { client, sdk_client, provider })
+        Ok(Self {
+            client,
+            sdk_client,
+            provider,
+        })
     }
 
     /// Build evaluation context for Superposition requests
