@@ -3623,6 +3623,18 @@ impl DashboardMetadataInterface for KafkaStore {
             .await
     }
 
+    async fn find_org_scoped_dashboard_metadata(
+        &self,
+        user_id: &str,
+        org_id: &id_type::OrganizationId,
+        entity_type: &str,
+        data_keys: Vec<enums::DashboardMetadata>,
+    ) -> CustomResult<Vec<storage::DashboardMetadata>, errors::StorageError> {
+        self.diesel_store
+            .find_org_scoped_dashboard_metadata(user_id, org_id, entity_type, data_keys)
+            .await
+    }
+
     async fn find_merchant_scoped_dashboard_metadata(
         &self,
         merchant_id: &id_type::MerchantId,

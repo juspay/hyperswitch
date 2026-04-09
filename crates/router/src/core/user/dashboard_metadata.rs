@@ -1,25 +1,20 @@
 use api_models::user::dashboard_metadata::{self as api, GetMultipleMetaDataPayload};
-#[cfg(feature = "email")]
 use common_enums::EntityType;
 use diesel_models::{
     enums::DashboardMetadata as DBEnum, user::dashboard_metadata::DashboardMetadata,
 };
 use error_stack::{report, ResultExt};
 use hyperswitch_interfaces::crm::CrmPayload;
-#[cfg(feature = "email")]
-use hyperswitch_masking::ExposeInterface;
 use hyperswitch_masking::{PeekInterface, Secret};
 use router_env::logger;
 
 use crate::{
     core::errors::{UserErrors, UserResponse, UserResult},
     routes::{app::ReqState, SessionState},
-    services::{authentication::UserFromToken, ApplicationResponse},
+    services::{authentication::UserFromToken, ApplicationResponse, authorization::roles},
     types::domain::{self, user::dashboard_metadata as types, MerchantKeyStore},
     utils::user::{self as user_utils, dashboard_metadata as utils},
 };
-#[cfg(feature = "email")]
-use crate::{services::email::types as email_types, utils::user::theme as theme_utils};
 
 pub async fn set_metadata(
     state: SessionState,
@@ -709,7 +704,7 @@ async fn fetch_metadata(
 ) -> UserResult<Vec<DashboardMetadata>> {
     let mut dashboard_metadata = Vec::with_capacity(metadata_keys.len());
     let (merchant_scoped_enums, user_scoped_enums) =
-        utils::separate_metadata_type_based_on_scope(metadata_keys);
+        utils::separate_metadata_type_based_on_scope(metadata_keys.clone());
 
     if !merchant_scoped_enums.is_empty() {
         let mut res = utils::get_merchant_scoped_metadata_from_db(
@@ -723,14 +718,48 @@ async fn fetch_metadata(
     }
 
     if !user_scoped_enums.is_empty() {
-        let mut res = utils::get_user_scoped_metadata_from_db(
+        let tenant_id = user
+            .tenant_id
+            .clone()
+            .unwrap_or(state.tenant.tenant_id.clone());
+        
+        let role_info = roles::RoleInfo::from_role_id_in_lineage(
             state,
-            user.user_id.to_owned(),
-            user.merchant_id.to_owned(),
-            user.org_id.to_owned(),
-            user_scoped_enums,
+            &user.role_id,
+            &user.merchant_id,
+            &user.org_id,
+            &user.profile_id,
+            &tenant_id,
         )
-        .await?;
+        .await
+        .change_context(UserErrors::InternalServerError)
+        .attach_printable("Failed to fetch role info for dashboard metadata")?;
+
+        let mut res = match role_info.get_entity_type() {
+            EntityType::Organization => {
+                state
+                    .store
+                    .find_org_scoped_dashboard_metadata(
+                        &user.user_id,
+                        &user.org_id,
+                        "org",
+                        user_scoped_enums,
+                    )
+                    .await
+                    .change_context(UserErrors::InternalServerError)
+                    .attach_printable("Error fetching org-scoped dashboard metadata")?
+            }
+            _ => {
+                utils::get_user_scoped_metadata_from_db(
+                    state,
+                    user.user_id.to_owned(),
+                    user.merchant_id.to_owned(),
+                    user.org_id.to_owned(),
+                    user_scoped_enums,
+                )
+                .await?
+            }
+        };
         dashboard_metadata.append(&mut res);
     }
 
