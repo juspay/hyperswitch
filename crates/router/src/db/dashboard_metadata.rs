@@ -210,6 +210,8 @@ impl DashboardMetadataInterface for MockDb {
             created_at: metadata.created_at,
             last_modified_by: metadata.last_modified_by,
             last_modified_at: metadata.last_modified_at,
+            profile_id: metadata.profile_id,
+            entity_type: metadata.entity_type,
         };
         dashboard_metadata.push(metadata_new.clone());
         Ok(metadata_new)

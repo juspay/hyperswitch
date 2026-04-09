@@ -687,6 +687,7 @@ async fn insert_metadata(
             metadata
         }
         types::MetaData::CustomDashboards(operation) => {
+            let entity_type = utils::get_entity_type_from_role(&user.role_id);
             utils::handle_dashboard_operations(
                 state,
                 user.user_id,
@@ -694,6 +695,7 @@ async fn insert_metadata(
                 user.org_id,
                 metadata_key,
                 operation,
+                entity_type.to_string(),
             )
             .await
         }

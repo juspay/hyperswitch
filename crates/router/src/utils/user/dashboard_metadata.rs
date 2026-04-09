@@ -24,6 +24,16 @@ use crate::{
 pub const MAX_DASHBOARDS: usize = 10;
 pub const MAX_WIDGETS_PER_DASHBOARD: usize = 20;
 
+/// Maps role_id to entity_type for custom dashboard scoping
+pub fn get_entity_type_from_role(role_id: &str) -> &'static str {
+    match role_id {
+        "org_admin" => "org",
+        "merchant_admin" => "merchant", 
+        "profile_admin" | "profile_user" => "profile",
+        _ => "user",
+    }
+}
+
 pub async fn insert_merchant_scoped_metadata_to_db(
     state: &SessionState,
     user_id: String,
@@ -48,6 +58,8 @@ pub async fn insert_merchant_scoped_metadata_to_db(
             created_at: now,
             last_modified_by: user_id,
             last_modified_at: now,
+            profile_id: None,
+            entity_type: None,
         })
         .await
         .map_err(|e| {
@@ -81,6 +93,8 @@ pub async fn insert_user_scoped_metadata_to_db(
             created_at: now,
             last_modified_by: user_id,
             last_modified_at: now,
+            profile_id: None,
+            entity_type: None,
         })
         .await
         .map_err(|e| {
@@ -321,6 +335,7 @@ pub async fn modify_dashboard_metadata<T, F>(
     merchant_id: id_type::MerchantId,
     org_id: id_type::OrganizationId,
     metadata_key: DBEnum,
+    entity_type: String,
     transform: F,
 ) -> UserResult<DashboardMetadata>
 where
@@ -383,6 +398,8 @@ where
                     created_at: now,
                     last_modified_by: user_id,
                     last_modified_at: now,
+                    profile_id: None,
+                    entity_type: Some(entity_type),
                 })
                 .await
                 .change_context(UserErrors::InternalServerError)
@@ -398,28 +415,29 @@ pub async fn handle_dashboard_operations(
     org_id: id_type::OrganizationId,
     metadata_key: DBEnum,
     operation: DashboardOperation,
+    entity_type: String,
 ) -> UserResult<DashboardMetadata> {
     match operation {
         DashboardOperation::Create(request) => {
-            create_dashboard(state, user_id, merchant_id, org_id, metadata_key, request).await
+            create_dashboard(state, user_id, merchant_id, org_id, metadata_key, request, entity_type).await
         }
         DashboardOperation::Update(request) => {
-            update_dashboard(state, user_id, merchant_id, org_id, metadata_key, request).await
+            update_dashboard(state, user_id, merchant_id, org_id, metadata_key, request, entity_type).await
         }
         DashboardOperation::Delete(request) => {
-            delete_dashboard(state, user_id, merchant_id, org_id, metadata_key, request).await
+            delete_dashboard(state, user_id, merchant_id, org_id, metadata_key, request, entity_type).await
         }
         DashboardOperation::AddWidget(request) => {
-            add_widget(state, user_id, merchant_id, org_id, metadata_key, request).await
+            add_widget(state, user_id, merchant_id, org_id, metadata_key, request, entity_type).await
         }
         DashboardOperation::UpdateWidget(request) => {
-            update_widget(state, user_id, merchant_id, org_id, metadata_key, request).await
+            update_widget(state, user_id, merchant_id, org_id, metadata_key, request, entity_type).await
         }
         DashboardOperation::RemoveWidget(request) => {
-            remove_widget(state, user_id, merchant_id, org_id, metadata_key, request).await
+            remove_widget(state, user_id, merchant_id, org_id, metadata_key, request, entity_type).await
         }
         DashboardOperation::UpdateLayout(request) => {
-            update_layout(state, user_id, merchant_id, org_id, metadata_key, request).await
+            update_layout(state, user_id, merchant_id, org_id, metadata_key, request, entity_type).await
         }
     }
 }
@@ -431,6 +449,7 @@ async fn create_dashboard(
     org_id: id_type::OrganizationId,
     metadata_key: DBEnum,
     request: api_models::user::dashboard_metadata::CreateDashboardRequest,
+    entity_type: String,
 ) -> UserResult<DashboardMetadata> {
     if request.dashboard_name.trim().is_empty() {
         return Err(report!(UserErrors::InvalidDashboardName))
@@ -466,6 +485,7 @@ async fn create_dashboard(
         merchant_id,
         org_id,
         metadata_key,
+        entity_type,
         |existing: Option<types::CustomDashboardsValue>| {
             let mut data = existing.unwrap_or(types::CustomDashboardsValue {
                 dashboards: vec![],
@@ -497,6 +517,7 @@ async fn update_dashboard(
     org_id: id_type::OrganizationId,
     metadata_key: DBEnum,
     request: api_models::user::dashboard_metadata::UpdateDashboardRequest,
+    entity_type: String,
 ) -> UserResult<DashboardMetadata> {
     modify_dashboard_metadata(
         state,
@@ -504,10 +525,10 @@ async fn update_dashboard(
         merchant_id,
         org_id,
         metadata_key,
+        entity_type,
         |existing: Option<types::CustomDashboardsValue>| {
             let mut data = existing.ok_or(report!(UserErrors::DashboardNotFound))?;
 
-            // Check for duplicate name before mutable borrow
             if let Some(ref new_name) = request.new_dashboard_name {
                 if new_name.trim().is_empty() {
                     return Err(report!(UserErrors::InvalidDashboardName));
@@ -555,6 +576,7 @@ async fn delete_dashboard(
     org_id: id_type::OrganizationId,
     metadata_key: DBEnum,
     request: api_models::user::dashboard_metadata::DeleteDashboardRequest,
+    entity_type: String,
 ) -> UserResult<DashboardMetadata> {
     modify_dashboard_metadata(
         state,
@@ -562,6 +584,7 @@ async fn delete_dashboard(
         merchant_id,
         org_id,
         metadata_key,
+        entity_type,
         |existing: Option<types::CustomDashboardsValue>| {
             let mut data = existing.ok_or(report!(UserErrors::DashboardNotFound))?;
             let initial_len = data.dashboards.len();
@@ -583,6 +606,7 @@ async fn add_widget(
     org_id: id_type::OrganizationId,
     metadata_key: DBEnum,
     request: api_models::user::dashboard_metadata::AddWidgetRequest,
+    entity_type: String,
 ) -> UserResult<DashboardMetadata> {
     modify_dashboard_metadata(
         state,
@@ -590,6 +614,7 @@ async fn add_widget(
         merchant_id,
         org_id,
         metadata_key,
+        entity_type,
         |existing: Option<types::CustomDashboardsValue>| {
             let mut data = existing.ok_or(report!(UserErrors::DashboardNotFound))?;
             let dashboard = data
@@ -623,6 +648,7 @@ async fn update_widget(
     org_id: id_type::OrganizationId,
     metadata_key: DBEnum,
     request: api_models::user::dashboard_metadata::UpdateWidgetRequest,
+    entity_type: String,
 ) -> UserResult<DashboardMetadata> {
     modify_dashboard_metadata(
         state,
@@ -630,6 +656,7 @@ async fn update_widget(
         merchant_id,
         org_id,
         metadata_key,
+        entity_type,
         |existing: Option<types::CustomDashboardsValue>| {
             let mut data = existing.ok_or(report!(UserErrors::DashboardNotFound))?;
             let dashboard = data
@@ -660,6 +687,7 @@ async fn remove_widget(
     org_id: id_type::OrganizationId,
     metadata_key: DBEnum,
     request: api_models::user::dashboard_metadata::RemoveWidgetRequest,
+    entity_type: String,
 ) -> UserResult<DashboardMetadata> {
     modify_dashboard_metadata(
         state,
@@ -667,6 +695,7 @@ async fn remove_widget(
         merchant_id,
         org_id,
         metadata_key,
+        entity_type,
         |existing: Option<types::CustomDashboardsValue>| {
             let mut data = existing.ok_or(report!(UserErrors::DashboardNotFound))?;
             let dashboard = data
@@ -695,6 +724,7 @@ async fn update_layout(
     org_id: id_type::OrganizationId,
     metadata_key: DBEnum,
     request: api_models::user::dashboard_metadata::UpdateLayoutRequest,
+    entity_type: String,
 ) -> UserResult<DashboardMetadata> {
     modify_dashboard_metadata(
         state,
@@ -702,6 +732,7 @@ async fn update_layout(
         merchant_id,
         org_id,
         metadata_key,
+        entity_type,
         |existing: Option<types::CustomDashboardsValue>| {
             let mut data = existing.ok_or(report!(UserErrors::DashboardNotFound))?;
             let dashboard = data

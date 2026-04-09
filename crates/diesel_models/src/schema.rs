@@ -463,6 +463,10 @@ diesel::table! {
         #[max_length = 64]
         last_modified_by -> Varchar,
         last_modified_at -> Timestamp,
+        #[max_length = 64]
+        profile_id -> Nullable<Varchar>,
+        #[max_length = 32]
+        entity_type -> Nullable<Varchar>,
     }
 }
 
