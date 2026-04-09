@@ -6912,7 +6912,13 @@ where
     if blocklist_guard_enabled {
         Ok(operation
             .to_domain()?
-            .guard_payment_against_blocklist(state, processor, dimensions, payment_data, business_profile)
+            .guard_payment_against_blocklist(
+                state,
+                processor,
+                dimensions,
+                payment_data,
+                business_profile,
+            )
             .await?)
     } else {
         Ok(false)
