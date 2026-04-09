@@ -347,7 +347,7 @@ where
                     request,
                     provider,
                     initiator,
-                    &dimensions,
+                    dimensions,
                 )
                 .await
             }
