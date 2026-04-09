@@ -612,7 +612,6 @@ pub enum PaymentIntentUpdate {
     },
     RecurrenceUpdate {
         status: storage_enums::IntentStatus,
-        session_expiry: Option<PrimitiveDateTime>,
         updated_by: String,
     },
 }
@@ -2027,14 +2026,10 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 enable_overcapture: None,
                 shipping_cost: None,
             },
-            PaymentIntentUpdate::RecurrenceUpdate {
-                status,
-                updated_by,
-                session_expiry,
-            } => Self {
+            PaymentIntentUpdate::RecurrenceUpdate { status, updated_by } => Self {
                 status: Some(status),
                 updated_by,
-                session_expiry,
+                session_expiry: None,
                 amount: None,
                 currency: None,
                 amount_captured: None,

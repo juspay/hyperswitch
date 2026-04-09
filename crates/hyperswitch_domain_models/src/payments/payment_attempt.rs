@@ -2699,7 +2699,7 @@ impl PaymentAttemptUpdate {
                 error_message,
                 error_reason,
                 updated_by,
-                connector_mandate_detail: *connector_mandate_detail,
+                connector_mandate_detail,
             },
         }
     }

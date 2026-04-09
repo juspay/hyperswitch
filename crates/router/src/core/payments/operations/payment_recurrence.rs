@@ -5,8 +5,6 @@ use async_trait::async_trait;
 use common_utils::ext_traits::{AsyncExt, ValueExt};
 use error_stack::{report, ResultExt};
 use futures::FutureExt;
-#[cfg(feature = "v1")]
-use hyperswitch_domain_models::payments::payment_intent::PaymentIntentUpdateFields;
 use hyperswitch_masking::ExposeInterface;
 use router_derive::PaymentOperation;
 use router_env::{instrument, tracing};
@@ -14,10 +12,7 @@ use tracing_futures::Instrument;
 
 use super::{BoxedOperation, Domain, GetTracker, Operation, UpdateTracker, ValidateRequest};
 #[cfg(feature = "v1")]
-use crate::{
-    core::payment_methods::cards::create_encrypted_data,
-    events::audit_events::{AuditEvent, AuditEventType},
-};
+use crate::events::audit_events::{AuditEvent, AuditEventType};
 use crate::{
     core::{
         configs::dimension_state::DimensionsWithMerchantIdAndProfileId,
@@ -431,7 +426,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
         processor: &domain::Processor,
         mut payment_data: PaymentData<F>,
         frm_suggestion: Option<FrmSuggestion>,
-        header_payload: hyperswitch_domain_models::payments::HeaderPayload,
+        _header_payload: hyperswitch_domain_models::payments::HeaderPayload,
     ) -> RouterResult<(
         BoxedOperation<'b, F, api::PaymentsRequest, PaymentData<F>>,
         PaymentData<F>,
@@ -501,30 +496,6 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
                 ),
                 _ => default_status_result,
             };
-
-        let customer_details = payment_data.payment_intent.customer_details.clone();
-
-        let (shipping_address_id, billing_address_id) = (
-            payment_data.payment_intent.shipping_address_id.clone(),
-            payment_data.payment_intent.billing_address_id.clone(),
-        );
-
-        let customer_id = payment_data.payment_intent.customer_id.clone();
-        let return_url = payment_data.payment_intent.return_url.take();
-        let setup_future_usage = payment_data.payment_intent.setup_future_usage;
-        let business_label = payment_data.payment_intent.business_label.clone();
-        let business_country = payment_data.payment_intent.business_country;
-        let description = payment_data.payment_intent.description.take();
-        let statement_descriptor_name =
-            payment_data.payment_intent.statement_descriptor_name.take();
-        let statement_descriptor_suffix = payment_data
-            .payment_intent
-            .statement_descriptor_suffix
-            .take();
-        let order_details = payment_data.payment_intent.order_details.clone();
-        let metadata = payment_data.payment_intent.metadata.clone();
-        let frm_metadata = payment_data.payment_intent.frm_metadata.clone();
-
         let m_payment_data_payment_attempt = payment_data.payment_attempt.clone();
         let m_error_code = error_code.clone();
         let m_error_message = error_message.clone();
@@ -541,12 +512,10 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
                         error_message: m_error_message.flatten(),
                         error_reason: m_error_reason.flatten(),
                         updated_by: storage_scheme.to_string(),
-                        connector_mandate_detail: Box::new(
-                            payment_data
-                                .payment_attempt
-                                .connector_mandate_detail
-                                .clone(),
-                        ),
+                        connector_mandate_detail: payment_data
+                            .payment_attempt
+                            .connector_mandate_detail
+                            .clone(),
                     },
                     storage_scheme,
                     &cloned_key_store,
@@ -557,103 +526,18 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
             .in_current_span(),
         );
 
-        let billing_address = payment_data.address.get_payment_billing();
-        let key_manager_state = state.into();
-        let billing_details = billing_address
-            .async_map(|billing_details| {
-                create_encrypted_data(&key_manager_state, key_store, billing_details)
-            })
-            .await
-            .transpose()
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Unable to encrypt billing details")?;
-
-        let shipping_address = payment_data.address.get_shipping();
-        let shipping_details = shipping_address
-            .async_map(|shipping_details| {
-                create_encrypted_data(&key_manager_state, key_store, shipping_details)
-            })
-            .await
-            .transpose()
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Unable to encrypt shipping details")?;
-
         let m_payment_data_payment_intent = payment_data.payment_intent.clone();
-        let m_customer_id = customer_id.clone();
-        let m_shipping_address_id = shipping_address_id.clone();
-        let m_billing_address_id = billing_address_id.clone();
-        let m_return_url = return_url.clone();
-        let m_business_label = business_label.clone();
-        let m_description = description.clone();
-        let m_statement_descriptor_name = statement_descriptor_name.clone();
-        let m_statement_descriptor_suffix = statement_descriptor_suffix.clone();
-        let m_order_details = order_details.clone();
-        let m_metadata = metadata.clone();
-        let m_frm_metadata = frm_metadata.clone();
         let m_db = state.clone().store;
         let m_storage_scheme = storage_scheme.to_string();
-        let session_expiry = m_payment_data_payment_intent.session_expiry;
         let m_key_store = key_store.clone();
-        let is_payment_processor_token_flow =
-            payment_data.payment_intent.is_payment_processor_token_flow;
         let payment_intent_fut = tokio::spawn(
             async move {
                 m_db.update_payment_intent(
                     m_payment_data_payment_intent,
-                    storage::PaymentIntentUpdate::Update(Box::new(PaymentIntentUpdateFields {
-                        amount: payment_data.payment_intent.amount,
-                        currency: payment_data.currency,
-                        setup_future_usage,
+                    storage::PaymentIntentUpdate::RecurrenceUpdate {
                         status: intent_status,
-                        customer_id: m_customer_id,
-                        shipping_address_id: m_shipping_address_id,
-                        billing_address_id: m_billing_address_id,
-                        return_url: m_return_url,
-                        business_country,
-                        business_label: m_business_label,
-                        description: m_description,
-                        statement_descriptor_name: m_statement_descriptor_name,
-                        statement_descriptor_suffix: m_statement_descriptor_suffix,
-                        order_details: m_order_details,
-                        metadata: m_metadata,
-                        payment_confirm_source: header_payload.payment_confirm_source,
                         updated_by: m_storage_scheme,
-                        fingerprint_id: None,
-                        session_expiry,
-                        request_external_three_ds_authentication: None,
-                        frm_metadata: m_frm_metadata,
-                        customer_details,
-                        merchant_order_reference_id: None,
-                        billing_details,
-                        shipping_details,
-                        is_payment_processor_token_flow,
-                        tax_details: None,
-                        force_3ds_challenge: payment_data.payment_intent.force_3ds_challenge,
-                        is_iframe_redirection_enabled: payment_data
-                            .payment_intent
-                            .is_iframe_redirection_enabled,
-                        is_confirm_operation: true, // Indicates that this is a confirm operation
-                        payment_channel: payment_data.payment_intent.payment_channel,
-                        feature_metadata: payment_data
-                            .payment_intent
-                            .feature_metadata
-                            .clone()
-                            .map(hyperswitch_masking::Secret::new),
-                        tax_status: payment_data.payment_intent.tax_status,
-                        discount_amount: payment_data.payment_intent.discount_amount,
-                        order_date: payment_data.payment_intent.order_date,
-                        shipping_amount_tax: payment_data.payment_intent.shipping_amount_tax,
-                        duty_amount: payment_data.payment_intent.duty_amount,
-                        enable_partial_authorization: payment_data
-                            .payment_intent
-                            .enable_partial_authorization,
-                        enable_overcapture: payment_data.payment_intent.enable_overcapture,
-                        shipping_cost: None,
-                        installment_options: payment_data
-                            .payment_intent
-                            .installment_options
-                            .clone(),
-                    })),
+                    },
                     &m_key_store,
                     storage_scheme,
                 )

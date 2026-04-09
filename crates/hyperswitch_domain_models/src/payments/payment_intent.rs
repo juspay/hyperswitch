@@ -358,7 +358,6 @@ pub enum PaymentIntentUpdate {
     RecurrenceUpdate {
         status: common_enums::IntentStatus,
         updated_by: String,
-        session_expiry: Option<PrimitiveDateTime>,
     },
 }
 
@@ -1276,14 +1275,10 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 shipping_cost: None,
                 installment_options: None,
             },
-            PaymentIntentUpdate::RecurrenceUpdate {
-                status,
-                updated_by,
-                session_expiry,
-            } => Self {
+            PaymentIntentUpdate::RecurrenceUpdate { status, updated_by } => Self {
                 status: Some(status),
                 updated_by,
-                session_expiry,
+                session_expiry: None,
                 state_metadata: None,
                 amount: None,
                 currency: None,
@@ -1550,15 +1545,9 @@ impl From<PaymentIntentUpdate> for DieselPaymentIntentUpdate {
                 updated_by,
                 shipping_details: shipping_details.map(Encryption::from),
             },
-            PaymentIntentUpdate::RecurrenceUpdate {
-                status,
-                updated_by,
-                session_expiry,
-            } => Self::RecurrenceUpdate {
-                status,
-                updated_by,
-                session_expiry,
-            },
+            PaymentIntentUpdate::RecurrenceUpdate { status, updated_by } => {
+                Self::RecurrenceUpdate { status, updated_by }
+            }
         }
     }
 }
