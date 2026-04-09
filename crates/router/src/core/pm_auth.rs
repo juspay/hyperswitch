@@ -496,7 +496,7 @@ async fn store_bank_details_in_payment_methods(
             let now = common_utils::date_time::now();
 
             let pm_new = domain::PaymentMethod {
-                customer_id: customer_id.clone(),
+                customer_id: Some(customer_id.clone()),
                 merchant_id: platform.get_processor().get_account().get_id().clone(),
                 payment_method_id: pm_id,
                 payment_method: Some(enums::PaymentMethod::BankDebit),
@@ -540,6 +540,7 @@ async fn store_bank_details_in_payment_methods(
                 customer_details: None,
                 locker_fingerprint_id: None,
                 network_tokenization_data: None,
+                storage_type: None,
             };
 
             new_entries.push(pm_new);

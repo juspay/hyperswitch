@@ -2615,6 +2615,8 @@ pub enum PaymentMethodDataType {
     DanamonVaBankTransfer,
     MandiriVaBankTransfer,
     Pix,
+    PixAutomaticoPush,
+    PixAutomaticoQr,
     Pse,
     Crypto,
     MandatePayment,
@@ -2659,6 +2661,7 @@ impl From<domain::payments::PaymentMethodData> for PaymentMethodDataType {
         match pm_data {
             domain::payments::PaymentMethodData::Card(_) => Self::Card,
             domain::payments::PaymentMethodData::CardWithOptionalCVC(_) => Self::Card,
+            domain::payments::PaymentMethodData::CardWithNetworkTokenDetails(_) => Self::Card,
             domain::payments::PaymentMethodData::NetworkToken(_) => Self::NetworkToken,
             domain::PaymentMethodData::CardDetailsForNetworkTransactionId(_) => Self::Card,
             domain::PaymentMethodData::CardWithLimitedDetails(_) => Self::Card,
@@ -2812,6 +2815,8 @@ impl From<domain::payments::PaymentMethodData> for PaymentMethodDataType {
                         Self::MandiriVaBankTransfer
                     }
                     domain::payments::BankTransferData::Pix { .. } => Self::Pix,
+                    domain::payments::BankTransferData::PixAutomaticoPush { .. } => Self::PixAutomaticoPush,
+                    domain::payments::BankTransferData::PixAutomaticoQr {} => Self::PixAutomaticoQr,
                     domain::payments::BankTransferData::Pse {} => Self::Pse,
                     domain::payments::BankTransferData::LocalBankTransfer { .. } => {
                         Self::LocalBankTransfer

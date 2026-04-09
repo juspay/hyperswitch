@@ -277,7 +277,7 @@ pub fn make_dsl_input(
     };
     let payment_method_input = dsl_inputs::PaymentMethodInput {
         payment_method: Some(payments_dsl_input.payment_attempt.payment_method_type),
-        payment_method_type: Some(payments_dsl_input.payment_attempt.payment_method_subtype),
+        payment_method_type: payments_dsl_input.payment_attempt.payment_method_subtype,
         card_network: payments_dsl_input
             .payment_method_data
             .as_ref()
@@ -407,6 +407,12 @@ pub fn make_dsl_input(
             .and_then(|pm_data| match pm_data {
                 domain::PaymentMethodData::Card(card) => card.card_network.clone(),
                 domain::PaymentMethodData::CardWithOptionalCVC(card) => card.card_network.clone(),
+                domain::PaymentMethodData::CardWithNetworkTokenDetails(
+                    card_with_network_token_details,
+                ) => card_with_network_token_details
+                    .card_details
+                    .card_network
+                    .clone(),
                 domain::PaymentMethodData::CardDetailsForNetworkTransactionId(
                     card_details_for_ntid,
                 ) => card_details_for_ntid.card_network.clone(),
@@ -449,6 +455,12 @@ pub fn make_dsl_input(
             .and_then(|pm_data| match pm_data {
                 domain::PaymentMethodData::Card(card) => card.card_issuer.clone(),
                 domain::PaymentMethodData::CardWithOptionalCVC(card) => card.card_issuer.clone(),
+                domain::PaymentMethodData::CardWithNetworkTokenDetails(
+                    card_with_network_token_details,
+                ) => card_with_network_token_details
+                    .card_details
+                    .card_issuer
+                    .clone(),
                 domain::PaymentMethodData::CardDetailsForNetworkTransactionId(
                     card_details_for_ntid,
                 ) => card_details_for_ntid.card_issuer.clone(),
@@ -1478,6 +1490,13 @@ impl RoutingStage for HybridRoutingStage {
             let should_include_static_request = input.state.conf.open_router.static_routing_enabled
                 && input.static_approach == common_enums::RoutingApproach::RuleBasedRouting;
 
+            let payment_id = input
+                .payment_dsl_input
+                .payment_attempt
+                .payment_id
+                .get_string_repr()
+                .to_string();
+
             let static_routing_request = if should_include_static_request {
                 Some(utils::build_static_routing_request_for_hybrid(
                     input
@@ -1485,6 +1504,7 @@ impl RoutingStage for HybridRoutingStage {
                         .get_id()
                         .get_string_repr()
                         .to_string(),
+                    payment_id.clone(),
                     input.backend_input.clone(),
                     input.fallback_config.to_vec(),
                 )?)
@@ -1498,13 +1518,6 @@ impl RoutingStage for HybridRoutingStage {
                 );
                 RoutingConnectorOutcomeWithApproach::empty()
             } else {
-                let payment_id = input
-                    .payment_dsl_input
-                    .payment_attempt
-                    .payment_id
-                    .get_string_repr()
-                    .to_string();
-
                 let hybrid_outcome = utils::decision_engine_hybrid_routing(
                     input.state,
                     input.business_profile,

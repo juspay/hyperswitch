@@ -247,7 +247,10 @@ pub async fn handle_metadata_update(
     is_pan_update: bool,
 ) -> RouterResult<WebhookResponseTracker> {
     let merchant_id = platform.get_processor().get_account().get_id();
-    let customer_id = &payment_method.customer_id;
+    let customer_id = &payment_method
+        .customer_id
+        .clone()
+        .get_required_value("customer_id")?;
     let payment_method_id = payment_method.get_id().clone();
     let status = payment_method.status;
 
@@ -396,7 +399,7 @@ impl From<(&api::payment_methods::CardDetail, &domain::PaymentMethod)>
         (data, payment_method): (&api::payment_methods::CardDetail, &domain::PaymentMethod),
     ) -> Self {
         Self(api::payment_methods::PaymentMethodCreate {
-            customer_id: Some(payment_method.customer_id.clone()),
+            customer_id: payment_method.customer_id.clone(),
             payment_method: payment_method.payment_method,
             payment_method_type: payment_method.payment_method_type,
             payment_method_issuer: payment_method.payment_method_issuer.clone(),
@@ -412,6 +415,7 @@ impl From<(&api::payment_methods::CardDetail, &domain::PaymentMethod)>
                 .clone()
                 .map(|card_network| card_network.to_string()),
             bank_transfer: None,
+            bank_transfer_data: None,
             wallet: None,
             network_transaction_id: payment_method.network_transaction_id.clone(),
         })

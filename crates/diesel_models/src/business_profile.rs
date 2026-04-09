@@ -86,6 +86,7 @@ pub struct Profile {
     pub is_l2_l3_enabled: Option<bool>,
     pub network_tokenization_credentials: Option<Encryption>,
     pub payment_method_blocking: Option<PaymentMethodBlockingConfig>,
+    pub default_fallback_routing: Option<pii::SecretSerdeValue>,
 }
 
 #[cfg(feature = "v1")]
@@ -151,6 +152,7 @@ pub struct ProfileNew {
     pub is_l2_l3_enabled: Option<bool>,
     pub network_tokenization_credentials: Option<Encryption>,
     pub payment_method_blocking: Option<PaymentMethodBlockingConfig>,
+    pub default_fallback_routing: Option<pii::SecretSerdeValue>,
 }
 
 #[cfg(feature = "v1")]
@@ -217,6 +219,7 @@ pub struct ProfileUpdateInternal {
     pub external_vault_connector_details: Option<ExternalVaultConnectorDetails>,
     pub network_tokenization_credentials: Option<Encryption>,
     pub payment_method_blocking: Option<PaymentMethodBlockingConfig>,
+    pub default_fallback_routing: Option<pii::SecretSerdeValue>,
 }
 
 #[cfg(feature = "v1")]
@@ -280,6 +283,7 @@ impl ProfileUpdateInternal {
             billing_processor_id,
             network_tokenization_credentials,
             payment_method_blocking,
+            default_fallback_routing,
         } = self;
         Profile {
             profile_id: source.profile_id,
@@ -378,6 +382,7 @@ impl ProfileUpdateInternal {
             network_tokenization_credentials: network_tokenization_credentials
                 .or(source.network_tokenization_credentials),
             payment_method_blocking: payment_method_blocking.or(source.payment_method_blocking),
+            default_fallback_routing: default_fallback_routing.or(source.default_fallback_routing),
         }
     }
 }
@@ -450,12 +455,12 @@ pub struct Profile {
     pub is_l2_l3_enabled: Option<bool>,
     pub network_tokenization_credentials: Option<Encryption>,
     pub payment_method_blocking: Option<PaymentMethodBlockingConfig>,
+    pub default_fallback_routing: Option<pii::SecretSerdeValue>,
     pub routing_algorithm_id: Option<common_utils::id_type::RoutingId>,
     pub order_fulfillment_time: Option<i64>,
     pub order_fulfillment_time_origin: Option<common_enums::OrderFulfillmentTimeOrigin>,
     pub frm_routing_algorithm_id: Option<String>,
     pub payout_routing_algorithm_id: Option<common_utils::id_type::RoutingId>,
-    pub default_fallback_routing: Option<pii::SecretSerdeValue>,
     pub three_ds_decision_manager_config: Option<common_types::payments::DecisionManagerRecord>,
     pub should_collect_cvv_during_payment:
         Option<primitive_wrappers::ShouldCollectCvvDuringPayment>,
@@ -524,11 +529,11 @@ pub struct ProfileNew {
     pub merchant_country_code: Option<common_types::payments::MerchantCountryCode>,
     pub billing_processor_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
     pub routing_algorithm_id: Option<common_utils::id_type::RoutingId>,
+    pub default_fallback_routing: Option<pii::SecretSerdeValue>,
     pub order_fulfillment_time: Option<i64>,
     pub order_fulfillment_time_origin: Option<common_enums::OrderFulfillmentTimeOrigin>,
     pub frm_routing_algorithm_id: Option<String>,
     pub payout_routing_algorithm_id: Option<common_utils::id_type::RoutingId>,
-    pub default_fallback_routing: Option<pii::SecretSerdeValue>,
     pub three_ds_decision_manager_config: Option<common_types::payments::DecisionManagerRecord>,
     pub should_collect_cvv_during_payment:
         Option<primitive_wrappers::ShouldCollectCvvDuringPayment>,

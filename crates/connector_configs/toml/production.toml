@@ -3042,8 +3042,8 @@ api_secret="Application Identifier"
 [noon.connector_webhook_details]
 merchant_secret="Source verification key"
 
-[noon.metadata.noon_region]
-name="noon_region"
+[noon.metadata.region]
+name="region"
 label="Region of your Noon Merchant Account"
 placeholder="Enter Region of your Noon Merchant Account"
 required=false
@@ -6131,6 +6131,10 @@ type = "Text"
 [santander]
 [[santander.bank_transfer]]
 payment_method_type = "pix"
+[[santander.bank_transfer]]
+payment_method_type = "pix_automatico_push"
+[[santander.bank_transfer]]
+payment_method_type = "pix_automatico_qr"
 [[santander.voucher]]
 payment_method_type = "boleto"
 [santander.connector_auth.CertificateAuth]
@@ -6172,6 +6176,58 @@ type="Text"
 name="merchant_name"
 label="Merchant Name"
 placeholder="Enter the merchant name"
+required=true
+type="Text"
+
+[[santander.metadata.pix_automatico_push]]
+name="pix_key_type"
+label="Chave Key Type"
+placeholder="Enter your Chave/Pix Key Type"
+required=true
+type="Select"
+options=["CPF", "CNPJ", "EMAIL", "CELLULAR", "EVP"]
+[[santander.metadata.pix_automatico_push]]
+name="pix_key_value"
+label="Chave Key"
+placeholder="Enter your Chave/Pix Key"
+required=true
+type="Text"
+[[santander.metadata.pix_automatico_push]]
+name="client_id"
+label="Client ID"
+placeholder="Enter your Client Id"
+required=true
+type="Text"
+[[santander.metadata.pix_automatico_push]]
+name="client_secret"
+label="Client Secret"
+placeholder="Enter your Client Secret"
+required=true
+type="Text"
+
+[[santander.metadata.pix_automatico_qr]]
+name="pix_key_type"
+label="Chave Key Type"
+placeholder="Enter your Chave/Pix Key Type"
+required=true
+type="Select"
+options=["CPF", "CNPJ", "EMAIL", "CELLULAR", "EVP"]
+[[santander.metadata.pix_automatico_qr]]
+name="pix_key_value"
+label="Chave Key"
+placeholder="Enter your Chave/Pix Key"
+required=true
+type="Text"
+[[santander.metadata.pix_automatico_qr]]
+name="client_id"
+label="Client ID"
+placeholder="Enter your Client Id"
+required=true
+type="Text"
+[[santander.metadata.pix_automatico_qr]]
+name="client_secret"
+label="Client Secret"
+placeholder="Enter your Client Secret"
 required=true
 type="Text"
 
@@ -6270,8 +6326,8 @@ merchant_secret="Source verification key"
 [[affirm.pay_later]]
   payment_method_type = "affirm"
 [affirm.connector_auth.BodyKey]
-api_key = "API Key"
-key1 = "API Secret"
+api_key = "Public Key"
+key1 = "Private Key"
 
 
 [trustpayments]
@@ -7306,18 +7362,14 @@ required = true
 type = "Text"
 
 [trustly_payout]
-[trustly_payout.connector_auth.BodyKey]
+[trustly_payout.connector_auth.SignatureKey]
 api_key = "Username"
 key1 = "Password"
+api_secret = "Private Key(Base64 encoded)"
 [[trustly_payout.bank_transfer]]
 payment_method_type = "trustly"
-
-[trustly_payout.metadata.private_key]
-name = "private_key"
-label = "Private Key (Base64 encoded)"
-placeholder = "Enter your Private Key(Base64 encoded)"
-required = true
-type = "Text"
+[trustly_payout.connector_webhook_details]
+merchant_secret="Trustly's public key"
 
 [revolv3]
 [[revolv3.credit]]
@@ -7358,6 +7410,13 @@ payment_method_type = "CartesBancaires"
 payment_method_type = "UnionPay"
 [revolv3.connector_auth.HeaderKey]
 api_key = "Static Tokens"
+
 [trustly]
-[trustly.connector_auth.HeaderKey]
-api_key = "API Key"
+[trustly.connector_auth.SignatureKey]
+api_key = "Username"
+key1 = "Password"
+api_secret = "Private Key(Base64 encoded)"
+[[trustly.bank_redirect]]
+payment_method_type = "trustly"
+[trustly.connector_webhook_details]
+merchant_secret="Trustly's public key"
