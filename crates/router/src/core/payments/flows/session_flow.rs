@@ -904,7 +904,6 @@ fn get_apple_pay_payment_request(
 }
 
 /// If credit cards are blocked, add "supportsDebit" capability
-/// If debit cards are blocked, add "supportsCredit" capability
 fn apply_wallet_blocking_to_apple_pay_capabilities(
     mut capabilities: Vec<String>,
     wallet_blocking_config: Option<&diesel_models::business_profile::WalletBlockingConfig>,
