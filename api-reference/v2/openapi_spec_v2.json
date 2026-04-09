@@ -31745,6 +31745,43 @@
           }
         }
       },
+      "WalletCreateData": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "apple_pay"
+            ],
+            "properties": {
+              "apple_pay": {
+                "$ref": "#/components/schemas/PaymentMethodDataWalletInfo"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "google_pay"
+            ],
+            "properties": {
+              "google_pay": {
+                "$ref": "#/components/schemas/PaymentMethodDataWalletInfo"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "pay_pal"
+            ],
+            "properties": {
+              "pay_pal": {
+                "$ref": "#/components/schemas/PaypalRedirection"
+              }
+            }
+          }
+        ]
+      },
       "WalletData": {
         "oneOf": [
           {
@@ -32156,6 +32193,43 @@
             "properties": {
               "we_chat_pay_redirect": {
                 "$ref": "#/components/schemas/WeChatPayRedirection"
+              }
+            }
+          }
+        ]
+      },
+      "WalletPaymentMethodResponseData": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "apple_pay"
+            ],
+            "properties": {
+              "apple_pay": {
+                "$ref": "#/components/schemas/PaymentMethodDataWalletInfo"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "google_pay"
+            ],
+            "properties": {
+              "google_pay": {
+                "$ref": "#/components/schemas/PaymentMethodDataWalletInfo"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "pay_pal"
+            ],
+            "properties": {
+              "pay_pal": {
+                "$ref": "#/components/schemas/PaypalRedirection"
               }
             }
           }
