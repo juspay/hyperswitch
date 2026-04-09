@@ -228,7 +228,7 @@ migrate_v2_compatible:
     just prefix_and_copy_migrations {{ v1_migration_dir }} {{ v2_compatible_migrations }} 8 {{ resultant_dir }}
 
     # Run the compatible migrations
-    just run_migration run {{ resultant_dir }} {{ database_url }} || EXIT_CODE=$?
+    just run_migration run {{ resultant_dir }} {{ v1_config_file_dir }} {{ database_url }} || EXIT_CODE=$?
 
     just delete_dir_if_exists
     exit $EXIT_CODE
