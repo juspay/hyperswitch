@@ -2125,6 +2125,14 @@ pub enum PaymentAttemptUpdate {
         updated_by: String,
         connector_metadata: Option<Value>,
     },
+    RecurrenceUpdate {
+        status: storage_enums::AttemptStatus,
+        error_code: Option<String>,
+        error_message: Option<String>,
+        error_reason: Option<String>,
+        updated_by: String,
+        connector_mandate_detail: Option<ConnectorMandateReferenceId>,
+    },
 }
 
 #[cfg(feature = "v1")]
@@ -2678,6 +2686,21 @@ impl PaymentAttemptUpdate {
                 updated_by,
                 connector_metadata,
             },
+            Self::RecurrenceUpdate {
+                status,
+                error_code,
+                error_message,
+                error_reason,
+                updated_by,
+                connector_mandate_detail,
+            } => DieselPaymentAttemptUpdate::RecurrenceUpdate {
+                status,
+                error_code,
+                error_message,
+                error_reason,
+                updated_by,
+                connector_mandate_detail: *connector_mandate_detail,
+            },
         }
     }
 
@@ -2706,7 +2729,8 @@ impl PaymentAttemptUpdate {
             | Self::IncrementalAuthorizationAmountUpdate { .. }
             | Self::AuthenticationUpdate { .. }
             | Self::ManualUpdate { .. }
-            | Self::PostSessionTokensUpdate { .. } => None,
+            | Self::PostSessionTokensUpdate { .. }
+            | Self::RecurrenceUpdate { .. } => None,
         }
     }
 }
