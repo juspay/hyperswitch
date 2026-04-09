@@ -661,7 +661,7 @@ credit = { currency = "INR,USD,GBP,EUR" }
 debit = { currency = "INR,USD,GBP,EUR" }
 
 [pm_filters.truelayer]
-open_banking_uk = { currency = "GBP,EUR" }
+open_banking = { currency = "GBP,EUR" }
 
 [payout_method_filters.truelayer]
 open_banking_uk = { currency = "GBP,EUR,PLN" }
