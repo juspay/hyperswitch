@@ -20,6 +20,8 @@ CREATE TABLE fraud_check_queue (
     `modified_at` DateTime CODEC(T64, LZ4),
     `last_step` LowCardinality(String),
     `payment_capture_method` LowCardinality(String),
+    `processor_merchant_id` Nullable(String),
+    `created_by` Nullable(String),
     `sign_flag` Int8
 ) ENGINE = Kafka SETTINGS kafka_broker_list = 'kafka0:29092',
 kafka_topic_list = 'hyperswitch-fraud-check-events',
@@ -49,6 +51,8 @@ CREATE TABLE fraud_check (
     `modified_at` DateTime DEFAULT now() CODEC(T64, LZ4),
     `last_step` LowCardinality(String),
     `payment_capture_method` LowCardinality(String),
+    `processor_merchant_id` Nullable(String),
+    `created_by` Nullable(String),
     `sign_flag` Int8,
     INDEX frmNameIndex frm_name TYPE bloom_filter GRANULARITY 1,
     INDEX frmStatusIndex frm_status TYPE bloom_filter GRANULARITY 1,
@@ -81,6 +85,8 @@ CREATE MATERIALIZED VIEW fraud_check_mv TO fraud_check (
     `modified_at` DateTime64(3),
     `last_step` LowCardinality(String),
     `payment_capture_method` LowCardinality(String),
+    `processor_merchant_id` Nullable(String),
+    `created_by` Nullable(String),
     `sign_flag` Int8
 ) AS
 SELECT
@@ -105,6 +111,8 @@ SELECT
     modified_at,
     last_step,
     payment_capture_method,
+    processor_merchant_id,
+    created_by,
     sign_flag
 FROM
     fraud_check_queue

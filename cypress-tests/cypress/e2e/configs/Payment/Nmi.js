@@ -6,6 +6,14 @@ const successfulNo3DSCardDetails = {
   card_cvc: "999",
 };
 
+const failedNoThreeDsCardDetails = {
+  card_number: "4242424242424242",
+  card_exp_month: "10",
+  card_exp_year: "30",
+  card_holder_name: "REFUSED13",
+  card_cvc: "737",
+};
+
 const successfulThreeDSTestCardDetails = {
   card_number: "4000000000002503",
   card_exp_month: "10",
@@ -639,6 +647,24 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "requires_customer_action",
+        },
+      },
+    },
+    No3DSFailPayment: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: failedNoThreeDsCardDetails,
+        },
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "failed",
+          error_code: "200",
+          error_message: "DECLINE",
         },
       },
     },
