@@ -20,7 +20,7 @@ describe("Card - Installment payment flow test", () => {
 
         // Skip if connector is not in the CARD_INSTALLMENTS include list
         if (
-          !shouldIncludeConnector(
+          shouldIncludeConnector(
             connector,
             CONNECTOR_LISTS.INCLUDE.CARD_INSTALLMENTS
           )

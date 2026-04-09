@@ -18,7 +18,7 @@ describe("[Payment] Incremental Auth", () => {
         // Skip the test if the connector is not in the inclusion list
         // This is done because only cybersource is known to support at present
         if (
-          !utils.shouldIncludeConnector(
+          utils.shouldIncludeConnector(
             connector,
             utils.CONNECTOR_LISTS.INCLUDE.INCREMENTAL_AUTH
           )

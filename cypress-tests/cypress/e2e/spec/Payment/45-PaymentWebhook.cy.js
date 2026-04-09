@@ -17,7 +17,7 @@ describe("Payment Webhook Tests", () => {
         connector = globalState.get("connectorId");
 
         if (
-          !utils.shouldIncludeConnector(
+          utils.shouldIncludeConnector(
             connector,
             utils.CONNECTOR_LISTS.INCLUDE.PAYMENTS_WEBHOOK
           )
