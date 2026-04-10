@@ -47,26 +47,27 @@ impl ProcessTrackerWorkflow<SessionState> for DisputeListWorkflow {
 
         let provider_key_store = db
             .get_merchant_key_store_by_merchant_id(
-                &tracking_data.provider_merchant_id,
+                &tracking_data.merchant_id,
                 &db.get_master_key().to_vec().into(),
             )
             .await?;
         let provider_account = db
-            .find_merchant_account_by_merchant_id(
-                &tracking_data.provider_merchant_id,
-                &provider_key_store,
-            )
+            .find_merchant_account_by_merchant_id(&tracking_data.merchant_id, &provider_key_store)
             .await?;
 
+        let processor_merchant_id = tracking_data
+            .processor_merchant_id
+            .as_ref()
+            .unwrap_or(&tracking_data.merchant_id);
         let processor_key_store = db
             .get_merchant_key_store_by_merchant_id(
-                &tracking_data.merchant_id,
+                processor_merchant_id,
                 &db.get_master_key().to_vec().into(),
             )
             .await?;
 
         let processor_account = db
-            .find_merchant_account_by_merchant_id(&tracking_data.merchant_id, &processor_key_store)
+            .find_merchant_account_by_merchant_id(processor_merchant_id, &processor_key_store)
             .await?;
 
         let platform = domain::Platform::new(
@@ -129,7 +130,9 @@ impl ProcessTrackerWorkflow<SessionState> for DisputeListWorkflow {
             retry_sync_task(
                 db,
                 tracking_data.connector_name,
-                tracking_data.merchant_id,
+                tracking_data
+                    .processor_merchant_id
+                    .unwrap_or_else(|| tracking_data.merchant_id.clone()),
                 process,
             )
             .await?;
@@ -157,7 +160,7 @@ impl ProcessTrackerWorkflow<SessionState> for DisputeListWorkflow {
 pub async fn get_sync_process_schedule_time(
     db: &dyn StorageInterface,
     connector: &str,
-    merchant_id: &common_utils::id_type::MerchantId,
+    processor_merchant_id: &common_utils::id_type::MerchantId,
     retry_count: i32,
 ) -> Result<Option<time::PrimitiveDateTime>, errors::ProcessTrackerError> {
     let mapping: common_utils::errors::CustomResult<
@@ -179,7 +182,8 @@ pub async fn get_sync_process_schedule_time(
             process_data::ConnectorPTMapping::default()
         }
     };
-    let time_delta = scheduler_utils::get_schedule_time(mapping, merchant_id, retry_count);
+    let time_delta =
+        scheduler_utils::get_schedule_time(mapping, processor_merchant_id, retry_count);
 
     Ok(scheduler_utils::get_time_from_delta(time_delta))
 }
@@ -190,11 +194,12 @@ pub async fn get_sync_process_schedule_time(
 pub async fn retry_sync_task(
     db: &dyn StorageInterface,
     connector: String,
-    merchant_id: common_utils::id_type::MerchantId,
+    processor_merchant_id: common_utils::id_type::MerchantId,
     pt: storage::ProcessTracker,
 ) -> Result<bool, sch_errors::ProcessTrackerError> {
     let schedule_time: Option<time::PrimitiveDateTime> =
-        get_sync_process_schedule_time(db, &connector, &merchant_id, pt.retry_count + 1).await?;
+        get_sync_process_schedule_time(db, &connector, &processor_merchant_id, pt.retry_count + 1)
+            .await?;
 
     match schedule_time {
         Some(s_time) => {
@@ -227,11 +232,16 @@ pub async fn schedule_next_dispute_list_task(
         created_till: new_created_till,
     };
 
+    let processor_merchant_id = tracking_data
+        .processor_merchant_id
+        .clone()
+        .unwrap_or_else(|| tracking_data.merchant_id.clone());
+
     disputes::add_dispute_list_task_to_pt(
         db,
         &tracking_data.connector_name,
-        tracking_data.provider_merchant_id.clone(),
         tracking_data.merchant_id.clone(),
+        processor_merchant_id,
         tracking_data.merchant_connector_id.clone(),
         tracking_data.profile_id.clone(),
         fetch_request,

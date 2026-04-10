@@ -929,8 +929,8 @@ pub async fn add_process_dispute_task_to_pt(
     db: &dyn StorageInterface,
     connector_name: &str,
     dispute_payload: &DisputeSyncResponse,
-    provider_merchant_id: common_utils::id_type::MerchantId,
     merchant_id: common_utils::id_type::MerchantId,
+    processor_merchant_id: common_utils::id_type::MerchantId,
     schedule_time: Option<time::PrimitiveDateTime>,
     application_source: common_enums::ApplicationSource,
 ) -> common_utils::errors::CustomResult<(), errors::StorageError> {
@@ -943,8 +943,8 @@ pub async fn add_process_dispute_task_to_pt(
             let tracking_data = disputes::ProcessDisputePTData {
                 connector_name: connector_name.to_string(),
                 dispute_payload: dispute_payload.clone(),
+                processor_merchant_id: Some(processor_merchant_id.clone()),
                 merchant_id: merchant_id.clone(),
-                provider_merchant_id: provider_merchant_id.clone(),
             };
             let runner = common_enums::ProcessTrackerRunner::ProcessDisputeWorkflow;
             let task = "DISPUTE_PROCESS";
@@ -953,7 +953,7 @@ pub async fn add_process_dispute_task_to_pt(
                 runner,
                 task,
                 &dispute_payload.connector_dispute_id.clone(),
-                &merchant_id,
+                &processor_merchant_id,
             );
             let process_tracker_entry = diesel_models::ProcessTrackerNew::new(
                 process_tracker_id,
@@ -979,8 +979,8 @@ pub async fn add_process_dispute_task_to_pt(
 pub async fn add_dispute_list_task_to_pt(
     db: &dyn StorageInterface,
     connector_name: &str,
-    provider_merchant_id: common_utils::id_type::MerchantId,
     merchant_id: common_utils::id_type::MerchantId,
+    processor_merchant_id: common_utils::id_type::MerchantId,
     merchant_connector_id: common_utils::id_type::MerchantConnectorAccountId,
     profile_id: common_utils::id_type::ProfileId,
     fetch_request: FetchDisputesRequestData,
@@ -989,8 +989,8 @@ pub async fn add_dispute_list_task_to_pt(
     TASKS_ADDED_COUNT.add(1, router_env::metric_attributes!(("flow", "dispute_list")));
     let tracking_data = disputes::DisputeListPTData {
         connector_name: connector_name.to_string(),
+        processor_merchant_id: Some(processor_merchant_id.clone()),
         merchant_id: merchant_id.clone(),
-        provider_merchant_id: provider_merchant_id.clone(),
         merchant_connector_id: merchant_connector_id.clone(),
         created_from: fetch_request.created_from,
         created_till: fetch_request.created_till,
@@ -1003,7 +1003,7 @@ pub async fn add_dispute_list_task_to_pt(
         runner,
         &merchant_connector_id,
         fetch_request.created_from,
-        &merchant_id,
+        &processor_merchant_id,
     );
     let process_tracker_entry = diesel_models::ProcessTrackerNew::new(
         process_tracker_id,
@@ -1046,9 +1046,41 @@ pub async fn schedule_dispute_sync_task(
             .checked_add(time::Duration::hours(i64::from(dispute_polling_interval)))
             .ok_or(errors::ApiErrorResponse::InternalServerError)?;
 
+        let processor_merchant_id = mca.merchant_id.clone();
+
+        let processor_key_store = state
+            .store
+            .get_merchant_key_store_by_merchant_id(
+                &processor_merchant_id,
+                &state.store.get_master_key().to_vec().into(),
+            )
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)
+            .attach_printable("Error while fetching the key store for processor merchant")?;
+
+        let processor_account = state
+            .store
+            .find_merchant_account_by_merchant_id(&processor_merchant_id, &processor_key_store)
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)
+            .attach_printable("Error while fetching the merchant account for processor")?;
+
+        let organization = state
+            .accounts_store
+            .find_organization_by_org_id(processor_account.get_org_id())
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Error while fetching the organization for processor merchant")?;
+
+        let (merchant_id, resolved_processor_merchant_id) =
+            if let Some(platform_merchant_id) = organization.platform_merchant_id {
+                (platform_merchant_id, processor_merchant_id)
+            } else {
+                (processor_merchant_id.clone(), processor_merchant_id)
+            };
+
         let m_db = state.clone().store;
         let connector_name = mca.connector_name.clone();
-        let merchant_id = mca.merchant_id.clone();
         let merchant_connector_id = mca.merchant_connector_id.clone();
         let business_profile_id = business_profile.get_id().clone();
         let application_source = state.conf.application_source;
@@ -1058,8 +1090,8 @@ pub async fn schedule_dispute_sync_task(
                 add_dispute_list_task_to_pt(
                     &*m_db,
                     &connector_name,
-                    merchant_id.clone(),
-                    merchant_id.clone(),
+                    merchant_id,
+                    resolved_processor_merchant_id,
                     merchant_connector_id.clone(),
                     business_profile_id,
                     FetchDisputesRequestData {

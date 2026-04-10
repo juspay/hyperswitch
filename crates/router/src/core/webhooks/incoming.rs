@@ -2356,9 +2356,9 @@ pub async fn get_or_update_dispute_object(
                 processor_merchant_id: Some(
                     platform.get_processor().get_account().get_id().to_owned(),
                 ),
-                created_by: platform
-                    .get_initiator()
-                    .and_then(|initiator| initiator.to_created_by())
+                created_by: payment_attempt
+                    .created_by
+                    .as_ref()
                     .map(|created_by| created_by.to_string()),
             };
             state
