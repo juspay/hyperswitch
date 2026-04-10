@@ -14,9 +14,12 @@ use error_stack::{report, ResultExt};
 use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 use router_env::logger;
 
+use common_enums::EntityType;
+
 use crate::{
     core::errors::{UserErrors, UserResult},
     headers,
+    services::{authentication::UserFromToken, authorization::roles::RoleInfo},
     types::domain::user::dashboard_metadata as types,
     SessionState,
 };
@@ -24,14 +27,29 @@ use crate::{
 pub const MAX_DASHBOARDS: usize = 10;
 pub const MAX_WIDGETS_PER_DASHBOARD: usize = 20;
 
-/// Maps role_id to entity_type for custom dashboard scoping
-pub fn get_entity_type_from_role(role_id: &str) -> &'static str {
-    match role_id {
-        "org_admin" => "org",
-        "merchant_admin" => "merchant",
-        "profile_admin" | "profile_user" => "profile",
-        _ => "user",
-    }
+/// Resolves the entity type from user's role for dashboard scoping.
+pub async fn get_entity_type_for_dashboard(
+    state: &SessionState,
+    user: &UserFromToken,
+) -> UserResult<EntityType> {
+    let tenant_id = user
+        .tenant_id
+        .clone()
+        .unwrap_or(state.tenant.tenant_id.clone());
+
+    let role_info = RoleInfo::from_role_id_in_lineage(
+        state,
+        &user.role_id,
+        &user.merchant_id,
+        &user.org_id,
+        &user.profile_id,
+        &tenant_id,
+    )
+    .await
+    .change_context(UserErrors::InternalServerError)
+    .attach_printable("Failed to fetch role info for dashboard scoping")?;
+
+    Ok(role_info.get_entity_type())
 }
 
 pub async fn insert_merchant_scoped_metadata_to_db(
@@ -328,24 +346,34 @@ pub fn is_prod_email_required(data: &ProdIntent, user_email: String) -> bool {
 
 // === Custom Dashboard Operations ===
 
-/// Generic fetch-transform-persist for user-scoped dashboard metadata.
+/// Generic fetch-transform-persist for dashboard metadata.
+/// Uses org-scoped query for Organization/Tenant roles, user-scoped for others.
+#[allow(clippy::too_many_arguments)]
 pub async fn modify_dashboard_metadata<T, F>(
     state: &SessionState,
     user_id: String,
     merchant_id: id_type::MerchantId,
     org_id: id_type::OrganizationId,
     metadata_key: DBEnum,
-    entity_type: String,
+    entity_type: EntityType,
     transform: F,
 ) -> UserResult<DashboardMetadata>
 where
     T: serde::Serialize + serde::de::DeserializeOwned,
     F: FnOnce(Option<T>) -> UserResult<T>,
 {
-    let existing = if entity_type == "org" {
+    let entity_type_str = entity_type_to_storage_str(entity_type);
+    let is_org_scoped = matches!(entity_type, EntityType::Organization | EntityType::Tenant);
+
+    let existing = if is_org_scoped {
         state
             .store
-            .find_org_scoped_dashboard_metadata(&user_id, &org_id, &entity_type, vec![metadata_key])
+            .find_org_scoped_dashboard_metadata(
+                &user_id,
+                &org_id,
+                entity_type_str,
+                vec![metadata_key],
+            )
             .await
     } else {
         state
@@ -357,9 +385,21 @@ where
                 vec![metadata_key],
             )
             .await
-    }
-    .change_context(UserErrors::InternalServerError)
-    .attach_printable("Error fetching dashboard metadata")?;
+    };
+
+    // Handle not-found gracefully — first create should work
+    let existing = match existing {
+        Ok(data) => data,
+        Err(e) => {
+            if e.current_context().is_db_not_found() {
+                vec![]
+            } else {
+                return Err(e
+                    .change_context(UserErrors::InternalServerError)
+                    .attach_printable("Error fetching dashboard metadata"));
+            }
+        }
+    };
 
     let existing_record = existing.first();
 
@@ -376,7 +416,8 @@ where
 
     match existing_record {
         Some(record) => {
-            let update_merchant_id = if entity_type == "org" {
+            // For org-scoped, use the merchant_id from the existing record
+            let update_merchant_id = if is_org_scoped {
                 record.merchant_id.clone()
             } else {
                 merchant_id
@@ -413,12 +454,21 @@ where
                     last_modified_by: user_id,
                     last_modified_at: now,
                     profile_id: None,
-                    entity_type: Some(entity_type),
+                    entity_type: Some(entity_type_str.to_string()),
                 })
                 .await
                 .change_context(UserErrors::InternalServerError)
                 .attach_printable("Error inserting dashboard metadata")
         }
+    }
+}
+
+/// Convert EntityType enum to storage string for the entity_type column.
+fn entity_type_to_storage_str(entity_type: EntityType) -> &'static str {
+    match entity_type {
+        EntityType::Tenant | EntityType::Organization => "org",
+        EntityType::Merchant => "merchant",
+        EntityType::Profile => "profile",
     }
 }
 
@@ -429,7 +479,7 @@ pub async fn handle_dashboard_operations(
     org_id: id_type::OrganizationId,
     metadata_key: DBEnum,
     operation: DashboardOperation,
-    entity_type: String,
+    entity_type: EntityType,
 ) -> UserResult<DashboardMetadata> {
     match operation {
         DashboardOperation::Create(request) => {
@@ -526,7 +576,7 @@ async fn create_dashboard(
     org_id: id_type::OrganizationId,
     metadata_key: DBEnum,
     request: api_models::user::dashboard_metadata::CreateDashboardRequest,
-    entity_type: String,
+    entity_type: EntityType,
 ) -> UserResult<DashboardMetadata> {
     if request.dashboard_name.trim().is_empty() {
         return Err(report!(UserErrors::InvalidDashboardName))
@@ -592,7 +642,7 @@ async fn update_dashboard(
     org_id: id_type::OrganizationId,
     metadata_key: DBEnum,
     request: api_models::user::dashboard_metadata::UpdateDashboardRequest,
-    entity_type: String,
+    entity_type: EntityType,
 ) -> UserResult<DashboardMetadata> {
     modify_dashboard_metadata(
         state,
@@ -651,7 +701,7 @@ async fn delete_dashboard(
     org_id: id_type::OrganizationId,
     metadata_key: DBEnum,
     request: api_models::user::dashboard_metadata::DeleteDashboardRequest,
-    entity_type: String,
+    entity_type: EntityType,
 ) -> UserResult<DashboardMetadata> {
     modify_dashboard_metadata(
         state,
@@ -681,7 +731,7 @@ async fn add_widget(
     org_id: id_type::OrganizationId,
     metadata_key: DBEnum,
     request: api_models::user::dashboard_metadata::AddWidgetRequest,
-    entity_type: String,
+    entity_type: EntityType,
 ) -> UserResult<DashboardMetadata> {
     modify_dashboard_metadata(
         state,
@@ -723,7 +773,7 @@ async fn update_widget(
     org_id: id_type::OrganizationId,
     metadata_key: DBEnum,
     request: api_models::user::dashboard_metadata::UpdateWidgetRequest,
-    entity_type: String,
+    entity_type: EntityType,
 ) -> UserResult<DashboardMetadata> {
     modify_dashboard_metadata(
         state,
@@ -762,7 +812,7 @@ async fn remove_widget(
     org_id: id_type::OrganizationId,
     metadata_key: DBEnum,
     request: api_models::user::dashboard_metadata::RemoveWidgetRequest,
-    entity_type: String,
+    entity_type: EntityType,
 ) -> UserResult<DashboardMetadata> {
     modify_dashboard_metadata(
         state,
@@ -799,7 +849,7 @@ async fn update_layout(
     org_id: id_type::OrganizationId,
     metadata_key: DBEnum,
     request: api_models::user::dashboard_metadata::UpdateLayoutRequest,
-    entity_type: String,
+    entity_type: EntityType,
 ) -> UserResult<DashboardMetadata> {
     modify_dashboard_metadata(
         state,

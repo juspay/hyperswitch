@@ -268,6 +268,9 @@ pub enum ChartType {
     StackedBarChart,
     SankeyChart,
     FunnelChart,
+    Table,
+    StatNumber,
+    Gauge,
 }
 
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
@@ -285,6 +288,8 @@ pub enum AnalyticsDomain {
     Refunds,
     Disputes,
     AuthEvents,
+    SmartRetries,
+    Routing,
 }
 
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
