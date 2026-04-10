@@ -2183,7 +2183,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
         &'a self,
         state: &SessionState,
         processor: &domain::Processor,
-        dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
+        dimensions: &DimensionsWithProcessorAndProviderMerchantId,
         payment_data: &mut PaymentData<F>,
         business_profile: &domain::Profile,
     ) -> CustomResult<bool, errors::ApiErrorResponse> {
