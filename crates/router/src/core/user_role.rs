@@ -14,18 +14,19 @@ use diesel_models::{
     user_role::UserRoleUpdate,
 };
 use error_stack::{report, ResultExt};
-use hyperswitch_masking::Secret;
+use hyperswitch_masking::{ExposeInterface, Secret};
 use router_env::logger;
 
 use crate::{
-    core::errors::{StorageErrorExt, UserErrors, UserResponse},
+    core::errors::{ApiErrorResponse, RouterResponse, StorageErrorExt, UserErrors, UserResponse},
     db::user_role::{ListUserRolesByOrgIdPayload, ListUserRolesByUserIdPayload},
     routes::{app::ReqState, SessionState},
     services::{
-        authentication as auth,
+        authentication::{self as auth, blacklist::BlackList},
         authorization::{
-            info,
+            self, info,
             permission_groups::{ParentGroupExt, PermissionGroupExt},
+            permissions::Permission,
             roles,
         },
         ApplicationResponse,
@@ -1150,4 +1151,27 @@ pub async fn list_invitations_for_user(
         })
         .collect::<Result<Vec<_>, _>>()
         .map(ApplicationResponse::Json)
+}
+
+pub async fn authorize_external_token(
+    state: SessionState,
+    payload: user_role_api::AuthorizeTokenRequest,
+) -> RouterResponse<()> {
+    let token = auth::decode_jwt::<auth::AuthToken>(&payload.token.expose(), &state).await?;
+
+    if token.check_in_blacklist(&state).await? {
+        return Err(ApiErrorResponse::InvalidJwtToken.into());
+    }
+
+    let permission: Permission =
+        serde_json::from_value(serde_json::Value::String(payload.permission)).map_err(|_| {
+            ApiErrorResponse::InvalidRequestData {
+                message: "Invalid permission".to_string(),
+            }
+        })?;
+
+    let role_info = authorization::get_role_info(&state, &token).await?;
+    authorization::check_permission(permission, &role_info)?;
+
+    Ok(ApplicationResponse::StatusOk)
 }

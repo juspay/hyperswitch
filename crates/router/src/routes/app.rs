@@ -3074,6 +3074,10 @@ impl User {
                     .service(
                         web::resource("/{role_id}/v2")
                             .route(web::get().to(user_role::get_parent_info_for_role)),
+                    )
+                    .service(
+                        web::resource("/authorize")
+                            .route(web::post().to(user_role::authorize_external_token)),
                     ),
             );
 
