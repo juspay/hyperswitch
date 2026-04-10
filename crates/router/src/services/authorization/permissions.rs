@@ -110,7 +110,31 @@ generate_permissions! {
         Theme: {
             scopes: [Read,Write],
             entities: [Organization]
-        }
+        },
+        ReconIngestion: {
+            scopes: [Read, Write],
+            entities: [Merchant]
+        },
+        ReconTransformation: {
+            scopes: [Read, Write],
+            entities: [Merchant]
+        },
+        ReconException: {
+            scopes: [Write],
+            entities: [Merchant]
+        },
+        ReconStagingEntry: {
+            scopes: [Read],
+            entities: [Merchant]
+        },
+        ReconTransaction: {
+            scopes: [Read],
+            entities: [Merchant]
+        },
+        ReconRule: {
+            scopes: [Read, Write],
+            entities: [Merchant]
+        },
     ]
 }
 
@@ -148,6 +172,12 @@ pub fn get_resource_name(resource: Resource, entity_type: EntityType) -> Option<
         (Resource::Account, EntityType::Tenant) => Some("Tenant Account"),
         (Resource::Theme, _) => Some("Themes"),
         (Resource::InternalConnector, _) => None,
+        (Resource::ReconIngestion, _) => Some("Recon Ingestion Configs"),
+        (Resource::ReconTransformation, _) => Some("Recon Transformation Configs"),
+        (Resource::ReconException, _) => Some("Recon Exception Management"),
+        (Resource::ReconStagingEntry, _) => Some("Recon Staging Entries"),
+        (Resource::ReconTransaction, _) => Some("Recon Transactions"),
+        (Resource::ReconRule, _) => Some("Recon Rules"),
     }
 }
 

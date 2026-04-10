@@ -9513,6 +9513,12 @@ pub enum PermissionGroup {
     InternalManage,
     ThemeView,
     ThemeManage,
+    ReconPipelineView,
+    ReconPipelineManage,
+    ReconExceptionsManage,
+    ReconLedgerView,
+    ReconRulesView,
+    ReconRulesManage,
 }
 
 #[derive(
@@ -9529,6 +9535,10 @@ pub enum ParentGroup {
     Account,
     Internal,
     Theme,
+    ReconPipeline,
+    ReconExceptions,
+    ReconLedger,
+    ReconRules,
 }
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Hash, serde::Serialize, serde::Deserialize)]
@@ -9561,6 +9571,12 @@ pub enum Resource {
     Subscription,
     InternalConnector,
     Theme,
+    ReconIngestion,
+    ReconTransformation,
+    ReconException,
+    ReconStagingEntry,
+    ReconTransaction,
+    ReconRule,
 }
 
 #[derive(
