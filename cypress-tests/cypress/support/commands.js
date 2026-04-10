@@ -5654,19 +5654,43 @@ Cypress.Commands.add(
 
 Cypress.Commands.add(
   "IncomingWebhookTest",
-  (globalState, webhookBody, webhookConfig) => {
+  (globalState, webhookBody, webhookConfig, webhookType = "payment") => {
     const connector = globalState.get("connectorId");
     const merchantId = globalState.get("merchantId");
     const completeUrl = `${Cypress.env("BASEURL")}/webhooks/${merchantId}/${connector}`;
 
-    // Normalize transaction ID
-    const txnConfig = webhookConfig.TransactionIdConfig;
-    const txnId =
-      txnConfig.source === "paymentAttemptID"
-        ? `${globalState.get("paymentID")}_1`
-        : globalState.get("connectorTransactionID");
+    // Resolve the reference ID based on webhook type
+    if (webhookType === "refund") {
+      const refundConfig = webhookConfig.RefundIdConfig;
+      const refundId =
+        refundConfig.source === "refundId"
+          ? globalState.get("refundId")
+          : globalState.get("connectorRefundId");
 
-    setNormalizedValue(webhookBody, txnConfig, txnId);
+      cy.task(
+        "cli_log",
+        `refundId for webhook: ${refundId}, source: ${refundConfig.source || "connectorRefundId"}`
+      );
+
+      if (!refundId) {
+        cy.task(
+          "cli_log",
+          "Skipping refund webhook: refund ID is not available (sandbox connector may not return it)"
+        );
+
+        return;
+      }
+
+      setNormalizedValue(webhookBody, refundConfig, refundId);
+    } else {
+      const txnConfig = webhookConfig.TransactionIdConfig;
+      const txnId =
+        txnConfig.source === "paymentAttemptID"
+          ? `${globalState.get("paymentID")}_1`
+          : globalState.get("connectorTransactionID");
+
+      setNormalizedValue(webhookBody, txnConfig, txnId);
+    }
 
     const contentType = webhookConfig.contentType || "application/json";
 
@@ -5722,73 +5746,6 @@ Cypress.Commands.add(
     }
 
     return sendRequest();
-  }
-);
-
-Cypress.Commands.add(
-  "IncomingRefundWebhookTest",
-  (globalState, webhookBody, webhookConfig) => {
-    const connector = globalState.get("connectorId");
-    const merchantId = globalState.get("merchantId");
-    const completeUrl = `${Cypress.env("BASEURL")}/webhooks/${merchantId}/${connector}`;
-
-    // Normalize connector refund ID into the webhook body
-    const refundConfig = webhookConfig.RefundIdConfig;
-    const refundId =
-      refundConfig.source === "refundId"
-        ? globalState.get("refundId")
-        : globalState.get("connectorRefundId");
-
-    cy.task(
-      "cli_log",
-      `refundId for webhook: ${refundId}, source: ${refundConfig.source || "connectorRefundId"}`
-    );
-
-    if (!refundId) {
-      cy.task(
-        "cli_log",
-        "Skipping refund webhook: refund ID is not available (sandbox connector may not return it)"
-      );
-
-      return;
-    }
-
-    setNormalizedValue(webhookBody, refundConfig, refundId);
-
-    const contentType = webhookConfig.contentType || "application/json";
-
-    const body =
-      contentType === "application/x-www-form-urlencoded"
-        ? Object.entries(webhookBody)
-            .map(
-              ([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`
-            )
-            .join("&")
-        : webhookBody;
-
-    const headers = {
-      "Content-Type": contentType,
-    };
-
-    return cy
-      .request({
-        method: "POST",
-        url: completeUrl,
-        headers,
-        body,
-        failOnStatusCode: false,
-      })
-      .then((response) => {
-        logRequestId(response.headers["x-request-id"]);
-
-        if (response.status !== 200) {
-          throw new Error(
-            `Refund webhook failed with error code "${response.body?.error?.code}" error message "${response.body?.error?.message}"`
-          );
-        }
-
-        return cy.wrap(response);
-      });
   }
 );
 

@@ -142,7 +142,7 @@ describe("Refund Webhook Tests", () => {
 
       const webhookConfig = getConnectorDetails(connector)["webhook"];
 
-      cy.IncomingRefundWebhookTest(globalState, webhookBody, webhookConfig);
+      cy.IncomingWebhookTest(globalState, webhookBody, webhookConfig, "refund");
     });
 
     it("Sync Refund Call Test", () => {
