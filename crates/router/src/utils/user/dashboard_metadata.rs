@@ -14,7 +14,7 @@ use api_models::{
     },
 };
 use common_enums::EntityType;
-use common_utils::{errors::ValidationError, id_type};
+use common_utils::id_type;
 use diesel_models::{
     enums::DashboardMetadata as DBEnum,
     user::dashboard_metadata::{DashboardMetadata, DashboardMetadataNew, DashboardMetadataUpdate},
@@ -27,7 +27,7 @@ use crate::{
     core::errors::{UserErrors, UserResult},
     headers,
     services::{authentication::UserFromToken, authorization::roles::RoleInfo},
-    types::domain::user::dashboard_metadata as types,
+    types::{domain::user::dashboard_metadata as types, transformers::ForeignFrom},
     SessionState,
 };
 
@@ -464,110 +464,98 @@ where
 }
 
 #[cfg(feature = "v1")]
-pub fn validate_create_saved_view_request(
-    request: &CreateSavedViewRequest,
-) -> Result<(), ValidationError> {
-    if request.view_name.trim().is_empty() {
-        return Err(ValidationError::MissingRequiredField {
-            field_name: "view_name".to_string(),
-        });
-    }
-    Ok(())
-}
-
-#[cfg(feature = "v1")]
-pub fn payment_list_filter_to_v1(
-    item: payments::PaymentListFilterConstraints,
-) -> PaymentListFilterConstraintsV1 {
-    let payments::PaymentListFilterConstraints {
-        payment_id,
-        profile_id,
-        customer_id,
-        limit,
-        offset,
-        amount_filter,
-        time_range,
-        connector,
-        currency,
-        status,
-        payment_method,
-        payment_method_type,
-        authentication_type,
-        merchant_connector_id,
-        order,
-        card_network,
-        merchant_order_reference_id,
-        card_discovery,
-        customer_email,
-    } = item;
-    PaymentListFilterConstraintsV1 {
-        payment_id,
-        profile_id,
-        customer_id,
-        limit,
-        offset,
-        amount_filter,
-        time_range,
-        connector,
-        currency,
-        status,
-        payment_method,
-        payment_method_type,
-        authentication_type,
-        merchant_connector_id,
-        order,
-        card_network,
-        merchant_order_reference_id,
-        card_discovery,
-        customer_email,
+impl ForeignFrom<payments::PaymentListFilterConstraints> for PaymentListFilterConstraintsV1 {
+    fn foreign_from(item: payments::PaymentListFilterConstraints) -> Self {
+        let payments::PaymentListFilterConstraints {
+            payment_id,
+            profile_id,
+            customer_id,
+            limit,
+            offset,
+            amount_filter,
+            time_range,
+            connector,
+            currency,
+            status,
+            payment_method,
+            payment_method_type,
+            authentication_type,
+            merchant_connector_id,
+            order,
+            card_network,
+            merchant_order_reference_id,
+            card_discovery,
+            customer_email,
+        } = item;
+        Self {
+            payment_id,
+            profile_id,
+            customer_id,
+            limit,
+            offset,
+            amount_filter,
+            time_range,
+            connector,
+            currency,
+            status,
+            payment_method,
+            payment_method_type,
+            authentication_type,
+            merchant_connector_id,
+            order,
+            card_network,
+            merchant_order_reference_id,
+            card_discovery,
+            customer_email,
+        }
     }
 }
 
 #[cfg(feature = "v1")]
-pub fn v1_to_payment_list_filter(
-    item: PaymentListFilterConstraintsV1,
-) -> payments::PaymentListFilterConstraints {
-    let PaymentListFilterConstraintsV1 {
-        payment_id,
-        profile_id,
-        customer_id,
-        limit,
-        offset,
-        amount_filter,
-        time_range,
-        connector,
-        currency,
-        status,
-        payment_method,
-        payment_method_type,
-        authentication_type,
-        merchant_connector_id,
-        order,
-        card_network,
-        merchant_order_reference_id,
-        card_discovery,
-        customer_email,
-    } = item;
-    payments::PaymentListFilterConstraints {
-        payment_id,
-        profile_id,
-        customer_id,
-        limit,
-        offset,
-        amount_filter,
-        time_range,
-        connector,
-        currency,
-        status,
-        payment_method,
-        payment_method_type,
-        authentication_type,
-        merchant_connector_id,
-        order,
-        card_network,
-        merchant_order_reference_id,
-        card_discovery,
-        customer_email,
+impl ForeignFrom<PaymentListFilterConstraintsV1> for payments::PaymentListFilterConstraints {
+    fn foreign_from(item: PaymentListFilterConstraintsV1) -> Self {
+        let PaymentListFilterConstraintsV1 {
+            payment_id,
+            profile_id,
+            customer_id,
+            limit,
+            offset,
+            amount_filter,
+            time_range,
+            connector,
+            currency,
+            status,
+            payment_method,
+            payment_method_type,
+            authentication_type,
+            merchant_connector_id,
+            order,
+            card_network,
+            merchant_order_reference_id,
+            card_discovery,
+            customer_email,
+        } = item;
+        Self {
+            payment_id,
+            profile_id,
+            customer_id,
+            limit,
+            offset,
+            amount_filter,
+            time_range,
+            connector,
+            currency,
+            status,
+            payment_method,
+            payment_method_type,
+            authentication_type,
+            merchant_connector_id,
+            order,
+            card_network,
+            merchant_order_reference_id,
+            card_discovery,
+            customer_email,
+        }
     }
 }
 
@@ -609,10 +597,10 @@ async fn create_saved_view(
     profile_id: Option<String>,
     request: CreateSavedViewRequest,
 ) -> UserResult<DashboardMetadata> {
-    validate_create_saved_view_request(&request).map_err(|_| {
-        report!(UserErrors::InvalidSavedViewName)
-            .attach_printable("Validation failed for create saved view request")
-    })?;
+    if request.view_name.trim().is_empty() {
+        return Err(report!(UserErrors::InvalidSavedViewName))
+            .attach_printable("Saved view name cannot be empty");
+    }
 
     let now = common_utils::date_time::now();
     let new_view_domain = types::SavedViewV1 {
