@@ -432,10 +432,10 @@ pub static PREDEFINED_ROLES: LazyLock<HashMap<&'static str, RoleInfo>> = LazyLoc
         consts::user_role::ROLE_ID_RECON_ADMIN,
         RoleInfo {
             groups: vec![
-                PermissionGroup::ReconPipelineView,
-                PermissionGroup::ReconPipelineManage,
+                PermissionGroup::ReconSourceView,
+                PermissionGroup::ReconSourceManage,
                 PermissionGroup::ReconExceptionsManage,
-                PermissionGroup::ReconLedgerView,
+                PermissionGroup::ReconTransactionView,
                 PermissionGroup::ReconRulesView,
                 PermissionGroup::ReconRulesManage,
             ],
@@ -453,9 +453,9 @@ pub static PREDEFINED_ROLES: LazyLock<HashMap<&'static str, RoleInfo>> = LazyLoc
         consts::user_role::ROLE_ID_RECON_DATA_ENGINEER,
         RoleInfo {
             groups: vec![
-                PermissionGroup::ReconPipelineManage,
-                PermissionGroup::ReconPipelineView,
-                PermissionGroup::ReconLedgerView,
+                PermissionGroup::ReconSourceManage,
+                PermissionGroup::ReconSourceView,
+                PermissionGroup::ReconTransactionView,
                 PermissionGroup::ReconRulesView,
             ],
             role_id: consts::user_role::ROLE_ID_RECON_DATA_ENGINEER.to_string(),
@@ -473,7 +473,7 @@ pub static PREDEFINED_ROLES: LazyLock<HashMap<&'static str, RoleInfo>> = LazyLoc
         RoleInfo {
             groups: vec![
                 PermissionGroup::ReconExceptionsManage,
-                PermissionGroup::ReconLedgerView,
+                PermissionGroup::ReconTransactionView,
                 PermissionGroup::ReconRulesView,
             ],
             role_id: consts::user_role::ROLE_ID_RECON_OPERATOR.to_string(),
@@ -490,14 +490,92 @@ pub static PREDEFINED_ROLES: LazyLock<HashMap<&'static str, RoleInfo>> = LazyLoc
         consts::user_role::ROLE_ID_RECON_VIEWER,
         RoleInfo {
             groups: vec![
-                PermissionGroup::ReconPipelineView,
-                PermissionGroup::ReconLedgerView,
+                PermissionGroup::ReconSourceView,
+                PermissionGroup::ReconTransactionView,
                 PermissionGroup::ReconRulesView,
             ],
             role_id: consts::user_role::ROLE_ID_RECON_VIEWER.to_string(),
             role_name: "recon_view_only".to_string(),
             scope: RoleScope::Organization,
             entity_type: EntityType::Merchant,
+            is_invitable: true,
+            is_deletable: true,
+            is_updatable: true,
+            is_internal: false,
+        },
+    );
+
+    // Profile Recon Roles
+    roles.insert(
+        consts::user_role::ROLE_ID_PROFILE_RECON_ADMIN,
+        RoleInfo {
+            groups: vec![
+                PermissionGroup::ReconSourceView,
+                PermissionGroup::ReconSourceManage,
+                PermissionGroup::ReconExceptionsManage,
+                PermissionGroup::ReconTransactionView,
+                PermissionGroup::ReconRulesView,
+                PermissionGroup::ReconRulesManage,
+            ],
+            role_id: consts::user_role::ROLE_ID_PROFILE_RECON_ADMIN.to_string(),
+            role_name: "profile_recon_admin".to_string(),
+            scope: RoleScope::Organization,
+            entity_type: EntityType::Profile,
+            is_invitable: true,
+            is_deletable: true,
+            is_updatable: true,
+            is_internal: false,
+        },
+    );
+    roles.insert(
+        consts::user_role::ROLE_ID_PROFILE_RECON_DATA_ENGINEER,
+        RoleInfo {
+            groups: vec![
+                PermissionGroup::ReconSourceManage,
+                PermissionGroup::ReconSourceView,
+                PermissionGroup::ReconTransactionView,
+                PermissionGroup::ReconRulesView,
+            ],
+            role_id: consts::user_role::ROLE_ID_PROFILE_RECON_DATA_ENGINEER.to_string(),
+            role_name: "profile_recon_data_engineer".to_string(),
+            scope: RoleScope::Organization,
+            entity_type: EntityType::Profile,
+            is_invitable: true,
+            is_deletable: true,
+            is_updatable: true,
+            is_internal: false,
+        },
+    );
+    roles.insert(
+        consts::user_role::ROLE_ID_PROFILE_RECON_OPERATOR,
+        RoleInfo {
+            groups: vec![
+                PermissionGroup::ReconExceptionsManage,
+                PermissionGroup::ReconTransactionView,
+                PermissionGroup::ReconRulesView,
+            ],
+            role_id: consts::user_role::ROLE_ID_PROFILE_RECON_OPERATOR.to_string(),
+            role_name: "profile_recon_operator".to_string(),
+            scope: RoleScope::Organization,
+            entity_type: EntityType::Profile,
+            is_invitable: true,
+            is_deletable: true,
+            is_updatable: true,
+            is_internal: false,
+        },
+    );
+    roles.insert(
+        consts::user_role::ROLE_ID_PROFILE_RECON_VIEWER,
+        RoleInfo {
+            groups: vec![
+                PermissionGroup::ReconSourceView,
+                PermissionGroup::ReconTransactionView,
+                PermissionGroup::ReconRulesView,
+            ],
+            role_id: consts::user_role::ROLE_ID_PROFILE_RECON_VIEWER.to_string(),
+            role_name: "profile_recon_view_only".to_string(),
+            scope: RoleScope::Organization,
+            entity_type: EntityType::Profile,
             is_invitable: true,
             is_deletable: true,
             is_updatable: true,

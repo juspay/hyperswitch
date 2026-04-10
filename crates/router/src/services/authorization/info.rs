@@ -50,10 +50,10 @@ fn get_group_description(group: PermissionGroup) -> Option<&'static str> {
         PermissionGroup::ThemeView => Some("View Themes"),
         PermissionGroup::ThemeManage => Some("Manage Themes"),
         PermissionGroup::InternalManage => None, // Internal group, no user-facing description
-        PermissionGroup::ReconPipelineView => Some("View recon ingestion and transformation configs"),
-        PermissionGroup::ReconPipelineManage => Some("Create and edit recon ingestions and transformations"),
+        PermissionGroup::ReconSourceView => Some("View recon ingestion and transformation configs"),
+        PermissionGroup::ReconSourceManage => Some("Create and edit recon ingestions and transformations"),
         PermissionGroup::ReconExceptionsManage => Some("Investigate and resolve recon exceptions"),
-        PermissionGroup::ReconLedgerView => Some("View recon staging entries and transactions"),
+        PermissionGroup::ReconTransactionView => Some("View recon staging entries and transactions"),
         PermissionGroup::ReconRulesView => Some("View reconciliation rules"),
         PermissionGroup::ReconRulesManage => Some("Create and edit reconciliation rules"),
     }
@@ -71,9 +71,9 @@ pub fn get_parent_group_description(group: ParentGroup) -> Option<&'static str> 
         ParentGroup::ReconReports => Some("View, manage reconciliation reports and analytics"),
         ParentGroup::Theme => Some("Manage and view themes for the organization"),
         ParentGroup::Internal => None, // Internal group, no user-facing description
-        ParentGroup::ReconPipeline => Some("Recon ingestion and transformation pipelines"),
+        ParentGroup::ReconSource => Some("Recon ingestion and transformation pipelines"),
         ParentGroup::ReconExceptions => Some("Recon exception investigation and resolution"),
-        ParentGroup::ReconLedger => Some("Recon staging entries and transactions"),
+        ParentGroup::ReconTransaction => Some("Recon staging entries and transactions"),
         ParentGroup::ReconRules => Some("Reconciliation rules"),
     }
 }

@@ -24,8 +24,8 @@ impl PermissionGroupExt for PermissionGroup {
             | Self::ReconOpsView
             | Self::ReconReportsView
             | Self::ThemeView
-            | Self::ReconPipelineView
-            | Self::ReconLedgerView
+            | Self::ReconSourceView
+            | Self::ReconTransactionView
             | Self::ReconRulesView => PermissionScope::Read,
 
             Self::OperationsManage
@@ -37,7 +37,7 @@ impl PermissionGroupExt for PermissionGroup {
             | Self::ReconReportsManage
             | Self::InternalManage
             | Self::ThemeManage
-            | Self::ReconPipelineManage
+            | Self::ReconSourceManage
             | Self::ReconExceptionsManage
             | Self::ReconRulesManage => PermissionScope::Write,
         }
@@ -56,9 +56,9 @@ impl PermissionGroupExt for PermissionGroup {
             Self::ReconOpsView | Self::ReconOpsManage => ParentGroup::ReconOps,
             Self::ReconReportsView | Self::ReconReportsManage => ParentGroup::ReconReports,
             Self::InternalManage => ParentGroup::Internal,
-            Self::ReconPipelineView | Self::ReconPipelineManage => ParentGroup::ReconPipeline,
+            Self::ReconSourceView | Self::ReconSourceManage => ParentGroup::ReconSource,
             Self::ReconExceptionsManage => ParentGroup::ReconExceptions,
-            Self::ReconLedgerView => ParentGroup::ReconLedger,
+            Self::ReconTransactionView => ParentGroup::ReconTransaction,
             Self::ReconRulesView | Self::ReconRulesManage => ParentGroup::ReconRules,
         }
     }
@@ -106,28 +106,28 @@ impl PermissionGroupExt for PermissionGroup {
             Self::ThemeView => vec![Self::ThemeView, Self::AccountView],
             Self::ThemeManage => vec![Self::ThemeManage, Self::AccountView],
 
-            Self::ReconPipelineView => vec![
-                Self::ReconPipelineView,
-                Self::ReconLedgerView,
+            Self::ReconSourceView => vec![
+                Self::ReconSourceView,
+                Self::ReconTransactionView,
                 Self::ReconRulesView,
             ],
-            Self::ReconPipelineManage => vec![
-                Self::ReconPipelineManage,
-                Self::ReconPipelineView,
-                Self::ReconLedgerView,
+            Self::ReconSourceManage => vec![
+                Self::ReconSourceManage,
+                Self::ReconSourceView,
+                Self::ReconTransactionView,
                 Self::ReconRulesView,
             ],
             Self::ReconExceptionsManage => vec![
                 Self::ReconExceptionsManage,
-                Self::ReconLedgerView,
+                Self::ReconTransactionView,
                 Self::ReconRulesView,
             ],
-            Self::ReconLedgerView => vec![Self::ReconLedgerView, Self::ReconRulesView],
-            Self::ReconRulesView => vec![Self::ReconRulesView, Self::ReconLedgerView],
+            Self::ReconTransactionView => vec![Self::ReconTransactionView, Self::ReconRulesView],
+            Self::ReconRulesView => vec![Self::ReconRulesView, Self::ReconTransactionView],
             Self::ReconRulesManage => vec![
                 Self::ReconRulesManage,
                 Self::ReconRulesView,
-                Self::ReconLedgerView,
+                Self::ReconTransactionView,
             ],
         }
     }
@@ -155,9 +155,9 @@ impl ParentGroupExt for ParentGroup {
             Self::ReconReports => RECON_REPORTS.to_vec(),
             Self::Internal => INTERNAL.to_vec(),
             Self::Theme => THEME.to_vec(),
-            Self::ReconPipeline => RECON_PIPELINE.to_vec(),
+            Self::ReconSource => RECON_SOURCE.to_vec(),
             Self::ReconExceptions => RECON_EXCEPTIONS.to_vec(),
-            Self::ReconLedger => RECON_LEDGER.to_vec(),
+            Self::ReconTransaction => RECON_TRANSACTION.to_vec(),
             Self::ReconRules => RECON_RULES.to_vec(),
         }
     }
@@ -247,11 +247,11 @@ pub static RECON_REPORTS: [Resource; 4] = [
 
 pub static THEME: [Resource; 1] = [Resource::Theme];
 
-pub static RECON_PIPELINE: [Resource; 2] =
+pub static RECON_SOURCE: [Resource; 2] =
     [Resource::ReconIngestion, Resource::ReconTransformation];
 
 pub static RECON_EXCEPTIONS: [Resource; 1] = [Resource::ReconException];
 
-pub static RECON_LEDGER: [Resource; 2] = [Resource::ReconStagingEntry, Resource::ReconTransaction];
+pub static RECON_TRANSACTION: [Resource; 2] = [Resource::ReconStagingEntry, Resource::ReconTransaction];
 
 pub static RECON_RULES: [Resource; 1] = [Resource::ReconRule];

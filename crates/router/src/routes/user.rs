@@ -1241,3 +1241,24 @@ pub async fn list_members_for_entity(
     ))
     .await
 }
+
+pub async fn authorize_token(
+    state: web::Data<AppState>,
+    http_req: HttpRequest,
+    json_payload: web::Json<api_models::user_role::AuthorizeTokenRequest>,
+) -> HttpResponse {
+    let flow = Flow::AuthorizeExternalToken;
+    Box::pin(api::server_wrap(
+        flow,
+        state.clone(),
+        &http_req,
+        json_payload.into_inner(),
+        |state, _: (), payload, _| user_core::authorize_token(state, payload),
+        &auth::InternalMerchantIdProfileIdAuth(auth::DashboardNoPermissionAuth{
+            allow_connected: true, 
+            allow_platform: true
+        }),
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}

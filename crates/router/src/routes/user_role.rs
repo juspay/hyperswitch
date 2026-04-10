@@ -495,21 +495,3 @@ pub async fn list_invitations_for_user(
     ))
     .await
 }
-
-pub async fn authorize_external_token(
-    state: web::Data<AppState>,
-    http_req: HttpRequest,
-    json_payload: web::Json<user_role_api::AuthorizeTokenRequest>,
-) -> HttpResponse {
-    let flow = Flow::AuthorizeExternalToken;
-    Box::pin(api::server_wrap(
-        flow,
-        state.clone(),
-        &http_req,
-        json_payload.into_inner(),
-        |state, _: (), payload, _| user_role_core::authorize_external_token(state, payload),
-        &auth::NoAuth,
-        api_locking::LockAction::NotApplicable,
-    ))
-    .await
-}

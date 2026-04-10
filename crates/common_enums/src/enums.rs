@@ -9513,10 +9513,10 @@ pub enum PermissionGroup {
     InternalManage,
     ThemeView,
     ThemeManage,
-    ReconPipelineView,
-    ReconPipelineManage,
+    ReconSourceView,
+    ReconSourceManage,
     ReconExceptionsManage,
-    ReconLedgerView,
+    ReconTransactionView,
     ReconRulesView,
     ReconRulesManage,
 }
@@ -9535,9 +9535,9 @@ pub enum ParentGroup {
     Account,
     Internal,
     Theme,
-    ReconPipeline,
+    ReconSource,
     ReconExceptions,
-    ReconLedger,
+    ReconTransaction,
     ReconRules,
 }
 

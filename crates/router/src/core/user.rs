@@ -4136,3 +4136,31 @@ pub async fn list_members_for_entity(
         },
     ))
 }
+
+pub async fn authorize_token(
+    state: SessionState,
+    payload: api_models::user_role::AuthorizeTokenRequest,
+) -> super::errors::RouterResponse<()> {
+    use crate::services::{
+        authentication::blacklist::BlackList,
+        authorization::{self as authorization, permissions::Permission},
+    };
+    use hyperswitch_masking::ExposeInterface;
+
+    let token = auth::decode_jwt::<auth::AuthToken>(&payload.token.expose(), &state).await?;
+
+    if token.check_in_blacklist(&state).await? {
+        return Err(super::errors::ApiErrorResponse::InvalidJwtToken.into());
+    }
+
+    let permission: Permission = payload.permission.parse().map_err(|_| {
+        super::errors::ApiErrorResponse::InvalidRequestData {
+            message: "Invalid permission".to_string(),
+        }
+    })?;
+
+    let role_info = authorization::get_role_info(&state, &token).await?;
+    authorization::check_permission(permission, &role_info)?;
+
+    Ok(ApplicationResponse::StatusOk)
+}

@@ -20,3 +20,8 @@ pub const ROLE_ID_RECON_ADMIN: &str = "recon_admin";
 pub const ROLE_ID_RECON_DATA_ENGINEER: &str = "recon_data_engineer";
 pub const ROLE_ID_RECON_OPERATOR: &str = "recon_operator";
 pub const ROLE_ID_RECON_VIEWER: &str = "recon_view_only";
+
+pub const ROLE_ID_PROFILE_RECON_ADMIN: &str = "profile_recon_admin";
+pub const ROLE_ID_PROFILE_RECON_DATA_ENGINEER: &str = "profile_recon_data_engineer";
+pub const ROLE_ID_PROFILE_RECON_OPERATOR: &str = "profile_recon_operator";
+pub const ROLE_ID_PROFILE_RECON_VIEWER: &str = "profile_recon_view_only";
