@@ -38,7 +38,11 @@ use crate::{
         user_role::ListUserRolesByUserIdPayload,
     },
     routes::{app::ReqState, SessionState},
-    services::{authentication as auth, authorization::roles, openidconnect, ApplicationResponse},
+    services::{
+        authentication::{self as auth, blacklist::BlackList},
+        authorization::{self, permissions::Permission, roles},
+        openidconnect, ApplicationResponse,
+    },
     types::{domain, transformers::ForeignInto},
     utils::{
         self,
@@ -4141,13 +4145,6 @@ pub async fn authorize_token(
     state: SessionState,
     payload: api_models::user_role::AuthorizeTokenRequest,
 ) -> super::errors::RouterResponse<()> {
-    use hyperswitch_masking::ExposeInterface;
-
-    use crate::services::{
-        authentication::blacklist::BlackList,
-        authorization::{self as authorization, permissions::Permission},
-    };
-
     let token = auth::decode_jwt::<auth::AuthToken>(&payload.token.expose(), &state).await?;
 
     if token.check_in_blacklist(&state).await? {
