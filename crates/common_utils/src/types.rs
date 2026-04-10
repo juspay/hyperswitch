@@ -626,6 +626,11 @@ impl FloatMajorUnit {
         Self(0.0)
     }
 
+    /// gets amount as i64
+    pub fn get_amount_as_f64(self) -> f64 {
+        self.0
+    }
+
     /// converts to minor unit as i64 from FloatMajorUnit
     fn to_minor_unit_as_i64(
         self,

@@ -1414,6 +1414,9 @@ id = "12345"
 [network_tokenization_supported_card_networks]
 card_networks = "Visa, AmericanExpress, Mastercard"
 
+[alt_id_supported_card_networks]
+card_networks = "Visa, Mastercard, AmericanExpress, DinersClub, RuPay"
+
 [network_tokenization_supported_connectors]
 connector_list = "adyen,cybersource,peachpayments,trustpay"
 

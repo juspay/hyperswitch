@@ -282,7 +282,7 @@ impl Connector {
     pub fn requires_order_creation_before_payment(self, payment_method: PaymentMethod) -> bool {
         matches!(
             (self, payment_method),
-            (Self::Razorpay, _) | (Self::Airwallex, _) //ordercreation required for all flows in airwallex
+            (Self::Razorpay, _) | (Self::Airwallex, _)
         )
     }
     pub fn supports_file_storage_module(self) -> bool {
