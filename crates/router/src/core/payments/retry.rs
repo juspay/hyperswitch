@@ -103,7 +103,7 @@ where
     };
 
     if should_step_up {
-        router_data = do_retry(
+        router_data = Box::pin(do_retry(
             &state.clone(),
             req_state.clone(),
             original_connector_data,
@@ -122,7 +122,7 @@ where
             initial_gsm.clone(),
             #[cfg(feature = "pm_modular")]
             feature_config,
-        )
+        ))
         .await?;
     }
     // Step up is not applicable so proceed with auto retries flow
@@ -210,7 +210,7 @@ where
                         (connector_routing_data.connector_data, routing_decision)
                     };
 
-                    router_data = do_retry(
+                    router_data = Box::pin(do_retry(
                         &state.clone(),
                         req_state.clone(),
                         &connector,
@@ -230,7 +230,7 @@ where
                         gsm.clone(),
                         #[cfg(feature = "pm_modular")]
                         feature_config,
-                    )
+                    ))
                     .await?;
 
                     retries = retries.map(|i| i - 1);

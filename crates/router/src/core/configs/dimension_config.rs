@@ -2,12 +2,13 @@ use common_utils::errors::CustomResult;
 use external_services::superposition;
 use scheduler::consumer::types::process_data::RetryMapping;
 
-// Re-export dimension types for convenience
-pub use super::dimension_state::{
-    DimensionsWithProcessorAndProviderMerchantId,
-    DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
+use super::{
+    dimension_state::{
+        DimensionsWithProcessorAndProviderMerchantId,
+        DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
+    },
+    fetch_db_config_for_dimensions, DatabaseBackedConfig,
 };
-use super::{fetch_db_config_for_dimensions, DatabaseBackedConfig};
 use crate::{
     consts::superposition as superposition_consts,
     core::configs::dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndConnector,
