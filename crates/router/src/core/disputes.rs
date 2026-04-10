@@ -1072,12 +1072,9 @@ pub async fn schedule_dispute_sync_task(
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Error while fetching the organization for processor merchant")?;
 
-        let (merchant_id, resolved_processor_merchant_id) =
-            if let Some(platform_merchant_id) = organization.platform_merchant_id {
-                (platform_merchant_id, processor_merchant_id)
-            } else {
-                (processor_merchant_id.clone(), processor_merchant_id)
-            };
+        let merchant_id = organization
+            .platform_merchant_id
+            .unwrap_or_else(|| processor_merchant_id.clone());
 
         let m_db = state.clone().store;
         let connector_name = mca.connector_name.clone();
@@ -1091,7 +1088,7 @@ pub async fn schedule_dispute_sync_task(
                     &*m_db,
                     &connector_name,
                     merchant_id,
-                    resolved_processor_merchant_id,
+                    processor_merchant_id,
                     merchant_connector_id.clone(),
                     business_profile_id,
                     FetchDisputesRequestData {
