@@ -12,7 +12,7 @@ use super::{call_connector_payout, PayoutData};
 use crate::{
     consts,
     core::{
-        configs::dimension_state::DimensionsWithMerchantId,
+        configs::dimension_state::DimensionsWithProcessorAndProviderMerchantId,
         errors::{self, RouterResult, StorageErrorExt},
         payouts,
     },
@@ -30,7 +30,7 @@ pub async fn do_gsm_multiple_connector_actions(
     original_connector_data: api::ConnectorData,
     payout_data: &mut PayoutData,
     platform: &domain::Platform,
-    dimensions: &DimensionsWithMerchantId,
+    dimensions: &DimensionsWithProcessorAndProviderMerchantId,
     header_payload: HeaderPayload,
 ) -> RouterResult<()> {
     let mut retries = None;
@@ -91,7 +91,7 @@ pub async fn do_gsm_single_connector_actions(
     original_connector_data: api::ConnectorData,
     payout_data: &mut PayoutData,
     platform: &domain::Platform,
-    dimensions: &DimensionsWithMerchantId,
+    dimensions: &DimensionsWithProcessorAndProviderMerchantId,
     header_payload: HeaderPayload,
 ) -> RouterResult<()> {
     let mut retries = None;
@@ -215,7 +215,7 @@ pub async fn do_retry(
     platform: &domain::Platform,
     header_payload: HeaderPayload,
     payout_data: &mut PayoutData,
-    dimensions: &DimensionsWithMerchantId,
+    dimensions: &DimensionsWithProcessorAndProviderMerchantId,
 ) -> RouterResult<()> {
     metrics::AUTO_RETRY_PAYOUT_COUNT.add(1, &[]);
 

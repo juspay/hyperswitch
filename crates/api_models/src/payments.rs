@@ -11683,11 +11683,11 @@ pub struct BoletoAdditionalDetails {
     #[serde(default, with = "common_utils::custom_serde::date_only_optional")]
     pub due_date: Option<PrimitiveDateTime>,
     /// It tells the bank what type of commercial document created the boleto. Why does this boleto exist? What kind of transaction or contract caused it?
-    /// Depcreated since it has been moved to connector_metadata
+    /// Deprecated since it has been moved to connector_metadata
     #[schema(value_type = Option<BoletoDocumentKind>, example="commercial_invoice", deprecated)]
     pub document_kind: Option<common_enums::BoletoDocumentKind>,
     /// This field tells the bank how the boleto can be paid — whether the payer must pay the exact amount, can pay a different amount, or pay in parts.
-    /// Depcreated since it has been moved to connector_metadata
+    /// Deprecated since it has been moved to connector_metadata
     #[schema(value_type = Option<BoletoPaymentType>, example="fixed_amount", deprecated)]
     pub payment_type: Option<common_enums::BoletoPaymentType>,
     // It is a number which shows a contract between merchant and bank

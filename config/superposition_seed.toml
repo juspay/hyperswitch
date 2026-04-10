@@ -16,20 +16,26 @@ schema = { type = "string" }
 description = "Organization identifier"
 change_reason = "Initial setup"
 
-[dimensions.merchant_id]
+[dimensions.provider_merchant_id]
 position = 2
 schema = { type = "string" }
-description = "Merchant identifier"
+description = "Provider merchant identifier (hyperswitch merchant id)"
+change_reason = "Initial setup"
+
+[dimensions.processor_merchant_id]
+position = 3
+schema = { type = "string" }
+description = "Processor merchant identifier (connector-side merchant id)"
 change_reason = "Initial setup"
 
 [dimensions.profile_id]
-position = 3
+position = 4
 schema = { type = "string" }
 description = "Business profile identifier"
 change_reason = "Initial setup"
 
 [dimensions.connector]
-position = 4
+position = 5
 schema = { type = "string" }
 description = "Payment connector identifier (e.g. stripe, adyen)"
 change_reason = "Initial setup"
