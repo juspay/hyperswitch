@@ -4243,6 +4243,7 @@ impl PaymentRedirectFlow for PaymentAuthenticateCompleteAuthorize {
             None,
             &payment_intent
                 .profile_id
+                .clone()
                 .ok_or(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("missing profile_id in payment_intent")?,
             &payment_attempt
@@ -4280,9 +4281,7 @@ impl PaymentRedirectFlow for PaymentAuthenticateCompleteAuthorize {
                 }),
                 ..Default::default()
             };
-            let is_setup_mandate = payment_intent.amount == MinorUnit::zero()
-                && payment_intent.setup_future_usage
-                    == Some(storage_enums::FutureUsage::OffSession);
+            let is_setup_mandate = payment_intent.is_setup_mandate();
             if is_setup_mandate {
                 Box::pin(payments_core::<
                     api::SetupMandate,
