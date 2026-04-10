@@ -77,9 +77,3 @@ pub struct Entity {
 pub struct ListUsersInEntityRequest {
     pub entity_type: Option<common_enums::EntityType>,
 }
-
-#[derive(Debug, serde::Deserialize, serde::Serialize)]
-pub struct AuthorizeTokenRequest {
-    pub token: Secret<String>,
-    pub permission: String,
-}

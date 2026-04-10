@@ -4144,7 +4144,7 @@ pub async fn list_members_for_entity(
 
 pub async fn authorize_token(
     state: SessionState,
-    payload: api_models::user_role::AuthorizeTokenRequest,
+    payload: user_api::AuthorizeTokenRequest,
 ) -> RouterResponse<()> {
     let permission: Permission =
         payload

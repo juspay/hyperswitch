@@ -7,8 +7,8 @@ use crate::user_role::{
         ParentGroupInfoRequest, RoleInfoResponseNew, RoleInfoResponseWithParentsGroup,
         RoleInfoWithGroupsResponse, RoleInfoWithParents, UpdateRoleRequest,
     },
-    AuthorizationInfoResponse, AuthorizeTokenRequest, DeleteUserRoleRequest,
-    DeleteUserRoleResponse, ListUsersInEntityRequest, UpdateUserRoleRequest,
+    AuthorizationInfoResponse, DeleteUserRoleRequest, DeleteUserRoleResponse,
+    ListUsersInEntityRequest, UpdateUserRoleRequest,
 };
 
 common_utils::impl_api_event_type!(
@@ -32,7 +32,6 @@ common_utils::impl_api_event_type!(
         RoleInfoWithParents,
         ParentGroupInfoRequest,
         RoleInfoResponseWithParentsGroup,
-        ListRolesResponse,
-        AuthorizeTokenRequest
+        ListRolesResponse
     )
 );

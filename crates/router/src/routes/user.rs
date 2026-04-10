@@ -1245,7 +1245,7 @@ pub async fn list_members_for_entity(
 pub async fn authorize_token(
     state: web::Data<AppState>,
     http_req: HttpRequest,
-    json_payload: web::Json<api_models::user_role::AuthorizeTokenRequest>,
+    json_payload: web::Json<user_api::AuthorizeTokenRequest>,
 ) -> HttpResponse {
     let flow = Flow::AuthorizeExternalToken;
     Box::pin(api::server_wrap(
