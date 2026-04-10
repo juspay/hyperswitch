@@ -18,17 +18,24 @@ use hyperswitch_domain_models::{
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
     router_flow_types::{
         access_token_auth::AccessTokenAuth,
+        authentication::{
+            Authentication, PostAuthentication, PreAuthentication, PreAuthenticationVersionCall,
+        },
         payments::{Authorize, Capture, PSync, PaymentMethodToken, Session, SetupMandate, Void},
         refunds::{Execute, RSync},
     },
     router_request_types::{
+        authentication::{
+            ConnectorAuthenticationRequestData, ConnectorPostAuthenticationRequestData,
+            PreAuthNRequestData,
+        },
         AccessTokenRequestData, PaymentMethodTokenizationData, PaymentsAuthorizeData,
         PaymentsCancelData, PaymentsCaptureData, PaymentsSessionData, PaymentsSyncData,
         RefundsData, SetupMandateRequestData,
     },
     router_response_types::{
-        ConnectorInfo, PaymentMethodDetails, PaymentsResponseData, RefundsResponseData,
-        SupportedPaymentMethods, SupportedPaymentMethodsExt,
+        AuthenticationResponseData, ConnectorInfo, PaymentMethodDetails, PaymentsResponseData,
+        RefundsResponseData, SupportedPaymentMethods, SupportedPaymentMethodsExt,
     },
     types::{
         PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
@@ -37,7 +44,12 @@ use hyperswitch_domain_models::{
 };
 use hyperswitch_interfaces::{
     api::{
-        self, ConnectorCommon, ConnectorIntegration, ConnectorSpecifications, ConnectorValidation,
+        self,
+        authentication::{
+            ConnectorAuthentication, ConnectorPostAuthentication, ConnectorPreAuthentication,
+            ConnectorPreAuthenticationVersionCall, ExternalAuthentication,
+        },
+        ConnectorCommon, ConnectorIntegration, ConnectorSpecifications, ConnectorValidation,
     },
     configs::Connectors,
     errors,
@@ -49,12 +61,16 @@ use hyperswitch_interfaces::{
     webhooks::{IncomingWebhook, IncomingWebhookRequestDetails, WebhookContext},
 };
 use hyperswitch_masking::{Mask, PeekInterface};
+use serde_urlencoded;
 use ring::aead::{self, UnboundKey};
 use transformers as aci;
 
 use crate::{
     constants::headers,
-    types::ResponseRouterData,
+    types::{
+        ConnectorPostAuthenticationRouterData, ConnectorPostAuthenticationType,
+        ConnectorPreAuthenticationType, PreAuthNRouterData, ResponseRouterData,
+    },
     utils::{
         convert_amount, is_mandate_supported, PaymentMethodDataType, PaymentsAuthorizeRequestData,
     },
@@ -240,7 +256,9 @@ impl ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsRespons
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let connector_req = aci::AciMandateRequest::try_from(req)?;
-        Ok(RequestContent::FormUrlEncoded(Box::new(connector_req)))
+        let body = serde_urlencoded::to_string(&connector_req)
+            .map_err(|_| errors::ConnectorError::RequestEncodingFailed)?;
+        Ok(RequestContent::RawBytes(body.into_bytes()))
     }
 
     fn build_request(
@@ -338,7 +356,9 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
         )?;
         let connector_router_data = aci::AciRouterData::from((amount, req));
         let connector_req = aci::AciCaptureRequest::try_from(&connector_router_data)?;
-        Ok(RequestContent::FormUrlEncoded(Box::new(connector_req)))
+        let body = serde_urlencoded::to_string(&connector_req)
+            .map_err(|_| errors::ConnectorError::RequestEncodingFailed)?;
+        Ok(RequestContent::RawBytes(body.into_bytes()))
     }
 
     fn build_request(
@@ -525,8 +545,10 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
 
         let connector_router_data = aci::AciRouterData::from((amount, req));
         let connector_req = aci::AciPaymentsRequest::try_from(&connector_router_data)?;
-
-        Ok(RequestContent::FormUrlEncoded(Box::new(connector_req)))
+        let body = serde_urlencoded::to_string(&connector_req)
+            .map_err(|_| errors::ConnectorError::RequestEncodingFailed)?;
+        router_env::logger::debug!(aci_request_body = %body);
+        Ok(RequestContent::RawBytes(body.into_bytes()))
     }
 
     fn build_request(
@@ -613,7 +635,9 @@ impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Ac
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let connector_req = aci::AciCancelRequest::try_from(req)?;
-        Ok(RequestContent::FormUrlEncoded(Box::new(connector_req)))
+        let body = serde_urlencoded::to_string(&connector_req)
+            .map_err(|_| errors::ConnectorError::RequestEncodingFailed)?;
+        Ok(RequestContent::RawBytes(body.into_bytes()))
     }
     fn build_request(
         &self,
@@ -710,7 +734,9 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Aci {
 
         let connector_router_data = aci::AciRouterData::from((amount, req));
         let connector_req = aci::AciRefundRequest::try_from(&connector_router_data)?;
-        Ok(RequestContent::FormUrlEncoded(Box::new(connector_req)))
+        let body = serde_urlencoded::to_string(&connector_req)
+            .map_err(|_| errors::ConnectorError::RequestEncodingFailed)?;
+        Ok(RequestContent::RawBytes(body.into_bytes()))
     }
 
     fn build_request(
@@ -759,6 +785,208 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Aci {
 }
 
 impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Aci {}
+
+// ─── ExternalAuthentication (Standalone 3DS via /v1/threeDSecure) ─────────────
+
+impl ConnectorPreAuthentication for Aci {}
+impl ConnectorPreAuthenticationVersionCall for Aci {}
+impl ConnectorAuthentication for Aci {}
+impl ConnectorPostAuthentication for Aci {}
+impl ExternalAuthentication for Aci {}
+
+/// PreAuthentication maps to `POST /v1/threeDSecure` — initiates standalone 3DS.
+impl ConnectorIntegration<PreAuthentication, PreAuthNRequestData, AuthenticationResponseData>
+    for Aci
+{
+    fn get_headers(
+        &self,
+        req: &PreAuthNRouterData,
+        _connectors: &Connectors,
+    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+        let mut header = vec![(
+            headers::CONTENT_TYPE.to_string(),
+            self.common_get_content_type().to_string().into(),
+        )];
+        let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
+        header.append(&mut api_key);
+        Ok(header)
+    }
+
+    fn get_content_type(&self) -> &'static str {
+        self.common_get_content_type()
+    }
+
+    fn get_url(
+        &self,
+        _req: &PreAuthNRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        Ok(format!("{}v1/threeDSecure", self.base_url(connectors)))
+    }
+
+    fn get_request_body(
+        &self,
+        req: &PreAuthNRouterData,
+        _connectors: &Connectors,
+    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+        let connector_req = aci::AciStandaloneThreeDsRequest::try_from(req)?;
+        let body = serde_urlencoded::to_string(&connector_req)
+            .map_err(|_| errors::ConnectorError::RequestEncodingFailed)?;
+        Ok(RequestContent::RawBytes(body.into_bytes()))
+    }
+
+    fn build_request(
+        &self,
+        req: &PreAuthNRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
+        Ok(Some(
+            RequestBuilder::new()
+                .method(Method::Post)
+                .url(&ConnectorPreAuthenticationType::get_url(
+                    self, req, connectors,
+                )?)
+                .attach_default_headers()
+                .headers(ConnectorPreAuthenticationType::get_headers(
+                    self, req, connectors,
+                )?)
+                .set_body(ConnectorPreAuthenticationType::get_request_body(
+                    self, req, connectors,
+                )?)
+                .build(),
+        ))
+    }
+
+    fn handle_response(
+        &self,
+        data: &PreAuthNRouterData,
+        event_builder: Option<&mut ConnectorEvent>,
+        res: Response,
+    ) -> CustomResult<PreAuthNRouterData, errors::ConnectorError> {
+        let response: aci::AciPaymentsResponse = res
+            .response
+            .parse_struct("AciPaymentsResponse (3DS PreAuth)")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+        RouterData::try_from(ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
+        .change_context(errors::ConnectorError::ResponseHandlingFailed)
+    }
+
+    fn get_error_response(
+        &self,
+        res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res, event_builder)
+    }
+}
+
+/// PreAuthenticationVersionCall — stub (ACI has no separate versioning endpoint).
+impl
+    ConnectorIntegration<
+        PreAuthenticationVersionCall,
+        PreAuthNRequestData,
+        AuthenticationResponseData,
+    > for Aci
+{
+}
+
+/// Authentication — stub (redirect/challenge handled by browser after PreAuth).
+impl
+    ConnectorIntegration<
+        Authentication,
+        ConnectorAuthenticationRequestData,
+        AuthenticationResponseData,
+    > for Aci
+{
+}
+
+/// PostAuthentication maps to `GET /v1/threeDSecure/{id}` — retrieves final 3DS result.
+impl
+    ConnectorIntegration<
+        PostAuthentication,
+        ConnectorPostAuthenticationRequestData,
+        AuthenticationResponseData,
+    > for Aci
+{
+    fn get_headers(
+        &self,
+        req: &ConnectorPostAuthenticationRouterData,
+        _connectors: &Connectors,
+    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+        self.get_auth_header(&req.connector_auth_type)
+    }
+
+    fn get_content_type(&self) -> &'static str {
+        self.common_get_content_type()
+    }
+
+    fn get_url(
+        &self,
+        req: &ConnectorPostAuthenticationRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        let auth = aci::AciAuthType::try_from(&req.connector_auth_type)?;
+        Ok(format!(
+            "{}v1/threeDSecure/{}?entityId={}",
+            self.base_url(connectors),
+            req.request.threeds_server_transaction_id,
+            auth.entity_id.peek()
+        ))
+    }
+
+    fn build_request(
+        &self,
+        req: &ConnectorPostAuthenticationRouterData,
+        connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
+        Ok(Some(
+            RequestBuilder::new()
+                .method(Method::Get)
+                .url(&ConnectorPostAuthenticationType::get_url(
+                    self, req, connectors,
+                )?)
+                .attach_default_headers()
+                .headers(ConnectorPostAuthenticationType::get_headers(
+                    self, req, connectors,
+                )?)
+                .build(),
+        ))
+    }
+
+    fn handle_response(
+        &self,
+        data: &ConnectorPostAuthenticationRouterData,
+        event_builder: Option<&mut ConnectorEvent>,
+        res: Response,
+    ) -> CustomResult<ConnectorPostAuthenticationRouterData, errors::ConnectorError> {
+        let response: aci::AciPaymentsResponse = res
+            .response
+            .parse_struct("AciPaymentsResponse (3DS PostAuth)")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+        RouterData::try_from(ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
+        .change_context(errors::ConnectorError::ResponseHandlingFailed)
+    }
+
+    fn get_error_response(
+        &self,
+        res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+        self.build_error_response(res, event_builder)
+    }
+}
 
 /// Decrypts an AES-256-GCM encrypted payload where the IV, auth tag, and ciphertext
 /// are provided separately as hex strings. This is specifically tailored for ACI webhooks.
@@ -977,6 +1205,11 @@ impl IncomingWebhook for Aci {
                     Ok(IncomingWebhookEvent::EventNotSupported)
                 }
             }
+            // Registration webhooks are for mandate/token lifecycle events;
+            // Schedule and Risk webhooks are not currently actionable.
+            aci::AciWebhookEventType::Registration
+            | aci::AciWebhookEventType::Schedule
+            | aci::AciWebhookEventType::Risk => Ok(IncomingWebhookEvent::EventNotSupported),
         }
     }
 
@@ -997,6 +1230,11 @@ impl IncomingWebhook for Aci {
                         .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)
                         .attach_printable("Failed to deserialize ACI payment webhook payload")?;
                 Ok(Box::new(payment_payload))
+            }
+            aci::AciWebhookEventType::Registration
+            | aci::AciWebhookEventType::Schedule
+            | aci::AciWebhookEventType::Risk => {
+                Err(errors::ConnectorError::WebhookEventTypeNotFound.into())
             }
         }
     }

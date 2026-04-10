@@ -3,7 +3,12 @@ use std::str::FromStr;
 use cards::NetworkToken;
 use common_enums::enums;
 use common_types::payments::{ApplePayPredecryptData, GPayPredecryptData};
-use common_utils::{id_type, pii::Email, request::Method, types::StringMajorUnit};
+use common_utils::{
+    id_type,
+    pii::{Email, IpAddress},
+    request::Method,
+    types::{SemanticVersion, StringMajorUnit},
+};
 use error_stack::report;
 use hyperswitch_domain_models::{
     payment_method_data::{
@@ -11,14 +16,24 @@ use hyperswitch_domain_models::{
         PayLaterData, PaymentMethodData, SamsungPayWalletData, WalletData,
     },
     payment_methods::storage_enums::MitCategory,
-    router_data::{ConnectorAuthType, ErrorResponse, PaymentMethodToken, RouterData},
-    router_flow_types::SetupMandate,
+    router_data::{
+        AdditionalPaymentMethodConnectorResponse, ConnectorAuthType, ConnectorResponseData,
+        ErrorResponse, PaymentMethodToken, RouterData,
+    },
+    router_flow_types::{
+        authentication::{PostAuthentication, PreAuthentication},
+        SetupMandate,
+    },
     router_request_types::{
+        authentication::{
+            AuthNFlowType, ConnectorPostAuthenticationRequestData, PreAuthNRequestData,
+        },
         PaymentsAuthorizeData, PaymentsCancelData, PaymentsSyncData, ResponseId,
-        SetupMandateRequestData,
+        SetupMandateRequestData, UcsAuthenticationData,
     },
     router_response_types::{
-        MandateReference, PaymentsResponseData, RedirectForm, RefundsResponseData,
+        AuthenticationResponseData, MandateReference, PaymentsResponseData, RedirectForm,
+        RefundsResponseData,
     },
     types::{
         PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
@@ -30,6 +45,7 @@ use hyperswitch_masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
 use url::Url;
 
+use api_models::payments::MandateReferenceId;
 use super::aci_result_codes::{FAILURE_CODES, PENDING_CODES, SUCCESSFUL_CODES};
 use crate::{
     types::{RefundsResponseRouterData, ResponseRouterData},
@@ -109,11 +125,99 @@ impl TryFrom<&ConnectorAuthType> for AciAuthType {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize)]
-#[serde(rename_all = "UPPERCASE")]
-pub enum AciRecurringType {
-    Initial,
-    Repeated,
+#[derive(Debug, Serialize, Clone)]
+pub enum StandingInstructionReason {
+    #[serde(rename = "RESUBMISSION")]
+    Resubmission,
+    #[serde(rename = "DELAYED_CHARGES")]
+    DelayedCharges,
+    #[serde(rename = "NO_SHOW")]
+    NoShow,
+}
+
+#[derive(Debug, Serialize, Default)]
+pub struct AciCustomerBrowserInfo {
+    #[serde(rename = "customer.browser.acceptHeader")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub accept_header: Option<String>,
+    #[serde(rename = "customer.browser.language")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub language: Option<String>,
+    #[serde(rename = "customer.browser.screenHeight")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub screen_height: Option<String>,
+    #[serde(rename = "customer.browser.screenWidth")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub screen_width: Option<String>,
+    #[serde(rename = "customer.browser.timezone")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub timezone: Option<String>,
+    #[serde(rename = "customer.browser.userAgent")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub user_agent: Option<String>,
+    #[serde(rename = "customer.browser.javascriptEnabled")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub javascript_enabled: Option<bool>,
+    #[serde(rename = "customer.browser.javaEnabled")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub java_enabled: Option<bool>,
+    #[serde(rename = "customer.browser.screenColorDepth")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub color_depth: Option<String>,
+    #[serde(rename = "customer.browser.challengeWindow")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub challenge_window: Option<String>,
+}
+
+#[derive(Debug, Serialize, Default)]
+pub struct AciCustomerData {
+    #[serde(rename = "customer.ip")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub ip: Option<Secret<String, IpAddress>>,
+    #[serde(rename = "customer.email")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub email: Option<Email>,
+    #[serde(rename = "customer.givenName")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub given_name: Option<Secret<String>>,
+    #[serde(rename = "customer.surname")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub surname: Option<Secret<String>>,
+}
+
+#[derive(Debug, Serialize, Default)]
+pub struct AciBillingAddress {
+    #[serde(rename = "billing.street1")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub street1: Option<Secret<String>>,
+    #[serde(rename = "billing.city")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub city: Option<String>,
+    #[serde(rename = "billing.state")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub state: Option<Secret<String>>,
+    #[serde(rename = "billing.country")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub country: Option<api_models::enums::CountryAlpha2>,
+    #[serde(rename = "billing.postcode")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub postcode: Option<Secret<String>>,
+}
+
+#[derive(Debug, Serialize, Default)]
+pub struct AciExternalThreeDsData {
+    #[serde(rename = "threeDSecure.eci")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub eci: Option<String>,
+    #[serde(rename = "threeDSecure.verificationId")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub verification_id: Option<Secret<String>>,
+    #[serde(rename = "threeDSecure.dsTransactionId")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub ds_transaction_id: Option<String>,
+    #[serde(rename = "threeDSecure.acsTransactionId")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub acs_transaction_id: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -125,10 +229,22 @@ pub struct AciPaymentsRequest {
     pub payment_method: PaymentDetails,
     #[serde(flatten)]
     pub instruction: Option<Instruction>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub shopper_result_url: Option<String>,
     #[serde(rename = "customParameters[3DS2_enrolled]")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub three_ds_two_enrolled: Option<bool>,
-    pub recurring_type: Option<AciRecurringType>,
+    #[serde(rename = "merchantTransactionId")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub merchant_transaction_id: Option<String>,
+    #[serde(flatten)]
+    pub customer_browser_info: AciCustomerBrowserInfo,
+    #[serde(flatten)]
+    pub customer_data: AciCustomerData,
+    #[serde(flatten)]
+    pub billing_address: AciBillingAddress,
+    #[serde(flatten)]
+    pub external_three_ds: AciExternalThreeDsData,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -300,6 +416,7 @@ impl
                 Ok(Self::AciApplePayEncrypted(Box::new(
                     AciApplePayEncryptedData {
                         payment_token: Secret::new(encrypted_token.clone()),
+                        source: "web".to_string(),
                     },
                 )))
             }
@@ -365,6 +482,7 @@ impl
                 Ok(Self::AciGooglePayEncrypted(Box::new(
                     AciGooglePayEncryptedData {
                         payment_token: Secret::new(encrypted_token),
+                        source: "web".to_string(),
                     },
                 )))
             }
@@ -381,6 +499,7 @@ impl TryFrom<&SamsungPayWalletData> for PaymentDetails {
 
         let aci_samsung_pay_data = AciSamsungPayData {
             payment_token: samsung_pay_data.payment_credential.token_data.data.clone(),
+            source: "app".to_string(),
             payment_brand,
         };
 
@@ -506,7 +625,7 @@ impl
                     billing_country: Some(item.router_data.get_billing_country()?),
                     merchant_customer_id: Some(Secret::new(item.router_data.get_customer_id()?)),
                     merchant_transaction_id: Some(Secret::new(
-                        item.router_data.connector_request_reference_id.clone(),
+                        item.router_data.connector_request_reference_id.chars().take(16).collect(),
                     )),
                     customer_email: None,
                 }))
@@ -704,6 +823,7 @@ pub struct AciNetworkTokenData {
     #[serde(rename = "tokenAccount.expiryYear")]
     pub token_expiry_year: Secret<String>,
     #[serde(rename = "tokenAccount.cryptogram")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub token_cryptogram: Option<Secret<String>>,
     #[serde(rename = "threeDSecure.eci")]
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -717,6 +837,10 @@ pub struct AciNetworkTokenData {
 pub struct AciApplePayEncryptedData {
     #[serde(rename = "applePay.paymentToken")]
     pub payment_token: Secret<String>,
+    /// Required by ACI: indicates the Apple Pay integration channel.
+    /// "web" for browser-based flows, "app" for native iOS app flows.
+    #[serde(rename = "applePay.source")]
+    pub source: String,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -724,6 +848,10 @@ pub struct AciApplePayEncryptedData {
 pub struct AciGooglePayEncryptedData {
     #[serde(rename = "googlePay.paymentToken")]
     pub payment_token: Secret<String>,
+    /// Required by ACI: indicates the Google Pay integration channel.
+    /// "web" for browser-based flows, "app" for native Android app flows.
+    #[serde(rename = "googlePay.source")]
+    pub source: String,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -731,6 +859,9 @@ pub struct AciGooglePayEncryptedData {
 pub struct AciSamsungPayData {
     #[serde(rename = "samsungPay.paymentToken")]
     pub payment_token: Secret<String>,
+    /// Required by ACI: Samsung Pay is always app-based.
+    #[serde(rename = "samsungPay.source")]
+    pub source: String,
     #[serde(rename = "paymentBrand")]
     pub payment_brand: PaymentBrand,
 }
@@ -740,19 +871,27 @@ pub struct AciSamsungPayData {
 pub struct BankRedirectionPMData {
     payment_brand: PaymentBrand,
     #[serde(rename = "bankAccount.country")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     bank_account_country: Option<api_models::enums::CountryAlpha2>,
     #[serde(rename = "bankAccount.bankName")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     bank_account_bank_name: Option<common_enums::BankNames>,
     #[serde(rename = "bankAccount.bic")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     bank_account_bic: Option<Secret<String>>,
     #[serde(rename = "bankAccount.iban")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     bank_account_iban: Option<Secret<String>>,
     #[serde(rename = "billing.country")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     billing_country: Option<api_models::enums::CountryAlpha2>,
     #[serde(rename = "customer.email")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     customer_email: Option<Email>,
     #[serde(rename = "customer.merchantCustomerId")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     merchant_customer_id: Option<Secret<id_type::CustomerId>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     merchant_transaction_id: Option<Secret<String>>,
 }
 
@@ -761,6 +900,7 @@ pub struct BankRedirectionPMData {
 pub struct WalletPMData {
     payment_brand: PaymentBrand,
     #[serde(rename = "virtualAccount.accountId")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     account_id: Option<Secret<String>>,
 }
 
@@ -818,7 +958,7 @@ pub struct CardDetails {
 #[serde(rename_all = "UPPERCASE")]
 pub enum InstructionMode {
     Initial,
-    Repeated,
+    Subsequent,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -853,7 +993,20 @@ pub struct Instruction {
     #[serde(skip_serializing_if = "Option::is_none")]
     initial_transaction_id: Option<String>,
 
+    #[serde(skip_serializing_if = "Option::is_none")]
     create_registration: Option<bool>,
+
+    #[serde(rename = "standingInstruction.reason")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub reason: Option<StandingInstructionReason>,
+
+    #[serde(rename = "standingInstruction.expiry")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub expiry: Option<String>,
+
+    #[serde(rename = "standingInstruction.frequency")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub frequency: Option<String>,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, Serialize)]
@@ -937,6 +1090,9 @@ impl TryFrom<(&AciRouterData<&PaymentsAuthorizeRouterData>, &WalletData)> for Ac
         let (item, wallet_data) = value;
         let txn_details = get_transaction_details(item)?;
 
+        let (customer_browser_info, customer_data, billing_address, external_three_ds, merchant_transaction_id) =
+            get_common_payment_fields(item);
+
         match wallet_data {
             WalletData::ApplePay(apple_pay_data) => {
                 let payment_method_token = item.router_data.payment_method_token.as_ref();
@@ -950,7 +1106,11 @@ impl TryFrom<(&AciRouterData<&PaymentsAuthorizeRouterData>, &WalletData)> for Ac
                     instruction,
                     shopper_result_url: item.router_data.request.router_return_url.clone(),
                     three_ds_two_enrolled: None,
-                    recurring_type: None,
+                    merchant_transaction_id,
+                    customer_browser_info,
+                    customer_data,
+                    billing_address,
+                    external_three_ds,
                 })
             }
             WalletData::GooglePay(google_pay_data) => {
@@ -965,7 +1125,11 @@ impl TryFrom<(&AciRouterData<&PaymentsAuthorizeRouterData>, &WalletData)> for Ac
                     instruction,
                     shopper_result_url: item.router_data.request.router_return_url.clone(),
                     three_ds_two_enrolled: None,
-                    recurring_type: None,
+                    merchant_transaction_id,
+                    customer_browser_info,
+                    customer_data,
+                    billing_address,
+                    external_three_ds,
                 })
             }
             WalletData::SamsungPay(samsung_pay_data) => {
@@ -978,7 +1142,11 @@ impl TryFrom<(&AciRouterData<&PaymentsAuthorizeRouterData>, &WalletData)> for Ac
                     instruction,
                     shopper_result_url: item.router_data.request.router_return_url.clone(),
                     three_ds_two_enrolled: None,
-                    recurring_type: None,
+                    merchant_transaction_id,
+                    customer_browser_info,
+                    customer_data,
+                    billing_address,
+                    external_three_ds,
                 })
             }
             // Handle other wallet types via PaymentDetails::try_from
@@ -991,7 +1159,11 @@ impl TryFrom<(&AciRouterData<&PaymentsAuthorizeRouterData>, &WalletData)> for Ac
                     instruction: None,
                     shopper_result_url: item.router_data.request.router_return_url.clone(),
                     three_ds_two_enrolled: None,
-                    recurring_type: None,
+                    merchant_transaction_id,
+                    customer_browser_info,
+                    customer_data,
+                    billing_address,
+                    external_three_ds,
                 })
             }
         }
@@ -1014,6 +1186,8 @@ impl
         let (item, bank_redirect_data) = value;
         let txn_details = get_transaction_details(item)?;
         let payment_method = PaymentDetails::try_from((item, bank_redirect_data))?;
+        let (customer_browser_info, customer_data, billing_address, external_three_ds, merchant_transaction_id) =
+            get_common_payment_fields(item);
 
         Ok(Self {
             txn_details,
@@ -1021,7 +1195,11 @@ impl
             instruction: None,
             shopper_result_url: item.router_data.request.router_return_url.clone(),
             three_ds_two_enrolled: None,
-            recurring_type: None,
+            merchant_transaction_id,
+            customer_browser_info,
+            customer_data,
+            billing_address,
+            external_three_ds,
         })
     }
 }
@@ -1034,6 +1212,8 @@ impl TryFrom<(&AciRouterData<&PaymentsAuthorizeRouterData>, &PayLaterData)> for 
         let (item, _pay_later_data) = value;
         let txn_details = get_transaction_details(item)?;
         let payment_method = PaymentDetails::Klarna;
+        let (customer_browser_info, customer_data, billing_address, external_three_ds, merchant_transaction_id) =
+            get_common_payment_fields(item);
 
         Ok(Self {
             txn_details,
@@ -1041,7 +1221,11 @@ impl TryFrom<(&AciRouterData<&PaymentsAuthorizeRouterData>, &PayLaterData)> for 
             instruction: None,
             shopper_result_url: item.router_data.request.router_return_url.clone(),
             three_ds_two_enrolled: None,
-            recurring_type: None,
+            merchant_transaction_id,
+            customer_browser_info,
+            customer_data,
+            billing_address,
+            external_three_ds,
         })
     }
 }
@@ -1056,11 +1240,12 @@ impl TryFrom<(&AciRouterData<&PaymentsAuthorizeRouterData>, &Card)> for AciPayme
         let txn_details = get_transaction_details(item)?;
         let payment_method = PaymentDetails::try_from((card_data.clone(), card_holder_name))?;
         let instruction = get_instruction_details(item);
-        let recurring_type = get_recurring_type(item);
         let three_ds_two_enrolled = item
             .router_data
             .is_three_ds()
             .then_some(item.router_data.request.enrolled_for_3ds);
+        let (customer_browser_info, customer_data, billing_address, external_three_ds, merchant_transaction_id) =
+            get_common_payment_fields(item);
 
         Ok(Self {
             txn_details,
@@ -1068,7 +1253,11 @@ impl TryFrom<(&AciRouterData<&PaymentsAuthorizeRouterData>, &Card)> for AciPayme
             instruction,
             shopper_result_url: item.router_data.request.router_return_url.clone(),
             three_ds_two_enrolled,
-            recurring_type,
+            merchant_transaction_id,
+            customer_browser_info,
+            customer_data,
+            billing_address,
+            external_three_ds,
         })
     }
 }
@@ -1090,6 +1279,8 @@ impl
         let txn_details = get_transaction_details(item)?;
         let payment_method = PaymentDetails::try_from((item, network_token_data))?;
         let instruction = get_instruction_details(item);
+        let (customer_browser_info, customer_data, billing_address, external_three_ds, merchant_transaction_id) =
+            get_common_payment_fields(item);
 
         Ok(Self {
             txn_details,
@@ -1097,7 +1288,11 @@ impl
             instruction,
             shopper_result_url: item.router_data.request.router_return_url.clone(),
             three_ds_two_enrolled: None,
-            recurring_type: None,
+            merchant_transaction_id,
+            customer_browser_info,
+            customer_data,
+            billing_address,
+            external_three_ds,
         })
     }
 }
@@ -1118,7 +1313,8 @@ impl
         let (item, _mandate_data) = value;
         let instruction = get_instruction_details(item);
         let txn_details = get_transaction_details(item)?;
-        let recurring_type = get_recurring_type(item);
+        let (customer_browser_info, customer_data, billing_address, external_three_ds, merchant_transaction_id) =
+            get_common_payment_fields(item);
 
         Ok(Self {
             txn_details,
@@ -1126,9 +1322,77 @@ impl
             instruction,
             shopper_result_url: item.router_data.request.router_return_url.clone(),
             three_ds_two_enrolled: None,
-            recurring_type,
+            merchant_transaction_id,
+            customer_browser_info,
+            customer_data,
+            billing_address,
+            external_three_ds,
         })
     }
+}
+
+fn get_common_payment_fields(
+    item: &AciRouterData<&PaymentsAuthorizeRouterData>,
+) -> (AciCustomerBrowserInfo, AciCustomerData, AciBillingAddress, AciExternalThreeDsData, Option<String>) {
+    let customer_browser_info = item
+        .router_data
+        .request
+        .get_browser_info()
+        .ok()
+        .map(|bi| AciCustomerBrowserInfo {
+            accept_header: bi.accept_header,
+            language: bi.language,
+            screen_height: bi.screen_height.map(|h| h.to_string()),
+            screen_width: bi.screen_width.map(|w| w.to_string()),
+            timezone: bi.time_zone.map(|t| t.to_string()),
+            user_agent: bi.user_agent,
+            javascript_enabled: bi.java_script_enabled,
+            java_enabled: bi.java_enabled,
+            color_depth: bi.color_depth.map(|c| c.to_string()),
+            challenge_window: None,
+        })
+        .unwrap_or_default();
+
+    let ip = item.router_data.request.get_ip_address_as_optional();
+    let email = item.router_data.get_optional_billing_email();
+    let given_name = item.router_data.get_optional_billing_first_name();
+    let surname = item.router_data.get_optional_billing_last_name();
+
+    let customer_data = AciCustomerData {
+        ip,
+        email,
+        given_name,
+        surname,
+    };
+
+    let billing_address = AciBillingAddress {
+        street1: item.router_data.get_optional_billing_line1(),
+        city: item.router_data.get_optional_billing_city(),
+        state: item.router_data.get_optional_billing_state(),
+        country: item.router_data.get_optional_billing_country(),
+        postcode: item.router_data.get_optional_billing_zip(),
+    };
+
+    let external_three_ds = item
+        .router_data
+        .request
+        .authentication_data
+        .as_ref()
+        .map(|auth| AciExternalThreeDsData {
+            eci: auth.eci.clone(),
+            verification_id: Some(auth.cavv.clone()),
+            ds_transaction_id: auth.ds_trans_id.clone(),
+            acs_transaction_id: auth.acs_trans_id.clone(),
+        })
+        .unwrap_or_default();
+
+    // ACI acquirers enforce a 16-character max on merchantTransactionId.
+    let merchant_transaction_id = {
+        let id = &item.router_data.connector_request_reference_id;
+        Some(id.chars().take(16).collect::<String>())
+    };
+
+    (customer_browser_info, customer_data, billing_address, external_three_ds, merchant_transaction_id)
 }
 
 fn get_transaction_details(
@@ -1151,22 +1415,36 @@ fn get_transaction_details(
 fn get_instruction_details(
     item: &AciRouterData<&PaymentsAuthorizeRouterData>,
 ) -> Option<Instruction> {
-    if item.router_data.request.customer_acceptance.is_some()
-        && item.router_data.request.setup_future_usage == Some(enums::FutureUsage::OffSession)
-    {
+    if item.router_data.request.customer_acceptance.is_some() {
         return Some(Instruction {
             mode: InstructionMode::Initial,
             transaction_type: InstructionType::Unscheduled,
             source: InstructionSource::CardholderInitiatedTransaction,
             initial_transaction_id: None,
             create_registration: Some(true),
+            reason: None,
+            expiry: None,
+            frequency: None,
         });
     } else if item.router_data.request.mandate_id.is_some() {
+        // For MIT: pass the CITI (traceId) as standingInstruction.initialTransactionId.
+        // Primary source: connector_mandate_request_reference_id (CITI stored on ACI registration).
+        // Fallback: NetworkMandateId (CITI stored as network_txn_id on DB-only mandates).
         let initial_transaction_id = item
             .router_data
             .request
             .get_connector_mandate_request_reference_id()
-            .ok();
+            .ok()
+            .or_else(|| {
+                item.router_data
+                    .request
+                    .mandate_id
+                    .as_ref()
+                    .and_then(|m| match &m.mandate_reference_id {
+                        Some(MandateReferenceId::NetworkMandateId(ntid)) => Some(ntid.clone()),
+                        _ => None,
+                    })
+            });
 
         let transaction_type = match item.router_data.request.mit_category.as_ref() {
             Some(MitCategory::Installment) => InstructionType::Installment,
@@ -1176,30 +1454,42 @@ fn get_instruction_details(
             }
         };
 
+        let reason = match item.router_data.request.mit_category.as_ref() {
+            Some(MitCategory::Resubmission) => Some(StandingInstructionReason::Resubmission),
+            _ => None,
+        };
+
         return Some(Instruction {
-            mode: InstructionMode::Repeated,
+            mode: InstructionMode::Subsequent,
             transaction_type,
             source: InstructionSource::MerchantInitiatedTransaction,
             initial_transaction_id,
             create_registration: None,
+            reason,
+            expiry: None,
+            frequency: None,
+        });
+    } else if matches!(
+        item.router_data.request.setup_future_usage,
+        Some(enums::FutureUsage::OffSession)
+    ) {
+        // CIT with setup_future_usage=off_session but no ACI registration (DB-only mandate).
+        // Still required to send standingInstruction.mode=INITIAL so the acquirer marks
+        // this transaction as the first in a COF/standing-instruction series.
+        return Some(Instruction {
+            mode: InstructionMode::Initial,
+            transaction_type: InstructionType::Unscheduled,
+            source: InstructionSource::CardholderInitiatedTransaction,
+            initial_transaction_id: None,
+            create_registration: None,
+            reason: None,
+            expiry: None,
+            frequency: None,
         });
     }
     None
 }
 
-fn get_recurring_type(
-    item: &AciRouterData<&PaymentsAuthorizeRouterData>,
-) -> Option<AciRecurringType> {
-    if item.router_data.request.mandate_id.is_some() {
-        Some(AciRecurringType::Repeated)
-    } else if item.router_data.request.customer_acceptance.is_some()
-        && item.router_data.request.setup_future_usage == Some(enums::FutureUsage::OffSession)
-    {
-        Some(AciRecurringType::Initial)
-    } else {
-        None
-    }
-}
 
 impl TryFrom<&PaymentsCancelRouterData> for AciCancelRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
@@ -1312,16 +1602,99 @@ impl FromStr for AciPaymentStatus {
     }
 }
 
-#[derive(Debug, Default, Clone, Deserialize, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct AciRiskScore {
+    pub score: Option<String>,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AciThreeDSecureResponse {
+    pub eci: Option<String>,
+    pub verification_id: Option<Secret<String>>,
+    pub version: Option<String>,
+    pub flow: Option<String>,
+    pub ds_transaction_id: Option<String>,
+    pub acs_transaction_id: Option<String>,
+    pub challenge_mandated_indicator: Option<String>,
+    pub authentication_type: Option<String>,
+    pub card_holder_info: Option<String>,
+    pub authentication_status: Option<String>,
+    pub xid: Option<String>,
+    pub cavv: Option<String>,
+    pub error_code: Option<String>,
+    pub error_description: Option<String>,
+    pub error_source: Option<String>,
+}
+
+#[derive(Debug, Default, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AciPaymentsResponse {
     id: String,
+    /// Registration token ID returned when `createRegistration=true` was sent.
+    /// ACI returns this as `registrationId` at the top level.
     registration_id: Option<Secret<String>>,
     ndc: String,
     timestamp: String,
     build_number: String,
     pub(super) result: ResultCode,
     pub(super) redirect: Option<AciRedirectionData>,
+    /// The payment type from the response (DB, PA, CP, RF, etc.)
+    payment_type: Option<AciPaymentType>,
+    /// The card network / payment brand (VISA, MASTERCARD, etc.)
+    payment_brand: Option<PaymentBrand>,
+    /// The processed amount
+    amount: Option<StringMajorUnit>,
+    /// The processed currency (ISO 4217)
+    currency: Option<String>,
+    /// Merchant-facing human-readable short transaction ID
+    short_id: Option<String>,
+    /// Acquirer / connector response details
+    result_details: Option<AciResponseResultDetails>,
+    /// Masked card details returned in the response
+    card: Option<AciResponseCardDetails>,
+    /// Risk score from ACI
+    #[serde(skip_serializing)]
+    risk: Option<AciRiskScore>,
+    /// 3DS authentication data from ACI
+    #[serde(rename = "threeDSecure")]
+    #[serde(skip_serializing)]
+    three_d_secure: Option<AciThreeDSecureResponse>,
+}
+
+/// Masked card details returned in an ACI payment response.
+#[derive(Debug, Default, Clone, Deserialize, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AciResponseCardDetails {
+    pub bin: Option<String>,
+    #[serde(rename = "last4Digits")]
+    pub last4_digits: Option<String>,
+    pub holder: Option<Secret<String>>,
+    pub expiry_month: Option<Secret<String>>,
+    pub expiry_year: Option<Secret<String>>,
+    #[serde(rename = "binCountry")]
+    pub bin_country: Option<String>,
+}
+
+/// Acquirer / connector-level response details in an ACI payment response.
+#[derive(Debug, Default, Clone, Deserialize, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "PascalCase")]
+pub struct AciResponseResultDetails {
+    pub extended_description: Option<String>,
+    #[serde(rename = "clearingInstituteName")]
+    pub clearing_institute_name: Option<String>,
+    #[serde(rename = "ConnectorTxID1")]
+    pub connector_tx_id1: Option<String>,
+    #[serde(rename = "ConnectorTxID2")]
+    pub connector_tx_id2: Option<String>,
+    #[serde(rename = "ConnectorTxID3")]
+    pub connector_tx_id3: Option<String>,
+    #[serde(rename = "AcquirerResponse")]
+    pub acquirer_response: Option<String>,
+    #[serde(rename = "AuthCode")]
+    pub auth_code: Option<String>,
+    #[serde(rename = "MerchantAdviceCode")]
+    pub merchant_advice_code: Option<String>,
 }
 
 #[derive(Debug, Default, Clone, Deserialize, PartialEq, Eq, Serialize)]
@@ -1362,6 +1735,8 @@ pub struct ResultCode {
     pub(super) code: String,
     pub(super) description: String,
     pub(super) parameter_errors: Option<Vec<ErrorParameters>>,
+    #[serde(rename = "cvvResponse")]
+    pub cvv_response: Option<String>,
 }
 
 #[derive(Default, Debug, Clone, Deserialize, PartialEq, Eq, Serialize)]
@@ -1369,6 +1744,50 @@ pub struct ErrorParameters {
     pub(super) name: String,
     pub(super) value: Option<String>,
     pub(super) message: String,
+}
+
+pub struct AciParsedConnectorIds {
+    pub rrn: Option<String>,
+    pub citi: Option<String>,
+    pub stan: Option<String>,
+    pub auth_code: Option<String>,
+    pub original_transaction_id: Option<String>,
+}
+
+fn parse_connector_tx_ids(details: &AciResponseResultDetails) -> AciParsedConnectorIds {
+    fn split_pipe(s: &str) -> Vec<String> {
+        s.split('|').map(|s| s.to_string()).collect()
+    }
+    fn get(v: &[String], i: usize) -> Option<String> {
+        v.get(i).filter(|s| !s.is_empty()).cloned()
+    }
+    let t1: Vec<String> = details
+        .connector_tx_id1
+        .as_deref()
+        .map(split_pipe)
+        .unwrap_or_default();
+    let t2: Vec<String> = details
+        .connector_tx_id2
+        .as_deref()
+        .map(split_pipe)
+        .unwrap_or_default();
+    let t3: Vec<String> = details
+        .connector_tx_id3
+        .as_deref()
+        .map(split_pipe)
+        .unwrap_or_default();
+
+    AciParsedConnectorIds {
+        rrn: get(&t2, 2),
+        citi: get(&t3, 4),
+        stan: get(&t3, 0).or_else(|| get(&t2, 1)),
+        auth_code: details
+            .auth_code
+            .clone()
+            .or_else(|| get(&t3, 0))
+            .or_else(|| get(&t2, 2)),
+        original_transaction_id: get(&t1, 5),
+    }
 }
 
 impl<F, Req> TryFrom<ResponseRouterData<F, AciPaymentsResponse, Req, PaymentsResponseData>>
@@ -1406,6 +1825,22 @@ where
             }
         });
 
+        // Parse connector transaction IDs for RRN and network_txn_id
+        let parsed_ids = item
+            .response
+            .result_details
+            .as_ref()
+            .map(parse_connector_tx_ids);
+
+        let rrn = parsed_ids.as_ref().and_then(|p| p.rrn.clone());
+        let citi = parsed_ids.as_ref().and_then(|p| p.citi.clone());
+        let connector_response_reference_id =
+            rrn.clone().or_else(|| Some(item.response.id.clone()));
+
+        // Build mandate reference from registrationId (returned at top level when createRegistration=true).
+        // connector_mandate_id = ACI registrationId (RG ID) — used for subsequent MIT lookup.
+        // connector_mandate_request_reference_id = CITI (traceId) — passed as
+        // standingInstruction.initialTransactionId on subsequent MIT requests.
         let mandate_reference = item
             .response
             .registration_id
@@ -1414,7 +1849,7 @@ where
                 connector_mandate_id: Some(id.expose()),
                 payment_method_id: None,
                 mandate_metadata: None,
-                connector_mandate_request_reference_id: Some(item.response.id.clone()),
+                connector_mandate_request_reference_id: citi.clone(),
             });
 
         let status = if redirection_data.is_some() {
@@ -1430,6 +1865,66 @@ where
                 auto_capture,
             )
         };
+
+        // Build authentication_data from 3DS response if present
+        let authentication_data = item.response.three_d_secure.as_ref().map(|tds| {
+            Box::new(UcsAuthenticationData {
+                eci: tds.eci.clone(),
+                cavv: tds
+                    .verification_id
+                    .clone()
+                    .or_else(|| tds.cavv.as_ref().map(|c| Secret::new(c.clone()))),
+                threeds_server_transaction_id: tds.ds_transaction_id.clone(),
+                message_version: tds
+                    .version
+                    .as_deref()
+                    .and_then(|v| v.parse().ok()),
+                ds_trans_id: tds.ds_transaction_id.clone(),
+                acs_trans_id: tds.acs_transaction_id.clone(),
+                trans_status: None,
+                transaction_id: tds.xid.clone(),
+                ucaf_collection_indicator: None,
+            })
+        });
+
+        // Build ConnectorResponseData from auth_code, card_network, and payment_checks
+        let auth_code = item
+            .response
+            .result_details
+            .as_ref()
+            .and_then(|d| d.auth_code.clone());
+        let card_network = item
+            .response
+            .payment_brand
+            .as_ref()
+            .map(|b| format!("{b:?}"));
+        let payment_checks = {
+            let cvv = item.response.result.cvv_response.clone();
+            let acq = item
+                .response
+                .result_details
+                .as_ref()
+                .and_then(|d| d.acquirer_response.clone());
+            if cvv.is_some() || acq.is_some() {
+                Some(serde_json::json!({"cvvResponse": cvv, "acquirerResponse": acq}))
+            } else {
+                None
+            }
+        };
+        let connector_response =
+            if auth_code.is_some() || card_network.is_some() || payment_checks.is_some() {
+                Some(ConnectorResponseData::with_additional_payment_method_data(
+                    AdditionalPaymentMethodConnectorResponse::Card {
+                        auth_code,
+                        card_network,
+                        payment_checks,
+                        authentication_data: None,
+                        domestic_network: None,
+                    },
+                ))
+            } else {
+                None
+            };
 
         let response = if status == enums::AttemptStatus::Failure {
             Err(ErrorResponse {
@@ -1451,10 +1946,10 @@ where
                 redirection_data: Box::new(redirection_data),
                 mandate_reference: Box::new(mandate_reference),
                 connector_metadata: None,
-                network_txn_id: None,
-                connector_response_reference_id: Some(item.response.id),
+                network_txn_id: citi,
+                connector_response_reference_id,
                 incremental_authorization_allowed: None,
-                authentication_data: None,
+                authentication_data,
                 charges: None,
             })
         };
@@ -1462,6 +1957,7 @@ where
         Ok(Self {
             status,
             response,
+            connector_response,
             ..item.data
         })
     }
@@ -1500,7 +1996,7 @@ pub struct AciCaptureResponse {
     currency: String,
     descriptor: String,
     result: AciCaptureResult,
-    result_details: Option<AciCaptureResultDetails>,
+    result_details: Option<AciResponseResultDetails>,
     build_number: String,
     timestamp: String,
     ndc: Secret<String>,
@@ -1516,17 +2012,6 @@ pub struct AciCaptureResult {
     description: String,
 }
 
-#[derive(Debug, Default, Clone, Deserialize, PartialEq, Eq, Serialize)]
-#[serde(rename_all = "PascalCase")]
-pub struct AciCaptureResultDetails {
-    extended_description: String,
-    #[serde(rename = "clearingInstituteName")]
-    clearing_institute_name: Option<String>,
-    connector_tx_i_d1: Option<String>,
-    connector_tx_i_d3: Option<String>,
-    connector_tx_i_d2: Option<String>,
-    acquirer_response: Option<String>,
-}
 
 #[derive(Debug, Default, Clone, Deserialize)]
 pub enum AciStatus {
@@ -1615,7 +2100,7 @@ pub struct AciVoidResponse {
     currency: String,
     descriptor: String,
     result: AciCaptureResult,
-    result_details: Option<AciCaptureResultDetails>,
+    result_details: Option<AciResponseResultDetails>,
     build_number: String,
     timestamp: String,
     ndc: Secret<String>,
@@ -1730,6 +2215,15 @@ impl From<AciRefundStatus> for enums::RefundStatus {
     }
 }
 
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AciPaymentReference {
+    #[serde(rename = "referenceId")]
+    pub reference_id: Option<String>,
+    #[serde(rename = "type")]
+    pub reference_type: Option<String>,
+}
+
 #[allow(dead_code)]
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -1739,6 +2233,8 @@ pub struct AciRefundResponse {
     timestamp: String,
     build_number: String,
     pub(super) result: ResultCode,
+    pub result_details: Option<AciResponseResultDetails>,
+    pub references: Option<Vec<AciPaymentReference>>,
 }
 
 impl<F> TryFrom<RefundsResponseRouterData<F, AciRefundResponse>> for RefundsRouterData<F> {
@@ -1799,7 +2295,7 @@ impl
             connector_mandate_id: Some(item.response.id.clone()),
             payment_method_id: None,
             mandate_metadata: None,
-            connector_mandate_request_reference_id: Some(item.response.id.clone()),
+            connector_mandate_request_reference_id: None,
         });
 
         let status = if SUCCESSFUL_CODES.contains(&item.response.result.code.as_str()) {
@@ -1846,13 +2342,19 @@ impl
     }
 }
 
+/// ACI sends webhook event types in UPPERCASE (e.g. "PAYMENT", "REGISTRATION").
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "UPPERCASE")]
 pub enum AciWebhookEventType {
     Payment,
+    Registration,
+    Schedule,
+    Risk,
 }
 
+/// ACI sends action values in UPPERCASE (e.g. "CREATED", "UPDATED", "DELETED").
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "UPPERCASE")]
 pub enum AciWebhookAction {
     Created,
     Updated,
@@ -1922,6 +2424,13 @@ pub struct AciPaymentWebhookPayload {
     pub payment_method: Option<String>,
     #[serde(rename = "shortId")]
     pub short_id: Option<String>,
+    /// Registration token ID returned when `createRegistration=true` was sent.
+    pub registration_id: Option<Secret<String>>,
+    /// Acquirer / connector-level result details.
+    pub result_details: Option<AciResponseResultDetails>,
+    /// 3DS authentication data from ACI
+    #[serde(rename = "threeDSecure")]
+    pub three_d_secure: Option<AciThreeDSecureResponse>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -1931,4 +2440,223 @@ pub struct AciWebhookNotification {
     pub event_type: AciWebhookEventType,
     pub action: Option<AciWebhookAction>,
     pub payload: serde_json::Value,
+}
+
+// ─── Standalone 3DS (/v1/threeDSecure) ───────────────────────────────────────
+
+/// Request body for `POST /v1/threeDSecure` (standalone 3DS authentication).
+#[derive(Debug, Serialize)]
+pub struct AciStandaloneThreeDsRequest {
+    #[serde(rename = "entityId")]
+    pub entity_id: Secret<String>,
+    /// Amount (optional for NPA flows).
+    #[serde(rename = "amount")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub amount: Option<String>,
+    /// Currency (optional for NPA flows).
+    #[serde(rename = "currency")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub currency: Option<String>,
+    #[serde(rename = "paymentType")]
+    pub payment_type: AciPaymentType,
+    #[serde(flatten)]
+    pub card: CardDetails,
+    /// Non-Payment Authentication flag.
+    #[serde(rename = "threeDSecure.npa")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub three_ds_npa: Option<bool>,
+    #[serde(rename = "shopperResultUrl")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub shopper_result_url: Option<String>,
+}
+
+impl TryFrom<&crate::types::PreAuthNRouterData> for AciStandaloneThreeDsRequest {
+    type Error = error_stack::Report<errors::ConnectorError>;
+
+    fn try_from(
+        item: &crate::types::PreAuthNRouterData,
+    ) -> Result<Self, Self::Error> {
+        let auth = AciAuthType::try_from(&item.connector_auth_type)?;
+        let card = &item.request.card;
+        let card_holder_name = card.card_holder_name.clone().ok_or(
+            errors::ConnectorError::MissingRequiredField {
+                field_name: "card_holder_name",
+            },
+        )?;
+        let card_details = CardDetails {
+            card_number: card.card_number.clone(),
+            card_holder: card_holder_name,
+            card_expiry_month: card.card_exp_month.clone(),
+            card_expiry_year: card.get_expiry_year_4_digit(),
+            card_cvv: card.card_cvc.clone(),
+            payment_brand: get_aci_payment_brand(card.card_network.clone(), false).ok(),
+        };
+        Ok(Self {
+            entity_id: auth.entity_id,
+            amount: None,
+            currency: None,
+            payment_type: AciPaymentType::Preauthorization,
+            card: card_details,
+            three_ds_npa: Some(true),
+            shopper_result_url: None,
+        })
+    }
+}
+
+/// Map ACI payment response to PreAuthentication RouterData response.
+impl
+    TryFrom<
+        ResponseRouterData<
+            PreAuthentication,
+            AciPaymentsResponse,
+            PreAuthNRequestData,
+            AuthenticationResponseData,
+        >,
+    > for RouterData<PreAuthentication, PreAuthNRequestData, AuthenticationResponseData>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+
+    fn try_from(
+        item: ResponseRouterData<
+            PreAuthentication,
+            AciPaymentsResponse,
+            PreAuthNRequestData,
+            AuthenticationResponseData,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let result_code = &item.response.result.code;
+
+        let response = if FAILURE_CODES.contains(&result_code.as_str()) {
+            Err(ErrorResponse {
+                code: result_code.clone(),
+                message: item.response.result.description.clone(),
+                reason: Some(item.response.result.description),
+                status_code: item.http_code,
+                attempt_status: None,
+                connector_transaction_id: Some(item.response.id.clone()),
+                connector_response_reference_id: Some(item.response.id.clone()),
+                network_decline_code: None,
+                network_advice_code: None,
+                network_error_message: None,
+                connector_metadata: None,
+            })
+        } else if let Some(tds) = item.response.three_d_secure.as_ref() {
+            // Frictionless: 3DS completed without redirect
+            Ok(AuthenticationResponseData::AuthNResponse {
+                authn_flow_type: AuthNFlowType::Frictionless,
+                authentication_value: tds
+                    .verification_id
+                    .clone()
+                    .or_else(|| tds.cavv.as_ref().map(|c| Secret::new(c.clone()))),
+                trans_status: enums::TransactionStatus::Success,
+                connector_metadata: None,
+                ds_trans_id: tds.ds_transaction_id.clone(),
+                eci: tds.eci.clone(),
+                challenge_code: None,
+                challenge_cancel: None,
+                challenge_code_reason: None,
+                message_extension: None,
+            })
+        } else {
+            // Pending/redirect: challenge required
+            let three_ds_method_url = item
+                .response
+                .redirect
+                .as_ref()
+                .and_then(|r| r.preconditions.as_ref())
+                .and_then(|p| p.first())
+                .map(|p| p.url.to_string());
+            let version = item
+                .response
+                .three_d_secure
+                .as_ref()
+                .and_then(|tds| tds.version.as_ref())
+                .and_then(|v| v.parse::<SemanticVersion>().ok())
+                .unwrap_or(SemanticVersion::new(2, 0, 0));
+            Ok(AuthenticationResponseData::PreAuthNResponse {
+                threeds_server_transaction_id: item.response.id.clone(),
+                maximum_supported_3ds_version: version.clone(),
+                connector_authentication_id: item.response.id.clone(),
+                three_ds_method_data: None,
+                three_ds_method_url,
+                message_version: version,
+                connector_metadata: None,
+                directory_server_id: None,
+                scheme_id: None,
+            })
+        };
+
+        Ok(Self {
+            response,
+            ..item.data
+        })
+    }
+}
+
+/// Map ACI payment response to PostAuthentication RouterData response.
+impl
+    TryFrom<
+        ResponseRouterData<
+            PostAuthentication,
+            AciPaymentsResponse,
+            ConnectorPostAuthenticationRequestData,
+            AuthenticationResponseData,
+        >,
+    >
+    for RouterData<
+        PostAuthentication,
+        ConnectorPostAuthenticationRequestData,
+        AuthenticationResponseData,
+    >
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+
+    fn try_from(
+        item: ResponseRouterData<
+            PostAuthentication,
+            AciPaymentsResponse,
+            ConnectorPostAuthenticationRequestData,
+            AuthenticationResponseData,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let result_code = &item.response.result.code;
+
+        let response = if FAILURE_CODES.contains(&result_code.as_str()) {
+            Err(ErrorResponse {
+                code: result_code.clone(),
+                message: item.response.result.description.clone(),
+                reason: Some(item.response.result.description),
+                status_code: item.http_code,
+                attempt_status: None,
+                connector_transaction_id: Some(item.response.id.clone()),
+                connector_response_reference_id: Some(item.response.id.clone()),
+                network_decline_code: None,
+                network_advice_code: None,
+                network_error_message: None,
+                connector_metadata: None,
+            })
+        } else {
+            let tds = item.response.three_d_secure.as_ref();
+            Ok(AuthenticationResponseData::PostAuthNResponse {
+                trans_status: if SUCCESSFUL_CODES.contains(&result_code.as_str()) {
+                    enums::TransactionStatus::Success
+                } else {
+                    enums::TransactionStatus::Failure
+                },
+                authentication_value: tds.and_then(|t| {
+                    t.verification_id
+                        .clone()
+                        .or_else(|| t.cavv.as_ref().map(|c| Secret::new(c.clone())))
+                }),
+                eci: tds.and_then(|t| t.eci.clone()),
+                challenge_cancel: None,
+                challenge_code_reason: None,
+            })
+        };
+
+        Ok(Self {
+            response,
+            ..item.data
+        })
+    }
 }
