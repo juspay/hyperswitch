@@ -664,7 +664,7 @@ pay_easy = { country = "JP", currency = "JPY" }
 boleto = { country = "BR", currency = "BRL" }
 
 [pm_filters.affirm]
-affirm = { country = "CA,US", currency = "CAD,USD" }
+affirm = { currency = "USD" }
 
 [pm_filters.airwallex]
 credit = { country = "AU,HK,SG,NZ,US", currency = "AED,AFN,ALL,AMD,ANG,AOA,ARS,AUD,AWG,AZN,BAM,BBD,BDT,BGN,BHD,BIF,BMD,BND,BOB,BRL,BSD,BTN,BWP,BYN,BZD,CAD,CDF,CHF,CLP,CNY,COP,CRC,CUP,CVE,CZK,DJF,DKK,DOP,DZD,EGP,ERN,ETB,EUR,FJD,FKP,GBP,GEL,GHS,GIP,GMD,GNF,GTQ,GYD,HKD,HNL,HRK,HTG,HUF,IDR,ILS,INR,IQD,IRR,ISK,JMD,JOD,JPY,KES,KGS,KHR,KMF,KPW,KRW,KWD,KYD,KZT,LAK,LBP,LKR,LRD,LSL,LYD,MAD,MDL,MGA,MKD,MMK,MNT,MOP,MRU,MUR,MVR,MWK,MXN,MYR,MZN,NAD,NGN,NIO,NOK,NPR,NZD,OMR,PAB,PEN,PGK,PHP,PKR,PLN,PYG,QAR,RON,RSD,RUB,RWF,SAR,SBD,SCR,SDG,SEK,SGD,SHP,SLE,SLL,SOS,SRD,SSP,STN,SVC,SYP,SZL,THB,TJS,TMT,TND,TOP,TRY,TTD,TWD,TZS,UAH,UGX,USD,UYU,UZS,VES,VND,VUV,WST,XAF,XCD,XOF,XPF,YER,ZAR,ZMW,ZWL" }
@@ -730,7 +730,7 @@ credit = { currency = "INR,USD,GBP,EUR" }
 debit = { currency = "INR,USD,GBP,EUR" }
 
 [pm_filters.truelayer]
-open_banking_uk = { currency = "GBP,EUR" }
+open_banking = { currency = "GBP,EUR" }
 
 [payout_method_filters.truelayer]
 open_banking_uk = { currency = "GBP,EUR,PLN" }
@@ -1403,13 +1403,14 @@ internal_api_key = "test_internal_api_key" # API key for internal merchant id an
 payments_base_url = "http://localhost:8080"
 
 [superposition]
-enabled = false                                 # Enable or disable Superposition integration (default: false)
+enabled = true                                 # Enable or disable Superposition integration (default: false)
 endpoint = "http://superposition:8080"          # Superposition service endpoint URL
 token = "your_superposition_token"              # Superposition token
 org_id = "your_org_id"                          # Organization ID in Superposition
 workspace_id = "your_workspace_id"              # Workspace ID in Superposition
 polling_interval = 15                           # Polling interval in seconds for configuration updates
 request_timeout =  60                           # Request timeout in seconds for Superposition API calls (optional, default: none)
+backup_file_path = "./config/superposition_seed.toml" # Path to a local file for fallback configuration. Used when the Superposition HTTP service is unavailable. If set, the client will fall back to reading configuration from this file instead of failing completely. This ensures graceful degradation during network outages or service disruptions.
 
 [micro_services]
 # Base URLs for modular microservices

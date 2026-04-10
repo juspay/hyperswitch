@@ -112,6 +112,8 @@ use super::{
 #[cfg(feature = "v1")]
 use crate::core::blocklist::utils as blocklist_utils;
 #[cfg(feature = "v1")]
+use crate::core::blocklist::utils as blocklist_utils;
+#[cfg(feature = "v1")]
 use crate::core::card_testing_guard::utils as card_testing_guard_utils;
 #[cfg(feature = "v1")]
 use crate::core::debit_routing;
@@ -324,6 +326,7 @@ where
                 None,
                 call_connector_service_response,
                 &dimensions,
+                &dimensions,
             )
             .await?;
 
@@ -427,6 +430,7 @@ where
                 #[cfg(feature = "frm")]
                 None,
                 call_connector_service_response,
+                &dimensions,
                 &dimensions,
             )
             .await?;
@@ -735,6 +739,7 @@ where
             customer_details, // TODO: Remove this field after implicit customer update is removed
             platform.get_provider(),
             platform.get_initiator(),
+            &dimensions,
             &dimensions,
         )
         .await
@@ -1055,6 +1060,7 @@ where
                         None,
                         call_connector_service_response,
                         &dimensions.without_profile_id(),
+                        &dimensions.without_profile_id(),
                     )
                     .await?;
 
@@ -1243,6 +1249,7 @@ where
                         #[cfg(not(feature = "frm"))]
                         None,
                         call_connector_service_response,
+                        &dimensions.without_profile_id(),
                         &dimensions.without_profile_id(),
                     )
                     .await?;
@@ -1435,6 +1442,7 @@ where
                     None,
                     header_payload.clone(),
                     &dimensions.without_profile_id(),
+                    &dimensions.without_profile_id(),
                 )
                 .await?;
         }
@@ -1465,6 +1473,7 @@ where
                 payment_data.clone(),
                 None,
                 header_payload.clone(),
+                &dimensions.without_profile_id(),
                 &dimensions.without_profile_id(),
             )
             .await?;
@@ -1644,6 +1653,7 @@ where
             customer_details,
             platform.get_provider(),
             platform.get_initiator(),
+            &dimensions,
             &dimensions,
         )
         .await
@@ -1940,6 +1950,7 @@ where
                 router_data,
                 updated_customer,
                 &dimensions,
+                &dimensions,
             )
             .await?;
 
@@ -2045,6 +2056,7 @@ where
             None,
             header_payload,
             &dimensions,
+            &dimensions,
         )
         .await?;
 
@@ -2123,6 +2135,7 @@ where
             payment_data,
             None,
             header_payload,
+            &dimensions,
             &dimensions,
         )
         .await?;
@@ -2303,9 +2316,10 @@ where
 pub fn calculate_installment_interest(
     order_amount: MinorUnit,
     interest_rate: common_types::payments::InstallmentInterestRate,
+    number_of_installments: std::num::NonZeroU8,
 ) -> RouterResult<MinorUnit> {
     interest_rate
-        .apply_and_ceil_result(order_amount)
+        .calculate_emi_interest(order_amount, number_of_installments)
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to calculate installment interest")
 }
@@ -2352,6 +2366,7 @@ where
             let total_interest = calculate_installment_interest(
                 payment_data.payment_attempt.net_amount.get_order_amount(),
                 installment_option_data.interest_rate,
+                selected_installment.number_of_installments,
             )?;
 
             payment_data
@@ -2963,6 +2978,7 @@ pub async fn record_attempt_core(
             record_payment_data,
             None,
             header_payload.clone(),
+            &dimensions,
             &dimensions,
         )
         .await?;
@@ -4861,6 +4877,7 @@ where
             frm_suggestion,
             header_payload.clone(),
             dimensions,
+            dimensions,
         )
         .await?;
     *payment_data = new_payment_data;
@@ -5355,6 +5372,7 @@ where
             frm_suggestion,
             header_payload.clone(),
             dimensions,
+            dimensions,
         )
         .await?;
     *payment_data = new_payment_data;
@@ -5768,6 +5786,7 @@ where
             None, // frm_suggestion is not used in internal flows
             header_payload.clone(),
             &dimensions,
+            &dimensions,
         )
         .await?;
 
@@ -5940,6 +5959,7 @@ where
                 payment_data.clone(),
                 frm_suggestion,
                 header_payload.clone(),
+                dimensions,
                 dimensions,
             )
             .await?;
@@ -6141,6 +6161,7 @@ where
             frm_suggestion,
             header_payload.clone(),
             &dimensions,
+            &dimensions,
         )
         .await?;
 
@@ -6284,6 +6305,7 @@ where
             None,
             header_payload.clone(),
             &dimensions,
+            &dimensions,
         )
         .await?;
 
@@ -6411,6 +6433,7 @@ where
             payment_data.clone(),
             None,
             header_payload.clone(),
+            &dimensions,
             &dimensions,
         )
         .await?;

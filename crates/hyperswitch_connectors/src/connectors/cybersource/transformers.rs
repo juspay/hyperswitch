@@ -989,7 +989,7 @@ impl
                         }
                         None => None,
                     };
-                    commerce_indicator = "recurring".to_string();
+
                     (
                         None,
                         None,
@@ -1000,7 +1000,7 @@ impl
                                 stored_credential_used: Some(true),
                             }),
                             merchant_initiated_transaction: Some(MerchantInitiatedTransaction {
-                                reason: Some("7".to_string()), // The value 7 indicates Subscription
+                                reason: None,
                                 original_authorized_amount,
                                 previous_transaction_id: None,
                             }),
