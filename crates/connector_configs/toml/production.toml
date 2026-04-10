@@ -7343,7 +7343,7 @@ type = "Text"
 api_key = "Client ID"
 key1 = "Client Secret"
 [[truelayer.bank_redirect]]
-payment_method_type = "open_banking_uk"
+payment_method_type = "open_banking"
 
 [truelayer.metadata.kid]
 name = "kid"
