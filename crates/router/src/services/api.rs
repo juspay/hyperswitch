@@ -1390,7 +1390,7 @@ pub fn build_redirection_form(
 
                     threeDSsecureInterface.on('complete', function(e) {{
                         var responseForm = document.createElement('form');
-                        responseForm.action=window.location.pathname.replace(/payments\\/redirect\\/(\\w+)\\/(\\w+)\\/\\w+/, \"payments/$1/$2/redirect/complete/nmi\");
+                        responseForm.action=window.location.pathname.replace(/payments\\/redirect\\/([^/]+)\\/([^/]+)\\/[^/]+/, \"payments/$1/$2/redirect/complete/nmi\");
                         responseForm.method='POST';
 
                         var item1=document.createElement('input');
@@ -1447,7 +1447,7 @@ pub fn build_redirection_form(
 
                     threeDSsecureInterface.on('failure', function(e) {{
                         var responseForm = document.createElement('form');
-                        responseForm.action=window.location.pathname.replace(/payments\\/redirect\\/(\\w+)\\/(\\w+)\\/\\w+/, \"payments/$1/$2/redirect/complete/nmi\");
+                        responseForm.action=window.location.pathname.replace(/payments\\/redirect\\/([^/]+)\\/([^/]+)\\/[^/]+/, \"payments/$1/$2/redirect/complete/nmi\");
                         responseForm.method='POST';
 
                         var error_code=document.createElement('input');

@@ -836,15 +836,14 @@ fn should_call_refund(
     // doesn't exist
     let predicate1 = refund.connector_refund_id.is_some();
 
-    // This allows refund sync at connector level if all_keys_required or force_sync is enabled, or
-    // checks if the refund has failed
+    // This allows refund sync at connector level if all_keys_required or force_sync is enabled for non terminal refund statuses (i.e. not success or failure)
     let predicate2 = all_keys_required
-        || force_sync
-        || !matches!(
-            refund.refund_status,
-            diesel_models::enums::RefundStatus::Failure
-                | diesel_models::enums::RefundStatus::Success
-        );
+        || (force_sync
+            && !matches!(
+                refund.refund_status,
+                diesel_models::enums::RefundStatus::Failure
+                    | diesel_models::enums::RefundStatus::Success
+            ));
 
     predicate1 && predicate2
 }
