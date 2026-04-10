@@ -5660,37 +5660,42 @@ Cypress.Commands.add(
     const completeUrl = `${Cypress.env("BASEURL")}/webhooks/${merchantId}/${connector}`;
 
     // Resolve the reference ID based on webhook type
-    if (webhookType === "refund") {
-      const refundConfig = webhookConfig.RefundIdConfig;
-      const refundId =
-        refundConfig.source === "refundId"
-          ? globalState.get("refundId")
-          : globalState.get("connectorRefundId");
+    const webhookTypeMap = {
+      payment: {
+        configKey: "TransactionIdConfig",
+        resolveId: (config) =>
+          config.source === "paymentAttemptID"
+            ? `${globalState.get("paymentID")}_1`
+            : globalState.get("connectorTransactionID"),
+      },
+      refund: {
+        configKey: "RefundIdConfig",
+        resolveId: (config) =>
+          config.source === "refundId"
+            ? globalState.get("refundId")
+            : globalState.get("connectorRefundId"),
+      },
+    };
 
+    const { configKey, resolveId } = webhookTypeMap[webhookType];
+    const config = webhookConfig[configKey];
+    const id = resolveId(config);
+
+    cy.task(
+      "cli_log",
+      `${webhookType} webhook ID: ${id}, config: ${configKey}`
+    );
+
+    if (!id) {
       cy.task(
         "cli_log",
-        `refundId for webhook: ${refundId}, source: ${refundConfig.source || "connectorRefundId"}`
+        `Skipping ${webhookType} webhook: ID is not available`
       );
 
-      if (!refundId) {
-        cy.task(
-          "cli_log",
-          "Skipping refund webhook: refund ID is not available (sandbox connector may not return it)"
-        );
-
-        return;
-      }
-
-      setNormalizedValue(webhookBody, refundConfig, refundId);
-    } else {
-      const txnConfig = webhookConfig.TransactionIdConfig;
-      const txnId =
-        txnConfig.source === "paymentAttemptID"
-          ? `${globalState.get("paymentID")}_1`
-          : globalState.get("connectorTransactionID");
-
-      setNormalizedValue(webhookBody, txnConfig, txnId);
+      return;
     }
+
+    setNormalizedValue(webhookBody, config, id);
 
     const contentType = webhookConfig.contentType || "application/json";
 
