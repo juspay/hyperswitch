@@ -7009,15 +7009,16 @@
             "$ref": "#/components/schemas/BacsBankTransfer"
           },
           {
+            "$ref": "#/components/schemas/TrustlyBankTransfer"
+          },
+          {
             "$ref": "#/components/schemas/SepaBankTransfer"
           },
           {
             "$ref": "#/components/schemas/PixBankTransfer"
-          },
-          {
-            "$ref": "#/components/schemas/TrustlyBankTransfer"
           }
-        ]
+        ],
+        "description": "Deprecated - Use `BankTransfer` instead"
       },
       "BankAdditionalData": {
         "oneOf": [
@@ -7028,13 +7029,13 @@
             "$ref": "#/components/schemas/BacsBankTransferAdditionalData"
           },
           {
+            "$ref": "#/components/schemas/TrustlyBankTransferAdditionalData"
+          },
+          {
             "$ref": "#/components/schemas/SepaBankTransferAdditionalData"
           },
           {
             "$ref": "#/components/schemas/PixBankTransferAdditionalData"
-          },
-          {
-            "$ref": "#/components/schemas/TrustlyBankTransferAdditionalData"
           }
         ],
         "description": "Masked payout method details for bank payout method"
@@ -8137,6 +8138,118 @@
             }
           }
         ]
+      },
+      "BankTransfer": {
+        "oneOf": [
+          {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AchBankTransfer"
+              },
+              {
+                "type": "object",
+                "required": [
+                  "payout_method_type"
+                ],
+                "properties": {
+                  "payout_method_type": {
+                    "type": "string",
+                    "enum": [
+                      "ach"
+                    ]
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/BacsBankTransfer"
+              },
+              {
+                "type": "object",
+                "required": [
+                  "payout_method_type"
+                ],
+                "properties": {
+                  "payout_method_type": {
+                    "type": "string",
+                    "enum": [
+                      "bacs"
+                    ]
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SepaBankTransfer"
+              },
+              {
+                "type": "object",
+                "required": [
+                  "payout_method_type"
+                ],
+                "properties": {
+                  "payout_method_type": {
+                    "type": "string",
+                    "enum": [
+                      "sepa"
+                    ]
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PixBankTransfer"
+              },
+              {
+                "type": "object",
+                "required": [
+                  "payout_method_type"
+                ],
+                "properties": {
+                  "payout_method_type": {
+                    "type": "string",
+                    "enum": [
+                      "pix"
+                    ]
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/TrustlyBankTransferData"
+              },
+              {
+                "type": "object",
+                "required": [
+                  "payout_method_type"
+                ],
+                "properties": {
+                  "payout_method_type": {
+                    "type": "string",
+                    "enum": [
+                      "trustly"
+                    ]
+                  }
+                }
+              }
+            ]
+          }
+        ],
+        "discriminator": {
+          "propertyName": "payout_method_type"
+        }
       },
       "BankTransferAdditionalData": {
         "oneOf": [
@@ -12666,6 +12779,22 @@
           }
         },
         "additionalProperties": false
+      },
+      "DDCData": {
+        "type": "object",
+        "required": [
+          "iframe_url"
+        ],
+        "properties": {
+          "iframe_url": {
+            "type": "string"
+          },
+          "timeout_ms": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          }
+        }
       },
       "DecisionEngineEliminationData": {
         "type": "object",
@@ -18727,6 +18856,25 @@
                 ]
               }
             }
+          },
+          {
+            "type": "object",
+            "description": "The data required to trigger the DDC (Device Data Collection) flow by rendering the provided URL in a hidden iframe.",
+            "required": [
+              "ddc_data",
+              "type"
+            ],
+            "properties": {
+              "ddc_data": {
+                "$ref": "#/components/schemas/DDCData"
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "invoke_ddc"
+                ]
+              }
+            }
           }
         ],
         "discriminator": {
@@ -24394,7 +24542,8 @@
           "wise",
           "worldpay",
           "worldpayxml",
-          "envoy"
+          "envoy",
+          "itaubank"
         ]
       },
       "PayoutCreatePayoutLinkConfig": {
@@ -25230,6 +25379,17 @@
                 "$ref": "#/components/schemas/Passthrough"
               }
             }
+          },
+          {
+            "type": "object",
+            "required": [
+              "bank_transfer"
+            ],
+            "properties": {
+              "bank_transfer": {
+                "$ref": "#/components/schemas/BankTransfer"
+              }
+            }
           }
         ],
         "description": "The payout method information required for carrying out a payout"
@@ -25508,6 +25668,11 @@
                 "$ref": "#/components/schemas/PaypalTransactionInfo"
               }
             ],
+            "nullable": true
+          },
+          "data_user_id_token": {
+            "type": "string",
+            "description": "User token required for returning customer flow, used by client to initiate sdk",
             "nullable": true
           }
         }
@@ -29570,6 +29735,7 @@
         "type": "string",
         "enum": [
           "amount",
+          "attempt_count",
           "created",
           "modified"
         ]
@@ -30748,6 +30914,35 @@
             "$ref": "#/components/schemas/CountryAlpha2"
           },
           "account_number": {
+            "type": "string",
+            "description": "The account number, identifying the end-user's account in the bank.",
+            "example": "69706212"
+          },
+          "bank_number": {
+            "type": "string",
+            "description": "The bank number identifying the end-user's bank in the given clearing house.",
+            "example": "6112"
+          }
+        }
+      },
+      "TrustlyBankTransferData": {
+        "type": "object",
+        "required": [
+          "iban",
+          "bank_country_code",
+          "bank_account_number",
+          "bank_number"
+        ],
+        "properties": {
+          "iban": {
+            "type": "string",
+            "description": "International Bank Account Number (iban) - used in many countries for identifying a bank along with it's customer.",
+            "example": "token_12345"
+          },
+          "bank_country_code": {
+            "$ref": "#/components/schemas/CountryAlpha2"
+          },
+          "bank_account_number": {
             "type": "string",
             "description": "The account number, identifying the end-user's account in the bank.",
             "example": "69706212"

@@ -222,6 +222,7 @@ where
         minor_amount_capturable: None,
         authorized_amount: None,
         customer_document_details: None,
+        feature_data: None,
     };
     Ok(router_data)
 }
@@ -582,6 +583,7 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
         minor_amount_capturable: None,
         authorized_amount: None,
         customer_document_details: None,
+        feature_data: None,
     };
 
     Ok(router_data)
@@ -929,6 +931,7 @@ pub async fn construct_payment_router_data_for_capture<'a>(
         minor_amount_capturable: None,
         authorized_amount: None,
         customer_document_details: None,
+        feature_data: None,
     };
 
     Ok(router_data)
@@ -1065,6 +1068,7 @@ pub async fn construct_router_data_for_psync<'a>(
         minor_amount_capturable: None,
         authorized_amount: None,
         customer_document_details: None,
+        feature_data: None,
     };
 
     Ok(router_data)
@@ -1436,6 +1440,7 @@ pub async fn construct_payment_router_data_for_sdk_session<'a>(
         minor_amount_capturable: None,
         authorized_amount: None,
         customer_document_details: None,
+        feature_data: None,
     };
 
     Ok(router_data)
@@ -1666,6 +1671,7 @@ pub async fn construct_payment_router_data_for_setup_mandate<'a>(
         minor_amount_capturable: None,
         authorized_amount: None,
         customer_document_details: None,
+        feature_data: None,
     };
 
     Ok(router_data)
@@ -1896,10 +1902,20 @@ where
         .get_customer_document_details()
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to extract customer document details from payment_intent")?;
-
+    let merchant_id = processor.get_account().get_id().clone();
+    let feature_data = payments::get_feature_data(
+        customer_id.clone(),
+        payment_method_type,
+        merchant_connector_account,
+        state,
+        &merchant_id,
+        processor.get_key_store(),
+        processor.get_account().storage_scheme,
+    )
+    .await;
     let router_data = types::RouterData {
         flow: PhantomData,
-        merchant_id: processor.get_account().get_id().clone(),
+        merchant_id,
         customer_id,
         tenant_id: state.tenant.tenant_id.clone(),
         connector: connector_id.to_owned(),
@@ -1986,6 +2002,7 @@ where
         minor_amount_capturable: None,
         authorized_amount: None,
         customer_document_details,
+        feature_data,
     };
 
     Ok(router_data)
@@ -2206,6 +2223,7 @@ pub async fn construct_payment_router_data_for_update_metadata<'a>(
             .get_customer_document_details()
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to extract customer document details from payment_intent")?,
+        feature_data: None,
     };
 
     Ok(router_data)
@@ -3737,6 +3755,9 @@ where
             let next_action_invoke_hidden_frame =
                 next_action_invoke_hidden_frame(&payment_attempt)?;
 
+            let next_action_invoke_ddc_iframe =
+                next_action_invoke_ddc_iframe(&payment_attempt, base_url)?;
+
             if payment_intent.status == enums::IntentStatus::RequiresCustomerAction
                 || bank_transfer_next_steps.is_some()
                 || next_action_voucher.is_some()
@@ -3782,6 +3803,14 @@ where
                                     display_from_timestamp: wait_screen_data.display_from_timestamp,
                                     display_to_timestamp: wait_screen_data.display_to_timestamp,
                                     poll_config: wait_screen_data.poll_config,
+                                }
+                            }))
+                            .or(next_action_invoke_ddc_iframe.map(|ddc_iframe_data| {
+                                api_models::payments::NextActionData::InvokeDdc {
+                                    ddc_data: api_models::payments::DDCData {
+                                        iframe_url: ddc_iframe_data.iframe_url,
+                                        timeout_ms: ddc_iframe_data.timeout_ms,
+                                    }
                                 }
                             }))
                             .or(payment_attempt.authentication_data.as_ref().map(|_| {
@@ -4291,6 +4320,34 @@ pub fn next_action_invoke_hidden_frame(
 
     let three_ds_invoke_data = connector_three_ds_invoke_data.transpose().ok().flatten();
     Ok(three_ds_invoke_data)
+}
+
+pub fn next_action_invoke_ddc_iframe(
+    payment_attempt: &storage::PaymentAttempt,
+    base_url: &str,
+) -> RouterResult<Option<api_models::payments::PaymentConnectorInvokeDDCData>> {
+    let ddc_iframe_data: Option<
+        error_stack::Result<
+            api_models::payments::PaymentConnectorInvokeDDCData,
+            common_utils::errors::ParsingError,
+        >,
+    > = payment_attempt.connector_metadata.clone().map(|metadata| {
+        let meta = metadata
+            .parse_value::<api_models::payments::PaymentConnectorInvokeDDCMetadata>(
+                "PaymentConnectorInvokeDDCData",
+            )?;
+        let full_iframe_url = format!("{}{}", base_url, meta.iframe_url);
+        let iframe_url = url::Url::parse(&full_iframe_url)
+            .change_context(common_utils::errors::ParsingError::UrlParsingError)
+            .attach_printable("Failed to parse DDC iframe URL after joining with base_url")?;
+        Ok(api_models::payments::PaymentConnectorInvokeDDCData {
+            iframe_url,
+            timeout_ms: meta.timeout_ms,
+        })
+    });
+
+    let ddc_data = ddc_iframe_data.transpose().ok().flatten();
+    Ok(ddc_data)
 }
 
 pub fn construct_connector_invoke_hidden_frame(
