@@ -2210,6 +2210,7 @@ impl ForeignFrom<api_models::admin::PaymentMethodBlockingConfig>
     fn foreign_from(item: api_models::admin::PaymentMethodBlockingConfig) -> Self {
         Self {
             card: item.card.map(|c| c.foreign_into()),
+            wallet: item.wallet.map(|w| w.foreign_into()),
         }
     }
 }
@@ -2228,12 +2229,23 @@ impl ForeignFrom<api_models::admin::CardBlockingConfig>
     }
 }
 
+impl ForeignFrom<api_models::admin::WalletBlockingConfig>
+    for diesel_models::business_profile::WalletBlockingConfig
+{
+    fn foreign_from(item: api_models::admin::WalletBlockingConfig) -> Self {
+        Self {
+            card_types: item.card_types,
+        }
+    }
+}
+
 impl ForeignFrom<diesel_models::business_profile::PaymentMethodBlockingConfig>
     for api_models::admin::PaymentMethodBlockingConfig
 {
     fn foreign_from(item: diesel_models::business_profile::PaymentMethodBlockingConfig) -> Self {
         Self {
             card: item.card.map(|c| c.foreign_into()),
+            wallet: item.wallet.map(|w| w.foreign_into()),
         }
     }
 }
@@ -2248,6 +2260,16 @@ impl ForeignFrom<diesel_models::business_profile::CardBlockingConfig>
             card_subtypes: item.card_subtypes,
             issuers: item.issuers,
             block_if_bin_info_unavailable: item.block_if_bin_info_unavailable,
+        }
+    }
+}
+
+impl ForeignFrom<diesel_models::business_profile::WalletBlockingConfig>
+    for api_models::admin::WalletBlockingConfig
+{
+    fn foreign_from(item: diesel_models::business_profile::WalletBlockingConfig) -> Self {
+        Self {
+            card_types: item.card_types,
         }
     }
 }

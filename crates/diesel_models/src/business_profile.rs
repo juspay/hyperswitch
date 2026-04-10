@@ -936,6 +936,7 @@ common_utils::impl_to_sql_from_sql_json!(RevenueRecoveryAlgorithmData);
 #[diesel(sql_type = diesel::sql_types::Jsonb)]
 pub struct PaymentMethodBlockingConfig {
     pub card: Option<CardBlockingConfig>,
+    pub wallet: Option<WalletBlockingConfig>,
 }
 
 /// Card-specific blocking configuration
@@ -952,6 +953,27 @@ pub struct CardBlockingConfig {
     /// Whether to block if BIN is provided but no matching record found in cards_info table.
     /// Defaults to false (allow payment if BIN not found in database).
     pub block_if_bin_info_unavailable: Option<bool>,
+}
+
+/// Wallet-specific blocking configuration for Apple Pay and Google Pay
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
+pub struct WalletBlockingConfig {
+    /// Set of card types to block (e.g., ["Credit", "Debit"])
+    pub card_types: Option<HashSet<common_enums::CardType>>,
+}
+
+impl WalletBlockingConfig {
+    pub fn is_credit_blocked(&self) -> bool {
+        self.card_types
+            .as_ref()
+            .is_some_and(|types| types.contains(&common_enums::CardType::Credit))
+    }
+
+    pub fn is_debit_blocked(&self) -> bool {
+        self.card_types
+            .as_ref()
+            .is_some_and(|types| types.contains(&common_enums::CardType::Debit))
+    }
 }
 
 impl CardBlockingConfig {
