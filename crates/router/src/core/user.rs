@@ -24,13 +24,14 @@ use error_stack::{report, ResultExt};
 use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 use router_env::{env, logger};
 use storage_impl::errors::StorageError;
+#[cfg(feature = "v1")]
 use subscriptions::RouterResponse;
 #[cfg(not(feature = "email"))]
 use user_api::dashboard_metadata::SetMetaDataRequest;
 
+use super::errors::{StorageErrorExt, UserErrors, UserResponse, UserResult};
 #[cfg(feature = "v1")]
-use super::admin;
-use super::errors::{ApiErrorResponse, StorageErrorExt, UserErrors, UserResponse, UserResult};
+use super::{admin, errors::ApiErrorResponse};
 use crate::{
     consts,
     core::encryption::send_request_to_key_service_for_user,
@@ -4142,6 +4143,7 @@ pub async fn list_members_for_entity(
     ))
 }
 
+#[cfg(feature = "v1")]
 pub async fn authorize_token(
     state: SessionState,
     payload: user_api::AuthorizeTokenRequest,

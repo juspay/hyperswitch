@@ -1242,6 +1242,7 @@ pub async fn list_members_for_entity(
     .await
 }
 
+#[cfg(feature = "v1")]
 pub async fn authorize_token(
     state: web::Data<AppState>,
     http_req: HttpRequest,
