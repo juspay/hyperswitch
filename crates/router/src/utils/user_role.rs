@@ -4,7 +4,7 @@ use std::{
 };
 
 use api_models::user_role::role as role_api;
-use common_enums::{EntityType, ParentGroup, PermissionGroup};
+use common_enums::{EntityType, MerchantProductType, ParentGroup, PermissionGroup};
 use common_utils::id_type;
 use diesel_models::{
     enums::UserRoleVersion,
@@ -37,10 +37,21 @@ use crate::{
     utils::user::{self as user_utils, theme as theme_utils},
 };
 
-pub fn validate_role_groups(groups: &[PermissionGroup]) -> UserResult<()> {
+pub fn validate_role_groups(
+    groups: &[PermissionGroup],
+    merchant_product_type: MerchantProductType,
+) -> UserResult<()> {
     if groups.is_empty() {
         return Err(report!(UserErrors::InvalidRoleOperation))
             .attach_printable("Role groups cannot be empty");
+    }
+
+    if !groups
+        .iter()
+        .all(|group| group.get_product_type() == merchant_product_type)
+    {
+        return Err(report!(UserErrors::InvalidRoleOperation))
+            .attach_printable("Permission groups of different product types found");
     }
 
     let unique_groups: HashSet<_> = groups.iter().copied().collect();
