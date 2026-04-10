@@ -3597,8 +3597,7 @@ checksum = "28dd6caf6059519a65843af8fe2a3ae298b14b80179855aeb4adc2c1934ee619"
 [[package]]
 name = "fred"
 version = "8.0.6"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4b8e3a1339ed45ad8fde94530c4bdcbd5f371a3c6bd3bf57682923792830aa37"
+source = "git+https://github.com/hrithikesh026/fred.rs?branch=fred-8-tokio-mutex#27a0d587c98ca1bdb7b931630dc8115ed9e96c28"
 dependencies = [
  "arc-swap",
  "async-trait",
