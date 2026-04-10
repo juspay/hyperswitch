@@ -3869,6 +3869,7 @@ impl PaymentRedirectFlow for PaymentAuthenticateCompleteAuthorize {
             None,
             &payment_intent
                 .profile_id
+                .clone()
                 .ok_or(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("missing profile_id in payment_intent")?,
             &payment_attempt
@@ -3903,27 +3904,52 @@ impl PaymentRedirectFlow for PaymentAuthenticateCompleteAuthorize {
                 }),
                 ..Default::default()
             };
-            Box::pin(payments_core::<
-                api::Authorize,
-                api::PaymentsResponse,
-                _,
-                _,
-                _,
-                _,
-            >(
-                state.clone(),
-                req_state,
-                platform.clone(),
-                None,
-                PaymentConfirm,
-                payment_confirm_req,
-                services::api::AuthFlow::Merchant,
-                connector_action,
-                None,
-                None,
-                HeaderPayload::with_source(enums::PaymentSource::ExternalAuthenticator),
-            ))
-            .await?
+            let is_setup_mandate = payment_intent.is_setup_mandate();
+            if is_setup_mandate {
+                Box::pin(payments_core::<
+                    api::SetupMandate,
+                    api::PaymentsResponse,
+                    _,
+                    _,
+                    _,
+                    _,
+                >(
+                    state.clone(),
+                    req_state,
+                    platform.clone(),
+                    None,
+                    PaymentConfirm,
+                    payment_confirm_req,
+                    services::api::AuthFlow::Merchant,
+                    connector_action,
+                    None,
+                    None,
+                    HeaderPayload::with_source(enums::PaymentSource::ExternalAuthenticator),
+                ))
+                .await?
+            } else {
+                Box::pin(payments_core::<
+                    api::Authorize,
+                    api::PaymentsResponse,
+                    _,
+                    _,
+                    _,
+                    _,
+                >(
+                    state.clone(),
+                    req_state,
+                    platform.clone(),
+                    None,
+                    PaymentConfirm,
+                    payment_confirm_req,
+                    services::api::AuthFlow::Merchant,
+                    connector_action,
+                    None,
+                    None,
+                    HeaderPayload::with_source(enums::PaymentSource::ExternalAuthenticator),
+                ))
+                .await?
+            }
         } else {
             let payment_sync_req = api::PaymentsRetrieveRequest {
                 resource_id: req.resource_id,
