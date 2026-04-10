@@ -14,6 +14,7 @@ use crate::core::utils as core_utils;
 use crate::{
     consts,
     core::{
+        configs,
         errors::{self, RouterResult, StorageErrorExt},
         payments::{
             self, complete_connector_service,
@@ -102,7 +103,7 @@ where
     };
 
     if should_step_up {
-        router_data = do_retry(
+        router_data = Box::pin(do_retry(
             &state.clone(),
             req_state.clone(),
             original_connector_data,
@@ -121,7 +122,7 @@ where
             initial_gsm.clone(),
             #[cfg(feature = "pm_modular")]
             feature_config,
-        )
+        ))
         .await?;
     }
     // Step up is not applicable so proceed with auto retries flow
@@ -209,7 +210,7 @@ where
                         (connector_routing_data.connector_data, routing_decision)
                     };
 
-                    router_data = do_retry(
+                    router_data = Box::pin(do_retry(
                         &state.clone(),
                         req_state.clone(),
                         &connector,
@@ -229,7 +230,7 @@ where
                         gsm.clone(),
                         #[cfg(feature = "pm_modular")]
                         feature_config,
-                    )
+                    ))
                     .await?;
 
                     retries = retries.map(|i| i - 1);
@@ -392,6 +393,10 @@ where
     types::RouterData<F, FData, types::PaymentsResponseData>: Feature<F, FData>,
     dyn api::Connector: services::api::ConnectorIntegration<F, FData, types::PaymentsResponseData>,
 {
+    let dimensions = configs::dimension_state::Dimensions::new()
+        .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
+        .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id());
+
     metrics::AUTO_RETRY_PAYMENT_COUNT.add(1, &[]);
 
     modify_trackers(
@@ -472,6 +477,7 @@ where
         hyperswitch_domain_models::payments::HeaderPayload::default(),
         frm_suggestion,
         call_connector_service_response,
+        &dimensions,
     )
     .await?;
     Ok(router_data)

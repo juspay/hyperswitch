@@ -5757,6 +5757,14 @@ key1 = "Wise Account Id"
 [wise_payout.connector_webhook_details]
 merchant_secret="Source verification key"
 
+
+[itaubank_payout]
+[[itaubank_payout.bank_transfer]]
+  payment_method_type = "pix"
+[itaubank_payout.connector_auth.BodyKey]
+key1="Client Id"
+api_key="Client Secret"
+
 [threedsecureio]
 [threedsecureio.connector_auth.HeaderKey]
 api_key="Api Key"
@@ -7311,8 +7319,8 @@ merchant_secret="Source verification key"
 [[affirm.pay_later]]
   payment_method_type = "affirm"
 [affirm.connector_auth.BodyKey]
-api_key = "API Key"
-key1 = "API Secret"
+api_key = "Public Key"
+key1 = "Private Key"
 
 [trustpayments]
 [[trustpayments.credit]]
@@ -7861,7 +7869,7 @@ merchant_secret="Source verification key"
 api_key = "Client ID"
 key1 = "Client Secret"
 [[truelayer.bank_redirect]]
-payment_method_type = "open_banking_uk"
+payment_method_type = "open_banking"
 
 [truelayer.metadata.kid]
 name = "kid"
@@ -7935,18 +7943,14 @@ required = true
 type = "Text"
 
 [trustly_payout]
-[trustly_payout.connector_auth.BodyKey]
+[trustly_payout.connector_auth.SignatureKey]
 api_key = "Username"
 key1 = "Password"
+api_secret = "Private Key(Base64 encoded)"
 [[trustly_payout.bank_transfer]]
 payment_method_type = "trustly"
-
-[trustly_payout.metadata.private_key]
-name = "private_key"
-label = "Private Key (Base64 encoded)"
-placeholder = "Enter your Private Key(Base64 encoded)"
-required = true
-type = "Text"
+[trustly_payout.connector_webhook_details]
+merchant_secret="Trustly's public key"
 
 [tesouro]
 [[tesouro.credit]]
@@ -8361,6 +8365,11 @@ payment_method_type = "UnionPay"
 api_key = "Static Tokens"
 
 [trustly]
-[trustly.connector_auth.HeaderKey]
-api_key = "API Key"
-
+[trustly.connector_auth.SignatureKey]
+api_key = "Username"
+key1 = "Password"
+api_secret = "Private Key(Base64 encoded)"
+[[trustly.bank_redirect]]
+payment_method_type = "trustly"
+[trustly.connector_webhook_details]
+merchant_secret="Trustly's public key"

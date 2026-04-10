@@ -11305,15 +11305,16 @@
             "$ref": "#/components/schemas/BacsBankTransfer"
           },
           {
+            "$ref": "#/components/schemas/TrustlyBankTransfer"
+          },
+          {
             "$ref": "#/components/schemas/SepaBankTransfer"
           },
           {
             "$ref": "#/components/schemas/PixBankTransfer"
-          },
-          {
-            "$ref": "#/components/schemas/TrustlyBankTransfer"
           }
-        ]
+        ],
+        "description": "Deprecated - Use `BankTransfer` instead"
       },
       "BankAdditionalData": {
         "oneOf": [
@@ -11324,13 +11325,13 @@
             "$ref": "#/components/schemas/BacsBankTransferAdditionalData"
           },
           {
+            "$ref": "#/components/schemas/TrustlyBankTransferAdditionalData"
+          },
+          {
             "$ref": "#/components/schemas/SepaBankTransferAdditionalData"
           },
           {
             "$ref": "#/components/schemas/PixBankTransferAdditionalData"
-          },
-          {
-            "$ref": "#/components/schemas/TrustlyBankTransferAdditionalData"
           }
         ],
         "description": "Masked payout method details for bank payout method"
@@ -12480,6 +12481,118 @@
             }
           }
         ]
+      },
+      "BankTransfer": {
+        "oneOf": [
+          {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AchBankTransfer"
+              },
+              {
+                "type": "object",
+                "required": [
+                  "payout_method_type"
+                ],
+                "properties": {
+                  "payout_method_type": {
+                    "type": "string",
+                    "enum": [
+                      "ach"
+                    ]
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/BacsBankTransfer"
+              },
+              {
+                "type": "object",
+                "required": [
+                  "payout_method_type"
+                ],
+                "properties": {
+                  "payout_method_type": {
+                    "type": "string",
+                    "enum": [
+                      "bacs"
+                    ]
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SepaBankTransfer"
+              },
+              {
+                "type": "object",
+                "required": [
+                  "payout_method_type"
+                ],
+                "properties": {
+                  "payout_method_type": {
+                    "type": "string",
+                    "enum": [
+                      "sepa"
+                    ]
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PixBankTransfer"
+              },
+              {
+                "type": "object",
+                "required": [
+                  "payout_method_type"
+                ],
+                "properties": {
+                  "payout_method_type": {
+                    "type": "string",
+                    "enum": [
+                      "pix"
+                    ]
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/TrustlyBankTransferData"
+              },
+              {
+                "type": "object",
+                "required": [
+                  "payout_method_type"
+                ],
+                "properties": {
+                  "payout_method_type": {
+                    "type": "string",
+                    "enum": [
+                      "trustly"
+                    ]
+                  }
+                }
+              }
+            ]
+          }
+        ],
+        "discriminator": {
+          "propertyName": "payout_method_type"
+        }
       },
       "BankTransferAdditionalData": {
         "oneOf": [
@@ -18371,6 +18484,22 @@
           }
         }
       },
+      "DDCData": {
+        "type": "object",
+        "required": [
+          "iframe_url"
+        ],
+        "properties": {
+          "iframe_url": {
+            "type": "string"
+          },
+          "timeout_ms": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          }
+        }
+      },
       "DeRoutableConnectorChoice": {
         "type": "object",
         "description": "Connector representation used in API request/response.\n\nRepresents a Merchant Connector Account.",
@@ -21253,6 +21382,11 @@
           "assurance_details_required": {
             "type": "boolean",
             "description": "Whether assurance details are required",
+            "nullable": true
+          },
+          "allow_credit_cards": {
+            "type": "boolean",
+            "description": "Set to false if you don't want to allow credit cards",
             "nullable": true
           }
         }
@@ -25476,6 +25610,25 @@
                 ]
               }
             }
+          },
+          {
+            "type": "object",
+            "description": "The data required to trigger the DDC (Device Data Collection) flow by rendering the provided URL in a hidden iframe.",
+            "required": [
+              "ddc_data",
+              "type"
+            ],
+            "properties": {
+              "ddc_data": {
+                "$ref": "#/components/schemas/DDCData"
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "invoke_ddc"
+                ]
+              }
+            }
           }
         ],
         "discriminator": {
@@ -27645,6 +27798,14 @@
               }
             ],
             "nullable": true
+          },
+          "wallet": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/WalletBlockingConfig"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -27847,6 +28008,14 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/Bank"
+              }
+            ],
+            "nullable": true
+          },
+          "bank_transfer_data": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/BankTransfer"
               }
             ],
             "nullable": true
@@ -33940,7 +34109,8 @@
           "wise",
           "worldpay",
           "worldpayxml",
-          "envoy"
+          "envoy",
+          "itaubank"
         ]
       },
       "PayoutCreatePayoutLinkConfig": {
@@ -34571,6 +34741,17 @@
             "properties": {
               "passthrough": {
                 "$ref": "#/components/schemas/Passthrough"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "bank_transfer"
+            ],
+            "properties": {
+              "bank_transfer": {
+                "$ref": "#/components/schemas/BankTransfer"
               }
             }
           }
@@ -35287,6 +35468,11 @@
                 "$ref": "#/components/schemas/PaypalTransactionInfo"
               }
             ],
+            "nullable": true
+          },
+          "data_user_id_token": {
+            "type": "string",
+            "description": "User token required for returning customer flow, used by client to initiate sdk",
             "nullable": true
           }
         }
@@ -38752,6 +38938,12 @@
             "description": "Identifier of the user/system triggering routing evaluation.\n\nExample:\n```json\n\"created_by\": \"some_id\"\n```",
             "example": "profile_123"
           },
+          "payment_id": {
+            "type": "string",
+            "description": "Payment ID for debugging and tracing routing decisions.\n\nExample:\n```json\n\"payment_id\": \"pay_abc123\"\n```",
+            "example": "pay_abc123",
+            "nullable": true
+          },
           "parameters": {
             "type": "object",
             "description": "Dynamic parameters used during routing evaluation.\n\nEach key represents a routing attribute.\n\nExample fields:\n\n- `payment_method`\n- `payment_method_type`\n- `amount`\n- `currency`\n- `authentication_type`\n- `card_bin`\n- `capture_method`\n- `business_country`\n- `billing_country`\n- `business_label`\n- `setup_future_usage`\n- `card_network`\n- `payment_type`\n- `mandate_type`\n- `mandate_acceptance_type`\n- `metadata`\n\nExample:\n```json\n{\n\"payment_method\": { \"type\": \"enum_variant\", \"value\": \"card\" },\n\"amount\": { \"type\": \"number\", \"value\": 10 },\n\"currency\": { \"type\": \"str_value\", \"value\": \"INR\" },\n\"authentication_type\": { \"type\": \"enum_variant\", \"value\": \"three_ds\" },\n\"card_bin\": { \"type\": \"str_value\", \"value\": \"424242\" },\n\"business_country\": { \"type\": \"str_value\", \"value\": \"IN\" },\n\"setup_future_usage\": { \"type\": \"enum_variant\", \"value\": \"off_session\" },\n\"card_network\": { \"type\": \"enum_variant\", \"value\": \"visa\" },\n\"metadata\": {\n\"type\": \"metadata_variant\",\n\"value\": { \"key\": \"key1\", \"value\": \"value1\" }\n}\n}\n```\n\nFor the complete superset of supported routing keys,\nrefer to `routing_configs.keys` in:\nhttps://github.com/juspay/decision-engine/blob/main/config/development.toml"
@@ -41289,6 +41481,35 @@
           }
         }
       },
+      "TrustlyBankTransferData": {
+        "type": "object",
+        "required": [
+          "iban",
+          "bank_country_code",
+          "bank_account_number",
+          "bank_number"
+        ],
+        "properties": {
+          "iban": {
+            "type": "string",
+            "description": "International Bank Account Number (iban) - used in many countries for identifying a bank along with it's customer.",
+            "example": "token_12345"
+          },
+          "bank_country_code": {
+            "$ref": "#/components/schemas/CountryAlpha2"
+          },
+          "bank_account_number": {
+            "type": "string",
+            "description": "The account number, identifying the end-user's account in the bank.",
+            "example": "69706212"
+          },
+          "bank_number": {
+            "type": "string",
+            "description": "The bank number identifying the end-user's bank in the given clearing house.",
+            "example": "6112"
+          }
+        }
+      },
       "TxnStatus": {
         "type": "string",
         "enum": [
@@ -42097,6 +42318,20 @@
             "type": "string",
             "description": "Unique authorisation code generated for the payment",
             "example": "009825",
+            "nullable": true
+          }
+        }
+      },
+      "WalletBlockingConfig": {
+        "type": "object",
+        "description": "Wallet-specific blocking configuration for Apple Pay and Google Pay",
+        "properties": {
+          "card_types": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CardType"
+            },
+            "description": "Set of card types to block for wallet payments (e.g., [\"Credit\", \"Debit\"])",
             "nullable": true
           }
         }
