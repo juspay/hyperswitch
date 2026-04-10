@@ -14416,7 +14416,7 @@ impl PaymentIntentStateMetadataExt {
         // Update payment_intent for the refund's payment_id
         // Calculate total_refunded_amount based on all succeeded refunds for that payment_id
         let all_refunds_for_payment = db
-            .find_refund_by_payment_id_merchant_id(
+            .find_refund_by_payment_id_processor_merchant_id(
                 &payment_intent.payment_id,
                 merchant_account.get_id(),
                 merchant_account.storage_scheme,

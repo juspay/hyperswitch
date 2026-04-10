@@ -2104,7 +2104,7 @@ async fn refunds_incoming_webhook_flow(
     let refund = match webhook_details.object_reference_id {
         webhooks::ObjectReferenceId::RefundId(refund_id_type) => match refund_id_type {
             webhooks::RefundIdType::RefundId(id) => db
-                .find_refund_by_merchant_id_refund_id(
+                .find_refund_by_processor_merchant_id_refund_id(
                     platform.get_processor().get_account().get_id(),
                     &id,
                     platform.get_processor().get_account().storage_scheme,
@@ -2113,7 +2113,7 @@ async fn refunds_incoming_webhook_flow(
                 .change_context(errors::ApiErrorResponse::WebhookResourceNotFound)
                 .attach_printable("Failed to fetch the refund")?,
             webhooks::RefundIdType::ConnectorRefundId(id) => db
-                .find_refund_by_merchant_id_connector_refund_id_connector(
+                .find_refund_by_processor_merchant_id_connector_refund_id_connector(
                     platform.get_processor().get_account().get_id(),
                     &id,
                     connector_name,
