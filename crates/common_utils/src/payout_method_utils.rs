@@ -1,7 +1,7 @@
 //! This module has common utilities for payout method data in HyperSwitch
 
 use diesel::{sql_types::Jsonb, AsExpression, FromSqlRow};
-use masking::Secret;
+use hyperswitch_masking::Secret;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 

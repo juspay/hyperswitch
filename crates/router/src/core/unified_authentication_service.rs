@@ -43,7 +43,7 @@ use hyperswitch_domain_models::{
         UasPreAuthenticationRouterData,
     },
 };
-use masking::{ExposeInterface, PeekInterface};
+use hyperswitch_masking::{ExposeInterface, PeekInterface};
 
 use super::{
     errors::{RouterResponse, RouterResult},
@@ -775,7 +775,7 @@ pub async fn authentication_create_core(
                     customer_details
                         .map(|details| {
                             common_utils::ext_traits::Encode::encode_to_value(&details)
-                                .map(masking::Secret::<serde_json::Value>::new)
+                                .map(hyperswitch_masking::Secret::<serde_json::Value>::new)
                                 .change_context(ApiErrorResponse::InternalServerError)
                                 .attach_printable(
                                     "Unable to encode customer details to serde_json::Value",
@@ -843,7 +843,7 @@ pub async fn authentication_create_core(
         .customer_details
         .clone()
         .async_lift(|inner| async {
-            domain::types::crypto_operation::<serde_json::Value, masking::WithType>(
+            domain::types::crypto_operation::<serde_json::Value, hyperswitch_masking::WithType>(
                 &key_manager_state,
                 common_utils::type_name!(Authentication),
                 domain::types::CryptoOperation::DecryptOptional(inner),
@@ -943,7 +943,7 @@ impl
             authentication_id: authentication.authentication_id,
             client_secret: authentication
                 .authentication_client_secret
-                .map(masking::Secret::new),
+                .map(hyperswitch_masking::Secret::new),
             amount,
             currency,
             force_3ds_challenge: authentication.force_3ds_challenge,
@@ -1390,7 +1390,7 @@ pub async fn authentication_authenticate_core(
                 .inspect_err(|err| router_env::logger::error!(tokenized_data_result=?err))
                 .attach_printable("cavv not present after authentication status is success")?;
                 (
-                    Some(masking::Secret::new(tokenised_data.value1)),
+                    Some(hyperswitch_masking::Secret::new(tokenised_data.value1)),
                     authentication.eci.clone(),
                 )
             } else {
@@ -1658,7 +1658,7 @@ pub async fn authentication_retrieve_eligibility_check_core(
 impl
     ForeignTryFrom<(
         &hyperswitch_domain_models::authentication::Authentication,
-        Option<masking::Secret<String>>,
+        Option<hyperswitch_masking::Secret<String>>,
         Option<String>,
         diesel_models::business_profile::AuthenticationConnectorDetails,
     )> for AuthenticationAuthenticateResponse
@@ -1668,7 +1668,7 @@ impl
     fn foreign_try_from(
         (authentication, authentication_value, eci, authentication_details): (
             &hyperswitch_domain_models::authentication::Authentication,
-            Option<masking::Secret<String>>,
+            Option<hyperswitch_masking::Secret<String>>,
             Option<String>,
             diesel_models::business_profile::AuthenticationConnectorDetails,
         ),
@@ -2017,7 +2017,7 @@ pub async fn authentication_sync_core(
         status: updated_authentication.authentication_status,
         client_secret: updated_authentication
             .authentication_client_secret
-            .map(masking::Secret::new),
+            .map(hyperswitch_masking::Secret::new),
         amount,
         currency,
         authentication_connector,
@@ -2169,7 +2169,7 @@ pub async fn authentication_post_sync_core(
         updated_authentication
             .authentication_client_secret
             .clone()
-            .map(masking::Secret::new)
+            .map(hyperswitch_masking::Secret::new)
             .as_ref(),
         updated_authentication.amount,
     )?;
@@ -2306,7 +2306,7 @@ pub async fn get_session_token_for_click_to_pay(
         .customer_details
         .clone()
         .async_lift(|inner| async {
-            domain::types::crypto_operation::<serde_json::Value, masking::WithType>(
+            domain::types::crypto_operation::<serde_json::Value, hyperswitch_masking::WithType>(
                 key_manager_state,
                 common_utils::type_name!(Authentication),
                 domain::types::CryptoOperation::DecryptOptional(inner),

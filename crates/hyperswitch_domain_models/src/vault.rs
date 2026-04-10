@@ -27,7 +27,7 @@ impl PaymentMethodVaultingData {
     }
 
     #[cfg(feature = "v2")]
-    pub fn set_card_cvc(&mut self, card_cvc: masking::Secret<String>) {
+    pub fn set_card_cvc(&mut self, card_cvc: hyperswitch_masking::Secret<String>) {
         match self {
             Self::Card(card_details) => {
                 card_details.card_cvc = Some(card_cvc);
@@ -154,17 +154,17 @@ impl Default for PaymentMethodCustomVaultingData {
 #[derive(Debug, Default, Deserialize, Serialize, Clone)]
 pub struct CardCustomData {
     pub card_number: Option<cards::CardNumber>,
-    pub card_exp_month: Option<masking::Secret<String>>,
-    pub card_exp_year: Option<masking::Secret<String>>,
-    pub card_cvc: Option<masking::Secret<String>>,
+    pub card_exp_month: Option<hyperswitch_masking::Secret<String>>,
+    pub card_exp_year: Option<hyperswitch_masking::Secret<String>>,
+    pub card_cvc: Option<hyperswitch_masking::Secret<String>>,
 }
 
 #[derive(Debug, Default, Deserialize, Serialize, Clone)]
 pub struct NetworkTokenCustomData {
     pub network_token: Option<cards::NetworkToken>,
-    pub network_token_exp_month: Option<masking::Secret<String>>,
-    pub network_token_exp_year: Option<masking::Secret<String>>,
-    pub cryptogram: Option<masking::Secret<String>>,
+    pub network_token_exp_month: Option<hyperswitch_masking::Secret<String>>,
+    pub network_token_exp_year: Option<hyperswitch_masking::Secret<String>>,
+    pub cryptogram: Option<hyperswitch_masking::Secret<String>>,
 }
 
 #[cfg(feature = "v1")]
@@ -244,9 +244,9 @@ pub trait VaultingDataInterface {
 impl VaultingDataInterface for PaymentMethodVaultingData {
     fn get_vaulting_data_key(&self) -> String {
         match &self {
-            Self::Card(card) => card.card_number.to_string(),
-            Self::NetworkToken(network_token) => network_token.network_token.to_string(),
-            Self::CardNumber(card_number) => card_number.to_string(),
+            Self::Card(card) => card.card_number.get_card_no(),
+            Self::NetworkToken(network_token) => network_token.network_token.get_card_no(),
+            Self::CardNumber(card_number) => card_number.get_card_no(),
         }
     }
 }

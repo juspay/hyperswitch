@@ -19,7 +19,7 @@ use external_services::http_client::client;
 use hyperswitch_domain_models::merchant_connector_account::{
     FromRequestEncryptableMerchantConnectorAccount, UpdateEncryptableMerchantConnectorAccount,
 };
-use masking::{ExposeInterface, PeekInterface, Secret};
+use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 use pm_auth::types as pm_auth_types;
 use uuid::Uuid;
 
@@ -345,7 +345,7 @@ pub async fn create_merchant_account(
                 key_manager_state,
                 EncryptionTransferRequest {
                     identifier: identifier.clone(),
-                    key: masking::StrongSecret::new(BASE64_ENGINE.encode(key)),
+                    key: hyperswitch_masking::StrongSecret::new(BASE64_ENGINE.encode(key)),
                 },
             )
             .await
@@ -4674,7 +4674,9 @@ async fn locker_recipient_create_call(
     let encrypted_data = domain_types::crypto_operation(
         key_manager_state,
         type_name!(payment_method::PaymentMethod),
-        domain_types::CryptoOperation::Encrypt(Secret::<String, masking::WithType>::new(data_json)),
+        domain_types::CryptoOperation::Encrypt(
+            Secret::<String, hyperswitch_masking::WithType>::new(data_json),
+        ),
         identifier,
         key,
     )

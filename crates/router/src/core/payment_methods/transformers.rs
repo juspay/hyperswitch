@@ -12,6 +12,9 @@ use common_utils::{
 use error_stack::ResultExt;
 #[cfg(feature = "v2")]
 use hyperswitch_domain_models::payment_method_data;
+#[cfg(feature = "v2")]
+use hyperswitch_masking::ExposeInterface;
+use hyperswitch_masking::PeekInterface;
 use josekit::jwe;
 use router_env::RequestId;
 use serde::{Deserialize, Serialize};
@@ -23,7 +26,7 @@ use crate::{
         payment_methods::cards::call_vault_service,
     },
     headers,
-    pii::{prelude::*, Secret},
+    pii::Secret,
     routes,
     services::{api as services, encryption, EncryptionAlgorithm},
     types::{api, domain},

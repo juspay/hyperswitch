@@ -3,7 +3,7 @@ use common_utils::{
     types::{AmountConvertor, MinorUnit, StringMinorUnitForConnector},
 };
 use diesel_models::enums as storage_enums;
-use masking::Secret;
+use hyperswitch_masking::Secret;
 use time::OffsetDateTime;
 
 use crate::types::storage::dispute::Dispute;

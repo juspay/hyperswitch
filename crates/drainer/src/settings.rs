@@ -11,7 +11,7 @@ use hyperswitch_interfaces::{
         RawSecret, SecretState, SecretStateContainer, SecuredSecret,
     },
 };
-use masking::Secret;
+use hyperswitch_masking::Secret;
 use redis_interface as redis;
 pub use router_env::config::{Log, LogConsole, LogFile, LogTelemetry};
 use router_env::{env, logger};

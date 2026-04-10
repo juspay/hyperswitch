@@ -58,7 +58,7 @@ blake3 = "1.8.2"
 bytes = "1.10.1"
 clap = { version = "4.5.38", default-features = false, features = ["std", "derive", "help", "usage"] }
 config = { version = "0.14.1", features = ["toml"] }
-prost-types = { version = "0.13", optional = true }
+prost-types = { version = "0.14", optional = true }
 cookie = "0.18.1"
 csv = "1.3.1"
 diesel = { version = "2.2.10", features = ["postgres"] }
@@ -88,9 +88,8 @@ reqwest = { version = "0.11.27", features = ["json", "rustls-tls", "gzip", "mult
 ring = "0.17.14"
 rust_decimal = { version = "1.37.1", features = ["serde-with-float", "serde-with-str"] }
 rust-i18n = { git = "https://github.com/kashif-m/rust-i18n", rev = "f2d8096aaaff7a87a847c35a5394c269f75e077a" }
-unified-connector-service-client = { git = "https://github.com/juspay/connector-service", rev = "23ae5acea8cfb1f1d35517dc95b7da8d101df5b9", package = "rust-grpc-client" }
-unified-connector-service-cards = { git = "https://github.com/juspay/connector-service", rev = "23ae5acea8cfb1f1d35517dc95b7da8d101df5b9", package = "ucs_cards" }
-unified-connector-service-masking = { git = "https://github.com/juspay/hyperswitch", tag = "2025.11.24.0", package = "masking" }
+unified-connector-service-client = { git = "https://github.com/juspay/connector-service", tag = "2026.03.04.0-hotfix1", package = "rust-grpc-client" }
+unified-connector-service-cards = { git = "https://github.com/juspay/connector-service", tag = "2026.03.04.0-hotfix1", package = "ucs_cards" }
 rustc-hash = "1.1.0"
 rustls = "0.22"
 rustls-pemfile = "2"
@@ -134,7 +133,7 @@ hyperswitch_domain_models = { version = "0.1.0", path = "../hyperswitch_domain_m
 hyperswitch_interfaces = { version = "0.1.0", path = "../hyperswitch_interfaces", default-features = false }
 injector = { version = "0.1.0", path = "../injector", optional = true }
 kgraph_utils = { version = "0.1.0", path = "../kgraph_utils" }
-masking = { version = "0.1.0", path = "../masking" }
+hyperswitch_masking = "0.0.1"
 pm_auth = { version = "0.1.0", path = "../pm_auth", package = "pm_auth" }
 redis_interface = { version = "0.1.0", path = "../redis_interface" }
 router_derive = { version = "0.1.0", path = "../router_derive" }
