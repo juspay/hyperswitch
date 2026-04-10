@@ -28,7 +28,7 @@ pub const MAX_WIDGETS_PER_DASHBOARD: usize = 20;
 pub fn get_entity_type_from_role(role_id: &str) -> &'static str {
     match role_id {
         "org_admin" => "org",
-        "merchant_admin" => "merchant", 
+        "merchant_admin" => "merchant",
         "profile_admin" | "profile_user" => "profile",
         _ => "user",
     }
@@ -342,17 +342,24 @@ where
     T: serde::Serialize + serde::de::DeserializeOwned,
     F: FnOnce(Option<T>) -> UserResult<T>,
 {
-    let existing = state
-        .store
-        .find_user_scoped_dashboard_metadata(
-            &user_id,
-            &merchant_id,
-            &org_id,
-            vec![metadata_key],
-        )
-        .await
-        .change_context(UserErrors::InternalServerError)
-        .attach_printable("Error fetching dashboard metadata")?;
+    let existing = if entity_type == "org" {
+        state
+            .store
+            .find_org_scoped_dashboard_metadata(&user_id, &org_id, &entity_type, vec![metadata_key])
+            .await
+    } else {
+        state
+            .store
+            .find_user_scoped_dashboard_metadata(
+                &user_id,
+                &merchant_id,
+                &org_id,
+                vec![metadata_key],
+            )
+            .await
+    }
+    .change_context(UserErrors::InternalServerError)
+    .attach_printable("Error fetching dashboard metadata")?;
 
     let existing_record = existing.first();
 
@@ -368,22 +375,29 @@ where
         .attach_printable("Error serializing dashboard metadata")?;
 
     match existing_record {
-        Some(_) => state
-            .store
-            .update_metadata(
-                Some(user_id.clone()),
-                merchant_id,
-                org_id,
-                metadata_key,
-                DashboardMetadataUpdate::UpdateData {
-                    data_key: metadata_key,
-                    data_value: Secret::new(data_value),
-                    last_modified_by: user_id,
-                },
-            )
-            .await
-            .change_context(UserErrors::InternalServerError)
-            .attach_printable("Error updating dashboard metadata"),
+        Some(record) => {
+            let update_merchant_id = if entity_type == "org" {
+                record.merchant_id.clone()
+            } else {
+                merchant_id
+            };
+            state
+                .store
+                .update_metadata(
+                    Some(user_id.clone()),
+                    update_merchant_id,
+                    org_id,
+                    metadata_key,
+                    DashboardMetadataUpdate::UpdateData {
+                        data_key: metadata_key,
+                        data_value: Secret::new(data_value),
+                        last_modified_by: user_id,
+                    },
+                )
+                .await
+                .change_context(UserErrors::InternalServerError)
+                .attach_printable("Error updating dashboard metadata")
+        }
         None => {
             let now = common_utils::date_time::now();
             state
@@ -419,25 +433,88 @@ pub async fn handle_dashboard_operations(
 ) -> UserResult<DashboardMetadata> {
     match operation {
         DashboardOperation::Create(request) => {
-            create_dashboard(state, user_id, merchant_id, org_id, metadata_key, request, entity_type).await
+            create_dashboard(
+                state,
+                user_id,
+                merchant_id,
+                org_id,
+                metadata_key,
+                request,
+                entity_type,
+            )
+            .await
         }
         DashboardOperation::Update(request) => {
-            update_dashboard(state, user_id, merchant_id, org_id, metadata_key, request, entity_type).await
+            update_dashboard(
+                state,
+                user_id,
+                merchant_id,
+                org_id,
+                metadata_key,
+                request,
+                entity_type,
+            )
+            .await
         }
         DashboardOperation::Delete(request) => {
-            delete_dashboard(state, user_id, merchant_id, org_id, metadata_key, request, entity_type).await
+            delete_dashboard(
+                state,
+                user_id,
+                merchant_id,
+                org_id,
+                metadata_key,
+                request,
+                entity_type,
+            )
+            .await
         }
         DashboardOperation::AddWidget(request) => {
-            add_widget(state, user_id, merchant_id, org_id, metadata_key, request, entity_type).await
+            add_widget(
+                state,
+                user_id,
+                merchant_id,
+                org_id,
+                metadata_key,
+                request,
+                entity_type,
+            )
+            .await
         }
         DashboardOperation::UpdateWidget(request) => {
-            update_widget(state, user_id, merchant_id, org_id, metadata_key, request, entity_type).await
+            update_widget(
+                state,
+                user_id,
+                merchant_id,
+                org_id,
+                metadata_key,
+                request,
+                entity_type,
+            )
+            .await
         }
         DashboardOperation::RemoveWidget(request) => {
-            remove_widget(state, user_id, merchant_id, org_id, metadata_key, request, entity_type).await
+            remove_widget(
+                state,
+                user_id,
+                merchant_id,
+                org_id,
+                metadata_key,
+                request,
+                entity_type,
+            )
+            .await
         }
         DashboardOperation::UpdateLayout(request) => {
-            update_layout(state, user_id, merchant_id, org_id, metadata_key, request, entity_type).await
+            update_layout(
+                state,
+                user_id,
+                merchant_id,
+                org_id,
+                metadata_key,
+                request,
+                entity_type,
+            )
+            .await
         }
     }
 }
@@ -487,9 +564,7 @@ async fn create_dashboard(
         metadata_key,
         entity_type,
         |existing: Option<types::CustomDashboardsValue>| {
-            let mut data = existing.unwrap_or(types::CustomDashboardsValue {
-                dashboards: vec![],
-            });
+            let mut data = existing.unwrap_or(types::CustomDashboardsValue { dashboards: vec![] });
 
             if data.dashboards.len() >= MAX_DASHBOARDS {
                 return Err(report!(UserErrors::MaxDashboardsReached));
