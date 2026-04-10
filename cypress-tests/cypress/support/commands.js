@@ -3338,6 +3338,11 @@ Cypress.Commands.add(
     const baseUrl = globalState.get("baseUrl");
     const apiKey = globalState.get("apiKey");
     const maxRetries = globalState.get("max_auto_retries_enabled");
+
+    // Check if Step-Up retry is enabled from globalState flag
+    const isStepUpRetryEnabled =
+      globalState.get("isStepUpRetryEnabled") || false;
+
     const url = `${baseUrl}/payments/${paymentId}?force_sync=true&expand_attempts=true`;
 
     cy.request({
@@ -3377,6 +3382,49 @@ Cypress.Commands.add(
           expect(attemptObj.attempt_id).to.include(paymentId);
           expect(attemptObj.connector).to.not.be.null;
         });
+
+        // Step-Up Retry specific assertions
+        if (isStepUpRetryEnabled) {
+          // Should have 2 attempts for Step-Up retry
+          expect(
+            response.body.attempts.length,
+            "Step-Up retry should have 2 attempts"
+          ).to.equal(2);
+
+          // First attempt should be no_three_ds and failed
+          const firstAttempt = response.body.attempts[0];
+          expect(
+            firstAttempt.attempt_id,
+            "First attempt ID should end with _1"
+          ).to.equal(`${paymentId}_1`);
+
+          // Second attempt should be three_ds (Step-Up retry)
+          const secondAttempt = response.body.attempts[1];
+          expect(
+            secondAttempt.attempt_id,
+            "Second attempt ID should end with _2"
+          ).to.equal(`${paymentId}_2`);
+          expect(
+            secondAttempt.authentication_type,
+            "Second attempt should be three_ds for Step-Up retry"
+          ).to.equal("three_ds");
+          expect(
+            response.body.status,
+            "Payment status should be requires_customer_action or failed after Step-Up retry"
+          ).to.satisfy((status) =>
+            ["requires_customer_action", "failed"].includes(status)
+          );
+        } else if (attempt === 1) {
+          // Step-Up disabled case - only 1 attempt
+          expect(
+            response.body.attempts.length,
+            "Step-Up disabled should have only 1 attempt"
+          ).to.equal(1);
+          expect(
+            response.body.attempts[0].attempt_id,
+            "Only attempt should end with _1"
+          ).to.equal(`${paymentId}_1`);
+        }
       }
     });
   }
