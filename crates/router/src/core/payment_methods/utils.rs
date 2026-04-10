@@ -816,7 +816,6 @@ fn compile_accepted_currency_for_mca(
     ))
 }
 
-
 pub async fn get_organization_eligibility_config_for_pm_modular_service(
     db: &dyn StorageInterface,
     organization_id: &common_utils::id_type::OrganizationId,
