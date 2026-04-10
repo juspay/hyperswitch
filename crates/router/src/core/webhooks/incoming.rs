@@ -12,7 +12,7 @@ use common_utils::{
     errors::ReportSwitchExt,
     events::ApiEventsType,
     ext_traits::{AsyncExt, ByteSliceExt},
-    types::{AmountConvertor, MinorUnit, StringMinorUnitForConnector},
+    types::{AmountConvertor, StringMinorUnitForConnector},
 };
 use diesel_models::{refund as diesel_refund, ConnectorMandateReferenceId};
 use error_stack::{report, ResultExt};
@@ -2508,13 +2508,12 @@ async fn external_authentication_incoming_webhook_flow(
                     .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
                 let payment_confirm_req = api::PaymentsRequest {
                     payment_id: Some(api_models::payments::PaymentIdType::PaymentIntentId(
-                        payment_intent.payment_id,
+                        payment_intent.payment_id.clone(),
                     )),
                     merchant_id: Some(platform.get_processor().get_account().get_id().clone()),
                     ..Default::default()
                 };
-                let is_setup_mandate = payment_intent.amount == MinorUnit::zero()
-                    && payment_intent.setup_future_usage == Some(enums::FutureUsage::OffSession);
+                let is_setup_mandate = payment_intent.is_setup_mandate();
                 let payments_response = if is_setup_mandate {
                     Box::pin(payments::payments_core::<
                         api::SetupMandate,
