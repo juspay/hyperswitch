@@ -5580,13 +5580,15 @@ pub async fn get_additional_payment_data(
     Option<api_models::payments::AdditionalPaymentData>,
     error_stack::Report<errors::ApiErrorResponse>,
 > {
+
+    let enable_extended_bin = dimensions
+                .get_enable_extended_card_bin(db, superposition_service, customer_id)
+                .await;
+
     match pm_data {
         domain::PaymentMethodData::Card(card_data) => {
             //todo!
-            let card_isin = Some(card_data.card_number.get_card_isin());
-            let enable_extended_bin = dimensions
-                .get_enable_extended_card_bin(db, superposition_service, customer_id)
-                .await;
+            let card_isin = Some(card_data.card_number.get_card_isin());      
 
             let card_extended_bin = if enable_extended_bin {
                 Some(card_data.card_number.get_extended_card_bin())
@@ -5725,9 +5727,6 @@ pub async fn get_additional_payment_data(
         }
         domain::PaymentMethodData::CardWithOptionalCVC(card_data) => {
             let card_isin = Some(card_data.card_number.get_card_isin());
-            let enable_extended_bin = dimensions
-                .get_enable_extended_card_bin(db, superposition_service, customer_id)
-                .await;
 
             let card_extended_bin = if enable_extended_bin {
                 Some(card_data.card_number.get_extended_card_bin())
@@ -6111,9 +6110,6 @@ pub async fn get_additional_payment_data(
         )),
         domain::PaymentMethodData::CardDetailsForNetworkTransactionId(card_data) => {
             let card_isin = Some(card_data.card_number.get_card_isin());
-            let enable_extended_bin = dimensions
-                .get_enable_extended_card_bin(db, superposition_service, customer_id)
-                .await;
 
             let card_extended_bin = if enable_extended_bin {
                 Some(card_data.card_number.get_extended_card_bin())
@@ -6224,9 +6220,6 @@ pub async fn get_additional_payment_data(
         }
         domain::PaymentMethodData::CardWithLimitedDetails(card_with_limited_details) => {
             let card_isin = Some(card_with_limited_details.card_number.get_card_isin());
-            let enable_extended_bin = dimensions
-                .get_enable_extended_card_bin(db, superposition_service, customer_id)
-                .await;
 
             let card_extended_bin = if enable_extended_bin {
                 Some(
