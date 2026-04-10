@@ -30,7 +30,6 @@ tracing-appender = { version = "0.2.3" }
 tracing-attributes = "0.1.28"
 tracing-opentelemetry = { version = "0.28.0", default-features = false }
 tracing-subscriber = { version = "0.3.19", default-features = true, features = ["env-filter", "json", "registry"] }
-console-subscriber = { workspace = true, optional = true }
 uuid = { version = "1.17.0", features = ["v7"], optional = true }
 vergen = { version = "8.3.2", optional = true, features = ["cargo", "git", "git2", "rustc"] }
 
@@ -48,7 +47,6 @@ log_custom_entries_to_extra = []
 log_extra_implicit_fields = []
 log_active_span_json = []
 payouts = []
-tokio-console = ["dep:console-subscriber"]
 
 [lints]
 workspace = true

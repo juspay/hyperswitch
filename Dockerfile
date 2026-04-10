@@ -38,7 +38,6 @@ RUN cargo build \
     --no-default-features \
     --features release \
     --features ${VERSION_FEATURE_SET} \
-    --features router_env/tokio-console \
     ${EXTRA_FEATURES}
 
 
@@ -66,7 +65,6 @@ RUN apt-get update \
     && apt-get install -y ca-certificates tzdata libpq-dev curl procps
 
 EXPOSE 8080
-EXPOSE 6669
 
 ENV TZ=Etc/UTC \
     RUN_ENV=${RUN_ENV} \

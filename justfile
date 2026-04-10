@@ -132,8 +132,8 @@ run *FLAGS:
 alias r := run
 
 # Run server with tokio-console instrumentation
-run-console *FLAGS:
-    RUSTFLAGS="--cfg tokio_unstable" cargo run -p router --features router_env/tokio-console {{ FLAGS }}
+run-unsafe *FLAGS:
+    RUSTFLAGS="--cfg tokio_unstable" cargo run -p router {{ FLAGS }}
 
 alias rc := run-console
 
