@@ -1,6 +1,8 @@
 use std::{collections::HashMap, ops::Not};
 
-use common_enums::{EntityType, ParentGroup, PermissionGroup, PermissionScope, Resource};
+use common_enums::{
+    EntityType, MerchantProductType, ParentGroup, PermissionGroup, PermissionScope, Resource,
+};
 use strum::IntoEnumIterator;
 
 use super::permissions;
@@ -10,6 +12,7 @@ pub trait PermissionGroupExt {
     fn parent(&self) -> ParentGroup;
     fn resources(&self) -> Vec<Resource>;
     fn accessible_groups(&self) -> Vec<PermissionGroup>;
+    fn get_product_type(&self) -> MerchantProductType;
 }
 
 impl PermissionGroupExt for PermissionGroup {
@@ -129,6 +132,38 @@ impl PermissionGroupExt for PermissionGroup {
                 Self::ReconRulesView,
                 Self::ReconTransactionView,
             ],
+        }
+    }
+
+    fn get_product_type(&self) -> MerchantProductType {
+        match self {
+            // Orchestration group
+            Self::OperationsView
+            | Self::OperationsManage
+            | Self::ConnectorsView
+            | Self::ConnectorsManage
+            | Self::WorkflowsView
+            | Self::WorkflowsManage
+            | Self::AnalyticsView
+            | Self::UsersView
+            | Self::UsersManage
+            | Self::AccountView
+            | Self::AccountManage
+            | Self::ReconReportsView
+            | Self::ReconReportsManage
+            | Self::ReconOpsView
+            | Self::ReconOpsManage
+            | Self::InternalManage
+            | Self::ThemeView
+            | Self::ThemeManage => MerchantProductType::Orchestration,
+
+            // Recon group
+            Self::ReconSourceView
+            | Self::ReconSourceManage
+            | Self::ReconExceptionsManage
+            | Self::ReconTransactionView
+            | Self::ReconRulesView
+            | Self::ReconRulesManage => MerchantProductType::Recon,
         }
     }
 }

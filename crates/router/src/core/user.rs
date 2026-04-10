@@ -4146,12 +4146,6 @@ pub async fn authorize_token(
     state: SessionState,
     payload: api_models::user_role::AuthorizeTokenRequest,
 ) -> RouterResponse<()> {
-    let token = auth::decode_jwt::<auth::AuthToken>(&payload.token.expose(), &state).await?;
-
-    if token.check_in_blacklist(&state).await? {
-        return Err(ApiErrorResponse::InvalidJwtToken.into());
-    }
-
     let permission: Permission =
         payload
             .permission
@@ -4159,6 +4153,12 @@ pub async fn authorize_token(
             .map_err(|_| ApiErrorResponse::InvalidRequestData {
                 message: "Invalid permission".to_string(),
             })?;
+
+    let token = auth::decode_jwt::<auth::AuthToken>(&payload.token.expose(), &state).await?;
+
+    if token.check_in_blacklist(&state).await? {
+        return Err(ApiErrorResponse::InvalidJwtToken.into());
+    }
 
     let role_info = authorization::get_role_info(&state, &token).await?;
     authorization::check_permission(permission, &role_info)?;
