@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.04.02.0-hotfix5
+
+### Bug Fixes
+
+- **core:** 3DS Setup Mandate Webhook Trigger Fix ([#11776](https://github.com/juspay/hyperswitch/pull/11776)) ([`bf9bdac`](https://github.com/juspay/hyperswitch/commit/bf9bdacc535339424d6621c7bdf14ace1be7f9fc))
+
+**Full Changelog:** [`2026.04.02.0-hotfix4...2026.04.02.0-hotfix5`](https://github.com/juspay/hyperswitch/compare/2026.04.02.0-hotfix4...2026.04.02.0-hotfix5)
+
+- - -
+
 ## 2026.04.02.0-hotfix4
 
 ### Bug Fixes
