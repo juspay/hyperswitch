@@ -9,12 +9,13 @@ use common_utils::{
 };
 use error_stack::ResultExt;
 use hyperswitch_domain_models::payments::PaymentAttemptRecordData;
-use masking::PeekInterface;
+use hyperswitch_masking::PeekInterface;
 use router_env::{instrument, tracing};
 
 use super::{BoxedOperation, Domain, GetTracker, Operation, UpdateTracker, ValidateRequest};
 use crate::{
     core::{
+        configs::dimension_state::DimensionsWithProcessorAndProviderMerchantId,
         errors::{self, StorageErrorExt},
         payments::{
             self,
@@ -150,7 +151,7 @@ impl<F: Send + Clone + Sync>
             .transpose()
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to encode payment_method_billing address")?
-            .map(masking::Secret::new);
+            .map(hyperswitch_masking::Secret::new);
 
         let batch_encrypted_data = domain_types::crypto_operation(
                 key_manager_state,
@@ -249,6 +250,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentAttemptRecordData<F>, PaymentsAtte
         mut payment_data: PaymentAttemptRecordData<F>,
         _frm_suggestion: Option<FrmSuggestion>,
         _header_payload: hyperswitch_domain_models::payments::HeaderPayload,
+        _dimensions: &DimensionsWithProcessorAndProviderMerchantId,
     ) -> RouterResult<(
         PaymentsAttemptRecordOperation<'b, F>,
         PaymentAttemptRecordData<F>,

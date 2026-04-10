@@ -285,6 +285,7 @@ export const connectorDetails = {
     SaveCardConfirmAutoCaptureOffSession: {
       Request: {
         setup_future_usage: "off_session",
+        currency: "EUR",
       },
       Response: {
         status: 200,
@@ -397,6 +398,7 @@ export const connectorDetails = {
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
+        currency: "EUR",
         mandate_data: null,
         customer_acceptance: customerAcceptance,
       },
@@ -754,6 +756,14 @@ export const connectorDetails = {
           },
         ],
       },
+    },
+  },
+  webhook: {
+    TransactionIdConfig: {
+      // Defines how to locate and parse the payment reference ID from connector-specific webhook payloads
+      path: "event.tid",
+      // Type of payment reference ID
+      type: "number",
     },
   },
 };

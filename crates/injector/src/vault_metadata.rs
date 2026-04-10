@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use base64::Engine;
-use masking::{ExposeInterface, Secret};
+use hyperswitch_masking::{ExposeInterface, Secret};
 use router_env::logger;
 use url::Url;
 

@@ -3,7 +3,7 @@ use std::ops::Deref;
 
 use base64::Engine;
 use error_stack::ResultExt;
-use masking::{ExposeInterface, PeekInterface, Secret};
+use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 use ring::{
     aead::{self, BoundKey, OpeningKey, SealingKey, UnboundKey},
     hmac, rand as ring_rand,
@@ -631,7 +631,7 @@ pub struct Encryptable<T: Clone> {
     encrypted: Secret<Vec<u8>, EncryptionStrategy>,
 }
 
-impl<T: Clone, S: masking::Strategy<T>> Encryptable<Secret<T, S>> {
+impl<T: Clone, S: hyperswitch_masking::Strategy<T>> Encryptable<Secret<T, S>> {
     /// constructor function to be used by the encryptor and decryptor to generate the data type
     pub fn new(
         masked_data: Secret<T, S>,
@@ -696,9 +696,9 @@ impl<T: Clone> Deref for Encryptable<Secret<T>> {
     }
 }
 
-impl<T: Clone> masking::Serialize for Encryptable<T>
+impl<T: Clone> hyperswitch_masking::Serialize for Encryptable<T>
 where
-    T: masking::Serialize,
+    T: hyperswitch_masking::Serialize,
 {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where

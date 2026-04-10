@@ -23,7 +23,7 @@ use hyperswitch_domain_models::{
     payment_method_data,
 };
 use hyperswitch_interfaces::api::gateway;
-use masking::{ExposeInterface, Secret};
+use hyperswitch_masking::{ExposeInterface, Secret};
 use router_env::{instrument, tracing};
 
 use super::helpers;

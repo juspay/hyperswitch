@@ -1,4 +1,4 @@
-use masking::{Maskable, Secret};
+use hyperswitch_masking::{Maskable, Secret};
 use reqwest::multipart::Form;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
@@ -66,10 +66,15 @@ impl std::fmt::Debug for RequestContent {
 }
 
 pub enum RequestContent {
-    Json(Box<dyn masking::ErasedMaskSerialize + Send>),
-    FormUrlEncoded(Box<dyn masking::ErasedMaskSerialize + Send>),
-    FormData((Form, Box<dyn masking::ErasedMaskSerialize + Send>)),
-    Xml(Box<dyn masking::ErasedMaskSerialize + Send>),
+    Json(Box<dyn hyperswitch_masking::ErasedMaskSerialize + Send>),
+    FormUrlEncoded(Box<dyn hyperswitch_masking::ErasedMaskSerialize + Send>),
+    FormData(
+        (
+            Form,
+            Box<dyn hyperswitch_masking::ErasedMaskSerialize + Send>,
+        ),
+    ),
+    Xml(Box<dyn hyperswitch_masking::ErasedMaskSerialize + Send>),
     RawBytes(Vec<u8>),
 }
 

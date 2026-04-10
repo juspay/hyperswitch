@@ -14,8 +14,8 @@ use hyperswitch_interfaces::{
         handle_unified_connector_service_response_for_payment_get,
     },
 };
+use hyperswitch_masking::ExposeInterface as UcsMaskingExposeInterface;
 use unified_connector_service_client::payments as payments_grpc;
-use unified_connector_service_masking::ExposeInterface as UcsMaskingExposeInterface;
 
 use crate::{
     core::{
@@ -69,7 +69,7 @@ where
     > {
         match call_connector_action {
             CallConnectorAction::UCSConsumeResponse(transform_data_bytes) => {
-                let webhook_content: payments_grpc::WebhookResponseContent =
+                let webhook_content: payments_grpc::EventContent =
                     serde_json::from_slice(&transform_data_bytes)
                         .change_context(ConnectorError::ResponseHandlingFailed)
                         .attach_printable("Failed to deserialize UCS webhook transform data")?;
@@ -105,9 +105,8 @@ where
 
                 router_data.response = router_data_response;
                 router_data.amount_captured = payment_get_response.captured_amount;
-                router_data.minor_amount_captured = payment_get_response
-                    .minor_captured_amount
-                    .map(MinorUnit::new);
+                router_data.minor_amount_captured =
+                    payment_get_response.captured_amount.map(MinorUnit::new);
                 router_data.raw_connector_response = payment_get_response
                     .raw_connector_response
                     .clone()
@@ -232,9 +231,8 @@ where
 
                         router_data.response = router_data_response;
                         router_data.amount_captured = payment_get_response.captured_amount;
-                        router_data.minor_amount_captured = payment_get_response
-                            .minor_captured_amount
-                            .map(MinorUnit::new);
+                        router_data.minor_amount_captured =
+                            payment_get_response.captured_amount.map(MinorUnit::new);
                         router_data.raw_connector_response = payment_get_response
                             .raw_connector_response
                             .clone()

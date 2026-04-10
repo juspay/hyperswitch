@@ -181,6 +181,7 @@ pub enum Connector {
     Tesouro,
     Tokenex,
     Tokenio,
+    Trustly,
     Truelayer,
     Trustpay,
     Trustpayments,
@@ -217,13 +218,18 @@ impl Connector {
                 | (Self::Nomupay, _)
                 | (Self::Loonio, _)
                 | (Self::Truelayer, _)
+                | (Self::Trustly, _)
                 | (Self::Worldpay, Some(PayoutType::Wallet))
                 | (Self::Worldpayxml, Some(PayoutType::Wallet))
+                | (Self::Itaubank, Some(PayoutType::Bank))
         )
     }
     #[cfg(feature = "payouts")]
     pub fn supports_create_recipient(self, payout_method: Option<PayoutType>) -> bool {
-        matches!((self, payout_method), (_, Some(PayoutType::Bank)))
+        matches!(
+            (self, payout_method),
+            (_, Some(PayoutType::Bank)) | (Self::Trustly, _)
+        )
     }
     #[cfg(feature = "payouts")]
     pub fn supports_payout_eligibility(self, payout_method: Option<PayoutType>) -> bool {
@@ -237,7 +243,7 @@ impl Connector {
     pub fn supports_access_token_for_payout(self, payout_method: Option<PayoutType>) -> bool {
         matches!(
             (self, payout_method),
-            (Self::Paypal, _) | (Self::Truelayer, _)
+            (Self::Paypal, _) | (Self::Truelayer, _) | (Self::Itaubank, _)
         )
     }
     #[cfg(feature = "payouts")]
@@ -394,6 +400,7 @@ impl Connector {
             | Self::Tesouro
             // | Self::Thunes
             | Self::Truelayer
+            | Self::Trustly
             | Self::Trustpay
             | Self::Trustpayments
             // | Self::Tokenio
@@ -424,13 +431,12 @@ impl Connector {
             | Self::Noon
             | Self::Tokenex
             | Self::Tokenio
-            | Self::Stripe
             | Self::Datatrans
             | Self::Paytm
             | Self::Payjustnow
             | Self::Payjustnowinstore
             | Self::Phonepe => false,
-            Self::Checkout |Self::Zift| Self::Nmi |Self::Braintree|
+            Self::Stripe | Self::Checkout | Self::Zift | Self::Nmi | Self::Braintree|
             Self::Cybersource | Self::Archipel | Self::Nuvei | Self::Adyen => true,
         }
     }

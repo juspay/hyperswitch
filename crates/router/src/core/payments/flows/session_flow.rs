@@ -9,7 +9,7 @@ use error_stack::{Report, ResultExt};
 #[cfg(feature = "v2")]
 use hyperswitch_domain_models::payments::PaymentIntentData;
 use hyperswitch_interfaces::api::gateway;
-use masking::{ExposeInterface, ExposeOptionInterface};
+use hyperswitch_masking::{ExposeInterface, ExposeOptionInterface};
 
 use super::{ConstructFlowSpecificData, Feature};
 use crate::{
@@ -142,6 +142,7 @@ impl Feature<api::Session, types::PaymentsSessionData> for types::PaymentsSessio
             self,
             creds_identifier,
             gateway_context,
+            None,
         ))
         .await
     }
@@ -237,8 +238,8 @@ fn is_dynamic_fields_required(
 fn build_apple_pay_session_request(
     state: &routes::SessionState,
     request: payment_types::ApplepaySessionRequest,
-    apple_pay_merchant_cert: masking::Secret<String>,
-    apple_pay_merchant_cert_key: masking::Secret<String>,
+    apple_pay_merchant_cert: hyperswitch_masking::Secret<String>,
+    apple_pay_merchant_cert_key: hyperswitch_masking::Secret<String>,
 ) -> RouterResult<services::Request> {
     let mut url = state.conf.connectors.applepay.base_url.to_owned();
     url.push_str("paymentservices/paymentSession");
@@ -1246,7 +1247,7 @@ fn get_allowed_payment_methods_from_cards(
 fn construct_stripe_publishable_key(
     gpay_token_specific_parameters: &payment_types::GpayTokenParameters,
     router_data: &types::PaymentsSessionRouterData,
-) -> Option<masking::Secret<String>> {
+) -> Option<hyperswitch_masking::Secret<String>> {
     let suffix =
         if let Some(common_types::payments::SplitPaymentsRequest::StripeSplitPayment(stripe)) =
             &router_data.request.split_payments
@@ -1265,7 +1266,7 @@ fn construct_stripe_publishable_key(
     gpay_token_specific_parameters
         .stripe_publishable_key
         .clone()
-        .map(|key| masking::Secret::new(format!("{}{}", key, suffix)))
+        .map(|key| hyperswitch_masking::Secret::new(format!("{}{}", key, suffix)))
 }
 
 fn is_session_response_delayed(
@@ -1339,6 +1340,7 @@ fn create_paypal_sdk_session_token(
                     sdk_next_action: payment_types::SdkNextAction {
                         next_action: payment_types::NextActionCall::PostSessionTokens,
                     },
+                    data_user_id_token: None,
                     client_token: None,
                     transaction_info: None,
                 },

@@ -1,6 +1,6 @@
 use common_utils::{encryption::Encryption, pii, types::user::LineageContext};
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable, Selectable};
-use masking::Secret;
+use hyperswitch_masking::Secret;
 use time::PrimitiveDateTime;
 
 use crate::{diesel_impl::OptionalDieselArray, enums::TotpStatus, schema::users};
@@ -72,8 +72,8 @@ pub enum UserUpdate {
     },
     TotpUpdate {
         totp_status: Option<TotpStatus>,
-        totp_secret: Option<Encryption>,
-        totp_recovery_codes: Option<Vec<Secret<String>>>,
+        totp_secret: Option<Option<Encryption>>,
+        totp_recovery_codes: Option<Option<Vec<Secret<String>>>>,
     },
     PasswordUpdate {
         password: Secret<String>,
@@ -88,6 +88,7 @@ pub enum UserUpdate {
 pub struct ReactivateUserUpdate {
     pub new_name: Option<String>,
     pub new_password: Option<Secret<String>>,
+    pub last_password_modified_at: Option<PrimitiveDateTime>,
 }
 
 impl From<UserUpdate> for UserUpdateInternal {
@@ -128,8 +129,8 @@ impl From<UserUpdate> for UserUpdateInternal {
                 is_verified: None,
                 last_modified_at,
                 totp_status,
-                totp_secret: Some(totp_secret),
-                totp_recovery_codes: Some(totp_recovery_codes),
+                totp_secret,
+                totp_recovery_codes,
                 last_password_modified_at: None,
                 lineage_context: None,
                 is_active: None,
@@ -182,7 +183,7 @@ impl From<ReactivateUserUpdate> for UserUpdateInternal {
             password: Some(user_update.new_password),
             is_verified: Some(false),
             last_modified_at,
-            last_password_modified_at: Some(Some(last_modified_at)),
+            last_password_modified_at: Some(user_update.last_password_modified_at),
             totp_status: Some(TotpStatus::NotSet),
             totp_secret: Some(None),
             totp_recovery_codes: Some(None),

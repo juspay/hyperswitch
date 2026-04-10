@@ -1,9 +1,9 @@
 #[cfg(feature = "v2")]
 use std::marker::PhantomData;
 
-use api_models::customers::CustomerDocumentDetails;
 #[cfg(feature = "v2")]
-use api_models::payments::{ConnectorMetadata, SessionToken, VaultSessionDetails};
+use api_models::payments::{SessionToken, VaultSessionDetails};
+use api_models::{customers::CustomerDocumentDetails, payments::ConnectorMetadata};
 use common_types::primitive_wrappers;
 #[cfg(feature = "v1")]
 use common_types::{
@@ -27,7 +27,7 @@ use diesel_models::payment_intent::TaxDetails;
 use error_stack::Report;
 #[cfg(feature = "v2")]
 use error_stack::ResultExt;
-use masking::Secret;
+use hyperswitch_masking::Secret;
 use router_derive::ToEncryption;
 use rustc_hash::FxHashMap;
 use serde_json::Value;
@@ -48,9 +48,10 @@ use common_enums as storage_enums;
 use diesel_models::types::{FeatureMetadata, OrderDetailsWithAmount};
 #[cfg(feature = "v1")]
 use error_stack::ResultExt;
-use masking::ExposeInterface;
+use hyperswitch_masking::ExposeInterface;
 
 use self::{payment_attempt::PaymentAttempt, payment_intent::CustomerData};
+use crate::ext_traits::OptionExt;
 #[cfg(feature = "v2")]
 use crate::{
     address::Address, business_profile, customer, errors, merchant_connector_account,
@@ -59,7 +60,7 @@ use crate::{
     ApiModelToDieselModelConvertor,
 };
 #[cfg(feature = "v1")]
-use crate::{errors, ext_traits::OptionExt, payment_method_data, RemoteStorageObject};
+use crate::{errors, payment_method_data, RemoteStorageObject};
 
 #[cfg(feature = "v1")]
 #[derive(Clone, Debug, PartialEq, serde::Serialize, ToEncryption)]
@@ -276,7 +277,7 @@ impl PaymentIntent {
         type_name: &'static str,
     ) -> CustomResult<Option<T>, common_utils::errors::ParsingError>
     where
-        T: for<'de> masking::Deserialize<'de>,
+        T: for<'de> hyperswitch_masking::Deserialize<'de>,
     {
         self.metadata
             .clone()
@@ -426,6 +427,21 @@ impl PaymentIntent {
             .map(|opt| opt.flatten())
             .map_err(|report| (*report.current_context()).clone())
     }
+
+    #[cfg(feature = "v1")]
+    pub fn get_connector_metadata_from_intent(
+        &self,
+    ) -> CustomResult<Option<ConnectorMetadata>, common_utils::errors::ParsingError> {
+        self.connector_metadata
+            .as_ref()
+            .map(|metadata| {
+                metadata
+                    .clone()
+                    .parse_value::<ConnectorMetadata>("ConnectorMetadata")
+            })
+            .transpose()
+    }
+
     #[cfg(feature = "v1")]
     pub fn get_optional_feature_metadata(
         &self,
@@ -580,7 +596,7 @@ impl AmountDetails {
         let order_tax_amount = match self.skip_external_tax_calculation {
             common_enums::TaxCalculationOverride::Skip => {
                 self.tax_details.as_ref().and_then(|tax_details| {
-                    tax_details.get_tax_amount(Some(confirm_intent_request.payment_method_subtype))
+                    tax_details.get_tax_amount(confirm_intent_request.payment_method_subtype)
                 })
             }
             common_enums::TaxCalculationOverride::Calculate => None,
@@ -634,7 +650,7 @@ impl AmountDetails {
         let order_tax_amount = match self.skip_external_tax_calculation {
             common_enums::TaxCalculationOverride::Skip => {
                 self.tax_details.as_ref().and_then(|tax_details| {
-                    tax_details.get_tax_amount(Some(confirm_intent_request.payment_method_subtype))
+                    tax_details.get_tax_amount(confirm_intent_request.payment_method_subtype)
                 })
             }
             common_enums::TaxCalculationOverride::Calculate => None,
@@ -1468,7 +1484,14 @@ where
                             .clone(),
                     },
                 payment_method_type: self.payment_attempt.payment_method_type,
-                payment_method_subtype: self.payment_attempt.payment_method_subtype,
+                payment_method_subtype: self
+                    .payment_attempt
+                    .payment_method_subtype
+                    .get_required_value("payment_method_subtype")
+                    .change_context(
+                        errors::api_error_response::ApiErrorResponse::InternalServerError,
+                    )
+                    .attach_printable("Failed to construct revenue recovery metadata")?,
                 connector: connector.parse().map_err(|err| {
                     router_env::logger::error!(?err, "Failed to parse connector string to enum");
                     errors::api_error_response::ApiErrorResponse::InternalServerError
@@ -1502,6 +1525,9 @@ where
             boleto_additional_details: payment_intent_feature_metadata
                 .as_ref()
                 .and_then(|data| data.boleto_additional_details.clone()),
+            pix_automatico_additional_details: payment_intent_feature_metadata
+                .as_ref()
+                .and_then(|data| data.pix_automatico_additional_details.clone()),
         }))
     }
 }

@@ -16,7 +16,7 @@ use hyperswitch_domain_models::{
     types::{PayoutsResponseData, PayoutsRouterData},
 };
 use hyperswitch_interfaces::errors::ConnectorError;
-use masking::Secret;
+use hyperswitch_masking::Secret;
 use serde::{Deserialize, Serialize};
 
 #[cfg(feature = "payouts")]
@@ -161,6 +161,7 @@ impl TryFrom<PayoneRouterData<&PayoutsRouterData<PoFulfill>>> for PayonePayoutFu
                             )?,
                         },
                         PayoutMethodData::Bank(_)
+                        | PayoutMethodData::BankTransfer(_)
                         | PayoutMethodData::Wallet(_)
                         | PayoutMethodData::BankRedirect(_)
                         | PayoutMethodData::Passthrough(_) => Err(ConnectorError::NotImplemented(

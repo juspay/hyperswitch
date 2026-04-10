@@ -5,18 +5,18 @@ use std::sync::LazyLock;
 use common_enums::enums;
 use common_utils::{
     errors::CustomResult,
-    ext_traits::BytesExt,
+    ext_traits::{ByteSliceExt, ValueExt},
     request::{Method, Request, RequestBuilder, RequestContent},
-    types::{AmountConvertor, StringMinorUnit, StringMinorUnitForConnector},
+    types::{AmountConvertor, StringMajorUnit, StringMajorUnitForConnector},
 };
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
     payment_method_data::PaymentMethodData,
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
     router_flow_types::{
-        access_token_auth::AccessTokenAuth,
-        payments::{Authorize, Capture, PSync, PaymentMethodToken, Session, SetupMandate, Void},
         refunds::{Execute, RSync},
+        AccessTokenAuth, Authorize, Capture, PSync, PaymentMethodToken, Session, SetupMandate,
+        Void,
     },
     router_request_types::{
         AccessTokenRequestData, PaymentMethodTokenizationData, PaymentsAuthorizeData,
@@ -31,31 +31,42 @@ use hyperswitch_domain_models::{
         RefundSyncRouterData, RefundsRouterData,
     },
 };
+#[cfg(feature = "payouts")]
+use hyperswitch_domain_models::{
+    router_flow_types::{PoFulfill, PoRecipient, PoSync},
+    types::{PayoutsData, PayoutsResponseData, PayoutsRouterData},
+};
 use hyperswitch_interfaces::{
     api::{
         self, ConnectorCommon, ConnectorCommonExt, ConnectorIntegration, ConnectorSpecifications,
         ConnectorValidation,
     },
     configs::Connectors,
-    errors,
     events::connector_api_logs::ConnectorEvent,
     types::{self, Response},
     webhooks,
 };
-use masking::{ExposeInterface, Mask};
+#[cfg(feature = "payouts")]
+use hyperswitch_interfaces::{
+    errors::ConnectorError,
+    types::{PayoutFulfillType, PayoutSyncType},
+};
+use hyperswitch_masking::ExposeInterface;
 use transformers as trustly;
 
 use crate::{constants::headers, types::ResponseRouterData, utils};
 
 #[derive(Clone)]
 pub struct Trustly {
-    amount_converter: &'static (dyn AmountConvertor<Output = StringMinorUnit> + Sync),
+    #[cfg(feature = "payouts")]
+    amount_converter: &'static (dyn AmountConvertor<Output = StringMajorUnit> + Sync),
 }
 
 impl Trustly {
     pub fn new() -> &'static Self {
         &Self {
-            amount_converter: &StringMinorUnitForConnector,
+            #[cfg(feature = "payouts")]
+            amount_converter: &StringMajorUnitForConnector,
         }
     }
 }
@@ -87,7 +98,7 @@ where
         &self,
         req: &RouterData<Flow, Request, Response>,
         _connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, ConnectorError> {
         let mut header = vec![(
             headers::CONTENT_TYPE.to_string(),
             self.get_content_type().to_string().into(),
@@ -120,37 +131,32 @@ impl ConnectorCommon for Trustly {
 
     fn get_auth_header(
         &self,
-        auth_type: &ConnectorAuthType,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
-        let auth = trustly::TrustlyAuthType::try_from(auth_type)
-            .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
-        Ok(vec![(
-            headers::AUTHORIZATION.to_string(),
-            auth.api_key.expose().into_masked(),
-        )])
+        _auth_type: &ConnectorAuthType,
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, ConnectorError> {
+        Ok(Vec::new())
     }
 
     fn build_error_response(
         &self,
         res: Response,
         event_builder: Option<&mut ConnectorEvent>,
-    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+    ) -> CustomResult<ErrorResponse, ConnectorError> {
         let response: trustly::TrustlyErrorResponse = res
             .response
             .parse_struct("TrustlyErrorResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+            .change_context(ConnectorError::ResponseDeserializationFailed)?;
 
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
 
         Ok(ErrorResponse {
             status_code: res.status_code,
-            code: response.code,
-            message: response.message,
-            reason: response.reason,
+            code: response.error.code.to_string(),
+            message: response.error.message.clone(),
+            reason: Some(response.error.message.clone()),
             attempt_status: None,
             connector_transaction_id: None,
-            connector_response_reference_id: None,
+            connector_response_reference_id: Some(response.error.error.uuid),
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
@@ -164,9 +170,9 @@ impl ConnectorValidation for Trustly {
         &self,
         _pm_type: Option<enums::PaymentMethodType>,
         pm_data: PaymentMethodData,
-    ) -> CustomResult<(), errors::ConnectorError> {
+    ) -> CustomResult<(), ConnectorError> {
         match pm_data {
-            PaymentMethodData::Card(_) => Err(errors::ConnectorError::NotImplemented(
+            PaymentMethodData::Card(_) => Err(ConnectorError::NotImplemented(
                 "validate_mandate_payment does not support cards".to_string(),
             )
             .into()),
@@ -180,7 +186,7 @@ impl ConnectorValidation for Trustly {
         _is_three_ds: bool,
         _status: enums::AttemptStatus,
         _connector_meta_data: Option<common_utils::pii::SecretSerdeValue>,
-    ) -> CustomResult<(), errors::ConnectorError> {
+    ) -> CustomResult<(), ConnectorError> {
         Ok(())
     }
 }
@@ -198,7 +204,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         &self,
         req: &PaymentsAuthorizeRouterData,
         connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, ConnectorError> {
         self.build_headers(req, connectors)
     }
 
@@ -210,15 +216,15 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         &self,
         _req: &PaymentsAuthorizeRouterData,
         _connectors: &Connectors,
-    ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
+    ) -> CustomResult<String, ConnectorError> {
+        Err(ConnectorError::NotImplemented("get_url method".to_string()).into())
     }
 
     fn get_request_body(
         &self,
         req: &PaymentsAuthorizeRouterData,
         _connectors: &Connectors,
-    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+    ) -> CustomResult<RequestContent, ConnectorError> {
         let amount = utils::convert_amount(
             self.amount_converter,
             req.request.minor_amount,
@@ -234,7 +240,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         &self,
         req: &PaymentsAuthorizeRouterData,
         connectors: &Connectors,
-    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
+    ) -> CustomResult<Option<Request>, ConnectorError> {
         Ok(Some(
             RequestBuilder::new()
                 .method(Method::Post)
@@ -257,11 +263,11 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         data: &PaymentsAuthorizeRouterData,
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
-    ) -> CustomResult<PaymentsAuthorizeRouterData, errors::ConnectorError> {
+    ) -> CustomResult<PaymentsAuthorizeRouterData, ConnectorError> {
         let response: trustly::TrustlyPaymentsResponse = res
             .response
             .parse_struct("Trustly PaymentsAuthorizeResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+            .change_context(ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
         RouterData::try_from(ResponseRouterData {
@@ -275,7 +281,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         &self,
         res: Response,
         event_builder: Option<&mut ConnectorEvent>,
-    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+    ) -> CustomResult<ErrorResponse, ConnectorError> {
         self.build_error_response(res, event_builder)
     }
 }
@@ -285,7 +291,7 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Tru
         &self,
         req: &PaymentsSyncRouterData,
         connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, ConnectorError> {
         self.build_headers(req, connectors)
     }
 
@@ -297,15 +303,15 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Tru
         &self,
         _req: &PaymentsSyncRouterData,
         _connectors: &Connectors,
-    ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
+    ) -> CustomResult<String, ConnectorError> {
+        Err(ConnectorError::NotImplemented("get_url method".to_string()).into())
     }
 
     fn build_request(
         &self,
         req: &PaymentsSyncRouterData,
         connectors: &Connectors,
-    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
+    ) -> CustomResult<Option<Request>, ConnectorError> {
         Ok(Some(
             RequestBuilder::new()
                 .method(Method::Get)
@@ -321,11 +327,11 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Tru
         data: &PaymentsSyncRouterData,
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
-    ) -> CustomResult<PaymentsSyncRouterData, errors::ConnectorError> {
+    ) -> CustomResult<PaymentsSyncRouterData, ConnectorError> {
         let response: trustly::TrustlyPaymentsResponse = res
             .response
             .parse_struct("trustly PaymentsSyncResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+            .change_context(ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
         RouterData::try_from(ResponseRouterData {
@@ -339,7 +345,7 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Tru
         &self,
         res: Response,
         event_builder: Option<&mut ConnectorEvent>,
-    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+    ) -> CustomResult<ErrorResponse, ConnectorError> {
         self.build_error_response(res, event_builder)
     }
 }
@@ -349,7 +355,7 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
         &self,
         req: &PaymentsCaptureRouterData,
         connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, ConnectorError> {
         self.build_headers(req, connectors)
     }
 
@@ -361,23 +367,23 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
         &self,
         _req: &PaymentsCaptureRouterData,
         _connectors: &Connectors,
-    ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
+    ) -> CustomResult<String, ConnectorError> {
+        Err(ConnectorError::NotImplemented("get_url method".to_string()).into())
     }
 
     fn get_request_body(
         &self,
         _req: &PaymentsCaptureRouterData,
         _connectors: &Connectors,
-    ) -> CustomResult<RequestContent, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_request_body method".to_string()).into())
+    ) -> CustomResult<RequestContent, ConnectorError> {
+        Err(ConnectorError::NotImplemented("get_request_body method".to_string()).into())
     }
 
     fn build_request(
         &self,
         req: &PaymentsCaptureRouterData,
         connectors: &Connectors,
-    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
+    ) -> CustomResult<Option<Request>, ConnectorError> {
         Ok(Some(
             RequestBuilder::new()
                 .method(Method::Post)
@@ -398,11 +404,11 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
         data: &PaymentsCaptureRouterData,
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
-    ) -> CustomResult<PaymentsCaptureRouterData, errors::ConnectorError> {
+    ) -> CustomResult<PaymentsCaptureRouterData, ConnectorError> {
         let response: trustly::TrustlyPaymentsResponse = res
             .response
             .parse_struct("Trustly PaymentsCaptureResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+            .change_context(ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
         RouterData::try_from(ResponseRouterData {
@@ -416,7 +422,7 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
         &self,
         res: Response,
         event_builder: Option<&mut ConnectorEvent>,
-    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+    ) -> CustomResult<ErrorResponse, ConnectorError> {
         self.build_error_response(res, event_builder)
     }
 }
@@ -428,7 +434,7 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Trustly
         &self,
         req: &RefundsRouterData<Execute>,
         connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, ConnectorError> {
         self.build_headers(req, connectors)
     }
 
@@ -440,15 +446,15 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Trustly
         &self,
         _req: &RefundsRouterData<Execute>,
         _connectors: &Connectors,
-    ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
+    ) -> CustomResult<String, ConnectorError> {
+        Err(ConnectorError::NotImplemented("get_url method".to_string()).into())
     }
 
     fn get_request_body(
         &self,
         req: &RefundsRouterData<Execute>,
         _connectors: &Connectors,
-    ) -> CustomResult<RequestContent, errors::ConnectorError> {
+    ) -> CustomResult<RequestContent, ConnectorError> {
         let refund_amount = utils::convert_amount(
             self.amount_converter,
             req.request.minor_refund_amount,
@@ -464,7 +470,7 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Trustly
         &self,
         req: &RefundsRouterData<Execute>,
         connectors: &Connectors,
-    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
+    ) -> CustomResult<Option<Request>, ConnectorError> {
         let request = RequestBuilder::new()
             .method(Method::Post)
             .url(&types::RefundExecuteType::get_url(self, req, connectors)?)
@@ -484,11 +490,11 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Trustly
         data: &RefundsRouterData<Execute>,
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
-    ) -> CustomResult<RefundsRouterData<Execute>, errors::ConnectorError> {
+    ) -> CustomResult<RefundsRouterData<Execute>, ConnectorError> {
         let response: trustly::RefundResponse = res
             .response
             .parse_struct("trustly RefundResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+            .change_context(ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
         RouterData::try_from(ResponseRouterData {
@@ -502,7 +508,7 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Trustly
         &self,
         res: Response,
         event_builder: Option<&mut ConnectorEvent>,
-    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+    ) -> CustomResult<ErrorResponse, ConnectorError> {
         self.build_error_response(res, event_builder)
     }
 }
@@ -512,7 +518,7 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Trustly {
         &self,
         req: &RefundSyncRouterData,
         connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, ConnectorError> {
         self.build_headers(req, connectors)
     }
 
@@ -524,15 +530,15 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Trustly {
         &self,
         _req: &RefundSyncRouterData,
         _connectors: &Connectors,
-    ) -> CustomResult<String, errors::ConnectorError> {
-        Err(errors::ConnectorError::NotImplemented("get_url method".to_string()).into())
+    ) -> CustomResult<String, ConnectorError> {
+        Err(ConnectorError::NotImplemented("get_url method".to_string()).into())
     }
 
     fn build_request(
         &self,
         req: &RefundSyncRouterData,
         connectors: &Connectors,
-    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
+    ) -> CustomResult<Option<Request>, ConnectorError> {
         Ok(Some(
             RequestBuilder::new()
                 .method(Method::Get)
@@ -551,11 +557,11 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Trustly {
         data: &RefundSyncRouterData,
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
-    ) -> CustomResult<RefundSyncRouterData, errors::ConnectorError> {
+    ) -> CustomResult<RefundSyncRouterData, ConnectorError> {
         let response: trustly::RefundResponse = res
             .response
             .parse_struct("trustly RefundSyncResponse")
-            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+            .change_context(ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
         RouterData::try_from(ResponseRouterData {
@@ -569,33 +575,394 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Trustly {
         &self,
         res: Response,
         event_builder: Option<&mut ConnectorEvent>,
-    ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
+    ) -> CustomResult<ErrorResponse, ConnectorError> {
+        self.build_error_response(res, event_builder)
+    }
+}
+
+impl api::Payouts for Trustly {}
+#[cfg(feature = "payouts")]
+impl api::PayoutRecipient for Trustly {}
+#[cfg(feature = "payouts")]
+impl api::PayoutFulfill for Trustly {}
+#[cfg(feature = "payouts")]
+impl api::PayoutSync for Trustly {}
+
+#[cfg(feature = "payouts")]
+impl ConnectorIntegration<PoRecipient, PayoutsData, PayoutsResponseData> for Trustly {
+    fn get_url(
+        &self,
+        _req: &PayoutsRouterData<PoRecipient>,
+        connectors: &Connectors,
+    ) -> CustomResult<String, ConnectorError> {
+        Ok(connectors.trustly.base_url.clone())
+    }
+
+    fn get_headers(
+        &self,
+        req: &PayoutsRouterData<PoRecipient>,
+        connectors: &Connectors,
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, ConnectorError> {
+        self.build_headers(req, connectors)
+    }
+
+    fn get_request_body(
+        &self,
+        req: &PayoutsRouterData<PoRecipient>,
+        _connectors: &Connectors,
+    ) -> CustomResult<RequestContent, ConnectorError> {
+        let amount = utils::convert_amount(
+            self.amount_converter,
+            req.request.minor_amount,
+            req.request.source_currency,
+        )?;
+
+        let connector_router_data = trustly::TrustlyRouterData::from((amount, req));
+        let connector_req = trustly::RegisterAccountRequest::try_from(&connector_router_data)?;
+        Ok(RequestContent::Json(Box::new(connector_req)))
+    }
+
+    fn build_request(
+        &self,
+        req: &PayoutsRouterData<PoRecipient>,
+        connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, ConnectorError> {
+        let request = RequestBuilder::new()
+            .method(Method::Post)
+            .url(&types::PayoutRecipientType::get_url(self, req, connectors)?)
+            .attach_default_headers()
+            .headers(types::PayoutRecipientType::get_headers(
+                self, req, connectors,
+            )?)
+            .set_body(types::PayoutRecipientType::get_request_body(
+                self, req, connectors,
+            )?)
+            .build();
+
+        Ok(Some(request))
+    }
+
+    fn handle_response(
+        &self,
+        data: &PayoutsRouterData<PoRecipient>,
+        event_builder: Option<&mut ConnectorEvent>,
+        res: Response,
+    ) -> CustomResult<PayoutsRouterData<PoRecipient>, ConnectorError> {
+        let response: trustly::RegisterAccountResponse = res
+            .response
+            .parse_struct("RegisterAccountResponse")
+            .change_context(ConnectorError::ResponseDeserializationFailed)?;
+
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+
+        RouterData::try_from(ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
+    }
+
+    fn get_error_response(
+        &self,
+        res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<ErrorResponse, ConnectorError> {
+        self.build_error_response(res, event_builder)
+    }
+}
+
+#[cfg(feature = "payouts")]
+impl ConnectorIntegration<PoFulfill, PayoutsData, PayoutsResponseData> for Trustly {
+    fn get_url(
+        &self,
+        _req: &PayoutsRouterData<PoFulfill>,
+        connectors: &Connectors,
+    ) -> CustomResult<String, ConnectorError> {
+        Ok(connectors.trustly.base_url.clone())
+    }
+
+    fn get_headers(
+        &self,
+        req: &PayoutsRouterData<PoFulfill>,
+        connectors: &Connectors,
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, ConnectorError> {
+        self.build_headers(req, connectors)
+    }
+
+    fn get_request_body(
+        &self,
+        req: &PayoutsRouterData<PoFulfill>,
+        _connectors: &Connectors,
+    ) -> CustomResult<RequestContent, ConnectorError> {
+        let amount = utils::convert_amount(
+            self.amount_converter,
+            req.request.minor_amount,
+            req.request.source_currency,
+        )?;
+
+        let connector_router_data = trustly::TrustlyRouterData::from((amount, req));
+        let connector_req = trustly::AccountPayoutRequest::try_from(&connector_router_data)?;
+        Ok(RequestContent::Json(Box::new(connector_req)))
+    }
+
+    fn build_request(
+        &self,
+        req: &PayoutsRouterData<PoFulfill>,
+        connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, ConnectorError> {
+        let request = RequestBuilder::new()
+            .method(Method::Post)
+            .url(&PayoutFulfillType::get_url(self, req, connectors)?)
+            .attach_default_headers()
+            .headers(PayoutFulfillType::get_headers(self, req, connectors)?)
+            .set_body(PayoutFulfillType::get_request_body(self, req, connectors)?)
+            .build();
+
+        Ok(Some(request))
+    }
+
+    fn handle_response(
+        &self,
+        data: &PayoutsRouterData<PoFulfill>,
+        event_builder: Option<&mut ConnectorEvent>,
+        res: Response,
+    ) -> CustomResult<PayoutsRouterData<PoFulfill>, ConnectorError> {
+        let response: trustly::AccountPayoutResponse = res
+            .response
+            .parse_struct("AccountPayoutResponse")
+            .change_context(ConnectorError::ResponseDeserializationFailed)?;
+
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+
+        RouterData::try_from(ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
+    }
+
+    fn get_error_response(
+        &self,
+        res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<ErrorResponse, ConnectorError> {
+        self.build_error_response(res, event_builder)
+    }
+}
+
+#[cfg(feature = "payouts")]
+impl ConnectorIntegration<PoSync, PayoutsData, PayoutsResponseData> for Trustly {
+    fn get_url(
+        &self,
+        _req: &PayoutsRouterData<PoSync>,
+        connectors: &Connectors,
+    ) -> CustomResult<String, ConnectorError> {
+        Ok(connectors.trustly.base_url.clone())
+    }
+
+    fn get_headers(
+        &self,
+        req: &PayoutsRouterData<PoSync>,
+        connectors: &Connectors,
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, ConnectorError> {
+        self.build_headers(req, connectors)
+    }
+
+    fn build_request(
+        &self,
+        req: &PayoutsRouterData<PoSync>,
+        connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, ConnectorError> {
+        let request = RequestBuilder::new()
+            .method(Method::Post)
+            .url(&PayoutSyncType::get_url(self, req, connectors)?)
+            .attach_default_headers()
+            .headers(PayoutSyncType::get_headers(self, req, connectors)?)
+            .set_body(PayoutSyncType::get_request_body(self, req, connectors)?)
+            .build();
+
+        Ok(Some(request))
+    }
+
+    fn get_request_body(
+        &self,
+        req: &PayoutsRouterData<PoSync>,
+        _connectors: &Connectors,
+    ) -> CustomResult<RequestContent, ConnectorError> {
+        let connector_req = trustly::TrustlyPayoutSyncRequest::try_from(req)?;
+        Ok(RequestContent::Json(Box::new(connector_req)))
+    }
+
+    fn handle_response(
+        &self,
+        data: &PayoutsRouterData<PoSync>,
+        event_builder: Option<&mut ConnectorEvent>,
+        res: Response,
+    ) -> CustomResult<PayoutsRouterData<PoSync>, ConnectorError> {
+        let response: trustly::TrustlyPayoutSyncResponse = res
+            .response
+            .parse_struct("TrustlyPayoutSyncResponse")
+            .change_context(ConnectorError::ResponseDeserializationFailed)?;
+
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+
+        RouterData::try_from(ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
+    }
+
+    fn get_error_response(
+        &self,
+        res: Response,
+        event_builder: Option<&mut ConnectorEvent>,
+    ) -> CustomResult<ErrorResponse, ConnectorError> {
         self.build_error_response(res, event_builder)
     }
 }
 
 #[async_trait::async_trait]
 impl webhooks::IncomingWebhook for Trustly {
+    async fn verify_webhook_source(
+        &self,
+        request: &webhooks::IncomingWebhookRequestDetails<'_>,
+        merchant_id: &common_utils::id_type::MerchantId,
+        connector_webhook_details: Option<common_utils::pii::SecretSerdeValue>,
+        _connector_account_details: common_utils::crypto::Encryptable<
+            hyperswitch_masking::Secret<serde_json::Value>,
+        >,
+        connector_label: &str,
+    ) -> CustomResult<bool, ConnectorError> {
+        let webhook_body: trustly::TrustlyWebhookBody = request
+            .body
+            .parse_struct("TrustlyWebhookBody")
+            .change_context(ConnectorError::ResponseDeserializationFailed)?;
+
+        let connector_webhook_secrets = self
+            .get_webhook_source_verification_merchant_secret(
+                merchant_id,
+                connector_label,
+                connector_webhook_details,
+            )
+            .await
+            .change_context(ConnectorError::WebhookSourceVerificationFailed)?;
+
+        trustly::verify_webhook_signature(&webhook_body, connector_webhook_secrets.secret)
+    }
+
     fn get_webhook_object_reference_id(
         &self,
-        _request: &webhooks::IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<api_models::webhooks::ObjectReferenceId, errors::ConnectorError> {
-        Err(report!(errors::ConnectorError::WebhooksNotImplemented))
+        request: &webhooks::IncomingWebhookRequestDetails<'_>,
+    ) -> CustomResult<api_models::webhooks::ObjectReferenceId, ConnectorError> {
+        let webhook_body: trustly::TrustlyWebhookBody = request
+            .body
+            .parse_struct("TrustlyWebhookBody")
+            .change_context(ConnectorError::ResponseDeserializationFailed)?;
+        let message_id = webhook_body.params.data.messageid.clone();
+
+        if trustly::is_payment_webhook_event(webhook_body.method.clone(), message_id.clone()) {
+            return Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
+                api_models::payments::PaymentIdType::ConnectorTransactionId(
+                    webhook_body.params.data.orderid,
+                ),
+            ));
+        }
+        if trustly::is_refund_webhook_event(webhook_body.method.clone(), message_id.clone()) {
+            return Ok(api_models::webhooks::ObjectReferenceId::RefundId(
+                api_models::webhooks::RefundIdType::ConnectorRefundId(
+                    webhook_body.params.data.orderid,
+                ),
+            ));
+        }
+        #[cfg(feature = "payouts")]
+        if trustly::is_payout_webhook_event(webhook_body.method.clone(), message_id.clone()) {
+            return Ok(api_models::webhooks::ObjectReferenceId::PayoutId(
+                api_models::webhooks::PayoutIdType::ConnectorPayoutId(
+                    webhook_body.params.data.orderid,
+                ),
+            ));
+        }
+        Err(report!(ConnectorError::WebhooksNotImplemented))
     }
 
     fn get_webhook_event_type(
         &self,
-        _request: &webhooks::IncomingWebhookRequestDetails<'_>,
+        request: &webhooks::IncomingWebhookRequestDetails<'_>,
         _context: Option<&webhooks::WebhookContext>,
-    ) -> CustomResult<api_models::webhooks::IncomingWebhookEvent, errors::ConnectorError> {
-        Err(report!(errors::ConnectorError::WebhooksNotImplemented))
+    ) -> CustomResult<api_models::webhooks::IncomingWebhookEvent, ConnectorError> {
+        let webhook_body: trustly::TrustlyWebhookBody = request
+            .body
+            .parse_struct("TrustlyWebhookBody")
+            .change_context(ConnectorError::ResponseDeserializationFailed)?;
+
+        trustly::get_payout_webhook_event(webhook_body.method)
     }
 
     fn get_webhook_resource_object(
         &self,
-        _request: &webhooks::IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
-        Err(report!(errors::ConnectorError::WebhooksNotImplemented))
+        request: &webhooks::IncomingWebhookRequestDetails<'_>,
+    ) -> CustomResult<Box<dyn hyperswitch_masking::ErasedMaskSerialize>, ConnectorError> {
+        let webhook_body: trustly::TrustlyWebhookBody = request
+            .body
+            .parse_struct("TrustlyWebhookBody")
+            .change_context(ConnectorError::ResponseDeserializationFailed)?;
+        let event = trustly::get_payout_webhook_event(webhook_body.method)?;
+        Ok(Box::new(event))
+    }
+
+    fn get_webhook_api_response(
+        &self,
+        request: &webhooks::IncomingWebhookRequestDetails<'_>,
+        _error_kind: Option<webhooks::IncomingWebhookFlowError>,
+        connector_authentication_type: Option<
+            common_utils::crypto::Encryptable<hyperswitch_masking::Secret<serde_json::Value>>,
+        >,
+    ) -> CustomResult<
+        hyperswitch_domain_models::api::ApplicationResponse<serde_json::Value>,
+        ConnectorError,
+    > {
+        let request_body: trustly::TrustlyWebhookBody = request
+            .body
+            .parse_struct("TrustlyWebhookBody")
+            .change_context(ConnectorError::ResponseDeserializationFailed)?;
+
+        let data = trustly::TrustlyWebhookResponseResultData {
+            status: "OK".to_string(),
+        };
+
+        let connector_auth_type: ConnectorAuthType = connector_authentication_type
+            .ok_or(ConnectorError::FailedToObtainAuthType)?
+            .parse_value("ConnectorAuthType")
+            .change_context(ConnectorError::FailedToObtainAuthType)?;
+        let auth = trustly::TrustlyAuthType::try_from(&connector_auth_type)
+            .change_context(ConnectorError::FailedToObtainAuthType)?;
+
+        let signature = trustly::generate_trustly_signature(
+            request_body.method.as_str(),
+            &request_body.params.uuid,
+            &data,
+            &auth.private_key.expose(),
+        )?;
+
+        let response = trustly::TrustlyWebhookResponse {
+            result: trustly::TrustlyWebhookResponseResult {
+                signature: signature.into(),
+                uuid: request_body.params.uuid,
+                method: request_body.method.as_str().to_string(),
+                data,
+            },
+            version: request_body.version,
+        };
+
+        let response_value = serde_json::to_value(response)
+            .change_context(ConnectorError::ResponseDeserializationFailed)?;
+        Ok(hyperswitch_domain_models::api::ApplicationResponse::Json(
+            response_value,
+        ))
     }
 }
 
