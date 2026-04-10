@@ -247,11 +247,11 @@ pub static RECON_REPORTS: [Resource; 4] = [
 
 pub static THEME: [Resource; 1] = [Resource::Theme];
 
-pub static RECON_SOURCE: [Resource; 2] =
-    [Resource::ReconIngestion, Resource::ReconTransformation];
+pub static RECON_SOURCE: [Resource; 2] = [Resource::ReconIngestion, Resource::ReconTransformation];
 
 pub static RECON_EXCEPTIONS: [Resource; 1] = [Resource::ReconException];
 
-pub static RECON_TRANSACTION: [Resource; 2] = [Resource::ReconStagingEntry, Resource::ReconTransaction];
+pub static RECON_TRANSACTION: [Resource; 2] =
+    [Resource::ReconStagingEntry, Resource::ReconTransaction];
 
 pub static RECON_RULES: [Resource; 1] = [Resource::ReconRule];

@@ -4141,11 +4141,12 @@ pub async fn authorize_token(
     state: SessionState,
     payload: api_models::user_role::AuthorizeTokenRequest,
 ) -> super::errors::RouterResponse<()> {
+    use hyperswitch_masking::ExposeInterface;
+
     use crate::services::{
         authentication::blacklist::BlackList,
         authorization::{self as authorization, permissions::Permission},
     };
-    use hyperswitch_masking::ExposeInterface;
 
     let token = auth::decode_jwt::<auth::AuthToken>(&payload.token.expose(), &state).await?;
 

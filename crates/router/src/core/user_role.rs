@@ -14,11 +14,11 @@ use diesel_models::{
     user_role::UserRoleUpdate,
 };
 use error_stack::{report, ResultExt};
-use hyperswitch_masking::{ Secret};
+use hyperswitch_masking::Secret;
 use router_env::logger;
 
 use crate::{
-    core::errors::{ StorageErrorExt, UserErrors, UserResponse},
+    core::errors::{StorageErrorExt, UserErrors, UserResponse},
     db::user_role::{ListUserRolesByOrgIdPayload, ListUserRolesByUserIdPayload},
     routes::{app::ReqState, SessionState},
     services::{
