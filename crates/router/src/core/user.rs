@@ -24,12 +24,13 @@ use error_stack::{report, ResultExt};
 use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 use router_env::{env, logger};
 use storage_impl::errors::StorageError;
+use subscriptions::RouterResponse;
 #[cfg(not(feature = "email"))]
 use user_api::dashboard_metadata::SetMetaDataRequest;
 
 #[cfg(feature = "v1")]
 use super::admin;
-use super::errors::{StorageErrorExt, UserErrors, UserResponse, UserResult};
+use super::errors::{ApiErrorResponse, StorageErrorExt, UserErrors, UserResponse, UserResult};
 use crate::{
     consts,
     core::encryption::send_request_to_key_service_for_user,
@@ -4144,18 +4145,20 @@ pub async fn list_members_for_entity(
 pub async fn authorize_token(
     state: SessionState,
     payload: api_models::user_role::AuthorizeTokenRequest,
-) -> super::errors::RouterResponse<()> {
+) -> RouterResponse<()> {
     let token = auth::decode_jwt::<auth::AuthToken>(&payload.token.expose(), &state).await?;
 
     if token.check_in_blacklist(&state).await? {
-        return Err(super::errors::ApiErrorResponse::InvalidJwtToken.into());
+        return Err(ApiErrorResponse::InvalidJwtToken.into());
     }
 
-    let permission: Permission = payload.permission.parse().map_err(|_| {
-        super::errors::ApiErrorResponse::InvalidRequestData {
-            message: "Invalid permission".to_string(),
-        }
-    })?;
+    let permission: Permission =
+        payload
+            .permission
+            .parse()
+            .map_err(|_| ApiErrorResponse::InvalidRequestData {
+                message: "Invalid permission".to_string(),
+            })?;
 
     let role_info = authorization::get_role_info(&state, &token).await?;
     authorization::check_permission(permission, &role_info)?;

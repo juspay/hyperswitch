@@ -22,7 +22,7 @@ use crate::{
     db::user_role::{ListUserRolesByOrgIdPayload, ListUserRolesByUserIdPayload},
     routes::{app::ReqState, SessionState},
     services::{
-        authentication::{self as auth},
+        authentication as auth,
         authorization::{
             info,
             permission_groups::{ParentGroupExt, PermissionGroupExt},

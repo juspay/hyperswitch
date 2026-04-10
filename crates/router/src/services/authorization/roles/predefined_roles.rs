@@ -487,14 +487,14 @@ pub static PREDEFINED_ROLES: LazyLock<HashMap<&'static str, RoleInfo>> = LazyLoc
         },
     );
     roles.insert(
-        consts::user_role::ROLE_ID_RECON_MERCHANT_VIEWER,
+        consts::user_role::ROLE_ID_RECON_MERCHANT_VIEW_ONLY,
         RoleInfo {
             groups: vec![
                 PermissionGroup::ReconSourceView,
                 PermissionGroup::ReconTransactionView,
                 PermissionGroup::ReconRulesView,
             ],
-            role_id: consts::user_role::ROLE_ID_RECON_MERCHANT_VIEWER.to_string(),
+            role_id: consts::user_role::ROLE_ID_RECON_MERCHANT_VIEW_ONLY.to_string(),
             role_name: "recon_merchant_view_only".to_string(),
             scope: RoleScope::Organization,
             entity_type: EntityType::Merchant,
@@ -565,14 +565,14 @@ pub static PREDEFINED_ROLES: LazyLock<HashMap<&'static str, RoleInfo>> = LazyLoc
         },
     );
     roles.insert(
-        consts::user_role::ROLE_ID_RECON_PROFILE_VIEWER,
+        consts::user_role::ROLE_ID_RECON_PROFILE_VIEW_ONLY,
         RoleInfo {
             groups: vec![
                 PermissionGroup::ReconSourceView,
                 PermissionGroup::ReconTransactionView,
                 PermissionGroup::ReconRulesView,
             ],
-            role_id: consts::user_role::ROLE_ID_RECON_PROFILE_VIEWER.to_string(),
+            role_id: consts::user_role::ROLE_ID_RECON_PROFILE_VIEW_ONLY.to_string(),
             role_name: "recon_profile_view_only".to_string(),
             scope: RoleScope::Organization,
             entity_type: EntityType::Profile,
