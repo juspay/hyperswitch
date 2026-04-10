@@ -18,6 +18,10 @@ use common_utils::{
 };
 use error_stack::ResultExt;
 use hyperswitch_masking::PeekInterface;
+use rust_decimal::{
+    prelude::{FromPrimitive, ToPrimitive},
+    Decimal,
+};
 use serde::de;
 use utoipa::ToSchema;
 
@@ -67,10 +71,15 @@ pub struct PaymentMethodCreate {
     #[schema(example = "Visa")]
     pub card_network: Option<String>,
 
+    /// Payment method details from locker. Deprecated - use `bank_transfer_data` instead.
+    #[cfg(feature = "payouts")]
+    #[schema(value_type = Option<Bank>, deprecated)]
+    pub bank_transfer: Option<payouts::Bank>,
+
     /// Payment method details from locker
     #[cfg(feature = "payouts")]
-    #[schema(value_type = Option<Bank>)]
-    pub bank_transfer: Option<payouts::Bank>,
+    #[schema(value_type = Option<BankTransfer>)]
+    pub bank_transfer_data: Option<payouts::BankTransfer>,
 
     /// Payment method details from locker
     #[cfg(feature = "payouts")]
@@ -264,9 +273,13 @@ pub struct PaymentMethodMigrate {
     /// The card network
     pub card_network: Option<String>,
 
-    /// Payment method details from locker
+    /// Payment method details from locker. Deprecated, use bank_transfer_data instead
     #[cfg(feature = "payouts")]
     pub bank_transfer: Option<payouts::Bank>,
+
+    // Payment method details from locker
+    #[cfg(feature = "payouts")]
+    pub bank_transfer_data: Option<payouts::BankTransfer>,
 
     /// Payment method details from locker
     #[cfg(feature = "payouts")]
@@ -461,6 +474,8 @@ impl PaymentMethodCreate {
             #[cfg(feature = "payouts")]
             bank_transfer: payment_method_migrate.bank_transfer.clone(),
             #[cfg(feature = "payouts")]
+            bank_transfer_data: payment_method_migrate.bank_transfer_data.clone(),
+            #[cfg(feature = "payouts")]
             wallet: payment_method_migrate.wallet.clone(),
             network_transaction_id: payment_method_migrate.network_transaction_id.clone(),
         }
@@ -488,6 +503,8 @@ impl PaymentMethodCreate {
             card_network: None,
             #[cfg(feature = "payouts")]
             bank_transfer: None,
+            #[cfg(feature = "payouts")]
+            bank_transfer_data: None,
             #[cfg(feature = "payouts")]
             wallet: None,
             network_transaction_id: payment_method_migrate.network_transaction_id.clone(),
@@ -1049,10 +1066,23 @@ pub enum PaymentMethodResponseData {
 
 #[cfg(feature = "v2")]
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
+pub struct RawCardWithNTDetails {
+    /// Raw card details associated with the payment method
+    #[schema(value_type = CardDetail)]
+    pub card_details: CardDetail,
+
+    /// Raw network token details associated with the payment method
+    #[schema(value_type = CardDetail)]
+    pub network_token_details: CardDetail,
+}
+
+#[cfg(feature = "v2")]
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
 #[serde(deny_unknown_fields)]
 #[serde(rename_all = "snake_case")]
 pub enum RawPaymentMethodData {
     Card(CardDetail),
+    CardWithNT(RawCardWithNTDetails),
 }
 
 #[cfg(feature = "v1")]
@@ -2606,11 +2636,30 @@ impl PaymentMethodListInstallmentPlan {
             .map(|&count| {
                 let interest = data
                     .interest_rate
-                    .apply_and_ceil_result(order_amount)
+                    .calculate_emi_interest(order_amount, count)
                     .change_context(errors::ParsingError::UnknownError)
                     .attach_printable("Failed to apply installment interest rate")?;
                 let total_with_interest = net_amount + interest;
-                let per_installment = total_with_interest / count;
+
+                let total_decimal = Decimal::from_i64(total_with_interest.get_amount_as_i64())
+                    .ok_or(errors::ParsingError::UnknownError)
+                    .map_err(error_stack::Report::from)
+                    .attach_printable("Failed to convert total amount to decimal")?;
+
+                let count_decimal = Decimal::from_u8(u8::from(count))
+                    .ok_or(errors::ParsingError::UnknownError)
+                    .map_err(error_stack::Report::from)
+                    .attach_printable("Failed to convert count to decimal")?;
+
+                // - ceil() ensures merchant always receives at least the calculated interest
+                let per_installment = MinorUnit::new(
+                    (total_decimal / count_decimal)
+                        .ceil()
+                        .to_i64()
+                        .ok_or(errors::ParsingError::UnknownError)
+                        .map_err(error_stack::Report::from)
+                        .attach_printable("Failed to convert per installment to i64")?,
+                );
                 let amount_per_installment = per_installment
                     .to_major_unit_as_f64(currency)
                     .change_context(errors::ParsingError::UnknownError)
@@ -3676,6 +3725,8 @@ impl
             card_network: None,
             #[cfg(feature = "payouts")]
             bank_transfer: None,
+            #[cfg(feature = "payouts")]
+            bank_transfer_data: None,
             #[cfg(feature = "payouts")]
             wallet: None,
             payment_method_data,

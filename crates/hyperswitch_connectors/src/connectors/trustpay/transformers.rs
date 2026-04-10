@@ -610,6 +610,7 @@ impl TryFrom<&TrustpayRouterData<&PaymentsAuthorizeRouterData>> for TrustpayPaym
             | PaymentMethodData::CardToken(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
             | PaymentMethodData::CardWithOptionalCVC(_)
+            | PaymentMethodData::CardWithNetworkTokenDetails(_)
             | PaymentMethodData::CardWithLimitedDetails(_)
             | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
             | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
@@ -1596,6 +1597,7 @@ impl From<GpayAllowedMethodsParameters> for api_models::payments::GpayAllowedMet
             billing_address_required: None,
             billing_address_parameters: None,
             assurance_details_required: value.assurance_details_required,
+            allow_credit_cards: None,
         }
     }
 }

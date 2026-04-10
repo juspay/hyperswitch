@@ -1690,6 +1690,7 @@ impl TryFrom<api_models::payouts::PayoutMethodData> for NuveiPayoutMethodData {
                 })
             }
             api_models::payouts::PayoutMethodData::Bank(_)
+            | api_models::payouts::PayoutMethodData::BankTransfer(_)
             | api_models::payouts::PayoutMethodData::Wallet(_)
             | api_models::payouts::PayoutMethodData::BankRedirect(_) => {
                 Err(errors::ConnectorError::NotImplemented(

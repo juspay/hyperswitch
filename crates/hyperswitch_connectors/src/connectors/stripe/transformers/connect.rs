@@ -406,8 +406,8 @@ impl<F> TryFrom<&PayoutsRouterData<F>> for StripeConnectRecipientAccountCreateRe
                     external_account: "tok_visa_debit".to_string(),
                 }))
             }
-            api_models::payouts::PayoutMethodData::Bank(bank) => match bank {
-                api_models::payouts::Bank::Ach(bank_details) => {
+            api_models::payouts::PayoutMethodData::BankTransfer(bank) => match bank {
+                api_models::payouts::BankTransfer::Ach(bank_details) => {
                     Ok(Self::Bank(RecipientBankAccountRequest {
                         external_account_object: "bank_account".to_string(),
                         external_account_country: bank_details
@@ -425,22 +425,28 @@ impl<F> TryFrom<&PayoutsRouterData<F>> for StripeConnectRecipientAccountCreateRe
                         external_account_routing_number: bank_details.bank_routing_number,
                     }))
                 }
-                api_models::payouts::Bank::Bacs(_) => Err(errors::ConnectorError::NotSupported {
-                    message: "BACS payouts are not supported".to_string(),
-                    connector: "stripe",
+                api_models::payouts::BankTransfer::Bacs(_) => {
+                    Err(errors::ConnectorError::NotSupported {
+                        message: "BACS payouts are not supported".to_string(),
+                        connector: "stripe",
+                    }
+                    .into())
                 }
-                .into()),
-                api_models::payouts::Bank::Sepa(_) => Err(errors::ConnectorError::NotSupported {
-                    message: "SEPA payouts are not supported".to_string(),
-                    connector: "stripe",
+                api_models::payouts::BankTransfer::Sepa(_) => {
+                    Err(errors::ConnectorError::NotSupported {
+                        message: "SEPA payouts are not supported".to_string(),
+                        connector: "stripe",
+                    }
+                    .into())
                 }
-                .into()),
-                api_models::payouts::Bank::Pix(_) => Err(errors::ConnectorError::NotSupported {
-                    message: "PIX payouts are not supported".to_string(),
-                    connector: "stripe",
+                api_models::payouts::BankTransfer::Pix(_) => {
+                    Err(errors::ConnectorError::NotSupported {
+                        message: "PIX payouts are not supported".to_string(),
+                        connector: "stripe",
+                    }
+                    .into())
                 }
-                .into()),
-                api_models::payouts::Bank::Trustly(_) => {
+                api_models::payouts::BankTransfer::Trustly(_) => {
                     Err(errors::ConnectorError::NotSupported {
                         message: "Trustly payouts are not supported".to_string(),
                         connector: "stripe",
@@ -466,6 +472,13 @@ impl<F> TryFrom<&PayoutsRouterData<F>> for StripeConnectRecipientAccountCreateRe
                 Err(errors::ConnectorError::NotSupported {
                     message: "Payouts via Passthrough are not supported".to_string(),
                     connector: "stripe",
+                }
+                .into())
+            }
+            api_models::payouts::PayoutMethodData::Bank(_) => {
+                Err(errors::ConnectorError::GenericError {
+                    error_message: "Payout method 'Bank' should have been normalized to 'BankTransfer'. This is an unexpected state.".to_string(),
+                    error_object: serde_json::Value::Null,
                 }
                 .into())
             }
