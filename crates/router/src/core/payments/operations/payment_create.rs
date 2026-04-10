@@ -33,7 +33,10 @@ use crate::core::payment_methods::transformers as pm_transformers;
 use crate::{
     consts,
     core::{
-        configs::dimension_state::{Dimensions, DimensionsWithMerchantIdAndProfileId},
+        configs::dimension_state::{
+            Dimensions, DimensionsWithProcessorAndProviderMerchantId,
+            DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
+        },
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
         mandate::helpers as m_helpers,
         payment_link,
@@ -663,7 +666,8 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
 
         // Check if client session validation is enabled
         let dimensions = Dimensions::new()
-            .with_merchant_id(platform.get_processor().get_account().get_id().clone());
+            .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id())
+            .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id());
 
         let session_validation_enabled = dimensions
             .get_client_session_validation_enabled(
@@ -763,7 +767,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
         request: Option<CustomerDetails>,
         provider: &domain::Provider,
         initiator: Option<&domain::Initiator>,
-        dimensions: DimensionsWithMerchantIdAndProfileId,
+        dimensions: &DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
     ) -> CustomResult<(PaymentCreateOperation<'a, F>, Option<domain::Customer>), errors::StorageError>
     {
         match provider.get_account().merchant_account_type {
@@ -1037,6 +1041,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
         mut payment_data: PaymentData<F>,
         _frm_suggestion: Option<FrmSuggestion>,
         _header_payload: hyperswitch_domain_models::payments::HeaderPayload,
+        _dimensions: &DimensionsWithProcessorAndProviderMerchantId,
     ) -> RouterResult<(PaymentCreateOperation<'b, F>, PaymentData<F>)>
     where
         F: 'b + Send,
