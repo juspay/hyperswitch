@@ -285,6 +285,7 @@ export const connectorDetails = {
     SaveCardConfirmAutoCaptureOffSession: {
       Request: {
         setup_future_usage: "off_session",
+        currency: "EUR",
       },
       Response: {
         status: 200,
@@ -397,6 +398,7 @@ export const connectorDetails = {
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
+        currency: "EUR",
         mandate_data: null,
         customer_acceptance: customerAcceptance,
       },
