@@ -112,8 +112,6 @@ use super::{
 #[cfg(feature = "v1")]
 use crate::core::blocklist::utils as blocklist_utils;
 #[cfg(feature = "v1")]
-use crate::core::blocklist::utils as blocklist_utils;
-#[cfg(feature = "v1")]
 use crate::core::card_testing_guard::utils as card_testing_guard_utils;
 #[cfg(feature = "v1")]
 use crate::core::debit_routing;
@@ -740,7 +738,6 @@ where
             platform.get_provider(),
             platform.get_initiator(),
             &dimensions,
-            &dimensions,
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)
@@ -1060,7 +1057,6 @@ where
                         None,
                         call_connector_service_response,
                         &dimensions.without_profile_id(),
-                        &dimensions.without_profile_id(),
                     )
                     .await?;
 
@@ -1249,7 +1245,6 @@ where
                         #[cfg(not(feature = "frm"))]
                         None,
                         call_connector_service_response,
-                        &dimensions.without_profile_id(),
                         &dimensions.without_profile_id(),
                     )
                     .await?;
@@ -1442,7 +1437,6 @@ where
                     None,
                     header_payload.clone(),
                     &dimensions.without_profile_id(),
-                    &dimensions.without_profile_id(),
                 )
                 .await?;
         }
@@ -1473,7 +1467,6 @@ where
                 payment_data.clone(),
                 None,
                 header_payload.clone(),
-                &dimensions.without_profile_id(),
                 &dimensions.without_profile_id(),
             )
             .await?;
@@ -1653,7 +1646,6 @@ where
             customer_details,
             platform.get_provider(),
             platform.get_initiator(),
-            &dimensions,
             &dimensions,
         )
         .await
@@ -4877,7 +4869,6 @@ where
             frm_suggestion,
             header_payload.clone(),
             dimensions,
-            dimensions,
         )
         .await?;
     *payment_data = new_payment_data;
@@ -6160,7 +6151,6 @@ where
             payment_data.clone(),
             frm_suggestion,
             header_payload.clone(),
-            &dimensions,
             &dimensions,
         )
         .await?;
@@ -9934,7 +9924,7 @@ where
     let is_mit_with_limited_card_data_enabled = dimensions
         .get_should_enable_mit_with_limited_card_data(
             state.store.as_ref(),
-            state.superposition_service.as_deref(),
+            state.superposition_service.as_ref(),
             Some(payment_id),
         )
         .await;

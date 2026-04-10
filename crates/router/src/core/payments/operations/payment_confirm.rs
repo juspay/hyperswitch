@@ -539,7 +539,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                         helpers::get_additional_payment_data(
                             &payment_method_data,
                             store.as_ref(),
-                            superposition_service.as_deref(),
+                            superposition_service.as_ref(),
                             &dimensions,
                             customer_id.as_ref(),
                             None,
@@ -2407,7 +2407,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
                 helpers::get_additional_payment_data(
                     payment_method_data,
                     &*state.store,
-                    state.superposition_service.as_deref(),
+                    state.superposition_service.as_ref(),
                     &dimensions,
                     customer_id,
                     payment_data.payment_method_token.as_ref(),

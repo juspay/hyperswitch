@@ -866,7 +866,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
                 helpers::get_additional_payment_data(
                     payment_method_data,
                     &*state.store,
-                    state.superposition_service.as_deref(),
+                    state.superposition_service.as_ref(),
                     &dimensions.with_profile_id(profile_id.clone()),
                     customer_id,
                     payment_data.payment_method_token.as_ref(),
@@ -1096,7 +1096,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
         let session_validation_enabled = dimensions
             .get_client_session_validation_enabled(
                 state.store.as_ref(),
-                state.superposition_service.as_deref(),
+                state.superposition_service.as_ref(),
                 None,
             )
             .await;

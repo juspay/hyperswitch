@@ -862,7 +862,7 @@ pub async fn get_sdk_next_action_for_payment_method_list(
     let should_perform_eligibility_check = dimensions
         .get_should_perform_eligibility(
             state.store.as_ref(),
-            state.superposition_service.as_deref(),
+            state.superposition_service.as_ref(),
             customer_id,
         )
         .await;

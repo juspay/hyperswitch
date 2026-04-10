@@ -1488,7 +1488,7 @@ impl EligibilityCheck for StoreEligibilityCheckData {
         Ok(dimensions
             .get_should_store_eligibility_check_data_for_authentication(
                 state.store.as_ref(),
-                state.superposition_service.as_deref(),
+                state.superposition_service.as_ref(),
                 Some(authentication_id),
             )
             .await)

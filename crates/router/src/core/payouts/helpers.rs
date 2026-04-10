@@ -1537,7 +1537,7 @@ pub async fn get_additional_payout_data(
             let enable_extended_bin = dimensions
                 .get_enable_extended_card_bin(
                     state.store.as_ref(),
-                    state.superposition_service.as_deref(),
+                    state.superposition_service.as_ref(),
                     customer_id,
                 )
                 .await;

@@ -2042,7 +2042,7 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R, D>(
                     let implicit_customer_update = dimensions
                         .get_implicit_customer_update(
                             state.store.as_ref(),
-                            state.superposition_service.as_deref(),
+                            state.superposition_service.as_ref(),
                             Some(&customer_id),
                         )
                         .await;
@@ -5572,7 +5572,7 @@ mod test {
 pub async fn get_additional_payment_data(
     pm_data: &domain::PaymentMethodData,
     db: &dyn StorageInterface,
-    superposition_service: Option<&external_services::superposition::SuperpositionClient>,
+    superposition_service: &external_services::superposition::SuperpositionClient,
     dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
     customer_id: Option<&id_type::CustomerId>,
     payment_method_token: Option<&PaymentMethodToken>,
@@ -8863,7 +8863,7 @@ pub async fn is_merchant_eligible_authentication_service(
     Ok(dimensions
         .get_authentication_service_eligible(
             &*state.store,
-            state.superposition_service.as_deref(),
+            state.superposition_service.as_ref(),
             None,
         )
         .await)

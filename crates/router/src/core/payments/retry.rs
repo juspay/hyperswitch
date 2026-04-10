@@ -258,7 +258,7 @@ pub async fn is_step_up_enabled_for_merchant_connector(
     dimensions
         .get_step_up_enabled(
             state.store.as_ref(),
-            state.superposition_service.as_deref(),
+            state.superposition_service.as_ref(),
             customer_id,
         )
         .await
@@ -887,7 +887,7 @@ pub async fn config_should_call_gsm(
     let merchant_config_gsm = dimensions
         .get_should_call_gsm(
             state.store.as_ref(),
-            state.superposition_service.as_deref(),
+            state.superposition_service.as_ref(),
             customer_id,
         )
         .await;

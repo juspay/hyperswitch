@@ -125,7 +125,6 @@ impl DatabaseBackedConfig for RequiresCvv {
     fn db_key(dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
         let merchant_id = dimensions
             .get_processor_merchant_id()
-            .get_processor_merchant_id()
             .map(|id| id.get_string_repr())
             .unwrap_or_default();
         Some(format!("{}_{}", merchant_id, Self::KEY))
