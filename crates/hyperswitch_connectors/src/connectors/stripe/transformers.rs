@@ -226,6 +226,9 @@ pub struct PaymentIntentRequest {
     pub charges: Option<IntentCharges>,
     #[serde(rename = "payment_method_options[card][moto]")]
     pub moto: Option<bool>,
+    /// The Stripe account ID that these funds are intended for
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub on_behalf_of: Option<String>,
 }
 
 #[derive(Debug, Eq, PartialEq, Serialize, Clone)]
@@ -2315,6 +2318,13 @@ impl TryFrom<(&PaymentsAuthorizeRouterData, MinorUnit)> for PaymentIntentRequest
             },
         };
 
+        let on_behalf_of = match &item.request.split_payments {
+            Some(SplitPaymentsRequest::StripeSplitPayment(stripe_split_payment)) => {
+                stripe_split_payment.on_behalf_of.clone()
+            }
+            _ => None,
+        };
+
         let pm = match (payment_method, payment_method_token.clone()) {
             (Some(method), _) => Some(Secret::new(method)),
             (None, Some(token)) => Some(token),
@@ -2379,6 +2389,7 @@ impl TryFrom<(&PaymentsAuthorizeRouterData, MinorUnit)> for PaymentIntentRequest
             browser_info,
             charges,
             moto: is_moto,
+            on_behalf_of,
         })
     }
 }
@@ -5056,6 +5067,7 @@ where
             charge_type: stripe_split_payment.charge_type,
             application_fees: stripe_split_payment.application_fees,
             transfer_account_id: stripe_split_payment.transfer_account_id,
+            on_behalf_of: stripe_split_payment.on_behalf_of,
         };
         Some(
             common_types::payments::ConnectorChargeResponseData::StripeSplitPayment(
