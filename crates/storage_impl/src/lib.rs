@@ -188,6 +188,7 @@ impl<T: DatabaseStore> RouterStore<T> {
         &self.master_encryption_key
     }
 
+    // TODO: This needs to be removed after the removal of diesel_models dependency from domain_models is done
     pub async fn call_database<D, R, M>(
         &self,
         key_store: &MerchantKeyStore,
@@ -198,6 +199,34 @@ impl<T: DatabaseStore> RouterStore<T> {
         R: futures::Future<Output = error_stack::Result<M, diesel_models::errors::DatabaseError>>
             + Send,
         M: ReverseConversion<D>,
+    {
+        execute_query
+            .await
+            .map_err(|error| {
+                let new_err = diesel_error_to_data_error(*error.current_context());
+                error.change_context(new_err)
+            })?
+            .convert(
+                self.get_keymanager_state()
+                    .attach_printable("Missing KeyManagerState")?,
+                key_store.key.get_inner(),
+                key_store.merchant_id.clone().into(),
+            )
+            .await
+            .change_context(StorageError::DecryptionError)
+    }
+
+    // Equivalent of call_database but where conversion trait is implemented in storage_impl crate
+    pub async fn call_database_new<D, R, M>(
+        &self,
+        key_store: &MerchantKeyStore,
+        execute_query: R,
+    ) -> error_stack::Result<D, StorageError>
+    where
+        D: Debug + Sync + behaviour::Conversion,
+        R: futures::Future<Output = error_stack::Result<M, diesel_models::errors::DatabaseError>>
+            + Send,
+        M: behaviour::ReverseConversion<D>,
     {
         execute_query
             .await
@@ -246,6 +275,7 @@ impl<T: DatabaseStore> RouterStore<T> {
         }
     }
 
+    // TODO: This needs to be removed after the removal of diesel_models dependency from domain_models is done
     pub async fn find_resources<D, R, M>(
         &self,
         key_store: &MerchantKeyStore,
@@ -257,6 +287,44 @@ impl<T: DatabaseStore> RouterStore<T> {
                 Output = error_stack::Result<Vec<M>, diesel_models::errors::DatabaseError>,
             > + Send,
         M: ReverseConversion<D>,
+    {
+        let resource_futures = execute_query
+            .await
+            .map_err(|error| {
+                let new_err = diesel_error_to_data_error(*error.current_context());
+                error.change_context(new_err)
+            })?
+            .into_iter()
+            .map(|resource| async {
+                resource
+                    .convert(
+                        self.get_keymanager_state()
+                            .attach_printable("Missing KeyManagerState")?,
+                        key_store.key.get_inner(),
+                        key_store.merchant_id.clone().into(),
+                    )
+                    .await
+                    .change_context(StorageError::DecryptionError)
+            })
+            .collect::<Vec<_>>();
+
+        let resources = futures::future::try_join_all(resource_futures).await?;
+
+        Ok(resources)
+    }
+
+    // Equivalent of find_resources but where conversion trait is implemented in storage_impl crate
+    pub async fn find_resources_new<D, R, M>(
+        &self,
+        key_store: &MerchantKeyStore,
+        execute_query: R,
+    ) -> error_stack::Result<Vec<D>, StorageError>
+    where
+        D: Debug + Sync + behaviour::Conversion,
+        R: futures::Future<
+                Output = error_stack::Result<Vec<M>, diesel_models::errors::DatabaseError>,
+            > + Send,
+        M: behaviour::ReverseConversion<D>,
     {
         let resource_futures = execute_query
             .await

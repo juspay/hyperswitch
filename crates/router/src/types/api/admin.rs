@@ -542,5 +542,8 @@ pub async fn create_profile_from_merchant_account(
         network_tokenization_credentials: None, // since credentials are at merchant level, they should not be in the profile, tracked in issue #15134
         payment_method_blocking: None,
         default_fallback_routing: None,
+        three_ds_decision_rule_algorithm: None, // three_ds_decision_rule_algorithm is not yet created during profile creation
+        acquirer_config_map: None,
+        version: common_types::consts::API_VERSION,
     }))
 }

@@ -3661,6 +3661,8 @@ impl ProfileCreateBridge for api::ProfileCreate {
             is_pre_network_tokenization_enabled: self
                 .is_pre_network_tokenization_enabled
                 .unwrap_or_default(),
+            three_ds_decision_rule_algorithm: None, // three_ds_decision_rule_algorithm is not yet created during profile creation
+            acquirer_config_map: None,
             merchant_category_code: self.merchant_category_code,
             merchant_country_code: self.merchant_country_code,
             dispute_polling_interval: self.dispute_polling_interval,
@@ -3678,6 +3680,7 @@ impl ProfileCreateBridge for api::ProfileCreate {
             network_tokenization_credentials,
             payment_method_blocking: self.payment_method_blocking.map(ForeignInto::foreign_into),
             default_fallback_routing: None,
+            version: common_types::consts::API_VERSION,
         }))
     }
 
@@ -3830,6 +3833,7 @@ impl ProfileCreateBridge for api::ProfileCreate {
             merchant_country_code: self.merchant_country_code,
             split_txns_enabled: self.split_txns_enabled.unwrap_or_default(),
             billing_processor_id: self.billing_processor_id,
+            version: common_types::consts::API_VERSION,
         }))
     }
 }
