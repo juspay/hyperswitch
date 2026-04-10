@@ -753,43 +753,55 @@ pub fn build_unified_connector_service_payment_method(
 ) -> CustomResult<payments_grpc::PaymentMethod, UnifiedConnectorServiceError> {
     match payment_method_data {
         hyperswitch_domain_models::payment_method_data::PaymentMethodData::Card(card) => {
-            let card_exp_month = card
-                .get_card_expiry_month_2_digit()
-                .attach_printable("Failed to extract 2-digit expiry month from card")
-                .change_context(UnifiedConnectorServiceError::InvalidDataFormat {
-                    field_name: "card_exp_month",
-                })?
-                .peek()
-                .to_string();
+            match payment_method_token {
+                Some(PaymentMethodToken::Token(token)) => {
+                    let token_payment_method = payments_grpc::TokenPaymentMethodType {
+                        token: Some(token.clone()),
+                    };
+                    Ok(payments_grpc::PaymentMethod {
+                        payment_method: Some(PaymentMethod::Token(token_payment_method)),
+                    })
+                }
+                _ => {
+                    let card_exp_month = card
+                        .get_card_expiry_month_2_digit()
+                        .attach_printable("Failed to extract 2-digit expiry month from card")
+                        .change_context(UnifiedConnectorServiceError::InvalidDataFormat {
+                            field_name: "card_exp_month",
+                        })?
+                        .peek()
+                        .to_string();
 
-            let card_network = card
-                .card_network
-                .clone()
-                .map(payments_grpc::CardNetwork::foreign_from);
+                    let card_network = card
+                        .card_network
+                        .clone()
+                        .map(payments_grpc::CardNetwork::foreign_from);
 
-            let card_details = CardDetails {
-                card_number: Some(
-                    CardNumber::from_str(&card.card_number.get_card_no()).change_context(
-                        UnifiedConnectorServiceError::RequestEncodingFailedWithReason(
-                            "Failed to parse card number".to_string(),
+                    let card_details = CardDetails {
+                        card_number: Some(
+                            CardNumber::from_str(&card.card_number.get_card_no()).change_context(
+                                UnifiedConnectorServiceError::RequestEncodingFailedWithReason(
+                                    "Failed to parse card number".to_string(),
+                                ),
+                            )?,
                         ),
-                    )?,
-                ),
-                card_exp_month: Some(card_exp_month.into()),
-                card_exp_year: Some(card.card_exp_year.expose().into()),
-                card_cvc: Some(card.card_cvc.expose().into()),
-                card_holder_name: card.card_holder_name.map(|name| name.expose().into()),
-                card_issuer: card.card_issuer.clone(),
-                card_network: card_network.map(|card_network| card_network.into()),
-                card_type: card.card_type.clone(),
-                bank_code: card.bank_code.clone(),
-                nick_name: card.nick_name.map(|n| n.expose()),
-                card_issuing_country_alpha2: card.card_issuing_country.clone(),
-            };
+                        card_exp_month: Some(card_exp_month.into()),
+                        card_exp_year: Some(card.card_exp_year.expose().into()),
+                        card_cvc: Some(card.card_cvc.expose().into()),
+                        card_holder_name: card.card_holder_name.map(|name| name.expose().into()),
+                        card_issuer: card.card_issuer.clone(),
+                        card_network: card_network.map(|card_network| card_network.into()),
+                        card_type: card.card_type.clone(),
+                        bank_code: card.bank_code.clone(),
+                        nick_name: card.nick_name.map(|n| n.expose()),
+                        card_issuing_country_alpha2: card.card_issuing_country.clone(),
+                    };
 
-            Ok(payments_grpc::PaymentMethod {
-                payment_method: Some(PaymentMethod::Card(card_details)),
-            })
+                    Ok(payments_grpc::PaymentMethod {
+                        payment_method: Some(PaymentMethod::Card(card_details)),
+                    })
+                }
+            }
         }
         hyperswitch_domain_models::payment_method_data::PaymentMethodData::CardRedirect(
             card_redirect_data,
