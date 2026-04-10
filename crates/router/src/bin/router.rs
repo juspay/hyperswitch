@@ -1,4 +1,11 @@
-use std::sync::atomic::{AtomicUsize, Ordering};
+use std::{
+    collections::HashMap,
+    sync::{
+        atomic::{AtomicUsize, Ordering},
+        Mutex,
+    },
+    time::Instant,
+};
 
 use error_stack::ResultExt;
 use router::{
@@ -7,6 +14,12 @@ use router::{
     logger,
     routes::metrics,
 };
+
+// Threshold for slow task warning (in milliseconds)
+const SLOW_TASK_THRESHOLD_MS: u128 = 10;
+
+// Shared map for tracking task poll start times by task ID
+static TASK_POLL_START_TIMES: Mutex<Option<HashMap<tokio::task::Id, Instant>>> = Mutex::new(None);
 
 // Counters for tracking runtime activities
 static THREAD_START_COUNTER: AtomicUsize = AtomicUsize::new(0);
@@ -89,6 +102,10 @@ fn main() -> ApplicationResult<()> {
             })
             .on_before_task_poll(|meta| {
                 let poll_id = TASK_POLL_COUNTER.fetch_add(1, Ordering::SeqCst);
+                let id = meta.id();
+                let mut guard = TASK_POLL_START_TIMES.lock().unwrap();
+                let map = guard.get_or_insert_with(HashMap::new);
+                map.insert(id, Instant::now());
                 logger::debug!(
                     "[tokio-runtime] [poll-{}] Task polling; id={:?}; location={:?}",
                     poll_id,
@@ -98,11 +115,26 @@ fn main() -> ApplicationResult<()> {
             })
             .on_after_task_poll(|meta| {
                 let poll_done_id = TASK_POLL_COUNTER.fetch_add(1, Ordering::SeqCst);
+                let id = meta.id();
+                let duration_ms = {
+                    let mut guard = TASK_POLL_START_TIMES.lock().unwrap();
+                    guard.as_mut().and_then(|map| map.remove(&id)).map(|start| start.elapsed().as_millis()).unwrap_or(0)
+                };
+                if duration_ms > SLOW_TASK_THRESHOLD_MS {
+                    logger::warn!(
+                        "[tokio-runtime] [poll-done-{}] Slow task detected; id={:?}; location={:?}; duration={}ms",
+                        poll_done_id,
+                        meta.id(),
+                        meta.spawned_at(),
+                        duration_ms
+                    );
+                }
                 logger::debug!(
-                    "[tokio-runtime] [poll-done-{}] Task polled; id={:?}; location={:?}",
+                    "[tokio-runtime] [poll-done-{}] Task polled; id={:?}; location={:?}; duration={}ms",
                     poll_done_id,
                     meta.id(),
-                    meta.spawned_at()
+                    meta.spawned_at(),
+                    duration_ms
                 );
             })
             .on_task_terminate(|meta| {

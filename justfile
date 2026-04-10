@@ -135,7 +135,7 @@ alias r := run
 run-unsafe *FLAGS:
     RUSTFLAGS="--cfg tokio_unstable" cargo run -p router {{ FLAGS }}
 
-alias rc := run-console
+alias ru := run-unsafe
 
 doc_flags := '--all-features --all-targets --exclude-features "v2"'
 
