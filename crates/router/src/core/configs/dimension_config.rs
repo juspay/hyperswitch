@@ -123,11 +123,9 @@ config! {
 impl DatabaseBackedConfig for RequiresCvv {
     const KEY: &'static str = "requires_cvv";
     fn db_key(dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
-        let merchant_id = dimensions
+        dimensions
             .get_processor_merchant_id()
-            .map(|id| id.get_string_repr())
-            .unwrap_or_default();
-        Some(format!("{}_{}", merchant_id, Self::KEY))
+            .map(|id| format!("{}_{}", id.get_string_repr(), Self::KEY))
     }
 }
 
@@ -142,11 +140,9 @@ config! {
 impl DatabaseBackedConfig for ImplicitCustomerUpdate {
     const KEY: &'static str = "implicit_customer_update";
     fn db_key(dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
-        let merchant_id = dimensions
+        dimensions
             .get_provider_merchant_id()
-            .map(|id| id.get_string_repr())
-            .unwrap_or_default();
-        Some(format!("{}_{}", merchant_id, Self::KEY))
+            .map(|id| format!("{}_{}", id.get_string_repr(), Self::KEY))
     }
 }
 
@@ -162,11 +158,9 @@ impl DatabaseBackedConfig for ShouldCallGsm {
     const KEY: &'static str = "should_call_gsm";
 
     fn db_key(dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
-        let merchant_id = dimensions
+        dimensions
             .get_processor_merchant_id()
-            .map(|id| id.get_string_repr())
-            .unwrap_or_default();
-        Some(format!("{}_{}", merchant_id, Self::KEY))
+            .map(|id| format!("{}_{}", id.get_string_repr(), Self::KEY))
     }
 }
 
@@ -182,12 +176,10 @@ impl DatabaseBackedConfig for ShouldPerformEligibility {
     const KEY: &'static str = "should_perform_eligibility";
 
     fn db_key(dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
-        let merchant_id = dimensions
-            .get_processor_merchant_id()
-            .map(|id| id.get_string_repr())
-            .unwrap_or_default();
         // Matches the existing key format: "should_perform_eligibility_{merchant_id}"
-        Some(format!("{}_{}", Self::KEY, merchant_id))
+        dimensions
+            .get_processor_merchant_id()
+            .map(|id| format!("{}_{}", Self::KEY, id.get_string_repr()))
     }
 }
 
@@ -203,11 +195,9 @@ impl DatabaseBackedConfig for ShouldEnableMitWithLimitedCardData {
     const KEY: &'static str = "should_enable_mit_with_limited_card_data";
 
     fn db_key(dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
-        let merchant_id = dimensions
+        dimensions
             .get_processor_merchant_id()
-            .map(|id| id.get_string_repr())
-            .unwrap_or_default();
-        Some(format!("{}_{}", merchant_id, Self::KEY))
+            .map(|id| format!("{}_{}", id.get_string_repr(), Self::KEY))
     }
 }
 
@@ -223,12 +213,10 @@ impl DatabaseBackedConfig for ShouldStoreEligibilityCheckDataForAuthentication {
     const KEY: &'static str = "should_store_eligibility_check_data_for_authentication";
 
     fn db_key(dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
-        let merchant_id = dimensions
-            .get_processor_merchant_id()
-            .map(|id| id.get_string_repr())
-            .unwrap_or_default();
         // Matches the existing key format: "should_store_eligibility_check_data_for_authentication_{merchant_id}"
-        Some(format!("{}_{}", Self::KEY, merchant_id))
+        dimensions
+            .get_processor_merchant_id()
+            .map(|id| format!("{}_{}", Self::KEY, id.get_string_repr()))
     }
 }
 
@@ -262,12 +250,10 @@ impl DatabaseBackedConfig for EnableExtendedCardBin {
     const KEY: &'static str = "enable_extended_card_bin";
 
     fn db_key(dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
-        let profile_id = dimensions
-            .get_profile_id()
-            .map(|id| id.get_string_repr())
-            .unwrap_or_default();
         // Matches the existing key format: "{profile_id}_enable_extended_card_bin"
-        Some(format!("{}_{}", profile_id, Self::KEY))
+        dimensions
+            .get_profile_id()
+            .map(|id| format!("{}_{}", id.get_string_repr(), Self::KEY))
     }
 }
 

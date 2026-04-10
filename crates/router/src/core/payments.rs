@@ -324,7 +324,6 @@ where
                 None,
                 call_connector_service_response,
                 &dimensions,
-                &dimensions,
             )
             .await?;
 
@@ -428,7 +427,6 @@ where
                 #[cfg(feature = "frm")]
                 None,
                 call_connector_service_response,
-                &dimensions,
                 &dimensions,
             )
             .await?;
@@ -1942,7 +1940,6 @@ where
                 router_data,
                 updated_customer,
                 &dimensions,
-                &dimensions,
             )
             .await?;
 
@@ -2048,7 +2045,6 @@ where
             None,
             header_payload,
             &dimensions,
-            &dimensions,
         )
         .await?;
 
@@ -2127,7 +2123,6 @@ where
             payment_data,
             None,
             header_payload,
-            &dimensions,
             &dimensions,
         )
         .await?;
@@ -2970,7 +2965,6 @@ pub async fn record_attempt_core(
             record_payment_data,
             None,
             header_payload.clone(),
-            &dimensions,
             &dimensions,
         )
         .await?;
@@ -5363,7 +5357,6 @@ where
             frm_suggestion,
             header_payload.clone(),
             dimensions,
-            dimensions,
         )
         .await?;
     *payment_data = new_payment_data;
@@ -5777,7 +5770,6 @@ where
             None, // frm_suggestion is not used in internal flows
             header_payload.clone(),
             &dimensions,
-            &dimensions,
         )
         .await?;
 
@@ -5950,7 +5942,6 @@ where
                 payment_data.clone(),
                 frm_suggestion,
                 header_payload.clone(),
-                dimensions,
                 dimensions,
             )
             .await?;
@@ -6295,7 +6286,6 @@ where
             None,
             header_payload.clone(),
             &dimensions,
-            &dimensions,
         )
         .await?;
 
@@ -6423,7 +6413,6 @@ where
             payment_data.clone(),
             None,
             header_payload.clone(),
-            &dimensions,
             &dimensions,
         )
         .await?;

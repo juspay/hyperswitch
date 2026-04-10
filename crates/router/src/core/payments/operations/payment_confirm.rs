@@ -519,7 +519,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             .or(payment_method_recurring_details.clone());
 
         let store = state.clone().store;
-        let superposition_service = state.clone().superposition_service;
+        let superposition_service = state.superposition_service.clone();
         let profile_id = payment_intent
             .profile_id
             .clone()
