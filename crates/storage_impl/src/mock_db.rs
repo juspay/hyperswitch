@@ -158,6 +158,33 @@ impl MockDb {
         }
     }
 
+    /// Returns an option of the resource if it exists
+    pub async fn find_resource_new<D, R>(
+        &self,
+        key_store: &MerchantKeyStore,
+        resources: MutexGuard<'_, Vec<D>>,
+        filter_fn: impl Fn(&&D) -> bool,
+    ) -> CustomResult<Option<R>, StorageError>
+    where
+        D: Sync + crate::behaviour::ReverseConversion<R> + Clone,
+        R: crate::behaviour::Conversion,
+    {
+        let resource = resources.iter().find(filter_fn).cloned();
+        match resource {
+            Some(res) => Ok(Some(
+                res.convert(
+                    self.get_keymanager_state()
+                        .attach_printable("Missing KeyManagerState")?,
+                    key_store.key.get_inner(),
+                    key_store.merchant_id.clone().into(),
+                )
+                .await
+                .change_context(StorageError::DecryptionError)?,
+            )),
+            None => Ok(None),
+        }
+    }
+
     /// Throws errors when the requested resource is not found
     pub async fn get_resource<D, R>(
         &self,
@@ -171,6 +198,26 @@ impl MockDb {
         R: Conversion,
     {
         match self.find_resource(key_store, resources, filter_fn).await? {
+            Some(res) => Ok(res),
+            None => Err(StorageError::ValueNotFound(error_message).into()),
+        }
+    }
+
+    pub async fn get_resource_new<D, R>(
+        &self,
+        key_store: &MerchantKeyStore,
+        resources: MutexGuard<'_, Vec<D>>,
+        filter_fn: impl Fn(&&D) -> bool,
+        error_message: String,
+    ) -> CustomResult<R, StorageError>
+    where
+        D: Sync + crate::behaviour::ReverseConversion<R> + Clone,
+        R: crate::behaviour::Conversion,
+    {
+        match self
+            .find_resource_new(key_store, resources, filter_fn)
+            .await?
+        {
             Some(res) => Ok(res),
             None => Err(StorageError::ValueNotFound(error_message).into()),
         }
@@ -211,6 +258,41 @@ impl MockDb {
         }
     }
 
+    pub async fn get_resources_new<D, R>(
+        &self,
+        key_store: &MerchantKeyStore,
+        resources: MutexGuard<'_, Vec<D>>,
+        filter_fn: impl Fn(&&D) -> bool,
+        error_message: String,
+    ) -> CustomResult<Vec<R>, StorageError>
+    where
+        D: Sync + crate::behaviour::ReverseConversion<R> + Clone,
+        R: crate::behaviour::Conversion,
+    {
+        let resources: Vec<_> = resources.iter().filter(filter_fn).cloned().collect();
+        if resources.is_empty() {
+            Err(StorageError::ValueNotFound(error_message).into())
+        } else {
+            let pm_futures = resources
+                .into_iter()
+                .map(|pm| async {
+                    pm.convert(
+                        self.get_keymanager_state()
+                            .attach_printable("Missing KeyManagerState")?,
+                        key_store.key.get_inner(),
+                        key_store.merchant_id.clone().into(),
+                    )
+                    .await
+                    .change_context(StorageError::DecryptionError)
+                })
+                .collect::<Vec<_>>();
+
+            let domain_resources = futures::future::try_join_all(pm_futures).await?;
+
+            Ok(domain_resources)
+        }
+    }
+
     pub async fn update_resource<D, R>(
         &self,
         key_store: &MerchantKeyStore,
@@ -222,6 +304,35 @@ impl MockDb {
     where
         D: Sync + ReverseConversion<R> + Clone,
         R: Conversion,
+    {
+        if let Some(pm) = resources.iter_mut().find(filter_fn) {
+            *pm = resource_updated.clone();
+            let result = resource_updated
+                .convert(
+                    self.get_keymanager_state()
+                        .attach_printable("Missing KeyManagerState")?,
+                    key_store.key.get_inner(),
+                    key_store.merchant_id.clone().into(),
+                )
+                .await
+                .change_context(StorageError::DecryptionError)?;
+            Ok(result)
+        } else {
+            Err(StorageError::ValueNotFound(error_message).into())
+        }
+    }
+
+    pub async fn update_resource_new<D, R>(
+        &self,
+        key_store: &MerchantKeyStore,
+        mut resources: MutexGuard<'_, Vec<D>>,
+        resource_updated: D,
+        filter_fn: impl Fn(&&mut D) -> bool,
+        error_message: String,
+    ) -> CustomResult<R, StorageError>
+    where
+        D: Sync + crate::behaviour::ReverseConversion<R> + Clone,
+        R: crate::behaviour::Conversion,
     {
         if let Some(pm) = resources.iter_mut().find(filter_fn) {
             *pm = resource_updated.clone();

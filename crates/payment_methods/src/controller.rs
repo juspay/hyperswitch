@@ -16,7 +16,7 @@ use hyperswitch_masking::{PeekInterface, Secret};
 #[cfg(feature = "v1")]
 use scheduler::errors as sch_errors;
 use serde::{Deserialize, Serialize};
-use storage_impl::{errors as storage_errors, payment_method};
+use storage_impl::errors as storage_errors;
 
 use crate::core::errors;
 
@@ -311,7 +311,7 @@ where
 
     let encrypted_data = type_encryption::crypto_operation(
         key_manager_state,
-        type_name!(payment_method::PaymentMethod),
+        type_name!(payment_methods::PaymentMethod),
         type_encryption::CryptoOperation::Encrypt(secret_data),
         identifier.clone(),
         key,

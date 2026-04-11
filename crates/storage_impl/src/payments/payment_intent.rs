@@ -1522,6 +1522,7 @@ impl<T: DatabaseStore> PaymentIntentInterface for crate::RouterStore<T> {
             .get_keymanager_state()
             .attach_printable("Missing KeyManagerState")?;
 
+        use crate::behaviour::Conversion;
         query
             .get_results_async::<(
                 DieselPaymentIntent,
