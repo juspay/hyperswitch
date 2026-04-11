@@ -5721,6 +5721,13 @@ key1 = "Wise Account Id"
 [wise_payout.connector_webhook_details]
 merchant_secret="Source verification key"
 
+[itaubank_payout]
+[[itaubank_payout.bank_transfer]]
+  payment_method_type = "pix"
+[itaubank_payout.connector_auth.BodyKey]
+key1="Client Id"
+api_key="Client Secret"
+
 [threedsecureio]
 [threedsecureio.connector_auth.HeaderKey]
 api_key = "Api Key"
@@ -8253,7 +8260,7 @@ type = "Text"
 api_key = "Client ID"
 key1 = "Client Secret"
 [[truelayer.bank_redirect]]
-payment_method_type = "open_banking_uk"
+payment_method_type = "open_banking"
 
 [truelayer.metadata.kid]
 name = "kid"
