@@ -112,7 +112,7 @@ pub async fn register_connector_webhook(
     );
 
     if should_update_db {
-        db.update_merchant_connector_account(mca.clone(), connector_webhook_registration_details.into(), &key_store)
+        db.update_merchant_connector_account(mca.clone(), <diesel_models::MerchantConnectorAccountUpdateInternal as storage_impl::behaviour::ForeignFrom<_>>::foreign_from(connector_webhook_registration_details), &key_store)
             .await
             .change_context(
                 errors::ApiErrorResponse::DuplicateMerchantConnectorAccount {
