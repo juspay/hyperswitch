@@ -117,26 +117,45 @@ pub async fn get_parent_group_info(
         ));
     }
 
-    let parent_groups =
-        ParentGroup::get_descriptions_for_groups(entity_type, PermissionGroup::iter().collect())
-            .unwrap_or_default()
-            .into_iter()
-            .map(
-                |(parent_group, description)| role_api::ParentGroupDescription {
-                    name: parent_group.clone(),
-                    description,
-                    scopes: PermissionGroup::iter()
-                        .filter_map(|group| {
-                            (group.parent() == parent_group).then_some(group.scope())
-                        })
-                        // TODO: Remove this hashset conversion when merchant access
-                        // and organization access groups are removed
-                        .collect::<HashSet<_>>()
-                        .into_iter()
-                        .collect(),
-                },
-            )
-            .collect::<Vec<_>>();
+    let merchant_key_store = state
+        .store
+        .get_merchant_key_store_by_merchant_id(
+            &user_from_token.merchant_id,
+            &state.store.get_master_key().to_vec().into(),
+        )
+        .await
+        .change_context(UserErrors::InternalServerError)
+        .attach_printable("Failed to retrieve merchant key store by merchant_id")?;
+
+    let merchant_product_type = state
+        .store
+        .find_merchant_account_by_merchant_id(&user_from_token.merchant_id, &merchant_key_store)
+        .await
+        .map(|merchant_account| merchant_account.product_type.unwrap_or_default())
+        .to_not_found_response(UserErrors::MerchantIdNotFound)?;
+
+    let parent_groups = ParentGroup::get_descriptions_for_groups(
+        entity_type,
+        PermissionGroup::iter()
+            .filter(|group| group.get_product_type() == merchant_product_type)
+            .collect(),
+    )
+    .unwrap_or_default()
+    .into_iter()
+    .map(
+        |(parent_group, description)| role_api::ParentGroupDescription {
+            name: parent_group.clone(),
+            description,
+            scopes: PermissionGroup::iter()
+                .filter_map(|group| (group.parent() == parent_group).then_some(group.scope()))
+                // TODO: Remove this hashset conversion when merchant access
+                // and organization access groups are removed
+                .collect::<HashSet<_>>()
+                .into_iter()
+                .collect(),
+        },
+    )
+    .collect::<Vec<_>>();
 
     Ok(ApplicationResponse::Json(parent_groups))
 }
