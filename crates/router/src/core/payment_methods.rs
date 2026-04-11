@@ -1304,7 +1304,9 @@ async fn payment_method_resolver(
                     Box::new(existing_pm),
                 )))
             }
-            enums::PaymentMethodStatus::AwaitingData | enums::PaymentMethodStatus::Processing => {
+            enums::PaymentMethodStatus::AwaitingData
+            | enums::PaymentMethodStatus::Processing
+            | enums::PaymentMethodStatus::Redacted => {
                 // no payment method entry will be found with finger print id and awaiting data or processing state
                 logger::info!("Payment method is in awaiting data or processing state, no existing payment method entry found with fingerprint id");
                 Err(
@@ -4488,9 +4490,9 @@ pub async fn delete_payment_method_by_record(
     profile: &domain::Profile,
     payment_method: domain::PaymentMethod,
 ) -> RouterResult<()> {
-    // Soft delete
+    // Soft delete - mark as Redacted (terminal state, no transitions allowed)
     let pm_update = storage::PaymentMethodUpdate::StatusAndFingerprintUpdate {
-        status: Some(enums::PaymentMethodStatus::Inactive),
+        status: Some(enums::PaymentMethodStatus::Redacted),
         last_modified_by: platform
             .get_initiator()
             .and_then(|initiator| initiator.to_created_by())
