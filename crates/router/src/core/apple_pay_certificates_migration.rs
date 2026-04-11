@@ -83,7 +83,7 @@ pub async fn apple_pay_certificates_migration(
                         connector_wallets_details: encrypted_apple_pay_metadata,
                     };
 
-                mca_to_update.push((connector_account, updated_mca.into()));
+                mca_to_update.push((connector_account, <diesel_models::MerchantConnectorAccountUpdateInternal as storage_impl::behaviour::ForeignFrom<_>>::foreign_from(updated_mca)));
             }
         }
 

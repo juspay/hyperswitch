@@ -553,7 +553,9 @@ async fn link_hierarchical_resource_data_to_scope(
         RequestorAccount::MerchantConnectorAccount(mca) => {
             db.update_merchant_connector_account(
                 *mca,
-                update.for_merchant_connector_account().into(),
+                <diesel_models::MerchantConnectorAccountUpdateInternal as storage_impl::behaviour::ForeignFrom<
+                    _,
+                >>::foreign_from(update.for_merchant_connector_account()),
                 key_store,
             )
             .await
