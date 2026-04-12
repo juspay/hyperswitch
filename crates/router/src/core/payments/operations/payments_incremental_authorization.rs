@@ -188,6 +188,7 @@ impl<F: Send + Clone + Sync>
             is_l2_l3_enabled: false,
             external_authentication_data: None,
             client_session_id: None,
+            vault_session_details: None,
         };
 
         let get_trackers_response = operations::GetTrackerResponse {
