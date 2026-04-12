@@ -2982,15 +2982,11 @@ async fn disputes_incoming_webhook_flow(
         let disputes_response = Box::new(dispute_object.clone().foreign_into());
         let event_type: enums::EventType = dispute_object.dispute_status.into();
 
-        let dispute_created_by = dispute_object
-            .created_by
-            .as_deref()
-            .and_then(|created_by| created_by.parse::<common_utils::types::CreatedBy>().ok());
         let webhook_recipient = utils::resolve_webhook_recipient_from_created_by(
             &state,
             &platform,
             &business_profile,
-            dispute_created_by.as_ref(),
+            payment_attempt.created_by.as_ref(),
         )
         .await?;
 
