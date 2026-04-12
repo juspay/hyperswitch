@@ -139,6 +139,7 @@ pub(crate) async fn create_event_and_trigger_outgoing_webhook(
         metadata: Some(event_metadata),
         is_overall_delivery_successful: Some(false),
         processor_merchant_id: Some(processor_merchant_id.clone()),
+        initiator_merchant_id: Some(webhook_recipient.key_store.merchant_id.clone()),
     };
 
     let lock_value = utils::perform_redis_lock(
@@ -266,7 +267,6 @@ pub(crate) async fn trigger_webhook_and_raise_event(
         state.clone(),
         business_profile,
         merchant_key_store,
-        &provider_merchant_id,
         event.clone(),
         request_content,
         delivery_attempt,
@@ -286,12 +286,10 @@ pub(crate) async fn trigger_webhook_and_raise_event(
     .await;
 }
 
-#[allow(clippy::too_many_arguments)]
 async fn trigger_webhook_to_merchant(
     state: SessionState,
     business_profile: domain::Profile,
     merchant_key_store: &domain::MerchantKeyStore,
-    provider_merchant_id: &common_utils::id_type::MerchantId,
     event: domain::Event,
     request_content: OutgoingWebhookRequestContent,
     delivery_attempt: enums::WebhookDeliveryAttempt,
@@ -358,7 +356,6 @@ async fn trigger_webhook_to_merchant(
                 api_client_error_handler(
                     state.clone(),
                     merchant_key_store.clone(),
-                    provider_merchant_id,
                     webhook_recipient_merchant_id,
                     &event_id,
                     client_error,
@@ -372,7 +369,6 @@ async fn trigger_webhook_to_merchant(
                 let updated_event = update_event_in_storage(
                     state.clone(),
                     merchant_key_store.clone(),
-                    provider_merchant_id,
                     &event_id,
                     response,
                 )
@@ -382,7 +378,6 @@ async fn trigger_webhook_to_merchant(
                     update_overall_delivery_status_in_storage(
                         state.clone(),
                         merchant_key_store.clone(),
-                        provider_merchant_id,
                         updated_event,
                     )
                     .await?;
@@ -417,7 +412,6 @@ async fn trigger_webhook_to_merchant(
                     api_client_error_handler(
                         state.clone(),
                         merchant_key_store.clone(),
-                        provider_merchant_id,
                         webhook_recipient_merchant_id,
                         &event_id,
                         client_error,
@@ -431,7 +425,6 @@ async fn trigger_webhook_to_merchant(
                     let updated_event = update_event_in_storage(
                         state.clone(),
                         merchant_key_store.clone(),
-                        provider_merchant_id,
                         &event_id,
                         response,
                     )
@@ -441,7 +434,6 @@ async fn trigger_webhook_to_merchant(
                         update_overall_delivery_status_in_storage(
                             state.clone(),
                             merchant_key_store.clone(),
-                            provider_merchant_id,
                             updated_event,
                         )
                         .await?;
@@ -472,7 +464,6 @@ async fn trigger_webhook_to_merchant(
                 api_client_error_handler(
                     state.clone(),
                     merchant_key_store.clone(),
-                    provider_merchant_id,
                     webhook_recipient_merchant_id,
                     &event_id,
                     client_error,
@@ -486,7 +477,6 @@ async fn trigger_webhook_to_merchant(
                 let _updated_event = update_event_in_storage(
                     state.clone(),
                     merchant_key_store.clone(),
-                    provider_merchant_id,
                     &event_id,
                     response,
                 )
@@ -541,10 +531,10 @@ async fn raise_webhooks_analytics_event(
         .and_then(api::OutgoingWebhookContent::get_outgoing_webhook_event_content)
         .or_else(|| get_outgoing_webhook_event_content_from_event_metadata(event.metadata));
 
-    // Fetch updated_event from db
+    // Fetch updated_event from db (event_id is globally unique)
     let updated_event = state
         .store
-        .find_event_by_merchant_id_event_id(&provider_merchant_id, &event_id, merchant_key_store)
+        .find_event_by_event_id(&event_id, merchant_key_store)
         .await
         .attach_printable_lazy(|| format!("event not found for id: {}", &event_id))
         .map_err(|error| {
@@ -608,7 +598,7 @@ pub(crate) async fn add_outgoing_webhook_retry_task_to_process_tracker(
         merchant_id: provider_merchant_id,
         business_profile_id: webhook_recipient.profile.get_id().to_owned(),
         processor_merchant_id: Some(processor_merchant_id),
-        is_platform_initiated: Some(webhook_recipient.is_platform_initiated),
+        initiator_merchant_id: Some(webhook_recipient.key_store.merchant_id.clone()),
         event_type: event.event_type,
         event_class: event.event_class,
         primary_object_id: event.primary_object_id.clone(),
@@ -745,7 +735,6 @@ enum ScheduleWebhookRetry {
 async fn update_event_if_client_error(
     state: SessionState,
     merchant_key_store: domain::MerchantKeyStore,
-    merchant_id: &common_utils::id_type::MerchantId,
     event_id: &str,
     error_message: String,
 ) -> CustomResult<domain::Event, errors::WebhooksFlowError> {
@@ -784,21 +773,14 @@ async fn update_event_if_client_error(
 
     state
         .store
-        .update_event_by_merchant_id_event_id(
-            merchant_id,
-            event_id,
-            event_update,
-            &merchant_key_store,
-        )
+        .update_event_by_event_id(event_id, event_update, &merchant_key_store)
         .await
         .change_context(errors::WebhooksFlowError::WebhookEventUpdationFailed)
 }
 
-#[allow(clippy::too_many_arguments)]
 async fn api_client_error_handler(
     state: SessionState,
     merchant_key_store: domain::MerchantKeyStore,
-    provider_merchant_id: &common_utils::id_type::MerchantId,
     webhook_recipient_merchant_id: &common_utils::id_type::MerchantId,
     event_id: &str,
     client_error: error_stack::Report<errors::ApiClientError>,
@@ -810,7 +792,6 @@ async fn api_client_error_handler(
     update_event_if_client_error(
         state.clone(),
         merchant_key_store,
-        provider_merchant_id,
         event_id,
         "Unable to send request to merchant server".to_string(),
     )
@@ -841,7 +822,6 @@ async fn api_client_error_handler(
 async fn update_event_in_storage(
     state: SessionState,
     merchant_key_store: domain::MerchantKeyStore,
-    merchant_id: &common_utils::id_type::MerchantId,
     event_id: &str,
     response: reqwest::Response,
 ) -> CustomResult<domain::Event, errors::WebhooksFlowError> {
@@ -907,12 +887,7 @@ async fn update_event_in_storage(
     };
     state
         .store
-        .update_event_by_merchant_id_event_id(
-            merchant_id,
-            event_id,
-            event_update,
-            &merchant_key_store,
-        )
+        .update_event_by_event_id(event_id, event_update, &merchant_key_store)
         .await
         .change_context(errors::WebhooksFlowError::WebhookEventUpdationFailed)
 }
@@ -920,7 +895,6 @@ async fn update_event_in_storage(
 async fn update_overall_delivery_status_in_storage(
     state: SessionState,
     merchant_key_store: domain::MerchantKeyStore,
-    merchant_id: &common_utils::id_type::MerchantId,
     updated_event: domain::Event,
 ) -> CustomResult<(), errors::WebhooksFlowError> {
     let update_overall_delivery_status = domain::EventUpdate::OverallDeliveryStatusUpdate {
@@ -938,8 +912,7 @@ async fn update_overall_delivery_status_in_storage(
     {
         state
             .store
-            .update_event_by_merchant_id_event_id(
-                merchant_id,
+            .update_event_by_event_id(
                 initial_attempt_id.as_str(),
                 update_overall_delivery_status,
                 &merchant_key_store,

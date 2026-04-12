@@ -74,6 +74,10 @@ pub struct Event {
 
     /// The merchant_id of the merchant whose connector credentials are used for payment processing.
     pub processor_merchant_id: Option<common_utils::id_type::MerchantId>,
+
+    /// The merchant_id of the merchant that initiated the operation for which this event was
+    /// generated. This is also the webhook recipient.
+    pub initiator_merchant_id: Option<common_utils::id_type::MerchantId>,
 }
 
 #[derive(Debug)]
@@ -134,6 +138,7 @@ impl super::behaviour::Conversion for Event {
             metadata: self.metadata,
             is_overall_delivery_successful: self.is_overall_delivery_successful,
             processor_merchant_id: self.processor_merchant_id,
+            initiator_merchant_id: self.initiator_merchant_id,
         })
     }
 
@@ -185,6 +190,7 @@ impl super::behaviour::Conversion for Event {
             metadata: item.metadata,
             is_overall_delivery_successful: item.is_overall_delivery_successful,
             processor_merchant_id: item.processor_merchant_id,
+            initiator_merchant_id: item.initiator_merchant_id,
         })
     }
 
@@ -208,6 +214,7 @@ impl super::behaviour::Conversion for Event {
             metadata: self.metadata,
             is_overall_delivery_successful: self.is_overall_delivery_successful,
             processor_merchant_id: self.processor_merchant_id,
+            initiator_merchant_id: self.initiator_merchant_id,
         })
     }
 }

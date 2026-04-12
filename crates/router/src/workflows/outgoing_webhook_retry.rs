@@ -56,23 +56,17 @@ impl ProcessTrackerWorkflow<SessionState> for OutgoingWebhookRetryWorkflow {
         let master_key = &db.get_master_key().to_vec().into();
         let provider_merchant_id = tracking_data.merchant_id.clone();
 
-        // Resolve the webhook recipient's merchant_id for keystore lookup:
-        // Platform initiated → profile belongs to provider → use merchant_id (provider)
-        // Otherwise → profile belongs to processor → use processor_merchant_id
-        // For old tracking data without these fields, both default to merchant_id (standard flow)
-        let webhook_recipient_merchant_id =
-            if tracking_data.is_platform_initiated.unwrap_or_default() {
-                provider_merchant_id.clone()
-            } else {
-                tracking_data
-                    .processor_merchant_id
-                    .clone()
-                    .unwrap_or(provider_merchant_id.clone())
-            };
+        // Resolve the webhook recipient's merchant_id for keystore lookup.
+        // `initiator_merchant_id` is populated by new deployments; fall back to
+        // `merchant_id` for tracking data written by older deployments.
+        let webhook_recipient_merchant_id = tracking_data
+            .initiator_merchant_id
+            .clone()
+            .unwrap_or_else(|| tracking_data.merchant_id.clone());
         let processor_merchant_id = tracking_data
             .processor_merchant_id
             .clone()
-            .unwrap_or(provider_merchant_id.clone());
+            .unwrap_or_else(|| tracking_data.merchant_id.clone());
 
         let webhook_key_store = db
             .get_merchant_key_store_by_merchant_id(&webhook_recipient_merchant_id, master_key)
@@ -93,30 +87,18 @@ impl ProcessTrackerWorkflow<SessionState> for OutgoingWebhookRetryWorkflow {
         .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)
         .attach_printable("Failed to generate idempotent event ID")?;
 
-        let initial_event = match &tracking_data.initial_attempt_id {
-            Some(initial_attempt_id) => {
-                db.find_event_by_merchant_id_event_id(
-                    &provider_merchant_id,
-                    initial_attempt_id,
-                    &webhook_key_store,
-                )
-                .await?
-            }
-            // Tracking data inserted by old version of application, fetch event using old event ID
-            // format
-            None => {
-                let old_event_id = format!(
-                    "{}_{}",
-                    tracking_data.primary_object_id, tracking_data.event_type
-                );
-                db.find_event_by_merchant_id_event_id(
-                    &provider_merchant_id,
-                    &old_event_id,
-                    &webhook_key_store,
-                )
-                .await?
-            }
-        };
+        // Look up the initial event by event_id alone (event_id is globally unique).
+        // This works regardless of which merchant owns the event and also handles
+        // old tracking data created before `initial_attempt_id` was tracked.
+        let initial_attempt_id = tracking_data.initial_attempt_id.clone().unwrap_or_else(|| {
+            format!(
+                "{}_{}",
+                tracking_data.primary_object_id, tracking_data.event_type
+            )
+        });
+        let initial_event = db
+            .find_event_by_event_id(&initial_attempt_id, &webhook_key_store)
+            .await?;
 
         let now = common_utils::date_time::now();
         let new_event = domain::Event {
@@ -140,6 +122,9 @@ impl ProcessTrackerWorkflow<SessionState> for OutgoingWebhookRetryWorkflow {
             processor_merchant_id: initial_event
                 .processor_merchant_id
                 .or(Some(processor_merchant_id.clone())),
+            initiator_merchant_id: initial_event
+                .initiator_merchant_id
+                .or(Some(webhook_key_store.merchant_id.clone())),
         };
 
         let event = db
@@ -232,9 +217,11 @@ impl ProcessTrackerWorkflow<SessionState> for OutgoingWebhookRetryWorkflow {
                             processor_merchant_id: Some(processor_merchant_id.clone()),
                         };
 
-                        // Use the webhook recipient's merchant account for request construction
+                        // Use the webhook recipient's merchant account for request construction.
+                        // If the recipient is the provider, use the provider account (platform-initiated);
+                        // otherwise use the processor account (connected-merchant-initiated).
                         let webhook_recipient_account =
-                            if tracking_data.is_platform_initiated.unwrap_or_default() {
+                            if webhook_recipient_merchant_id == provider_merchant_id {
                                 platform.get_provider().get_account()
                             } else {
                                 platform.get_processor().get_account()

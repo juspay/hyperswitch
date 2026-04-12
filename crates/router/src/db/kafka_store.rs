@@ -723,6 +723,16 @@ impl EventInterface for KafkaStore {
             .await
     }
 
+    async fn find_event_by_event_id(
+        &self,
+        event_id: &str,
+        merchant_key_store: &domain::MerchantKeyStore,
+    ) -> CustomResult<domain::Event, errors::StorageError> {
+        self.diesel_store
+            .find_event_by_event_id(event_id, merchant_key_store)
+            .await
+    }
+
     async fn find_event_by_merchant_id_event_id(
         &self,
         merchant_id: &id_type::MerchantId,
@@ -744,6 +754,31 @@ impl EventInterface for KafkaStore {
             .find_event_by_merchant_id_idempotent_event_id(
                 merchant_id,
                 idempotent_event_id,
+                merchant_key_store,
+            )
+            .await
+    }
+
+    async fn list_initial_events_by_initiator_merchant_id_constraints(
+        &self,
+        initiator_merchant_id: &id_type::MerchantId,
+        created_after: PrimitiveDateTime,
+        created_before: PrimitiveDateTime,
+        limit: Option<i64>,
+        offset: Option<i64>,
+        event_types: HashSet<common_enums::EventType>,
+        is_delivered: Option<bool>,
+        merchant_key_store: &domain::MerchantKeyStore,
+    ) -> CustomResult<Vec<domain::Event>, errors::StorageError> {
+        self.diesel_store
+            .list_initial_events_by_initiator_merchant_id_constraints(
+                initiator_merchant_id,
+                created_after,
+                created_before,
+                limit,
+                offset,
+                event_types,
+                is_delivered,
                 merchant_key_store,
             )
             .await
@@ -774,6 +809,16 @@ impl EventInterface for KafkaStore {
             .await
     }
 
+    async fn list_events_by_initial_attempt_id(
+        &self,
+        initial_attempt_id: &str,
+        merchant_key_store: &domain::MerchantKeyStore,
+    ) -> CustomResult<Vec<domain::Event>, errors::StorageError> {
+        self.diesel_store
+            .list_events_by_initial_attempt_id(initial_attempt_id, merchant_key_store)
+            .await
+    }
+
     async fn list_events_by_merchant_id_initial_attempt_id(
         &self,
         merchant_id: &id_type::MerchantId,
@@ -784,6 +829,21 @@ impl EventInterface for KafkaStore {
             .list_events_by_merchant_id_initial_attempt_id(
                 merchant_id,
                 initial_attempt_id,
+                merchant_key_store,
+            )
+            .await
+    }
+
+    async fn list_initial_events_by_initiator_merchant_id_primary_object_id(
+        &self,
+        initiator_merchant_id: &id_type::MerchantId,
+        primary_object_id: &str,
+        merchant_key_store: &domain::MerchantKeyStore,
+    ) -> CustomResult<Vec<domain::Event>, errors::StorageError> {
+        self.diesel_store
+            .list_initial_events_by_initiator_merchant_id_primary_object_id(
+                initiator_merchant_id,
+                primary_object_id,
                 merchant_key_store,
             )
             .await
@@ -874,6 +934,17 @@ impl EventInterface for KafkaStore {
             .await
     }
 
+    async fn update_event_by_event_id(
+        &self,
+        event_id: &str,
+        event: domain::EventUpdate,
+        merchant_key_store: &domain::MerchantKeyStore,
+    ) -> CustomResult<domain::Event, errors::StorageError> {
+        self.diesel_store
+            .update_event_by_event_id(event_id, event, merchant_key_store)
+            .await
+    }
+
     async fn update_event_by_merchant_id_event_id(
         &self,
         merchant_id: &id_type::MerchantId,
@@ -883,6 +954,27 @@ impl EventInterface for KafkaStore {
     ) -> CustomResult<domain::Event, errors::StorageError> {
         self.diesel_store
             .update_event_by_merchant_id_event_id(merchant_id, event_id, event, merchant_key_store)
+            .await
+    }
+
+    async fn count_initial_events_by_initiator_merchant_id_constraints(
+        &self,
+        initiator_merchant_id: &id_type::MerchantId,
+        profile_id: Option<id_type::ProfileId>,
+        created_after: PrimitiveDateTime,
+        created_before: PrimitiveDateTime,
+        event_types: HashSet<common_enums::EventType>,
+        is_delivered: Option<bool>,
+    ) -> CustomResult<i64, errors::StorageError> {
+        self.diesel_store
+            .count_initial_events_by_initiator_merchant_id_constraints(
+                initiator_merchant_id,
+                profile_id,
+                created_after,
+                created_before,
+                event_types,
+                is_delivered,
+            )
             .await
     }
 

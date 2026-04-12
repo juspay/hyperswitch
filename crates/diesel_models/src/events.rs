@@ -28,6 +28,7 @@ pub struct EventNew {
     pub metadata: Option<EventMetadata>,
     pub is_overall_delivery_successful: Option<bool>,
     pub processor_merchant_id: Option<common_utils::id_type::MerchantId>,
+    pub initiator_merchant_id: Option<common_utils::id_type::MerchantId>,
 }
 
 #[derive(Clone, Debug, Default, AsChangeset, router_derive::DebugAsDisplay)]
@@ -62,6 +63,7 @@ pub struct Event {
     pub metadata: Option<EventMetadata>,
     pub is_overall_delivery_successful: Option<bool>,
     pub processor_merchant_id: Option<common_utils::id_type::MerchantId>,
+    pub initiator_merchant_id: Option<common_utils::id_type::MerchantId>,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, AsExpression, diesel::FromSqlRow)]

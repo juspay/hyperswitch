@@ -123,6 +123,7 @@ pub(crate) async fn create_event_and_trigger_outgoing_webhook(
         metadata: Some(event_metadata),
         is_overall_delivery_successful: Some(false),
         processor_merchant_id: Some(processor_merchant_id.clone()),
+        initiator_merchant_id: Some(webhook_recipient.key_store.merchant_id.clone()),
     };
 
     let event_insert_result = state

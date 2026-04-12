@@ -228,8 +228,6 @@ pub fn is_outgoing_webhook_disabled(
 /// Context resolved for outgoing webhook delivery, containing the recipient's
 /// merchant account, keystore, and business profile.
 pub(crate) struct WebhookRecipientContext {
-    /// Whether the operation was initiated by the platform merchant.
-    pub is_platform_initiated: bool,
     /// The webhook recipient's merchant account.
     pub merchant_account: domain::MerchantAccount,
     /// The webhook recipient's keystore (used for encryption/decryption).
@@ -302,7 +300,6 @@ async fn resolve_webhook_recipient_inner(
     };
 
     Ok(WebhookRecipientContext {
-        is_platform_initiated,
         merchant_account,
         key_store,
         profile,
