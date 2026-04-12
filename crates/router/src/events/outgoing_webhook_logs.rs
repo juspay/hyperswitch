@@ -23,6 +23,7 @@ pub struct OutgoingWebhookEvent {
     status_code: Option<u16>,
     delivery_attempt: Option<WebhookDeliveryAttempt>,
     processor_merchant_id: Option<common_utils::id_type::MerchantId>,
+    initiator_merchant_id: Option<common_utils::id_type::MerchantId>,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize)]
@@ -172,6 +173,7 @@ impl OutgoingWebhookEvent {
         tenant_id: common_utils::id_type::TenantId,
         merchant_id: common_utils::id_type::MerchantId,
         processor_merchant_id: Option<common_utils::id_type::MerchantId>,
+        initiator_merchant_id: Option<common_utils::id_type::MerchantId>,
         event_id: String,
         event_type: OutgoingWebhookEventType,
         content: Option<OutgoingWebhookEventContent>,
@@ -184,6 +186,7 @@ impl OutgoingWebhookEvent {
             tenant_id,
             merchant_id,
             processor_merchant_id,
+            initiator_merchant_id,
             event_id,
             event_type,
             content,

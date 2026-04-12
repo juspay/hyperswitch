@@ -17,7 +17,8 @@ CREATE TABLE outgoing_webhook_events_queue (
     `status_code` Nullable(UInt16),
     `delivery_attempt` LowCardinality(String),
     `created_at_timestamp` DateTime64(3),
-    `processor_merchant_id` Nullable(String)
+    `processor_merchant_id` Nullable(String),
+    `initiator_merchant_id` Nullable(String)
 ) ENGINE = Kafka SETTINGS kafka_broker_list = 'kafka0:29092',
 kafka_topic_list = 'hyperswitch-outgoing-webhook-events',
 kafka_group_name = 'hyper',
@@ -45,6 +46,7 @@ CREATE TABLE outgoing_webhook_events (
     `created_at` DateTime64(3),
     `inserted_at` DateTime DEFAULT now() CODEC(T64, LZ4),
     `processor_merchant_id` Nullable(String),
+    `initiator_merchant_id` Nullable(String),
     INDEX eventIndex event_type TYPE bloom_filter GRANULARITY 1,
     INDEX webhookeventIndex outgoing_webhook_event_type TYPE bloom_filter GRANULARITY 1
 ) ENGINE = MergeTree PARTITION BY toStartOfDay(created_at)
@@ -76,7 +78,8 @@ CREATE TABLE outgoing_webhook_events_audit (
     `delivery_attempt` LowCardinality(String),
     `created_at` DateTime64(3),
     `inserted_at` DateTime DEFAULT now() CODEC(T64, LZ4),
-    `processor_merchant_id` Nullable(String)
+    `processor_merchant_id` Nullable(String),
+    `initiator_merchant_id` Nullable(String)
 ) ENGINE = MergeTree PARTITION BY merchant_id
 ORDER BY
     (merchant_id, payment_id) TTL inserted_at + toIntervalMonth(18) SETTINGS index_granularity = 8192;
@@ -122,7 +125,8 @@ CREATE MATERIALIZED VIEW outgoing_webhook_events_mv TO outgoing_webhook_events (
     `delivery_attempt` LowCardinality(String),
     `created_at` DateTime64(3),
     `inserted_at` DateTime DEFAULT now() CODEC(T64, LZ4),
-    `processor_merchant_id` Nullable(String)
+    `processor_merchant_id` Nullable(String),
+    `initiator_merchant_id` Nullable(String)
 ) AS
 SELECT
     merchant_id,
@@ -144,7 +148,8 @@ SELECT
     delivery_attempt,
     created_at_timestamp AS created_at,
     now() AS inserted_at,
-    processor_merchant_id
+    processor_merchant_id,
+    initiator_merchant_id
 FROM
     outgoing_webhook_events_queue
 WHERE
@@ -169,7 +174,8 @@ CREATE MATERIALIZED VIEW outgoing_webhook_events_audit_mv TO outgoing_webhook_ev
     `delivery_attempt` LowCardinality(String),
     `created_at` DateTime64(3),
     `inserted_at` DateTime DEFAULT now() CODEC(T64, LZ4),
-    `processor_merchant_id` Nullable(String)
+    `processor_merchant_id` Nullable(String),
+    `initiator_merchant_id` Nullable(String)
 ) AS
 SELECT
     merchant_id,
@@ -190,7 +196,8 @@ SELECT
     delivery_attempt,
     created_at_timestamp AS created_at,
     now() AS inserted_at,
-    processor_merchant_id
+    processor_merchant_id,
+    initiator_merchant_id
 FROM
     outgoing_webhook_events_queue
 WHERE

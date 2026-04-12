@@ -562,6 +562,7 @@ async fn raise_webhooks_analytics_event(
         state.tenant.tenant_id.clone(),
         provider_merchant_id,
         Some(processor_merchant_id),
+        event.initiator_merchant_id,
         event_id,
         event.event_type,
         outgoing_webhook_event_content,
