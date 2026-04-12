@@ -5730,6 +5730,15 @@ impl<'a> pm_types::PaymentMethodUpdateHandler<'a> {
     }
 
     fn validate(&self) -> RouterResult<()> {
+        let payment_method = &self.payment_method;
+        when(
+            payment_method.status == enums::PaymentMethodStatus::Redacted,
+            || {
+                Err(errors::ApiErrorResponse::InvalidRequestData {
+                    message: "Redacted Payment Method cannot be updated".to_string(),
+                })
+            },
+        )?;
         Ok(())
     }
 
