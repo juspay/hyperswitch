@@ -957,6 +957,25 @@ impl EventInterface for KafkaStore {
             .await
     }
 
+    async fn count_initial_events_by_profile_id_constraints(
+        &self,
+        profile_id: &id_type::ProfileId,
+        created_after: PrimitiveDateTime,
+        created_before: PrimitiveDateTime,
+        event_types: HashSet<common_enums::EventType>,
+        is_delivered: Option<bool>,
+    ) -> CustomResult<i64, errors::StorageError> {
+        self.diesel_store
+            .count_initial_events_by_profile_id_constraints(
+                profile_id,
+                created_after,
+                created_before,
+                event_types,
+                is_delivered,
+            )
+            .await
+    }
+
     async fn count_initial_events_by_initiator_merchant_id_constraints(
         &self,
         initiator_merchant_id: &id_type::MerchantId,

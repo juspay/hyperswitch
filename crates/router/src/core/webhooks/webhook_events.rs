@@ -206,18 +206,33 @@ pub async fn list_initial_delivery_attempts(
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to list events with specified constraints")?;
 
-            let total_count = store
-                .count_initial_events_by_initiator_merchant_id_constraints(
-                    &merchant_id,
-                    profile_id,
-                    created_after,
-                    created_before,
-                    event_types,
-                    is_delivered,
-                )
-                .await
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Failed to get total events count")?;
+            let total_count = match profile_id {
+                Some(profile_id) => {
+                    store
+                        .count_initial_events_by_profile_id_constraints(
+                            &profile_id,
+                            created_after,
+                            created_before,
+                            event_types,
+                            is_delivered,
+                        )
+                        .await
+                }
+                None => {
+                    store
+                        .count_initial_events_by_initiator_merchant_id_constraints(
+                            &merchant_id,
+                            None,
+                            created_after,
+                            created_before,
+                            event_types,
+                            is_delivered,
+                        )
+                        .await
+                }
+            }
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to get total events count")?;
 
             (events, total_count)
         }

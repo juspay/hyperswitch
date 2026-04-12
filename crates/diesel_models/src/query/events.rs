@@ -485,6 +485,45 @@ impl Event {
         .attach_printable("Error counting events by constraints")
     }
 
+    pub async fn count_initial_attempts_by_profile_id_constraints(
+        conn: &PgPooledConn,
+        profile_id: &common_utils::id_type::ProfileId,
+        created_after: time::PrimitiveDateTime,
+        created_before: time::PrimitiveDateTime,
+        event_types: HashSet<common_enums::EventType>,
+        is_delivered: Option<bool>,
+    ) -> StorageResult<i64> {
+        let mut query = Self::table()
+            .count()
+            .filter(
+                dsl::event_id
+                    .nullable()
+                    .eq(dsl::initial_attempt_id) // Filter initial attempts only
+                    .and(dsl::business_profile_id.eq(profile_id.to_owned())),
+            )
+            .into_boxed();
+
+        query = Self::apply_filters(
+            query,
+            None,
+            (dsl::created_at, created_after, created_before),
+            None,
+            None,
+            event_types,
+            is_delivered,
+        );
+
+        logger::debug!(query = %debug_query::<Pg, _>(&query).to_string());
+
+        track_database_call::<Self, _, _>(
+            query.get_result_async::<i64>(conn),
+            DatabaseOperation::Count,
+        )
+        .await
+        .change_context(DatabaseError::Others)
+        .attach_printable("Error counting events by profile_id constraints")
+    }
+
     pub async fn count_initial_attempts_by_initiator_merchant_id_constraints(
         conn: &PgPooledConn,
         initiator_merchant_id: &common_utils::id_type::MerchantId,

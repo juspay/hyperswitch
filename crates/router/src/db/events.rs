@@ -152,6 +152,15 @@ where
         merchant_key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<domain::Event, errors::StorageError>;
 
+    async fn count_initial_events_by_profile_id_constraints(
+        &self,
+        profile_id: &common_utils::id_type::ProfileId,
+        created_after: time::PrimitiveDateTime,
+        created_before: time::PrimitiveDateTime,
+        event_types: HashSet<common_enums::EventType>,
+        is_delivered: Option<bool>,
+    ) -> CustomResult<i64, errors::StorageError>;
+
     async fn count_initial_events_by_initiator_merchant_id_constraints(
         &self,
         initiator_merchant_id: &common_utils::id_type::MerchantId,
@@ -651,6 +660,27 @@ impl EventInterface for Store {
             )
             .await
             .change_context(errors::StorageError::DecryptionError)
+    }
+
+    async fn count_initial_events_by_profile_id_constraints(
+        &self,
+        profile_id: &common_utils::id_type::ProfileId,
+        created_after: time::PrimitiveDateTime,
+        created_before: time::PrimitiveDateTime,
+        event_types: HashSet<common_enums::EventType>,
+        is_delivered: Option<bool>,
+    ) -> CustomResult<i64, errors::StorageError> {
+        let conn = connection::pg_connection_read(self).await?;
+        storage::Event::count_initial_attempts_by_profile_id_constraints(
+            &conn,
+            profile_id,
+            created_after,
+            created_before,
+            event_types,
+            is_delivered,
+        )
+        .await
+        .map_err(|error| report!(errors::StorageError::from(error)))
     }
 
     async fn count_initial_events_by_initiator_merchant_id_constraints(
@@ -1376,6 +1406,34 @@ impl EventInterface for MockDb {
             )
             .await
             .change_context(errors::StorageError::DecryptionError)
+    }
+
+    async fn count_initial_events_by_profile_id_constraints(
+        &self,
+        profile_id: &common_utils::id_type::ProfileId,
+        created_after: time::PrimitiveDateTime,
+        created_before: time::PrimitiveDateTime,
+        event_types: HashSet<common_enums::EventType>,
+        is_delivered: Option<bool>,
+    ) -> CustomResult<i64, errors::StorageError> {
+        let locked_events = self.events.lock().await;
+
+        let iter_events = locked_events.iter().filter(|event| {
+            let check = event.initial_attempt_id.as_ref() == Some(&event.event_id)
+                && event.business_profile_id.as_ref() == Some(profile_id)
+                && (event.created_at >= created_after)
+                && (event.created_at <= created_before)
+                && (event_types.is_empty() || event_types.contains(&event.event_type))
+                && (event.is_overall_delivery_successful == is_delivered);
+
+            check
+        });
+
+        let events = iter_events.cloned().collect::<Vec<_>>();
+
+        i64::try_from(events.len())
+            .change_context(errors::StorageError::MockDbError)
+            .attach_printable("Failed to convert usize to i64")
     }
 
     async fn count_initial_events_by_initiator_merchant_id_constraints(
