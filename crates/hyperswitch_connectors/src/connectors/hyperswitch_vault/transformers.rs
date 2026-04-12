@@ -86,7 +86,14 @@ impl TryFrom<&ConnectorCustomerRouterData> for HyperswitchVaultCustomerCreateReq
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &ConnectorCustomerRouterData) -> Result<Self, Self::Error> {
         Ok(Self {
-            name: item.request.name.clone().get_required_value("customer name").change_context(errors::ConnectorError::MissingRequiredField{field_name: "customer name"})?,
+            name: item
+                .request
+                .name
+                .clone()
+                .get_required_value("customer name")
+                .change_context(errors::ConnectorError::MissingRequiredField {
+                    field_name: "customer name",
+                })?,
             email: item.request.email.clone(),
         })
     }

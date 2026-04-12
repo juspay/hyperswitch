@@ -1,5 +1,7 @@
 pub use common_enums::enums::CallConnectorAction;
 use error_stack::{report, ResultExt};
+#[cfg(feature = "v2")]
+pub use hyperswitch_domain_models::payments::PaymentIntentData;
 pub use hyperswitch_domain_models::{
     mandates::MandateData,
     payment_address::PaymentAddress,
@@ -10,20 +12,20 @@ pub use hyperswitch_domain_models::{
     router_request_types::CustomerDetails,
     types::{VaultRouterData, VaultRouterDataV2},
 };
-#[cfg(feature = "v2")]
-pub use hyperswitch_domain_models::payments::PaymentIntentData;
 use hyperswitch_interfaces::api::Connector as ConnectorTrait;
 #[cfg(feature = "v2")]
 use hyperswitch_interfaces::connector_integration_v2::{ConnectorIntegrationV2, ConnectorV2};
 use router_env::env::Env;
 
+#[cfg(feature = "v2")]
+use crate::core::payments::{customers, gateway::context as gateway_context};
 use crate::{
     core::{
         errors::{self, RouterResult},
         payments::{
-            gateway::context as gateway_context,
             call_create_connector_customer_if_required,
             flows::{ConstructFlowSpecificData, Feature},
+            gateway::context as gateway_context,
             helpers,
             operations::BoxedOperation,
             OperationSessionGetters, OperationSessionSetters,
@@ -44,8 +46,6 @@ use crate::{
     errors::RouterResponse,
     types::{api::ConnectorCommon, storage},
 };
-#[cfg(feature = "v2")]
-use crate::core::payments::{customers, gateway::context as gateway_context};
 
 #[cfg(feature = "v2")]
 #[allow(clippy::too_many_arguments)]
@@ -181,17 +181,17 @@ where
             }
         };
         let connector_customer_map = customer
-        .as_ref()
-        .and_then(|customer| customer.connector_customer.as_ref());
+            .as_ref()
+            .and_then(|customer| customer.connector_customer.as_ref());
 
-    let default_gateway_context = gateway_context::RouterGatewayContext::direct(
-        platform.get_processor().clone(),
-        vault_mca_type.clone(),
-        payment_data.get_payment_intent().merchant_id.clone(),
-        profile.get_id().clone(),
-        payment_data.get_creds_identifier().map(|id| id.to_string()),
-    );
-    println!("here111");
+        let default_gateway_context = gateway_context::RouterGatewayContext::direct(
+            platform.get_processor().clone(),
+            vault_mca_type.clone(),
+            payment_data.get_payment_intent().merchant_id.clone(),
+            profile.get_id().clone(),
+            payment_data.get_creds_identifier().map(|id| id.to_string()),
+        );
+        println!("here111");
 
         let updated_customer = call_create_connector_customer_if_required(
             state,
@@ -200,8 +200,8 @@ where
             platform.get_initiator(),
             &vault_mca_type,
             payment_data,
-            None, 
-            &default_gateway_context
+            None,
+            &default_gateway_context,
         )
         .await?;
 
@@ -228,9 +228,13 @@ where
 
         let connector_customer_id = payment_data.get_connector_customer_id();
 
-        let vault_session_details =
-            generate_vault_session_details_v1(state, platform.get_processor(), &vault_mca, connector_customer_id)
-                .await?;
+        let vault_session_details = generate_vault_session_details_v1(
+            state,
+            platform.get_processor(),
+            &vault_mca,
+            connector_customer_id,
+        )
+        .await?;
 
         payment_data.set_vault_session_details(vault_session_details);
     }
@@ -444,10 +448,12 @@ pub async fn generate_vault_session_details_v1(
                 Env::Production => "live",
             }
             .to_string();
-            Ok(Some(api::VaultSessionDetails::Vgs(api::VgsSessionDetails {
-                external_vault_id: api_secret,
-                sdk_env,
-            })))
+            Ok(Some(api::VaultSessionDetails::Vgs(
+                api::VgsSessionDetails {
+                    external_vault_id: api_secret,
+                    sdk_env,
+                },
+            )))
         }
         // create session for hyperswitch vault
         (
@@ -478,9 +484,7 @@ pub async fn generate_vault_session_details_v1(
                     },
                 ))),
                 Ok(_) => {
-                    router_env::logger::warn!(
-                        "Unexpected response from external vault create API"
-                    );
+                    router_env::logger::warn!("Unexpected response from external vault create API");
                     Err(errors::ApiErrorResponse::InternalServerError.into())
                 }
                 Err(err) => {
