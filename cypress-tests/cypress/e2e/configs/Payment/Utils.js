@@ -498,6 +498,15 @@ export const CONNECTOR_LISTS = {
       "trustpay",
       "worldpay",
     ],
+    REFUNDS_WEBHOOK: [
+      "airwallex",
+      "finix",
+      "fiuu",
+      "nmi",
+      "novalnet",
+      "paypal",
+      "stripe",
+    ],
     CARD_INSTALLMENTS: ["adyen"],
     AUTO_RETRY: [
       "cybersource",

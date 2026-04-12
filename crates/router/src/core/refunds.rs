@@ -836,15 +836,14 @@ fn should_call_refund(
     // doesn't exist
     let predicate1 = refund.connector_refund_id.is_some();
 
-    // This allows refund sync at connector level if all_keys_required or force_sync is enabled, or
-    // checks if the refund has failed
+    // This allows refund sync at connector level if all_keys_required or force_sync is enabled for non terminal refund statuses (i.e. not success or failure)
     let predicate2 = all_keys_required
-        || force_sync
-        || !matches!(
-            refund.refund_status,
-            diesel_models::enums::RefundStatus::Failure
-                | diesel_models::enums::RefundStatus::Success
-        );
+        || (force_sync
+            && !matches!(
+                refund.refund_status,
+                diesel_models::enums::RefundStatus::Failure
+                    | diesel_models::enums::RefundStatus::Success
+            ));
 
     predicate1 && predicate2
 }
@@ -1266,7 +1265,7 @@ pub async fn refund_update_core(
 ) -> RouterResponse<refunds::RefundResponse> {
     let db = state.store.as_ref();
     let refund = db
-        .find_refund_by_merchant_id_refund_id(
+        .find_refund_by_processor_merchant_id_refund_id(
             platform.get_processor().get_account().get_id(),
             &req.refund_id,
             platform.get_processor().get_account().storage_scheme,
@@ -1347,7 +1346,7 @@ pub async fn validate_and_create_refund(
         })?;
 
     let all_refunds = db
-        .find_refund_by_merchant_id_connector_transaction_id(
+        .find_refund_by_processor_merchant_id_connector_transaction_id(
             platform.get_processor().get_account().get_id(),
             &connector_transaction_id,
             platform.get_processor().get_account().storage_scheme,
@@ -1607,7 +1606,7 @@ pub async fn refund_retrieve_core_with_internal_reference_id(
     let merchant_id = platform.get_processor().get_account().get_id();
 
     let refund = db
-        .find_refund_by_internal_reference_id_merchant_id(
+        .find_refund_by_internal_reference_id_processor_merchant_id(
             &refund_internal_request_id,
             merchant_id,
             platform.get_processor().get_account().storage_scheme,
@@ -1648,7 +1647,7 @@ pub async fn refund_retrieve_core_with_refund_id(
     let merchant_id = platform.get_processor().get_account().get_id();
 
     let refund = db
-        .find_refund_by_merchant_id_refund_id(
+        .find_refund_by_processor_merchant_id_refund_id(
             merchant_id,
             refund_id.as_str(),
             platform.get_processor().get_account().storage_scheme,
@@ -1689,7 +1688,7 @@ pub async fn refund_manual_update(
         .attach_printable("Error while fetching the merchant_account by merchant_id")?;
     let refund = state
         .store
-        .find_refund_by_merchant_id_refund_id(
+        .find_refund_by_processor_merchant_id_refund_id(
             merchant_account.get_id(),
             &req.refund_id,
             merchant_account.storage_scheme,
@@ -2124,7 +2123,7 @@ pub async fn trigger_refund_execute_workflow(
     let processor_storage_scheme = platform.get_processor().get_account().storage_scheme;
 
     let refund = db
-        .find_refund_by_internal_reference_id_merchant_id(
+        .find_refund_by_internal_reference_id_processor_merchant_id(
             &refund_core.refund_internal_reference_id,
             &refund_core.merchant_id,
             processor_storage_scheme,

@@ -714,5 +714,10 @@ export const connectorDetails = {
       // Type of payment reference ID
       type: "string",
     },
+    RefundIdConfig: {
+      // Finix refund (REVERSAL) webhooks carry the connector refund ID in the transfers array
+      path: "_embedded.transfers.0.id",
+      type: "string",
+    },
   },
 };
