@@ -3851,11 +3851,16 @@ pub async fn retrieve_payment_method(
         resolve_storage_type_from_token(&state, &pm.payment_method_id).await?;
 
     // 2. Fetch payment method record based on resolved storage type
-    let (storage_type, payment_method) =
-        fetch_payment_method_by_storage(&state, platform.get_provider(), &pm, storage_type, card_token_data_opt)
-            .await
-            .change_context(errors::ApiErrorResponse::PaymentMethodNotFound)
-            .attach_printable("Failed to fetch payment method by storage")?;
+    let (storage_type, payment_method) = fetch_payment_method_by_storage(
+        &state,
+        platform.get_provider(),
+        &pm,
+        storage_type,
+        card_token_data_opt,
+    )
+    .await
+    .change_context(errors::ApiErrorResponse::PaymentMethodNotFound)
+    .attach_printable("Failed to fetch payment method by storage")?;
     when(
         payment_method.status == common_enums::PaymentMethodStatus::Inactive,
         || {
@@ -4016,10 +4021,9 @@ pub async fn fetch_payment_method_with_fallback(
 
             logger::debug!("Redis lookup failed, falling back to DB");
 
-            let persistent_payment_method =
-                fetch_payment_method(state, provider, pm_id)
-                    .await
-                    .attach_printable("Failed to get payment method record from DB")?;
+            let persistent_payment_method = fetch_payment_method(state, provider, pm_id)
+                .await
+                .attach_printable("Failed to get payment method record from DB")?;
 
             Ok((storage_type, persistent_payment_method))
         }

@@ -74,10 +74,7 @@ impl ProxyRequestWrapper {
                 let db = state.store.as_ref();
 
                 let tokenization_record = db
-                    .get_entity_id_vault_id_by_token_id(
-                        &token_id,
-                        provider.get_key_store(),
-                    )
+                    .get_entity_id_vault_id_by_token_id(&token_id, provider.get_key_store())
                     .await
                     .change_context(errors::ApiErrorResponse::InternalServerError)
                     .attach_printable("Error while fetching tokenization record from vault")?;
@@ -111,11 +108,7 @@ impl ProxyRequestWrapper {
                             keymanager_state,
                             payment_method,
                             provider.get_key_store().key.get_inner(),
-                            provider
-                                .get_key_store()
-                                .merchant_id
-                                .clone()
-                                .into(),
+                            provider.get_key_store().merchant_id.clone().into(),
                         )
                         .await
                         .change_context(errors::StorageError::EncryptionError)
