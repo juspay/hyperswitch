@@ -25,6 +25,7 @@ CREATE TABLE payment_intents_queue
     `last_synced` Nullable(DateTime) CODEC(T64, LZ4),
     `organization_id` String,
     `processor_merchant_id` Nullable(String),
+    `created_by` Nullable(String),
     `sign_flag` Int8
 ) ENGINE = Kafka SETTINGS kafka_broker_list = 'kafka0:29092',
 kafka_topic_list = 'hyperswitch-payment-intent-events',
@@ -60,6 +61,7 @@ CREATE TABLE payment_intents
     `inserted_at` DateTime DEFAULT now() CODEC(T64, LZ4),
     `organization_id` String,
     `processor_merchant_id` Nullable(String),
+    `created_by` Nullable(String),
     `sign_flag` Int8,
     INDEX connectorIndex connector_id TYPE bloom_filter GRANULARITY 1,
     INDEX currencyIndex currency TYPE bloom_filter GRANULARITY 1,
@@ -99,6 +101,7 @@ CREATE MATERIALIZED VIEW payment_intents_mv TO payment_intents
     `inserted_at` DateTime64(3),
     `organization_id` String,
     `processor_merchant_id` Nullable(String),
+    `created_by` Nullable(String),
     `sign_flag` Int8
 ) AS
 SELECT
@@ -128,5 +131,6 @@ SELECT
     now() AS inserted_at,
     organization_id,
     processor_merchant_id,
+    created_by,
     sign_flag
 FROM payment_intents_queue;

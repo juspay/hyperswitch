@@ -1721,7 +1721,7 @@ impl ConnectorSpecifications for Nuvei {
         Some(&NUVEI_CONNECTOR_INFO)
     }
 
-    fn is_pre_authentication_flow_required(&self, current_flow: api::CurrentFlowInfo<'_>) -> bool {
+    fn is_pre_authentication_flow_required(&self, current_flow: api::CurrentFlowInfo) -> bool {
         match current_flow {
             api::CurrentFlowInfo::Authorize {
                 auth_type,
@@ -1732,6 +1732,7 @@ impl ConnectorSpecifications for Nuvei {
                 auth_type,
                 request_data,
             } => auth_type.is_three_ds() && request_data.is_card(),
+            api::CurrentFlowInfo::Psync { .. } => false,
         }
     }
 
@@ -1743,7 +1744,10 @@ impl ConnectorSpecifications for Nuvei {
         Some(&NUVEI_SUPPORTED_WEBHOOK_FLOWS)
     }
 
-    fn is_authorize_session_token_call_required(&self) -> bool {
+    fn is_authorize_session_token_call_required(
+        &self,
+        _current_flow: Option<api::CurrentFlowInfo>,
+    ) -> bool {
         true
     }
 }

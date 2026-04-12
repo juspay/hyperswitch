@@ -120,6 +120,8 @@ impl From<enums::BankTransferType> for global_enums::PaymentMethodType {
         match value {
             enums::BankTransferType::Multibanco => Self::Multibanco,
             enums::BankTransferType::Pix => Self::Pix,
+            enums::BankTransferType::PixAutomaticoPush => Self::PixAutomaticoPush,
+            enums::BankTransferType::PixAutomaticoQr => Self::PixAutomaticoQr,
             enums::BankTransferType::Pse => Self::Pse,
             enums::BankTransferType::Ach => Self::Ach,
             enums::BankTransferType::SepaBankTransfer => Self::Sepa,

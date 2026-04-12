@@ -48,6 +48,7 @@ use hyperswitch_domain_models::{
         payment_intent::PaymentIntentFetchConstraints, PaymentIntent,
     },
     router_data::{InteracCustomerInfo, KlarnaSdkResponse, PaymentMethodToken},
+    router_request_types::MandateIdSettable,
 };
 pub use hyperswitch_interfaces::{
     api::ConnectorSpecifications,
@@ -88,7 +89,7 @@ use crate::{
     consts::{self, BASE64_ENGINE},
     core::{
         authentication,
-        configs::dimension_state::DimensionsWithMerchantIdAndProfileId,
+        configs::dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
         mandate::helpers::MandateGenericData,
         payment_methods::{
@@ -467,7 +468,10 @@ pub async fn get_token_pm_type_mandate_details(
     pm_info: Option<domain::PaymentMethod>,
 ) -> RouterResult<MandateGenericData> {
     let mandate_data = request.mandate_data.clone().map(MandateData::foreign_from);
-    let feature_config = core_utils::get_feature_config(state, platform).await;
+    #[cfg(feature = "pm_modular")]
+    let is_payment_method_modular_allowed = core_utils::get_feature_config(state, platform)
+        .await
+        .is_payment_method_modular_allowed;
     let (
         payment_token,
         payment_method,
@@ -750,7 +754,8 @@ pub async fn get_token_pm_type_mandate_details(
             }
         }
         None => {
-            let payment_method_info = if feature_config.is_payment_method_modular_allowed {
+            #[cfg(feature = "pm_modular")]
+            let payment_method_info = if is_payment_method_modular_allowed {
                 pm_info
             } else {
                 payment_method_id
@@ -768,6 +773,21 @@ pub async fn get_token_pm_type_mandate_details(
                     .await
                     .transpose()?
             };
+            #[cfg(not(feature = "pm_modular"))]
+            let payment_method_info = payment_method_id
+                .async_map(|payment_method_id| async move {
+                    state
+                        .store
+                        .find_payment_method(
+                            platform.get_provider().get_key_store(),
+                            &payment_method_id,
+                            platform.get_provider().get_account().storage_scheme,
+                        )
+                        .await
+                        .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)
+                })
+                .await
+                .transpose()?;
             let resolved_payment_method = request.payment_method.or_else(|| {
                 payment_method_info
                     .as_ref()
@@ -1908,7 +1928,7 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R, D>(
     _payment_data: &mut PaymentData<F>,
     _req: Option<CustomerDetails>,
     _provider: &domain::Provider,
-    _dimensions: DimensionsWithMerchantIdAndProfileId,
+    _dimensions: DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
 ) -> CustomResult<(BoxedOperation<'a, F, R, D>, Option<domain::Customer>), errors::StorageError> {
     todo!()
 }
@@ -1923,7 +1943,7 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R, D>(
     req: Option<CustomerDetails>,
     provider: &domain::Provider,
     initiator: Option<&domain::Initiator>,
-    dimensions: DimensionsWithMerchantIdAndProfileId,
+    dimensions: &DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
 ) -> CustomResult<(BoxedOperation<'a, F, R, D>, Option<domain::Customer>), errors::StorageError> {
     let merchant_id = provider.get_account().get_id();
     let storage_scheme = provider.get_account().storage_scheme;
@@ -2022,7 +2042,7 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R, D>(
                     let implicit_customer_update = dimensions
                         .get_implicit_customer_update(
                             state.store.as_ref(),
-                            state.superposition_service.as_deref(),
+                            state.superposition_service.as_ref(),
                             Some(&customer_id),
                         )
                         .await;
@@ -5079,6 +5099,7 @@ pub fn router_data_type_conversion<F1, F2, Req1, Req2, Res1, Res2>(
         minor_amount_capturable: router_data.minor_amount_capturable,
         authorized_amount: router_data.authorized_amount,
         customer_document_details: router_data.customer_document_details,
+        feature_data: router_data.feature_data,
     }
 }
 
@@ -9122,5 +9143,38 @@ pub fn get_merchant_advice_code_recommended_action(
                 None
             }),
         _ => None,
+    }
+}
+
+// Update request data with mandate_id received from SetupMandate router response.
+// Mandate information is needed in consecutive flows (e.g., PaymentTrigger, GenerateQR)
+// triggered after successful completion of the SetupMandate flow.
+pub fn update_request_data_with_mandate_id(
+    request_data: &mut impl MandateIdSettable,
+    setup_mandate_response: &Result<PaymentsResponseData, ErrorResponse>,
+) {
+    if let Ok(PaymentsResponseData::TransactionResponse {
+        mandate_reference, ..
+    }) = setup_mandate_response
+    {
+        if let Some(mandate_ref) = mandate_reference.as_ref() {
+            if let Some(connector_mandate_id) = &mandate_ref.connector_mandate_id {
+                request_data.set_mandate_id(api_models::payments::MandateIds {
+                    mandate_id: Some(connector_mandate_id.clone()),
+                    mandate_reference_id: Some(
+                        api_models::payments::MandateReferenceId::ConnectorMandateId(
+                            api_models::payments::ConnectorMandateReferenceId::new(
+                                Some(connector_mandate_id.clone()),
+                                None,
+                                None,
+                                None,
+                                None,
+                                None,
+                            ),
+                        ),
+                    ),
+                });
+            }
+        }
     }
 }
