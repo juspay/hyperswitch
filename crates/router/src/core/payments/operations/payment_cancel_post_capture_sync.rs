@@ -221,7 +221,6 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsCancelPo
             .map(|state_metadata| state_metadata.is_post_capture_void_pending())
             .unwrap_or(false);
 
-
         if !is_post_capture_void_pending {
             Err(error_stack::report!(
                 errors::ApiErrorResponse::PreconditionFailed {

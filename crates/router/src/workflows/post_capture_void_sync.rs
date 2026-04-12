@@ -108,8 +108,9 @@ impl ProcessTrackerWorkflow<SessionState> for PaymentsPostCaptureVoidSyncWorkflo
             enums::AttemptStatus::Failure,
         ];
 
-
-        if !payment_data.payment_intent.is_post_capture_void_pending() || terminal_status.contains(&payment_data.payment_attempt.status) {
+        if !payment_data.payment_intent.is_post_capture_void_pending()
+            || terminal_status.contains(&payment_data.payment_attempt.status)
+        {
             state
                 .store
                 .as_scheduler()

@@ -2647,11 +2647,7 @@ pub async fn payments_retrieve_core(
             .as_ref()
             .map(|metadata| metadata.is_post_capture_void_pending())
             .unwrap_or(false),
-        Err(err) => {
-            return Err(err
-                .change_context(errors::ApiErrorResponse::PaymentNotFound)
-                )
-        }
+        Err(err) => return Err(err.change_context(errors::ApiErrorResponse::PaymentNotFound)),
     };
 
     if should_call_void_sync {
@@ -14675,7 +14671,9 @@ impl PaymentIntentStateMetadataExt {
         )
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to update payment intent with post capture void state metadata")?;
+        .attach_printable(
+            "Failed to update payment intent with post capture void state metadata",
+        )?;
 
         Ok(())
     }
