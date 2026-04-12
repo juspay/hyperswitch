@@ -1326,10 +1326,6 @@ pub async fn construct_payment_router_data_for_sdk_session<'a>(
         .clone()
         .and_then(|tax| tax.get_default_tax_amount());
 
-    let payment_attempt = payment_data.get_payment_attempt();
-    let payment_method = Some(payment_attempt.payment_method_type);
-    let payment_method_type = payment_attempt.payment_method_subtype;
-
     // TODO: few fields are repeated in both routerdata and request
     let request = types::PaymentsSessionData {
         amount: payment_data
@@ -1358,8 +1354,8 @@ pub async fn construct_payment_router_data_for_sdk_session<'a>(
         metadata: payment_data.payment_intent.metadata,
         order_tax_amount,
         shipping_cost: payment_data.payment_intent.amount_details.shipping_cost,
-        payment_method,
-        payment_method_type,
+        payment_method: None,
+        payment_method_type: None,
         split_payments: payment_data.payment_intent.split_payments,
     };
 
@@ -1377,7 +1373,7 @@ pub async fn construct_payment_router_data_for_sdk_session<'a>(
         attempt_id: "".to_string(),
         status: enums::AttemptStatus::Started,
         payment_method: enums::PaymentMethod::Wallet,
-        payment_method_type,
+        payment_method_type: Some(enums::PaymentMethodType::GooglePay),
         connector_auth_type: auth_type,
         description: payment_data
             .payment_intent

@@ -768,11 +768,18 @@ impl ConnectorSpecifications for ConnectorEnum {
     /// Check if connector requires create customer call
     fn should_call_connector_customer(
         &self,
+        #[cfg(feature = "v1")]
         payment_attempt: &hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt,
     ) -> bool {
+        #[cfg(feature = "v1")]
         match self {
             Self::Old(connector) => connector.should_call_connector_customer(payment_attempt),
             Self::New(connector) => connector.should_call_connector_customer(payment_attempt),
+        }
+        #[cfg(feature = "v2")]
+        match self {
+            Self::Old(connector) => connector.should_call_connector_customer(),
+            Self::New(connector) => connector.should_call_connector_customer(),
         }
     }
 
