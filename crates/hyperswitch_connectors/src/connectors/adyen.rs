@@ -1932,7 +1932,18 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Adyen {
     }
 }
 
-impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Adyen {}
+impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Adyen {
+    fn build_request(
+        &self,
+        _req: &RefundsRouterData<RSync>,
+        _connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
+        Err(
+            errors::ConnectorError::NotImplemented("Refund Sync flow not Implemented".to_string())
+                .into(),
+        )
+    }
+}
 
 fn get_webhook_object_from_body(
     body: &[u8],

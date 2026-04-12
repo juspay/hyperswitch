@@ -4,6 +4,43 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.04.10.0
+
+### Features
+
+- **connector:** [Loonio][Gigadat] Add support for manual capture ([#11763](https://github.com/juspay/hyperswitch/pull/11763)) ([`abe8d38`](https://github.com/juspay/hyperswitch/commit/abe8d38582cdc26781f6672df40371b04b64d468))
+- **platform:** Modify queries to support analytics for connected merchant ([#11635](https://github.com/juspay/hyperswitch/pull/11635)) ([`22b2f6f`](https://github.com/juspay/hyperswitch/commit/22b2f6f4830205387255240517177d2a3f8741ad))
+- **superposition:** Introduce provider and processor merchant dimensions in superposition context ([#11678](https://github.com/juspay/hyperswitch/pull/11678)) ([`7dfa910`](https://github.com/juspay/hyperswitch/commit/7dfa91069c8473cb34559283942ba1c52d0fe8f7))
+
+### Bug Fixes
+
+- **connector:**
+  - [Truelayer] Change payment method type from OpenBankingUK to OpenBanking ([#11735](https://github.com/juspay/hyperswitch/pull/11735)) ([`a7a0dba`](https://github.com/juspay/hyperswitch/commit/a7a0dba179051783f311a736e6d0f305188d85e0))
+  - [nmi] fix the redirection throwing invalid http method error ([#11632](https://github.com/juspay/hyperswitch/pull/11632)) ([`0a8b2b4`](https://github.com/juspay/hyperswitch/commit/0a8b2b4d5abd68982c64e80643baf84f7fd86226))
+- **core:** Condition to do refund sync ([#11725](https://github.com/juspay/hyperswitch/pull/11725)) ([`4e0be58`](https://github.com/juspay/hyperswitch/commit/4e0be5876713afecaeee76aa1fb5d343b2c1c0e0))
+
+### Refactors
+
+- **payments:** Changed formula for interest calculation for card installments ([#11680](https://github.com/juspay/hyperswitch/pull/11680)) ([`b1146c2`](https://github.com/juspay/hyperswitch/commit/b1146c2f9f593947d1b781ec1c3dfb480030c5ac))
+
+**Full Changelog:** [`2026.04.09.0...2026.04.10.0`](https://github.com/juspay/hyperswitch/compare/2026.04.09.0...2026.04.10.0)
+
+- - -
+
+## 2026.04.09.0
+
+### Features
+
+- **analytics:** Add processor_merchant_id and created_by fields to clickhouse tables ([#11608](https://github.com/juspay/hyperswitch/pull/11608)) ([`63409c8`](https://github.com/juspay/hyperswitch/commit/63409c82ee24878a2190223552a24a6aade20663))
+
+### Bug Fixes
+
+- **customer:** Change `customers_id_index` from unique to non-unique to support V1 customer backfill ([#11750](https://github.com/juspay/hyperswitch/pull/11750)) ([`d4c03b5`](https://github.com/juspay/hyperswitch/commit/d4c03b55d1e455a0defd5606873b34b67d7cb4dd))
+
+**Full Changelog:** [`2026.04.08.0...2026.04.09.0`](https://github.com/juspay/hyperswitch/compare/2026.04.08.0...2026.04.09.0)
+
+- - -
+
 ## 2026.04.08.0
 
 ### Features

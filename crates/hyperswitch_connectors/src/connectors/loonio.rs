@@ -823,7 +823,7 @@ impl webhooks::IncomingWebhook for Loonio {
 
 lazy_static! {
     static ref LOONIO_SUPPORTED_PAYMENT_METHODS: SupportedPaymentMethods = {
-        let supported_capture_methods = vec![enums::CaptureMethod::Automatic];
+        let supported_capture_methods = vec![enums::CaptureMethod::Automatic, enums::CaptureMethod::Manual,];
 
         let mut loonio_supported_payment_methods = SupportedPaymentMethods::new();
         loonio_supported_payment_methods.add(
