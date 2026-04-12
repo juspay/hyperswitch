@@ -1379,6 +1379,17 @@ impl PaymentMethodsData {
     }
 }
 
+#[cfg(feature = "v2")]
+impl From<WalletPaymentMethodData> for PaymentMethodsData {
+    fn from(wallet_data: WalletPaymentMethodData) -> Self {
+        match wallet_data {
+            WalletPaymentMethodData::ApplePay(data) => Self::WalletDetails(*data),
+            WalletPaymentMethodData::GooglePay(data) => Self::WalletDetails(*data),
+            WalletPaymentMethodData::PayPal(data) => Self::PayPal(*data),
+        }
+    }
+}
+
 #[derive(Clone, Debug, PartialEq, serde::Deserialize, serde::Serialize)]
 pub struct ExternalVaultTokenData {
     /// Tokenized reference for Card Number

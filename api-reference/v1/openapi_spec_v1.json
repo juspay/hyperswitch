@@ -28565,6 +28565,12 @@
             "description": "Unique authorisation code for the payment",
             "example": "003225",
             "nullable": true
+          },
+          "email": {
+            "type": "string",
+            "description": "Email address associated with the wallet (e.g. PayPal email)",
+            "example": "johntest@test.com",
+            "nullable": true
           }
         }
       },

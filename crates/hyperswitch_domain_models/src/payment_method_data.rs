@@ -3341,17 +3341,6 @@ pub enum PaymentMethodsData {
     PayPal(api_models::payments::PaypalRedirection),
 }
 
-#[cfg(feature = "v2")]
-impl From<payment_methods::WalletPaymentMethodData> for PaymentMethodsData {
-    fn from(wallet_data: payment_methods::WalletPaymentMethodData) -> Self {
-        match wallet_data {
-            payment_methods::WalletPaymentMethodData::ApplePay(data) => Self::WalletDetails(*data),
-            payment_methods::WalletPaymentMethodData::GooglePay(data) => Self::WalletDetails(*data),
-            payment_methods::WalletPaymentMethodData::PayPal(data) => Self::PayPal(*data),
-        }
-    }
-}
-
 impl PaymentMethodsData {
     #[cfg(feature = "v1")]
     pub fn get_co_badged_card_data(&self) -> Option<payment_methods::CoBadgedCardData> {

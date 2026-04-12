@@ -604,20 +604,22 @@ pub fn generate_payment_method_response(
                 match payment_method.payment_method_subtype {
                     Some(common_enums::PaymentMethodType::ApplePay) => {
                         Some(api::PaymentMethodResponseData::Wallet(
-                            WalletPaymentMethodData::ApplePay(info),
+                            WalletPaymentMethodData::ApplePay(Box::new(info)),
                         ))
                     }
                     Some(common_enums::PaymentMethodType::GooglePay) => {
                         Some(api::PaymentMethodResponseData::Wallet(
-                            WalletPaymentMethodData::GooglePay(info),
+                            WalletPaymentMethodData::GooglePay(Box::new(info)),
                         ))
                     }
                     _ => None,
                 }
             }
-            api::PaymentMethodsData::PayPal(paypal) => Some(
-                api::PaymentMethodResponseData::Wallet(WalletPaymentMethodData::PayPal(paypal)),
-            ),
+            api::PaymentMethodsData::PayPal(paypal) => {
+                Some(api::PaymentMethodResponseData::Wallet(
+                    WalletPaymentMethodData::PayPal(Box::new(paypal)),
+                ))
+            }
             _ => None,
         });
     let mut connector_tokens = payment_method
