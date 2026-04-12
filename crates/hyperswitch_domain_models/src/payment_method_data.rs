@@ -3288,17 +3288,18 @@ pub fn get_applepay_wallet_info(
         _ => (None, None),
     };
     payment_methods::PaymentMethodDataWalletInfo {
-        last4: item
-            .payment_method
-            .display_name
-            .chars()
-            .rev()
-            .take(4)
-            .collect::<Vec<_>>()
-            .into_iter()
-            .rev()
-            .collect(),
-        card_network: item.payment_method.network,
+        last4: Some(
+            item.payment_method
+                .display_name
+                .chars()
+                .rev()
+                .take(4)
+                .collect::<Vec<_>>()
+                .into_iter()
+                .rev()
+                .collect(),
+        ),
+        card_network: Some(item.payment_method.network),
         card_type: Some(item.payment_method.pm_type),
         card_exp_month,
         card_exp_year,
@@ -3320,8 +3321,8 @@ pub fn get_googlepay_wallet_info(
         _ => (None, None),
     };
     payment_methods::PaymentMethodDataWalletInfo {
-        last4: item.info.card_details,
-        card_network: item.info.card_network,
+        last4: Some(item.info.card_details),
+        card_network: Some(item.info.card_network),
         card_type: Some(item.pm_type),
         card_exp_month,
         card_exp_year,
@@ -3338,7 +3339,6 @@ pub enum PaymentMethodsData {
     WalletDetails(payment_methods::PaymentMethodDataWalletInfo), //PaymentMethodDataWalletInfo and its transformations should be moved to the domain models
     NetworkToken(NetworkTokenDetailsPaymentMethod),
     BankDebit(BankDebitDetailsPaymentMethod),
-    PayPal(api_models::payments::PaypalRedirection),
 }
 
 impl PaymentMethodsData {
@@ -3383,8 +3383,7 @@ impl PaymentMethodsData {
             Self::BankDetails(_)
             | Self::WalletDetails(_)
             | Self::NetworkToken(_)
-            | Self::BankDebit(_)
-            | Self::PayPal(_) => None,
+            | Self::BankDebit(_) => None,
         }
     }
     pub fn get_card_details(&self) -> Option<CardDetailsPaymentMethod> {

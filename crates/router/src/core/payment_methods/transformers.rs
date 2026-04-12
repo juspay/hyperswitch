@@ -612,13 +612,13 @@ pub fn generate_payment_method_response(
                             WalletPaymentMethodData::GooglePay(Box::new(info)),
                         ))
                     }
+                    Some(common_enums::PaymentMethodType::Paypal) => Some(
+                        api::PaymentMethodResponseData::Wallet(WalletPaymentMethodData::PayPal(
+                            Box::new(api_models::payments::PaypalRedirection { email: info.email }),
+                        )),
+                    ),
                     _ => None,
                 }
-            }
-            api::PaymentMethodsData::PayPal(paypal) => {
-                Some(api::PaymentMethodResponseData::Wallet(
-                    WalletPaymentMethodData::PayPal(Box::new(paypal)),
-                ))
             }
             _ => None,
         });
@@ -902,8 +902,7 @@ impl transformers::ForeignTryFrom<(domain::PaymentMethod, String)>
                 }
                 api_models::payment_methods::PaymentMethodsData::BankDetails(..) => todo!(),
                 api_models::payment_methods::PaymentMethodsData::BankDebit(..) => todo!(),
-                api_models::payment_methods::PaymentMethodsData::WalletDetails(..)
-                | api_models::payment_methods::PaymentMethodsData::PayPal(..) => {
+                api_models::payment_methods::PaymentMethodsData::WalletDetails(..) => {
                     todo!()
                 }
             });
@@ -970,8 +969,7 @@ impl transformers::ForeignTryFrom<domain::PaymentMethod> for PaymentMethodRespon
                 }
                 api_models::payment_methods::PaymentMethodsData::BankDetails(..) => todo!(),
                 api_models::payment_methods::PaymentMethodsData::BankDebit(..) => todo!(),
-                api_models::payment_methods::PaymentMethodsData::WalletDetails(..)
-                | api_models::payment_methods::PaymentMethodsData::PayPal(..) => {
+                api_models::payment_methods::PaymentMethodsData::WalletDetails(..) => {
                     todo!()
                 }
             });

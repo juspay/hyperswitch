@@ -2450,10 +2450,18 @@ impl PaymentMethodExt for payment_methods::PaymentMethodCreateData {
                 api::WalletPaymentMethodData::GooglePay(data) => {
                     Ok(payment_methods::PaymentMethodsData::WalletDetails(*data))
                 }
-                api::WalletPaymentMethodData::PayPal(_) => {
-                    Err(report!(errors::ApiErrorResponse::UnprocessableEntity {
-                        message: "PayPal does not have additional payment method data".to_string()
-                    }))
+                api::WalletPaymentMethodData::PayPal(data) => {
+                    Ok(payment_methods::PaymentMethodsData::WalletDetails(
+                        payment_methods::PaymentMethodDataWalletInfo {
+                            last4: None,
+                            card_network: None,
+                            card_type: None,
+                            card_exp_month: None,
+                            card_exp_year: None,
+                            auth_code: None,
+                            email: data.email,
+                        },
+                    ))
                 }
             },
         }
@@ -3208,8 +3216,7 @@ fn convert_from_saved_payment_method_data(
         }
         payment_methods::PaymentMethodsData::BankDetails(_)
         | payment_methods::PaymentMethodsData::BankDebit(_)
-        | payment_methods::PaymentMethodsData::WalletDetails(_)
-        | payment_methods::PaymentMethodsData::PayPal(_) => {
+        | payment_methods::PaymentMethodsData::WalletDetails(_) => {
             Err(errors::ApiErrorResponse::UnprocessableEntity {
                 message: "External vaulting is not supported for this payment method type"
                     .to_string(),
@@ -3813,7 +3820,6 @@ fn get_pm_list_context(
         }
         Some(payment_methods::PaymentMethodsData::BankDebit(_))
         | Some(payment_methods::PaymentMethodsData::WalletDetails(_))
-        | Some(payment_methods::PaymentMethodsData::PayPal(_))
         | None => Some(PaymentMethodListContext::TemporaryToken {
             token_data: is_payment_associated.then_some(
                 storage::PaymentTokenData::temporary_generic(generate_id(

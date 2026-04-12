@@ -1366,7 +1366,6 @@ pub enum PaymentMethodsData {
     Card(CardDetailsPaymentMethod),
     BankDetails(PaymentMethodDataBankCreds),
     WalletDetails(PaymentMethodDataWalletInfo),
-    PayPal(payments::PaypalRedirection),
     BankDebit(BankDebitDetailsPaymentMethod),
 }
 
@@ -1385,7 +1384,17 @@ impl From<WalletPaymentMethodData> for PaymentMethodsData {
         match wallet_data {
             WalletPaymentMethodData::ApplePay(data) => Self::WalletDetails(*data),
             WalletPaymentMethodData::GooglePay(data) => Self::WalletDetails(*data),
-            WalletPaymentMethodData::PayPal(data) => Self::PayPal(*data),
+            WalletPaymentMethodData::PayPal(data) => {
+                Self::WalletDetails(PaymentMethodDataWalletInfo {
+                    last4: None,
+                    card_network: None,
+                    card_type: None,
+                    card_exp_month: None,
+                    card_exp_year: None,
+                    auth_code: None,
+                    email: data.email,
+                })
+            }
         }
     }
 }
@@ -1517,9 +1526,9 @@ pub struct PaymentMethodDataBankCreds {
 #[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
 pub struct PaymentMethodDataWalletInfo {
     /// Last 4 digits of the card number
-    pub last4: String,
+    pub last4: Option<String>,
     /// The information of the payment method
-    pub card_network: String,
+    pub card_network: Option<String>,
     /// The type of payment method
     #[serde(rename = "type")]
     pub card_type: Option<String>,
@@ -1546,7 +1555,7 @@ impl From<payments::additional_info::WalletAdditionalDataForCard> for PaymentMet
             card_exp_month: item.card_exp_month,
             card_exp_year: item.card_exp_year,
             auth_code: item.auth_code,
-            email: None,
+            email: item.email,
         }
     }
 }
@@ -1560,6 +1569,7 @@ impl From<PaymentMethodDataWalletInfo> for payments::additional_info::WalletAddi
             card_exp_month: item.card_exp_month,
             card_exp_year: item.card_exp_year,
             auth_code: item.auth_code,
+            email: item.email,
         }
     }
 }
@@ -1567,16 +1577,17 @@ impl From<PaymentMethodDataWalletInfo> for payments::additional_info::WalletAddi
 impl From<payments::ApplepayPaymentMethod> for PaymentMethodDataWalletInfo {
     fn from(item: payments::ApplepayPaymentMethod) -> Self {
         Self {
-            last4: item
-                .display_name
-                .chars()
-                .rev()
-                .take(4)
-                .collect::<Vec<_>>()
-                .into_iter()
-                .rev()
-                .collect(),
-            card_network: item.network,
+            last4: Some(
+                item.display_name
+                    .chars()
+                    .rev()
+                    .take(4)
+                    .collect::<Vec<_>>()
+                    .into_iter()
+                    .rev()
+                    .collect(),
+            ),
+            card_network: Some(item.network),
             card_type: Some(item.pm_type),
             card_exp_month: item.card_exp_month,
             card_exp_year: item.card_exp_year,
@@ -1590,8 +1601,8 @@ impl TryFrom<PaymentMethodDataWalletInfo> for Box<payments::ApplepayPaymentMetho
     type Error = error_stack::Report<errors::ValidationError>;
     fn try_from(item: PaymentMethodDataWalletInfo) -> Result<Self, Self::Error> {
         Ok(Self::new(payments::ApplepayPaymentMethod {
-            display_name: item.last4,
-            network: item.card_network,
+            display_name: item.last4.get_required_value("last4")?,
+            network: item.card_network.get_required_value("card_network")?,
             pm_type: item.card_type.get_required_value("card_type")?,
             card_exp_month: item.card_exp_month,
             card_exp_year: item.card_exp_year,
