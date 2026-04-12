@@ -1012,7 +1012,7 @@ pub struct PaymentIntentStateMetadata {
 #[diesel(sql_type = Jsonb)]
 pub struct PostCaptureVoidResponse {
     /// Status of post capture void
-    #[schema(value_type = Option<PostCaptureVoidStatus>)]
+    #[schema(value_type = PostCaptureVoidStatus)]
     pub status: enums::PostCaptureVoidStatus,
     /// Connector reference id for post capture void
     pub connector_reference_id: Option<String>,

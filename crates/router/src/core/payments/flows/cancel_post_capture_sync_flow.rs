@@ -121,6 +121,7 @@ impl Feature<api::PostCaptureVoidSync, types::PaymentsCancelPostCaptureSyncData>
             self,
             creds_identifier,
             gateway_context,
+            None,
         ))
         .await
     }
