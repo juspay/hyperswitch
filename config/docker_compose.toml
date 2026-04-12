@@ -133,7 +133,7 @@ adyen.dispute_base_url = "https://ca-test.adyen.com/"
 adyen.management_base_url = "https://management-test.adyen.com/"
 airwallex.base_url = "https://api-demo.airwallex.com/"
 amazonpay.base_url = "https://pay-api.amazon.com/sandbox/v2"
-applepay.base_url = "https://apple-pay-gateway.apple.com/"
+applepay.base_url = "https://apple-pay-gateway-cert.apple.com/"
 archipel.base_url = "https://{{merchant_endpoint_prefix}}/ArchiPEL/Transaction/v1"
 authipay.base_url = "https://prod.emea.api.fiservapps.com/sandbox/ipp/payments-gateway/v2/"
 authorizedotnet.base_url = "https://apitest.authorize.net/xml/v1/request.api"
@@ -545,7 +545,7 @@ sofort = { country =  "AT,BE,DE,ES,CH,NL", currency =  "CHF,EUR"}
 paypal = { country = "AU,NZ,CN,JP,HK,MY,TH,KR,PH,ID,AE,KW,BR,ES,GB,SE,NO,SK,AT,NL,DE,HU,CY,LU,CH,BE,FR,DK,FI,RO,HR,UA,MT,SI,GI,PT,IE,CZ,EE,LT,LV,IT,PL,IS,CA,US", currency = "AUD,BRL,CAD,CZK,DKK,EUR,HKD,HUF,INR,JPY,MYR,MXN,NZD,NOK,PHP,PLN,RUB,GBP,SGD,SEK,CHF,THB,USD" }
 
 [pm_filters.affirm]
-affirm = { country = "CA,US", currency = "CAD,USD" }
+affirm = {currency = "USD" }
 
 swish = { country = "SE", currency = "SEK" }
 touch_n_go = { country = "MY", currency = "MYR" }
@@ -639,7 +639,7 @@ credit = { currency = "INR,USD,GBP,EUR" }
 debit = { currency = "INR,USD,GBP,EUR" }
 
 [pm_filters.truelayer]
-open_banking_uk = { currency = "GBP,EUR" }
+open_banking = { currency = "GBP,EUR" }
 
 [payout_method_filters.truelayer]
 open_banking_uk = { currency = "GBP,EUR,PLN" }
@@ -1120,7 +1120,7 @@ card.credit = "adyen"
 card.debit = "adyen"
 
 [installment_config]
-adyen = ["BRL", "MXN", "JPY"]
+adyen = "BRL,MXN,JPY"
 
 [network_transaction_id_supported_connectors]
 connector_list = "adyen,archipel,checkout,cybersource,novalnet,stripe,worldpay,worldpayvantiv"
@@ -1402,13 +1402,14 @@ internal_api_key = "test_internal_api_key" # API key for internal merchant id an
 payments_base_url = "http://localhost:8080"
 
 [superposition]
-enabled = false # Enable Superposition for dynamic configuration management
+enabled = true # Enable Superposition for dynamic configuration management
 endpoint = "http://superposition:8080" # Superposition service endpoint
 token = "123456" # Superposition token
 org_id = "localorg" # Organization ID in Superposition
 workspace_id = "dev" # Workspace ID in Superposition
 polling_interval = 15 # Polling interval in seconds for configuration updates
 # request_timeout =   # Request timeout in seconds for Superposition API calls (optional, default: none)
+backup_file_path = "./config/superposition_seed.toml" # Path to a local file for fallback configuration. Used when the Superposition HTTP service is unavailable. If set, the client will fall back to reading configuration from this file instead of failing completely. This ensures graceful degradation during network outages or service disruptions.
 
 # Merchant Advice Code Configuration
 [merchant_advice_codes.visa]

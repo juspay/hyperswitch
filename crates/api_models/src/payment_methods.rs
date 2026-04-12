@@ -18,6 +18,10 @@ use common_utils::{
 };
 use error_stack::ResultExt;
 use hyperswitch_masking::PeekInterface;
+use rust_decimal::{
+    prelude::{FromPrimitive, ToPrimitive},
+    Decimal,
+};
 use serde::de;
 use utoipa::ToSchema;
 
@@ -2632,11 +2636,30 @@ impl PaymentMethodListInstallmentPlan {
             .map(|&count| {
                 let interest = data
                     .interest_rate
-                    .apply_and_ceil_result(order_amount)
+                    .calculate_emi_interest(order_amount, count)
                     .change_context(errors::ParsingError::UnknownError)
                     .attach_printable("Failed to apply installment interest rate")?;
                 let total_with_interest = net_amount + interest;
-                let per_installment = total_with_interest / count;
+
+                let total_decimal = Decimal::from_i64(total_with_interest.get_amount_as_i64())
+                    .ok_or(errors::ParsingError::UnknownError)
+                    .map_err(error_stack::Report::from)
+                    .attach_printable("Failed to convert total amount to decimal")?;
+
+                let count_decimal = Decimal::from_u8(u8::from(count))
+                    .ok_or(errors::ParsingError::UnknownError)
+                    .map_err(error_stack::Report::from)
+                    .attach_printable("Failed to convert count to decimal")?;
+
+                // - ceil() ensures merchant always receives at least the calculated interest
+                let per_installment = MinorUnit::new(
+                    (total_decimal / count_decimal)
+                        .ceil()
+                        .to_i64()
+                        .ok_or(errors::ParsingError::UnknownError)
+                        .map_err(error_stack::Report::from)
+                        .attach_printable("Failed to convert per installment to i64")?,
+                );
                 let amount_per_installment = per_installment
                     .to_major_unit_as_f64(currency)
                     .change_context(errors::ParsingError::UnknownError)

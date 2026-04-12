@@ -3440,12 +3440,14 @@ where
         let processor_merchant_id = platform.get_processor().get_account().get_id();
 
         // Check if client session validation is enabled
-        let dimensions = Dimensions::new().with_merchant_id(processor_merchant_id.clone());
+        let dimensions = Dimensions::new()
+            .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id())
+            .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id());
 
         let session_validation_enabled = dimensions
             .get_client_session_validation_enabled(
                 state.store().as_ref(),
-                state.superposition_service().as_deref(),
+                state.superposition_service().as_ref(),
                 None,
             )
             .await;

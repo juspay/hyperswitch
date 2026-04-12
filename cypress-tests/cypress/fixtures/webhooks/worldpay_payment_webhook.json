@@ -1,8 +1,0 @@
-{
-  "eventId": "evt_worldpay_001",
-  "eventTimestamp": "2024-06-15T12:00:00.000Z",
-  "eventDetails": {
-    "type": "sentForSettlement",
-    "transactionReference": "{{connector_transaction_id}}"
-  }
-}

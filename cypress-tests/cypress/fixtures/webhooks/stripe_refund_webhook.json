@@ -1,0 +1,25 @@
+{
+  "id": "evt_1NG8Du2eZvKYlo2CUI79vXWy",
+  "object": "event",
+  "api_version": "2019-02-19",
+  "created": 1686089970,
+  "data": {
+    "object": {
+      "id": "{{connector_refund_id}}",
+      "object": "refund",
+      "amount": 6000,
+      "currency": "usd",
+      "created": 1686089970,
+      "metadata": {},
+      "payment_intent": "pi_1NG8Du2eZvKYlo2C",
+      "status": "succeeded"
+    }
+  },
+  "livemode": false,
+  "pending_webhooks": 0,
+  "request": {
+    "id": null,
+    "idempotency_key": null
+  },
+  "type": "charge.refund.updated"
+}

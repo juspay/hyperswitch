@@ -10,7 +10,10 @@ use router_env::{instrument, tracing};
 use super::{BoxedOperation, Domain, GetTracker, Operation, UpdateTracker, ValidateRequest};
 use crate::{
     core::{
-        configs::dimension_state::DimensionsWithMerchantIdAndProfileId,
+        configs::dimension_state::{
+            DimensionsWithProcessorAndProviderMerchantId,
+            DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
+        },
         errors::{self, RouterResult, StorageErrorExt},
         payments::{
             self, helpers, operations, CustomerDetails, IncrementalAuthorizationDetails,
@@ -213,6 +216,7 @@ impl<F: Clone + Sync>
         mut payment_data: payments::PaymentData<F>,
         _frm_suggestion: Option<FrmSuggestion>,
         _header_payload: hyperswitch_domain_models::payments::HeaderPayload,
+        _dimensions: &DimensionsWithProcessorAndProviderMerchantId,
     ) -> RouterResult<(
         PaymentIncrementalAuthorizationOperation<'b, F>,
         payments::PaymentData<F>,
@@ -330,7 +334,7 @@ impl<F: Clone + Send + Sync>
         request: Option<CustomerDetails>,
         provider: &domain::Provider,
         _initiator: Option<&domain::Initiator>,
-        _dimensions: DimensionsWithMerchantIdAndProfileId,
+        _dimensions: &DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
     ) -> CustomResult<
         (
             BoxedOperation<

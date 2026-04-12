@@ -741,6 +741,8 @@ pub enum Flow {
     GetUserDetailsInternal,
     // List users internal
     ListUsersInternal,
+    // List members for entity
+    ListMembersForEntity,
 }
 
 /// Trait for providing generic behaviour to flow metric

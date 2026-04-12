@@ -6,9 +6,10 @@ pub mod types;
 use std::collections::HashMap;
 
 use common_utils::{errors::CustomResult, id_type::TargetingKey};
-use error_stack::report;
+use error_stack::{report, ResultExt};
 use hyperswitch_masking::ExposeInterface;
 use serde_json::Map;
+use superposition_provider::traits::AllFeatureProvider;
 
 pub use self::types::{ConfigContext, SuperpositionClientConfig, SuperpositionError};
 use crate::config_metrics;
@@ -99,40 +100,67 @@ impl GetValue<serde_json::Value> for open_feature::Client {
 #[allow(missing_debug_implementations)]
 pub struct SuperpositionClient {
     client: open_feature::Client,
-    /// Provider for Superposition
-    provider: superposition_provider::SuperpositionProvider,
+    /// Provider for Superposition (using LocalResolutionProvider for fallback support)
+    provider: superposition_provider::local_provider::LocalResolutionProvider,
 }
 
 impl SuperpositionClient {
     /// Create a new Superposition client
     pub async fn new(config: SuperpositionClientConfig) -> CustomResult<Self, SuperpositionError> {
-        let provider_options = superposition_provider::SuperpositionProviderOptions {
-            endpoint: config.endpoint.clone(),
-            token: config.token.expose(),
-            org_id: config.org_id.clone(),
-            workspace_id: config.workspace_id.clone(),
-            fallback_config: None,
-            evaluation_cache: None,
-            refresh_strategy: superposition_provider::RefreshStrategy::Polling(
-                superposition_provider::PollingStrategy {
-                    interval: config.polling_interval,
-                    timeout: config.request_timeout,
-                },
+        let token_value = config.token.expose();
+
+        let refresh_strategy = superposition_provider::RefreshStrategy::Polling(
+            superposition_provider::PollingStrategy {
+                interval: config.polling_interval,
+                timeout: config.request_timeout,
+            },
+        );
+
+        // --- Build HTTP (primary) data source ---
+        let http_source = superposition_provider::data_source::http::HttpDataSource::new(
+            superposition_provider::types::SuperpositionOptions::new(
+                config.endpoint.clone(),
+                token_value.clone(),
+                config.org_id.clone(),
+                config.workspace_id.clone(),
             ),
-            experimentation_options: Some(superposition_provider::types::ExperimentationOptions {
-                refresh_strategy: superposition_provider::RefreshStrategy::Polling(
-                    superposition_provider::PollingStrategy {
-                        interval: config.polling_interval,
-                        timeout: config.request_timeout,
-                    },
-                ),
-                evaluation_cache: None,
-                default_toss: None,
-            }),
+        );
+
+        // --- Build File (fallback) data source if backup_file_path is configured ---
+        let fallback_source: Option<
+            Box<dyn superposition_provider::data_source::SuperpositionDataSource>,
+        > = match &config.backup_file_path {
+            Some(backup_path) => {
+                router_env::logger::info!(
+                    "Configuring Superposition file fallback: path={:?}",
+                    backup_path
+                );
+                Some(Box::new(
+                    superposition_provider::data_source::file::FileDataSource::new(
+                        backup_path.clone(),
+                    ),
+                ))
+            }
+            None => None,
         };
 
-        // Create provider and set up OpenFeature
-        let provider = superposition_provider::SuperpositionProvider::new(provider_options);
+        // --- Build LocalResolutionProvider with HTTP primary and optional file fallback ---
+        let provider = superposition_provider::local_provider::LocalResolutionProvider::new(
+            Box::new(http_source),
+            fallback_source,
+            refresh_strategy,
+        );
+
+        // Initialize provider - this will try HTTP first, then fallback to file if configured
+        provider
+            .init(open_feature::EvaluationContext::default())
+            .await
+            .change_context(SuperpositionError::ClientInitError(
+                "Failed to initialize Superposition provider".to_string(),
+            ))
+            .attach_printable(
+                "Both HTTP and file fallback (if configured) initialization failed",
+            )?;
 
         // Initialize OpenFeature API and set provider
         let mut api = open_feature::OpenFeature::singleton_mut().await;
@@ -215,7 +243,7 @@ impl SuperpositionClient {
     ) -> CustomResult<Map<String, serde_json::Value>, SuperpositionError> {
         let evaluation_context = self.build_evaluation_context(context, targeting_key);
         self.provider
-            .resolve_full_config(&evaluation_context)
+            .resolve_all_features(evaluation_context)
             .await
             .map_err(|e| {
                 report!(SuperpositionError::ProviderError(format!(
@@ -237,14 +265,24 @@ impl SuperpositionClient {
         prefix_filter: Option<Vec<String>>,
         dimension_filter: Option<Map<String, serde_json::Value>>,
     ) -> CustomResult<superposition_types::Config, SuperpositionError> {
-        self.provider
-            .get_cached_config(dimension_filter, prefix_filter)
+        use superposition_provider::data_source::SuperpositionDataSource;
+        let response = self
+            .provider
+            .fetch_filtered_config(dimension_filter, prefix_filter, None)
             .await
             .map_err(|e| {
                 report!(SuperpositionError::ProviderError(format!(
                     "Failed to get cached config: {e:?}"
                 )))
-            })
+            })?;
+        match response {
+            superposition_provider::data_source::FetchResponse::Data(data) => Ok(data.config),
+            superposition_provider::data_source::FetchResponse::NotModified => {
+                Err(report!(SuperpositionError::ProviderError(
+                    "Config not modified but no data available".to_string()
+                )))
+            }
+        }
     }
 }
 
