@@ -52,6 +52,7 @@ pub enum ApiIdentifier {
     ThreeDsDecisionRule,
     GenericTokenization,
     RecoveryRecovery,
+    Superposition,
     CardIssuers,
 }
 
@@ -322,7 +323,8 @@ impl From<Flow> for ApiIdentifier {
             | Flow::EmbeddedTokenInfo
             | Flow::GetEmbeddedToken
             | Flow::GetUserDetailsInternal
-            | Flow::ListUsersInternal => Self::User,
+            | Flow::ListUsersInternal
+            | Flow::ListMembersForEntity => Self::User,
 
             Flow::GetDataFromHyperswitchAiFlow | Flow::ListAllChatInteractions => Self::AiWorkflow,
 
@@ -385,6 +387,7 @@ impl From<Flow> for ApiIdentifier {
             | Flow::NetworkTokenEligibilityCheck => Self::GenericTokenization,
 
             Flow::RecoveryDataBackfill | Flow::RevenueRecoveryRedis => Self::RecoveryRecovery,
+            Flow::GetSuperpositionSdkConfig => Self::Superposition,
             Flow::MerchantConnectorWebhookRegister | Flow::MerchantConnectorWebhookList => {
                 Self::MerchantConnectorWebhookManagement
             }

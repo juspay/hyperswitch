@@ -737,10 +737,14 @@ pub enum Flow {
     GetEmbeddedToken,
     // Get embedded token info flow
     EmbeddedTokenInfo,
+    /// Superposition SDK Config Get flow
+    GetSuperpositionSdkConfig,
     // Get user details internal
     GetUserDetailsInternal,
     // List users internal
     ListUsersInternal,
+    // List members for entity
+    ListMembersForEntity,
 }
 
 /// Trait for providing generic behaviour to flow metric

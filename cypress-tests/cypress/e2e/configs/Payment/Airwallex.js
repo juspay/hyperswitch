@@ -910,4 +910,15 @@ export const connectorDetails = {
       },
     },
   },
+  webhook: {
+    TransactionIdConfig: {
+      path: "sourceId",
+      type: "string",
+    },
+    RefundIdConfig: {
+      // Airwallex refund webhooks use sourceId to carry the connector refund ID
+      path: "sourceId",
+      type: "string",
+    },
+  },
 };
