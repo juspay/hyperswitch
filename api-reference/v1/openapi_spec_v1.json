@@ -36146,16 +36146,12 @@
         "type": "object",
         "description": "Additional metadata for payment intent state containing refunded and disputed amounts",
         "required": [
+          "status",
           "updated_at"
         ],
         "properties": {
           "status": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/PostCaptureVoidStatus"
-              }
-            ],
-            "nullable": true
+            "$ref": "#/components/schemas/PostCaptureVoidStatus"
           },
           "connector_reference_id": {
             "type": "string",
