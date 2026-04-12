@@ -1188,17 +1188,7 @@ pub async fn create_persistent_payment_method_core(
             .await
         }
         api::PaymentMethodCreateData::Wallet(wallet_data) => {
-            let additional_data = match wallet_data {
-                api::WalletCreateData::ApplePay(data) => {
-                    payment_methods::PaymentMethodsData::WalletDetails(*data.clone())
-                }
-                api::WalletCreateData::GooglePay(data) => {
-                    payment_methods::PaymentMethodsData::WalletDetails(*data.clone())
-                }
-                api::WalletCreateData::PayPal(data) => {
-                    payment_methods::PaymentMethodsData::PayPal(*data.clone())
-                }
-            };
+            let additional_data = payment_methods::PaymentMethodsData::from(wallet_data.clone());
             create_payment_method_wallet_core(
                 state,
                 req,
@@ -1908,6 +1898,7 @@ pub async fn create_payment_method_wallet_core(
 ) -> RouterResult<(api::PaymentMethodResponse, domain::PaymentMethod)> {
     use crate::core::payment_methods::cards;
 
+    let db = &*state.store;
     let key_manager_state = &(state).into();
 
     let encrypted_payment_method_data = Some(additional_payment_method_data)
@@ -1929,24 +1920,66 @@ pub async fn create_payment_method_wallet_core(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Unable to parse wallet payment method data")?;
 
-    let payment_method = create_payment_method_for_confirm(
-        state,
-        customer_id,
-        payment_method_id,
-        None,
-        merchant_id,
-        platform.get_provider().get_key_store(),
-        platform.get_provider().get_account().storage_scheme,
-        req.payment_method_type,
-        req.payment_method_subtype,
-        payment_method_billing_address,
-        encrypted_payment_method_data,
-        None,
-        None,
-        platform.get_initiator(),
-        enums::PaymentMethodStatus::New,
-    )
-    .await?;
+    let existing_payment_methods = db
+        .find_payment_method_by_global_customer_id_merchant_id_statuses(
+            platform.get_provider().get_key_store(),
+            customer_id,
+            merchant_id,
+            vec![
+                enums::PaymentMethodStatus::Active,
+                enums::PaymentMethodStatus::New,
+            ],
+            None,
+            platform.get_provider().get_account().storage_scheme,
+        )
+        .await;
+
+    let existing_wallet_pm = existing_payment_methods.ok().and_then(|pms| {
+        pms.into_iter()
+            .find(|pm| pm.get_payment_method_subtype() == req.payment_method_subtype)
+    });
+
+    let payment_method = match existing_wallet_pm {
+        Some(existing_pm) => {
+            let pm_update = storage::PaymentMethodUpdate::PaymentMethodDataUpdate {
+                payment_method_data: encrypted_payment_method_data.map(From::from),
+                last_modified_by: platform
+                    .get_initiator()
+                    .and_then(|initiator| initiator.to_created_by())
+                    .map(|last_modified_by| last_modified_by.to_string()),
+            };
+
+            db.update_payment_method(
+                platform.get_provider().get_key_store(),
+                existing_pm,
+                pm_update,
+                platform.get_provider().get_account().storage_scheme,
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to update existing wallet payment method in db")?
+        }
+        None => {
+            create_payment_method_for_confirm(
+                state,
+                customer_id,
+                payment_method_id,
+                None,
+                merchant_id,
+                platform.get_provider().get_key_store(),
+                platform.get_provider().get_account().storage_scheme,
+                req.payment_method_type,
+                req.payment_method_subtype,
+                payment_method_billing_address,
+                encrypted_payment_method_data,
+                None,
+                None,
+                platform.get_initiator(),
+                enums::PaymentMethodStatus::New,
+            )
+            .await?
+        }
+    };
 
     let payment_method_response = pm_transforms::generate_payment_method_response(
         &payment_method,
@@ -2411,13 +2444,13 @@ impl PaymentMethodExt for payment_methods::PaymentMethodCreateData {
                 },
             )),
             Self::Wallet(wallet_data) => match wallet_data {
-                api::WalletCreateData::ApplePay(data) => {
+                api::WalletPaymentMethodData::ApplePay(data) => {
                     Ok(payment_methods::PaymentMethodsData::WalletDetails(*data))
                 }
-                api::WalletCreateData::GooglePay(data) => {
+                api::WalletPaymentMethodData::GooglePay(data) => {
                     Ok(payment_methods::PaymentMethodsData::WalletDetails(*data))
                 }
-                api::WalletCreateData::PayPal(_) => {
+                api::WalletPaymentMethodData::PayPal(_) => {
                     Err(report!(errors::ApiErrorResponse::UnprocessableEntity {
                         message: "PayPal does not have additional payment method data".to_string()
                     }))

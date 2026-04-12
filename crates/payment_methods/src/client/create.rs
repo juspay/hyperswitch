@@ -63,7 +63,7 @@ pub struct CardDetail {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
-pub enum WalletCreateData {
+pub enum WalletPaymentMethodData {
     ApplePay(Box<api_models::payment_methods::PaymentMethodDataWalletInfo>),
     GooglePay(Box<api_models::payment_methods::PaymentMethodDataWalletInfo>),
     PayPal(Box<payments::PaypalRedirection>),
@@ -73,7 +73,7 @@ pub enum WalletCreateData {
 #[serde(rename_all = "snake_case")]
 pub enum PaymentMethodCreateData {
     Card(CardDetail),
-    Wallet(WalletCreateData),
+    Wallet(WalletPaymentMethodData),
 }
 
 #[derive(Clone, Debug, Deserialize)]
@@ -165,8 +165,9 @@ impl TryFrom<PaymentMethodData> for PaymentMethodCreateData {
                         card_exp_month: None,
                         card_exp_year: None,
                         auth_code: None,
+                        email: None,
                     };
-                    Ok(Self::Wallet(WalletCreateData::ApplePay(Box::new(
+                    Ok(Self::Wallet(WalletPaymentMethodData::ApplePay(Box::new(
                         wallet_info,
                     ))))
                 }
@@ -180,8 +181,9 @@ impl TryFrom<PaymentMethodData> for PaymentMethodCreateData {
                         card_exp_month: None,
                         card_exp_year: None,
                         auth_code: None,
+                        email: None,
                     };
-                    Ok(Self::Wallet(WalletCreateData::GooglePay(Box::new(
+                    Ok(Self::Wallet(WalletPaymentMethodData::GooglePay(Box::new(
                         wallet_info,
                     ))))
                 }
@@ -191,7 +193,7 @@ impl TryFrom<PaymentMethodData> for PaymentMethodCreateData {
                     let paypal_info = payments::PaypalRedirection {
                         email: paypal.email,
                     };
-                    Ok(Self::Wallet(WalletCreateData::PayPal(Box::new(
+                    Ok(Self::Wallet(WalletPaymentMethodData::PayPal(Box::new(
                         paypal_info,
                     ))))
                 }

@@ -3,7 +3,7 @@ use api_models::payment_methods::Card;
 #[cfg(feature = "v2")]
 use api_models::{
     enums as api_enums,
-    payment_methods::{PaymentMethodResponseItem, WalletPaymentMethodResponseData},
+    payment_methods::{PaymentMethodResponseItem, WalletPaymentMethodData},
 };
 use common_enums::CardNetwork;
 #[cfg(feature = "v1")]
@@ -598,28 +598,26 @@ pub fn generate_payment_method_response(
         .map(|data| data.into_inner())
         .and_then(|data| match data {
             api::PaymentMethodsData::Card(card) => Some(api::PaymentMethodResponseData::Card(
-                api::CardDetailFromLocker::from(card),
+                Box::new(api::CardDetailFromLocker::from(card)),
             )),
             api::PaymentMethodsData::WalletDetails(info) => {
                 match payment_method.payment_method_subtype {
                     Some(common_enums::PaymentMethodType::ApplePay) => {
                         Some(api::PaymentMethodResponseData::Wallet(
-                            WalletPaymentMethodResponseData::ApplePay(info),
+                            WalletPaymentMethodData::ApplePay(info),
                         ))
                     }
                     Some(common_enums::PaymentMethodType::GooglePay) => {
                         Some(api::PaymentMethodResponseData::Wallet(
-                            WalletPaymentMethodResponseData::GooglePay(info),
+                            WalletPaymentMethodData::GooglePay(info),
                         ))
                     }
                     _ => None,
                 }
             }
-            api::PaymentMethodsData::PayPal(paypal) => {
-                Some(api::PaymentMethodResponseData::Wallet(
-                    WalletPaymentMethodResponseData::PayPal(paypal),
-                ))
-            }
+            api::PaymentMethodsData::PayPal(paypal) => Some(
+                api::PaymentMethodResponseData::Wallet(WalletPaymentMethodData::PayPal(paypal)),
+            ),
             _ => None,
         });
     let mut connector_tokens = payment_method

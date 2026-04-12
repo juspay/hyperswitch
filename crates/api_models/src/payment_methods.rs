@@ -594,7 +594,7 @@ pub enum PaymentMethodUpdateData {
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
 #[serde(deny_unknown_fields)]
 #[serde(rename_all = "snake_case")]
-pub enum WalletCreateData {
+pub enum WalletPaymentMethodData {
     ApplePay(Box<PaymentMethodDataWalletInfo>),
     GooglePay(Box<PaymentMethodDataWalletInfo>),
     #[schema(value_type = PaypalRedirection)]
@@ -609,7 +609,7 @@ pub enum WalletCreateData {
 pub enum PaymentMethodCreateData {
     Card(CardDetail),
     ProxyCard(ProxyCardDetails),
-    Wallet(WalletCreateData),
+    Wallet(WalletPaymentMethodData),
 }
 
 #[cfg(feature = "v2")]
@@ -1075,18 +1075,8 @@ impl CardDetailUpdate {
 #[serde(rename_all = "snake_case")]
 #[serde(rename = "payment_method_data")]
 pub enum PaymentMethodResponseData {
-    Card(CardDetailFromLocker),
-    Wallet(WalletPaymentMethodResponseData),
-}
-
-#[cfg(feature = "v2")]
-#[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
-#[serde(rename_all = "snake_case")]
-pub enum WalletPaymentMethodResponseData {
-    ApplePay(PaymentMethodDataWalletInfo),
-    GooglePay(PaymentMethodDataWalletInfo),
-    #[schema(value_type = PaypalRedirection)]
-    PayPal(payments::PaypalRedirection),
+    Card(Box<CardDetailFromLocker>),
+    Wallet(WalletPaymentMethodData),
 }
 
 #[cfg(feature = "v2")]
@@ -1531,6 +1521,9 @@ pub struct PaymentMethodDataWalletInfo {
     /// Unique authorisation code for the payment
     #[schema(value_type = Option<String>,example = "003225")]
     pub auth_code: Option<String>,
+    /// Email address associated with the wallet (e.g. PayPal email)
+    #[schema(value_type = Option<String>, example = "johntest@test.com")]
+    pub email: Option<pii::Email>,
 }
 
 impl From<payments::additional_info::WalletAdditionalDataForCard> for PaymentMethodDataWalletInfo {
@@ -1542,6 +1535,7 @@ impl From<payments::additional_info::WalletAdditionalDataForCard> for PaymentMet
             card_exp_month: item.card_exp_month,
             card_exp_year: item.card_exp_year,
             auth_code: item.auth_code,
+            email: None,
         }
     }
 }
@@ -1576,6 +1570,7 @@ impl From<payments::ApplepayPaymentMethod> for PaymentMethodDataWalletInfo {
             card_exp_month: item.card_exp_month,
             card_exp_year: item.card_exp_year,
             auth_code: item.auth_code,
+            email: None,
         }
     }
 }
