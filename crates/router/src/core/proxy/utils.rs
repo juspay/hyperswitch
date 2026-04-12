@@ -38,7 +38,7 @@ impl ProxyRequestWrapper {
     pub async fn get_proxy_record(
         &self,
         state: &SessionState,
-        platform: &domain::Platform,
+        provider: &domain::Provider,
     ) -> RouterResult<ProxyRecord> {
         let token = &self.0.token;
 
@@ -55,9 +55,9 @@ impl ProxyRequestWrapper {
                 let payment_method_record = state
                     .store
                     .find_payment_method(
-                        platform.get_provider().get_key_store(),
+                        provider.get_key_store(),
                         &pm_id,
-                        platform.get_provider().get_account().storage_scheme,
+                        provider.get_account().storage_scheme,
                     )
                     .await
                     .change_context(errors::ApiErrorResponse::PaymentMethodNotFound)?;
@@ -76,7 +76,7 @@ impl ProxyRequestWrapper {
                 let tokenization_record = db
                     .get_entity_id_vault_id_by_token_id(
                         &token_id,
-                        platform.get_provider().get_key_store(),
+                        provider.get_key_store(),
                     )
                     .await
                     .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -88,7 +88,7 @@ impl ProxyRequestWrapper {
             }
             proxy_api_models::TokenType::VolatilePaymentMethodId => {
                 let pm_id = token.as_str();
-                let encryption_key = platform.get_provider().get_key_store().key.get_inner();
+                let encryption_key = provider.get_key_store().key.get_inner();
 
                 let redis_conn = state
                     .store
@@ -110,9 +110,8 @@ impl ProxyRequestWrapper {
                         let domain_payment_method = domain::PaymentMethod::convert_back(
                             keymanager_state,
                             payment_method,
-                            platform.get_provider().get_key_store().key.get_inner(),
-                            platform
-                                .get_provider()
+                            provider.get_key_store().key.get_inner(),
+                            provider
                                 .get_key_store()
                                 .merchant_id
                                 .clone()
@@ -147,7 +146,7 @@ impl ProxyRequestWrapper {
                 // 2. Fetch payment method record based on resolved storage type
                 let (storage_type, payment_method) = fetch_payment_method_by_storage(
                     state,
-                    platform,
+                    provider,
                     &pm_id,
                     storage_type,
                     card_token_data_opt,
