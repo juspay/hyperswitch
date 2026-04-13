@@ -29142,13 +29142,9 @@
           "payjustnow",
           "paypal",
           "paze",
-<<<<<<< HEAD
           "pix_qr",
-=======
-          "pix",
           "pix_automatico_qr",
           "pix_automatico_push",
->>>>>>> origin/main
           "pay_safe_card",
           "przelewy24",
           "prompt_pay",
