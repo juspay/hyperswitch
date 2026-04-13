@@ -1749,9 +1749,7 @@ pub struct ErrorParameters {
 pub struct AciParsedConnectorIds {
     pub rrn: Option<String>,
     pub citi: Option<String>,
-    pub stan: Option<String>,
     pub auth_code: Option<String>,
-    pub original_transaction_id: Option<String>,
 }
 
 fn parse_connector_tx_ids(details: &AciResponseResultDetails) -> AciParsedConnectorIds {
@@ -1761,11 +1759,6 @@ fn parse_connector_tx_ids(details: &AciResponseResultDetails) -> AciParsedConnec
     fn get(v: &[String], i: usize) -> Option<String> {
         v.get(i).filter(|s| !s.is_empty()).cloned()
     }
-    let t1: Vec<String> = details
-        .connector_tx_id1
-        .as_deref()
-        .map(split_pipe)
-        .unwrap_or_default();
     let t2: Vec<String> = details
         .connector_tx_id2
         .as_deref()
@@ -1780,13 +1773,7 @@ fn parse_connector_tx_ids(details: &AciResponseResultDetails) -> AciParsedConnec
     AciParsedConnectorIds {
         rrn: get(&t2, 2),
         citi: get(&t3, 4),
-        stan: get(&t3, 0).or_else(|| get(&t2, 1)),
-        auth_code: details
-            .auth_code
-            .clone()
-            .or_else(|| get(&t3, 0))
-            .or_else(|| get(&t2, 2)),
-        original_transaction_id: get(&t1, 5),
+        auth_code: details.auth_code.clone(),
     }
 }
 
@@ -1825,7 +1812,7 @@ where
             }
         });
 
-        // Parse connector transaction IDs for RRN and network_txn_id
+        // Parse connector transaction IDs for RRN, CITI (network_txn_id), and auth_code
         let parsed_ids = item
             .response
             .result_details
@@ -1834,6 +1821,7 @@ where
 
         let rrn = parsed_ids.as_ref().and_then(|p| p.rrn.clone());
         let citi = parsed_ids.as_ref().and_then(|p| p.citi.clone());
+        let parsed_auth_code = parsed_ids.as_ref().and_then(|p| p.auth_code.clone());
         let connector_response_reference_id =
             rrn.clone().or_else(|| Some(item.response.id.clone()));
 
@@ -1887,12 +1875,10 @@ where
             })
         });
 
-        // Build ConnectorResponseData from auth_code, card_network, and payment_checks
-        let auth_code = item
-            .response
-            .result_details
-            .as_ref()
-            .and_then(|d| d.auth_code.clone());
+        // Build ConnectorResponseData from auth_code, card_network, and payment_checks.
+        // Use parsed_auth_code which covers both the direct AuthCode field and fallback
+        // extraction from connector TX ID fields.
+        let auth_code = parsed_auth_code;
         let card_network = item
             .response
             .payment_brand
