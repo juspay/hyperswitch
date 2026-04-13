@@ -368,7 +368,7 @@ async fn get_tracker_for_sync<
     };
 
     let refunds = db
-        .find_refund_by_payment_id_merchant_id(
+        .find_refund_by_payment_id_processor_merchant_id(
             &payment_id,
             platform.get_processor().get_account().get_id(),
             storage_scheme,
