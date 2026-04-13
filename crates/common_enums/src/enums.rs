@@ -9521,6 +9521,40 @@ pub enum PermissionGroup {
     ReconRulesManage,
 }
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Hash, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum RoleProductCategory {
+    Dashboard,
+    Orchestration,
+    Vault,
+    Recon,
+    Recovery,
+    CostObservability,
+    DynamicRouting,
+}
+
+impl RoleProductCategory {
+    pub fn is_product_accessible(&self, merchant_product_type: MerchantProductType) -> bool {
+        match self {
+            Self::Dashboard => true,
+            _ => self == &Self::from(merchant_product_type),
+        }
+    }
+}
+
+impl From<MerchantProductType> for RoleProductCategory {
+    fn from(value: MerchantProductType) -> Self {
+        match value {
+            MerchantProductType::Orchestration => Self::Orchestration,
+            MerchantProductType::Vault => Self::Vault,
+            MerchantProductType::Recon => Self::Recon,
+            MerchantProductType::Recovery => Self::Recovery,
+            MerchantProductType::CostObservability => Self::CostObservability,
+            MerchantProductType::DynamicRouting => Self::DynamicRouting,
+        }
+    }
+}
+
 #[derive(
     Clone, Debug, serde::Serialize, serde::Deserialize, PartialEq, Eq, Hash, strum::EnumIter,
 )]

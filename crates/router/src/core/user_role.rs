@@ -137,7 +137,11 @@ pub async fn get_parent_group_info(
     let parent_groups = ParentGroup::get_descriptions_for_groups(
         entity_type,
         PermissionGroup::iter()
-            .filter(|group| group.get_product_type() == merchant_product_type)
+            .filter(|group| {
+                group
+                    .get_role_product_category()
+                    .is_product_accessible(merchant_product_type)
+            })
             .collect(),
     )
     .unwrap_or_default()

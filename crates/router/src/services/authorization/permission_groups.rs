@@ -1,7 +1,7 @@
 use std::{collections::HashMap, ops::Not};
 
 use common_enums::{
-    EntityType, MerchantProductType, ParentGroup, PermissionGroup, PermissionScope, Resource,
+    EntityType, ParentGroup, PermissionGroup, PermissionScope, Resource, RoleProductCategory,
 };
 use strum::IntoEnumIterator;
 
@@ -12,7 +12,7 @@ pub trait PermissionGroupExt {
     fn parent(&self) -> ParentGroup;
     fn resources(&self) -> Vec<Resource>;
     fn accessible_groups(&self) -> Vec<PermissionGroup>;
-    fn get_product_type(&self) -> MerchantProductType;
+    fn get_role_product_category(&self) -> RoleProductCategory;
 }
 
 impl PermissionGroupExt for PermissionGroup {
@@ -135,9 +135,12 @@ impl PermissionGroupExt for PermissionGroup {
         }
     }
 
-    fn get_product_type(&self) -> MerchantProductType {
+    fn get_role_product_category(&self) -> RoleProductCategory {
         match self {
-            // Orchestration group
+            // Common across every product — not validated against the merchant's category.
+            Self::UsersView | Self::UsersManage => RoleProductCategory::Dashboard,
+
+            // Orchestration-only groups.
             Self::OperationsView
             | Self::OperationsManage
             | Self::ConnectorsView
@@ -145,8 +148,6 @@ impl PermissionGroupExt for PermissionGroup {
             | Self::WorkflowsView
             | Self::WorkflowsManage
             | Self::AnalyticsView
-            | Self::UsersView
-            | Self::UsersManage
             | Self::AccountView
             | Self::AccountManage
             | Self::ReconReportsView
@@ -155,15 +156,15 @@ impl PermissionGroupExt for PermissionGroup {
             | Self::ReconOpsManage
             | Self::InternalManage
             | Self::ThemeView
-            | Self::ThemeManage => MerchantProductType::Orchestration,
+            | Self::ThemeManage => RoleProductCategory::Orchestration,
 
-            // Recon group
+            // Recon-only groups.
             Self::ReconSourceView
             | Self::ReconSourceManage
             | Self::ReconExceptionsManage
             | Self::ReconTransactionView
             | Self::ReconRulesView
-            | Self::ReconRulesManage => MerchantProductType::Recon,
+            | Self::ReconRulesManage => RoleProductCategory::Recon,
         }
     }
 }

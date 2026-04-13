@@ -42,9 +42,7 @@ use crate::{
     routes::{app::ReqState, SessionState},
     services::{
         authentication::{self as auth, blacklist::BlackList},
-        authorization::{
-            self, permission_groups::PermissionGroupExt, permissions::Permission, roles,
-        },
+        authorization::{self, permissions::Permission, roles},
         openidconnect, ApplicationResponse,
     },
     types::{domain, transformers::ForeignInto},
@@ -760,11 +758,7 @@ async fn handle_invitation(
     match req_role_info.get_entity_type() {
         EntityType::Tenant | EntityType::Organization => {}
         EntityType::Merchant | EntityType::Profile => {
-            if !req_role_info
-                .get_permission_groups()
-                .iter()
-                .all(|group| group.get_product_type() == merchant_product_type)
-            {
+            if req_role_info.get_merchant_product_type() != merchant_product_type {
                 Err(report!(UserErrors::InvalidRoleId)).attach_printable(format!(
                     "role_id = {} is not for product_type = {}",
                     request.role_id, merchant_product_type

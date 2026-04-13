@@ -132,10 +132,9 @@ pub async fn create_role(
         .await
         .to_not_found_response(UserErrors::MerchantIdNotFound)?;
 
-    utils::user_role::validate_role_groups(
-        &req.groups,
-        merchant_account.product_type.unwrap_or_default(),
-    )?;
+    let merchant_product_type = merchant_account.product_type.unwrap_or_default();
+
+    utils::user_role::validate_role_groups(&req.groups, merchant_product_type)?;
     utils::user_role::validate_role_name(
         &state,
         &role_name,
@@ -180,6 +179,7 @@ pub async fn create_role(
             last_modified_at: now,
             profile_id,
             tenant_id: user_from_token.tenant_id.unwrap_or(state.tenant.tenant_id),
+            merchant_product_type: Some(merchant_product_type),
         })
         .await
         .to_duplicate_response(UserErrors::RoleNameAlreadyExists)?;
@@ -253,10 +253,9 @@ pub async fn create_role_v2(
         .await
         .to_not_found_response(UserErrors::MerchantIdNotFound)?;
 
-    utils::user_role::validate_role_groups(
-        &permission_groups,
-        merchant_account.product_type.unwrap_or_default(),
-    )?;
+    let merchant_product_type = merchant_account.product_type.unwrap_or_default();
+
+    utils::user_role::validate_role_groups(&permission_groups, merchant_product_type)?;
     utils::user_role::validate_role_name(
         &state,
         &role_name,
@@ -301,6 +300,7 @@ pub async fn create_role_v2(
             last_modified_at: now,
             profile_id,
             tenant_id: user_from_token.tenant_id.unwrap_or(state.tenant.tenant_id),
+            merchant_product_type: Some(merchant_product_type),
         })
         .await
         .to_duplicate_response(UserErrors::RoleNameAlreadyExists)?;
@@ -763,12 +763,7 @@ pub async fn list_roles_at_entity_level(
                 .await
                 .map(|merchant_account| merchant_account.product_type.unwrap_or_default())
                 .to_not_found_response(UserErrors::MerchantIdNotFound)?;
-            role_info_vec.retain(|role_info| {
-                role_info
-                    .get_permission_groups()
-                    .iter()
-                    .all(|group| group.get_product_type() == product_type)
-            });
+            role_info_vec.retain(|role_info| role_info.get_merchant_product_type() == product_type);
         }
     }
 

@@ -46,10 +46,11 @@ pub fn validate_role_groups(
             .attach_printable("Role groups cannot be empty");
     }
 
-    if !groups
-        .iter()
-        .all(|group| group.get_product_type() == merchant_product_type)
-    {
+    if groups.iter().any(|group| {
+        group
+            .get_role_product_category()
+            .is_product_accessible(merchant_product_type)
+    }) {
         return Err(report!(UserErrors::InvalidRoleOperation))
             .attach_printable("Permission groups of different product types found");
     }
