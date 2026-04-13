@@ -100,27 +100,26 @@ impl DisputeInterface for Store {
         let conn = connection::pg_connection_read(self).await?;
         // Stagger release fallback: first try processor_merchant_id, if not found fallback to merchant_id
         // For old records processor_merchant_id is NULL, so we use merchant_id (which has the same value)
-        let result = storage::Dispute::find_by_processor_merchant_id_payment_id_connector_dispute_id(
-            &conn,
-            processor_merchant_id,
-            payment_id,
-            connector_dispute_id,
-        )
-        .await
-        .map_err(|error| report!(errors::StorageError::from(error)))?;
+        let result =
+            storage::Dispute::find_by_processor_merchant_id_payment_id_connector_dispute_id(
+                &conn,
+                processor_merchant_id,
+                payment_id,
+                connector_dispute_id,
+            )
+            .await
+            .map_err(|error| report!(errors::StorageError::from(error)))?;
 
         match result {
             Some(dispute) => Ok(Some(dispute)),
-            None => {
-                storage::Dispute::find_by_merchant_id_payment_id_connector_dispute_id(
-                    &conn,
-                    processor_merchant_id,
-                    payment_id,
-                    connector_dispute_id,
-                )
-                .await
-                .map_err(|error| report!(errors::StorageError::from(error)))
-            }
+            None => storage::Dispute::find_by_merchant_id_payment_id_connector_dispute_id(
+                &conn,
+                processor_merchant_id,
+                payment_id,
+                connector_dispute_id,
+            )
+            .await
+            .map_err(|error| report!(errors::StorageError::from(error))),
         }
     }
 
@@ -363,7 +362,8 @@ impl DisputeInterface for MockDb {
             .iter()
             .filter(|d| {
                 (d.processor_merchant_id.as_ref() == Some(processor_merchant_id)
-                    || (d.processor_merchant_id.is_none() && d.merchant_id == *processor_merchant_id))
+                    || (d.processor_merchant_id.is_none()
+                        && d.merchant_id == *processor_merchant_id))
                     && d.payment_id == *payment_id
             })
             .cloned()
@@ -424,7 +424,8 @@ impl DisputeInterface for MockDb {
             .iter()
             .filter(|dispute| {
                 (dispute.processor_merchant_id.as_ref() == Some(merchant_id)
-                    || (dispute.processor_merchant_id.is_none() && dispute.merchant_id == *merchant_id))
+                    || (dispute.processor_merchant_id.is_none()
+                        && dispute.merchant_id == *merchant_id))
                     && dispute_constraints
                         .dispute_id
                         .as_ref()
