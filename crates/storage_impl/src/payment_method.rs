@@ -383,7 +383,6 @@ impl<T: DatabaseStore> PaymentMethodInterface for KVRouterStore<T> {
     }
 
     // Check if KV stuff is needed here
-    #[cfg(feature = "v2")]
     async fn find_payment_method_by_fingerprint_id(
         &self,
         key_store: &MerchantKeyStore,
@@ -686,7 +685,6 @@ impl<T: DatabaseStore> PaymentMethodInterface for RouterStore<T> {
         .await
     }
 
-    #[cfg(feature = "v2")]
     async fn find_payment_method_by_fingerprint_id(
         &self,
         key_store: &MerchantKeyStore,
@@ -977,7 +975,6 @@ impl PaymentMethodInterface for MockDb {
         .await
     }
 
-    #[cfg(feature = "v2")]
     async fn find_payment_method_by_fingerprint_id(
         &self,
         key_store: &MerchantKeyStore,

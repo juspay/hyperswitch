@@ -12,7 +12,7 @@ use common_utils::{
     id_type, link_utils, pii,
     types::{MinorUnit, Percentage, Surcharge},
 };
-use masking::PeekInterface;
+use hyperswitch_masking::PeekInterface;
 use serde::de;
 use utoipa::ToSchema;
 
@@ -290,6 +290,9 @@ pub struct PaymentMethodMigrateResponse {
     //card data migration status
     pub card_migrated: Option<bool>,
 
+    //payment method data migration status (bank debit, wallet, etc.)
+    pub payment_method_migrated: Option<bool>,
+
     //network token data migration status
     pub network_token_migrated: Option<bool>,
 
@@ -331,6 +334,7 @@ pub struct PaymentsMandateReferenceRecord {
     pub original_payment_authorized_amount: Option<i64>,
     pub original_payment_authorized_currency: Option<common_enums::Currency>,
     pub connector_customer_id: Option<String>,
+    pub connector_mandate_request_reference_id: Option<String>,
 }
 
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
@@ -456,6 +460,34 @@ impl PaymentMethodCreate {
             network_transaction_id: payment_method_migrate.network_transaction_id.clone(),
         }
     }
+
+    pub fn get_payment_method_create_from_payment_method_data_migrate(
+        payment_method_data: PaymentMethodCreateData,
+        payment_method_migrate: &PaymentMethodMigrate,
+    ) -> Self {
+        Self {
+            customer_id: payment_method_migrate.customer_id.clone(),
+            payment_method: payment_method_migrate.payment_method,
+            payment_method_type: payment_method_migrate.payment_method_type,
+            payment_method_issuer: payment_method_migrate.payment_method_issuer.clone(),
+            payment_method_issuer_code: payment_method_migrate.payment_method_issuer_code,
+            metadata: payment_method_migrate.metadata.clone(),
+            payment_method_data: Some(payment_method_data),
+            connector_mandate_details: payment_method_migrate
+                .connector_mandate_details
+                .clone()
+                .map(PaymentsMandateReference::from),
+            client_secret: None,
+            billing: payment_method_migrate.billing.clone(),
+            card: None,
+            card_network: None,
+            #[cfg(feature = "payouts")]
+            bank_transfer: None,
+            #[cfg(feature = "payouts")]
+            wallet: None,
+            network_transaction_id: payment_method_migrate.network_transaction_id.clone(),
+        }
+    }
 }
 
 #[cfg(feature = "v2")]
@@ -518,12 +550,12 @@ pub struct PaymentMethodUpdate {
     /// The network transaction ID provided by the card network during a Customer Initiated Transaction (CIT)
     /// when `setup_future_usage` is set to `off_session`.
     #[schema(value_type = String)]
-    pub network_transaction_id: Option<masking::Secret<String>>,
+    pub network_transaction_id: Option<hyperswitch_masking::Secret<String>>,
 }
 
 #[cfg(feature = "v2")]
 impl PaymentMethodUpdate {
-    pub fn fetch_card_cvc_update(&self) -> Option<masking::Secret<String>> {
+    pub fn fetch_card_cvc_update(&self) -> Option<hyperswitch_masking::Secret<String>> {
         match &self.payment_method_data {
             Some(PaymentMethodUpdateData::Card(card_update)) => card_update.card_cvc.clone(),
             _ => None,
@@ -579,17 +611,78 @@ pub enum PaymentMethodCreateData {
     BankDebit(BankDebitDetail),
 }
 
-#[cfg(feature = "v1")]
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
 #[serde(deny_unknown_fields)]
 #[serde(rename_all = "snake_case")]
 pub enum BankDebitDetail {
     Ach {
         #[schema(value_type = String)]
-        account_number: masking::Secret<String>,
+        account_number: hyperswitch_masking::Secret<String>,
         #[schema(value_type = String)]
-        routing_number: masking::Secret<String>,
+        routing_number: hyperswitch_masking::Secret<String>,
+        #[schema(value_type = Option<String>)]
+        #[serde(default)]
+        bank_account_holder_name: Option<hyperswitch_masking::Secret<String>>,
+        #[schema(value_type = Option<BankType>)]
+        #[serde(default)]
+        bank_type: Option<common_enums::BankType>,
+        #[schema(value_type = Option<BankHolderType>)]
+        #[serde(default)]
+        bank_holder_type: Option<common_enums::BankHolderType>,
     },
+}
+
+impl BankDebitDetail {
+    pub fn get_masked_account_number(&self) -> String {
+        match self {
+            Self::Ach { account_number, .. } => account_number
+                .peek()
+                .chars()
+                .rev()
+                .take(4)
+                .collect::<String>()
+                .chars()
+                .rev()
+                .collect::<String>(),
+        }
+    }
+
+    pub fn get_masked_routing_number(&self) -> String {
+        match self {
+            Self::Ach { routing_number, .. } => routing_number
+                .peek()
+                .chars()
+                .rev()
+                .take(4)
+                .collect::<String>()
+                .chars()
+                .rev()
+                .collect::<String>(),
+        }
+    }
+
+    pub fn get_bank_account_holder_name(&self) -> Option<hyperswitch_masking::Secret<String>> {
+        match self {
+            Self::Ach {
+                bank_account_holder_name,
+                ..
+            } => bank_account_holder_name.clone(),
+        }
+    }
+
+    pub fn get_bank_type(&self) -> Option<common_enums::BankType> {
+        match self {
+            Self::Ach { bank_type, .. } => *bank_type,
+        }
+    }
+
+    pub fn get_bank_holder_type(&self) -> Option<common_enums::BankHolderType> {
+        match self {
+            Self::Ach {
+                bank_holder_type, ..
+            } => *bank_holder_type,
+        }
+    }
 }
 
 #[cfg(feature = "v1")]
@@ -602,23 +695,23 @@ pub struct CardDetail {
 
     /// Card Expiry Month
     #[schema(value_type = String,example = "10")]
-    pub card_exp_month: masking::Secret<String>,
+    pub card_exp_month: hyperswitch_masking::Secret<String>,
 
     /// Card Expiry Year
     #[schema(value_type = String,example = "25")]
-    pub card_exp_year: masking::Secret<String>,
+    pub card_exp_year: hyperswitch_masking::Secret<String>,
 
     /// Card CVC for Volatile Storage
     #[schema(value_type = Option<String>,example = "123")]
-    pub card_cvc: Option<masking::Secret<String>>,
+    pub card_cvc: Option<hyperswitch_masking::Secret<String>>,
 
     /// Card Holder Name
     #[schema(value_type = String,example = "John Doe")]
-    pub card_holder_name: Option<masking::Secret<String>>,
+    pub card_holder_name: Option<hyperswitch_masking::Secret<String>>,
 
     /// Card Holder's Nick Name
     #[schema(value_type = Option<String>,example = "John Doe")]
-    pub nick_name: Option<masking::Secret<String>>,
+    pub nick_name: Option<hyperswitch_masking::Secret<String>>,
 
     /// Card Issuing Country
     pub card_issuing_country: Option<String>,
@@ -669,19 +762,19 @@ pub struct CardDetail {
 
     /// Card Expiry Month
     #[schema(value_type = String,example = "10")]
-    pub card_exp_month: masking::Secret<String>,
+    pub card_exp_month: hyperswitch_masking::Secret<String>,
 
     /// Card Expiry Year
     #[schema(value_type = String,example = "25")]
-    pub card_exp_year: masking::Secret<String>,
+    pub card_exp_year: hyperswitch_masking::Secret<String>,
 
     /// Card Holder Name
     #[schema(value_type = String,example = "John Doe")]
-    pub card_holder_name: Option<masking::Secret<String>>,
+    pub card_holder_name: Option<hyperswitch_masking::Secret<String>>,
 
     /// Card Holder's Nick Name
     #[schema(value_type = Option<String>,example = "John Doe")]
-    pub nick_name: Option<masking::Secret<String>>,
+    pub nick_name: Option<hyperswitch_masking::Secret<String>>,
 
     /// Card Issuing Country
     #[schema(value_type = CountryAlpha2)]
@@ -700,7 +793,7 @@ pub struct CardDetail {
     /// The CVC number for the card
     /// This is optional in case the card needs to be vaulted
     #[schema(value_type = String, example = "242")]
-    pub card_cvc: Option<masking::Secret<String>>,
+    pub card_cvc: Option<hyperswitch_masking::Secret<String>>,
 }
 
 // This struct is for collecting Proxy Card Data
@@ -711,15 +804,15 @@ pub struct CardDetail {
 pub struct ProxyCardDetails {
     /// Tokenized Card Number
     #[schema(value_type = String,example = "tok_sjfowhoejsldj")]
-    pub card_number: masking::Secret<String>,
+    pub card_number: hyperswitch_masking::Secret<String>,
 
     /// Card Expiry Month
     #[schema(value_type = String,example = "10")]
-    pub card_exp_month: masking::Secret<String>,
+    pub card_exp_month: hyperswitch_masking::Secret<String>,
 
     /// Card Expiry Year
     #[schema(value_type = String,example = "25")]
-    pub card_exp_year: masking::Secret<String>,
+    pub card_exp_year: hyperswitch_masking::Secret<String>,
 
     /// First Six Digit of Card Number
     pub bin_number: Option<String>,
@@ -742,16 +835,16 @@ pub struct ProxyCardDetails {
 
     /// Card Holder's Nick Name
     #[schema(value_type = Option<String>,example = "John Doe")]
-    pub nick_name: Option<masking::Secret<String>>,
+    pub nick_name: Option<hyperswitch_masking::Secret<String>>,
 
     /// Card Holder Name
     #[schema(value_type = String,example = "John Doe")]
-    pub card_holder_name: Option<masking::Secret<String>>,
+    pub card_holder_name: Option<hyperswitch_masking::Secret<String>>,
 
     /// The CVC number for the card
     /// This is optional in case the card needs to be vaulted
     #[schema(value_type = String, example = "242")]
-    pub card_cvc: Option<masking::Secret<String>>,
+    pub card_cvc: Option<hyperswitch_masking::Secret<String>>,
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
@@ -759,23 +852,23 @@ pub struct ProxyCardDetails {
 pub struct MigrateCardDetail {
     /// Card Number
     #[schema(value_type = String,example = "4111111145551142")]
-    pub card_number: masking::Secret<String>,
+    pub card_number: hyperswitch_masking::Secret<String>,
 
     /// Card Expiry Month
     #[schema(value_type = String,example = "10")]
-    pub card_exp_month: masking::Secret<String>,
+    pub card_exp_month: hyperswitch_masking::Secret<String>,
 
     /// Card Expiry Year
     #[schema(value_type = String,example = "25")]
-    pub card_exp_year: masking::Secret<String>,
+    pub card_exp_year: hyperswitch_masking::Secret<String>,
 
     /// Card Holder Name
     #[schema(value_type = String,example = "John Doe")]
-    pub card_holder_name: Option<masking::Secret<String>>,
+    pub card_holder_name: Option<hyperswitch_masking::Secret<String>>,
 
     /// Card Holder's Nick Name
     #[schema(value_type = Option<String>,example = "John Doe")]
-    pub nick_name: Option<masking::Secret<String>>,
+    pub nick_name: Option<hyperswitch_masking::Secret<String>>,
 
     /// Card Issuing Country
     pub card_issuing_country: Option<String>,
@@ -803,19 +896,19 @@ pub struct MigrateNetworkTokenData {
 
     /// Network Token Expiry Month
     #[schema(value_type = String,example = "10")]
-    pub network_token_exp_month: masking::Secret<String>,
+    pub network_token_exp_month: hyperswitch_masking::Secret<String>,
 
     /// Network Token Expiry Year
     #[schema(value_type = String,example = "25")]
-    pub network_token_exp_year: masking::Secret<String>,
+    pub network_token_exp_year: hyperswitch_masking::Secret<String>,
 
     /// Card Holder Name
     #[schema(value_type = String,example = "John Doe")]
-    pub card_holder_name: Option<masking::Secret<String>>,
+    pub card_holder_name: Option<hyperswitch_masking::Secret<String>>,
 
     /// Card Holder's Nick Name
     #[schema(value_type = Option<String>,example = "John Doe")]
-    pub nick_name: Option<masking::Secret<String>>,
+    pub nick_name: Option<hyperswitch_masking::Secret<String>>,
 
     /// Card Issuing Country
     pub card_issuing_country: Option<String>,
@@ -850,19 +943,19 @@ pub struct MigrateNetworkTokenDetail {
 pub struct CardDetailUpdate {
     /// Card Expiry Month
     #[schema(value_type = String, example = "10")]
-    pub card_exp_month: Option<masking::Secret<String>>,
+    pub card_exp_month: Option<hyperswitch_masking::Secret<String>>,
 
     /// Card Expiry Year
     #[schema(value_type = String, example = "25")]
-    pub card_exp_year: Option<masking::Secret<String>>,
+    pub card_exp_year: Option<hyperswitch_masking::Secret<String>>,
 
     /// Card Holder Name
     #[schema(value_type = String, example = "John Doe")]
-    pub card_holder_name: Option<masking::Secret<String>>,
+    pub card_holder_name: Option<hyperswitch_masking::Secret<String>>,
 
     /// Card Holder's Nick Name
     #[schema(value_type = Option<String>, example = "John Doe")]
-    pub nick_name: Option<masking::Secret<String>>,
+    pub nick_name: Option<hyperswitch_masking::Secret<String>>,
 
     /// Card's Last 4 Digits
     #[schema(value_type = Option<String>, example = "1111")]
@@ -902,10 +995,9 @@ impl CardDetailUpdate {
                 .card_holder_name
                 .clone()
                 .or(card_data_from_locker.name_on_card),
-            nick_name: self
+            nick_name: self.nick_name.clone().or(card_data_from_locker
                 .nick_name
-                .clone()
-                .or(card_data_from_locker.nick_name.map(masking::Secret::new)),
+                .map(hyperswitch_masking::Secret::new)),
             card_cvc: None,
             card_issuing_country: None,
             card_issuing_country_code: None,
@@ -922,15 +1014,15 @@ impl CardDetailUpdate {
 pub struct CardDetailUpdate {
     /// Card Holder Name
     #[schema(value_type = String,example = "John Doe")]
-    pub card_holder_name: Option<masking::Secret<String>>,
+    pub card_holder_name: Option<hyperswitch_masking::Secret<String>>,
 
     /// Card Holder's Nick Name
     #[schema(value_type = Option<String>,example = "John Doe")]
-    pub nick_name: Option<masking::Secret<String>>,
+    pub nick_name: Option<hyperswitch_masking::Secret<String>>,
 
     /// The CVC number for the card
     #[schema(value_type = Option<String>,  example = "242")]
-    pub card_cvc: Option<masking::Secret<String>>,
+    pub card_cvc: Option<hyperswitch_masking::Secret<String>>,
 }
 
 #[cfg(feature = "v2")]
@@ -944,10 +1036,9 @@ impl CardDetailUpdate {
                 .card_holder_name
                 .clone()
                 .or(card_data_from_locker.name_on_card),
-            nick_name: self
+            nick_name: self.nick_name.clone().or(card_data_from_locker
                 .nick_name
-                .clone()
-                .or(card_data_from_locker.nick_name.map(masking::Secret::new)),
+                .map(hyperswitch_masking::Secret::new)),
             card_issuing_country: None,
             card_network: None,
             card_issuer: None,
@@ -1128,7 +1219,7 @@ pub struct ConnectorTokenDetails {
     pub metadata: Option<pii::SecretSerdeValue>,
 
     /// The value of the connector token. This token can be used to make merchant initiated payments ( MIT ), directly with the connector.
-    pub token: masking::Secret<String>,
+    pub token: hyperswitch_masking::Secret<String>,
 }
 
 #[cfg(feature = "v2")]
@@ -1192,7 +1283,7 @@ pub struct PaymentMethodResponse {
     /// The network transaction ID provided by the card network during a Customer Initiated Transaction (CIT)
     /// when `setup_future_usage` is set to `off_session`.
     #[schema(value_type = String)]
-    pub network_transaction_id: Option<masking::Secret<String>>,
+    pub network_transaction_id: Option<hyperswitch_masking::Secret<String>>,
 
     /// The raw data associated with the payment method
     #[schema(value_type = RawPaymentMethodData)]
@@ -1229,6 +1320,7 @@ pub enum PaymentMethodsData {
     Card(CardDetailsPaymentMethod),
     BankDetails(PaymentMethodDataBankCreds),
     WalletDetails(PaymentMethodDataWalletInfo),
+    BankDebit(BankDebitDetailsPaymentMethod),
 }
 
 impl PaymentMethodsData {
@@ -1243,7 +1335,7 @@ impl PaymentMethodsData {
 #[derive(Clone, Debug, PartialEq, serde::Deserialize, serde::Serialize)]
 pub struct ExternalVaultTokenData {
     /// Tokenized reference for Card Number
-    pub tokenized_card_number: masking::Secret<String>,
+    pub tokenized_card_number: hyperswitch_masking::Secret<String>,
 }
 
 #[derive(Clone, Debug, PartialEq, serde::Deserialize, serde::Serialize)]
@@ -1251,10 +1343,10 @@ pub struct CardDetailsPaymentMethod {
     pub last4_digits: Option<String>,
     pub issuer_country: Option<String>,
     pub issuer_country_code: Option<String>,
-    pub expiry_month: Option<masking::Secret<String>>,
-    pub expiry_year: Option<masking::Secret<String>>,
-    pub nick_name: Option<masking::Secret<String>>,
-    pub card_holder_name: Option<masking::Secret<String>>,
+    pub expiry_month: Option<hyperswitch_masking::Secret<String>>,
+    pub expiry_year: Option<hyperswitch_masking::Secret<String>>,
+    pub nick_name: Option<hyperswitch_masking::Secret<String>>,
+    pub card_holder_name: Option<hyperswitch_masking::Secret<String>>,
     pub card_isin: Option<String>,
     pub card_issuer: Option<String>,
     pub card_network: Option<api_enums::CardNetwork>,
@@ -1262,6 +1354,20 @@ pub struct CardDetailsPaymentMethod {
     #[serde(default = "saved_in_locker_default")]
     pub saved_to_locker: bool,
     pub co_badged_card_data: Option<CoBadgedCardDataToBeSaved>,
+}
+
+#[derive(serde::Deserialize, serde::Serialize, Debug, Clone, Eq, PartialEq)]
+#[serde(rename_all = "snake_case")]
+pub enum BankDebitDetailsPaymentMethod {
+    AchBankDebit {
+        masked_account_number: String,
+        masked_routing_number: String,
+        card_holder_name: Option<hyperswitch_masking::Secret<String>>,
+        bank_account_holder_name: Option<hyperswitch_masking::Secret<String>>,
+        bank_name: Option<common_enums::BankNames>,
+        bank_type: Option<common_enums::BankType>,
+        bank_holder_type: Option<common_enums::BankHolderType>,
+    },
 }
 
 impl From<&CoBadgedCardData> for CoBadgedCardDataToBeSaved {
@@ -1319,13 +1425,13 @@ pub struct NetworkTokenDetailsPaymentMethod {
     #[schema(value_type = Option<CountryAlpha2>)]
     pub issuer_country: Option<common_enums::CountryAlpha2>,
     #[schema(value_type = Option<String>, example = "05")]
-    pub network_token_expiry_month: Option<masking::Secret<String>>,
+    pub network_token_expiry_month: Option<hyperswitch_masking::Secret<String>>,
     #[schema(value_type = Option<String>, example = "27")]
-    pub network_token_expiry_year: Option<masking::Secret<String>>,
+    pub network_token_expiry_year: Option<hyperswitch_masking::Secret<String>>,
     #[schema(value_type = Option<String>, example = "Card")]
-    pub nick_name: Option<masking::Secret<String>>,
+    pub nick_name: Option<hyperswitch_masking::Secret<String>>,
     #[schema(value_type = Option<String>, example = "John Doe")]
-    pub card_holder_name: Option<masking::Secret<String>>,
+    pub card_holder_name: Option<hyperswitch_masking::Secret<String>>,
     #[schema(value_type = Option<String>, example = "16712672")]
     pub card_isin: Option<String>,
     #[schema(value_type = Option<String>, example = "Bank of America")]
@@ -1359,10 +1465,10 @@ pub struct PaymentMethodDataWalletInfo {
     pub card_type: Option<String>,
     /// The card's expiry month
     #[schema(value_type = Option<String>,example = "10")]
-    pub card_exp_month: Option<masking::Secret<String>>,
+    pub card_exp_month: Option<hyperswitch_masking::Secret<String>>,
     /// The card's expiry year
     #[schema(value_type = Option<String>,example = "25")]
-    pub card_exp_year: Option<masking::Secret<String>>,
+    pub card_exp_year: Option<hyperswitch_masking::Secret<String>>,
     /// Unique authorisation code for the payment
     #[schema(value_type = Option<String>,example = "003225")]
     pub auth_code: Option<String>,
@@ -1439,14 +1545,14 @@ pub struct BankAccountTokenData {
 #[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct BankAccountConnectorDetails {
     pub connector: String,
-    pub account_id: masking::Secret<String>,
+    pub account_id: hyperswitch_masking::Secret<String>,
     pub mca_id: id_type::MerchantConnectorAccountId,
     pub access_token: BankAccountAccessCreds,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
 pub enum BankAccountAccessCreds {
-    AccessToken(masking::Secret<String>),
+    AccessToken(hyperswitch_masking::Secret<String>),
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]
@@ -1472,9 +1578,9 @@ impl LockerCardResponse {
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]
 pub struct Card {
     pub card_number: CardNumber,
-    pub name_on_card: Option<masking::Secret<String>>,
-    pub card_exp_month: masking::Secret<String>,
-    pub card_exp_year: masking::Secret<String>,
+    pub name_on_card: Option<hyperswitch_masking::Secret<String>>,
+    pub card_exp_month: hyperswitch_masking::Secret<String>,
+    pub card_exp_year: hyperswitch_masking::Secret<String>,
     pub card_brand: Option<String>,
     pub card_isin: Option<String>,
     pub nick_name: Option<String>,
@@ -1488,7 +1594,7 @@ impl From<(Card, Option<common_enums::CardNetwork>)> for CardDetail {
             card_exp_month: card.card_exp_month.clone(),
             card_exp_year: card.card_exp_year.clone(),
             card_holder_name: card.name_on_card.clone(),
-            nick_name: card.nick_name.map(masking::Secret::new),
+            nick_name: card.nick_name.map(hyperswitch_masking::Secret::new),
             card_cvc: None,
             card_issuing_country: None,
             card_issuing_country_code: None,
@@ -1511,22 +1617,22 @@ pub struct CardDetailFromLocker {
     pub card_number: Option<CardNumber>,
 
     #[schema(value_type=Option<String>)]
-    pub expiry_month: Option<masking::Secret<String>>,
+    pub expiry_month: Option<hyperswitch_masking::Secret<String>>,
 
     #[schema(value_type=Option<String>)]
-    pub expiry_year: Option<masking::Secret<String>>,
+    pub expiry_year: Option<hyperswitch_masking::Secret<String>>,
 
     #[schema(value_type=Option<String>)]
-    pub card_token: Option<masking::Secret<String>>,
+    pub card_token: Option<hyperswitch_masking::Secret<String>>,
 
     #[schema(value_type=Option<String>)]
-    pub card_holder_name: Option<masking::Secret<String>>,
+    pub card_holder_name: Option<hyperswitch_masking::Secret<String>>,
 
     #[schema(value_type=Option<String>)]
-    pub card_fingerprint: Option<masking::Secret<String>>,
+    pub card_fingerprint: Option<hyperswitch_masking::Secret<String>>,
 
     #[schema(value_type=Option<String>)]
-    pub nick_name: Option<masking::Secret<String>>,
+    pub nick_name: Option<hyperswitch_masking::Secret<String>>,
 
     #[schema(value_type = Option<CardNetwork>)]
     pub card_network: Option<api_enums::CardNetwork>,
@@ -1549,19 +1655,19 @@ pub struct CardDetailFromLocker {
     pub card_number: Option<CardNumber>,
 
     #[schema(value_type=Option<String>, example = "10")]
-    pub expiry_month: Option<masking::Secret<String>>,
+    pub expiry_month: Option<hyperswitch_masking::Secret<String>>,
 
     #[schema(value_type=Option<String>, example = "25")]
-    pub expiry_year: Option<masking::Secret<String>>,
+    pub expiry_year: Option<hyperswitch_masking::Secret<String>>,
 
     #[schema(value_type=Option<String>, example = "John Doe")]
-    pub card_holder_name: Option<masking::Secret<String>>,
+    pub card_holder_name: Option<hyperswitch_masking::Secret<String>>,
 
     #[schema(value_type=Option<String>, example = "fingerprint_12345")]
-    pub card_fingerprint: Option<masking::Secret<String>>,
+    pub card_fingerprint: Option<hyperswitch_masking::Secret<String>>,
 
     #[schema(value_type=Option<String>, example = "Card")]
-    pub nick_name: Option<masking::Secret<String>>,
+    pub nick_name: Option<hyperswitch_masking::Secret<String>>,
 
     #[schema(value_type = Option<CardNetwork>, example = "VISA")]
     pub card_network: Option<api_enums::CardNetwork>,
@@ -1972,7 +2078,7 @@ pub struct RequiredFieldInfo {
     pub field_type: api_enums::FieldType,
 
     #[schema(value_type = Option<String>)]
-    pub value: Option<masking::Secret<String>>,
+    pub value: Option<hyperswitch_masking::Secret<String>>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, ToSchema)]
@@ -2425,15 +2531,15 @@ pub struct NetworkTokenDetailsResponse {
 
     /// Expiry month of the network token
     #[schema(value_type = String)]
-    pub network_token_exp_month: masking::Secret<String>,
+    pub network_token_exp_month: hyperswitch_masking::Secret<String>,
 
     /// Expiry year of the network token
     #[schema(value_type = String)]
-    pub network_token_exp_year: masking::Secret<String>,
+    pub network_token_exp_year: hyperswitch_masking::Secret<String>,
 
     /// Cryptogram generated by the Network
     #[schema(value_type = Option<String>)]
-    pub cryptogram: Option<masking::Secret<String>>,
+    pub cryptogram: Option<hyperswitch_masking::Secret<String>>,
 
     /// Issuer of the card
     pub card_issuer: Option<String>,
@@ -2454,11 +2560,11 @@ pub struct NetworkTokenDetailsResponse {
 
     /// Name of the card holder
     #[schema(value_type = Option<String>)]
-    pub card_holder_name: Option<masking::Secret<String>>,
+    pub card_holder_name: Option<hyperswitch_masking::Secret<String>>,
 
     /// Nick name of the card holder
     #[schema(value_type = Option<String>)]
-    pub nick_name: Option<masking::Secret<String>>,
+    pub nick_name: Option<hyperswitch_masking::Secret<String>>,
 
     /// ECI indicator of the card
     pub eci: Option<String>,
@@ -2785,7 +2891,7 @@ pub struct PaymentMethodCollectLinkResponse {
 
     /// URL to the form's link generated for collecting payment method details.
     #[schema(value_type = String, example = "https://sandbox.hyperswitch.io/payment_method/collect/pm_collect_link_2bdacf398vwzq5n422S1")]
-    pub link: masking::Secret<url::Url>,
+    pub link: hyperswitch_masking::Secret<url::Url>,
 
     /// Redirect to this URL post completion
     #[schema(value_type = Option<String>, example = "https://sandbox.hyperswitch.io/payment_method/collect/pm_collect_link_2bdacf398vwzq5n422S1/status")]
@@ -2814,8 +2920,8 @@ pub struct PaymentMethodCollectLinkRenderRequest {
 
 #[derive(Clone, Debug, serde::Serialize)]
 pub struct PaymentMethodCollectLinkDetails {
-    pub publishable_key: masking::Secret<String>,
-    pub client_secret: masking::Secret<String>,
+    pub publishable_key: hyperswitch_masking::Secret<String>,
+    pub client_secret: hyperswitch_masking::Secret<String>,
     pub pm_collect_link_id: String,
     pub customer_id: id_type::CustomerId,
     #[serde(with = "common_utils::custom_serde::iso8601")]
@@ -2973,41 +3079,81 @@ pub struct TokenizedBankRedirectValue2 {
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
 pub struct PaymentMethodRecord {
     pub customer_id: id_type::CustomerId,
-    pub name: Option<masking::Secret<String>>,
-    pub card_holder_name: Option<masking::Secret<String>>,
+    pub name: Option<hyperswitch_masking::Secret<String>>,
+    pub card_holder_name: Option<hyperswitch_masking::Secret<String>>,
     pub email: Option<pii::Email>,
-    pub phone: Option<masking::Secret<String>>,
+    pub phone: Option<hyperswitch_masking::Secret<String>>,
     pub phone_country_code: Option<String>,
     pub merchant_id: Option<id_type::MerchantId>,
     pub payment_method: Option<api_enums::PaymentMethod>,
     pub payment_method_type: Option<api_enums::PaymentMethodType>,
-    pub nick_name: Option<masking::Secret<String>>,
-    pub payment_instrument_id: Option<masking::Secret<String>>,
+    pub nick_name: Option<hyperswitch_masking::Secret<String>>,
+    pub payment_instrument_id: Option<hyperswitch_masking::Secret<String>>,
     pub connector_customer_id: Option<String>,
-    pub card_number_masked: masking::Secret<String>,
-    pub card_expiry_month: masking::Secret<String>,
-    pub card_expiry_year: masking::Secret<String>,
+    pub connector_mandate_request_reference_id: Option<String>,
+    // Card fields are optional to support non-card CSV rows (e.g., ACH bank debit).
+    // For card rows these will still be populated normally from the CSV columns.
+    #[serde(default)]
+    pub card_number_masked: Option<hyperswitch_masking::Secret<String>>,
+    #[serde(default)]
+    pub card_expiry_month: Option<hyperswitch_masking::Secret<String>>,
+    #[serde(default)]
+    pub card_expiry_year: Option<hyperswitch_masking::Secret<String>>,
     pub card_scheme: Option<String>,
     pub original_transaction_id: Option<String>,
-    pub billing_address_zip: Option<masking::Secret<String>>,
-    pub billing_address_state: Option<masking::Secret<String>>,
-    pub billing_address_first_name: Option<masking::Secret<String>>,
-    pub billing_address_last_name: Option<masking::Secret<String>>,
+    pub billing_address_zip: Option<hyperswitch_masking::Secret<String>>,
+    pub billing_address_state: Option<hyperswitch_masking::Secret<String>>,
+    pub billing_address_first_name: Option<hyperswitch_masking::Secret<String>>,
+    pub billing_address_last_name: Option<hyperswitch_masking::Secret<String>>,
     pub billing_address_city: Option<String>,
     pub billing_address_country: Option<api_enums::CountryAlpha2>,
-    pub billing_address_line1: Option<masking::Secret<String>>,
-    pub billing_address_line2: Option<masking::Secret<String>>,
-    pub billing_address_line3: Option<masking::Secret<String>>,
-    pub raw_card_number: Option<masking::Secret<String>>,
+    pub billing_address_line1: Option<hyperswitch_masking::Secret<String>>,
+    pub billing_address_line2: Option<hyperswitch_masking::Secret<String>>,
+    pub billing_address_line3: Option<hyperswitch_masking::Secret<String>>,
+    pub raw_card_number: Option<hyperswitch_masking::Secret<String>>,
     pub merchant_connector_id: Option<id_type::MerchantConnectorAccountId>,
     pub merchant_connector_ids: Option<String>,
     pub original_transaction_amount: Option<i64>,
     pub original_transaction_currency: Option<common_enums::Currency>,
     pub line_number: Option<i64>,
     pub network_token_number: Option<CardNumber>,
-    pub network_token_expiry_month: Option<masking::Secret<String>>,
-    pub network_token_expiry_year: Option<masking::Secret<String>>,
+    pub network_token_expiry_month: Option<hyperswitch_masking::Secret<String>>,
+    pub network_token_expiry_year: Option<hyperswitch_masking::Secret<String>>,
     pub network_token_requestor_ref_id: Option<String>,
+    #[serde(default)]
+    pub account_number: Option<hyperswitch_masking::Secret<String>>,
+    #[serde(default)]
+    pub routing_number: Option<hyperswitch_masking::Secret<String>>,
+    #[serde(default)]
+    pub bank_account_holder_name: Option<hyperswitch_masking::Secret<String>>,
+    #[serde(default)]
+    pub bank_type: Option<common_enums::BankType>,
+    #[serde(default)]
+    pub bank_holder_type: Option<common_enums::BankHolderType>,
+}
+
+#[cfg(feature = "v1")]
+impl PaymentMethodRecord {
+    /// Constructs `PaymentMethodCreateData` from the CSV record fields.
+    /// Returns `None` for card records (cards are handled via `MigrateCardDetail`).
+    /// Extend the match arms here to support additional payment method types
+    /// (e.g., SEPA, BACS, wallets) in the future.
+    pub fn get_payment_method_data(&self) -> Option<PaymentMethodCreateData> {
+        match (self.account_number.as_ref(), self.routing_number.as_ref()) {
+            (Some(account_number), Some(routing_number))
+                if !account_number.peek().is_empty() && !routing_number.peek().is_empty() =>
+            {
+                Some(PaymentMethodCreateData::BankDebit(BankDebitDetail::Ach {
+                    account_number: account_number.clone(),
+                    routing_number: routing_number.clone(),
+                    bank_account_holder_name: self.bank_account_holder_name.clone(),
+                    bank_type: self.bank_type,
+                    bank_holder_type: self.bank_holder_type,
+                }))
+            }
+            _ => None,
+        }
+    }
 }
 
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
@@ -3016,11 +3162,11 @@ pub struct UpdatePaymentMethodRecord {
     pub status: Option<common_enums::PaymentMethodStatus>,
     pub network_transaction_id: Option<String>,
     pub line_number: Option<i64>,
-    pub payment_instrument_id: Option<masking::Secret<String>>,
+    pub payment_instrument_id: Option<hyperswitch_masking::Secret<String>>,
     pub connector_customer_id: Option<String>,
     pub merchant_connector_ids: Option<String>,
-    pub card_expiry_month: Option<masking::Secret<String>>,
-    pub card_expiry_year: Option<masking::Secret<String>>,
+    pub card_expiry_month: Option<hyperswitch_masking::Secret<String>>,
+    pub card_expiry_year: Option<hyperswitch_masking::Secret<String>>,
 }
 
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
@@ -3074,8 +3220,9 @@ pub struct PaymentMethodMigrationResponse {
     pub migration_status: MigrationStatus,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub migration_error: Option<String>,
-    pub card_number_masked: Option<masking::Secret<String>>,
+    pub card_number_masked: Option<hyperswitch_masking::Secret<String>>,
     pub card_migrated: Option<bool>,
+    pub payment_method_migrated: Option<bool>,
     pub network_token_migrated: Option<bool>,
     pub connector_mandate_details_migrated: Option<bool>,
     pub network_transaction_id_migrated: Option<bool>,
@@ -3170,18 +3317,19 @@ impl From<PaymentMethodMigrationResponseType> for PaymentMethodMigrationResponse
                 customer_id: res.payment_method_response.customer_id,
                 migration_status: MigrationStatus::Success,
                 migration_error: None,
-                card_number_masked: Some(record.card_number_masked),
+                card_number_masked: record.card_number_masked.clone(),
                 line_number: record.line_number,
                 card_migrated: res.card_migrated,
+                payment_method_migrated: res.payment_method_migrated,
                 network_token_migrated: res.network_token_migrated,
                 connector_mandate_details_migrated: res.connector_mandate_details_migrated,
                 network_transaction_id_migrated: res.network_transaction_id_migrated,
             },
             Err(e) => Self {
-                customer_id: Some(record.customer_id),
+                customer_id: Some(record.customer_id.clone()),
                 migration_status: MigrationStatus::Failed,
                 migration_error: Some(e),
-                card_number_masked: Some(record.card_number_masked),
+                card_number_masked: record.card_number_masked.clone(),
                 line_number: record.line_number,
                 ..Self::default()
             },
@@ -3217,6 +3365,7 @@ impl From<PaymentMethodUpdateResponseType> for PaymentMethodUpdateResponse {
     }
 }
 
+#[cfg(feature = "v1")]
 impl
     TryFrom<(
         &PaymentMethodRecord,
@@ -3250,7 +3399,10 @@ impl
                             original_payment_authorized_amount: record.original_transaction_amount,
                             original_payment_authorized_currency: record
                                 .original_transaction_currency,
-                            connector_customer_id: record.connector_customer_id.clone(),
+                            connector_customer_id: None,
+                            connector_mandate_request_reference_id: record
+                                .connector_mandate_request_reference_id
+                                .clone(),
                         },
                     )
                 })
@@ -3260,16 +3412,19 @@ impl
             None
         };
 
-        Ok(Self {
-            merchant_id,
-            customer_id: Some(record.customer_id.clone()),
-            card: Some(MigrateCardDetail {
+        let payment_method_data = record.get_payment_method_data();
+        let is_non_card = payment_method_data.is_some();
+
+        let card = if is_non_card {
+            None
+        } else {
+            Some(MigrateCardDetail {
                 card_number: record
                     .raw_card_number
                     .clone()
-                    .unwrap_or_else(|| record.card_number_masked.clone()),
-                card_exp_month: record.card_expiry_month.clone(),
-                card_exp_year: record.card_expiry_year.clone(),
+                    .unwrap_or_else(|| record.card_number_masked.clone().unwrap_or_default()),
+                card_exp_month: record.card_expiry_month.clone().unwrap_or_default(),
+                card_exp_year: record.card_expiry_year.clone().unwrap_or_default(),
                 card_holder_name: record.card_holder_name.clone().or(record.name.clone()),
                 card_network: None,
                 card_type: None,
@@ -3277,8 +3432,13 @@ impl
                 card_issuing_country: None,
                 card_issuing_country_code: None,
                 nick_name: record.nick_name.clone(),
-            }),
-            network_token: Some(MigrateNetworkTokenDetail {
+            })
+        };
+
+        let network_token = if is_non_card {
+            None
+        } else {
+            Some(MigrateNetworkTokenDetail {
                 network_token_data: MigrateNetworkTokenData {
                     network_token_number: record.network_token_number.clone().unwrap_or_default(),
                     network_token_exp_month: record
@@ -3301,7 +3461,14 @@ impl
                     .network_token_requestor_ref_id
                     .clone()
                     .unwrap_or_default(),
-            }),
+            })
+        };
+
+        Ok(Self {
+            merchant_id,
+            customer_id: Some(record.customer_id.clone()),
+            card,
+            network_token,
             payment_method: record.payment_method,
             payment_method_type: record.payment_method_type,
             payment_method_issuer: None,
@@ -3318,7 +3485,7 @@ impl
             bank_transfer: None,
             #[cfg(feature = "payouts")]
             wallet: None,
-            payment_method_data: None,
+            payment_method_data,
             network_transaction_id: record.original_transaction_id.clone(),
         })
     }
@@ -3368,23 +3535,23 @@ pub struct TokenizeCardRequest {
 
     /// Card Expiry Month
     #[schema(value_type = String, example = "10")]
-    pub card_expiry_month: masking::Secret<String>,
+    pub card_expiry_month: hyperswitch_masking::Secret<String>,
 
     /// Card Expiry Year
     #[schema(value_type = String, example = "25")]
-    pub card_expiry_year: masking::Secret<String>,
+    pub card_expiry_year: hyperswitch_masking::Secret<String>,
 
     /// The CVC number for the card
     #[schema(value_type = Option<String>,  example = "242")]
-    pub card_cvc: Option<masking::Secret<String>>,
+    pub card_cvc: Option<hyperswitch_masking::Secret<String>>,
 
     /// Card Holder Name
     #[schema(value_type = Option<String>, example = "John Doe")]
-    pub card_holder_name: Option<masking::Secret<String>>,
+    pub card_holder_name: Option<hyperswitch_masking::Secret<String>>,
 
     /// Card Holder's Nick Name
     #[schema(value_type = Option<String>, example = "John Doe")]
-    pub nick_name: Option<masking::Secret<String>>,
+    pub nick_name: Option<hyperswitch_masking::Secret<String>>,
 
     /// Card Issuing Country
     pub card_issuing_country: Option<String>,
@@ -3411,7 +3578,7 @@ pub struct TokenizePaymentMethodRequest {
 
     /// The CVC number for the card
     #[schema(value_type = Option<String>,  example = "242")]
-    pub card_cvc: Option<masking::Secret<String>>,
+    pub card_cvc: Option<hyperswitch_masking::Secret<String>>,
 }
 
 #[derive(Debug, Default, serde::Deserialize, serde::Serialize, ToSchema)]
@@ -3444,14 +3611,14 @@ impl common_utils::events::ApiEventMetric for CardNetworkTokenizeResponse {}
 impl From<&Card> for MigrateCardDetail {
     fn from(card: &Card) -> Self {
         Self {
-            card_number: masking::Secret::new(card.card_number.get_card_no()),
+            card_number: hyperswitch_masking::Secret::new(card.card_number.get_card_no()),
             card_exp_month: card.card_exp_month.clone(),
             card_exp_year: card.card_exp_year.clone(),
             card_holder_name: card.name_on_card.clone(),
             nick_name: card
                 .nick_name
                 .as_ref()
-                .map(|name| masking::Secret::new(name.clone())),
+                .map(|name| hyperswitch_masking::Secret::new(name.clone())),
             card_issuing_country: None,
             card_issuing_country_code: None,
             card_network: None,
@@ -3527,7 +3694,7 @@ pub struct PaymentMethodSessionUpdateSavedPaymentMethod {
 
 #[cfg(feature = "v2")]
 impl PaymentMethodSessionUpdateSavedPaymentMethod {
-    pub fn fetch_card_cvc_update(&self) -> Option<masking::Secret<String>> {
+    pub fn fetch_card_cvc_update(&self) -> Option<hyperswitch_masking::Secret<String>> {
         match &self.payment_method_update_request.payment_method_data {
             Some(PaymentMethodUpdateData::Card(card_update)) => card_update.card_cvc.clone(),
             _ => None,
@@ -3610,7 +3777,7 @@ pub struct PaymentMethodSessionResponse {
 
     /// Client Secret
     #[schema(value_type = String, example = "cs_9wcXDRVkfEtLEsSnYKgQ")]
-    pub client_secret: masking::Secret<String>,
+    pub client_secret: hyperswitch_masking::Secret<String>,
 
     /// The return url to which the user should be redirected to
     #[schema(value_type = Option<String>, example = "https://merchant-website.com/return")]
@@ -3668,11 +3835,11 @@ pub struct NetworkTokenStatusCheckSuccessResponse {
 
     /// The expiry month of the network token if active
     #[schema(value_type = Option<String>)]
-    pub token_expiry_month: Option<masking::Secret<String>>,
+    pub token_expiry_month: Option<hyperswitch_masking::Secret<String>>,
 
     /// The expiry year of the network token if active
     #[schema(value_type = Option<String>)]
-    pub token_expiry_year: Option<masking::Secret<String>>,
+    pub token_expiry_year: Option<hyperswitch_masking::Secret<String>>,
 
     /// The last four digits of the card if active
     pub card_last_four: Option<String>,
@@ -3682,11 +3849,11 @@ pub struct NetworkTokenStatusCheckSuccessResponse {
 
     /// The expiry month of the card if active
     #[schema(value_type = Option<String>)]
-    pub card_expiry_month: Option<masking::Secret<String>>,
+    pub card_expiry_month: Option<hyperswitch_masking::Secret<String>>,
 
     /// The expiry year of the card if active
     #[schema(value_type = Option<String>)]
-    pub card_expiry_year: Option<masking::Secret<String>>,
+    pub card_expiry_year: Option<hyperswitch_masking::Secret<String>>,
 
     /// The payment method ID that was checked
     #[schema(value_type = String, example = "12345_pm_019959146f92737389eb6927ce1eb7dc")]

@@ -35,7 +35,7 @@ use hyperswitch_domain_models::{
 };
 #[cfg(not(feature = "payouts"))]
 use hyperswitch_domain_models::{PayoutAttemptInterface, PayoutsInterface};
-use masking::Secret;
+use hyperswitch_masking::Secret;
 use redis_interface::{errors::RedisError, RedisConnectionPool, RedisEntryId};
 use router_env::{instrument, logger, tracing};
 use scheduler::{
@@ -2281,7 +2281,6 @@ impl PaymentMethodInterface for KafkaStore {
             .await
     }
 
-    #[cfg(feature = "v2")]
     async fn find_payment_method_by_fingerprint_id(
         &self,
         key_store: &domain::MerchantKeyStore,

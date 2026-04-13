@@ -4,7 +4,7 @@ use async_trait::async_trait;
 use common_utils::{id_type::GenerateId, pii::Email};
 use error_stack::Report;
 use hyperswitch_domain_models::router_data_v2::flow_common_types::PaymentFlowData;
-use masking::Secret;
+use hyperswitch_masking::Secret;
 use router::{
     configs::settings::Settings,
     core::{errors::ConnectorError, payments},
@@ -1019,6 +1019,7 @@ impl Default for PaymentAuthorizeType {
             billing_descriptor: None,
             tokenization: None,
             partner_merchant_identifier_details: None,
+            rrn: None,
         };
         Self(data)
     }

@@ -23,7 +23,9 @@ use crate::{
     disputes, errors,
     events::connector_api_logs::ConnectorEvent,
     types,
-    webhooks::{IncomingWebhook, IncomingWebhookFlowError, IncomingWebhookRequestDetails},
+    webhooks::{
+        IncomingWebhook, IncomingWebhookFlowError, IncomingWebhookRequestDetails, WebhookContext,
+    },
 };
 
 /// RouterDataConversion trait
@@ -273,7 +275,9 @@ impl IncomingWebhook for ConnectorEnum {
         request: &IncomingWebhookRequestDetails<'_>,
         merchant_id: &common_utils::id_type::MerchantId,
         connector_webhook_details: Option<common_utils::pii::SecretSerdeValue>,
-        connector_account_details: crypto::Encryptable<masking::Secret<serde_json::Value>>,
+        connector_account_details: crypto::Encryptable<
+            hyperswitch_masking::Secret<serde_json::Value>,
+        >,
         connector_name: &str,
     ) -> CustomResult<bool, errors::ConnectorError> {
         match self {
@@ -326,17 +330,19 @@ impl IncomingWebhook for ConnectorEnum {
     fn get_webhook_event_type(
         &self,
         request: &IncomingWebhookRequestDetails<'_>,
+        snapshot: Option<&WebhookContext>,
     ) -> CustomResult<IncomingWebhookEvent, errors::ConnectorError> {
         match self {
-            Self::Old(connector) => connector.get_webhook_event_type(request),
-            Self::New(connector) => connector.get_webhook_event_type(request),
+            Self::Old(connector) => connector.get_webhook_event_type(request, snapshot),
+            Self::New(connector) => connector.get_webhook_event_type(request, snapshot),
         }
     }
 
     fn get_webhook_resource_object(
         &self,
         request: &IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
+    ) -> CustomResult<Box<dyn hyperswitch_masking::ErasedMaskSerialize>, errors::ConnectorError>
+    {
         match self {
             Self::Old(connector) => connector.get_webhook_resource_object(request),
             Self::New(connector) => connector.get_webhook_resource_object(request),
@@ -357,10 +363,11 @@ impl IncomingWebhook for ConnectorEnum {
     fn get_dispute_details(
         &self,
         request: &IncomingWebhookRequestDetails<'_>,
+        snapshot: Option<&WebhookContext>,
     ) -> CustomResult<disputes::DisputePayload, errors::ConnectorError> {
         match self {
-            Self::Old(connector) => connector.get_dispute_details(request),
-            Self::New(connector) => connector.get_dispute_details(request),
+            Self::Old(connector) => connector.get_dispute_details(request, snapshot),
+            Self::New(connector) => connector.get_dispute_details(request, snapshot),
         }
     }
 
@@ -769,7 +776,8 @@ impl ConnectorCommon for ConnectorEnum {
     fn get_auth_header(
         &self,
         auth_type: &ConnectorAuthType,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         match self {
             Self::Old(connector) => connector.get_auth_header(auth_type),
             Self::New(connector) => connector.get_auth_header(auth_type),

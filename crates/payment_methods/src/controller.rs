@@ -12,7 +12,7 @@ use error_stack::ResultExt;
 #[cfg(feature = "v1")]
 use hyperswitch_domain_models::payment_methods::PaymentMethodVaultSourceDetails;
 use hyperswitch_domain_models::{merchant_key_store, payment_methods, type_encryption};
-use masking::{PeekInterface, Secret};
+use hyperswitch_masking::{PeekInterface, Secret};
 #[cfg(feature = "v1")]
 use scheduler::errors as sch_errors;
 use serde::{Deserialize, Serialize};
@@ -57,13 +57,14 @@ pub trait PaymentMethodsController {
         network_token_locker_id: Option<String>,
         network_token_payment_method_data: crypto::OptionalEncryptableValue,
         vault_source_details: Option<PaymentMethodVaultSourceDetails>,
+        locker_fingerprint_id: Option<String>,
     ) -> errors::PmResult<payment_methods::PaymentMethod>;
 
     #[cfg(feature = "v1")]
     #[allow(clippy::too_many_arguments)]
     async fn insert_payment_method(
         &self,
-        resp: &api::PaymentMethodResponse,
+        resp: &payment_methods::PaymentMethodResponse,
         req: &api::PaymentMethodCreate,
         key_store: &merchant_key_store::MerchantKeyStore,
         merchant_id: &id_type::MerchantId,
@@ -78,6 +79,7 @@ pub trait PaymentMethodsController {
         network_token_locker_id: Option<String>,
         network_token_payment_method_data: crypto::OptionalEncryptableValue,
         vault_source_details: Option<PaymentMethodVaultSourceDetails>,
+        locker_fingerprint_id: Option<String>,
     ) -> errors::PmResult<payment_methods::PaymentMethod>;
 
     #[cfg(feature = "v2")]
@@ -115,31 +117,42 @@ pub trait PaymentMethodsController {
         pm_id: api::PaymentMethodId,
     ) -> errors::PmResponse<api::PaymentMethodDeleteResponse>;
 
+    #[cfg(feature = "v1")]
     async fn add_card_hs(
         &self,
         req: api::PaymentMethodCreate,
         card: &api::CardDetail,
         customer_id: &id_type::CustomerId,
         card_reference: Option<&str>,
-    ) -> errors::VaultResult<(api::PaymentMethodResponse, Option<DataDuplicationCheck>)>;
+    ) -> errors::VaultResult<(
+        payment_methods::PaymentMethodResponse,
+        Option<DataDuplicationCheck>,
+    )>;
 
     /// The response will be the tuple of PaymentMethodResponse and the duplication check of payment_method
+    #[cfg(feature = "v1")]
     async fn add_card_to_locker(
         &self,
         req: api::PaymentMethodCreate,
         card: &api::CardDetail,
         customer_id: &id_type::CustomerId,
         card_reference: Option<&str>,
-    ) -> errors::VaultResult<(api::PaymentMethodResponse, Option<DataDuplicationCheck>)>;
+    ) -> errors::VaultResult<(
+        payment_methods::PaymentMethodResponse,
+        Option<DataDuplicationCheck>,
+    )>;
 
-    #[cfg(feature = "payouts")]
+    #[cfg(all(feature = "payouts", feature = "v1"))]
     async fn add_bank_to_locker(
         &self,
         req: api::PaymentMethodCreate,
         key_store: &merchant_key_store::MerchantKeyStore,
         bank: &payouts::Bank,
         customer_id: &id_type::CustomerId,
-    ) -> errors::VaultResult<(api::PaymentMethodResponse, Option<DataDuplicationCheck>)>;
+    ) -> errors::VaultResult<(
+        payment_methods::PaymentMethodResponse,
+        Option<DataDuplicationCheck>,
+    )>;
 
     #[cfg(feature = "v1")]
     async fn add_bank_debit_to_locker(
@@ -148,13 +161,16 @@ pub trait PaymentMethodsController {
         bank_debit_data: api_models::payment_methods::BankDebitDetail,
         key_store: &merchant_key_store::MerchantKeyStore,
         customer_id: &id_type::CustomerId,
-    ) -> errors::VaultResult<(api::PaymentMethodResponse, Option<DataDuplicationCheck>)>;
+    ) -> errors::VaultResult<(
+        payment_methods::PaymentMethodResponse,
+        Option<DataDuplicationCheck>,
+    )>;
 
     #[cfg(feature = "v1")]
     async fn get_or_insert_payment_method(
         &self,
         req: api::PaymentMethodCreate,
-        resp: &mut api::PaymentMethodResponse,
+        resp: &mut payment_methods::PaymentMethodResponse,
         customer_id: &id_type::CustomerId,
         key_store: &merchant_key_store::MerchantKeyStore,
     ) -> errors::PmResult<payment_methods::PaymentMethod>;
@@ -195,7 +211,10 @@ pub trait PaymentMethodsController {
         req: &api::PaymentMethodCreate,
         customer_id: &id_type::CustomerId,
         merchant_id: &id_type::MerchantId,
-    ) -> (api::PaymentMethodResponse, Option<DataDuplicationCheck>);
+    ) -> (
+        payment_methods::PaymentMethodResponse,
+        Option<DataDuplicationCheck>,
+    );
 
     #[cfg(feature = "v2")]
     fn store_default_payment_method(
@@ -267,7 +286,7 @@ where
         .change_context(storage_errors::StorageError::SerializationFailed)
         .attach_printable("Unable to encode data")?;
 
-    let secret_data = Secret::<_, masking::WithType>::new(encoded_data);
+    let secret_data = Secret::<_, hyperswitch_masking::WithType>::new(encoded_data);
 
     let encrypted_data = type_encryption::crypto_operation(
         key_manager_state,

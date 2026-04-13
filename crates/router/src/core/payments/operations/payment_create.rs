@@ -18,9 +18,10 @@ use diesel_models::payment_attempt::ConnectorMandateReferenceId as DieselConnect
 use error_stack::{self, ResultExt};
 use hyperswitch_domain_models::{
     mandates::MandateDetails,
+    payment_method_data::RecurringDetails as domain_recurring_details,
     payments::{payment_attempt::PaymentAttempt, FromRequestEncryptablePaymentIntent},
 };
-use masking::{ExposeInterface, PeekInterface, Secret};
+use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 use router_derive::PaymentOperation;
 use router_env::{instrument, logger, tracing};
 use storage_impl::platform_wrapper;
@@ -294,6 +295,20 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         )
         .await?;
 
+        let (mandate_reference_id_from_recurring_details, payment_method_recurring_details) =
+            match recurring_details
+                .clone()
+                .map(domain_recurring_details::from)
+                .and_then(|details| {
+                    details.get_mandate_reference_id_and_payment_method_data_for_proxy_flow()
+                }) {
+                Some((mandate_reference_id, payment_method_recurring_details)) => (
+                    Some(mandate_reference_id),
+                    Some(payment_method_recurring_details),
+                ),
+                None => (None, None),
+            };
+
         let (payment_attempt_new, additional_payment_data) = Self::make_payment_attempt(
             &payment_id,
             platform,
@@ -307,8 +322,9 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                 .as_ref()
                 .map(|address| address.address_id.clone()),
             &payment_method_info,
-            profile_id,
+            profile_id.clone(),
             &customer_acceptance,
+            payment_method_recurring_details.clone(),
         )
         .await?;
 
@@ -438,7 +454,16 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                             ),
                         })
                     }
-                    _ => None,
+                    RecurringDetails::CardWithLimitedData(_)
+                    | RecurringDetails::NetworkTransactionIdAndNetworkTokenDetails(_)
+                    | RecurringDetails::NetworkTransactionIdAndDecryptedWalletTokenDetails(_)
+                    | RecurringDetails::NetworkTransactionIdAndCardDetails(_) => {
+                        Some(api_models::payments::MandateIds {
+                            mandate_id: None,
+                            mandate_reference_id: mandate_reference_id_from_recurring_details,
+                        })
+                    }
+                    RecurringDetails::PaymentMethodId(_) | RecurringDetails::MandateId(_) => None,
                 })
         } else {
             mandate_id
@@ -474,21 +499,23 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             payments::types::SurchargeDetails::from((&request_surcharge_details, &payment_attempt))
         });
 
-        let payment_method_data_after_card_bin_call = request
-            .payment_method_data
-            .as_ref()
-            .and_then(|payment_method_data_from_request| {
-                payment_method_data_from_request
-                    .payment_method_data
-                    .as_ref()
-            })
-            .zip(additional_payment_data)
-            .map(|(payment_method_data, additional_payment_data)| {
-                payment_method_data.apply_additional_payment_data(additional_payment_data)
-            })
-            .transpose()
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Card cobadge check failed due to an invalid card network regex")?;
+        let payment_method_data_from_request =
+            request
+                .payment_method_data
+                .as_ref()
+                .and_then(|payment_method_data_from_request| {
+                    payment_method_data_from_request.payment_method_data.clone()
+                });
+
+        let payment_method_data = payment_method_recurring_details
+            .or(payment_method_data_from_request.map(Into::into))
+            .map(|payment_method_data| {
+                if let Some(additional_payment_data) = additional_payment_data {
+                    payment_method_data.apply_additional_payment_data(additional_payment_data)
+                } else {
+                    payment_method_data
+                }
+            });
 
         let additional_pm_data_from_locker = if let Some(ref pm) = payment_method_info {
             let card_detail_from_locker: Option<api::CardDetailFromLocker> = pm
@@ -575,7 +602,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             address: unified_address,
             token_data: None,
             confirm: request.confirm,
-            payment_method_data: payment_method_data_after_card_bin_call.map(Into::into),
+            payment_method_data,
             payment_method_token: None,
             payment_method_info,
             refunds: vec![],
@@ -1018,13 +1045,6 @@ impl<F: Send + Clone + Sync> ValidateRequest<F, api::PaymentsRequest, PaymentDat
             &request.enable_overcapture,
             &request.capture_method,
         )?;
-        request.validate_mit_request().change_context(
-            errors::ApiErrorResponse::InvalidRequestData {
-                message:
-                "`mit_category` requires both: (1) `off_session = true`, and (2) `recurring_details`."
-                        .to_string(),
-            },
-        )?;
 
         if request.confirm.unwrap_or(false) {
             helpers::validate_pm_or_token_given(
@@ -1125,6 +1145,7 @@ impl PaymentCreate {
         payment_method_info: &Option<domain::PaymentMethod>,
         profile_id: common_utils::id_type::ProfileId,
         customer_acceptance: &Option<common_payments_types::CustomerAcceptance>,
+        payment_method_recurring_details: Option<domain::PaymentMethodData>,
     ) -> RouterResult<(
         PaymentAttempt,
         Option<api_models::payments::AdditionalPaymentData>,
@@ -1147,9 +1168,12 @@ impl PaymentCreate {
             .and_then(|payment_method_data_request| {
                 payment_method_data_request.payment_method_data.clone()
             })
-            .async_map(|payment_method_data| async {
+            .map(domain::PaymentMethodData::from)
+            .or(payment_method_recurring_details)
+            .zip(Some(profile_id.clone())) // since data is consumed by async move, profile_id needs to be send separately
+            .async_map(|(payment_method_data, profile_id)| async move {
                 helpers::get_additional_payment_data(
-                    &payment_method_data.into(),
+                    &payment_method_data,
                     &*state.store,
                     &profile_id,
                     None,

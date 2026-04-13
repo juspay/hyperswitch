@@ -54,12 +54,12 @@ use hyperswitch_interfaces::{
     types::Response,
     webhooks,
 };
+use hyperswitch_masking::{ExposeInterface, Mask};
 use josekit::{
     jws::{self, JwsHeader, ES256},
     jwt::{self, JwtPayload},
     Map, Value,
 };
-use masking::{ExposeInterface, Mask};
 #[cfg(feature = "payouts")]
 use router_env::{instrument, tracing};
 use serde_json::json;
@@ -94,7 +94,7 @@ fn get_private_key(
 }
 
 fn box_to_jwt_payload(
-    body: Box<dyn masking::ErasedMaskSerialize + Send>,
+    body: Box<dyn hyperswitch_masking::ErasedMaskSerialize + Send>,
 ) -> CustomResult<JwtPayload, errors::ConnectorError> {
     let str_result = serde_json::to_string(&body)
         .change_context(errors::ConnectorError::ProcessingStepFailed(None))?;
@@ -193,7 +193,8 @@ where
         &self,
         req: &RouterData<Flow, Request, Response>,
         connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         let is_post_req = matches!(self.get_http_method(), Method::Post);
         let body = self.get_request_body(req, connectors)?;
         let auth = nomupay::NomupayAuthType::try_from(&req.connector_auth_type)
@@ -214,7 +215,7 @@ where
         )];
         header.push((
             headers::X_SIGNATURE.to_string(),
-            masking::Maskable::Normal(sign),
+            hyperswitch_masking::Maskable::Normal(sign),
         ));
 
         let mut api_key = self.get_auth_header(&req.connector_auth_type)?;
@@ -255,7 +256,8 @@ impl ConnectorCommon for Nomupay {
     fn get_auth_header(
         &self,
         auth_type: &ConnectorAuthType,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         let auth = nomupay::NomupayAuthType::try_from(auth_type)
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
         Ok(vec![(
@@ -429,7 +431,8 @@ impl ConnectorIntegration<PoSync, PayoutsData, PayoutsResponseData> for Nomupay 
         &self,
         req: &PayoutsRouterData<PoSync>,
         connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         self.build_headers(req, connectors)
     }
 
@@ -519,7 +522,8 @@ impl ConnectorIntegration<PoRecipient, PayoutsData, PayoutsResponseData> for Nom
         &self,
         req: &PayoutsRouterData<PoRecipient>,
         connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         self.build_headers(req, connectors)
     }
 
@@ -601,7 +605,8 @@ impl ConnectorIntegration<PoRecipientAccount, PayoutsData, PayoutsResponseData> 
         &self,
         req: &PayoutsRouterData<PoRecipientAccount>,
         connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         self.build_headers(req, connectors)
     }
 
@@ -680,7 +685,8 @@ impl ConnectorIntegration<PoFulfill, PayoutsData, PayoutsResponseData> for Nomup
         &self,
         req: &PayoutsRouterData<PoFulfill>,
         connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         self.build_headers(req, connectors)
     }
 
@@ -761,6 +767,7 @@ impl webhooks::IncomingWebhook for Nomupay {
     fn get_webhook_event_type(
         &self,
         _request: &webhooks::IncomingWebhookRequestDetails<'_>,
+        _context: Option<&webhooks::WebhookContext>,
     ) -> CustomResult<api_models::webhooks::IncomingWebhookEvent, errors::ConnectorError> {
         Err(report!(errors::ConnectorError::WebhooksNotImplemented))
     }
@@ -768,7 +775,8 @@ impl webhooks::IncomingWebhook for Nomupay {
     fn get_webhook_resource_object(
         &self,
         _request: &webhooks::IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
+    ) -> CustomResult<Box<dyn hyperswitch_masking::ErasedMaskSerialize>, errors::ConnectorError>
+    {
         Err(report!(errors::ConnectorError::WebhooksNotImplemented))
     }
 }

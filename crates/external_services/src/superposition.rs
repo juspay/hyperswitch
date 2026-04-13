@@ -7,7 +7,7 @@ use std::collections::HashMap;
 
 use common_utils::errors::CustomResult;
 use error_stack::report;
-use masking::ExposeInterface;
+use hyperswitch_masking::ExposeInterface;
 
 pub use self::types::{ConfigContext, SuperpositionClientConfig, SuperpositionError};
 

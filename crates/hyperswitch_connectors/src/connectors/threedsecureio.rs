@@ -48,9 +48,9 @@ use hyperswitch_interfaces::{
     errors::ConnectorError,
     events::connector_api_logs::ConnectorEvent,
     types::Response,
-    webhooks::{IncomingWebhook, IncomingWebhookRequestDetails},
+    webhooks::{IncomingWebhook, IncomingWebhookRequestDetails, WebhookContext},
 };
-use masking::{ExposeInterface, Mask as _, Maskable};
+use hyperswitch_masking::{ExposeInterface, Mask as _, Maskable};
 use transformers as threedsecureio;
 
 use crate::{
@@ -208,6 +208,7 @@ impl IncomingWebhook for Threedsecureio {
     fn get_webhook_event_type(
         &self,
         _request: &IncomingWebhookRequestDetails<'_>,
+        _context: Option<&WebhookContext>,
     ) -> CustomResult<IncomingWebhookEvent, ConnectorError> {
         Err(report!(ConnectorError::WebhooksNotImplemented))
     }
@@ -215,7 +216,7 @@ impl IncomingWebhook for Threedsecureio {
     fn get_webhook_resource_object(
         &self,
         _request: &IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, ConnectorError> {
+    ) -> CustomResult<Box<dyn hyperswitch_masking::ErasedMaskSerialize>, ConnectorError> {
         Err(report!(ConnectorError::WebhooksNotImplemented))
     }
 }

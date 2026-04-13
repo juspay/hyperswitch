@@ -13,7 +13,7 @@ use common_utils::{
 };
 use diesel_models::{enums as storage_enums, types::OrderDetailsWithAmount};
 use error_stack::ResultExt;
-use masking::Secret;
+use hyperswitch_masking::Secret;
 use serde::{Deserialize, Serialize};
 use serde_with::serde_as;
 
@@ -101,6 +101,7 @@ pub struct PaymentsAuthorizeData {
     pub tokenization: Option<common_enums::Tokenization>,
     pub partner_merchant_identifier_details:
         Option<common_types::payments::PartnerMerchantIdentifierDetails>,
+    pub rrn: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -1538,11 +1539,11 @@ pub struct PayoutsData {
 #[derive(Debug, Default, Clone)]
 pub struct CustomerDetails {
     pub customer_id: Option<id_type::CustomerId>,
-    pub name: Option<Secret<String, masking::WithType>>,
+    pub name: Option<Secret<String, hyperswitch_masking::WithType>>,
     pub email: Option<pii::Email>,
-    pub phone: Option<Secret<String, masking::WithType>>,
+    pub phone: Option<Secret<String, hyperswitch_masking::WithType>>,
     pub phone_country_code: Option<String>,
-    pub tax_registration_id: Option<Secret<String, masking::WithType>>,
+    pub tax_registration_id: Option<Secret<String, hyperswitch_masking::WithType>>,
 }
 
 impl CustomerDetails {

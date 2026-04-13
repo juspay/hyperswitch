@@ -22,9 +22,8 @@ use hyperswitch_interfaces::{
     consts as interface_consts, errors as interface_errors,
     unified_connector_service::transformers as ucs_transformers,
 };
-use masking::ExposeInterface;
+use hyperswitch_masking::ExposeInterface;
 use unified_connector_service_client::payments as payments_grpc;
-use unified_connector_service_masking::ExposeInterface as UcsMaskingExposeInterface;
 
 // use router_env::tracing::Instrument;
 use super::{ConstructFlowSpecificData, Feature};
@@ -32,8 +31,8 @@ use super::{ConstructFlowSpecificData, Feature};
 use crate::core::unified_connector_service::{
     get_access_token_from_ucs_response,
     handle_unified_connector_service_response_for_payment_authorize,
-    handle_unified_connector_service_response_for_payment_repeat, set_access_token_for_ucs,
-    ucs_logging_wrapper,
+    handle_unified_connector_service_response_for_recurring_payment_charge,
+    set_access_token_for_ucs, ucs_logging_wrapper,
 };
 use crate::{
     core::{
@@ -1418,7 +1417,6 @@ pub async fn call_unified_connector_service_pre_authenticate(
     processor: &domain::Processor,
     connector: enums::connector_enums::Connector,
     unified_connector_service_execution_mode: enums::ExecutionMode,
-    merchant_order_reference_id: Option<String>,
 ) -> errors::CustomResult<
     (
         types::RouterData<
@@ -1438,9 +1436,11 @@ pub async fn call_unified_connector_service_pre_authenticate(
         .attach_printable("Failed to fetch Unified Connector Service client")?;
 
     let payment_pre_authenticate_request =
-        payments_grpc::PaymentServicePreAuthenticateRequest::foreign_try_from(router_data)
-            .change_context(interface_errors::ConnectorError::RequestEncodingFailed)
-            .attach_printable("Failed to construct Payment Authorize Request")?;
+        payments_grpc::PaymentMethodAuthenticationServicePreAuthenticateRequest::foreign_try_from(
+            router_data,
+        )
+        .change_context(interface_errors::ConnectorError::RequestEncodingFailed)
+        .attach_printable("Failed to construct Payment Pre Authenticate Request")?;
 
     let connector_auth_metadata =
         unified_connector_service::build_unified_connector_service_auth_metadata(
@@ -1450,26 +1450,31 @@ pub async fn call_unified_connector_service_pre_authenticate(
         )
         .change_context(interface_errors::ConnectorError::RequestEncodingFailed)
         .attach_printable("Failed to construct request metadata")?;
-    let merchant_reference_id = header_payload
-        .x_reference_id
-        .clone()
-        .or(merchant_order_reference_id)
-        .map(|id| id_type::PaymentReferenceId::from_str(id.as_str()))
-        .transpose()
-        .inspect_err(|err| logger::warn!(error=?err, "Invalid Merchant ReferenceId found"))
+    let merchant_reference_id = unified_connector_service::parse_merchant_reference_id(
+        header_payload
+            .x_reference_id
+            .as_deref()
+            .unwrap_or(router_data.payment_id.as_str()),
+    )
+    .map(ucs_types::UcsReferenceId::Payment);
+    let resource_id = id_type::PaymentResourceId::from_str(router_data.attempt_id.as_str())
+        .inspect_err(
+            |err| logger::warn!(error=?err, "Invalid Payment AttemptId for UCS resource id"),
+        )
         .ok()
-        .flatten()
-        .map(ucs_types::UcsReferenceId::Payment);
+        .map(ucs_types::UcsResourceId::PaymentAttempt);
     let headers_builder = state
         .get_grpc_headers_ucs(unified_connector_service_execution_mode)
         .external_vault_proxy_metadata(None)
         .merchant_reference_id(merchant_reference_id)
+        .resource_id(resource_id)
         .lineage_ids(lineage_ids);
     Box::pin(unified_connector_service::ucs_logging_wrapper_granular(
         router_data.clone(),
         state,
         payment_pre_authenticate_request,
         headers_builder,
+        unified_connector_service_execution_mode,
         |mut router_data, payment_pre_authenticate_request, grpc_headers| async move {
             let response = client
                 .payment_pre_authenticate(
@@ -1478,7 +1483,7 @@ pub async fn call_unified_connector_service_pre_authenticate(
                     grpc_headers,
                 )
                 .await
-                .attach_printable("Failed to authorize payment")?;
+                .attach_printable("Failed to pre authenticate payment")?;
 
             let payment_pre_authenticate_response = response.into_inner();
 

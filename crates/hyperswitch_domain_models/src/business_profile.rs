@@ -19,7 +19,7 @@ use diesel_models::business_profile::{
     ProfileUpdateInternal, WebhookDetails,
 };
 use error_stack::ResultExt;
-use masking::{ExposeInterface, PeekInterface, Secret};
+use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 use router_env::logger;
 
 use crate::{
@@ -1495,6 +1495,31 @@ impl Profile {
             .transpose()
             .change_context(api_error_response::ApiErrorResponse::InternalServerError)
             .attach_printable("unable to deserialize routing algorithm ref from merchant account")
+    }
+
+    #[cfg(feature = "v1")]
+    pub fn get_payment_routing_algorithm_id(
+        &self,
+    ) -> CustomResult<Option<common_utils::id_type::RoutingId>, api_error_response::ApiErrorResponse>
+    {
+        Ok(self
+            .routing_algorithm
+            .clone()
+            .map(|val| {
+                val.parse_value::<api_models::routing::RoutingAlgorithmRef>("RoutingAlgorithmRef")
+            })
+            .transpose()
+            .change_context(api_error_response::ApiErrorResponse::InternalServerError)
+            .attach_printable("unable to deserialize routing algorithm ref from business profile")?
+            .and_then(|algorithm| algorithm.algorithm_id))
+    }
+
+    #[cfg(feature = "v2")]
+    pub fn get_payment_routing_algorithm_id(
+        &self,
+    ) -> CustomResult<Option<common_utils::id_type::RoutingId>, api_error_response::ApiErrorResponse>
+    {
+        Ok(self.routing_algorithm_id.clone())
     }
 
     #[cfg(feature = "v1")]

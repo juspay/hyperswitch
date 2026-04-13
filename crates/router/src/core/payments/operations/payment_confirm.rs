@@ -14,8 +14,11 @@ use error_stack::{report, ResultExt};
 use futures::FutureExt;
 #[cfg(feature = "v1")]
 use hyperswitch_domain_models::payments::payment_intent::PaymentIntentUpdateFields;
-use hyperswitch_domain_models::router_request_types::unified_authentication_service;
-use masking::{ExposeInterface, PeekInterface};
+use hyperswitch_domain_models::{
+    payment_method_data::RecurringDetails as domain_recurring_details,
+    router_request_types::unified_authentication_service,
+};
+use hyperswitch_masking::{ExposeInterface, PeekInterface};
 use router_derive::PaymentOperation;
 use router_env::{instrument, logger, tracing};
 use tracing_futures::Instrument;
@@ -395,6 +398,20 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
 
         let recurring_details = request.recurring_details.clone();
 
+        let (mandate_reference_id_from_recurring_details, payment_method_recurring_details) =
+            match recurring_details
+                .clone()
+                .map(domain_recurring_details::from)
+                .and_then(|details| {
+                    details.get_mandate_reference_id_and_payment_method_data_for_proxy_flow()
+                }) {
+                Some((mandate_reference_id, payment_method_recurring_details)) => (
+                    Some(mandate_reference_id),
+                    Some(payment_method_recurring_details),
+                ),
+                None => (None, None),
+            };
+
         helpers::validate_card_data(
             request
                 .payment_method_data
@@ -417,7 +434,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             .transpose()
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed while encoding customer_acceptance to value")?
-            .map(masking::Secret::new)
+            .map(hyperswitch_masking::Secret::new)
             .or(payment_attempt.customer_acceptance);
 
         currency = payment_attempt.currency.get_required_value("currency")?;
@@ -484,7 +501,9 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         let n_request_payment_method_data = request
             .payment_method_data
             .as_ref()
-            .and_then(|pmd| pmd.payment_method_data.clone());
+            .and_then(|pmd| pmd.payment_method_data.clone())
+            .map(domain::PaymentMethodData::from)
+            .or(payment_method_recurring_details.clone());
 
         let store = state.clone().store;
         let profile_id = payment_intent
@@ -499,7 +518,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                 Ok(n_request_payment_method_data
                     .async_map(|payment_method_data| async move {
                         helpers::get_additional_payment_data(
-                            &payment_method_data.into(),
+                            &payment_method_data,
                             store.as_ref(),
                             &profile_id,
                             None,
@@ -696,19 +715,24 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             mandate_details_present,
         )?;
 
-        let payment_method_data_after_card_bin_call = request
-            .payment_method_data
-            .as_ref()
-            .and_then(|request_payment_method_data| {
-                request_payment_method_data.payment_method_data.as_ref()
-            })
-            .zip(additional_pm_data)
-            .map(|(payment_method_data, additional_payment_data)| {
-                payment_method_data.apply_additional_payment_data(additional_payment_data)
-            })
-            .transpose()
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Card cobadge check failed due to an invalid card network regex")?;
+        let payment_method_data_from_request =
+            request
+                .payment_method_data
+                .as_ref()
+                .and_then(|request_payment_method_data| {
+                    request_payment_method_data.payment_method_data.clone()
+                });
+
+        let payment_method_data = payment_method_recurring_details
+            .clone()
+            .or(payment_method_data_from_request.map(Into::into))
+            .map(|payment_method_data| {
+                if let Some(additional_pm_data) = additional_pm_data {
+                    payment_method_data.apply_additional_payment_data(additional_pm_data)
+                } else {
+                    payment_method_data
+                }
+            });
 
         payment_attempt.payment_method_billing_address_id = payment_method_billing
             .as_ref()
@@ -756,7 +780,16 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                         ),
                     })
                 }
-                _ => None,
+                api_models::mandates::RecurringDetails::CardWithLimitedData(_)
+                | api_models::mandates::RecurringDetails::NetworkTransactionIdAndNetworkTokenDetails(_)
+                | api_models::mandates::RecurringDetails::NetworkTransactionIdAndDecryptedWalletTokenDetails(_)
+                | api_models::mandates::RecurringDetails::NetworkTransactionIdAndCardDetails(_) => {
+                    Some(api_models::payments::MandateIds {
+                        mandate_id: None,
+                        mandate_reference_id: mandate_reference_id_from_recurring_details,
+                    })
+                }
+                api_models::mandates::RecurringDetails::PaymentMethodId(_) | api_models::mandates::RecurringDetails::MandateId(_) => None,
             });
 
         let pmt_order_tax_amount = payment_intent.tax_details.clone().and_then(|tax| {
@@ -807,7 +840,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             address: unified_address,
             token_data,
             confirm: request.confirm,
-            payment_method_data: payment_method_data_after_card_bin_call.map(Into::into),
+            payment_method_data,
             payment_method_token: None,
             payment_method_info,
             force_sync: None,
@@ -1784,7 +1817,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                 };
 
                 let authentication_store = hyperswitch_domain_models::router_request_types::authentication::AuthenticationStore {
-                    cavv: tokenized_data.map(|tokenized_data| masking::Secret::new(tokenized_data.value1)),
+                    cavv: tokenized_data.map(|tokenized_data| hyperswitch_masking::Secret::new(tokenized_data.value1)),
                     authentication: updated_authentication
                 };
 
@@ -2286,7 +2319,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
                             .payment_intent
                             .feature_metadata
                             .clone()
-                            .map(masking::Secret::new),
+                            .map(hyperswitch_masking::Secret::new),
                         tax_status: payment_data.payment_intent.tax_status,
                         discount_amount: payment_data.payment_intent.discount_amount,
                         order_date: payment_data.payment_intent.order_date,

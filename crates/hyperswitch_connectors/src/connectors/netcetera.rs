@@ -46,9 +46,9 @@ use hyperswitch_interfaces::{
     errors::ConnectorError,
     events::connector_api_logs::ConnectorEvent,
     types::Response,
-    webhooks::{IncomingWebhook, IncomingWebhookRequestDetails},
+    webhooks::{IncomingWebhook, IncomingWebhookRequestDetails, WebhookContext},
 };
-use masking::Maskable;
+use hyperswitch_masking::Maskable;
 use transformers as netcetera;
 
 use crate::{
@@ -194,6 +194,7 @@ impl IncomingWebhook for Netcetera {
     fn get_webhook_event_type(
         &self,
         _request: &IncomingWebhookRequestDetails<'_>,
+        _context: Option<&WebhookContext>,
     ) -> CustomResult<IncomingWebhookEvent, ConnectorError> {
         Ok(IncomingWebhookEvent::ExternalAuthenticationARes)
     }
@@ -201,7 +202,7 @@ impl IncomingWebhook for Netcetera {
     fn get_webhook_resource_object(
         &self,
         request: &IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, ConnectorError> {
+    ) -> CustomResult<Box<dyn hyperswitch_masking::ErasedMaskSerialize>, ConnectorError> {
         let webhook_body_value: netcetera::ResultsResponseData = request
             .body
             .parse_struct("netcetera ResultsResponseDatae")

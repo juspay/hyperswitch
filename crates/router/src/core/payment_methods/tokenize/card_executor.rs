@@ -12,7 +12,7 @@ use common_utils::{
 };
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::type_encryption::{crypto_operation, CryptoOperation};
-use masking::{ExposeInterface, PeekInterface, SwitchStrategy};
+use hyperswitch_masking::{ExposeInterface, PeekInterface, SwitchStrategy};
 use router_env::logger;
 
 use super::{
@@ -179,7 +179,10 @@ impl<'a> NetworkTokenizationBuilder<'a, CardDetailsAssigned> {
 impl<'a> NetworkTokenizationBuilder<'a, CustomerAssigned> {
     pub fn get_optional_card_and_cvc(
         &self,
-    ) -> (Option<domain::CardDetail>, Option<masking::Secret<String>>) {
+    ) -> (
+        Option<domain::CardDetail>,
+        Option<hyperswitch_masking::Secret<String>>,
+    ) {
         (self.card.clone(), self.card_cvc.clone())
     }
     pub fn set_token_details(
@@ -604,6 +607,7 @@ impl CardNetworkTokenizeExecutor<'_, domain::TokenizeCardRequest> {
             Some(stored_locker_resp.store_token_resp.card_reference.clone()),
             Some(enc_token_data),
             Default::default(), // this method is used only for card bulk tokenization, and currently external vault is not supported for this hence passing Default i.e. InternalVault
+            None,
         )
         .await
     }

@@ -21,7 +21,7 @@ use diesel_models::{
 };
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::api::ApplicationResponse;
-use masking::{ExposeInterface, PeekInterface, Secret};
+use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 use rand::distributions::{Alphanumeric, DistString};
 use time::PrimitiveDateTime;
 use unicode_segmentation::UnicodeSegmentation;
@@ -1264,7 +1264,9 @@ impl UserFromStorage {
                     key_manager_state,
                     EncryptionTransferRequest {
                         identifier: Identifier::User(self.get_user_id().to_string()),
-                        key: masking::StrongSecret::new(consts::BASE64_ENGINE.encode(key)),
+                        key: hyperswitch_masking::StrongSecret::new(
+                            consts::BASE64_ENGINE.encode(key),
+                        ),
                     },
                 )
                 .await
@@ -1324,17 +1326,19 @@ impl UserFromStorage {
             .await
             .change_context(UserErrors::InternalServerError)?;
 
-        Ok(domain_types::crypto_operation::<String, masking::WithType>(
-            key_manager_state,
-            type_name!(storage_user::User),
-            domain_types::CryptoOperation::DecryptOptional(self.0.totp_secret.clone()),
-            Identifier::User(user_key_store.user_id.clone()),
-            user_key_store.key.peek(),
+        Ok(
+            domain_types::crypto_operation::<String, hyperswitch_masking::WithType>(
+                key_manager_state,
+                type_name!(storage_user::User),
+                domain_types::CryptoOperation::DecryptOptional(self.0.totp_secret.clone()),
+                Identifier::User(user_key_store.user_id.clone()),
+                user_key_store.key.peek(),
+            )
+            .await
+            .and_then(|val| val.try_into_optionaloperation())
+            .change_context(UserErrors::InternalServerError)?
+            .map(Encryptable::into_inner),
         )
-        .await
-        .and_then(|val| val.try_into_optionaloperation())
-        .change_context(UserErrors::InternalServerError)?
-        .map(Encryptable::into_inner))
     }
 }
 

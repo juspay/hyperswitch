@@ -59,12 +59,10 @@ use hyperswitch_interfaces::{
     },
     events::connector_api_logs::ConnectorEvent,
     types::Response,
-    webhooks::{IncomingWebhook, IncomingWebhookRequestDetails},
+    webhooks::{IncomingWebhook, IncomingWebhookRequestDetails, WebhookContext},
 };
 #[cfg(feature = "frm")]
-use masking::Maskable;
-#[cfg(feature = "frm")]
-use masking::{ExposeInterface, Mask, PeekInterface, Secret};
+use hyperswitch_masking::{ExposeInterface, Mask, Maskable, PeekInterface, Secret};
 #[cfg(feature = "frm")]
 use ring::hmac;
 #[cfg(feature = "frm")]
@@ -632,6 +630,7 @@ impl IncomingWebhook for Riskified {
     fn get_webhook_event_type(
         &self,
         request: &IncomingWebhookRequestDetails<'_>,
+        _context: Option<&WebhookContext>,
     ) -> CustomResult<IncomingWebhookEvent, ConnectorError> {
         let resource: riskified::RiskifiedWebhookBody = request
             .body
@@ -643,7 +642,7 @@ impl IncomingWebhook for Riskified {
     fn get_webhook_resource_object(
         &self,
         request: &IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, ConnectorError> {
+    ) -> CustomResult<Box<dyn hyperswitch_masking::ErasedMaskSerialize>, ConnectorError> {
         let resource: riskified::RiskifiedWebhookBody = request
             .body
             .parse_struct("RiskifiedWebhookBody")

@@ -15,7 +15,7 @@ use diesel_models::enums as storage_enums;
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::payments::payment_intent::CustomerData;
 use hyperswitch_interfaces::api::ConnectorSpecifications;
-use masking::{ExposeInterface, PeekInterface, Secret};
+use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 
 use super::domain;
 #[cfg(feature = "v2")]
@@ -113,6 +113,29 @@ impl
             bank_transfer: None,
             last_used_at: None,
             client_secret: item.client_secret,
+        }
+    }
+}
+
+#[cfg(feature = "v1")]
+impl ForeignFrom<domain::PaymentMethodResponse> for payment_methods::PaymentMethodResponse {
+    fn foreign_from(domain_payment_method_response: domain::PaymentMethodResponse) -> Self {
+        Self {
+            merchant_id: domain_payment_method_response.merchant_id,
+            customer_id: domain_payment_method_response.customer_id,
+            payment_method_id: domain_payment_method_response.payment_method_id,
+            payment_method: domain_payment_method_response.payment_method,
+            payment_method_type: domain_payment_method_response.payment_method_type,
+            card: domain_payment_method_response.card,
+            recurring_enabled: domain_payment_method_response.recurring_enabled,
+            installment_payment_enabled: domain_payment_method_response.installment_payment_enabled,
+            payment_experience: domain_payment_method_response.payment_experience,
+            metadata: domain_payment_method_response.metadata,
+            created: domain_payment_method_response.created,
+            #[cfg(feature = "payouts")]
+            bank_transfer: domain_payment_method_response.bank_transfer,
+            last_used_at: domain_payment_method_response.last_used_at,
+            client_secret: domain_payment_method_response.client_secret,
         }
     }
 }
@@ -619,7 +642,7 @@ impl
             crate::core::api_keys::PlaintextApiKey,
         ),
     ) -> Self {
-        use masking::StrongSecret;
+        use hyperswitch_masking::StrongSecret;
 
         let (api_key, plaintext_api_key) = item;
         Self {

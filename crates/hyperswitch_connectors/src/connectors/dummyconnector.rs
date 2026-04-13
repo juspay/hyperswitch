@@ -41,9 +41,9 @@ use hyperswitch_interfaces::{
         PaymentsAuthorizeType, PaymentsCaptureType, PaymentsSyncType, RefundExecuteType,
         RefundSyncType, Response,
     },
-    webhooks::{IncomingWebhook, IncomingWebhookRequestDetails},
+    webhooks::{IncomingWebhook, IncomingWebhookRequestDetails, WebhookContext},
 };
-use masking::{Mask as _, Maskable};
+use hyperswitch_masking::{Mask as _, Maskable};
 use transformers as dummyconnector;
 
 use crate::{
@@ -640,6 +640,7 @@ impl<const T: u8> IncomingWebhook for DummyConnector<T> {
     fn get_webhook_event_type(
         &self,
         _request: &IncomingWebhookRequestDetails<'_>,
+        _context: Option<&WebhookContext>,
     ) -> CustomResult<IncomingWebhookEvent, ConnectorError> {
         Ok(IncomingWebhookEvent::EventNotSupported)
     }
@@ -647,7 +648,7 @@ impl<const T: u8> IncomingWebhook for DummyConnector<T> {
     fn get_webhook_resource_object(
         &self,
         _request: &IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, ConnectorError> {
+    ) -> CustomResult<Box<dyn hyperswitch_masking::ErasedMaskSerialize>, ConnectorError> {
         Err(report!(ConnectorError::WebhooksNotImplemented))
     }
 }

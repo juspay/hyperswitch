@@ -12,6 +12,9 @@ use common_utils::{
 use error_stack::ResultExt;
 #[cfg(feature = "v2")]
 use hyperswitch_domain_models::payment_method_data;
+#[cfg(feature = "v2")]
+use hyperswitch_masking::ExposeInterface;
+use hyperswitch_masking::PeekInterface;
 use josekit::jwe;
 use router_env::RequestId;
 use serde::{Deserialize, Serialize};
@@ -23,7 +26,7 @@ use crate::{
         payment_methods::cards::call_vault_service,
     },
     headers,
-    pii::{prelude::*, Secret},
+    pii::Secret,
     routes,
     services::{api as services, encryption, EncryptionAlgorithm},
     types::{api, domain},
@@ -277,7 +280,6 @@ pub async fn get_decrypted_vault_response_payload(
         .attach_printable("Jws Decryption failed for JwsBody for vault")
 }
 
-#[cfg(feature = "v2")]
 pub async fn create_jwe_body_for_vault(
     jwekey: &settings::Jwekey,
     jws: &str,
@@ -418,8 +420,8 @@ pub fn mk_add_bank_response_hs(
     bank_reference: String,
     req: api::PaymentMethodCreate,
     merchant_id: &id_type::MerchantId,
-) -> api::PaymentMethodResponse {
-    api::PaymentMethodResponse {
+) -> domain::PaymentMethodResponse {
+    domain::PaymentMethodResponse {
         merchant_id: merchant_id.to_owned(),
         customer_id: req.customer_id,
         payment_method_id: bank_reference,
@@ -434,6 +436,7 @@ pub fn mk_add_bank_response_hs(
         payment_experience: Some(vec![api_models::enums::PaymentExperience::RedirectToUrl]),
         last_used_at: Some(common_utils::date_time::now()),
         client_secret: None,
+        locker_fingerprint_id: None,
     }
 }
 
@@ -442,8 +445,9 @@ pub fn mk_add_bank_debit_response_hs(
     bank_reference: String,
     req: api::PaymentMethodCreate,
     merchant_id: &id_type::MerchantId,
-) -> api::PaymentMethodResponse {
-    api::PaymentMethodResponse {
+    locker_fingerprint_id: String,
+) -> domain::PaymentMethodResponse {
+    domain::PaymentMethodResponse {
         merchant_id: merchant_id.to_owned(),
         customer_id: req.customer_id.to_owned(),
         payment_method_id: bank_reference,
@@ -458,6 +462,7 @@ pub fn mk_add_bank_debit_response_hs(
         payment_experience: Some(vec![api_models::enums::PaymentExperience::RedirectToUrl]),
         last_used_at: Some(common_utils::date_time::now()),
         client_secret: None,
+        locker_fingerprint_id: Some(locker_fingerprint_id),
     }
 }
 
@@ -477,7 +482,7 @@ pub fn mk_add_card_response_hs(
     card_reference: String,
     req: api::PaymentMethodCreate,
     merchant_id: &id_type::MerchantId,
-) -> api::PaymentMethodResponse {
+) -> domain::PaymentMethodResponse {
     let card_number = card.card_number.clone();
     let last4_digits = card_number.get_last4();
     let card_isin = card_number.get_card_isin();
@@ -503,7 +508,7 @@ pub fn mk_add_card_response_hs(
         card_type: card.card_type,
         saved_to_locker: true,
     };
-    api::PaymentMethodResponse {
+    domain::PaymentMethodResponse {
         merchant_id: merchant_id.to_owned(),
         customer_id: req.customer_id,
         payment_method_id: card_reference,
@@ -519,6 +524,7 @@ pub fn mk_add_card_response_hs(
         payment_experience: Some(vec![api_models::enums::PaymentExperience::RedirectToUrl]),
         last_used_at: Some(common_utils::date_time::now()), // [#256]
         client_secret: req.client_secret,
+        locker_fingerprint_id: None,
     }
 }
 
@@ -855,6 +861,7 @@ impl transformers::ForeignTryFrom<(domain::PaymentMethod, String)>
                     api_models::payment_methods::PaymentMethodListData::Card(card_details)
                 }
                 api_models::payment_methods::PaymentMethodsData::BankDetails(..) => todo!(),
+                api_models::payment_methods::PaymentMethodsData::BankDebit(..) => todo!(),
                 api_models::payment_methods::PaymentMethodsData::WalletDetails(..) => {
                     todo!()
                 }
@@ -921,6 +928,7 @@ impl transformers::ForeignTryFrom<domain::PaymentMethod> for PaymentMethodRespon
                     api_models::payment_methods::PaymentMethodListData::Card(card_details)
                 }
                 api_models::payment_methods::PaymentMethodsData::BankDetails(..) => todo!(),
+                api_models::payment_methods::PaymentMethodsData::BankDebit(..) => todo!(),
                 api_models::payment_methods::PaymentMethodsData::WalletDetails(..) => {
                     todo!()
                 }

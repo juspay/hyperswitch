@@ -43,10 +43,10 @@ use hyperswitch_interfaces::{
     errors,
     events::connector_api_logs::ConnectorEvent,
     types::{self, CreateOrderType, Response},
-    webhooks::{IncomingWebhook, IncomingWebhookRequestDetails},
+    webhooks::{IncomingWebhook, IncomingWebhookRequestDetails, WebhookContext},
 };
+use hyperswitch_masking::{Mask, Maskable, PeekInterface};
 use lazy_static::lazy_static;
-use masking::{Mask, Maskable, PeekInterface};
 use router_env::logger;
 use transformers as razorpay;
 
@@ -738,7 +738,7 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Razorpay 
 //         _merchant_id: &common_utils::id_type::MerchantId,
 //         _connector_webhook_details: Option<common_utils::pii::SecretSerdeValue>,
 //         _connector_account_details: common_utils::crypto::Encryptable<
-//             masking::Secret<serde_json::Value>,
+//             hyperswitch_masking::Secret<serde_json::Value>,
 //         >,
 //         _connector_label: &str,
 //     ) -> CustomResult<bool, errors::ConnectorError> {
@@ -759,7 +759,7 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Razorpay 
 //     fn get_webhook_resource_object(
 //         &self,
 //         request: &IncomingWebhookRequestDetails<'_>,
-//     ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
+//     ) -> CustomResult<Box<dyn hyperswitch_masking::ErasedMaskSerialize>, errors::ConnectorError> {
 //         let details: razorpay::RazorpayWebhookPayload = request
 //             .body
 //             .parse_struct("RazorpayWebhookPayload")
@@ -780,6 +780,7 @@ impl IncomingWebhook for Razorpay {
     fn get_webhook_event_type(
         &self,
         _request: &IncomingWebhookRequestDetails<'_>,
+        _context: Option<&WebhookContext>,
     ) -> CustomResult<api_models::webhooks::IncomingWebhookEvent, errors::ConnectorError> {
         Ok(api_models::webhooks::IncomingWebhookEvent::EventNotSupported)
     }
@@ -787,7 +788,8 @@ impl IncomingWebhook for Razorpay {
     fn get_webhook_resource_object(
         &self,
         _request: &IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
+    ) -> CustomResult<Box<dyn hyperswitch_masking::ErasedMaskSerialize>, errors::ConnectorError>
+    {
         Err(report!(errors::ConnectorError::WebhooksNotImplemented))
     }
 }

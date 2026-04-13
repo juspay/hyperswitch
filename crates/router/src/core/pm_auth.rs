@@ -18,7 +18,7 @@ use common_utils::{
 use error_stack::ResultExt;
 use helpers::PaymentAuthConnectorDataExt;
 use hyperswitch_domain_models::payments::PaymentIntent;
-use masking::{ExposeInterface, PeekInterface, Secret};
+use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 use pm_auth::{
     connector::plaid::transformers::PlaidAuthType,
     types::{
@@ -530,6 +530,7 @@ async fn store_bank_details_in_payment_methods(
                 vault_source_details: Default::default(),
                 created_by: None,
                 last_modified_by: None,
+                locker_fingerprint_id: None,
             };
 
             new_entries.push(pm_new);

@@ -50,8 +50,8 @@ pub use hyperswitch_interfaces::{
     configs::MerchantConnectorAccountType,
     integrity::{CheckIntegrity, FlowIntegrity, GetIntegrityObject},
 };
+use hyperswitch_masking::{ExposeInterface, PeekInterface, SwitchStrategy};
 use josekit::jwe;
-use masking::{ExposeInterface, PeekInterface, SwitchStrategy};
 use num_traits::{FromPrimitive, ToPrimitive};
 use openssl::{
     derive::Deriver,
@@ -203,11 +203,12 @@ pub async fn create_or_update_address_for_payment_by_request(
                         .and_then(utils::trim_string),
                     updated_by: storage_scheme.to_string(),
                     email: encryptable_address.email.map(|email| {
-                        let encryptable: Encryptable<masking::Secret<String, pii::EmailStrategy>> =
-                            Encryptable::new(
-                                email.clone().into_inner().switch_strategy(),
-                                email.into_encrypted(),
-                            );
+                        let encryptable: Encryptable<
+                            hyperswitch_masking::Secret<String, pii::EmailStrategy>,
+                        > = Encryptable::new(
+                            email.clone().into_inner().switch_strategy(),
+                            email.into_encrypted(),
+                        );
                         encryptable
                     }),
                     origin_zip: encryptable_address.origin_zip,
@@ -408,11 +409,12 @@ pub async fn get_domain_address(
             zip: encryptable_address.zip,
             updated_by: storage_scheme.to_string(),
             email: encryptable_address.email.map(|email| {
-                let encryptable: Encryptable<masking::Secret<String, pii::EmailStrategy>> =
-                    Encryptable::new(
-                        email.clone().into_inner().switch_strategy(),
-                        email.into_encrypted(),
-                    );
+                let encryptable: Encryptable<
+                    hyperswitch_masking::Secret<String, pii::EmailStrategy>,
+                > = Encryptable::new(
+                    email.clone().into_inner().switch_strategy(),
+                    email.into_encrypted(),
+                );
                 encryptable
             }),
             origin_zip: encryptable_address.origin_zip,
@@ -478,16 +480,15 @@ pub async fn get_token_pm_type_mandate_details(
         ),
         Some(api::MandateTransactionType::RecurringMandateTransaction) => {
             match &request.recurring_details {
-                Some(recurring_details) => {
-                    match recurring_details {
-                        RecurringDetails::NetworkTransactionIdAndCardDetails(_) => {
-                            (None, request.payment_method, None, None, None, None, None)
-                        }
-                        RecurringDetails::ProcessorPaymentToken(processor_payment_token) => {
-                            if let Some(mca_id) = &processor_payment_token.merchant_connector_id {
-                                let db = &*state.store;
+                Some(recurring_details) => match recurring_details {
+                    RecurringDetails::NetworkTransactionIdAndCardDetails(_) => {
+                        (None, request.payment_method, None, None, None, None, None)
+                    }
+                    RecurringDetails::ProcessorPaymentToken(processor_payment_token) => {
+                        if let Some(mca_id) = &processor_payment_token.merchant_connector_id {
+                            let db = &*state.store;
 
-                                #[cfg(feature = "v1")]
+                            #[cfg(feature = "v1")]
                             let connector_name = db
                                 .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
                                     platform.get_processor().get_account().get_id(),
@@ -499,103 +500,114 @@ pub async fn get_token_pm_type_mandate_details(
                                     id: mca_id.clone().get_string_repr().to_string(),
                                 })?.connector_name;
 
-                                #[cfg(feature = "v2")]
+                            #[cfg(feature = "v2")]
                             let connector_name = db
-                                .find_merchant_connector_account_by_id( mca_id, merchant_key_store)
-                                .await
-                                .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
-                                    id: mca_id.clone().get_string_repr().to_string(),
-                                })?.connector_name;
-                                (
-                                    None,
-                                    request.payment_method,
-                                    None,
-                                    None,
-                                    None,
-                                    Some(payments::MandateConnectorDetails {
-                                        connector: connector_name,
-                                        merchant_connector_id: Some(mca_id.clone()),
-                                    }),
-                                    None,
-                                )
-                            } else {
-                                (None, request.payment_method, None, None, None, None, None)
-                            }
-                        }
-                        RecurringDetails::MandateId(mandate_id) => {
-                            let mandate_generic_data = Box::pin(get_token_for_recurring_mandate(
-                                state,
-                                request,
-                                platform,
-                                mandate_id.to_owned(),
-                            ))
-                            .await?;
-
-                            (
-                                mandate_generic_data.token,
-                                mandate_generic_data.payment_method,
-                                mandate_generic_data
-                                    .payment_method_type
-                                    .or(request.payment_method_type),
-                                None,
-                                mandate_generic_data.recurring_mandate_payment_data,
-                                mandate_generic_data.mandate_connector,
-                                mandate_generic_data.payment_method_info,
-                            )
-                        }
-                        RecurringDetails::PaymentMethodId(payment_method_id) => {
-                            let payment_method_info = state
-                                .store
-                                .find_payment_method(
-                                    platform.get_processor().get_key_store(),
-                                    payment_method_id,
-                                    platform.get_processor().get_account().storage_scheme,
-                                )
+                                .find_merchant_connector_account_by_id(mca_id, merchant_key_store)
                                 .await
                                 .to_not_found_response(
-                                    errors::ApiErrorResponse::PaymentMethodNotFound,
-                                )?;
-                            let customer_id = request
-                                .get_customer_id()
-                                .get_required_value("customer_id")?;
-
-                            verify_mandate_details_for_recurring_payments(
-                                &payment_method_info.merchant_id,
-                                platform.get_processor().get_account().get_id(),
-                                &payment_method_info.customer_id,
-                                customer_id,
-                            )?;
-
+                                    errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
+                                        id: mca_id.clone().get_string_repr().to_string(),
+                                    },
+                                )?
+                                .connector_name;
                             (
                                 None,
-                                payment_method_info.get_payment_method_type(),
-                                payment_method_info.get_payment_method_subtype(),
+                                request.payment_method,
                                 None,
                                 None,
                                 None,
-                                Some(payment_method_info),
+                                Some(payments::MandateConnectorDetails {
+                                    connector: connector_name,
+                                    merchant_connector_id: Some(mca_id.clone()),
+                                }),
+                                None,
                             )
+                        } else {
+                            (None, request.payment_method, None, None, None, None, None)
                         }
-                        RecurringDetails::NetworkTransactionIdAndNetworkTokenDetails(_) => (
-                            None,
-                            request.payment_method,
-                            request.payment_method_type,
-                            None,
-                            None,
-                            None,
-                            None,
-                        ),
-                        RecurringDetails::CardWithLimitedData(_) => (
-                            None,
-                            request.payment_method,
-                            request.payment_method_type,
-                            None,
-                            None,
-                            None,
-                            None,
-                        ),
                     }
-                }
+                    RecurringDetails::MandateId(mandate_id) => {
+                        let mandate_generic_data = Box::pin(get_token_for_recurring_mandate(
+                            state,
+                            request,
+                            platform,
+                            mandate_id.to_owned(),
+                        ))
+                        .await?;
+
+                        (
+                            mandate_generic_data.token,
+                            mandate_generic_data.payment_method,
+                            mandate_generic_data
+                                .payment_method_type
+                                .or(request.payment_method_type),
+                            None,
+                            mandate_generic_data.recurring_mandate_payment_data,
+                            mandate_generic_data.mandate_connector,
+                            mandate_generic_data.payment_method_info,
+                        )
+                    }
+                    RecurringDetails::PaymentMethodId(payment_method_id) => {
+                        let payment_method_info = state
+                            .store
+                            .find_payment_method(
+                                platform.get_processor().get_key_store(),
+                                payment_method_id,
+                                platform.get_processor().get_account().storage_scheme,
+                            )
+                            .await
+                            .to_not_found_response(
+                                errors::ApiErrorResponse::PaymentMethodNotFound,
+                            )?;
+                        let customer_id = request
+                            .get_customer_id()
+                            .get_required_value("customer_id")?;
+
+                        verify_mandate_details_for_recurring_payments(
+                            &payment_method_info.merchant_id,
+                            platform.get_processor().get_account().get_id(),
+                            &payment_method_info.customer_id,
+                            customer_id,
+                        )?;
+
+                        (
+                            None,
+                            payment_method_info.get_payment_method_type(),
+                            payment_method_info.get_payment_method_subtype(),
+                            None,
+                            None,
+                            None,
+                            Some(payment_method_info),
+                        )
+                    }
+                    RecurringDetails::NetworkTransactionIdAndNetworkTokenDetails(_) => (
+                        None,
+                        request.payment_method,
+                        request.payment_method_type,
+                        None,
+                        None,
+                        None,
+                        None,
+                    ),
+                    RecurringDetails::NetworkTransactionIdAndDecryptedWalletTokenDetails(_) => (
+                        None,
+                        request.payment_method,
+                        request.payment_method_type,
+                        None,
+                        None,
+                        None,
+                        None,
+                    ),
+                    RecurringDetails::CardWithLimitedData(_) => (
+                        None,
+                        request.payment_method,
+                        request.payment_method_type,
+                        None,
+                        None,
+                        None,
+                        None,
+                    ),
+                },
                 None => {
                     if let Some(mandate_id) = request.mandate_id.clone() {
                         let mandate_generic_data = Box::pin(get_token_for_recurring_mandate(
@@ -1045,8 +1057,8 @@ pub fn validate_card_data(
 
 #[instrument(skip_all)]
 pub fn validate_card_expiry(
-    card_exp_month: &masking::Secret<String>,
-    card_exp_year: &masking::Secret<String>,
+    card_exp_month: &hyperswitch_masking::Secret<String>,
+    card_exp_year: &hyperswitch_masking::Secret<String>,
 ) -> CustomResult<(), errors::ApiErrorResponse> {
     let exp_month = card_exp_month
         .peek()
@@ -1337,6 +1349,7 @@ fn validate_recurring_mandate(req: api::MandateValidationFields) -> RouterResult
     match recurring_details {
         RecurringDetails::ProcessorPaymentToken(_)
         | RecurringDetails::NetworkTransactionIdAndCardDetails(_)
+        | RecurringDetails::NetworkTransactionIdAndDecryptedWalletTokenDetails(_)
         | RecurringDetails::NetworkTransactionIdAndNetworkTokenDetails(_) => Ok(()),
         _ => {
             req.customer_id.check_value_present("customer_id")?;
@@ -1544,7 +1557,7 @@ pub fn validate_customer_information(
 pub async fn validate_card_ip_blocking_for_business_profile(
     state: &SessionState,
     ip: IpAddr,
-    fingerprnt: masking::Secret<String>,
+    fingerprnt: hyperswitch_masking::Secret<String>,
     card_testing_guard_config: &diesel_models::business_profile::CardTestingGuardConfig,
 ) -> RouterResult<String> {
     let cache_key = format!(
@@ -1561,7 +1574,7 @@ pub async fn validate_card_ip_blocking_for_business_profile(
 
 pub async fn validate_guest_user_card_blocking_for_business_profile(
     state: &SessionState,
-    fingerprnt: masking::Secret<String>,
+    fingerprnt: hyperswitch_masking::Secret<String>,
     customer_id: Option<id_type::CustomerId>,
     card_testing_guard_config: &diesel_models::business_profile::CardTestingGuardConfig,
 ) -> RouterResult<String> {
@@ -1929,7 +1942,7 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R, D>(
                             name: encryptable_customer.name,
                             email: encryptable_customer.email.map(|email| {
                                 let encryptable: Encryptable<
-                                    masking::Secret<String, pii::EmailStrategy>,
+                                    hyperswitch_masking::Secret<String, pii::EmailStrategy>,
                                 > = Encryptable::new(
                                     email.clone().into_inner().switch_strategy(),
                                     email.into_encrypted(),
@@ -1966,7 +1979,7 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R, D>(
                         name: encryptable_customer.name,
                         email: encryptable_customer.email.map(|email| {
                             let encryptable: Encryptable<
-                                masking::Secret<String, pii::EmailStrategy>,
+                                hyperswitch_masking::Secret<String, pii::EmailStrategy>,
                             > = Encryptable::new(
                                 email.clone().into_inner().switch_strategy(),
                                 email.into_encrypted(),
@@ -2789,7 +2802,7 @@ pub async fn fetch_card_details_from_internal_locker(
             .card_cvc
             .unwrap_or_default(),
         card_issuer: None,
-        nick_name: card.nick_name.map(masking::Secret::new),
+        nick_name: card.nick_name.map(hyperswitch_masking::Secret::new),
         card_network: card
             .card_brand
             .map(|card_brand| enums::CardNetwork::from_str(&card_brand))
@@ -2863,7 +2876,11 @@ pub async fn fetch_card_details_from_external_vault(
         }
         hyperswitch_domain_models::vault::PaymentMethodVaultingData::NetworkToken(_) => {
             Err(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Network Token not supproted")
+                .attach_printable("Network Token not supported")
+        }
+        hyperswitch_domain_models::vault::PaymentMethodVaultingData::BankDebit(_) => {
+            Err(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Bank Debit not supported")
         }
     }
 }
@@ -2906,7 +2923,7 @@ pub async fn fetch_network_token_details_from_locker(
         token_cryptogram: None,
         token_exp_month: token_data.card_exp_month,
         token_exp_year: token_data.card_exp_year,
-        nick_name: token_data.nick_name.map(masking::Secret::new),
+        nick_name: token_data.nick_name.map(hyperswitch_masking::Secret::new),
         card_issuer: None,
         card_network,
         card_type: None,
@@ -2952,7 +2969,9 @@ pub async fn fetch_card_details_for_network_transaction_flow_from_locker(
             card_issuing_country: None,
             card_issuing_country_code: None,
             bank_code: None,
-            nick_name: card_details_from_locker.nick_name.map(masking::Secret::new),
+            nick_name: card_details_from_locker
+                .nick_name
+                .map(hyperswitch_masking::Secret::new),
             card_holder_name: card_details_from_locker.name_on_card.clone(),
         };
 
@@ -3604,7 +3623,7 @@ pub fn get_handle_response_url_for_modular_authentication(
     response: &api_models::authentication::AuthenticationAuthenticateResponse,
     connector: String,
     return_url: Option<String>,
-    client_secret: Option<&masking::Secret<String>>,
+    client_secret: Option<&hyperswitch_masking::Secret<String>>,
     amount: Option<MinorUnit>,
 ) -> RouterResult<api::RedirectionResponse> {
     let authentication_return_url = return_url;
@@ -3637,7 +3656,7 @@ pub fn make_merchant_url_with_response_for_authentication(
     business_profile: &domain::Profile,
     redirection_response: hyperswitch_domain_models::authentication::PgRedirectResponseForAuthentication,
     request_return_url: Option<&String>,
-    client_secret: Option<&masking::Secret<String>>,
+    client_secret: Option<&hyperswitch_masking::Secret<String>>,
     manual_retry_allowed: Option<bool>,
 ) -> RouterResult<String> {
     // take return url if provided in the request else use merchant return url
@@ -3703,7 +3722,7 @@ pub fn make_merchant_url_with_response(
     business_profile: &domain::Profile,
     redirection_response: api::PgRedirectResponse,
     request_return_url: Option<&String>,
-    client_secret: Option<&masking::Secret<String>>,
+    client_secret: Option<&hyperswitch_masking::Secret<String>>,
     manual_retry_allowed: Option<bool>,
 ) -> RouterResult<String> {
     // take return url if provided in the request else use merchant return url
@@ -3835,7 +3854,7 @@ pub async fn create_client_secret(
 
     let store = &state.store;
     let id = id_type::ClientSecretId::generate();
-    let secret = masking::Secret::new(generate_time_ordered_id("cs"));
+    let secret = hyperswitch_masking::Secret::new(generate_time_ordered_id("cs"));
 
     let client_secret = ephemeral_key::ClientSecretTypeNew {
         id,
@@ -4033,7 +4052,7 @@ pub fn generate_mandate(
                 .set_customer_ip_address(
                     customer_acceptance
                         .get_ip_address()
-                        .map(masking::Secret::new),
+                        .map(hyperswitch_masking::Secret::new),
                 )
                 .set_customer_user_agent_extended(customer_acceptance.get_user_agent())
                 .set_customer_accepted_at(Some(customer_acceptance.get_accepted_at()))
@@ -5889,6 +5908,13 @@ pub async fn get_additional_payment_data(
                 network_token_with_ntid.to_owned().into(),
             )),
         )),
+        domain::PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(
+            decrypted_wallet_token_with_ntid,
+        ) => Ok(Some(
+            api_models::payments::AdditionalPaymentData::NetworkToken(Box::new(
+                decrypted_wallet_token_with_ntid.to_owned().into(),
+            )),
+        )),
     }
 }
 
@@ -5942,9 +5968,9 @@ pub fn is_apple_pay_simplified_flow(
 // If yes, it will encrypt connector_wallets_details and store it in the database.
 // If no, it will check if apple pay details are present in metadata and merge it with connector_wallets_details, encrypt and store it.
 pub async fn get_connector_wallets_details_with_apple_pay_certificates(
-    connector_metadata: &Option<masking::Secret<tera::Value>>,
+    connector_metadata: &Option<hyperswitch_masking::Secret<tera::Value>>,
     connector_wallets_details_optional: &Option<api_models::admin::ConnectorWalletDetails>,
-) -> RouterResult<Option<masking::Secret<serde_json::Value>>> {
+) -> RouterResult<Option<hyperswitch_masking::Secret<serde_json::Value>>> {
     let connector_wallet_details_with_apple_pay_metadata_optional =
         get_apple_pay_metadata_if_needed(connector_metadata, connector_wallets_details_optional)
             .await?;
@@ -5956,13 +5982,13 @@ pub async fn get_connector_wallets_details_with_apple_pay_certificates(
                 .attach_printable("Failed to serialize Apple Pay metadata as JSON")
         })
         .transpose()?
-        .map(masking::Secret::new);
+        .map(hyperswitch_masking::Secret::new);
 
     Ok(connector_wallets_details)
 }
 
 async fn get_apple_pay_metadata_if_needed(
-    connector_metadata: &Option<masking::Secret<tera::Value>>,
+    connector_metadata: &Option<hyperswitch_masking::Secret<tera::Value>>,
     connector_wallets_details_optional: &Option<api_models::admin::ConnectorWalletDetails>,
 ) -> RouterResult<Option<api_models::admin::ConnectorWalletDetails>> {
     if let Some(connector_wallets_details) = connector_wallets_details_optional {
@@ -5984,7 +6010,7 @@ async fn get_apple_pay_metadata_if_needed(
 }
 
 async fn get_and_merge_apple_pay_metadata(
-    connector_metadata: Option<masking::Secret<tera::Value>>,
+    connector_metadata: Option<hyperswitch_masking::Secret<tera::Value>>,
     connector_wallets_details_optional: Option<api_models::admin::ConnectorWalletDetails>,
 ) -> RouterResult<Option<api_models::admin::ConnectorWalletDetails>> {
     let apple_pay_metadata_optional = get_applepay_metadata(connector_metadata)
@@ -6006,7 +6032,9 @@ async fn get_and_merge_apple_pay_metadata(
                     .attach_printable("Failed to serialize Apple Pay combined metadata as JSON")?;
 
                 api_models::admin::ConnectorWalletDetails {
-                    apple_pay_combined: Some(masking::Secret::new(combined_metadata_json)),
+                    apple_pay_combined: Some(hyperswitch_masking::Secret::new(
+                        combined_metadata_json,
+                    )),
                     apple_pay: connector_wallets_details_optional
                         .as_ref()
                         .and_then(|d| d.apple_pay.clone()),
@@ -6030,7 +6058,7 @@ async fn get_and_merge_apple_pay_metadata(
                     .attach_printable("Failed to serialize Apple Pay metadata as JSON")?;
 
                 api_models::admin::ConnectorWalletDetails {
-                    apple_pay: Some(masking::Secret::new(metadata_json)),
+                    apple_pay: Some(hyperswitch_masking::Secret::new(metadata_json)),
                     apple_pay_combined: connector_wallets_details_optional
                         .as_ref()
                         .and_then(|d| d.apple_pay_combined.clone()),
@@ -6291,18 +6319,18 @@ where
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ApplePayData {
-    version: masking::Secret<String>,
-    data: masking::Secret<String>,
-    signature: masking::Secret<String>,
+    version: hyperswitch_masking::Secret<String>,
+    data: hyperswitch_masking::Secret<String>,
+    signature: hyperswitch_masking::Secret<String>,
     header: ApplePayHeader,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ApplePayHeader {
-    ephemeral_public_key: masking::Secret<String>,
-    public_key_hash: masking::Secret<String>,
-    transaction_id: masking::Secret<String>,
+    ephemeral_public_key: hyperswitch_masking::Secret<String>,
+    public_key_hash: hyperswitch_masking::Secret<String>,
+    transaction_id: hyperswitch_masking::Secret<String>,
 }
 
 impl ApplePayData {
@@ -6318,8 +6346,8 @@ impl ApplePayData {
 
     pub async fn decrypt(
         &self,
-        payment_processing_certificate: &masking::Secret<String>,
-        payment_processing_certificate_key: &masking::Secret<String>,
+        payment_processing_certificate: &hyperswitch_masking::Secret<String>,
+        payment_processing_certificate_key: &hyperswitch_masking::Secret<String>,
     ) -> CustomResult<serde_json::Value, errors::ApplePayDecryptionError> {
         let merchant_id = self.merchant_id(payment_processing_certificate)?;
         let shared_secret = self.shared_secret(payment_processing_certificate_key)?;
@@ -6332,7 +6360,7 @@ impl ApplePayData {
 
     pub fn merchant_id(
         &self,
-        payment_processing_certificate: &masking::Secret<String>,
+        payment_processing_certificate: &hyperswitch_masking::Secret<String>,
     ) -> CustomResult<String, errors::ApplePayDecryptionError> {
         let cert_data = payment_processing_certificate.clone().expose();
 
@@ -6371,7 +6399,7 @@ impl ApplePayData {
 
     pub fn shared_secret(
         &self,
-        payment_processing_certificate_key: &masking::Secret<String>,
+        payment_processing_certificate_key: &hyperswitch_masking::Secret<String>,
     ) -> CustomResult<Vec<u8>, errors::ApplePayDecryptionError> {
         let public_ec_bytes = BASE64_ENGINE
             .decode(self.header.ephemeral_public_key.peek().as_bytes())
@@ -6455,7 +6483,7 @@ impl ApplePayData {
 // Structs for keys and the main decryptor
 pub struct GooglePayTokenDecryptor {
     root_signing_keys: Vec<GooglePayRootSigningKey>,
-    recipient_id: masking::Secret<String>,
+    recipient_id: hyperswitch_masking::Secret<String>,
     private_key: PKey<openssl::pkey::Private>,
 }
 
@@ -6473,31 +6501,31 @@ pub struct EncryptedData {
 #[serde(rename_all = "camelCase")]
 pub struct GooglePaySignedMessage {
     #[serde(with = "common_utils::Base64Serializer")]
-    encrypted_message: masking::Secret<Vec<u8>>,
+    encrypted_message: hyperswitch_masking::Secret<Vec<u8>>,
     #[serde(with = "common_utils::Base64Serializer")]
-    ephemeral_public_key: masking::Secret<Vec<u8>>,
+    ephemeral_public_key: hyperswitch_masking::Secret<Vec<u8>>,
     #[serde(with = "common_utils::Base64Serializer")]
-    tag: masking::Secret<Vec<u8>>,
+    tag: hyperswitch_masking::Secret<Vec<u8>>,
 }
 
 #[derive(Debug, Clone, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct IntermediateSigningKey {
-    signed_key: masking::Secret<String>,
-    signatures: Vec<masking::Secret<String>>,
+    signed_key: hyperswitch_masking::Secret<String>,
+    signatures: Vec<hyperswitch_masking::Secret<String>>,
 }
 
 #[derive(Debug, Clone, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct GooglePaySignedKey {
-    key_value: masking::Secret<String>,
+    key_value: hyperswitch_masking::Secret<String>,
     key_expiration: String,
 }
 
 #[derive(Debug, Clone, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct GooglePayRootSigningKey {
-    key_value: masking::Secret<String>,
+    key_value: hyperswitch_masking::Secret<String>,
     key_expiration: String,
     protocol_version: GooglePayProtocolVersion,
 }
@@ -6561,9 +6589,9 @@ fn filter_root_signing_keys(
 
 impl GooglePayTokenDecryptor {
     pub fn new(
-        root_keys: masking::Secret<String>,
-        recipient_id: masking::Secret<String>,
-        private_key: masking::Secret<String>,
+        root_keys: hyperswitch_masking::Secret<String>,
+        recipient_id: hyperswitch_masking::Secret<String>,
+        private_key: hyperswitch_masking::Secret<String>,
     ) -> CustomResult<Self, errors::GooglePayDecryptionError> {
         // base64 decode the private key
         let decoded_key = BASE64_ENGINE
@@ -6988,8 +7016,8 @@ impl GooglePayTokenDecryptor {
 
 pub fn decrypt_paze_token(
     paze_wallet_data: PazeWalletData,
-    paze_private_key: masking::Secret<String>,
-    paze_private_key_passphrase: masking::Secret<String>,
+    paze_private_key: hyperswitch_masking::Secret<String>,
+    paze_private_key_passphrase: hyperswitch_masking::Secret<String>,
 ) -> CustomResult<serde_json::Value, errors::PazeDecryptionError> {
     let decoded_paze_private_key = BASE64_ENGINE
         .decode(paze_private_key.expose().as_bytes())
@@ -7048,7 +7076,7 @@ pub fn decrypt_paze_token(
 pub struct JwsBody {
     pub payload_id: String,
     pub session_id: String,
-    pub secured_payload: masking::Secret<String>,
+    pub secured_payload: hyperswitch_masking::Secret<String>,
 }
 
 pub fn get_key_params_for_surcharge_details(
@@ -7139,6 +7167,7 @@ pub fn get_key_params_for_surcharge_details(
         | domain::PaymentMethodData::NetworkToken(_)
         | domain::PaymentMethodData::CardDetailsForNetworkTransactionId(_)
         | domain::PaymentMethodData::CardWithLimitedDetails(_)
+        | domain::PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
         | domain::PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => None,
     }
 }
@@ -7535,7 +7564,7 @@ pub async fn get_payment_method_data_and_encrypted_payment_method_data(
 ) -> CustomResult<
     (
         Option<serde_json::Value>,
-        Option<Encryptable<masking::Secret<serde_json::Value>>>,
+        Option<Encryptable<hyperswitch_masking::Secret<serde_json::Value>>>,
     ),
     errors::ApiErrorResponse,
 > {
@@ -8317,33 +8346,46 @@ pub fn validate_platform_request_for_marketplace(
     Ok(())
 }
 
+/// Returns `true` if either the org or merchant config is set to "true"
+///
+/// Priority logic:
+/// 1. If org-level config exists (either "true" or "false"), that decision is final
+///    - Org = "true" → returns true (authentication enabled)
+///    - Org = "false" → returns false (authentication disabled, merchant config ignored)
+/// 2. If org-level config is missing or fails to fetch, fallback to merchant-level config
+///    - Merchant = "true" → returns true
+///    - Merchant = "false" or missing → returns false
+///
+/// This ensures parent (org) rules take precedence over child (merchant) configurations
 pub async fn is_merchant_eligible_authentication_service(
     merchant_id: &id_type::MerchantId,
+    org_id: &id_type::OrganizationId,
     state: &SessionState,
 ) -> RouterResult<bool> {
-    let merchants_eligible_for_authentication_service = state
-        .store
-        .as_ref()
-        .find_config_by_key_unwrap_or(
-            consts::AUTHENTICATION_SERVICE_ELIGIBLE_CONFIG,
-            Some("[]".to_string()),
-        )
-        .await;
+    let db = &*state.store;
+    let org_key = org_id.get_authentication_service_eligible_key();
+    let org_eligible = db
+        .find_config_by_key(&org_key)
+        .await
+        .inspect_err(|error| {
+            logger::error!(?error, "Failed to fetch `{org_key}` config from DB");
+        })
+        .ok()
+        .map(|c| c.config.to_lowercase() == "true");
 
-    let auth_eligible_array: Vec<String> = match merchants_eligible_for_authentication_service {
-        Ok(config) => serde_json::from_str(&config.config)
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("unable to parse authentication service config")?,
-        Err(err) => {
-            logger::error!(
-                "Error fetching authentication service enabled merchant config {:?}",
-                err
-            );
-            Vec::new()
-        }
-    };
-
-    Ok(auth_eligible_array.contains(&merchant_id.get_string_repr().to_owned()))
+    Ok(org_eligible
+        .async_unwrap_or_else(|| async {
+            let merchant_key = merchant_id.get_authentication_service_eligible_key();
+            db.find_config_by_key(&merchant_key)
+                .await
+                .inspect_err(|error| {
+                    logger::error!(?error, "Failed to fetch `{merchant_key}` config from DB");
+                })
+                .ok()
+                .map(|c| c.config.to_lowercase() == "true")
+                .unwrap_or(false)
+        })
+        .await)
 }
 
 #[cfg(feature = "v1")]

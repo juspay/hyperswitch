@@ -48,9 +48,9 @@ use hyperswitch_interfaces::{
         PaymentsPreAuthenticateType, PaymentsPreProcessingType, PaymentsSyncType, PaymentsVoidType,
         RefundExecuteType, RefundSyncType, Response, SetupMandateType,
     },
-    webhooks::{IncomingWebhook, IncomingWebhookRequestDetails},
+    webhooks::{IncomingWebhook, IncomingWebhookRequestDetails, WebhookContext},
 };
-use masking::Maskable;
+use hyperswitch_masking::Maskable;
 use regex::Regex;
 use transformers as nmi;
 
@@ -167,6 +167,7 @@ impl ConnectorValidation for Nmi {
         let mandate_supported_pmd = std::collections::HashSet::from([
             utils::PaymentMethodDataType::Card,
             utils::PaymentMethodDataType::ApplePay,
+            utils::PaymentMethodDataType::GooglePay,
         ]);
         utils::is_mandate_supported(pm_data, pm_type, mandate_supported_pmd, self.id())
     }
@@ -1025,6 +1026,7 @@ impl IncomingWebhook for Nmi {
     fn get_webhook_event_type(
         &self,
         request: &IncomingWebhookRequestDetails<'_>,
+        _context: Option<&WebhookContext>,
     ) -> CustomResult<IncomingWebhookEvent, ConnectorError> {
         let event_type_body: nmi::NmiWebhookEventBody = request
             .body
@@ -1039,7 +1041,7 @@ impl IncomingWebhook for Nmi {
     fn get_webhook_resource_object(
         &self,
         request: &IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, ConnectorError> {
+    ) -> CustomResult<Box<dyn hyperswitch_masking::ErasedMaskSerialize>, ConnectorError> {
         let webhook_body: nmi::NmiWebhookBody = request
             .body
             .parse_struct("nmi NmiWebhookBody")
@@ -1162,7 +1164,7 @@ static NMI_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = LazyLo
         enums::PaymentMethod::Wallet,
         enums::PaymentMethodType::GooglePay,
         PaymentMethodDetails {
-            mandates: enums::FeatureStatus::NotSupported,
+            mandates: enums::FeatureStatus::Supported,
             refunds: enums::FeatureStatus::Supported,
             supported_capture_methods: supported_capture_methods.clone(),
             specific_features: None,

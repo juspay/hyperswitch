@@ -14,7 +14,7 @@ use hyperswitch_domain_models::{
     },
 };
 use hyperswitch_interfaces::errors;
-use masking::Secret;
+use hyperswitch_masking::Secret;
 use rand::distributions::DistString;
 use serde::{Deserialize, Deserializer, Serialize};
 
@@ -343,6 +343,7 @@ impl TryFrom<&NordeaRouterData<&CreateOrderRouterData>> for NordeaPaymentsReques
             | Some(PaymentMethodData::CardDetailsForNetworkTransactionId(_))
             | Some(PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_))
             | Some(PaymentMethodData::CardWithLimitedDetails(_))
+            | Some(PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_))
             | Some(PaymentMethodData::Wallet(_))
             | Some(PaymentMethodData::PayLater(_))
             | Some(PaymentMethodData::BankRedirect(_))
@@ -424,6 +425,7 @@ impl TryFrom<&NordeaRouterData<&PaymentsPreProcessingRouterData>> for NordeaPaym
             | Some(PaymentMethodData::CardDetailsForNetworkTransactionId(_))
             | Some(PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_))
             | Some(PaymentMethodData::CardWithLimitedDetails(_))
+            | Some(PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_))
             | Some(PaymentMethodData::Wallet(_))
             | Some(PaymentMethodData::PayLater(_))
             | Some(PaymentMethodData::BankRedirect(_))

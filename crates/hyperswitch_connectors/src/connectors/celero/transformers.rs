@@ -22,7 +22,7 @@ use hyperswitch_interfaces::{
     consts,
     errors::{self},
 };
-use masking::{PeekInterface, Secret};
+use hyperswitch_masking::{PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -190,6 +190,7 @@ impl TryFrom<&PaymentMethodData> for CeleroPaymentMethod {
                 Ok(Self::Card(card))
             }
             PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+            | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
             | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_)
             | PaymentMethodData::CardWithLimitedDetails(_)
             | PaymentMethodData::CardRedirect(_)

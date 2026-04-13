@@ -73,7 +73,7 @@ use hyperswitch_domain_models::{
         SupportedPaymentMethods, VerifyWebhookSourceResponseData,
     },
 };
-use masking::Maskable;
+use hyperswitch_masking::Maskable;
 use serde_json::json;
 
 #[cfg(feature = "frm")]

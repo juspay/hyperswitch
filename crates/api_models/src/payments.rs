@@ -59,7 +59,7 @@ where
         None => Ok(None),
     }
 }
-use masking::{PeekInterface, Secret, WithType};
+use hyperswitch_masking::{PeekInterface, Secret, WithType};
 use router_derive::Setter;
 #[cfg(feature = "v1")]
 use serde::{de, Deserializer};
@@ -1529,7 +1529,7 @@ pub struct PaymentsRequest {
     #[smithy(value_type = "Option<bool>")]
     pub is_stored_credential: Option<bool>,
 
-    /// The category of the MIT transaction
+    /// Specifies the category of a Merchant Initiated Transaction (MIT). In the case of MIT, `mit_category` tells what kind of MIT is being processed. In the case of CIT, it tells the future intended MIT type.
     #[schema(value_type = Option<MitCategory>, example = "recurring")]
     #[smithy(value_type = "Option<MitCategory>")]
     pub mit_category: Option<api_enums::MitCategory>,
@@ -1723,19 +1723,6 @@ impl PaymentsRequest {
         } else {
             Ok(())
         }
-    }
-
-    pub fn validate_mit_request(&self) -> common_utils::errors::CustomResult<(), ValidationError> {
-        if self.mit_category.is_some()
-            && (!matches!(self.off_session, Some(true)) || self.recurring_details.is_none())
-        {
-            return Err(ValidationError::InvalidValue {
-                message: "`mit_category` requires both: (1) `off_session = true`, and (2) `recurring_details`.".to_string(),
-            }
-            .into());
-        }
-
-        Ok(())
     }
 }
 
@@ -2771,40 +2758,6 @@ impl GetAddressFromPaymentMethodData for Card {
     }
 }
 
-impl Card {
-    fn apply_additional_card_info(
-        &self,
-        additional_card_info: AdditionalCardInfo,
-    ) -> Result<Self, error_stack::Report<ValidationError>> {
-        Ok(Self {
-            card_number: self.card_number.clone(),
-            card_exp_month: self.card_exp_month.clone(),
-            card_exp_year: self.card_exp_year.clone(),
-            card_holder_name: self.card_holder_name.clone(),
-            card_cvc: self.card_cvc.clone(),
-            card_issuer: self
-                .card_issuer
-                .clone()
-                .or(additional_card_info.card_issuer),
-            card_network: self
-                .card_network
-                .clone()
-                .or(additional_card_info.card_network.clone()),
-            card_type: self.card_type.clone().or(additional_card_info.card_type),
-            card_issuing_country: self
-                .card_issuing_country
-                .clone()
-                .or(additional_card_info.card_issuing_country),
-            card_issuing_country_code: self
-                .card_issuing_country_code
-                .clone()
-                .or(additional_card_info.card_issuing_country_code),
-            bank_code: self.bank_code.clone().or(additional_card_info.bank_code),
-            nick_name: self.nick_name.clone(),
-        })
-    }
-}
-
 #[derive(
     Eq,
     PartialEq,
@@ -3614,22 +3567,6 @@ impl GetAddressFromPaymentMethodData for PaymentMethodData {
 }
 
 impl PaymentMethodData {
-    pub fn apply_additional_payment_data(
-        &self,
-        additional_payment_data: AdditionalPaymentData,
-    ) -> Result<Self, error_stack::Report<ValidationError>> {
-        if let AdditionalPaymentData::Card(additional_card_info) = additional_payment_data {
-            match self {
-                Self::Card(card) => Ok(Self::Card(
-                    card.apply_additional_card_info(*additional_card_info)?,
-                )),
-                _ => Ok(self.to_owned()),
-            }
-        } else {
-            Ok(self.to_owned())
-        }
-    }
-
     pub fn get_payment_method(&self) -> Option<api_enums::PaymentMethod> {
         match self {
             Self::Card(_) => Some(api_enums::PaymentMethod::Card),
@@ -6235,7 +6172,7 @@ pub struct Address {
     pub email: Option<Email>,
 }
 
-impl masking::SerializableSecret for Address {}
+impl hyperswitch_masking::SerializableSecret for Address {}
 
 impl Address {
     /// Unify the address, giving priority to `self` when details are present in both
@@ -7605,7 +7542,7 @@ pub struct PaymentsResponse {
     #[smithy(value_type = "Option<bool>")]
     pub is_stored_credential: Option<bool>,
 
-    /// The category of the MIT transaction
+    /// Specifies the category of a Merchant Initiated Transaction (MIT). In the case of MIT, `mit_category` tells what kind of MIT is being processed. In the case of CIT, it tells the future intended MIT type.
     #[schema(value_type = Option<MitCategory>, example = "recurring")]
     #[smithy(value_type = "Option<MitCategory>")]
     pub mit_category: Option<api_enums::MitCategory>,
@@ -9381,7 +9318,7 @@ pub struct OrderDetailsWithAmount {
     pub unit_discount_amount: Option<MinorUnit>,
 }
 
-impl masking::SerializableSecret for OrderDetailsWithAmount {}
+impl hyperswitch_masking::SerializableSecret for OrderDetailsWithAmount {}
 
 #[derive(
     Default,
@@ -9768,6 +9705,8 @@ pub struct ConnectorMetadata {
     pub braintree: Option<BraintreeData>,
     #[smithy(value_type = "Option<AdyenConnectorMetadata>")]
     pub adyen: Option<AdyenConnectorMetadata>,
+    #[smithy(value_type = "Option<PeachpaymentsData>")]
+    pub peachpayments: Option<PeachpaymentsData>,
 }
 
 impl ConnectorMetadata {
@@ -9902,6 +9841,13 @@ pub enum ApplePayCombinedMetadata {
         payment_request_data: PaymentRequestMetadata,
         session_token_data: SessionTokenInfo,
     },
+}
+
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+pub struct PeachpaymentsData {
+    /// A numeric reference number supplied by the system retaining the original source information and used to assist in locating that information or a copy thereof.
+    pub rrn: Option<String>,
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -12069,7 +12015,7 @@ mod payments_response_api_contract {
 #[cfg(test)]
 mod billing_from_payment_method_data {
     use common_enums::CountryAlpha2;
-    use masking::ExposeOptionInterface;
+    use hyperswitch_masking::ExposeOptionInterface;
 
     use super::*;
 

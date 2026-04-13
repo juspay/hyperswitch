@@ -39,9 +39,9 @@ use hyperswitch_interfaces::{
     errors::ConnectorError,
     events::connector_api_logs::ConnectorEvent,
     types::{PaymentsAuthorizeType, PaymentsPostProcessingType, PaymentsSyncType, Response},
-    webhooks::{IncomingWebhook, IncomingWebhookRequestDetails},
+    webhooks::{IncomingWebhook, IncomingWebhookRequestDetails, WebhookContext},
 };
-use masking::{Mask as _, Maskable};
+use hyperswitch_masking::{Mask as _, Maskable};
 use transformers as plaid;
 
 use crate::{
@@ -437,6 +437,7 @@ impl IncomingWebhook for Plaid {
     fn get_webhook_event_type(
         &self,
         _request: &IncomingWebhookRequestDetails<'_>,
+        _context: Option<&WebhookContext>,
     ) -> CustomResult<IncomingWebhookEvent, ConnectorError> {
         Err((ConnectorError::WebhooksNotImplemented).into())
     }
@@ -444,7 +445,7 @@ impl IncomingWebhook for Plaid {
     fn get_webhook_resource_object(
         &self,
         _request: &IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, ConnectorError> {
+    ) -> CustomResult<Box<dyn hyperswitch_masking::ErasedMaskSerialize>, ConnectorError> {
         Err((ConnectorError::WebhooksNotImplemented).into())
     }
 }

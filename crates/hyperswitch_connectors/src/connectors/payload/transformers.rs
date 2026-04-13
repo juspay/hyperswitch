@@ -25,7 +25,7 @@ use hyperswitch_interfaces::{
     consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE},
     errors,
 };
-use masking::{ExposeOptionInterface, PeekInterface, Secret};
+use hyperswitch_masking::{ExposeOptionInterface, PeekInterface, Secret};
 use serde::Deserialize;
 
 use super::{requests, responses};
@@ -71,11 +71,13 @@ fn build_payload_payment_request_data(
                 })?
             }
             let card = requests::PayloadCard {
-                number: req_card.clone().card_number,
-                expiry: req_card
-                    .clone()
-                    .get_card_expiry_month_year_2_digit_with_delimiter("/".to_owned())?,
-                cvc: req_card.card_cvc.clone(),
+                card: requests::PayloadCardData {
+                    card_number: req_card.clone().card_number,
+                    expiry: req_card
+                        .clone()
+                        .get_card_expiry_month_year_2_digit_with_delimiter("/".to_owned())?,
+                    card_code: req_card.card_cvc.clone(),
+                },
             };
             Ok(requests::PayloadPaymentMethods::Card(card))
         }
@@ -105,11 +107,13 @@ fn build_payload_payment_request_data(
                 }
             })?;
             let bank = requests::PayloadBank {
-                account_class,
-                account_currency: currency.to_string(),
-                account_number: account_number.clone(),
-                account_type,
-                routing_number: routing_number.clone(),
+                bank_account: requests::PayloadBankAccountInner {
+                    account_class,
+                    account_currency: currency.to_string(),
+                    account_number: account_number.clone(),
+                    account_type,
+                    routing_number: routing_number.clone(),
+                },
                 account_holder,
             };
             Ok(requests::PayloadPaymentMethods::BankAccount(bank))
@@ -132,25 +136,27 @@ fn build_payload_payment_request_data(
         None
     };
 
-    let billing_address = requests::BillingAddress {
+    let billing_address = Some(requests::BillingAddress {
         city,
-        country,
+        country_code: country,
         postal_code,
         state_province,
         street_address,
-    };
+    });
 
     let payload_auth = PayloadAuth::try_from((connector_auth_type, currency))?;
     // Metadata processing_account_id takes precedence over connector auth config
     Ok(requests::PayloadPaymentRequestData {
         amount,
-        payment_method: payment_method?,
+        payment_method: requests::PayloadPaymentMethod {
+            method: payment_method?,
+            billing_address,
+            keep_active: is_mandate,
+        },
         transaction_types: requests::TransactionTypes::Payment,
         status,
-        billing_address,
         processing_id: get_processing_account_id_from_metadata(metadata)
             .or(payload_auth.processing_account_id),
-        keep_active: is_mandate,
         customer_id,
     })
 }
@@ -294,6 +300,62 @@ impl TryFrom<&SetupMandateRouterData> for requests::PayloadPaymentRequestData {
     }
 }
 
+// ACH-specific transformer for SetupMandate using /payment_methods API
+impl TryFrom<&SetupMandateRouterData> for requests::PayloadPaymentMethodRequest {
+    type Error = Error;
+    fn try_from(item: &SetupMandateRouterData) -> Result<Self, Self::Error> {
+        if item.request.amount > 0 {
+            return Err(errors::ConnectorError::FlowNotSupported {
+                flow: "Setup mandate with non zero amount".to_string(),
+                connector: "Payload".to_string(),
+            }
+            .into());
+        }
+
+        match &item.request.payment_method_data {
+            PaymentMethodData::BankDebit(BankDebitData::AchBankDebit {
+                account_number,
+                routing_number,
+                bank_type,
+                bank_account_holder_name,
+                ..
+            }) => {
+                let account_type = bank_type
+                    .map(|b_type| match b_type {
+                        enums::BankType::Checking => requests::PayloadAccAccountType::Checking,
+                        enums::BankType::Savings => requests::PayloadAccAccountType::Savings,
+                    })
+                    .ok_or_else(|| errors::ConnectorError::MissingRequiredField {
+                        field_name: "bank_type",
+                    })?;
+
+                let account_holder = bank_account_holder_name.clone().ok_or_else(|| {
+                    errors::ConnectorError::MissingRequiredField {
+                        field_name: "bank_account_holder_name",
+                    }
+                })?;
+
+                let customer_id = item.get_connector_customer_id()?;
+
+                Ok(Self {
+                    account_id: Secret::new(customer_id),
+                    bank_account: requests::PayloadBankAccountData {
+                        account_number: account_number.clone(),
+                        routing_number: routing_number.clone(),
+                        account_type,
+                    },
+                    account_holder,
+                    payment_method_type: requests::PayloadPaymentMethodType::BankAccount,
+                })
+            }
+            _ => Err(errors::ConnectorError::NotImplemented(
+                get_unimplemented_payment_method_error_message("Payload"),
+            )
+            .into()),
+        }
+    }
+}
+
 impl TryFrom<&PayloadRouterData<&PaymentsAuthorizeRouterData>>
     for requests::PayloadPaymentsRequest
 {
@@ -331,6 +393,10 @@ impl TryFrom<&PayloadRouterData<&PaymentsAuthorizeRouterData>>
                     None
                 };
 
+                let processing_id = get_processing_account_id_from_metadata(
+                    item.router_data.request.metadata.as_ref(),
+                );
+
                 Ok(Self::PayloadMandateRequest(Box::new(
                     requests::PayloadMandateRequestData {
                         amount: item.amount.clone(),
@@ -339,6 +405,7 @@ impl TryFrom<&PayloadRouterData<&PaymentsAuthorizeRouterData>>
                             item.router_data.request.get_connector_mandate_id()?,
                         ),
                         status,
+                        processing_id,
                     },
                 )))
             }
@@ -372,32 +439,43 @@ where
     ) -> Result<Self, Self::Error> {
         match item.response.clone() {
             responses::PayloadPaymentsResponse::PayloadCardsResponse(response) => {
-                let status = enums::AttemptStatus::from(response.status);
-
                 let router_data: &dyn std::any::Any = &item.data;
                 let is_mandate_payment = router_data
                     .downcast_ref::<PaymentsAuthorizeRouterData>()
-                    .is_some_and(|router_data| router_data.request.is_mandate_payment())
+                    .is_some_and(|rd| rd.request.is_mandate_payment())
                     || router_data
                         .downcast_ref::<SetupMandateRouterData>()
                         .is_some();
 
-                let mandate_reference = if is_mandate_payment {
-                    let connector_payment_method_id =
-                        response.connector_payment_method_id.clone().expose_option();
-                    if connector_payment_method_id.is_some() {
-                        Some(MandateReference {
-                            connector_mandate_id: connector_payment_method_id,
-                            payment_method_id: None,
-                            mandate_metadata: None,
-                            connector_mandate_request_reference_id: None,
-                        })
-                    } else {
-                        None
+                let is_ach_payment =
+                    is_mandate_payment
+                        && router_data
+                            .downcast_ref::<PaymentsAuthorizeRouterData>()
+                            .is_some_and(|rd| {
+                                matches!(
+                                    rd.request.additional_payment_method_data,
+                                    Some(api_models::payments::AdditionalPaymentData::BankDebit {
+                                        details: Some(api_models::payments::additional_info::BankDebitAdditionalData::Ach(_))
+                                    })
+                                )
+                            });
+
+                let status = match (is_ach_payment, response.status) {
+                    (true, responses::PayloadPaymentStatus::Authorized) => {
+                        enums::AttemptStatus::Pending
                     }
-                } else {
-                    None
+                    _ => enums::AttemptStatus::from(response.status),
                 };
+
+                let mandate_reference = is_mandate_payment
+                    .then(|| response.connector_payment_method_id.clone().expose_option())
+                    .flatten()
+                    .map(|id| MandateReference {
+                        connector_mandate_id: Some(id),
+                        payment_method_id: None,
+                        mandate_metadata: None,
+                        connector_mandate_request_reference_id: None,
+                    });
 
                 let connector_response = {
                     response.avs.map(|avs_response| {
@@ -459,6 +537,48 @@ where
     }
 }
 
+// Response transformer for ACH SetupMandate using /payment_methods API
+impl<F, T>
+    TryFrom<ResponseRouterData<F, responses::PayloadPaymentMethodResponse, T, PaymentsResponseData>>
+    for RouterData<F, T, PaymentsResponseData>
+{
+    type Error = Error;
+    fn try_from(
+        item: ResponseRouterData<
+            F,
+            responses::PayloadPaymentMethodResponse,
+            T,
+            PaymentsResponseData,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let response = item.response;
+
+        let mandate_reference = Some(MandateReference {
+            connector_mandate_id: Some(response.id.clone()),
+            payment_method_id: None,
+            mandate_metadata: None,
+            connector_mandate_request_reference_id: None,
+        });
+
+        Ok(Self {
+            status: enums::AttemptStatus::Charged, // SetupMandate succeeded
+            response: Ok(PaymentsResponseData::TransactionResponse {
+                resource_id: ResponseId::ConnectorTransactionId(response.id),
+                redirection_data: Box::new(None),
+                mandate_reference: Box::new(mandate_reference),
+                connector_metadata: None,
+                network_txn_id: None,
+                connector_response_reference_id: None,
+                incremental_authorization_allowed: None,
+                authentication_data: None,
+                charges: None,
+            }),
+            connector_response: None,
+            ..item.data
+        })
+    }
+}
+
 impl<T> TryFrom<&PayloadRouterData<T>> for requests::PayloadCancelRequest {
     type Error = Error;
     fn try_from(_item: &PayloadRouterData<T>) -> Result<Self, Self::Error> {
@@ -487,7 +607,9 @@ impl<F> TryFrom<&PayloadRouterData<&RefundsRouterData<F>>> for requests::Payload
         Ok(Self {
             transaction_type: requests::TransactionTypes::Refund,
             amount: item.amount.to_owned(),
-            ledger_assoc_transaction_id: connector_transaction_id,
+            ledger: vec![requests::PayloadRefundLedgerEntry {
+                assoc_transaction_id: connector_transaction_id,
+            }],
         })
     }
 }
