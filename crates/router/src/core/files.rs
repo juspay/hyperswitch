@@ -29,7 +29,7 @@ pub async fn files_create_core(
     );
     let file_new: diesel_models::FileMetadataNew = diesel_models::file::FileMetadataNew {
         file_id: file_id.clone(),
-        merchant_id: platform.get_processor().get_account().get_id().clone(),
+        merchant_id: platform.get_provider().get_account().get_id().clone(),
         file_name: create_file_request.file_name.clone(),
         file_size: create_file_request.file_size,
         file_type: create_file_request.file_type.to_string(),
@@ -39,6 +39,11 @@ pub async fn files_create_core(
         connector_label: None,
         profile_id: None,
         merchant_connector_id: None,
+        processor_merchant_id: Some(platform.get_processor().get_account().get_id().clone()),
+        created_by: platform
+            .get_initiator()
+            .and_then(|initiator| initiator.to_created_by())
+            .map(|created_by| created_by.to_string()),
     };
 
     let file_metadata_object = state
