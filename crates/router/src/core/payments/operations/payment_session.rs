@@ -1,6 +1,8 @@
 use std::marker::PhantomData;
 
-use api_models::{admin::PaymentMethodsEnabled, enums::FrmSuggestion};
+use api_models::{
+    admin::PaymentMethodsEnabled, enums::FrmSuggestion, payments::MandateTransactionType,
+};
 use async_trait::async_trait;
 use common_utils::ext_traits::{AsyncExt, ValueExt};
 use error_stack::ResultExt;
@@ -337,6 +339,7 @@ where
         provider: &domain::Provider,
         initiator: Option<&domain::Initiator>,
         dimensions: &DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
+        _mandate_type: Option<MandateTransactionType>,
     ) -> errors::CustomResult<
         (PaymentSessionOperation<'a, F>, Option<domain::Customer>),
         errors::StorageError,

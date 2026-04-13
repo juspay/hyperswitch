@@ -18,9 +18,7 @@ use crate::{
         configs::dimension_state::DimensionsWithProcessorAndProviderMerchantId,
         errors::{self, StorageErrorExt},
         payments::{
-            self,
-            cards::create_encrypted_data,
-            helpers,
+            self, helpers,
             operations::{self, ValidateStatusForOperation},
         },
     },

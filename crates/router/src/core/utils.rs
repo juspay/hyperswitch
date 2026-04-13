@@ -3,16 +3,22 @@ pub mod refunds_validator;
 
 use std::{collections::HashSet, marker::PhantomData, str::FromStr};
 
-use api_models::enums::{Connector, DisputeStage, DisputeStatus};
 #[cfg(feature = "payouts")]
 use api_models::payouts::PayoutVendorAccountDetails;
+use api_models::{
+    customers::CustomerDocumentDetails,
+    enums::{Connector, DisputeStage, DisputeStatus},
+};
 use common_enums::{IntentStatus, RequestIncrementalAuthorization};
 #[cfg(feature = "payouts")]
 use common_utils::{crypto::Encryptable, pii::Email};
 use common_utils::{
     errors::CustomResult,
-    ext_traits::AsyncExt,
-    types::{ConnectorTransactionIdTrait, MinorUnit},
+    ext_traits::{AsyncExt, Encode},
+    types::{
+        keymanager::{Identifier, KeyManagerState},
+        ConnectorTransactionIdTrait, MinorUnit,
+    },
 };
 use diesel_models::refund as diesel_refund;
 use error_stack::{report, ResultExt};
@@ -35,6 +41,7 @@ use hyperswitch_masking::{ExposeInterface, PeekInterface};
 use maud::{html, PreEscaped};
 use regex::Regex;
 use router_env::{instrument, tracing};
+use storage_impl::StorageError;
 
 use super::payments::helpers;
 #[cfg(feature = "payouts")]
@@ -2922,4 +2929,91 @@ pub fn should_proceed_with_accept_dispute(
         dispute_status,
         DisputeStatus::DisputeChallenged | DisputeStatus::DisputeOpened
     )
+}
+
+pub(crate) async fn update_intent_customer_documents(
+    payment_intent: &storage::PaymentIntent,
+    document_details: common_utils::crypto::OptionalEncryptableValue,
+    mandate_type: Option<api::MandateTransactionType>,
+    state: &SessionState,
+    key_store: &domain::MerchantKeyStore,
+    pm_document_details: common_utils::crypto::OptionalEncryptableValue,
+) -> CustomResult<common_utils::crypto::OptionalEncryptableValue, errors::ApiErrorResponse> {
+    let mut existing_intent_customer_details = payment_intent
+        .get_intent_customer_details()
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to parse customer details from PaymentIntent")?;
+
+    let doc_details = match mandate_type {
+        Some(api::MandateTransactionType::NewMandateTransaction) | None => document_details,
+        Some(api::MandateTransactionType::RecurringMandateTransaction) => pm_document_details,
+    };
+
+    let decrypted_document_details = doc_details
+        .as_ref()
+        .map(|encryptable| {
+            encryptable
+                .clone()
+                .into_inner()
+                .parse_value::<CustomerDocumentDetails>("CustomerDocumentDetails")
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable(
+                    "Failed to deserialize CustomerDocumentDetails from encrypted storage",
+                )
+        })
+        .transpose()?;
+
+    if let Some(ref mut details) = existing_intent_customer_details {
+        details.customer_document_details = decrypted_document_details;
+    }
+
+    let key_manager_state: KeyManagerState = state.into();
+    let encrypted_customer_details = existing_intent_customer_details
+        .async_map(|value| {
+            create_encrypted_data(
+                &key_manager_state,
+                key_store,
+                value,
+                common_utils::type_name!(diesel_models::PaymentIntent),
+            )
+        })
+        .await
+        .transpose()
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to encrypt customer details")?;
+
+    Ok(encrypted_customer_details)
+}
+
+pub async fn create_encrypted_data<T>(
+    key_manager_state: &KeyManagerState,
+    key_store: &domain::MerchantKeyStore,
+    data: T,
+    table_name: &str,
+) -> Result<Encryptable<Secret<serde_json::Value>>, error_stack::Report<StorageError>>
+where
+    T: std::fmt::Debug + serde::Serialize,
+{
+    let key = key_store.key.get_inner().peek();
+    let identifier = Identifier::Merchant(key_store.merchant_id.clone());
+
+    let encoded_data = Encode::encode_to_value(&data)
+        .change_context(StorageError::SerializationFailed)
+        .attach_printable("Unable to encode data")?;
+
+    let secret_data = Secret::<_, hyperswitch_masking::WithType>::new(encoded_data);
+
+    let encrypted_data = domain::types::crypto_operation(
+        key_manager_state,
+        table_name,
+        domain::types::CryptoOperation::Encrypt(secret_data),
+        identifier.clone(),
+        key,
+    )
+    .await
+    .and_then(|val| val.try_into_operation())
+    .change_context(StorageError::EncryptionError)
+    .attach_printable_lazy(|| format!("Unable to encrypt data for table: {}", table_name))?;
+
+    Ok(encrypted_data)
 }

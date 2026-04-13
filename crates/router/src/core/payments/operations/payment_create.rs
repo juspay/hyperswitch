@@ -1,8 +1,10 @@
 use std::marker::PhantomData;
 
 use api_models::{
-    enums::FrmSuggestion, mandates::RecurringDetails, payment_methods::PaymentMethodsData,
-    payments::GetAddressFromPaymentMethodData,
+    enums::FrmSuggestion,
+    mandates::RecurringDetails,
+    payment_methods::PaymentMethodsData,
+    payments::{GetAddressFromPaymentMethodData, MandateTransactionType},
 };
 use async_trait::async_trait;
 use common_types::payments as common_payments_types;
@@ -42,7 +44,7 @@ use crate::{
         payment_link,
         payments::{
             self, client_session::ClientSessionManager, helpers, operations, CustomerDetails,
-            PaymentAddress, PaymentData,
+            OperationSessionGetters, OperationSessionSetters, PaymentAddress, PaymentData,
         },
         utils as core_utils,
     },
@@ -193,7 +195,11 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         )
         .await?;
 
-        let customer_details = helpers::get_customer_details_from_request(request);
+        let customer_details = helpers::get_customer_details_from_request_or_pm_table(
+            request,
+            None,
+            mandate_type.as_ref(),
+        )?;
 
         let shipping_address = helpers::create_or_find_address_for_payment_by_request(
             state,
@@ -333,6 +339,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             session_expiry,
             &business_profile,
             request.is_payment_id_from_merchant,
+            payment_method_info.clone(),
         )
         .await?;
 
@@ -768,15 +775,16 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
         provider: &domain::Provider,
         initiator: Option<&domain::Initiator>,
         dimensions: &DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
+        mandate_type: Option<MandateTransactionType>,
     ) -> CustomResult<(PaymentCreateOperation<'a, F>, Option<domain::Customer>), errors::StorageError>
     {
-        match provider.get_account().merchant_account_type {
+        let (operation, customer) = match provider.get_account().merchant_account_type {
             common_enums::MerchantAccountType::Standard => {
                 helpers::create_customer_if_not_exist(
                     state,
                     Box::new(self),
                     payment_data,
-                    request,
+                    request.clone(),
                     provider,
                     initiator,
                     dimensions,
@@ -794,8 +802,8 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                 .inspect(|cust| {
                     payment_data.payment_intent.customer_id = Some(cust.customer_id.clone());
                 });
-
-                Ok((Box::new(self), customer))
+                let op: PaymentCreateOperation<'a, F> = Box::new(self);
+                Ok((op, customer))
             }
             common_enums::MerchantAccountType::Connected => {
                 Err(errors::StorageError::ValueNotFound(
@@ -803,7 +811,28 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                 )
                 .into())
             }
+        }?;
+        // When no document details is passed in request but customer_id is passed, use that customers document details from customers table
+        if let Some(doc_details) = request
+            .filter(|req| req.customer_id.is_some() && req.document_details.is_none())
+            .and_then(|_| customer.as_ref().and_then(|c| c.document_details.clone()))
+        {
+            let encrypted_customer_details = core_utils::update_intent_customer_documents(
+                payment_data.get_payment_intent(),
+                Some(doc_details),
+                mandate_type,
+                state,
+                provider.get_key_store(),
+                payment_data
+                    .payment_method_info
+                    .as_ref()
+                    .and_then(|pm| pm.customer_details.clone()),
+            )
+            .await
+            .change_context(errors::StorageError::EncryptionError)?;
+            payment_data.set_document_details_in_intent(encrypted_customer_details);
         }
+        Ok((operation, customer))
     }
 
     async fn payments_dynamic_tax_calculation<'a>(
@@ -1659,6 +1688,7 @@ impl PaymentCreate {
         session_expiry: PrimitiveDateTime,
         business_profile: &domain::Profile,
         is_payment_id_from_merchant: bool,
+        payment_method_info: Option<domain::PaymentMethod>,
     ) -> RouterResult<storage::PaymentIntent> {
         let created_at @ modified_at @ last_synced = common_utils::date_time::now();
 
@@ -1704,9 +1734,25 @@ impl PaymentCreate {
 
         let split_payments = request.split_payments.clone();
 
+        let mandate_type = m_helpers::get_mandate_type(
+            request.mandate_data.clone(),
+            request.off_session,
+            request.setup_future_usage,
+            request.customer_acceptance.clone(),
+            request.payment_token.clone(),
+            request.payment_method,
+        )
+        .change_context(errors::ApiErrorResponse::MandateValidationFailed {
+            reason: "Expected one out of recurring_details and mandate_data but got both".into(),
+        })?;
+
         // Derivation of directly supplied Customer data in our Payment Create Request
-        let raw_customer_details =
-            helpers::get_customer_details_from_request(request).get_customer_data();
+        let raw_customer_details = helpers::get_customer_details_from_request_or_pm_table(
+            request,
+            payment_method_info.as_ref(),
+            mandate_type.as_ref(),
+        )?
+        .get_customer_data();
         let is_payment_processor_token_flow = request.recurring_details.as_ref().and_then(
             |recurring_details| match recurring_details {
                 RecurringDetails::ProcessorPaymentToken(_) => Some(true),
