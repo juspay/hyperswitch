@@ -91,7 +91,7 @@ pub async fn delete_file_using_file_id(
 ) -> CustomResult<(), errors::ApiErrorResponse> {
     let file_metadata_object = state
         .store
-        .find_file_metadata_by_merchant_id_file_id(
+        .find_file_metadata_by_processor_merchant_id_file_id(
             platform.get_processor().get_account().get_id(),
             &file_key,
         )
@@ -210,7 +210,7 @@ pub async fn retrieve_file_and_provider_file_id_from_file_id(
         Some(file_key) => {
             let file_metadata_object = state
                 .store
-                .find_file_metadata_by_merchant_id_file_id(
+                .find_file_metadata_by_processor_merchant_id_file_id(
                     platform.get_processor().get_account().get_id(),
                     &file_key,
                 )

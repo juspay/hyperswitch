@@ -93,7 +93,7 @@ pub async fn files_delete_core(
     state
         .store
         .as_ref()
-        .delete_file_metadata_by_merchant_id_file_id(
+        .delete_file_metadata_by_processor_merchant_id_file_id(
             platform.get_processor().get_account().get_id(),
             &req.file_id,
         )
@@ -111,7 +111,7 @@ pub async fn files_retrieve_core(
     let file_metadata_object = state
         .store
         .as_ref()
-        .find_file_metadata_by_merchant_id_file_id(
+        .find_file_metadata_by_processor_merchant_id_file_id(
             platform.get_processor().get_account().get_id(),
             &req.file_id,
         )

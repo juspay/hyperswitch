@@ -15,6 +15,21 @@ impl FileMetadataNew {
 }
 
 impl FileMetadata {
+    pub async fn find_by_processor_merchant_id_file_id(
+        conn: &PgPooledConn,
+        processor_merchant_id: &common_utils::id_type::MerchantId,
+        file_id: &str,
+    ) -> StorageResult<Self> {
+        generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
+            conn,
+            dsl::processor_merchant_id
+                .eq(processor_merchant_id.to_owned())
+                .and(dsl::file_id.eq(file_id.to_owned())),
+        )
+        .await
+    }
+
+    // Fallback function for stagger release - finds by merchant_id when processor_merchant_id is NULL
     pub async fn find_by_merchant_id_file_id(
         conn: &PgPooledConn,
         merchant_id: &common_utils::id_type::MerchantId,
@@ -29,6 +44,21 @@ impl FileMetadata {
         .await
     }
 
+    pub async fn delete_by_processor_merchant_id_file_id(
+        conn: &PgPooledConn,
+        processor_merchant_id: &common_utils::id_type::MerchantId,
+        file_id: &str,
+    ) -> StorageResult<bool> {
+        generics::generic_delete::<<Self as HasTable>::Table, _>(
+            conn,
+            dsl::processor_merchant_id
+                .eq(processor_merchant_id.to_owned())
+                .and(dsl::file_id.eq(file_id.to_owned())),
+        )
+        .await
+    }
+
+    // Fallback function for stagger release - deletes by merchant_id when processor_merchant_id is NULL
     pub async fn delete_by_merchant_id_file_id(
         conn: &PgPooledConn,
         merchant_id: &common_utils::id_type::MerchantId,
