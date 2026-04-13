@@ -57,6 +57,28 @@ use crate::{
 
 type Error = error_stack::Report<errors::ConnectorError>;
 
+/// Dynamic `customParameters[key]` entries forwarded to ACI.
+/// Each entry serializes as its own form field, e.g. `customParameters[paymentId]=pay_xxx`.
+#[derive(Debug, Default)]
+pub struct AciCustomParameters(Vec<(String, String)>);
+
+impl AciCustomParameters {
+    pub fn insert(&mut self, key: impl Into<String>, value: impl Into<String>) {
+        self.0.push((key.into(), value.into()));
+    }
+}
+
+impl Serialize for AciCustomParameters {
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        use serde::ser::SerializeMap;
+        let mut map = serializer.serialize_map(Some(self.0.len()))?;
+        for (k, v) in &self.0 {
+            map.serialize_entry(&format!("customParameters[{k}]"), v)?;
+        }
+        map.end()
+    }
+}
+
 trait AttemptStatusMapper {
     fn get_capture_method(&self) -> Option<enums::CaptureMethod>;
 
@@ -245,6 +267,8 @@ pub struct AciPaymentsRequest {
     pub billing_address: AciBillingAddress,
     #[serde(flatten)]
     pub external_three_ds: AciExternalThreeDsData,
+    #[serde(flatten)]
+    pub custom_parameters: AciCustomParameters,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -1090,7 +1114,7 @@ impl TryFrom<(&AciRouterData<&PaymentsAuthorizeRouterData>, &WalletData)> for Ac
         let (item, wallet_data) = value;
         let txn_details = get_transaction_details(item)?;
 
-        let (customer_browser_info, customer_data, billing_address, external_three_ds, merchant_transaction_id) =
+        let (customer_browser_info, customer_data, billing_address, external_three_ds, merchant_transaction_id, custom_parameters) =
             get_common_payment_fields(item);
 
         match wallet_data {
@@ -1111,6 +1135,7 @@ impl TryFrom<(&AciRouterData<&PaymentsAuthorizeRouterData>, &WalletData)> for Ac
                     customer_data,
                     billing_address,
                     external_three_ds,
+                    custom_parameters,
                 })
             }
             WalletData::GooglePay(google_pay_data) => {
@@ -1130,6 +1155,7 @@ impl TryFrom<(&AciRouterData<&PaymentsAuthorizeRouterData>, &WalletData)> for Ac
                     customer_data,
                     billing_address,
                     external_three_ds,
+                    custom_parameters,
                 })
             }
             WalletData::SamsungPay(samsung_pay_data) => {
@@ -1147,6 +1173,7 @@ impl TryFrom<(&AciRouterData<&PaymentsAuthorizeRouterData>, &WalletData)> for Ac
                     customer_data,
                     billing_address,
                     external_three_ds,
+                    custom_parameters,
                 })
             }
             // Handle other wallet types via PaymentDetails::try_from
@@ -1164,6 +1191,7 @@ impl TryFrom<(&AciRouterData<&PaymentsAuthorizeRouterData>, &WalletData)> for Ac
                     customer_data,
                     billing_address,
                     external_three_ds,
+                    custom_parameters,
                 })
             }
         }
@@ -1186,7 +1214,7 @@ impl
         let (item, bank_redirect_data) = value;
         let txn_details = get_transaction_details(item)?;
         let payment_method = PaymentDetails::try_from((item, bank_redirect_data))?;
-        let (customer_browser_info, customer_data, billing_address, external_three_ds, merchant_transaction_id) =
+        let (customer_browser_info, customer_data, billing_address, external_three_ds, merchant_transaction_id, custom_parameters) =
             get_common_payment_fields(item);
 
         Ok(Self {
@@ -1200,6 +1228,7 @@ impl
             customer_data,
             billing_address,
             external_three_ds,
+            custom_parameters,
         })
     }
 }
@@ -1212,7 +1241,7 @@ impl TryFrom<(&AciRouterData<&PaymentsAuthorizeRouterData>, &PayLaterData)> for 
         let (item, _pay_later_data) = value;
         let txn_details = get_transaction_details(item)?;
         let payment_method = PaymentDetails::Klarna;
-        let (customer_browser_info, customer_data, billing_address, external_three_ds, merchant_transaction_id) =
+        let (customer_browser_info, customer_data, billing_address, external_three_ds, merchant_transaction_id, custom_parameters) =
             get_common_payment_fields(item);
 
         Ok(Self {
@@ -1226,6 +1255,7 @@ impl TryFrom<(&AciRouterData<&PaymentsAuthorizeRouterData>, &PayLaterData)> for 
             customer_data,
             billing_address,
             external_three_ds,
+            custom_parameters,
         })
     }
 }
@@ -1244,7 +1274,7 @@ impl TryFrom<(&AciRouterData<&PaymentsAuthorizeRouterData>, &Card)> for AciPayme
             .router_data
             .is_three_ds()
             .then_some(item.router_data.request.enrolled_for_3ds);
-        let (customer_browser_info, customer_data, billing_address, external_three_ds, merchant_transaction_id) =
+        let (customer_browser_info, customer_data, billing_address, external_three_ds, merchant_transaction_id, custom_parameters) =
             get_common_payment_fields(item);
 
         Ok(Self {
@@ -1258,6 +1288,7 @@ impl TryFrom<(&AciRouterData<&PaymentsAuthorizeRouterData>, &Card)> for AciPayme
             customer_data,
             billing_address,
             external_three_ds,
+            custom_parameters,
         })
     }
 }
@@ -1279,7 +1310,7 @@ impl
         let txn_details = get_transaction_details(item)?;
         let payment_method = PaymentDetails::try_from((item, network_token_data))?;
         let instruction = get_instruction_details(item);
-        let (customer_browser_info, customer_data, billing_address, external_three_ds, merchant_transaction_id) =
+        let (customer_browser_info, customer_data, billing_address, external_three_ds, merchant_transaction_id, custom_parameters) =
             get_common_payment_fields(item);
 
         Ok(Self {
@@ -1293,6 +1324,7 @@ impl
             customer_data,
             billing_address,
             external_three_ds,
+            custom_parameters,
         })
     }
 }
@@ -1313,7 +1345,7 @@ impl
         let (item, _mandate_data) = value;
         let instruction = get_instruction_details(item);
         let txn_details = get_transaction_details(item)?;
-        let (customer_browser_info, customer_data, billing_address, external_three_ds, merchant_transaction_id) =
+        let (customer_browser_info, customer_data, billing_address, external_three_ds, merchant_transaction_id, custom_parameters) =
             get_common_payment_fields(item);
 
         Ok(Self {
@@ -1327,13 +1359,14 @@ impl
             customer_data,
             billing_address,
             external_three_ds,
+            custom_parameters,
         })
     }
 }
 
 fn get_common_payment_fields(
     item: &AciRouterData<&PaymentsAuthorizeRouterData>,
-) -> (AciCustomerBrowserInfo, AciCustomerData, AciBillingAddress, AciExternalThreeDsData, Option<String>) {
+) -> (AciCustomerBrowserInfo, AciCustomerData, AciBillingAddress, AciExternalThreeDsData, Option<String>, AciCustomParameters) {
     let customer_browser_info = item
         .router_data
         .request
@@ -1392,7 +1425,25 @@ fn get_common_payment_fields(
         Some(id.chars().take(16).collect::<String>())
     };
 
-    (customer_browser_info, customer_data, billing_address, external_three_ds, merchant_transaction_id)
+    // Build customParameters: merchant metadata first, then fixed debug fields
+    // (fixed fields always win over any conflicting metadata key).
+    let mut custom_parameters = AciCustomParameters::default();
+    if let Some(metadata) = &item.router_data.request.metadata {
+        if let Some(obj) = metadata.as_object() {
+            for (k, v) in obj {
+                let str_val = match v {
+                    serde_json::Value::String(s) => s.clone(),
+                    serde_json::Value::Null => continue,
+                    other => other.to_string(),
+                };
+                custom_parameters.insert(k, str_val);
+            }
+        }
+    }
+    custom_parameters.insert("orchestrator", "hyperswitch");
+    custom_parameters.insert("paymentId", &item.router_data.payment_id);
+
+    (customer_browser_info, customer_data, billing_address, external_three_ds, merchant_transaction_id, custom_parameters)
 }
 
 fn get_transaction_details(
