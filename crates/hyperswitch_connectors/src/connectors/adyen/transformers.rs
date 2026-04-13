@@ -5562,6 +5562,9 @@ pub enum DisputeStatus {
     Lost,
     Accepted,
     Won,
+    Unresponded,
+    Responded,
+    Expired,
 }
 
 #[derive(Debug, Deserialize)]
@@ -5618,6 +5621,7 @@ pub enum WebhookEventCode {
     SecondChargeback,
     PrearbitrationWon,
     PrearbitrationLost,
+    RequestForInformation,
     OfferClosed,
     RecurringContract,
     #[cfg(feature = "payouts")]
@@ -5735,6 +5739,15 @@ pub(crate) fn get_adyen_webhook_event(
             }
             Some(_) => api_models::webhooks::IncomingWebhookEvent::DisputeOpened,
         },
+        WebhookEventCode::RequestForInformation => match dispute_status {
+            Some(DisputeStatus::Responded) => {
+                api_models::webhooks::IncomingWebhookEvent::DisputeChallenged
+            }
+            Some(DisputeStatus::Expired) | None => {
+                api_models::webhooks::IncomingWebhookEvent::DisputeExpired
+            }
+            Some(_) => api_models::webhooks::IncomingWebhookEvent::DisputeOpened,
+        },
         WebhookEventCode::ChargebackReversed => match dispute_status {
             Some(DisputeStatus::Pending) => {
                 api_models::webhooks::IncomingWebhookEvent::DisputeChallenged
@@ -5794,7 +5807,8 @@ pub(crate) fn get_adyen_webhook_event(
 impl From<WebhookEventCode> for storage_enums::DisputeStage {
     fn from(code: WebhookEventCode) -> Self {
         match code {
-            WebhookEventCode::NotificationOfChargeback => Self::PreDispute,
+            WebhookEventCode::NotificationOfChargeback
+            | WebhookEventCode::RequestForInformation => Self::PreDispute,
             WebhookEventCode::SecondChargeback => Self::PreArbitration,
             WebhookEventCode::PrearbitrationWon => Self::PreArbitration,
             WebhookEventCode::PrearbitrationLost => Self::PreArbitration,
@@ -5902,6 +5916,7 @@ impl From<AdyenNotificationRequestItemWH> for AdyenWebhookResponse {
                 | WebhookEventCode::RefundFailed
                 | WebhookEventCode::RefundReversed
                 | WebhookEventCode::NotificationOfChargeback
+                | WebhookEventCode::RequestForInformation
                 | WebhookEventCode::Chargeback
                 | WebhookEventCode::ChargebackReversed
                 | WebhookEventCode::SecondChargeback
