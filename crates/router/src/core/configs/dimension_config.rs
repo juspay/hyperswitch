@@ -160,7 +160,7 @@ impl DatabaseBackedConfig for ShouldCallGsm {
     fn db_key(dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
         dimensions
             .get_processor_merchant_id()
-            .map(|id| format!("{}_{}", id.get_string_repr(), Self::KEY))
+            .map(|id| format!("{}_{}",Self::KEY, id.get_string_repr()))
     }
 }
 
@@ -197,7 +197,7 @@ impl DatabaseBackedConfig for ShouldEnableMitWithLimitedCardData {
     fn db_key(dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
         dimensions
             .get_processor_merchant_id()
-            .map(|id| format!("{}_{}", id.get_string_repr(), Self::KEY))
+            .map(|id| format!("{}_{}", Self::KEY, id.get_string_repr()))
     }
 }
 
@@ -220,23 +220,7 @@ impl DatabaseBackedConfig for ShouldStoreEligibilityCheckDataForAuthentication {
     }
 }
 
-config! {
-    superposition_key = STEP_UP_ENABLED,
-    output = bool,
-    default = false,
-    requires = dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileIdAndConnector,
-    targeting_key = id_type::CustomerId
-}
 
-impl DatabaseBackedConfig for StepUpEnabled {
-    const KEY: &'static str = "step_up_enabled";
-
-    // The old DB format stored a Vec<Connector> under "step_up_enabled_{merchant_id}".
-    // That schema is not compatible with a per-connector boolean, so no DB fallback.
-    fn db_key(_dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
-        None
-    }
-}
 
 config! {
     superposition_key = ENABLE_EXTENDED_CARD_BIN,
@@ -257,20 +241,6 @@ impl DatabaseBackedConfig for EnableExtendedCardBin {
     }
 }
 
-config! {
-    superposition_key = AUTHENTICATION_SERVICE_ELIGIBLE,
-    output = bool,
-    default = false,
-    requires = dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndOrgId,
-    targeting_key = id_type::CustomerId
-}
-
-impl DatabaseBackedConfig for AuthenticationServiceEligible {
-    const KEY: &'static str = "authentication_service_eligible";
-    fn db_key(_dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
-        None
-    }
-}
 config! {
     superposition_key = PAYOUT_TRACKER_MAPPING,
     output = RetryMapping,

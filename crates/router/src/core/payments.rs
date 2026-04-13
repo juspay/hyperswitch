@@ -868,15 +868,9 @@ where
             should_continue_capture,
         );
 
-        let dimensions_with_org_and_merchant_id = dimensions
-            .with_organization_id(platform.get_processor().get_account().get_org_id().clone())
-            .without_profile_id();
 
-        let is_eligible_for_uas = helpers::is_merchant_eligible_authentication_service(
-            &dimensions_with_org_and_merchant_id,
-            state,
-        )
-        .await?;
+        let is_eligible_for_uas = helpers::is_merchant_eligible_authentication_service(platform.get_processor(), state)
+            .await?;
 
         if <Req as Authenticate>::is_external_three_ds_data_passed_by_merchant(&req) {
             let maybe_connector_enum = match &connector_details {
@@ -11500,8 +11494,6 @@ pub async fn payment_external_authentication<F: Clone + Sync>(
             id: profile_id.get_string_repr().to_owned(),
         })?;
 
-    let dimensions = dimensions
-        .with_organization_id(platform.get_processor().get_account().get_org_id().clone());
     let payment_method_details = helpers::get_payment_method_details_from_payment_token(
         &state,
         &payment_attempt,
@@ -11548,7 +11540,7 @@ pub async fn payment_external_authentication<F: Clone + Sync>(
         .get_required_value("authentication_connector_details")
         .attach_printable("authentication_connector_details not configured by the merchant")?;
     let authentication_response =
-        if helpers::is_merchant_eligible_authentication_service(&dimensions, &state).await? {
+        if helpers::is_merchant_eligible_authentication_service(platform.get_processor(), &state).await? {
             let routing_region = uas_utils::fetch_routing_region_for_uas(
                 &state,
                 processor_merchant_id.clone(),

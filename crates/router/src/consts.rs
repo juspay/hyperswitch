@@ -373,12 +373,8 @@ pub mod superposition {
     /// Store eligibility check data for authentication configuration key
     pub const SHOULD_STORE_ELIGIBILITY_CHECK_DATA_FOR_AUTHENTICATION: &str =
         "should_store_eligibility_check_data_for_authentication";
-    /// Step-up 3DS enabled configuration key
-    pub const STEP_UP_ENABLED: &str = "step_up_enabled";
     /// Extended card BIN configuration key
     pub const ENABLE_EXTENDED_CARD_BIN: &str = "enable_extended_card_bin";
-    /// Authentication service merchant eligibility configuration key
-    pub const AUTHENTICATION_SERVICE_ELIGIBLE: &str = "authentication_service_eligible";
 }
 
 #[cfg(test)]

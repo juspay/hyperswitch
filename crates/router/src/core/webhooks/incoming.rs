@@ -506,7 +506,7 @@ async fn fetch_three_ds_execution_path(
     platform: &domain::Platform,
     connector_name_or_mca_id: &str,
     state: &SessionState,
-    dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndOrgId,
+    _dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndOrgId,
 ) -> errors::RouterResult<ThreeDsProcessingMode> {
     let (merchant_connector_account, connector, connector_name) =
         fetch_optional_mca_and_connector(state, platform, connector_name_or_mca_id).await?;
@@ -528,7 +528,7 @@ async fn fetch_three_ds_execution_path(
         })
         .attach_printable_lazy(|| format!("unable to parse connector name {connector_name:?}"))?;
     let is_merchant_eligible_for_uas =
-        payments::helpers::is_merchant_eligible_authentication_service(dimensions, state).await?;
+        payments::helpers::is_merchant_eligible_authentication_service(platform.get_processor(), state).await?;
 
     if is_merchant_eligible_for_uas && eligible_connector_list.contains(&connector_enum) {
         Ok(ThreeDsProcessingMode::UnifiedAuthenticationService(

@@ -51,7 +51,7 @@ pub async fn do_gsm_actions<'a, F, ApiRequest, FData, D>(
     frm_suggestion: Option<storage_enums::FrmSuggestion>,
     business_profile: &domain::Profile,
     #[cfg(feature = "pm_modular")] feature_config: &core_utils::FeatureConfig,
-    dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
+    _dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
 ) -> RouterResult<types::RouterData<F, FData, types::PaymentsResponseData>>
 where
     F: Clone + Send + Sync + std::fmt::Debug + 'static,
@@ -69,8 +69,6 @@ where
     let mut retries = None;
 
     metrics::AUTO_RETRY_ELIGIBLE_REQUEST_COUNT.add(1, &[]);
-
-    let customer_id = customer.as_ref().map(|customer| &customer.customer_id);
 
     let card_network = payment_data.get_payment_attempt().extract_card_network();
 
@@ -97,9 +95,8 @@ where
     let should_step_up = if step_up_possible && is_no_three_ds_payment {
         is_step_up_enabled_for_merchant_connector(
             state,
+            platform.get_processor().get_account().get_id(),
             original_connector_data.connector_name,
-            dimensions,
-            customer_id,
         )
         .await
     } else {
@@ -250,18 +247,25 @@ where
 #[instrument(skip_all)]
 pub async fn is_step_up_enabled_for_merchant_connector(
     state: &app::SessionState,
+    merchant_id: &common_utils::id_type::MerchantId,
     connector_name: types::Connector,
-    dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
-    customer_id: Option<&common_utils::id_type::CustomerId>,
 ) -> bool {
-    let dimensions = dimensions.with_connector(connector_name);
-    dimensions
-        .get_step_up_enabled(
-            state.store.as_ref(),
-            state.superposition_service.as_ref(),
-            customer_id,
-        )
+    let key = merchant_id.get_step_up_enabled_key();
+    let db = &*state.store;
+    db.find_config_by_key_unwrap_or(key.as_str(), Some("[]".to_string()))
         .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .and_then(|step_up_config| {
+            serde_json::from_str::<Vec<types::Connector>>(&step_up_config.config)
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Step-up config parsing failed")
+        })
+        .map_err(|err| {
+            logger::error!(step_up_config_error=?err);
+        })
+        .ok()
+        .map(|connectors_enabled| connectors_enabled.contains(&connector_name))
+        .unwrap_or(false)
 }
 
 #[cfg(feature = "v1")]
