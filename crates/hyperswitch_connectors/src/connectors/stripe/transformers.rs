@@ -2496,7 +2496,12 @@ impl TryFrom<&SetupMandateRouterData> for SetupIntentRequest {
 
         let on_behalf_of = match &item.request.split_payments {
             Some(SplitPaymentsRequest::StripeSplitPayment(stripe_split_payment)) => {
-                stripe_split_payment.on_behalf_of.clone()
+                match &stripe_split_payment.charge_type {
+                    PaymentChargeType::Stripe(StripeChargeType::Destination) => {
+                        stripe_split_payment.on_behalf_of.clone()
+                    }
+                    _ => None,
+                }
             }
             _ => None,
         };
