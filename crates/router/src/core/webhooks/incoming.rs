@@ -528,7 +528,11 @@ async fn fetch_three_ds_execution_path(
         })
         .attach_printable_lazy(|| format!("unable to parse connector name {connector_name:?}"))?;
     let is_merchant_eligible_for_uas =
-        payments::helpers::is_merchant_eligible_authentication_service(platform.get_processor(), state).await?;
+        payments::helpers::is_merchant_eligible_authentication_service(
+            platform.get_processor(),
+            state,
+        )
+        .await?;
 
     if is_merchant_eligible_for_uas && eligible_connector_list.contains(&connector_enum) {
         Ok(ThreeDsProcessingMode::UnifiedAuthenticationService(

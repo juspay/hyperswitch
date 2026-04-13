@@ -160,7 +160,7 @@ impl DatabaseBackedConfig for ShouldCallGsm {
     fn db_key(dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
         dimensions
             .get_processor_merchant_id()
-            .map(|id| format!("{}_{}",Self::KEY, id.get_string_repr()))
+            .map(|id| format!("{}_{}", Self::KEY, id.get_string_repr()))
     }
 }
 
@@ -219,8 +219,6 @@ impl DatabaseBackedConfig for ShouldStoreEligibilityCheckDataForAuthentication {
             .map(|id| format!("{}_{}", Self::KEY, id.get_string_repr()))
     }
 }
-
-
 
 config! {
     superposition_key = ENABLE_EXTENDED_CARD_BIN,

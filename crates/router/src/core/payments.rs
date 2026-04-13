@@ -868,9 +868,9 @@ where
             should_continue_capture,
         );
 
-
-        let is_eligible_for_uas = helpers::is_merchant_eligible_authentication_service(platform.get_processor(), state)
-            .await?;
+        let is_eligible_for_uas =
+            helpers::is_merchant_eligible_authentication_service(platform.get_processor(), state)
+                .await?;
 
         if <Req as Authenticate>::is_external_three_ds_data_passed_by_merchant(&req) {
             let maybe_connector_enum = match &connector_details {
@@ -11540,7 +11540,9 @@ pub async fn payment_external_authentication<F: Clone + Sync>(
         .get_required_value("authentication_connector_details")
         .attach_printable("authentication_connector_details not configured by the merchant")?;
     let authentication_response =
-        if helpers::is_merchant_eligible_authentication_service(platform.get_processor(), &state).await? {
+        if helpers::is_merchant_eligible_authentication_service(platform.get_processor(), &state)
+            .await?
+        {
             let routing_region = uas_utils::fetch_routing_region_for_uas(
                 &state,
                 processor_merchant_id.clone(),
