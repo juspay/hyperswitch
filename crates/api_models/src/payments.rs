@@ -7079,6 +7079,11 @@ pub struct PaymentsResponse {
     #[smithy(value_type = "Option<Initiator>")]
     pub initiator: Option<platform::Initiator>,
 
+    /// Token containing encoded information for sdk authorization.
+    #[schema(value_type = Option<String>, example = "cHJvZmlsZV9pZD1wcm9mXzEyMyxwdWJsaXNoYWJsZV9rZXk9cGtfbGl2ZV8xMjM=")]
+    #[smithy(value_type = "Option<String>")]
+    pub sdk_authorization: Option<String>,
+
     /// The name of the payment connector (e.g., 'stripe', 'adyen') that processed or is processing this payment.
     #[schema(example = "stripe")]
     #[smithy(value_type = "Option<String>")]
@@ -9026,18 +9031,6 @@ impl From<&VerifyRequest> for MandateValidationFields {
 // }
 
 #[cfg(feature = "v1")]
-impl From<PaymentsSessionRequest> for PaymentsSessionResponse {
-    fn from(item: PaymentsSessionRequest) -> Self {
-        let client_secret: Secret<String, pii::ClientSecret> = Secret::new(item.client_secret);
-        Self {
-            session_token: vec![],
-            payment_id: item.payment_id,
-            client_secret,
-        }
-    }
-}
-
-#[cfg(feature = "v1")]
 impl From<PaymentsStartRequest> for PaymentsRequest {
     fn from(item: PaymentsStartRequest) -> Self {
         Self {
@@ -9352,7 +9345,7 @@ pub struct PaymentsSessionRequest {
     #[schema(value_type = String)]
     pub payment_id: id_type::PaymentId,
     /// This is a token which expires after 15 minutes, used from the client to authenticate and create sessions from the SDK
-    pub client_secret: String,
+    pub client_secret: Option<String>,
     /// The list of the supported wallets
     #[schema(value_type = Vec<PaymentMethodType>)]
     pub wallets: Vec<api_enums::PaymentMethodType>,
@@ -9390,8 +9383,8 @@ pub struct PaymentsPostSessionTokensRequest {
     #[schema(value_type = String)]
     pub payment_id: id_type::PaymentId,
     /// It's a token used for client side verification.
-    #[schema(value_type = String)]
-    pub client_secret: Secret<String>,
+    #[schema(value_type = Option<String>)]
+    pub client_secret: Option<Secret<String>>,
     /// Payment method type
     #[schema(value_type = PaymentMethodType)]
     pub payment_method_type: api_enums::PaymentMethodType,
@@ -9420,8 +9413,8 @@ pub struct PaymentsDynamicTaxCalculationRequest {
     /// The shipping address for the payment
     pub shipping: Address,
     /// Client Secret
-    #[schema(value_type = String)]
-    pub client_secret: Secret<String>,
+    #[schema(value_type = Option<String>)]
+    pub client_secret: Option<Secret<String>>,
     /// Payment method type
     #[schema(value_type = PaymentMethodType)]
     pub payment_method_type: api_enums::PaymentMethodType,
@@ -10842,8 +10835,8 @@ pub struct PaymentsCompleteAuthorizeRequest {
     /// The shipping address for the payment
     pub shipping: Option<Address>,
     /// Client Secret
-    #[schema(value_type = String)]
-    pub client_secret: Secret<String>,
+    #[schema(value_type = Option<String>)]
+    pub client_secret: Option<Secret<String>>,
     /// Indicates if 3DS method data was successfully completed or not
     pub threeds_method_comp_ind: Option<ThreeDsCompletionIndicator>,
 }
@@ -10902,8 +10895,8 @@ pub struct PaymentsExternalAuthenticationRequest {
     #[serde(skip)]
     pub payment_id: id_type::PaymentId,
     /// Client Secret
-    #[schema(value_type = String)]
-    pub client_secret: Secret<String>,
+    #[schema(value_type = Option<String>)]
+    pub client_secret: Option<Secret<String>>,
     /// SDK Information if request is from SDK
     pub sdk_information: Option<SdkInformation>,
     /// Device Channel indicating whether request is coming from App or Browser
