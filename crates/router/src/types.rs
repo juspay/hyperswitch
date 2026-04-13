@@ -735,7 +735,7 @@ pub struct PspTokenResult {
 }
 
 /// Data extracted from UCS response
-pub struct UcsAuthorizeResponseData {
+pub struct UcsPaymentAuthorizeResponseData {
     pub router_data_response:
         Result<(PaymentsResponseData, common_enums::AttemptStatus), ErrorResponse>,
     pub status_code: u16,
@@ -743,7 +743,7 @@ pub struct UcsAuthorizeResponseData {
     pub connector_response: Option<ConnectorResponseData>,
 }
 
-pub struct UcsRepeatPaymentResponseData {
+pub struct UcsRecurringPaymentChargeResponseData {
     pub router_data_response:
         Result<(PaymentsResponseData, common_enums::AttemptStatus), ErrorResponse>,
     pub status_code: u16,
@@ -751,7 +751,7 @@ pub struct UcsRepeatPaymentResponseData {
     pub connector_response: Option<ConnectorResponseData>,
 }
 
-pub struct UcsSetupMandateResponseData {
+pub struct UcsPaymentSetupRecurringResponseData {
     pub router_data_response:
         Result<(PaymentsResponseData, common_enums::AttemptStatus), ErrorResponse>,
     pub status_code: u16,

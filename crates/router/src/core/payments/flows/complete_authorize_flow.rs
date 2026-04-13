@@ -624,7 +624,6 @@ pub async fn call_unified_connector_service_authenticate(
     processor: &domain::Processor,
     connector: connector_enums::Connector,
     unified_connector_service_execution_mode: common_enums::ExecutionMode,
-    merchant_order_reference_id: Option<String>,
 ) -> errors::CustomResult<
     types::RouterData<
         api::Authenticate,
@@ -641,9 +640,11 @@ pub async fn call_unified_connector_service_authenticate(
         .attach_printable("Failed to fetch Unified Connector Service client")?;
 
     let payment_authenticate_request =
-        payments_grpc::PaymentServiceAuthenticateRequest::foreign_try_from(router_data)
-            .change_context(interface_errors::ConnectorError::RequestEncodingFailed)
-            .attach_printable("Failed to construct Payment Authorize Request")?;
+        payments_grpc::PaymentMethodAuthenticationServiceAuthenticateRequest::foreign_try_from(
+            router_data,
+        )
+        .change_context(interface_errors::ConnectorError::RequestEncodingFailed)
+        .attach_printable("Failed to construct Payment Authenticate Request")?;
 
     let connector_auth_metadata = ucs_core::build_unified_connector_service_auth_metadata(
         merchant_connector_account,
@@ -652,35 +653,39 @@ pub async fn call_unified_connector_service_authenticate(
     )
     .change_context(interface_errors::ConnectorError::RequestEncodingFailed)
     .attach_printable("Failed to construct request metadata")?;
-    let merchant_reference_id = header_payload
-        .x_reference_id
-        .clone()
-        .or(merchant_order_reference_id)
-        .map(|id| id_type::PaymentReferenceId::from_str(id.as_str()))
-        .transpose()
-        .inspect_err(|err| logger::warn!(error=?err, "Invalid Merchant ReferenceId found"))
+    let merchant_reference_id = ucs_core::parse_merchant_reference_id(
+        header_payload
+            .x_reference_id
+            .as_deref()
+            .unwrap_or(router_data.payment_id.as_str()),
+    )
+    .map(ucs_types::UcsReferenceId::Payment);
+    let resource_id = id_type::PaymentResourceId::from_str(router_data.attempt_id.as_str())
+        .inspect_err(
+            |err| logger::warn!(error=?err, "Invalid Payment AttemptId for UCS resource id"),
+        )
         .ok()
-        .flatten()
-        .map(ucs_types::UcsReferenceId::Payment);
+        .map(ucs_types::UcsResourceId::PaymentAttempt);
     let headers_builder = state
         .get_grpc_headers_ucs(unified_connector_service_execution_mode)
         .external_vault_proxy_metadata(None)
         .merchant_reference_id(merchant_reference_id)
+        .resource_id(resource_id)
         .lineage_ids(lineage_ids);
     let (router_data, _) = Box::pin(ucs_core::ucs_logging_wrapper_granular(
         router_data.clone(),
         state,
         payment_authenticate_request,
         headers_builder,
+        unified_connector_service_execution_mode,
         |mut router_data, payment_authenticate_request, grpc_headers| async move {
-            let response = client
-                .payment_authenticate(
-                    payment_authenticate_request,
-                    connector_auth_metadata,
-                    grpc_headers,
-                )
-                .await
-                .attach_printable("Failed to authorize payment")?;
+            let response = Box::pin(client.payment_authenticate(
+                payment_authenticate_request,
+                connector_auth_metadata,
+                grpc_headers,
+            ))
+            .await
+            .attach_printable("Failed to authenticate payment")?;
 
             let payment_authenticate_response = response.into_inner();
 
@@ -732,7 +737,6 @@ pub async fn call_unified_connector_service_post_authenticate(
     #[cfg(feature = "v2")] merchant_connector_account: domain::MerchantConnectorAccountTypeDetails,
     processor: &domain::Processor,
     unified_connector_service_execution_mode: common_enums::ExecutionMode,
-    merchant_order_reference_id: Option<String>,
 ) -> errors::CustomResult<
     types::RouterData<
         api::PostAuthenticate,
@@ -749,9 +753,11 @@ pub async fn call_unified_connector_service_post_authenticate(
         .attach_printable("Failed to fetch Unified Connector Service client")?;
 
     let payment_post_authenticate_request =
-        payments_grpc::PaymentServicePostAuthenticateRequest::foreign_try_from(router_data)
-            .change_context(interface_errors::ConnectorError::RequestEncodingFailed)
-            .attach_printable("Failed to construct Payment Authorize Request")?;
+        payments_grpc::PaymentMethodAuthenticationServicePostAuthenticateRequest::foreign_try_from(
+            router_data,
+        )
+        .change_context(interface_errors::ConnectorError::RequestEncodingFailed)
+        .attach_printable("Failed to construct Payment Post Authenticate Request")?;
 
     let connector_auth_metadata = ucs_core::build_unified_connector_service_auth_metadata(
         merchant_connector_account,
@@ -760,35 +766,39 @@ pub async fn call_unified_connector_service_post_authenticate(
     )
     .change_context(interface_errors::ConnectorError::RequestEncodingFailed)
     .attach_printable("Failed to construct request metadata")?;
-    let merchant_reference_id = header_payload
-        .x_reference_id
-        .clone()
-        .or(merchant_order_reference_id)
-        .map(|id| id_type::PaymentReferenceId::from_str(id.as_str()))
-        .transpose()
-        .inspect_err(|err| logger::warn!(error=?err, "Invalid Merchant ReferenceId found"))
+    let merchant_reference_id = ucs_core::parse_merchant_reference_id(
+        header_payload
+            .x_reference_id
+            .as_deref()
+            .unwrap_or(router_data.payment_id.as_str()),
+    )
+    .map(ucs_types::UcsReferenceId::Payment);
+    let resource_id = id_type::PaymentResourceId::from_str(router_data.attempt_id.as_str())
+        .inspect_err(
+            |err| logger::warn!(error=?err, "Invalid Payment AttemptId for UCS resource id"),
+        )
         .ok()
-        .flatten()
-        .map(ucs_types::UcsReferenceId::Payment);
+        .map(ucs_types::UcsResourceId::PaymentAttempt);
     let headers_builder = state
         .get_grpc_headers_ucs(unified_connector_service_execution_mode)
         .external_vault_proxy_metadata(None)
         .merchant_reference_id(merchant_reference_id)
+        .resource_id(resource_id)
         .lineage_ids(lineage_ids);
     let (router_data, _) = Box::pin(ucs_core::ucs_logging_wrapper_granular(
         router_data.clone(),
         state,
         payment_post_authenticate_request,
         headers_builder,
+        unified_connector_service_execution_mode,
         |mut router_data, payment_post_authenticate_request, grpc_headers| async move {
-            let response = client
-                .payment_post_authenticate(
-                    payment_post_authenticate_request,
-                    connector_auth_metadata,
-                    grpc_headers,
-                )
-                .await
-                .attach_printable("Failed to authorize payment")?;
+            let response = Box::pin(client.payment_post_authenticate(
+                payment_post_authenticate_request,
+                connector_auth_metadata,
+                grpc_headers,
+            ))
+            .await
+            .attach_printable("Failed to post authenticate payment")?;
 
             let payment_post_authenticate_response = response.into_inner();
 
