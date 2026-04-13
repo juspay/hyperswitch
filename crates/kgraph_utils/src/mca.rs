@@ -65,6 +65,12 @@ fn get_dir_value_payment_method(
         api_enums::PaymentMethodType::Cashapp => Ok(dirval!(WalletType = Cashapp)),
         api_enums::PaymentMethodType::Multibanco => Ok(dirval!(BankTransferType = Multibanco)),
         api_enums::PaymentMethodType::PixQr => Ok(dirval!(BankTransferType = PixQr)),
+        api_enums::PaymentMethodType::PixAutomaticoPush => {
+            Ok(dirval!(BankTransferType = PixAutomaticoPush))
+        }
+        api_enums::PaymentMethodType::PixAutomaticoQr => {
+            Ok(dirval!(BankTransferType = PixAutomaticoQr))
+        }
         api_enums::PaymentMethodType::Pse => Ok(dirval!(BankTransferType = Pse)),
         api_enums::PaymentMethodType::Interac => Ok(dirval!(BankRedirectType = Interac)),
         api_enums::PaymentMethodType::OnlineBankingCzechRepublic => {

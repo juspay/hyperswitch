@@ -14,6 +14,7 @@ use router_env::{instrument, tracing};
 use super::{BoxedOperation, Domain, GetTracker, Operation, UpdateTracker, ValidateRequest};
 use crate::{
     core::{
+        configs::dimension_state::DimensionsWithProcessorAndProviderMerchantId,
         errors::{self, RouterResult, StorageErrorExt},
         payments::{self, helpers, operations},
     },
@@ -201,6 +202,7 @@ impl<F: Clone + Sync> UpdateTracker<F, payments::PaymentIntentData<F>, PaymentsC
         payment_data: payments::PaymentIntentData<F>,
         _frm_suggestion: Option<FrmSuggestion>,
         _header_payload: hyperswitch_domain_models::payments::HeaderPayload,
+        _dimensions: &DimensionsWithProcessorAndProviderMerchantId,
     ) -> RouterResult<(
         PaymentsCreateIntentOperation<'b, F>,
         payments::PaymentIntentData<F>,
@@ -293,6 +295,7 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsCreateIntentRequest, payments::Pa
         _state: &SessionState,
         _processor: &domain::Processor,
         _payment_data: &mut payments::PaymentIntentData<F>,
+        _business_profile: &domain::Profile,
     ) -> CustomResult<bool, errors::ApiErrorResponse> {
         Ok(false)
     }

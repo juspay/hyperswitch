@@ -1421,6 +1421,10 @@ fn get_cards_required_fields() -> HashMap<Connector, RequiredFieldFinal> {
         (Connector::Finix, fields(vec![], vec![], card_basic())),
         (Connector::Fiserv, fields(vec![], card_basic(), vec![])),
         (
+            Connector::Fiservcommercehub,
+            fields(vec![], vec![], card_with_name()),
+        ),
+        (
             Connector::Fiuu,
             fields(
                 vec![
@@ -3110,6 +3114,17 @@ fn get_pay_later_required_fields() -> HashMap<enums::PaymentMethodType, Connecto
                             RequiredField::ShippingAddressZip.to_tuple(),
                             RequiredField::ShippingAddressCity.to_tuple(),
                             RequiredField::ShippingCountries(vec!["US"]).to_tuple(),
+                        ]),
+                        common: HashMap::new(),
+                    },
+                ),
+                (
+                    Connector::Affirm,
+                    RequiredFieldFinal {
+                        mandate: HashMap::new(),
+                        non_mandate: HashMap::from([
+                            RequiredField::BillingUserFirstName.to_tuple(),
+                            RequiredField::BillingUserLastName.to_tuple(),
                         ]),
                         common: HashMap::new(),
                     },

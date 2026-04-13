@@ -1,6 +1,10 @@
 #[cfg(feature = "payouts")]
 use api_models::payouts::{PayoutMethodData, Wallet as WalletPayout};
-use api_models::{enums, webhooks::IncomingWebhookEvent};
+use api_models::{
+    enums,
+    payments::{NextActionCall, PaypalSessionTokenResponse, SdkNextAction, SessionToken},
+    webhooks::IncomingWebhookEvent,
+};
 use base64::Engine;
 use common_enums::enums as storage_enums;
 #[cfg(feature = "payouts")]
@@ -14,7 +18,7 @@ use hyperswitch_domain_models::{
     },
     router_data::{
         AccessToken, ConnectorAuthType, ConnectorResponseData, ErrorResponse,
-        ExtendedAuthorizationResponseData, RouterData,
+        ExtendedAuthorizationResponseData, FeatureData, RouterData,
     },
     router_flow_types::{
         payments::{Authorize, PostSessionTokens},
@@ -33,9 +37,9 @@ use hyperswitch_domain_models::{
     types::{
         PaymentsAuthorizeRouterData, PaymentsCaptureRouterData,
         PaymentsExtendAuthorizationRouterData, PaymentsIncrementalAuthorizationRouterData,
-        PaymentsPostSessionTokensRouterData, PaymentsSyncRouterData, RefreshTokenRouterData,
-        RefundsRouterData, SdkSessionUpdateRouterData, SetupMandateRouterData,
-        VerifyWebhookSourceRouterData,
+        PaymentsPostSessionTokensRouterData, PaymentsSessionRouterData, PaymentsSyncRouterData,
+        RefreshTokenRouterData, RefundsRouterData, SdkSessionUpdateRouterData,
+        SetupMandateRouterData, VerifyWebhookSourceRouterData,
     },
 };
 #[cfg(feature = "payouts")]
@@ -58,8 +62,8 @@ use crate::{constants, types::PayoutsResponseRouterData};
 use crate::{
     types::{
         PaymentsCaptureResponseRouterData, PaymentsExtendAuthorizationResponseRouterData,
-        PaymentsResponseRouterData, PaymentsSyncResponseRouterData, RefundsResponseRouterData,
-        ResponseRouterData,
+        PaymentsResponseRouterData, PaymentsSessionResponseRouterData,
+        PaymentsSyncResponseRouterData, RefundsResponseRouterData, ResponseRouterData,
     },
     utils::{
         self, is_payment_failure, missing_field_err, to_connector_meta, AccessTokenRequestInfo,
@@ -550,13 +554,16 @@ pub struct AttributeResponse {
 pub struct PaypalVault {
     store_in_vault: StoreInVault,
     usage_type: UsageType,
+    // required for vaulting multiple payment tokens for a customer, as per Paypal's documentation. If false or not provided, only one payment token can be vaulted for a customer. If true, multiple payment tokens can be vaulted for a customer. and this will be required for returning customer flow.
+    permit_multiple_payment_tokens: Option<bool>,
 }
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct PaypalVaultResponse {
-    id: String,
+    id: Option<String>,
     status: String,
-    customer: CustomerId,
+    customer: Option<CustomerId>,
 }
+
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct CustomerId {
     id: String,
@@ -708,6 +715,8 @@ impl TryFrom<&SetupMandateRouterData> for PaypalZeroMandateRequest {
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
             | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
             | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_)
+            | PaymentMethodData::CardWithOptionalCVC(_)
+            | PaymentMethodData::CardWithNetworkTokenDetails(_)
             | PaymentMethodData::CardWithLimitedDetails(_)
             | PaymentMethodData::NetworkToken(_)
             | PaymentMethodData::OpenBanking(_)
@@ -878,6 +887,7 @@ impl TryFrom<&PaypalRouterData<&PaymentsPostSessionTokensRouterData>> for Paypal
                             vault: PaypalVault {
                                 store_in_vault: StoreInVault::OnSuccess,
                                 usage_type: UsageType::Merchant,
+                                permit_multiple_payment_tokens: Some(true),
                             },
                         }),
                         enums::FutureUsage::OnSession => None,
@@ -1004,6 +1014,8 @@ impl TryFrom<&PaypalRouterData<&PaymentsAuthorizeRouterData>> for PaypalPayments
                                     enums::FutureUsage::OffSession => Some(PaypalVault {
                                         store_in_vault: StoreInVault::OnSuccess,
                                         usage_type: UsageType::Merchant,
+                                        // only required for paypal
+                                        permit_multiple_payment_tokens: Some(false),
                                     }),
 
                                     enums::FutureUsage::OnSession => None,
@@ -1054,6 +1066,7 @@ impl TryFrom<&PaypalRouterData<&PaymentsAuthorizeRouterData>> for PaypalPayments
                                             vault: PaypalVault {
                                                 store_in_vault: StoreInVault::OnSuccess,
                                                 usage_type: UsageType::Merchant,
+                                                permit_multiple_payment_tokens: Some(true),
                                             },
                                         }),
                                         enums::FutureUsage::OnSession => None,
@@ -1086,6 +1099,7 @@ impl TryFrom<&PaypalRouterData<&PaymentsAuthorizeRouterData>> for PaypalPayments
                                             vault: PaypalVault {
                                                 store_in_vault: StoreInVault::OnSuccess,
                                                 usage_type: UsageType::Merchant,
+                                                permit_multiple_payment_tokens: Some(true),
                                             },
                                         }),
                                         enums::FutureUsage::OnSession => None,
@@ -1270,6 +1284,8 @@ impl TryFrom<&PaypalRouterData<&PaymentsAuthorizeRouterData>> for PaypalPayments
                     | enums::PaymentMethodType::OpenBankingUk
                     | enums::PaymentMethodType::PayBright
                     | enums::PaymentMethodType::PixQr
+                    | enums::PaymentMethodType::PixAutomaticoPush
+                    | enums::PaymentMethodType::PixAutomaticoQr
                     | enums::PaymentMethodType::PaySafeCard
                     | enums::PaymentMethodType::Przelewy24
                     | enums::PaymentMethodType::PromptPay
@@ -1334,6 +1350,8 @@ impl TryFrom<&PaypalRouterData<&PaymentsAuthorizeRouterData>> for PaypalPayments
             | PaymentMethodData::CardToken(_)
             | PaymentMethodData::NetworkToken(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+            | PaymentMethodData::CardWithOptionalCVC(_)
+            | PaymentMethodData::CardWithNetworkTokenDetails(_)
             | PaymentMethodData::CardWithLimitedDetails(_)
             | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
             | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
@@ -1417,6 +1435,8 @@ impl TryFrom<&BankTransferData> for PaypalPaymentsRequest {
             | BankTransferData::DanamonVaBankTransfer { .. }
             | BankTransferData::MandiriVaBankTransfer { .. }
             | BankTransferData::PixQr { .. }
+            | BankTransferData::PixAutomaticoPush { .. }
+            | BankTransferData::PixAutomaticoQr {}
             | BankTransferData::Pse {}
             | BankTransferData::InstantBankTransfer {}
             | BankTransferData::InstantBankTransferFinland {}
@@ -1476,6 +1496,8 @@ pub struct PaypalAuthUpdateRequest {
     grant_type: String,
     client_id: Secret<String>,
     client_secret: Secret<String>,
+    response_type: Option<PaypalAuthResponseType>,
+    target_customer_id: Option<Secret<String>>,
 }
 impl TryFrom<&RefreshTokenRouterData> for PaypalAuthUpdateRequest {
     type Error = error_stack::Report<errors::ConnectorError>;
@@ -1484,6 +1506,63 @@ impl TryFrom<&RefreshTokenRouterData> for PaypalAuthUpdateRequest {
             grant_type: "client_credentials".to_string(),
             client_id: item.get_request_id()?,
             client_secret: item.request.app_id.clone(),
+            target_customer_id: None,
+            response_type: None,
+        })
+    }
+}
+
+impl TryFrom<&PaymentsSessionRouterData> for PaypalAuthUpdateRequest {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(item: &PaymentsSessionRouterData) -> Result<Self, Self::Error> {
+        let auth = PaypalAuthType::try_from(&item.connector_auth_type)?;
+        let credentials = auth.get_credentials()?;
+
+        let target_customer_id = match &item.feature_data {
+            Some(FeatureData::PaypalReturningCustomer(customer)) => {
+                customer.paypal_vault_customer_id.clone()
+            }
+            None => None,
+        };
+
+        Ok(Self {
+            grant_type: "client_credentials".to_string(),
+            client_id: credentials.get_client_id().clone(),
+            client_secret: credentials.get_client_secret().clone(),
+            response_type: Some(PaypalAuthResponseType::IdToken),
+            target_customer_id,
+        })
+    }
+}
+impl
+    ForeignTryFrom<(
+        PaymentsSessionResponseRouterData<PaypalAuthUpdateResponse>,
+        Self,
+    )> for PaymentsSessionRouterData
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn foreign_try_from(
+        (item, data): (
+            PaymentsSessionResponseRouterData<PaypalAuthUpdateResponse>,
+            Self,
+        ),
+    ) -> Result<Self, Self::Error> {
+        let response = &item.response;
+        let auth = PaypalAuthType::try_from(&data.connector_auth_type)?;
+        let credentials = auth.get_credentials()?;
+        let session_token = SessionToken::Paypal(Box::new(PaypalSessionTokenResponse {
+            connector: "paypal".to_string(),
+            session_token: credentials.get_client_id().clone().expose(),
+            sdk_next_action: SdkNextAction {
+                next_action: NextActionCall::PostSessionTokens,
+            },
+            client_token: None,
+            data_user_id_token: response.id_token.clone().map(|id| id.expose()),
+            transaction_info: None,
+        }));
+        Ok(Self {
+            response: Ok(PaymentsResponseData::SessionResponse { session_token }),
+            ..data
         })
     }
 }
@@ -1491,8 +1570,14 @@ impl TryFrom<&RefreshTokenRouterData> for PaypalAuthUpdateRequest {
 #[derive(Default, Debug, Clone, Deserialize, PartialEq, Serialize)]
 pub struct PaypalAuthUpdateResponse {
     pub access_token: Secret<String>,
+    pub id_token: Option<Secret<String>>,
     pub token_type: String,
     pub expires_in: i64,
+}
+#[derive(Debug, Clone, Deserialize, PartialEq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum PaypalAuthResponseType {
+    IdToken,
 }
 
 impl<F, T> TryFrom<ResponseRouterData<F, PaypalAuthUpdateResponse, T, AccessToken>>
@@ -2205,7 +2290,7 @@ pub struct PaypalMeta {
     pub capture_id: Option<String>,
     pub incremental_authorization_id: Option<String>,
     pub psync_flow: PaypalPaymentIntent,
-    pub next_action: Option<api_models::payments::NextActionCall>,
+    pub next_action: Option<NextActionCall>,
     pub order_id: Option<String>,
 }
 
@@ -2360,10 +2445,10 @@ where
                     connector_mandate_id: match item.response.payment_source.clone() {
                         Some(paypal_source) => match paypal_source {
                             PaymentSourceItemResponse::Paypal(paypal_source) => {
-                                paypal_source.attributes.map(|attr| attr.vault.id)
+                                paypal_source.attributes.and_then(|attr| attr.vault.id)
                             }
                             PaymentSourceItemResponse::Card(card) => {
-                                card.attributes.map(|attr| attr.vault.id)
+                                card.attributes.and_then(|attr| attr.vault.id)
                             }
                             PaymentSourceItemResponse::Eps(_)
                             | PaymentSourceItemResponse::Ideal(_) => None,
@@ -2372,7 +2457,21 @@ where
                     },
                     payment_method_id: None,
                     mandate_metadata: None,
-                    connector_mandate_request_reference_id: None,
+                    connector_mandate_request_reference_id: match item
+                        .response
+                        .payment_source
+                        .clone()
+                    {
+                        Some(paypal_source) => match paypal_source {
+                            PaymentSourceItemResponse::Paypal(paypal_source) => paypal_source
+                                .attributes
+                                .and_then(|attr| attr.vault.customer.map(|cus| cus.id)),
+                            PaymentSourceItemResponse::Card(_)
+                            | PaymentSourceItemResponse::Eps(_)
+                            | PaymentSourceItemResponse::Ideal(_) => None,
+                        },
+                        None => None,
+                    },
                 })),
                 connector_metadata: Some(connector_meta),
                 network_txn_id: None,
@@ -2470,7 +2569,7 @@ impl<F, T>
         // For Paypal SDK flow, we need to trigger SDK client and then complete authorize
         let next_action =
             if let Some(common_enums::PaymentExperience::InvokeSdkClient) = payment_experience {
-                Some(api_models::payments::NextActionCall::CompleteAuthorize)
+                Some(NextActionCall::CompleteAuthorize)
             } else {
                 None
             };
@@ -2583,7 +2682,7 @@ impl
         let status = get_order_status(item.response.clone().status, item.response.intent.clone());
 
         // For Paypal SDK flow, we need to trigger SDK client and then Confirm
-        let next_action = Some(api_models::payments::NextActionCall::Confirm);
+        let next_action = Some(NextActionCall::Confirm);
 
         let connector_meta = serde_json::json!(PaypalMeta {
             authorize_id: None,

@@ -248,6 +248,10 @@ pub enum BankTransferAdditionalData {
     MandiriVa {},
     #[smithy(value_type = "PixBankTransferAdditionalData")]
     PixQr(Box<PixBankTransferAdditionalData>),
+    #[smithy(value_type = "PixAutomaticoPushAdditionalData")]
+    PixAutomaticoPush(Box<PixAutomaticoPushAdditionalData>),
+    #[smithy(nested_value_type)]
+    PixAutomaticoQr {},
     #[smithy(nested_value_type)]
     Pse {},
     #[smithy(value_type = "LocalBankTransferAdditionalData")]
@@ -264,6 +268,27 @@ pub enum BankTransferAdditionalData {
         #[smithy(value_type = "Option<BankNames>")]
         bank_name: Option<common_enums::BankNames>,
     },
+}
+
+#[derive(
+    Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel,
+)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+pub struct PixAutomaticoPushAdditionalData {
+    /// Account number for Pix Automatico Push payment method
+    #[schema(value_type = Option<String>, example = "550689")]
+    #[smithy(value_type = "Option<String>")]
+    pub account_number: Option<Secret<String>>,
+
+    /// Branch code for Pix Automatico Push payment method
+    #[schema(value_type = Option<String>, example = "2569")]
+    #[smithy(value_type = "Option<String>")]
+    pub branch_code: Option<Secret<String>>,
+
+    /// Bank identifier for Pix Automatico Push payment method
+    #[schema(value_type = Option<String>, example = "91193552")]
+    #[smithy(value_type = "Option<String>")]
+    pub bank_identifier: Option<Secret<String>>,
 }
 
 #[derive(

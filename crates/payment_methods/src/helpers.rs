@@ -168,6 +168,8 @@ pub fn validate_payment_method_type_against_payment_method(
                 | api_enums::PaymentMethodType::Bacs
                 | api_enums::PaymentMethodType::Multibanco
                 | api_enums::PaymentMethodType::PixQr
+                | api_enums::PaymentMethodType::PixAutomaticoPush
+                | api_enums::PaymentMethodType::PixAutomaticoQr
                 | api_enums::PaymentMethodType::Pse
                 | api_enums::PaymentMethodType::PermataBankTransfer
                 | api_enums::PaymentMethodType::BcaBankTransfer
@@ -278,7 +280,7 @@ impl ForeignFrom<(Option<api::CardDetailFromLocker>, domain::PaymentMethod)>
     ) -> Self {
         Self {
             merchant_id: item.merchant_id.to_owned(),
-            customer_id: Some(item.customer_id.to_owned()),
+            customer_id: item.customer_id.to_owned(),
             payment_method_id: item.get_id().clone(),
             payment_method: item.get_payment_method_type(),
             payment_method_type: item.get_payment_method_subtype(),
