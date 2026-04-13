@@ -520,6 +520,7 @@ pub static PREDEFINED_ROLES: LazyLock<HashMap<&'static str, RoleInfo>> = LazyLoc
             groups: vec![
                 PermissionGroup::ReconSourceView,
                 PermissionGroup::ReconTransactionView,
+                PermissionGroup::ReconExceptionsView,
                 PermissionGroup::UsersView,
                 PermissionGroup::ReconRulesView,
             ],
