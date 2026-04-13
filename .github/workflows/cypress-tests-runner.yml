@@ -224,6 +224,17 @@ jobs:
           --health-retries 5
         ports:
           - 5432:5432
+      superposition:
+        image: ghcr.io/juspay/superposition-demo:latest
+        env:
+          API_HOSTNAME: http://localhost:8081
+        ports:
+          - 8081:8080
+        options: >-
+          --health-cmd "wget -qO- http://localhost:8080/health || exit 1"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
 
     steps:
       - name: Skip tests for PRs from forks
@@ -334,6 +345,15 @@ jobs:
         if: ${{ env.RUN_TESTS == 'true' }}
         run: |
           PGPASSWORD=db_pass psql --host=localhost --port=5432 --username=db_user --dbname=hyperswitch_db --command "\copy gateway_status_map FROM '.github/data/gateway_status_map.csv' DELIMITER ',' CSV HEADER;"
+
+      - name: Seed Superposition
+        if: ${{ env.RUN_TESTS == 'true' }}
+        env:
+          SUPERPOSITION_URL: "http://localhost:8081"
+          SEED_FILE: "./config/superposition_seed.toml"
+          WORKSPACE_ID: "dev"
+          ORG_ID: "localorg"
+        run: bash scripts/seed_superposition.sh
 
       - name: Setup Local Server
         if: ${{ env.RUN_TESTS == 'true' }}
@@ -530,6 +550,17 @@ jobs:
           --health-retries 5
         ports:
           - 5432:5432
+      superposition:
+        image: ghcr.io/juspay/superposition-demo:latest
+        env:
+          API_HOSTNAME: http://localhost:8081
+        ports:
+          - 8081:8080
+        options: >-
+          --health-cmd "wget -qO- http://localhost:8080/health || exit 1"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
 
     steps:
       - name: Checkout repository
@@ -621,6 +652,14 @@ jobs:
         run: |
           PGPASSWORD=db_pass psql --host=localhost --port=5432 --username=db_user --dbname=hyperswitch_db --command "\copy gateway_status_map FROM '.github/data/gateway_status_map.csv' DELIMITER ',' CSV HEADER;"
 
+      - name: Seed Superposition
+        env:
+          SUPERPOSITION_URL: "http://localhost:8081"
+          SEED_FILE: "./config/superposition_seed.toml"
+          WORKSPACE_ID: "dev"
+          ORG_ID: "localorg"
+        run: bash scripts/seed_superposition.sh
+
       - name: Setup Local Server
         env:
           ROUTER__APPLEPAY_DECRYPT_KEYS__APPLE_PAY_PPC: ${{ secrets.APPLE_PAY_PAYMENT_PROCESSING_CERTIFICATE }}
@@ -709,6 +748,17 @@ jobs:
           --health-retries 5
         ports:
           - 5432:5432
+      superposition:
+        image: ghcr.io/juspay/superposition-demo:latest
+        env:
+          API_HOSTNAME: http://localhost:8081
+        ports:
+          - 8081:8080
+        options: >-
+          --health-cmd "wget -qO- http://localhost:8080/health || exit 1"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
 
     steps:
       - name: Skip tests for PRs from forks
@@ -801,6 +851,15 @@ jobs:
         if: ${{ env.RUN_TESTS == 'true' }}
         run: |
           PGPASSWORD=db_pass psql --host=localhost --port=5432 --username=db_user --dbname=hyperswitch_db --command "\copy gateway_status_map FROM '.github/data/gateway_status_map.csv' DELIMITER ',' CSV HEADER;"
+
+      - name: Seed Superposition
+        if: ${{ env.RUN_TESTS == 'true' }}
+        env:
+          SUPERPOSITION_URL: "http://localhost:8081"
+          SEED_FILE: "./config/superposition_seed.toml"
+          WORKSPACE_ID: "dev"
+          ORG_ID: "localorg"
+        run: bash scripts/seed_superposition.sh
 
       - name: Start mock servers for alpha connectors
         if: ${{ env.RUN_TESTS == 'true' }}
@@ -920,6 +979,17 @@ jobs:
           --health-retries 5
         ports:
           - 5432:5432
+      superposition:
+        image: ghcr.io/juspay/superposition-demo:latest
+        env:
+          API_HOSTNAME: http://localhost:8081
+        ports:
+          - 8081:8080
+        options: >-
+          --health-cmd "wget -qO- http://localhost:8080/health || exit 1"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
 
     steps:
       - name: Skip tests for PRs from forks
@@ -1037,6 +1107,15 @@ jobs:
         if: ${{ env.RUN_TESTS == 'true' }}
         run: |
           PGPASSWORD=db_pass psql --host=localhost --port=5432 --username=db_user --dbname=hyperswitch_db --command "\copy gateway_status_map FROM '.github/data/gateway_status_map.csv' DELIMITER ',' CSV HEADER;"
+
+      - name: Seed Superposition
+        if: ${{ env.RUN_TESTS == 'true' }}
+        env:
+          SUPERPOSITION_URL: "http://localhost:8081"
+          SEED_FILE: "./config/superposition_seed.toml"
+          WORKSPACE_ID: "dev"
+          ORG_ID: "localorg"
+        run: bash scripts/seed_superposition.sh
 
       - name: Build project
         if: ${{ env.RUN_TESTS == 'true' }}
