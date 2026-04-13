@@ -99,7 +99,8 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             "recurrence",
         )?;
 
-        let customer_details = helpers::get_customer_details_from_request(request);
+        let customer_details =
+            helpers::get_customer_details_from_request_or_pm_table(request, None, None)?;
 
         let store = state.store.clone();
         let m_payment_id = payment_intent.payment_id.clone();
@@ -422,6 +423,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
         provider: &domain::Provider,
         _initiator: Option<&domain::Initiator>,
         _dimensions: &DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
+        _mandate_type: Option<api::MandateTransactionType>,
     ) -> CustomResult<
         (PaymentRecurrenceOperation<'a, F>, Option<domain::Customer>),
         errors::StorageError,
