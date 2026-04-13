@@ -598,10 +598,11 @@ pub async fn save_payout_data_to_locker(
                 });
             (
                 Some(
-                    cards::create_encrypted_data(
+                    core_utils::create_encrypted_data(
                         &key_manager_state,
                         platform.get_processor().get_key_store(),
                         pm_data,
+                        type_name!(diesel_models::payment_method::PaymentMethod),
                     )
                     .await
                     .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -639,10 +640,11 @@ pub async fn save_payout_data_to_locker(
         .billing_address
         .clone()
         .async_map(|billing_addr| async {
-            cards::create_encrypted_data(
+            core_utils::create_encrypted_data(
                 &key_manager_state,
                 platform.get_processor().get_key_store(),
                 billing_addr,
+                common_utils::type_name!(diesel_models::payment_method::PaymentMethod),
             )
             .await
         })

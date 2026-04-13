@@ -1,6 +1,6 @@
 use std::marker::PhantomData;
 
-use api_models::enums::FrmSuggestion;
+use api_models::{enums::FrmSuggestion, payments::MandateTransactionType};
 use async_trait::async_trait;
 use error_stack::ResultExt;
 use router_env::{instrument, tracing};
@@ -251,6 +251,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsCancelPostCaptureRequest, Pa
         _provider: &domain::Provider,
         _initiator: Option<&domain::Initiator>,
         _dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
+        _mandate_type: Option<MandateTransactionType>,
     ) -> errors::CustomResult<
         (
             PaymentCancelPostCaptureOperation<'a, F>,

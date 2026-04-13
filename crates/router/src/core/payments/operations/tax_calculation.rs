@@ -1,6 +1,6 @@
 use std::marker::PhantomData;
 
-use api_models::enums::FrmSuggestion;
+use api_models::{enums::FrmSuggestion, payments::MandateTransactionType};
 use async_trait::async_trait;
 use common_utils::ext_traits::AsyncExt;
 use error_stack::ResultExt;
@@ -13,9 +13,8 @@ use crate::{
     core::{
         configs::dimension_state,
         errors::{self, RouterResult, StorageErrorExt},
-        payment_methods::cards::create_encrypted_data,
         payments::{self, helpers, operations, PaymentData, PaymentMethodChecker},
-        utils as core_utils,
+        utils::{self as core_utils, create_encrypted_data},
     },
     db::errors::ConnectorErrorExt,
     routes::{app::ReqState, SessionState},
@@ -227,6 +226,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsDynamicTaxCalculationRequest
         _provider: &domain::Provider,
         _initiator: Option<&domain::Initiator>,
         _dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
+        _mandate_type: Option<MandateTransactionType>,
     ) -> errors::CustomResult<
         (
             PaymentSessionUpdateOperation<'a, F>,
@@ -410,7 +410,12 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsDynamicTaxCa
             let shipping_details = shipping_address
                 .clone()
                 .async_map(|shipping_details| {
-                    create_encrypted_data(&key_manager_state, key_store, shipping_details)
+                    create_encrypted_data(
+                        &key_manager_state,
+                        key_store,
+                        shipping_details,
+                        common_utils::type_name!(diesel_models::payment_method::PaymentMethod),
+                    )
                 })
                 .await
                 .transpose()

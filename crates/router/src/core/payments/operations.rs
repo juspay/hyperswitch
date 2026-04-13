@@ -271,6 +271,7 @@ pub trait GetTracker<F: Clone, D, R>: Send {
 #[async_trait]
 pub trait Domain<F: Clone, R, D>: Send + Sync {
     #[cfg(feature = "v1")]
+    #[allow(clippy::too_many_arguments)]
     /// This will fetch customer details, (this operation is flow specific)
     async fn get_or_create_customer_details<'a>(
         &'a self,
@@ -280,6 +281,7 @@ pub trait Domain<F: Clone, R, D>: Send + Sync {
         provider: &domain::Provider,
         initiator: Option<&domain::Initiator>,
         _dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
+        _mandate_type: Option<api::MandateTransactionType>,
     ) -> CustomResult<(BoxedOperation<'a, F, R, D>, Option<domain::Customer>), errors::StorageError>;
 
     #[cfg(feature = "v2")]
@@ -675,6 +677,7 @@ where
         _provider: &domain::Provider,
         _initiator: Option<&domain::Initiator>,
         _dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
+        _mandate_type: Option<api::MandateTransactionType>,
     ) -> CustomResult<
         (
             BoxedOperation<'a, F, api::PaymentsRetrieveRequest, D>,
@@ -746,6 +749,7 @@ where
         _provider: &domain::Provider,
         _initiator: Option<&domain::Initiator>,
         _dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
+        _mandate_type: Option<api::MandateTransactionType>,
     ) -> CustomResult<
         (
             BoxedOperation<'a, F, api::PaymentsCaptureRequest, D>,
@@ -835,6 +839,7 @@ where
         _provider: &domain::Provider,
         _initiator: Option<&domain::Initiator>,
         _dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
+        _mandate_type: Option<api::MandateTransactionType>,
     ) -> CustomResult<
         (
             BoxedOperation<'a, F, api::PaymentsCancelRequest, D>,
@@ -924,6 +929,7 @@ where
         _provider: &domain::Provider,
         _initiator: Option<&domain::Initiator>,
         _dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
+        _mandate_type: Option<api::MandateTransactionType>,
     ) -> CustomResult<
         (
             BoxedOperation<'a, F, api::PaymentsRejectRequest, D>,
