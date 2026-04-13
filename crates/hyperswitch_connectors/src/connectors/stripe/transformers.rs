@@ -2321,11 +2321,22 @@ impl TryFrom<(&PaymentsAuthorizeRouterData, MinorUnit)> for PaymentIntentRequest
             },
         };
 
+        // on_behalf_of is only supported for destination charges, not direct charges
         let on_behalf_of = match &item.request.split_payments {
             Some(SplitPaymentsRequest::StripeSplitPayment(stripe_split_payment)) => {
-                stripe_split_payment.on_behalf_of.clone()
+                match &stripe_split_payment.charge_type {
+                    PaymentChargeType::Stripe(StripeChargeType::Destination) => {
+                        stripe_split_payment.on_behalf_of.clone()
+                    }
+                    _ => None,
+                }
             }
-            _ => mandate_on_behalf_of,
+            _ => match charge_type {
+                Some(PaymentChargeType::Stripe(StripeChargeType::Destination)) => {
+                    mandate_on_behalf_of
+                }
+                _ => None,
+            },
         };
 
         let pm = match (payment_method, payment_method_token.clone()) {
