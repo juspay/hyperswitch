@@ -30102,6 +30102,12 @@
           "transfer_account_id": {
             "type": "string",
             "description": "Identifier for the reseller's account where the funds were transferred"
+          },
+          "on_behalf_of": {
+            "type": "string",
+            "description": "The Stripe account ID that these funds are intended for",
+            "example": "acct_1234567890",
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -30134,6 +30140,12 @@
           "transfer_account_id": {
             "type": "string",
             "description": "Identifier for the reseller's account where the funds were transferred"
+          },
+          "on_behalf_of": {
+            "type": "string",
+            "description": "The Stripe account ID that these funds are intended for",
+            "example": "acct_1234567890",
+            "nullable": true
           }
         },
         "additionalProperties": false
