@@ -11687,14 +11687,6 @@
                       }
                     ],
                     "nullable": true
-                  },
-                  "bank_name": {
-                    "allOf": [
-                      {
-                        "$ref": "#/components/schemas/BankNames"
-                      }
-                    ],
-                    "nullable": true
                   }
                 }
               }
