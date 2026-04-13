@@ -2805,7 +2805,7 @@ async fn disputes_incoming_webhook_flow(
             .switch()?;
 
         let option_dispute = db
-            .find_by_merchant_id_payment_id_connector_dispute_id(
+            .find_by_processor_merchant_id_payment_id_connector_dispute_id(
                 platform.get_processor().get_account().get_id(),
                 &payment_attempt.payment_id,
                 &dispute_details.connector_dispute_id,

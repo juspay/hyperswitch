@@ -79,7 +79,7 @@ impl ProcessTrackerWorkflow<SessionState> for ProcessDisputeWorkflow {
         // Check if the dispute already exists
         let dispute = state
             .store
-            .find_by_merchant_id_payment_id_connector_dispute_id(
+            .find_by_processor_merchant_id_payment_id_connector_dispute_id(
                 platform.get_processor().get_account().get_id(),
                 &payment_attempt.payment_id,
                 &tracking_data.dispute_payload.connector_dispute_id,

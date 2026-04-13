@@ -32,7 +32,13 @@ impl DisputeDbExt for Dispute {
         dispute_list_constraints: &disputes::DisputeListConstraints,
     ) -> CustomResult<Vec<Self>, errors::DatabaseError> {
         let mut filter = <Self as HasTable>::table()
-            .filter(dsl::merchant_id.eq(merchant_id.to_owned()))
+            .filter(
+                dsl::processor_merchant_id
+                    .eq(merchant_id.to_owned())
+                    .or(dsl::processor_merchant_id
+                        .is_null()
+                        .and(dsl::merchant_id.eq(merchant_id.to_owned()))),
+            )
             .order(dsl::modified_at.desc())
             .into_boxed();
 
@@ -118,7 +124,13 @@ impl DisputeDbExt for Dispute {
         let mut query = <Self as HasTable>::table()
             .group_by(dsl::dispute_status)
             .select((dsl::dispute_status, diesel::dsl::count_star()))
-            .filter(dsl::merchant_id.eq(merchant_id.to_owned()))
+            .filter(
+                dsl::processor_merchant_id
+                    .eq(merchant_id.to_owned())
+                    .or(dsl::processor_merchant_id
+                        .is_null()
+                        .and(dsl::merchant_id.eq(merchant_id.to_owned()))),
+            )
             .into_boxed();
 
         if let Some(profile_id) = profile_id_list {

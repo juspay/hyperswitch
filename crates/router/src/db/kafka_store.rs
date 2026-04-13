@@ -578,6 +578,41 @@ impl DisputeInterface for KafkaStore {
         Ok(dispute)
     }
 
+    async fn find_by_processor_merchant_id_payment_id_connector_dispute_id(
+        &self,
+        processor_merchant_id: &id_type::MerchantId,
+        payment_id: &id_type::PaymentId,
+        connector_dispute_id: &str,
+    ) -> CustomResult<Option<storage::Dispute>, errors::StorageError> {
+        self.diesel_store
+            .find_by_processor_merchant_id_payment_id_connector_dispute_id(
+                processor_merchant_id,
+                payment_id,
+                connector_dispute_id,
+            )
+            .await
+    }
+
+    async fn find_dispute_by_processor_merchant_id_dispute_id(
+        &self,
+        processor_merchant_id: &id_type::MerchantId,
+        dispute_id: &str,
+    ) -> CustomResult<storage::Dispute, errors::StorageError> {
+        self.diesel_store
+            .find_dispute_by_processor_merchant_id_dispute_id(processor_merchant_id, dispute_id)
+            .await
+    }
+
+    async fn find_disputes_by_processor_merchant_id_payment_id(
+        &self,
+        processor_merchant_id: &id_type::MerchantId,
+        payment_id: &id_type::PaymentId,
+    ) -> CustomResult<Vec<storage::Dispute>, errors::StorageError> {
+        self.diesel_store
+            .find_disputes_by_processor_merchant_id_payment_id(processor_merchant_id, payment_id)
+            .await
+    }
+
     async fn find_by_merchant_id_payment_id_connector_dispute_id(
         &self,
         merchant_id: &id_type::MerchantId,

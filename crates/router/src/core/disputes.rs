@@ -57,7 +57,7 @@ pub async fn retrieve_dispute(
 ) -> RouterResponse<api_models::disputes::DisputeResponse> {
     let dispute = state
         .store
-        .find_dispute_by_merchant_id_dispute_id(
+        .find_dispute_by_processor_merchant_id_dispute_id(
             platform.get_processor().get_account().get_id(),
             &req.dispute_id,
         )
@@ -301,8 +301,8 @@ pub async fn accept_dispute(
     let db = &state.store;
     let dispute = state
         .store
-        .find_dispute_by_merchant_id_dispute_id(
-            platform.get_processor().get_account().get_id(),
+        .find_dispute_by_processor_merchant_id_dispute_id(
+            processor.get_account().get_id(),
             &req.dispute_id,
         )
         .await
@@ -423,8 +423,8 @@ pub async fn submit_evidence(
     let db = &state.store;
     let dispute = state
         .store
-        .find_dispute_by_merchant_id_dispute_id(
-            platform.get_processor().get_account().get_id(),
+        .find_dispute_by_processor_merchant_id_dispute_id(
+            processor.get_account().get_id(),
             &req.dispute_id,
         )
         .await
@@ -590,8 +590,8 @@ pub async fn attach_evidence(
         .clone()
         .ok_or(errors::ApiErrorResponse::MissingDisputeId)?;
     let dispute = db
-        .find_dispute_by_merchant_id_dispute_id(
-            platform.get_processor().get_account().get_id(),
+        .find_dispute_by_processor_merchant_id_dispute_id(
+            processor.get_account().get_id(),
             &dispute_id,
         )
         .await
@@ -661,8 +661,8 @@ pub async fn retrieve_dispute_evidence(
 ) -> RouterResponse<Vec<api_models::disputes::DisputeEvidenceBlock>> {
     let dispute = state
         .store
-        .find_dispute_by_merchant_id_dispute_id(
-            platform.get_processor().get_account().get_id(),
+        .find_dispute_by_processor_merchant_id_dispute_id(
+            processor.get_account().get_id(),
             &req.dispute_id,
         )
         .await
@@ -689,8 +689,8 @@ pub async fn delete_evidence(
     let dispute_id = delete_evidence_request.dispute_id.clone();
     let dispute = state
         .store
-        .find_dispute_by_merchant_id_dispute_id(
-            platform.get_processor().get_account().get_id(),
+        .find_dispute_by_processor_merchant_id_dispute_id(
+            processor.get_account().get_id(),
             &dispute_id,
         )
         .await

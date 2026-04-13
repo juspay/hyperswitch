@@ -44,8 +44,8 @@ pub async fn validate_file_upload(
                 .ok_or(errors::ApiErrorResponse::MissingDisputeId)?;
             let dispute = state
                 .store
-                .find_dispute_by_merchant_id_dispute_id(
-                    platform.get_processor().get_account().get_id(),
+                .find_dispute_by_processor_merchant_id_dispute_id(
+                    processor.get_account().get_id(),
                     dispute_id,
                 )
                 .await
@@ -143,8 +143,8 @@ pub async fn retrieve_file_from_connector(
         Some(dispute) => Some(
             state
                 .store
-                .find_dispute_by_merchant_id_dispute_id(
-                    platform.get_processor().get_account().get_id(),
+                .find_dispute_by_processor_merchant_id_dispute_id(
+                    processor.get_account().get_id(),
                     &dispute,
                 )
                 .await
@@ -304,8 +304,8 @@ pub async fn upload_and_get_provider_provider_file_id_profile_id(
                 .ok_or(errors::ApiErrorResponse::MissingDisputeId)?;
             let dispute = state
                 .store
-                .find_dispute_by_merchant_id_dispute_id(
-                    platform.get_processor().get_account().get_id(),
+                .find_dispute_by_processor_merchant_id_dispute_id(
+                    processor.get_account().get_id(),
                     &dispute_id,
                 )
                 .await
