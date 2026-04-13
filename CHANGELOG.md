@@ -4,6 +4,27 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.04.13.0
+
+### Features
+
+- **core:** Extend profile-based payment method blocking for wallets ([#11758](https://github.com/juspay/hyperswitch/pull/11758)) ([`bd57b62`](https://github.com/juspay/hyperswitch/commit/bd57b6267901622cc1e23e02bfe0734321e84983))
+- **modular_payment_method:** Implement status transition validation flow ([#11762](https://github.com/juspay/hyperswitch/pull/11762)) ([`7868313`](https://github.com/juspay/hyperswitch/commit/7868313c622ac73ebf6e6fe9a8f44041757ae976))
+- **platform:** Platform refund query update ([#11649](https://github.com/juspay/hyperswitch/pull/11649)) ([`b0885ef`](https://github.com/juspay/hyperswitch/commit/b0885ef81ad338b0c261dc5c3b2b63c33b027cae))
+- **wasm:** Add wasm config for itaubank ([#11766](https://github.com/juspay/hyperswitch/pull/11766)) ([`95764a0`](https://github.com/juspay/hyperswitch/commit/95764a018ff43ae0e733d9d46e151a6b095dbc2a))
+
+### Bug Fixes
+
+- **core:** 3DS Setup Mandate Webhook Trigger Fix ([#11771](https://github.com/juspay/hyperswitch/pull/11771)) ([`9475f64`](https://github.com/juspay/hyperswitch/commit/9475f642a6b2ff8a958758b43377e0f20da4f230))
+
+### Refactors
+
+- **config:** Update installment currency config deserialization ([#11747](https://github.com/juspay/hyperswitch/pull/11747)) ([`88e7ea6`](https://github.com/juspay/hyperswitch/commit/88e7ea6c86887bfa960a158d8b24b17ebab667cb))
+
+**Full Changelog:** [`2026.04.10.0...2026.04.13.0`](https://github.com/juspay/hyperswitch/compare/2026.04.10.0...2026.04.13.0)
+
+- - -
+
 ## 2026.04.10.0
 
 ### Features
