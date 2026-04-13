@@ -20,6 +20,7 @@ use crate::{
     consts,
     core::errors::{UserErrors, UserResult},
     db::{
+        domain::role::RoleProductCategory,
         errors::StorageErrorExt,
         user_role::{ListUserRolesByOrgIdPayload, ListUserRolesByUserIdPayload},
     },
@@ -39,20 +40,24 @@ use crate::{
 
 pub fn validate_role_groups(
     groups: &[PermissionGroup],
-    merchant_product_type: MerchantProductType,
+    merchant_product_type: Option<MerchantProductType>,
 ) -> UserResult<()> {
     if groups.is_empty() {
         return Err(report!(UserErrors::InvalidRoleOperation))
             .attach_printable("Role groups cannot be empty");
     }
 
-    if groups.iter().any(|group| {
-        group
-            .get_role_product_category()
-            .is_product_accessible(merchant_product_type)
-    }) {
-        return Err(report!(UserErrors::InvalidRoleOperation))
-            .attach_printable("Permission groups of different product types found");
+    if let Some(product_type) = merchant_product_type {
+        if groups.iter().any(|group| {
+            let role_product_category = group.get_role_product_category();
+            match role_product_category {
+                RoleProductCategory::Dashboard => true,
+                _ => role_product_category == RoleProductCategory::from(product_type),
+            }
+        }) {
+            return Err(report!(UserErrors::InvalidRoleOperation))
+                .attach_printable("Permission groups of different product types found");
+        }
     }
 
     let unique_groups: HashSet<_> = groups.iter().copied().collect();

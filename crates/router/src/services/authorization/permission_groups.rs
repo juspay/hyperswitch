@@ -1,11 +1,10 @@
 use std::{collections::HashMap, ops::Not};
 
-use common_enums::{
-    EntityType, ParentGroup, PermissionGroup, PermissionScope, Resource, RoleProductCategory,
-};
+use common_enums::{EntityType, ParentGroup, PermissionGroup, PermissionScope, Resource};
 use strum::IntoEnumIterator;
 
 use super::permissions;
+use crate::db::domain::role::RoleProductCategory;
 
 pub trait PermissionGroupExt {
     fn scope(&self) -> PermissionScope;

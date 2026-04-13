@@ -134,7 +134,13 @@ pub async fn create_role(
 
     let merchant_product_type = merchant_account.product_type.unwrap_or_default();
 
-    utils::user_role::validate_role_groups(&req.groups, merchant_product_type)?;
+    utils::user_role::validate_role_groups(
+        &req.groups,
+        match role_entity_type {
+            EntityType::Tenant | EntityType::Organization => None,
+            EntityType::Merchant | EntityType::Profile => Some(merchant_product_type),
+        },
+    )?;
     utils::user_role::validate_role_name(
         &state,
         &role_name,
@@ -255,7 +261,13 @@ pub async fn create_role_v2(
 
     let merchant_product_type = merchant_account.product_type.unwrap_or_default();
 
-    utils::user_role::validate_role_groups(&permission_groups, merchant_product_type)?;
+    utils::user_role::validate_role_groups(
+        &permission_groups,
+        match role_entity_type {
+            EntityType::Tenant | EntityType::Organization => None,
+            EntityType::Merchant | EntityType::Profile => Some(merchant_product_type),
+        },
+    )?;
     utils::user_role::validate_role_name(
         &state,
         &role_name,
@@ -477,26 +489,33 @@ pub async fn update_role(
     }
 
     if let Some(ref groups) = req.groups {
-        let merchant_key_store = state
-            .store
-            .get_merchant_key_store_by_merchant_id(
-                &user_from_token.merchant_id,
-                &state.store.get_master_key().to_vec().into(),
-            )
-            .await
-            .change_context(UserErrors::InternalServerError)
-            .attach_printable("Failed to retrieve merchant key store by merchant_id")?;
+        let merchant_product_type = match role_info.get_entity_type() {
+            EntityType::Tenant | EntityType::Organization => None,
+            EntityType::Merchant | EntityType::Profile => {
+                let merchant_key_store = state
+                    .store
+                    .get_merchant_key_store_by_merchant_id(
+                        &user_from_token.merchant_id,
+                        &state.store.get_master_key().to_vec().into(),
+                    )
+                    .await
+                    .change_context(UserErrors::InternalServerError)
+                    .attach_printable("Failed to retrieve merchant key store by merchant_id")?;
 
-        let merchant_account = state
-            .store
-            .find_merchant_account_by_merchant_id(&user_from_token.merchant_id, &merchant_key_store)
-            .await
-            .to_not_found_response(UserErrors::MerchantIdNotFound)?;
+                let merchant_account = state
+                    .store
+                    .find_merchant_account_by_merchant_id(
+                        &user_from_token.merchant_id,
+                        &merchant_key_store,
+                    )
+                    .await
+                    .to_not_found_response(UserErrors::MerchantIdNotFound)?;
 
-        utils::user_role::validate_role_groups(
-            groups,
-            merchant_account.product_type.unwrap_or_default(),
-        )?;
+                Some(merchant_account.product_type.unwrap_or_default())
+            }
+        };
+
+        utils::user_role::validate_role_groups(groups, merchant_product_type)?;
     }
 
     let updated_role = state

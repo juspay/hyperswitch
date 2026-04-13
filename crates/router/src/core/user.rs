@@ -738,26 +738,28 @@ async fn handle_invitation(
             .attach_printable(format!("role_id = {} is not invitable", request.role_id))?;
     }
 
-    let merchant_key_store = state
-        .store
-        .get_merchant_key_store_by_merchant_id(
-            &user_from_token.merchant_id,
-            &state.store.get_master_key().to_vec().into(),
-        )
-        .await
-        .change_context(UserErrors::InternalServerError)
-        .attach_printable("Failed to retrieve merchant key store by merchant_id")?;
-
-    let merchant_product_type = state
-        .store
-        .find_merchant_account_by_merchant_id(&user_from_token.merchant_id, &merchant_key_store)
-        .await
-        .map(|acc| acc.product_type.unwrap_or_default())
-        .to_not_found_response(UserErrors::MerchantIdNotFound)?;
-
     match req_role_info.get_entity_type() {
         EntityType::Tenant | EntityType::Organization => {}
         EntityType::Merchant | EntityType::Profile => {
+            let merchant_key_store = state
+                .store
+                .get_merchant_key_store_by_merchant_id(
+                    &user_from_token.merchant_id,
+                    &state.store.get_master_key().to_vec().into(),
+                )
+                .await
+                .change_context(UserErrors::InternalServerError)
+                .attach_printable("Failed to retrieve merchant key store by merchant_id")?;
+
+            let merchant_product_type = state
+                .store
+                .find_merchant_account_by_merchant_id(
+                    &user_from_token.merchant_id,
+                    &merchant_key_store,
+                )
+                .await
+                .map(|acc| acc.product_type.unwrap_or_default())
+                .to_not_found_response(UserErrors::MerchantIdNotFound)?;
             if req_role_info.get_merchant_product_type() != merchant_product_type {
                 Err(report!(UserErrors::InvalidRoleId)).attach_printable(format!(
                     "role_id = {} is not for product_type = {}",
