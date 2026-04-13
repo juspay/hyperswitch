@@ -3115,6 +3115,26 @@ pub enum CardType {
     Debit,
 }
 
+// TODO: This enum will be updated with all card subtype values
+#[derive(
+    Clone,
+    Debug,
+    Eq,
+    Hash,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumIter,
+    strum::EnumString,
+    utoipa::ToSchema,
+    Copy,
+)]
+#[serde(rename_all = "snake_case")]
+pub enum CardSubtype {
+    Platinum,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, strum::EnumString, strum::Display)]
 #[serde(rename_all = "snake_case")]
 pub enum DecisionEngineMerchantCategoryCode {

@@ -13697,6 +13697,50 @@
           }
         }
       },
+      "CardBlockingConfig": {
+        "type": "object",
+        "description": "Card-specific blocking configuration",
+        "properties": {
+          "issuing_country": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CountryAlpha2"
+            },
+            "description": "Set of issuing countries to block using ISO 3166-1 alpha-2 codes (e.g., [\"IN\", \"US\"])",
+            "nullable": true
+          },
+          "card_types": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CardType"
+            },
+            "description": "Set of card types to block (e.g., [\"Credit\", \"Debit\"])",
+            "nullable": true
+          },
+          "card_subtypes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CardSubtype"
+            },
+            "description": "Set of card subtypes to block",
+            "nullable": true
+          },
+          "issuers": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Set of card issuers to block (e.g., [\"HDFC Bank\", \"ICICI Bank\"])",
+            "uniqueItems": true,
+            "nullable": true
+          },
+          "block_if_bin_info_unavailable": {
+            "type": "boolean",
+            "description": "Whether to block if BIN is provided but no matching record found in cards_info table.\nDefaults to false (allow payment if BIN not found in database).",
+            "nullable": true
+          }
+        }
+      },
       "CardDetail": {
         "type": "object",
         "required": [
@@ -14232,6 +14276,12 @@
             "description": "List of supported card networks"
           }
         }
+      },
+      "CardSubtype": {
+        "type": "string",
+        "enum": [
+          "platinum"
+        ]
       },
       "CardTestingGuardConfig": {
         "type": "object",
@@ -25727,6 +25777,20 @@
           "network_token"
         ]
       },
+      "PaymentMethodBlockingConfig": {
+        "type": "object",
+        "description": "Configuration for payment method blocking based on card attributes",
+        "properties": {
+          "card": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CardBlockingConfig"
+              }
+            ],
+            "nullable": true
+          }
+        }
+      },
       "PaymentMethodCollectLinkRequest": {
         "allOf": [
           {
@@ -33858,6 +33922,14 @@
             "type": "boolean",
             "description": "Flag to enable Level 2 and Level 3 processing data for card transactions",
             "nullable": true
+          },
+          "payment_method_blocking": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentMethodBlockingConfig"
+              }
+            ],
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -34219,6 +34291,14 @@
           "is_l2_l3_enabled": {
             "type": "boolean",
             "description": "Flag to enable Level 2 and Level 3 processing data for card transactions",
+            "nullable": true
+          },
+          "payment_method_blocking": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentMethodBlockingConfig"
+              }
+            ],
             "nullable": true
           }
         }

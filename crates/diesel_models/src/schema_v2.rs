@@ -290,6 +290,7 @@ diesel::table! {
         is_external_vault_enabled -> Nullable<Bool>,
         external_vault_connector_details -> Nullable<Jsonb>,
         is_l2_l3_enabled -> Nullable<Bool>,
+        payment_method_blocking -> Nullable<Jsonb>,
         #[max_length = 64]
         routing_algorithm_id -> Nullable<Varchar>,
         order_fulfillment_time -> Nullable<Int8>,
