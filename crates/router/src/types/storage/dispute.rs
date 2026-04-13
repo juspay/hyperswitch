@@ -12,13 +12,13 @@ use crate::{connection::PgPooledConn, logger};
 pub trait DisputeDbExt: Sized {
     async fn filter_by_constraints(
         conn: &PgPooledConn,
-        merchant_id: &common_utils::id_type::MerchantId,
+        processor_merchant_id: &common_utils::id_type::MerchantId,
         dispute_list_constraints: &disputes::DisputeListConstraints,
     ) -> CustomResult<Vec<Self>, errors::DatabaseError>;
 
     async fn get_dispute_status_with_count(
         conn: &PgPooledConn,
-        merchant_id: &common_utils::id_type::MerchantId,
+        processor_merchant_id: &common_utils::id_type::MerchantId,
         profile_id_list: Option<Vec<common_utils::id_type::ProfileId>>,
         time_range: &common_utils::types::TimeRange,
     ) -> CustomResult<Vec<(common_enums::enums::DisputeStatus, i64)>, errors::DatabaseError>;
@@ -28,16 +28,16 @@ pub trait DisputeDbExt: Sized {
 impl DisputeDbExt for Dispute {
     async fn filter_by_constraints(
         conn: &PgPooledConn,
-        merchant_id: &common_utils::id_type::MerchantId,
+        processor_merchant_id: &common_utils::id_type::MerchantId,
         dispute_list_constraints: &disputes::DisputeListConstraints,
     ) -> CustomResult<Vec<Self>, errors::DatabaseError> {
         let mut filter = <Self as HasTable>::table()
             .filter(
-                dsl::processor_merchant_id.eq(merchant_id.to_owned()).or(
-                    dsl::processor_merchant_id
+                dsl::processor_merchant_id
+                    .eq(processor_merchant_id.to_owned())
+                    .or(dsl::processor_merchant_id
                         .is_null()
-                        .and(dsl::merchant_id.eq(merchant_id.to_owned())),
-                ),
+                        .and(dsl::merchant_id.eq(processor_merchant_id.to_owned()))),
             )
             .order(dsl::modified_at.desc())
             .into_boxed();
@@ -117,7 +117,7 @@ impl DisputeDbExt for Dispute {
 
     async fn get_dispute_status_with_count(
         conn: &PgPooledConn,
-        merchant_id: &common_utils::id_type::MerchantId,
+        processor_merchant_id: &common_utils::id_type::MerchantId,
         profile_id_list: Option<Vec<common_utils::id_type::ProfileId>>,
         time_range: &common_utils::types::TimeRange,
     ) -> CustomResult<Vec<(common_enums::DisputeStatus, i64)>, errors::DatabaseError> {
@@ -125,11 +125,11 @@ impl DisputeDbExt for Dispute {
             .group_by(dsl::dispute_status)
             .select((dsl::dispute_status, diesel::dsl::count_star()))
             .filter(
-                dsl::processor_merchant_id.eq(merchant_id.to_owned()).or(
-                    dsl::processor_merchant_id
+                dsl::processor_merchant_id
+                    .eq(processor_merchant_id.to_owned())
+                    .or(dsl::processor_merchant_id
                         .is_null()
-                        .and(dsl::merchant_id.eq(merchant_id.to_owned())),
-                ),
+                        .and(dsl::merchant_id.eq(processor_merchant_id.to_owned()))),
             )
             .into_boxed();
 

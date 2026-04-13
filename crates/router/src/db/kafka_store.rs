@@ -613,38 +613,13 @@ impl DisputeInterface for KafkaStore {
             .await
     }
 
-    async fn find_by_merchant_id_payment_id_connector_dispute_id(
-        &self,
-        merchant_id: &id_type::MerchantId,
-        payment_id: &id_type::PaymentId,
-        connector_dispute_id: &str,
-    ) -> CustomResult<Option<storage::Dispute>, errors::StorageError> {
-        self.diesel_store
-            .find_by_merchant_id_payment_id_connector_dispute_id(
-                merchant_id,
-                payment_id,
-                connector_dispute_id,
-            )
-            .await
-    }
-
-    async fn find_dispute_by_merchant_id_dispute_id(
-        &self,
-        merchant_id: &id_type::MerchantId,
-        dispute_id: &str,
-    ) -> CustomResult<storage::Dispute, errors::StorageError> {
-        self.diesel_store
-            .find_dispute_by_merchant_id_dispute_id(merchant_id, dispute_id)
-            .await
-    }
-
     async fn find_disputes_by_constraints(
         &self,
-        merchant_id: &id_type::MerchantId,
+        processor_merchant_id: &id_type::MerchantId,
         dispute_constraints: &disputes::DisputeListConstraints,
     ) -> CustomResult<Vec<storage::Dispute>, errors::StorageError> {
         self.diesel_store
-            .find_disputes_by_constraints(merchant_id, dispute_constraints)
+            .find_disputes_by_constraints(processor_merchant_id, dispute_constraints)
             .await
     }
 
@@ -668,24 +643,14 @@ impl DisputeInterface for KafkaStore {
         Ok(dispute_new)
     }
 
-    async fn find_disputes_by_merchant_id_payment_id(
-        &self,
-        merchant_id: &id_type::MerchantId,
-        payment_id: &id_type::PaymentId,
-    ) -> CustomResult<Vec<storage::Dispute>, errors::StorageError> {
-        self.diesel_store
-            .find_disputes_by_merchant_id_payment_id(merchant_id, payment_id)
-            .await
-    }
-
     async fn get_dispute_status_with_count(
         &self,
-        merchant_id: &id_type::MerchantId,
+        processor_merchant_id: &id_type::MerchantId,
         profile_id_list: Option<Vec<id_type::ProfileId>>,
         time_range: &common_utils::types::TimeRange,
     ) -> CustomResult<Vec<(common_enums::DisputeStatus, i64)>, errors::StorageError> {
         self.diesel_store
-            .get_dispute_status_with_count(merchant_id, profile_id_list, time_range)
+            .get_dispute_status_with_count(processor_merchant_id, profile_id_list, time_range)
             .await
     }
 }
