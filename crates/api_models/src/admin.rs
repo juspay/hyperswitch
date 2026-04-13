@@ -18,12 +18,12 @@ use smithy::SmithyModel;
 use utoipa::ToSchema;
 
 use super::payments::AddressDetails;
+#[cfg(feature = "v1")]
+use crate::routing;
 use crate::{
     consts::{MAX_ORDER_FULFILLMENT_EXPIRY, MIN_ORDER_FULFILLMENT_EXPIRY},
     enums as api_enums, payment_methods,
 };
-#[cfg(feature = "v1")]
-use crate::{profile_acquirer::AcquirerBucketConfigResponse, routing};
 
 #[derive(Clone, Debug, Deserialize, ToSchema, Serialize)]
 pub struct MerchantAccountListRequest {
@@ -2681,8 +2681,7 @@ pub struct ProfileResponse {
 
     /// Acquirer configs
     #[schema(value_type = Option<Object>)]
-    pub acquirer_configs:
-        Option<HashMap<id_type::ProfileAcquirerId, Vec<AcquirerBucketConfigResponse>>>,
+    pub acquirer_configs: Option<crate::profile_acquirer::ProfileAcquirerConfigsResponse>,
 
     /// Indicates if the redirection has to open in the iframe
     #[schema(example = false)]

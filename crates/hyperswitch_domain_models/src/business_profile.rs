@@ -1612,7 +1612,7 @@ impl Profile {
             .as_ref()
             .and_then(|acquirer_config_map| {
                 acquirer_config_map
-                    .0
+                    .configs
                     .values()
                     .flat_map(|bucket| bucket.iter())
                     .find(|cfg| cfg.network == network)
@@ -1631,7 +1631,7 @@ impl Profile {
     ) -> Option<AcquirerConfig> {
         self.acquirer_config_map
             .as_ref()
-            .and_then(|map| map.0.get(profile_acquirer_id))
+            .and_then(|map| map.configs.get(profile_acquirer_id))
             .and_then(|bucket| bucket.iter().find(|cfg| cfg.network == network).cloned())
     }
 
@@ -1642,12 +1642,12 @@ impl Profile {
         network: common_enums::CardNetwork,
     ) -> Option<AcquirerConfig> {
         self.acquirer_config_map.as_ref().and_then(|map| {
-            // Try finding the bucket where at least one config is marked as default
+            // Get the default bucket from the default_acquirer_config identifier, or fallback to the first bucket
             let default_bucket = map
-                .0
-                .values()
-                .find(|bucket| bucket.iter().any(|cfg| cfg.is_default))
-                .or_else(|| map.0.values().next()); // Fallback to the first bucket
+                .default_acquirer_config
+                .as_ref()
+                .and_then(|id| map.configs.get(id))
+                .or_else(|| map.configs.values().next());
 
             default_bucket
                 .and_then(|bucket| bucket.iter().find(|cfg| cfg.network == network).cloned())

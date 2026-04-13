@@ -44,17 +44,14 @@ pub struct ProfileAcquirerConfigs {
 }
 
 impl From<ProfileAcquirerConfigs>
-    for Option<
-        HashMap<
-            common_utils::id_type::ProfileAcquirerId,
-            Vec<api_models::profile_acquirer::AcquirerBucketConfigResponse>,
-        >,
-    >
+    for Option<api_models::profile_acquirer::ProfileAcquirerConfigsResponse>
 {
     fn from(item: ProfileAcquirerConfigs) -> Self {
         item.acquirer_config_map.map(|config_map_val| {
-            config_map_val
-                .0
+            let default_id = config_map_val.default_acquirer_config.clone();
+
+            let configs = config_map_val
+                .configs
                 .into_iter()
                 .map(|(profile_acquirer_id, acquirer_configs)| {
                     (
@@ -65,7 +62,12 @@ impl From<ProfileAcquirerConfigs>
                             .collect(),
                     )
                 })
-                .collect()
+                .collect();
+
+            api_models::profile_acquirer::ProfileAcquirerConfigsResponse {
+                default_acquirer_config: default_id,
+                configs,
+            }
         })
     }
 }

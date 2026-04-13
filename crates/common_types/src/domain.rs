@@ -121,17 +121,18 @@ pub struct AcquirerConfig {
     /// Acquirer country code
     #[schema(value_type= Option<String>,example = "US")]
     pub acquirer_country_code: Option<String>,
-    /// Whether this configuration bucket is the default fallback for the profile.
-    #[serde(default)]
-    pub is_default: bool,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, FromSqlRow, AsExpression, ToSchema)]
 #[diesel(sql_type = Jsonb)]
 /// Acquirer config buckets: each ProfileAcquirerId maps to an array of per-network configs
-pub struct AcquirerConfigMap(
-    pub HashMap<common_utils::id_type::ProfileAcquirerId, Vec<AcquirerConfig>>,
-);
+pub struct AcquirerConfigMap {
+    /// The default acquirer config id
+    pub default_acquirer_config: Option<common_utils::id_type::ProfileAcquirerId>,
+    /// Flattened map of acquirer profiles keyed by configuration id
+    #[serde(flatten)]
+    pub configs: HashMap<common_utils::id_type::ProfileAcquirerId, Vec<AcquirerConfig>>,
+}
 
 impl_to_sql_from_sql_json!(AcquirerConfigMap);
 

@@ -251,10 +251,6 @@ pub struct AuthenticationEligibilityRequest {
     /// Used for customer identification, communication, and possibly for 3DS or fraud checks.
     #[schema(value_type = Option<String>)]
     pub email: Option<common_utils::pii::Email>,
-
-    /// Profile Acquirer ID get from profile acquirer configuration
-    #[schema(value_type = Option<String>)]
-    pub profile_acquirer_id: Option<id_type::ProfileAcquirerId>,
 }
 
 #[cfg(feature = "v1")]

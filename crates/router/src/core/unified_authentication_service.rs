@@ -1166,10 +1166,7 @@ pub async fn authentication_eligibility_core(
             // 1. profile_acquirer_id from eligibility request.
             // 2. profile_acquirer_id from authentication record (DB).
             // 3. Fallback to default bucket ONLY IF neither of the above are provided.
-            let bucket_id = req
-                .profile_acquirer_id
-                .as_ref()
-                .or(authentication.profile_acquirer_id.as_ref());
+            let bucket_id = authentication.profile_acquirer_id.as_ref();
 
             let acquirer_details = match bucket_id {
                 Some(acquirer_id) => business_profile
