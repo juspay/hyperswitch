@@ -198,11 +198,10 @@ config! {
 impl DatabaseBackedConfig for ImplicitCustomerUpdate {
     const KEY: &'static str = "implicit_customer_update";
     fn db_key(dimensions: &impl super::dimension_state::DimensionsBase) -> Option<String> {
-        let merchant_id = dimensions
+
+        dimensions
             .get_provider_merchant_id()
-            .map(|id| id.get_string_repr())
-            .unwrap_or_default();
-        Some(format!("{}_{}", merchant_id, Self::KEY))
+            .map(|id| format!("{}_{}",id.get_string_repr(), Self::KEY))
     }
 }
 
