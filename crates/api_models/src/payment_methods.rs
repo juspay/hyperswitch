@@ -3025,6 +3025,7 @@ pub enum PaymentMethodListData {
     #[cfg(feature = "payouts")]
     #[schema(value_type = Bank)]
     Bank(payouts::Bank),
+    Wallet(WalletPaymentMethodData),
 }
 
 #[cfg(feature = "v1")]

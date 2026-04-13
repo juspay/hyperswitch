@@ -21780,6 +21780,17 @@
                 "$ref": "#/components/schemas/Bank"
               }
             }
+          },
+          {
+            "type": "object",
+            "required": [
+              "wallet"
+            ],
+            "properties": {
+              "wallet": {
+                "$ref": "#/components/schemas/WalletPaymentMethodData"
+              }
+            }
           }
         ]
       },
