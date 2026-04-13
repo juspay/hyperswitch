@@ -26,8 +26,8 @@ impl PermissionGroupExt for PermissionGroup {
             | Self::ReconOpsView
             | Self::ReconReportsView
             | Self::ThemeView
-            | Self::ReconSourceView
-            | Self::ReconTransactionView
+            | Self::ReconSourcesView
+            | Self::ReconTransactionsView
             | Self::ReconExceptionsView
             | Self::ReconRulesView => PermissionScope::Read,
 
@@ -40,9 +40,9 @@ impl PermissionGroupExt for PermissionGroup {
             | Self::ReconReportsManage
             | Self::InternalManage
             | Self::ThemeManage
-            | Self::ReconSourceManage
+            | Self::ReconSourcesManage
             | Self::ReconExceptionsManage
-            | Self::ReconTransactionManage
+            | Self::ReconTransactionsManage
             | Self::ReconRulesManage => PermissionScope::Write,
         }
     }
@@ -60,9 +60,9 @@ impl PermissionGroupExt for PermissionGroup {
             Self::ReconOpsView | Self::ReconOpsManage => ParentGroup::ReconOps,
             Self::ReconReportsView | Self::ReconReportsManage => ParentGroup::ReconReports,
             Self::InternalManage => ParentGroup::Internal,
-            Self::ReconSourceView | Self::ReconSourceManage => ParentGroup::ReconSource,
+            Self::ReconSourcesView | Self::ReconSourcesManage => ParentGroup::ReconSource,
             Self::ReconExceptionsView | Self::ReconExceptionsManage => ParentGroup::ReconExceptions,
-            Self::ReconTransactionView | Self::ReconTransactionManage => {
+            Self::ReconTransactionsView | Self::ReconTransactionsManage => {
                 ParentGroup::ReconTransaction
             }
             Self::ReconRulesView | Self::ReconRulesManage => ParentGroup::ReconRules,
@@ -112,38 +112,38 @@ impl PermissionGroupExt for PermissionGroup {
             Self::ThemeView => vec![Self::ThemeView, Self::AccountView],
             Self::ThemeManage => vec![Self::ThemeManage, Self::AccountView],
 
-            Self::ReconSourceView => vec![
-                Self::ReconSourceView,
-                Self::ReconTransactionView,
+            Self::ReconSourcesView => vec![
+                Self::ReconSourcesView,
+                Self::ReconTransactionsView,
                 Self::ReconRulesView,
             ],
-            Self::ReconSourceManage => vec![
-                Self::ReconSourceManage,
-                Self::ReconSourceView,
-                Self::ReconTransactionView,
+            Self::ReconSourcesManage => vec![
+                Self::ReconSourcesManage,
+                Self::ReconSourcesView,
+                Self::ReconTransactionsView,
                 Self::ReconRulesView,
             ],
             Self::ReconExceptionsView => vec![
                 Self::ReconExceptionsView,
-                Self::ReconTransactionView,
+                Self::ReconTransactionsView,
                 Self::ReconRulesView,
             ],
             Self::ReconExceptionsManage => vec![
                 Self::ReconExceptionsManage,
-                Self::ReconTransactionView,
+                Self::ReconTransactionsView,
                 Self::ReconRulesView,
             ],
-            Self::ReconTransactionView => vec![Self::ReconTransactionView, Self::ReconRulesView],
-            Self::ReconTransactionManage => vec![
-                Self::ReconTransactionManage,
-                Self::ReconTransactionView,
+            Self::ReconTransactionsView => vec![Self::ReconTransactionsView, Self::ReconRulesView],
+            Self::ReconTransactionsManage => vec![
+                Self::ReconTransactionsManage,
+                Self::ReconTransactionsView,
                 Self::ReconRulesView,
             ],
-            Self::ReconRulesView => vec![Self::ReconRulesView, Self::ReconTransactionView],
+            Self::ReconRulesView => vec![Self::ReconRulesView, Self::ReconTransactionsView],
             Self::ReconRulesManage => vec![
                 Self::ReconRulesManage,
                 Self::ReconRulesView,
-                Self::ReconTransactionView,
+                Self::ReconTransactionsView,
             ],
         }
     }
@@ -172,12 +172,12 @@ impl PermissionGroupExt for PermissionGroup {
             | Self::ThemeManage => RoleProductCategory::Orchestration,
 
             // Recon-only groups.
-            Self::ReconSourceView
-            | Self::ReconSourceManage
+            Self::ReconSourcesView
+            | Self::ReconSourcesManage
             | Self::ReconExceptionsView
             | Self::ReconExceptionsManage
-            | Self::ReconTransactionView
-            | Self::ReconTransactionManage
+            | Self::ReconTransactionsView
+            | Self::ReconTransactionsManage
             | Self::ReconRulesView
             | Self::ReconRulesManage => RoleProductCategory::Recon,
         }
