@@ -20730,6 +20730,12 @@
             "enum": [
               "user_bank_identifier"
             ]
+          },
+          {
+            "type": "string",
+            "enum": [
+              "user_pix_account_number"
+            ]
           }
         ],
         "description": "Possible field type of required fields in payment_method_data"
