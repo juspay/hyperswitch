@@ -286,6 +286,10 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
                         &state,
                         platform.get_processor(),
                         &mca_data.connector_name,
+                        mca_data
+                            .merchant_connector_account
+                            .as_ref()
+                            .map(|mca| &mca.merchant_connector_id),
                     )
                     .await?;
 
