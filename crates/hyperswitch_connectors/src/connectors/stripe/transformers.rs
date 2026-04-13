@@ -1956,7 +1956,11 @@ impl TryFrom<(&PaymentsAuthorizeRouterData, MinorUnit)> for PaymentIntentRequest
             let parsed: Result<StripeSplitPaymentRequest, _> = serde_json::from_value(json_value);
 
             match parsed {
-                Ok(data) => (data.transfer_account_id, data.charge_type, data.on_behalf_of),
+                Ok(data) => (
+                    data.transfer_account_id,
+                    data.charge_type,
+                    data.on_behalf_of,
+                ),
                 Err(_) => (None, None, None),
             }
         } else {
