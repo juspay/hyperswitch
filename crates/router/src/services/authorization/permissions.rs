@@ -71,31 +71,31 @@ generate_permissions! {
             scopes: [Read, Write],
             entities: [Profile, Merchant]
         },
-        ReconToken: {
+        LegacyReconToken: {
             scopes: [Read],
             entities: [Merchant]
         },
-        ReconFiles: {
+        LegacyReconFiles: {
             scopes: [Read, Write],
             entities: [Merchant]
         },
-        ReconAndSettlementAnalytics: {
+        LegacyReconAndSettlementAnalytics: {
             scopes: [Read],
             entities: [Merchant]
         },
-        ReconUpload: {
+        LegacyReconUpload: {
             scopes: [Read, Write],
             entities: [Merchant]
         },
-        ReconReports: {
+        LegacyReconReports: {
             scopes: [Read, Write],
             entities: [Merchant]
         },
-        RunRecon: {
+        LegacyRunRecon: {
             scopes: [Read, Write],
             entities: [Merchant]
         },
-        ReconConfig: {
+        LegacyReconConfig: {
             scopes: [Read, Write],
             entities: [Merchant]
         },
@@ -116,6 +116,10 @@ generate_permissions! {
             entities: [Profile]
         },
         ReconTransformation: {
+            scopes: [Read, Write],
+            entities: [Profile]
+        },
+        ReconFiles: {
             scopes: [Read, Write],
             entities: [Profile]
         },
@@ -159,13 +163,13 @@ pub fn get_resource_name(resource: Resource, entity_type: EntityType) -> Option<
         (Resource::Report, _) => Some("Operation Reports"),
         (Resource::User, _) => Some("Users"),
         (Resource::WebhookEvent, _) => Some("Webhook Events"),
-        (Resource::ReconUpload, _) => Some("Reconciliation File Upload"),
-        (Resource::RunRecon, _) => Some("Run Reconciliation Process"),
-        (Resource::ReconConfig, _) => Some("Reconciliation Configurations"),
-        (Resource::ReconToken, _) => Some("Generate & Verify Reconciliation Token"),
-        (Resource::ReconFiles, _) => Some("Reconciliation Process Manager"),
-        (Resource::ReconReports, _) => Some("Reconciliation Reports"),
-        (Resource::ReconAndSettlementAnalytics, _) => Some("Reconciliation Analytics"),
+        (Resource::LegacyReconUpload, _) => Some("Reconciliation File Upload"),
+        (Resource::LegacyRunRecon, _) => Some("Run Reconciliation Process"),
+        (Resource::LegacyReconConfig, _) => Some("Reconciliation Configurations"),
+        (Resource::LegacyReconToken, _) => Some("Generate & Verify Reconciliation Token"),
+        (Resource::LegacyReconFiles, _) => Some("Reconciliation Process Manager"),
+        (Resource::LegacyReconReports, _) => Some("Reconciliation Reports"),
+        (Resource::LegacyReconAndSettlementAnalytics, _) => Some("Reconciliation Analytics"),
         (Resource::Account, EntityType::Profile) => Some("Business Profile Account"),
         (Resource::Account, EntityType::Merchant) => Some("Merchant Account"),
         (Resource::Account, EntityType::Organization) => Some("Organization Account"),
@@ -174,6 +178,7 @@ pub fn get_resource_name(resource: Resource, entity_type: EntityType) -> Option<
         (Resource::InternalConnector, _) => None,
         (Resource::ReconIngestion, _) => Some("Recon Ingestion Configs"),
         (Resource::ReconTransformation, _) => Some("Recon Transformation Configs"),
+        (Resource::ReconFiles, _) => Some("Recon Files"),
         (Resource::ReconException, _) => Some("Recon Exception Management"),
         (Resource::ReconStagingEntry, _) => Some("Recon Staging Entries"),
         (Resource::ReconTransaction, _) => Some("Recon Transactions"),

@@ -8,7 +8,7 @@ use common_enums::{EntityType, MerchantProductType, PermissionGroup, Resource, R
 use common_utils::{errors::CustomResult, id_type};
 
 #[cfg(feature = "recon")]
-use super::permission_groups::{RECON_OPS, RECON_REPORTS};
+use super::permission_groups::{LEGACY_RECON_OPS, LEGACY_RECON_REPORTS};
 use super::{permission_groups::PermissionGroupExt, permissions::Permission};
 use crate::{core::errors, routes::SessionState};
 
@@ -92,9 +92,9 @@ impl RoleInfo {
     #[cfg(feature = "recon")]
     pub fn get_recon_acl(&self) -> HashMap<Resource, ReconPermissionScope> {
         let mut acl: HashMap<Resource, ReconPermissionScope> = HashMap::new();
-        let mut recon_resources = RECON_OPS.to_vec();
-        recon_resources.extend(RECON_REPORTS);
-        let recon_internal_resources = [Resource::ReconToken];
+        let mut recon_resources = LEGACY_RECON_OPS.to_vec();
+        recon_resources.extend(LEGACY_RECON_REPORTS);
+        let recon_internal_resources = [Resource::LegacyReconToken];
         self.get_permission_groups()
             .iter()
             .for_each(|permission_group| {
@@ -103,7 +103,9 @@ impl RoleInfo {
                         && !recon_internal_resources.contains(resource)
                     {
                         let scope = match resource {
-                            Resource::ReconAndSettlementAnalytics => ReconPermissionScope::Read,
+                            Resource::LegacyReconAndSettlementAnalytics => {
+                                ReconPermissionScope::Read
+                            }
                             _ => ReconPermissionScope::from(permission_group.scope()),
                         };
                         acl.entry(*resource)
