@@ -1280,7 +1280,7 @@ pub async fn create_volatile_payment_method_core(
         api::PaymentMethodCreateData::Card(_) | api::PaymentMethodCreateData::BankDebit(_) => {
             let payment_method_type = req.payment_method_type.to_string();
             logger::info!("Creating volatile {} payment method", payment_method_type);
-            Box::pin(create_volatile_payment_method_for_card_and_bank_debit(
+            Box::pin(create_generic_volatile_payment_method(
                 state,
                 req,
                 platform,
@@ -1754,7 +1754,7 @@ async fn execute_payment_method_create(
 #[cfg(feature = "v2")]
 #[allow(clippy::too_many_arguments)]
 #[instrument(skip_all)]
-pub async fn create_volatile_payment_method_for_card_and_bank_debit(
+pub async fn create_generic_volatile_payment_method(
     state: &SessionState,
     req: api::PaymentMethodCreate,
     platform: &domain::Platform,

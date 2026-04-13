@@ -12,6 +12,8 @@ use hyperswitch_masking::Secret;
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 
+use crate::types::BankDebitDetailsPaymentMethod;
+
 /// V1-facing create flow type.
 #[derive(Debug)]
 pub struct CreatePaymentMethod;
@@ -90,7 +92,7 @@ pub struct ModularPaymentMethodResponse {
 #[serde(rename_all = "snake_case")]
 pub enum PaymentMethodResponseData {
     Card(Box<api_models::payment_methods::CardDetailFromLocker>),
-    BankDebit(api_models::payment_methods::BankDebitDetailsPaymentMethod),
+    BankDebit(BankDebitDetailsPaymentMethod),
 }
 
 #[derive(Clone, Debug)]
