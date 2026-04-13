@@ -788,7 +788,7 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "succeeded",
-          net_amount: 6300,
+          net_amount: 6610,
         },
       },
     },
@@ -1054,8 +1054,8 @@ export const connectorDetails = {
                   billing_frequency: "month",
                   interest_rate: 5,
                   amount_details: {
-                    amount_per_installment: 21,
-                    total_amount: 63,
+                    amount_per_installment: 22.04,
+                    total_amount: 66.1,
                   },
                 },
                 {
@@ -1063,8 +1063,8 @@ export const connectorDetails = {
                   billing_frequency: "month",
                   interest_rate: 5,
                   amount_details: {
-                    amount_per_installment: 10.5,
-                    total_amount: 63,
+                    amount_per_installment: 11.83,
+                    total_amount: 70.93,
                   },
                 },
                 {
@@ -1072,8 +1072,8 @@ export const connectorDetails = {
                   billing_frequency: "month",
                   interest_rate: 5,
                   amount_details: {
-                    amount_per_installment: 5.25,
-                    total_amount: 63,
+                    amount_per_installment: 6.77,
+                    total_amount: 81.24,
                   },
                 },
               ],
