@@ -1,9 +1,7 @@
 use actix_web::http::header::HeaderMap;
 use api_models::{
     card_issuer as card_issuer_types, cards_info as card_info_types, enums as api_enums,
-    gsm as gsm_api_types, payment_methods,
-    payments,
-    routing::ConnectorSelection,
+    gsm as gsm_api_types, payment_methods, payments, routing::ConnectorSelection,
 };
 use common_utils::{
     consts::X_HS_LATENCY,

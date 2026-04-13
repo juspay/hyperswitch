@@ -65,16 +65,16 @@ pub async fn list_card_issuers(
         &req,
         query,
         |state, _, query, _| card_issuer::list_card_issuers(state, query),
-            auth::auth_type(
-                &auth::HeaderAuth(auth::ApiKeyAuth {
-                    allow_connected_scope_operation: false,
-                    allow_platform_self_operation: false,
-                }),
-                &auth::JWTAuth {
-                    permission: Permission::MerchantAccountRead,
-                },
-                req.headers(),
-            ),
+        auth::auth_type(
+            &auth::HeaderAuth(auth::ApiKeyAuth {
+                allow_connected_scope_operation: false,
+                allow_platform_self_operation: false,
+            }),
+            &auth::JWTAuth {
+                permission: Permission::MerchantAccountRead,
+            },
+            req.headers(),
+        ),
         api_locking::LockAction::NotApplicable,
     ))
     .await
