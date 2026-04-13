@@ -1749,7 +1749,9 @@ pub struct ErrorParameters {
 pub struct AciParsedConnectorIds {
     pub rrn: Option<String>,
     pub citi: Option<String>,
+    pub stan: Option<String>,
     pub auth_code: Option<String>,
+    pub original_transaction_id: Option<String>,
 }
 
 fn parse_connector_tx_ids(details: &AciResponseResultDetails) -> AciParsedConnectorIds {
@@ -1759,6 +1761,11 @@ fn parse_connector_tx_ids(details: &AciResponseResultDetails) -> AciParsedConnec
     fn get(v: &[String], i: usize) -> Option<String> {
         v.get(i).filter(|s| !s.is_empty()).cloned()
     }
+    let t1: Vec<String> = details
+        .connector_tx_id1
+        .as_deref()
+        .map(split_pipe)
+        .unwrap_or_default();
     let t2: Vec<String> = details
         .connector_tx_id2
         .as_deref()
@@ -1773,7 +1780,9 @@ fn parse_connector_tx_ids(details: &AciResponseResultDetails) -> AciParsedConnec
     AciParsedConnectorIds {
         rrn: get(&t2, 2),
         citi: get(&t3, 4),
+        stan: get(&t3, 0).or_else(|| get(&t2, 1)),
         auth_code: details.auth_code.clone(),
+        original_transaction_id: get(&t1, 5),
     }
 }
 
@@ -1821,7 +1830,9 @@ where
 
         let rrn = parsed_ids.as_ref().and_then(|p| p.rrn.clone());
         let citi = parsed_ids.as_ref().and_then(|p| p.citi.clone());
+        let stan = parsed_ids.as_ref().and_then(|p| p.stan.clone());
         let parsed_auth_code = parsed_ids.as_ref().and_then(|p| p.auth_code.clone());
+        let original_transaction_id = parsed_ids.as_ref().and_then(|p| p.original_transaction_id.clone());
         let connector_response_reference_id =
             rrn.clone().or_else(|| Some(item.response.id.clone()));
 
@@ -1891,8 +1902,13 @@ where
                 .result_details
                 .as_ref()
                 .and_then(|d| d.acquirer_response.clone());
-            if cvv.is_some() || acq.is_some() {
-                Some(serde_json::json!({"cvvResponse": cvv, "acquirerResponse": acq}))
+            if cvv.is_some() || acq.is_some() || stan.is_some() || original_transaction_id.is_some() {
+                Some(serde_json::json!({
+                    "cvvResponse": cvv,
+                    "acquirerResponse": acq,
+                    "stan": stan,
+                    "originalTransactionId": original_transaction_id,
+                }))
             } else {
                 None
             }
