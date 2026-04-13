@@ -996,8 +996,8 @@ connector_list = "juspaythreedsserver, ctp_mastercard, ctp_visa"
 connector_list = "worldpayvantiv"
 
 [grpc_client.unified_connector_service]
-ucs_only_connectors = "paytm, phonepe, truelayer, trustly"    # Comma-separated list of connectors that use UCS only
-ucs_psync_disabled_connectors = "cashtocode"    # Comma-separated list of connectors to disable UCS PSync call
+ucs_only_connectors = "paytm, phonepe"    # Comma-separated list of connectors that use UCS only
+ucs_psync_disabled_connectors = "cashtocode, trustly"    # Comma-separated list of connectors to disable UCS PSync call
 
 # Merchant Advice Code Configuration
 [merchant_advice_codes.visa]
