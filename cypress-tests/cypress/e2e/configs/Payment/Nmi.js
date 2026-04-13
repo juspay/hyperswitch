@@ -678,5 +678,11 @@ export const connectorDetails = {
       // NMI webhook handler uses PaymentAttemptId for lookup, not ConnectorTransactionId
       source: "paymentAttemptID",
     },
+    RefundIdConfig: {
+      path: "event_body.order_id",
+      type: "string",
+      // NMI webhook handler uses RefundId for lookup, not ConnectorRefundId
+      source: "refundId",
+    },
   },
 };
