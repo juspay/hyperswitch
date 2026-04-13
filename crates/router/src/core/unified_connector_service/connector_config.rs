@@ -54,6 +54,14 @@ pub struct AdyenMetadata {
     endpoint_prefix: Option<Secret<String>>,
 }
 
+#[derive(Debug, serde::Deserialize)]
+pub struct TruelayerMetadata {
+    merchant_account_id: Option<Secret<String>>,
+    account_holder_name: Option<Secret<String>>,
+    private_key: Option<Secret<String>>,
+    kid: Option<Secret<String>>,
+}
+
 /// Connector-specific configuration enum for all supported connectors
 #[derive(Debug, Clone, serde::Serialize)]
 pub enum ConnectorSpecificConfig {
@@ -1226,6 +1234,27 @@ impl ForeignTryFrom<(Connector, &ConnectorAuthType, Option<&serde_json::Value>)>
                     payme_client_key: Some(key1.clone()),
                 }),
                 _ => Err(err("Payme requires BodyKey or SignatureKey auth type")),
+            },
+
+            Connector::Truelayer => match auth {
+                ConnectorAuthType::BodyKey { api_key, key1 } => {
+                    let metadata_parsed = metadata
+                        .and_then(|m| serde_json::from_value::<TruelayerMetadata>(m.clone()).ok());
+
+                    Ok(Self::Truelayer {
+                        client_id: api_key.clone(),
+                        client_secret: key1.clone(),
+                        merchant_account_id: metadata_parsed
+                            .as_ref()
+                            .and_then(|m| m.merchant_account_id.clone()),
+                        account_holder_name: metadata_parsed
+                            .as_ref()
+                            .and_then(|m| m.account_holder_name.clone()),
+                        private_key: metadata_parsed.as_ref().and_then(|m| m.private_key.clone()),
+                        kid: metadata_parsed.as_ref().and_then(|m| m.kid.clone()),
+                    })
+                }
+                _ => Err(err("Truelayer requires BodyKey auth type")),
             },
             // --- Unsupported connectors ---
             _ => Err(

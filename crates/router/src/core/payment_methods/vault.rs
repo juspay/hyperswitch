@@ -1122,8 +1122,8 @@ impl Vaultable for api::PassthroughPayout {
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
 pub struct TokenizedBankRedirectSensitiveValues {
     pub email: Option<Email>,
-    pub iban: Option<masking::Secret<String>>,
-    pub account_holder_name: Option<masking::Secret<String>>,
+    pub iban: Option<hyperswitch_masking::Secret<String>>,
+    pub account_holder_name: Option<hyperswitch_masking::Secret<String>>,
     pub bank_redirect_type: PaymentMethodType,
 }
 
