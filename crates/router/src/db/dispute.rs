@@ -646,7 +646,7 @@ mod tests {
                 .unwrap();
 
             let found_dispute = mockdb
-                .find_by_merchant_id_payment_id_connector_dispute_id(
+                .find_by_processor_merchant_id_payment_id_connector_dispute_id(
                     &merchant_id,
                     &common_utils::id_type::PaymentId::try_from(Cow::Borrowed("payment_1"))
                         .unwrap(),
@@ -695,7 +695,7 @@ mod tests {
                 .unwrap();
 
             let found_dispute = mockdb
-                .find_dispute_by_merchant_id_dispute_id(&merchant_id, "dispute_1")
+                .find_dispute_by_processor_merchant_id_dispute_id(&merchant_id, "dispute_1")
                 .await
                 .unwrap();
 
@@ -797,7 +797,7 @@ mod tests {
                 .unwrap();
 
             let found_disputes = mockdb
-                .find_disputes_by_merchant_id_payment_id(&merchant_id, &payment_id)
+                .find_disputes_by_processor_merchant_id_payment_id(&merchant_id, &payment_id)
                 .await
                 .unwrap();
 
