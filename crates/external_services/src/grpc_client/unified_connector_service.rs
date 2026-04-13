@@ -117,7 +117,6 @@ pub struct VaultConnectorAuth {
     pub api_secret: Secret<String>,
 }
 
-
 /// External Vault Proxy Related Metadata
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
 #[serde(untagged)]
@@ -147,7 +146,6 @@ pub struct HyperswitchVaultMetadata {
     /// Authentication data for the vault connector
     pub vault_auth_data: VaultConnectorAuth,
 }
-
 
 /// Builds a gRPC client with timeout handling
 #[macro_export]

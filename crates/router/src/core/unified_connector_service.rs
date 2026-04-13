@@ -42,8 +42,8 @@ use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 use router_env::{instrument, logger, tracing};
 use unified_connector_service_cards::CardNumber;
 use unified_connector_service_client::payments::{
-    self as payments_grpc, payment_method::PaymentMethod, CardDetails, ProxyCardDetails, ClassicReward,
-    CryptoCurrency, EVoucher, OpenBanking, PaymentServiceAuthorizeResponse,
+    self as payments_grpc, payment_method::PaymentMethod, CardDetails, ClassicReward,
+    CryptoCurrency, EVoucher, OpenBanking, PaymentServiceAuthorizeResponse, ProxyCardDetails,
 };
 
 #[cfg(feature = "v2")]
@@ -1821,7 +1821,6 @@ pub fn parse_merchant_payout_reference_id(id: &str) -> Option<id_type::PayoutRef
         })
         .ok()
 }
-
 
 #[cfg(feature = "v2")]
 pub fn build_unified_connector_service_external_vault_proxy_metadata(

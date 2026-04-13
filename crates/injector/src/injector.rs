@@ -162,10 +162,8 @@ pub mod core {
         if !headers.contains_key(crate::consts::EXTERNAL_VAULT_METADATA_HEADER) {
             return (None, None);
         }
-        let mut temp_config = injector_types::ConnectionConfig::new(
-            endpoint.to_string(),
-            http_method,
-        );
+        let mut temp_config =
+            injector_types::ConnectionConfig::new(endpoint.to_string(), http_method);
         if temp_config.extract_and_apply_vault_metadata_with_fallback(headers) {
             (temp_config.proxy_url, temp_config.ca_cert)
         } else {
@@ -211,7 +209,10 @@ pub mod core {
         reqwest::Identity::from_pem(combined_pem.as_bytes())
             .change_context(InjectorError::HttpRequestFailed)
             .inspect_err(|e| {
-                logger::error!("Failed to create identity from certificate and key: {:?}", e);
+                logger::error!(
+                    "Failed to create identity from certificate and key: {:?}",
+                    e
+                );
             })
     }
 
@@ -518,7 +519,12 @@ pub mod core {
             ),
             tag("}}"),
         )(input)?;
-        Ok((input, TokenReference { field: field.to_string() }))
+        Ok((
+            input,
+            TokenReference {
+                field: field.to_string(),
+            },
+        ))
     }
 
     fn find_all_tokens(input: &str) -> Vec<TokenReference> {
@@ -698,19 +704,14 @@ pub mod core {
             let token_replacement_start = std::time::Instant::now();
             let tokens = find_all_tokens(&template);
 
-            let result = tokens
-                .into_iter()
-                .try_fold(template, |acc, token_ref| {
-                    let token_str = match extract_field_from_vault_data(vault_data, &token_ref.field)?
-                    {
-                        Value::String(s) => s,
-                        other => serde_json::to_string(&other).unwrap_or_default(),
-                    };
-                    let pattern = format!("{{{{${}}}}}", token_ref.field);
-                    Ok::<String, error_stack::Report<InjectorError>>(
-                        acc.replace(&pattern, &token_str),
-                    )
-                })?;
+            let result = tokens.into_iter().try_fold(template, |acc, token_ref| {
+                let token_str = match extract_field_from_vault_data(vault_data, &token_ref.field)? {
+                    Value::String(s) => s,
+                    other => serde_json::to_string(&other).unwrap_or_default(),
+                };
+                let pattern = format!("{{{{${}}}}}", token_ref.field);
+                Ok::<String, error_stack::Report<InjectorError>>(acc.replace(&pattern, &token_str))
+            })?;
 
             metrics::INJECTOR_TOKEN_REPLACEMENT_TIME.record(
                 token_replacement_start.elapsed().as_secs_f64(),
@@ -779,18 +780,20 @@ pub mod core {
                 .headers
                 .clone()
                 .into_iter()
-                .map(|(k, v)| (k, hyperswitch_masking::Maskable::new_normal(v.expose().clone())))
+                .map(|(k, v)| {
+                    (
+                        k,
+                        hyperswitch_masking::Maskable::new_normal(v.expose().clone()),
+                    )
+                })
                 .collect();
 
             let method = Method::from(config.http_method);
 
             // Extract vault metadata (proxy URL + CA cert) from headers when present.
             // This is specific to the proxy path (e.g. VGS).
-            let (vault_proxy_url, vault_ca_cert) = extract_vault_metadata(
-                &config.headers,
-                &config.endpoint,
-                config.http_method,
-            );
+            let (vault_proxy_url, vault_ca_cert) =
+                extract_vault_metadata(&config.headers, &config.endpoint, config.http_method);
 
             // Vault-derived CA cert takes priority; fall back to config's own ca_cert
             let effective_ca_cert = vault_ca_cert.or_else(|| config.ca_cert.clone());
@@ -850,8 +853,7 @@ pub mod core {
                 .as_ref()
                 .ok_or_else(|| {
                     error_stack::Report::new(InjectorError::InvalidTemplate(
-                        "vault_endpoint is required for HyperswitchVault proxy request"
-                            .to_string(),
+                        "vault_endpoint is required for HyperswitchVault proxy request".to_string(),
                     ))
                 })?;
 
@@ -917,10 +919,7 @@ pub mod core {
 
             let http_request = request_builder.build();
 
-            let vault_endpoint_host = vault_url
-                .host_str()
-                .unwrap_or("unknown")
-                .to_string();
+            let vault_endpoint_host = vault_url.host_str().unwrap_or("unknown").to_string();
             metrics::INJECTOR_OUTGOING_CALLS_COUNT.add(
                 1,
                 router_env::metric_attributes!(
@@ -1135,4 +1134,3 @@ mod tests {
         );
     }
 }
-
