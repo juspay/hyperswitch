@@ -45,7 +45,7 @@ pub async fn validate_file_upload(
             let dispute = state
                 .store
                 .find_dispute_by_processor_merchant_id_dispute_id(
-                    processor.get_account().get_id(),
+                    platform.get_processor().get_account().get_id(),
                     dispute_id,
                 )
                 .await
@@ -144,7 +144,7 @@ pub async fn retrieve_file_from_connector(
             state
                 .store
                 .find_dispute_by_processor_merchant_id_dispute_id(
-                    processor.get_account().get_id(),
+                    platform.get_processor().get_account().get_id(),
                     &dispute,
                 )
                 .await
@@ -305,7 +305,7 @@ pub async fn upload_and_get_provider_provider_file_id_profile_id(
             let dispute = state
                 .store
                 .find_dispute_by_processor_merchant_id_dispute_id(
-                    processor.get_account().get_id(),
+                    platform.get_processor().get_account().get_id(),
                     &dispute_id,
                 )
                 .await

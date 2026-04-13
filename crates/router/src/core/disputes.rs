@@ -302,7 +302,7 @@ pub async fn accept_dispute(
     let dispute = state
         .store
         .find_dispute_by_processor_merchant_id_dispute_id(
-            processor.get_account().get_id(),
+            platform.get_processor().get_account().get_id(),
             &req.dispute_id,
         )
         .await
@@ -424,7 +424,7 @@ pub async fn submit_evidence(
     let dispute = state
         .store
         .find_dispute_by_processor_merchant_id_dispute_id(
-            processor.get_account().get_id(),
+            platform.get_processor().get_account().get_id(),
             &req.dispute_id,
         )
         .await
@@ -591,7 +591,7 @@ pub async fn attach_evidence(
         .ok_or(errors::ApiErrorResponse::MissingDisputeId)?;
     let dispute = db
         .find_dispute_by_processor_merchant_id_dispute_id(
-            processor.get_account().get_id(),
+            platform.get_processor().get_account().get_id(),
             &dispute_id,
         )
         .await
@@ -662,7 +662,7 @@ pub async fn retrieve_dispute_evidence(
     let dispute = state
         .store
         .find_dispute_by_processor_merchant_id_dispute_id(
-            processor.get_account().get_id(),
+            platform.get_processor().get_account().get_id(),
             &req.dispute_id,
         )
         .await
@@ -690,7 +690,7 @@ pub async fn delete_evidence(
     let dispute = state
         .store
         .find_dispute_by_processor_merchant_id_dispute_id(
-            processor.get_account().get_id(),
+            platform.get_processor().get_account().get_id(),
             &dispute_id,
         )
         .await
