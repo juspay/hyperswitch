@@ -276,6 +276,9 @@ pub struct SetupIntentRequest {
     pub browser_info: Option<StripeBrowserInformation>,
     #[serde(rename = "payment_method_options[card][moto]")]
     pub moto: Option<bool>,
+    /// The Stripe account ID that these funds are intended for
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub on_behalf_of: Option<String>,
 }
 
 #[derive(Debug, Eq, PartialEq, Serialize)]
@@ -1945,7 +1948,7 @@ impl TryFrom<(&PaymentsAuthorizeRouterData, MinorUnit)> for PaymentIntentRequest
                 _ => None,
             });
 
-        let (transfer_account_id, charge_type) = if let Some(secret_value) =
+        let (transfer_account_id, charge_type, mandate_on_behalf_of) = if let Some(secret_value) =
             mandate_metadata.as_ref().and_then(|s| s.as_ref())
         {
             let json_value = secret_value.clone().expose();
@@ -1953,11 +1956,11 @@ impl TryFrom<(&PaymentsAuthorizeRouterData, MinorUnit)> for PaymentIntentRequest
             let parsed: Result<StripeSplitPaymentRequest, _> = serde_json::from_value(json_value);
 
             match parsed {
-                Ok(data) => (data.transfer_account_id, data.charge_type),
-                Err(_) => (None, None),
+                Ok(data) => (data.transfer_account_id, data.charge_type, data.on_behalf_of),
+                Err(_) => (None, None, None),
             }
         } else {
-            (None, None)
+            (None, None, None)
         };
 
         let payment_method_token = match (
@@ -2322,7 +2325,7 @@ impl TryFrom<(&PaymentsAuthorizeRouterData, MinorUnit)> for PaymentIntentRequest
             Some(SplitPaymentsRequest::StripeSplitPayment(stripe_split_payment)) => {
                 stripe_split_payment.on_behalf_of.clone()
             }
-            _ => None,
+            _ => mandate_on_behalf_of,
         };
 
         let pm = match (payment_method, payment_method_token.clone()) {
@@ -2480,6 +2483,13 @@ impl TryFrom<&SetupMandateRouterData> for SetupIntentRequest {
             _ => item.request.setup_future_usage,
         };
 
+        let on_behalf_of = match &item.request.split_payments {
+            Some(SplitPaymentsRequest::StripeSplitPayment(stripe_split_payment)) => {
+                stripe_split_payment.on_behalf_of.clone()
+            }
+            _ => None,
+        };
+
         Ok(Self {
             confirm: true,
             payment_data,
@@ -2493,6 +2503,7 @@ impl TryFrom<&SetupMandateRouterData> for SetupIntentRequest {
             expand: Some(ExpandableObjects::LatestAttempt),
             browser_info,
             moto: is_moto,
+            on_behalf_of,
         })
     }
 }
@@ -2564,6 +2575,7 @@ pub struct StripeSplitPaymentRequest {
     pub charge_type: Option<PaymentChargeType>,
     pub application_fees: Option<MinorUnit>,
     pub transfer_account_id: Option<String>,
+    pub on_behalf_of: Option<String>,
 }
 
 pub fn get_stripe_compatible_connect_account_header(
@@ -2605,8 +2617,9 @@ pub fn get_stripe_compatible_connect_account_header(
             if cit_metadata.charge_type != Some(split_payment_object.charge_type.clone())
                 || cit_metadata.transfer_account_id
                     != Some(split_payment_object.transfer_account_id.clone())
+                || cit_metadata.on_behalf_of != split_payment_object.on_behalf_of.clone()
             {
-                let mismatched_fields = ["transfer_account_id", "charge_type"];
+                let mismatched_fields = ["transfer_account_id", "charge_type", "on_behalf_of"];
 
                 let field_str = mismatched_fields.join(", ");
                 return Err(error_stack::Report::from(
@@ -3190,6 +3203,7 @@ where
                             "transfer_account_id": stripe_split_data.transfer_account_id,
                             "charge_type": stripe_split_data.charge_type,
                             "application_fees": stripe_split_data.application_fees,
+                            "on_behalf_of": stripe_split_data.on_behalf_of,
                         })))
                     }
                     _ => None,
@@ -3626,6 +3640,7 @@ where
                             "transfer_account_id": stripe_split_data.transfer_account_id,
                             "charge_type": stripe_split_data.charge_type,
                             "application_fees": stripe_split_data.application_fees,
+                            "on_behalf_of": stripe_split_data.on_behalf_of,
                         })))
                     }
                     _ => None,
