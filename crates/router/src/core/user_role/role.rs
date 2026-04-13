@@ -1,7 +1,7 @@
 use std::{cmp, collections::HashSet, ops::Not};
 
 use api_models::user_role::role as role_api;
-use common_enums::{EntityType, ParentGroup, PermissionGroup};
+use common_enums::{EntityType, MerchantProductType, ParentGroup, PermissionGroup};
 use common_utils::generate_id_with_default_len;
 use diesel_models::role::{ListRolesByEntityPayload, RoleNew, RoleUpdate};
 use error_stack::{report, ResultExt};
@@ -132,7 +132,9 @@ pub async fn create_role(
         .await
         .to_not_found_response(UserErrors::MerchantIdNotFound)?;
 
-    let merchant_product_type = merchant_account.product_type.unwrap_or_default();
+    let merchant_product_type = merchant_account
+        .product_type
+        .unwrap_or(MerchantProductType::Orchestration);
 
     utils::user_role::validate_role_groups(
         &req.groups,
@@ -259,7 +261,9 @@ pub async fn create_role_v2(
         .await
         .to_not_found_response(UserErrors::MerchantIdNotFound)?;
 
-    let merchant_product_type = merchant_account.product_type.unwrap_or_default();
+    let merchant_product_type = merchant_account
+        .product_type
+        .unwrap_or(MerchantProductType::Orchestration);
 
     utils::user_role::validate_role_groups(
         &permission_groups,
@@ -511,7 +515,11 @@ pub async fn update_role(
                     .await
                     .to_not_found_response(UserErrors::MerchantIdNotFound)?;
 
-                Some(merchant_account.product_type.unwrap_or_default())
+                Some(
+                    merchant_account
+                        .product_type
+                        .unwrap_or(MerchantProductType::Orchestration),
+                )
             }
         };
 
@@ -780,7 +788,11 @@ pub async fn list_roles_at_entity_level(
                     &merchant_key_store,
                 )
                 .await
-                .map(|merchant_account| merchant_account.product_type.unwrap_or_default())
+                .map(|merchant_account| {
+                    merchant_account
+                        .product_type
+                        .unwrap_or(MerchantProductType::Orchestration)
+                })
                 .to_not_found_response(UserErrors::MerchantIdNotFound)?;
             role_info_vec.retain(|role_info| role_info.get_merchant_product_type() == product_type);
         }

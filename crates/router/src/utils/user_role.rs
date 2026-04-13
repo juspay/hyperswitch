@@ -48,7 +48,7 @@ pub fn validate_role_groups(
     }
 
     if let Some(product_type) = merchant_product_type {
-        if groups.iter().any(|group| {
+        if !groups.iter().all(|group| {
             let role_product_category = group.get_role_product_category();
             match role_product_category {
                 RoleProductCategory::Dashboard => true,

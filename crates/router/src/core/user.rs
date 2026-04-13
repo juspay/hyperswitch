@@ -7,7 +7,7 @@ use api_models::{
     payments::RedirectionResponse,
     user::{self as user_api, InviteMultipleUserResponse, NameIdUnit},
 };
-use common_enums::{connector_enums, EntityType, UserAuthType};
+use common_enums::{connector_enums, EntityType, MerchantProductType, UserAuthType};
 use common_utils::{
     fp_utils, type_name,
     types::{keymanager::Identifier, user::LineageContext},
@@ -758,7 +758,10 @@ async fn handle_invitation(
                     &merchant_key_store,
                 )
                 .await
-                .map(|acc| acc.product_type.unwrap_or_default())
+                .map(|acc| {
+                    acc.product_type
+                        .unwrap_or(MerchantProductType::Orchestration)
+                })
                 .to_not_found_response(UserErrors::MerchantIdNotFound)?;
             if req_role_info.get_merchant_product_type() != merchant_product_type {
                 Err(report!(UserErrors::InvalidRoleId)).attach_printable(format!(

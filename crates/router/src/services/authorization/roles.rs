@@ -181,7 +181,9 @@ impl From<diesel_models::role::Role> for RoleInfo {
             is_deletable: true,
             is_updatable: true,
             is_internal: false,
-            merchant_product_type: role.merchant_product_type.unwrap_or_default(),
+            merchant_product_type: role
+                .merchant_product_type
+                .unwrap_or(MerchantProductType::Orchestration),
         }
     }
 }
