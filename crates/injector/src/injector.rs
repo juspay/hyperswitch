@@ -11,7 +11,7 @@ pub mod core {
         sequence::{delimited, preceded, terminated},
         IResult,
     };
-    use router_env::{instrument, logger, tracing};
+    use router_env::{instrument, logger};
     use serde_json::Value;
     use thiserror::Error;
 
@@ -59,7 +59,29 @@ pub mod core {
         }
     }
 
-    /// Create HTTP client using the proven external_services create_client logic
+    impl Proxy {
+        /// Builds a `Proxy` from an optional proxy URL secret, applying it to both HTTP and
+        /// HTTPS slots. Returns `Proxy::default()` when `proxy_url` is `None`.
+        fn from_optional_url(proxy_url: Option<hyperswitch_masking::Secret<String>>) -> Self {
+            match proxy_url {
+                Some(url) => {
+                    let url_str = url.expose();
+                    Self {
+                        http_url: Some(url_str.clone()),
+                        https_url: Some(url_str),
+                        idle_pool_connection_timeout: Some(90),
+                        bypass_proxy_hosts: None,
+                    }
+                }
+                None => Self::default(),
+            }
+        }
+    }
+
+    // ---------------------------------------------------------------------------
+    // TLS / HTTP client helpers
+    // ---------------------------------------------------------------------------
+
     fn create_client(
         proxy_config: &Proxy,
         client_certificate: Option<hyperswitch_masking::Secret<String>>,
@@ -73,27 +95,22 @@ pub mod core {
             "Creating HTTP client"
         );
 
-        // Case 1: Mutual TLS with client certificate and key
+        // Case 1: Mutual TLS
         if let (Some(encoded_certificate), Some(encoded_certificate_key)) =
             (client_certificate.clone(), client_certificate_key.clone())
         {
             if ca_certificate.is_some() {
                 logger::warn!("All of client certificate, client key, and CA certificate are provided. CA certificate will be ignored in mutual TLS setup.");
             }
-
             let client_builder = get_client_builder(proxy_config)?;
-
             let identity = create_identity_from_certificate_and_key(
                 encoded_certificate.clone(),
                 encoded_certificate_key,
             )?;
-
             let certificate_list = create_certificate(encoded_certificate)?;
             let client_builder = certificate_list
                 .into_iter()
-                .fold(client_builder, |client_builder, certificate| {
-                    client_builder.add_root_certificate(certificate)
-                });
+                .fold(client_builder, |cb, cert| cb.add_root_certificate(cert));
             return client_builder
                 .identity(identity)
                 .use_rustls_tls()
@@ -107,9 +124,9 @@ pub mod core {
                 });
         }
 
-        // Case 2: Use provided CA certificate for server authentication only (one-way TLS)
+        // Case 2: One-way TLS with CA cert
         if let Some(ca_pem) = ca_certificate {
-            let pem = ca_pem.expose().replace("\\r\\n", "\n"); // Fix escaped newlines
+            let pem = ca_pem.expose().replace("\\r\\n", "\n");
             let cert = reqwest::Certificate::from_pem(pem.as_bytes())
                 .change_context(InjectorError::HttpRequestFailed)
                 .inspect_err(|e| {
@@ -125,48 +142,63 @@ pub mod core {
                 });
         }
 
-        // Case 3: Default client (no certs)
-        get_base_client(proxy_config)
+        // Case 3: Default (no certs)
+        get_client_builder(proxy_config)?
+            .build()
+            .change_context(InjectorError::HttpRequestFailed)
+            .inspect_err(|e| logger::error!("Failed to build default HTTP client: {:?}", e))
     }
 
-    /// Helper functions from external_services
+    /// Extracts vault proxy URL and CA cert from headers when the vault-metadata header is present.
+    /// Returns `(proxy_url, ca_cert)` — both `None` when the header is absent or extraction fails.
+    fn extract_vault_metadata(
+        headers: &HashMap<String, hyperswitch_masking::Secret<String>>,
+        endpoint: &str,
+        http_method: injector_types::HttpMethod,
+    ) -> (
+        Option<hyperswitch_masking::Secret<String>>,
+        Option<hyperswitch_masking::Secret<String>>,
+    ) {
+        if !headers.contains_key(crate::consts::EXTERNAL_VAULT_METADATA_HEADER) {
+            return (None, None);
+        }
+        let mut temp_config = injector_types::ConnectionConfig::new(
+            endpoint.to_string(),
+            http_method,
+        );
+        if temp_config.extract_and_apply_vault_metadata_with_fallback(headers) {
+            (temp_config.proxy_url, temp_config.ca_cert)
+        } else {
+            (None, None)
+        }
+    }
+
     fn get_client_builder(
         proxy_config: &Proxy,
     ) -> error_stack::Result<reqwest::ClientBuilder, InjectorError> {
-        let mut client_builder = reqwest::Client::builder();
+        let add_proxy = |builder: reqwest::ClientBuilder,
+                         proxy: error_stack::Result<reqwest::Proxy, InjectorError>|
+         -> error_stack::Result<reqwest::ClientBuilder, InjectorError> {
+            Ok(builder.proxy(proxy?))
+        };
 
-        // Configure proxy if provided
-        if let Some(proxy_url) = &proxy_config.https_url {
-            let proxy = reqwest::Proxy::https(proxy_url)
+        let mut builder = reqwest::Client::builder();
+
+        if let Some(url) = &proxy_config.https_url {
+            let proxy = reqwest::Proxy::https(url)
                 .change_context(InjectorError::HttpRequestFailed)
-                .inspect_err(|e| {
-                    logger::error!("Failed to configure HTTPS proxy: {:?}", e);
-                })?;
-            client_builder = client_builder.proxy(proxy);
+                .inspect_err(|e| logger::error!("Failed to configure HTTPS proxy: {:?}", e))?;
+            builder = add_proxy(builder, Ok(proxy))?;
         }
 
-        if let Some(proxy_url) = &proxy_config.http_url {
-            let proxy = reqwest::Proxy::http(proxy_url)
+        if let Some(url) = &proxy_config.http_url {
+            let proxy = reqwest::Proxy::http(url)
                 .change_context(InjectorError::HttpRequestFailed)
-                .inspect_err(|e| {
-                    logger::error!("Failed to configure HTTP proxy: {:?}", e);
-                })?;
-            client_builder = client_builder.proxy(proxy);
+                .inspect_err(|e| logger::error!("Failed to configure HTTP proxy: {:?}", e))?;
+            builder = add_proxy(builder, Ok(proxy))?;
         }
 
-        Ok(client_builder)
-    }
-
-    fn get_base_client(
-        proxy_config: &Proxy,
-    ) -> error_stack::Result<reqwest::Client, InjectorError> {
-        let client_builder = get_client_builder(proxy_config)?;
-        client_builder
-            .build()
-            .change_context(InjectorError::HttpRequestFailed)
-            .inspect_err(|e| {
-                logger::error!("Failed to build default HTTP client: {:?}", e);
-            })
+        Ok(builder)
     }
 
     fn create_identity_from_certificate_and_key(
@@ -175,15 +207,11 @@ pub mod core {
     ) -> error_stack::Result<reqwest::Identity, InjectorError> {
         let cert_str = encoded_certificate.expose();
         let key_str = encoded_certificate_key.expose();
-
         let combined_pem = format!("{cert_str}\n{key_str}");
         reqwest::Identity::from_pem(combined_pem.as_bytes())
             .change_context(InjectorError::HttpRequestFailed)
             .inspect_err(|e| {
-                logger::error!(
-                    "Failed to create identity from certificate and key: {:?}",
-                    e
-                );
+                logger::error!("Failed to create identity from certificate and key: {:?}", e);
             })
     }
 
@@ -191,64 +219,49 @@ pub mod core {
         encoded_certificate: hyperswitch_masking::Secret<String>,
     ) -> error_stack::Result<Vec<reqwest::Certificate>, InjectorError> {
         let cert_str = encoded_certificate.expose();
-
         let cert = reqwest::Certificate::from_pem(cert_str.as_bytes())
             .change_context(InjectorError::HttpRequestFailed)
-            .inspect_err(|e| {
-                logger::error!("Failed to create certificate from PEM: {:?}", e);
-            })?;
+            .inspect_err(|e| logger::error!("Failed to create certificate from PEM: {:?}", e))?;
         Ok(vec![cert])
     }
 
-    /// Generic function to log HTTP request errors with detailed error type information
     fn log_and_convert_http_error(e: reqwest::Error, context: &str) -> InjectorError {
-        let error_msg = e.to_string();
-        logger::error!("HTTP request failed in {}: {}", context, error_msg);
-
-        // Log specific error types for debugging
-        if e.is_timeout() {
-            logger::error!("Request timed out in {}", context);
-        }
-        if e.is_connect() {
-            logger::error!("Connection error occurred in {}", context);
-        }
-        if e.is_request() {
-            logger::error!("Request construction error in {}", context);
-        }
-        if e.is_decode() {
-            logger::error!("Response decoding error in {}", context);
-        }
-
+        logger::error!(
+            context = context,
+            is_timeout = e.is_timeout(),
+            is_connect = e.is_connect(),
+            is_request = e.is_request(),
+            is_decode = e.is_decode(),
+            "HTTP request failed: {}",
+            e
+        );
         InjectorError::HttpRequestFailed
     }
 
-    /// Apply certificate configuration to request builder and return built request
+    /// Attaches individual certificate values onto a [`RequestBuilder`] and returns the built
+    /// request. Accepts cert fields directly so callers do not need to clone the whole config.
     fn build_request_with_certificates(
         mut request_builder: RequestBuilder,
-        config: &injector_types::ConnectionConfig,
+        client_cert: Option<hyperswitch_masking::Secret<String>>,
+        client_key: Option<hyperswitch_masking::Secret<String>>,
+        ca_cert: Option<hyperswitch_masking::Secret<String>>,
     ) -> common_utils::request::Request {
-        // Add certificate configuration if provided
-        if let Some(cert_content) = &config.client_cert {
-            request_builder = request_builder.add_certificate(Some(cert_content.clone()));
+        if let Some(cert) = client_cert {
+            request_builder = request_builder.add_certificate(Some(cert));
         }
-
-        if let Some(key_content) = &config.client_key {
-            request_builder = request_builder.add_certificate_key(Some(key_content.clone()));
+        if let Some(key) = client_key {
+            request_builder = request_builder.add_certificate_key(Some(key));
         }
-
-        if let Some(ca_content) = &config.ca_cert {
-            request_builder = request_builder.add_ca_certificate_pem(Some(ca_content.clone()));
+        if let Some(ca) = ca_cert {
+            request_builder = request_builder.add_ca_certificate_pem(Some(ca));
         }
-
         request_builder.build()
     }
 
-    /// Simplified HTTP client for injector using the proven external_services create_client logic
     #[instrument(skip_all)]
     pub async fn send_request(
         client_proxy: &Proxy,
         request: common_utils::request::Request,
-        _option_timeout_secs: Option<u64>,
     ) -> error_stack::Result<reqwest::Response, InjectorError> {
         logger::info!(
             has_client_cert = request.certificate.is_some(),
@@ -317,6 +330,10 @@ pub mod core {
         Ok(response)
     }
 
+    // ---------------------------------------------------------------------------
+    // Error type
+    // ---------------------------------------------------------------------------
+
     #[derive(Error, Debug)]
     pub enum InjectorError {
         #[error("Token replacement failed: {0}")]
@@ -329,63 +346,163 @@ pub mod core {
         InvalidTemplate(String),
     }
 
-    #[instrument(skip_all)]
-    pub async fn injector_core(
-        request: InjectorRequest,
-    ) -> error_stack::Result<InjectorResponse, InjectorError> {
-        let start_time = std::time::Instant::now();
-        logger::info!("Starting injector_core processing");
+    // ---------------------------------------------------------------------------
+    // VaultConnectorStrategy trait
+    //
+    // Each vault connector variant implements this trait to encapsulate both:
+    //   1. how to process the payload template (interpolate vs. keep placeholders)
+    //   2. how to route the processed payload (direct HTTP vs. vault proxy)
+    //
+    // Adding a new vault connector only requires implementing this trait; the
+    // orchestration in `Injector::run` never needs to change.
+    // ---------------------------------------------------------------------------
 
-        // Extract values for metrics before moving request
-        let vault_connector_str = format!("{:?}", request.connection_config.vault_connector_id);
-        let http_method_str = format!("{:?}", request.connection_config.http_method);
+    #[async_trait]
+    trait VaultConnectorStrategy: Send + Sync {
+        /// Transform the raw template into a payload ready for the HTTP call.
+        ///
+        /// - **Proxy** (e.g. VGS): interpolate `{{$field}}` with token aliases so the
+        ///   forward proxy can detokenize them on the wire.
+        /// - **Transformation** (e.g. HyperswitchVault): return the template unchanged;
+        ///   the vault resolves placeholders downstream.
+        fn process_payload(
+            &self,
+            injector: &Injector,
+            template: String,
+            vault_data: &Value,
+        ) -> error_stack::Result<String, InjectorError>;
 
-        // Track total number of invocations with vault connector dimension
-        metrics::INJECTOR_INVOCATIONS_COUNT.add(
-            1,
-            router_env::metric_attributes!(("vault_connector", vault_connector_str.clone())),
-        );
-
-        // Extract endpoint host for dimension (privacy-friendly)
-        let endpoint_host = request
-            .connection_config
-            .endpoint
-            .parse::<url::Url>()
-            .map(|url| url.host_str().unwrap_or("unknown").to_string())
-            .unwrap_or_else(|_| "invalid_url".to_string());
-
-        let injector = Injector::new();
-        let result = injector.injector_core(request).await;
-
-        // Record total request time and track success/failure
-        let request_duration = start_time.elapsed();
-
-        let base_attributes = router_env::metric_attributes!(
-            ("vault_connector", vault_connector_str.clone()),
-            ("http_method", http_method_str.clone()),
-            ("endpoint_host", endpoint_host.clone())
-        );
-
-        metrics::INJECTOR_REQUEST_TIME.record(request_duration.as_secs_f64(), base_attributes);
-
-        // Track success/failure metrics
-        result.inspect_err(|e| {
-            logger::error!("Injector core failed: {:?}", e);
-            metrics::INJECTOR_FAILED_TOKEN_REPLACEMENTS_COUNT.add(1, base_attributes);
-        })
+        /// Send the processed payload and return the connector response.
+        async fn send(
+            &self,
+            injector: &Injector,
+            request: &InjectorRequest,
+            processed_payload: &str,
+            content_type: &ContentType,
+        ) -> error_stack::Result<InjectorResponse, InjectorError>;
     }
 
-    /// Represents a token reference found in a template string
+    // ---- VGS / Proxy strategy --------------------------------------------------
+
+    struct ProxyStrategy;
+
+    #[async_trait]
+    impl VaultConnectorStrategy for ProxyStrategy {
+        fn process_payload(
+            &self,
+            injector: &Injector,
+            template: String,
+            vault_data: &Value,
+        ) -> error_stack::Result<String, InjectorError> {
+            logger::debug!("Proxy vault: interpolating template with token aliases");
+            injector.interpolate_string_template_with_vault_data(template, vault_data)
+        }
+
+        async fn send(
+            &self,
+            injector: &Injector,
+            request: &InjectorRequest,
+            processed_payload: &str,
+            content_type: &ContentType,
+        ) -> error_stack::Result<InjectorResponse, InjectorError> {
+            injector
+                .make_http_request(&request.connection_config, processed_payload, content_type)
+                .await
+        }
+    }
+
+    // ---- HyperswitchVault / Transformation strategy ----------------------------
+
+    struct HyperswitchVaultStrategy;
+
+    #[async_trait]
+    impl VaultConnectorStrategy for HyperswitchVaultStrategy {
+        fn process_payload(
+            &self,
+            _injector: &Injector,
+            template: String,
+            _vault_data: &Value,
+        ) -> error_stack::Result<String, InjectorError> {
+            logger::debug!(
+                "HyperswitchVault transformation: skipping interpolation, keeping placeholders"
+            );
+            Ok(template)
+        }
+
+        async fn send(
+            &self,
+            injector: &Injector,
+            request: &InjectorRequest,
+            processed_payload: &str,
+            _content_type: &ContentType,
+        ) -> error_stack::Result<InjectorResponse, InjectorError> {
+            logger::debug!("Routing request through HyperswitchVault proxy");
+            injector
+                .make_hyperswitch_vault_request(request, processed_payload)
+                .await
+        }
+    }
+
+    // ---- Fallback strategy for unknown Transformation connectors ---------------
+
+    struct FallbackTransformationStrategy;
+
+    #[async_trait]
+    impl VaultConnectorStrategy for FallbackTransformationStrategy {
+        fn process_payload(
+            &self,
+            _injector: &Injector,
+            template: String,
+            _vault_data: &Value,
+        ) -> error_stack::Result<String, InjectorError> {
+            logger::debug!(
+                "Transformation vault (non-HyperswitchVault): no transformation implemented yet, keeping placeholders"
+            );
+            Ok(template)
+        }
+
+        async fn send(
+            &self,
+            injector: &Injector,
+            request: &InjectorRequest,
+            processed_payload: &str,
+            content_type: &ContentType,
+        ) -> error_stack::Result<InjectorResponse, InjectorError> {
+            logger::debug!(
+                "Transformation vault (non-HyperswitchVault): falling back to direct HTTP request"
+            );
+            injector
+                .make_http_request(&request.connection_config, processed_payload, content_type)
+                .await
+        }
+    }
+
+    /// Returns the [`VaultConnectorStrategy`] appropriate for the given request.
+    fn strategy_for(request: &InjectorRequest) -> Box<dyn VaultConnectorStrategy> {
+        match (
+            &request.connection_config.vault_connector_type,
+            &request.connection_config.vault_connector_id,
+        ) {
+            (
+                Some(injector_types::VaultConnectorType::Transformation),
+                Some(injector_types::VaultConnectors::HyperswitchVault),
+            ) => Box::new(HyperswitchVaultStrategy),
+            (Some(injector_types::VaultConnectorType::Transformation), _) => {
+                Box::new(FallbackTransformationStrategy)
+            }
+            _ => Box::new(ProxyStrategy),
+        }
+    }
+
+    // ---------------------------------------------------------------------------
+    // Token parsing helpers
+    // ---------------------------------------------------------------------------
+
     #[derive(Debug)]
     struct TokenReference {
-        /// The field name to be replaced (without the {{$}} wrapper)
         pub field: String,
     }
 
-    /// Parses a single token reference from a string using nom parser combinators
-    ///
-    /// Expects tokens in the format `{{$field_name}}` where field_name contains
-    /// only alphanumeric characters and underscores.
     fn parse_token(input: &str) -> IResult<&str, TokenReference> {
         let (input, field) = delimited(
             tag("{{"),
@@ -401,18 +518,9 @@ pub mod core {
             ),
             tag("}}"),
         )(input)?;
-        Ok((
-            input,
-            TokenReference {
-                field: field.to_string(),
-            },
-        ))
+        Ok((input, TokenReference { field: field.to_string() }))
     }
 
-    /// Finds all token references in a string using nom parser
-    ///
-    /// Scans through the entire input string and extracts all valid token references.
-    /// Returns a vector of TokenReference structs containing the field names.
     fn find_all_tokens(input: &str) -> Vec<TokenReference> {
         let mut tokens = Vec::new();
         let mut current_input = input;
@@ -421,23 +529,16 @@ pub mod core {
             if let Ok((remaining, token_ref)) = parse_token(current_input) {
                 tokens.push(token_ref);
                 current_input = remaining;
+            } else if let Some((_, rest)) = current_input.split_at_checked(1) {
+                current_input = rest;
             } else {
-                // Move forward one character if no token found
-                if let Some((_, rest)) = current_input.split_at_checked(1) {
-                    current_input = rest;
-                } else {
-                    break;
-                }
+                break;
             }
         }
 
         tokens
     }
 
-    /// Recursively searches for a field in vault data JSON structure
-    ///
-    /// Performs a depth-first search through the JSON object hierarchy to find
-    /// a field with the specified name. Returns the first matching value found.
     fn find_field_recursively_in_vault_data(
         obj: &serde_json::Map<String, Value>,
         field_name: &str,
@@ -455,13 +556,57 @@ pub mod core {
         })
     }
 
-    #[async_trait]
-    trait TokenInjector {
-        async fn injector_core(
-            &self,
-            request: InjectorRequest,
-        ) -> error_stack::Result<InjectorResponse, InjectorError>;
+    // ---------------------------------------------------------------------------
+    // Public entry point
+    // ---------------------------------------------------------------------------
+
+    #[instrument(skip_all)]
+    pub async fn injector_core(
+        request: InjectorRequest,
+    ) -> error_stack::Result<InjectorResponse, InjectorError> {
+        let start_time = std::time::Instant::now();
+        logger::info!("Starting injector_core processing");
+
+        // Capture metric dimensions before moving `request`
+        let vault_connector_str = request.connection_config.vault_connector_metric_str();
+        let http_method_str = request.connection_config.http_method.as_metric_str();
+        let endpoint_host = request.connection_config.endpoint_host();
+
+        metrics::INJECTOR_INVOCATIONS_COUNT.add(
+            1,
+            router_env::metric_attributes!(("vault_connector", vault_connector_str)),
+        );
+
+        let injector = Injector::new();
+        let result = injector.injector_core(request).await;
+
+        let request_duration = start_time.elapsed();
+
+        metrics::INJECTOR_REQUEST_TIME.record(
+            request_duration.as_secs_f64(),
+            router_env::metric_attributes!(
+                ("vault_connector", vault_connector_str),
+                ("http_method", http_method_str),
+                ("endpoint_host", endpoint_host.clone())
+            ),
+        );
+
+        result.inspect_err(|e| {
+            logger::error!("Injector core failed: {:?}", e);
+            metrics::INJECTOR_FAILED_TOKEN_REPLACEMENTS_COUNT.add(
+                1,
+                router_env::metric_attributes!(
+                    ("vault_connector", vault_connector_str),
+                    ("http_method", http_method_str),
+                    ("endpoint_host", endpoint_host)
+                ),
+            );
+        })
     }
+
+    // ---------------------------------------------------------------------------
+    // Injector struct
+    // ---------------------------------------------------------------------------
 
     pub struct Injector;
 
@@ -470,8 +615,80 @@ pub mod core {
             Self
         }
 
-        /// Processes a string template by replacing {{$field_name}} placeholders with
-        /// corresponding values from vault data (token aliases).
+        /// Top-level orchestration: select strategy -> process payload -> send -> record metrics.
+        #[instrument(skip_all)]
+        async fn injector_core(
+            &self,
+            request: InjectorRequest,
+        ) -> error_stack::Result<InjectorResponse, InjectorError> {
+            let start_time = std::time::Instant::now();
+
+            let vault_data = request.token_data.specific_token_data.clone().expose();
+
+            logger::debug!(
+                template_length = request.connector_payload.template.len(),
+                vault_connector_type = ?request.connection_config.vault_connector_type,
+                "Processing token injection request"
+            );
+
+            let strategy = strategy_for(&request);
+
+            // Step 1: process the template
+            let processed_payload = strategy.process_payload(
+                self,
+                request.connector_payload.template.clone(),
+                &vault_data,
+            )?;
+
+            logger::debug!(
+                processed_payload_length = processed_payload.len(),
+                "Token replacement completed"
+            );
+
+            // Step 2: determine content-type from headers
+            let content_type = request
+                .connection_config
+                .headers
+                .get("Content-Type")
+                .map(|ct| ContentType::from_header_value(&ct.clone().expose()))
+                .unwrap_or(ContentType::ApplicationXWwwFormUrlencoded);
+
+            // Step 3: send via the strategy
+            let response = strategy
+                .send(self, &request, &processed_payload, &content_type)
+                .await?;
+
+            let elapsed = start_time.elapsed();
+            logger::info!(
+                duration_ms = elapsed.as_millis(),
+                status_code = response.status_code,
+                response_size = serde_json::to_string(&response.response)
+                    .map(|s| s.len())
+                    .unwrap_or(0),
+                headers_count = response.headers.as_ref().map(|h| h.len()).unwrap_or(0),
+                "Token injection completed successfully"
+            );
+
+            metrics::INJECTOR_SUCCESSFUL_TOKEN_REPLACEMENTS_COUNT.add(
+                1,
+                router_env::metric_attributes!(
+                    ("status_code", response.status_code.to_string()),
+                    (
+                        "vault_connector",
+                        request.connection_config.vault_connector_metric_str()
+                    ),
+                    (
+                        "http_method",
+                        request.connection_config.http_method.as_metric_str()
+                    ),
+                    ("endpoint_host", request.connection_config.endpoint_host())
+                ),
+            );
+
+            Ok(response)
+        }
+
+        /// Replaces `{{$field_name}}` placeholders in `template` with values from `vault_data`.
         #[instrument(skip_all)]
         pub(crate) fn interpolate_string_template_with_vault_data(
             &self,
@@ -479,82 +696,60 @@ pub mod core {
             vault_data: &Value,
         ) -> error_stack::Result<String, InjectorError> {
             let token_replacement_start = std::time::Instant::now();
-            // Find all tokens using nom parser
             let tokens = find_all_tokens(&template);
-            let mut result = template;
 
-            for token_ref in tokens.into_iter() {
-                let extracted_field_value =
-                    self.extract_field_from_vault_data(vault_data, &token_ref.field)?;
-                let token_str = match extracted_field_value {
-                    Value::String(token_value) => token_value,
-                    _ => serde_json::to_string(&extracted_field_value).unwrap_or_default(),
-                };
+            let result = tokens
+                .into_iter()
+                .try_fold(template, |acc, token_ref| {
+                    let token_str = match extract_field_from_vault_data(vault_data, &token_ref.field)?
+                    {
+                        Value::String(s) => s,
+                        other => serde_json::to_string(&other).unwrap_or_default(),
+                    };
+                    let pattern = format!("{{{{${}}}}}", token_ref.field);
+                    Ok::<String, error_stack::Report<InjectorError>>(
+                        acc.replace(&pattern, &token_str),
+                    )
+                })?;
 
-                // Replace the token in the result string
-                let token_pattern = format!("{{{{${}}}}}", token_ref.field);
-                result = result.replace(&token_pattern, &token_str);
-            }
-
-            // Record token replacement time
-            let token_replacement_duration = token_replacement_start.elapsed();
             metrics::INJECTOR_TOKEN_REPLACEMENT_TIME.record(
-                token_replacement_duration.as_secs_f64(),
+                token_replacement_start.elapsed().as_secs_f64(),
                 router_env::metric_attributes!(("operation", "interpolation")),
             );
 
             Ok(result)
         }
 
-        #[instrument(skip_all)]
-        fn interpolate_token_references_with_vault_data(
-            &self,
-            value: Value,
-            vault_data: &Value,
-        ) -> error_stack::Result<Value, InjectorError> {
-            match value {
-                Value::Object(obj) => {
-                    let new_obj = obj
-                        .into_iter()
-                        .map(|(key, val)| {
-                            self.interpolate_token_references_with_vault_data(val, vault_data)
-                                .map(|processed| (key, processed))
-                        })
-                        .collect::<error_stack::Result<serde_json::Map<_, _>, InjectorError>>()?;
-                    Ok(Value::Object(new_obj))
+        /// Builds a [`RequestContent`] from a raw payload string and a content type.
+        fn build_request_content(payload: &str, content_type: ContentType) -> RequestContent {
+            match content_type {
+                ContentType::ApplicationJson => match serde_json::from_str::<Value>(payload) {
+                    Ok(json) => RequestContent::Json(Box::new(json)),
+                    Err(e) => {
+                        logger::debug!(
+                            "Failed to parse payload as JSON: {}, falling back to raw bytes",
+                            e
+                        );
+                        RequestContent::RawBytes(payload.as_bytes().to_vec())
+                    }
+                },
+                ContentType::ApplicationXWwwFormUrlencoded => {
+                    let form_data: HashMap<String, String> =
+                        url::form_urlencoded::parse(payload.as_bytes())
+                            .into_owned()
+                            .collect();
+                    RequestContent::FormUrlEncoded(Box::new(form_data))
                 }
-                Value::String(s) => {
-                    let processed_string =
-                        self.interpolate_string_template_with_vault_data(s, vault_data)?;
-                    Ok(Value::String(processed_string))
+                ContentType::ApplicationXml | ContentType::TextXml | ContentType::TextPlain => {
+                    RequestContent::RawBytes(payload.as_bytes().to_vec())
                 }
-                _ => Ok(value),
             }
         }
 
-        #[instrument(skip_all)]
-        fn extract_field_from_vault_data(
-            &self,
-            vault_data: &Value,
-            field_name: &str,
-        ) -> error_stack::Result<Value, InjectorError> {
-            logger::debug!("Extracting field '{}' from vault data", field_name,);
-
-            match vault_data {
-                Value::Object(obj) => find_field_recursively_in_vault_data(obj, field_name)
-                    .ok_or_else(|| {
-                        error_stack::Report::new(InjectorError::TokenReplacementFailed(format!(
-                            "Field '{field_name}' not found"
-                        )))
-                    }),
-                _ => Err(error_stack::Report::new(
-                    InjectorError::TokenReplacementFailed(
-                        "Vault data is not a valid JSON object".to_string(),
-                    ),
-                )),
-            }
-        }
-
+        /// Sends the processed payload directly to the connector endpoint.
+        ///
+        /// Vault-metadata extraction (proxy URL + CA cert) is scoped here — it is only
+        /// relevant for the proxy path (e.g. VGS).
         #[instrument(skip_all)]
         async fn make_http_request(
             &self,
@@ -570,15 +765,7 @@ pub mod core {
                 headers_count = config.headers.len(),
                 "Making HTTP request to connector"
             );
-            // Validate inputs first
-            if config.endpoint.is_empty() {
-                logger::error!("Endpoint URL is empty");
-                Err(error_stack::Report::new(InjectorError::InvalidTemplate(
-                    "Endpoint URL cannot be empty".to_string(),
-                )))?;
-            }
 
-            // Parse and validate the complete endpoint URL
             let url = reqwest::Url::parse(&config.endpoint).map_err(|e| {
                 logger::error!("Failed to parse endpoint URL: {}", e);
                 error_stack::Report::new(InjectorError::InvalidTemplate(format!(
@@ -588,153 +775,69 @@ pub mod core {
 
             logger::debug!("Constructed URL: {}", url);
 
-            // Convert headers to common_utils Headers format safely
             let headers: Vec<(String, hyperswitch_masking::Maskable<String>)> = config
                 .headers
                 .clone()
                 .into_iter()
-                .map(|(k, v)| {
-                    (
-                        k,
-                        hyperswitch_masking::Maskable::new_normal(v.expose().clone()),
-                    )
-                })
+                .map(|(k, v)| (k, hyperswitch_masking::Maskable::new_normal(v.expose().clone())))
                 .collect();
 
-            // Determine method and request content
             let method = Method::from(config.http_method);
 
-            // Determine request content based on content type with error handling
-            let request_content = match content_type {
-                ContentType::ApplicationJson => {
-                    // Try to parse as JSON, fallback to raw string
-                    match serde_json::from_str::<Value>(payload) {
-                        Ok(json) => Some(RequestContent::Json(Box::new(json))),
-                        Err(e) => {
-                            logger::debug!(
-                                "Failed to parse payload as JSON: {}, falling back to raw bytes",
-                                e
-                            );
-                            Some(RequestContent::RawBytes(payload.as_bytes().to_vec()))
-                        }
-                    }
-                }
-                ContentType::ApplicationXWwwFormUrlencoded => {
-                    // Parse form data safely
-                    let form_data: HashMap<String, String> =
-                        url::form_urlencoded::parse(payload.as_bytes())
-                            .into_owned()
-                            .collect();
-                    Some(RequestContent::FormUrlEncoded(Box::new(form_data)))
-                }
-                ContentType::ApplicationXml | ContentType::TextXml => {
-                    Some(RequestContent::RawBytes(payload.as_bytes().to_vec()))
-                }
-                ContentType::TextPlain => {
-                    Some(RequestContent::RawBytes(payload.as_bytes().to_vec()))
-                }
-            };
+            // Extract vault metadata (proxy URL + CA cert) from headers when present.
+            // This is specific to the proxy path (e.g. VGS).
+            let (vault_proxy_url, vault_ca_cert) = extract_vault_metadata(
+                &config.headers,
+                &config.endpoint,
+                config.http_method,
+            );
 
-            // Extract vault metadata directly from headers using existing functions
+            // Vault-derived CA cert takes priority; fall back to config's own ca_cert
+            let effective_ca_cert = vault_ca_cert.or_else(|| config.ca_cert.clone());
 
-            let (vault_proxy_url, vault_ca_cert) = if config
-                .headers
-                .contains_key(crate::consts::EXTERNAL_VAULT_METADATA_HEADER)
-            {
-                let mut temp_config = injector_types::ConnectionConfig::new(
-                    config.endpoint.clone(),
-                    config.http_method,
-                );
-
-                // Use existing vault metadata extraction with fallback
-                if temp_config.extract_and_apply_vault_metadata_with_fallback(&config.headers) {
-                    (temp_config.proxy_url, temp_config.ca_cert)
-                } else {
-                    (None, None)
-                }
-            } else {
-                (None, None)
-            };
-
-            // Build request safely with certificate configuration
-            let mut request_builder = RequestBuilder::new()
-                .method(method)
-                .url(url.as_str())
-                .headers(headers);
-
-            if let Some(content) = request_content {
-                request_builder = request_builder.set_body(content);
-            }
-
-            // Create final config with vault CA certificate if available
-            let mut final_config = config.clone();
-            let has_vault_ca_cert = vault_ca_cert.is_some();
-            if has_vault_ca_cert {
-                final_config.ca_cert = vault_ca_cert;
-            }
-
-            // Log certificate configuration (but not the actual content)
             logger::info!(
-                has_client_cert = final_config.client_cert.is_some(),
-                has_client_key = final_config.client_key.is_some(),
-                has_ca_cert = final_config.ca_cert.is_some(),
-                has_vault_ca_cert = has_vault_ca_cert,
-                insecure = final_config.insecure.unwrap_or(false),
-                cert_format = ?final_config.cert_format,
+                has_client_cert = config.client_cert.is_some(),
+                has_client_key = config.client_key.is_some(),
+                has_ca_cert = effective_ca_cert.is_some(),
+                insecure = config.insecure.unwrap_or(false),
+                cert_format = ?config.cert_format,
                 "Certificate configuration applied"
             );
 
-            // Build request with certificate configuration applied
-            let request = build_request_with_certificates(request_builder, &final_config);
+            let mut request_builder = RequestBuilder::new()
+                .method(method)
+                .url(url.as_str())
+                .headers(headers)
+                .set_body(Self::build_request_content(payload, *content_type));
 
-            // Determine which proxy to use: vault metadata > backup > none
+            let request = build_request_with_certificates(
+                request_builder,
+                config.client_cert.clone(),
+                config.client_key.clone(),
+                effective_ca_cert,
+            );
+
+            // Proxy priority: vault metadata -> backup_proxy_url -> none
             let final_proxy_url = vault_proxy_url.or_else(|| config.backup_proxy_url.clone());
-
-            let proxy = if let Some(proxy_url) = final_proxy_url {
-                let proxy_url_str = proxy_url.expose();
-
-                // Set proxy URL for both HTTP and HTTPS traffic
-                Proxy {
-                    http_url: Some(proxy_url_str.clone()),
-                    https_url: Some(proxy_url_str),
-                    idle_pool_connection_timeout: Some(90),
-                    bypass_proxy_hosts: None,
-                }
-            } else {
-                Proxy::default()
-            };
-
-            // Track outgoing HTTP calls with dimensions
-            let endpoint_host = config
-                .endpoint
-                .parse::<url::Url>()
-                .map(|url| url.host_str().unwrap_or("unknown").to_string())
-                .unwrap_or_else(|_| "invalid_url".to_string());
+            let proxy = Proxy::from_optional_url(final_proxy_url);
 
             metrics::INJECTOR_OUTGOING_CALLS_COUNT.add(
                 1,
                 router_env::metric_attributes!(
-                    ("http_method", format!("{:?}", config.http_method)),
-                    ("endpoint_host", endpoint_host)
+                    ("http_method", config.http_method.as_metric_str()),
+                    ("endpoint_host", config.endpoint_host())
                 ),
             );
 
-            // Send request using local standalone http client
-            let response = send_request(&proxy, request, None).await?;
-
-            // Convert reqwest::Response to InjectorResponse using trait
+            let response = send_request(&proxy, request).await?;
             response
                 .into_injector_response()
                 .await
-                .map_err(|e| error_stack::Report::new(e))
+                .map_err(error_stack::Report::new)
         }
 
-        /// Constructs and sends a request to the HyperswitchVault proxy endpoint.
-        ///
-        /// Unlike `make_http_request` (which sends the processed payload directly to the connector),
-        /// this method wraps the template (with {{$field_name}} placeholders intact) into the
+        /// Wraps the template (with `{{$field_name}}` placeholders intact) into the
         /// HyperswitchVault proxy request format and sends it to the vault endpoint.
-        /// The vault resolves placeholders with actual card data and forwards to the connector.
         #[instrument(skip_all)]
         async fn make_hyperswitch_vault_request(
             &self,
@@ -747,7 +850,8 @@ pub mod core {
                 .as_ref()
                 .ok_or_else(|| {
                     error_stack::Report::new(InjectorError::InvalidTemplate(
-                        "vault_endpoint is required for HyperswitchVault proxy request".to_string(),
+                        "vault_endpoint is required for HyperswitchVault proxy request"
+                            .to_string(),
                     ))
                 })?;
 
@@ -762,7 +866,6 @@ pub mod core {
                     ))
                 })?;
 
-            // Build the HS Vault proxy request body from injector request components
             let vault_proxy_request =
                 injector_types::HyperswitchVaultProxyRequest::try_from_injector_request(
                     processed_payload,
@@ -771,12 +874,6 @@ pub mod core {
                 )
                 .map_err(error_stack::Report::new)?;
 
-            let vault_request_body = serde_json::to_string(&vault_proxy_request).map_err(|e| {
-                error_stack::Report::new(InjectorError::SerializationError(format!(
-                    "Failed to serialize HyperswitchVault proxy request: {e}"
-                )))
-            })?;
-
             logger::info!(
                 vault_endpoint = %vault_endpoint,
                 destination_url = %vault_proxy_request.destination_url,
@@ -784,7 +881,13 @@ pub mod core {
                 "Sending request to HyperswitchVault proxy"
             );
 
-            // Build headers for the vault endpoint request
+            let vault_url = reqwest::Url::parse(vault_endpoint).map_err(|e| {
+                logger::error!("Failed to parse vault endpoint URL: {}", e);
+                error_stack::Report::new(InjectorError::InvalidTemplate(format!(
+                    "Invalid vault endpoint URL: {e}"
+                )))
+            })?;
+
             let vault_headers: Vec<(String, hyperswitch_masking::Maskable<String>)> = vec![
                 (
                     "Content-Type".to_string(),
@@ -806,46 +909,31 @@ pub mod core {
                 ),
             ];
 
-            // Build the HTTP request to the vault endpoint
-            let vault_url = reqwest::Url::parse(vault_endpoint).map_err(|e| {
-                logger::error!("Failed to parse vault endpoint URL: {}", e);
-                error_stack::Report::new(InjectorError::InvalidTemplate(format!(
-                    "Invalid vault endpoint URL: {e}"
-                )))
-            })?;
-
             let request_builder = RequestBuilder::new()
                 .method(Method::Post)
                 .url(vault_url.as_str())
                 .headers(vault_headers)
-                .set_body(RequestContent::Json(Box::new(
-                    serde_json::from_str::<Value>(&vault_request_body).map_err(|e| {
-                        error_stack::Report::new(InjectorError::SerializationError(format!(
-                            "Failed to parse vault request body as JSON: {e}"
-                        )))
-                    })?,
-                )));
+                .set_body(RequestContent::Json(Box::new(vault_proxy_request)));
 
             let http_request = request_builder.build();
 
-            // Track outgoing call to vault
-            let vault_host = vault_url.host_str().unwrap_or("unknown").to_string();
-
+            let vault_endpoint_host = vault_url
+                .host_str()
+                .unwrap_or("unknown")
+                .to_string();
             metrics::INJECTOR_OUTGOING_CALLS_COUNT.add(
                 1,
                 router_env::metric_attributes!(
-                    ("http_method", "POST".to_string()),
-                    ("endpoint_host", vault_host)
+                    ("http_method", "POST"),
+                    ("endpoint_host", vault_endpoint_host)
                 ),
             );
 
-            // Send to vault using default proxy (no VGS proxy needed)
-            let response = send_request(&Proxy::default(), http_request, None).await?;
-
+            let response = send_request(&Proxy::default(), http_request).await?;
             response
                 .into_injector_response()
                 .await
-                .map_err(|e| error_stack::Report::new(e))
+                .map_err(error_stack::Report::new)
         }
     }
 
@@ -855,175 +943,25 @@ pub mod core {
         }
     }
 
-    #[async_trait]
-    impl TokenInjector for Injector {
-        #[instrument(skip_all)]
-        async fn injector_core(
-            &self,
-            request: InjectorRequest,
-        ) -> error_stack::Result<InjectorResponse, InjectorError> {
-            let start_time = std::time::Instant::now();
+    fn extract_field_from_vault_data(
+        vault_data: &Value,
+        field_name: &str,
+    ) -> error_stack::Result<Value, InjectorError> {
+        logger::debug!("Extracting field '{}' from vault data", field_name);
 
-            // Extract token data from SecretSerdeValue for vault data lookup
-            let vault_data = request.token_data.specific_token_data.clone().expose();
-
-            let vault_connector_type = &request.connection_config.vault_connector_type;
-
-            logger::debug!(
-                template_length = request.connector_payload.template.len(),
-                vault_connector_type = ?vault_connector_type,
-                "Processing token injection request"
-            );
-
-            // Process template based on vault connector type:
-            //
-            // Template arrives with {{$field_name}} placeholders, e.g.:
-            //   "card_number={{$card_number}}&cvv={{$cvv}}"
-            //
-            // specific_token_data contains token aliases from the vault, e.g.:
-            //   VGS:              {"card_number": "tok_sandbox_abc", "cvv": "tok_sandbox_xyz"}
-            //   HyperswitchVault:  {"card_number": "token_1", "cvv": "token_1"}
-            //
-            // Proxy | None (e.g. VGS):
-            //   Interpolate placeholders with token aliases directly.
-            //   Output: "card_number=tok_sandbox_abc&cvv=tok_sandbox_xyz"
-            //   VGS forward proxy then detokenizes the aliases to real card data on the wire.
-            //
-            // Transformation (e.g. HyperswitchVault):
-            //   Return template as-is with {{$field_name}} placeholders intact.
-            //   Output: "card_number={{$card_number}}&cvv={{$cvv}}"
-            //   HyperswitchVault resolves placeholders downstream with actual card data.
-            let processed_payload = match vault_connector_type {
-                Some(injector_types::VaultConnectorType::Proxy) | None => {
-                    // Proxy vault: interpolate {{$field_name}} placeholders with token aliases
-                    // The forward proxy (e.g. VGS) detokenizes the aliases on the wire
-                    logger::debug!("Proxy vault: interpolating template with token aliases");
-                    self.interpolate_string_template_with_vault_data(
-                        request.connector_payload.template.clone(),
-                        &vault_data,
-                    )?
-                }
-                Some(injector_types::VaultConnectorType::Transformation) => {
-                    let vault_connector_id = &request.connection_config.vault_connector_id;
-                    match vault_connector_id {
-                        Some(injector_types::VaultConnectors::HyperswitchVault) => {
-                            // HyperswitchVault: return template as-is with {{$field_name}} placeholders
-                            // HS Vault resolves these downstream with actual card data
-                            logger::debug!(
-                                "HyperswitchVault transformation: skipping interpolation, keeping placeholders"
-                            );
-                            request.connector_payload.template.clone()
-                        }
-                        _ => {
-                            // Future transformation connectors: placeholder for additional logic
-                            // For now, return template as-is
-                            logger::debug!(
-                                vault_connector_id = ?vault_connector_id,
-                                "Transformation vault (non-HyperswitchVault): no transformation implemented yet, keeping placeholders"
-                            );
-                            request.connector_payload.template.clone()
-                        }
-                    }
-                }
-            };
-
-            logger::debug!(
-                processed_payload_length = processed_payload.len(),
-                "Token replacement completed"
-            );
-
-            // Determine content type from headers or default to form-urlencoded
-            let content_type = request
-                .connection_config
-                .headers
-                .get("Content-Type")
-                .and_then(|ct| match ct.clone().expose().as_str() {
-                    "application/json" => Some(ContentType::ApplicationJson),
-                    "application/x-www-form-urlencoded" => {
-                        Some(ContentType::ApplicationXWwwFormUrlencoded)
-                    }
-                    "application/xml" => Some(ContentType::ApplicationXml),
-                    "text/xml" => Some(ContentType::TextXml),
-                    "text/plain" => Some(ContentType::TextPlain),
-                    _ => None,
+        match vault_data {
+            Value::Object(obj) => {
+                find_field_recursively_in_vault_data(obj, field_name).ok_or_else(|| {
+                    error_stack::Report::new(InjectorError::TokenReplacementFailed(format!(
+                        "Field '{field_name}' not found"
+                    )))
                 })
-                .unwrap_or(ContentType::ApplicationXWwwFormUrlencoded);
-
-            // Make HTTP request — routing depends on vault connector type:
-            //
-            // Proxy | None (e.g. VGS):
-            //   Send processed payload (with token aliases) directly to the connector endpoint.
-            //   The forward proxy detokenizes the aliases to real card data on the wire.
-            //
-            // Transformation + HyperswitchVault:
-            //   Wrap the template (with {{$field_name}} placeholders intact) into the HS Vault
-            //   proxy request format and send to the vault endpoint. The vault resolves
-            //   placeholders with actual card data and forwards to the connector.
-            let response = match vault_connector_type {
-                Some(injector_types::VaultConnectorType::Transformation) => {
-                    match &request.connection_config.vault_connector_id {
-                        Some(injector_types::VaultConnectors::HyperswitchVault) => {
-                            logger::debug!("Routing request through HyperswitchVault proxy");
-                            self.make_hyperswitch_vault_request(&request, &processed_payload)
-                                .await?
-                        }
-                        other => {
-                            logger::debug!(
-                                vault_connector_id = ?other,
-                                "Transformation vault (non-HyperswitchVault): falling back to direct HTTP request"
-                            );
-                            self.make_http_request(
-                                &request.connection_config,
-                                &processed_payload,
-                                &content_type,
-                            )
-                            .await?
-                        }
-                    }
-                }
-                Some(injector_types::VaultConnectorType::Proxy) | None => {
-                    self.make_http_request(
-                        &request.connection_config,
-                        &processed_payload,
-                        &content_type,
-                    )
-                    .await?
-                }
-            };
-
-            let elapsed = start_time.elapsed();
-            logger::info!(
-                duration_ms = elapsed.as_millis(),
-                status_code = response.status_code,
-                response_size = serde_json::to_string(&response.response)
-                    .map(|s| s.len())
-                    .unwrap_or(0),
-                headers_count = response.headers.as_ref().map(|h| h.len()).unwrap_or(0),
-                "Token injection completed successfully"
-            );
-
-            // Track successful token replacements with comprehensive dimensions
-            let endpoint_host = request
-                .connection_config
-                .endpoint
-                .parse::<url::Url>()
-                .map(|url| url.host_str().unwrap_or("unknown").to_string())
-                .unwrap_or_else(|_| "invalid_url".to_string());
-
-            let vault_connector_str = format!("{:?}", request.connection_config.vault_connector_id);
-            let http_method_str = format!("{:?}", request.connection_config.http_method);
-
-            metrics::INJECTOR_SUCCESSFUL_TOKEN_REPLACEMENTS_COUNT.add(
-                1,
-                router_env::metric_attributes!(
-                    ("status_code", response.status_code.to_string()),
-                    ("vault_connector", vault_connector_str),
-                    ("http_method", http_method_str),
-                    ("endpoint_host", endpoint_host)
+            }
+            _ => Err(error_stack::Report::new(
+                InjectorError::TokenReplacementFailed(
+                    "Vault data is not a valid JSON object".to_string(),
                 ),
-            );
-
-            Ok(response)
+            )),
         }
     }
 }
@@ -1042,7 +980,6 @@ mod tests {
     #[tokio::test]
     #[ignore = "Integration test that requires network access"]
     async fn test_injector_core_integration() {
-        // Create test request
         let mut headers = HashMap::new();
         headers.insert(
             "Content-Type".to_string(),
@@ -1071,28 +1008,24 @@ mod tests {
                 endpoint: "https://api.stripe.com/v1/payment_intents".to_string(),
                 http_method: HttpMethod::POST,
                 headers,
-                proxy_url: None, // Remove proxy that was causing issues
+                proxy_url: None,
                 backup_proxy_url: None,
-                // Certificate fields (None for basic test)
                 client_cert: None,
                 client_key: None,
-                ca_cert: None, // Empty CA cert for testing
+                ca_cert: None,
                 insecure: None,
                 cert_password: None,
                 cert_format: None,
-                max_response_size: None, // Use default
+                max_response_size: None,
                 vault_auth_data: None,
-                vault_connector_id: Some(VaultConnectors::VGS), // Use VGS as example vault connector
-                vault_connector_type: Some(VaultConnectorType::Proxy), // Use Proxy type for direct interpolation
-                vault_endpoint: None, // No vault endpoint needed for proxy test
-
+                vault_connector_id: Some(VaultConnectors::VGS),
+                vault_connector_type: Some(VaultConnectorType::Proxy),
+                vault_endpoint: None,
             },
         };
 
-        // Test the core function - this will make a real HTTP request to httpbin.org
         let result = injector_core(request).await;
 
-        // The request should succeed (httpbin.org should be accessible)
         if let Err(ref e) = result {
             logger::info!("Error: {e:?}");
         }
@@ -1103,7 +1036,6 @@ mod tests {
 
         let response = result.unwrap();
 
-        // Print the actual response for demonstration
         logger::info!("=== HTTP RESPONSE FROM HTTPBIN.ORG ===");
         logger::info!(
             "{}",
@@ -1111,13 +1043,11 @@ mod tests {
         );
         logger::info!("=======================================");
 
-        // Response should have a proper status code and response data
         assert!(
             response.status_code >= 200 && response.status_code < 300,
             "Response should have successful status code: {}",
             response.status_code
         );
-
         assert!(
             response.response.is_object() || response.response.is_string(),
             "Response data should be JSON object or string"
@@ -1143,7 +1073,6 @@ mod tests {
             "exp_year": "25"
         }));
 
-        // Test with insecure flag (skip certificate verification)
         let request = InjectorRequest {
             connector_payload: ConnectorPayload {
                 template: "card_number={{$card_number}}&cvv={{$cvv}}&expiry={{$exp_month}}/{{$exp_year}}&amount=50&currency=USD&transaction_type=purchase".to_string(),
@@ -1155,9 +1084,8 @@ mod tests {
                 endpoint: "https://httpbin.org/post".to_string(),
                 http_method: HttpMethod::POST,
                 headers,
-                proxy_url: None, // Remove proxy to make test work reliably
+                proxy_url: None,
                 backup_proxy_url: None,
-                // Test without certificates for basic functionality
                 client_cert: None,
                 client_key: None,
                 ca_cert: None,
@@ -1166,15 +1094,14 @@ mod tests {
                 cert_format: None,
                 max_response_size: None,
                 vault_auth_data: None,
-                vault_connector_id: Some(VaultConnectors::VGS), // Use VGS as example vault connector
-                vault_connector_type: Some(VaultConnectorType::Proxy), // Use Proxy type for direct interpolation
-                vault_endpoint: None, // No vault endpoint needed for proxy test
+                vault_connector_id: Some(VaultConnectors::VGS),
+                vault_connector_type: Some(VaultConnectorType::Proxy),
+                vault_endpoint: None,
             },
         };
 
         let result = injector_core(request).await;
 
-        // Should succeed even with insecure flag
         assert!(
             result.is_ok(),
             "Certificate test should succeed: {result:?}"
@@ -1182,7 +1109,6 @@ mod tests {
 
         let response = result.unwrap();
 
-        // Print the actual response for demonstration
         logger::info!("=== CERTIFICATE TEST RESPONSE ===");
         logger::info!(
             "{}",
@@ -1190,21 +1116,17 @@ mod tests {
         );
         logger::info!("================================");
 
-        // Should succeed with proper status code
         assert!(
             response.status_code >= 200 && response.status_code < 300,
             "Certificate test should have successful status code: {}",
             response.status_code
         );
 
-        // Verify the tokens were replaced correctly in the form data
-        // httpbin.org returns the request data in the 'form' field
         let response_str = serde_json::to_string(&response.response).unwrap_or_default();
 
-        // Check that our test tokens were replaced with the actual values from vault data
-        let tokens_replaced = response_str.contains("4242429789164242") && // card_number
-                              response_str.contains("123") &&               // cvv
-                              response_str.contains("12/25"); // expiry
+        let tokens_replaced = response_str.contains("4242429789164242")
+            && response_str.contains("123")
+            && response_str.contains("12/25");
 
         assert!(
             tokens_replaced,
@@ -1213,3 +1135,4 @@ mod tests {
         );
     }
 }
+

@@ -20,6 +20,21 @@ pub mod models {
         TextPlain,
     }
 
+    impl ContentType {
+        /// Parse a `Content-Type` header value string into a [`ContentType`].
+        /// Returns the default (`ApplicationXWwwFormUrlencoded`) for unknown values.
+        pub fn from_header_value(value: &str) -> Self {
+            match value {
+                "application/json" => Self::ApplicationJson,
+                "application/x-www-form-urlencoded" => Self::ApplicationXWwwFormUrlencoded,
+                "application/xml" => Self::ApplicationXml,
+                "text/xml" => Self::TextXml,
+                "text/plain" => Self::TextPlain,
+                _ => Self::ApplicationXWwwFormUrlencoded,
+            }
+        }
+    }
+
     /// HTTP methods supported by the injector
     #[derive(Clone, Copy, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
     #[serde(rename_all = "UPPERCASE")]
@@ -29,6 +44,19 @@ pub mod models {
         PUT,
         PATCH,
         DELETE,
+    }
+
+    impl HttpMethod {
+        /// Returns a stable string representation suitable for metric dimensions.
+        pub fn as_metric_str(self) -> &'static str {
+            match self {
+                Self::GET => "GET",
+                Self::POST => "POST",
+                Self::PUT => "PUT",
+                Self::PATCH => "PATCH",
+                Self::DELETE => "DELETE",
+            }
+        }
     }
 
     /// Vault connectors supported by the injector for token management
@@ -43,6 +71,16 @@ pub mod models {
         /// VGS (Very Good Security) vault connector
         VGS,
         HyperswitchVault,
+    }
+
+    impl VaultConnectors {
+        /// Returns a stable string representation suitable for metric dimensions.
+        pub fn as_metric_str(self) -> &'static str {
+            match self {
+                Self::VGS => "VGS",
+                Self::HyperswitchVault => "HyperswitchVault",
+            }
+        }
     }
 
     /// Token data containing vault-specific information for token replacement
@@ -178,7 +216,7 @@ pub mod models {
                 .map(|(k, v)| (k.clone(), v.clone().expose().clone()))
                 .collect();
 
-            let method = format!("{:?}", connection_config.http_method);
+            let method = connection_config.http_method.as_metric_str().to_string();
 
             Ok(Self {
                 request_body,
@@ -333,6 +371,23 @@ pub mod models {
                 cert_format: None,
                 max_response_size: None,
             }
+        }
+
+        /// Extracts the host portion of the endpoint URL for use as a metric dimension.
+        /// Returns `"unknown"` when the host cannot be determined, or `"invalid_url"` when
+        /// the endpoint cannot be parsed as a URL at all.
+        pub fn endpoint_host(&self) -> String {
+            self.endpoint
+                .parse::<url::Url>()
+                .map(|u| u.host_str().unwrap_or("unknown").to_string())
+                .unwrap_or_else(|_| "invalid_url".to_string())
+        }
+
+        /// Returns the metric-string for the vault connector, falling back to `"None"`.
+        pub fn vault_connector_metric_str(&self) -> &'static str {
+            self.vault_connector_id
+                .map(VaultConnectors::as_metric_str)
+                .unwrap_or("None")
         }
     }
 }
