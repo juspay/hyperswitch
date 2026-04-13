@@ -113,27 +113,27 @@ generate_permissions! {
         },
         ReconIngestion: {
             scopes: [Read, Write],
-            entities: [Merchant]
+            entities: [Profile]
         },
         ReconTransformation: {
             scopes: [Read, Write],
-            entities: [Merchant]
+            entities: [Profile]
         },
         ReconException: {
-            scopes: [Write],
-            entities: [Merchant]
+            scopes: [Read, Write],
+            entities: [Profile]
         },
         ReconStagingEntry: {
-            scopes: [Read],
-            entities: [Merchant]
+            scopes: [Read, Write],
+            entities: [Profile]
         },
         ReconTransaction: {
-            scopes: [Read],
-            entities: [Merchant]
+            scopes: [Read, Write],
+            entities: [Profile]
         },
         ReconRule: {
             scopes: [Read, Write],
-            entities: [Merchant]
+            entities: [Profile]
         },
     ]
 }

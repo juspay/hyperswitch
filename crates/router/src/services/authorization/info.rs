@@ -52,6 +52,7 @@ fn get_group_description(group: PermissionGroup) -> Option<&'static str> {
         PermissionGroup::InternalManage => None, // Internal group, no user-facing description
         PermissionGroup::ReconSourceView => Some("View recon ingestion and transformation configs"),
         PermissionGroup::ReconSourceManage => Some("Create and edit recon ingestions and transformations"),
+        PermissionGroup::ReconExceptionsView => Some("Investigate Exceptions and view resolutions"),
         PermissionGroup::ReconExceptionsManage => Some("Investigate and resolve recon exceptions"),
         PermissionGroup::ReconTransactionView => Some("View recon staging entries and transactions"),
         PermissionGroup::ReconRulesView => Some("View reconciliation rules"),

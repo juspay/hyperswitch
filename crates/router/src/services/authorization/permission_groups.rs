@@ -29,6 +29,7 @@ impl PermissionGroupExt for PermissionGroup {
             | Self::ThemeView
             | Self::ReconSourceView
             | Self::ReconTransactionView
+            | Self::ReconExceptionsView
             | Self::ReconRulesView => PermissionScope::Read,
 
             Self::OperationsManage
@@ -60,7 +61,7 @@ impl PermissionGroupExt for PermissionGroup {
             Self::ReconReportsView | Self::ReconReportsManage => ParentGroup::ReconReports,
             Self::InternalManage => ParentGroup::Internal,
             Self::ReconSourceView | Self::ReconSourceManage => ParentGroup::ReconSource,
-            Self::ReconExceptionsManage => ParentGroup::ReconExceptions,
+            Self::ReconExceptionsView | Self::ReconExceptionsManage => ParentGroup::ReconExceptions,
             Self::ReconTransactionView => ParentGroup::ReconTransaction,
             Self::ReconRulesView | Self::ReconRulesManage => ParentGroup::ReconRules,
         }
@@ -120,6 +121,11 @@ impl PermissionGroupExt for PermissionGroup {
                 Self::ReconTransactionView,
                 Self::ReconRulesView,
             ],
+            Self::ReconExceptionsView => vec![
+                Self::ReconExceptionsView,
+                Self::ReconTransactionView,
+                Self::ReconRulesView,
+            ],
             Self::ReconExceptionsManage => vec![
                 Self::ReconExceptionsManage,
                 Self::ReconTransactionView,
@@ -161,6 +167,7 @@ impl PermissionGroupExt for PermissionGroup {
             // Recon-only groups.
             Self::ReconSourceView
             | Self::ReconSourceManage
+            | Self::ReconExceptionsView
             | Self::ReconExceptionsManage
             | Self::ReconTransactionView
             | Self::ReconRulesView
