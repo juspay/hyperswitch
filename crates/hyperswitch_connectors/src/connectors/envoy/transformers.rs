@@ -1,27 +1,44 @@
-use common_enums::enums;
-use common_utils::types::StringMinorUnit;
+use api_models::payouts::{
+    self, AchBankTransfer, BacsBankTransfer, PayoutMethodData, SepaBankTransfer,
+};
+use common_enums::{enums, CountryAlpha2, Currency};
+use common_utils::{
+    ext_traits::OptionExt,
+    id_type::PayoutId,
+    pii::Email,
+    types::{FloatMajorUnit, StringMinorUnit},
+};
+use error_stack::ResultExt;
+#[cfg(feature = "payouts")]
+use hyperswitch_domain_models::router_flow_types::PoFulfill;
 use hyperswitch_domain_models::{
     payment_method_data::PaymentMethodData,
     router_data::{ConnectorAuthType, RouterData},
     router_flow_types::refunds::{Execute, RSync},
-    router_request_types::ResponseId,
+    router_request_types::{CustomerDetails, ResponseId},
     router_response_types::{PaymentsResponseData, RefundsResponseData},
-    types::{PaymentsAuthorizeRouterData, RefundsRouterData},
+    types::{
+        PaymentsAuthorizeRouterData, PayoutsResponseData, PayoutsRouterData, RefundsRouterData,
+    },
 };
 use hyperswitch_interfaces::errors;
 use hyperswitch_masking::Secret;
 use serde::{Deserialize, Serialize};
 
-use crate::types::{RefundsResponseRouterData, ResponseRouterData};
+#[cfg(feature = "payouts")]
+use crate::types::PayoutsResponseRouterData;
+use crate::{
+    types::{RefundsResponseRouterData, ResponseRouterData},
+    utils::RouterData as _,
+};
 
-//TODO: Fill the struct with respective fields
 pub struct EnvoyRouterData<T> {
-    pub amount: StringMinorUnit, // The type of amount that a connector accepts, for example, String, i64, f64, etc.
+    pub amount: FloatMajorUnit, // The type of amount that a connector accepts, for example, String, i64, f64, etc.
     pub router_data: T,
 }
 
-impl<T> From<(StringMinorUnit, T)> for EnvoyRouterData<T> {
-    fn from((amount, item): (StringMinorUnit, T)) -> Self {
+impl<T> From<(FloatMajorUnit, T)> for EnvoyRouterData<T> {
+    fn from((amount, item): (FloatMajorUnit, T)) -> Self {
         //Todo :  use utils to convert the amount to the type of amount that a connector accepts
         Self {
             amount,
@@ -61,16 +78,20 @@ impl TryFrom<&EnvoyRouterData<&PaymentsAuthorizeRouterData>> for EnvoyPaymentsRe
 
 //TODO: Fill the struct with respective fields
 // Auth Struct
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct EnvoyAuthType {
-    pub(super) api_key: Secret<String>,
+    pub(super) username: Secret<String>,
+    pub(super) password: Secret<String>,
 }
 
 impl TryFrom<&ConnectorAuthType> for EnvoyAuthType {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(auth_type: &ConnectorAuthType) -> Result<Self, Self::Error> {
         match auth_type {
-            ConnectorAuthType::HeaderKey { api_key } => Ok(Self {
-                api_key: api_key.to_owned(),
+            ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self {
+                username: key1.to_owned(),
+                password: api_key.to_owned(),
             }),
             _ => Err(errors::ConnectorError::FailedToObtainAuthType.into()),
         }
@@ -134,7 +155,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, EnvoyPaymentsResponse, T, PaymentsRespo
 // Type definition for RefundRequest
 #[derive(Default, Debug, Serialize)]
 pub struct EnvoyRefundRequest {
-    pub amount: StringMinorUnit,
+    pub amount: FloatMajorUnit,
 }
 
 impl<F> TryFrom<&EnvoyRouterData<&RefundsRouterData<F>>> for EnvoyRefundRequest {
