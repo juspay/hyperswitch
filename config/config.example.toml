@@ -616,7 +616,7 @@ card.credit = "adyen" # Installment supported payment method type and connector 
 card.debit = "adyen"  # Installment supported payment method type and connector for card
 
 [installment_config]
-adyen = ["BRL", "MXN", "JPY"] # Connectors and their supported currencies for installment payments
+adyen = "BRL,MXN,JPY" # Connectors and their supported currencies for installment payments
 
 # Required fields info used while listing the payment_method_data
 [required_fields.pay_later] # payment_method = "pay_later"
