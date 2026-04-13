@@ -8741,21 +8741,28 @@
             "description": "Acquirer country code",
             "example": "US",
             "nullable": true
-          },
-          "is_default": {
-            "type": "boolean",
-            "description": "Whether this configuration bucket is the default fallback for the profile."
           }
         }
       },
       "AcquirerConfigMap": {
         "type": "object",
         "description": "Acquirer config buckets: each ProfileAcquirerId maps to an array of per-network configs",
+        "properties": {
+          "default_acquirer_config": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/common_utils.id_type.ProfileAcquirerId"
+              }
+            ],
+            "nullable": true
+          }
+        },
         "additionalProperties": {
           "type": "array",
           "items": {
             "$ref": "#/components/schemas/AcquirerConfig"
-          }
+          },
+          "description": "Flattened map of acquirer profiles keyed by configuration id"
         }
       },
       "AcquirerData": {
@@ -10353,11 +10360,6 @@
           "email": {
             "type": "string",
             "description": "Optional email address of the customer.\nUsed for customer identification, communication, and possibly for 3DS or fraud checks.",
-            "nullable": true
-          },
-          "profile_acquirer_id": {
-            "type": "string",
-            "description": "Profile Acquirer ID get from profile acquirer configuration",
             "nullable": true
           }
         }
@@ -36041,10 +36043,6 @@
         "type": "object",
         "required": [
           "profile_acquirer_id",
-          "acquirer_assigned_merchant_id",
-          "merchant_name",
-          "network",
-          "acquirer_bin",
           "profile_id",
           "is_default"
         ],
@@ -36057,22 +36055,26 @@
           "acquirer_assigned_merchant_id": {
             "type": "string",
             "description": "The merchant id assigned by the acquirer",
-            "example": "M123456789"
+            "example": "M123456789",
+            "nullable": true
           },
           "merchant_name": {
             "type": "string",
             "description": "Merchant name",
-            "example": "NewAge Retailer"
+            "example": "NewAge Retailer",
+            "nullable": true
           },
           "network": {
             "type": "string",
             "description": "Network provider",
-            "example": "VISA"
+            "example": "VISA",
+            "nullable": true
           },
           "acquirer_bin": {
             "type": "string",
             "description": "Acquirer bin",
-            "example": "456789"
+            "example": "456789",
+            "nullable": true
           },
           "acquirer_ica": {
             "type": "string",
@@ -36106,9 +36108,6 @@
       },
       "ProfileAcquirerUpdate": {
         "type": "object",
-        "required": [
-          "network"
-        ],
         "properties": {
           "acquirer_assigned_merchant_id": {
             "type": "string",
@@ -36122,8 +36121,9 @@
           },
           "network": {
             "type": "string",
-            "description": "The card network this configuration entry targets — required to locate/upsert the correct bucket slot.",
-            "example": "MASTERCARD"
+            "description": "The card network this configuration entry targets — optional if updating just the default.",
+            "example": "MASTERCARD",
+            "nullable": true
           },
           "acquirer_bin": {
             "type": "string",

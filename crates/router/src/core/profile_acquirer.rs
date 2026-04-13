@@ -32,7 +32,7 @@ pub async fn create_profile_acquirer(
         .unwrap_or(false);
 
     let is_default = if !has_existing_default {
-        true // Always make the first configuration default
+        true
     } else {
         request.is_default.unwrap_or(false)
     };
@@ -126,99 +126,53 @@ pub async fn update_profile_acquirer_config(
     let default_bucket_id = acquirer_config_map.default_acquirer_config.clone();
 
     // Verify the target bucket (profile_acquirer_id) exists.
-    let bucket = acquirer_config_map
+    if !acquirer_config_map
         .configs
-        .get_mut(&profile_acquirer_id)
-        .ok_or_else(|| errors::ApiErrorResponse::ProfileAcquirerNotFound {
-            profile_id: profile_id.get_string_repr().to_owned(),
-            profile_acquirer_id: profile_acquirer_id.get_string_repr().to_owned(),
-        })?;
+        .contains_key(&profile_acquirer_id)
+    {
+        return Err(error_stack::report!(
+            errors::ApiErrorResponse::ProfileAcquirerNotFound {
+                profile_id: profile_id.get_string_repr().to_owned(),
+                profile_acquirer_id: profile_acquirer_id.get_string_repr().to_owned(),
+            }
+        ));
+    }
 
     // `network` is mandatory on update — find whether a slot for this network already exists in the bucket.
     let is_default = request
         .is_default
         .unwrap_or_else(|| default_bucket_id.as_ref() == Some(&profile_acquirer_id));
 
-    // Update default bucket
-    let mut default_bucket_changed = false;
-    if request.is_default == Some(true) {
-        if default_bucket_id.as_ref() != Some(&profile_acquirer_id) {
-            acquirer_config_map.default_acquirer_config = Some(profile_acquirer_id.clone());
-            default_bucket_changed = true;
-        }
-    } else if request.is_default == Some(false)
-        && default_bucket_id.as_ref() == Some(&profile_acquirer_id)
-    {
-        acquirer_config_map.default_acquirer_config = None;
-        default_bucket_changed = true;
-    }
+    let default_bucket_changed = apply_default_bucket_change(
+        acquirer_config_map,
+        &profile_acquirer_id,
+        &default_bucket_id,
+        request.is_default,
+    );
 
-    if let Some(target_network) = request.network.clone() {
-        let existing_pos = bucket.iter().position(|cfg| cfg.network == target_network);
-
-        // Build the upserted config by applying partial-update fields over the existing slot
-        let upserted_config = {
-            let base = existing_pos
-                .and_then(|pos| bucket.get(pos).cloned())
-                .unwrap_or_else(|| common_types::domain::AcquirerConfig {
-                    network: target_network.clone(),
-                    acquirer_assigned_merchant_id: String::new(),
-                    merchant_name: String::new(),
-                    acquirer_bin: String::new(),
-                    acquirer_ica: None,
-                    acquirer_fraud_rate: None,
-                    acquirer_country_code: None,
-                });
-
-            common_types::domain::AcquirerConfig {
-                acquirer_assigned_merchant_id: request
-                    .acquirer_assigned_merchant_id
-                    .unwrap_or(base.acquirer_assigned_merchant_id),
-                merchant_name: request.merchant_name.unwrap_or(base.merchant_name),
-                acquirer_bin: request.acquirer_bin.unwrap_or(base.acquirer_bin),
-                acquirer_ica: request.acquirer_ica.or(base.acquirer_ica),
-                acquirer_fraud_rate: request.acquirer_fraud_rate.or(base.acquirer_fraud_rate),
-                acquirer_country_code: request.acquirer_country_code.or(base.acquirer_country_code),
-                network: base.network,
-            }
-        };
-
-        // intra-bucket duplicate check: if the entry already exists and has the same content,
-        // reject it as a duplicate (unless we actually changed the default bucket flag)
-        if let Some(pos) = existing_pos {
-            if bucket.get(pos) == Some(&upserted_config) && !default_bucket_changed {
-                return Err(error_stack::report!(
-                    errors::ApiErrorResponse::GenericDuplicateError {
-                        message: format!(
-                            "An identical configuration for network '{}' already exists in bucket '{}'.",
-                            upserted_config.network,
-                            profile_acquirer_id.get_string_repr()
-                        ),
+    request
+        .network
+        .clone()
+        .map(|target_network| {
+            upsert_acquirer_config_in_bucket(
+                acquirer_config_map,
+                &profile_acquirer_id,
+                target_network,
+                &request,
+                default_bucket_changed,
+            )
+        })
+        .unwrap_or_else(|| {
+            if default_bucket_changed {
+                Ok(())
+            } else {
+                Err(error_stack::report!(
+                    errors::ApiErrorResponse::InvalidRequestData {
+                        message: "A `network` must be provided to update an acquirer configuration, unless you are only changing the `is_default` fallback status of this entire bucket.".to_string(),
                     }
-                ));
+                ))
             }
-        }
-
-        // Upsert into the bucket: overwrite existing network slot or push a new entry.
-        let bucket_mut = acquirer_config_map
-            .configs
-            .get_mut(&profile_acquirer_id)
-            .ok_or(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("bucket was verified above but vanished")?;
-
-        match existing_pos {
-            Some(pos) => {
-                if let Some(slot) = bucket_mut.get_mut(pos) {
-                    *slot = upserted_config.clone();
-                }
-            }
-            None => bucket_mut.push(upserted_config.clone()),
-        }
-    } else if !default_bucket_changed {
-        return Err(error_stack::report!(errors::ApiErrorResponse::InvalidRequestData {
-            message: "A `network` must be provided to update an acquirer configuration, unless you are only changing the `is_default` fallback status of this entire bucket.".to_string(),
-        }));
-    }
+        })?;
 
     let updated_map_for_db_update = business_profile.acquirer_config_map.clone();
 
@@ -252,4 +206,98 @@ pub async fn update_profile_acquirer_config(
     ));
 
     Ok(api::ApplicationResponse::Json(response))
+}
+
+/// Updates the `default_acquirer_config` pointer on the map and returns whether a change was made.
+#[cfg(all(feature = "olap", feature = "v1"))]
+fn apply_default_bucket_change(
+    config_map: &mut common_types::domain::AcquirerConfigMap,
+    profile_acquirer_id: &common_utils::id_type::ProfileAcquirerId,
+    current_default_id: &Option<common_utils::id_type::ProfileAcquirerId>,
+    is_default_request: Option<bool>,
+) -> bool {
+    match is_default_request {
+        Some(true) if current_default_id.as_ref() != Some(profile_acquirer_id) => {
+            config_map.default_acquirer_config = Some(profile_acquirer_id.clone());
+            true
+        }
+        Some(false) if current_default_id.as_ref() == Some(profile_acquirer_id) => {
+            config_map.default_acquirer_config = None;
+            true
+        }
+        _ => false,
+    }
+}
+
+/// Builds an upserted `AcquirerConfig` from the request, checks for exact duplicates,
+/// and writes it into the correct slot of the given bucket.
+#[cfg(all(feature = "olap", feature = "v1"))]
+fn upsert_acquirer_config_in_bucket(
+    config_map: &mut common_types::domain::AcquirerConfigMap,
+    profile_acquirer_id: &common_utils::id_type::ProfileAcquirerId,
+    target_network: common_enums::enums::CardNetwork,
+    request: &profile_acquirer::ProfileAcquirerUpdate,
+    default_bucket_changed: bool,
+) -> error_stack::Result<(), errors::ApiErrorResponse> {
+    let bucket = config_map
+        .configs
+        .get_mut(profile_acquirer_id)
+        .ok_or(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("bucket was verified above but vanished")?;
+
+    let existing_pos = bucket.iter().position(|cfg| cfg.network == target_network);
+
+    let base = existing_pos
+        .and_then(|pos| bucket.get(pos).cloned())
+        .unwrap_or_else(|| common_types::domain::AcquirerConfig {
+            network: target_network,
+            acquirer_assigned_merchant_id: String::new(),
+            merchant_name: String::new(),
+            acquirer_bin: String::new(),
+            acquirer_ica: None,
+            acquirer_fraud_rate: None,
+            acquirer_country_code: None,
+        });
+
+    let upserted_config = common_types::domain::AcquirerConfig {
+        acquirer_assigned_merchant_id: request
+            .acquirer_assigned_merchant_id
+            .clone()
+            .unwrap_or(base.acquirer_assigned_merchant_id),
+        merchant_name: request.merchant_name.clone().unwrap_or(base.merchant_name),
+        acquirer_bin: request.acquirer_bin.clone().unwrap_or(base.acquirer_bin),
+        acquirer_ica: request.acquirer_ica.clone().or(base.acquirer_ica),
+        acquirer_fraud_rate: request.acquirer_fraud_rate.or(base.acquirer_fraud_rate),
+        acquirer_country_code: request
+            .acquirer_country_code
+            .clone()
+            .or(base.acquirer_country_code),
+        network: base.network,
+    };
+
+    // Duplicate check: reject if content is identical and no default change occurred.
+    if existing_pos.and_then(|pos| bucket.get(pos)) == Some(&upserted_config)
+        && !default_bucket_changed
+    {
+        return Err(error_stack::report!(
+            errors::ApiErrorResponse::GenericDuplicateError {
+                message: format!(
+                    "An identical configuration for network '{}' already exists in bucket '{}'.",
+                    upserted_config.network,
+                    profile_acquirer_id.get_string_repr()
+                ),
+            }
+        ));
+    }
+
+    match existing_pos {
+        Some(pos) => {
+            if let Some(slot) = bucket.get_mut(pos) {
+                *slot = upserted_config;
+            }
+        }
+        None => bucket.push(upserted_config),
+    }
+
+    Ok(())
 }
