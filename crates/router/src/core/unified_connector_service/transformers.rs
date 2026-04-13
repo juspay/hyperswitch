@@ -2049,6 +2049,7 @@ impl transformers::ForeignTryFrom<&RouterData<Session, PaymentsSessionData, Paym
                 phone_country_code: None,
             }),
             metadata: None,
+            return_url: None,
         };
 
         Ok(Self {
