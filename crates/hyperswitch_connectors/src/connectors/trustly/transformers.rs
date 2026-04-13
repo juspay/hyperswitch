@@ -1,13 +1,13 @@
 use std::collections::BTreeMap;
 
 #[cfg(feature = "payouts")]
-use api_models::payouts::{Bank, PayoutMethodData};
+use api_models::payouts::{BankTransfer, PayoutMethodData};
 use base64::{engine::general_purpose, Engine as _};
 use common_enums::enums;
 #[cfg(feature = "payouts")]
 use common_enums::{CountryAlpha2, PayoutStatus};
-use common_utils::{id_type::CustomerId, pii, types::StringMajorUnit};
-use error_stack::ResultExt;
+use common_utils::{errors::CustomResult, id_type::CustomerId, pii, types::StringMajorUnit};
+use error_stack::{report, ResultExt};
 #[cfg(feature = "payouts")]
 use hyperswitch_domain_models::types::{PayoutsResponseData, PayoutsRouterData};
 use hyperswitch_domain_models::{
@@ -20,7 +20,12 @@ use hyperswitch_domain_models::{
 };
 use hyperswitch_interfaces::errors::ConnectorError;
 use hyperswitch_masking::{ExposeInterface, Secret};
-use openssl::{hash::MessageDigest, pkey::PKey, rsa::Rsa, sign::Signer};
+use openssl::{
+    hash::MessageDigest,
+    pkey::PKey,
+    rsa::Rsa,
+    sign::{Signer, Verifier},
+};
 use serde::{Deserialize, Serialize};
 
 use crate::types::{RefundsResponseRouterData, ResponseRouterData};
@@ -85,34 +90,24 @@ impl TryFrom<&TrustlyRouterData<&PaymentsAuthorizeRouterData>> for TrustlyPaymen
 pub struct TrustlyAuthType {
     pub(super) username: Secret<String>,
     pub(super) password: Secret<String>,
+    pub(super) private_key: Secret<String>,
 }
 
 impl TryFrom<&ConnectorAuthType> for TrustlyAuthType {
     type Error = error_stack::Report<ConnectorError>;
     fn try_from(auth_type: &ConnectorAuthType) -> Result<Self, Self::Error> {
         match auth_type {
-            ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self {
+            ConnectorAuthType::SignatureKey {
+                api_key,
+                key1,
+                api_secret,
+            } => Ok(Self {
                 username: api_key.to_owned(),
                 password: key1.to_owned(),
+                private_key: api_secret.to_owned(),
             }),
             _ => Err(ConnectorError::FailedToObtainAuthType.into()),
         }
-    }
-}
-
-#[cfg(feature = "payouts")]
-#[derive(Default, Debug, Serialize, Deserialize, PartialEq)]
-pub struct TrustlyMetadata {
-    private_key: Secret<String>,
-}
-
-#[cfg(feature = "payouts")]
-impl TryFrom<&Option<pii::SecretSerdeValue>> for TrustlyMetadata {
-    type Error = error_stack::Report<ConnectorError>;
-    fn try_from(meta_data: &Option<pii::SecretSerdeValue>) -> Result<Self, Self::Error> {
-        let metadata: Self = utils::to_connector_meta_from_secret::<Self>(meta_data.clone())
-            .change_context(ConnectorError::InvalidConnectorConfig { config: "metadata" })?;
-        Ok(metadata)
     }
 }
 
@@ -349,12 +344,18 @@ fn trustly_serialize<T: Serialize>(data: &T) -> String {
 
 enum Algorithm {
     SHA256,
+    SHA384,
+    SHA512,
+    SHA1,
 }
 
 impl Algorithm {
     fn message_digest(&self) -> MessageDigest {
         match self {
             Self::SHA256 => MessageDigest::sha256(),
+            Self::SHA384 => MessageDigest::sha384(),
+            Self::SHA512 => MessageDigest::sha512(),
+            Self::SHA1 => MessageDigest::sha1(),
         }
     }
 
@@ -368,11 +369,14 @@ fn serialize_value(value: &serde_json::Value) -> String {
     match value {
         serde_json::Value::Object(map) => {
             let sorted: BTreeMap<_, _> = map.iter().collect();
-            sorted
-                .iter()
-                .filter(|(_, v)| !v.is_null())
-                .map(|(k, v)| format!("{}{}", k, serialize_data(v)))
-                .collect()
+            sorted.iter().filter(|(_, v)| !v.is_null()).fold(
+                String::new(),
+                |mut output, (key, value)| {
+                    output.push_str(key);
+                    output.push_str(&serialize_data(value));
+                    output
+                },
+            )
         }
         serde_json::Value::Array(arr) => arr.iter().map(serialize_data).collect(),
         serde_json::Value::String(s) => s.clone(),
@@ -382,8 +386,8 @@ fn serialize_value(value: &serde_json::Value) -> String {
     }
 }
 
-fn generate_trustly_signature<T: Serialize>(
-    method: &TrustlyMethod,
+pub fn generate_trustly_signature<T: Serialize>(
+    method: &str,
     uuid: &str,
     data: &T,
     private_key: &str,
@@ -394,7 +398,7 @@ fn generate_trustly_signature<T: Serialize>(
     let rsa = Rsa::private_key_from_pem(&pem).map_err(|_| ConnectorError::RequestEncodingFailed)?;
     let private_key = PKey::from_rsa(rsa).map_err(|_| ConnectorError::RequestEncodingFailed)?;
 
-    let plaintext = format!("{}{}{}", method.as_str(), uuid, trustly_serialize(data));
+    let plaintext = format!("{}{}{}", method, uuid, trustly_serialize(data));
 
     let mut signer = Signer::new(algorithm.message_digest(), &private_key)
         .map_err(|_| ConnectorError::RequestEncodingFailed)?;
@@ -419,8 +423,11 @@ fn serialize_data(value: &serde_json::Value) -> String {
             let sorted: BTreeMap<_, _> = map.iter().collect();
             sorted
                 .iter()
-                .map(|(k, v)| format!("{}{}", k, serialize_data(v)))
-                .collect()
+                .fold(String::new(), |mut output, (key, value)| {
+                    output.push_str(key);
+                    output.push_str(&serialize_data(value));
+                    output
+                })
         }
         serde_json::Value::Array(arr) => arr.iter().map(serialize_data).collect(),
         serde_json::Value::String(s) => s.clone(),
@@ -477,33 +484,34 @@ impl<F> TryFrom<&TrustlyRouterData<&PayoutsRouterData<F>>> for RegisterAccountRe
     fn try_from(item: &TrustlyRouterData<&PayoutsRouterData<F>>) -> Result<Self, Self::Error> {
         let payout_method_data = item.router_data.get_payout_method_data()?;
         match payout_method_data {
-            PayoutMethodData::Bank(Bank::Trustly(trustly_data)) => {
-                let (account_number, bank_number) = if let Some(iban) = trustly_data.iban {
-                    (iban, Secret::new(String::new()))
-                } else {
-                    (
-                        trustly_data.account_number.ok_or(
-                            ConnectorError::MissingRequiredField {
-                                field_name: "account_number",
-                            },
-                        )?,
-                        trustly_data
-                            .bank_number
-                            .ok_or(ConnectorError::MissingRequiredField {
-                                field_name: "bank_number",
-                            })?,
-                    )
-                };
+            PayoutMethodData::BankTransfer(bank) => match bank {
+                BankTransfer::Trustly(trustly_data) => {
+                    let (account_number, bank_number) = if let Some(iban) = trustly_data.iban {
+                        (iban, Secret::new(String::new()))
+                    } else {
+                        (
+                            trustly_data.bank_account_number.ok_or(
+                                ConnectorError::MissingRequiredField {
+                                    field_name: "account_number",
+                                },
+                            )?,
+                            trustly_data.bank_number.ok_or(
+                                ConnectorError::MissingRequiredField {
+                                    field_name: "bank_number",
+                                },
+                            )?,
+                        )
+                    };
 
-                let customer_details = item.router_data.request.customer_details.clone();
-                let billing_details = item.router_data.get_optional_billing();
-                let (first_name, last_name) =
-                    get_customer_details(customer_details.as_ref(), billing_details)?;
+                    let customer_details = item.router_data.request.customer_details.clone();
+                    let billing_details = item.router_data.get_optional_billing();
+                    let (first_name, last_name) =
+                        get_customer_details(customer_details.as_ref(), billing_details)?;
 
-                let attributes = if billing_details.is_some()
-                    || customer_details.and_then(|details| details.email).is_some()
-                {
-                    Some(RegisterAccountAttributes {
+                    let attributes = if billing_details.is_some()
+                        || customer_details.and_then(|details| details.email).is_some()
+                    {
+                        Some(RegisterAccountAttributes {
                         address_city: item.router_data.get_optional_billing_city(),
                         address_country: item.router_data.get_optional_billing_country(),
                         address_line1: item.router_data.get_optional_billing_line1(),
@@ -512,46 +520,54 @@ impl<F> TryFrom<&TrustlyRouterData<&PayoutsRouterData<F>>> for RegisterAccountRe
                         email: item.router_data.get_optional_billing_email(),
                         mobile_phone: billing_details.and_then(|details| hyperswitch_domain_models::address::Address::get_phone_with_country_code(details).ok()),
                     })
-                } else {
-                    None
-                };
+                    } else {
+                        None
+                    };
 
-                let uuid = uuid::Uuid::new_v4().to_string();
-                let private_key =
-                    TrustlyMetadata::try_from(&item.router_data.connector_meta_data)?.private_key;
-                let auth_details =
-                    TrustlyAuthType::try_from(&item.router_data.connector_auth_type)?;
-                let register_account_data = RegisterAccountData {
-                    account_number,
-                    bank_number,
-                    clearing_house: common_enums::Country::from_alpha2(trustly_data.country_code)
+                    let uuid = uuid::Uuid::new_v4().to_string();
+                    let auth_details =
+                        TrustlyAuthType::try_from(&item.router_data.connector_auth_type)?;
+                    let private_key = auth_details.private_key.clone();
+                    let register_account_data = RegisterAccountData {
+                        account_number,
+                        bank_number,
+                        clearing_house: common_enums::Country::from_alpha2(
+                            trustly_data.bank_country_code,
+                        )
                         .to_string()
                         .to_uppercase(),
-                    end_user_i_d: item.router_data.get_customer_id()?,
-                    firstname: Secret::new(first_name),
-                    lastname: Secret::new(last_name),
-                    username: auth_details.username,
-                    password: auth_details.password,
-                    attributes,
-                };
+                        end_user_i_d: item.router_data.get_customer_id()?,
+                        firstname: Secret::new(first_name),
+                        lastname: Secret::new(last_name),
+                        username: auth_details.username,
+                        password: auth_details.password,
+                        attributes,
+                    };
 
-                let signature = generate_trustly_signature(
-                    &TrustlyMethod::RegisterAccount,
-                    uuid.as_str(),
-                    &register_account_data,
-                    &private_key.expose(),
-                )?;
+                    let signature = generate_trustly_signature(
+                        TrustlyMethod::RegisterAccount.as_str(),
+                        uuid.as_str(),
+                        &register_account_data,
+                        &private_key.expose(),
+                    )?;
 
-                Ok(Self {
-                    method: TrustlyMethod::RegisterAccount,
-                    params: RegisterAccountParams {
-                        data: register_account_data,
-                        signature: Secret::new(signature),
-                        uuid,
-                    },
-                    version: "1.1".to_string(),
-                })
-            }
+                    Ok(Self {
+                        method: TrustlyMethod::RegisterAccount,
+                        params: RegisterAccountParams {
+                            data: register_account_data,
+                            signature: Secret::new(signature),
+                            uuid,
+                        },
+                        version: "1.1".to_string(),
+                    })
+                }
+                BankTransfer::Sepa(_)
+                | BankTransfer::Ach(_)
+                | BankTransfer::Bacs(_)
+                | BankTransfer::Pix(_) => Err(ConnectorError::NotImplemented(
+                    get_unimplemented_payment_method_error_message("Trustly"),
+                ))?,
+            },
             PayoutMethodData::Card(_)
             | PayoutMethodData::Wallet(_)
             | PayoutMethodData::Bank(_)
@@ -670,67 +686,72 @@ impl<F> TryFrom<&TrustlyRouterData<&PayoutsRouterData<F>>> for AccountPayoutRequ
     fn try_from(item: &TrustlyRouterData<&PayoutsRouterData<F>>) -> Result<Self, Self::Error> {
         let payout_method_data = item.router_data.get_payout_method_data()?;
         match payout_method_data {
-            PayoutMethodData::Bank(Bank::Trustly(_trustly_data)) => {
-                let notification_url = item.router_data.request.get_webhook_url()?;
+            PayoutMethodData::BankTransfer(bank) => match bank {
+                BankTransfer::Trustly(_trustly_data) => {
+                    let notification_url = item.router_data.request.get_webhook_url()?;
 
-                let metadata = item
-                    .router_data
-                    .request
-                    .payout_connector_metadata
-                    .clone()
-                    .map(|secret| secret.expose().clone());
-                let account_id: TrustlyAccountId =
-                    utils::to_payout_connector_meta(metadata.clone())?;
-
-                let auth_details =
-                    TrustlyAuthType::try_from(&item.router_data.connector_auth_type)?;
-
-                let private_key =
-                    TrustlyMetadata::try_from(&item.router_data.connector_meta_data)?.private_key;
-                let uuid = uuid::Uuid::new_v4().to_string();
-                let account_payout_data = AccountPayoutData {
-                    account_i_d: account_id.account_id,
-                    amount: item.amount.clone(),
-                    attributes: Some(AccountPayoutAttributes {
-                        shopper_statement: item.router_data.description.clone().ok_or(
-                            ConnectorError::MissingRequiredField {
-                                field_name: "description",
-                            },
-                        )?,
-                    }),
-                    currency: item.router_data.request.destination_currency,
-                    end_user_i_d: item.router_data.get_customer_id()?,
-                    message_i_d: item
+                    let metadata = item
                         .router_data
                         .request
-                        .payout_id
-                        .get_string_repr()
-                        .to_string(),
-                    notification_u_r_l: notification_url,
-                    password: auth_details.password.clone(),
-                    username: auth_details.username.clone(),
-                };
+                        .payout_connector_metadata
+                        .clone()
+                        .map(|secret| secret.expose().clone());
+                    let account_id: TrustlyAccountId =
+                        utils::to_payout_connector_meta(metadata.clone())?;
 
-                let signature = generate_trustly_signature(
-                    &TrustlyMethod::AccountPayout,
-                    uuid.as_str(),
-                    &account_payout_data,
-                    &private_key.expose(),
-                )?;
+                    let auth_details =
+                        TrustlyAuthType::try_from(&item.router_data.connector_auth_type)?;
 
-                Ok(Self {
-                    method: TrustlyMethod::AccountPayout,
-                    params: AccountPayoutParams {
-                        data: account_payout_data,
-                        signature: Secret::new(signature),
-                        uuid,
-                    },
-                    version: "1.1".to_string(),
-                })
-            }
+                    let private_key = auth_details.private_key.clone();
+                    let uuid = uuid::Uuid::new_v4().to_string();
+                    let account_payout_data = AccountPayoutData {
+                        account_i_d: account_id.account_id,
+                        amount: item.amount.clone(),
+                        attributes: Some(AccountPayoutAttributes {
+                            shopper_statement: item.router_data.description.clone().ok_or(
+                                ConnectorError::MissingRequiredField {
+                                    field_name: "description",
+                                },
+                            )?,
+                        }),
+                        currency: item.router_data.request.destination_currency,
+                        end_user_i_d: item.router_data.get_customer_id()?,
+                        message_i_d: format!(
+                            "payout_{}",
+                            item.router_data.request.payout_id.get_string_repr()
+                        ),
+                        notification_u_r_l: notification_url,
+                        password: auth_details.password.clone(),
+                        username: auth_details.username.clone(),
+                    };
+
+                    let signature = generate_trustly_signature(
+                        TrustlyMethod::AccountPayout.as_str(),
+                        uuid.as_str(),
+                        &account_payout_data,
+                        &private_key.expose(),
+                    )?;
+
+                    Ok(Self {
+                        method: TrustlyMethod::AccountPayout,
+                        params: AccountPayoutParams {
+                            data: account_payout_data,
+                            signature: Secret::new(signature),
+                            uuid,
+                        },
+                        version: "1.1".to_string(),
+                    })
+                }
+                BankTransfer::Sepa(_)
+                | BankTransfer::Ach(_)
+                | BankTransfer::Bacs(_)
+                | BankTransfer::Pix(_) => Err(ConnectorError::NotImplemented(
+                    get_unimplemented_payment_method_error_message("Trustly"),
+                ))?,
+            },
             PayoutMethodData::Card(_)
-            | PayoutMethodData::Wallet(_)
             | PayoutMethodData::Bank(_)
+            | PayoutMethodData::Wallet(_)
             | PayoutMethodData::BankRedirect(_)
             | PayoutMethodData::Passthrough(_) => Err(ConnectorError::NotImplemented(
                 get_unimplemented_payment_method_error_message("Trustly"),
@@ -843,11 +864,11 @@ impl<F> TryFrom<&PayoutsRouterData<F>> for TrustlyPayoutSyncRequest {
             password: auth_details.password.clone(),
             username: auth_details.username.clone(),
         };
-        let private_key = TrustlyMetadata::try_from(&item.connector_meta_data)?.private_key;
+        let private_key = auth_details.private_key.clone();
 
         let uuid = uuid::Uuid::new_v4().to_string();
         let signature = generate_trustly_signature(
-            &TrustlyMethod::GetWithdrawals,
+            TrustlyMethod::GetWithdrawals.as_str(),
             uuid.as_str(),
             &data,
             &private_key.expose(),
@@ -870,6 +891,7 @@ impl<F> TryFrom<&PayoutsRouterData<F>> for TrustlyPayoutSyncRequest {
 pub enum TrustlyPayoutSyncResponse {
     Success(TrustlyPayoutSyncResponseSuccess),
     Error(TrustlyErrorResponse),
+    Webhook(Box<TrustlyWebhookBody>),
 }
 
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
@@ -925,6 +947,18 @@ impl From<TrustlyPayoutStatus> for PayoutStatus {
     }
 }
 
+fn get_payout_status_from_webhook(
+    item: TrustlyWebhookMethod,
+) -> Result<PayoutStatus, ConnectorError> {
+    match item {
+        TrustlyWebhookMethod::Credit => Ok(PayoutStatus::Reversed),
+        TrustlyWebhookMethod::Cancel => Ok(PayoutStatus::Cancelled),
+        TrustlyWebhookMethod::PayoutFailed => Ok(PayoutStatus::Failed),
+        TrustlyWebhookMethod::PayoutConfirmation => Ok(PayoutStatus::Success),
+        _ => Err(ConnectorError::WebhookEventTypeNotFound),
+    }
+}
+
 #[cfg(feature = "payouts")]
 impl<F> TryFrom<PayoutsResponseRouterData<F, TrustlyPayoutSyncResponse>> for PayoutsRouterData<F> {
     type Error = error_stack::Report<ConnectorError>;
@@ -968,6 +1002,210 @@ impl<F> TryFrom<PayoutsResponseRouterData<F, TrustlyPayoutSyncResponse>> for Pay
                     ..item.data
                 })
             }
+            TrustlyPayoutSyncResponse::Webhook(webhook_body) => {
+                let status = get_payout_status_from_webhook(webhook_body.method.clone())?;
+
+                Ok(Self {
+                    response: Ok(PayoutsResponseData {
+                        status: Some(status),
+                        connector_payout_id: Some(webhook_body.params.data.orderid.clone()),
+                        payout_eligible: None,
+                        should_add_next_step_to_process_tracker: false,
+                        error_code: webhook_body.params.data.errorcode,
+                        error_message: webhook_body.params.data.errormessage,
+                        payout_connector_metadata: None,
+                    }),
+                    ..item.data
+                })
+            }
         }
     }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct TrustlyWebhookBody {
+    pub method: TrustlyWebhookMethod,
+    pub params: TrustlyWebhookParams,
+    pub version: String,
+}
+
+impl TrustlyWebhookMethod {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            Self::Credit => "credit",
+            Self::Debit => "debit",
+            Self::Cancel => "cancel",
+            Self::Account => "account",
+            Self::Pending => "pending",
+            Self::PayoutConfirmation => "payoutconfirmation",
+            Self::PayoutFailed => "payoutfailed",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "lowercase")]
+pub enum TrustlyWebhookMethod {
+    Credit,
+    Debit,
+    Cancel,
+    Account,
+    Pending,
+    PayoutConfirmation,
+    PayoutFailed,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct TrustlyWebhookParams {
+    pub signature: String,
+    pub uuid: String,
+    pub data: TrustlyWebhookData,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct TrustlyWebhookData {
+    pub amount: Option<StringMajorUnit>,
+    pub currency: Option<common_enums::Currency>,
+    pub messageid: String,
+    pub orderid: String,
+    pub enduserid: Option<String>,
+    pub accountid: Option<Secret<String>>,
+    pub verified: Option<String>,
+    pub notificationid: String,
+    pub timestamp: Option<String>,
+    pub attributes: Option<TrustlyWebhookAttributes>,
+    pub errorcode: Option<String>,
+    pub errormessage: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct TrustlyWebhookAttributes {
+    pub bank: Secret<String>,
+    pub city: Secret<String>,
+    pub name: Secret<String>,
+    pub address: Secret<String>,
+    pub zipcode: Secret<String>,
+    pub personid: Secret<String>,
+    pub descriptor: String,
+    pub lastdigits: String,
+    pub clearinghouse: String,
+}
+
+pub fn is_payment_webhook_event(webhook_method: TrustlyWebhookMethod, message_id: String) -> bool {
+    matches!(
+        webhook_method,
+        TrustlyWebhookMethod::Credit
+            | TrustlyWebhookMethod::Debit
+            | TrustlyWebhookMethod::Cancel
+            | TrustlyWebhookMethod::Account
+            | TrustlyWebhookMethod::Pending
+    ) && !message_id.starts_with("payout_")
+}
+
+pub fn is_payout_webhook_event(webhook_method: TrustlyWebhookMethod, message_id: String) -> bool {
+    matches!(
+        webhook_method,
+        TrustlyWebhookMethod::PayoutConfirmation
+            | TrustlyWebhookMethod::PayoutFailed
+            | TrustlyWebhookMethod::Credit
+            | TrustlyWebhookMethod::Cancel
+    ) && message_id.starts_with("payout_")
+}
+
+pub fn is_refund_webhook_event(webhook_method: TrustlyWebhookMethod, message_id: String) -> bool {
+    matches!(
+        webhook_method,
+        TrustlyWebhookMethod::PayoutConfirmation | TrustlyWebhookMethod::PayoutFailed
+    ) && !message_id.starts_with("payout_")
+}
+
+pub fn get_payout_webhook_event(
+    webhook_method: TrustlyWebhookMethod,
+) -> CustomResult<api_models::webhooks::IncomingWebhookEvent, ConnectorError> {
+    match webhook_method {
+        TrustlyWebhookMethod::PayoutConfirmation => {
+            Ok(api_models::webhooks::IncomingWebhookEvent::PayoutSuccess)
+        }
+        TrustlyWebhookMethod::PayoutFailed => {
+            Ok(api_models::webhooks::IncomingWebhookEvent::PayoutFailure)
+        }
+        TrustlyWebhookMethod::Cancel => {
+            Ok(api_models::webhooks::IncomingWebhookEvent::PayoutCancelled)
+        }
+        TrustlyWebhookMethod::Credit => {
+            Ok(api_models::webhooks::IncomingWebhookEvent::PayoutReversed)
+        }
+        _ => Err(report!(ConnectorError::WebhookEventTypeNotFound)),
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct TrustlyWebhookResponse {
+    pub result: TrustlyWebhookResponseResult,
+    pub version: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct TrustlyWebhookResponseResult {
+    pub signature: Secret<String>,
+    pub uuid: String,
+    pub method: String,
+    pub data: TrustlyWebhookResponseResultData,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct TrustlyWebhookResponseResultData {
+    pub status: String,
+}
+
+pub fn verify_webhook_signature(
+    webhook_body: &TrustlyWebhookBody,
+    public_key: Vec<u8>,
+) -> error_stack::Result<bool, ConnectorError> {
+    let method = webhook_body.method.clone();
+    let uuid = webhook_body.params.uuid.clone();
+    let data = &webhook_body.params.data;
+    let signature = &webhook_body.params.signature;
+
+    let pem_bytes = general_purpose::STANDARD
+        .decode(&public_key)
+        .change_context(ConnectorError::WebhookSourceVerificationFailed)?;
+
+    let rsa = Rsa::public_key_from_pem(&pem_bytes)
+        .change_context(ConnectorError::WebhookSourceVerificationFailed)?;
+    let public_key =
+        PKey::from_rsa(rsa).change_context(ConnectorError::WebhookSourceVerificationFailed)?;
+
+    let (algorithm, signature_b64) = if signature.len() >= 10
+        && signature.starts_with("alg=RS")
+        && matches!(signature.as_bytes().get(9), Some(b';'))
+    {
+        let prefix = &signature[..10];
+
+        let algorithm = match prefix {
+            "alg=RS256;" => Algorithm::SHA256,
+            "alg=RS384;" => Algorithm::SHA384,
+            "alg=RS512;" => Algorithm::SHA512,
+            _ => Algorithm::SHA1,
+        };
+
+        (algorithm, &signature[10..])
+    } else {
+        (Algorithm::SHA1, signature.as_str())
+    };
+
+    let plaintext = format!("{}{}{}", method.as_str(), uuid, trustly_serialize(data));
+
+    let signature_bytes = general_purpose::STANDARD
+        .decode(signature_b64)
+        .change_context(ConnectorError::WebhookSourceVerificationFailed)?;
+
+    let mut verifier = Verifier::new(algorithm.message_digest(), &public_key)
+        .change_context(ConnectorError::WebhookSourceVerificationFailed)?;
+    verifier
+        .update(plaintext.as_bytes())
+        .change_context(ConnectorError::WebhookSourceVerificationFailed)?;
+    verifier
+        .verify(&signature_bytes)
+        .change_context(ConnectorError::WebhookSourceVerificationFailed)
 }

@@ -20,7 +20,10 @@ use crate::{
 };
 use crate::{
     core::{
-        configs::dimension_state::DimensionsWithMerchantIdAndProfileId,
+        configs::dimension_state::{
+            DimensionsWithProcessorAndProviderMerchantId,
+            DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
+        },
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
         mandate::helpers as m_helpers,
         payment_methods::transformers as pm_transformers,
@@ -59,9 +62,16 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         platform: &domain::Platform,
         _auth_flow: services::AuthFlow,
         _header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
-        payment_method_with_raw_data: Option<pm_transformers::PaymentMethodWithRawData>,
+        #[cfg(feature = "pm_modular")] payment_method_with_raw_data: Option<
+            pm_transformers::PaymentMethodWithRawData,
+        >,
     ) -> RouterResult<operations::GetTrackerResponse<'a, F, api::PaymentsRequest, PaymentData<F>>>
     {
+        #[cfg(not(feature = "pm_modular"))]
+        let payment_method_with_raw_data: Option<
+            pm_transformers::PaymentMethodWithRawData,
+        > = None;
+
         let processor_merchant_id = platform.get_processor().get_account().get_id();
         let storage_scheme = platform.get_processor().get_account().storage_scheme;
         let (currency, amount);
@@ -89,7 +99,8 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             "recurrence",
         )?;
 
-        let customer_details = helpers::get_customer_details_from_request(request);
+        let customer_details =
+            helpers::get_customer_details_from_request_or_pm_table(request, None, None)?;
 
         let store = state.store.clone();
         let m_payment_id = payment_intent.payment_id.clone();
@@ -386,7 +397,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             is_manual_retry_enabled: business_profile.is_manual_retry_enabled,
             is_l2_l3_enabled: business_profile.is_l2_l3_enabled,
             external_authentication_data: None,
-            payment_session_id: None,
+            client_session_id: None,
         };
 
         let get_trackers_response = operations::GetTrackerResponse {
@@ -411,7 +422,8 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
         request: Option<CustomerDetails>,
         provider: &domain::Provider,
         _initiator: Option<&domain::Initiator>,
-        _dimensions: DimensionsWithMerchantIdAndProfileId,
+        _dimensions: &DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
+        _mandate_type: Option<api::MandateTransactionType>,
     ) -> CustomResult<
         (PaymentRecurrenceOperation<'a, F>, Option<domain::Customer>),
         errors::StorageError,
@@ -517,6 +529,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
         mut payment_data: PaymentData<F>,
         frm_suggestion: Option<FrmSuggestion>,
         header_payload: hyperswitch_domain_models::payments::HeaderPayload,
+        _dimensions: &DimensionsWithProcessorAndProviderMerchantId,
     ) -> RouterResult<(
         BoxedOperation<'b, F, api::PaymentsRequest, PaymentData<F>>,
         PaymentData<F>,

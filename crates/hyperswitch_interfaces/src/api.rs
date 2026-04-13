@@ -469,8 +469,16 @@ pub trait ConnectorSpecifications {
     fn is_post_authentication_flow_required(&self, _current_flow: CurrentFlowInfo) -> bool {
         false
     }
-    /// Check if pre-authentication flow is required
+    /// Check if settlement split flow is required
     fn is_settlement_split_call_required(&self, _current_flow: CurrentFlowInfo) -> bool {
+        false
+    }
+    /// Check if payment trigger flow is required
+    fn is_push_notification_flow_required(&self, _current_flow: CurrentFlowInfo) -> bool {
+        false
+    }
+    /// Check if generate QR flow is required
+    fn is_generate_qr_flow_required(&self, _current_flow: CurrentFlowInfo) -> bool {
         false
     }
     /// Preprocessing flow name if any, that must be made before the current flow.
@@ -601,6 +609,11 @@ pub trait ConnectorSpecifications {
     /// Check if connector needs tokenization call before setup mandate flow
     fn should_call_tokenization_before_setup_mandate(&self) -> bool {
         true
+    }
+
+    /// Check if connector should trigger handle response without initiating a call to the connector
+    fn should_trigger_handle_response_without_body(&self) -> bool {
+        false
     }
 
     /// Get connector's API webhook configuration object
@@ -993,6 +1006,8 @@ pub trait AccessTokenData {
     fn get_payment_method_type(&self) -> Option<PaymentMethodType>;
     /// Get the merchant id from RouterData
     fn get_merchant_id(&self) -> common_utils::id_type::MerchantId;
+    /// Check if the payment is a MIT payment
+    fn is_mit_payment(&self) -> bool;
 }
 
 impl<F, Req, Res> AccessTokenData for RouterData<F, Req, Res> {
@@ -1001,6 +1016,9 @@ impl<F, Req, Res> AccessTokenData for RouterData<F, Req, Res> {
     }
     fn get_merchant_id(&self) -> common_utils::id_type::MerchantId {
         self.merchant_id.clone()
+    }
+    fn is_mit_payment(&self) -> bool {
+        self.recurring_mandate_payment_data.is_some()
     }
 }
 

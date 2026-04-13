@@ -1,4 +1,4 @@
-//! Core payment session ID management for SDK authorization.
+//! Core client session ID management for SDK authorization.
 
 use common_utils::{
     errors::CustomResult,
@@ -11,11 +11,11 @@ use time::{Duration, PrimitiveDateTime};
 
 use crate::{consts, db::errors, routes::app::SessionStateInfo};
 
-/// Payment session data structure stored in Redis
+/// Client session data structure stored in Redis
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct PaymentSessionData {
+pub struct ClientSessionData {
     /// SDK auth session ID
-    pub payment_session_id: id_type::PaymentSessionId,
+    pub client_session_id: id_type::ClientSessionId,
     /// Session creation time
     pub created_at: PrimitiveDateTime,
     /// Session expiry time
@@ -29,23 +29,23 @@ pub struct SessionInvalidationReport {
     pub session_existed: bool,
 }
 
-/// Manager for payment session Redis operations
-pub struct PaymentSessionManager;
+/// Manager for client session Redis operations
+pub struct ClientSessionManager;
 
-impl PaymentSessionManager {
-    /// Generate Redis key in format: payment_session:{processor_merchant_id}:{payment_id}
+impl ClientSessionManager {
+    /// Generate Redis key in format: client_session:{processor_merchant_id}:{payment_id}
     /// We have a unique constraint on (processor_merchant_id, payment_id), so using them
     /// for creating the redis key
     fn get_session_key(processor_merchant_id: &MerchantId, payment_id: &PaymentId) -> String {
         format!(
             "{}:{}:{}",
-            consts::PAYMENT_SESSION_KEY_PREFIX,
+            consts::CLIENT_SESSION_KEY_PREFIX,
             processor_merchant_id.get_string_repr(),
             payment_id.get_string_repr()
         )
     }
 
-    /// Create a new payment session and store in Redis with TTL
+    /// Create a new client session and store in Redis with TTL
     ///
     /// # Arguments
     /// * `state` - Application state with Redis connection
@@ -64,7 +64,7 @@ impl PaymentSessionManager {
         processor_merchant_id: &MerchantId,
         payment_id: &PaymentId,
         session_expiry: Option<PrimitiveDateTime>,
-    ) -> CustomResult<id_type::PaymentSessionId, errors::ApiErrorResponse>
+    ) -> CustomResult<id_type::ClientSessionId, errors::ApiErrorResponse>
     where
         S: SessionStateInfo + Sync,
     {
@@ -76,7 +76,7 @@ impl PaymentSessionManager {
         let session_expiry = session_expiry.unwrap_or_else(Self::get_default_session_expiry);
 
         // Generate a unique session ID
-        let payment_session_id = id_type::PaymentSessionId::generate();
+        let client_session_id = id_type::ClientSessionId::generate();
 
         let key = Self::get_session_key(processor_merchant_id, payment_id);
 
@@ -93,8 +93,8 @@ impl PaymentSessionManager {
         }?;
 
         // Create session data structure
-        let session_data = PaymentSessionData {
-            payment_session_id: payment_session_id.clone(),
+        let session_data = ClientSessionData {
+            client_session_id: client_session_id.clone(),
             created_at: now,
             expires_at: session_expiry,
         };
@@ -109,13 +109,13 @@ impl PaymentSessionManager {
             processor_merchant_id = %processor_merchant_id.get_string_repr(),
             payment_id = %payment_id.get_string_repr(),
             ttl_seconds,
-            "Created payment session"
+            "Created client session"
         );
 
-        Ok(payment_session_id)
+        Ok(client_session_id)
     }
 
-    /// Get payment session data from Redis
+    /// Get client session data from Redis
     ///
     /// # Arguments
     /// * `state` - Application state with Redis connection
@@ -129,7 +129,7 @@ impl PaymentSessionManager {
         state: &S,
         processor_merchant_id: &MerchantId,
         payment_id: &PaymentId,
-    ) -> CustomResult<Option<PaymentSessionData>, errors::ApiErrorResponse>
+    ) -> CustomResult<Option<ClientSessionData>, errors::ApiErrorResponse>
     where
         S: SessionStateInfo + Sync,
     {
@@ -141,14 +141,14 @@ impl PaymentSessionManager {
         let key = Self::get_session_key(processor_merchant_id, payment_id);
 
         match redis_conn
-            .get_and_deserialize_key::<PaymentSessionData>(&key.into(), "PaymentSessionData")
+            .get_and_deserialize_key::<ClientSessionData>(&key.into(), "ClientSessionData")
             .await
         {
             Ok(session_data) => {
                 logger::debug!(
                     processor_merchant_id = %processor_merchant_id.get_string_repr(),
                     payment_id = %payment_id.get_string_repr(),
-                    "Retrieved payment session"
+                    "Retrieved client session"
                 );
                 Ok(Some(session_data))
             }
@@ -158,7 +158,7 @@ impl PaymentSessionManager {
                     logger::debug!(
                         processor_merchant_id = %processor_merchant_id.get_string_repr(),
                         payment_id = %payment_id.get_string_repr(),
-                        "No payment session found"
+                        "No client session found"
                     );
                     Ok(None)
                 } else {
@@ -183,37 +183,45 @@ impl PaymentSessionManager {
         state: &S,
         processor_merchant_id: &MerchantId,
         payment_id: &PaymentId,
-        payment_session_id: &id_type::PaymentSessionId,
+        client_session_id: &id_type::ClientSessionId,
     ) -> CustomResult<bool, errors::ApiErrorResponse>
     where
         S: SessionStateInfo + Sync,
     {
         let session = Self::get_session(state, processor_merchant_id, payment_id)
             .await
-            .attach_printable("Unable to retrieve payment session")?;
+            .attach_printable("Unable to retrieve client session")?;
 
         match session {
             Some(data) => {
-                let is_valid = &data.payment_session_id == payment_session_id;
-                logger::debug!(
-                    processor_merchant_id = %processor_merchant_id.get_string_repr(),
-                    payment_id = %payment_id.get_string_repr(),
-                    "Validated payment session"
-                );
+                let is_valid = &data.client_session_id == client_session_id;
+                if !is_valid {
+                    logger::error!(
+                        processor_merchant_id = %processor_merchant_id.get_string_repr(),
+                        payment_id = %payment_id.get_string_repr(),
+                        "Invalid client session ID"
+                    );
+                } else {
+                    logger::debug!(
+                        processor_merchant_id = %processor_merchant_id.get_string_repr(),
+                        payment_id = %payment_id.get_string_repr(),
+                        "Validated client session"
+                    );
+                }
                 Ok(is_valid)
             }
             None => {
                 logger::error!(
                     processor_merchant_id = %processor_merchant_id.get_string_repr(),
                     payment_id = %payment_id.get_string_repr(),
-                    "Payment session not found for validation"
+                    "Client session not found for validation"
                 );
                 Ok(false)
             }
         }
     }
 
-    /// Recreate payment session (invalidate old + create new)
+    /// Recreate client session (invalidate old + create new)
     ///
     /// Convenience method that combines invalidate_session and create_session
     /// for payment update scenarios.
@@ -232,10 +240,7 @@ impl PaymentSessionManager {
         processor_merchant_id: &MerchantId,
         payment_id: &PaymentId,
         session_expiry: Option<PrimitiveDateTime>,
-    ) -> CustomResult<
-        (id_type::PaymentSessionId, SessionInvalidationReport),
-        errors::ApiErrorResponse,
-    >
+    ) -> CustomResult<(id_type::ClientSessionId, SessionInvalidationReport), errors::ApiErrorResponse>
     where
         S: SessionStateInfo + Sync,
     {
@@ -260,7 +265,7 @@ impl PaymentSessionManager {
             processor_merchant_id = %processor_merchant_id.get_string_repr(),
             payment_id = %payment_id.get_string_repr(),
             session_existed = report.session_existed,
-            "Recreated payment session"
+            "Recreated client session"
         );
 
         Ok((new_session_id, report))

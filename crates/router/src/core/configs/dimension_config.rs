@@ -2,13 +2,16 @@ use external_services::superposition;
 use scheduler::consumer::types::process_data::RetryMapping;
 
 use super::{
-    dimension_state::{DimensionsWithMerchantId, DimensionsWithMerchantIdAndProfileId},
+    dimension_state::{
+        DimensionsWithProcessorAndProviderMerchantId,
+        DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
+    },
     fetch_db_config_for_dimensions, DatabaseBackedConfig,
 };
 use crate::{
     consts::superposition as superposition_consts,
-    core::configs::dimension_state::DimensionsWithMerchantIdAndConnector, db::StorageInterface,
-    utils::id_type,
+    core::configs::dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndConnector,
+    db::StorageInterface, utils::id_type,
 };
 
 /// Macro to generate config struct and superposition::Config trait implementation.
@@ -66,7 +69,7 @@ macro_rules! config {
                 pub async fn [<get_ $key:lower>](
                     &self,
                     storage: &dyn StorageInterface,
-                    superposition_client: Option<&superposition::SuperpositionClient>,
+                    superposition_client: &superposition::SuperpositionClient,
                     targeting_key: Option<&$targeting_type>,
                 ) -> $output {
                     // Fetch JSON and convert to $output using the conversion function
@@ -109,7 +112,7 @@ macro_rules! config {
                 pub async fn [<get_ $key:lower>](
                     &self,
                     storage: &dyn StorageInterface,
-                    superposition_client: Option<&superposition::SuperpositionClient>,
+                    superposition_client: &superposition::SuperpositionClient,
                     targeting_key: Option<&$targeting_type>,
                 ) -> $output {
                     fetch_db_config_for_dimensions::<[<$key:camel>]>(storage, superposition_client, self, targeting_key).await
@@ -123,7 +126,7 @@ config! {
     superposition_key = REQUIRES_CVV,
     output = bool,
     default = true,
-    requires = DimensionsWithMerchantId,
+    requires = DimensionsWithProcessorAndProviderMerchantId,
     targeting_key = id_type::CustomerId
 }
 
@@ -131,7 +134,7 @@ impl DatabaseBackedConfig for RequiresCvv {
     const KEY: &'static str = "requires_cvv";
     fn db_key(dimensions: &impl super::dimension_state::DimensionsBase) -> Option<String> {
         let merchant_id = dimensions
-            .get_merchant_id()
+            .get_processor_merchant_id()
             .map(|id| id.get_string_repr())
             .unwrap_or_default();
         Some(format!("{}_{}", merchant_id, Self::KEY))
@@ -142,7 +145,7 @@ config! {
     superposition_key = IMPLICIT_CUSTOMER_UPDATE,
     output = bool,
     default = false,
-    requires = DimensionsWithMerchantIdAndProfileId,
+    requires = DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
     targeting_key = id_type::CustomerId
 }
 
@@ -150,7 +153,7 @@ impl DatabaseBackedConfig for ImplicitCustomerUpdate {
     const KEY: &'static str = "implicit_customer_update";
     fn db_key(dimensions: &impl super::dimension_state::DimensionsBase) -> Option<String> {
         let merchant_id = dimensions
-            .get_merchant_id()
+            .get_provider_merchant_id()
             .map(|id| id.get_string_repr())
             .unwrap_or_default();
         Some(format!("{}_{}", merchant_id, Self::KEY))
@@ -162,20 +165,20 @@ config! {
     output = RetryMapping,
     default = RetryMapping::default(),
     object = true,
-    requires = DimensionsWithMerchantIdAndConnector,
+    requires = DimensionsWithProcessorAndProviderMerchantIdAndConnector,
     targeting_key = id_type::PayoutId
 }
 
 config! {
-    superposition_key = PAYMENT_SESSION_VALIDATION_ENABLED,
+    superposition_key = CLIENT_SESSION_VALIDATION_ENABLED,
     output = bool,
     default = true,
-    requires = DimensionsWithMerchantId,
+    requires = DimensionsWithProcessorAndProviderMerchantId,
     targeting_key = id_type::PaymentId
 }
 
-impl DatabaseBackedConfig for PaymentSessionValidationEnabled {
-    const KEY: &'static str = "payment_session_validation_enabled";
+impl DatabaseBackedConfig for ClientSessionValidationEnabled {
+    const KEY: &'static str = "client_session_validation_enabled";
     fn db_key(_dimensions: &impl super::dimension_state::DimensionsBase) -> Option<String> {
         None
     }
