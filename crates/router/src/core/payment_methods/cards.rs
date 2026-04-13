@@ -511,7 +511,7 @@ impl PaymentMethodsController for PmCards<'_> {
                         masked_account_number: bank_debit.get_masked_account_number(),
                         masked_routing_number: bank_debit.get_masked_routing_number(),
                         bank_account_holder_name: bank_debit.get_bank_account_holder_name(),
-                        bank_name: bank_debit.get_bank_name(),
+                        bank_name: None,
                         bank_type: bank_debit.get_bank_type(),
                         bank_holder_type: bank_debit.get_bank_holder_type(),
                     },

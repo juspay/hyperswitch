@@ -1,4 +1,4 @@
-use api_models::payment_methods::{BankDebitDetail, CardDetailFromLocker, NetworkTokenResponse};
+use api_models::payment_methods::{CardDetailFromLocker, NetworkTokenResponse};
 use common_enums::{PaymentMethod, PaymentMethodType};
 use common_utils::{id_type, pii};
 use hyperswitch_masking::Secret;
@@ -54,6 +54,19 @@ pub enum BankDebitDetailsPaymentMethod {
         bank_name: Option<common_enums::BankNames>,
         bank_type: Option<common_enums::BankType>,
         bank_holder_type: Option<common_enums::BankHolderType>,
+    },
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+#[serde(rename_all = "snake_case")]
+pub enum BankDebitDetail {
+    Ach {
+        account_number: Secret<String>,
+        routing_number: Secret<String>,
+        bank_account_holder_name: Option<Secret<String>>,
+        bank_type: Option<common_enums::BankType>,
+        bank_holder_type: Option<common_enums::BankHolderType>,
+        bank_name: Option<common_enums::BankNames>,
     },
 }
 

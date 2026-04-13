@@ -1455,7 +1455,20 @@ impl BankDebitData {
         }
     }
 }
+#[cfg(feature = "v1")]
+#[derive(Debug, Deserialize, Serialize, Clone)]
+#[serde(rename_all = "snake_case")]
+pub enum BankDebitDetail {
+    Ach {
+        account_number: Secret<String>,
+        routing_number: Secret<String>,
+        bank_account_holder_name: Option<Secret<String>>,
+        bank_type: Option<common_enums::BankType>,
+        bank_holder_type: Option<common_enums::BankHolderType>,
+    },
+}
 
+#[cfg(feature = "v2")]
 #[derive(Debug, Deserialize, Serialize, Clone)]
 #[serde(rename_all = "snake_case")]
 pub enum BankDebitDetail {
@@ -1499,6 +1512,7 @@ impl BankDebitDetail {
     }
 }
 
+#[cfg(feature = "v2")]
 impl From<payment_methods::BankDebitDetail> for BankDebitDetail {
     fn from(bank_debit: payment_methods::BankDebitDetail) -> Self {
         match bank_debit {
@@ -1521,6 +1535,28 @@ impl From<payment_methods::BankDebitDetail> for BankDebitDetail {
     }
 }
 
+#[cfg(feature = "v1")]
+impl From<payment_methods::BankDebitDetail> for BankDebitDetail {
+    fn from(bank_debit: payment_methods::BankDebitDetail) -> Self {
+        match bank_debit {
+            payment_methods::BankDebitDetail::Ach {
+                account_number,
+                routing_number,
+                bank_account_holder_name,
+                bank_type,
+                bank_holder_type,
+            } => Self::Ach {
+                account_number,
+                routing_number,
+                bank_account_holder_name,
+                bank_type,
+                bank_holder_type,
+            },
+        }
+    }
+}
+
+#[cfg(feature = "v2")]
 impl From<BankDebitDetail> for BankDebitDetailsPaymentMethod {
     fn from(bank_debit: BankDebitDetail) -> Self {
         let masked_account_number = bank_debit.get_masked_account_number();
@@ -1545,6 +1581,7 @@ impl From<BankDebitDetail> for BankDebitDetailsPaymentMethod {
     }
 }
 
+#[cfg(feature = "v2")]
 impl From<BankDebitDetail> for payment_methods::BankDebitDetail {
     fn from(bank_debit: BankDebitDetail) -> Self {
         match bank_debit {

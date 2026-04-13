@@ -725,7 +725,6 @@ pub async fn retrieve_payment_method_with_token(
                 vault_bank_account_holder_name,
                 vault_bank_type,
                 vault_bank_holder_type,
-                vault_bank_name,
             ) = match bank_debit_detail {
                 domain::BankDebitDetail::Ach {
                     account_number,
@@ -733,14 +732,12 @@ pub async fn retrieve_payment_method_with_token(
                     bank_account_holder_name,
                     bank_type,
                     bank_holder_type,
-                    bank_name,
                 } => (
                     account_number,
                     routing_number,
                     bank_account_holder_name,
                     bank_type,
                     bank_holder_type,
-                    bank_name,
                 ),
             };
 
@@ -780,7 +777,7 @@ pub async fn retrieve_payment_method_with_token(
                         routing_number,
                         bank_account_holder_name: vault_bank_account_holder_name
                             .or(bank_account_holder_name),
-                        bank_name: vault_bank_name.or(bank_name),
+                        bank_name,
                         bank_type: vault_bank_type.or(bank_type),
                         bank_holder_type: vault_bank_holder_type.or(bank_holder_type),
                     },
@@ -964,7 +961,7 @@ pub(crate) async fn get_payment_method_create_request(
                     account_number,
                     routing_number,
                     bank_account_holder_name,
-                    bank_name,
+                    bank_name: _,
                     bank_type,
                     bank_holder_type,
                 }) => {
@@ -992,7 +989,6 @@ pub(crate) async fn get_payment_method_create_request(
                                     bank_account_holder_name: bank_account_holder_name.clone(),
                                     bank_type: *bank_type,
                                     bank_holder_type: *bank_holder_type,
-                                    bank_name: *bank_name,
                                 },
                             ),
                         ),

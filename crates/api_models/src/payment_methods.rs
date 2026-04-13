@@ -633,6 +633,29 @@ pub enum PaymentMethodCreateData {
     BankDebit(BankDebitDetail),
 }
 
+#[cfg(feature = "v1")]
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
+#[serde(deny_unknown_fields)]
+#[serde(rename_all = "snake_case")]
+pub enum BankDebitDetail {
+    Ach {
+        #[schema(value_type = String)]
+        account_number: hyperswitch_masking::Secret<String>,
+        #[schema(value_type = String)]
+        routing_number: hyperswitch_masking::Secret<String>,
+        #[schema(value_type = Option<String>)]
+        #[serde(default)]
+        bank_account_holder_name: Option<hyperswitch_masking::Secret<String>>,
+        #[schema(value_type = Option<BankType>)]
+        #[serde(default)]
+        bank_type: Option<common_enums::BankType>,
+        #[schema(value_type = Option<BankHolderType>)]
+        #[serde(default)]
+        bank_holder_type: Option<common_enums::BankHolderType>,
+    },
+}
+
+#[cfg(feature = "v2")]
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
 #[serde(deny_unknown_fields)]
 #[serde(rename_all = "snake_case")]
@@ -706,12 +729,6 @@ impl BankDebitDetail {
             Self::Ach {
                 bank_holder_type, ..
             } => *bank_holder_type,
-        }
-    }
-
-    pub fn get_bank_name(&self) -> Option<common_enums::BankNames> {
-        match self {
-            Self::Ach { bank_name, .. } => *bank_name,
         }
     }
 }
@@ -3466,7 +3483,6 @@ impl PaymentMethodRecord {
                     bank_account_holder_name: self.bank_account_holder_name.clone(),
                     bank_type: self.bank_type,
                     bank_holder_type: self.bank_holder_type,
-                    bank_name: self.bank_name,
                 }))
             }
             _ => None,

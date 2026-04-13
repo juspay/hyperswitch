@@ -1601,7 +1601,7 @@ impl
             }
             payment_methods::types::RawPaymentMethodData::BankDebit(bank_debit_detail) => {
                 match bank_debit_detail {
-                    api_models::payment_methods::BankDebitDetail::Ach {
+                    payment_methods::types::BankDebitDetail::Ach {
                         account_number,
                         routing_number,
                         bank_account_holder_name,
