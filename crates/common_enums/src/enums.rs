@@ -9533,6 +9533,7 @@ pub enum PermissionGroup {
     ReconExceptionsView,
     ReconExceptionsManage,
     ReconTransactionView,
+    ReconTransactionManage,
     ReconRulesView,
     ReconRulesManage,
 }

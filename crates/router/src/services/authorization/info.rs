@@ -55,6 +55,7 @@ fn get_group_description(group: PermissionGroup) -> Option<&'static str> {
         PermissionGroup::ReconExceptionsView => Some("Investigate Exceptions and view resolutions"),
         PermissionGroup::ReconExceptionsManage => Some("Investigate and resolve recon exceptions"),
         PermissionGroup::ReconTransactionView => Some("View recon staging entries and transactions"),
+        PermissionGroup::ReconTransactionManage => Some("View and edit recon staging entries and transactions"),
         PermissionGroup::ReconRulesView => Some("View reconciliation rules"),
         PermissionGroup::ReconRulesManage => Some("Create and edit reconciliation rules"),
     }

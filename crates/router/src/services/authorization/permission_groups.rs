@@ -43,6 +43,7 @@ impl PermissionGroupExt for PermissionGroup {
             | Self::ThemeManage
             | Self::ReconSourceManage
             | Self::ReconExceptionsManage
+            | Self::ReconTransactionManage
             | Self::ReconRulesManage => PermissionScope::Write,
         }
     }
@@ -62,7 +63,9 @@ impl PermissionGroupExt for PermissionGroup {
             Self::InternalManage => ParentGroup::Internal,
             Self::ReconSourceView | Self::ReconSourceManage => ParentGroup::ReconSource,
             Self::ReconExceptionsView | Self::ReconExceptionsManage => ParentGroup::ReconExceptions,
-            Self::ReconTransactionView => ParentGroup::ReconTransaction,
+            Self::ReconTransactionView | Self::ReconTransactionManage => {
+                ParentGroup::ReconTransaction
+            }
             Self::ReconRulesView | Self::ReconRulesManage => ParentGroup::ReconRules,
         }
     }
@@ -132,6 +135,11 @@ impl PermissionGroupExt for PermissionGroup {
                 Self::ReconRulesView,
             ],
             Self::ReconTransactionView => vec![Self::ReconTransactionView, Self::ReconRulesView],
+            Self::ReconTransactionManage => vec![
+                Self::ReconTransactionManage,
+                Self::ReconTransactionView,
+                Self::ReconRulesView,
+            ],
             Self::ReconRulesView => vec![Self::ReconRulesView, Self::ReconTransactionView],
             Self::ReconRulesManage => vec![
                 Self::ReconRulesManage,
@@ -170,6 +178,7 @@ impl PermissionGroupExt for PermissionGroup {
             | Self::ReconExceptionsView
             | Self::ReconExceptionsManage
             | Self::ReconTransactionView
+            | Self::ReconTransactionManage
             | Self::ReconRulesView
             | Self::ReconRulesManage => RoleProductCategory::Recon,
         }

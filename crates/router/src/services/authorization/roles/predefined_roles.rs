@@ -451,8 +451,10 @@ pub static PREDEFINED_ROLES: LazyLock<HashMap<&'static str, RoleInfo>> = LazyLoc
             groups: vec![
                 PermissionGroup::ReconSourceView,
                 PermissionGroup::ReconSourceManage,
+                PermissionGroup::ReconExceptionsView,
                 PermissionGroup::ReconExceptionsManage,
                 PermissionGroup::ReconTransactionView,
+                PermissionGroup::ReconTransactionManage,
                 PermissionGroup::UsersView,
                 PermissionGroup::UsersManage,
                 PermissionGroup::ReconRulesView,
@@ -473,8 +475,8 @@ pub static PREDEFINED_ROLES: LazyLock<HashMap<&'static str, RoleInfo>> = LazyLoc
         consts::user_role::ROLE_ID_RECON_MERCHANT_DATA_ENGINEER,
         RoleInfo {
             groups: vec![
-                PermissionGroup::ReconSourceManage,
                 PermissionGroup::ReconSourceView,
+                PermissionGroup::ReconSourceManage,
                 PermissionGroup::ReconTransactionView,
                 PermissionGroup::UsersView,
                 PermissionGroup::ReconRulesView,
@@ -494,8 +496,10 @@ pub static PREDEFINED_ROLES: LazyLock<HashMap<&'static str, RoleInfo>> = LazyLoc
         consts::user_role::ROLE_ID_RECON_MERCHANT_OPERATOR,
         RoleInfo {
             groups: vec![
+                PermissionGroup::ReconExceptionsView,
                 PermissionGroup::ReconExceptionsManage,
                 PermissionGroup::ReconTransactionView,
+                PermissionGroup::ReconTransactionManage,
                 PermissionGroup::UsersView,
                 PermissionGroup::ReconRulesView,
             ],
@@ -538,8 +542,10 @@ pub static PREDEFINED_ROLES: LazyLock<HashMap<&'static str, RoleInfo>> = LazyLoc
             groups: vec![
                 PermissionGroup::ReconSourceView,
                 PermissionGroup::ReconSourceManage,
+                PermissionGroup::ReconExceptionsView,
                 PermissionGroup::ReconExceptionsManage,
                 PermissionGroup::ReconTransactionView,
+                PermissionGroup::ReconTransactionManage,
                 PermissionGroup::UsersView,
                 PermissionGroup::UsersManage,
                 PermissionGroup::ReconRulesView,
@@ -560,8 +566,8 @@ pub static PREDEFINED_ROLES: LazyLock<HashMap<&'static str, RoleInfo>> = LazyLoc
         consts::user_role::ROLE_ID_RECON_PROFILE_DATA_ENGINEER,
         RoleInfo {
             groups: vec![
-                PermissionGroup::ReconSourceManage,
                 PermissionGroup::ReconSourceView,
+                PermissionGroup::ReconSourceManage,
                 PermissionGroup::ReconTransactionView,
                 PermissionGroup::UsersView,
                 PermissionGroup::ReconRulesView,
@@ -581,8 +587,10 @@ pub static PREDEFINED_ROLES: LazyLock<HashMap<&'static str, RoleInfo>> = LazyLoc
         consts::user_role::ROLE_ID_RECON_PROFILE_OPERATOR,
         RoleInfo {
             groups: vec![
+                PermissionGroup::ReconExceptionsView,
                 PermissionGroup::ReconExceptionsManage,
                 PermissionGroup::ReconTransactionView,
+                PermissionGroup::ReconTransactionManage,
                 PermissionGroup::UsersView,
                 PermissionGroup::ReconRulesView,
             ],
@@ -603,6 +611,7 @@ pub static PREDEFINED_ROLES: LazyLock<HashMap<&'static str, RoleInfo>> = LazyLoc
             groups: vec![
                 PermissionGroup::ReconSourceView,
                 PermissionGroup::ReconTransactionView,
+                PermissionGroup::ReconExceptionsView,
                 PermissionGroup::UsersView,
                 PermissionGroup::ReconRulesView,
             ],
