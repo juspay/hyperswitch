@@ -226,7 +226,7 @@ impl RequiredField {
                         "payment_method_data.bank_transfer.pix_automatico_push.account_number"
                             .to_string(),
                     display_name: "account_number".to_string(),
-                    field_type: FieldType::UserBankAccountNumber,
+                    field_type: FieldType::UserPixAccountNumber,
                     value: None,
                 },
             ),
