@@ -62,6 +62,50 @@ pub struct TruelayerMetadata {
     kid: Option<Secret<String>>,
 }
 
+#[derive(Debug, Clone, serde::Deserialize)]
+pub struct PaysafeMetadata {
+    pub account_id: PaysafePaymentMethodDetails,
+}
+
+/// Paysafe payment method details for account_id configuration.
+/// Contains card and ACH account IDs grouped by currency.
+/// This struct is compatible with the UCS Paysafe connector expectations.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct PaysafePaymentMethodDetails {
+    // UCS proto map fields — must always be present in serialized JSON (not Option)
+    /// Card account IDs by currency
+    #[serde(default)]
+    pub card: HashMap<Currency, PaysafeCardAccountId>,
+    /// ACH account IDs by currency
+    #[serde(default)]
+    pub ach: HashMap<Currency, PaysafeAchAccountId>,
+}
+
+/// Paysafe card account ID configuration for a specific currency
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct PaysafeCardAccountId {
+    /// Non-3DS account ID
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub no_three_ds: Option<Secret<String>>,
+    /// 3DS account ID
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub three_ds: Option<Secret<String>>,
+}
+
+/// Paysafe ACH account ID configuration for a specific currency
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct PaysafeAchAccountId {
+    /// ACH account ID
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub account_id: Option<Secret<String>>,
+}
+
+#[derive(Debug, serde::Deserialize)]
+pub struct PeachpaymentsMetadata {
+    client_merchant_reference_id: Secret<String>,
+    merchant_payment_method_route_id: Secret<String>,
+}
+
 /// Connector-specific configuration enum for all supported connectors
 #[derive(Debug, Clone, serde::Serialize)]
 pub enum ConnectorSpecificConfig {
@@ -146,7 +190,8 @@ pub enum ConnectorSpecificConfig {
     Paysafe {
         username: Secret<String>,
         password: Secret<String>,
-        account_id: Option<String>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        account_id: Option<PaysafePaymentMethodDetails>,
     },
     /// Trustpay connector configuration
     Trustpay {
@@ -399,6 +444,8 @@ pub enum ConnectorSpecificConfig {
     Peachpayments {
         api_key: Secret<String>,
         tenant_id: Secret<String>,
+        client_merchant_reference_id: Option<Secret<String>>,
+        merchant_payment_method_route_id: Option<Secret<String>>,
     },
     /// Billwerk connector configuration
     Billwerk {
@@ -456,6 +503,17 @@ pub enum ConnectorSpecificConfig {
         password: Secret<String>,
         merchant_id: Secret<String>,
     },
+    /// Trustly connector configuration
+    Trustly {
+        username: Secret<String>,
+        password: Secret<String>,
+        private_key: Secret<String>,
+    },
+    /// Itaubank connector configuration
+    Itaubank {
+        client_id: Secret<String>,
+        client_secret: Secret<String>,
+    },
 }
 
 impl ForeignTryFrom<(Connector, &ConnectorAuthType, Option<&serde_json::Value>)>
@@ -478,27 +536,37 @@ impl ForeignTryFrom<(Connector, &ConnectorAuthType, Option<&serde_json::Value>)>
                     key1,
                     api_secret,
                 } => {
-                    let endpoint_prefix = metadata
-                        .and_then(|m| serde_json::from_value::<AdyenMetadata>(m.clone()).ok())
-                        .and_then(|m| m.endpoint_prefix);
+                    let adyen_meta = metadata
+                        .map(|m| {
+                            serde_json::from_value::<AdyenMetadata>(m.clone())
+                                .map_err(|_| err("Invalid Adyen metadata format"))
+                        })
+                        .transpose()?;
 
                     Ok(Self::Adyen {
                         api_key: api_key.clone(),
                         merchant_account: key1.clone(),
                         review_key: Some(api_secret.clone()),
-                        endpoint_prefix,
+                        endpoint_prefix: adyen_meta
+                            .as_ref()
+                            .and_then(|m| m.endpoint_prefix.clone()),
                     })
                 }
                 ConnectorAuthType::BodyKey { api_key, key1 } => {
-                    let endpoint_prefix = metadata
-                        .and_then(|m| serde_json::from_value::<AdyenMetadata>(m.clone()).ok())
-                        .and_then(|m| m.endpoint_prefix);
+                    let adyen_meta = metadata
+                        .map(|m| {
+                            serde_json::from_value::<AdyenMetadata>(m.clone())
+                                .map_err(|_| err("Invalid Adyen metadata format"))
+                        })
+                        .transpose()?;
 
                     Ok(Self::Adyen {
                         api_key: api_key.clone(),
                         merchant_account: key1.clone(),
                         review_key: None,
-                        endpoint_prefix,
+                        endpoint_prefix: adyen_meta
+                            .as_ref()
+                            .and_then(|m| m.endpoint_prefix.clone()),
                     })
                 }
                 _ => Err(err("Adyen requires SignatureKey or BodyKey auth type")),
@@ -509,17 +577,19 @@ impl ForeignTryFrom<(Connector, &ConnectorAuthType, Option<&serde_json::Value>)>
                     key1,
                     api_secret,
                 } => {
-                    let (disable_avs, disable_cvn) = metadata
-                        .and_then(|m| serde_json::from_value::<CybersourceMetadata>(m.clone()).ok())
-                        .map(|m| (m.disable_avs, m.disable_cvn))
-                        .unwrap_or((None, None));
+                    let cybersource_meta = metadata
+                        .map(|m| {
+                            serde_json::from_value::<CybersourceMetadata>(m.clone())
+                                .map_err(|_| err("Invalid Cybersource metadata format"))
+                        })
+                        .transpose()?;
 
                     Ok(Self::Cybersource {
                         api_key: api_key.clone(),
                         merchant_account: key1.clone(),
                         api_secret: api_secret.clone(),
-                        disable_avs,
-                        disable_cvn,
+                        disable_avs: cybersource_meta.as_ref().and_then(|m| m.disable_avs),
+                        disable_cvn: cybersource_meta.as_ref().and_then(|m| m.disable_cvn),
                     })
                 }
                 _ => Err(err("Cybersource requires SignatureKey auth type")),
@@ -530,18 +600,19 @@ impl ForeignTryFrom<(Connector, &ConnectorAuthType, Option<&serde_json::Value>)>
                     key1: _,
                     api_secret,
                 } => {
-                    let metadata_parsed = metadata
-                        .map(|m| serde_json::from_value::<BraintreeMetadata>(m.clone()))
-                        .transpose()
-                        .change_context(errors::ApiErrorResponse::InternalServerError)
-                        .attach_printable("Failed to parse Braintree metadata")?
+                    let braintree_meta = metadata
+                        .map(|m| {
+                            serde_json::from_value::<BraintreeMetadata>(m.clone())
+                                .map_err(|_| err("Invalid Braintree metadata format"))
+                        })
+                        .transpose()?
                         .ok_or_else(|| err("Braintree requires metadata with merchant_account_id and merchant_config_currency"))?;
 
                     Ok(Self::Braintree {
                         public_key: api_key.clone(),
                         private_key: api_secret.clone(),
-                        merchant_account_id: metadata_parsed.merchant_account_id,
-                        merchant_config_currency: Some(metadata_parsed.merchant_config_currency),
+                        merchant_account_id: braintree_meta.merchant_account_id,
+                        merchant_config_currency: Some(braintree_meta.merchant_config_currency),
                     })
                 }
                 _ => Err(err("Braintree requires SignatureKey auth type")),
@@ -554,20 +625,24 @@ impl ForeignTryFrom<(Connector, &ConnectorAuthType, Option<&serde_json::Value>)>
             },
             Connector::Truelayer => match auth {
                 ConnectorAuthType::BodyKey { api_key, key1 } => {
-                    let metadata_parsed = metadata
-                        .and_then(|m| serde_json::from_value::<TruelayerMetadata>(m.clone()).ok());
+                    let truelayer_meta = metadata
+                        .map(|m| {
+                            serde_json::from_value::<TruelayerMetadata>(m.clone())
+                                .map_err(|_| err("Invalid Truelayer metadata format"))
+                        })
+                        .transpose()?;
 
                     Ok(Self::Truelayer {
                         client_id: api_key.clone(),
                         client_secret: key1.clone(),
-                        merchant_account_id: metadata_parsed
+                        merchant_account_id: truelayer_meta
                             .as_ref()
                             .and_then(|m| m.merchant_account_id.clone()),
-                        account_holder_name: metadata_parsed
+                        account_holder_name: truelayer_meta
                             .as_ref()
                             .and_then(|m| m.account_holder_name.clone()),
-                        private_key: metadata_parsed.as_ref().and_then(|m| m.private_key.clone()),
-                        kid: metadata_parsed.as_ref().and_then(|m| m.kid.clone()),
+                        private_key: truelayer_meta.as_ref().and_then(|m| m.private_key.clone()),
+                        kid: truelayer_meta.as_ref().and_then(|m| m.kid.clone()),
                     })
                 }
                 _ => Err(err("Truelayer requires BodyKey auth type")),
@@ -735,11 +810,19 @@ impl ForeignTryFrom<(Connector, &ConnectorAuthType, Option<&serde_json::Value>)>
                 _ => Err(err("Loonio requires BodyKey auth type")),
             },
             Connector::Paysafe => match auth {
-                ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Paysafe {
-                    username: api_key.clone(),
-                    password: key1.clone(),
-                    account_id: None,
-                }),
+                ConnectorAuthType::BodyKey { api_key, key1 } => {
+                    let paysafe_meta = metadata
+                        .map(|m| {
+                            serde_json::from_value::<PaysafeMetadata>(m.clone())
+                                .map_err(|_| err("Invalid Paysafe metadata format"))
+                        })
+                        .transpose()?;
+                    Ok(Self::Paysafe {
+                        username: api_key.clone(),
+                        password: key1.clone(),
+                        account_id: paysafe_meta.map(|m| m.account_id),
+                    })
+                }
                 _ => Err(err("Paysafe requires BodyKey auth type")),
             },
             Connector::Payu => match auth {
@@ -771,10 +854,24 @@ impl ForeignTryFrom<(Connector, &ConnectorAuthType, Option<&serde_json::Value>)>
                 _ => Err(err("Rapyd requires BodyKey auth type")),
             },
             Connector::Peachpayments => match auth {
-                ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Peachpayments {
-                    api_key: api_key.clone(),
-                    tenant_id: key1.clone(),
-                }),
+                ConnectorAuthType::BodyKey { api_key, key1 } => {
+                    let peach_meta = metadata
+                        .map(|meta| {
+                            serde_json::from_value::<PeachpaymentsMetadata>(meta.clone())
+                                .map_err(|_| err("Invalid peachpayments metadata format"))
+                        })
+                        .transpose()?;
+                    Ok(Self::Peachpayments {
+                        api_key: api_key.clone(),
+                        tenant_id: key1.clone(),
+                        client_merchant_reference_id: peach_meta
+                            .as_ref()
+                            .map(|metadata| metadata.client_merchant_reference_id.clone()),
+                        merchant_payment_method_route_id: peach_meta
+                            .as_ref()
+                            .map(|metadata| metadata.merchant_payment_method_route_id.clone()),
+                    })
+                }
                 _ => Err(err("Peachpayments requires BodyKey auth type")),
             },
             Connector::Nexinets => match auth {
@@ -1281,6 +1378,26 @@ impl ForeignTryFrom<(Connector, &ConnectorAuthType, Option<&serde_json::Value>)>
                     payme_client_key: Some(key1.clone()),
                 }),
                 _ => Err(err("Payme requires BodyKey or SignatureKey auth type")),
+            },
+            Connector::Trustly => match auth {
+                ConnectorAuthType::SignatureKey {
+                    api_key,
+                    key1,
+                    api_secret,
+                } => Ok(Self::Trustly {
+                    username: api_key.clone(),
+                    password: key1.clone(),
+                    private_key: api_secret.clone(),
+                }),
+                _ => Err(err("Trustly requires SignatureKey auth type")),
+            },
+
+            Connector::Itaubank => match auth {
+                ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Itaubank {
+                    client_secret: api_key.clone(),
+                    client_id: key1.clone(),
+                }),
+                _ => Err(err("Itaubank requires BodyKey auth type")),
             },
             // --- Unsupported connectors ---
             _ => Err(

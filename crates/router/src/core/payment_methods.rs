@@ -909,6 +909,8 @@ pub(crate) async fn get_payment_method_create_request(
                         #[cfg(feature = "payouts")]
                         bank_transfer: None,
                         #[cfg(feature = "payouts")]
+                        bank_transfer_data: None,
+                        #[cfg(feature = "payouts")]
                         wallet: None,
                         card: Some(card_detail),
                         metadata: None,
@@ -943,6 +945,8 @@ pub(crate) async fn get_payment_method_create_request(
                         #[cfg(feature = "payouts")]
                         bank_transfer: None,
                         #[cfg(feature = "payouts")]
+                        bank_transfer_data: None,
+                        #[cfg(feature = "payouts")]
                         wallet: None,
                         card: None,
                         metadata: None,
@@ -975,6 +979,8 @@ pub(crate) async fn get_payment_method_create_request(
                         payment_method_issuer_code: None,
                         #[cfg(feature = "payouts")]
                         bank_transfer: None,
+                        #[cfg(feature = "payouts")]
+                        bank_transfer_data: None,
                         #[cfg(feature = "payouts")]
                         wallet: None,
                         card: None,
@@ -1298,7 +1304,9 @@ async fn payment_method_resolver(
                     Box::new(existing_pm),
                 )))
             }
-            enums::PaymentMethodStatus::AwaitingData | enums::PaymentMethodStatus::Processing => {
+            enums::PaymentMethodStatus::AwaitingData
+            | enums::PaymentMethodStatus::Processing
+            | enums::PaymentMethodStatus::Redacted => {
                 // no payment method entry will be found with finger print id and awaiting data or processing state
                 logger::info!("Payment method is in awaiting data or processing state, no existing payment method entry found with fingerprint id");
                 Err(
@@ -1512,8 +1520,13 @@ impl PaymentMethodResolver {
                     None
                 };
 
-                let update_payment_method_data: DomainPaymentMethodUpdate =
+                let mut update_payment_method_data: DomainPaymentMethodUpdate =
                     (req, source_payment_method_data).into();
+
+                // Reset Inactive status to New when customer re-adds the card
+                if payment_method.status == enums::PaymentMethodStatus::Inactive {
+                    update_payment_method_data.status = Some(enums::PaymentMethodStatus::New);
+                }
 
                 let (response, updated_payment_method) = Box::pin(update_payment_method_core(
                     state,
@@ -4481,9 +4494,9 @@ pub async fn delete_payment_method_by_record(
     profile: &domain::Profile,
     payment_method: domain::PaymentMethod,
 ) -> RouterResult<()> {
-    // Soft delete
+    // Soft delete - mark as Redacted (terminal state, no transitions allowed)
     let pm_update = storage::PaymentMethodUpdate::StatusAndFingerprintUpdate {
-        status: Some(enums::PaymentMethodStatus::Inactive),
+        status: Some(enums::PaymentMethodStatus::Redacted),
         last_modified_by: platform
             .get_initiator()
             .and_then(|initiator| initiator.to_created_by())
@@ -5486,6 +5499,7 @@ async fn create_single_use_tokenization_flow(
             minor_amount_capturable: None,
             authorized_amount: None,
             customer_document_details: None,
+            feature_data: None,
         };
 
     let payment_method_token_response = Box::pin(tokenization::add_token_for_payment_method(
@@ -5722,14 +5736,13 @@ impl<'a> pm_types::PaymentMethodUpdateHandler<'a> {
     fn validate(&self) -> RouterResult<()> {
         let payment_method = &self.payment_method;
         when(
-            payment_method.status == enums::PaymentMethodStatus::Inactive,
+            payment_method.status == enums::PaymentMethodStatus::Redacted,
             || {
                 Err(errors::ApiErrorResponse::InvalidRequestData {
-                    message: "Inactive Payment Method cannot be updated".to_string(),
+                    message: "Redacted Payment Method cannot be updated".to_string(),
                 })
             },
         )?;
-
         Ok(())
     }
 
@@ -5887,15 +5900,15 @@ impl<'a> pm_types::PaymentMethodUpdateHandler<'a> {
             return Ok(());
         }
 
-        let pm_status = match self.request.acknowledgement_status {
-            Some(common_enums::AcknowledgementStatus::Authenticated) => {
-                Some(common_enums::PaymentMethodStatus::Active)
-            }
-            Some(common_enums::AcknowledgementStatus::Failed) => {
-                Some(common_enums::PaymentMethodStatus::Inactive)
-            }
-            None => None,
-        };
+        // Get target status from request
+        // Domain model always uses PaymentMethodStatus - transformation from AcknowledgementStatus
+        // happens at the API boundary (From<api_models::PaymentMethodUpdate> impl)
+        let pm_status = self.request.status;
+
+        // Validate status transition
+        // Invalid transitions are silently ignored - status won't be updated
+        let pm_status = pm_status
+            .filter(|&new_status| self.payment_method.status.can_transition_to(new_status));
 
         let db = self.state.store.as_ref();
 

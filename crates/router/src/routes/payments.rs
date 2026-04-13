@@ -2374,7 +2374,8 @@ where
                 .collect()
         });
         let dimensions = Dimensions::new()
-            .with_merchant_id(platform.get_processor().get_account().get_id().clone());
+            .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
+            .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id());
         match req.payment_type.unwrap_or_default() {
             api_models::enums::PaymentType::Normal
             | api_models::enums::PaymentType::RecurringMandate
@@ -2422,27 +2423,44 @@ where
                             should_continue_further,
                             payment_data.get_payment_intent().payment_id,
                         );
-                        Box::pin(payments::payments_operation_core::<
-                            api_types::SetupMandate,
-                            _,
-                            _,
-                            _,
-                            payments::PaymentData<api_types::SetupMandate>,
-                        >(
-                            &state,
-                            req_state,
-                            &platform,
-                            profile_id,
-                            PaymentRecurrence,
-                            req,
-                            payments::CallConnectorAction::Trigger,
-                            None,
+                        let (pd, _req, connector_status_code, ext_latency) =
+                            Box::pin(payments::payments_operation_core::<
+                                api_types::SetupMandate,
+                                _,
+                                _,
+                                _,
+                                payments::PaymentData<api_types::SetupMandate>,
+                            >(
+                                &state,
+                                req_state,
+                                &platform,
+                                profile_id,
+                                PaymentRecurrence,
+                                req,
+                                payments::CallConnectorAction::Trigger,
+                                None,
+                                auth_flow,
+                                eligible_routable_connectors,
+                                header_payload.clone(),
+                                dimensions,
+                            ))
+                            .await?;
+                        let total_ext_latency = match (external_latency, ext_latency) {
+                            (Some(l1), Some(l2)) => Some(l1 + l2),
+                            (Some(l), None) | (None, Some(l)) => Some(l),
+                            (None, None) => None,
+                        };
+                        return payment_types::PaymentsResponse::generate_response(
+                            pd,
                             auth_flow,
-                            eligible_routable_connectors,
-                            header_payload.clone(),
-                            dimensions,
-                        ))
-                        .await?;
+                            &state.base_url,
+                            operation,
+                            &state.conf.connector_request_reference_id_config,
+                            connector_status_code,
+                            total_ext_latency,
+                            header_payload.x_hs_latency,
+                            &platform,
+                        );
                     }
                 }
 

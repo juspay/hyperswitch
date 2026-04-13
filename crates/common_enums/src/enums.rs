@@ -778,6 +778,7 @@ pub enum CallConnectorAction {
     HandleResponse(Vec<u8>),
     UCSConsumeResponse(Vec<u8>),
     UCSHandleResponse(Vec<u8>),
+    HandleResponseWithoutBuildRequest,
 }
 
 /// The three-letter ISO 4217 currency code (e.g., "USD", "EUR") for the payment amount. This field is mandatory for creating a payment.
@@ -2167,6 +2168,8 @@ pub enum PaymentMethodStatus {
     AwaitingData,
     /// Indicates that the payment method is in new state
     New,
+    /// Indicates that the payment method has been redacted/deleted and cannot be used or recovered
+    Redacted,
 }
 
 impl From<AttemptStatus> for PaymentMethodStatus {
@@ -2199,6 +2202,19 @@ impl From<AttemptStatus> for PaymentMethodStatus {
             | AttemptStatus::IntegrityFailure
             | AttemptStatus::Expired => Self::Inactive,
             AttemptStatus::Charged | AttemptStatus::Authorized => Self::Active,
+        }
+    }
+}
+
+impl PaymentMethodStatus {
+    /// Checks if transitioning from `self` to `target` status is valid.
+    /// This defines the allowed status transitions for payment method updates.
+    pub fn can_transition_to(self, target: Self) -> bool {
+        match self {
+            Self::Processing | Self::AwaitingData | Self::Redacted => false,
+            Self::Active => false,
+            Self::Inactive => target == Self::Active || target == Self::New,
+            Self::New => target == Self::Active || target == Self::Inactive,
         }
     }
 }
@@ -2353,6 +2369,8 @@ pub enum PaymentMethodType {
     Paypal,
     Paze,
     Pix,
+    PixAutomaticoQr,
+    PixAutomaticoPush,
     PaySafeCard,
     Przelewy24,
     PromptPay,
@@ -2486,6 +2504,8 @@ impl PaymentMethodType {
             Self::Paypal => "PayPal",
             Self::Paze => "Paze",
             Self::Pix => "Pix",
+            Self::PixAutomaticoQr => "Pix Automático QR",
+            Self::PixAutomaticoPush => "Pix Automático Push",
             Self::PaySafeCard => "PaySafeCard",
             Self::Przelewy24 => "Przelewy24",
             Self::PromptPay => "PromptPay",
@@ -3287,7 +3307,7 @@ pub enum CardSubtype {
     Corporaterevolving,
     Corporatet,
     #[strum(serialize = "CORPORATET&E")]
-    CorporatetAndE,
+    CorporateTAndE,
     Corporation,
     Credit,
     Ctslandcard,
@@ -3341,8 +3361,6 @@ pub enum CardSubtype {
     Globalpayment,
     Gmcard,
     Gold,
-    #[strum(serialize = "GOLD&PLATINUM")]
-    GoldAndPlatinum,
     #[strum(serialize = "GOLD PERSONAL")]
     GoldPersonal,
     #[strum(serialize = "GOLD/PLATINUM")]
@@ -3358,7 +3376,7 @@ pub enum CardSubtype {
     Green,
     Gsacard,
     #[strum(serialize = "GSACORPORATET&E")]
-    GsacorporatetAndE,
+    GsacorporateTAndE,
     Gsapurchasing,
     #[strum(serialize = "HSANON-SUBSTANTIATED")]
     HsanonSubstantiated,
@@ -11033,6 +11051,15 @@ pub enum StorageType {
 pub enum AcknowledgementStatus {
     Authenticated,
     Failed,
+}
+
+impl From<AcknowledgementStatus> for PaymentMethodStatus {
+    fn from(ack: AcknowledgementStatus) -> Self {
+        match ack {
+            AcknowledgementStatus::Authenticated => Self::Active,
+            AcknowledgementStatus::Failed => Self::Inactive,
+        }
+    }
 }
 
 /// Represents the type of retry for a payment attempt

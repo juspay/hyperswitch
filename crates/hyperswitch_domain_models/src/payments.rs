@@ -531,6 +531,12 @@ impl PaymentIntent {
             installment_options,
         })
     }
+
+    #[cfg(feature = "v1")]
+    pub fn is_setup_mandate(&self) -> bool {
+        self.amount == MinorUnit::zero()
+            && self.setup_future_usage == Some(common_enums::FutureUsage::OffSession)
+    }
 }
 
 #[cfg(feature = "v2")]
@@ -1525,6 +1531,9 @@ where
             boleto_additional_details: payment_intent_feature_metadata
                 .as_ref()
                 .and_then(|data| data.boleto_additional_details.clone()),
+            pix_automatico_additional_details: payment_intent_feature_metadata
+                .as_ref()
+                .and_then(|data| data.pix_automatico_additional_details.clone()),
         }))
     }
 }
