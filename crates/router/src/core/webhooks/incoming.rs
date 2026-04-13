@@ -2111,7 +2111,7 @@ async fn refunds_incoming_webhook_flow(
     let refund = match webhook_details.object_reference_id {
         webhooks::ObjectReferenceId::RefundId(refund_id_type) => match refund_id_type {
             webhooks::RefundIdType::RefundId(id) => db
-                .find_refund_by_merchant_id_refund_id(
+                .find_refund_by_processor_merchant_id_refund_id(
                     platform.get_processor().get_account().get_id(),
                     &id,
                     platform.get_processor().get_account().storage_scheme,
@@ -2120,7 +2120,7 @@ async fn refunds_incoming_webhook_flow(
                 .change_context(errors::ApiErrorResponse::WebhookResourceNotFound)
                 .attach_printable("Failed to fetch the refund")?,
             webhooks::RefundIdType::ConnectorRefundId(id) => db
-                .find_refund_by_merchant_id_connector_refund_id_connector(
+                .find_refund_by_processor_merchant_id_connector_refund_id_connector(
                     platform.get_processor().get_account().get_id(),
                     &id,
                     connector_name,
@@ -2503,34 +2503,69 @@ async fn external_authentication_incoming_webhook_flow(
                     == Some(common_enums::DecoupledAuthenticationType::Challenge)
                 && event_type == webhooks::IncomingWebhookEvent::ExternalAuthenticationARes
             {
+                let payment_intent = state
+                    .store
+                    .find_payment_intent_by_payment_id_processor_merchant_id(
+                        &payment_id,
+                        platform.get_processor().get_account().get_id(),
+                        platform.get_processor().get_key_store(),
+                        platform.get_processor().get_account().storage_scheme,
+                    )
+                    .await
+                    .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
                 let payment_confirm_req = api::PaymentsRequest {
                     payment_id: Some(api_models::payments::PaymentIdType::PaymentIntentId(
-                        payment_id,
+                        payment_intent.payment_id.clone(),
                     )),
                     merchant_id: Some(platform.get_processor().get_account().get_id().clone()),
                     ..Default::default()
                 };
-                let payments_response = Box::pin(payments::payments_core::<
-                    api::Authorize,
-                    api::PaymentsResponse,
-                    _,
-                    _,
-                    _,
-                    payments::PaymentData<api::Authorize>,
-                >(
-                    state.clone(),
-                    req_state,
-                    platform.clone(),
-                    None,
-                    payments::PaymentConfirm,
-                    payment_confirm_req,
-                    services::api::AuthFlow::Merchant,
-                    payments::CallConnectorAction::Trigger,
-                    None,
-                    None,
-                    HeaderPayload::with_source(enums::PaymentSource::ExternalAuthenticator),
-                ))
-                .await?;
+                let is_setup_mandate = payment_intent.is_setup_mandate();
+                let payments_response = if is_setup_mandate {
+                    Box::pin(payments::payments_core::<
+                        api::SetupMandate,
+                        api::PaymentsResponse,
+                        _,
+                        _,
+                        _,
+                        payments::PaymentData<api::SetupMandate>,
+                    >(
+                        state.clone(),
+                        req_state,
+                        platform.clone(),
+                        None,
+                        payments::PaymentConfirm,
+                        payment_confirm_req,
+                        services::api::AuthFlow::Merchant,
+                        payments::CallConnectorAction::Trigger,
+                        None,
+                        None,
+                        HeaderPayload::with_source(enums::PaymentSource::ExternalAuthenticator),
+                    ))
+                    .await?
+                } else {
+                    Box::pin(payments::payments_core::<
+                        api::Authorize,
+                        api::PaymentsResponse,
+                        _,
+                        _,
+                        _,
+                        payments::PaymentData<api::Authorize>,
+                    >(
+                        state.clone(),
+                        req_state,
+                        platform.clone(),
+                        None,
+                        payments::PaymentConfirm,
+                        payment_confirm_req,
+                        services::api::AuthFlow::Merchant,
+                        payments::CallConnectorAction::Trigger,
+                        None,
+                        None,
+                        HeaderPayload::with_source(enums::PaymentSource::ExternalAuthenticator),
+                    ))
+                    .await?
+                };
                 match payments_response {
                     services::ApplicationResponse::JsonWithHeaders((payments_response, _)) => {
                         let payment_id = payments_response.payment_id.clone();

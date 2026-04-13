@@ -1,0 +1,16 @@
+{
+  "event_type": "PAYMENT.CAPTURE.REFUNDED",
+  "resource": {
+    "id": "{{connector_refund_id}}",
+    "amount": {
+      "currency_code": "USD",
+      "value": "60.00"
+    },
+    "seller_payable_breakdown": {
+      "total_refunded_amount": {
+        "currency_code": "USD",
+        "value": "60.00"
+      }
+    }
+  }
+}

@@ -1073,5 +1073,10 @@ export const connectorDetails = {
       // Type of payment reference ID
       type: "string",
     },
+    RefundIdConfig: {
+      // Stripe refund webhooks use data.object.id as the connector refund reference
+      path: "data.object.id",
+      type: "string",
+    },
   },
 };
