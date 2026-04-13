@@ -542,6 +542,12 @@ impl PaymentIntent {
             installment_options,
         })
     }
+
+    #[cfg(feature = "v1")]
+    pub fn is_setup_mandate(&self) -> bool {
+        self.amount == MinorUnit::zero()
+            && self.setup_future_usage == Some(common_enums::FutureUsage::OffSession)
+    }
 }
 
 #[cfg(feature = "v2")]

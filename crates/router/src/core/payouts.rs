@@ -51,7 +51,7 @@ use crate::types::domain::behaviour::Conversion;
 use crate::types::PayoutActionData;
 use crate::{
     core::{
-        configs::{self as configs, dimension_state::DimensionsWithMerchantId},
+        configs::{self as configs, dimension_state::DimensionsWithProcessorAndProviderMerchantId},
         errors::{
             self, ConnectorErrorExt, CustomResult, RouterResponse, RouterResult, StorageErrorExt,
         },
@@ -184,7 +184,7 @@ pub async fn make_connector_decision(
     header_payload: HeaderPayload,
     connector_call_type: api::ConnectorCallType,
     payout_data: &mut PayoutData,
-    dimensions: DimensionsWithMerchantId,
+    dimensions: DimensionsWithProcessorAndProviderMerchantId,
 ) -> RouterResult<()> {
     match connector_call_type {
         api::ConnectorCallType::PreDetermined(routing_data) => {
@@ -296,7 +296,7 @@ pub async fn payouts_core(
     payout_data: &mut PayoutData,
     routing_algorithm: Option<serde_json::Value>,
     eligible_connectors: Option<Vec<api_enums::PayoutConnectors>>,
-    dimensions: DimensionsWithMerchantId,
+    dimensions: DimensionsWithProcessorAndProviderMerchantId,
 ) -> RouterResult<()> {
     let payout_attempt = &payout_data.payout_attempt;
 
@@ -332,7 +332,7 @@ pub async fn payouts_core(
     payout_data: &mut PayoutData,
     routing_algorithm: Option<serde_json::Value>,
     eligible_connectors: Option<Vec<api_enums::PayoutConnectors>>,
-    dimensions: DimensionsWithMerchantId,
+    dimensions: DimensionsWithProcessorAndProviderMerchantId,
 ) -> RouterResult<()> {
     todo!()
 }
@@ -348,7 +348,8 @@ pub async fn payouts_create_core(
     let (payout_id, payout_method_data, profile_id, customer, payment_method) =
         validator::validate_create_request(&state, &platform, &req).await?;
     let dimensions = configs::dimension_state::Dimensions::new()
-        .with_merchant_id(platform.get_processor().get_account().get_id().clone());
+        .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
+        .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id());
 
     // Create DB entries
     let mut payout_data = payout_create_db_entries(
@@ -412,7 +413,8 @@ pub async fn payouts_confirm_core(
     header_payload: HeaderPayload,
 ) -> RouterResponse<payouts::PayoutCreateResponse> {
     let dimensions = configs::dimension_state::Dimensions::new()
-        .with_merchant_id(platform.get_processor().get_account().get_id().clone());
+        .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
+        .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id());
 
     let mut payout_data = Box::pin(make_payout_data(
         &state,
@@ -479,7 +481,8 @@ pub async fn payouts_update_core(
     header_payload: HeaderPayload,
 ) -> RouterResponse<payouts::PayoutCreateResponse> {
     let dimensions = configs::dimension_state::Dimensions::new()
-        .with_merchant_id(platform.get_processor().get_account().get_id().clone());
+        .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
+        .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id());
 
     let payout_id = req.payout_id.clone().get_required_value("payout_id")?;
     let mut payout_data = Box::pin(make_payout_data(
@@ -714,7 +717,8 @@ pub async fn payouts_fulfill_core(
     let payout_attempt = payout_data.payout_attempt.to_owned();
     let status = payout_attempt.status;
     let dimensions = configs::dimension_state::Dimensions::new()
-        .with_merchant_id(platform.get_processor().get_account().get_id().clone());
+        .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
+        .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id());
 
     // Verify if fulfillment can be triggered
     if helpers::is_payout_terminal_state(status)
@@ -1120,7 +1124,7 @@ pub async fn call_connector_payout(
     header_payload: HeaderPayload,
     connector_data: &api::ConnectorData,
     payout_data: &mut PayoutData,
-    dimensions: &DimensionsWithMerchantId,
+    dimensions: &DimensionsWithProcessorAndProviderMerchantId,
 ) -> RouterResult<()> {
     let payout_attempt = &payout_data.payout_attempt.to_owned();
     let payouts = &payout_data.payouts.to_owned();
@@ -2604,7 +2608,7 @@ pub async fn fulfill_payout(
     header_payload: HeaderPayload,
     connector_data: &api::ConnectorData,
     payout_data: &mut PayoutData,
-    dimensions: &DimensionsWithMerchantId,
+    dimensions: &DimensionsWithProcessorAndProviderMerchantId,
 ) -> RouterResult<()> {
     // 1. Form Router data
     let mut router_data =
