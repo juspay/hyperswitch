@@ -1179,7 +1179,7 @@ pub async fn validate_and_create_refund(
     })?;
 
     let all_refunds = db
-        .find_refund_by_merchant_id_connector_transaction_id(
+        .find_refund_by_processor_merchant_id_connector_transaction_id(
             platform.get_processor().get_account().get_id(),
             &connector_payment_id,
             platform.get_processor().get_account().storage_scheme,

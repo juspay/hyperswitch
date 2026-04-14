@@ -34,7 +34,8 @@ use crate::{
     configs::settings,
     core::{
         errors::{self, CustomResult},
-        payment_methods::cards::{call_vault_service, create_encrypted_data},
+        payment_methods::cards::call_vault_service,
+        utils::create_encrypted_data,
     },
     headers,
     pii::Secret,
@@ -1235,6 +1236,7 @@ impl DomainPaymentMethodWrapper {
                     key_manager_state,
                     platform.get_provider().get_key_store(),
                     address.clone(),
+                    common_utils::type_name!(diesel_models::payment_method::PaymentMethod),
                 )
             })
             .await
@@ -1357,6 +1359,7 @@ impl DomainPaymentMethodWrapper {
                     key_manager_state,
                     platform.get_provider().get_key_store(),
                     address.clone(),
+                    common_utils::type_name!(diesel_models::payment_method::PaymentMethod),
                 )
             })
             .await

@@ -3,11 +3,14 @@ use std::marker::PhantomData;
 use common_enums::{connector_enums::Connector, enums::Currency};
 use common_utils::id_type;
 use external_services::superposition;
+pub use hyperswitch_domain_models::platform::{ProcessorMerchantId, ProviderMerchantId};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, thiserror::Error)]
 pub enum DimensionError {
-    #[error("merchant_id not available in dimension state")]
-    MissingMerchantId,
+    #[error("provider_merchant_id not available in dimension state")]
+    MissingProviderMerchantId,
+    #[error("processor_merchant_id not available in dimension state")]
+    MissingProcessorMerchantId,
     #[error("organization_id not available in dimension state")]
     MissingOrganizationId,
     #[error("profile_id not available in dimension state")]
@@ -18,18 +21,28 @@ pub enum DimensionError {
     MissingCurrency,
 }
 
-/// Marker for state WITHOUT merchant_id
-pub struct NoMerchantId;
+/// Marker for state WITHOUT provider_merchant_id
+#[derive(Clone)]
+pub struct NoProviderMerchantId;
+
+/// Marker for state WITH provider_merchant_id
+#[derive(Clone)]
+pub struct HasProviderMerchantId;
+
+/// Marker for state WITHOUT processor_merchant_id
+#[derive(Clone)]
+pub struct NoProcessorMerchantId;
 
 /// Marker for state WITH merchant_id
 #[derive(Clone)]
-pub struct HasMerchantId;
+pub struct HasProcessorMerchantId;
 
 /// Marker for state WITHOUT organization_id
 #[derive(Clone)]
 pub struct NoOrgId;
 
 /// Marker for state WITH organization_id
+#[derive(Clone)]
 pub struct HasOrgId;
 
 /// Marker for state WITHOUT profile_id
@@ -37,6 +50,7 @@ pub struct HasOrgId;
 pub struct NoProfileId;
 
 /// Marker for state WITH profile_id
+#[derive(Clone)]
 pub struct HasProfileId;
 
 /// Marker for state WITHOUT connector
@@ -44,6 +58,7 @@ pub struct HasProfileId;
 pub struct NoConnector;
 
 /// Marker for state WITH connector
+#[derive(Clone)]
 pub struct HasConnector;
 
 /// Marker for state WITHOUT currency
@@ -60,25 +75,37 @@ pub struct HasCurrency;
 /// Uses the type-state pattern where type parameters indicate which fields are available.
 ///
 /// # Type Parameters
-/// * `M` - Merchant ID type: `HasMerchantId` (present) or `NoMerchantId` (absent)
+/// * `Pm` - Provider Merchant ID type: `HasProviderMerchantId` (present) or `NoProviderMerchantId` (absent)
+/// * `M` - Processor Merchant ID type: `HasProcessorMerchantId` (present) or `NoProcessorMerchantId` (absent)
 /// * `O` - Organization ID type: `HasOrgId` (present) or `NoOrgId` (absent)
 /// * `P` - Profile ID type: `HasProfileId` (present) or `NoProfileId` (absent)
 /// * `Cn` - Connector type: `HasConnector` (present) or `NoConnector` (absent)
 /// * `Cu` - Currency type: `HasCurrency` (present) or `NoCurrency` (absent)
 #[derive(Clone)]
-pub struct Dimensions<M, O, P, Cn, Cu = NoCurrency> {
-    merchant_id: Option<id_type::MerchantId>,
+pub struct Dimensions<Pm, M, O, P, Cn, Cu = NoCurrency> {
+    provider_merchant_id: Option<ProviderMerchantId>,
+    processor_merchant_id: Option<ProcessorMerchantId>,
     organization_id: Option<id_type::OrganizationId>,
     profile_id: Option<id_type::ProfileId>,
     connector: Option<Connector>,
     currency: Option<Currency>,
-    _phantom: PhantomData<(M, O, P, Cn, Cu)>,
+    _phantom: PhantomData<(Pm, M, O, P, Cn, Cu)>,
 }
 
-impl Dimensions<NoMerchantId, NoOrgId, NoProfileId, NoConnector, NoCurrency> {
+impl
+    Dimensions<
+        NoProviderMerchantId,
+        NoProcessorMerchantId,
+        NoOrgId,
+        NoProfileId,
+        NoConnector,
+        NoCurrency,
+    >
+{
     pub fn new() -> Self {
         Self {
-            merchant_id: None,
+            provider_merchant_id: None,
+            processor_merchant_id: None,
             organization_id: None,
             profile_id: None,
             connector: None,
@@ -88,14 +115,33 @@ impl Dimensions<NoMerchantId, NoOrgId, NoProfileId, NoConnector, NoCurrency> {
     }
 }
 
-/// Can only add merchant_id if not already present
-impl<O, P, Cn, Cu> Dimensions<NoMerchantId, O, P, Cn, Cu> {
-    pub fn with_merchant_id(
+/// Can only add provider_merchant_id if not already present
+impl<M, O, P, Cn, Cu> Dimensions<NoProviderMerchantId, M, O, P, Cn, Cu> {
+    pub fn with_provider_merchant_id(
         &self,
-        id: id_type::MerchantId,
-    ) -> Dimensions<HasMerchantId, O, P, Cn, Cu> {
+        id: ProviderMerchantId,
+    ) -> Dimensions<HasProviderMerchantId, M, O, P, Cn, Cu> {
         Dimensions {
-            merchant_id: Some(id),
+            provider_merchant_id: Some(id),
+            processor_merchant_id: self.processor_merchant_id.clone(),
+            organization_id: self.organization_id.clone(),
+            profile_id: self.profile_id.clone(),
+            connector: self.connector,
+            currency: self.currency,
+            _phantom: PhantomData,
+        }
+    }
+}
+
+/// Can only add processor_merchant_id if not already present
+impl<Pm, O, P, Cn, Cu> Dimensions<Pm, NoProcessorMerchantId, O, P, Cn, Cu> {
+    pub fn with_processor_merchant_id(
+        &self,
+        id: ProcessorMerchantId,
+    ) -> Dimensions<Pm, HasProcessorMerchantId, O, P, Cn, Cu> {
+        Dimensions {
+            provider_merchant_id: self.provider_merchant_id.clone(),
+            processor_merchant_id: Some(id),
             organization_id: self.organization_id.clone(),
             profile_id: self.profile_id.clone(),
             connector: self.connector,
@@ -106,13 +152,14 @@ impl<O, P, Cn, Cu> Dimensions<NoMerchantId, O, P, Cn, Cu> {
 }
 
 /// Can only add organization_id if not already present
-impl<M, P, Cn, Cu> Dimensions<M, NoOrgId, P, Cn, Cu> {
+impl<Pm, M, P, Cn, Cu> Dimensions<Pm, M, NoOrgId, P, Cn, Cu> {
     pub fn with_organization_id(
         &self,
         id: id_type::OrganizationId,
-    ) -> Dimensions<M, HasOrgId, P, Cn, Cu> {
+    ) -> Dimensions<Pm, M, HasOrgId, P, Cn, Cu> {
         Dimensions {
-            merchant_id: self.merchant_id.clone(),
+            provider_merchant_id: self.provider_merchant_id.clone(),
+            processor_merchant_id: self.processor_merchant_id.clone(),
             organization_id: Some(id),
             profile_id: self.profile_id.clone(),
             connector: self.connector,
@@ -123,13 +170,14 @@ impl<M, P, Cn, Cu> Dimensions<M, NoOrgId, P, Cn, Cu> {
 }
 
 /// Can only add profile_id if not already present
-impl<M, O, Cn, Cu> Dimensions<M, O, NoProfileId, Cn, Cu> {
+impl<Pm, M, O, Cn, Cu> Dimensions<Pm, M, O, NoProfileId, Cn, Cu> {
     pub fn with_profile_id(
         &self,
         id: id_type::ProfileId,
-    ) -> Dimensions<M, O, HasProfileId, Cn, Cu> {
+    ) -> Dimensions<Pm, M, O, HasProfileId, Cn, Cu> {
         Dimensions {
-            merchant_id: self.merchant_id.clone(),
+            provider_merchant_id: self.provider_merchant_id.clone(),
+            processor_merchant_id: self.processor_merchant_id.clone(),
             organization_id: self.organization_id.clone(),
             profile_id: Some(id),
             connector: self.connector,
@@ -140,10 +188,14 @@ impl<M, O, Cn, Cu> Dimensions<M, O, NoProfileId, Cn, Cu> {
 }
 
 /// Can only add connector if not already present
-impl<M, O, P, Cu> Dimensions<M, O, P, NoConnector, Cu> {
-    pub fn with_connector(&self, connector: Connector) -> Dimensions<M, O, P, HasConnector, Cu> {
+impl<Pm, M, O, P, Cu> Dimensions<Pm, M, O, P, NoConnector, Cu> {
+    pub fn with_connector(
+        &self,
+        connector: Connector,
+    ) -> Dimensions<Pm, M, O, P, HasConnector, Cu> {
         Dimensions {
-            merchant_id: self.merchant_id.clone(),
+            provider_merchant_id: self.provider_merchant_id.clone(),
+            processor_merchant_id: self.processor_merchant_id.clone(),
             organization_id: self.organization_id.clone(),
             profile_id: self.profile_id.clone(),
             connector: Some(connector),
@@ -154,10 +206,11 @@ impl<M, O, P, Cu> Dimensions<M, O, P, NoConnector, Cu> {
 }
 
 /// Can only add currency if not already present
-impl<M, O, P, Cn> Dimensions<M, O, P, Cn, NoCurrency> {
-    pub fn with_currency(&self, currency: Currency) -> Dimensions<M, O, P, Cn, HasCurrency> {
+impl<Pm, M, O, P, Cn> Dimensions<Pm, M, O, P, Cn, NoCurrency> {
+    pub fn with_currency(&self, currency: Currency) -> Dimensions<Pm, M, O, P, Cn, HasCurrency> {
         Dimensions {
-            merchant_id: self.merchant_id.clone(),
+            provider_merchant_id: self.provider_merchant_id.clone(),
+            processor_merchant_id: self.processor_merchant_id.clone(),
             organization_id: self.organization_id.clone(),
             profile_id: self.profile_id.clone(),
             connector: self.connector,
@@ -167,11 +220,30 @@ impl<M, O, P, Cn> Dimensions<M, O, P, Cn, NoCurrency> {
     }
 }
 
-/// Can only remove merchant_id if currently present
-impl<O, P, Cn, Cu> Dimensions<HasMerchantId, O, P, Cn, Cu> {
-    pub fn without_merchant_id(&self) -> Dimensions<NoMerchantId, O, P, Cn, Cu> {
+
+/// Can only remove provider_merchant_id if currently present
+impl<M, O, P, Cn, Cu> Dimensions<HasProviderMerchantId, M, O, P, Cn, Cu> {
+    pub fn without_provider_merchant_id(&self) -> Dimensions<NoProviderMerchantId, M, O, P, Cn, Cu> {
         Dimensions {
-            merchant_id: None,
+            provider_merchant_id: None,
+            processor_merchant_id: self.processor_merchant_id.clone(),
+            organization_id: self.organization_id.clone(),
+            profile_id: self.profile_id.clone(),
+            connector: self.connector,
+            currency: self.currency,
+            _phantom: PhantomData,
+        }
+    }
+}
+
+/// Can only remove processor_merchant_id if currently present
+impl<Pm, O, P, Cn, Cu> Dimensions<Pm, HasProcessorMerchantId, O, P, Cn, Cu> {
+    pub fn without_processor_merchant_id(
+        &self,
+    ) -> Dimensions<Pm, NoProcessorMerchantId, O, P, Cn, Cu> {
+        Dimensions {
+            provider_merchant_id: self.provider_merchant_id.clone(),
+            processor_merchant_id: None,
             organization_id: self.organization_id.clone(),
             profile_id: self.profile_id.clone(),
             connector: self.connector,
@@ -182,10 +254,11 @@ impl<O, P, Cn, Cu> Dimensions<HasMerchantId, O, P, Cn, Cu> {
 }
 
 /// Can only remove organization_id if currently present
-impl<M, P, Cn, Cu> Dimensions<M, HasOrgId, P, Cn, Cu> {
-    pub fn without_organization_id(&self) -> Dimensions<M, NoOrgId, P, Cn, Cu> {
+impl<Pm, M, P, Cn, Cu> Dimensions<Pm, M, HasOrgId, P, Cn, Cu> {
+    pub fn without_organization_id(&self) -> Dimensions<Pm, M, NoOrgId, P, Cn, Cu> {
         Dimensions {
-            merchant_id: self.merchant_id.clone(),
+            provider_merchant_id: self.provider_merchant_id.clone(),
+            processor_merchant_id: self.processor_merchant_id.clone(),
             organization_id: None,
             profile_id: self.profile_id.clone(),
             connector: self.connector,
@@ -196,10 +269,11 @@ impl<M, P, Cn, Cu> Dimensions<M, HasOrgId, P, Cn, Cu> {
 }
 
 /// Can only remove profile_id if currently present
-impl<M, O, Cn, Cu> Dimensions<M, O, HasProfileId, Cn, Cu> {
-    pub fn without_profile_id(&self) -> Dimensions<M, O, NoProfileId, Cn, Cu> {
+impl<Pm, M, O, Cn, Cu> Dimensions<Pm, M, O, HasProfileId, Cn, Cu> {
+    pub fn without_profile_id(&self) -> Dimensions<Pm, M, O, NoProfileId, Cn, Cu> {
         Dimensions {
-            merchant_id: self.merchant_id.clone(),
+            provider_merchant_id: self.provider_merchant_id.clone(),
+            processor_merchant_id: self.processor_merchant_id.clone(),
             organization_id: self.organization_id.clone(),
             profile_id: None,
             connector: self.connector,
@@ -210,10 +284,11 @@ impl<M, O, Cn, Cu> Dimensions<M, O, HasProfileId, Cn, Cu> {
 }
 
 /// Can only remove connector if currently present
-impl<M, O, P, Cu> Dimensions<M, O, P, HasConnector, Cu> {
-    pub fn without_connector(&self) -> Dimensions<M, O, P, NoConnector, Cu> {
+impl<Pm, M, O, P, Cu> Dimensions<Pm, M, O, P, HasConnector, Cu> {
+    pub fn without_connector(&self) -> Dimensions<Pm, M, O, P, NoConnector, Cu> {
         Dimensions {
-            merchant_id: self.merchant_id.clone(),
+            provider_merchant_id: self.provider_merchant_id.clone(),
+            processor_merchant_id: self.processor_merchant_id.clone(),
             organization_id: self.organization_id.clone(),
             profile_id: self.profile_id.clone(),
             connector: None,
@@ -223,17 +298,43 @@ impl<M, O, P, Cu> Dimensions<M, O, P, HasConnector, Cu> {
     }
 }
 
-/// merchant_id getter - only available if HasMerchantId
-impl<O, P, Cn, Cu> Dimensions<HasMerchantId, O, P, Cn, Cu> {
-    pub fn merchant_id(&self) -> Result<&id_type::MerchantId, DimensionError> {
-        self.merchant_id
+/// Can only remove currency if currently present
+impl<Pm, M, O, P, Cn> Dimensions<Pm, M, O, P, Cn, HasCurrency> {
+    pub fn without_currency(&self) -> Dimensions<Pm, M, O, P, Cn, NoCurrency> {
+        Dimensions {
+            provider_merchant_id: self.provider_merchant_id.clone(),
+            processor_merchant_id: self.processor_merchant_id.clone(),
+            organization_id: self.organization_id.clone(),
+            profile_id: self.profile_id.clone(),
+            connector: self.connector,
+            currency: None,
+            _phantom: PhantomData,
+        }
+    }
+}
+
+/// provider_merchant_id getter - only available if HasProviderMerchantId
+impl<M, O, P, Cn, Cu> Dimensions<HasProviderMerchantId, M, O, P, Cn, Cu> {
+    pub fn provider_merchant_id(&self) -> Result<&id_type::MerchantId, DimensionError> {
+        self.provider_merchant_id
             .as_ref()
-            .ok_or(DimensionError::MissingMerchantId)
+            .map(|id| id.inner())
+            .ok_or(DimensionError::MissingProviderMerchantId)
+    }
+}
+
+/// processor_merchant_id getter - only available if HasProcessorMerchantId
+impl<Pm, O, P, Cn> Dimensions<Pm, HasProcessorMerchantId, O, P, Cn> {
+    pub fn processor_merchant_id(&self) -> Result<&id_type::MerchantId, DimensionError> {
+        self.processor_merchant_id
+            .as_ref()
+            .map(|id| id.inner())
+            .ok_or(DimensionError::MissingProcessorMerchantId)
     }
 }
 
 /// organization_id getter - only available if HasOrgId
-impl<M, P, Cn, Cu> Dimensions<M, HasOrgId, P, Cn, Cu> {
+impl<Pm, M, P, Cn, Cu> Dimensions<Pm, M, HasOrgId, P, Cn, Cu> {
     pub fn organization_id(&self) -> Result<&id_type::OrganizationId, DimensionError> {
         self.organization_id
             .as_ref()
@@ -242,7 +343,7 @@ impl<M, P, Cn, Cu> Dimensions<M, HasOrgId, P, Cn, Cu> {
 }
 
 /// profile_id getter - only available if HasProfileId
-impl<M, O, Cn, Cu> Dimensions<M, O, HasProfileId, Cn, Cu> {
+impl<Pm, M, O, Cn, Cu> Dimensions<Pm, M, O, HasProfileId, Cn, Cu> {
     pub fn profile_id(&self) -> Result<&id_type::ProfileId, DimensionError> {
         self.profile_id
             .as_ref()
@@ -251,7 +352,7 @@ impl<M, O, Cn, Cu> Dimensions<M, O, HasProfileId, Cn, Cu> {
 }
 
 /// connector getter - only available if HasConnector
-impl<M, O, P, Cu> Dimensions<M, O, P, HasConnector, Cu> {
+impl<Pm, M, O, P, Cu> Dimensions<Pm, M, O, P, HasConnector, Cu> {
     pub fn connector(&self) -> Result<Connector, DimensionError> {
         self.connector.ok_or(DimensionError::MissingConnector)
     }
@@ -265,9 +366,13 @@ impl<M, O, P, Cn> Dimensions<M, O, P, Cn, HasCurrency> {
 }
 
 // Optional getters (available in any state)
-impl<M, O, P, Cn, Cu> Dimensions<M, O, P, Cn, Cu> {
-    pub fn get_merchant_id(&self) -> Option<&id_type::MerchantId> {
-        self.merchant_id.as_ref()
+impl<Pm, M, O, P, Cn, Cu> Dimensions<Pm, M, O, P, Cn, Cu> {
+    pub fn get_provider_merchant_id(&self) -> Option<&id_type::MerchantId> {
+        self.provider_merchant_id.as_ref().map(|id| id.inner())
+    }
+
+    pub fn get_processor_merchant_id(&self) -> Option<&id_type::MerchantId> {
+        self.processor_merchant_id.as_ref().map(|id| id.inner())
     }
 
     pub fn get_organization_id(&self) -> Option<&id_type::OrganizationId> {
@@ -288,13 +393,17 @@ impl<M, O, P, Cn, Cu> Dimensions<M, O, P, Cn, Cu> {
 }
 
 // Superposition context conversion
-impl<M, O, P, Cn, Cu> Dimensions<M, O, P, Cn, Cu> {
+impl<Pm, M, O, P, Cn, Cu> Dimensions<Pm, M, O, P, Cn, Cu> {
     /// Converts dimension state to Superposition config context
     pub fn to_superposition_context(&self) -> Option<superposition::ConfigContext> {
         let mut ctx = superposition::ConfigContext::new();
 
-        if let Some(ref mid) = self.merchant_id {
-            ctx = ctx.with("merchant_id", mid.get_string_repr());
+        if let Some(ref pm_id) = self.provider_merchant_id {
+            ctx = ctx.with("provider_merchant_id", pm_id.inner().get_string_repr());
+        }
+
+        if let Some(ref mid) = self.processor_merchant_id {
+            ctx = ctx.with("processor_merchant_id", mid.inner().get_string_repr());
         }
 
         if let Some(ref oid) = self.organization_id {
@@ -317,7 +426,16 @@ impl<M, O, P, Cn, Cu> Dimensions<M, O, P, Cn, Cu> {
     }
 }
 
-impl Default for Dimensions<NoMerchantId, NoOrgId, NoProfileId, NoConnector, NoCurrency> {
+impl Default
+    for Dimensions<
+        NoProviderMerchantId,
+        NoProcessorMerchantId,
+        NoOrgId,
+        NoProfileId,
+        NoConnector,
+        NoCurrency,
+    >
+{
     fn default() -> Self {
         Self::new()
     }
@@ -328,8 +446,11 @@ pub trait DimensionsBase {
     /// Converts dimension state to Superposition config context
     fn to_superposition_context(&self) -> Option<superposition::ConfigContext>;
 
-    /// Get merchant_id (if available)
-    fn get_merchant_id(&self) -> Option<&id_type::MerchantId>;
+    /// Get provider_merchant_id (if available)
+    fn get_provider_merchant_id(&self) -> Option<&id_type::MerchantId>;
+
+    /// Get processor_merchant_id (if available)
+    fn get_processor_merchant_id(&self) -> Option<&id_type::MerchantId>;
 
     /// Get organization_id (if available)
     fn get_organization_id(&self) -> Option<&id_type::OrganizationId>;
@@ -344,13 +465,17 @@ pub trait DimensionsBase {
     fn get_currency(&self) -> Option<Currency>;
 }
 
-impl<M, O, P, Cn, Cu> DimensionsBase for Dimensions<M, O, P, Cn, Cu> {
+impl<Pm, M, O, P, Cn, Cu> DimensionsBase for Dimensions<Pm, M, O, P, Cn, Cu> {
     fn to_superposition_context(&self) -> Option<superposition::ConfigContext> {
         self.to_superposition_context()
     }
 
-    fn get_merchant_id(&self) -> Option<&id_type::MerchantId> {
-        self.get_merchant_id()
+    fn get_provider_merchant_id(&self) -> Option<&id_type::MerchantId> {
+        self.get_provider_merchant_id()
+    }
+
+    fn get_processor_merchant_id(&self) -> Option<&id_type::MerchantId> {
+        self.get_processor_merchant_id()
     }
 
     fn get_organization_id(&self) -> Option<&id_type::OrganizationId> {
@@ -370,16 +495,24 @@ impl<M, O, P, Cn, Cu> DimensionsBase for Dimensions<M, O, P, Cn, Cu> {
     }
 }
 
-pub type DimensionsWithMerchantId = Dimensions<HasMerchantId, NoOrgId, NoProfileId, NoConnector>;
-pub type DimensionsWithOrgIdAndMerchantId =
-    Dimensions<HasMerchantId, HasOrgId, NoProfileId, NoConnector>;
-pub type DimensionsWithOrgIdAndMerchantIdAndProfileId =
-    Dimensions<HasMerchantId, HasOrgId, HasProfileId, NoConnector>;
-pub type DimensionsWithMerchantIdAndProfileId =
-    Dimensions<HasMerchantId, NoOrgId, HasProfileId, NoConnector>;
-pub type DimensionsWithMerchantIdAndConnector =
-    Dimensions<HasMerchantId, NoOrgId, NoProfileId, HasConnector>;
-pub type DimensionsWithMerchantIdAndProfileIdAndConnector =
-    Dimensions<HasMerchantId, NoOrgId, HasProfileId, HasConnector>;
-pub type DimensionsWithConnectorAndCurrency =
-    Dimensions<NoMerchantId, NoOrgId, NoProfileId, HasConnector, HasCurrency>;
+// Type aliases - both provider and processor merchant IDs present
+pub type DimensionsWithProcessorAndProviderMerchantId =
+    Dimensions<HasProviderMerchantId, HasProcessorMerchantId, NoOrgId, NoProfileId, NoConnector>;
+pub type DimensionsWithProcessorAndProviderMerchantIdAndProfileId =
+    Dimensions<HasProviderMerchantId, HasProcessorMerchantId, NoOrgId, HasProfileId, NoConnector>;
+pub type DimensionsWithProcessorAndProviderMerchantIdAndConnector =
+    Dimensions<HasProviderMerchantId, HasProcessorMerchantId, NoOrgId, NoProfileId, HasConnector>;
+pub type DimensionsWithProcessorAndProviderMerchantIdAndProfileIdAndConnector =
+    Dimensions<HasProviderMerchantId, HasProcessorMerchantId, NoOrgId, HasProfileId, HasConnector>;
+pub type DimensionsWithProcessorAndProviderMerchantIdAndOrgId =
+    Dimensions<HasProviderMerchantId, HasProcessorMerchantId, HasOrgId, NoProfileId, NoConnector>;
+pub type DimensionsWithProcessorAndProviderMerchantIdAndOrgIdAndProfileId =
+    Dimensions<HasProviderMerchantId, HasProcessorMerchantId, HasOrgId, HasProfileId, NoConnector>;
+pub type DimensionsWithConnectorAndCurrency = Dimensions<
+    HasProviderMerchantId,
+    HasProcessorMerchantId,
+    NoOrgId,
+    NoProfileId,
+    HasConnector,
+    HasCurrency,
+>;
