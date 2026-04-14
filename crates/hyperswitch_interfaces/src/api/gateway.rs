@@ -400,11 +400,11 @@ where
                 )
                 .await;
 
-            let direct_for_compare: Result<RouterData<F, Req, Resp>, String> =
-                match &direct_result {
-                    Ok(fo) => Ok(fo.get_router_data().clone()),
-                    Err(e) => Err(format!("{:?}", e)),
-                };
+            let direct_for_compare: Result<RouterData<F, Req, Resp>, String> = match &direct_result
+            {
+                Ok(fo) => Ok(fo.get_router_data().clone()),
+                Err(e) => Err(format!("{:?}", e)),
+            };
             let state_clone = state.clone();
             let router_data_clone = router_data.clone();
             let return_raw_connector_response_clone = return_raw_connector_response;
@@ -534,11 +534,11 @@ where
                 )
                 .await;
 
-            let direct_for_compare: Result<RouterData<F, Req, Resp>, String> =
-                match &direct_result {
-                    Ok(fo) => Ok(fo.get_router_data().clone()),
-                    Err(e) => Err(format!("{:?}", e)),
-                };
+            let direct_for_compare: Result<RouterData<F, Req, Resp>, String> = match &direct_result
+            {
+                Ok(fo) => Ok(fo.get_router_data().clone()),
+                Err(e) => Err(format!("{:?}", e)),
+            };
             let state_clone = state.clone();
             let router_data_clone = router_data.clone();
             let return_raw_connector_response_clone = return_raw_connector_response;

@@ -639,36 +639,40 @@ async fn execute_refund_execute_via_direct_with_ucs_shadow(
     let ucs_state = state.clone();
 
     // Capture direct result for comparison (Ok or Err) so the diff is sent in both cases.
-    let direct_for_compare: Result<types::RefundExecuteRouterData, String> =
-        direct_result.as_ref().map(|rd| rd.clone()).map_err(|e| format!("{:?}", e));
+    let direct_for_compare: Result<types::RefundExecuteRouterData, String> = direct_result
+        .as_ref()
+        .map(|rd| rd.clone())
+        .map_err(|e| format!("{:?}", e));
     let connector_name = router_data.connector.clone();
 
     tokio::spawn(
-        (
-            async move {
-                let ucs_result =
-                    unified_connector_service::call_unified_connector_service_for_refund_execute(
-                        &ucs_state,
-                        ucs_platform.get_processor(),
-                        ucs_router_data,
-                        ExecutionMode::Shadow,
-                        merchant_connector_account
-                    ).await;
+        (async move {
+            let ucs_result =
+                unified_connector_service::call_unified_connector_service_for_refund_execute(
+                    &ucs_state,
+                    ucs_platform.get_processor(),
+                    ucs_router_data,
+                    ExecutionMode::Shadow,
+                    merchant_connector_account,
+                )
+                .await;
 
-                if let Err(e) = &ucs_result {
-                    router_env::logger::debug!("Shadow UCS refund execute failed: {:?}", e);
-                }
-                let ucs_for_compare = ucs_result.map_err(|e| format!("{:?}", e));
+            if let Err(e) = &ucs_result {
+                router_env::logger::debug!("Shadow UCS refund execute failed: {:?}", e);
+            }
+            let ucs_for_compare = ucs_result.map_err(|e| format!("{:?}", e));
 
-                Box::pin(hyperswitch_interfaces::helpers::serialize_comparison_results_and_send(
+            Box::pin(
+                hyperswitch_interfaces::helpers::serialize_comparison_results_and_send(
                     &ucs_state,
                     connector_name,
                     direct_for_compare,
                     ucs_for_compare,
-                ))
-                .await;
-            }
-        ).instrument(tracing::Span::current())
+                ),
+            )
+            .await;
+        })
+        .instrument(tracing::Span::current()),
     );
 
     // Return PRIMARY result (Direct connector response) — UCS shadow cannot affect this.
@@ -1192,36 +1196,40 @@ async fn execute_refund_sync_via_direct_with_ucs_shadow(
     let state = state.clone();
     let processor = processor.clone();
     let merchant_connector_account = merchant_connector_account.clone();
-    let direct_for_compare: Result<types::RefundSyncRouterData, String> =
-        direct_result.as_ref().map(|rd| rd.clone()).map_err(|e| format!("{:?}", e));
+    let direct_for_compare: Result<types::RefundSyncRouterData, String> = direct_result
+        .as_ref()
+        .map(|rd| rd.clone())
+        .map_err(|e| format!("{:?}", e));
     let connector_name = router_data.connector.clone();
 
     tokio::spawn(
-        (
-            async move {
-                let ucs_result =
-                    unified_connector_service::call_unified_connector_service_for_refund_sync(
-                        &state,
-                        &processor,
-                        router_data,
-                        ExecutionMode::Shadow,
-                        merchant_connector_account
-                    ).await;
+        (async move {
+            let ucs_result =
+                unified_connector_service::call_unified_connector_service_for_refund_sync(
+                    &state,
+                    &processor,
+                    router_data,
+                    ExecutionMode::Shadow,
+                    merchant_connector_account,
+                )
+                .await;
 
-                if let Err(e) = &ucs_result {
-                    router_env::logger::debug!("Shadow UCS refund sync failed: {:?}", e);
-                }
-                let ucs_for_compare = ucs_result.map_err(|e| format!("{:?}", e));
+            if let Err(e) = &ucs_result {
+                router_env::logger::debug!("Shadow UCS refund sync failed: {:?}", e);
+            }
+            let ucs_for_compare = ucs_result.map_err(|e| format!("{:?}", e));
 
-                Box::pin(hyperswitch_interfaces::helpers::serialize_comparison_results_and_send(
+            Box::pin(
+                hyperswitch_interfaces::helpers::serialize_comparison_results_and_send(
                     &state,
                     connector_name,
                     direct_for_compare,
                     ucs_for_compare,
-                ))
-                .await;
-            }
-        ).instrument(tracing::Span::current())
+                ),
+            )
+            .await;
+        })
+        .instrument(tracing::Span::current()),
     );
 
     direct_result

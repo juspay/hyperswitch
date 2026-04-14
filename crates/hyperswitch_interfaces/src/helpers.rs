@@ -60,17 +60,17 @@ pub async fn serialize_comparison_results_and_send<S, F, RouterDReq, RouterDResp
         return;
     };
 
-    let to_value =
-        |res: Result<router_data::RouterData<F, RouterDReq, RouterDResp>, String>, side: &str| {
-            match res {
-                Ok(rd) => serde_json::to_value(rd).unwrap_or_else(|e| {
-                    serde_json::json!({
-                        "error": format!("serialize {side} router_data failed: {e}")
-                    })
-                }),
-                Err(e) => serde_json::json!({ "error": e }),
-            }
-        };
+    let to_value = |res: Result<router_data::RouterData<F, RouterDReq, RouterDResp>, String>,
+                    side: &str| {
+        match res {
+            Ok(rd) => serde_json::to_value(rd).unwrap_or_else(|e| {
+                serde_json::json!({
+                    "error": format!("serialize {side} router_data failed: {e}")
+                })
+            }),
+            Err(e) => serde_json::json!({ "error": e }),
+        }
+    };
 
     let comparison_data = ComparisonData {
         hyperswitch_data: hyperswitch_masking::Secret::new(to_value(
