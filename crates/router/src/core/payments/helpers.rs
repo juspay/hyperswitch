@@ -4098,11 +4098,7 @@ pub async fn make_ephemeral_key(
     let store = &state.store;
     let id = utils::generate_id(consts::ID_LENGTH, "eki");
     let secret = format!("epk_{}", &Uuid::new_v4().simple().to_string());
-    let merchant_id = platform
-                    .get_processor()
-                    .get_account()
-                    .get_id()
-                    .to_owned();
+    let merchant_id = platform.get_processor().get_account().get_id().to_owned();
     let ek = ephemeral_key::EphemeralKeyNew {
         id,
         customer_id,
@@ -4159,14 +4155,10 @@ pub async fn make_client_secret(
         }
     };
 
-    let client_secret = create_client_secret(
-        &state,
-        platform.clone(),
-        resource_id,
-    )
-    .await
-    .change_context(errors::ApiErrorResponse::InternalServerError)
-    .attach_printable("Unable to create client secret")?;
+    let client_secret = create_client_secret(&state, platform.clone(), resource_id)
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Unable to create client secret")?;
 
     let response = ClientSecretResponse::foreign_try_from(client_secret)
         .attach_printable("Only customer is supported as resource_id in response")?;

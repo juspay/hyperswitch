@@ -1191,9 +1191,9 @@ pub async fn validate_and_create_refund(
 
     let merchant_id = platform.get_processor().get_account().get_id().clone();
     let dimensions = dimension_state::Dimensions::new()
-            .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id())
-            .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
-            .with_organization_id(payment_intent.organization_id.clone());
+        .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id())
+        .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
+        .with_organization_id(payment_intent.organization_id.clone());
     let payment_id = payment_intent.id.get_string_repr().to_owned();
     let refund_config = dimensions
         .get_refund(

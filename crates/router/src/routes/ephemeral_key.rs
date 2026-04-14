@@ -24,11 +24,7 @@ pub async fn ephemeral_key_create(
         &req,
         payload,
         |state, auth: auth::AuthenticationData, payload, _| {
-            helpers::make_ephemeral_key(
-                state,
-                payload.customer_id,
-                auth.platform
-            )
+            helpers::make_ephemeral_key(state, payload.customer_id, auth.platform)
         },
         &auth::HeaderAuth(auth::ApiKeyAuth {
             allow_connected_scope_operation: false,

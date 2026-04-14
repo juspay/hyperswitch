@@ -220,10 +220,11 @@ impl<Pm, M, O, P, Cn> Dimensions<Pm, M, O, P, Cn, NoCurrency> {
     }
 }
 
-
 /// Can only remove provider_merchant_id if currently present
 impl<M, O, P, Cn, Cu> Dimensions<HasProviderMerchantId, M, O, P, Cn, Cu> {
-    pub fn without_provider_merchant_id(&self) -> Dimensions<NoProviderMerchantId, M, O, P, Cn, Cu> {
+    pub fn without_provider_merchant_id(
+        &self,
+    ) -> Dimensions<NoProviderMerchantId, M, O, P, Cn, Cu> {
         Dimensions {
             provider_merchant_id: None,
             processor_merchant_id: self.processor_merchant_id.clone(),
@@ -508,5 +509,11 @@ pub type DimensionsWithProcessorAndProviderMerchantIdAndOrgId =
     Dimensions<HasProviderMerchantId, HasProcessorMerchantId, HasOrgId, NoProfileId, NoConnector>;
 pub type DimensionsWithProcessorAndProviderMerchantIdAndOrgIdAndProfileId =
     Dimensions<HasProviderMerchantId, HasProcessorMerchantId, HasOrgId, HasProfileId, NoConnector>;
-pub type DimensionsWithProcessorAndProviderMerchantIdAndOrgIdAndConnectorAndCurrency = 
-    Dimensions<HasProviderMerchantId, HasProcessorMerchantId, NoOrgId, NoProfileId, HasConnector, HasCurrency>;
+pub type DimensionsWithProcessorAndProviderMerchantIdAndOrgIdAndConnectorAndCurrency = Dimensions<
+    HasProviderMerchantId,
+    HasProcessorMerchantId,
+    NoOrgId,
+    NoProfileId,
+    HasConnector,
+    HasCurrency,
+>;
