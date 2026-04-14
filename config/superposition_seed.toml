@@ -34,6 +34,12 @@ schema = { type = "string" }
 description = "Payment connector identifier (e.g. stripe, adyen)"
 change_reason = "Initial setup"
 
+[dimensions.currency]
+position = 5
+schema = { type = "string" }
+description = "Payment currency (e.g. USD, JPY)"
+change_reason = "Initial setup"
+
 [default-configs.requires_cvv]
 value = true
 schema = { type = "boolean" }
@@ -61,3 +67,25 @@ schema = { type = "boolean" }
 description = "Whether client session validation is enabled for payments"
 change_reason = "Initial setup"
 
+[default-configs.installment_config_supported]
+value = false
+schema = { type = "boolean" }
+description = "Whether installment payments are supported for a given connector and currency combination"
+change_reason = "Initial setup"
+
+[default-configs.refund]
+schema = { type = "object" }
+description = "Refund configuration: max_attempts and max_age"
+change_reason = "Initial setup"
+
+[default-configs.refund.value]
+max_attempts = 10
+max_age = 365
+
+[default-configs.eph_key_validity]
+schema = { type = "object" }
+description = "Eph key Validity in hours configuration"
+change_reason = "Initial setup"
+
+[default-configs.eph_key_validity.value]
+validity = 1

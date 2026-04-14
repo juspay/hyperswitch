@@ -3963,19 +3963,39 @@ pub async fn list_payment_methods(
         .as_ref()
         .map(|payment_intent| payment_intent.customer_id.is_none())
         .unwrap_or(true);
-    let connector_supports_installments = currency.is_some_and(|cur| {
-        filtered_mcas.iter().any(|mca| {
-            mca.connector_name
-                .parse::<api_enums::Connector>()
-                .ok()
-                .is_some_and(|connector| {
-                    state
-                        .conf
-                        .installment_config
-                        .is_connector_currency_supported(&connector, cur)
-                })
-        })
-    });
+    let installment_customer_id = payment_intent
+        .as_ref()
+        .and_then(|pi| pi.customer_id.as_ref());
+    let connector_supports_installments = if let Some(cur) = currency {
+        let mut any_supported = false;
+        for mca in &filtered_mcas {
+            if let Ok(connector) = mca.connector_name.parse::<api_enums::Connector>() {
+                let dimensions = configs::dimension_state::Dimensions::new()
+                    .with_connector(connector)
+                    .with_currency(cur);
+                let supported = dimensions
+                    .get_installment_config_supported(
+                        state.store.as_ref(),
+                        state.superposition_service.as_ref(),
+                        installment_customer_id,
+                    )
+                    .await;
+                logger::debug!(
+                    connector = %connector,
+                    currency = %cur,
+                    installment_config_supported = supported,
+                    "installment support check via superposition"
+                );
+                if supported {
+                    any_supported = true;
+                    break;
+                }
+            }
+        }
+        any_supported
+    } else {
+        false
+    };
 
     let merchant_surcharge_configs = if let Some((payment_attempt, payment_intent)) =
         payment_attempt.as_ref().zip(payment_intent.clone())

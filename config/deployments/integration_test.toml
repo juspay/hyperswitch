@@ -286,9 +286,6 @@ card.debit = { connector_list = "cybersource" }             # Update Mandate sup
 card.credit = "adyen"
 card.debit = "adyen"
 
-[installment_config]
-adyen = ["BRL", "MXN", "JPY"]
-
 [network_transaction_id_supported_connectors]
 connector_list = "adyen,archipel,checkout,cybersource,novalnet,nuvei,stripe,worldpay,worldpayvantiv"
 

@@ -1357,13 +1357,29 @@ pub async fn validate_and_create_refund(
 
     let currency = payment_attempt.currency.get_required_value("currency")?;
 
+    let merchant_id = platform.get_processor().get_account().get_id().clone();
+    let refund_dimensions = crate::core::configs::dimension_state::Dimensions::new()
+        .with_merchant_id(merchant_id.clone());
+    let refund_config = refund_dimensions
+        .get_refund(
+            state.store.as_ref(),
+            state.superposition_service.as_ref(),
+            Some(&merchant_id),
+        )
+        .await;
+    logger::debug!(
+        refund_max_age = refund_config.max_age,
+        refund_max_attempts = refund_config.max_attempts,
+        "refund config fetched from superposition"
+    );
+
     //[#249]: Add Connector Based Validation here.
-    validator::validate_payment_order_age(&payment_intent.created_at, state.conf.refund.max_age)
+    validator::validate_payment_order_age(&payment_intent.created_at, refund_config.max_age)
         .change_context(errors::ApiErrorResponse::InvalidDataFormat {
             field_name: "created_at".to_string(),
             expected_format: format!(
                 "created_at not older than {} days",
-                state.conf.refund.max_age
+                refund_config.max_age
             ),
         })?;
 
@@ -1380,7 +1396,7 @@ pub async fn validate_and_create_refund(
 
     validator::validate_maximum_refund_against_payment_attempt(
         &all_refunds,
-        state.conf.refund.max_attempts,
+        refund_config.max_attempts,
     )
     .change_context(errors::ApiErrorResponse::MaximumRefundCount)?;
 

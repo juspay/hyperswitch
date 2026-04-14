@@ -166,10 +166,6 @@ connectors_with_webhook_source_verification_call = "paypal, truelayer" # List of
 vault_encryption_key = ""       # public key in pem format, corresponding private key in basilisk-hs
 vault_private_key = ""          # private key in pem format, corresponding public key in basilisk-hs
 
-# Refund configuration
-[refund]
-max_attempts = 10 # Number of refund attempts allowed
-max_age = 365     # Max age of a refund in days.
 
 [webhooks]
 outgoing_enabled = true
@@ -179,10 +175,6 @@ redis_lock_expiry_seconds = 180
 # When enabled, payment endpoints will accept and require a x-merchant-id header in the request.
 [merchant_id_auth]
 merchant_id_auth_enabled = false
-
-# Validity of an Ephemeral Key in Hours
-[eph_key]
-validity = 1
 
 [api_keys]
 # Hex-encoded 32-byte long (64 characters long when hex-encoded) key used for calculating hashes of API keys
@@ -614,9 +606,6 @@ card.debit = { connector_list = "cybersource" }  # Update Mandate supported paym
 [installments.supported_payment_methods]
 card.credit = "adyen" # Installment supported payment method type and connector for card
 card.debit = "adyen"  # Installment supported payment method type and connector for card
-
-[installment_config]
-adyen = ["BRL", "MXN", "JPY"] # Connectors and their supported currencies for installment payments
 
 # Required fields info used while listing the payment_method_data
 [required_fields.pay_later] # payment_method = "pay_later"

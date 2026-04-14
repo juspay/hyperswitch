@@ -1,5 +1,18 @@
 use external_services::superposition;
 use scheduler::consumer::types::process_data::RetryMapping;
+use serde::{self, Deserialize, Serialize};
+use super::deployment_defaults as defaults;
+
+#[derive(Default, Serialize, Deserialize)]
+pub struct RefundConfig {
+    pub max_attempts: usize,
+    pub max_age: i64,
+}
+
+#[derive(Default, Serialize, Deserialize)]
+pub struct EphemeralKeyConfig {
+    pub validity: i64,
+}
 
 use super::{
     dimension_state::{DimensionsWithMerchantId, DimensionsWithMerchantIdAndProfileId},
@@ -7,7 +20,10 @@ use super::{
 };
 use crate::{
     consts::superposition as superposition_consts,
-    core::configs::dimension_state::DimensionsWithMerchantIdAndConnector, db::StorageInterface,
+    core::configs::dimension_state::{
+        DimensionsWithConnectorAndCurrency, DimensionsWithMerchantIdAndConnector,
+    },
+    db::StorageInterface,
     utils::id_type,
 };
 
@@ -179,4 +195,37 @@ impl DatabaseBackedConfig for ClientSessionValidationEnabled {
     fn db_key(_dimensions: &impl super::dimension_state::DimensionsBase) -> Option<String> {
         None
     }
+}
+
+config! {
+    superposition_key = INSTALLMENT_CONFIG_SUPPORTED,
+    output = bool,
+    default = defaults::INSTALLMENT_CONFIG_SUPPORTED,
+    requires = DimensionsWithConnectorAndCurrency,
+    targeting_key = id_type::CustomerId
+}
+
+impl DatabaseBackedConfig for InstallmentConfigSupported {
+    const KEY: &'static str = "installment_config_supported";
+    fn db_key(_dimensions: &impl super::dimension_state::DimensionsBase) -> Option<String> {
+        None
+    }
+}
+
+config! {
+    superposition_key = REFUND,
+    output = RefundConfig,
+    default = defaults::refund(),
+    object = true,
+    requires = DimensionsWithMerchantId,
+    targeting_key = id_type::MerchantId
+}
+
+config! {
+    superposition_key = EPH_KEY,
+    output = EphemeralKeyConfig,
+    default = defaults::eph_key_validity(),
+    object = true,
+    requires = DimensionsWithMerchantId,
+    targeting_key = id_type::MerchantId
 }

@@ -36,7 +36,7 @@ pub use hyperswitch_interfaces::{
 use hyperswitch_masking::{Maskable, Secret};
 pub use payment_methods::configs::settings::{
     BankRedirectConfig, BanksVector, ConnectorBankNames, ConnectorFields, EligiblePaymentMethods,
-    InstallmentConfig, Installments, Mandates, PaymentMethodAuth, PaymentMethodType,
+    Installments, Mandates, PaymentMethodAuth, PaymentMethodType,
     RequiredFieldFinal, RequiredFields, SupportedConnectorsForMandate,
     SupportedPaymentMethodTypesForMandate, SupportedPaymentMethodsForMandate, ZeroMandates,
 };
@@ -92,8 +92,6 @@ pub struct Settings<S: SecretState> {
     pub key_manager: SecretStateContainer<KeyManagerConfig, S>,
     pub connectors: Connectors,
     pub forex_api: SecretStateContainer<ForexApi, S>,
-    pub refund: Refund,
-    pub eph_key: EphemeralConfig,
     pub scheduler: Option<SchedulerSettings>,
     #[cfg(feature = "kv_store")]
     pub drainer: DrainerSettings,
@@ -118,7 +116,6 @@ pub struct Settings<S: SecretState> {
     pub mandates: Mandates,
     pub zero_mandates: ZeroMandates,
     pub installments: Installments,
-    pub installment_config: InstallmentConfig,
     pub network_transaction_id_supported_connectors: NetworkTransactionIdSupportedConnectors,
     pub card_only_mit_supported_connectors: CardOnlyMitSupportedConnectors,
     pub notify_iframe_exit_and_redirect: NotifyIframeExitAndRedirectConnectors,
@@ -803,18 +800,11 @@ pub enum DecryptionScheme {
     RsaOaep256,
 }
 
-#[derive(Debug, Deserialize, Clone)]
-#[serde(default)]
-pub struct Refund {
-    pub max_attempts: usize,
-    pub max_age: i64,
-}
-
-#[derive(Debug, Deserialize, Clone)]
-#[serde(default)]
-pub struct EphemeralConfig {
-    pub validity: i64,
-}
+// #[derive(Debug, Deserialize, Clone)]
+// #[serde(default)]
+// pub struct EphemeralConfig {
+//     pub validity: i64,
+// }
 
 #[derive(Debug, Deserialize, Clone, Default)]
 #[serde(default)]

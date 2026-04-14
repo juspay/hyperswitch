@@ -116,10 +116,6 @@ max_age = 30
 allowed_methods = "GET,POST,PUT,DELETE"
 wildcard_origin = true
 
-[refund]
-max_attempts = 10
-max_age = 365
-
 [api_keys]
 hash_key = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
 
@@ -1118,9 +1114,6 @@ card.debit = { connector_list = "cybersource" }
 [installments.supported_payment_methods]
 card.credit = "adyen"
 card.debit = "adyen"
-
-[installment_config]
-adyen = ["BRL", "MXN", "JPY"]
 
 [network_transaction_id_supported_connectors]
 connector_list = "adyen,archipel,checkout,cybersource,novalnet,stripe,worldpay,worldpayvantiv"

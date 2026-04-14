@@ -1,3 +1,4 @@
+pub mod deployment_defaults;
 pub mod dimension_config;
 pub mod dimension_state;
 use common_utils::errors::CustomResult;

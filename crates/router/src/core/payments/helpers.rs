@@ -89,7 +89,7 @@ use crate::{
     consts::{self, BASE64_ENGINE},
     core::{
         authentication,
-        configs::dimension_state::DimensionsWithMerchantIdAndProfileId,
+        configs::dimension_state,
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
         mandate::helpers::MandateGenericData,
         payment_methods::{
@@ -122,7 +122,7 @@ use crate::{
     },
 };
 #[cfg(feature = "v2")]
-use crate::{core::admin as core_admin, headers, types::ConnectorAuthType};
+use crate::{core::admin as core_admin, headers, types::ConnectorAuthType, core::configs::dimension_state};
 #[cfg(feature = "v1")]
 use crate::{
     core::payment_methods::cards::create_encrypted_data, types::storage::CustomerUpdate::Update,
@@ -1928,7 +1928,7 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R, D>(
     _payment_data: &mut PaymentData<F>,
     _req: Option<CustomerDetails>,
     _provider: &domain::Provider,
-    _dimensions: DimensionsWithMerchantIdAndProfileId,
+    _dimensions: dimension_state::DimensionsWithMerchantIdAndProfileId,
 ) -> CustomResult<(BoxedOperation<'a, F, R, D>, Option<domain::Customer>), errors::StorageError> {
     todo!()
 }
@@ -1943,7 +1943,7 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R, D>(
     req: Option<CustomerDetails>,
     provider: &domain::Provider,
     initiator: Option<&domain::Initiator>,
-    dimensions: DimensionsWithMerchantIdAndProfileId,
+    dimensions: dimension_state::DimensionsWithMerchantIdAndProfileId,
 ) -> CustomResult<(BoxedOperation<'a, F, R, D>, Option<domain::Customer>), errors::StorageError> {
     let merchant_id = provider.get_account().get_id();
     let storage_scheme = provider.get_account().storage_scheme;
@@ -4069,8 +4069,21 @@ pub async fn make_ephemeral_key(
         merchant_id: merchant_id.to_owned(),
         secret,
     };
+    let eph_key_dimensions = dimension_state::Dimensions::new()
+        .with_merchant_id(merchant_id.clone());
+    let eph_key_config = eph_key_dimensions
+        .get_eph_key(
+            state.store.as_ref(),
+            state.superposition_service.as_ref(),
+            Some(&merchant_id),
+        )
+        .await;
+    logger::debug!(
+        eph_key_validity = eph_key_config.validity,
+        "eph_key config fetched from superposition"
+    );
     let ek = store
-        .create_ephemeral_key(ek, state.conf.eph_key.validity)
+        .create_ephemeral_key(ek, eph_key_config.validity)
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Unable to create ephemeral key")?;
@@ -4136,8 +4149,23 @@ pub async fn create_client_secret(
         secret,
         resource_id,
     };
+
+    let eph_key_dimensions = dimension_state::Dimensions::new()
+        .with_merchant_id(merchant_id.clone());
+    let eph_key_config = eph_key_dimensions
+        .get_eph_key(
+            state.store.as_ref(),
+            state.superposition_service.as_ref(),
+            Some(&merchant_id),
+        )
+        .await;
+    logger::debug!(
+        eph_key_validity = eph_key_config.validity,
+        "eph_key config fetched from superposition"
+    );
+
     let client_secret = store
-        .create_client_secret(client_secret, state.conf.eph_key.validity)
+        .create_client_secret(client_secret, eph_key_config.validity)
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Unable to create client secret")?;

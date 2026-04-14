@@ -363,6 +363,12 @@ pub mod superposition {
     pub const PAYOUT_TRACKER_MAPPING: &str = "payout_tracker_mapping";
     /// client session validation enabled configuration key
     pub const CLIENT_SESSION_VALIDATION_ENABLED: &str = "client_session_validation_enabled";
+    /// installment config key
+    pub const INSTALLMENT_CONFIG_SUPPORTED: &str = "installment_config_supported";
+    /// Refund configuration key
+    pub const REFUND: &str = "refund";
+    /// Ephemeral key validity configuration key
+    pub const EPH_KEY: &str = "eph_key_validity";
 }
 
 #[cfg(test)]
