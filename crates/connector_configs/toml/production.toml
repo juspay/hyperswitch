@@ -7429,3 +7429,31 @@ api_secret = "Private Key(Base64 encoded)"
 payment_method_type = "trustly"
 [trustly.connector_webhook_details]
 merchant_secret="Trustly's public key"
+
+[imerchantsolutions]
+[imerchantsolutions.connector_auth.HeaderKey]
+api_key = "API Key"
+[[imerchantsolutions.credit]]
+payment_method_type = "Mastercard"
+[[imerchantsolutions.credit]]
+payment_method_type = "Visa"
+[[imerchantsolutions.credit]]
+payment_method_type = "AmericanExpress"
+[[imerchantsolutions.credit]]
+payment_method_type = "JCB"
+[[imerchantsolutions.credit]]
+payment_method_type = "Discover"
+[[imerchantsolutions.credit]]
+payment_method_type = "UnionPay"
+[[imerchantsolutions.debit]]
+payment_method_type = "Mastercard"
+[[imerchantsolutions.debit]]
+payment_method_type = "Visa"
+[[imerchantsolutions.debit]]
+payment_method_type = "AmericanExpress"
+[[imerchantsolutions.debit]]
+payment_method_type = "JCB"
+[[imerchantsolutions.debit]]
+payment_method_type = "Discover"
+[[imerchantsolutions.debit]]
+payment_method_type = "UnionPay"

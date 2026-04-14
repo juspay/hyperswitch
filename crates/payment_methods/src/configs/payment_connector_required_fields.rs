@@ -1725,6 +1725,10 @@ fn get_cards_required_fields() -> HashMap<Connector, RequiredFieldFinal> {
                 common: HashMap::new(),
             },
         ),
+        (
+            Connector::Imerchantsolutions,
+            fields(vec![], card_basic(), vec![]),
+        ),
     ])
 }
 
