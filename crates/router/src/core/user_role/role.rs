@@ -136,13 +136,15 @@ pub async fn create_role(
         .product_type
         .unwrap_or(MerchantProductType::Orchestration);
 
-    utils::user_role::validate_role_groups(
-        &req.groups,
-        match role_entity_type {
-            EntityType::Tenant | EntityType::Organization => None,
-            EntityType::Merchant | EntityType::Profile => Some(merchant_product_type),
-        },
-    )?;
+    match role_entity_type {
+        EntityType::Tenant | EntityType::Organization => {
+            utils::user_role::validate_role_groups(&req.groups, None)?
+        }
+        EntityType::Merchant | EntityType::Profile => {
+            utils::user_role::validate_role_groups(&req.groups, Some(merchant_product_type))?
+        }
+    };
+
     utils::user_role::validate_role_name(
         &state,
         &role_name,
@@ -187,6 +189,8 @@ pub async fn create_role(
             last_modified_at: now,
             profile_id,
             tenant_id: user_from_token.tenant_id.unwrap_or(state.tenant.tenant_id),
+            // TODO: Set this to null when custom roles at org level are enabled, since product type is currently a merchant-level concept only.
+            // Ensure this column is backfilled during migration.
             merchant_product_type: Some(merchant_product_type),
         })
         .await
@@ -265,6 +269,15 @@ pub async fn create_role_v2(
         .product_type
         .unwrap_or(MerchantProductType::Orchestration);
 
+    match role_entity_type {
+        EntityType::Tenant | EntityType::Organization => {
+            utils::user_role::validate_role_groups(&permission_groups, None)?
+        }
+        EntityType::Merchant | EntityType::Profile => {
+            utils::user_role::validate_role_groups(&permission_groups, Some(merchant_product_type))?
+        }
+    }
+
     utils::user_role::validate_role_groups(
         &permission_groups,
         match role_entity_type {
@@ -316,6 +329,8 @@ pub async fn create_role_v2(
             last_modified_at: now,
             profile_id,
             tenant_id: user_from_token.tenant_id.unwrap_or(state.tenant.tenant_id),
+            // TODO: Set this to null when custom roles at org level are enabled, since product type is currently a merchant-level concept only.
+            // Ensure this column is backfilled during migration.
             merchant_product_type: Some(merchant_product_type),
         })
         .await

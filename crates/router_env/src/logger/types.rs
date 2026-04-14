@@ -744,7 +744,7 @@ pub enum Flow {
     // List members for entity
     ListMembersForEntity,
     /// Authorize external token
-    AuthorizeExternalToken,
+    AuthorizeUserToken,
 }
 
 /// Trait for providing generic behaviour to flow metric

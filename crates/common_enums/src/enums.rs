@@ -9552,9 +9552,9 @@ pub enum ParentGroup {
     Account,
     Internal,
     Theme,
-    ReconSource,
+    ReconSources,
     ReconExceptions,
-    ReconTransaction,
+    ReconTransactions,
     ReconRules,
 }
 

@@ -1248,7 +1248,7 @@ pub async fn authorize_token(
     http_req: HttpRequest,
     json_payload: web::Json<user_api::AuthorizeTokenRequest>,
 ) -> HttpResponse {
-    let flow = Flow::AuthorizeExternalToken;
+    let flow = Flow::AuthorizeUserToken;
     Box::pin(api::server_wrap(
         flow,
         state.clone(),

@@ -751,18 +751,18 @@ async fn handle_invitation(
                 .change_context(UserErrors::InternalServerError)
                 .attach_printable("Failed to retrieve merchant key store by merchant_id")?;
 
-            let merchant_product_type = state
+            let merchant_account = state
                 .store
                 .find_merchant_account_by_merchant_id(
                     &user_from_token.merchant_id,
                     &merchant_key_store,
                 )
                 .await
-                .map(|acc| {
-                    acc.product_type
-                        .unwrap_or(MerchantProductType::Orchestration)
-                })
                 .to_not_found_response(UserErrors::MerchantIdNotFound)?;
+
+            let merchant_product_type = merchant_account
+                .product_type
+                .unwrap_or(MerchantProductType::Orchestration);
             if req_role_info.get_merchant_product_type() != merchant_product_type {
                 Err(report!(UserErrors::InvalidRoleId)).attach_printable(format!(
                     "role_id = {} is not for product_type = {}",

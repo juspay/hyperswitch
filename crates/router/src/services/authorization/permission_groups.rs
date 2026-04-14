@@ -60,10 +60,10 @@ impl PermissionGroupExt for PermissionGroup {
             Self::ReconOpsView | Self::ReconOpsManage => ParentGroup::ReconOps,
             Self::ReconReportsView | Self::ReconReportsManage => ParentGroup::ReconReports,
             Self::InternalManage => ParentGroup::Internal,
-            Self::ReconSourcesView | Self::ReconSourcesManage => ParentGroup::ReconSource,
+            Self::ReconSourcesView | Self::ReconSourcesManage => ParentGroup::ReconSources,
             Self::ReconExceptionsView | Self::ReconExceptionsManage => ParentGroup::ReconExceptions,
             Self::ReconTransactionsView | Self::ReconTransactionsManage => {
-                ParentGroup::ReconTransaction
+                ParentGroup::ReconTransactions
             }
             Self::ReconRulesView | Self::ReconRulesManage => ParentGroup::ReconRules,
         }
@@ -206,9 +206,9 @@ impl ParentGroupExt for ParentGroup {
             Self::ReconReports => RECON_REPORTS.to_vec(),
             Self::Internal => INTERNAL.to_vec(),
             Self::Theme => THEME.to_vec(),
-            Self::ReconSource => RECON_SOURCE.to_vec(),
+            Self::ReconSources => RECON_SOURCES.to_vec(),
             Self::ReconExceptions => RECON_EXCEPTIONS.to_vec(),
-            Self::ReconTransaction => RECON_TRANSACTION.to_vec(),
+            Self::ReconTransactions => RECON_TRANSACTIONS.to_vec(),
             Self::ReconRules => RECON_RULES.to_vec(),
         }
     }
@@ -298,11 +298,11 @@ pub static RECON_REPORTS: [Resource; 4] = [
 
 pub static THEME: [Resource; 1] = [Resource::Theme];
 
-pub static RECON_SOURCE: [Resource; 2] = [Resource::ReconIngestion, Resource::ReconTransformation];
+pub static RECON_SOURCES: [Resource; 2] = [Resource::ReconIngestion, Resource::ReconTransformation];
 
 pub static RECON_EXCEPTIONS: [Resource; 1] = [Resource::ReconException];
 
-pub static RECON_TRANSACTION: [Resource; 2] =
+pub static RECON_TRANSACTIONS: [Resource; 2] =
     [Resource::ReconStagingEntry, Resource::ReconTransaction];
 
 pub static RECON_RULES: [Resource; 1] = [Resource::ReconRule];

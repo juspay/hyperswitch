@@ -347,7 +347,7 @@ impl From<Flow> for ApiIdentifier {
             | Flow::UpdateRole
             | Flow::UserFromEmail
             | Flow::ListUsersInLineage
-            | Flow::AuthorizeExternalToken => Self::UserRole,
+            | Flow::AuthorizeUserToken => Self::UserRole,
             Flow::GetActionUrl | Flow::SyncOnboardingStatus | Flow::ResetTrackingId => {
                 Self::ConnectorOnboarding
             }
