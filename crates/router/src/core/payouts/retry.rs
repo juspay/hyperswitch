@@ -148,11 +148,11 @@ pub async fn do_gsm_single_connector_actions(
 #[instrument(skip_all)]
 pub async fn get_retries(
     state: &app::SessionState,
-    retries: Option<i32>,
+    retries: Option<i64>,
     dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
     customer_id: Option<&common_utils::id_type::CustomerId>,
     retry_type: PayoutRetryType,
-) -> Option<i32> {
+) -> Option<i64> {
     match retries {
         Some(retries) => Some(retries),
         None => {
@@ -162,12 +162,11 @@ pub async fn get_retries(
             let dimensions =
                 dimensions.with_payout_retry_type(retry_type);
 
-            let retries_i64 = dimensions
+            let retries = dimensions
                 .get_max_auto_payout_retries(storage, superposition_client, customer_id)
                 .await;
 
-            let retries_i32 = retries_i64.try_into().unwrap_or(0).max(0);
-            Some(retries_i32)
+            Some(retries)
         }
     }
 }
