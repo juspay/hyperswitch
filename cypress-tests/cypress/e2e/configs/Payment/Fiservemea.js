@@ -647,7 +647,7 @@ export const connectorDetails = {
     PaymentMethodIdMandateNo3DSAutoCapture: {
       Configs: {
         TRIGGER_SKIP: true,
-      },  
+      },
       Request: {
         payment_method: "card",
         payment_method_data: {
@@ -738,7 +738,7 @@ export const connectorDetails = {
       },
     },
   },
-   payment_method_blocking_pm: {
+  payment_method_blocking_pm: {
     BlockIssuingCountry: {
       Request: {
         payment_method: "card",
