@@ -1672,32 +1672,6 @@ impl
     }
 }
 
-impl From<CardWithOptionalCVC> for EligibilityCard {
-    fn from(card: CardWithOptionalCVC) -> Self {
-        Self {
-            card_number: card.card_number,
-            card_exp_month: Some(card.card_exp_month),
-            card_exp_year: Some(card.card_exp_year),
-            card_cvc: card.card_cvc,
-            card_issuer: card.card_issuer,
-            card_network: card.card_network,
-            card_type: card.card_type,
-            card_issuing_country: card.card_issuing_country,
-            card_issuing_country_code: card.card_issuing_country_code,
-            bank_code: card.bank_code,
-            nick_name: card.nick_name,
-            card_holder_name: card.card_holder_name,
-            co_badged_card_data: card.co_badged_card_data,
-        }
-    }
-}
-
-impl From<Box<CardWithNetworkTokenDetails>> for EligibilityCard {
-    fn from(card: Box<CardWithNetworkTokenDetails>) -> Self {
-        Self::from(card.card_details)
-    }
-}
-
 impl
     From<(
         api_models::payments::EligibilityCard,
@@ -1837,8 +1811,6 @@ impl From<PaymentMethodData> for EligibilityPaymentMethodData {
             PaymentMethodData::OpenBanking(v) => Self::OpenBanking(v),
             PaymentMethodData::NetworkToken(v) => Self::NetworkToken(v),
             PaymentMethodData::MobilePayment(v) => Self::MobilePayment(v),
-            PaymentMethodData::CardWithOptionalCVC(card) => Self::Card(card.into()),
-            PaymentMethodData::CardWithNetworkTokenDetails(card) => Self::Card(card.into()),
             PaymentMethodData::CardDetailsForNetworkTransactionId(_)
             | PaymentMethodData::CardWithLimitedDetails(_)
             | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_)
