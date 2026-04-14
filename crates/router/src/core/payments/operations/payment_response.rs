@@ -19,15 +19,16 @@ use common_utils::{
 };
 use error_stack::{report, ResultExt};
 use futures::FutureExt;
+use hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt;
 #[cfg(feature = "v2")]
 use hyperswitch_domain_models::payments::{
     PaymentConfirmData, PaymentIntentData, PaymentStatusData,
 };
-use hyperswitch_domain_models::{behaviour::Conversion, payments::payment_attempt::PaymentAttempt};
 #[cfg(feature = "v2")]
 use hyperswitch_masking::{ExposeInterface, PeekInterface};
 use router_derive;
 use router_env::{instrument, logger, tracing};
+use storage_impl::behaviour::Conversion;
 #[cfg(feature = "v1")]
 use tracing_futures::Instrument;
 
