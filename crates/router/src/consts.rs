@@ -375,6 +375,12 @@ pub mod superposition {
         "should_store_eligibility_check_data_for_authentication";
     /// Extended card BIN configuration key
     pub const ENABLE_EXTENDED_CARD_BIN: &str = "enable_extended_card_bin";
+    /// Max auto single connector payout retries configuration key
+    pub const MAX_AUTO_SINGLE_CONNECTOR_PAYOUT_RETRIES: &str =
+        "max_auto_single_connector_payout_retries";
+    /// Max auto multiple connector payout retries configuration key
+    pub const MAX_AUTO_MULTIPLE_CONNECTOR_PAYOUT_RETRIES: &str =
+        "max_auto_multiple_connector_payout_retries";
 }
 
 #[cfg(test)]
