@@ -67,3 +67,33 @@ schema = { type = "boolean" }
 description = "Whether client session validation is enabled for payments"
 change_reason = "Initial setup"
 
+[default-configs.should_call_gsm]
+value = false
+schema = { type = "boolean" }
+description = "Whether to call GSM (Global Status Mapping) for auto-retries on payment failure"
+change_reason = "Initial setup"
+
+[default-configs.should_perform_eligibility]
+value = false
+schema = { type = "boolean" }
+description = "Whether the SDK should perform an eligibility check before confirming payment"
+change_reason = "Initial setup"
+
+[default-configs.should_enable_mit_with_limited_card_data]
+value = false
+schema = { type = "boolean" }
+description = "Whether to allow merchant-initiated transactions (MIT) with limited card data"
+change_reason = "Initial setup"
+
+[default-configs.should_store_eligibility_check_data_for_authentication]
+value = false
+schema = { type = "boolean" }
+description = "Whether to store eligibility check data during authentication"
+change_reason = "Initial setup"
+
+[default-configs.enable_extended_card_bin]
+value = false
+schema = { type = "boolean" }
+description = "Whether to use extended card BIN (8-digit) for payment method data"
+change_reason = "Initial setup"
+
