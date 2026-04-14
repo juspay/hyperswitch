@@ -56,29 +56,49 @@ pub async fn config_delete(state: SessionState, key: String) -> RouterResponse<a
     Ok(ApplicationResponse::Json(config.foreign_into()))
 }
 
-/// Trait for types that can be stored and retrieved as a configuration value
-pub trait ConfigType: Sized {
-    /// Parse the value from database string representation
-    fn from_config_str(config_str: &str) -> CustomResult<Self, errors::StorageError>;
+/// Get a boolean configuration value with superposition and database fallback
+pub async fn get_config_bool<A>(
+    state: &A,
+    superposition_key: &str,
+    db_key: &str,
+    context: Option<ConfigContext>,
+    default_value: bool,
+) -> CustomResult<bool, errors::StorageError>
+where
+    A: crate::routes::app::SessionStateInfo + Sync,
+{
+    // Try superposition first if available
+    let superposition_result = if let Some(ref superposition_client) = state.superposition_service()
+    {
+        match superposition_client
+            .get_bool_value(superposition_key, context.as_ref())
+            .await
+        {
+            Ok(value) => Some(value),
+            Err(err) => {
+                router_env::logger::warn!(
+                    "Failed to retrieve config from superposition, falling back to database: {:?}",
+                    err
+                );
+                None
+            }
+        }
+    } else {
+        None
+    };
 
-    /// Convert the value to a string for database storage
-    fn to_config_string(&self) -> CustomResult<String, errors::StorageError>;
-}
+    // Use superposition result or fall back to database
+    if let Some(value) = superposition_result {
+        Ok(value)
+    } else {
+        let config = state
+            .store()
+            .find_config_by_key_unwrap_or(db_key, Some(default_value.to_string()))
+            .await?;
 
-impl ConfigType for String {
-    fn from_config_str(config_str: &str) -> CustomResult<Self, errors::StorageError> {
-        Ok(config_str.to_string())
-    }
-
-    fn to_config_string(&self) -> CustomResult<String, errors::StorageError> {
-        Ok(self.clone())
-    }
-}
-
-impl ConfigType for bool {
-    fn from_config_str(config_str: &str) -> CustomResult<Self, errors::StorageError> {
-        config_str
-            .parse::<Self>()
+        config
+            .config
+            .parse::<bool>()
             .change_context(errors::StorageError::DeserializationFailed)
     }
 
