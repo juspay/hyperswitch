@@ -60,6 +60,7 @@ pub enum PayoutConnectors {
     Wise,
     Worldpay,
     Worldpayxml,
+    Envoy,
 }
 
 #[cfg(feature = "v2")]
@@ -91,6 +92,7 @@ impl From<PayoutConnectors> for RoutableConnectors {
             PayoutConnectors::Wise => Self::Wise,
             PayoutConnectors::Worldpay => Self::Worldpay,
             PayoutConnectors::Worldpayxml => Self::Worldpayxml,
+            PayoutConnectors::Envoy => Self::Envoy,
         }
     }
 }
@@ -113,6 +115,7 @@ impl From<PayoutConnectors> for Connector {
             PayoutConnectors::Wise => Self::Wise,
             PayoutConnectors::Worldpay => Self::Worldpay,
             PayoutConnectors::Worldpayxml => Self::Worldpayxml,
+            PayoutConnectors::Envoy => Self::Envoy,
         }
     }
 }
@@ -136,6 +139,7 @@ impl TryFrom<Connector> for PayoutConnectors {
             Connector::Wise => Ok(Self::Wise),
             Connector::Worldpay => Ok(Self::Worldpay),
             Connector::Worldpayxml => Ok(Self::Worldpayxml),
+            Connector::Envoy => Ok(Self::Envoy),
             _ => Err(format!("Invalid payout connector {value}")),
         }
     }

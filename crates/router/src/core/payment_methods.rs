@@ -53,6 +53,8 @@ use hyperswitch_domain_models::{
     types::VaultRouterData,
 };
 use hyperswitch_interfaces::connector_integration_interface::RouterDataConversion;
+#[cfg(feature = "v2")]
+use hyperswitch_masking::ExposeInterface;
 use hyperswitch_masking::{PeekInterface, Secret};
 use router_env::{instrument, tracing};
 use time::Duration;
@@ -4191,11 +4193,13 @@ impl EncryptableData for payment_methods::PaymentMethodsSessionUpdateRequest {
 #[cfg(feature = "v2")]
 pub async fn payment_methods_session_create(
     state: SessionState,
-    provider: domain::Provider,
+    platform: domain::Platform,
+    profile: domain::Profile,
     request: payment_methods::PaymentMethodSessionRequest,
 ) -> RouterResponse<payment_methods::PaymentMethodSessionResponse> {
     let db = state.store.as_ref();
     let key_manager_state = &(&state).into();
+    let provider = platform.get_provider();
 
     if let (Some(customer_id)) = &request.customer_id {
         db.find_customer_by_global_id(
@@ -4272,9 +4276,20 @@ pub async fn payment_methods_session_create(
     .change_context(errors::ApiErrorResponse::InternalServerError)
     .attach_printable("Failed to insert payment methods session in db")?;
 
+    let sdk_authorization = Option::<hyperswitch_domain_models::sdk_auth::SdkAuthorization>::from(
+        hyperswitch_domain_models::sdk_auth::SdkAuthorizationContext {
+            platform,
+            profile_id: profile.get_id().clone(),
+            client_secret: client_secret.secret.clone().expose(),
+            customer_id: payment_method_session_domain_model.customer_id.clone(),
+            payment_method_session_id: Some(payment_method_session_domain_model.id.clone()),
+        },
+    );
+
     let response = transformers::generate_payment_method_session_response(
         payment_method_session_domain_model,
         client_secret.secret,
+        sdk_authorization,
         None,
         None,
         None,
@@ -4342,6 +4357,7 @@ pub async fn payment_methods_session_update(
     let response = transformers::generate_payment_method_session_response(
         update_state_change,
         Secret::new("CLIENT_SECRET_REDACTED".to_string()),
+        None, // sdk_authorization is not returned for non-create flows
         None, // TODO: send associated payments response based on the expandable param
         None,
         None,
@@ -4398,6 +4414,7 @@ pub async fn payment_methods_session_retrieve(
     let response = transformers::generate_payment_method_session_response(
         payment_method_session_domain_model,
         Secret::new("CLIENT_SECRET_REDACTED".to_string()),
+        None, // sdk_authorization is not returned for non-create flows
         None, // TODO: send associated payments response based on the expandable param
         None,
         None,
@@ -4483,6 +4500,7 @@ pub async fn payment_methods_session_update_payment_method(
     let response = transformers::generate_payment_method_session_response(
         updated_payment_method_session,
         Secret::new("CLIENT_SECRET_REDACTED".to_string()),
+        None, // sdk_authorization is not returned for non-create flows
         None, // TODO: send associated payments response based on the expandable param
         None,
         None,
@@ -4781,6 +4799,7 @@ pub async fn payment_methods_session_confirm(
     let payment_method_session_response = transformers::generate_payment_method_session_response(
         payment_method_session,
         Secret::new("CLIENT_SECRET_REDACTED".to_string()),
+        None, // sdk_authorization is not returned for non-create flows
         payments_response,
         (tokenization_response.flatten()),
         payment_method_response.storage_type,
