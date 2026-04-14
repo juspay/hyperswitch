@@ -183,7 +183,7 @@ where
 
     let superposition_result = C::fetch(superposition_client, context, targeting_key).await;
 
-    let resolved_value = match superposition_result {
+    match superposition_result {
         Ok(value) => {
             router_env::logger::info!(
                 config_key = %config_type,
@@ -250,8 +250,7 @@ where
                 default_value
             }
         },
-    };
-    resolved_value
+    }
 }
 
 /// Fetch object-type config with JSON-to-Type conversion.
