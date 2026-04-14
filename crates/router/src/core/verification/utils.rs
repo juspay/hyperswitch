@@ -102,7 +102,7 @@ pub async fn check_existence_and_add_domain_to_db(
         .store
         .update_merchant_connector_account(
             merchant_connector_account,
-            updated_mca.into(),
+            <diesel_models::MerchantConnectorAccountUpdateInternal as storage_impl::behaviour::ForeignFrom<_>>::foreign_from(updated_mca),
             &key_store,
         )
         .await

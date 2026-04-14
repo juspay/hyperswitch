@@ -3047,7 +3047,7 @@ pub async fn update_connector(
     let request_connector_label = req.connector_label;
 
     let updated_mca =
-        db.update_merchant_connector_account(mca.clone(), payment_connector.into(), &key_store)
+        db.update_merchant_connector_account(mca.clone(), <diesel_models::MerchantConnectorAccountUpdateInternal as storage_impl::behaviour::ForeignFrom<_>>::foreign_from(payment_connector), &key_store)
             .await
             .change_context(
                 errors::ApiErrorResponse::DuplicateMerchantConnectorAccount {
