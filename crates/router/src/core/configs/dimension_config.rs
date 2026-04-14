@@ -281,7 +281,7 @@ config! {
     superposition_key = INSTALLMENT_CONFIG_SUPPORTED,
     output = bool,
     default = defaults::INSTALLMENT_CONFIG_SUPPORTED,
-    requires = dimension_state::DimensionsWithConnectorAndCurrency,
+    requires = dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndOrgIdAndConnectorAndCurrency,
     targeting_key = id_type::CustomerId
 }
 
@@ -297,8 +297,8 @@ config! {
     output = RefundConfig,
     default = defaults::refund(),
     object = true,
-    requires = dimension_state::DimensionsWithProcessorAndProviderMerchantId,
-    targeting_key = id_type::MerchantId
+    requires = dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndOrgId,
+    targeting_key = String
 }
 
 config! {
@@ -306,6 +306,6 @@ config! {
     output = EphemeralKeyConfig,
     default = defaults::eph_key_validity(),
     object = true,
-    requires = dimension_state::DimensionsWithProcessorAndProviderMerchantId,
-    targeting_key = id_type::MerchantId
+    requires = dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndOrgId,
+    targeting_key = String
 }

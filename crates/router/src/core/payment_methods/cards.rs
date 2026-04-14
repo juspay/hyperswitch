@@ -4008,7 +4008,9 @@ pub async fn list_payment_methods(
         let mut any_supported = false;
         for mca in &filtered_mcas {
             if let Ok(connector) = mca.connector_name.parse::<api_enums::Connector>() {
-                let dimensions = configs::dimension_state::Dimensions::new()
+                let dimensions = dimension_state::Dimensions::new()
+                    .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id())
+                    .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
                     .with_connector(connector)
                     .with_currency(cur);
                 let supported = dimensions

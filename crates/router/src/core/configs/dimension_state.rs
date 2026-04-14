@@ -508,11 +508,5 @@ pub type DimensionsWithProcessorAndProviderMerchantIdAndOrgId =
     Dimensions<HasProviderMerchantId, HasProcessorMerchantId, HasOrgId, NoProfileId, NoConnector>;
 pub type DimensionsWithProcessorAndProviderMerchantIdAndOrgIdAndProfileId =
     Dimensions<HasProviderMerchantId, HasProcessorMerchantId, HasOrgId, HasProfileId, NoConnector>;
-pub type DimensionsWithConnectorAndCurrency = Dimensions<
-    HasProviderMerchantId,
-    HasProcessorMerchantId,
-    NoOrgId,
-    NoProfileId,
-    HasConnector,
-    HasCurrency,
->;
+pub type DimensionsWithProcessorAndProviderMerchantIdAndOrgIdAndConnectorAndCurrency = 
+    Dimensions<HasProviderMerchantId, HasProcessorMerchantId, NoOrgId, NoProfileId, HasConnector, HasCurrency>;

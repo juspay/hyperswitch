@@ -1,6 +1,6 @@
 // Application-layer defaults for Superposition-backed deployment configs.
 
-use super::dimension_config::{RefundConfig, EphemeralKeyConfig};
+use super::dimension_config::{EphemeralKeyConfig, RefundConfig};
 
 /// Default for installment payments are supported for a connector+currency pair.
 pub const INSTALLMENT_CONFIG_SUPPORTED: bool = false;
@@ -15,7 +15,5 @@ pub fn refund() -> RefundConfig {
 
 /// Default eph_key validity in hours: 1 hour is only allowed
 pub fn eph_key_validity() -> EphemeralKeyConfig {
-    EphemeralKeyConfig {
-        validity: 1,
-    }
+    EphemeralKeyConfig { validity: 1 }
 }

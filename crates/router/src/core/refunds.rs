@@ -29,6 +29,7 @@ use strum::IntoEnumIterator;
 use crate::{
     consts,
     core::{
+        configs::dimension_state,
         errors::{self, ConnectorErrorExt, RouterResponse, RouterResult, StorageErrorExt},
         payments::{
             self, access_token, gateway::context as gateway_context, helpers,
@@ -1356,14 +1357,16 @@ pub async fn validate_and_create_refund(
 
     let currency = payment_attempt.currency.get_required_value("currency")?;
 
-    let merchant_id = platform.get_processor().get_account().get_id().clone();
-    let refund_dimensions = crate::core::configs::dimension_state::Dimensions::new()
-        .with_merchant_id(merchant_id.clone());
-    let refund_config = refund_dimensions
+    let dimensions = dimension_state::Dimensions::new()
+        .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id())
+        .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
+        .with_organization_id(payment_intent.organization_id.clone());
+    let payment_id = payment_intent.payment_id.get_string_repr().to_owned();
+    let refund_config = dimensions
         .get_refund(
             state.store.as_ref(),
             state.superposition_service.as_ref(),
-            Some(&merchant_id),
+            Some(&payment_id),
         )
         .await;
     logger::debug!(
@@ -1376,10 +1379,7 @@ pub async fn validate_and_create_refund(
     validator::validate_payment_order_age(&payment_intent.created_at, refund_config.max_age)
         .change_context(errors::ApiErrorResponse::InvalidDataFormat {
             field_name: "created_at".to_string(),
-            expected_format: format!(
-                "created_at not older than {} days",
-                refund_config.max_age
-            ),
+            expected_format: format!("created_at not older than {} days", refund_config.max_age),
         })?;
 
     let total_amount_captured = payment_intent

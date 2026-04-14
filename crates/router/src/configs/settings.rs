@@ -36,9 +36,9 @@ pub use hyperswitch_interfaces::{
 use hyperswitch_masking::{Maskable, Secret};
 pub use payment_methods::configs::settings::{
     BankRedirectConfig, BanksVector, ConnectorBankNames, ConnectorFields, EligiblePaymentMethods,
-    Installments, Mandates, PaymentMethodAuth, PaymentMethodType,
-    RequiredFieldFinal, RequiredFields, SupportedConnectorsForMandate,
-    SupportedPaymentMethodTypesForMandate, SupportedPaymentMethodsForMandate, ZeroMandates,
+    Installments, Mandates, PaymentMethodAuth, PaymentMethodType, RequiredFieldFinal,
+    RequiredFields, SupportedConnectorsForMandate, SupportedPaymentMethodTypesForMandate,
+    SupportedPaymentMethodsForMandate, ZeroMandates,
 };
 use payment_methods::configs::MicroServicesConfig;
 use rand::seq::IteratorRandom;

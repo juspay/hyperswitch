@@ -28,10 +28,6 @@ pub async fn ephemeral_key_create(
                 state,
                 payload.customer_id,
                 auth.platform
-                    .get_processor()
-                    .get_account()
-                    .get_id()
-                    .to_owned(),
             )
         },
         &auth::HeaderAuth(auth::ApiKeyAuth {

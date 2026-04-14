@@ -122,7 +122,7 @@ use crate::{
     },
 };
 #[cfg(feature = "v2")]
-use crate::{core::admin as core_admin, headers, types::ConnectorAuthType, core::configs::dimension_state};
+use crate::{core::admin as core_admin, headers, types::ConnectorAuthType};
 #[cfg(feature = "v1")]
 use crate::{core::utils::create_encrypted_data, types::storage::CustomerUpdate::Update};
 
@@ -4093,11 +4093,16 @@ pub fn make_merchant_url_with_response(
 pub async fn make_ephemeral_key(
     state: SessionState,
     customer_id: id_type::CustomerId,
-    merchant_id: id_type::MerchantId,
+    platform: domain::Platform,
 ) -> errors::RouterResponse<ephemeral_key::EphemeralKey> {
     let store = &state.store;
     let id = utils::generate_id(consts::ID_LENGTH, "eki");
     let secret = format!("epk_{}", &Uuid::new_v4().simple().to_string());
+    let merchant_id = platform
+                    .get_processor()
+                    .get_account()
+                    .get_id()
+                    .to_owned();
     let ek = ephemeral_key::EphemeralKeyNew {
         id,
         customer_id,
@@ -4105,12 +4110,14 @@ pub async fn make_ephemeral_key(
         secret,
     };
     let eph_key_dimensions = dimension_state::Dimensions::new()
-        .with_merchant_id(merchant_id.clone());
+        .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id())
+        .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
+        .with_organization_id(platform.get_processor().get_account().get_org_id().clone());
     let eph_key_config = eph_key_dimensions
         .get_eph_key(
             state.store.as_ref(),
             state.superposition_service.as_ref(),
-            Some(&merchant_id),
+            None,
         )
         .await;
     logger::debug!(
@@ -4154,7 +4161,7 @@ pub async fn make_client_secret(
 
     let client_secret = create_client_secret(
         &state,
-        platform.get_processor().get_account().get_id(),
+        platform.clone(),
         resource_id,
     )
     .await
@@ -4169,7 +4176,7 @@ pub async fn make_client_secret(
 #[cfg(feature = "v2")]
 pub async fn create_client_secret(
     state: &SessionState,
-    merchant_id: &id_type::MerchantId,
+    platform: domain::Platform,
     resource_id: common_utils::types::authentication::ResourceId,
 ) -> RouterResult<ephemeral_key::ClientSecretType> {
     use common_utils::generate_time_ordered_id;
@@ -4177,6 +4184,7 @@ pub async fn create_client_secret(
     let store = &state.store;
     let id = id_type::ClientSecretId::generate();
     let secret = hyperswitch_masking::Secret::new(generate_time_ordered_id("cs"));
+    let merchant_id = platform.get_provider().get_account().get_id();
 
     let client_secret = ephemeral_key::ClientSecretTypeNew {
         id,
@@ -4186,12 +4194,14 @@ pub async fn create_client_secret(
     };
 
     let eph_key_dimensions = dimension_state::Dimensions::new()
-        .with_merchant_id(merchant_id.clone());
+        .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id())
+        .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
+        .with_organization_id(platform.get_processor().get_account().get_org_id().clone());
     let eph_key_config = eph_key_dimensions
         .get_eph_key(
             state.store.as_ref(),
             state.superposition_service.as_ref(),
-            Some(&merchant_id),
+            None,
         )
         .await;
     logger::debug!(
