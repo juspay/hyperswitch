@@ -571,6 +571,7 @@ impl CardNetworkTokenizeExecutor<'_, domain::TokenizeCardRequest> {
                 .as_ref()
                 .map(|network| network.to_string()),
             bank_transfer: None,
+            bank_transfer_data: None,
             wallet: None,
             client_secret: None,
             payment_method_data: None,

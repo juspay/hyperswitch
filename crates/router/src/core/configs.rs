@@ -54,15 +54,19 @@ pub async fn config_delete(state: SessionState, key: String) -> RouterResponse<a
 }
 
 /// Get a boolean configuration value with superposition and database fallback
-pub async fn get_config_bool(
-    state: &SessionState,
+pub async fn get_config_bool<A>(
+    state: &A,
     superposition_key: &str,
     db_key: &str,
     context: Option<ConfigContext>,
     default_value: bool,
-) -> CustomResult<bool, errors::StorageError> {
+) -> CustomResult<bool, errors::StorageError>
+where
+    A: crate::routes::app::SessionStateInfo + Sync,
+{
     // Try superposition first if available
-    let superposition_result = if let Some(ref superposition_client) = state.superposition_service {
+    let superposition_result = if let Some(ref superposition_client) = state.superposition_service()
+    {
         match superposition_client
             .get_bool_value(superposition_key, context.as_ref())
             .await
@@ -85,7 +89,7 @@ pub async fn get_config_bool(
         Ok(value)
     } else {
         let config = state
-            .store
+            .store()
             .find_config_by_key_unwrap_or(db_key, Some(default_value.to_string()))
             .await?;
 
