@@ -1069,7 +1069,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
         request: Option<CustomerDetails>,
         provider: &domain::Provider,
         initiator: Option<&domain::Initiator>,
-        dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
+        dimensions: &dimension_state::dimension_state::dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
         mandate_type: Option<MandateTransactionType>,
     ) -> CustomResult<
         (PaymentConfirmOperation<'a, F>, Option<domain::Customer>),
@@ -2326,7 +2326,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
         mut payment_data: PaymentData<F>,
         frm_suggestion: Option<FrmSuggestion>,
         header_payload: hyperswitch_domain_models::payments::HeaderPayload,
-        dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
+        dimensions: &dimension_state::dimension_state::DimensionsWithProcessorAndProviderMerchantId,
     ) -> RouterResult<(
         BoxedOperation<'b, F, api::PaymentsRequest, PaymentData<F>>,
         PaymentData<F>,

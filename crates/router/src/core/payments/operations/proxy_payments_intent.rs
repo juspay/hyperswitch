@@ -13,7 +13,7 @@ use router_env::{instrument, tracing};
 use super::{Domain, GetTracker, Operation, PostUpdateTracker, UpdateTracker, ValidateRequest};
 use crate::{
     core::{
-        configs::dimension_state::DimensionsWithProcessorAndProviderMerchantId,
+        configs::dimension_state,
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
         payments::{
             operations::{self, ValidateStatusForOperation},
@@ -369,7 +369,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentConfirmData<F>, ProxyPaymentsReque
         mut payment_data: PaymentConfirmData<F>,
         _frm_suggestion: Option<api_models::enums::FrmSuggestion>,
         _header_payload: hyperswitch_domain_models::payments::HeaderPayload,
-        _dimensions: &DimensionsWithProcessorAndProviderMerchantId,
+        _dimensions: &dimension_state::dimension_state::DimensionsWithProcessorAndProviderMerchantId,
     ) -> RouterResult<(BoxedConfirmOperation<'b, F>, PaymentConfirmData<F>)>
     where
         F: 'b + Send,

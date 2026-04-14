@@ -4675,7 +4675,7 @@ pub async fn list_customer_payment_method(
     payment_intent: Option<storage::PaymentIntent>,
     customer_id: &id_type::CustomerId,
     limit: Option<i64>,
-    dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
+    dimensions: &dimension_state::dimension_state::DimensionsWithProcessorAndProviderMerchantId,
 ) -> errors::RouterResponse<api::CustomerPaymentMethodsListResponse> {
     let db = &*state.store;
     let off_session_payment_flag = payment_intent

@@ -8,7 +8,7 @@ use router_env::{instrument, tracing};
 use super::{BoxedOperation, Domain, GetTracker, Operation, UpdateTracker, ValidateRequest};
 use crate::{
     core::{
-        configs::dimension_state::DimensionsWithProcessorAndProviderMerchantId,
+        configs::dimension_state,
         errors::{self, RouterResult, StorageErrorExt},
         payments::{helpers, operations, PaymentAddress, PaymentData},
     },
@@ -230,7 +230,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, PaymentsCancelRequest> fo
         mut payment_data: PaymentData<F>,
         _should_decline_transaction: Option<FrmSuggestion>,
         _header_payload: hyperswitch_domain_models::payments::HeaderPayload,
-        _dimensions: &DimensionsWithProcessorAndProviderMerchantId,
+        _dimensions: &dimension_state::dimension_state::DimensionsWithProcessorAndProviderMerchantId,
     ) -> RouterResult<(PaymentRejectOperation<'b, F>, PaymentData<F>)>
     where
         F: 'b + Send,
