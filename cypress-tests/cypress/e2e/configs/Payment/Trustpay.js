@@ -20,6 +20,14 @@ const successfulThreeDSTestCardDetails = {
   card_cvc: "737",
 };
 
+const failedNo3DSCardDetails = {
+  card_number: "4900490000000519",
+  card_exp_month: "01",
+  card_exp_year: "35",
+  card_holder_name: "CCREJECT-REFUSED",
+  card_cvc: "123",
+};
+
 const singleUseMandateData = {
   customer_acceptance: customerAcceptance,
   mandate_type: {
@@ -533,6 +541,83 @@ export const connectorDetails = {
         },
       },
     },
+    No3DSFailPayment: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: failedNo3DSCardDetails,
+        },
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "failed",
+          error_code: "85",
+          error_message: "the card is not enrolled for a supported 3DS version",
+        },
+      },
+    },
+    ManualRetryPaymentDisabled: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "USD",
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+      Response: {
+        status: 400,
+        body: {
+          type: "invalid_request",
+          message:
+            "You cannot confirm this payment because it has status failed, you can enable `manual_retry` in profile to try this payment again",
+          code: "IR_16",
+        },
+      },
+    },
+    ManualRetryPaymentEnabled: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "USD",
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+          payment_method: "card",
+          attempt_count: 2,
+        },
+      },
+    },
+    ManualRetryPaymentCutoffExpired: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "USD",
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+      Response: {
+        status: 400,
+        body: {
+          type: "invalid_request",
+          message:
+            "You cannot confirm this payment using `manual_retry` because the allowed duration has expired",
+          code: "IR_16",
+        },
+      },
+    },
   },
   bank_redirect_pm: {
     Ideal: {
@@ -740,5 +825,12 @@ export const connectorDetails = {
       },
       commonConnectorDetails.bank_transfer_pm.InstantBankTransferPoland
     ),
+  },
+  webhook: {
+    TransactionIdConfig: {
+      path: "PaymentInformation.References.MerchantReference",
+      type: "string",
+      source: "paymentAttemptID",
+    },
   },
 };

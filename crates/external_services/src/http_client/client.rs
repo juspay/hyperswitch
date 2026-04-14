@@ -5,7 +5,7 @@ use common_utils::consts::BASE64_ENGINE;
 pub use common_utils::errors::CustomResult;
 use error_stack::ResultExt;
 use hyperswitch_interfaces::{errors::HttpClientError, types::Proxy};
-use masking::ExposeInterface;
+use hyperswitch_masking::ExposeInterface;
 use once_cell::sync::OnceCell;
 
 static DEFAULT_CLIENT: OnceCell<reqwest::Client> = OnceCell::new();
@@ -25,9 +25,9 @@ trait ProxyClientCacheKey {
 #[allow(missing_docs)]
 pub fn create_client(
     proxy_config: &Proxy,
-    client_certificate: Option<masking::Secret<String>>,
-    client_certificate_key: Option<masking::Secret<String>>,
-    ca_certificate: Option<masking::Secret<String>>,
+    client_certificate: Option<hyperswitch_masking::Secret<String>>,
+    client_certificate_key: Option<hyperswitch_masking::Secret<String>>,
+    ca_certificate: Option<hyperswitch_masking::Secret<String>>,
 ) -> CustomResult<reqwest::Client, HttpClientError> {
     // Case 1: Mutual TLS with client certificate and key
     if let (Some(encoded_certificate), Some(encoded_certificate_key)) =
@@ -127,8 +127,8 @@ pub fn get_client_builder(
 
 #[allow(missing_docs)]
 pub fn create_identity_from_certificate_and_key(
-    encoded_certificate: masking::Secret<String>,
-    encoded_certificate_key: masking::Secret<String>,
+    encoded_certificate: hyperswitch_masking::Secret<String>,
+    encoded_certificate_key: hyperswitch_masking::Secret<String>,
 ) -> Result<reqwest::Identity, error_stack::Report<HttpClientError>> {
     let decoded_certificate = BASE64_ENGINE
         .decode(encoded_certificate.expose())
@@ -151,7 +151,7 @@ pub fn create_identity_from_certificate_and_key(
 
 #[allow(missing_docs)]
 pub fn create_certificate(
-    encoded_certificate: masking::Secret<String>,
+    encoded_certificate: hyperswitch_masking::Secret<String>,
 ) -> Result<Vec<reqwest::Certificate>, error_stack::Report<HttpClientError>> {
     let decoded_certificate = BASE64_ENGINE
         .decode(encoded_certificate.expose())

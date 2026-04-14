@@ -22,7 +22,7 @@ use hyperswitch_domain_models::{
     types::PayoutsRouterData,
 };
 use hyperswitch_interfaces::errors;
-use masking::Secret;
+use hyperswitch_masking::Secret;
 use serde::{Deserialize, Serialize};
 
 #[cfg(feature = "payouts")]
@@ -584,6 +584,7 @@ impl TryFrom<&LoonioRouterData<&PayoutsRouterData<PoFulfill>>> for LoonioPayoutF
             }
             PayoutMethodData::Card(_)
             | PayoutMethodData::Bank(_)
+            | PayoutMethodData::BankTransfer(_)
             | PayoutMethodData::Wallet(_)
             | PayoutMethodData::BankRedirect(_)
             | PayoutMethodData::Passthrough(_) => Err(errors::ConnectorError::NotSupported {

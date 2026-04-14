@@ -7,7 +7,7 @@ use common_enums::connector_enums;
 use common_utils::{pii, types::MinorUnit};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::router_response_types::subscriptions as subscription_response_types;
-use masking::PeekInterface;
+use hyperswitch_masking::PeekInterface;
 
 use super::errors;
 use crate::{

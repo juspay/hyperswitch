@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use common_enums::{PaymentMethod, PaymentMethodType};
 use common_utils::{id_type, types as util_types};
-use masking::{PeekInterface, Secret};
+use hyperswitch_masking::{PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 
 use crate::{core::errors, types};

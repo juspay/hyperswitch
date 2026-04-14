@@ -139,6 +139,7 @@ pub async fn validate_create_request(
         || customer_in_request.email.is_some()
         || customer_in_request.phone.is_some()
         || customer_in_request.phone_country_code.is_some()
+        || customer_in_request.document_details.is_some()
     {
         helpers::get_or_create_customer_details(state, &customer_in_request, platform).await?
     } else {
@@ -184,7 +185,12 @@ pub async fn validate_create_request(
                         .change_context(errors::ApiErrorResponse::PaymentMethodNotFound)
                         .attach_printable("Unable to find payment method")?;
 
-                    utils::when(payment_method.customer_id != customer.customer_id, || {
+                    let pm_customer_id = payment_method
+                        .customer_id
+                        .clone()
+                        .get_required_value("customer_id")?;
+
+                    utils::when(pm_customer_id != customer.customer_id, || {
                         Err(report!(errors::ApiErrorResponse::InvalidRequestData {
                         message: "Payment method does not belong to this customer_id".to_string(),
                     })
@@ -263,7 +269,7 @@ pub async fn validate_create_request(
                                 card_network: card.card_network.clone(),
                             },
                         ))),
-                        (_, Some(bank)) => Ok(Some(payouts::PayoutMethodData::Bank(bank))),
+                        (_, Some(bank)) => Ok(Some(payouts::PayoutMethodData::BankTransfer(bank))),
                         _ => Ok(None),
                     },
                     None => Ok(None),

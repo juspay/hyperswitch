@@ -6,6 +6,11 @@ pub use dimension_config::{
     ShouldCallGsm, ShouldEnableMitWithLimitedCardData, ShouldPerformEligibility,
     ShouldStoreEligibilityCheckDataForAuthentication, StepUpEnabled,
 };
+pub use dimension_config::{
+    EnableExtendedCardBin, ImplicitCustomerUpdate, RequiresCvv, ShouldCallGsm,
+    ShouldEnableMitWithLimitedCardData, ShouldPerformEligibility,
+    ShouldStoreEligibilityCheckDataForAuthentication,
+};
 use error_stack::ResultExt;
 use external_services::superposition::{self, ConfigContext};
 
@@ -128,10 +133,10 @@ impl ConfigType for serde_json::Value {
 
 /// Fetch configuration value from Superposition with database fallback using dimension-aware key.
 /// This function accepts any type that implements DimensionsBase (including type aliases).
-/// This allows configs to be used with pre-defined dimension type aliases like DimensionsWithMerchantId or DimensionsWithMerchantIdAndProfileId.
+/// This allows configs to be used with pre-defined dimension type aliases like DimensionsWithProcessorAndProviderMerchantId or DimensionsWithProcessorAndProviderMerchantIdAndProfileId.
 pub async fn fetch_db_config_for_dimensions<C>(
     storage: &dyn db::StorageInterface,
-    superposition_client: Option<&superposition::SuperpositionClient>,
+    superposition_client: &superposition::SuperpositionClient,
     dimensions: &impl dimension_state::DimensionsBase,
     targeting_key: Option<&C::TargetingKey>,
 ) -> C::Output
@@ -168,7 +173,7 @@ pub trait DatabaseBackedConfig: superposition::Config {
 /// that database fallback is used when superposition fetch fails.
 pub async fn fetch_db_config<C>(
     storage: &dyn db::StorageInterface,
-    superposition_client: Option<&superposition::SuperpositionClient>,
+    superposition_client: &superposition::SuperpositionClient,
     db_key: Option<&str>,
     context: Option<ConfigContext>,
     targeting_key: Option<&C::TargetingKey>,
@@ -181,14 +186,7 @@ where
     let config_type = C::KEY;
     let default_value = C::default_value();
 
-    let superposition_result = match superposition_client {
-        Some(client) => C::fetch(client, context, targeting_key).await,
-        None => Err(error_stack::report!(
-            superposition::SuperpositionError::ClientError(
-                "No superposition client available".to_string()
-            )
-        )),
-    };
+    let superposition_result = C::fetch(superposition_client, context, targeting_key).await;
 
     let resolved_value = match superposition_result {
         Ok(value) => {
@@ -265,7 +263,7 @@ where
 /// Used when Config Output is serde_json::Value but caller wants a specific type.
 pub async fn fetch_db_config_object<C, T>(
     storage: &dyn db::StorageInterface,
-    superposition_client: Option<&superposition::SuperpositionClient>,
+    superposition_client: &superposition::SuperpositionClient,
     db_key: Option<&str>,
     context: Option<ConfigContext>,
     targeting_key: Option<&C::TargetingKey>,
@@ -302,7 +300,7 @@ where
 /// Fetch dimension-aware object-type config with JSON deserialization.
 pub async fn fetch_db_config_for_objects<C, T>(
     storage: &dyn db::StorageInterface,
-    superposition_client: Option<&superposition::SuperpositionClient>,
+    superposition_client: &superposition::SuperpositionClient,
     dimensions: &impl dimension_state::DimensionsBase,
     targeting_key: Option<&C::TargetingKey>,
 ) -> T

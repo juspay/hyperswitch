@@ -14,7 +14,7 @@ use crate::workflows::revenue_recovery::update_token_expiry_based_on_schedule_ti
 use crate::{
     consts,
     core::{
-        configs,
+        configs::dimension_state,
         errors::StorageErrorExt,
         payments::{self as payment_flows, operations},
     },
@@ -80,8 +80,9 @@ impl ProcessTrackerWorkflow<SessionState> for PaymentsSyncWorkflow {
             key_store.clone(),
             None,
         );
-        let dimensions = configs::dimension_state::Dimensions::new()
-            .with_merchant_id(platform.get_processor().get_account().get_id().clone());
+        let dimensions = dimension_state::Dimensions::new()
+            .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
+            .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id());
         // TODO: Add support for ReqState in PT flows
         let (mut payment_data, _, _, _) = Box::pin(payment_flows::payments_operation_core::<
             api::PSync,
@@ -147,7 +148,7 @@ impl ProcessTrackerWorkflow<SessionState> for PaymentsSyncWorkflow {
                         .as_ref()
                         .is_none()
                 {
-                    let payment_intent_update = hyperswitch_domain_models::payments::payment_intent::PaymentIntentUpdate::PGStatusUpdate { status: api_models::enums::IntentStatus::Failed,updated_by: merchant_account.storage_scheme.to_string(), incremental_authorization_allowed: Some(false), feature_metadata: payment_data.payment_intent.feature_metadata.clone().map(masking::Secret::new), };
+                    let payment_intent_update = hyperswitch_domain_models::payments::payment_intent::PaymentIntentUpdate::PGStatusUpdate { status: api_models::enums::IntentStatus::Failed,updated_by: merchant_account.storage_scheme.to_string(), incremental_authorization_allowed: Some(false), feature_metadata: payment_data.payment_intent.feature_metadata.clone().map(hyperswitch_masking::Secret::new), };
                     let payment_attempt_update =
                         hyperswitch_domain_models::payments::payment_attempt::PaymentAttemptUpdate::ErrorUpdate {
                             connector: None,
@@ -259,7 +260,8 @@ impl ProcessTrackerWorkflow<SessionState> for PaymentsSyncWorkflow {
 ///
 /// `start_after`: The first psync should happen after 60 seconds
 ///
-/// `frequency` and `count`: The next 5 retries should have an interval of 300 seconds between them
+/// `frequencies`: Do 5 retries with an interval of 300 seconds between them.
+///     After than do 2 retries with an interval of 1800 seconds.
 pub async fn get_sync_process_schedule_time(
     db: &dyn StorageInterface,
     connector: &str,

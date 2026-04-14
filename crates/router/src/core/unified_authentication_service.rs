@@ -25,6 +25,8 @@ use api_models::{
 use common_utils::{errors::CustomResult, ext_traits::ValueExt, types::AmountConvertor};
 use diesel_models::authentication::Authentication;
 use error_stack::ResultExt;
+#[cfg(feature = "v1")]
+use hyperswitch_domain_models::router_request_types::unified_authentication_service::UasAuthenticationResponseData;
 use hyperswitch_domain_models::{
     errors::api_error_response::ApiErrorResponse,
     ext_traits::OptionExt,
@@ -43,7 +45,7 @@ use hyperswitch_domain_models::{
         UasPreAuthenticationRouterData,
     },
 };
-use masking::{ExposeInterface, PeekInterface};
+use hyperswitch_masking::{ExposeInterface, PeekInterface};
 
 use super::{
     errors::{RouterResponse, RouterResult},
@@ -58,7 +60,7 @@ use crate::{
         metrics, payment_methods,
         payments::{helpers, validate_customer_details_for_click_to_pay},
         unified_authentication_service::types::{
-            ClickToPay, ExternalAuthentication, UnifiedAuthenticationService,
+            AuthSyncStrategy, ClickToPay, ExternalAuthentication, UnifiedAuthenticationService,
             UNIFIED_AUTHENTICATION_SERVICE,
         },
         utils as core_utils,
@@ -204,11 +206,11 @@ impl UnifiedAuthenticationService for ClickToPay {
                 payment_id.cloned(),
             )?;
 
-        utils::do_auth_connector_call(
+        Box::pin(utils::do_auth_connector_call(
             state,
             UNIFIED_AUTHENTICATION_SERVICE.to_string(),
             post_auth_router_data,
-        )
+        ))
         .await
     }
 
@@ -276,11 +278,11 @@ impl UnifiedAuthenticationService for ClickToPay {
             payment_id.cloned(),
         )?;
 
-        utils::do_auth_connector_call(
+        Box::pin(utils::do_auth_connector_call(
             state,
             UNIFIED_AUTHENTICATION_SERVICE.to_string(),
             authentication_confirmation_router_data,
-        )
+        ))
         .await
         .ok(); // marking this as .ok() since this is not a required step at our end for completing the transaction
 
@@ -557,11 +559,11 @@ impl UnifiedAuthenticationService for ExternalAuthentication {
             payment_id.cloned(),
         )?;
 
-        utils::do_auth_connector_call(
+        Box::pin(utils::do_auth_connector_call(
             state,
             UNIFIED_AUTHENTICATION_SERVICE.to_string(),
             auth_router_data,
-        )
+        ))
         .await
     }
 }
@@ -589,7 +591,8 @@ pub async fn create_new_authentication(
     return_url: Option<String>,
     profile_acquirer_id: Option<common_utils::id_type::ProfileAcquirerId>,
     customer_details: Option<common_utils::encryption::Encryption>,
-    merchant_key_store: &domain::MerchantKeyStore,
+    processor: &domain::Processor,
+    initiator: Option<&domain::Initiator>,
 ) -> RouterResult<hyperswitch_domain_models::authentication::Authentication> {
     let service_details_value = service_details
         .map(serde_json::to_value)
@@ -681,11 +684,17 @@ pub async fn create_new_authentication(
         challenge_request_key: None,
         customer_details,
         merchant_country_code: None,
+        processor_merchant_id: Some(processor.get_account().get_id().clone()),
+        created_by: initiator.and_then(|initiator| initiator.to_created_by()),
     };
 
     state
         .store
-        .insert_authentication(&key_manager_state, merchant_key_store, new_authentication)
+        .insert_authentication(
+            &key_manager_state,
+            processor.get_key_store(),
+            new_authentication,
+        )
         .await
         .to_duplicate_response(ApiErrorResponse::GenericDuplicateError {
             message: format!(
@@ -776,7 +785,7 @@ pub async fn authentication_create_core(
                     customer_details
                         .map(|details| {
                             common_utils::ext_traits::Encode::encode_to_value(&details)
-                                .map(masking::Secret::<serde_json::Value>::new)
+                                .map(hyperswitch_masking::Secret::<serde_json::Value>::new)
                                 .change_context(ApiErrorResponse::InternalServerError)
                                 .attach_printable(
                                     "Unable to encode customer details to serde_json::Value",
@@ -821,7 +830,8 @@ pub async fn authentication_create_core(
         customer_details
             .clone()
             .map(common_utils::encryption::Encryption::from),
-        platform.get_processor().get_key_store(),
+        platform.get_processor(),
+        platform.get_initiator(),
     )
     .await?;
 
@@ -844,7 +854,7 @@ pub async fn authentication_create_core(
         .customer_details
         .clone()
         .async_lift(|inner| async {
-            domain::types::crypto_operation::<serde_json::Value, masking::WithType>(
+            domain::types::crypto_operation::<serde_json::Value, hyperswitch_masking::WithType>(
                 &key_manager_state,
                 common_utils::type_name!(Authentication),
                 domain::types::CryptoOperation::DecryptOptional(inner),
@@ -945,7 +955,7 @@ impl
             authentication_id: authentication.authentication_id,
             client_secret: authentication
                 .authentication_client_secret
-                .map(masking::Secret::new),
+                .map(hyperswitch_masking::Secret::new),
             amount,
             currency,
             force_3ds_challenge: authentication.force_3ds_challenge,
@@ -1392,7 +1402,7 @@ pub async fn authentication_authenticate_core(
                 .inspect_err(|err| router_env::logger::error!(tokenized_data_result=?err))
                 .attach_printable("cavv not present after authentication status is success")?;
                 (
-                    Some(masking::Secret::new(tokenised_data.value1)),
+                    Some(hyperswitch_masking::Secret::new(tokenised_data.value1)),
                     authentication.eci.clone(),
                 )
             } else {
@@ -1424,7 +1434,7 @@ trait EligibilityCheck {
         &self,
         state: &SessionState,
         platform: &domain::Platform,
-        dimensions: &dimension_state::DimensionsWithMerchantId,
+        dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
         authentication_id: &common_utils::id_type::AuthenticationId,
     ) -> CustomResult<bool, ApiErrorResponse>;
 
@@ -1472,13 +1482,13 @@ impl EligibilityCheck for StoreEligibilityCheckData {
         &self,
         state: &SessionState,
         _platform: &domain::Platform,
-        dimensions: &dimension_state::DimensionsWithMerchantId,
+        dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
         authentication_id: &common_utils::id_type::AuthenticationId,
     ) -> CustomResult<bool, ApiErrorResponse> {
         Ok(dimensions
             .get_should_store_eligibility_check_data_for_authentication(
                 state.store.as_ref(),
-                state.superposition_service.as_deref(),
+                state.superposition_service.as_ref(),
                 Some(authentication_id),
             )
             .await)
@@ -1530,7 +1540,7 @@ pub struct EligibilityHandler {
     state: SessionState,
     platform: domain::Platform,
     authentication_eligibility_check_request: AuthenticationEligibilityCheckRequest,
-    dimensions: dimension_state::DimensionsWithMerchantId,
+    dimensions: dimension_state::DimensionsWithProcessorAndProviderMerchantId,
 }
 
 #[cfg(feature = "v1")]
@@ -1539,7 +1549,7 @@ impl EligibilityHandler {
         state: SessionState,
         platform: domain::Platform,
         authentication_eligibility_check_request: AuthenticationEligibilityCheckRequest,
-        dimensions: dimension_state::DimensionsWithMerchantId,
+        dimensions: dimension_state::DimensionsWithProcessorAndProviderMerchantId,
     ) -> Self {
         Self {
             state,
@@ -1589,7 +1599,9 @@ pub async fn authentication_eligibility_check_core(
     let merchant_account = platform.get_processor().get_account();
     let merchant_id = merchant_account.get_id();
     let key_manager_state = (&state).into();
-    let dimensions = dimension_state::Dimensions::new().with_merchant_id(merchant_id.clone());
+    let dimensions = dimension_state::Dimensions::new()
+        .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
+        .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id());
 
     let authentication = db
         .find_authentication_by_merchant_id_authentication_id(
@@ -1685,7 +1697,7 @@ pub async fn authentication_retrieve_eligibility_check_core(
 impl
     ForeignTryFrom<(
         &hyperswitch_domain_models::authentication::Authentication,
-        Option<masking::Secret<String>>,
+        Option<hyperswitch_masking::Secret<String>>,
         Option<String>,
         diesel_models::business_profile::AuthenticationConnectorDetails,
     )> for AuthenticationAuthenticateResponse
@@ -1695,7 +1707,7 @@ impl
     fn foreign_try_from(
         (authentication, authentication_value, eci, authentication_details): (
             &hyperswitch_domain_models::authentication::Authentication,
-            Option<masking::Secret<String>>,
+            Option<hyperswitch_masking::Secret<String>>,
             Option<String>,
             diesel_models::business_profile::AuthenticationConnectorDetails,
         ),
@@ -1738,6 +1750,226 @@ impl
             authentication_id: authentication.authentication_id.clone(),
             acquirer_details: Some(acquirer_details),
         })
+    }
+}
+
+/// Determines the appropriate authentication sync strategy based on current state
+#[cfg(feature = "v1")]
+fn determine_auth_sync_strategy(
+    authentication: &hyperswitch_domain_models::authentication::Authentication,
+    should_disable_vault_tokenization: bool,
+    auth_flow: AuthFlow,
+) -> AuthSyncStrategy {
+    if !authentication.authentication_status.is_terminal_status() {
+        AuthSyncStrategy::ExecutePostAuth
+    } else if authentication.authentication_status.is_success()
+        && should_disable_vault_tokenization
+        && auth_flow == AuthFlow::Merchant
+    {
+        AuthSyncStrategy::UseStoredAuthValue
+    } else {
+        AuthSyncStrategy::NoOperation
+    }
+}
+
+/// Executes the full post-authentication flow including connector call, tokenization, and tracker updates
+#[cfg(feature = "v1")]
+#[allow(clippy::too_many_arguments)]
+async fn execute_post_authentication_flow(
+    state: &SessionState,
+    platform: &domain::Platform,
+    business_profile: &domain::Profile,
+    authentication: &hyperswitch_domain_models::authentication::Authentication,
+    authentication_connector: &common_enums::AuthenticationConnectors,
+    three_ds_connector_account: &MerchantConnectorAccountType,
+    authentication_id: &common_utils::id_type::AuthenticationId,
+    merchant_id: &common_utils::id_type::MerchantId,
+    merchant_account: &domain::MerchantAccount,
+    should_disable_vault_tokenization: bool,
+) -> RouterResult<(
+    hyperswitch_domain_models::authentication::Authentication,
+    Option<api_models::authentication::AuthenticationPaymentMethodDataResponse>,
+    Option<api_models::authentication::AuthenticationVaultTokenData>,
+    Option<api_models::authentication::AuthenticationDetails>,
+)> {
+    let post_auth_response = if authentication_connector.is_click_to_pay() {
+        let response = ClickToPay::post_authentication(
+            state,
+            business_profile,
+            None,
+            &three_ds_connector_account.clone(),
+            &authentication_connector.to_string(),
+            authentication_id,
+            common_enums::PaymentMethod::Card,
+            merchant_id,
+            None,
+            None,
+        )
+        .await?;
+        metrics::POST_AUTHENTICATION_CARDS_SUCCESSFULLY_DECRYPTED.add(1, &[]);
+        response
+    } else {
+        let routing_region = utils::fetch_routing_region_for_uas(
+            state,
+            merchant_id.clone(),
+            merchant_account.organization_id.clone(),
+        )
+        .await
+        .change_context(ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to fetch routing path")?;
+        ExternalAuthentication::post_authentication(
+            state,
+            business_profile,
+            None,
+            three_ds_connector_account,
+            &authentication_connector.to_string(),
+            authentication_id,
+            common_enums::PaymentMethod::Card,
+            merchant_id,
+            Some(authentication),
+            Some(routing_region),
+        )
+        .await?
+    };
+
+    let (vault_token_data, authentication_details) = if should_disable_vault_tokenization {
+        // Do not tokenize if the disable flag is present in the config
+        let authentication_details =
+            if let Ok(UasAuthenticationResponseData::PostAuthentication {
+                authentication_details,
+            }) = post_auth_response.response.clone()
+            {
+                let authentication_cryptogram = authentication_details
+                    .dynamic_data_details
+                    .as_ref()
+                    .and_then(|data| {
+                        data.dynamic_data_value.clone().map(|dynamic_data_value| {
+                            api_models::authentication::Cryptogram::Cavv {
+                                authentication_cryptogram: dynamic_data_value,
+                            }
+                        })
+                    });
+                let authentication_details = api_models::authentication::AuthenticationDetails {
+                    three_ds_data: Some(api_models::authentication::ExternalThreeDsData {
+                        authentication_cryptogram,
+                        eci: authentication_details.eci.clone(),
+                        ds_trans_id: authentication_details
+                            .dynamic_data_details
+                            .as_ref()
+                            .and_then(|data| data.ds_trans_id.clone()),
+                        transaction_status: authentication_details
+                            .trans_status
+                            .unwrap_or(common_enums::TransactionStatus::Failure),
+                        version: authentication.maximum_supported_version.clone(),
+                    }),
+                };
+                Some(authentication_details)
+            } else {
+                None
+            };
+
+        (None, authentication_details)
+    } else {
+        let response = Box::pin(utils::get_auth_multi_token_from_external_vault(
+            state,
+            platform,
+            business_profile,
+            &post_auth_response,
+        ))
+        .await?;
+        metrics::POST_AUTHENTICATION_TOKEN_PUSHED_TO_VGS.add(1, &[]);
+        (response, None)
+    };
+
+    let payment_method_data = utils::get_authentication_payment_method_data(&post_auth_response);
+
+    let auth_update_response = utils::external_authentication_update_trackers(
+        state,
+        post_auth_response,
+        authentication.clone(),
+        None,
+        platform.get_processor().get_key_store(),
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+        None,
+    )
+    .await?;
+
+    Ok((
+        auth_update_response,
+        payment_method_data,
+        vault_token_data,
+        authentication_details,
+    ))
+}
+
+/// Uses the stored authentication value for terminal success cases in merchant flow
+#[cfg(feature = "v1")]
+async fn use_stored_authentication_value(
+    state: &SessionState,
+    platform: &domain::Platform,
+    authentication: &hyperswitch_domain_models::authentication::Authentication,
+    authentication_id: &common_utils::id_type::AuthenticationId,
+    should_disable_vault_tokenization: bool,
+) -> RouterResult<(
+    hyperswitch_domain_models::authentication::Authentication,
+    Option<api_models::authentication::AuthenticationPaymentMethodDataResponse>,
+    Option<api_models::authentication::AuthenticationVaultTokenData>,
+    Option<api_models::authentication::AuthenticationDetails>,
+)> {
+    if should_disable_vault_tokenization {
+        let authentication_value = payment_methods::vault::get_tokenized_data(
+            state,
+            authentication_id.get_string_repr(),
+            false,
+            platform.get_processor().get_key_store().key.get_inner(),
+        )
+        .await
+        .inspect_err(|err| router_env::logger::error!(tokenized_data_result=?err))
+        .attach_printable("cavv not present after authentication flow")
+        .ok();
+
+        let post_authentication_details = authentication
+            .get_post_authentication_details(authentication_value.map(|value| value.value1));
+
+        let authentication_cryptogram = post_authentication_details
+            .dynamic_data_details
+            .as_ref()
+            .and_then(|data| {
+                data.dynamic_data_value.clone().map(|dynamic_data_value| {
+                    api_models::authentication::Cryptogram::Cavv {
+                        authentication_cryptogram: dynamic_data_value,
+                    }
+                })
+            });
+
+        let authentication_details = api_models::authentication::AuthenticationDetails {
+            three_ds_data: Some(api_models::authentication::ExternalThreeDsData {
+                authentication_cryptogram,
+                eci: post_authentication_details.eci,
+                ds_trans_id: post_authentication_details
+                    .dynamic_data_details
+                    .as_ref()
+                    .and_then(|data| data.ds_trans_id.clone()),
+                transaction_status: post_authentication_details
+                    .trans_status
+                    .unwrap_or(common_enums::TransactionStatus::Failure),
+                version: authentication.maximum_supported_version.clone(),
+            }),
+        };
+
+        Ok((
+            authentication.clone(),
+            None,
+            None,
+            Some(authentication_details),
+        ))
+    } else {
+        Ok((authentication.clone(), None, None, None))
     }
 }
 
@@ -1879,45 +2111,33 @@ pub async fn authentication_sync_core(
         .await?;
     }
 
-    let (updated_authentication, payment_method_data, vault_token_data) =
-        if !authentication.authentication_status.is_terminal_status() {
-            let post_auth_response = if authentication_connector.is_click_to_pay() {
-                let response = ClickToPay::post_authentication(
+    // Determine whether to tokenise or not
+    let should_disable_vault_tokenization =
+        utils::should_disable_vault_tokenization(&state, &authentication.merchant_id).await;
+
+    // Determine the authentication sync strategy based on current state
+    let strategy = determine_auth_sync_strategy(
+        &authentication,
+        should_disable_vault_tokenization,
+        auth_flow,
+    );
+
+    // Execute the appropriate flow based on the strategy
+    let (updated_authentication, payment_method_data, vault_token_data, authentication_details) =
+        match strategy {
+            AuthSyncStrategy::ExecutePostAuth => {
+                Box::pin(execute_post_authentication_flow(
                     &state,
+                    &platform,
                     &business_profile,
-                    None,
-                    &three_ds_connector_account.clone(),
-                    &authentication_connector.to_string(),
-                    &authentication_id,
-                    common_enums::PaymentMethod::Card,
-                    merchant_id,
-                    None,
-                    None,
-                )
-                .await?;
-                metrics::POST_AUTHENTICATION_CARDS_SUCCESSFULLY_DECRYPTED.add(1, &[]);
-                response
-            } else {
-                let routing_region = utils::fetch_routing_region_for_uas(
-                    &state,
-                    merchant_id.clone(),
-                    merchant_account.organization_id.clone(),
-                )
-                .await
-                .change_context(ApiErrorResponse::InternalServerError)
-                .attach_printable("Failed to fetch routing path")?;
-                ExternalAuthentication::post_authentication(
-                    &state,
-                    &business_profile,
-                    None,
+                    &authentication,
+                    &authentication_connector,
                     &three_ds_connector_account,
-                    &authentication_connector.to_string(),
                     &authentication_id,
-                    common_enums::PaymentMethod::Card,
                     merchant_id,
-                    Some(&authentication),
-                    Some(routing_region),
-                )
+                    merchant_account,
+                    should_disable_vault_tokenization,
+                ))
                 .await?
             };
 
@@ -1936,36 +2156,13 @@ pub async fn authentication_sync_core(
                 let response = Box::pin(utils::get_auth_multi_token_from_external_vault(
                     &state,
                     &platform,
-                    &business_profile,
-                    &post_auth_response,
-                ))
-                .await?;
-                metrics::POST_AUTHENTICATION_TOKEN_PUSHED_TO_VGS.add(1, &[]);
-                response
-            };
-
-            let payment_method_data =
-                utils::get_authentication_payment_method_data(&post_auth_response);
-
-            let auth_update_response = utils::external_authentication_update_trackers(
-                &state,
-                post_auth_response,
-                authentication.clone(),
-                None,
-                platform.get_processor().get_key_store(),
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,
-                None,
-            )
-            .await?;
-
-            (auth_update_response, payment_method_data, vault_token_data)
-        } else {
-            (authentication, None, None)
+                    &authentication,
+                    &authentication_id,
+                    should_disable_vault_tokenization,
+                )
+                .await?
+            }
+            AuthSyncStrategy::NoOperation => (authentication, None, None, None),
         };
 
     let eci = match auth_flow {
@@ -2042,7 +2239,7 @@ pub async fn authentication_sync_core(
         status: updated_authentication.authentication_status,
         client_secret: updated_authentication
             .authentication_client_secret
-            .map(masking::Secret::new),
+            .map(hyperswitch_masking::Secret::new),
         amount,
         currency,
         authentication_connector,
@@ -2083,6 +2280,7 @@ pub async fn authentication_sync_core(
             .and_then(|details| details.three_ds_requestor_app_url),
         profile_acquirer_id: updated_authentication.profile_acquirer_id.clone(),
         eci,
+        authentication_details,
     };
     Ok(hyperswitch_domain_models::api::ApplicationResponse::Json(
         response,
@@ -2194,7 +2392,7 @@ pub async fn authentication_post_sync_core(
         updated_authentication
             .authentication_client_secret
             .clone()
-            .map(masking::Secret::new)
+            .map(hyperswitch_masking::Secret::new)
             .as_ref(),
         updated_authentication.amount,
     )?;
@@ -2340,7 +2538,7 @@ pub async fn get_session_token_for_click_to_pay(
         .customer_details
         .clone()
         .async_lift(|inner| async {
-            domain::types::crypto_operation::<serde_json::Value, masking::WithType>(
+            domain::types::crypto_operation::<serde_json::Value, hyperswitch_masking::WithType>(
                 key_manager_state,
                 common_utils::type_name!(Authentication),
                 domain::types::CryptoOperation::DecryptOptional(inner),

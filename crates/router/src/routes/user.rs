@@ -1175,3 +1175,69 @@ pub async fn embedded_token_info(
     ))
     .await
 }
+
+pub async fn get_user_details_internal(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    path: web::Path<String>,
+) -> HttpResponse {
+    let flow = Flow::GetUserDetailsInternal;
+    let user_id = path.into_inner();
+
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        user_id.clone(),
+        |state, _auth: (), user_id, _| user_core::get_user_details_internal(state, user_id),
+        &auth::InternalMerchantIdProfileIdAuth(auth::AdminApiAuth),
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+pub async fn list_users_internal(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    json_payload: web::Json<user_api::ListUsersInternalRequest>,
+) -> HttpResponse {
+    let flow = Flow::ListUsersInternal;
+
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        json_payload.into_inner(),
+        |state, _auth: (), req, _| user_core::list_users_internal(state, req),
+        &auth::InternalMerchantIdProfileIdAuth(auth::AdminApiAuth),
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+#[cfg(feature = "v1")]
+pub async fn list_members_for_entity(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    query: web::Query<user_api::ListMembersQueryParam>,
+) -> HttpResponse {
+    let flow = Flow::ListMembersForEntity;
+    let access_level = query.into_inner().access_level;
+
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        (),
+        |state, auth: auth::AuthenticationData, _, _| {
+            user_core::list_members_for_entity(state, auth, access_level)
+        },
+        &auth::InternalMerchantIdProfileIdAuth(auth::JWTAuth {
+            permission: Permission::OrganizationAccountRead,
+            allow_connected: true,
+            allow_platform: true,
+        }),
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}

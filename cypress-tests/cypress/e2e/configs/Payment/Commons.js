@@ -1,6 +1,19 @@
 // This file is the default. To override, add to connector.js
 import { getCurrency, getCustomExchange } from "./Modifiers";
 
+export const blockedPaymentErrorBody = {
+  status: 200,
+  expectBlockedPayment: true,
+  body: {
+    error: {
+      type: "blocked",
+      message: "This payment method is blocked",
+      code: "HE_03",
+      reason: "Blocked",
+    },
+  },
+};
+
 export const customerAcceptance = {
   acceptance_type: "offline",
   accepted_at: "1963-05-03T04:07:52.723Z",
@@ -1985,6 +1998,77 @@ export const connectorDetails = {
         `,
       },
     }),
+    PaymentIntentWithInstallments: getCustomExchange({
+      Request: {
+        currency: "BRL",
+        installment_options: [
+          {
+            payment_method: "card",
+            installments: [
+              {
+                number_of_installments: [3, 6, 12],
+                billing_frequency: "month",
+                interest_rate: 5.0,
+              },
+            ],
+          },
+        ],
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+        },
+      },
+    }),
+    CardInstallmentConfirm: getCustomExchange({
+      Request: {
+        payment_method: "card",
+        payment_method_type: "credit",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        installment_data: {
+          number_of_installments: 3,
+          billing_frequency: "month",
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    }),
+    PaymentIntentWithInstallmentsAndConfirmTrue: getCustomExchange({
+      Request: {
+        currency: "BRL",
+        confirm: true,
+        installment_options: [
+          {
+            payment_method: "card",
+            installments: [
+              {
+                number_of_installments: [3, 6, 12],
+                billing_frequency: "month",
+                interest_rate: 5.0,
+              },
+            ],
+          },
+        ],
+      },
+      Response: {
+        status: 422,
+        body: {
+          error: {
+            type: "invalid_request",
+            message:
+              "installment_options and installment_data are not supported when confirm is true.",
+            code: "IR_06",
+          },
+        },
+      },
+    }),
   },
   upi_pm: {
     PaymentIntent: getCustomExchange({
@@ -2277,4 +2361,70 @@ export const connectorDetails = {
       },
     },
   }),
+  payment_method_blocking_pm: {
+    BlockIssuingCountry: getCustomExchange({
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: {
+            card_number: "4000000000000002",
+            card_exp_month: "03",
+            card_exp_year: "30",
+            card_holder_name: "joseph Doeeee",
+            card_cvc: "737",
+            card_network: "Visa",
+          },
+        },
+      },
+      Response: blockedPaymentErrorBody,
+    }),
+    BlockCardType: getCustomExchange({
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: {
+            card_number: "4111111111111111",
+            card_exp_month: "03",
+            card_exp_year: "30",
+            card_holder_name: "joseph Doeeee",
+            card_cvc: "737",
+            card_network: "Visa",
+          },
+        },
+      },
+      Response: blockedPaymentErrorBody,
+    }),
+    BlockCardSubtype: getCustomExchange({
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: {
+            card_number: "378282246310005",
+            card_exp_month: "03",
+            card_exp_year: "30",
+            card_holder_name: "joseph Doeeee",
+            card_cvc: "737",
+            card_network: "Visa",
+          },
+        },
+      },
+      Response: blockedPaymentErrorBody,
+    }),
+    BlockIfBinInfoUnavailable: getCustomExchange({
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: {
+            card_number: "6304000000000000",
+            card_exp_month: "03",
+            card_exp_year: "30",
+            card_holder_name: "joseph Doeeee",
+            card_cvc: "737",
+            card_network: "Visa",
+          },
+        },
+      },
+      Response: blockedPaymentErrorBody,
+    }),
+  },
 };

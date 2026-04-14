@@ -17,11 +17,12 @@ use hyperswitch_interfaces::{
     api::Connector as ConnectorTrait,
     connector_integration_v2::{ConnectorIntegrationV2, ConnectorV2},
 };
-use masking::ExposeInterface;
+use hyperswitch_masking::ExposeInterface;
 use router_env::{env::Env, instrument, tracing};
 
 use crate::{
     core::{
+        configs::dimension_state,
         errors::{self, utils::StorageErrorExt, RouterResult},
         payments::{
             self as payments_core, call_multiple_connectors_service,
@@ -136,6 +137,10 @@ where
     FData: Send + Sync + Clone,
 {
     let operation: BoxedOperation<'_, F, Req, D> = Box::new(operation);
+
+    let dimensions = dimension_state::Dimensions::new()
+        .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
+        .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id());
 
     let _validate_result = operation
         .to_validate_request()?

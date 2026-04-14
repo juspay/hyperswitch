@@ -102,10 +102,10 @@ pub(crate) async fn create_event_and_trigger_outgoing_webhook(
                     ext_traits::Encode::encode_to_string_of_json(&request_content)
                         .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)
                         .attach_printable("Failed to encode outgoing webhook request content")
-                        .map(masking::Secret::new)?,
+                        .map(hyperswitch_masking::Secret::new)?,
                 ),
                 keymanager::Identifier::Merchant(merchant_key_store.merchant_id.clone()),
-                masking::PeekInterface::peek(merchant_key_store.key.get_inner()),
+                hyperswitch_masking::PeekInterface::peek(merchant_key_store.key.get_inner()),
             )
             .await
             .and_then(|val| val.try_into_operation())
@@ -286,7 +286,7 @@ async fn raise_webhooks_analytics_event(
         let webhook_response: Option<webhook_events::OutgoingWebhookResponseContent> =
             updated_event.response.and_then(|res| {
                 ext_traits::StringExt::parse_struct(
-                    masking::PeekInterface::peek(res.get_inner()),
+                    hyperswitch_masking::PeekInterface::peek(res.get_inner()),
                     "OutgoingWebhookResponseContent",
                 )
                 .map_err(|error| {
@@ -340,7 +340,7 @@ pub(crate) fn get_outgoing_webhook_request(
             .clone()
             .map(|headers| {
                 ext_traits::ValueExt::parse_value::<HashMap<String, String>>(
-                    masking::ExposeInterface::expose(headers.into_inner()),
+                    hyperswitch_masking::ExposeInterface::expose(headers.into_inner()),
                     "HashMap<String,String>",
                 )
                 .change_context(errors::WebhooksFlowError::OutgoingWebhookEncodingFailed)
@@ -348,10 +348,12 @@ pub(crate) fn get_outgoing_webhook_request(
             })
             .transpose()?;
         if let Some(ref map) = custom_headers {
-            headers.extend(
-                map.iter()
-                    .map(|(key, value)| (key.clone(), masking::Mask::into_masked(value.clone()))),
-            );
+            headers.extend(map.iter().map(|(key, value)| {
+                (
+                    key.clone(),
+                    hyperswitch_masking::Mask::into_masked(value.clone()),
+                )
+            }));
         };
         let outgoing_webhooks_signature = transformed_outgoing_webhook
             .get_outgoing_webhooks_signature(payment_response_hash_key)?;
@@ -364,7 +366,7 @@ pub(crate) fn get_outgoing_webhook_request(
             body: outgoing_webhooks_signature.payload,
             headers: headers
                 .into_iter()
-                .map(|(name, value)| (name, masking::Secret::new(value.into_inner())))
+                .map(|(name, value)| (name, hyperswitch_masking::Secret::new(value.into_inner())))
                 .collect(),
         })
     }
@@ -383,7 +385,7 @@ async fn build_and_send_request(
     let headers = request_content
         .headers
         .into_iter()
-        .map(|(name, value)| (name, masking::Mask::into_masked(value)))
+        .map(|(name, value)| (name, hyperswitch_masking::Mask::into_masked(value)))
         .collect();
     let request = services::RequestBuilder::new()
         .method(services::Method::Post)
@@ -391,7 +393,7 @@ async fn build_and_send_request(
         .attach_default_headers()
         .headers(headers)
         .set_body(request::RequestContent::RawBytes(
-            masking::ExposeInterface::expose(request_content.body).into_bytes(),
+            hyperswitch_masking::ExposeInterface::expose(request_content.body).into_bytes(),
         ))
         .build();
 
@@ -474,10 +476,10 @@ async fn update_event_in_storage(
                         .change_context(
                             errors::WebhooksFlowError::OutgoingWebhookResponseEncodingFailed,
                         )
-                        .map(masking::Secret::new)?,
+                        .map(hyperswitch_masking::Secret::new)?,
                 ),
                 keymanager::Identifier::Merchant(merchant_key_store.merchant_id.clone()),
-                masking::PeekInterface::peek(merchant_key_store.key.get_inner()),
+                hyperswitch_masking::PeekInterface::peek(merchant_key_store.key.get_inner()),
             )
             .await
             .and_then(|val| val.try_into_operation())
