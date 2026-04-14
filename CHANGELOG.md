@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.04.02.0-hotfix6
+
+### Bug Fixes
+
+- **connector:** [CYBERSOURCE] EU MIT fix ([#11818](https://github.com/juspay/hyperswitch/pull/11818)) ([`95618c4`](https://github.com/juspay/hyperswitch/commit/95618c4a0ad6e26a4b8f70d39314c9c981a9a925))
+
+**Full Changelog:** [`2026.04.02.0-hotfix5...2026.04.02.0-hotfix6`](https://github.com/juspay/hyperswitch/compare/2026.04.02.0-hotfix5...2026.04.02.0-hotfix6)
+
+- - -
+
 ## 2026.04.02.0-hotfix5
 
 ### Bug Fixes
