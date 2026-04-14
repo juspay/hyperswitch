@@ -4,6 +4,114 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.02.02.0-hotfix16
+
+### Features
+
+- **connector:** Add MIT category mapping for Checkout.com mandate payments ([#11731](https://github.com/juspay/hyperswitch/pull/11731)) ([`44b8bca`](https://github.com/juspay/hyperswitch/commit/44b8bcab5f905b2e74e58ea4508184f7f3d37c04))
+- **core:**
+  - Implement NTID flow for Decrypted Wallet Token and also Implement for checkout connector ([#11720](https://github.com/juspay/hyperswitch/pull/11720)) ([`538dcdf`](https://github.com/juspay/hyperswitch/commit/538dcdf271711248606da17fa33ad48d63fd93ba))
+  - Enable config-based UAS eligibility at org and merchant level ([#11729](https://github.com/juspay/hyperswitch/pull/11729)) ([`8d3be17`](https://github.com/juspay/hyperswitch/commit/8d3be1725475fbcabf50cf9933ff4bb5f15d84bd))
+
+### Refactors
+
+- **connector:** [Adyen] [paypal] fix error propogation in webhook flows ([#11730](https://github.com/juspay/hyperswitch/pull/11730)) ([`2f95d54`](https://github.com/juspay/hyperswitch/commit/2f95d54a1dd534ffaf6c5a2273047513e5c52bd8))
+
+**Full Changelog:** [`2026.02.02.0-hotfix15...2026.02.02.0-hotfix16`](https://github.com/juspay/hyperswitch/compare/2026.02.02.0-hotfix15...2026.02.02.0-hotfix16)
+
+- - -
+
+## 2026.02.02.0-hotfix15
+
+### Features
+
+- **connector:** [Noon] Add support for configurable region_based_endpoint while creating mca ([#11675](https://github.com/juspay/hyperswitch/pull/11675)) ([`9f5f5cf`](https://github.com/juspay/hyperswitch/commit/9f5f5cfc637e1813476ee586dbc3e742dc0ef9e4))
+
+**Full Changelog:** [`2026.02.02.0-hotfix14...2026.02.02.0-hotfix15`](https://github.com/juspay/hyperswitch/compare/2026.02.02.0-hotfix14...2026.02.02.0-hotfix15)
+
+- - -
+
+## 2026.02.02.0-hotfix14
+
+### Bug Fixes
+
+- **connectors:** [stripe] fix webhook event type mapping ([#11687](https://github.com/juspay/hyperswitch/pull/11687)) ([`445ce26`](https://github.com/juspay/hyperswitch/commit/445ce264d1b39a6486957d3d4300ad34ae28fc68))
+
+### Refactors
+
+- **router:** Handle dispute webhook validation failure with 4xx response ([#11648](https://github.com/juspay/hyperswitch/pull/11648)) ([`a8dbf58`](https://github.com/juspay/hyperswitch/commit/a8dbf585009cdb6bef47028509f569f512d40656))
+
+**Full Changelog:** [`2026.02.02.0-hotfix13...2026.02.02.0-hotfix14`](https://github.com/juspay/hyperswitch/compare/2026.02.02.0-hotfix13...2026.02.02.0-hotfix14)
+
+- - -
+
+## 2026.02.02.0-hotfix13
+
+### Features
+
+- **connector:** [Nmi] googlepay decryptedflow with mandates ([#11629](https://github.com/juspay/hyperswitch/pull/11629)) ([`696cfcf`](https://github.com/juspay/hyperswitch/commit/696cfcf8e68df89b329e40118a40a7482ef26960))
+
+**Full Changelog:** [`2026.02.02.0-hotfix12...2026.02.02.0-hotfix13`](https://github.com/juspay/hyperswitch/compare/2026.02.02.0-hotfix12...2026.02.02.0-hotfix13)
+
+- - -
+
+## 2026.02.02.0-hotfix12
+
+### Bug Fixes
+
+- **connector:** [ADYEN] Remove recurringProcessingModel in CIT transactions - REVERT ([#11622](https://github.com/juspay/hyperswitch/pull/11622)) ([`a5a1814`](https://github.com/juspay/hyperswitch/commit/a5a18144c4c688566ef2c670d774edb752f46458))
+
+**Full Changelog:** [`2026.02.02.0-hotfix11...2026.02.02.0-hotfix12`](https://github.com/juspay/hyperswitch/compare/2026.02.02.0-hotfix11...2026.02.02.0-hotfix12)
+
+- - -
+
+## 2026.02.02.0-hotfix11
+
+### Bug Fixes
+
+- **connector:** [Adyen] Add Subscription to AdyenRecurringProcessingModel enum ([#11605](https://github.com/juspay/hyperswitch/pull/11605)) ([`293de74`](https://github.com/juspay/hyperswitch/commit/293de74c0b874a3643e3d9511917fa91afa20f93))
+
+**Full Changelog:** [`2026.02.02.0-hotfix10...2026.02.02.0-hotfix11`](https://github.com/juspay/hyperswitch/compare/2026.02.02.0-hotfix10...2026.02.02.0-hotfix11)
+
+- - -
+
+## 2026.02.02.0-hotfix10
+
+### Features
+
+- **connector:** Add processing account id in payload MITs ([#11578](https://github.com/juspay/hyperswitch/pull/11578)) ([`aea2cc6`](https://github.com/juspay/hyperswitch/commit/aea2cc6ed4bcf1256e8445eb097e02e0f9d70507))
+
+### Bug Fixes
+
+- **connector:** [ADYEN] Remove recurringProcessingModel in CIT transactions ([#11575](https://github.com/juspay/hyperswitch/pull/11575)) ([`a6f731c`](https://github.com/juspay/hyperswitch/commit/a6f731c24e958c50ce044eb7a1cf1e7adaf99e0d))
+
+**Full Changelog:** [`2026.02.02.0-hotfix9...2026.02.02.0-hotfix10`](https://github.com/juspay/hyperswitch/compare/2026.02.02.0-hotfix9...2026.02.02.0-hotfix10)
+
+- - -
+
+## 2026.02.02.0-hotfix9
+
+### Bug Fixes
+
+- **connector:** [ADYEN] Revert: Remove recurringProcessingModel for CIT transactions ([#11542](https://github.com/juspay/hyperswitch/pull/11542)) ([`3a2923c`](https://github.com/juspay/hyperswitch/commit/3a2923cd96504861d0f75e034e9d7d8d429cc93c))
+
+**Full Changelog:** [`2026.02.02.0-hotfix8...2026.02.02.0-hotfix9`](https://github.com/juspay/hyperswitch/compare/2026.02.02.0-hotfix8...2026.02.02.0-hotfix9)
+
+- - -
+
+## 2026.02.02.0-hotfix8
+
+### Bug Fixes
+
+- **connector:**
+  - [Worldpayxml] correctly map authenticate_shopper_id and scheme transaction id ([#11525](https://github.com/juspay/hyperswitch/pull/11525)) ([`1daf6ae`](https://github.com/juspay/hyperswitch/commit/1daf6aecdcf41bc810b615981b3337c49a814878))
+  - [ADYEN] Remove recurringProcessingModel for CIT transactions ([#11530](https://github.com/juspay/hyperswitch/pull/11530)) ([`d7a231b`](https://github.com/juspay/hyperswitch/commit/d7a231b0baa4cf3fb18cec904c2215db503b6974))
+- **payload:** Update request structure and switch to JSON payload format ([#11528](https://github.com/juspay/hyperswitch/pull/11528)) ([`647623e`](https://github.com/juspay/hyperswitch/commit/647623ef3766d63e608ccc2e79dea4cbf3e2de57))
+
+**Full Changelog:** [`2026.02.02.0-hotfix7...2026.02.02.0-hotfix8`](https://github.com/juspay/hyperswitch/compare/2026.02.02.0-hotfix7...2026.02.02.0-hotfix8)
+
+- - -
+
 ## 2026.02.02.0-hotfix7
 
 ### Bug Fixes

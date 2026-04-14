@@ -1,5 +1,5 @@
 use common_types::payments as common_payments_types;
-use masking::Secret;
+use hyperswitch_masking::Secret;
 use serde::{Deserialize, Serialize};
 use smithy::SmithyModel;
 use time::PrimitiveDateTime;
@@ -176,6 +176,15 @@ pub enum RecurringDetails {
     /// is not stored in the application
     #[smithy(value_type = "NetworkTransactionIdAndNetworkTokenDetails")]
     NetworkTransactionIdAndNetworkTokenDetails(Box<NetworkTransactionIdAndNetworkTokenDetails>),
+
+    /// Network transaction ID and Wallet Token details for MIT payments when payment_method_data
+    /// is not stored in the application
+    /// Applicable for wallet tokens such as Apple Pay and Google Pay.
+    #[smithy(value_type = "NetworkTransactionIdAndDecryptedWalletTokenDetails")]
+    #[schema(value_type = NetworkTransactionIdAndDecryptedWalletTokenDetails)]
+    NetworkTransactionIdAndDecryptedWalletTokenDetails(
+        Box<common_payments_types::NetworkTransactionIdAndDecryptedWalletTokenDetails>,
+    ),
 
     /// Card with Limited Data to do MIT payment
     /// Can only be used if enabled for Merchant
@@ -365,6 +374,13 @@ impl RecurringDetails {
 
     pub fn is_network_transaction_id_and_network_token_details_flow(self) -> bool {
         matches!(self, Self::NetworkTransactionIdAndNetworkTokenDetails(_))
+    }
+
+    pub fn is_network_transaction_id_and_decrypted_wallet_token_details_flow(self) -> bool {
+        matches!(
+            self,
+            Self::NetworkTransactionIdAndDecryptedWalletTokenDetails(_)
+        )
     }
 
     pub fn is_card_limited_details_flow(self) -> bool {

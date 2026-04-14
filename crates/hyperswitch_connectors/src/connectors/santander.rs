@@ -45,7 +45,7 @@ use hyperswitch_interfaces::{
     types::{self, RefreshTokenType, Response},
     webhooks,
 };
-use masking::{Mask, Maskable, PeekInterface, Secret};
+use hyperswitch_masking::{Mask, Maskable, PeekInterface, Secret};
 use transformers as santander;
 
 use crate::{
@@ -1038,7 +1038,8 @@ impl webhooks::IncomingWebhook for Santander {
     fn get_webhook_resource_object(
         &self,
         request: &webhooks::IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
+    ) -> CustomResult<Box<dyn hyperswitch_masking::ErasedMaskSerialize>, errors::ConnectorError>
+    {
         let webhook_body = transformers::get_webhook_object_from_body(request.body)
             .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?;
 

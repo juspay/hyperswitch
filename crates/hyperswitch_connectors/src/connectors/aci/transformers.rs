@@ -23,7 +23,7 @@ use hyperswitch_domain_models::{
     },
 };
 use hyperswitch_interfaces::errors;
-use masking::{ExposeInterface, Secret};
+use hyperswitch_masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
 use url::Url;
 
@@ -644,6 +644,7 @@ impl TryFrom<&AciRouterData<&PaymentsAuthorizeRouterData>> for AciPaymentsReques
             | PaymentMethodData::CardToken(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
             | PaymentMethodData::CardWithLimitedDetails(_)
+            | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
             | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("Aci"),

@@ -14833,6 +14833,7 @@
           "dlocal",
           "dwolla",
           "ebanx",
+          "envoy",
           "elavon",
           "facilitapay",
           "finix",
@@ -22781,6 +22782,7 @@
       },
       "MitCategory": {
         "type": "string",
+        "description": "Specifies the category of a Merchant Initiated Transaction (MIT). In the case of MIT, `mit_category` tells what kind of MIT is being processed. In the case of CIT, it tells the future intended MIT type.",
         "enum": [
           "installment",
           "unscheduled",
@@ -23114,6 +23116,56 @@
           "network_transaction_id": {
             "type": "string",
             "description": "The network transaction ID provided by the card network during a CIT (Customer Initiated Transaction),\nwhen `setup_future_usage` is set to `off_session`."
+          }
+        }
+      },
+      "NetworkTransactionIdAndDecryptedWalletTokenDetails": {
+        "type": "object",
+        "description": "Network Transaction ID and Decrypted Wallet Token Details",
+        "required": [
+          "decrypted_token",
+          "token_exp_month",
+          "token_exp_year",
+          "card_holder_name",
+          "network_transaction_id"
+        ],
+        "properties": {
+          "decrypted_token": {
+            "type": "string",
+            "description": "The Decrypted Token",
+            "example": "4604000460040787"
+          },
+          "token_exp_month": {
+            "type": "string",
+            "description": "The token's expiry month",
+            "example": "05"
+          },
+          "token_exp_year": {
+            "type": "string",
+            "description": "The token's expiry year",
+            "example": "24"
+          },
+          "card_holder_name": {
+            "type": "string",
+            "description": "The card holder's name",
+            "example": "John Test"
+          },
+          "network_transaction_id": {
+            "type": "string",
+            "description": "The network transaction ID provided by the card network during a Customer Initiated Transaction (CIT)\nwhen `setup_future_usage` is set to `off_session`."
+          },
+          "eci": {
+            "type": "string",
+            "description": "ECI indicator of the card",
+            "nullable": true
+          },
+          "token_source": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/TokenSource"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -27201,9 +27253,6 @@
       },
       "PaymentsCompleteAuthorizeRequest": {
         "type": "object",
-        "required": [
-          "client_secret"
-        ],
         "properties": {
           "shipping": {
             "allOf": [
@@ -27215,7 +27264,8 @@
           },
           "client_secret": {
             "type": "string",
-            "description": "Client Secret"
+            "description": "Client Secret",
+            "nullable": true
           },
           "threeds_method_comp_ind": {
             "allOf": [
@@ -28350,6 +28400,12 @@
             ],
             "nullable": true
           },
+          "sdk_authorization": {
+            "type": "string",
+            "description": "Token containing encoded information for sdk authorization.",
+            "example": "cHJvZmlsZV9pZD1wcm9mXzEyMyxwdWJsaXNoYWJsZV9rZXk9cGtfbGl2ZV8xMjM=",
+            "nullable": true
+          },
           "connector": {
             "type": "string",
             "description": "The name of the payment connector (e.g., 'stripe', 'adyen') that processed or is processing this payment.",
@@ -28977,7 +29033,6 @@
         "type": "object",
         "required": [
           "shipping",
-          "client_secret",
           "payment_method_type"
         ],
         "properties": {
@@ -28986,7 +29041,8 @@
           },
           "client_secret": {
             "type": "string",
-            "description": "Client Secret"
+            "description": "Client Secret",
+            "nullable": true
           },
           "payment_method_type": {
             "$ref": "#/components/schemas/PaymentMethodType"
@@ -29090,14 +29146,14 @@
       "PaymentsExternalAuthenticationRequest": {
         "type": "object",
         "required": [
-          "client_secret",
           "device_channel",
           "threeds_method_comp_ind"
         ],
         "properties": {
           "client_secret": {
             "type": "string",
-            "description": "Client Secret"
+            "description": "Client Secret",
+            "nullable": true
           },
           "sdk_information": {
             "allOf": [
@@ -29198,14 +29254,14 @@
       "PaymentsPostSessionTokensRequest": {
         "type": "object",
         "required": [
-          "client_secret",
           "payment_method_type",
           "payment_method"
         ],
         "properties": {
           "client_secret": {
             "type": "string",
-            "description": "It's a token used for client side verification."
+            "description": "It's a token used for client side verification.",
+            "nullable": true
           },
           "payment_method_type": {
             "$ref": "#/components/schemas/PaymentMethodType"
@@ -29938,6 +29994,12 @@
             ],
             "nullable": true
           },
+          "sdk_authorization": {
+            "type": "string",
+            "description": "Token containing encoded information for sdk authorization.",
+            "example": "cHJvZmlsZV9pZD1wcm9mXzEyMyxwdWJsaXNoYWJsZV9rZXk9cGtfbGl2ZV8xMjM=",
+            "nullable": true
+          },
           "connector": {
             "type": "string",
             "description": "The name of the payment connector (e.g., 'stripe', 'adyen') that processed or is processing this payment.",
@@ -30650,7 +30712,6 @@
         "type": "object",
         "required": [
           "payment_id",
-          "client_secret",
           "wallets"
         ],
         "properties": {
@@ -30660,7 +30721,8 @@
           },
           "client_secret": {
             "type": "string",
-            "description": "This is a token which expires after 15 minutes, used from the client to authenticate and create sessions from the SDK"
+            "description": "This is a token which expires after 15 minutes, used from the client to authenticate and create sessions from the SDK",
+            "nullable": true
           },
           "wallets": {
             "type": "array",
@@ -31599,7 +31661,8 @@
           "stripe",
           "wise",
           "worldpay",
-          "worldpayxml"
+          "worldpayxml",
+          "envoy"
         ]
       },
       "PayoutCreatePayoutLinkConfig": {
@@ -34452,6 +34515,24 @@
               "type": {
                 "type": "string",
                 "enum": [
+                  "network_transaction_id_and_decrypted_wallet_token_details"
+                ]
+              },
+              "data": {
+                "$ref": "#/components/schemas/NetworkTransactionIdAndDecryptedWalletTokenDetails"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "type",
+              "data"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
                   "card_with_limited_data"
                 ]
               },
@@ -35607,6 +35688,7 @@
           "dwolla",
           "ebanx",
           "elavon",
+          "envoy",
           "facilitapay",
           "finix",
           "fiserv",
@@ -37827,6 +37909,15 @@
           "multi_use_token",
           "network_token"
         ]
+      },
+      "TokenSource": {
+        "type": "string",
+        "description": "Source of the token",
+        "enum": [
+          "google_pay",
+          "apple_pay"
+        ],
+        "example": "google_pay, apple_pay"
       },
       "Tokenization": {
         "type": "string",

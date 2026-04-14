@@ -1,6 +1,6 @@
 use common_utils::{encryption::Encryption, pii, types::user::LineageContext};
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable, Selectable};
-use masking::Secret;
+use hyperswitch_masking::Secret;
 use time::PrimitiveDateTime;
 
 use crate::{diesel_impl::OptionalDieselArray, enums::TotpStatus, schema::users};

@@ -9,7 +9,7 @@ use hyperswitch_domain_models::{
     types::{PaymentsAuthorizeRouterData, RefundsRouterData},
 };
 use hyperswitch_interfaces::errors;
-use masking::Secret;
+use hyperswitch_masking::Secret;
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -90,6 +90,7 @@ impl TryFrom<&OpayoRouterData<&PaymentsAuthorizeRouterData>> for OpayoPaymentsRe
             | PaymentMethodData::NetworkToken(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
             | PaymentMethodData::CardWithLimitedDetails(_)
+            | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
             | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     crate::utils::get_unimplemented_payment_method_error_message("Opayo"),

@@ -3453,6 +3453,14 @@ api_secret="Application Identifier"
 [noon.connector_webhook_details]
 merchant_secret="Source verification key"
 
+[noon.metadata.region]
+name="region"
+label="Region of your Noon Merchant Account"
+placeholder="Enter Region of your Noon Merchant Account"
+required=false
+type="Select"
+options=["Global","Ksa","Egypt"]
+
 [[noon.metadata.apple_pay]]
 name="certificate"
 label="Merchant Certificate (Base64 Encoded)"
@@ -7891,9 +7899,12 @@ key1 = "Merchant Account Id"
 [[payjustnow.pay_later]]
   payment_method_type = "payjustnow"
 
-[envoy]
-[envoy.connector_auth.HeaderKey]
-api_key = "API Key"
+[envoy_payout]
+[[envoy_payout.bank_transfer]]
+  payment_method_type = "sepa_bank_transfer"
+[envoy_payout.connector_auth.BodyKey]
+api_key = "Password"
+key1 = "Username"
 
 [vgs]
 [vgs.connector_auth.SignatureKey]

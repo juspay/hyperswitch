@@ -4,7 +4,7 @@ use common_utils::{ext_traits::Encode, fp_utils::when, id_type, types::keymanage
 use error_stack::ResultExt;
 use hyperswitch_domain_models::payments::PaymentConfirmData;
 use hyperswitch_interfaces::api::ConnectorSpecifications;
-use masking::{ExposeOptionInterface, PeekInterface};
+use hyperswitch_masking::{ExposeOptionInterface, PeekInterface};
 use router_env::{instrument, tracing};
 
 use super::{Domain, GetTracker, Operation, UpdateTracker, ValidateRequest};
@@ -187,7 +187,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentConfirmData<F>, PaymentsConfir
             domain_types::CryptoOperation::BatchEncrypt(
                 hyperswitch_domain_models::payments::payment_attempt::FromRequestEncryptablePaymentAttempt::to_encryptable(
                     hyperswitch_domain_models::payments::payment_attempt::FromRequestEncryptablePaymentAttempt {
-                        payment_method_billing_address: request.payment_method_data.billing.as_ref().map(|address| address.clone().encode_to_value()).transpose().change_context(errors::ApiErrorResponse::InternalServerError).attach_printable("Failed to encode payment_method_billing address")?.map(masking::Secret::new),
+                        payment_method_billing_address: request.payment_method_data.billing.as_ref().map(|address| address.clone().encode_to_value()).transpose().change_context(errors::ApiErrorResponse::InternalServerError).attach_printable("Failed to encode payment_method_billing address")?.map(hyperswitch_masking::Secret::new),
                     },
                 ),
             ),
@@ -324,7 +324,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentConfirmData<F>, PaymentsConfir
             domain_types::CryptoOperation::BatchEncrypt(
                 hyperswitch_domain_models::payments::payment_attempt::FromRequestEncryptablePaymentAttempt::to_encryptable(
                     hyperswitch_domain_models::payments::payment_attempt::FromRequestEncryptablePaymentAttempt {
-                        payment_method_billing_address: request.payment_method_data.billing.as_ref().map(|address| address.clone().encode_to_value()).transpose().change_context(errors::ApiErrorResponse::InternalServerError).attach_printable("Failed to encode payment_method_billing address")?.map(masking::Secret::new),
+                        payment_method_billing_address: request.payment_method_data.billing.as_ref().map(|address| address.clone().encode_to_value()).transpose().change_context(errors::ApiErrorResponse::InternalServerError).attach_printable("Failed to encode payment_method_billing address")?.map(hyperswitch_masking::Secret::new),
                     },
                 ),
             ),

@@ -30,7 +30,7 @@ use hyperswitch_domain_models::{
     },
 };
 use hyperswitch_interfaces::{consts, errors};
-use masking::{ExposeInterface, PeekInterface, Secret};
+use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 use strum::Display;
 use url::Url;
@@ -611,6 +611,7 @@ impl TryFrom<&FiuuRouterData<&PaymentsAuthorizeRouterData>> for FiuuPaymentReque
                 | PaymentMethodData::NetworkToken(_)
                 | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
                 | PaymentMethodData::CardWithLimitedDetails(_)
+                | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
                 | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
                     Err(errors::ConnectorError::NotImplemented(
                         utils::get_unimplemented_payment_method_error_message("fiuu"),
@@ -1422,7 +1423,10 @@ impl TryFrom<PaymentsSyncResponseRouterData<FiuuPaymentResponse>> for PaymentsSy
                 };
                 Ok(Self {
                     status,
-                    response: error_response.map_or_else(|| Ok(payments_response_data), Err),
+                    response: match error_response {
+                        Some(err) => Err(err),
+                        None => Ok(payments_response_data),
+                    },
                     ..item.data
                 })
             }
@@ -1489,7 +1493,10 @@ impl TryFrom<PaymentsSyncResponseRouterData<FiuuPaymentResponse>> for PaymentsSy
                 };
                 Ok(Self {
                     status,
-                    response: error_response.map_or_else(|| Ok(payments_response_data), Err),
+                    response: match error_response {
+                        Some(err) => Err(err),
+                        None => Ok(payments_response_data),
+                    },
                     ..item.data
                 })
             }
@@ -1664,7 +1671,10 @@ impl TryFrom<PaymentsCaptureResponseRouterData<PaymentCaptureResponse>>
         };
         Ok(Self {
             status,
-            response: error_response.map_or_else(|| Ok(payments_response_data), Err),
+            response: match error_response {
+                Some(err) => Err(err),
+                None => Ok(payments_response_data),
+            },
             ..item.data
         })
     }
@@ -1782,7 +1792,10 @@ impl TryFrom<PaymentsCancelResponseRouterData<FiuuPaymentCancelResponse>>
         };
         Ok(Self {
             status,
-            response: error_response.map_or_else(|| Ok(payments_response_data), Err),
+            response: match error_response {
+                Some(err) => Err(err),
+                None => Ok(payments_response_data),
+            },
             ..item.data
         })
     }

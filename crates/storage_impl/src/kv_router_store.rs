@@ -10,7 +10,7 @@ use hyperswitch_domain_models::{
 };
 #[cfg(not(feature = "payouts"))]
 use hyperswitch_domain_models::{PayoutAttemptInterface, PayoutsInterface};
-use masking::StrongSecret;
+use hyperswitch_masking::StrongSecret;
 use redis_interface::{errors::RedisError, types::HsetnxReply, RedisConnectionPool};
 use router_env::logger;
 use serde::de;

@@ -1281,7 +1281,7 @@ mod tests {
                 webhook_version: None,
                 webhook_username: None,
                 webhook_password: None,
-                webhook_url: Some(masking::Secret::new(
+                webhook_url: Some(hyperswitch_masking::Secret::new(
                     "https://example.com/webhooks".to_string(),
                 )),
                 payment_created_enabled: None,
@@ -1348,7 +1348,7 @@ mod tests {
                 webhook_version: None,
                 webhook_username: None,
                 webhook_password: None,
-                webhook_url: Some(masking::Secret::new(
+                webhook_url: Some(hyperswitch_masking::Secret::new(
                     "https://example.com/webhooks".to_string(),
                 )),
                 payment_created_enabled: None,
@@ -1438,6 +1438,7 @@ mod tests {
             net_amount: MinorUnit::new(6540),
             processor_merchant_id: merchant_id,
             initiator: None,
+            sdk_authorization: None,
             connector: None,
             customer: None,
             disputes: None,

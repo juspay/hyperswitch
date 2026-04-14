@@ -68,7 +68,7 @@ use hyperswitch_domain_models::{
     payments::{self, payment_intent::CustomerData, ClickToPayMetaData},
     router_data::AccessToken,
 };
-use masking::{ExposeInterface, PeekInterface, Secret};
+use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 #[cfg(feature = "v2")]
 use operations::ValidateStatusForOperation;
 use redis_interface::errors::RedisError;
@@ -777,6 +777,7 @@ where
 
         let is_eligible_for_uas = helpers::is_merchant_eligible_authentication_service(
             platform.get_processor().get_account().get_id(),
+            platform.get_processor().get_account().get_org_id(),
             state,
         )
         .await?;
@@ -5450,13 +5451,6 @@ where
             business_profile.get_id().clone(),
         );
 
-        // Extract merchant_order_reference_id from payment data for UCS audit trail
-        let merchant_order_reference_id = payment_data
-            .get_payment_intent()
-            .merchant_reference_id
-            .clone()
-            .map(|id| id.get_string_repr().to_string());
-
         router_data
             .call_unified_connector_service_with_external_vault_proxy(
                 state,
@@ -5466,7 +5460,6 @@ where
                 external_vault_merchant_connector_account_type_details.clone(),
                 processor,
                 ExecutionMode::Primary, //UCS is called in primary mode
-                merchant_order_reference_id,
             )
             .await?;
 
@@ -8995,6 +8988,7 @@ pub fn get_proxy_connector_filters(
 ) -> RouterResult<HashSet<String>> {
     match recurring_details {
         RecurringDetails::NetworkTransactionIdAndCardDetails(_)
+        | RecurringDetails::NetworkTransactionIdAndDecryptedWalletTokenDetails(_)
         | RecurringDetails::NetworkTransactionIdAndNetworkTokenDetails(_) => Ok(state
             .conf
             .network_transaction_id_supported_connectors
@@ -10808,6 +10802,7 @@ pub async fn payment_external_authentication<F: Clone + Sync>(
 
     let authentication_response = if helpers::is_merchant_eligible_authentication_service(
         platform.get_processor().get_account().get_id(),
+        platform.get_processor().get_account().get_org_id(),
         &state,
     )
     .await?

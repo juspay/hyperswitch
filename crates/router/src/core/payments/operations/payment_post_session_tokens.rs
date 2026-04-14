@@ -3,7 +3,7 @@ use std::marker::PhantomData;
 use api_models::enums::FrmSuggestion;
 use async_trait::async_trait;
 use error_stack::ResultExt;
-use masking::PeekInterface;
+use hyperswitch_masking::PeekInterface;
 use router_derive::PaymentOperation;
 use router_env::{instrument, tracing};
 
@@ -69,7 +69,13 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsPostSess
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
         // TODO (#7195): Add platform merchant account validation once publishable key auth is solved
-        helpers::authenticate_client_secret(Some(request.client_secret.peek()), &payment_intent)?;
+        helpers::authenticate_client_secret(
+            request
+                .client_secret
+                .as_ref()
+                .map(|client_secret| client_secret.peek()),
+            &payment_intent,
+        )?;
 
         let mut payment_attempt = db
             .find_payment_attempt_by_payment_id_processor_merchant_id_attempt_id(

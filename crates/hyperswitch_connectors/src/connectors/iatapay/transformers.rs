@@ -21,7 +21,7 @@ use hyperswitch_interfaces::{
     consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE},
     errors,
 };
-use masking::{Secret, SwitchStrategy};
+use hyperswitch_masking::{Secret, SwitchStrategy};
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -216,6 +216,7 @@ impl
             | PaymentMethodData::NetworkToken(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
             | PaymentMethodData::CardWithLimitedDetails(_)
+            | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
             | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     get_unimplemented_payment_method_error_message("iatapay"),
@@ -432,7 +433,10 @@ impl<F, T> TryFrom<ResponseRouterData<F, IatapayPaymentsResponse, T, PaymentsRes
             get_iatpay_response(item.response, item.http_code)?;
         Ok(Self {
             status,
-            response: error.map_or_else(|| Ok(payment_response_data), Err),
+            response: match error {
+                Some(err) => Err(err),
+                None => Ok(payment_response_data),
+            },
             ..item.data
         })
     }

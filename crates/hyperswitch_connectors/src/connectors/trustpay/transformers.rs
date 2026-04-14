@@ -24,7 +24,7 @@ use hyperswitch_domain_models::{
     },
 };
 use hyperswitch_interfaces::{consts, errors};
-use masking::{ExposeInterface, PeekInterface, Secret};
+use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 use reqwest::Url;
 use serde::{Deserialize, Serialize};
 
@@ -607,6 +607,7 @@ impl TryFrom<&TrustpayRouterData<&PaymentsAuthorizeRouterData>> for TrustpayPaym
             | PaymentMethodData::CardToken(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
             | PaymentMethodData::CardWithLimitedDetails(_)
+            | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
             | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("trustpay"),
@@ -844,7 +845,10 @@ impl<F, T> TryFrom<ResponseRouterData<F, TrustpayPaymentsResponse, T, PaymentsRe
             get_trustpay_response(item.response, item.http_code, item.data.status)?;
         Ok(Self {
             status,
-            response: error.map_or_else(|| Ok(payment_response_data), Err),
+            response: match error {
+                Some(err) => Err(err),
+                None => Ok(payment_response_data),
+            },
             ..item.data
         })
     }
@@ -1902,7 +1906,10 @@ impl<F> TryFrom<RefundsResponseRouterData<F, RefundResponse>> for RefundsRouterD
             }
         };
         Ok(Self {
-            response: error.map_or_else(|| Ok(response), Err),
+            response: match error {
+                Some(err) => Err(err),
+                None => Ok(response),
+            },
             ..item.data
         })
     }

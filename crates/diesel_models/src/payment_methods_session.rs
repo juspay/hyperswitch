@@ -56,5 +56,5 @@ pub struct PaymentMethodsSessionUpdateInternal {
     pub billing: Option<common_utils::encryption::Encryption>,
     pub psp_tokenization: Option<common_types::payment_methods::PspTokenization>,
     pub network_tokenization: Option<common_types::payment_methods::NetworkTokenization>,
-    pub tokenzation_data: Option<masking::Secret<serde_json::Value>>,
+    pub tokenzation_data: Option<hyperswitch_masking::Secret<serde_json::Value>>,
 }

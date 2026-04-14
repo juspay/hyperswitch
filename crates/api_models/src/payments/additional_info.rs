@@ -1,7 +1,7 @@
 use common_utils::new_type::{
     MaskedBankAccount, MaskedIban, MaskedRoutingNumber, MaskedSortCode, MaskedUpiVpaId,
 };
-use masking::Secret;
+use hyperswitch_masking::Secret;
 use smithy::SmithyModel;
 use utoipa::ToSchema;
 

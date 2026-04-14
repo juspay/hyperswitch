@@ -20,7 +20,7 @@ use hyperswitch_interfaces::{
     consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE},
     errors,
 };
-use masking::{ExposeInterface, Secret};
+use hyperswitch_masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
 use url::Url;
 
@@ -672,6 +672,7 @@ impl TryFrom<&MultisafepayRouterData<&types::PaymentsAuthorizeRouterData>>
             | PaymentMethodData::NetworkToken(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
             | PaymentMethodData::CardWithLimitedDetails(_)
+            | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
             | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("multisafepay"),
@@ -884,6 +885,7 @@ impl TryFrom<&MultisafepayRouterData<&types::PaymentsAuthorizeRouterData>>
             | PaymentMethodData::NetworkToken(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
             | PaymentMethodData::CardWithLimitedDetails(_)
+            | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
             | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("multisafepay"),

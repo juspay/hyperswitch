@@ -13,7 +13,7 @@ use hyperswitch_domain_models::{
     types,
 };
 use hyperswitch_interfaces::{consts, errors};
-use masking::{ExposeInterface, Secret};
+use hyperswitch_masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
 use url::Url;
 
@@ -242,6 +242,7 @@ impl TryFrom<&MollieRouterData<&types::SetupMandateRouterData>> for MolliePaymen
             | PaymentMethodData::BankDebit(_)
             | PaymentMethodData::MandatePayment
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+            | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
             | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_)
             | PaymentMethodData::CardWithLimitedDetails(_)
             | PaymentMethodData::CardRedirect(_)

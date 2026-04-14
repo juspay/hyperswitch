@@ -9,7 +9,7 @@ use hyperswitch_domain_models::{
     types,
 };
 use hyperswitch_interfaces::errors;
-use masking::Secret;
+use hyperswitch_masking::Secret;
 use serde::{Deserialize, Serialize};
 use url::Url;
 
@@ -182,6 +182,7 @@ impl TryFrom<&DlocalRouterData<&types::PaymentsAuthorizeRouterData>> for DlocalP
             | PaymentMethodData::NetworkToken(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
             | PaymentMethodData::CardWithLimitedDetails(_)
+            | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
             | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     crate::utils::get_unimplemented_payment_method_error_message("Dlocal"),

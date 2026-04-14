@@ -29,7 +29,7 @@ use hyperswitch_domain_models::{
     },
 };
 use hyperswitch_interfaces::{api, errors};
-use masking::{ExposeInterface, PeekInterface, Secret};
+use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
@@ -260,6 +260,7 @@ impl TryFrom<&SetupMandateRouterData> for WellsfargoZeroMandateRequest {
             | PaymentMethodData::NetworkToken(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
             | PaymentMethodData::CardWithLimitedDetails(_)
+            | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
             | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("Wellsfargo"),
@@ -1371,6 +1372,7 @@ impl TryFrom<&WellsfargoRouterData<&PaymentsAuthorizeRouterData>> for Wellsfargo
                     | PaymentMethodData::NetworkToken(_)
                     | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
                     | PaymentMethodData::CardWithLimitedDetails(_)
+                    | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
                     | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
                         Err(errors::ConnectorError::NotImplemented(
                             utils::get_unimplemented_payment_method_error_message("Wellsfargo"),

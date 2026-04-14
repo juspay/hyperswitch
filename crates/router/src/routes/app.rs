@@ -188,10 +188,23 @@ impl SessionState {
             ExecutionMode::Shadow => Some(true),
             ExecutionMode::NotApplicable => None,
         };
+        // For shadow mode, disable event publishing in UCS
+        let config_override = match unified_connector_service_execution_mode {
+            ExecutionMode::Shadow => Some(
+                serde_json::json!({
+                    "events": {
+                        "enabled": false
+                    }
+                })
+                .to_string(),
+            ),
+            _ => None,
+        };
         GrpcHeadersUcs::builder()
             .tenant_id(tenant_id)
             .request_id(request_id)
             .shadow_mode(shadow_mode)
+            .config_override(config_override)
     }
     #[cfg(all(feature = "revenue_recovery", feature = "v2"))]
     pub fn get_recovery_grpc_headers(&self) -> GrpcRecoveryHeaders {
@@ -236,7 +249,7 @@ impl SessionStateInfo for SessionState {
     fn get_detached_auth(&self) -> RouterResult<(Blake3, &[u8])> {
         use error_stack::ResultExt;
         use hyperswitch_domain_models::errors::api_error_response as errors;
-        use masking::prelude::PeekInterface as _;
+        use hyperswitch_masking::PeekInterface as _;
         use router_env::logger;
 
         let output = CHECKSUM_KEY.get_or_try_init(|| {
@@ -250,8 +263,8 @@ impl SessionStateInfo for SessionState {
             let key = conf.api_keys.get_inner().checksum_auth_key.peek();
             hex::decode(key).map(|key| {
                 (
-                    masking::StrongSecret::new(context),
-                    masking::StrongSecret::new(key),
+                    hyperswitch_masking::StrongSecret::new(context),
+                    hyperswitch_masking::StrongSecret::new(key),
                 )
             })
         });
@@ -344,8 +357,8 @@ pub trait AppStateInfo {
 
 #[cfg(feature = "partial-auth")]
 static CHECKSUM_KEY: once_cell::sync::OnceCell<(
-    masking::StrongSecret<String>,
-    masking::StrongSecret<Vec<u8>>,
+    hyperswitch_masking::StrongSecret<String>,
+    hyperswitch_masking::StrongSecret<Vec<u8>>,
 )> = once_cell::sync::OnceCell::new();
 
 impl AppStateInfo for AppState {

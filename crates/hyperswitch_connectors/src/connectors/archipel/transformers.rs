@@ -22,7 +22,7 @@ use hyperswitch_domain_models::{
     },
 };
 use hyperswitch_interfaces::{consts, errors};
-use masking::Secret;
+use hyperswitch_masking::Secret;
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -796,6 +796,7 @@ impl TryFrom<ArchipelRouterData<&PaymentsAuthorizeRouterData>>
             | PaymentMethodData::NetworkToken(..)
             | PaymentMethodData::MobilePayment(..)
             | PaymentMethodData::CardWithLimitedDetails(..)
+            | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(..)
             | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(..) => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("Archipel"),
@@ -851,6 +852,7 @@ impl TryFrom<ArchipelRouterData<&PaymentsAuthorizeRouterData>>
             PaymentMethodData::Card(..)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(..)
             | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_)
+            | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
             | PaymentMethodData::CardWithLimitedDetails(..)
             | PaymentMethodData::CardRedirect(..)
             | PaymentMethodData::PayLater(..)

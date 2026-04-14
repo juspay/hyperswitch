@@ -78,8 +78,8 @@ use hyperswitch_domain_models::{
     types::{OrderDetailsWithAmount, SetupMandateRouterData},
 };
 use hyperswitch_interfaces::{api, consts, errors, types::Response};
+use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 use image::{DynamicImage, ImageBuffer, ImageFormat, Luma, Rgba};
-use masking::{ExposeInterface, PeekInterface, Secret};
 use quick_xml::{
     events::{BytesDecl, BytesText, Event},
     Writer,
@@ -1921,6 +1921,47 @@ impl AdditionalCardInfo for payments::AdditionalCardInfo {
                 .ok_or(errors::ConnectorError::MissingRequiredField {
                     field_name: "card_exp_month",
                 })?;
+        let month = month_binding.peek();
+        let month_str = format!("{:0>2}", month);
+        Ok(Secret::new(format!("{month_str}{year}")))
+    }
+
+    fn get_card_holder_name(&self) -> Result<Secret<String>, errors::ConnectorError> {
+        self.card_holder_name
+            .clone()
+            .ok_or(errors::ConnectorError::MissingRequiredField {
+                field_name: "card_holder_name",
+            })
+    }
+}
+
+impl AdditionalCardInfo
+    for payment_method_data::DecryptedWalletTokenDetailsForNetworkTransactionId
+{
+    fn get_card_expiry_year_2_digit(&self) -> Result<Secret<String>, errors::ConnectorError> {
+        let binding = self.token_exp_year.clone();
+        let year = binding.peek();
+        Ok(Secret::new(
+            year.get(year.len() - 2..)
+                .ok_or(errors::ConnectorError::RequestEncodingFailed)?
+                .to_string(),
+        ))
+    }
+    fn get_card_expiry_year_4_digit(&self) -> Result<Secret<String>, errors::ConnectorError> {
+        let binding = self.token_exp_year.clone();
+        let mut year = binding.peek().to_string();
+        if year.len() == 4 {
+            Ok(Secret::new(year))
+        } else if year.len() == 2 {
+            year = format!("20{year}");
+            Ok(Secret::new(year))
+        } else {
+            Err(errors::ConnectorError::RequestEncodingFailed)
+        }
+    }
+    fn get_expiry_date_as_mmyy(&self) -> Result<Secret<String>, errors::ConnectorError> {
+        let year = self.get_card_expiry_year_2_digit()?.expose();
+        let month_binding = self.token_exp_month.clone();
         let month = month_binding.peek();
         let month_str = format!("{:0>2}", month);
         Ok(Secret::new(format!("{month_str}{year}")))
@@ -6589,6 +6630,7 @@ pub enum PaymentMethodDataType {
     NetworkToken,
     NetworkTransactionIdAndCardDetails,
     NetworkTransactionIdAndNetworkTokenDetails,
+    NetworkTransactionIdAndDecryptedWalletTokenDetails,
     DirectCarrierBilling,
     InstantBankTransfer,
     InstantBankTransferFinland,
@@ -6608,6 +6650,9 @@ impl From<PaymentMethodData> for PaymentMethodDataType {
             PaymentMethodData::CardWithLimitedDetails(_) => Self::CardWithLimitedDetails,
             PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
                 Self::NetworkTransactionIdAndNetworkTokenDetails
+            }
+            PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_) => {
+                Self::NetworkTransactionIdAndDecryptedWalletTokenDetails
             }
             PaymentMethodData::CardRedirect(card_redirect_data) => match card_redirect_data {
                 payment_method_data::CardRedirectData::Knet {} => Self::Knet,
@@ -7600,11 +7645,11 @@ pub trait CustomerDetails {
     fn get_customer_id(&self) -> Result<id_type::CustomerId, errors::ConnectorError>;
     fn get_customer_name(
         &self,
-    ) -> Result<Secret<String, masking::WithType>, errors::ConnectorError>;
+    ) -> Result<Secret<String, hyperswitch_masking::WithType>, errors::ConnectorError>;
     fn get_customer_email(&self) -> Result<Email, errors::ConnectorError>;
     fn get_customer_phone(
         &self,
-    ) -> Result<Secret<String, masking::WithType>, errors::ConnectorError>;
+    ) -> Result<Secret<String, hyperswitch_masking::WithType>, errors::ConnectorError>;
     fn get_customer_phone_country_code(&self) -> Result<String, errors::ConnectorError>;
 }
 
@@ -7620,7 +7665,7 @@ impl CustomerDetails for hyperswitch_domain_models::router_request_types::Custom
 
     fn get_customer_name(
         &self,
-    ) -> Result<Secret<String, masking::WithType>, errors::ConnectorError> {
+    ) -> Result<Secret<String, hyperswitch_masking::WithType>, errors::ConnectorError> {
         self.name
             .clone()
             .ok_or(errors::ConnectorError::MissingRequiredField {
@@ -7638,7 +7683,7 @@ impl CustomerDetails for hyperswitch_domain_models::router_request_types::Custom
 
     fn get_customer_phone(
         &self,
-    ) -> Result<Secret<String, masking::WithType>, errors::ConnectorError> {
+    ) -> Result<Secret<String, hyperswitch_masking::WithType>, errors::ConnectorError> {
         self.phone
             .clone()
             .ok_or(errors::ConnectorError::MissingRequiredField {

@@ -30,7 +30,7 @@ use hyperswitch_domain_models::{
     },
 };
 use hyperswitch_interfaces::errors;
-use masking::{ExposeInterface, PeekInterface, Secret, StrongSecret};
+use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret, StrongSecret};
 use rand::distributions::{Alphanumeric, DistString};
 use regex::Regex;
 use serde::{Deserialize, Serialize};
@@ -559,6 +559,7 @@ impl TryFrom<&SetupMandateRouterData> for CreateCustomerPaymentProfileRequest {
             | PaymentMethodData::NetworkToken(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
             | PaymentMethodData::CardWithLimitedDetails(_)
+            | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
             | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("authorizedotnet"),
@@ -846,6 +847,7 @@ impl TryFrom<&AuthorizedotnetRouterData<&PaymentsAuthorizeRouterData>>
                     | PaymentMethodData::NetworkToken(_)
                     | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
                     | PaymentMethodData::CardWithLimitedDetails(_)
+                    | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
                     | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
                         Err(errors::ConnectorError::NotImplemented(
                             utils::get_unimplemented_payment_method_error_message(
@@ -910,6 +912,7 @@ impl
                 | PaymentMethodData::NetworkToken(_)
                 | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
                 | PaymentMethodData::CardWithLimitedDetails(_)
+                | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
                 | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
                     Err(errors::ConnectorError::NotImplemented(
                         utils::get_unimplemented_payment_method_error_message("authorizedotnet"),

@@ -45,7 +45,7 @@ common_enums = { version = "0.1.0", path = "../common_enums" }
 common_types = { version = "0.1.0", path = "../common_types" }
 common_utils = { version = "0.1.0", path = "../common_utils" }
 euclid = { version = "0.1.0", path = "../euclid" }
-masking = { version = "0.1.0", path = "../masking", default-features = false, features = ["alloc", "serde"] }
+hyperswitch_masking = { version = "0.0.1", default-features = false, features = ["alloc", "serde", "time"] }
 router_derive = { version = "0.1.0", path = "../router_derive" }
 smithy = { version = "0.1.0", path = "../smithy" }
 smithy-core = { version = "0.1.0", path = "../smithy-core" }

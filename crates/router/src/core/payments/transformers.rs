@@ -10,7 +10,7 @@ use api_models::payments::{
     Address, ConnectorMandateReferenceId, CustomerDetails, CustomerDetailsResponse, FrmMessage,
     MandateIds, NetworkDetails, RequestSurchargeDetails,
 };
-use common_enums::{Currency, RequestIncrementalAuthorization};
+use common_enums::{Currency, MerchantAccountType, RequestIncrementalAuthorization};
 #[cfg(feature = "v1")]
 use common_utils::{
     consts::X_HS_LATENCY,
@@ -37,7 +37,9 @@ use diesel_models::{
     },
 };
 use error_stack::{report, ResultExt};
-use hyperswitch_domain_models::{payments::payment_intent::CustomerData, router_request_types};
+use hyperswitch_domain_models::{
+    payments::payment_intent::CustomerData, router_request_types, sdk_auth::SdkAuthorization,
+};
 #[cfg(feature = "v2")]
 use hyperswitch_domain_models::{
     router_data_v2::{flow_common_types, RouterDataV2},
@@ -47,9 +49,9 @@ use hyperswitch_domain_models::{
 use hyperswitch_interfaces::api::ConnectorSpecifications;
 #[cfg(feature = "v2")]
 use hyperswitch_interfaces::connector_integration_interface::RouterDataConversion;
-use masking::{ExposeInterface, Maskable, Secret};
+use hyperswitch_masking::{ExposeInterface, Maskable, Secret};
 #[cfg(feature = "v2")]
-use masking::{ExposeOptionInterface, PeekInterface};
+use hyperswitch_masking::{ExposeOptionInterface, PeekInterface};
 use router_env::{instrument, tracing};
 
 use super::{flows::Feature, types::AuthenticationData, OperationSessionGetters, PaymentData};
@@ -321,7 +323,7 @@ pub async fn construct_payment_router_data_for_authorize<'a>(
     _merchant_recipient_data: Option<types::MerchantRecipientData>,
     header_payload: Option<hyperswitch_domain_models::payments::HeaderPayload>,
 ) -> RouterResult<types::PaymentsAuthorizeRouterData> {
-    use masking::ExposeOptionInterface;
+    use hyperswitch_masking::ExposeOptionInterface;
 
     fp_utils::when(merchant_connector_account.is_disabled(), || {
         Err(errors::ApiErrorResponse::MerchantConnectorAccountDisabled)
@@ -592,7 +594,7 @@ pub async fn construct_external_vault_proxy_payment_router_data<'a>(
     _merchant_recipient_data: Option<types::MerchantRecipientData>,
     header_payload: Option<hyperswitch_domain_models::payments::HeaderPayload>,
 ) -> RouterResult<types::ExternalVaultProxyPaymentsRouterData> {
-    use masking::ExposeOptionInterface;
+    use hyperswitch_masking::ExposeOptionInterface;
 
     fp_utils::when(merchant_connector_account.is_disabled(), || {
         Err(errors::ApiErrorResponse::MerchantConnectorAccountDisabled)
@@ -768,7 +770,7 @@ pub async fn construct_payment_router_data_for_capture<'a>(
     _merchant_recipient_data: Option<types::MerchantRecipientData>,
     header_payload: Option<hyperswitch_domain_models::payments::HeaderPayload>,
 ) -> RouterResult<types::PaymentsCaptureRouterData> {
-    use masking::ExposeOptionInterface;
+    use hyperswitch_masking::ExposeOptionInterface;
 
     fp_utils::when(merchant_connector_account.is_disabled(), || {
         Err(errors::ApiErrorResponse::MerchantConnectorAccountDisabled)
@@ -939,7 +941,7 @@ pub async fn construct_router_data_for_psync<'a>(
     _merchant_recipient_data: Option<types::MerchantRecipientData>,
     header_payload: Option<hyperswitch_domain_models::payments::HeaderPayload>,
 ) -> RouterResult<types::PaymentsSyncRouterData> {
-    use masking::ExposeOptionInterface;
+    use hyperswitch_masking::ExposeOptionInterface;
 
     fp_utils::when(merchant_connector_account.is_disabled(), || {
         Err(errors::ApiErrorResponse::MerchantConnectorAccountDisabled)
@@ -3914,6 +3916,38 @@ where
             .map(api_payments::PaymentMethodTokenizationDetails::foreign_try_from)
             .transpose()?;
 
+        // Construct SDK authorization for client SDK
+        let sdk_auth_data = SdkAuthorization {
+            profile_id: payment_intent
+                .profile_id
+                .clone()
+                .get_required_value("profile_id")?,
+            publishable_key: processor.get_account().publishable_key.clone(),
+            platform_publishable_key: initiator.and_then(|init| match init {
+                domain::Initiator::Api {
+                    merchant_account_type,
+                    publishable_key,
+                    ..
+                } => match merchant_account_type {
+                    MerchantAccountType::Platform => Some(publishable_key.clone()),
+                    MerchantAccountType::Standard | MerchantAccountType::Connected => None,
+                },
+                domain::Initiator::Admin
+                | domain::Initiator::Jwt { .. }
+                | domain::Initiator::EmbeddedToken { .. } => None,
+            }),
+            client_secret: payment_intent
+                .client_secret
+                .clone()
+                .get_required_value("client_secret")?,
+            customer_id: payment_intent.customer_id.clone(),
+        };
+
+        let sdk_authorization = sdk_auth_data
+            .encode()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to encode SDK authorization")?;
+
         let payments_response = api::PaymentsResponse {
             payment_id: payment_intent.payment_id,
             merchant_id: payment_intent.merchant_id,
@@ -3924,6 +3958,7 @@ where
             amount_received: payment_intent.amount_captured,
             processor_merchant_id: processor.get_account().get_id().clone(),
             initiator: initiator.and_then(|initiator| initiator.to_api_initiator()),
+            sdk_authorization: Some(sdk_authorization),
             connector: routed_through,
             client_secret: payment_intent.client_secret.map(Secret::new),
             created: Some(payment_intent.created_at),
@@ -4304,6 +4339,7 @@ impl
             amount_received: None,
             processor_merchant_id: pi.processor_merchant_id,
             initiator: api_initiator,
+            sdk_authorization: None,
             refunds: None,
             disputes: None,
             attempts: None,
@@ -5172,7 +5208,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsCaptureD
     type Error = error_stack::Report<errors::ApiErrorResponse>;
 
     fn try_from(additional_data: PaymentAdditionalData<'_, F>) -> Result<Self, Self::Error> {
-        use masking::ExposeOptionInterface;
+        use hyperswitch_masking::ExposeOptionInterface;
 
         let payment_data = additional_data.payment_data;
         let connector = api::ConnectorData::get_connector_by_name(

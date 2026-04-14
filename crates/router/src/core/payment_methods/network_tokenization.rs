@@ -22,8 +22,8 @@ use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::payment_method_data::{
     NetworkTokenDetails, NetworkTokenDetailsPaymentMethod,
 };
+use hyperswitch_masking::{ErasedMaskSerialize, ExposeInterface, Mask, PeekInterface, Secret};
 use josekit::jwe;
-use masking::{ErasedMaskSerialize, ExposeInterface, Mask, PeekInterface, Secret};
 
 use super::transformers::DeleteCardResp;
 #[cfg(feature = "v2")]

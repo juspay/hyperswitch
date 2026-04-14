@@ -19,7 +19,7 @@ use hyperswitch_domain_models::{
     types,
 };
 use hyperswitch_interfaces::{api, errors};
-use masking::{ExposeInterface, PeekInterface, Secret};
+use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 
 use super::{requests::*, response::*};
@@ -207,6 +207,7 @@ fn fetch_payment_instrument(
         | PaymentMethodData::CardToken(_)
         | PaymentMethodData::NetworkToken(_)
         | PaymentMethodData::CardWithLimitedDetails(_)
+        | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
         | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
             Err(errors::ConnectorError::NotImplemented(
                 utils::get_unimplemented_payment_method_error_message("worldpay"),

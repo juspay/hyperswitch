@@ -49,7 +49,7 @@ use hyperswitch_interfaces::{
     types::{self, Response},
     webhooks,
 };
-use masking::{ExposeInterface, PeekInterface, Secret};
+use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 use reqwest::multipart::Form;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -197,7 +197,8 @@ where
         &self,
         _req: &RouterData<Flow, Request, Response>,
         _connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         let header = vec![(
             headers::CONTENT_TYPE.to_string(),
             self.get_content_type().to_string().into(),
@@ -299,7 +300,8 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         &self,
         req: &PaymentsAuthorizeRouterData,
         connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         self.build_headers(req, connectors)
     }
 
@@ -414,7 +416,8 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Fiu
         &self,
         req: &PaymentsSyncRouterData,
         connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         self.build_headers(req, connectors)
     }
     fn get_url(
@@ -941,7 +944,8 @@ impl webhooks::IncomingWebhook for Fiuu {
     fn get_webhook_resource_object(
         &self,
         request: &webhooks::IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
+    ) -> CustomResult<Box<dyn hyperswitch_masking::ErasedMaskSerialize>, errors::ConnectorError>
+    {
         let header = utils::get_header_key_value("content-type", request.headers)?;
         let payload: FiuuWebhooksResponse = if header == "application/x-www-form-urlencoded" {
             parse_and_log_keys_in_url_encoded_response::<FiuuWebhooksResponse>(request.body);

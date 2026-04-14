@@ -2,7 +2,7 @@ use std::collections::HashSet;
 
 pub use common_utils::types::TimeRange;
 use common_utils::{events::ApiEventMetric, pii::EmailStrategy, types::authentication::AuthInfo};
-use masking::Secret;
+use hyperswitch_masking::Secret;
 
 use self::{
     active_payments::ActivePaymentsMetrics,

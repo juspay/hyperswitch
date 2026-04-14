@@ -19,7 +19,7 @@ use hyperswitch_domain_models::payments::{
 };
 use hyperswitch_domain_models::{behaviour::Conversion, payments::payment_attempt::PaymentAttempt};
 #[cfg(feature = "v2")]
-use masking::PeekInterface;
+use hyperswitch_masking::PeekInterface;
 use router_derive;
 use router_env::{instrument, logger, tracing};
 use tracing_futures::Instrument;
@@ -1639,6 +1639,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
     let additional_payment_method_data_intermediate = match payment_data.payment_method_data.clone() {
         Some(hyperswitch_domain_models::payment_method_data::PaymentMethodData::NetworkToken(_))
         | Some(hyperswitch_domain_models::payment_method_data::PaymentMethodData::CardDetailsForNetworkTransactionId(_))
+        | Some(hyperswitch_domain_models::payment_method_data::PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_))
         | Some(hyperswitch_domain_models::payment_method_data::PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_)) => {
             payment_data.payment_attempt.payment_method_data.clone()
         }
@@ -2398,7 +2399,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                 .payment_intent
                 .feature_metadata
                 .clone()
-                .map(masking::Secret::new),
+                .map(hyperswitch_masking::Secret::new),
         },
         Ok(_) => storage::PaymentIntentUpdate::ResponseUpdate {
             status: api_models::enums::IntentStatus::foreign_from(
@@ -2414,7 +2415,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                 .payment_intent
                 .feature_metadata
                 .clone()
-                .map(masking::Secret::new),
+                .map(hyperswitch_masking::Secret::new),
         },
     };
 
@@ -3283,7 +3284,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentConfirmData<F>, types::SetupMandateRe
                         original_payment_authorized_amount: Some(net_amount),
                         original_payment_authorized_currency: Some(currency),
                         metadata: None,
-                        token: masking::Secret::new(token),
+                        token: hyperswitch_masking::Secret::new(token),
                         token_type: common_enums::TokenizationType::MultiUse,
                     };
 
@@ -3319,7 +3320,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentConfirmData<F>, types::SetupMandateRe
 #[cfg(feature = "v1")]
 fn update_connector_mandate_details_for_the_flow<F: Clone>(
     connector_mandate_id: Option<String>,
-    mandate_metadata: Option<masking::Secret<serde_json::Value>>,
+    mandate_metadata: Option<hyperswitch_masking::Secret<serde_json::Value>>,
     connector_mandate_request_reference_id: Option<String>,
     payment_data: &mut PaymentData<F>,
 ) -> RouterResult<()> {

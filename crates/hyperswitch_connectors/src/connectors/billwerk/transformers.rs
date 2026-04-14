@@ -19,7 +19,7 @@ use hyperswitch_interfaces::{
     consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE},
     errors,
 };
-use masking::{ExposeInterface, Secret};
+use hyperswitch_masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -122,6 +122,7 @@ impl TryFrom<&types::TokenizationRouterData> for BillwerkTokenRequest {
             | PaymentMethodData::NetworkToken(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
             | PaymentMethodData::CardWithLimitedDetails(_)
+            | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
             | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("billwerk"),
@@ -303,7 +304,10 @@ impl<F, T> TryFrom<ResponseRouterData<F, BillwerkPaymentsResponse, T, PaymentsRe
         };
         Ok(Self {
             status: enums::AttemptStatus::from(item.response.state),
-            response: error_response.map_or_else(|| Ok(payments_response), Err),
+            response: match error_response {
+                Some(err) => Err(err),
+                None => Ok(payments_response),
+            },
             ..item.data
         })
     }

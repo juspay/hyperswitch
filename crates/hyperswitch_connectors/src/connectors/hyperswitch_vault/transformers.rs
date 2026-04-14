@@ -8,7 +8,7 @@ use hyperswitch_domain_models::{
     types::{ConnectorCustomerRouterData, VaultRouterData},
 };
 use hyperswitch_interfaces::errors;
-use masking::Secret;
+use hyperswitch_masking::Secret;
 use serde::{Deserialize, Serialize};
 
 use crate::{types::ResponseRouterData, utils};
