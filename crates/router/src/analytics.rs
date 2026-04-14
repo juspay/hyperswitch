@@ -45,7 +45,7 @@ pub mod routes {
             authorization::{permissions::Permission, roles::RoleInfo},
             ApplicationResponse,
         },
-        types::{domain::UserEmail, storage::UserRole},
+        types::{domain, domain::UserEmail, storage::UserRole},
     };
 
     pub struct Analytics;
@@ -3512,29 +3512,121 @@ pub mod routes {
                     })
                     .collect();
 
+                // Collect unique merchant_ids to fetch merchant accounts for platform context
+                let merchant_ids: Vec<_> = filtered_user_roles
+                    .iter()
+                    .filter_map(|ur| ur.merchant_id.clone())
+                    .collect::<HashSet<_>>()
+                    .into_iter()
+                    .collect();
+
+                // Fetch merchant accounts to determine platform context
+                let merchant_account_map: HashMap<_, domain::MerchantAccount> =
+                    futures::future::try_join_all(merchant_ids.iter().map(|merchant_id| {
+                        let state = Arc::clone(&state);
+                        let merchant_id = merchant_id.clone();
+                        async move {
+                            let key_store = state
+                                .store
+                                .get_merchant_key_store_by_merchant_id(
+                                    &merchant_id,
+                                    &state.store.get_master_key().to_vec().into(),
+                                )
+                                .await
+                                .change_context(UserErrors::InternalServerError)
+                                .change_context(OpenSearchError::UnknownError)?;
+
+                            let merchant_account = state
+                                .store
+                                .find_merchant_account_by_merchant_id(&merchant_id, &key_store)
+                                .await
+                                .change_context(UserErrors::InternalServerError)
+                                .change_context(OpenSearchError::UnknownError)?;
+
+                            Ok::<_, error_stack::Report<OpenSearchError>>((
+                                merchant_id,
+                                merchant_account,
+                            ))
+                        }
+                    }))
+                    .await?
+                    .into_iter()
+                    .collect();
+
+                // Build AuthInfo with platform context support
                 let search_params: Vec<AuthInfo> = filtered_user_roles
                     .iter()
                     .filter_map(|user_role| {
                         user_role
                             .get_entity_id_and_type()
-                            .and_then(|(_, entity_type)| match entity_type {
-                                EntityType::Profile => Some(AuthInfo::ProfileLevel {
-                                    org_id: user_role.org_id.clone()?,
-                                    merchant_id: user_role.merchant_id.clone()?,
-                                    profile_ids: vec![user_role.profile_id.clone()?],
-                                    processor_merchant_id: None,
-                                }),
-                                EntityType::Merchant => Some(AuthInfo::MerchantLevel {
-                                    org_id: user_role.org_id.clone()?,
-                                    merchant_ids: vec![user_role.merchant_id.clone()?],
-                                    processor_merchant_ids: None,
-                                }),
-                                EntityType::Organization => Some(AuthInfo::OrgLevel {
-                                    org_id: user_role.org_id.clone()?,
-                                }),
-                                EntityType::Tenant => Some(AuthInfo::OrgLevel {
-                                    org_id: auth.org_id.clone(),
-                                }),
+                            .and_then(|(_, entity_type)| {
+                                let merchant_account = user_role
+                                    .merchant_id
+                                    .as_ref()
+                                    .and_then(|mid| merchant_account_map.get(mid));
+
+                                // Check if this is a connected merchant
+                                let is_connected = merchant_account
+                                    .map(|ma| {
+                                        ma.merchant_account_type
+                                            == common_enums::MerchantAccountType::Connected
+                                    })
+                                    .unwrap_or(false);
+
+                                let parent_merchant_id =
+                                    merchant_account.and_then(|ma| ma.parent_merchant_id.clone());
+
+                                match entity_type {
+                                    EntityType::Profile => {
+                                        let org_id = user_role.org_id.clone()?;
+                                        let profile_id = user_role.profile_id.clone()?;
+
+                                        if is_connected {
+                                            // Connected merchant: use parent as merchant_id, current as processor
+                                            Some(AuthInfo::ProfileLevel {
+                                                org_id,
+                                                merchant_id: parent_merchant_id?,
+                                                profile_ids: vec![profile_id],
+                                                processor_merchant_id: user_role.merchant_id.clone(),
+                                            })
+                                        } else {
+                                            // Standard/Platform merchant
+                                            Some(AuthInfo::ProfileLevel {
+                                                org_id,
+                                                merchant_id: user_role.merchant_id.clone()?,
+                                                profile_ids: vec![profile_id],
+                                                processor_merchant_id: None,
+                                            })
+                                        }
+                                    }
+                                    EntityType::Merchant => {
+                                        let org_id = user_role.org_id.clone()?;
+
+                                        if is_connected {
+                                            // Connected merchant: use parent as merchant_ids, current as processor
+                                            Some(AuthInfo::MerchantLevel {
+                                                org_id,
+                                                merchant_ids: vec![parent_merchant_id?],
+                                                processor_merchant_ids: Some(vec![user_role
+                                                    .merchant_id
+                                                    .clone()?]),
+                                            })
+                                        } else {
+                                            // Standard/Platform merchant
+                                            Some(AuthInfo::MerchantLevel {
+                                                org_id,
+                                                merchant_ids: vec![user_role.merchant_id.clone()?],
+                                                processor_merchant_ids: None,
+                                            })
+                                        }
+                                    }
+                                    EntityType::Organization => Some(AuthInfo::OrgLevel {
+                                        org_id: user_role.org_id.clone()?,
+                                    }),
+                                    EntityType::Tenant => Some(AuthInfo::OrgLevel {
+                                        org_id: auth.org_id.clone(),
+                                    }),
+                                }
                             })
                     })
                     .collect();
@@ -3668,32 +3760,125 @@ pub mod routes {
                     })
                     .collect();
 
+                // Collect unique merchant_ids to fetch merchant accounts for platform context
+                let merchant_ids: Vec<_> = filtered_user_roles
+                    .iter()
+                    .filter_map(|ur| ur.merchant_id.clone())
+                    .collect::<HashSet<_>>()
+                    .into_iter()
+                    .collect();
+
+                // Fetch merchant accounts to determine platform context
+                let merchant_account_map: HashMap<_, domain::MerchantAccount> =
+                    futures::future::try_join_all(merchant_ids.iter().map(|merchant_id| {
+                        let state = Arc::clone(&state);
+                        let merchant_id = merchant_id.clone();
+                        async move {
+                            let key_store = state
+                                .store
+                                .get_merchant_key_store_by_merchant_id(
+                                    &merchant_id,
+                                    &state.store.get_master_key().to_vec().into(),
+                                )
+                                .await
+                                .change_context(UserErrors::InternalServerError)
+                                .change_context(OpenSearchError::UnknownError)?;
+
+                            let merchant_account = state
+                                .store
+                                .find_merchant_account_by_merchant_id(&merchant_id, &key_store)
+                                .await
+                                .change_context(UserErrors::InternalServerError)
+                                .change_context(OpenSearchError::UnknownError)?;
+
+                            Ok::<_, error_stack::Report<OpenSearchError>>((
+                                merchant_id,
+                                merchant_account,
+                            ))
+                        }
+                    }))
+                    .await?
+                    .into_iter()
+                    .collect();
+
+                // Build AuthInfo with platform context support
                 let search_params: Vec<AuthInfo> = filtered_user_roles
                     .iter()
                     .filter_map(|user_role| {
                         user_role
                             .get_entity_id_and_type()
-                            .and_then(|(_, entity_type)| match entity_type {
-                                EntityType::Profile => Some(AuthInfo::ProfileLevel {
-                                    org_id: user_role.org_id.clone()?,
-                                    merchant_id: user_role.merchant_id.clone()?,
-                                    profile_ids: vec![user_role.profile_id.clone()?],
-                                    processor_merchant_id: None,
-                                }),
-                                EntityType::Merchant => Some(AuthInfo::MerchantLevel {
-                                    org_id: user_role.org_id.clone()?,
-                                    merchant_ids: vec![user_role.merchant_id.clone()?],
-                                    processor_merchant_ids: None,
-                                }),
-                                EntityType::Organization => Some(AuthInfo::OrgLevel {
-                                    org_id: user_role.org_id.clone()?,
-                                }),
-                                EntityType::Tenant => Some(AuthInfo::OrgLevel {
-                                    org_id: auth.org_id.clone(),
-                                }),
+                            .and_then(|(_, entity_type)| {
+                                let merchant_account = user_role
+                                    .merchant_id
+                                    .as_ref()
+                                    .and_then(|mid| merchant_account_map.get(mid));
+
+                                // Check if this is a connected merchant
+                                let is_connected = merchant_account
+                                    .map(|ma| {
+                                        ma.merchant_account_type
+                                            == common_enums::MerchantAccountType::Connected
+                                    })
+                                    .unwrap_or(false);
+
+                                let parent_merchant_id =
+                                    merchant_account.and_then(|ma| ma.parent_merchant_id.clone());
+
+                                match entity_type {
+                                    EntityType::Profile => {
+                                        let org_id = user_role.org_id.clone()?;
+                                        let profile_id = user_role.profile_id.clone()?;
+
+                                        if is_connected {
+                                            // Connected merchant: use parent as merchant_id, current as processor
+                                            Some(AuthInfo::ProfileLevel {
+                                                org_id,
+                                                merchant_id: parent_merchant_id?,
+                                                profile_ids: vec![profile_id],
+                                                processor_merchant_id: user_role.merchant_id.clone(),
+                                            })
+                                        } else {
+                                            // Standard/Platform merchant
+                                            Some(AuthInfo::ProfileLevel {
+                                                org_id,
+                                                merchant_id: user_role.merchant_id.clone()?,
+                                                profile_ids: vec![profile_id],
+                                                processor_merchant_id: None,
+                                            })
+                                        }
+                                    }
+                                    EntityType::Merchant => {
+                                        let org_id = user_role.org_id.clone()?;
+
+                                        if is_connected {
+                                            // Connected merchant: use parent as merchant_ids, current as processor
+                                            Some(AuthInfo::MerchantLevel {
+                                                org_id,
+                                                merchant_ids: vec![parent_merchant_id?],
+                                                processor_merchant_ids: Some(vec![user_role
+                                                    .merchant_id
+                                                    .clone()?]),
+                                            })
+                                        } else {
+                                            // Standard/Platform merchant
+                                            Some(AuthInfo::MerchantLevel {
+                                                org_id,
+                                                merchant_ids: vec![user_role.merchant_id.clone()?],
+                                                processor_merchant_ids: None,
+                                            })
+                                        }
+                                    }
+                                    EntityType::Organization => Some(AuthInfo::OrgLevel {
+                                        org_id: user_role.org_id.clone()?,
+                                    }),
+                                    EntityType::Tenant => Some(AuthInfo::OrgLevel {
+                                        org_id: auth.org_id.clone(),
+                                    }),
+                                }
                             })
                     })
                     .collect();
+
                 analytics::search::search_results(
                     state
                         .opensearch_client
