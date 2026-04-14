@@ -51,6 +51,8 @@ pub enum ApiIdentifier {
     ThreeDsDecisionRule,
     GenericTokenization,
     RecoveryRecovery,
+    CardIssuers,
+    MerchantConnectorWebhookManagement,
 }
 
 impl From<Flow> for ApiIdentifier {
@@ -380,6 +382,12 @@ impl From<Flow> for ApiIdentifier {
             | Flow::NetworkTokenEligibilityCheck => Self::GenericTokenization,
 
             Flow::RecoveryDataBackfill | Flow::RevenueRecoveryRedis => Self::RecoveryRecovery,
+            Flow::MerchantConnectorWebhookRegister | Flow::MerchantConnectorWebhookList => {
+                Self::MerchantConnectorWebhookManagement
+            }
+            Flow::AddCardIssuer | Flow::UpdateCardIssuer | Flow::ListCardIssuers => {
+                Self::CardIssuers
+            }
         }
     }
 }

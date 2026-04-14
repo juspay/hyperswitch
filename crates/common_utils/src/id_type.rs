@@ -3,6 +3,7 @@
 
 mod api_key;
 mod authentication;
+mod card_issuer;
 mod client_secret;
 mod customer;
 #[cfg(feature = "v2")]
@@ -47,6 +48,7 @@ pub use self::global_id::{
 pub use self::{
     api_key::ApiKeyId,
     authentication::AuthenticationId,
+    card_issuer::CardIssuerId,
     client_secret::ClientSecretId,
     customer::CustomerId,
     invoice::InvoiceId,

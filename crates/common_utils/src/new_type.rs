@@ -2,7 +2,7 @@
 use masking::{ExposeInterface, PeekInterface, Secret};
 
 use crate::{
-    consts::MAX_ALLOWED_MERCHANT_NAME_LENGTH,
+    consts::{MAX_ALLOWED_CARD_ISSUER_NAME_LENGTH, MAX_ALLOWED_MERCHANT_NAME_LENGTH},
     pii::{Email, UpiVpaMaskingStrategy},
     transformers::ForeignFrom,
 };
@@ -14,6 +14,14 @@ use crate::{
 pub struct MerchantName(String);
 
 impl masking::SerializableSecret for MerchantName {}
+
+#[nutype::nutype(
+    derive(Clone, Serialize, Deserialize, Debug, PartialEq, Eq, Hash),
+    validate(len_char_min = 1, len_char_max = MAX_ALLOWED_CARD_ISSUER_NAME_LENGTH)
+)]
+pub struct CardIssuerName(String);
+
+impl hyperswitch_masking::SerializableSecret for CardIssuerName {}
 
 /// Function for masking alphanumeric characters in a string.
 ///

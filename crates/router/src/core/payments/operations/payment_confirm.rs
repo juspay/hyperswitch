@@ -1841,8 +1841,15 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
         state: &SessionState,
         processor: &domain::Processor,
         payment_data: &mut PaymentData<F>,
+        business_profile: &domain::Profile,
     ) -> CustomResult<bool, errors::ApiErrorResponse> {
-        blocklist_utils::validate_data_for_blocklist(state, processor, payment_data).await
+        blocklist_utils::validate_data_for_blocklist(
+            state,
+            processor,
+            payment_data,
+            business_profile,
+        )
+        .await
     }
 
     #[instrument(skip_all)]

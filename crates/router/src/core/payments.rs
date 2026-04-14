@@ -4588,7 +4588,14 @@ where
     routing_decision.map(|decision| decision.apply_routing_decision(payment_data));
 
     // Validating the blocklist guard and generate the fingerprint
-    blocklist_guard(state, platform.get_processor(), operation, payment_data).await?;
+    blocklist_guard(
+        state,
+        platform.get_processor(),
+        operation,
+        payment_data,
+        business_profile,
+    )
+    .await?;
 
     let merchant_recipient_data = payment_data
         .get_merchant_recipient_data(
@@ -6384,6 +6391,7 @@ async fn blocklist_guard<F, ApiRequest, D>(
     processor: &domain::Processor,
     operation: &BoxedOperation<'_, F, ApiRequest, D>,
     payment_data: &mut D,
+    business_profile: &domain::Profile,
 ) -> CustomResult<bool, errors::ApiErrorResponse>
 where
     F: Send + Clone + Sync,
@@ -6411,7 +6419,7 @@ where
     if blocklist_guard_enabled {
         Ok(operation
             .to_domain()?
-            .guard_payment_against_blocklist(state, processor, payment_data)
+            .guard_payment_against_blocklist(state, processor, payment_data, business_profile)
             .await?)
     } else {
         Ok(false)
@@ -7933,7 +7941,7 @@ where
 #[cfg(feature = "v1")]
 #[derive(Clone)]
 pub struct PaymentEligibilityData {
-    pub payment_method_data: Option<domain::PaymentMethodData>,
+    pub payment_method_data: Option<domain::EligibilityPaymentMethodData>,
     pub payment_intent: storage::PaymentIntent,
     pub browser_info: Option<pii::SecretSerdeValue>,
 }
@@ -7949,7 +7957,7 @@ impl PaymentEligibilityData {
             .payment_method_data
             .payment_method_data
             .clone()
-            .map(domain::PaymentMethodData::from);
+            .map(domain::EligibilityPaymentMethodData::from);
         let browser_info = payments_eligibility_request
             .browser_info
             .clone()
@@ -11241,12 +11249,13 @@ impl EligibilityCheck for BlockListCheck {
         state: &SessionState,
         platform: &domain::Platform,
         payment_elgibility_data: &PaymentEligibilityData,
-        _business_profile: &domain::Profile,
+        business_profile: &domain::Profile,
     ) -> CustomResult<CheckResult, errors::ApiErrorResponse> {
         let should_payment_be_blocked = blocklist_utils::should_payment_be_blocked(
             state,
             platform.get_processor(),
             &payment_elgibility_data.payment_method_data,
+            business_profile,
         )
         .await?;
         if should_payment_be_blocked {
@@ -11289,7 +11298,7 @@ impl EligibilityCheck for CardTestingCheck {
         business_profile: &domain::Profile,
     ) -> CustomResult<CheckResult, errors::ApiErrorResponse> {
         match &payment_elgibility_data.payment_method_data {
-            Some(domain::PaymentMethodData::Card(card)) => {
+            Some(domain::EligibilityPaymentMethodData::Card(card)) => {
                 match card_testing_guard_utils::validate_card_testing_guard_checks(
                     state,
                     payment_elgibility_data

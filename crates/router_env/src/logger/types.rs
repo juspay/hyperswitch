@@ -307,6 +307,16 @@ pub enum Flow {
     ToggleDynamicRouting,
     /// Update dynamic routing config
     UpdateDynamicRoutingConfigs,
+    /// Add a card issuer to the catalog
+    AddCardIssuer,
+    /// Update a card issuer in the catalog
+    UpdateCardIssuer,
+    /// List card issuers from the catalog
+    ListCardIssuers,
+    /// Merchant Connector Webhook Register flow
+    MerchantConnectorWebhookRegister,
+    /// Merchant Connector Webhook List flow
+    MerchantConnectorWebhookList,
     /// Add record to blocklist
     AddToBlocklist,
     /// Delete record from blocklist
