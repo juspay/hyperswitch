@@ -108,6 +108,7 @@ pub async fn construct_webhook_router_data(
             webhook_headers: request_details.headers.clone(),
             webhook_body: request_details.body.to_vec().clone(),
             merchant_secret: connector_wh_secrets.to_owned(),
+            webhook_uri: request_details.uri.clone(),
         },
         response: Err(types::ErrorResponse::default()),
         access_token: None,

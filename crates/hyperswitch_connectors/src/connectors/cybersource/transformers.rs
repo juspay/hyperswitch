@@ -5111,6 +5111,7 @@ impl TryFrom<PayoutMethodData> for PaymentInformation {
                 Ok(Self::Cards(Box::new(CardPaymentInformation { card })))
             }
             PayoutMethodData::Bank(_)
+            | PayoutMethodData::BankTransfer(_)
             | PayoutMethodData::Wallet(_)
             | PayoutMethodData::BankRedirect(_)
             | PayoutMethodData::Passthrough(_) => Err(errors::ConnectorError::NotSupported {

@@ -129,6 +129,8 @@ pub struct ConnectorAuthentication {
     pub thunes: Option<HeaderKey>,
     pub tokenex: Option<BodyKey>,
     pub tokenio: Option<HeaderKey>,
+    pub truelayer: Option<BodyKey>,
+    pub trustly: Option<HeaderKey>,
     pub stripe_au: Option<HeaderKey>,
     pub stripe_uk: Option<HeaderKey>,
     pub trustpay: Option<SignatureKey>,

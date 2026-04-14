@@ -5745,12 +5745,16 @@
             "$ref": "#/components/schemas/BacsBankTransfer"
           },
           {
+            "$ref": "#/components/schemas/TrustlyBankTransfer"
+          },
+          {
             "$ref": "#/components/schemas/SepaBankTransfer"
           },
           {
             "$ref": "#/components/schemas/PixBankTransfer"
           }
-        ]
+        ],
+        "description": "Deprecated - Use `BankTransfer` instead"
       },
       "BankAdditionalData": {
         "oneOf": [
@@ -5759,6 +5763,9 @@
           },
           {
             "$ref": "#/components/schemas/BacsBankTransferAdditionalData"
+          },
+          {
+            "$ref": "#/components/schemas/TrustlyBankTransferAdditionalData"
           },
           {
             "$ref": "#/components/schemas/SepaBankTransferAdditionalData"
@@ -6291,11 +6298,25 @@
                 "$ref": "#/components/schemas/Interac"
               }
             }
+          },
+          {
+            "type": "object",
+            "required": [
+              "open_banking_uk"
+            ],
+            "properties": {
+              "open_banking_uk": {
+                "$ref": "#/components/schemas/OpenBankingUk"
+              }
+            }
           }
         ]
       },
       "BankRedirectAdditionalData": {
         "oneOf": [
+          {
+            "$ref": "#/components/schemas/OpenBankingUkAdditionalData"
+          },
           {
             "$ref": "#/components/schemas/InteracAdditionalData"
           }
@@ -6853,6 +6874,118 @@
             }
           }
         ]
+      },
+      "BankTransfer": {
+        "oneOf": [
+          {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AchBankTransfer"
+              },
+              {
+                "type": "object",
+                "required": [
+                  "payout_method_type"
+                ],
+                "properties": {
+                  "payout_method_type": {
+                    "type": "string",
+                    "enum": [
+                      "ach"
+                    ]
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/BacsBankTransfer"
+              },
+              {
+                "type": "object",
+                "required": [
+                  "payout_method_type"
+                ],
+                "properties": {
+                  "payout_method_type": {
+                    "type": "string",
+                    "enum": [
+                      "bacs"
+                    ]
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SepaBankTransfer"
+              },
+              {
+                "type": "object",
+                "required": [
+                  "payout_method_type"
+                ],
+                "properties": {
+                  "payout_method_type": {
+                    "type": "string",
+                    "enum": [
+                      "sepa"
+                    ]
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PixBankTransfer"
+              },
+              {
+                "type": "object",
+                "required": [
+                  "payout_method_type"
+                ],
+                "properties": {
+                  "payout_method_type": {
+                    "type": "string",
+                    "enum": [
+                      "pix"
+                    ]
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/TrustlyBankTransferData"
+              },
+              {
+                "type": "object",
+                "required": [
+                  "payout_method_type"
+                ],
+                "properties": {
+                  "payout_method_type": {
+                    "type": "string",
+                    "enum": [
+                      "trustly"
+                    ]
+                  }
+                }
+              }
+            ]
+          }
+        ],
+        "discriminator": {
+          "propertyName": "payout_method_type"
+        }
       },
       "BankTransferAdditionalData": {
         "oneOf": [
@@ -9285,6 +9418,8 @@
           "tesouro",
           "tokenex",
           "tokenio",
+          "trustly",
+          "truelayer",
           "trustpay",
           "trustpayments",
           "tsys",
@@ -17051,6 +17186,45 @@
           }
         }
       },
+      "OpenBankingUk": {
+        "type": "object",
+        "required": [
+          "account_holder_name",
+          "iban"
+        ],
+        "properties": {
+          "account_holder_name": {
+            "type": "string",
+            "description": "Account holder name",
+            "example": "John Doe"
+          },
+          "iban": {
+            "type": "string",
+            "description": "International Bank Account Number (iban) - used in many countries for identifying a bank along with it's customer.",
+            "example": "DE89370400440532013000"
+          }
+        }
+      },
+      "OpenBankingUkAdditionalData": {
+        "type": "object",
+        "description": "Masked payout method details for OpenBankingUK bank redirect payout method",
+        "required": [
+          "account_holder_name",
+          "iban"
+        ],
+        "properties": {
+          "account_holder_name": {
+            "type": "string",
+            "description": "Account holder name",
+            "example": "John Doe"
+          },
+          "iban": {
+            "type": "string",
+            "description": "International Bank Account Number (iban) - used in many countries for identifying a bank along with it's customer.",
+            "example": "DE89370400440532013000"
+          }
+        }
+      },
       "Order": {
         "type": "object",
         "required": [
@@ -22409,6 +22583,8 @@
           "payone",
           "paypal",
           "stripe",
+          "truelayer",
+          "trustly",
           "wise",
           "worldpay",
           "worldpayxml",
@@ -23246,6 +23422,17 @@
             "properties": {
               "passthrough": {
                 "$ref": "#/components/schemas/Passthrough"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "bank_transfer"
+            ],
+            "properties": {
+              "bank_transfer": {
+                "$ref": "#/components/schemas/BankTransfer"
               }
             }
           }
@@ -25900,6 +26087,8 @@
           "stripe",
           "stripebilling",
           "tesouro",
+          "truelayer",
+          "trustly",
           "trustpay",
           "trustpayments",
           "tokenio",
@@ -28041,6 +28230,94 @@
           "internal",
           "external"
         ]
+      },
+      "TrustlyBankTransfer": {
+        "type": "object",
+        "required": [
+          "iban",
+          "country_code",
+          "account_number",
+          "bank_number"
+        ],
+        "properties": {
+          "iban": {
+            "type": "string",
+            "description": "International Bank Account Number (iban) - used in many countries for identifying a bank along with it's customer.",
+            "example": "token_12345"
+          },
+          "country_code": {
+            "$ref": "#/components/schemas/CountryAlpha2"
+          },
+          "account_number": {
+            "type": "string",
+            "description": "The account number, identifying the end-user's account in the bank.",
+            "example": "69706212"
+          },
+          "bank_number": {
+            "type": "string",
+            "description": "The bank number identifying the end-user's bank in the given clearing house.",
+            "example": "6112"
+          }
+        }
+      },
+      "TrustlyBankTransferAdditionalData": {
+        "type": "object",
+        "description": "Masked payout method details for Trustly bank transfer payout method",
+        "required": [
+          "iban",
+          "country_code",
+          "account_number",
+          "bank_number"
+        ],
+        "properties": {
+          "iban": {
+            "type": "string",
+            "description": "International Bank Account Number (iban) - used in many countries for identifying a bank along with it's customer.",
+            "example": "token_12345"
+          },
+          "country_code": {
+            "$ref": "#/components/schemas/CountryAlpha2"
+          },
+          "account_number": {
+            "type": "string",
+            "description": "The account number, identifying the end-user's account in the bank.",
+            "example": "69706212"
+          },
+          "bank_number": {
+            "type": "string",
+            "description": "The bank number identifying the end-user's bank in the given clearing house.",
+            "example": "6112"
+          }
+        }
+      },
+      "TrustlyBankTransferData": {
+        "type": "object",
+        "required": [
+          "iban",
+          "bank_country_code",
+          "bank_account_number",
+          "bank_number"
+        ],
+        "properties": {
+          "iban": {
+            "type": "string",
+            "description": "International Bank Account Number (iban) - used in many countries for identifying a bank along with it's customer.",
+            "example": "token_12345"
+          },
+          "bank_country_code": {
+            "$ref": "#/components/schemas/CountryAlpha2"
+          },
+          "bank_account_number": {
+            "type": "string",
+            "description": "The account number, identifying the end-user's account in the bank.",
+            "example": "69706212"
+          },
+          "bank_number": {
+            "type": "string",
+            "description": "The bank number identifying the end-user's bank in the given clearing house.",
+            "example": "6112"
+          }
+        }
       },
       "UIWidgetFormLayout": {
         "type": "string",
