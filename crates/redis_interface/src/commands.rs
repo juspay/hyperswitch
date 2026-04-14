@@ -1224,6 +1224,7 @@ impl super::RedisConnectionPool {
     }
 }
 
+/// Custom reply types for delete and set operations to indicate whether the key was actually deleted/set or not.
 #[cfg(test)]
 mod tests {
     use crate::{errors::RedisError, RedisConnectionPool, RedisEntryId, RedisSettings};
