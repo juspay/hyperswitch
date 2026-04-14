@@ -299,7 +299,7 @@ impl<F: Clone> UpdateTracker<F, PaymentCaptureData<F>, PaymentsCaptureRequest> f
         mut payment_data: PaymentCaptureData<F>,
         _frm_suggestion: Option<FrmSuggestion>,
         _header_payload: hyperswitch_domain_models::payments::HeaderPayload,
-        _dimensions: &dimension_state::dimension_state::DimensionsWithProcessorAndProviderMerchantId,
+        _dimensions: &dimension_state:DimensionsWithProcessorAndProviderMerchantId,
     ) -> RouterResult<(BoxedConfirmOperation<'b, F>, PaymentCaptureData<F>)>
     where
         F: 'b + Send,

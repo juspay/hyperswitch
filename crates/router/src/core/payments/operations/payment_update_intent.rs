@@ -334,7 +334,7 @@ impl<F: Clone> UpdateTracker<F, payments::PaymentIntentData<F>, PaymentsUpdateIn
         mut payment_data: payments::PaymentIntentData<F>,
         _frm_suggestion: Option<FrmSuggestion>,
         _header_payload: hyperswitch_domain_models::payments::HeaderPayload,
-        _dimensions: &dimension_state::dimension_state::DimensionsWithProcessorAndProviderMerchantId,
+        _dimensions: &dimension_state:DimensionsWithProcessorAndProviderMerchantId,
     ) -> RouterResult<(
         PaymentsUpdateIntentOperation<'b, F>,
         payments::PaymentIntentData<F>,

@@ -485,7 +485,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentConfirmData<F>, ExternalVaultProxy
         mut payment_data: PaymentConfirmData<F>,
         _frm_suggestion: Option<api_models::enums::FrmSuggestion>,
         _header_payload: hyperswitch_domain_models::payments::HeaderPayload,
-        _dimensions: &dimension_state::dimension_state::DimensionsWithProcessorAndProviderMerchantId,
+        _dimensions: &dimension_state:DimensionsWithProcessorAndProviderMerchantId,
     ) -> RouterResult<(BoxedConfirmOperation<'b, F>, PaymentConfirmData<F>)>
     where
         F: 'b + Send,

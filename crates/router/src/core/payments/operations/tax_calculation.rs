@@ -225,7 +225,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsDynamicTaxCalculationRequest
         _request: Option<payments::CustomerDetails>,
         _provider: &domain::Provider,
         _initiator: Option<&domain::Initiator>,
-        _dimensions: &dimension_state::dimension_state::dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
+        _dimensions: &dimension_state:dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
     ) -> errors::CustomResult<
         (
             PaymentSessionUpdateOperation<'a, F>,
@@ -391,7 +391,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsDynamicTaxCa
         mut payment_data: PaymentData<F>,
         _frm_suggestion: Option<FrmSuggestion>,
         _header_payload: hyperswitch_domain_models::payments::HeaderPayload,
-        _dimensions: &dimension_state::dimension_state::DimensionsWithProcessorAndProviderMerchantId,
+        _dimensions: &dimension_state:DimensionsWithProcessorAndProviderMerchantId,
     ) -> RouterResult<(PaymentSessionUpdateOperation<'b, F>, PaymentData<F>)>
     where
         F: 'b + Send,
