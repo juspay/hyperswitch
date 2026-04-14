@@ -92,7 +92,6 @@ export const connectorDetails = {
     PaymentConfirmWithShippingCost: {
       Request: {
         payment_method: "card",
-        payment_method_type: "credit",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
@@ -113,7 +112,6 @@ export const connectorDetails = {
     "3DSManualCapture": {
       Request: {
         payment_method: "card",
-        payment_method_type: "debit",
         payment_method_data: {
           card: successfulThreeDSTestCardDetails,
         },
@@ -131,7 +129,6 @@ export const connectorDetails = {
     "3DSAutoCapture": {
       Request: {
         payment_method: "card",
-        payment_method_type: "debit",
         payment_method_data: {
           card: successfulThreeDSTestCardDetails,
         },
@@ -149,7 +146,6 @@ export const connectorDetails = {
     No3DSManualCapture: {
       Request: {
         payment_method: "card",
-        payment_method_type: "credit",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
@@ -167,7 +163,6 @@ export const connectorDetails = {
     No3DSAutoCapture: {
       Request: {
         payment_method: "card",
-        payment_method_type: "credit",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
@@ -324,7 +319,6 @@ export const connectorDetails = {
     MandateSingleUse3DSAutoCapture: {
       Request: {
         payment_method: "card",
-        payment_method_type: "debit",
         payment_method_data: {
           card: successfulThreeDSTestCardDetails,
         },
@@ -341,7 +335,6 @@ export const connectorDetails = {
     MandateSingleUse3DSManualCapture: {
       Request: {
         payment_method: "card",
-        payment_method_type: "debit",
         payment_method_data: {
           card: successfulThreeDSTestCardDetails,
         },
@@ -358,7 +351,6 @@ export const connectorDetails = {
     MandateSingleUseNo3DSAutoCapture: {
       Request: {
         payment_method: "card",
-        payment_method_type: "credit",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
@@ -375,7 +367,6 @@ export const connectorDetails = {
     MandateSingleUseNo3DSManualCapture: {
       Request: {
         payment_method: "card",
-        payment_method_type: "credit",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
@@ -392,7 +383,6 @@ export const connectorDetails = {
     MandateMultiUseNo3DSAutoCapture: {
       Request: {
         payment_method: "card",
-        payment_method_type: "credit",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
@@ -409,7 +399,6 @@ export const connectorDetails = {
     MandateMultiUseNo3DSManualCapture: {
       Request: {
         payment_method: "card",
-        payment_method_type: "credit",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
@@ -426,7 +415,6 @@ export const connectorDetails = {
     MandateMultiUse3DSAutoCapture: {
       Request: {
         payment_method: "card",
-        payment_method_type: "debit",
         payment_method_data: {
           card: successfulThreeDSTestCardDetails,
         },
@@ -443,7 +431,6 @@ export const connectorDetails = {
     MandateMultiUse3DSManualCapture: {
       Request: {
         payment_method: "card",
-        payment_method_type: "debit",
         payment_method_data: {
           card: successfulThreeDSTestCardDetails,
         },
@@ -478,7 +465,6 @@ export const connectorDetails = {
     ZeroAuthMandate: {
       Request: {
         payment_method: "card",
-        payment_method_type: "credit",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
@@ -528,7 +514,6 @@ export const connectorDetails = {
     SaveCardUseNo3DSAutoCapture: {
       Request: {
         payment_method: "card",
-        payment_method_type: "credit",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
@@ -581,7 +566,6 @@ export const connectorDetails = {
     SaveCardUseNo3DSManualCaptureOffSession: {
       Request: {
         payment_method: "card",
-        payment_method_type: "credit",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
@@ -620,7 +604,6 @@ export const connectorDetails = {
     SaveCardUseNo3DSManualCapture: {
       Request: {
         payment_method: "card",
-        payment_method_type: "credit",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
@@ -638,7 +621,6 @@ export const connectorDetails = {
     PaymentMethodIdMandateNo3DSAutoCapture: {
       Request: {
         payment_method: "card",
-        payment_method_type: "credit",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
@@ -656,7 +638,6 @@ export const connectorDetails = {
     PaymentMethodIdMandateNo3DSManualCapture: {
       Request: {
         payment_method: "card",
-        payment_method_type: "credit",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
@@ -674,7 +655,6 @@ export const connectorDetails = {
     PaymentMethodIdMandate3DSAutoCapture: {
       Request: {
         payment_method: "card",
-        payment_method_type: "debit",
         payment_method_data: {
           card: successfulThreeDSTestCardDetails,
         },
@@ -693,7 +673,6 @@ export const connectorDetails = {
     PaymentMethodIdMandate3DSManualCapture: {
       Request: {
         payment_method: "card",
-        payment_method_type: "debit",
         payment_method_data: {
           card: successfulThreeDSTestCardDetails,
         },
@@ -711,7 +690,6 @@ export const connectorDetails = {
     ManualRetryPaymentDisabled: {
       Request: {
         payment_method: "card",
-        payment_method_type: "credit",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
@@ -732,7 +710,6 @@ export const connectorDetails = {
     ManualRetryPaymentEnabled: {
       Request: {
         payment_method: "card",
-        payment_method_type: "credit",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
@@ -752,7 +729,6 @@ export const connectorDetails = {
     ManualRetryPaymentCutoffExpired: {
       Request: {
         payment_method: "card",
-        payment_method_type: "credit",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
@@ -812,7 +788,7 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "succeeded",
-          net_amount: 6300,
+          net_amount: 6610,
         },
       },
     },
@@ -1078,8 +1054,8 @@ export const connectorDetails = {
                   billing_frequency: "month",
                   interest_rate: 5,
                   amount_details: {
-                    amount_per_installment: 21,
-                    total_amount: 63,
+                    amount_per_installment: 22.04,
+                    total_amount: 66.1,
                   },
                 },
                 {
@@ -1087,8 +1063,8 @@ export const connectorDetails = {
                   billing_frequency: "month",
                   interest_rate: 5,
                   amount_details: {
-                    amount_per_installment: 10.5,
-                    total_amount: 63,
+                    amount_per_installment: 11.83,
+                    total_amount: 70.93,
                   },
                 },
                 {
@@ -1096,8 +1072,8 @@ export const connectorDetails = {
                   billing_frequency: "month",
                   interest_rate: 5,
                   amount_details: {
-                    amount_per_installment: 5.25,
-                    total_amount: 63,
+                    amount_per_installment: 6.77,
+                    total_amount: 81.24,
                   },
                 },
               ],

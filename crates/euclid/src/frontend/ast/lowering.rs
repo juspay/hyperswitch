@@ -291,6 +291,7 @@ fn lower_comparison_inner<O: EuclidDirFilter>(
         dir::DirKeyKind::AcquirerFraudRate => lower_number!(AcquirerFraudRate, value, comparison),
         dir::DirKeyKind::TransactionInitiator => lower_enum!(TransactionInitiator, value),
         dir::DirKeyKind::NetworkTokenType => lower_enum!(NetworkTokenType, value),
+        dir::DirKeyKind::CardDiscovery => lower_enum!(CardDiscovery, value),
     }
 }
 

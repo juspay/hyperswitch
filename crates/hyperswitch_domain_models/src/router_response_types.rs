@@ -383,6 +383,10 @@ pub enum RedirectForm {
         form_fields: HashMap<String, String>,
         collection_id: Option<String>,
     },
+    WorldpayxmlDDCForm {
+        bin: String,
+        jwt: String,
+    },
     WorldpayxmlRedirectForm {
         jwt: String,
     },
@@ -501,6 +505,7 @@ impl From<RedirectForm> for diesel_models::payment_attempt::RedirectForm {
                 form_fields,
                 collection_id,
             },
+            RedirectForm::WorldpayxmlDDCForm { bin, jwt } => Self::WorldpayxmlDDCForm { bin, jwt },
             RedirectForm::WorldpayxmlRedirectForm { jwt } => Self::WorldpayxmlRedirectForm { jwt },
         }
     }
@@ -602,6 +607,9 @@ impl From<diesel_models::payment_attempt::RedirectForm> for RedirectForm {
                 form_fields,
                 collection_id,
             },
+            diesel_models::payment_attempt::RedirectForm::WorldpayxmlDDCForm { bin, jwt } => {
+                Self::WorldpayxmlDDCForm { bin, jwt }
+            }
             diesel_models::payment_attempt::RedirectForm::WorldpayxmlRedirectForm { jwt } => {
                 Self::WorldpayxmlRedirectForm { jwt }
             }
@@ -619,7 +627,7 @@ pub struct RetrieveFileResponse {
 }
 
 #[cfg(feature = "payouts")]
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug, Default, Serialize)]
 pub struct PayoutsResponseData {
     pub status: Option<common_enums::PayoutStatus>,
     pub connector_payout_id: Option<String>,

@@ -882,6 +882,8 @@ impl TryFrom<enums::PaymentMethodType> for StripePaymentMethodType {
             | enums::PaymentMethodType::Paypal
             | enums::PaymentMethodType::BhnCardNetwork
             | enums::PaymentMethodType::Pix
+            | enums::PaymentMethodType::PixAutomaticoPush
+            | enums::PaymentMethodType::PixAutomaticoQr
             | enums::PaymentMethodType::UpiCollect
             | enums::PaymentMethodType::UpiIntent
             | enums::PaymentMethodType::Cashapp
@@ -1054,14 +1056,16 @@ pub enum StripeBankNames {
 impl From<WebhookEventStatus> for api_models::webhooks::IncomingWebhookEvent {
     fn from(value: WebhookEventStatus) -> Self {
         match value {
-            WebhookEventStatus::WarningNeedsResponse => Self::DisputeOpened,
+            WebhookEventStatus::WarningNeedsResponse | WebhookEventStatus::NeedsResponse => {
+                Self::DisputeOpened
+            }
             WebhookEventStatus::WarningClosed => Self::DisputeCancelled,
-            WebhookEventStatus::WarningUnderReview => Self::DisputeChallenged,
+            WebhookEventStatus::WarningUnderReview | WebhookEventStatus::UnderReview => {
+                Self::DisputeChallenged
+            }
             WebhookEventStatus::Won => Self::DisputeWon,
             WebhookEventStatus::Lost => Self::DisputeLost,
-            WebhookEventStatus::NeedsResponse
-            | WebhookEventStatus::UnderReview
-            | WebhookEventStatus::ChargeRefunded
+            WebhookEventStatus::ChargeRefunded
             | WebhookEventStatus::Succeeded
             | WebhookEventStatus::RequiresPaymentMethod
             | WebhookEventStatus::RequiresConfirmation
@@ -1520,7 +1524,9 @@ fn create_stripe_payment_method(
                 ))
                 .into(),
             ),
-            payment_method_data::BankTransferData::Pse {}
+            payment_method_data::BankTransferData::PixAutomaticoPush { .. }
+            | payment_method_data::BankTransferData::PixAutomaticoQr {}
+            | payment_method_data::BankTransferData::Pse {}
             | payment_method_data::BankTransferData::LocalBankTransfer { .. }
             | payment_method_data::BankTransferData::InstantBankTransfer {}
             | payment_method_data::BankTransferData::InstantBankTransferFinland { .. }
@@ -1596,6 +1602,8 @@ fn create_stripe_payment_method(
         | PaymentMethodData::CardToken(_)
         | PaymentMethodData::NetworkToken(_)
         | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+        | PaymentMethodData::CardWithOptionalCVC(_)
+        | PaymentMethodData::CardWithNetworkTokenDetails(_)
         | PaymentMethodData::CardWithLimitedDetails(_)
         | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
         | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => Err(
@@ -2128,6 +2136,8 @@ impl TryFrom<(&PaymentsAuthorizeRouterData, MinorUnit)> for PaymentIntentRequest
                         | PaymentMethodData::CardToken(_)
                         | PaymentMethodData::NetworkToken(_)
                         | PaymentMethodData::Card(_)
+                        | PaymentMethodData::CardWithOptionalCVC(_)
+                        | PaymentMethodData::CardWithNetworkTokenDetails(_)
                         | PaymentMethodData::CardWithLimitedDetails(_)
                         | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(
                             _,
@@ -4738,6 +4748,8 @@ impl
                     ))
                 }
                 payment_method_data::BankTransferData::Pix { .. }
+                | payment_method_data::BankTransferData::PixAutomaticoPush { .. }
+                | payment_method_data::BankTransferData::PixAutomaticoQr {}
                 | payment_method_data::BankTransferData::Pse {}
                 | payment_method_data::BankTransferData::PermataBankTransfer { .. }
                 | payment_method_data::BankTransferData::BcaBankTransfer { .. }
@@ -4770,6 +4782,8 @@ impl
             | PaymentMethodData::CardToken(_)
             | PaymentMethodData::NetworkToken(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+            | PaymentMethodData::CardWithOptionalCVC(_)
+            | PaymentMethodData::CardWithNetworkTokenDetails(_)
             | PaymentMethodData::CardWithLimitedDetails(_)
             | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
             | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {

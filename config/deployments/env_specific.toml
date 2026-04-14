@@ -406,8 +406,8 @@ connector_names = "connector_names"     # Comma-separated list of allowed connec
 [grpc_client.unified_connector_service]
 base_url = "http://localhost:8000"      # Unified Connector Service Base URL
 connection_timeout = 10                 # Connection Timeout Duration in Seconds
-ucs_only_connectors = "paytm, phonepe, hyperpg, revolv3, truelayer, fiservcommercehub"    # Comma-separated list of connectors that use UCS only
-ucs_psync_disabled_connectors = "cashtocode"    # Comma-separated list of connectors to disable UCS PSync call
+ucs_only_connectors = "paytm, phonepe, hyperpg, revolv3, fiservcommercehub"    # Comma-separated list of connectors that use UCS only
+ucs_psync_disabled_connectors = "cashtocode, trustly"    # Comma-separated list of connectors to disable UCS PSync call
 
 [revenue_recovery]
 # monitoring threshold -  120 days
@@ -451,13 +451,14 @@ proxy_connector_http_status_code = false    # If enabled, the http status code o
 payments_base_url = "http://localhost:8080"
 
 [superposition]
-enabled = false                                  # Enable or disable Superposition integration (default: false)
+enabled = true                                  # Enable or disable Superposition integration (default: false)
 endpoint = "http://superposition:8080"          # Superposition service endpoint URL
 token = "your_superposition_token"              # Superposition token
 org_id = "your_org_id"                          # Organization ID in Superposition
 workspace_id = "your_workspace_id"              # Workspace ID in Superposition
 polling_interval = 15                           # Polling interval in seconds for configuration updates
 # request_timeout =                              # Request timeout in seconds for Superposition API calls (optional, default: none)
+backup_file_path = "./config/superposition_seed.toml" # Path to a local file for fallback configuration. Used when the Superposition HTTP service is unavailable. If set, the client will fall back to reading configuration from this file instead of failing completely. This ensures graceful degradation during network outages or service disruptions.
 
 [trace_header]
 header_name = "x-request-id"    # HTTP header name for request tracing
