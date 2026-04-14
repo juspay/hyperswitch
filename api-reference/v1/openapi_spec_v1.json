@@ -20718,6 +20718,24 @@
             "enum": [
               "order_details_product_name"
             ]
+          },
+          {
+            "type": "string",
+            "enum": [
+              "user_branch_code"
+            ]
+          },
+          {
+            "type": "string",
+            "enum": [
+              "user_bank_identifier"
+            ]
+          },
+          {
+            "type": "string",
+            "enum": [
+              "user_pix_account_number"
+            ]
           }
         ],
         "description": "Possible field type of required fields in payment_method_data"
@@ -40449,6 +40467,12 @@
           "transfer_account_id": {
             "type": "string",
             "description": "Identifier for the reseller's account where the funds were transferred"
+          },
+          "on_behalf_of": {
+            "type": "string",
+            "description": "The Stripe account ID that these funds are intended for",
+            "example": "acct_1234567890",
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -40481,6 +40505,12 @@
           "transfer_account_id": {
             "type": "string",
             "description": "Identifier for the reseller's account where the funds were transferred"
+          },
+          "on_behalf_of": {
+            "type": "string",
+            "description": "The Stripe account ID that these funds are intended for",
+            "example": "acct_1234567890",
+            "nullable": true
           }
         },
         "additionalProperties": false
