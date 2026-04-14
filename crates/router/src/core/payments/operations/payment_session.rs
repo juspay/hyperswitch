@@ -336,6 +336,7 @@ where
         provider: &domain::Provider,
         initiator: Option<&domain::Initiator>,
         dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
+        _mandate_type: Option<MandateTransactionType>,
     ) -> errors::CustomResult<
         (PaymentSessionOperation<'a, F>, Option<domain::Customer>),
         errors::StorageError,
