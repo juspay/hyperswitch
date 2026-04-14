@@ -4868,6 +4868,7 @@ impl transformers::ForeignTryFrom<payments_grpc::GpayAllowedMethodsParameters>
                 .map(GpayBillingAddressParameters::foreign_try_from)
                 .transpose()?,
             assurance_details_required: value.assurance_details,
+            allow_credit_cards: None,
         })
     }
 }

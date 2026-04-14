@@ -342,6 +342,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::admin::CardTestingGuardStatus,
         api_models::admin::PaymentMethodBlockingConfig,
         api_models::admin::CardBlockingConfig,
+        api_models::admin::WalletBlockingConfig,
         api_models::customers::CustomerRequest,
         api_models::customers::CustomerUpdateRequest,
         api_models::customers::CustomerDeleteResponse,
