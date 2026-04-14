@@ -365,6 +365,18 @@ pub mod superposition {
     pub const PAYOUT_TRACKER_MAPPING: &str = "payout_tracker_mapping";
     /// client session validation enabled configuration key
     pub const CLIENT_SESSION_VALIDATION_ENABLED: &str = "client_session_validation_enabled";
+    /// GSM (Global Status Map) call configuration key
+    pub const SHOULD_CALL_GSM: &str = "should_call_gsm";
+    /// Eligibility check configuration key
+    pub const SHOULD_PERFORM_ELIGIBILITY: &str = "should_perform_eligibility";
+    /// MIT with limited card data configuration key
+    pub const SHOULD_ENABLE_MIT_WITH_LIMITED_CARD_DATA: &str =
+        "should_enable_mit_with_limited_card_data";
+    /// Store eligibility check data for authentication configuration key
+    pub const SHOULD_STORE_ELIGIBILITY_CHECK_DATA_FOR_AUTHENTICATION: &str =
+        "should_store_eligibility_check_data_for_authentication";
+    /// Extended card BIN configuration key
+    pub const ENABLE_EXTENDED_CARD_BIN: &str = "enable_extended_card_bin";
 }
 
 #[cfg(test)]
