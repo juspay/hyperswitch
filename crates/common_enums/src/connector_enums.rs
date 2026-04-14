@@ -221,6 +221,7 @@ impl Connector {
                 | (Self::Trustly, _)
                 | (Self::Worldpay, Some(PayoutType::Wallet))
                 | (Self::Worldpayxml, Some(PayoutType::Wallet))
+                | (Self::Itaubank, Some(PayoutType::Bank))
         )
     }
     #[cfg(feature = "payouts")]
@@ -242,7 +243,7 @@ impl Connector {
     pub fn supports_access_token_for_payout(self, payout_method: Option<PayoutType>) -> bool {
         matches!(
             (self, payout_method),
-            (Self::Paypal, _) | (Self::Truelayer, _)
+            (Self::Paypal, _) | (Self::Truelayer, _) | (Self::Itaubank, _)
         )
     }
     #[cfg(feature = "payouts")]
@@ -430,13 +431,12 @@ impl Connector {
             | Self::Noon
             | Self::Tokenex
             | Self::Tokenio
-            | Self::Stripe
             | Self::Datatrans
             | Self::Paytm
             | Self::Payjustnow
             | Self::Payjustnowinstore
             | Self::Phonepe => false,
-            Self::Checkout |Self::Zift| Self::Nmi |Self::Braintree|
+            Self::Stripe | Self::Checkout | Self::Zift | Self::Nmi | Self::Braintree|
             Self::Cybersource | Self::Archipel | Self::Nuvei | Self::Adyen => true,
         }
     }

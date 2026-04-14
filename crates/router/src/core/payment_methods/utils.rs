@@ -12,13 +12,15 @@ use common_utils::ext_traits::{OptionExt, StringExt};
 use error_stack::ResultExt;
 use euclid::frontend::dir;
 use hyperswitch_constraint_graph as cgraph;
+use hyperswitch_masking::ExposeInterface;
 use kgraph_utils::{error::KgraphError, transformers::IntoDirValue};
-use masking::ExposeInterface;
 #[cfg(feature = "v1")]
 use router_env::logger;
 use storage_impl::redis::cache::{CacheKey, PM_FILTERS_CGRAPH_CACHE};
 
-use crate::{configs::settings, db::StorageInterface, routes::SessionState};
+use crate::{
+    configs::settings, core::configs::dimension_state, db::StorageInterface, routes::SessionState,
+};
 #[cfg(feature = "v2")]
 use crate::{
     db::{
@@ -32,7 +34,7 @@ use crate::{
 pub fn make_pm_graph(
     builder: &mut cgraph::ConstraintGraphBuilder<dir::DirValue>,
     domain_id: cgraph::DomainId,
-    payment_methods: &[masking::Secret<serde_json::value::Value>],
+    payment_methods: &[hyperswitch_masking::Secret<serde_json::value::Value>],
     connector: String,
     pm_config_mapping: &settings::ConnectorFilters,
     supported_payment_methods_for_mandate: &settings::SupportedPaymentMethodsForMandate,
@@ -814,25 +816,6 @@ fn compile_accepted_currency_for_mca(
     ))
 }
 
-pub async fn get_merchant_config_for_eligibility_check(
-    db: &dyn StorageInterface,
-    merchant_id: &common_utils::id_type::MerchantId,
-) -> bool {
-    let config = db
-        .find_config_by_key_unwrap_or(
-            &merchant_id.get_should_perform_eligibility_check_key(),
-            Some("false".to_string()),
-        )
-        .await;
-    match config {
-        Ok(conf) => conf.config == "true",
-        Err(error) => {
-            logger::error!(?error);
-            false
-        }
-    }
-}
-
 pub async fn get_organization_eligibility_config_for_pm_modular_service(
     db: &dyn StorageInterface,
     organization_id: &common_utils::id_type::OrganizationId,
@@ -853,11 +836,17 @@ pub async fn get_organization_eligibility_config_for_pm_modular_service(
 }
 
 pub async fn get_sdk_next_action_for_payment_method_list(
-    db: &dyn StorageInterface,
-    merchant_id: &common_utils::id_type::MerchantId,
+    state: &SessionState,
+    dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
+    customer_id: Option<&common_utils::id_type::CustomerId>,
 ) -> api_models::payments::SdkNextAction {
-    let should_perform_eligibility_check =
-        get_merchant_config_for_eligibility_check(db, merchant_id).await;
+    let should_perform_eligibility_check = dimensions
+        .get_should_perform_eligibility(
+            state.store.as_ref(),
+            state.superposition_service.as_ref(),
+            customer_id,
+        )
+        .await;
     let next_action_call = if should_perform_eligibility_check {
         api_models::payments::NextActionCall::EligibilityCheck
     } else {

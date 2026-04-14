@@ -1,6 +1,6 @@
 use api_models::user::dashboard_metadata as api;
 use diesel_models::enums::DashboardMetadata as DBEnum;
-use masking::Secret;
+use hyperswitch_masking::Secret;
 use time::PrimitiveDateTime;
 
 pub enum MetaData {

@@ -5,7 +5,7 @@ use std::sync::LazyLock;
 use common_enums::enums;
 use common_utils::{
     errors::CustomResult,
-    ext_traits::ByteSliceExt,
+    ext_traits::{ByteSliceExt, ValueExt},
     request::{Method, Request, RequestBuilder, RequestContent},
     types::{AmountConvertor, StringMajorUnit, StringMajorUnitForConnector},
 };
@@ -24,11 +24,12 @@ use hyperswitch_domain_models::{
         RefundsData, SetupMandateRequestData,
     },
     router_response_types::{
-        ConnectorInfo, PaymentsResponseData, RefundsResponseData, SupportedPaymentMethods,
+        ConnectorInfo, PaymentMethodDetails, PaymentsResponseData, RefundsResponseData,
+        SupportedPaymentMethods, SupportedPaymentMethodsExt,
     },
     types::{
-        PaymentsAuthorizeRouterData, PaymentsCaptureRouterData, PaymentsSyncRouterData,
-        RefundSyncRouterData, RefundsRouterData,
+        PaymentsAuthorizeRouterData, PaymentsCaptureRouterData, RefundSyncRouterData,
+        RefundsRouterData,
     },
 };
 #[cfg(feature = "payouts")]
@@ -51,6 +52,7 @@ use hyperswitch_interfaces::{
     errors::ConnectorError,
     types::{PayoutFulfillType, PayoutSyncType},
 };
+use hyperswitch_masking::ExposeInterface;
 use transformers as trustly;
 
 use crate::{constants::headers, types::ResponseRouterData, utils};
@@ -97,7 +99,7 @@ where
         &self,
         req: &RouterData<Flow, Request, Response>,
         _connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, ConnectorError> {
         let mut header = vec![(
             headers::CONTENT_TYPE.to_string(),
             self.get_content_type().to_string().into(),
@@ -131,7 +133,7 @@ impl ConnectorCommon for Trustly {
     fn get_auth_header(
         &self,
         _auth_type: &ConnectorAuthType,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, ConnectorError> {
         Ok(Vec::new())
     }
 
@@ -203,7 +205,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
         &self,
         req: &PaymentsAuthorizeRouterData,
         connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, ConnectorError> {
         self.build_headers(req, connectors)
     }
 
@@ -285,76 +287,14 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
     }
 }
 
-impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Trustly {
-    fn get_headers(
-        &self,
-        req: &PaymentsSyncRouterData,
-        connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, ConnectorError> {
-        self.build_headers(req, connectors)
-    }
-
-    fn get_content_type(&self) -> &'static str {
-        self.common_get_content_type()
-    }
-
-    fn get_url(
-        &self,
-        _req: &PaymentsSyncRouterData,
-        _connectors: &Connectors,
-    ) -> CustomResult<String, ConnectorError> {
-        Err(ConnectorError::NotImplemented("get_url method".to_string()).into())
-    }
-
-    fn build_request(
-        &self,
-        req: &PaymentsSyncRouterData,
-        connectors: &Connectors,
-    ) -> CustomResult<Option<Request>, ConnectorError> {
-        Ok(Some(
-            RequestBuilder::new()
-                .method(Method::Get)
-                .url(&types::PaymentsSyncType::get_url(self, req, connectors)?)
-                .attach_default_headers()
-                .headers(types::PaymentsSyncType::get_headers(self, req, connectors)?)
-                .build(),
-        ))
-    }
-
-    fn handle_response(
-        &self,
-        data: &PaymentsSyncRouterData,
-        event_builder: Option<&mut ConnectorEvent>,
-        res: Response,
-    ) -> CustomResult<PaymentsSyncRouterData, ConnectorError> {
-        let response: trustly::TrustlyPaymentsResponse = res
-            .response
-            .parse_struct("trustly PaymentsSyncResponse")
-            .change_context(ConnectorError::ResponseDeserializationFailed)?;
-        event_builder.map(|i| i.set_response_body(&response));
-        router_env::logger::info!(connector_response=?response);
-        RouterData::try_from(ResponseRouterData {
-            response,
-            data: data.clone(),
-            http_code: res.status_code,
-        })
-    }
-
-    fn get_error_response(
-        &self,
-        res: Response,
-        event_builder: Option<&mut ConnectorEvent>,
-    ) -> CustomResult<ErrorResponse, ConnectorError> {
-        self.build_error_response(res, event_builder)
-    }
-}
+impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Trustly {}
 
 impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> for Trustly {
     fn get_headers(
         &self,
         req: &PaymentsCaptureRouterData,
         connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, ConnectorError> {
         self.build_headers(req, connectors)
     }
 
@@ -433,7 +373,7 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Trustly
         &self,
         req: &RefundsRouterData<Execute>,
         connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, ConnectorError> {
         self.build_headers(req, connectors)
     }
 
@@ -517,7 +457,7 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Trustly {
         &self,
         req: &RefundSyncRouterData,
         connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, ConnectorError> {
         self.build_headers(req, connectors)
     }
 
@@ -601,7 +541,7 @@ impl ConnectorIntegration<PoRecipient, PayoutsData, PayoutsResponseData> for Tru
         &self,
         req: &PayoutsRouterData<PoRecipient>,
         connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, ConnectorError> {
         self.build_headers(req, connectors)
     }
 
@@ -685,7 +625,7 @@ impl ConnectorIntegration<PoFulfill, PayoutsData, PayoutsResponseData> for Trust
         &self,
         req: &PayoutsRouterData<PoFulfill>,
         connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, ConnectorError> {
         self.build_headers(req, connectors)
     }
 
@@ -765,7 +705,7 @@ impl ConnectorIntegration<PoSync, PayoutsData, PayoutsResponseData> for Trustly 
         &self,
         req: &PayoutsRouterData<PoSync>,
         connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, ConnectorError> {
         self.build_headers(req, connectors)
     }
 
@@ -826,31 +766,162 @@ impl ConnectorIntegration<PoSync, PayoutsData, PayoutsResponseData> for Trustly 
 
 #[async_trait::async_trait]
 impl webhooks::IncomingWebhook for Trustly {
+    async fn verify_webhook_source(
+        &self,
+        request: &webhooks::IncomingWebhookRequestDetails<'_>,
+        merchant_id: &common_utils::id_type::MerchantId,
+        connector_webhook_details: Option<common_utils::pii::SecretSerdeValue>,
+        _connector_account_details: common_utils::crypto::Encryptable<
+            hyperswitch_masking::Secret<serde_json::Value>,
+        >,
+        connector_label: &str,
+    ) -> CustomResult<bool, ConnectorError> {
+        let webhook_body: trustly::TrustlyWebhookBody = request
+            .body
+            .parse_struct("TrustlyWebhookBody")
+            .change_context(ConnectorError::ResponseDeserializationFailed)?;
+
+        let connector_webhook_secrets = self
+            .get_webhook_source_verification_merchant_secret(
+                merchant_id,
+                connector_label,
+                connector_webhook_details,
+            )
+            .await
+            .change_context(ConnectorError::WebhookSourceVerificationFailed)?;
+
+        trustly::verify_webhook_signature(&webhook_body, connector_webhook_secrets.secret)
+    }
+
     fn get_webhook_object_reference_id(
         &self,
-        _request: &webhooks::IncomingWebhookRequestDetails<'_>,
+        request: &webhooks::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api_models::webhooks::ObjectReferenceId, ConnectorError> {
+        let webhook_body: trustly::TrustlyWebhookBody = request
+            .body
+            .parse_struct("TrustlyWebhookBody")
+            .change_context(ConnectorError::ResponseDeserializationFailed)?;
+        let message_id = webhook_body.params.data.messageid.clone();
+
+        if trustly::is_payment_webhook_event(webhook_body.method.clone(), message_id.clone()) {
+            return Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
+                api_models::payments::PaymentIdType::ConnectorTransactionId(
+                    webhook_body.params.data.orderid,
+                ),
+            ));
+        }
+        if trustly::is_refund_webhook_event(webhook_body.method.clone(), message_id.clone()) {
+            return Ok(api_models::webhooks::ObjectReferenceId::RefundId(
+                api_models::webhooks::RefundIdType::ConnectorRefundId(
+                    webhook_body.params.data.orderid,
+                ),
+            ));
+        }
+        #[cfg(feature = "payouts")]
+        if trustly::is_payout_webhook_event(webhook_body.method.clone(), message_id.clone()) {
+            return Ok(api_models::webhooks::ObjectReferenceId::PayoutId(
+                api_models::webhooks::PayoutIdType::ConnectorPayoutId(
+                    webhook_body.params.data.orderid,
+                ),
+            ));
+        }
         Err(report!(ConnectorError::WebhooksNotImplemented))
     }
 
     fn get_webhook_event_type(
         &self,
-        _request: &webhooks::IncomingWebhookRequestDetails<'_>,
+        request: &webhooks::IncomingWebhookRequestDetails<'_>,
         _context: Option<&webhooks::WebhookContext>,
     ) -> CustomResult<api_models::webhooks::IncomingWebhookEvent, ConnectorError> {
-        Err(report!(ConnectorError::WebhooksNotImplemented))
+        let webhook_body: trustly::TrustlyWebhookBody = request
+            .body
+            .parse_struct("TrustlyWebhookBody")
+            .change_context(ConnectorError::ResponseDeserializationFailed)?;
+
+        trustly::get_payout_webhook_event(webhook_body.method)
     }
 
     fn get_webhook_resource_object(
         &self,
-        _request: &webhooks::IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, ConnectorError> {
-        Err(report!(ConnectorError::WebhooksNotImplemented))
+        request: &webhooks::IncomingWebhookRequestDetails<'_>,
+    ) -> CustomResult<Box<dyn hyperswitch_masking::ErasedMaskSerialize>, ConnectorError> {
+        let webhook_body: trustly::TrustlyWebhookBody = request
+            .body
+            .parse_struct("TrustlyWebhookBody")
+            .change_context(ConnectorError::ResponseDeserializationFailed)?;
+        let event = trustly::get_payout_webhook_event(webhook_body.method)?;
+        Ok(Box::new(event))
+    }
+
+    fn get_webhook_api_response(
+        &self,
+        request: &webhooks::IncomingWebhookRequestDetails<'_>,
+        _error_kind: Option<webhooks::IncomingWebhookFlowError>,
+        connector_authentication_type: Option<
+            common_utils::crypto::Encryptable<hyperswitch_masking::Secret<serde_json::Value>>,
+        >,
+    ) -> CustomResult<
+        hyperswitch_domain_models::api::ApplicationResponse<serde_json::Value>,
+        ConnectorError,
+    > {
+        let request_body: trustly::TrustlyWebhookBody = request
+            .body
+            .parse_struct("TrustlyWebhookBody")
+            .change_context(ConnectorError::ResponseDeserializationFailed)?;
+
+        let data = trustly::TrustlyWebhookResponseResultData {
+            status: "OK".to_string(),
+        };
+
+        let connector_auth_type: ConnectorAuthType = connector_authentication_type
+            .ok_or(ConnectorError::FailedToObtainAuthType)?
+            .parse_value("ConnectorAuthType")
+            .change_context(ConnectorError::FailedToObtainAuthType)?;
+        let auth = trustly::TrustlyAuthType::try_from(&connector_auth_type)
+            .change_context(ConnectorError::FailedToObtainAuthType)?;
+
+        let signature = trustly::generate_trustly_signature(
+            request_body.method.as_str(),
+            &request_body.params.uuid,
+            &data,
+            &auth.private_key.expose(),
+        )?;
+
+        let response = trustly::TrustlyWebhookResponse {
+            result: trustly::TrustlyWebhookResponseResult {
+                signature: signature.into(),
+                uuid: request_body.params.uuid,
+                method: request_body.method.as_str().to_string(),
+                data,
+            },
+            version: request_body.version,
+        };
+
+        let response_value = serde_json::to_value(response)
+            .change_context(ConnectorError::ResponseDeserializationFailed)?;
+        Ok(hyperswitch_domain_models::api::ApplicationResponse::Json(
+            response_value,
+        ))
     }
 }
 
-static TRUSTLY_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
-    LazyLock::new(SupportedPaymentMethods::new);
+static TRUSTLY_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = LazyLock::new(|| {
+    let supported_capture_methods = vec![enums::CaptureMethod::Automatic];
+
+    let mut trustly_supported_payment_methods = SupportedPaymentMethods::new();
+    trustly_supported_payment_methods.add(
+        enums::PaymentMethod::BankRedirect,
+        enums::PaymentMethodType::Trustly,
+        PaymentMethodDetails {
+            mandates: common_enums::FeatureStatus::NotSupported,
+            refunds: common_enums::FeatureStatus::Supported,
+            supported_capture_methods: supported_capture_methods.clone(),
+            specific_features: None,
+        },
+    );
+
+    trustly_supported_payment_methods
+});
 
 static TRUSTLY_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
     display_name: "Trustly",

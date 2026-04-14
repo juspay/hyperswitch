@@ -17,9 +17,8 @@ use hyperswitch_interfaces::{
     consts as interface_consts, errors as interface_errors,
     unified_connector_service::transformers as ucs_transformers,
 };
-use masking::{self, ExposeInterface};
+use hyperswitch_masking::{self, ExposeInterface};
 use unified_connector_service_client::payments as payments_grpc;
-use unified_connector_service_masking::ExposeInterface as UcsMaskingExposeInterface;
 
 use super::{ConstructFlowSpecificData, Feature};
 use crate::{
@@ -173,9 +172,9 @@ impl Feature<api::CompleteAuthorize, types::CompleteAuthorizeData>
     ) -> RouterResult<types::BalanceCheckResult> {
         if connector.connector.is_balance_check_flow_required(
             api_interface::CurrentFlowInfo::CompleteAuthorize {
-                auth_type: &self.auth_type,
+                auth_type: self.auth_type,
                 payment_method: Some(self.payment_method),
-                request_data: &self.request,
+                request_data: Box::new(self.request.clone()),
             },
         ) {
             logger::info!(
@@ -290,6 +289,7 @@ impl Feature<api::CompleteAuthorize, types::CompleteAuthorizeData>
             self,
             creds_identifier,
             gateway_context,
+            None,
         ))
         .await
     }
@@ -359,8 +359,8 @@ impl Feature<api::CompleteAuthorize, types::CompleteAuthorizeData>
     {
         if connector.connector.is_authentication_flow_required(
             api_interface::CurrentFlowInfo::CompleteAuthorize {
-                auth_type: &self.auth_type,
-                request_data: &self.request,
+                auth_type: self.auth_type,
+                request_data: Box::new(self.request.clone()),
                 payment_method: Some(self.payment_method),
             },
         ) {
@@ -446,8 +446,8 @@ impl Feature<api::CompleteAuthorize, types::CompleteAuthorizeData>
     {
         if connector.connector.is_post_authentication_flow_required(
             api_interface::CurrentFlowInfo::CompleteAuthorize {
-                auth_type: &self.auth_type,
-                request_data: &self.request,
+                auth_type: self.auth_type,
+                request_data: Box::new(self.request.clone()),
                 payment_method: Some(self.payment_method),
             },
         ) {
@@ -521,6 +521,132 @@ impl Feature<api::CompleteAuthorize, types::CompleteAuthorizeData>
                     | common_enums::AttemptStatus::Failure
             );
             Ok((complete_authorize_router_data, should_continue))
+        } else {
+            Ok((self, true))
+        }
+    }
+
+    async fn push_notification_step<'a>(
+        self,
+        state: &SessionState,
+        connector: &api::ConnectorData,
+        gateway_context: &gateway_context::RouterGatewayContext,
+    ) -> RouterResult<(Self, bool)>
+    where
+        Self: Sized,
+    {
+        if connector.connector.is_push_notification_flow_required(
+            api_interface::CurrentFlowInfo::CompleteAuthorize {
+                auth_type: self.auth_type,
+                request_data: Box::new(self.request.clone()),
+                payment_method: Some(self.payment_method),
+            },
+        ) {
+            logger::info!(
+                "Payment trigger flow is required for connector: {} for Complete Authorize flow",
+                connector.connector_name
+            );
+            let complete_authorize_request_data = self.request.clone();
+            let push_notification_request_data =
+                types::PushNotificationRequestData::try_from(self.request.to_owned())?;
+            let push_notification_response_data: Result<
+                types::PaymentsResponseData,
+                types::ErrorResponse,
+            > = Err(types::ErrorResponse::default());
+            let push_notification_router_data =
+                helpers::router_data_type_conversion::<_, api::PushNotification, _, _, _, _>(
+                    self.clone(),
+                    push_notification_request_data,
+                    push_notification_response_data,
+                );
+            let connector_integration: services::BoxedPaymentConnectorIntegrationInterface<
+                api::PushNotification,
+                types::PushNotificationRequestData,
+                types::PaymentsResponseData,
+            > = connector.connector.get_connector_integration();
+            let push_notification_router_data = gateway::execute_payment_gateway(
+                state,
+                connector_integration,
+                &push_notification_router_data,
+                payments::CallConnectorAction::Trigger,
+                None,
+                None,
+                gateway_context.clone(),
+            )
+            .await
+            .to_payment_failed_response()?;
+            let push_notification_response = push_notification_router_data.response.clone();
+            let complete_authorize_router_data =
+                helpers::router_data_type_conversion::<_, api::CompleteAuthorize, _, _, _, _>(
+                    push_notification_router_data,
+                    complete_authorize_request_data,
+                    push_notification_response,
+                );
+            let should_continue_payment = complete_authorize_router_data.response.is_ok();
+            Ok((complete_authorize_router_data, should_continue_payment))
+        } else {
+            Ok((self, true))
+        }
+    }
+
+    async fn generate_qr_step<'a>(
+        self,
+        state: &SessionState,
+        connector: &api::ConnectorData,
+        gateway_context: &gateway_context::RouterGatewayContext,
+    ) -> RouterResult<(Self, bool)>
+    where
+        Self: Sized,
+    {
+        if connector.connector.is_generate_qr_flow_required(
+            api_interface::CurrentFlowInfo::CompleteAuthorize {
+                auth_type: self.auth_type,
+                request_data: Box::new(self.request.clone()),
+                payment_method: Some(self.payment_method),
+            },
+        ) {
+            logger::info!(
+                "Generate Qr flow is required for connector: {} for Complete Authorize flow",
+                connector.connector_name
+            );
+            let complete_authorize_request_data = self.request.clone();
+            let generate_qr_request_data =
+                types::GenerateQrRequestData::try_from(self.request.to_owned())?;
+            let generate_qr_response_data: Result<
+                types::PaymentsResponseData,
+                types::ErrorResponse,
+            > = Err(types::ErrorResponse::default());
+            let generate_qr_router_data =
+                helpers::router_data_type_conversion::<_, api::GenerateQr, _, _, _, _>(
+                    self.clone(),
+                    generate_qr_request_data,
+                    generate_qr_response_data,
+                );
+            let connector_integration: services::BoxedPaymentConnectorIntegrationInterface<
+                api::GenerateQr,
+                types::GenerateQrRequestData,
+                types::PaymentsResponseData,
+            > = connector.connector.get_connector_integration();
+            let generate_qr_router_data = gateway::execute_payment_gateway(
+                state,
+                connector_integration,
+                &generate_qr_router_data,
+                payments::CallConnectorAction::Trigger,
+                None,
+                None,
+                gateway_context.clone(),
+            )
+            .await
+            .to_payment_failed_response()?;
+            let generate_qr_response = generate_qr_router_data.response.clone();
+            let complete_authorize_router_data =
+                helpers::router_data_type_conversion::<_, api::CompleteAuthorize, _, _, _, _>(
+                    generate_qr_router_data,
+                    complete_authorize_request_data,
+                    generate_qr_response,
+                );
+            let should_continue_payment = complete_authorize_router_data.response.is_ok();
+            Ok((complete_authorize_router_data, should_continue_payment))
         } else {
             Ok((self, true))
         }
@@ -641,9 +767,11 @@ pub async fn call_unified_connector_service_authenticate(
         .attach_printable("Failed to fetch Unified Connector Service client")?;
 
     let payment_authenticate_request =
-        payments_grpc::PaymentServiceAuthenticateRequest::foreign_try_from(router_data)
-            .change_context(interface_errors::ConnectorError::RequestEncodingFailed)
-            .attach_printable("Failed to construct Payment Authorize Request")?;
+        payments_grpc::PaymentMethodAuthenticationServiceAuthenticateRequest::foreign_try_from(
+            router_data,
+        )
+        .change_context(interface_errors::ConnectorError::RequestEncodingFailed)
+        .attach_printable("Failed to construct Payment Authenticate Request")?;
 
     let connector_auth_metadata = ucs_core::build_unified_connector_service_auth_metadata(
         merchant_connector_account,
@@ -678,14 +806,13 @@ pub async fn call_unified_connector_service_authenticate(
         headers_builder,
         unified_connector_service_execution_mode,
         |mut router_data, payment_authenticate_request, grpc_headers| async move {
-            let response = client
-                .payment_authenticate(
-                    payment_authenticate_request,
-                    connector_auth_metadata,
-                    grpc_headers,
-                )
-                .await
-                .attach_printable("Failed to authorize payment")?;
+            let response = Box::pin(client.payment_authenticate(
+                payment_authenticate_request,
+                connector_auth_metadata,
+                grpc_headers,
+            ))
+            .await
+            .attach_printable("Failed to authenticate payment")?;
 
             let payment_authenticate_response = response.into_inner();
 
@@ -753,9 +880,11 @@ pub async fn call_unified_connector_service_post_authenticate(
         .attach_printable("Failed to fetch Unified Connector Service client")?;
 
     let payment_post_authenticate_request =
-        payments_grpc::PaymentServicePostAuthenticateRequest::foreign_try_from(router_data)
-            .change_context(interface_errors::ConnectorError::RequestEncodingFailed)
-            .attach_printable("Failed to construct Payment Authorize Request")?;
+        payments_grpc::PaymentMethodAuthenticationServicePostAuthenticateRequest::foreign_try_from(
+            router_data,
+        )
+        .change_context(interface_errors::ConnectorError::RequestEncodingFailed)
+        .attach_printable("Failed to construct Payment Post Authenticate Request")?;
 
     let connector_auth_metadata = ucs_core::build_unified_connector_service_auth_metadata(
         merchant_connector_account,
@@ -790,14 +919,13 @@ pub async fn call_unified_connector_service_post_authenticate(
         headers_builder,
         unified_connector_service_execution_mode,
         |mut router_data, payment_post_authenticate_request, grpc_headers| async move {
-            let response = client
-                .payment_post_authenticate(
-                    payment_post_authenticate_request,
-                    connector_auth_metadata,
-                    grpc_headers,
-                )
-                .await
-                .attach_printable("Failed to authorize payment")?;
+            let response = Box::pin(client.payment_post_authenticate(
+                payment_post_authenticate_request,
+                connector_auth_metadata,
+                grpc_headers,
+            ))
+            .await
+            .attach_printable("Failed to post authenticate payment")?;
 
             let payment_post_authenticate_response = response.into_inner();
 

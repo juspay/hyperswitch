@@ -32,8 +32,8 @@ use hyperswitch_domain_models::{
     types::PayoutsRouterData,
 };
 use hyperswitch_interfaces::errors;
+use hyperswitch_masking::Secret;
 use josekit::jws::{JwsHeader, ES512};
-use masking::Secret;
 use openssl::{
     bn::{BigNum, BigNumContext},
     ec::{EcGroup, EcKey, EcPoint},

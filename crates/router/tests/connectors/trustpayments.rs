@@ -1,6 +1,6 @@
 use std::str::FromStr;
 
-use masking::Secret;
+use hyperswitch_masking::Secret;
 use router::types::{self, api, domain, storage::enums};
 use test_utils::connector_auth;
 

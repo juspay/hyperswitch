@@ -1,7 +1,7 @@
 //! This module has common utilities for payout method data in HyperSwitch
 
 use diesel::{sql_types::Jsonb, AsExpression, FromSqlRow};
-use masking::Secret;
+use hyperswitch_masking::Secret;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
@@ -85,12 +85,12 @@ pub enum BankAdditionalData {
     Ach(Box<AchBankTransferAdditionalData>),
     /// Additional data for bacs bank transfer payout method
     Bacs(Box<BacsBankTransferAdditionalData>),
+    /// Additional data for Trustly bank transfer payout method
+    Trustly(Box<TrustlyBankTransferAdditionalData>),
     /// Additional data for sepa bank transfer payout method
     Sepa(Box<SepaBankTransferAdditionalData>),
     /// Additional data for pix bank transfer payout method
     Pix(Box<PixBankTransferAdditionalData>),
-    /// Additional data for Trustly bank transfer payout method
-    Trustly(Box<TrustlyBankTransferAdditionalData>),
 }
 
 /// Masked payout method details for ach bank transfer payout method
@@ -335,4 +335,30 @@ pub struct PassthroughAdditionalData {
     /// token_type of the passthrough flow
     #[schema(value_type = PaymentMethodType, example = "paypal")]
     pub token_type: common_enums::PaymentMethodType,
+}
+
+impl From<&AdditionalPayoutMethodData> for common_enums::PaymentMethodType {
+    fn from(data: &AdditionalPayoutMethodData) -> Self {
+        match data {
+            // debit represent card payout methods, todo: consider renaming it to card in future
+            AdditionalPayoutMethodData::Card(_) => Self::Debit,
+            AdditionalPayoutMethodData::Bank(bank) => match **bank {
+                BankAdditionalData::Ach(_) => Self::Ach,
+                BankAdditionalData::Bacs(_) => Self::Bacs,
+                BankAdditionalData::Sepa(_) => Self::SepaBankTransfer,
+                BankAdditionalData::Pix(_) => Self::Pix,
+                BankAdditionalData::Trustly(_) => Self::Trustly,
+            },
+            AdditionalPayoutMethodData::Wallet(wallet) => match **wallet {
+                WalletAdditionalData::ApplePayDecrypt(_) => Self::ApplePay,
+                WalletAdditionalData::Paypal(_) => Self::Paypal,
+                WalletAdditionalData::Venmo(_) => Self::Venmo,
+            },
+            AdditionalPayoutMethodData::BankRedirect(bank_redirect) => match **bank_redirect {
+                BankRedirectAdditionalData::Interac(_) => Self::Interac,
+                BankRedirectAdditionalData::OpenBankingUk(_) => Self::OpenBankingUk,
+            },
+            AdditionalPayoutMethodData::Passthrough(passthrough) => passthrough.token_type,
+        }
+    }
 }

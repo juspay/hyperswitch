@@ -2,7 +2,7 @@ use async_trait::async_trait;
 use common_utils::ext_traits::ValueExt;
 use error_stack::ResultExt;
 use hyperswitch_domain_models::payments::payment_intent;
-use masking::ExposeInterface;
+use hyperswitch_masking::ExposeInterface;
 
 use crate::{
     core::{
@@ -160,6 +160,7 @@ impl ConstructFlowSpecificData<frm_api::Sale, FraudCheckSaleData, FraudCheckResp
                 .attach_printable(
                     "Failed to extract customer document details from payment_intent",
                 )?,
+            feature_data: None,
         };
 
         Ok(router_data)
