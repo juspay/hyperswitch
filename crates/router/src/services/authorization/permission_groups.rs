@@ -23,8 +23,8 @@ impl PermissionGroupExt for PermissionGroup {
             | Self::AnalyticsView
             | Self::UsersView
             | Self::AccountView
-            | Self::LegacyReconOpsView
-            | Self::LegacyReconReportsView
+            | Self::ReconOpsView
+            | Self::ReconReportsView
             | Self::ThemeView
             | Self::ReconSourcesView
             | Self::ReconTransactionsView
@@ -36,8 +36,8 @@ impl PermissionGroupExt for PermissionGroup {
             | Self::WorkflowsManage
             | Self::UsersManage
             | Self::AccountManage
-            | Self::LegacyReconOpsManage
-            | Self::LegacyReconReportsManage
+            | Self::ReconOpsManage
+            | Self::ReconReportsManage
             | Self::InternalManage
             | Self::ThemeManage
             | Self::ReconSourcesManage
@@ -57,10 +57,8 @@ impl PermissionGroupExt for PermissionGroup {
             Self::AccountView | Self::AccountManage => ParentGroup::Account,
 
             Self::ThemeView | Self::ThemeManage => ParentGroup::Theme,
-            Self::LegacyReconOpsView | Self::LegacyReconOpsManage => ParentGroup::LegacyReconOps,
-            Self::LegacyReconReportsView | Self::LegacyReconReportsManage => {
-                ParentGroup::LegacyReconReports
-            }
+            Self::ReconOpsView | Self::ReconOpsManage => ParentGroup::ReconOps,
+            Self::ReconReportsView | Self::ReconReportsManage => ParentGroup::ReconReports,
             Self::InternalManage => ParentGroup::Internal,
             Self::ReconSourcesView | Self::ReconSourcesManage => ParentGroup::ReconSource,
             Self::ReconExceptionsView | Self::ReconExceptionsManage => ParentGroup::ReconExceptions,
@@ -101,15 +99,11 @@ impl PermissionGroupExt for PermissionGroup {
                 vec![Self::UsersView, Self::UsersManage]
             }
 
-            Self::LegacyReconOpsView => vec![Self::LegacyReconOpsView],
-            Self::LegacyReconOpsManage => {
-                vec![Self::LegacyReconOpsView, Self::LegacyReconOpsManage]
-            }
+            Self::ReconOpsView => vec![Self::ReconOpsView],
+            Self::ReconOpsManage => vec![Self::ReconOpsView, Self::ReconOpsManage],
 
-            Self::LegacyReconReportsView => vec![Self::LegacyReconReportsView],
-            Self::LegacyReconReportsManage => {
-                vec![Self::LegacyReconReportsView, Self::LegacyReconReportsManage]
-            }
+            Self::ReconReportsView => vec![Self::ReconReportsView],
+            Self::ReconReportsManage => vec![Self::ReconReportsView, Self::ReconReportsManage],
 
             Self::AccountView => vec![Self::AccountView],
             Self::AccountManage => vec![Self::AccountView, Self::AccountManage],
@@ -169,10 +163,10 @@ impl PermissionGroupExt for PermissionGroup {
             | Self::AnalyticsView
             | Self::AccountView
             | Self::AccountManage
-            | Self::LegacyReconReportsView
-            | Self::LegacyReconReportsManage
-            | Self::LegacyReconOpsView
-            | Self::LegacyReconOpsManage
+            | Self::ReconReportsView
+            | Self::ReconReportsManage
+            | Self::ReconOpsView
+            | Self::ReconOpsManage
             | Self::InternalManage
             | Self::ThemeView
             | Self::ThemeManage => RoleProductCategory::Orchestration,
@@ -208,8 +202,8 @@ impl ParentGroupExt for ParentGroup {
             Self::Analytics => ANALYTICS.to_vec(),
             Self::Users => USERS.to_vec(),
             Self::Account => ACCOUNT.to_vec(),
-            Self::LegacyReconOps => LEGACY_RECON_OPS.to_vec(),
-            Self::LegacyReconReports => LEGACY_RECON_REPORTS.to_vec(),
+            Self::ReconOps => RECON_OPS.to_vec(),
+            Self::ReconReports => RECON_REPORTS.to_vec(),
             Self::Internal => INTERNAL.to_vec(),
             Self::Theme => THEME.to_vec(),
             Self::ReconSource => RECON_SOURCE.to_vec(),
@@ -282,33 +276,29 @@ pub static USERS: [Resource; 2] = [Resource::User, Resource::Account];
 
 pub static ACCOUNT: [Resource; 3] = [Resource::Account, Resource::ApiKey, Resource::WebhookEvent];
 
-pub static LEGACY_RECON_OPS: [Resource; 8] = [
-    Resource::LegacyReconToken,
-    Resource::LegacyReconFiles,
-    Resource::LegacyReconUpload,
-    Resource::LegacyRunRecon,
-    Resource::LegacyReconConfig,
-    Resource::LegacyReconAndSettlementAnalytics,
-    Resource::LegacyReconReports,
+pub static RECON_OPS: [Resource; 8] = [
+    Resource::ReconToken,
+    Resource::ReconFiles,
+    Resource::ReconUpload,
+    Resource::RunRecon,
+    Resource::ReconConfig,
+    Resource::ReconAndSettlementAnalytics,
+    Resource::ReconReports,
     Resource::Account,
 ];
 
 pub static INTERNAL: [Resource; 1] = [Resource::InternalConnector];
 
-pub static LEGACY_RECON_REPORTS: [Resource; 4] = [
-    Resource::LegacyReconToken,
-    Resource::LegacyReconAndSettlementAnalytics,
-    Resource::LegacyReconReports,
+pub static RECON_REPORTS: [Resource; 4] = [
+    Resource::ReconToken,
+    Resource::ReconAndSettlementAnalytics,
+    Resource::ReconReports,
     Resource::Account,
 ];
 
 pub static THEME: [Resource; 1] = [Resource::Theme];
 
-pub static RECON_SOURCE: [Resource; 3] = [
-    Resource::ReconIngestion,
-    Resource::ReconTransformation,
-    Resource::ReconFiles,
-];
+pub static RECON_SOURCE: [Resource; 2] = [Resource::ReconIngestion, Resource::ReconTransformation];
 
 pub static RECON_EXCEPTIONS: [Resource; 1] = [Resource::ReconException];
 
