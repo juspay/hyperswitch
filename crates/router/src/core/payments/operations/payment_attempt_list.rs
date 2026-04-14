@@ -128,7 +128,7 @@ impl<F: Clone + Sync>
         payment_data: payments::PaymentAttemptListData<F>,
         _frm_suggestion: Option<FrmSuggestion>,
         _header_payload: hyperswitch_domain_models::payments::HeaderPayload,
-        _dimensions: &dimension_state:DimensionsWithProcessorAndProviderMerchantId,
+        _dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
     ) -> RouterResult<(
         PaymentAttemptsListOperation<'b, F>,
         payments::PaymentAttemptListData<F>,
