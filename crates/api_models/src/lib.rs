@@ -4,6 +4,7 @@ pub mod api_keys;
 pub mod apple_pay_certificates_migration;
 pub mod authentication;
 pub mod blocklist;
+pub mod card_issuer;
 pub mod cards_info;
 pub mod chat;
 pub mod conditional_configs;

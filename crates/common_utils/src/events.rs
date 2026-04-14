@@ -143,6 +143,7 @@ pub enum ApiEventsType {
     ThreeDsDecisionRule,
     Chat,
     Oidc,
+    CardIssuers,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize)]
