@@ -76,6 +76,7 @@ pub struct ProductionAgreementValue {
 #[cfg(feature = "v1")]
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
 pub struct SavedViewV1 {
+    pub view_id: String,
     pub view_name: String,
     pub filters: api::PaymentListFilterConstraintsV1,
     pub created_at: String,

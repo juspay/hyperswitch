@@ -603,7 +603,9 @@ async fn create_saved_view(
     }
 
     let now = common_utils::date_time::now();
+    let view_id = common_utils::generate_id(common_utils::consts::ID_LENGTH, "view");
     let new_view_domain = types::SavedViewV1 {
+        view_id,
         view_name: request.view_name.clone(),
         filters: get_payment_views_filters_v1(request.data),
         created_at: now.to_string(),
@@ -658,12 +660,18 @@ async fn update_saved_view(
             let view = views_data
                 .views
                 .iter_mut()
-                .find(|v| v.view_name == request.view_name)
+                .find(|v| v.view_id == request.view_id)
                 .ok_or(report!(UserErrors::SavedViewNotFound))
-                .attach_printable("Saved view with this name not found")?;
+                .attach_printable("Saved view with this ID not found")?;
 
             let now = common_utils::date_time::now();
-            view.view_name = request.view_name.clone();
+            if let Some(new_name) = request.view_name {
+                if new_name.trim().is_empty() {
+                    return Err(report!(UserErrors::InvalidSavedViewName))
+                        .attach_printable("Saved view name cannot be empty");
+                }
+                view.view_name = new_name;
+            }
             view.filters = get_payment_views_filters_v1(request.data);
             view.updated_at = now.to_string();
 
@@ -689,15 +697,16 @@ async fn delete_saved_view(
         |existing: Option<types::PaymentViewsValue>| {
             let mut views_data = existing.ok_or(report!(UserErrors::SavedViewNotFound))?;
 
-            let initial_len = views_data.views.len();
-            views_data
+            let position = views_data
                 .views
-                .retain(|v| v.view_name != request.view_name);
+                .iter()
+                .position(|v| v.view_id == request.view_id)
+                .ok_or_else(|| {
+                    report!(UserErrors::SavedViewNotFound)
+                        .attach_printable("Saved view with this ID not found")
+                })?;
 
-            if views_data.views.len() == initial_len {
-                return Err(report!(UserErrors::SavedViewNotFound))
-                    .attach_printable("Saved view with this name not found");
-            }
+            views_data.views.remove(position);
 
             Ok(views_data)
         },

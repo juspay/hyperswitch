@@ -247,6 +247,7 @@ pub enum SavedViewFilters {
 #[cfg(feature = "v1")]
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct SavedView {
+    pub view_id: String,
     pub view_name: String,
     pub data: SavedViewFilters,
     pub created_at: String,
@@ -265,7 +266,8 @@ pub struct CreateSavedViewRequest {
 #[cfg(feature = "v1")]
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct UpdateSavedViewRequest {
-    pub view_name: String,
+    pub view_id: String,
+    pub view_name: Option<String>,
     #[serde(flatten)]
     pub data: SavedViewFilters,
 }
@@ -273,5 +275,5 @@ pub struct UpdateSavedViewRequest {
 /// DELETE /user/views
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct DeleteSavedViewRequest {
-    pub view_name: String,
+    pub view_id: String,
 }

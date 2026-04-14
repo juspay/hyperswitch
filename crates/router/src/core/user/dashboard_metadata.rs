@@ -248,6 +248,7 @@ fn into_response(
                 d.views
                     .into_iter()
                     .map(|v| api::SavedView {
+                        view_id: v.view_id,
                         view_name: v.view_name,
                         data: api::SavedViewFilters::V1(api::SavedViewFiltersV1::PaymentViews(
                             v.filters,
