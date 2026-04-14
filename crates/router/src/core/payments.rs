@@ -133,7 +133,7 @@ use crate::{
     },
     consts,
     core::{
-        configs::{self as configs, dimension_state::DimensionsWithProcessorAndProviderMerchantId},
+        configs::dimension_state,
         errors::{self, CustomResult, RouterResponse, RouterResult},
         payment_methods::{cards, network_tokenization},
         payments::helpers::{
@@ -213,7 +213,7 @@ where
     PaymentResponse: Operation<F, FData, Data = D>,
     FData: Send + Sync + Clone,
 {
-    let dimensions = configs::dimension_state::Dimensions::new()
+    let dimensions = dimension_state::Dimensions::new()
         .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
         .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id());
 
@@ -636,7 +636,7 @@ pub async fn payments_operation_core<'a, F, Req, Op, FData, D>(
     auth_flow: services::AuthFlow,
     eligible_connectors: Option<Vec<enums::RoutableConnectors>>,
     header_payload: HeaderPayload,
-    dimensions: DimensionsWithProcessorAndProviderMerchantId,
+    dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
 ) -> RouterResult<(D, Req, Option<u16>, Option<u128>)>
 where
     F: Send + Clone + Sync + Debug + 'static,
@@ -772,6 +772,7 @@ where
         &mut payment_data,
         eligible_connectors,
         mandate_type,
+        &dimensions,
     )
     .await?;
 
@@ -1246,10 +1247,12 @@ where
                     #[cfg(all(feature = "retry", feature = "v1"))]
                     {
                         use crate::core::payments::retry::{self, GsmValidation};
+
                         let config_bool = retry::config_should_call_gsm(
-                            &*state.store,
-                            platform.get_processor().get_account().get_id(),
+                            state,
+                            &dimensions,
                             &business_profile,
+                            customer.as_ref().map(|c| c.get_id()),
                         )
                         .await;
 
@@ -1273,6 +1276,7 @@ where
                                 &business_profile,
                                 #[cfg(feature = "pm_modular")]
                                 &feature_config,
+                                &dimensions,
                             )
                             .await?;
                         };
@@ -1510,7 +1514,7 @@ pub async fn proxy_for_payments_operation_core<F, Req, Op, FData, D>(
     auth_flow: services::AuthFlow,
     header_payload: HeaderPayload,
     return_raw_connector_response: Option<bool>,
-    dimensions: DimensionsWithProcessorAndProviderMerchantId,
+    dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
 ) -> RouterResult<(D, Req, Option<u16>, Option<u128>)>
 where
     F: Send + Clone + Sync,
@@ -1574,7 +1578,8 @@ where
     validate_for_proxy_payment(
         state,
         &payment_data,
-        platform.get_processor().get_account().get_id(),
+        &dimensions,
+        &payment_data.get_payment_intent().payment_id,
     )
     .await?;
 
@@ -1860,7 +1865,7 @@ where
     // Get the trackers related to track the state of the payment
     let operations::GetTrackerResponse { mut payment_data } = get_tracker_response;
 
-    let dimensions = configs::dimension_state::Dimensions::new()
+    let dimensions = dimension_state::Dimensions::new()
         .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
         .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id());
 
@@ -1983,7 +1988,7 @@ where
     D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
 {
     let operation: BoxedOperation<'_, F, Req, D> = Box::new(operation);
-    let dimensions = configs::dimension_state::Dimensions::new()
+    let dimensions = dimension_state::Dimensions::new()
         .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
         .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id());
 
@@ -2062,7 +2067,7 @@ where
     D: OperationSessionGetters<F> + Send + Sync + Clone,
 {
     let operation: BoxedOperation<'_, F, Req, D> = Box::new(operation);
-    let dimensions = configs::dimension_state::Dimensions::new()
+    let dimensions = dimension_state::Dimensions::new()
         .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
         .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id());
 
@@ -2576,7 +2581,7 @@ where
             .flat_map(|c| c.foreign_try_into())
             .collect()
     });
-    let dimensions = configs::dimension_state::Dimensions::new()
+    let dimensions = dimension_state::Dimensions::new()
         .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
         .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id());
     let (payment_data, _req, connector_http_status_code, external_latency) =
@@ -2592,7 +2597,7 @@ where
             auth_flow,
             eligible_routable_connectors,
             header_payload.clone(),
-            dimensions,
+            &dimensions,
         )
         .await?;
 
@@ -2641,7 +2646,7 @@ where
     // To perform router related operation for PaymentResponse
     PaymentResponse: Operation<F, FData, Data = D>,
 {
-    let dimensions = configs::dimension_state::Dimensions::new()
+    let dimensions = dimension_state::Dimensions::new()
         .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
         .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id());
     let (payment_data, _req, connector_http_status_code, external_latency) =
@@ -2656,7 +2661,7 @@ where
             auth_flow,
             header_payload.clone(),
             return_raw_connector_response,
-            dimensions,
+            &dimensions,
         )
         .await?;
 
@@ -2851,7 +2856,7 @@ pub async fn record_attempt_core(
             .get_string_repr(),
     );
 
-    let dimensions = configs::dimension_state::Dimensions::new()
+    let dimensions = dimension_state::Dimensions::new()
         .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
         .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id());
 
@@ -4824,7 +4829,7 @@ pub async fn complete_connector_service<F, RouterDReq, ApiRequest, D>(
     header_payload: HeaderPayload,
     frm_suggestion: Option<storage_enums::FrmSuggestion>,
     call_connector_service_response: ConnectorServiceIntermediateState<F, RouterDReq>,
-    dimensions: &DimensionsWithProcessorAndProviderMerchantId,
+    dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
 ) -> RouterResult<(
     RouterData<F, RouterDReq, router_types::PaymentsResponseData>,
     helpers::MerchantConnectorAccountType,
@@ -5318,7 +5323,7 @@ pub async fn complete_connector_service<F, RouterDReq, ApiRequest, D>(
     header_payload: HeaderPayload,
     frm_suggestion: Option<storage_enums::FrmSuggestion>,
     call_connector_service_response: ConnectorServiceIntermediateState<F, RouterDReq>,
-    dimensions: &DimensionsWithProcessorAndProviderMerchantId,
+    dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
 ) -> RouterResult<(
     RouterData<F, RouterDReq, router_types::PaymentsResponseData>,
     domain::MerchantConnectorAccountTypeDetails,
@@ -5689,7 +5694,7 @@ where
         )
         .await?;
 
-    let dimensions = configs::dimension_state::Dimensions::new()
+    let dimensions = dimension_state::Dimensions::new()
         .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
         .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id());
 
@@ -5908,7 +5913,7 @@ pub async fn call_unified_connector_service_for_external_proxy<F, RouterDReq, Ap
     external_vault_merchant_connector_account_type_details: domain::MerchantConnectorAccountTypeDetails,
     mut router_data: RouterData<F, RouterDReq, router_types::PaymentsResponseData>,
     _updated_customer: Option<storage::CustomerUpdate>,
-    dimensions: &DimensionsWithProcessorAndProviderMerchantId,
+    dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
 ) -> RouterResult<RouterData<F, RouterDReq, router_types::PaymentsResponseData>>
 where
     F: Send + Clone + Sync,
@@ -5991,7 +5996,7 @@ where
     dyn api::Connector:
         services::api::ConnectorIntegration<F, RouterDReq, router_types::PaymentsResponseData>,
 {
-    let dimensions = configs::dimension_state::Dimensions::new()
+    let dimensions = dimension_state::Dimensions::new()
         .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
         .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id());
 
@@ -6203,7 +6208,7 @@ where
             )
             .await?,
         ));
-    let dimensions = configs::dimension_state::Dimensions::new()
+    let dimensions = dimension_state::Dimensions::new()
         .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
         .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id());
 
@@ -6332,7 +6337,7 @@ where
 {
     let stime_connector = Instant::now();
 
-    let dimensions = configs::dimension_state::Dimensions::new()
+    let dimensions = dimension_state::Dimensions::new()
         .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
         .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id());
 
@@ -9647,6 +9652,7 @@ pub async fn choose_connector<F, Req, D>(
     payment_data: &mut D,
     eligible_connectors: Option<Vec<enums::RoutableConnectors>>,
     mandate_type: Option<api::MandateTransactionType>,
+    dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
 ) -> RouterResult<Option<ConnectorCallType>>
 where
     F: Send + Clone,
@@ -9718,6 +9724,7 @@ where
                             Some(straight_through),
                             eligible_connectors,
                             mandate_type,
+                            dimensions,
                             fallback_config,
                             backend_input,
                         )
@@ -9735,6 +9742,7 @@ where
                             None,
                             eligible_connectors,
                             mandate_type,
+                            dimensions,
                             fallback_config,
                             backend_input,
                         )
@@ -9884,7 +9892,8 @@ where
 pub async fn validate_for_proxy_payment<F, D>(
     state: &SessionState,
     payment_data: &D,
-    merchant_id: &id_type::MerchantId,
+    dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
+    payment_id: &id_type::PaymentId,
 ) -> RouterResult<()>
 where
     D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
@@ -9896,20 +9905,13 @@ where
         .clone()
         .is_card_limited_details_flow();
 
-    let db = &*state.store;
-    let config = db
-        .find_config_by_key_unwrap_or(
-            &merchant_id.get_should_enable_mit_with_limited_card_data(),
-            Some("false".to_string()),
+    let is_mit_with_limited_card_data_enabled = dimensions
+        .get_should_enable_mit_with_limited_card_data(
+            state.store.as_ref(),
+            state.superposition_service.as_ref(),
+            Some(payment_id),
         )
         .await;
-    let is_mit_with_limited_card_data_enabled = match config {
-        Ok(conf) => conf.config == "true",
-        Err(error) => {
-            router_env::logger::error!(?error);
-            false
-        }
-    };
 
     utils::when(
         is_card_limited_details_flow && !is_mit_with_limited_card_data_enabled,
@@ -9934,6 +9936,7 @@ pub async fn perform_routing_for_connector_selection<F, D>(
     request_straight_through: Option<serde_json::Value>,
     eligible_connectors: Option<Vec<enums::RoutableConnectors>>,
     mandate_type: Option<api::MandateTransactionType>,
+    dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
     fallback_config: Vec<api_models::routing::RoutableConnectorChoice>,
     backend_input: dsl_inputs::BackendInput,
 ) -> RouterResult<ConnectorCallType>
@@ -9980,6 +9983,7 @@ where
         &mut routing_data,
         eligible_connectors,
         mandate_type,
+        dimensions,
         fallback_config,
         backend_input,
         #[cfg(feature = "pm_modular")]
@@ -10178,6 +10182,7 @@ pub async fn decide_connector<F, D>(
     routing_data: &mut storage::RoutingData,
     eligible_connectors: Option<Vec<enums::RoutableConnectors>>,
     mandate_type: Option<api::MandateTransactionType>,
+    dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
     fallback_config: Vec<api_models::routing::RoutableConnectorChoice>,
     backend_input: dsl_inputs::BackendInput,
     is_payment_method_modular_allowed: bool,
@@ -10211,6 +10216,7 @@ where
             business_profile,
             payment_data,
             routing_data,
+            dimensions,
         )
         .await
         .inspect_err(|err| {
@@ -11531,7 +11537,6 @@ pub async fn payment_external_authentication<F: Clone + Sync>(
         .clone()
         .get_required_value("authentication_connector_details")
         .attach_printable("authentication_connector_details not configured by the merchant")?;
-
     let authentication_response =
         if helpers::is_merchant_eligible_authentication_service(platform.get_processor(), &state)
             .await?
