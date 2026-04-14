@@ -1958,7 +1958,7 @@ pub async fn update_customer_payment_method(
                 customer_id: pm.customer_id.clone(),
                 client_secret: pm.client_secret.clone(),
                 payment_method_data: None,
-                card_network: None,
+                card_network: card_update.card_network.clone().map(|val| val.to_string()),
                 billing: None,
                 connector_mandate_details: None,
                 network_transaction_id: None,
@@ -1990,7 +1990,7 @@ pub async fn update_customer_payment_method(
 
             // Construct new updated card object. Consider a field if passed in request or else populate it with the existing value from existing_card_data
             let updated_card = Some(api::CardDetailFromLocker {
-                scheme: existing_card_data.scheme,
+                scheme: card_update.card_network.clone().map(|val| val.to_string()),
                 last4_digits: card_update
                     .last4_digits
                     .or(Some(card_data_from_locker.card_number.get_last4())),
@@ -2011,7 +2011,10 @@ pub async fn update_customer_payment_method(
                     .card_holder_name
                     .or(existing_card_data.card_holder_name),
                 nick_name: card_update.nick_name.or(existing_card_data.nick_name),
-                card_network: card_update.card_network.or(existing_card_data.card_network),
+                card_network: card_update
+                    .card_network
+                    .clone()
+                    .or(existing_card_data.card_network),
                 card_isin: existing_card_data.card_isin,
                 card_issuer: card_update.card_issuer.or(existing_card_data.card_issuer),
                 card_type: existing_card_data.card_type,
@@ -2031,11 +2034,13 @@ pub async fn update_customer_payment_method(
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Unable to encrypt payment method data")?;
 
-            let pm_update = storage::PaymentMethodUpdate::PaymentMethodDataUpdate {
+            let pm_update = storage::PaymentMethodUpdate::UpdatePaymentMethodDataAndLastUsed {
                 payment_method_data: pm_data_encrypted.map(Into::into),
                 last_modified_by: initiator
                     .and_then(|initiator| initiator.to_created_by())
                     .map(|last_modified_by| last_modified_by.to_string()),
+                scheme: card_update.card_network.clone().map(|val| val.to_string()),
+                last_used_at: pm.last_used_at,
             };
 
             add_card_resp
@@ -2201,6 +2206,11 @@ pub fn validate_payment_method_update(
                     .nick_name
                     .map(|nick_name| nick_name.expose())
                     != Some(new_nick_name)
+            })
+        || card_updation_obj
+            .card_network
+            .is_some_and(|new_card_network| {
+                existing_card_data.card_network != Some(new_card_network)
             })
 }
 

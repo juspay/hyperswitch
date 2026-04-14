@@ -994,7 +994,7 @@ impl CardDetailUpdate {
             card_cvc: None,
             card_issuing_country: None,
             card_issuing_country_code: None,
-            card_network: None,
+            card_network: self.card_network.clone(),
             card_issuer: None,
             card_type: None,
         }
