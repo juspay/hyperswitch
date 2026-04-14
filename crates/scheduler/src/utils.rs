@@ -229,35 +229,32 @@ pub async fn get_batches(
         .keys
         .into_iter()
         .map(|stream_key| {
-            stream_key
-                .ids
-                .into_iter()
-                .try_fold(
-                    (Vec::new(), Vec::new()),
-                    |(mut batches, mut entry_ids), id| {
-                        // Redis entry ID
-                        entry_ids.push(id.id);
-                        // Convert redis::Value map to HashMap<String, Option<String>>
-                        let fields: std::collections::HashMap<String, Option<String>> = id
-                            .map
-                            .into_iter()
-                            .map(|(k, v)| {
-                                let value_opt = match v {
-                                    redis_interface::types::Value::BulkString(bytes) => {
-                                        String::from_utf8(bytes).ok()
-                                    }
-                                    redis_interface::types::Value::SimpleString(s) => Some(s),
-                                    redis_interface::types::Value::Int(i) => Some(i.to_string()),
-                                    redis_interface::types::Value::Nil => None,
-                                    _ => None,
-                                };
-                                (k, value_opt)
-                            })
-                            .collect();
-                        batches.push(ProcessTrackerBatch::from_redis_stream_entry(fields)?);
-                        Ok((batches, entry_ids))
-                    },
-                )
+            stream_key.ids.into_iter().try_fold(
+                (Vec::new(), Vec::new()),
+                |(mut batches, mut entry_ids), id| {
+                    // Redis entry ID
+                    entry_ids.push(id.id);
+                    // Convert redis::Value map to HashMap<String, Option<String>>
+                    let fields: std::collections::HashMap<String, Option<String>> = id
+                        .map
+                        .into_iter()
+                        .map(|(k, v)| {
+                            let value_opt = match v {
+                                redis_interface::types::Value::BulkString(bytes) => {
+                                    String::from_utf8(bytes).ok()
+                                }
+                                redis_interface::types::Value::SimpleString(s) => Some(s),
+                                redis_interface::types::Value::Int(i) => Some(i.to_string()),
+                                redis_interface::types::Value::Nil => None,
+                                _ => None,
+                            };
+                            (k, value_opt)
+                        })
+                        .collect();
+                    batches.push(ProcessTrackerBatch::from_redis_stream_entry(fields)?);
+                    Ok((batches, entry_ids))
+                },
+            )
         })
         .collect::<CustomResult<Vec<_>, errors::ProcessTrackerError>>()?
         .into_iter()
