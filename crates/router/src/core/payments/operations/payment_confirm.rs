@@ -5,7 +5,10 @@ use api_models::payment_methods::PaymentMethodsData;
 use api_models::{
     admin::ExtendedCardInfoConfig,
     enums::FrmSuggestion,
-    payments::{ConnectorMandateReferenceId, ExtendedCardInfo, GetAddressFromPaymentMethodData},
+    payments::{
+        ConnectorMandateReferenceId, ExtendedCardInfo, GetAddressFromPaymentMethodData,
+        MandateTransactionType,
+    },
 };
 use async_trait::async_trait;
 use common_utils::ext_traits::{AsyncExt, Encode, StringExt, ValueExt};
@@ -30,12 +33,10 @@ use tracing_futures::Instrument;
 use super::{BoxedOperation, Domain, GetTracker, Operation, UpdateTracker, ValidateRequest};
 #[cfg(feature = "pm_modular")]
 use crate::core::payment_methods::{transformers as pm_transformers, utils as pm_utils};
-#[cfg(feature = "pm_modular")]
-use crate::core::payments::OperationSessionSetters;
 #[cfg(feature = "v1")]
 use crate::{
     consts,
-    core::payment_methods::cards::create_encrypted_data,
+    core::utils::create_encrypted_data,
     events::audit_events::{AuditEvent, AuditEventType},
 };
 use crate::{
@@ -43,7 +44,7 @@ use crate::{
         authentication,
         blocklist::utils as blocklist_utils,
         card_testing_guard::utils as card_testing_guard_utils,
-        configs::dimension_state::DimensionsWithMerchantIdAndProfileId,
+        configs::dimension_state,
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
         mandate::helpers as m_helpers,
         metrics,
@@ -51,7 +52,7 @@ use crate::{
             self, helpers, operations,
             operations::payment_confirm::unified_authentication_service::ThreeDsMetaData,
             populate_installment_details, populate_surcharge_details, CustomerDetails,
-            OperationSessionGetters, PaymentAddress, PaymentData,
+            OperationSessionGetters, OperationSessionSetters, PaymentAddress, PaymentData,
         },
         three_ds_decision_rule,
         unified_authentication_service::{
@@ -165,7 +166,8 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
 
         helpers::authenticate_client_secret(request.client_secret.as_ref(), &payment_intent)?;
 
-        let customer_details = helpers::get_customer_details_from_request(request);
+        let customer_details =
+            helpers::get_customer_details_from_request_or_pm_table(request, None, None)?;
 
         payment_intent.customer_details = helpers::merge_request_and_intent_customer_data(
             state,
@@ -519,12 +521,18 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             .or(payment_method_recurring_details.clone());
 
         let store = state.clone().store;
+        let superposition_service = state.superposition_service.clone();
         let profile_id = payment_intent
             .profile_id
             .clone()
             .get_required_value("profile_id")
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("'profile_id' not set in payment intent")?;
+        let customer_id = payment_intent.customer_id.clone();
+        let dimensions = dimension_state::Dimensions::new()
+            .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
+            .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id())
+            .with_profile_id(profile_id.clone());
 
         let additional_pm_data_fut = tokio::spawn(
             async move {
@@ -533,7 +541,9 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                         helpers::get_additional_payment_data(
                             &payment_method_data,
                             store.as_ref(),
-                            &profile_id,
+                            superposition_service.as_ref(),
+                            &dimensions,
+                            customer_id.as_ref(),
                             None,
                         )
                         .await
@@ -1059,18 +1069,19 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
         request: Option<CustomerDetails>,
         provider: &domain::Provider,
         initiator: Option<&domain::Initiator>,
-        dimensions: DimensionsWithMerchantIdAndProfileId,
+        dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
+        mandate_type: Option<MandateTransactionType>,
     ) -> CustomResult<
         (PaymentConfirmOperation<'a, F>, Option<domain::Customer>),
         errors::StorageError,
     > {
-        match provider.get_account().merchant_account_type {
+        let (operation, customer) = match provider.get_account().merchant_account_type {
             common_enums::MerchantAccountType::Standard => {
                 helpers::create_customer_if_not_exist(
                     state,
                     Box::new(self),
                     payment_data,
-                    request,
+                    request.clone(),
                     provider,
                     initiator,
                     dimensions,
@@ -1099,8 +1110,8 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                 })
                 .transpose()
                 .map_err(|e: errors::StorageError| report!(e))?;
-
-                Ok((Box::new(self), customer))
+                let op: PaymentConfirmOperation<'a, F> = Box::new(self);
+                Ok((op, customer))
             }
             common_enums::MerchantAccountType::Connected => {
                 Err(errors::StorageError::ValueNotFound(
@@ -1108,7 +1119,28 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                 )
                 .into())
             }
+        }?;
+        // When no document details is passed in request but customer_id is passed, use that customers document details from customers table
+        if let Some(doc_details) = request
+            .filter(|req| req.customer_id.is_some() && req.document_details.is_none())
+            .and_then(|_| customer.as_ref().and_then(|c| c.document_details.clone()))
+        {
+            let encrypted_customer_details = core_utils::update_intent_customer_documents(
+                payment_data.get_payment_intent(),
+                Some(doc_details),
+                mandate_type,
+                state,
+                provider.get_key_store(),
+                payment_data
+                    .payment_method_info
+                    .as_ref()
+                    .and_then(|pm| pm.customer_details.clone()),
+            )
+            .await
+            .change_context(errors::StorageError::EncryptionError)?;
+            payment_data.set_document_details_in_intent(encrypted_customer_details);
         }
+        Ok((operation, customer))
     }
 
     #[cfg(feature = "v1")]
@@ -1425,7 +1457,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
         business_profile: &domain::Profile,
         processor: &domain::Processor,
         initiator: Option<&domain::Initiator>,
-        mandate_type: Option<api_models::payments::MandateTransactionType>,
+        mandate_type: Option<MandateTransactionType>,
     ) -> CustomResult<(), errors::ApiErrorResponse> {
         let external_authentication_flow =
             helpers::get_payment_external_authentication_flow_during_confirm(
@@ -1703,7 +1735,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
         connector_call_type: &ConnectorCallType,
         business_profile: &domain::Profile,
         platform: &domain::Platform,
-        mandate_type: Option<api_models::payments::MandateTransactionType>,
+        mandate_type: Option<MandateTransactionType>,
     ) -> CustomResult<(), errors::ApiErrorResponse> {
         let unified_authentication_service_flow =
             helpers::decide_action_for_unified_authentication_service(
@@ -2270,6 +2302,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
         _customer: Option<domain::Customer>,
         _frm_suggestion: Option<FrmSuggestion>,
         _header_payload: hyperswitch_domain_models::payments::HeaderPayload,
+        _dimensions: &dimension_state::Dimensions,
     ) -> RouterResult<(
         BoxedOperation<'b, F, api::PaymentsRequest, PaymentData<F>>,
         PaymentData<F>,
@@ -2293,6 +2326,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
         mut payment_data: PaymentData<F>,
         frm_suggestion: Option<FrmSuggestion>,
         header_payload: hyperswitch_domain_models::payments::HeaderPayload,
+        dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
     ) -> RouterResult<(
         BoxedOperation<'b, F, api::PaymentsRequest, PaymentData<F>>,
         PaymentData<F>,
@@ -2386,7 +2420,10 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
             .get_required_value("profile_id")
             .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
+        let customer_id = payment_data.payment_intent.customer_id.as_ref();
+
         let payment_experience = payment_data.payment_attempt.payment_experience;
+        let dimensions = dimensions.with_profile_id(profile_id.clone());
         let additional_pm_data = payment_data
             .payment_method_data
             .as_ref()
@@ -2394,7 +2431,9 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
                 helpers::get_additional_payment_data(
                     payment_method_data,
                     &*state.store,
-                    profile_id,
+                    state.superposition_service.as_ref(),
+                    &dimensions,
+                    customer_id,
                     payment_data.payment_method_token.as_ref(),
                 )
                 .await
@@ -2595,7 +2634,12 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
         let key_manager_state = state.into();
         let billing_details = billing_address
             .async_map(|billing_details| {
-                create_encrypted_data(&key_manager_state, key_store, billing_details)
+                create_encrypted_data(
+                    &key_manager_state,
+                    key_store,
+                    billing_details,
+                    common_utils::type_name!(diesel_models::payment_method::PaymentMethod),
+                )
             })
             .await
             .transpose()
@@ -2605,7 +2649,12 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
         let shipping_address = payment_data.address.get_shipping();
         let shipping_details = shipping_address
             .async_map(|shipping_details| {
-                create_encrypted_data(&key_manager_state, key_store, shipping_details)
+                create_encrypted_data(
+                    &key_manager_state,
+                    key_store,
+                    shipping_details,
+                    common_utils::type_name!(diesel_models::payment_method::PaymentMethod),
+                )
             })
             .await
             .transpose()

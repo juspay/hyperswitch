@@ -365,62 +365,44 @@ pub async fn get_metrics(
 pub async fn get_filters(
     pool: &AnalyticsProvider,
     req: GetPaymentIntentFiltersRequest,
-    merchant_id: &common_utils::id_type::MerchantId,
+    auth: &AuthInfo,
 ) -> AnalyticsResult<PaymentIntentFiltersResponse> {
     let mut res = PaymentIntentFiltersResponse::default();
 
     for dim in req.group_by_names {
         let values = match pool {
-                        AnalyticsProvider::Sqlx(pool) => {
-                get_payment_intent_filter_for_dimension(dim, merchant_id, &req.time_range, pool)
-                    .await
+            AnalyticsProvider::Sqlx(pool) => {
+                get_payment_intent_filter_for_dimension(dim, auth, &req.time_range, pool).await
             }
-                        AnalyticsProvider::Clickhouse(pool) => {
-                get_payment_intent_filter_for_dimension(dim, merchant_id, &req.time_range, pool)
-                    .await
+            AnalyticsProvider::Clickhouse(pool) => {
+                get_payment_intent_filter_for_dimension(dim, auth, &req.time_range, pool).await
             }
-                    AnalyticsProvider::CombinedCkh(sqlx_poll, ckh_pool) => {
-                let ckh_result = get_payment_intent_filter_for_dimension(
-                    dim,
-                    merchant_id,
-                    &req.time_range,
-                    ckh_pool,
-                )
-                .await;
-                let sqlx_result = get_payment_intent_filter_for_dimension(
-                    dim,
-                    merchant_id,
-                    &req.time_range,
-                    sqlx_poll,
-                )
-                .await;
+            AnalyticsProvider::CombinedCkh(sqlx_poll, ckh_pool) => {
+                let ckh_result =
+                    get_payment_intent_filter_for_dimension(dim, auth, &req.time_range, ckh_pool)
+                        .await;
+                let sqlx_result =
+                    get_payment_intent_filter_for_dimension(dim, auth, &req.time_range, sqlx_poll)
+                        .await;
                 match (&sqlx_result, &ckh_result) {
                     (Ok(ref sqlx_res), Ok(ref ckh_res)) if sqlx_res != ckh_res => {
                         router_env::logger::error!(clickhouse_result=?ckh_res, postgres_result=?sqlx_res, "Mismatch between clickhouse & postgres payment intents analytics filters")
-                    },
+                    }
                     _ => {}
                 };
                 ckh_result
             }
-                    AnalyticsProvider::CombinedSqlx(sqlx_poll, ckh_pool) => {
-                let ckh_result = get_payment_intent_filter_for_dimension(
-                    dim,
-                    merchant_id,
-                    &req.time_range,
-                    ckh_pool,
-                )
-                .await;
-                let sqlx_result = get_payment_intent_filter_for_dimension(
-                    dim,
-                    merchant_id,
-                    &req.time_range,
-                    sqlx_poll,
-                )
-                .await;
+            AnalyticsProvider::CombinedSqlx(sqlx_poll, ckh_pool) => {
+                let ckh_result =
+                    get_payment_intent_filter_for_dimension(dim, auth, &req.time_range, ckh_pool)
+                        .await;
+                let sqlx_result =
+                    get_payment_intent_filter_for_dimension(dim, auth, &req.time_range, sqlx_poll)
+                        .await;
                 match (&sqlx_result, &ckh_result) {
                     (Ok(ref sqlx_res), Ok(ref ckh_res)) if sqlx_res != ckh_res => {
                         router_env::logger::error!(clickhouse_result=?ckh_res, postgres_result=?sqlx_res, "Mismatch between clickhouse & postgres payment intents analytics filters")
-                    },
+                    }
                     _ => {}
                 };
                 sqlx_result
