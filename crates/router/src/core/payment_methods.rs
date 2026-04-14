@@ -4705,7 +4705,6 @@ pub async fn payment_methods_session_create(
         .into();
 
     let expires_at = common_utils::date_time::now().saturating_add(Duration::seconds(expires_in));
-
     let client_secret = payment_helpers::create_client_secret(
         &state,
         platform.clone(),

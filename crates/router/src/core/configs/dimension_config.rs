@@ -2,17 +2,31 @@ use external_services::superposition;
 use scheduler::consumer::types::process_data::RetryMapping;
 use serde::{self, Deserialize, Serialize};
 
-use super::deployment_defaults as defaults;
 
-#[derive(Default, Serialize, Deserialize)]
+#[derive(Serialize, Deserialize)]
 pub struct RefundConfig {
     pub max_attempts: usize,
     pub max_age: i64,
 }
 
-#[derive(Default, Serialize, Deserialize)]
+impl Default for RefundConfig {
+    fn default() -> Self {
+        Self {
+            max_attempts: 10,
+            max_age: 365,
+        }
+    }
+}
+
+#[derive(Serialize, Deserialize)]
 pub struct EphemeralKeyConfig {
     pub validity: i64,
+}
+
+impl Default for EphemeralKeyConfig {
+    fn default() -> Self {
+        Self { validity: 1 }
+    }
 }
 
 use super::{dimension_state, fetch_db_config_for_dimensions, DatabaseBackedConfig};
@@ -280,7 +294,7 @@ impl DatabaseBackedConfig for ClientSessionValidationEnabled {
 config! {
     superposition_key = INSTALLMENT_CONFIG_SUPPORTED,
     output = bool,
-    default = defaults::INSTALLMENT_CONFIG_SUPPORTED,
+    default = false,
     requires = dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndOrgIdAndConnectorAndCurrency,
     targeting_key = id_type::CustomerId
 }
@@ -295,16 +309,16 @@ impl DatabaseBackedConfig for InstallmentConfigSupported {
 config! {
     superposition_key = REFUND,
     output = RefundConfig,
-    default = defaults::refund(),
+    default = RefundConfig::default(),
     object = true,
     requires = dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndOrgId,
     targeting_key = String
 }
 
 config! {
-    superposition_key = EPH_KEY,
+    superposition_key = EPHEMERAL_KEY,
     output = EphemeralKeyConfig,
-    default = defaults::eph_key_validity(),
+    default = EphemeralKeyConfig::default(),
     object = true,
     requires = dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndOrgId,
     targeting_key = String

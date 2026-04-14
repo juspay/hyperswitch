@@ -4110,7 +4110,7 @@ pub async fn make_ephemeral_key(
         .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
         .with_organization_id(platform.get_processor().get_account().get_org_id().clone());
     let eph_key_config = eph_key_dimensions
-        .get_eph_key(
+        .get_ephemeral_key(
             state.store.as_ref(),
             state.superposition_service.as_ref(),
             None,
@@ -4190,7 +4190,7 @@ pub async fn create_client_secret(
         .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
         .with_organization_id(platform.get_processor().get_account().get_org_id().clone());
     let eph_key_config = eph_key_dimensions
-        .get_eph_key(
+        .get_ephemeral_key(
             state.store.as_ref(),
             state.superposition_service.as_ref(),
             None,

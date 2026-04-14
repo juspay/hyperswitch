@@ -100,6 +100,11 @@ pub async fn refund_create_core(
                 .attach_printable("refund amount validation against payment intent failed")
         })?;
 
+    let dimensions = dimension_state::Dimensions::new()
+        .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id())
+        .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
+        .with_organization_id(payment_intent.organization_id.clone());
+
     payment_intent.prevent_refund_after_post_capture_void()?;
 
     // Amount is not passed in request refer from payment intent.
@@ -148,6 +153,7 @@ pub async fn refund_create_core(
         amount,
         req,
         creds_identifier,
+        dimensions
     ))
     .await
     .map(services::ApplicationResponse::Json)
@@ -1309,6 +1315,7 @@ pub async fn validate_and_create_refund(
     refund_amount: MinorUnit,
     req: refunds::RefundRequest,
     creds_identifier: Option<String>,
+    dimensions: dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndOrgId
 ) -> RouterResult<refunds::RefundResponse> {
     let db = &*state.store;
     let split_refunds = core_utils::get_split_refunds(SplitRefundInput {
@@ -1357,10 +1364,6 @@ pub async fn validate_and_create_refund(
 
     let currency = payment_attempt.currency.get_required_value("currency")?;
 
-    let dimensions = dimension_state::Dimensions::new()
-        .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id())
-        .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
-        .with_organization_id(payment_intent.organization_id.clone());
     let payment_id = payment_intent.payment_id.get_string_repr().to_owned();
     let refund_config = dimensions
         .get_refund(

@@ -56,6 +56,11 @@ pub async fn refund_create_core(
         .await
         .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
 
+    let dimensions = dimension_state::Dimensions::new()
+        .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id())
+        .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
+        .with_organization_id(payment_intent.organization_id.clone());
+
     utils::when(
         !(payment_intent.status == enums::IntentStatus::Succeeded
             || payment_intent.status == enums::IntentStatus::PartiallyCaptured),
@@ -108,6 +113,7 @@ pub async fn refund_create_core(
         req,
         global_refund_id,
         merchant_connector_details,
+        dimensions
     ))
     .await
     .map(services::ApplicationResponse::Json)
@@ -1153,6 +1159,7 @@ pub async fn validate_and_create_refund(
     req: refunds::RefundsCreateRequest,
     global_refund_id: id_type::GlobalRefundId,
     merchant_connector_details: Option<common_types::domain::MerchantConnectorAuthDetails>,
+    dimensions: dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndOrgId
 ) -> errors::RouterResult<refunds::RefundResponse> {
     let db = &*state.store;
 
@@ -1188,12 +1195,6 @@ pub async fn validate_and_create_refund(
         .to_not_found_response(errors::ApiErrorResponse::RefundNotFound)?;
 
     let currency = payment_intent.amount_details.currency;
-
-    let merchant_id = platform.get_processor().get_account().get_id().clone();
-    let dimensions = dimension_state::Dimensions::new()
-        .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id())
-        .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
-        .with_organization_id(payment_intent.organization_id.clone());
     let payment_id = payment_intent.id.get_string_repr().to_owned();
     let refund_config = dimensions
         .get_refund(

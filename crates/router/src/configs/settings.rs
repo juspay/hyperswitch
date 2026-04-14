@@ -800,12 +800,6 @@ pub enum DecryptionScheme {
     RsaOaep256,
 }
 
-// #[derive(Debug, Deserialize, Clone)]
-// #[serde(default)]
-// pub struct EphemeralConfig {
-//     pub validity: i64,
-// }
-
 #[derive(Debug, Deserialize, Clone, Default)]
 #[serde(default)]
 pub struct Jwekey {

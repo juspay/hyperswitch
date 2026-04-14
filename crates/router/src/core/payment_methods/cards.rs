@@ -2,6 +2,7 @@ use std::{
     collections::{HashMap, HashSet},
     str::FromStr,
 };
+use futures::StreamExt;
 
 use ::payment_methods::{
     configs::payment_connector_required_fields::{
@@ -4004,10 +4005,19 @@ pub async fn list_payment_methods(
     let installment_customer_id = payment_intent
         .as_ref()
         .and_then(|pi| pi.customer_id.as_ref());
-    let connector_supports_installments = if let Some(cur) = currency {
-        let mut any_supported = false;
-        for mca in &filtered_mcas {
-            if let Ok(connector) = mca.connector_name.parse::<api_enums::Connector>() {
+    let connector_supports_installments = match currency {
+        None => false,
+        Some(cur) => {
+            futures::stream::iter(
+                filtered_mcas
+                    .iter()
+                    .filter_map(|mca| mca.connector_name.parse::<api_enums::Connector>().ok()),
+            )
+            .any(|connector| {
+                let platform = platform.clone();
+                let store = state.store.clone();
+                let superposition_service = state.superposition_service.clone();
+                async move {
                 let dimensions = dimension_state::Dimensions::new()
                     .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id())
                     .with_processor_merchant_id(
@@ -4017,8 +4027,8 @@ pub async fn list_payment_methods(
                     .with_currency(cur);
                 let supported = dimensions
                     .get_installment_config_supported(
-                        state.store.as_ref(),
-                        state.superposition_service.as_ref(),
+                        store.as_ref(),
+                        superposition_service.as_ref(),
                         installment_customer_id,
                     )
                     .await;
@@ -4028,15 +4038,10 @@ pub async fn list_payment_methods(
                     installment_config_supported = supported,
                     "installment support check via superposition"
                 );
-                if supported {
-                    any_supported = true;
-                    break;
-                }
-            }
+                supported
+            }})
+            .await
         }
-        any_supported
-    } else {
-        false
     };
 
     let merchant_surcharge_configs = if let Some((payment_attempt, payment_intent)) =

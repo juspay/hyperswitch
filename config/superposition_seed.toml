@@ -8,7 +8,17 @@
 
 # Empty overrides table - required for FileDataSource backup parsing
 # The seeding script ignores this field; it's only needed for runtime fallback
-overrides = []
+[[overrides]]
+_context_ = { connector = "adyen", currency = "BRL" }
+installment_config_supported = true
+
+[[overrides]]
+_context_ = { connector = "adyen", currency = "MXN" }
+installment_config_supported = true
+
+[[overrides]]
+_context_ = { connector = "adyen", currency = "JPY" }
+installment_config_supported = true
 
 [dimensions.organization_id]
 position = 1

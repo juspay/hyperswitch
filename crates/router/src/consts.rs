@@ -368,7 +368,7 @@ pub mod superposition {
     /// Refund configuration key
     pub const REFUND: &str = "refund";
     /// Ephemeral key validity configuration key
-    pub const EPH_KEY: &str = "eph_key_validity";
+    pub const EPHEMERAL_KEY: &str = "eph_key_validity";
     /// GSM (Global Status Map) call configuration key
     pub const SHOULD_CALL_GSM: &str = "should_call_gsm";
     /// Eligibility check configuration key
