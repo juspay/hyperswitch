@@ -4,6 +4,30 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.02.02.0-hotfix17
+
+### Features
+
+- **blocking:** Add profile-based payment method blocking with CardSubtype variants ([#11796](https://github.com/juspay/hyperswitch/pull/11796)) ([`53b5fcb`](https://github.com/juspay/hyperswitch/commit/53b5fcbe9f0140c3efa55bb97cd888db1d106eaf))
+- **connector:**
+  - [envoy] Sepa payouts ([#11786](https://github.com/juspay/hyperswitch/pull/11786)) ([`ec6c3b5`](https://github.com/juspay/hyperswitch/commit/ec6c3b5ff893d2aac4c582e7ff91b03e77fe04f5))
+  - Implement UCS based default implementation for Truelayer ([#11797](https://github.com/juspay/hyperswitch/pull/11797)) ([`11734c9`](https://github.com/juspay/hyperswitch/commit/11734c9dea86e6624bac1f11cb06a9d41b2e3c33))
+  - [Loonio][Gigadat] Add support for manual capture ([#11804](https://github.com/juspay/hyperswitch/pull/11804)) ([`cad936d`](https://github.com/juspay/hyperswitch/commit/cad936dad9b9f6a8eb6da4b720d9ec8f76e18e52))
+- **core:** Extend profile-based payment method blocking for wallets ([#11803](https://github.com/juspay/hyperswitch/pull/11803)) ([`bd86d16`](https://github.com/juspay/hyperswitch/commit/bd86d163e3cac75ae5151943637e619d11b8b764))
+- **platform:** Add sdk_authorization to PaymentsResponse and implement SDK auth flow ([#11788](https://github.com/juspay/hyperswitch/pull/11788)) ([`429e1f5`](https://github.com/juspay/hyperswitch/commit/429e1f5c7cd5e4953200df9a4c0076454f207057))
+- **router:**
+  - Add payment_session_id validation support to SdkAuthorization ([#11795](https://github.com/juspay/hyperswitch/pull/11795)) ([`a42915f`](https://github.com/juspay/hyperswitch/commit/a42915f1a7800a0aa711eae09fb18921dd4e443d))
+  - Add card_discovery dimension to 3ds decision rule engine ([#11799](https://github.com/juspay/hyperswitch/pull/11799)) ([`2cde59a`](https://github.com/juspay/hyperswitch/commit/2cde59abe7a065523a929f6cd7f6ec85b21ccc22))
+- **ucs:** Bump UCS client dependency to bring latest changes ([#11777](https://github.com/juspay/hyperswitch/pull/11777)) ([`5c31ddf`](https://github.com/juspay/hyperswitch/commit/5c31ddf2b5e914ba54763c4a3881e21ceea9e196))
+
+### Refactors
+
+- Pull `hyperswitch_masking` crate from crates.io ([#11723](https://github.com/juspay/hyperswitch/pull/11723)) ([`ef0a9cb`](https://github.com/juspay/hyperswitch/commit/ef0a9cba4a876fca86f19ec4b72a7d2b0a7ed289))
+
+**Full Changelog:** [`2026.02.02.0-hotfix16...2026.02.02.0-hotfix17`](https://github.com/juspay/hyperswitch/compare/2026.02.02.0-hotfix16...2026.02.02.0-hotfix17)
+
+- - -
+
 ## 2026.02.02.0-hotfix16
 
 ### Features
