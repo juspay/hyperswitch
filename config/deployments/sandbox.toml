@@ -257,14 +257,16 @@ bank_redirect.ideal.connector_list = "adyen"
 bank_redirect.bancontact_card.connector_list = "adyen"
 bank_redirect.trustly.connector_list = "adyen"
 bank_redirect.open_banking_uk.connector_list = "adyen"
+bank_transfer.pix_automatico_push = { connector_list = "santander" }
+bank_transfer.pix_automatico_qr = { connector_list = "santander" }
 
 [mandates.supported_payment_methods]
 bank_debit.ach = { connector_list = "gocardless,adyen,stripe,payload" }
 bank_debit.becs = { connector_list = "gocardless,stripe,adyen" }
 bank_debit.bacs = { connector_list = "stripe,gocardless" }
 bank_debit.sepa = { connector_list = "gocardless,adyen,stripe,deutschebank" }
-card.credit.connector_list = "aci,checkout,stripe,adyen,authorizedotnet,cybersource,datatrans,globalpay,worldpay,multisafepay,nmi,nexinets,noon,bankofamerica,braintree,nuvei,payme,wellsfargo,bamboraapac,elavon,fiuu,nexixpay,novalnet,paybox,paypal,xendit,moneris,archipel,worldpayvantiv,payload,paysafe,finix,tesouro,mollie,airwallex"
-card.debit.connector_list = "aci,checkout,stripe,adyen,authorizedotnet,cybersource,datatrans,globalpay,worldpay,multisafepay,nmi,nexinets,noon,bankofamerica,braintree,nuvei,payme,wellsfargo,bamboraapac,elavon,fiuu,nexixpay,novalnet,paybox,paypal,xendit,moneris,archipel,worldpayvantiv,payload,paysafe,finix,tesouro,mollie,airwallex"
+card.credit.connector_list = "aci,checkout,stripe,adyen,authorizedotnet,cybersource,datatrans,globalpay,worldpay,multisafepay,nmi,nexinets,noon,bankofamerica,braintree,nuvei,payme,wellsfargo,bamboraapac,elavon,fiuu,nexixpay,novalnet,paybox,paypal,xendit,moneris,archipel,worldpayvantiv,payload,paysafe,finix,tesouro,mollie,airwallex,peachpayments"
+card.debit.connector_list = "aci,checkout,stripe,adyen,authorizedotnet,cybersource,datatrans,globalpay,worldpay,multisafepay,nmi,nexinets,noon,bankofamerica,braintree,nuvei,payme,wellsfargo,bamboraapac,elavon,fiuu,nexixpay,novalnet,paybox,paypal,xendit,moneris,archipel,worldpayvantiv,payload,paysafe,finix,tesouro,mollie,airwallex,peachpayments"
 pay_later.klarna.connector_list = "adyen,aci"
 wallet.apple_pay.connector_list = "checkout,stripe,adyen,braintree,cybersource,noon,bankofamerica,nexinets,novalnet,nuvei,authorizedotnet,wellsfargo,worldpaymodular,worldpayvantiv,finix,nmi,tesouro,worldpayxml"
 wallet.samsung_pay.connector_list = "cybersource"
@@ -298,7 +300,7 @@ card.debit = "adyen"
 adyen = "BRL,MXN,JPY"
 
 [network_transaction_id_supported_connectors]
-connector_list = "adyen,archipel,checkout,cybersource,novalnet,nuvei,stripe,worldpay,worldpayvantiv"
+connector_list = "adyen,archipel,checkout,cybersource,novalnet,nuvei,stripe,worldpay,worldpayvantiv,revolv3"
 
 [card_only_mit_supported_connectors]
 connector_list = "peachpayments" # Supported connectors for card only mit
@@ -978,7 +980,7 @@ mollie = { long_lived_token = false, payment_method = "card" }
 payme = { long_lived_token = false, payment_method = "card" }
 square = { long_lived_token = false, payment_method = "card" }
 stax = { long_lived_token = true, payment_method = "card,bank_debit" }
-stripe = { long_lived_token = false, payment_method = "wallet", payment_method_type = { list = "google_pay", type = "disable_only" } }
+stripe = { long_lived_token = false, payment_method = "wallet", google_pay_pre_decrypt_flow = "connector_tokenization" ,payment_method_type = { list = "google_pay", type = "disable_only" }}
 billwerk = {long_lived_token = false, payment_method = "card"}
 globalpay = { long_lived_token = false, payment_method = "card", flow = "mandates" }
 dwolla = { long_lived_token = true, payment_method = "bank_debit" }

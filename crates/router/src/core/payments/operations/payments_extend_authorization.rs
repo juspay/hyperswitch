@@ -8,10 +8,7 @@ use router_env::{instrument, tracing};
 use super::{BoxedOperation, Domain, GetTracker, Operation, UpdateTracker, ValidateRequest};
 use crate::{
     core::{
-        configs::dimension_state::{
-            DimensionsWithProcessorAndProviderMerchantId,
-            DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
-        },
+        configs::dimension_state,
         errors::{self, RouterResult, StorageErrorExt},
         payments::{self, helpers, operations, PaymentData},
     },
@@ -235,7 +232,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsExtendAuthorizationRequest, 
         _request: Option<payments::CustomerDetails>,
         _provider: &domain::Provider,
         _initiator: Option<&domain::Initiator>,
-        _dimensions: &DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
+        _dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
         _mandate_type: Option<MandateTransactionType>,
     ) -> errors::CustomResult<
         (
@@ -299,7 +296,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsExtendAuthor
         payment_data: PaymentData<F>,
         _frm_suggestion: Option<FrmSuggestion>,
         _header_payload: hyperswitch_domain_models::payments::HeaderPayload,
-        _dimensions: &DimensionsWithProcessorAndProviderMerchantId,
+        _dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
     ) -> RouterResult<(PaymentExtendAuthorizationOperation<'b, F>, PaymentData<F>)>
     where
         F: 'b + Send,

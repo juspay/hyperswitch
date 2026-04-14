@@ -76,8 +76,7 @@ use crate::{
     configs::settings,
     consts as router_consts,
     core::{
-        configs,
-        configs::dimension_state::DimensionsWithProcessorAndProviderMerchantId,
+        configs::dimension_state,
         errors::{self, StorageErrorExt},
         payment_methods::{
             network_tokenization, transformers as payment_methods, utils as payment_method_utils,
@@ -3075,6 +3074,9 @@ pub async fn list_payment_methods(
 ) -> errors::RouterResponse<api::PaymentMethodListResponse> {
     let db = &*state.store;
     let pm_config_mapping = &state.conf.pm_filters;
+    let dimensions = dimension_state::Dimensions::new()
+        .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
+        .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id());
     let payment_intent = if let Some(cs) = &req.client_secret {
         if cs.starts_with("pm_") {
             validate_payment_method_and_client_secret(cs, db, &platform).await?;
@@ -3986,9 +3988,13 @@ pub async fn list_payment_methods(
         .as_ref()
         .and_then(|intent| intent.request_external_three_ds_authentication)
         .unwrap_or(false);
+
     let sdk_next_action = payment_method_utils::get_sdk_next_action_for_payment_method_list(
-        db,
-        platform.get_processor().get_account().get_id(),
+        &state,
+        &dimensions,
+        payment_intent
+            .as_ref()
+            .and_then(|pi| pi.customer_id.as_ref()),
     )
     .await;
     let is_guest_customer = payment_intent
@@ -4601,7 +4607,7 @@ pub async fn do_list_customer_pm_fetch_customer_if_not_passed(
     customer_id: Option<&id_type::CustomerId>,
     ephemeral_api_key: Option<&str>,
 ) -> errors::RouterResponse<api::CustomerPaymentMethodsListResponse> {
-    let dimensions = configs::dimension_state::Dimensions::new()
+    let dimensions = dimension_state::Dimensions::new()
         .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
         .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id());
     let limit = req.clone().and_then(|pml_req| pml_req.limit);
@@ -4627,7 +4633,7 @@ pub async fn do_list_customer_pm_fetch_customer_if_not_passed(
             None,
             customer_id,
             limit,
-            dimensions,
+            &dimensions,
         ))
         .await
     } else {
@@ -4647,7 +4653,7 @@ pub async fn do_list_customer_pm_fetch_customer_if_not_passed(
                     payment_intent,
                     &customer_id,
                     limit,
-                    dimensions,
+                    &dimensions,
                 ))
                 .await
             }
@@ -4669,7 +4675,7 @@ pub async fn list_customer_payment_method(
     payment_intent: Option<storage::PaymentIntent>,
     customer_id: &id_type::CustomerId,
     limit: Option<i64>,
-    dimensions: DimensionsWithProcessorAndProviderMerchantId,
+    dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
 ) -> errors::RouterResponse<api::CustomerPaymentMethodsListResponse> {
     let db = &*state.store;
     let off_session_payment_flag = payment_intent
