@@ -157,6 +157,14 @@ pub enum StandingInstructionReason {
     NoShow,
 }
 
+#[derive(Debug, Clone, Serialize)]
+pub enum AciTestMode {
+    #[serde(rename = "EXTERNAL")]
+    External,
+    #[serde(rename = "INTERNAL")]
+    Internal,
+}
+
 #[derive(Debug, Serialize, Default)]
 pub struct AciCustomerBrowserInfo {
     #[serde(rename = "customer.browser.acceptHeader")]
@@ -259,6 +267,11 @@ pub struct AciPaymentsRequest {
     #[serde(rename = "merchantTransactionId")]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub merchant_transaction_id: Option<String>,
+    /// EXTERNAL: forwards to processor's test system. INTERNAL: routes to ACI simulator.
+    /// Omitted on live transactions.
+    #[serde(rename = "testMode")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub test_mode: Option<AciTestMode>,
     #[serde(flatten)]
     pub customer_browser_info: AciCustomerBrowserInfo,
     #[serde(flatten)]
@@ -1114,7 +1127,7 @@ impl TryFrom<(&AciRouterData<&PaymentsAuthorizeRouterData>, &WalletData)> for Ac
         let (item, wallet_data) = value;
         let txn_details = get_transaction_details(item)?;
 
-        let (customer_browser_info, customer_data, billing_address, external_three_ds, merchant_transaction_id, custom_parameters) =
+        let (customer_browser_info, customer_data, billing_address, external_three_ds, merchant_transaction_id, custom_parameters, test_mode) =
             get_common_payment_fields(item);
 
         match wallet_data {
@@ -1136,6 +1149,7 @@ impl TryFrom<(&AciRouterData<&PaymentsAuthorizeRouterData>, &WalletData)> for Ac
                     billing_address,
                     external_three_ds,
                     custom_parameters,
+                    test_mode,
                 })
             }
             WalletData::GooglePay(google_pay_data) => {
@@ -1156,6 +1170,7 @@ impl TryFrom<(&AciRouterData<&PaymentsAuthorizeRouterData>, &WalletData)> for Ac
                     billing_address,
                     external_three_ds,
                     custom_parameters,
+                    test_mode,
                 })
             }
             WalletData::SamsungPay(samsung_pay_data) => {
@@ -1174,6 +1189,7 @@ impl TryFrom<(&AciRouterData<&PaymentsAuthorizeRouterData>, &WalletData)> for Ac
                     billing_address,
                     external_three_ds,
                     custom_parameters,
+                    test_mode,
                 })
             }
             // Handle other wallet types via PaymentDetails::try_from
@@ -1192,6 +1208,7 @@ impl TryFrom<(&AciRouterData<&PaymentsAuthorizeRouterData>, &WalletData)> for Ac
                     billing_address,
                     external_three_ds,
                     custom_parameters,
+                    test_mode,
                 })
             }
         }
@@ -1214,7 +1231,7 @@ impl
         let (item, bank_redirect_data) = value;
         let txn_details = get_transaction_details(item)?;
         let payment_method = PaymentDetails::try_from((item, bank_redirect_data))?;
-        let (customer_browser_info, customer_data, billing_address, external_three_ds, merchant_transaction_id, custom_parameters) =
+        let (customer_browser_info, customer_data, billing_address, external_three_ds, merchant_transaction_id, custom_parameters, test_mode) =
             get_common_payment_fields(item);
 
         Ok(Self {
@@ -1229,6 +1246,7 @@ impl
             billing_address,
             external_three_ds,
             custom_parameters,
+            test_mode,
         })
     }
 }
@@ -1241,7 +1259,7 @@ impl TryFrom<(&AciRouterData<&PaymentsAuthorizeRouterData>, &PayLaterData)> for 
         let (item, _pay_later_data) = value;
         let txn_details = get_transaction_details(item)?;
         let payment_method = PaymentDetails::Klarna;
-        let (customer_browser_info, customer_data, billing_address, external_three_ds, merchant_transaction_id, custom_parameters) =
+        let (customer_browser_info, customer_data, billing_address, external_three_ds, merchant_transaction_id, custom_parameters, test_mode) =
             get_common_payment_fields(item);
 
         Ok(Self {
@@ -1256,6 +1274,7 @@ impl TryFrom<(&AciRouterData<&PaymentsAuthorizeRouterData>, &PayLaterData)> for 
             billing_address,
             external_three_ds,
             custom_parameters,
+            test_mode,
         })
     }
 }
@@ -1274,7 +1293,7 @@ impl TryFrom<(&AciRouterData<&PaymentsAuthorizeRouterData>, &Card)> for AciPayme
             .router_data
             .is_three_ds()
             .then_some(item.router_data.request.enrolled_for_3ds);
-        let (customer_browser_info, customer_data, billing_address, external_three_ds, merchant_transaction_id, custom_parameters) =
+        let (customer_browser_info, customer_data, billing_address, external_three_ds, merchant_transaction_id, custom_parameters, test_mode) =
             get_common_payment_fields(item);
 
         Ok(Self {
@@ -1289,6 +1308,7 @@ impl TryFrom<(&AciRouterData<&PaymentsAuthorizeRouterData>, &Card)> for AciPayme
             billing_address,
             external_three_ds,
             custom_parameters,
+            test_mode,
         })
     }
 }
@@ -1310,7 +1330,7 @@ impl
         let txn_details = get_transaction_details(item)?;
         let payment_method = PaymentDetails::try_from((item, network_token_data))?;
         let instruction = get_instruction_details(item);
-        let (customer_browser_info, customer_data, billing_address, external_three_ds, merchant_transaction_id, custom_parameters) =
+        let (customer_browser_info, customer_data, billing_address, external_three_ds, merchant_transaction_id, custom_parameters, test_mode) =
             get_common_payment_fields(item);
 
         Ok(Self {
@@ -1325,6 +1345,7 @@ impl
             billing_address,
             external_three_ds,
             custom_parameters,
+            test_mode,
         })
     }
 }
@@ -1345,7 +1366,7 @@ impl
         let (item, _mandate_data) = value;
         let instruction = get_instruction_details(item);
         let txn_details = get_transaction_details(item)?;
-        let (customer_browser_info, customer_data, billing_address, external_three_ds, merchant_transaction_id, custom_parameters) =
+        let (customer_browser_info, customer_data, billing_address, external_three_ds, merchant_transaction_id, custom_parameters, test_mode) =
             get_common_payment_fields(item);
 
         Ok(Self {
@@ -1360,13 +1381,14 @@ impl
             billing_address,
             external_three_ds,
             custom_parameters,
+            test_mode,
         })
     }
 }
 
 fn get_common_payment_fields(
     item: &AciRouterData<&PaymentsAuthorizeRouterData>,
-) -> (AciCustomerBrowserInfo, AciCustomerData, AciBillingAddress, AciExternalThreeDsData, Option<String>, AciCustomParameters) {
+) -> (AciCustomerBrowserInfo, AciCustomerData, AciBillingAddress, AciExternalThreeDsData, Option<String>, AciCustomParameters, Option<AciTestMode>) {
     let customer_browser_info = item
         .router_data
         .request
@@ -1443,7 +1465,13 @@ fn get_common_payment_fields(
     custom_parameters.insert("orchestrator", "hyperswitch");
     custom_parameters.insert("paymentId", &item.router_data.payment_id);
 
-    (customer_browser_info, customer_data, billing_address, external_three_ds, merchant_transaction_id, custom_parameters)
+    // testMode: EXTERNAL forwards to processor's test system; absent on live transactions.
+    let test_mode = item
+        .router_data
+        .test_mode
+        .and_then(|t| t.then_some(AciTestMode::External));
+
+    (customer_browser_info, customer_data, billing_address, external_three_ds, merchant_transaction_id, custom_parameters, test_mode)
 }
 
 fn get_transaction_details(
