@@ -100,3 +100,8 @@ counter_metric!(
     GLOBAL_METER
 );
 counter_metric!(POST_AUTHENTICATION_TOKEN_PUSHED_TO_VGS, GLOBAL_METER);
+
+// SDK Session Authorization Metrics
+counter_metric!(SDK_AUTH_LEGACY_FLOW_TOTAL, GLOBAL_METER); // No. of SDK auth requests without session_id (legacy flow) - tracked per merchant_id
+counter_metric!(SDK_AUTH_SESSION_VALIDATED_TOTAL, GLOBAL_METER); // No. of SDK auth requests with valid session_id - tracked per merchant_id
+counter_metric!(SDK_AUTH_INVALID_SESSION_TOTAL, GLOBAL_METER); // No. of SDK auth requests with invalid session_id - tracked per merchant_id

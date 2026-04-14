@@ -158,7 +158,7 @@ ttl_for_storage_in_secs = 220752000 # Time to live for storage entries in locker
 connectors_with_delayed_session_response = "trustpay,payme" # List of connectors which has delayed session response
 
 [webhook_source_verification_call]
-connectors_with_webhook_source_verification_call = "paypal" # List of connectors which has additional source verification api-call
+connectors_with_webhook_source_verification_call = "paypal, truelayer" # List of connectors which has additional source verification api-call
 
 [jwekey] # 4 priv/pub key pair
 vault_encryption_key = ""       # public key in pem format, corresponding private key in basilisk-hs
@@ -325,6 +325,9 @@ threedsecureio.base_url = "https://service.sandbox.3dsecure.io"
 thunes.base_url = "https://api.limonetikqualif.com/"
 tokenex.base_url = "https://test-api.tokenex.com"
 tokenio.base_url = "https://api.sandbox.token.io"
+truelayer.base_url = "https://api.truelayer-sandbox.com"
+trustly.base_url = "https://test.trustly.com/api/1"
+truelayer.secondary_base_url = "https://auth.truelayer-sandbox.com"
 stripe.base_url_file_upload = "https://files.stripe.com/"
 trustpay.base_url = "https://test-tpgw.trustpay.eu/"
 trustpayments.base_url = "https://webservices.securetrading.net/"
@@ -706,6 +709,18 @@ upi_intent = { country = "IN", currency = "INR" }
 upi_collect = { country = "IN", currency = "INR" }
 upi_intent = { country = "IN", currency = "INR" }
 
+[pm_filters.truelayer]
+open_banking = { currency = "GBP,EUR" }
+
+[payout_method_filters.truelayer]
+open_banking_uk = { currency = "GBP,EUR,PLN" }
+
+[payout_method_filters.trustly]
+trustly = { currency = "BGN,GBP,EUR,PLN,CZK,DKK,HRK,HUF,NOK,PLN,RON,SEK" }
+
+[pm_filters.trustly]
+trustly = { currency = "BGN,GBP,EUR,PLN,CZK,DKK,HRK,HUF,NOK,PLN,RON,SEK" }
+
 [pm_filters.plaid]
 open_banking_pis = {currency = "EUR,GBP"}
 
@@ -1013,7 +1028,7 @@ google_pay = { country = "AF,DZ,AW,AU,AZ,BS,BH,BD,BB,BZ,BM,BT,BO,BA,BW,BR,BN,BG,
 apple_pay = { country = "AF,DZ,AW,AU,AZ,BS,BH,BD,BB,BZ,BM,BT,BO,BA,BW,BR,BN,BG,BI,KH,CA,CV,KY,CL,CO,KM,CD,CR,CZ,DK,DJ,ST,DO,EC,EG,SV,ER,ET,FK,FJ,GM,GE,GH,GI,GT,GN,GY,HT,HN,HK,HU,IS,IN,ID,IR,IQ,IE,IL,IT,JM,JP,JO,KZ,KE,KW,LA,LB,LS,LR,LY,LT,MO,MK,MG,MW,MY,MV,MR,MU,MX,MD,MN,MA,MZ,MM,NA,NZ,NI,NG,KP,NO,AR,PK,PG,PY,PE,UY,PH,PL,GB,QA,OM,RO,RU,RW,WS,SG,ST,ZA,KR,LK,SH,SD,SR,SZ,SE,CH,SY,TW,TJ,TZ,TH,TT,TN,TR,UG,UA,US,UZ,VU,VE,VN,ZM,ZW", currency = "AFN,DZD,ANG,AWG,AUD,AZN,BSD,BHD,BDT,BBD,BZD,BMD,BTN,BOB,BAM,BWP,BRL,BND,BGN,BIF,KHR,CAD,CVE,KYD,XOF,XAF,XPF,CLP,COP,KMF,CDF,CRC,EUR,CZK,DKK,DJF,DOP,XCD,EGP,SVC,ERN,ETB,EUR,FKP,FJD,GMD,GEL,GHS,GIP,GTQ,GNF,GYD,HTG,HNL,HKD,HUF,ISK,INR,IDR,IRR,IQD,ILS,JMD,JPY,JOD,KZT,KES,KWD,LAK,LBP,LSL,LRD,LYD,MOP,MKD,MGA,MWK,MYR,MVR,MRU,MUR,MXN,MDL,MNT,MAD,MZN,MMK,NAD,NPR,NZD,NIO,NGN,KPW,NOK,ARS,PKR,PAB,PGK,PYG,PEN,UYU,PHP,PLN,GBP,QAR,OMR,RON,RUB,RWF,WST,SAR,RSD,SCR,SLL,SGD,STN,SBD,SOS,ZAR,KRW,LKR,SHP,SDG,SRD,SZL,SEK,CHF,SYP,TWD,TJS,TZS,THB,TOP,TTD,TND,TRY,TMT,AED,UGX,UAH,USD,UZS,VUV,VND,YER,CNY,ZMW,ZWL" }
 
 [connector_customer]
-payout_connector_list = "nomupay,stripe,wise"
+payout_connector_list = "nomupay,stripe,wise,trustly"
 
 [bank_config.online_banking_fpx]
 adyen.banks = "affin_bank,agro_bank,alliance_bank,am_bank,bank_islam,bank_muamalat,bank_rakyat,bank_simpanan_nasional,cimb_bank,hong_leong_bank,hsbc_bank,kuwait_finance_house,maybank,ocbc_bank,public_bank,rhb_bank,standard_chartered_bank,uob_bank"
@@ -1289,7 +1304,7 @@ url = "http://localhost:8080"           # Open Router URL
 base_url = "http://localhost:8000"      # Unified Connector Service Base URL
 connection_timeout = 10                 # Connection Timeout Duration in Seconds
 ucs_only_connectors = "paytm, phonepe"    # Comma-separated list of connectors that use UCS only
-ucs_psync_disabled_connectors = "cashtocode"    # Comma-separated list of connectors to disable UCS PSync call
+ucs_psync_disabled_connectors = "cashtocode, trustly"    # Comma-separated list of connectors to disable UCS PSync call
 
 [grpc_client.recovery_decider_client] # Revenue recovery client base url
 base_url = "http://127.0.0.1:8080" #Base URL

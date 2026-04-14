@@ -903,6 +903,8 @@ pub(crate) async fn get_payment_method_create_request(
                         #[cfg(feature = "payouts")]
                         bank_transfer: None,
                         #[cfg(feature = "payouts")]
+                        bank_transfer_data: None,
+                        #[cfg(feature = "payouts")]
                         wallet: None,
                         card: Some(card_detail),
                         metadata: None,
@@ -937,6 +939,8 @@ pub(crate) async fn get_payment_method_create_request(
                         #[cfg(feature = "payouts")]
                         bank_transfer: None,
                         #[cfg(feature = "payouts")]
+                        bank_transfer_data: None,
+                        #[cfg(feature = "payouts")]
                         wallet: None,
                         card: None,
                         metadata: None,
@@ -969,6 +973,8 @@ pub(crate) async fn get_payment_method_create_request(
                         payment_method_issuer_code: None,
                         #[cfg(feature = "payouts")]
                         bank_transfer: None,
+                        #[cfg(feature = "payouts")]
+                        bank_transfer_data: None,
                         #[cfg(feature = "payouts")]
                         wallet: None,
                         card: None,
