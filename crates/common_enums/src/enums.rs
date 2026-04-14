@@ -275,15 +275,16 @@ pub enum ApplePayPaymentMethodType {
     Copy,
     Debug,
     Default,
-    Hash,
-    Eq,
     PartialEq,
+    Eq,
+    Hash,
     serde::Deserialize,
     serde::Serialize,
     SmithyModel,
     strum::Display,
     strum::EnumString,
     strum::EnumIter,
+    strum::VariantNames,
     ToSchema,
 )]
 #[router_derive::diesel_enum(storage_type = "db_enum")]

@@ -27659,11 +27659,15 @@
         "type": "object",
         "description": "Represents metadata about the payment method used in the 3DS decision rule.",
         "required": [
-          "card_network"
+          "card_network",
+          "card_discovery"
         ],
         "properties": {
           "card_network": {
             "$ref": "#/components/schemas/CardNetwork"
+          },
+          "card_discovery": {
+            "$ref": "#/components/schemas/CardDiscovery"
           }
         }
       },
