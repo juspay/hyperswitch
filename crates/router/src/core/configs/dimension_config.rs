@@ -2,7 +2,6 @@ use external_services::superposition;
 use scheduler::consumer::types::process_data::RetryMapping;
 use serde::{self, Deserialize, Serialize};
 
-
 #[derive(Serialize, Deserialize)]
 pub struct RefundConfig {
     pub max_attempts: usize,

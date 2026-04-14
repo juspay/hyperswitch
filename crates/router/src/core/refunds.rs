@@ -153,7 +153,7 @@ pub async fn refund_create_core(
         amount,
         req,
         creds_identifier,
-        dimensions
+        dimensions,
     ))
     .await
     .map(services::ApplicationResponse::Json)
@@ -1315,7 +1315,7 @@ pub async fn validate_and_create_refund(
     refund_amount: MinorUnit,
     req: refunds::RefundRequest,
     creds_identifier: Option<String>,
-    dimensions: dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndOrgId
+    dimensions: dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndOrgId,
 ) -> RouterResult<refunds::RefundResponse> {
     let db = &*state.store;
     let split_refunds = core_utils::get_split_refunds(SplitRefundInput {
