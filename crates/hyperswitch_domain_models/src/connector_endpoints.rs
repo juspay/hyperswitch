@@ -134,6 +134,8 @@ pub struct Connectors {
     pub thunes: ConnectorParams,
     pub tokenex: ConnectorParams,
     pub tokenio: ConnectorParams,
+    pub truelayer: ConnectorParamsWithSecondaryBaseUrl,
+    pub trustly: ConnectorParams,
     pub trustpay: ConnectorParamsWithMoreUrls,
     pub trustpayments: ConnectorParams,
     pub tsys: ConnectorParams,

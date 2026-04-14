@@ -153,6 +153,8 @@ pub async fn call_to_locker(
             wallet: None,
             #[cfg(feature = "payouts")]
             bank_transfer: None,
+            #[cfg(feature = "payouts")]
+            bank_transfer_data: None,
             metadata: pm.metadata,
             customer_id: Some(pm.customer_id),
             card_network: card.card_brand,
