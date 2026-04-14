@@ -113,17 +113,19 @@ impl SuperpositionClient {
             workspace_id: config.workspace_id.clone(),
             fallback_config: None,
             evaluation_cache: None,
-            refresh_strategy: superposition_provider::RefreshStrategy::Polling(
-                superposition_provider::PollingStrategy {
-                    interval: config.polling_interval,
+            refresh_strategy: superposition_provider::RefreshStrategy::OnDemand(
+                superposition_provider::OnDemandStrategy {
+                    ttl: config.polling_interval,
                     timeout: config.request_timeout,
+                    use_stale_on_error: None,
                 },
             ),
             experimentation_options: Some(superposition_provider::types::ExperimentationOptions {
-                refresh_strategy: superposition_provider::RefreshStrategy::Polling(
-                    superposition_provider::PollingStrategy {
-                        interval: config.polling_interval,
+                refresh_strategy: superposition_provider::RefreshStrategy::OnDemand(
+                    superposition_provider::OnDemandStrategy {
+                        ttl: config.polling_interval,
                         timeout: config.request_timeout,
+                        use_stale_on_error: None,
                     },
                 ),
                 evaluation_cache: None,
