@@ -11,6 +11,7 @@ use super::{Domain, GetTracker, Operation, UpdateTracker, ValidateRequest};
 use crate::{
     core::{
         admin,
+        configs::dimension_state,
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
         payment_methods,
         payments::{
@@ -756,6 +757,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentConfirmData<F>, PaymentsConfirmInt
         mut payment_data: PaymentConfirmData<F>,
         _frm_suggestion: Option<FrmSuggestion>,
         _header_payload: hyperswitch_domain_models::payments::HeaderPayload,
+        _dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
     ) -> RouterResult<(BoxedConfirmOperation<'b, F>, PaymentConfirmData<F>)>
     where
         F: 'b + Send,

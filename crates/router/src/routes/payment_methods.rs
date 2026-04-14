@@ -673,9 +673,20 @@ pub async fn list_payment_method_api(
         allow_platform_self_operation: true,
     };
 
-    let (auth, _) = match auth::check_sdk_auth_and_get_auth(req.headers(), &payload, api_auth) {
-        Ok((auth, _auth_flow)) => (auth, _auth_flow),
-        Err(e) => return api::log_and_return_error_response(e),
+    let (auth_type, _auth_flow) = if auth::is_jwt_auth(req.headers()) {
+        let jwt_auth: Box<dyn auth::AuthenticateAndFetch<auth::AuthenticationData, _>> =
+            Box::new(auth::JWTAuth {
+                permission: Permission::MerchantPaymentRead,
+                allow_connected: true,
+                allow_platform: true,
+            });
+
+        (jwt_auth, api::AuthFlow::Merchant)
+    } else {
+        match auth::check_sdk_auth_and_get_auth(req.headers(), &payload, api_auth) {
+            Ok(auth) => auth,
+            Err(e) => return api::log_and_return_error_response(e),
+        }
     };
 
     Box::pin(api::server_wrap(
@@ -689,9 +700,9 @@ pub async fn list_payment_method_api(
             }
 
             // TODO (#7195): Fill platform_merchant_account in the client secret auth and pass it here.
-            cards::list_payment_methods(state, auth.platform, req)
+            cards::list_payment_methods(state, auth.platform, auth.profile, req)
         },
-        &*auth,
+        &*auth_type,
         api_locking::LockAction::NotApplicable,
     ))
     .await

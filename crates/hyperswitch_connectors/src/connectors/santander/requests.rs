@@ -200,7 +200,7 @@ pub struct SantanderPixAutomaticDestinationRequest {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SantanderPixAutomaticSolicitationRequest {
-    pub id_rec: String,
+    pub id_rec: Secret<String>,
     pub calendario: SantanderPixAutomaticCalendarRequest,
     pub destinatario: SantanderPixAutomaticDestinationRequest,
 }
@@ -550,7 +550,7 @@ pub struct SantanderPixAutomaticoCobrValor {
 #[serde(rename_all = "camelCase")]
 pub struct SantanderPixAutomaticoCobrRequest {
     /// Recurring charge ID - must be 29 alphanumeric characters (RR + 27 chars)
-    pub id_rec: String,
+    pub id_rec: Secret<String>,
     /// Additional information about the charge
     #[serde(skip_serializing_if = "Option::is_none")]
     pub info_adicional: Option<String>,

@@ -335,6 +335,7 @@ pub struct PaymentMethodUpdate {
     pub acknowledgement_status: Option<common_enums::AcknowledgementStatus>,
     pub network_tokenization: Option<common_types::payment_methods::NetworkTokenization>,
     pub source_payment_method_data: Option<crate::vault::PaymentMethodVaultingData>,
+    pub status: Option<common_enums::PaymentMethodStatus>,
 }
 
 #[cfg(feature = "v2")]
@@ -347,6 +348,7 @@ impl From<payment_methods::PaymentMethodUpdate> for PaymentMethodUpdate {
             acknowledgement_status: value.acknowledgement_status,
             network_tokenization: None,
             source_payment_method_data: None,
+            status: value.acknowledgement_status.map(|ack| ack.into()),
         }
     }
 }
@@ -376,6 +378,7 @@ impl PaymentMethodUpdate {
             || self.connector_token_details.is_some()
             || self.network_transaction_id.is_some()
             || self.acknowledgement_status.is_some()
+            || self.status.is_some()
     }
 }
 
@@ -411,6 +414,7 @@ impl
             acknowledgement_status: None,
             network_tokenization: req.network_tokenization.clone(),
             source_payment_method_data: Some(source_payment_method_data),
+            status: None,
         }
     }
 }
@@ -1104,6 +1108,19 @@ pub trait PaymentMethodInterface {
         customer_id: &id_type::CustomerId,
         merchant_id: &id_type::MerchantId,
         status: common_enums::PaymentMethodStatus,
+        limit: Option<i64>,
+        storage_scheme: MerchantStorageScheme,
+    ) -> CustomResult<Vec<PaymentMethod>, Self::Error>;
+
+    #[cfg(feature = "v1")]
+    #[allow(clippy::too_many_arguments)]
+    async fn find_payment_method_by_customer_id_merchant_id_status_pm_type(
+        &self,
+        key_store: &MerchantKeyStore,
+        customer_id: &id_type::CustomerId,
+        merchant_id: &id_type::MerchantId,
+        status: common_enums::PaymentMethodStatus,
+        payment_method_type: common_enums::PaymentMethodType,
         limit: Option<i64>,
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<Vec<PaymentMethod>, Self::Error>;

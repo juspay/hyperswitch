@@ -16,6 +16,19 @@ const threeDSFrictionlessTestCardDetails = {
   card_cvc: "123",
 };
 
+const blockedPaymentErrorBody = {
+  status: 200,
+  expectBlockedPayment: true,
+  body: {
+    error: {
+      type: "blocked",
+      message: "This payment method is blocked",
+      code: "HE_03",
+      reason: "Blocked",
+    },
+  },
+};
+
 const Address = {
   address: {
     line1: "1467",
@@ -521,6 +534,84 @@ export const connectorDetails = {
           status: "requires_payment_method",
         },
       },
+    },
+  },
+  payment_method_blocking_pm: {
+    BlockIssuingCountry: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: {
+            card_number: "4000000000000002",
+            card_exp_month: "03",
+            card_exp_year: "30",
+            card_holder_name: "joseph Doeeee",
+            card_cvc: "737",
+            card_network: "Visa",
+          },
+        },
+        billing: Address,
+        shipping: Address,
+        currency: "EUR",
+      },
+      Response: blockedPaymentErrorBody,
+    },
+    BlockCardType: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: {
+            card_number: "4111111111111111",
+            card_exp_month: "03",
+            card_exp_year: "30",
+            card_holder_name: "joseph Doeeee",
+            card_cvc: "737",
+            card_network: "Visa",
+          },
+        },
+        billing: Address,
+        shipping: Address,
+        currency: "EUR",
+      },
+      Response: blockedPaymentErrorBody,
+    },
+    BlockCardSubtype: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: {
+            card_number: "378282246310005",
+            card_exp_month: "03",
+            card_exp_year: "30",
+            card_holder_name: "joseph Doeeee",
+            card_cvc: "737",
+            card_network: "Visa",
+          },
+        },
+        billing: Address,
+        shipping: Address,
+        currency: "EUR",
+      },
+      Response: blockedPaymentErrorBody,
+    },
+    BlockIfBinInfoUnavailable: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: {
+            card_number: "6304000000000000",
+            card_exp_month: "03",
+            card_exp_year: "30",
+            card_holder_name: "joseph Doeeee",
+            card_cvc: "737",
+            card_network: "Visa",
+          },
+        },
+        billing: Address,
+        shipping: Address,
+        currency: "EUR",
+      },
+      Response: blockedPaymentErrorBody,
     },
   },
 };

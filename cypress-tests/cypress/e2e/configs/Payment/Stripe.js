@@ -298,8 +298,6 @@ export const connectorDetails = {
           error_code: "card_declined",
           error_message:
             "message - Your card was declined., decline_code - generic_decline",
-          unified_code: "UE_1000",
-          unified_message: "Issue with Payment Method details",
         },
       },
     },
@@ -1073,6 +1071,11 @@ export const connectorDetails = {
       // Defines how to locate and parse the payment reference ID from connector-specific webhook payloads
       path: "data.object.id",
       // Type of payment reference ID
+      type: "string",
+    },
+    RefundIdConfig: {
+      // Stripe refund webhooks use data.object.id as the connector refund reference
+      path: "data.object.id",
       type: "string",
     },
   },

@@ -6751,6 +6751,11 @@ pub enum NextActionData {
         #[smithy(value_type = "IframeData")]
         iframe_data: IframeData,
     },
+    /// The data required to trigger the DDC (Device Data Collection) flow by rendering the provided URL in a hidden iframe.
+    InvokeDdc {
+        #[smithy(value_type = "DDCData")]
+        ddc_data: DDCData,
+    },
 }
 
 #[derive(
@@ -6778,6 +6783,15 @@ pub enum IframeData {
         #[smithy(value_type = "Option<String>")]
         message_version: Option<String>,
     },
+}
+
+#[derive(
+    Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel,
+)]
+pub struct DDCData {
+    #[schema(value_type = String)]
+    pub iframe_url: Url,
+    pub timeout_ms: Option<i32>,
 }
 
 #[derive(
@@ -7094,6 +7108,18 @@ pub struct PaymentsConnectorThreeDsInvokeData {
     pub three_ds_method_data: String,
     pub message_version: Option<String>,
     pub three_ds_method_data_submission: bool,
+}
+
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
+pub struct PaymentConnectorInvokeDDCMetadata {
+    pub iframe_url: String,
+    pub timeout_ms: Option<i32>,
+}
+
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
+pub struct PaymentConnectorInvokeDDCData {
+    pub iframe_url: Url,
+    pub timeout_ms: Option<i32>,
 }
 
 #[derive(
@@ -9120,6 +9146,8 @@ pub struct Order {
 pub enum SortOn {
     /// Sort by the amount field
     Amount,
+    /// Sort by the attempt_count field
+    AttemptCount,
     /// Sort by the created_at field
     #[default]
     Created,
@@ -9675,6 +9703,10 @@ pub struct GpayAllowedMethodsParameters {
     #[serde(skip_serializing_if = "Option::is_none")]
     #[smithy(value_type = "Option<bool>")]
     pub assurance_details_required: Option<bool>,
+    /// Set to false if you don't want to allow credit cards
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[smithy(value_type = "Option<bool>")]
+    pub allow_credit_cards: Option<bool>,
 }
 
 #[derive(
@@ -9944,6 +9976,47 @@ impl ConnectorMetadata {
                     (certificate, certificate_keys)
                 })
         })
+    }
+    pub fn get_mandatory_pix_automatico_maximum_permissible_mandate_amount(
+        self,
+    ) -> common_utils::errors::CustomResult<MinorUnit, ValidationError> {
+        let santander = self
+            .santander
+            .ok_or(ValidationError::MissingRequiredField {
+                field_name: "connector_metadata.santander".to_string(),
+            })?;
+
+        let pix_automatico =
+            santander
+                .pix_automatico
+                .ok_or(ValidationError::MissingRequiredField {
+                    field_name: "connector_metadata.santander.pix_automatico".to_string(),
+                })?;
+
+        let cit_data = match pix_automatico {
+            SantanderPixAutomaticoData::Cit(cit) => cit,
+            SantanderPixAutomaticoData::Mit(_) => {
+                return Err(error_stack::report!(ValidationError::InvalidValue {
+                    message: "Expected pix_automatico CIT variant, but got MIT".to_string(),
+                }))
+            }
+        };
+
+        let mandate_details =
+            cit_data
+                .mandate_details
+                .ok_or(ValidationError::MissingRequiredField {
+                    field_name: "connector_metadata.santander.pix_automatico.cit.mandate_details"
+                        .to_string(),
+                })?;
+
+        mandate_details.amount.ok_or(error_stack::report!(
+            ValidationError::MissingRequiredField {
+                field_name:
+                    "connector_metadata.santander.pix_automatico.cit.mandate_details.amount"
+                        .to_string(),
+            }
+        ))
     }
 }
 
@@ -10519,6 +10592,8 @@ pub struct PaypalSessionTokenResponse {
     pub client_token: Option<String>,
     /// The transaction info Paypal requires
     pub transaction_info: Option<PaypalTransactionInfo>,
+    /// User token required for returning customer flow, used by client to initiate sdk
+    pub data_user_id_token: Option<String>,
 }
 
 #[derive(
@@ -11608,11 +11683,11 @@ pub struct BoletoAdditionalDetails {
     #[serde(default, with = "common_utils::custom_serde::date_only_optional")]
     pub due_date: Option<PrimitiveDateTime>,
     /// It tells the bank what type of commercial document created the boleto. Why does this boleto exist? What kind of transaction or contract caused it?
-    /// Depcreated since it has been moved to connector_metadata
+    /// Deprecated since it has been moved to connector_metadata
     #[schema(value_type = Option<BoletoDocumentKind>, example="commercial_invoice", deprecated)]
     pub document_kind: Option<common_enums::BoletoDocumentKind>,
     /// This field tells the bank how the boleto can be paid — whether the payer must pay the exact amount, can pay a different amount, or pay in parts.
-    /// Depcreated since it has been moved to connector_metadata
+    /// Deprecated since it has been moved to connector_metadata
     #[schema(value_type = Option<BoletoPaymentType>, example="fixed_amount", deprecated)]
     pub payment_type: Option<common_enums::BoletoPaymentType>,
     // It is a number which shows a contract between merchant and bank
@@ -13319,9 +13394,9 @@ pub struct SantanderPixAutomaticoReceiverDetails {
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct SantanderMandateDetails {
     /// Maximum amount for each recurring charge
-    #[schema(value_type = Option<String>, example = "5.00")]
-    #[smithy(value_type = "Option<String>")]
-    pub amount: Option<StringMajorUnit>,
+    #[schema(value_type = Option<u64>, example = 6540)]
+    #[smithy(value_type = "Option<MinorUnit>")]
+    pub amount: Option<MinorUnit>,
     /// Start date for the recurring charges. Format: YYYY-MM-DD. If not provided, the mandate will be valid immediately.
     #[schema(value_type = Option<String>, example="2026-12-31")]
     #[serde(default, with = "common_utils::custom_serde::date_only_optional")]
@@ -13397,7 +13472,7 @@ pub struct PixAutomaticoMitData {
     /// If not provided, defaults to current date + 1 day.
     #[schema(value_type = Option<String>, example = "2026-12-31")]
     #[serde(default, with = "common_utils::custom_serde::date_only_optional")]
-    pub exec_date: Option<PrimitiveDateTime>,
+    pub mandate_execution_date: Option<PrimitiveDateTime>,
     /// Whether to automatically adjust the due date to the next business day if it falls on a non-business day.
     /// Maps to ajuste_dia_util in Santander API. Defaults to true if not provided.
     #[smithy(value_type = "Option<bool>")]

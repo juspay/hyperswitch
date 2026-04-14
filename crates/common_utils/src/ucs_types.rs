@@ -12,6 +12,12 @@ pub enum UcsReferenceId {
     /// This variant wraps a [`PaymentReferenceId`](id_type::PaymentReferenceId)
     /// and is used to identify a payment transaction within the UCS.
     Payment(id_type::PaymentReferenceId),
+
+    /// A payout reference ID.
+    ///
+    /// This variant wraps a [`PayoutReferenceId`](id_type::PayoutReferenceId)
+    /// and is used to identify a payout transaction within the UCS.
+    Payout(id_type::PayoutReferenceId),
 }
 
 impl UcsReferenceId {
@@ -27,6 +33,7 @@ impl UcsReferenceId {
     pub fn get_string_repr(&self) -> &str {
         match self {
             Self::Payment(id) => id.get_string_repr(),
+            Self::Payout(id) => id.get_string_repr(),
         }
     }
 }
@@ -48,6 +55,11 @@ pub enum UcsResourceId {
     /// This variant wraps a [`RefundResourceId`](id_type::RefundResourceId)
     /// and is used to identify a refund transaction within the UCS.
     Refund(id_type::RefundReferenceId),
+    /// A payout resource ID.
+    ///
+    /// This variant wraps a [`PayoutResourceId`](id_type::PayoutResourceId)
+    /// and is used to identify a payout transaction within the UCS.
+    PayoutAttempt(id_type::PayoutResourceId),
 }
 
 impl UcsResourceId {
@@ -64,6 +76,7 @@ impl UcsResourceId {
         match self {
             Self::PaymentAttempt(id) => id.get_string_repr(),
             Self::Refund(id) => id.get_string_repr(),
+            Self::PayoutAttempt(id) => id.get_string_repr(),
         }
     }
 }

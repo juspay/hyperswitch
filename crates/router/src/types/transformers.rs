@@ -1328,6 +1328,7 @@ impl ForeignFrom<&api_models::payouts::PayoutMethodData> for api_enums::PaymentM
     fn foreign_from(value: &api_models::payouts::PayoutMethodData) -> Self {
         match value {
             api_models::payouts::PayoutMethodData::Bank(bank) => Self::foreign_from(bank),
+            api_models::payouts::PayoutMethodData::BankTransfer(bank) => Self::foreign_from(bank),
             api_models::payouts::PayoutMethodData::Card(_) => Self::Debit,
             api_models::payouts::PayoutMethodData::Wallet(wallet) => Self::foreign_from(wallet),
             api_models::payouts::PayoutMethodData::BankRedirect(bank_redirect) => {
@@ -1349,6 +1350,19 @@ impl ForeignFrom<&api_models::payouts::Bank> for api_enums::PaymentMethodType {
             api_models::payouts::Bank::Sepa(_) => Self::SepaBankTransfer,
             api_models::payouts::Bank::Pix(_) => Self::Pix,
             api_models::payouts::Bank::Trustly(_) => Self::Trustly,
+        }
+    }
+}
+
+#[cfg(feature = "payouts")]
+impl ForeignFrom<&api_models::payouts::BankTransfer> for api_enums::PaymentMethodType {
+    fn foreign_from(value: &api_models::payouts::BankTransfer) -> Self {
+        match value {
+            api_models::payouts::BankTransfer::Ach(_) => Self::Ach,
+            api_models::payouts::BankTransfer::Bacs(_) => Self::Bacs,
+            api_models::payouts::BankTransfer::Sepa(_) => Self::SepaBankTransfer,
+            api_models::payouts::BankTransfer::Pix(_) => Self::Pix,
+            api_models::payouts::BankTransfer::Trustly(_) => Self::Trustly,
         }
     }
 }
@@ -1379,6 +1393,7 @@ impl ForeignFrom<&api_models::payouts::PayoutMethodData> for api_enums::PaymentM
     fn foreign_from(value: &api_models::payouts::PayoutMethodData) -> Self {
         match value {
             api_models::payouts::PayoutMethodData::Bank(_) => Self::BankTransfer,
+            api_models::payouts::PayoutMethodData::BankTransfer(_) => Self::BankTransfer,
             api_models::payouts::PayoutMethodData::Card(_) => Self::Card,
             api_models::payouts::PayoutMethodData::Wallet(_) => Self::Wallet,
             api_models::payouts::PayoutMethodData::BankRedirect(_) => Self::BankRedirect,
@@ -1397,6 +1412,7 @@ impl ForeignTryFrom<&api_models::payouts::PayoutMethodData> for api_models::enum
     ) -> Result<Self, Self::Error> {
         match value {
             api_models::payouts::PayoutMethodData::Bank(_) => Ok(Self::Bank),
+            api_models::payouts::PayoutMethodData::BankTransfer(_) => Ok(Self::Bank),
             api_models::payouts::PayoutMethodData::Card(_) => Ok(Self::Card),
             api_models::payouts::PayoutMethodData::Wallet(_) => Ok(Self::Wallet),
             api_models::payouts::PayoutMethodData::BankRedirect(_) => Ok(Self::BankRedirect),
@@ -2235,6 +2251,7 @@ impl ForeignFrom<api_models::admin::PaymentMethodBlockingConfig>
     fn foreign_from(item: api_models::admin::PaymentMethodBlockingConfig) -> Self {
         Self {
             card: item.card.map(|c| c.foreign_into()),
+            wallet: item.wallet.map(|w| w.foreign_into()),
         }
     }
 }
@@ -2253,12 +2270,23 @@ impl ForeignFrom<api_models::admin::CardBlockingConfig>
     }
 }
 
+impl ForeignFrom<api_models::admin::WalletBlockingConfig>
+    for diesel_models::business_profile::WalletBlockingConfig
+{
+    fn foreign_from(item: api_models::admin::WalletBlockingConfig) -> Self {
+        Self {
+            card_types: item.card_types,
+        }
+    }
+}
+
 impl ForeignFrom<diesel_models::business_profile::PaymentMethodBlockingConfig>
     for api_models::admin::PaymentMethodBlockingConfig
 {
     fn foreign_from(item: diesel_models::business_profile::PaymentMethodBlockingConfig) -> Self {
         Self {
             card: item.card.map(|c| c.foreign_into()),
+            wallet: item.wallet.map(|w| w.foreign_into()),
         }
     }
 }
@@ -2273,6 +2301,16 @@ impl ForeignFrom<diesel_models::business_profile::CardBlockingConfig>
             card_subtypes: item.card_subtypes,
             issuers: item.issuers,
             block_if_bin_info_unavailable: item.block_if_bin_info_unavailable,
+        }
+    }
+}
+
+impl ForeignFrom<diesel_models::business_profile::WalletBlockingConfig>
+    for api_models::admin::WalletBlockingConfig
+{
+    fn foreign_from(item: diesel_models::business_profile::WalletBlockingConfig) -> Self {
+        Self {
+            card_types: item.card_types,
         }
     }
 }
