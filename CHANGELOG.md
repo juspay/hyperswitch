@@ -4,6 +4,17 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.04.14.0
+
+### Bug Fixes
+
+- **connector:** Fix UCS webhook config and update connector configs for Truelayer and Trustly ([#11780](https://github.com/juspay/hyperswitch/pull/11780)) ([`e18abbb`](https://github.com/juspay/hyperswitch/commit/e18abbb309bd578d3bef4361dbf6b32a1a07eeeb))
+- **core:** Fetch Customer Document Details at Intent ([#11211](https://github.com/juspay/hyperswitch/pull/11211)) ([`96a32e2`](https://github.com/juspay/hyperswitch/commit/96a32e23778b3ef21b0124b37025729863613736))
+
+**Full Changelog:** [`2026.04.13.0...2026.04.14.0`](https://github.com/juspay/hyperswitch/compare/2026.04.13.0...2026.04.14.0)
+
+- - -
+
 ## 2026.04.13.0
 
 ### Features

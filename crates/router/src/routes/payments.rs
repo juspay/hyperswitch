@@ -21,7 +21,7 @@ use crate::routes::payments::payments::operations::payment_recurrence::PaymentRe
 use crate::{
     self as app,
     core::{
-        configs::dimension_state::Dimensions,
+        configs::dimension_state,
         errors::{self, http_not_implemented},
         payments::{self, transformers::ToResponse, OperationSessionGetters, PaymentRedirectFlow},
     },
@@ -2373,7 +2373,7 @@ where
                 .flat_map(|c| c.foreign_try_into())
                 .collect()
         });
-        let dimensions = Dimensions::new()
+        let dimensions = dimension_state::Dimensions::new()
             .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
             .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id());
         match req.payment_type.unwrap_or_default() {
@@ -2400,7 +2400,7 @@ where
                         auth_flow,
                         eligible_routable_connectors.clone(),
                         header_payload.clone(),
-                        dimensions.clone(),
+                        &dimensions,
                     ))
                     .await?;
 
@@ -2442,7 +2442,7 @@ where
                                 auth_flow,
                                 eligible_routable_connectors,
                                 header_payload.clone(),
-                                dimensions,
+                                &dimensions,
                             ))
                             .await?;
                         let total_ext_latency = match (external_latency, ext_latency) {

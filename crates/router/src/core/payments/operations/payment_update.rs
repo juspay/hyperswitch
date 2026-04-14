@@ -21,10 +21,7 @@ use router_env::{instrument, tracing};
 use super::{BoxedOperation, Domain, GetTracker, Operation, UpdateTracker, ValidateRequest};
 use crate::{
     core::{
-        configs::dimension_state::{
-            DimensionsWithProcessorAndProviderMerchantId,
-            DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
-        },
+        configs::dimension_state,
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
         mandate::helpers as m_helpers,
         payments::{
@@ -598,7 +595,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
         request: Option<CustomerDetails>,
         provider: &domain::Provider,
         initiator: Option<&domain::Initiator>,
-        dimensions: &DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
+        dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
         _mandate_type: Option<MandateTransactionType>,
     ) -> CustomResult<(PaymentUpdateOperation<'a, F>, Option<domain::Customer>), errors::StorageError>
     {
@@ -817,7 +814,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
         _customer: Option<domain::Customer>,
         _frm_suggestion: Option<FrmSuggestion>,
         _header_payload: hyperswitch_domain_models::payments::HeaderPayload,
-        _dimensions: &DimensionsWithProcessorAndProviderMerchantId,
+        _dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
     ) -> RouterResult<(PaymentUpdateOperation<'b, F>, PaymentData<F>)>
     where
         F: 'b + Send,
@@ -835,7 +832,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
         mut payment_data: PaymentData<F>,
         _frm_suggestion: Option<FrmSuggestion>,
         _header_payload: hyperswitch_domain_models::payments::HeaderPayload,
-        dimensions: &DimensionsWithProcessorAndProviderMerchantId,
+        dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
     ) -> RouterResult<(PaymentUpdateOperation<'b, F>, PaymentData<F>)>
     where
         F: 'b + Send,
@@ -863,6 +860,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
             .get_required_value("profile_id")
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("'profile_id' not set in payment intent")?;
+        let customer_id = payment_data.payment_intent.customer_id.as_ref();
 
         let additional_pm_data = payment_data
             .payment_method_data
@@ -871,7 +869,9 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
                 helpers::get_additional_payment_data(
                     payment_method_data,
                     &*state.store,
-                    profile_id,
+                    state.superposition_service.as_ref(),
+                    &dimensions.with_profile_id(profile_id.clone()),
+                    customer_id,
                     payment_data.payment_method_token.as_ref(),
                 )
                 .await

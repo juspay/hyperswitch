@@ -40,6 +40,7 @@ use crate::{
     consts,
     core::{
         api_locking,
+        configs::dimension_state,
         errors::{self, ConnectorErrorExt, CustomResult, RouterResponse, StorageErrorExt},
         metrics, payment_methods,
         payment_methods::cards,
@@ -228,6 +229,10 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
             platform.get_processor().get_account().get_id().clone()
         )),
     );
+    let dimensions = dimension_state::Dimensions::new()
+        .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
+        .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id())
+        .with_organization_id(platform.get_processor().get_account().get_org_id().clone());
     let request_details = IncomingWebhookRequestDetails {
         method: req.method().clone(),
         uri: req.uri().clone(),
@@ -242,7 +247,8 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
     // If No, then it will return Direct
     // Direct Signifies its not a authentication connector
     let three_ds_execution_path =
-        fetch_three_ds_execution_path(&platform, connector_name_or_mca_id, &state).await?;
+        fetch_three_ds_execution_path(&platform, connector_name_or_mca_id, &state, &dimensions)
+            .await?;
 
     // Decodes webhook body based on execution path, and returns connector Integration, connector_name, webhook_processing_result and merchant_connector_account back to the flow without disturbing the current flow
     let (connector, connector_name, webhook_processing_result, merchant_connector_account) =
@@ -280,6 +286,10 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
                         &state,
                         platform.get_processor(),
                         &mca_data.connector_name,
+                        mca_data
+                            .merchant_connector_account
+                            .as_ref()
+                            .map(|mca| &mca.merchant_connector_id),
                     )
                     .await?;
 
@@ -500,6 +510,7 @@ async fn fetch_three_ds_execution_path(
     platform: &domain::Platform,
     connector_name_or_mca_id: &str,
     state: &SessionState,
+    _dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndOrgId,
 ) -> errors::RouterResult<ThreeDsProcessingMode> {
     let (merchant_connector_account, connector, connector_name) =
         fetch_optional_mca_and_connector(state, platform, connector_name_or_mca_id).await?;

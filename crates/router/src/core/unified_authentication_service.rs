@@ -55,6 +55,7 @@ use crate::{
     consts,
     core::{
         authentication::utils as auth_utils,
+        configs::dimension_state,
         errors::utils::StorageErrorExt,
         metrics, payment_methods,
         payments::{helpers, validate_customer_details_for_click_to_pay},
@@ -1520,6 +1521,8 @@ trait EligibilityCheck {
         &self,
         state: &SessionState,
         platform: &domain::Platform,
+        dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
+        authentication_id: &common_utils::id_type::AuthenticationId,
     ) -> CustomResult<bool, ApiErrorResponse>;
 
     // Run the actual check and return the SDK Next Action if applicable
@@ -1565,33 +1568,17 @@ impl EligibilityCheck for StoreEligibilityCheckData {
     async fn should_run(
         &self,
         state: &SessionState,
-        platform: &domain::Platform,
+        _platform: &domain::Platform,
+        dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
+        authentication_id: &common_utils::id_type::AuthenticationId,
     ) -> CustomResult<bool, ApiErrorResponse> {
-        let merchant_id = platform.get_processor().get_account().get_id();
-        let should_store_eligibility_check_data_key =
-            merchant_id.get_should_store_eligibility_check_data_for_authentication();
-        let should_store_eligibility_check_data = state
-            .store
-            .find_config_by_key_unwrap_or(
-                &should_store_eligibility_check_data_key,
-                Some("false".to_string()),
+        Ok(dimensions
+            .get_should_store_eligibility_check_data_for_authentication(
+                state.store.as_ref(),
+                state.superposition_service.as_ref(),
+                Some(authentication_id),
             )
-            .await;
-
-        Ok(match should_store_eligibility_check_data {
-            Ok(config) => serde_json::from_str(&config.config).unwrap_or(false),
-
-            // If it is not present in db we are defaulting it to false
-            Err(inner) => {
-                if !inner.current_context().is_db_not_found() {
-                    router_env::logger::error!(
-                        "Error fetching should store eligibility check data enabled config {:?}",
-                        inner
-                    );
-                }
-                false
-            }
-        })
+            .await)
     }
 
     async fn execute_check(
@@ -1640,6 +1627,7 @@ pub struct EligibilityHandler {
     state: SessionState,
     platform: domain::Platform,
     authentication_eligibility_check_request: AuthenticationEligibilityCheckRequest,
+    dimensions: dimension_state::DimensionsWithProcessorAndProviderMerchantId,
 }
 
 #[cfg(feature = "v1")]
@@ -1648,11 +1636,13 @@ impl EligibilityHandler {
         state: SessionState,
         platform: domain::Platform,
         authentication_eligibility_check_request: AuthenticationEligibilityCheckRequest,
+        dimensions: dimension_state::DimensionsWithProcessorAndProviderMerchantId,
     ) -> Self {
         Self {
             state,
             platform,
             authentication_eligibility_check_request,
+            dimensions,
         }
     }
 
@@ -1660,7 +1650,16 @@ impl EligibilityHandler {
         &self,
         check: C,
     ) -> CustomResult<Option<AuthenticationSdkNextAction>, ApiErrorResponse> {
-        let should_run = check.should_run(&self.state, &self.platform).await?;
+        let should_run = check
+            .should_run(
+                &self.state,
+                &self.platform,
+                &self.dimensions,
+                &self
+                    .authentication_eligibility_check_request
+                    .authentication_id,
+            )
+            .await?;
         Ok(match should_run {
             true => check
                 .execute_check(
@@ -1687,6 +1686,10 @@ pub async fn authentication_eligibility_check_core(
     let merchant_account = platform.get_processor().get_account();
     let merchant_id = merchant_account.get_id();
     let key_manager_state = (&state).into();
+    let dimensions = dimension_state::Dimensions::new()
+        .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
+        .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id());
+
     let authentication = db
         .find_authentication_by_merchant_id_authentication_id(
             merchant_id,
@@ -1708,7 +1711,7 @@ pub async fn authentication_eligibility_check_core(
             )
         })
         .transpose()?;
-    let eligibility_handler = EligibilityHandler::new(state, platform, req);
+    let eligibility_handler = EligibilityHandler::new(state, platform, req, dimensions);
     // Run the checks in sequence, short-circuiting on the first that returns a next action
     let sdk_next_action = eligibility_handler
         .run_check(StoreEligibilityCheckData)
