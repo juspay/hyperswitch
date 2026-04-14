@@ -151,7 +151,9 @@ impl super::RedisConnectionPool {
             .change_context(errors::RedisError::JsonSerializationFailed)?;
 
         let mut conn = self.pool.clone();
-        let options = SetOptions::default().with_expiration(SetExpiry::EX(u64::try_from(seconds).change_context(errors::RedisError::SetExFailed)?));
+        let options = SetOptions::default().with_expiration(SetExpiry::EX(
+            u64::try_from(seconds).change_context(errors::RedisError::SetExFailed)?,
+        ));
         let _: Option<String> = conn
             .set_options(key.tenant_aware_key(self), serialized.as_slice(), options)
             .await
@@ -424,7 +426,9 @@ impl super::RedisConnectionPool {
         V: redis::ToRedisArgs + Debug + Send + Sync + ToSingleRedisArg,
     {
         let mut conn = self.pool.clone();
-        let options = SetOptions::default().with_expiration(SetExpiry::EX(u64::try_from(seconds).change_context(errors::RedisError::SetExFailed)?));
+        let options = SetOptions::default().with_expiration(SetExpiry::EX(
+            u64::try_from(seconds).change_context(errors::RedisError::SetExFailed)?,
+        ));
         let _: Option<String> = conn
             .set_options(key.tenant_aware_key(self), value, options)
             .await
@@ -446,7 +450,9 @@ impl super::RedisConnectionPool {
         let mut conn = self.pool.clone();
         let options = SetOptions::default()
             .conditional_set(ExistenceCheck::NX)
-            .with_expiration(SetExpiry::EX(u64::try_from(ttl).change_context(errors::RedisError::SetFailed)?));
+            .with_expiration(SetExpiry::EX(
+                u64::try_from(ttl).change_context(errors::RedisError::SetFailed)?,
+            ));
         let result: Option<String> = conn
             .set_options(key.tenant_aware_key(self), value, options)
             .await
@@ -660,7 +666,8 @@ impl super::RedisConnectionPool {
         let mut opts = ScanOptions::default().with_pattern(pattern.tenant_aware_key(self));
 
         if let Some(c) = count {
-            opts = opts.with_count(usize::try_from(c).change_context(errors::RedisError::GetFailed)?);
+            opts =
+                opts.with_count(usize::try_from(c).change_context(errors::RedisError::GetFailed)?);
         }
 
         // Use scan_options which returns an AsyncIter
@@ -900,7 +907,8 @@ impl super::RedisConnectionPool {
 
         let count = read_count.unwrap_or(self.config.default_stream_read_count);
 
-        let options = StreamReadOptions::default().count(usize::try_from(count).change_context(errors::RedisError::StreamReadFailed)?);
+        let options = StreamReadOptions::default()
+            .count(usize::try_from(count).change_context(errors::RedisError::StreamReadFailed)?);
 
         conn.xread_options(&stream_keys, ids, &options)
             .await
@@ -931,10 +939,14 @@ impl super::RedisConnectionPool {
         let mut options = StreamReadOptions::default();
 
         if let Some(count_val) = count {
-            options = options.count(usize::try_from(count_val).change_context(errors::RedisError::StreamReadFailed)?);
+            options = options.count(
+                usize::try_from(count_val).change_context(errors::RedisError::StreamReadFailed)?,
+            );
         }
         if let Some(block_ms) = block {
-            options = options.block(usize::try_from(block_ms).change_context(errors::RedisError::StreamReadFailed)?);
+            options = options.block(
+                usize::try_from(block_ms).change_context(errors::RedisError::StreamReadFailed)?,
+            );
         }
         if let Some((group_name, consumer_name)) = group {
             options = options.group(group_name, consumer_name);
@@ -1196,12 +1208,14 @@ impl super::RedisConnectionPool {
             return Err(report!(errors::RedisError::SetFailed).attach_printable(msg));
         }
 
-        let set_result = results.first().cloned().ok_or_else(|| {
-            report!(errors::RedisError::SetFailed).attach_printable(msg)
-        })?;
-        let get_result = results.get(1).cloned().ok_or_else(|| {
-            report!(errors::RedisError::SetFailed).attach_printable(msg)
-        })?;
+        let set_result = results
+            .first()
+            .cloned()
+            .ok_or_else(|| report!(errors::RedisError::SetFailed).attach_printable(msg))?;
+        let get_result = results
+            .get(1)
+            .cloned()
+            .ok_or_else(|| report!(errors::RedisError::SetFailed).attach_printable(msg))?;
 
         // Parse the GET result to get the actual value
         let actual_value: V = FromRedisValue::from_redis_value(get_result)
