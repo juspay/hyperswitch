@@ -110,6 +110,8 @@ use super::{
     },
 };
 #[cfg(feature = "v1")]
+use crate::core::blocklist::utils as blocklist_utils;
+#[cfg(feature = "v1")]
 use crate::core::card_testing_guard::utils as card_testing_guard_utils;
 #[cfg(feature = "v1")]
 use crate::core::debit_routing;
@@ -123,11 +125,6 @@ use crate::core::revenue_recovery::get_workflow_entries;
 use crate::core::revenue_recovery::map_to_recovery_payment_item;
 #[cfg(feature = "v1")]
 use crate::core::routing::helpers as routing_helpers;
-#[cfg(feature = "v1")]
-use crate::core::{
-    blocklist::utils as blocklist_utils,
-    configs::{self as configs, dimension_state::DimensionsWithMerchantId},
-};
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 use crate::types::api::convert_connector_data_to_routable_connectors;
 use crate::{
@@ -136,6 +133,7 @@ use crate::{
     },
     consts,
     core::{
+        configs::dimension_state,
         errors::{self, CustomResult, RouterResponse, RouterResult},
         payment_methods::{cards, network_tokenization},
         payments::helpers::{
@@ -215,6 +213,10 @@ where
     PaymentResponse: Operation<F, FData, Data = D>,
     FData: Send + Sync + Clone,
 {
+    let dimensions = dimension_state::Dimensions::new()
+        .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
+        .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id());
+
     let operation: BoxedOperation<'_, F, Req, D> = Box::new(operation);
 
     // Get the trackers related to track the state of the payment
@@ -321,6 +323,7 @@ where
                 #[cfg(feature = "frm")]
                 None,
                 call_connector_service_response,
+                &dimensions,
             )
             .await?;
 
@@ -424,6 +427,7 @@ where
                 #[cfg(feature = "frm")]
                 None,
                 call_connector_service_response,
+                &dimensions,
             )
             .await?;
 
@@ -632,7 +636,7 @@ pub async fn payments_operation_core<'a, F, Req, Op, FData, D>(
     auth_flow: services::AuthFlow,
     eligible_connectors: Option<Vec<enums::RoutableConnectors>>,
     header_payload: HeaderPayload,
-    dimensions: DimensionsWithMerchantId,
+    dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
 ) -> RouterResult<(D, Req, Option<u16>, Option<u128>)>
 where
     F: Send + Clone + Sync + Debug + 'static,
@@ -731,7 +735,8 @@ where
             customer_details, // TODO: Remove this field after implicit customer update is removed
             platform.get_provider(),
             platform.get_initiator(),
-            dimensions,
+            &dimensions,
+            mandate_type,
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)
@@ -767,6 +772,7 @@ where
         &mut payment_data,
         eligible_connectors,
         mandate_type,
+        &dimensions,
     )
     .await?;
 
@@ -1043,6 +1049,7 @@ where
                         #[cfg(not(feature = "frm"))]
                         None,
                         call_connector_service_response,
+                        &dimensions.without_profile_id(),
                     )
                     .await?;
 
@@ -1231,6 +1238,7 @@ where
                         #[cfg(not(feature = "frm"))]
                         None,
                         call_connector_service_response,
+                        &dimensions.without_profile_id(),
                     )
                     .await?;
 
@@ -1239,10 +1247,12 @@ where
                     #[cfg(all(feature = "retry", feature = "v1"))]
                     {
                         use crate::core::payments::retry::{self, GsmValidation};
+
                         let config_bool = retry::config_should_call_gsm(
-                            &*state.store,
-                            platform.get_processor().get_account().get_id(),
+                            state,
+                            &dimensions,
                             &business_profile,
+                            customer.as_ref().map(|c| c.get_id()),
                         )
                         .await;
 
@@ -1266,6 +1276,7 @@ where
                                 &business_profile,
                                 #[cfg(feature = "pm_modular")]
                                 &feature_config,
+                                &dimensions,
                             )
                             .await?;
                         };
@@ -1418,6 +1429,7 @@ where
                     #[cfg(not(feature = "frm"))]
                     None,
                     header_payload.clone(),
+                    &dimensions.without_profile_id(),
                 )
                 .await?;
         }
@@ -1448,6 +1460,7 @@ where
                 payment_data.clone(),
                 None,
                 header_payload.clone(),
+                &dimensions.without_profile_id(),
             )
             .await?;
     }
@@ -1501,7 +1514,7 @@ pub async fn proxy_for_payments_operation_core<F, Req, Op, FData, D>(
     auth_flow: services::AuthFlow,
     header_payload: HeaderPayload,
     return_raw_connector_response: Option<bool>,
-    dimensions: DimensionsWithMerchantId,
+    dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
 ) -> RouterResult<(D, Req, Option<u16>, Option<u128>)>
 where
     F: Send + Clone + Sync,
@@ -1565,7 +1578,8 @@ where
     validate_for_proxy_payment(
         state,
         &payment_data,
-        platform.get_processor().get_account().get_id(),
+        &dimensions,
+        &payment_data.get_payment_intent().payment_id,
     )
     .await?;
 
@@ -1625,7 +1639,8 @@ where
             customer_details,
             platform.get_provider(),
             platform.get_initiator(),
-            dimensions,
+            &dimensions,
+            None,
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)
@@ -1850,6 +1865,10 @@ where
     // Get the trackers related to track the state of the payment
     let operations::GetTrackerResponse { mut payment_data } = get_tracker_response;
 
+    let dimensions = dimension_state::Dimensions::new()
+        .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
+        .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id());
+
     let (_operation, customer) = operation
         .to_domain()?
         .get_customer_details(
@@ -1916,6 +1935,7 @@ where
                 external_vault_mca_type_details,
                 router_data,
                 updated_customer,
+                &dimensions,
             )
             .await?;
 
@@ -1968,6 +1988,9 @@ where
     D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
 {
     let operation: BoxedOperation<'_, F, Req, D> = Box::new(operation);
+    let dimensions = dimension_state::Dimensions::new()
+        .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
+        .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id());
 
     tracing::Span::current().record(
         "merchant_id",
@@ -2017,6 +2040,7 @@ where
             payment_data,
             None,
             header_payload,
+            &dimensions,
         )
         .await?;
 
@@ -2043,6 +2067,9 @@ where
     D: OperationSessionGetters<F> + Send + Sync + Clone,
 {
     let operation: BoxedOperation<'_, F, Req, D> = Box::new(operation);
+    let dimensions = dimension_state::Dimensions::new()
+        .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
+        .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id());
 
     tracing::Span::current().record(
         "merchant_id",
@@ -2092,6 +2119,7 @@ where
             payment_data,
             None,
             header_payload,
+            &dimensions,
         )
         .await?;
 
@@ -2271,9 +2299,10 @@ where
 pub fn calculate_installment_interest(
     order_amount: MinorUnit,
     interest_rate: common_types::payments::InstallmentInterestRate,
+    number_of_installments: std::num::NonZeroU8,
 ) -> RouterResult<MinorUnit> {
     interest_rate
-        .apply_and_ceil_result(order_amount)
+        .calculate_emi_interest(order_amount, number_of_installments)
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to calculate installment interest")
 }
@@ -2320,6 +2349,7 @@ where
             let total_interest = calculate_installment_interest(
                 payment_data.payment_attempt.net_amount.get_order_amount(),
                 installment_option_data.interest_rate,
+                selected_installment.number_of_installments,
             )?;
 
             payment_data
@@ -2551,8 +2581,9 @@ where
             .flat_map(|c| c.foreign_try_into())
             .collect()
     });
-    let dimensions = configs::dimension_state::Dimensions::new()
-        .with_merchant_id(platform.get_processor().get_account().get_id().clone());
+    let dimensions = dimension_state::Dimensions::new()
+        .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
+        .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id());
     let (payment_data, _req, connector_http_status_code, external_latency) =
         payments_operation_core::<_, _, _, _, _>(
             &state,
@@ -2566,7 +2597,7 @@ where
             auth_flow,
             eligible_routable_connectors,
             header_payload.clone(),
-            dimensions,
+            &dimensions,
         )
         .await?;
 
@@ -2615,8 +2646,9 @@ where
     // To perform router related operation for PaymentResponse
     PaymentResponse: Operation<F, FData, Data = D>,
 {
-    let dimensions = configs::dimension_state::Dimensions::new()
-        .with_merchant_id(platform.get_processor().get_account().get_id().clone());
+    let dimensions = dimension_state::Dimensions::new()
+        .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
+        .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id());
     let (payment_data, _req, connector_http_status_code, external_latency) =
         proxy_for_payments_operation_core::<_, _, _, _, _>(
             &state,
@@ -2629,7 +2661,7 @@ where
             auth_flow,
             header_payload.clone(),
             return_raw_connector_response,
-            dimensions,
+            &dimensions,
         )
         .await?;
 
@@ -2824,6 +2856,10 @@ pub async fn record_attempt_core(
             .get_string_repr(),
     );
 
+    let dimensions = dimension_state::Dimensions::new()
+        .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
+        .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id());
+
     let operation: &operations::payment_attempt_record::PaymentAttemptRecord =
         &operations::payment_attempt_record::PaymentAttemptRecord;
     let boxed_operation: BoxedOperation<
@@ -2925,6 +2961,7 @@ pub async fn record_attempt_core(
             record_payment_data,
             None,
             header_payload.clone(),
+            &dimensions,
         )
         .await?;
 
@@ -4213,6 +4250,7 @@ impl PaymentRedirectFlow for PaymentAuthenticateCompleteAuthorize {
             None,
             &payment_intent
                 .profile_id
+                .clone()
                 .ok_or(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("missing profile_id in payment_intent")?,
             &payment_attempt
@@ -4250,9 +4288,7 @@ impl PaymentRedirectFlow for PaymentAuthenticateCompleteAuthorize {
                 }),
                 ..Default::default()
             };
-            let is_setup_mandate = payment_intent.amount == MinorUnit::zero()
-                && payment_intent.setup_future_usage
-                    == Some(storage_enums::FutureUsage::OffSession);
+            let is_setup_mandate = payment_intent.is_setup_mandate();
             if is_setup_mandate {
                 Box::pin(payments_core::<
                     api::SetupMandate,
@@ -4793,6 +4829,7 @@ pub async fn complete_connector_service<F, RouterDReq, ApiRequest, D>(
     header_payload: HeaderPayload,
     frm_suggestion: Option<storage_enums::FrmSuggestion>,
     call_connector_service_response: ConnectorServiceIntermediateState<F, RouterDReq>,
+    dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
 ) -> RouterResult<(
     RouterData<F, RouterDReq, router_types::PaymentsResponseData>,
     helpers::MerchantConnectorAccountType,
@@ -4820,6 +4857,7 @@ where
             payment_data.clone(),
             frm_suggestion,
             header_payload.clone(),
+            dimensions,
         )
         .await?;
     *payment_data = new_payment_data;
@@ -5285,6 +5323,7 @@ pub async fn complete_connector_service<F, RouterDReq, ApiRequest, D>(
     header_payload: HeaderPayload,
     frm_suggestion: Option<storage_enums::FrmSuggestion>,
     call_connector_service_response: ConnectorServiceIntermediateState<F, RouterDReq>,
+    dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
 ) -> RouterResult<(
     RouterData<F, RouterDReq, router_types::PaymentsResponseData>,
     domain::MerchantConnectorAccountTypeDetails,
@@ -5312,6 +5351,7 @@ where
             payment_data.clone(),
             frm_suggestion,
             header_payload.clone(),
+            dimensions,
         )
         .await?;
     *payment_data = new_payment_data;
@@ -5654,6 +5694,10 @@ where
         )
         .await?;
 
+    let dimensions = dimension_state::Dimensions::new()
+        .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
+        .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id());
+
     payment_data.add_guest_customer(&mut router_data, &guest_customer)?;
 
     // Extract previous gateway from payment data
@@ -5720,6 +5764,7 @@ where
             payment_data.clone(),
             None, // frm_suggestion is not used in internal flows
             header_payload.clone(),
+            &dimensions,
         )
         .await?;
 
@@ -5868,6 +5913,7 @@ pub async fn call_unified_connector_service_for_external_proxy<F, RouterDReq, Ap
     external_vault_merchant_connector_account_type_details: domain::MerchantConnectorAccountTypeDetails,
     mut router_data: RouterData<F, RouterDReq, router_types::PaymentsResponseData>,
     _updated_customer: Option<storage::CustomerUpdate>,
+    dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
 ) -> RouterResult<RouterData<F, RouterDReq, router_types::PaymentsResponseData>>
 where
     F: Send + Clone + Sync,
@@ -5891,6 +5937,7 @@ where
                 payment_data.clone(),
                 frm_suggestion,
                 header_payload.clone(),
+                dimensions,
             )
             .await?;
         let lineage_ids = grpc_client::LineageIds::new(
@@ -5949,6 +5996,10 @@ where
     dyn api::Connector:
         services::api::ConnectorIntegration<F, RouterDReq, router_types::PaymentsResponseData>,
 {
+    let dimensions = dimension_state::Dimensions::new()
+        .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
+        .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id());
+
     let stime_connector = Instant::now();
 
     let merchant_connector_account = construct_profile_id_and_get_mca(
@@ -6086,6 +6137,7 @@ where
             payment_data.clone(),
             frm_suggestion,
             header_payload.clone(),
+            &dimensions,
         )
         .await?;
 
@@ -6156,6 +6208,10 @@ where
             )
             .await?,
         ));
+    let dimensions = dimension_state::Dimensions::new()
+        .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
+        .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id());
+
     let profile_id = payment_data.get_payment_intent().profile_id.clone();
     let default_gateway_context = gateway_context::RouterGatewayContext::direct(
         platform.get_processor().clone(),
@@ -6224,6 +6280,7 @@ where
             payment_data.clone(),
             None,
             header_payload.clone(),
+            &dimensions,
         )
         .await?;
 
@@ -6279,6 +6336,10 @@ where
         services::api::ConnectorIntegration<F, RouterDReq, router_types::PaymentsResponseData>,
 {
     let stime_connector = Instant::now();
+
+    let dimensions = dimension_state::Dimensions::new()
+        .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
+        .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id());
 
     let merchant_connector_account =
         domain::MerchantConnectorAccountTypeDetails::MerchantConnectorAccount(Box::new(
@@ -6347,6 +6408,7 @@ where
             payment_data.clone(),
             None,
             header_payload.clone(),
+            &dimensions,
         )
         .await?;
 
@@ -9590,6 +9652,7 @@ pub async fn choose_connector<F, Req, D>(
     payment_data: &mut D,
     eligible_connectors: Option<Vec<enums::RoutableConnectors>>,
     mandate_type: Option<api::MandateTransactionType>,
+    dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
 ) -> RouterResult<Option<ConnectorCallType>>
 where
     F: Send + Clone,
@@ -9661,6 +9724,7 @@ where
                             Some(straight_through),
                             eligible_connectors,
                             mandate_type,
+                            dimensions,
                             fallback_config,
                             backend_input,
                         )
@@ -9678,6 +9742,7 @@ where
                             None,
                             eligible_connectors,
                             mandate_type,
+                            dimensions,
                             fallback_config,
                             backend_input,
                         )
@@ -9827,7 +9892,8 @@ where
 pub async fn validate_for_proxy_payment<F, D>(
     state: &SessionState,
     payment_data: &D,
-    merchant_id: &id_type::MerchantId,
+    dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
+    payment_id: &id_type::PaymentId,
 ) -> RouterResult<()>
 where
     D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
@@ -9839,20 +9905,13 @@ where
         .clone()
         .is_card_limited_details_flow();
 
-    let db = &*state.store;
-    let config = db
-        .find_config_by_key_unwrap_or(
-            &merchant_id.get_should_enable_mit_with_limited_card_data(),
-            Some("false".to_string()),
+    let is_mit_with_limited_card_data_enabled = dimensions
+        .get_should_enable_mit_with_limited_card_data(
+            state.store.as_ref(),
+            state.superposition_service.as_ref(),
+            Some(payment_id),
         )
         .await;
-    let is_mit_with_limited_card_data_enabled = match config {
-        Ok(conf) => conf.config == "true",
-        Err(error) => {
-            router_env::logger::error!(?error);
-            false
-        }
-    };
 
     utils::when(
         is_card_limited_details_flow && !is_mit_with_limited_card_data_enabled,
@@ -9877,6 +9936,7 @@ pub async fn perform_routing_for_connector_selection<F, D>(
     request_straight_through: Option<serde_json::Value>,
     eligible_connectors: Option<Vec<enums::RoutableConnectors>>,
     mandate_type: Option<api::MandateTransactionType>,
+    dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
     fallback_config: Vec<api_models::routing::RoutableConnectorChoice>,
     backend_input: dsl_inputs::BackendInput,
 ) -> RouterResult<ConnectorCallType>
@@ -9923,6 +9983,7 @@ where
         &mut routing_data,
         eligible_connectors,
         mandate_type,
+        dimensions,
         fallback_config,
         backend_input,
         #[cfg(feature = "pm_modular")]
@@ -10121,6 +10182,7 @@ pub async fn decide_connector<F, D>(
     routing_data: &mut storage::RoutingData,
     eligible_connectors: Option<Vec<enums::RoutableConnectors>>,
     mandate_type: Option<api::MandateTransactionType>,
+    dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
     fallback_config: Vec<api_models::routing::RoutableConnectorChoice>,
     backend_input: dsl_inputs::BackendInput,
     is_payment_method_modular_allowed: bool,
@@ -10154,6 +10216,7 @@ where
             business_profile,
             payment_data,
             routing_data,
+            dimensions,
         )
         .await
         .inspect_err(|err| {
@@ -11474,7 +11537,6 @@ pub async fn payment_external_authentication<F: Clone + Sync>(
         .clone()
         .get_required_value("authentication_connector_details")
         .attach_printable("authentication_connector_details not configured by the merchant")?;
-
     let authentication_response =
         if helpers::is_merchant_eligible_authentication_service(platform.get_processor(), &state)
             .await?
@@ -12228,6 +12290,10 @@ pub trait OperationSessionSetters<F> {
         &mut self,
         authentication_type: Option<enums::AuthenticationType>,
     );
+    fn set_document_details_in_intent(
+        &mut self,
+        document_details: common_utils::crypto::OptionalEncryptableValue,
+    );
     fn set_recurring_mandate_payment_data(
         &mut self,
         recurring_mandate_payment_data:
@@ -12570,6 +12636,13 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentData<F> {
         self.payment_attempt.authentication_type = authentication_type;
     }
 
+    fn set_document_details_in_intent(
+        &mut self,
+        document_details: common_utils::crypto::OptionalEncryptableValue,
+    ) {
+        self.payment_intent.customer_details = document_details;
+    }
+
     fn set_recurring_mandate_payment_data(
         &mut self,
         recurring_mandate_payment_data:
@@ -12880,6 +12953,13 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentIntentData<F> {
     fn set_authentication_type_in_attempt(
         &mut self,
         _authentication_type: Option<enums::AuthenticationType>,
+    ) {
+        todo!()
+    }
+
+    fn set_document_details_in_intent(
+        &mut self,
+        _document_details: common_utils::crypto::OptionalEncryptableValue,
     ) {
         todo!()
     }
@@ -13195,6 +13275,13 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentConfirmData<F> {
         todo!()
     }
 
+    fn set_document_details_in_intent(
+        &mut self,
+        _document_details: common_utils::crypto::OptionalEncryptableValue,
+    ) {
+        todo!()
+    }
+
     fn set_recurring_mandate_payment_data(
         &mut self,
         _recurring_mandate_payment_data:
@@ -13498,6 +13585,13 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentStatusData<F> {
     fn set_authentication_type_in_attempt(
         &mut self,
         _authentication_type: Option<enums::AuthenticationType>,
+    ) {
+        todo!()
+    }
+
+    fn set_document_details_in_intent(
+        &mut self,
+        _document_details: common_utils::crypto::OptionalEncryptableValue,
     ) {
         todo!()
     }
@@ -13806,6 +13900,13 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentCaptureData<F> {
     fn set_authentication_type_in_attempt(
         &mut self,
         _authentication_type: Option<enums::AuthenticationType>,
+    ) {
+        todo!()
+    }
+
+    fn set_document_details_in_intent(
+        &mut self,
+        _document_details: common_utils::crypto::OptionalEncryptableValue,
     ) {
         todo!()
     }
@@ -14273,6 +14374,13 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentCancelData<F> {
         todo!()
     }
 
+    fn set_document_details_in_intent(
+        &mut self,
+        _document_details: common_utils::crypto::OptionalEncryptableValue,
+    ) {
+        todo!()
+    }
+
     fn set_recurring_mandate_payment_data(
         &mut self,
         _recurring_mandate_payment_data:
@@ -14360,7 +14468,7 @@ impl PaymentIntentStateMetadataExt {
         // Update payment_intent for the refund's payment_id
         // Calculate total_refunded_amount based on all succeeded refunds for that payment_id
         let all_refunds_for_payment = db
-            .find_refund_by_payment_id_merchant_id(
+            .find_refund_by_payment_id_processor_merchant_id(
                 &payment_intent.payment_id,
                 merchant_account.get_id(),
                 merchant_account.storage_scheme,

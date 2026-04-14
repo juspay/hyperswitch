@@ -21383,6 +21383,11 @@
             "type": "boolean",
             "description": "Whether assurance details are required",
             "nullable": true
+          },
+          "allow_credit_cards": {
+            "type": "boolean",
+            "description": "Set to false if you don't want to allow credit cards",
+            "nullable": true
           }
         }
       },
@@ -27793,6 +27798,14 @@
               }
             ],
             "nullable": true
+          },
+          "wallet": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/WalletBlockingConfig"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -29009,7 +29022,8 @@
           "inactive",
           "processing",
           "awaiting_data",
-          "new"
+          "new",
+          "redacted"
         ]
       },
       "PaymentMethodTokenizationDetails": {
@@ -42352,6 +42366,20 @@
             "type": "string",
             "description": "Unique authorisation code generated for the payment",
             "example": "009825",
+            "nullable": true
+          }
+        }
+      },
+      "WalletBlockingConfig": {
+        "type": "object",
+        "description": "Wallet-specific blocking configuration for Apple Pay and Google Pay",
+        "properties": {
+          "card_types": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CardType"
+            },
+            "description": "Set of card types to block for wallet payments (e.g., [\"Credit\", \"Debit\"])",
             "nullable": true
           }
         }
