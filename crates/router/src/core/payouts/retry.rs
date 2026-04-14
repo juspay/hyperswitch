@@ -159,8 +159,7 @@ pub async fn get_retries(
             let storage = state.store.as_ref();
             let superposition_client = state.superposition_service.as_ref();
 
-            let dimensions =
-                dimensions.with_payout_retry_type(retry_type);
+            let dimensions = dimensions.with_payout_retry_type(retry_type);
 
             let retries_i64 = dimensions
                 .get_max_auto_payout_retries(storage, superposition_client, customer_id)
