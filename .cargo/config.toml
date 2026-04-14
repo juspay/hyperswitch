@@ -1,9 +1,3 @@
-[env]
-MACOSX_DEPLOYMENT_TARGET = "15.0"
-
-[target.aarch64-apple-darwin]
-rustflags = ["-L", "/opt/homebrew/opt/libpq/lib"]
-
 [target.wasm32-unknown-unknown]
 rustflags = [
     "--cfg", "getrandom_backend=\"wasm_js\"",
