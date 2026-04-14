@@ -3587,7 +3587,9 @@ pub mod routes {
                                                 org_id,
                                                 merchant_id: parent_merchant_id?,
                                                 profile_ids: vec![profile_id],
-                                                processor_merchant_id: user_role.merchant_id.clone(),
+                                                processor_merchant_id: user_role
+                                                    .merchant_id
+                                                    .clone(),
                                             })
                                         } else {
                                             // Standard/Platform merchant
@@ -3615,7 +3617,9 @@ pub mod routes {
                                             // Standard/Platform merchant
                                             Some(AuthInfo::MerchantLevel {
                                                 org_id,
-                                                merchant_ids: vec![user_role.merchant_id.clone()?],
+                                                merchant_ids: vec![user_role
+                                                    .merchant_id
+                                                    .clone()?],
                                                 processor_merchant_ids: None,
                                             })
                                         }
@@ -3835,7 +3839,9 @@ pub mod routes {
                                                 org_id,
                                                 merchant_id: parent_merchant_id?,
                                                 profile_ids: vec![profile_id],
-                                                processor_merchant_id: user_role.merchant_id.clone(),
+                                                processor_merchant_id: user_role
+                                                    .merchant_id
+                                                    .clone(),
                                             })
                                         } else {
                                             // Standard/Platform merchant
@@ -3863,7 +3869,9 @@ pub mod routes {
                                             // Standard/Platform merchant
                                             Some(AuthInfo::MerchantLevel {
                                                 org_id,
-                                                merchant_ids: vec![user_role.merchant_id.clone()?],
+                                                merchant_ids: vec![user_role
+                                                    .merchant_id
+                                                    .clone()?],
                                                 processor_merchant_ids: None,
                                             })
                                         }
