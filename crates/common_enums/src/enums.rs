@@ -9928,8 +9928,9 @@ pub enum EntityType {
     Profile = 0,
 }
 
-#[derive(Clone, Debug, serde::Serialize)]
+#[derive(Clone, Debug, serde::Serialize, strum::Display)]
 #[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
 pub enum PayoutRetryType {
     SingleConnector,
     MultiConnector,

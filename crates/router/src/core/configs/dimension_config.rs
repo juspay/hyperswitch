@@ -264,39 +264,31 @@ impl DatabaseBackedConfig for ClientSessionValidationEnabled {
 }
 
 config! {
-    superposition_key = MAX_AUTO_SINGLE_CONNECTOR_PAYOUT_RETRIES,
+    superposition_key = MAX_AUTO_PAYOUT_RETRIES,
     output = i64,
     default = 0i64,
-    requires = dimension_state::DimensionsWithProcessorAndProviderMerchantId,
+    requires = dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndPayoutRetryType,
     targeting_key = id_type::CustomerId
 }
 
-impl DatabaseBackedConfig for MaxAutoSingleConnectorPayoutRetries {
-    const KEY: &'static str = "max_auto_single_connector_payout_retries_enabled";
+impl DatabaseBackedConfig for MaxAutoPayoutRetries {
+    const KEY: &'static str = "max_auto_payout_retries";
     fn db_key(dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
-        let merchant_id = dimensions
+        dimensions
             .get_processor_merchant_id()
-            .map(|id| id.get_string_repr())
-            .unwrap_or_default();
-        Some(format!("{}_{}", Self::KEY, merchant_id))
-    }
-}
-
-config! {
-    superposition_key = MAX_AUTO_MULTIPLE_CONNECTOR_PAYOUT_RETRIES,
-    output = i64,
-    default = 0i64,
-    requires = dimension_state::DimensionsWithProcessorAndProviderMerchantId,
-    targeting_key = id_type::CustomerId
-}
-
-impl DatabaseBackedConfig for MaxAutoMultipleConnectorPayoutRetries {
-    const KEY: &'static str = "max_auto_multiple_connector_payout_retries_enabled";
-    fn db_key(dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
-        let merchant_id = dimensions
-            .get_processor_merchant_id()
-            .map(|id| id.get_string_repr())
-            .unwrap_or_default();
-        Some(format!("{}_{}", Self::KEY, merchant_id))
+            .and_then(|merchant_id| {
+                dimensions
+                    .get_payout_retry_type()
+                    .map(|retry_type| match retry_type {
+                        common_enums::PayoutRetryType::SingleConnector => format!(
+                            "max_auto_single_connector_payout_retries_enabled_{}",
+                            merchant_id.get_string_repr()
+                        ),
+                        common_enums::PayoutRetryType::MultiConnector => format!(
+                            "max_auto_multiple_connector_payout_retries_enabled_{}",
+                            merchant_id.get_string_repr()
+                        ),
+                    })
+            })
     }
 }
