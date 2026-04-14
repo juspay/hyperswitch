@@ -278,13 +278,6 @@ pub async fn create_role_v2(
         }
     }
 
-    utils::user_role::validate_role_groups(
-        &permission_groups,
-        match role_entity_type {
-            EntityType::Tenant | EntityType::Organization => None,
-            EntityType::Merchant | EntityType::Profile => Some(merchant_product_type),
-        },
-    )?;
     utils::user_role::validate_role_name(
         &state,
         &role_name,
