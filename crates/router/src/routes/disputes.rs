@@ -461,12 +461,7 @@ pub async fn attach_dispute_evidence(
         attach_evidence_request,
         |state, auth: auth::AuthenticationData, req, _| {
             let profile_id = auth.profile.map(|profile| profile.get_id().clone());
-            disputes::attach_evidence(
-                state,
-                auth.platform.clone(),
-                profile_id,
-                req,
-            )
+            disputes::attach_evidence(state, auth.platform.clone(), profile_id, req)
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
