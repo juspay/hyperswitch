@@ -46,8 +46,8 @@ impl super::RedisConnectionPool {
         V: redis::ToRedisArgs + Debug + Send + Sync + ToSingleRedisArg,
     {
         let mut conn = self.pool.clone();
-        let options = SetOptions::default()
-            .with_expiration(SetExpiry::EX(self.config.default_ttl as u64));
+        let options =
+            SetOptions::default().with_expiration(SetExpiry::EX(self.config.default_ttl as u64));
         let _: Option<String> = conn
             .set_options(key.tenant_aware_key(self), value, options)
             .await
@@ -224,10 +224,7 @@ impl super::RedisConnectionPool {
         let futures = tenant_aware_keys.iter().map(|redis_key| {
             let mut conn = self.pool.clone();
             let key = redis_key.clone();
-            async move {
-                conn.get::<_, Option<V>>(&key)
-                    .await
-            }
+            async move { conn.get::<_, Option<V>>(&key).await }
         });
 
         let results = futures::future::try_join_all(futures)
@@ -814,7 +811,11 @@ impl super::RedisConnectionPool {
     {
         let mut conn = self.pool.clone();
         let _: Option<String> = conn
-            .xadd_map(stream.tenant_aware_key(self), entry_id.to_stream_id(), fields)
+            .xadd_map(
+                stream.tenant_aware_key(self),
+                entry_id.to_stream_id(),
+                fields,
+            )
             .await
             .change_context(errors::RedisError::StreamAppendFailed)?;
         Ok(())
@@ -849,9 +850,9 @@ impl super::RedisConnectionPool {
 
         let options = match cap_kind {
             StreamCapKind::MaxLen => {
-                let max_len: usize = threshold.parse().map_err(|_| {
-                    errors::RedisError::StreamTrimFailed
-                })?;
+                let max_len: usize = threshold
+                    .parse()
+                    .map_err(|_| errors::RedisError::StreamTrimFailed)?;
                 StreamTrimOptions::maxlen(trim_mode, max_len)
             }
             StreamCapKind::MinID => StreamTrimOptions::minid(trim_mode, threshold),
@@ -895,10 +896,7 @@ impl super::RedisConnectionPool {
         read_count: Option<u64>,
     ) -> CustomResult<redis::streams::StreamReadReply, errors::RedisError> {
         let mut conn = self.pool.clone();
-        let stream_keys: Vec<String> = streams
-            .iter()
-            .map(|s| s.tenant_aware_key(self))
-            .collect();
+        let stream_keys: Vec<String> = streams.iter().map(|s| s.tenant_aware_key(self)).collect();
 
         let count = read_count.unwrap_or(self.config.default_stream_read_count);
 
@@ -910,8 +908,7 @@ impl super::RedisConnectionPool {
                 let kind = err.kind();
                 match kind {
                     redis::ErrorKind::UnexpectedReturnType | redis::ErrorKind::Parse => {
-                        report!(err)
-                            .change_context(errors::RedisError::StreamEmptyOrNotAvailable)
+                        report!(err).change_context(errors::RedisError::StreamEmptyOrNotAvailable)
                     }
                     _ => report!(err).change_context(errors::RedisError::StreamReadFailed),
                 }
@@ -929,10 +926,7 @@ impl super::RedisConnectionPool {
         group: Option<(&str, &str)>,
     ) -> CustomResult<redis::streams::StreamReadReply, errors::RedisError> {
         let mut conn = self.pool.clone();
-        let stream_keys: Vec<String> = streams
-            .iter()
-            .map(|s| s.tenant_aware_key(self))
-            .collect();
+        let stream_keys: Vec<String> = streams.iter().map(|s| s.tenant_aware_key(self)).collect();
 
         let mut options = StreamReadOptions::default();
 
@@ -952,8 +946,7 @@ impl super::RedisConnectionPool {
                 let kind = err.kind();
                 match kind {
                     redis::ErrorKind::UnexpectedReturnType | redis::ErrorKind::Parse => {
-                        report!(err)
-                            .change_context(errors::RedisError::StreamEmptyOrNotAvailable)
+                        report!(err).change_context(errors::RedisError::StreamEmptyOrNotAvailable)
                     }
                     _ => report!(err).change_context(errors::RedisError::StreamReadFailed),
                 }
@@ -1091,9 +1084,15 @@ impl super::RedisConnectionPool {
         R: FromRedisValue + Send + 'static,
     {
         let mut conn = self.pool.clone();
-        conn.xclaim(stream.tenant_aware_key(self), group, consumer, min_idle_time, ids)
-            .await
-            .change_context(errors::RedisError::ConsumerGroupClaimFailed)
+        conn.xclaim(
+            stream.tenant_aware_key(self),
+            group,
+            consumer,
+            min_idle_time,
+            ids,
+        )
+        .await
+        .change_context(errors::RedisError::ConsumerGroupClaimFailed)
     }
 
     // ─── Lua Scripting ───────────────────────────────────────────────────────
@@ -1210,12 +1209,8 @@ impl super::RedisConnectionPool {
             // SET NX returns Okay if key was set (newer redis crate)
             Value::Okay => Ok(SetGetReply::ValueSet(actual_value)),
             // SET NX returns "OK" if key was set (older format)
-            Value::SimpleString(ref s) if s == "OK" => {
-                Ok(SetGetReply::ValueSet(actual_value))
-            }
-            Value::BulkString(ref s) if s == b"OK" => {
-                Ok(SetGetReply::ValueSet(actual_value))
-            }
+            Value::SimpleString(ref s) if s == "OK" => Ok(SetGetReply::ValueSet(actual_value)),
+            Value::BulkString(ref s) if s == b"OK" => Ok(SetGetReply::ValueSet(actual_value)),
             // SET NX returns Nil if key already exists
             Value::Nil => Ok(SetGetReply::ValueExists(actual_value)),
             _ => Err(report!(errors::RedisError::SetFailed))
@@ -1466,7 +1461,8 @@ mod tests {
                     .duration_since(std::time::UNIX_EPOCH)
                     .unwrap()
                     .as_nanos();
-                let key: crate::types::RedisKey = format!("test_default_ttl_key_{}", unique_id).into();
+                let key: crate::types::RedisKey =
+                    format!("test_default_ttl_key_{}", unique_id).into();
                 let value = "test_value".to_string();
 
                 // Act - use None for TTL to test default behavior
@@ -1893,7 +1889,8 @@ mod tests {
                     .duration_since(std::time::UNIX_EPOCH)
                     .unwrap()
                     .as_nanos();
-                let stream: crate::types::RedisKey = format!("test_stream_group_ops_{}", unique_id).into();
+                let stream: crate::types::RedisKey =
+                    format!("test_stream_group_ops_{}", unique_id).into();
                 let group = format!("test_group_{}", unique_id);
                 let fields: Vec<(&str, &str)> = vec![("field1", "value1")];
 
@@ -1904,10 +1901,14 @@ mod tests {
 
                 // Act - create group with valid ID
                 let create_result = pool
-                    .consumer_group_create(&stream, &group, &RedisEntryId::UserSpecifiedID {
-                        milliseconds: "0".to_string(),
-                        sequence_number: "0".to_string(),
-                    })
+                    .consumer_group_create(
+                        &stream,
+                        &group,
+                        &RedisEntryId::UserSpecifiedID {
+                            milliseconds: "0".to_string(),
+                            sequence_number: "0".to_string(),
+                        },
+                    )
                     .await;
 
                 // Assert - should succeed
@@ -1937,14 +1938,20 @@ mod tests {
                     .stream_append_entry(&stream, &RedisEntryId::AutoGeneratedID, &fields)
                     .await;
                 let _ = pool
-                    .consumer_group_create(&stream, group, &RedisEntryId::UserSpecifiedID {
-                        milliseconds: "0".to_string(),
-                        sequence_number: "0".to_string(),
-                    })
+                    .consumer_group_create(
+                        &stream,
+                        group,
+                        &RedisEntryId::UserSpecifiedID {
+                            milliseconds: "0".to_string(),
+                            sequence_number: "0".to_string(),
+                        },
+                    )
                     .await;
 
                 // Act - acknowledge non-existent ID (should still succeed with 0)
-                let ack_result = pool.stream_acknowledge_entries(&stream, group, &["0-1".to_string()]).await;
+                let ack_result = pool
+                    .stream_acknowledge_entries(&stream, group, &["0-1".to_string()])
+                    .await;
 
                 // Assert
                 ack_result.is_ok()
@@ -1976,7 +1983,10 @@ mod tests {
 
                 // Assert
                 matches!(delete_existing, Ok(crate::types::DelReply::KeyDeleted))
-                    && matches!(delete_non_existing, Ok(crate::types::DelReply::KeyNotDeleted))
+                    && matches!(
+                        delete_non_existing,
+                        Ok(crate::types::DelReply::KeyNotDeleted)
+                    )
             })
         })
         .await

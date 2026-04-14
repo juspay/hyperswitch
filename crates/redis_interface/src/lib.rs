@@ -39,10 +39,7 @@ pub enum RedisConn {
 }
 
 impl redis::aio::ConnectionLike for RedisConn {
-    fn req_packed_command<'a>(
-        &'a mut self,
-        cmd: &'a redis::Cmd,
-    ) -> redis::RedisFuture<'a, Value> {
+    fn req_packed_command<'a>(&'a mut self, cmd: &'a redis::Cmd) -> redis::RedisFuture<'a, Value> {
         match self {
             Self::Standalone(c) => c.req_packed_command(cmd),
             Self::Cluster(c) => c.req_packed_command(cmd),
@@ -159,9 +156,7 @@ impl SubscriberClient {
             match result {
                 Some(msg) => {
                     let channel = msg.get_channel_name().to_string();
-                    let payload: Value = msg
-                        .get_payload()
-                        .unwrap_or(Value::Nil);
+                    let payload: Value = msg.get_payload().unwrap_or(Value::Nil);
                     let _ = tx.send(PubSubMessage {
                         channel,
                         value: payload,
@@ -323,8 +318,7 @@ impl RedisConnectionPool {
     pub async fn on_error(&self, tx: tokio::sync::oneshot::Sender<()>) {
         // Periodically ping to detect if the connection is alive
         let check_interval = self.config.unresponsive_check_interval.max(2);
-        let mut interval =
-            tokio::time::interval(std::time::Duration::from_secs(check_interval));
+        let mut interval = tokio::time::interval(std::time::Duration::from_secs(check_interval));
 
         let mut consecutive_failures: u32 = 0;
         let max_failures: u32 = 3;
@@ -343,9 +337,7 @@ impl RedisConnectionPool {
                     tracing::error!(?error, "Redis protocol or connection error");
                     if consecutive_failures >= max_failures {
                         if tx.send(()).is_err() {
-                            tracing::error!(
-                                "The redis shutdown signal sender failed to signal"
-                            );
+                            tracing::error!("The redis shutdown signal sender failed to signal");
                         }
                         self.is_redis_available
                             .store(false, atomic::Ordering::SeqCst);
@@ -362,8 +354,7 @@ impl RedisConnectionPool {
         let check_interval = self.config.unresponsive_check_interval.max(2);
         let max_timeout = self.config.unresponsive_timeout.max(5);
 
-        let mut interval =
-            tokio::time::interval(std::time::Duration::from_secs(check_interval));
+        let mut interval = tokio::time::interval(std::time::Duration::from_secs(check_interval));
 
         loop {
             interval.tick().await;

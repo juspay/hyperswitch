@@ -62,11 +62,7 @@ impl Store {
         let stream_id = "0-0".to_string();
         let (output, execution_time) = common_utils::date_time::time_it(|| async {
             self.redis_conn
-                .stream_read_entries(
-                    &[stream_name.into()],
-                    &[stream_id],
-                    Some(max_read_count),
-                )
+                .stream_read_entries(&[stream_name.into()], &[stream_id], Some(max_read_count))
                 .await
                 .map_err(errors::DrainerError::from)
         })

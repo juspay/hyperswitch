@@ -384,11 +384,7 @@ impl RedisTokenManager {
 
         // Update or add tokens
         redis_conn
-            .set_hash_fields(
-                &tokens_key.into(),
-                &items,
-                Some(*seconds),
-            )
+            .set_hash_fields(&tokens_key.into(), &items, Some(*seconds))
             .await
             .change_context(errors::StorageError::RedisError(
                 errors::RedisError::SetHashFieldFailed.into(),
