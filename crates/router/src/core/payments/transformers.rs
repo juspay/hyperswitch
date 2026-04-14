@@ -3941,6 +3941,8 @@ where
                 .clone()
                 .get_required_value("client_secret")?,
             customer_id: payment_intent.customer_id.clone(),
+            client_session_id: payment_data.get_client_session_id(),
+            payment_id: Some(payment_intent.payment_id.clone()),
         };
 
         let sdk_authorization = sdk_auth_data
