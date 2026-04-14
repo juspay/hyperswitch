@@ -312,9 +312,6 @@ export const connectorDetails = {
       },
     },
     MandateSingleUseNo3DSAutoCapture: {
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
       Request: {
         payment_method: "card",
         payment_method_data: {
@@ -331,15 +328,12 @@ export const connectorDetails = {
       },
     },
     MandateSingleUseNo3DSManualCapture: {
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
       Request: {
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
-        currency: "USD",
+        currency: "EUR",
         mandate_data: singleUseMandateData,
       },
       Response: {
@@ -350,9 +344,6 @@ export const connectorDetails = {
       },
     },
     MandateMultiUseNo3DSAutoCapture: {
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
       Request: {
         payment_method: "card",
         payment_method_data: {
@@ -369,15 +360,12 @@ export const connectorDetails = {
       },
     },
     MandateMultiUseNo3DSManualCapture: {
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
       Request: {
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
-        currency: "USD",
+        currency: "EUR",
         mandate_data: multiUseMandateData,
       },
       Response: {
@@ -508,9 +496,6 @@ export const connectorDetails = {
       },
     },
     SaveCardUseNo3DSAutoCaptureOffSession: {
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
       Request: {
         payment_method: "card",
         payment_method_type: "debit",
@@ -528,9 +513,6 @@ export const connectorDetails = {
       },
     },
     SaveCardUseNo3DSManualCaptureOffSession: {
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
       Request: {
         payment_method: "card",
         payment_method_data: {
@@ -689,6 +671,81 @@ export const connectorDetails = {
           error_message: "Technical Error in 3D system",
           unified_code: "UE_9000",
           unified_message: "Something went wrong",
+        },
+      },
+    },
+  },
+  wallet_pm: {
+    // Verify ACI returns apple_pay and google_pay session tokens
+    SessionToken: {
+      Request: {
+        currency: "EUR",
+      },
+      Response: {
+        status: 200,
+        body: {
+          session_token: [
+            { wallet_name: "apple_pay", connector: "aci" },
+            { wallet_name: "google_pay", connector: "aci" },
+          ],
+        },
+      },
+    },
+    // Wallet payment flows require real device tokens — skipped in CI
+    ApplePayAutoCapture: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+      Request: {
+        payment_method: "wallet",
+        payment_method_type: "apple_pay",
+        payment_method_data: {
+          wallet: { apple_pay_redirect: {} },
+        },
+        currency: "EUR",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+    },
+    GooglePayAutoCapture: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+      Request: {
+        payment_method: "wallet",
+        payment_method_type: "google_pay",
+        payment_method_data: {
+          wallet: { google_pay_redirect: {} },
+        },
+        currency: "EUR",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+    },
+    SamsungPayAutoCapture: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+      Request: {
+        payment_method: "wallet",
+        payment_method_type: "samsung_pay",
+        payment_method_data: {
+          wallet: { samsung_pay: { token: "test_token" } },
+        },
+        currency: "EUR",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
         },
       },
     },
