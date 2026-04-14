@@ -413,6 +413,7 @@ pub trait Domain<F: Clone, R, D>: Send + Sync {
         _state: &SessionState,
         _processor: &domain::Processor,
         _payment_data: &mut D,
+        _business_profile: &domain::Profile,
     ) -> CustomResult<bool, errors::ApiErrorResponse> {
         Ok(false)
     }
@@ -677,6 +678,7 @@ where
         _state: &SessionState,
         _processor: &domain::Processor,
         _payment_data: &mut D,
+        _business_profile: &domain::Profile,
     ) -> CustomResult<bool, errors::ApiErrorResponse> {
         Ok(false)
     }
@@ -780,6 +782,7 @@ where
         _state: &SessionState,
         _processor: &domain::Processor,
         _payment_data: &mut D,
+        _business_profile: &domain::Profile,
     ) -> CustomResult<bool, errors::ApiErrorResponse> {
         Ok(false)
     }
@@ -883,6 +886,7 @@ where
         _state: &SessionState,
         _processor: &domain::Processor,
         _payment_data: &mut D,
+        _business_profile: &domain::Profile,
     ) -> CustomResult<bool, errors::ApiErrorResponse> {
         Ok(false)
     }
@@ -964,6 +968,7 @@ where
         _state: &SessionState,
         _processor: &domain::Processor,
         _payment_data: &mut D,
+        _business_profile: &domain::Profile,
     ) -> CustomResult<bool, errors::ApiErrorResponse> {
         Ok(false)
     }
