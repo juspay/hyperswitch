@@ -468,6 +468,7 @@ pub async fn get_token_pm_type_mandate_details(
     dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
 ) -> RouterResult<MandateGenericData> {
     let mandate_data = request.mandate_data.clone().map(MandateData::foreign_from);
+    // Should be removed, if we use dimensions in this method for any other purpose, but currently we are only using it for PM modular feature which is gated behind `pm_modular` feature flag
     #[cfg(not(feature = "pm_modular"))]
     let _ = dimensions;
     #[cfg(feature = "pm_modular")]

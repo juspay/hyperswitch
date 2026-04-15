@@ -677,6 +677,8 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             &token,
             &request.ctp_service_details,
         )?;
+
+         #[cfg(feature = "pm_modular")]
         let pm_modular_dimensions = dimensions.with_organization_id(
             platform
                 .get_processor()
@@ -686,7 +688,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         );
 
         //fetch for repeat cit using payment token
-
+        
         #[cfg(feature = "pm_modular")]
         let is_modular_payment_method_flow =
             pm_utils::get_organization_eligibility_config_for_pm_modular_service(
