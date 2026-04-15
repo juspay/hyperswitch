@@ -893,6 +893,9 @@ pub(super) async fn retrieve_payment_method_id_from_payment_method_token_data(
         storage::payment_method::PaymentTokenData::PermanentCard(card) => {
             Some(card.payment_method_id)
         }
+        storage::payment_method::PaymentTokenData::BankDebit(bank_debit) => {
+            Some(bank_debit.payment_method_id)
+        }
         _ => None,
     }
     .get_required_value("payment_method_id from payment method token data")

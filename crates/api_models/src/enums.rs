@@ -345,6 +345,9 @@ pub enum FieldType {
     UserMsisdn,
     UserClientIdentifier,
     OrderDetailsProductName,
+    UserBranchCode,
+    UserBankIdentifier,
+    UserPixAccountNumber,
 }
 
 impl FieldType {

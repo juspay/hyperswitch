@@ -1200,7 +1200,8 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                         .as_ref()
                         .and_then(|pmd| pmd.payment_method_data.as_ref())
                     {
-                        Some(api_models::payments::PaymentMethodData::Card(_)) => {
+                        Some(api_models::payments::PaymentMethodData::Card(_))
+                        | Some(api_models::payments::PaymentMethodData::BankDebit(_)) => {
                             let payment_method = req.payment_method.ok_or(
                                 errors::ApiErrorResponse::MissingRequiredField {
                                     field_name: "payment_method",
