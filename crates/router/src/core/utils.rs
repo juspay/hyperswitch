@@ -2214,8 +2214,11 @@ pub async fn get_profile_id_from_business_details(
     }
 }
 
-pub fn get_poll_id(merchant_id: &common_utils::id_type::MerchantId, unique_id: String) -> String {
-    merchant_id.get_poll_id(&unique_id)
+pub fn get_poll_id(
+    processor_merchant_id: &common_utils::id_type::MerchantId,
+    unique_id: String,
+) -> String {
+    processor_merchant_id.get_poll_id(&unique_id)
 }
 
 pub fn get_external_authentication_request_poll_id(
