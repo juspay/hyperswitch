@@ -111,7 +111,13 @@ CYPRESS_CONNECTOR="connector_id" npm run cypress:ci
    export DEBUG=cypress:cli
    export CYPRESS_ADMINAPIKEY="admin_api_key"
    export CYPRESS_CONNECTOR_AUTH_FILE_PATH="path/to/creds.json"
+   # Optional: override the default currency used across tests (defaults to USD).
+   # Payment-method-specific currencies (e.g. BRL for Pix, EUR for iDEAL) still
+   # take precedence where the payment method requires them.
+   export CYPRESS_DEFAULT_CURRENCY="EUR"
    ```
+
+   Alternatively pass it per-run: `npx cypress run --env DEFAULT_CURRENCY=EUR`.
 
 > [!TIP]
 > It is recommended to install [direnv](https://github.com/direnv/direnv) and use a `.envrc` file to store these environment variables with `cypress-tests` directory. This will make it easier to manage environment variables while working with Cypress tests.

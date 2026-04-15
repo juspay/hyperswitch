@@ -9,6 +9,11 @@ const globalState = new State({
 
 const connectorName = normalize(globalState.get("connectorId"));
 
+// Default currency for the test run. Overridable via `CYPRESS_DEFAULT_CURRENCY`
+// or `--env DEFAULT_CURRENCY=EUR`. Payment-method-specific overrides still win
+// via CURRENCY_MAP below (e.g. Pix → BRL).
+export const DEFAULT_CURRENCY = globalState.get("defaultCurrency") || "USD";
+
 function normalize(input) {
   const exceptions = {
     adyen: "Adyen",
@@ -134,5 +139,5 @@ const CURRENCY_MAP = {
 };
 
 export const getCurrency = (paymentMethodType) => {
-  return CURRENCY_MAP[paymentMethodType] || "USD";
+  return CURRENCY_MAP[paymentMethodType] || DEFAULT_CURRENCY;
 };

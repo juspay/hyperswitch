@@ -1,3 +1,4 @@
+import { DEFAULT_CURRENCY } from "./Modifiers";
 const successfulNo3DSCardDetails = {
   card_number: "1111222233334444",
   card_exp_month: "05",
@@ -704,7 +705,7 @@ export const connectorDetails = {
     },
     PaymentWithoutBilling: {
       Request: {
-        currency: "USD",
+        currency: DEFAULT_CURRENCY,
         customer_acceptance: null,
         setup_future_usage: "on_session",
         authentication_type: "no_three_ds",
@@ -718,7 +719,7 @@ export const connectorDetails = {
     },
     PaymentWithBilling: {
       Request: {
-        currency: "USD",
+        currency: DEFAULT_CURRENCY,
         setup_future_usage: "on_session",
         billing: billingData,
         email: "hyperswitch.example@gmail.com",
@@ -732,7 +733,7 @@ export const connectorDetails = {
     },
     PaymentWithFullName: {
       Request: {
-        currency: "USD",
+        currency: DEFAULT_CURRENCY,
         setup_future_usage: "on_session",
         billing: {
           address: {
@@ -754,7 +755,7 @@ export const connectorDetails = {
     },
     PaymentWithBillingEmail: {
       Request: {
-        currency: "USD",
+        currency: DEFAULT_CURRENCY,
         setup_future_usage: "on_session",
         email: "hyperswitch_sdk_demo_id1@gmail.com",
         billing: {

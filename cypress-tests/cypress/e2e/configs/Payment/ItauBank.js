@@ -1,3 +1,4 @@
+import { DEFAULT_CURRENCY } from "./Modifiers";
 const successfulNo3DSCardDetails = {
   card_number: "4242424242424242",
   card_exp_month: "10",
@@ -21,7 +22,7 @@ export const connectorDetails = {
   card_pm: {
     ZeroAuthPaymentIntent: {
       Request: {
-        currency: "USD",
+        currency: DEFAULT_CURRENCY,
       },
       Response: {
         status: 200,

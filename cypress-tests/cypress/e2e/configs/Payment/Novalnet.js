@@ -1,3 +1,4 @@
+import { DEFAULT_CURRENCY } from "./Modifiers";
 const successfulThreeDSTestCardDetails = {
   card_number: "4000000000001091",
   card_exp_month: "12",
@@ -514,7 +515,7 @@ export const connectorDetails = {
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
-        currency: "USD",
+        currency: DEFAULT_CURRENCY,
         mandate_data: multiUseMandateData,
       },
       Response: {

@@ -1,3 +1,4 @@
+import { DEFAULT_CURRENCY } from "./Modifiers";
 import { customerAcceptance } from "./Commons";
 
 const successfulNo3DSCardDetails = {
@@ -588,7 +589,7 @@ export const connectorDetails = {
       Request: {
         amount: 0,
         setup_future_usage: "off_session",
-        currency: "USD",
+        currency: DEFAULT_CURRENCY,
       },
       Response: {
         status: 200,

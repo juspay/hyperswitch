@@ -1,4 +1,4 @@
-import { getCustomExchange } from "./Modifiers";
+import { DEFAULT_CURRENCY, getCustomExchange } from "./Modifiers";
 
 const ThreeDSChallengeTestCardDetails = {
   card_number: "4548817212493017",
@@ -524,7 +524,7 @@ export const connectorDetails = {
     }),
     PaymentWithBilling: {
       Request: {
-        currency: "USD",
+        currency: DEFAULT_CURRENCY,
         setup_future_usage: "on_session",
         billing: Address,
       },

@@ -1,3 +1,4 @@
+import { DEFAULT_CURRENCY } from "./Modifiers";
 import { customerAcceptance } from "./Commons";
 
 const successful3DSCardDetails = {
@@ -31,7 +32,7 @@ export const connectorDetails = {
   card_pm: {
     PaymentIntent: {
       Request: {
-        currency: "USD",
+        currency: DEFAULT_CURRENCY,
         customer_acceptance: null,
       },
       Response: {
@@ -47,7 +48,7 @@ export const connectorDetails = {
         payment_method_data: {
           card: successful3DSCardDetails,
         },
-        currency: "USD",
+        currency: DEFAULT_CURRENCY,
         customer_acceptance: null,
         setup_future_usage: "on_session",
       },
@@ -66,7 +67,7 @@ export const connectorDetails = {
         payment_method_data: {
           card: successful3DSCardDetails,
         },
-        currency: "USD",
+        currency: DEFAULT_CURRENCY,
         customer_acceptance: null,
         setup_future_usage: "on_session",
       },
@@ -80,7 +81,7 @@ export const connectorDetails = {
     },
     No3DSManualCapture: {
       Request: {
-        currency: "USD",
+        currency: DEFAULT_CURRENCY,
         payment_method: "card",
         payment_method_data: {
           card: successful3DSCardDetails,
@@ -101,7 +102,7 @@ export const connectorDetails = {
     },
     No3DSAutoCapture: {
       Request: {
-        currency: "USD",
+        currency: DEFAULT_CURRENCY,
         payment_method: "card",
         payment_method_data: {
           card: successful3DSCardDetails,
@@ -236,7 +237,7 @@ export const connectorDetails = {
         payment_method_data: {
           card: successful3DSCardDetails,
         },
-        currency: "USD",
+        currency: DEFAULT_CURRENCY,
         mandate_data: null,
         authentication_type: "three_ds",
         customer_acceptance: customerAcceptance,
@@ -277,7 +278,7 @@ export const connectorDetails = {
       Request: {
         amount: 0,
         setup_future_usage: "off_session",
-        currency: "USD",
+        currency: DEFAULT_CURRENCY,
       },
       Response: {
         status: 200,

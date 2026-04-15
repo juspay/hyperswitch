@@ -1,3 +1,4 @@
+import { DEFAULT_CURRENCY } from "./Modifiers";
 import { standardBillingAddress } from "./Commons";
 
 const zeroAuthResponse = {
@@ -49,7 +50,7 @@ export const connectorDetails = {
       Request: {
         amount: 0,
         setup_future_usage: "off_session",
-        currency: "USD",
+        currency: DEFAULT_CURRENCY,
         payment_type: "setup_mandate",
       },
       Response: {

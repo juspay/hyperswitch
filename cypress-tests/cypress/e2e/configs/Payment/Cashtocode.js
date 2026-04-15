@@ -1,3 +1,4 @@
+import { DEFAULT_CURRENCY } from "./Modifiers";
 const successfulNo3DSCardDetails = {
   card_number: "4111111111111111",
   card_exp_month: "03",
@@ -28,7 +29,7 @@ export const connectorDetails = {
   reward_pm: {
     PaymentIntentUSD: {
       Request: {
-        currency: "USD",
+        currency: DEFAULT_CURRENCY,
         amount: 6000,
         customer_acceptance: null,
         setup_future_usage: "on_session",
@@ -108,7 +109,7 @@ export const connectorDetails = {
       Request: {
         amount: 0,
         setup_future_usage: "off_session",
-        currency: "USD",
+        currency: DEFAULT_CURRENCY,
       },
       Response: {
         status: 200,

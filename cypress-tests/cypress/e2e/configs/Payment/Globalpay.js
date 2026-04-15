@@ -1,5 +1,5 @@
 import { cardRequiredField, customerAcceptance } from "./Commons";
-import { getCustomExchange } from "./Modifiers";
+import { DEFAULT_CURRENCY, getCustomExchange } from "./Modifiers";
 
 // Test card details for successful non-3DS transactions
 // Based on Global Payments test cards
@@ -831,7 +831,7 @@ export const connectorDetails = {
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
-        currency: "USD",
+        currency: DEFAULT_CURRENCY,
         customer_acceptance: null,
         setup_future_usage: "on_session",
       },
@@ -851,7 +851,7 @@ export const connectorDetails = {
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
-        currency: "USD",
+        currency: DEFAULT_CURRENCY,
         customer_acceptance: null,
         setup_future_usage: "on_session",
       },
@@ -870,7 +870,7 @@ export const connectorDetails = {
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
-        currency: "USD",
+        currency: DEFAULT_CURRENCY,
         customer_acceptance: null,
         setup_future_usage: "on_session",
       },

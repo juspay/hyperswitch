@@ -1,3 +1,4 @@
+import { DEFAULT_CURRENCY } from "./Modifiers";
 import {
   customerAcceptance,
   multiUseMandateData,
@@ -113,7 +114,7 @@ export const connectorDetails = {
     },
     PaymentIntentWithShippingCost: {
       Request: {
-        currency: "USD",
+        currency: DEFAULT_CURRENCY,
         shipping_cost: 50,
       },
       Response: {
@@ -152,7 +153,7 @@ export const connectorDetails = {
           card: successfulCardDetails,
           billing: mockBillingDetails,
         },
-        currency: "USD",
+        currency: DEFAULT_CURRENCY,
         mandate_data: singleUseMandateData,
       },
       Response: {
@@ -186,7 +187,7 @@ export const connectorDetails = {
         payment_method_data: {
           card: successfulCardDetails,
         },
-        currency: "USD",
+        currency: DEFAULT_CURRENCY,
         customer_acceptance: null,
         setup_future_usage: "on_session",
         billing: mockBillingDetails,
@@ -207,7 +208,7 @@ export const connectorDetails = {
           card: successfulCardDetails,
           billing: mockBillingDetails,
         },
-        currency: "USD",
+        currency: DEFAULT_CURRENCY,
         customer_acceptance: null,
         setup_future_usage: "on_session",
       },
@@ -330,7 +331,7 @@ export const connectorDetails = {
           card: successfulCardDetails,
           billing: mockBillingDetails,
         },
-        currency: "USD",
+        currency: DEFAULT_CURRENCY,
         mandate_data: singleUseMandateData,
         authentication_type: "no_three_ds",
         capture_method: "automatic",
@@ -355,7 +356,7 @@ export const connectorDetails = {
           card: successfulCardDetails,
           billing: mockBillingDetails,
         },
-        currency: "USD",
+        currency: DEFAULT_CURRENCY,
         mandate_data: singleUseMandateData,
       },
       Response: {
@@ -387,7 +388,7 @@ export const connectorDetails = {
         payment_method_data: {
           card: successfulCardDetails,
         },
-        currency: "USD",
+        currency: DEFAULT_CURRENCY,
         mandate_data: singleUseMandateData,
       },
       Response: {
@@ -408,7 +409,7 @@ export const connectorDetails = {
           card: successfulCardDetails,
           billing: mockBillingDetails,
         },
-        currency: "USD",
+        currency: DEFAULT_CURRENCY,
         setup_future_usage: "on_session",
         customer_acceptance: customerAcceptance,
       },
@@ -451,7 +452,7 @@ export const connectorDetails = {
           card: successfulCardDetails,
           billing: mockBillingDetails,
         },
-        currency: "USD",
+        currency: DEFAULT_CURRENCY,
         mandate_data: multiUseMandateData,
         customer_acceptance: customerAcceptance,
       },
@@ -473,7 +474,7 @@ export const connectorDetails = {
           card: successfulCardDetails,
           billing: mockBillingDetails,
         },
-        currency: "USD",
+        currency: DEFAULT_CURRENCY,
         mandate_data: singleUseMandateData,
         setup_future_usage: "off_session",
         customer_acceptance: customerAcceptance,
@@ -496,7 +497,7 @@ export const connectorDetails = {
           card: successfulCardDetails,
           billing: mockBillingDetails,
         },
-        currency: "USD",
+        currency: DEFAULT_CURRENCY,
         mandate_data: singleUseMandateData,
       },
       Response: {
@@ -513,7 +514,7 @@ export const connectorDetails = {
     },
     ZeroAuthPaymentIntent: {
       Request: {
-        currency: "USD",
+        currency: DEFAULT_CURRENCY,
         amount: 0,
       },
       Response: {
