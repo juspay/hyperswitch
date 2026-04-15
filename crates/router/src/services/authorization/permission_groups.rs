@@ -299,11 +299,18 @@ pub static RECON_REPORTS: [Resource; 4] = [
 
 pub static THEME: [Resource; 1] = [Resource::Theme];
 
-pub static RECON_SOURCES: [Resource; 2] = [Resource::ReconIngestion, Resource::ReconTransformation];
+pub static RECON_SOURCES: [Resource; 3] = [
+    Resource::ReconIngestion,
+    Resource::ReconTransformation,
+    Resource::Account,
+];
 
-pub static RECON_EXCEPTIONS: [Resource; 1] = [Resource::ReconException];
+pub static RECON_EXCEPTIONS: [Resource; 2] = [Resource::ReconException, Resource::Account];
 
-pub static RECON_TRANSACTIONS: [Resource; 2] =
-    [Resource::ReconStagingEntry, Resource::ReconTransaction];
+pub static RECON_TRANSACTIONS: [Resource; 3] = [
+    Resource::ReconStagingEntry,
+    Resource::ReconTransaction,
+    Resource::Account,
+];
 
-pub static RECON_RULES: [Resource; 1] = [Resource::ReconRule];
+pub static RECON_RULES: [Resource; 2] = [Resource::ReconRule, Resource::Account];
