@@ -241,24 +241,6 @@ impl DatabaseBackedConfig for EnableExtendedCardBin {
 }
 
 config! {
-    superposition_key = PAYMENT_UPDATE_ENABLED_FOR_CLIENT_AUTH,
-    output = bool,
-    default = false,
-    requires = dimension_state::DimensionsWithProcessorAndProviderMerchantId,
-    targeting_key = id_type::CustomerId
-}
-
-impl DatabaseBackedConfig for PaymentUpdateEnabledForClientAuth {
-    const KEY: &'static str = "payment_update_enabled_for_client_auth";
-
-    fn db_key(dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
-        dimensions
-            .get_processor_merchant_id()
-            .map(|id| format!("{}_{}", Self::KEY, id.get_string_repr()))
-    }
-}
-
-config! {
     superposition_key = GSM_PAYOUT_CALL,
     output = bool,
     default = false,

@@ -9026,21 +9026,31 @@ pub async fn validate_allowed_payment_method_types_request(
     Ok(())
 }
 
-pub async fn allow_payment_update_enabled_for_client_auth(
+async fn get_payment_update_enabled_for_client_auth(
+    merchant_id: &id_type::MerchantId,
     state: &SessionState,
-    dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
+) -> bool {
+    let key = merchant_id.get_payment_update_enabled_for_client_auth_key();
+    let db = &*state.store;
+    let update_enabled = db.find_config_by_key(key.as_str()).await;
+
+    match update_enabled {
+        Ok(conf) => conf.config.to_lowercase() == "true",
+        Err(error) => {
+            logger::error!(?error);
+            false
+        }
+    }
+}
+
+pub async fn allow_payment_update_enabled_for_client_auth(
+    merchant_id: &id_type::MerchantId,
+    state: &SessionState,
     auth_flow: services::AuthFlow,
 ) -> Result<(), error_stack::Report<errors::ApiErrorResponse>> {
     match auth_flow {
         services::AuthFlow::Client => {
-            let enabled = dimensions
-                .get_payment_update_enabled_for_client_auth(
-                    state.store.as_ref(),
-                    state.superposition_service.as_ref(),
-                    None,
-                )
-                .await;
-            if enabled {
+            if get_payment_update_enabled_for_client_auth(merchant_id, state).await {
                 Ok(())
             } else {
                 Err(errors::ApiErrorResponse::InternalServerError)
