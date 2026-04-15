@@ -835,12 +835,13 @@ impl super::RedisConnectionPool {
         ids: &[String],
     ) -> CustomResult<usize, errors::RedisError> {
         if ids.is_empty() {
-            return Ok(0);
+            Ok(0)
+        } else {
+            let mut conn = self.pool.clone();
+            conn.xdel(stream.tenant_aware_key(self), ids)
+                .await
+                .change_context(errors::RedisError::StreamDeleteFailed)
         }
-        let mut conn = self.pool.clone();
-        conn.xdel(stream.tenant_aware_key(self), ids)
-            .await
-            .change_context(errors::RedisError::StreamDeleteFailed)
     }
 
     #[instrument(level = "DEBUG", skip(self))]
@@ -881,12 +882,13 @@ impl super::RedisConnectionPool {
         ids: &[String],
     ) -> CustomResult<usize, errors::RedisError> {
         if ids.is_empty() {
-            return Ok(0);
+            Ok(0)
+        } else {
+            let mut conn = self.pool.clone();
+            conn.xack(stream.tenant_aware_key(self), group, ids)
+                .await
+                .change_context(errors::RedisError::StreamAcknowledgeFailed)
         }
-        let mut conn = self.pool.clone();
-        conn.xack(stream.tenant_aware_key(self), group, ids)
-            .await
-            .change_context(errors::RedisError::StreamAcknowledgeFailed)
     }
 
     #[instrument(level = "DEBUG", skip(self))]
