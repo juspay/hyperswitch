@@ -3075,8 +3075,9 @@ pub async fn list_payment_methods(
     let db = &*state.store;
     let pm_config_mapping = &state.conf.pm_filters;
     let dimensions = dimension_state::Dimensions::new()
-        .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id())
-        .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id());
+        .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
+        .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id());
+        
     let payment_intent = if let Some(cs) = &req.client_secret {
         if cs.starts_with("pm_") {
             validate_payment_method_and_client_secret(cs, db, &platform).await?;

@@ -2474,6 +2474,14 @@ pub struct MerchantPreRoutingConfig {
     pub skip_rules: Vec<PreRoutingSkipRule>,
 }
 
+/// Loads the merchant's pre-routing skip configuration and converts it into:
+///     HashMap<PaymentMethod, HashSet<PaymentMethodType>>
+///
+/// Example output:
+///     {
+///         bank_redirect: { interac, ach, blik },
+///         bank_debit: { sepa_debit }
+///     }
 pub async fn load_skip_pre_routing_config(
     state: &SessionState,
     pre_routing_disabled_pm_pmt_key: String,

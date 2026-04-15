@@ -161,7 +161,7 @@ impl DatabaseBackedConfig for ShouldCallGsm {
     fn db_key(dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
         dimensions
             .get_processor_merchant_id()
-            .map(|id| format!("{}_{}", id.get_string_repr(), Self::KEY))
+            .map(|id| format!("{}_{}", Self::KEY, id.get_string_repr()))
     }
 }
 
@@ -198,7 +198,7 @@ impl DatabaseBackedConfig for ShouldEnableMitWithLimitedCardData {
     fn db_key(dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
         dimensions
             .get_processor_merchant_id()
-            .map(|id| format!("{}_{}", id.get_string_repr(), Self::KEY))
+            .map(|id| format!("{}_{}", Self::KEY, id.get_string_repr()))
     }
 }
 

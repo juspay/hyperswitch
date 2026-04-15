@@ -430,7 +430,6 @@ pub async fn payouts_confirm_core(
     .await?;
     let payout_attempt = payout_data.payout_attempt.to_owned();
     let status = payout_attempt.status;
-    let dimensions = dimensions.with_profile_id(payout_data.profile_id.clone());
 
     helpers::validate_payout_status_against_not_allowed_statuses(
         status,
@@ -472,7 +471,7 @@ pub async fn payouts_confirm_core(
         &mut payout_data,
         req.routing.clone(),
         req.connector.clone(),
-        &dimensions.without_profile_id(),
+        &dimensions,
     )
     .await?;
 
@@ -498,8 +497,6 @@ pub async fn payouts_update_core(
         &state.locale,
     ))
     .await?;
-
-    let dimensions = dimensions.with_profile_id(payout_data.profile_id.clone());
 
     let payout_attempt = payout_data.payout_attempt.to_owned();
     let status = payout_attempt.status;
@@ -551,7 +548,7 @@ pub async fn payouts_update_core(
             &mut payout_data,
             req.routing.clone(),
             req.connector.clone(),
-            &dimensions.without_profile_id(),
+            &dimensions,
         )
         .await?;
     }

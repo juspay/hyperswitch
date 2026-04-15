@@ -1626,7 +1626,7 @@ pub async fn authentication_eligibility_check_core(
         .transpose()?;
     let eligibility_handler = EligibilityHandler::new(state, platform, req, dimensions);
     // Run the checks in sequence, short-circuiting on the first that returns a next action
-    let sdk_next_action: AuthenticationSdkNextAction = eligibility_handler
+    let sdk_next_action = eligibility_handler
         .run_check(StoreEligibilityCheckData)
         .await?
         .unwrap_or(AuthenticationSdkNextAction::Proceed);

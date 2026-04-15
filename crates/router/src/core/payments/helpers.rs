@@ -456,6 +456,7 @@ pub async fn get_address_by_id(
 }
 
 #[cfg(feature = "v1")]
+#[allow(clippy::too_many_arguments)]
 pub async fn get_token_pm_type_mandate_details(
     state: &SessionState,
     request: &api::PaymentsRequest,
@@ -467,6 +468,8 @@ pub async fn get_token_pm_type_mandate_details(
     dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
 ) -> RouterResult<MandateGenericData> {
     let mandate_data = request.mandate_data.clone().map(MandateData::foreign_from);
+    #[cfg(not(feature = "pm_modular"))]
+    let _ = dimensions;
     #[cfg(feature = "pm_modular")]
     let is_payment_method_modular_allowed =
         core_utils::get_feature_config(state, platform, dimensions)
@@ -810,6 +813,7 @@ pub async fn get_token_pm_type_mandate_details(
             )
         }
     };
+
     Ok(MandateGenericData {
         token: payment_token,
         payment_method,
@@ -6146,6 +6150,7 @@ pub async fn get_additional_payment_data(
         )),
         domain::PaymentMethodData::CardDetailsForNetworkTransactionId(card_data) => {
             let card_isin = Some(card_data.card_number.get_card_isin());
+
             let card_extended_bin = if enable_extended_bin {
                 Some(card_data.card_number.get_extended_card_bin())
             } else {
@@ -6255,6 +6260,7 @@ pub async fn get_additional_payment_data(
         }
         domain::PaymentMethodData::CardWithLimitedDetails(card_with_limited_details) => {
             let card_isin = Some(card_with_limited_details.card_number.get_card_isin());
+
             let card_extended_bin = if enable_extended_bin {
                 Some(
                     card_with_limited_details
@@ -8884,6 +8890,17 @@ pub fn validate_platform_request_for_marketplace(
     Ok(())
 }
 
+/// Returns `true` if either the org or merchant config is set to "true"
+///
+/// Priority logic:
+/// 1. If org-level config exists (either "true" or "false"), that decision is final
+///    - Org = "true" → returns true (authentication enabled)
+///    - Org = "false" → returns false (authentication disabled, merchant config ignored)
+/// 2. If org-level config is missing or fails to fetch, fallback to merchant-level config
+///    - Merchant = "true" → returns true
+///    - Merchant = "false" or missing → returns false
+///
+/// This ensures parent (org) rules take precedence over child (merchant) configurations
 pub async fn is_merchant_eligible_authentication_service(
     processor: &domain::Processor,
     state: &SessionState,

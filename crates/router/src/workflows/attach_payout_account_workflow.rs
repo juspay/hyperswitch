@@ -68,8 +68,6 @@ impl ProcessTrackerWorkflow<SessionState> for AttachPayoutAccountWorkflow {
         ))
         .await?;
 
-        let dimensions = dimensions.with_profile_id(payout_data.profile_id.clone());
-
         payouts::payouts_core(
             state,
             &platform,
@@ -77,7 +75,7 @@ impl ProcessTrackerWorkflow<SessionState> for AttachPayoutAccountWorkflow {
             &mut payout_data,
             None,
             None,
-            &dimensions.without_profile_id(),
+            &dimensions,
         )
         .await?;
 

@@ -870,10 +870,6 @@ where
             should_continue_capture,
         );
 
-        let dimensions_with_org_and_merchant_id = dimensions
-            .with_organization_id(platform.get_processor().get_account().get_org_id().clone())
-            .without_profile_id();
-
         let is_eligible_for_uas = helpers::is_merchant_eligible_authentication_service(
             platform.get_processor(),
             state,
@@ -5958,7 +5954,7 @@ where
                 payment_data.clone(),
                 frm_suggestion,
                 header_payload.clone(),
-                &dimensions,
+                dimensions,
             )
             .await?;
         let lineage_ids = grpc_client::LineageIds::new(
