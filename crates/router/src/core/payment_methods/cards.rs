@@ -2,7 +2,6 @@ use std::{
     collections::{HashMap, HashSet},
     str::FromStr,
 };
-use futures::StreamExt;
 
 use ::payment_methods::{
     configs::payment_connector_required_fields::{
@@ -45,6 +44,7 @@ use euclid::{
     dssa::graph::{AnalysisContext, CgraphExt},
     frontend::dir,
 };
+use futures::StreamExt;
 use hyperswitch_constraint_graph as cgraph;
 #[cfg(feature = "v1")]
 use hyperswitch_domain_models::customer::CustomerUpdate;
@@ -4018,28 +4018,31 @@ pub async fn list_payment_methods(
                 let store = state.store.clone();
                 let superposition_service = state.superposition_service.clone();
                 async move {
-                let dimensions = dimension_state::Dimensions::new()
-                    .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id())
-                    .with_processor_merchant_id(
-                        platform.get_processor().get_processor_merchant_id(),
-                    )
-                    .with_connector(connector)
-                    .with_currency(cur);
-                let supported = dimensions
-                    .get_installment_config_supported(
-                        store.as_ref(),
-                        superposition_service.as_ref(),
-                        installment_customer_id,
-                    )
-                    .await;
-                logger::debug!(
-                    connector = %connector,
-                    currency = %cur,
-                    installment_config_supported = supported,
-                    "installment support check via superposition"
-                );
-                supported
-            }})
+                    let dimensions = dimension_state::Dimensions::new()
+                        .with_provider_merchant_id(
+                            platform.get_provider().get_provider_merchant_id(),
+                        )
+                        .with_processor_merchant_id(
+                            platform.get_processor().get_processor_merchant_id(),
+                        )
+                        .with_connector(connector)
+                        .with_currency(cur);
+                    let supported = dimensions
+                        .get_installment_config_supported(
+                            store.as_ref(),
+                            superposition_service.as_ref(),
+                            installment_customer_id,
+                        )
+                        .await;
+                    logger::debug!(
+                        connector = %connector,
+                        currency = %cur,
+                        installment_config_supported = supported,
+                        "installment support check via superposition"
+                    );
+                    supported
+                }
+            })
             .await
         }
     };

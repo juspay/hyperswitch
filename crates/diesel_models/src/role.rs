@@ -21,6 +21,7 @@ pub struct Role {
     pub entity_type: enums::EntityType,
     pub profile_id: Option<id_type::ProfileId>,
     pub tenant_id: id_type::TenantId,
+    pub merchant_product_type: Option<enums::MerchantProductType>,
 }
 
 #[derive(router_derive::Setter, Clone, Debug, Insertable, router_derive::DebugAsDisplay)]
@@ -40,6 +41,7 @@ pub struct RoleNew {
     pub entity_type: enums::EntityType,
     pub profile_id: Option<id_type::ProfileId>,
     pub tenant_id: id_type::TenantId,
+    pub merchant_product_type: Option<enums::MerchantProductType>,
 }
 
 #[derive(Clone, Debug, AsChangeset, router_derive::DebugAsDisplay)]

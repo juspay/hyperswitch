@@ -113,7 +113,7 @@ pub async fn refund_create_core(
         req,
         global_refund_id,
         merchant_connector_details,
-        dimensions
+        dimensions,
     ))
     .await
     .map(services::ApplicationResponse::Json)
@@ -1159,7 +1159,7 @@ pub async fn validate_and_create_refund(
     req: refunds::RefundsCreateRequest,
     global_refund_id: id_type::GlobalRefundId,
     merchant_connector_details: Option<common_types::domain::MerchantConnectorAuthDetails>,
-    dimensions: dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndOrgId
+    dimensions: dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndOrgId,
 ) -> errors::RouterResult<refunds::RefundResponse> {
     let db = &*state.store;
 
