@@ -6,11 +6,6 @@ pub use dimension_config::{
     ShouldCallGsm, ShouldEnableMitWithLimitedCardData, ShouldPerformEligibility,
     ShouldStoreEligibilityCheckDataForAuthentication, StepUpEnabled,
 };
-pub use dimension_config::{
-    EnableExtendedCardBin, ImplicitCustomerUpdate, RequiresCvv, ShouldCallGsm,
-    ShouldEnableMitWithLimitedCardData, ShouldPerformEligibility,
-    ShouldStoreEligibilityCheckDataForAuthentication,
-};
 use error_stack::ResultExt;
 use external_services::superposition::{self, ConfigContext};
 

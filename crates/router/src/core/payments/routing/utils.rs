@@ -2474,8 +2474,6 @@ pub struct MerchantPreRoutingConfig {
     pub skip_rules: Vec<PreRoutingSkipRule>,
 }
 
-
-
 /// Returns `true` if pre-routing should be skipped for
 /// the given (payment_method, payment_method_type) pair.
 pub fn should_skip_prerouting(

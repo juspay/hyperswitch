@@ -11,7 +11,6 @@ use crate::{
         configs::dimension_state,
         errors::{self, RouterResult},
         payments::{self, helpers, operations},
-        configs::dimension_state,
     },
     db::errors::StorageErrorExt,
     routes::{app::ReqState, SessionState},

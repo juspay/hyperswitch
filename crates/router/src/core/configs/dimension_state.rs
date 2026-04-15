@@ -1,7 +1,6 @@
 use std::marker::PhantomData;
 
 use common_enums::{connector_enums::Connector, PaymentMethod, PaymentMethodType, PayoutRetryType};
-
 use common_utils::id_type;
 use external_services::superposition;
 pub use hyperswitch_domain_models::platform::{ProcessorMerchantId, ProviderMerchantId};
@@ -434,9 +433,7 @@ impl<Pm, M, O, P, Cn, Pmt, Pym> Dimensions<Pm, M, O, P, Cn, Pmt, HasPayoutRetryT
 
 /// Can only remove payment_method if currently present
 impl<Pm, M, O, P, Cn, Pmt, Pr> Dimensions<Pm, M, O, P, Cn, Pmt, Pr, HasPaymentMethod> {
-    pub fn without_payment_method(
-        &self,
-    ) -> Dimensions<Pm, M, O, P, Cn, Pmt, Pr, NoPaymentMethod> {
+    pub fn without_payment_method(&self) -> Dimensions<Pm, M, O, P, Cn, Pmt, Pr, NoPaymentMethod> {
         Dimensions {
             provider_merchant_id: self.provider_merchant_id.clone(),
             processor_merchant_id: self.processor_merchant_id.clone(),

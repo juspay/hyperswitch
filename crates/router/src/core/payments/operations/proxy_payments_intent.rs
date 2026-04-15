@@ -19,7 +19,6 @@ use crate::{
             operations::{self, ValidateStatusForOperation},
             OperationSessionGetters, OperationSessionSetters,
         },
-        configs::dimension_state,
     },
     routes::{app::ReqState, SessionState},
     types::{

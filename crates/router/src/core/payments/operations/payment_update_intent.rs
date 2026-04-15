@@ -28,7 +28,6 @@ use crate::{
             self, helpers,
             operations::{self, ValidateStatusForOperation},
         },
-        configs::dimension_state,
     },
     db::errors::StorageErrorExt,
     routes::{app::ReqState, SessionState},

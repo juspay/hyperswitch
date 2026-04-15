@@ -12,7 +12,6 @@ use crate::{
         configs::dimension_state,
         errors::{self, RouterResult, StorageErrorExt},
         payments::{helpers, operations, PaymentData},
-        configs::dimension_state,
     },
     events::audit_events::{AuditEvent, AuditEventType},
     routes::{app::ReqState, SessionState},

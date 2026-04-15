@@ -465,7 +465,6 @@ pub async fn payouts_confirm_core(
         .await
         .transpose()?;
 
-    
     payouts_core(
         &state,
         &platform,
@@ -545,7 +544,6 @@ pub async fn payouts_update_core(
     }
 
     if let Some(true) = payout_data.payouts.confirm {
-        
         payouts_core(
             &state,
             &platform,

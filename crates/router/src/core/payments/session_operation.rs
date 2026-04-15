@@ -32,7 +32,6 @@ use crate::{
             transformers, vault_session, OperationSessionGetters, OperationSessionSetters,
         },
         utils as core_utils,
-        configs::dimension_state,
     },
     db::errors::ConnectorErrorExt,
     errors::RouterResponse,
@@ -91,7 +90,7 @@ where
             payment_id,
             call_connector_action,
             header_payload.clone(),
-            &dimensions
+            &dimensions,
         )
         .await?;
 

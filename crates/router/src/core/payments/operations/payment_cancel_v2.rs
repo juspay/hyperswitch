@@ -15,7 +15,6 @@ use crate::{
         configs::dimension_state,
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
         payments::operations,
-        configs::dimension_state,
     },
     routes::{app::ReqState, SessionState},
     types::{

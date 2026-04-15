@@ -1385,8 +1385,7 @@ impl PaymentCreate {
         PaymentAttempt,
         Option<api_models::payments::AdditionalPaymentData>,
     )> {
-
-        let dimensions= dimensions.with_profile_id(profile_id.clone());
+        let dimensions = dimensions.with_profile_id(profile_id.clone());
         let payment_method_data =
             request
                 .payment_method_data
