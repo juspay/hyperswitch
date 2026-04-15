@@ -526,8 +526,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         let store = state.clone().store;
         let superposition_service = state.superposition_service.clone();
         let customer_id = payment_intent.customer_id.clone();
-        let additional_pm_data_dimensions = dimensions
-            .with_profile_id(profile_id.clone());
+        let additional_pm_data_dimensions = dimensions.with_profile_id(profile_id.clone());
 
         let additional_pm_data_fut = tokio::spawn(
             async move {

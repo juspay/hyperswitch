@@ -1,7 +1,6 @@
 use std::marker::PhantomData;
 
 use common_enums::{connector_enums::Connector, PayoutRetryType};
-
 use common_utils::id_type;
 use external_services::superposition;
 pub use hyperswitch_domain_models::platform::{ProcessorMerchantId, ProviderMerchantId};
@@ -306,9 +305,7 @@ impl<Pm, M, O, P, Pr> Dimensions<Pm, M, O, P, HasConnector, Pr> {
 
 /// Can only remove payout_retry_type if currently present
 impl<Pm, M, O, P, Cn> Dimensions<Pm, M, O, P, Cn, HasPayoutRetryType> {
-    pub fn without_payout_retry_type(
-        &self,
-    ) -> Dimensions<Pm, M, O, P, Cn, NoPayoutRetryType> {
+    pub fn without_payout_retry_type(&self) -> Dimensions<Pm, M, O, P, Cn, NoPayoutRetryType> {
         Dimensions {
             provider_merchant_id: self.provider_merchant_id.clone(),
             processor_merchant_id: self.processor_merchant_id.clone(),
