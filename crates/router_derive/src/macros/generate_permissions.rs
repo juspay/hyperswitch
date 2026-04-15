@@ -95,7 +95,7 @@ pub fn generate_permissions_inner(input: TokenStream) -> TokenStream {
 
     let expanded = quote! {
         #[derive(
-            Clone, Copy, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, serde::Serialize, serde::Deserialize, strum::Display
+            Clone, Copy, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, serde::Serialize, serde::Deserialize, strum::Display, strum::EnumString
         )]
         pub enum Permission {
             #(#enum_keys),*

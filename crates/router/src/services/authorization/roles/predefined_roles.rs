@@ -1,6 +1,6 @@
 use std::{collections::HashMap, sync::LazyLock};
 
-use common_enums::{EntityType, PermissionGroup, RoleScope};
+use common_enums::{EntityType, MerchantProductType, PermissionGroup, RoleScope};
 
 use super::RoleInfo;
 use crate::consts;
@@ -37,6 +37,7 @@ pub static PREDEFINED_ROLES: LazyLock<HashMap<&'static str, RoleInfo>> = LazyLoc
             is_deletable: false,
             is_updatable: false,
             is_internal: true,
+            merchant_product_type: MerchantProductType::Orchestration,
         },
     );
     roles.insert(
@@ -60,6 +61,7 @@ pub static PREDEFINED_ROLES: LazyLock<HashMap<&'static str, RoleInfo>> = LazyLoc
             is_deletable: false,
             is_updatable: false,
             is_internal: true,
+            merchant_product_type: MerchantProductType::Orchestration,
         },
     );
     roles.insert(
@@ -84,6 +86,7 @@ pub static PREDEFINED_ROLES: LazyLock<HashMap<&'static str, RoleInfo>> = LazyLoc
             is_deletable: false,
             is_updatable: false,
             is_internal: true,
+            merchant_product_type: MerchantProductType::Orchestration,
         },
     );
 
@@ -116,6 +119,7 @@ pub static PREDEFINED_ROLES: LazyLock<HashMap<&'static str, RoleInfo>> = LazyLoc
             is_deletable: false,
             is_updatable: false,
             is_internal: false,
+            merchant_product_type: MerchantProductType::Orchestration,
         },
     );
 
@@ -150,6 +154,7 @@ pub static PREDEFINED_ROLES: LazyLock<HashMap<&'static str, RoleInfo>> = LazyLoc
             is_deletable: true,
             is_updatable: true,
             is_internal: false,
+            merchant_product_type: MerchantProductType::Orchestration,
         },
     );
 
@@ -182,6 +187,7 @@ pub static PREDEFINED_ROLES: LazyLock<HashMap<&'static str, RoleInfo>> = LazyLoc
             is_deletable: true,
             is_updatable: true,
             is_internal: false,
+            merchant_product_type: MerchantProductType::Orchestration,
         },
     );
     roles.insert(
@@ -205,6 +211,7 @@ pub static PREDEFINED_ROLES: LazyLock<HashMap<&'static str, RoleInfo>> = LazyLoc
             is_deletable: true,
             is_updatable: true,
             is_internal: false,
+            merchant_product_type: MerchantProductType::Orchestration,
         },
     );
     roles.insert(
@@ -225,6 +232,7 @@ pub static PREDEFINED_ROLES: LazyLock<HashMap<&'static str, RoleInfo>> = LazyLoc
             is_deletable: true,
             is_updatable: true,
             is_internal: false,
+            merchant_product_type: MerchantProductType::Orchestration,
         },
     );
     roles.insert(
@@ -248,6 +256,7 @@ pub static PREDEFINED_ROLES: LazyLock<HashMap<&'static str, RoleInfo>> = LazyLoc
             is_deletable: true,
             is_updatable: true,
             is_internal: false,
+            merchant_product_type: MerchantProductType::Orchestration,
         },
     );
     roles.insert(
@@ -273,6 +282,7 @@ pub static PREDEFINED_ROLES: LazyLock<HashMap<&'static str, RoleInfo>> = LazyLoc
             is_deletable: true,
             is_updatable: true,
             is_internal: false,
+            merchant_product_type: MerchantProductType::Orchestration,
         },
     );
     roles.insert(
@@ -294,6 +304,7 @@ pub static PREDEFINED_ROLES: LazyLock<HashMap<&'static str, RoleInfo>> = LazyLoc
             is_deletable: true,
             is_updatable: true,
             is_internal: false,
+            merchant_product_type: MerchantProductType::Orchestration,
         },
     );
 
@@ -322,6 +333,7 @@ pub static PREDEFINED_ROLES: LazyLock<HashMap<&'static str, RoleInfo>> = LazyLoc
             is_deletable: true,
             is_updatable: true,
             is_internal: false,
+            merchant_product_type: MerchantProductType::Orchestration,
         },
     );
     roles.insert(
@@ -343,6 +355,7 @@ pub static PREDEFINED_ROLES: LazyLock<HashMap<&'static str, RoleInfo>> = LazyLoc
             is_deletable: true,
             is_updatable: true,
             is_internal: false,
+            merchant_product_type: MerchantProductType::Orchestration,
         },
     );
     roles.insert(
@@ -363,6 +376,7 @@ pub static PREDEFINED_ROLES: LazyLock<HashMap<&'static str, RoleInfo>> = LazyLoc
             is_deletable: true,
             is_updatable: true,
             is_internal: false,
+            merchant_product_type: MerchantProductType::Orchestration,
         },
     );
     roles.insert(
@@ -384,6 +398,7 @@ pub static PREDEFINED_ROLES: LazyLock<HashMap<&'static str, RoleInfo>> = LazyLoc
             is_deletable: true,
             is_updatable: true,
             is_internal: false,
+            merchant_product_type: MerchantProductType::Orchestration,
         },
     );
     roles.insert(
@@ -406,6 +421,7 @@ pub static PREDEFINED_ROLES: LazyLock<HashMap<&'static str, RoleInfo>> = LazyLoc
             is_deletable: true,
             is_updatable: true,
             is_internal: false,
+            merchant_product_type: MerchantProductType::Orchestration,
         },
     );
     roles.insert(
@@ -425,7 +441,192 @@ pub static PREDEFINED_ROLES: LazyLock<HashMap<&'static str, RoleInfo>> = LazyLoc
             is_deletable: true,
             is_updatable: true,
             is_internal: false,
+            merchant_product_type: MerchantProductType::Orchestration,
         },
     );
+    // Recon Roles
+    roles.insert(
+        consts::user_role::ROLE_ID_RECON_MERCHANT_ADMIN,
+        RoleInfo {
+            groups: vec![
+                PermissionGroup::ReconSourcesView,
+                PermissionGroup::ReconSourcesManage,
+                PermissionGroup::ReconExceptionsView,
+                PermissionGroup::ReconExceptionsManage,
+                PermissionGroup::ReconTransactionsView,
+                PermissionGroup::ReconTransactionsManage,
+                PermissionGroup::UsersView,
+                PermissionGroup::UsersManage,
+                PermissionGroup::ReconRulesView,
+                PermissionGroup::ReconRulesManage,
+            ],
+            role_id: consts::user_role::ROLE_ID_RECON_MERCHANT_ADMIN.to_string(),
+            role_name: "recon_merchant_admin".to_string(),
+            scope: RoleScope::Organization,
+            entity_type: EntityType::Merchant,
+            is_invitable: true,
+            is_deletable: true,
+            is_updatable: true,
+            is_internal: false,
+            merchant_product_type: MerchantProductType::Recon,
+        },
+    );
+    roles.insert(
+        consts::user_role::ROLE_ID_RECON_MERCHANT_DATA_ENGINEER,
+        RoleInfo {
+            groups: vec![
+                PermissionGroup::ReconSourcesView,
+                PermissionGroup::ReconSourcesManage,
+                PermissionGroup::ReconTransactionsView,
+                PermissionGroup::UsersView,
+                PermissionGroup::ReconRulesView,
+            ],
+            role_id: consts::user_role::ROLE_ID_RECON_MERCHANT_DATA_ENGINEER.to_string(),
+            role_name: "recon_merchant_data_engineer".to_string(),
+            scope: RoleScope::Organization,
+            entity_type: EntityType::Merchant,
+            is_invitable: true,
+            is_deletable: true,
+            is_updatable: true,
+            is_internal: false,
+            merchant_product_type: MerchantProductType::Recon,
+        },
+    );
+    roles.insert(
+        consts::user_role::ROLE_ID_RECON_MERCHANT_OPERATOR,
+        RoleInfo {
+            groups: vec![
+                PermissionGroup::ReconExceptionsView,
+                PermissionGroup::ReconExceptionsManage,
+                PermissionGroup::ReconTransactionsView,
+                PermissionGroup::ReconTransactionsManage,
+                PermissionGroup::UsersView,
+                PermissionGroup::ReconRulesView,
+            ],
+            role_id: consts::user_role::ROLE_ID_RECON_MERCHANT_OPERATOR.to_string(),
+            role_name: "recon_merchant_operator".to_string(),
+            scope: RoleScope::Organization,
+            entity_type: EntityType::Merchant,
+            is_invitable: true,
+            is_deletable: true,
+            is_updatable: true,
+            is_internal: false,
+            merchant_product_type: MerchantProductType::Recon,
+        },
+    );
+    roles.insert(
+        consts::user_role::ROLE_ID_RECON_MERCHANT_VIEW_ONLY,
+        RoleInfo {
+            groups: vec![
+                PermissionGroup::ReconSourcesView,
+                PermissionGroup::ReconTransactionsView,
+                PermissionGroup::ReconExceptionsView,
+                PermissionGroup::UsersView,
+                PermissionGroup::ReconRulesView,
+            ],
+            role_id: consts::user_role::ROLE_ID_RECON_MERCHANT_VIEW_ONLY.to_string(),
+            role_name: "recon_merchant_view_only".to_string(),
+            scope: RoleScope::Organization,
+            entity_type: EntityType::Merchant,
+            is_invitable: true,
+            is_deletable: true,
+            is_updatable: true,
+            is_internal: false,
+            merchant_product_type: MerchantProductType::Recon,
+        },
+    );
+
+    // Profile Recon Roles
+    roles.insert(
+        consts::user_role::ROLE_ID_RECON_PROFILE_ADMIN,
+        RoleInfo {
+            groups: vec![
+                PermissionGroup::ReconSourcesView,
+                PermissionGroup::ReconSourcesManage,
+                PermissionGroup::ReconExceptionsView,
+                PermissionGroup::ReconExceptionsManage,
+                PermissionGroup::ReconTransactionsView,
+                PermissionGroup::ReconTransactionsManage,
+                PermissionGroup::UsersView,
+                PermissionGroup::UsersManage,
+                PermissionGroup::ReconRulesView,
+                PermissionGroup::ReconRulesManage,
+            ],
+            role_id: consts::user_role::ROLE_ID_RECON_PROFILE_ADMIN.to_string(),
+            role_name: "recon_profile_admin".to_string(),
+            scope: RoleScope::Organization,
+            entity_type: EntityType::Profile,
+            is_invitable: true,
+            is_deletable: true,
+            is_updatable: true,
+            is_internal: false,
+            merchant_product_type: MerchantProductType::Recon,
+        },
+    );
+    roles.insert(
+        consts::user_role::ROLE_ID_RECON_PROFILE_DATA_ENGINEER,
+        RoleInfo {
+            groups: vec![
+                PermissionGroup::ReconSourcesView,
+                PermissionGroup::ReconSourcesManage,
+                PermissionGroup::ReconTransactionsView,
+                PermissionGroup::UsersView,
+                PermissionGroup::ReconRulesView,
+            ],
+            role_id: consts::user_role::ROLE_ID_RECON_PROFILE_DATA_ENGINEER.to_string(),
+            role_name: "recon_profile_data_engineer".to_string(),
+            scope: RoleScope::Organization,
+            entity_type: EntityType::Profile,
+            is_invitable: true,
+            is_deletable: true,
+            is_updatable: true,
+            is_internal: false,
+            merchant_product_type: MerchantProductType::Recon,
+        },
+    );
+    roles.insert(
+        consts::user_role::ROLE_ID_RECON_PROFILE_OPERATOR,
+        RoleInfo {
+            groups: vec![
+                PermissionGroup::ReconExceptionsView,
+                PermissionGroup::ReconExceptionsManage,
+                PermissionGroup::ReconTransactionsView,
+                PermissionGroup::ReconTransactionsManage,
+                PermissionGroup::UsersView,
+                PermissionGroup::ReconRulesView,
+            ],
+            role_id: consts::user_role::ROLE_ID_RECON_PROFILE_OPERATOR.to_string(),
+            role_name: "recon_profile_operator".to_string(),
+            scope: RoleScope::Organization,
+            entity_type: EntityType::Profile,
+            is_invitable: true,
+            is_deletable: true,
+            is_updatable: true,
+            is_internal: false,
+            merchant_product_type: MerchantProductType::Recon,
+        },
+    );
+    roles.insert(
+        consts::user_role::ROLE_ID_RECON_PROFILE_VIEW_ONLY,
+        RoleInfo {
+            groups: vec![
+                PermissionGroup::ReconSourcesView,
+                PermissionGroup::ReconTransactionsView,
+                PermissionGroup::ReconExceptionsView,
+                PermissionGroup::UsersView,
+                PermissionGroup::ReconRulesView,
+            ],
+            role_id: consts::user_role::ROLE_ID_RECON_PROFILE_VIEW_ONLY.to_string(),
+            role_name: "recon_profile_view_only".to_string(),
+            scope: RoleScope::Organization,
+            entity_type: EntityType::Profile,
+            is_invitable: true,
+            is_deletable: true,
+            is_updatable: true,
+            is_internal: false,
+            merchant_product_type: MerchantProductType::Recon,
+        },
+    );
+
     roles
 });
