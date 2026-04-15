@@ -834,6 +834,9 @@ impl super::RedisConnectionPool {
         stream: &RedisKey,
         ids: &[String],
     ) -> CustomResult<usize, errors::RedisError> {
+        if ids.is_empty() {
+            return Ok(0);
+        }
         let mut conn = self.pool.clone();
         conn.xdel(stream.tenant_aware_key(self), ids)
             .await
@@ -877,6 +880,9 @@ impl super::RedisConnectionPool {
         group: &str,
         ids: &[String],
     ) -> CustomResult<usize, errors::RedisError> {
+        if ids.is_empty() {
+            return Ok(0);
+        }
         let mut conn = self.pool.clone();
         conn.xack(stream.tenant_aware_key(self), group, ids)
             .await
