@@ -1,0 +1,99 @@
+# Superposition Seed Configuration for Hyperswitch
+# This file serves dual purpose:
+#   1. Seeding via scripts/seed_superposition.sh (posts to Superposition API)
+#   2. Runtime fallback for FileDataSource via backup_file_path config
+#
+# Extra fields (description, change_reason) are used only by the seeding script
+# and are silently ignored by the FileDataSource parser.
+
+# Empty overrides table - required for FileDataSource backup parsing
+# The seeding script ignores this field; it's only needed for runtime fallback
+overrides = []
+
+[dimensions.organization_id]
+position = 1
+schema = { type = "string" }
+description = "Organization identifier"
+change_reason = "Initial setup"
+
+[dimensions.provider_merchant_id]
+position = 2
+schema = { type = "string" }
+description = "Provider merchant identifier (hyperswitch merchant id)"
+change_reason = "Initial setup"
+
+[dimensions.processor_merchant_id]
+position = 3
+schema = { type = "string" }
+description = "Processor merchant identifier (connector-side merchant id)"
+change_reason = "Initial setup"
+
+[dimensions.profile_id]
+position = 4
+schema = { type = "string" }
+description = "Business profile identifier"
+change_reason = "Initial setup"
+
+[dimensions.connector]
+position = 5
+schema = { type = "string" }
+description = "Payment connector identifier (e.g. stripe, adyen)"
+change_reason = "Initial setup"
+
+[default-configs.requires_cvv]
+value = true
+schema = { type = "boolean" }
+description = "Whether CVV is required for payments"
+change_reason = "Initial setup"
+
+[default-configs.implicit_customer_update]
+value = false
+schema = { type = "boolean" }
+description = "Whether to implicitly update customer details on payment"
+change_reason = "Initial setup"
+
+[default-configs.payout_tracker_mapping]
+schema = { type = "object" }
+description = "Payout sync retry mapping configuration per connector"
+change_reason = "Initial setup"
+
+[default-configs.payout_tracker_mapping.value]
+start_after = 60
+frequencies = [[300, 5]]
+
+[default-configs.client_session_validation_enabled]
+value = true
+schema = { type = "boolean" }
+description = "Whether client session validation is enabled for payments"
+change_reason = "Initial setup"
+
+[default-configs.should_call_gsm]
+value = false
+schema = { type = "boolean" }
+description = "Whether to call GSM (Global Status Mapping) for auto-retries on payment failure"
+change_reason = "Initial setup"
+
+[default-configs.should_perform_eligibility]
+value = false
+schema = { type = "boolean" }
+description = "Whether the SDK should perform an eligibility check before confirming payment"
+change_reason = "Initial setup"
+
+[default-configs.should_enable_mit_with_limited_card_data]
+value = false
+schema = { type = "boolean" }
+description = "Whether to allow merchant-initiated transactions (MIT) with limited card data"
+change_reason = "Initial setup"
+
+[default-configs.should_store_eligibility_check_data_for_authentication]
+value = false
+schema = { type = "boolean" }
+description = "Whether to store eligibility check data during authentication"
+change_reason = "Initial setup"
+
+[default-configs.enable_extended_card_bin]
+value = false
+schema = { type = "boolean" }
+description = "Whether to use extended card BIN (8-digit) for payment method data"
+change_reason = "Initial setup"
+
