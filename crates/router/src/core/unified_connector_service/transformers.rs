@@ -311,11 +311,7 @@ impl
             metadata,
             test_mode: router_data.test_mode,
             state,
-            payment_method_token: router_data
-                .payment_method_token
-                .as_ref()
-                .and_then(|payment_method_token| payment_method_token.get_payment_method_token())
-                .map(|payment_method_token| Secret::new(payment_method_token.expose())),
+            connector_order_id: None,
             description: router_data.description.clone(),
             setup_mandate_details: router_data
                 .request
@@ -516,11 +512,6 @@ impl
             metadata,
             test_mode: router_data.test_mode,
             state,
-            payment_method_token: router_data
-                .payment_method_token
-                .as_ref()
-                .and_then(|payment_method_token| payment_method_token.get_payment_method_token())
-                .map(|payment_method_token| Secret::new(payment_method_token.expose())),
             description: router_data.description.clone(),
             setup_mandate_details: router_data
                 .request
@@ -556,6 +547,7 @@ impl
                 .map(payments_grpc::Tokenization::foreign_from)
                 .map(Into::into),
             l2_l3_data: None,
+            connector_order_id: None,
         })
     }
 }
@@ -1300,7 +1292,7 @@ impl
             threeds_completion_indicator: None,
             redirection_response: None,
             continue_redirection_url: None,
-            payment_method_token: None,
+            connector_order_id: None,
             l2_l3_data: None,
         })
     }
@@ -1479,7 +1471,7 @@ impl
             threeds_completion_indicator: None,
             redirection_response: None,
             continue_redirection_url: None,
-            payment_method_token: None,
+            connector_order_id: None,
             l2_l3_data: None,
         })
     }
@@ -1638,7 +1630,7 @@ impl
             threeds_completion_indicator: None,
             redirection_response: None,
             continue_redirection_url: None,
-            payment_method_token: None,
+            connector_order_id: None,
             l2_l3_data: None,
         })
     }
@@ -1697,11 +1689,6 @@ impl
             .map(ConnectorState::foreign_from);
 
         Ok(Self {
-            payment_method_token: router_data
-                .payment_method_token
-                .as_ref()
-                .and_then(|payment_method_token| payment_method_token.get_payment_method_token())
-                .map(|payment_method_token| Secret::new(payment_method_token.expose())),
             merchant_recurring_payment_id: router_data.connector_request_reference_id.clone(),
             amount: Some(payments_grpc::Money {
                 minor_amount: router_data.request.minor_amount.get_amount_as_i64(),
@@ -2063,6 +2050,7 @@ impl transformers::ForeignTryFrom<&RouterData<Session, PaymentsSessionData, Paym
                 phone_country_code: None,
             }),
             metadata: None,
+            return_url: None,
         };
 
         Ok(Self {
@@ -3035,7 +3023,7 @@ impl transformers::ForeignTryFrom<common_enums::PaymentMethodType>
             common_enums::PaymentMethodType::Sofort => Ok(Self::Sofort),
             common_enums::PaymentMethodType::Swish => Ok(Self::Swish),
             common_enums::PaymentMethodType::TouchNGo => Ok(Self::TouchNGo),
-            common_enums::PaymentMethodType::Trustly => Ok(Self::Trustly),
+            common_enums::PaymentMethodType::Trustly => Ok(Self::TrustlyBankRedirect),
             common_enums::PaymentMethodType::Twint => Ok(Self::Twint),
             common_enums::PaymentMethodType::UpiCollect => Ok(Self::UpiCollect),
             common_enums::PaymentMethodType::UpiIntent => Ok(Self::UpiIntent),
@@ -4443,7 +4431,7 @@ impl ForeignFrom<common_enums::PaymentMethodType> for payments_grpc::PaymentMeth
             common_enums::PaymentMethodType::Sofort => Self::Sofort,
             common_enums::PaymentMethodType::Swish => Self::Swish,
             common_enums::PaymentMethodType::TouchNGo => Self::TouchNGo,
-            common_enums::PaymentMethodType::Trustly => Self::Trustly,
+            common_enums::PaymentMethodType::Trustly => Self::TrustlyBankRedirect,
             common_enums::PaymentMethodType::Twint => Self::Twint,
             common_enums::PaymentMethodType::UpiCollect => Self::UpiCollect,
             common_enums::PaymentMethodType::UpiIntent => Self::UpiIntent,

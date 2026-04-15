@@ -30,7 +30,7 @@ strum = { version = "0.26", features = ["derive"] }
 thiserror = "1.0.69"
 time = "0.3.41"
 url = { version = "2.5.4", features = ["serde"] }
-unified-connector-service-client = { git = "https://github.com/juspay/connector-service", branch = "feat/nuvei-3ds-card", package = "rust-grpc-client" }
+unified-connector-service-client = { git = "https://github.com/juspay/connector-service", rev = "c9ee01c1876d7e5803407b401f33d5b067f6c024", package = "rust-grpc-client" }
 tokio = { version = "1.45.1", features = ["macros", "rt-multi-thread"] }
 
 # First party crates
