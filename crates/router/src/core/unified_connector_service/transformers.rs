@@ -1085,6 +1085,7 @@ impl
                 .clone()
                 .map(payments_grpc::BrowserInformation::foreign_try_from)
                 .transpose()?,
+            session_token: router_data.request.session_token.clone(),
             connector_feature_data: None,
             capture_method: capture_method.map(|capture_method| capture_method.into()),
             description: router_data.description.clone(),
