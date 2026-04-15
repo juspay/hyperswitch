@@ -37,7 +37,7 @@ use serde::{Deserialize, Serialize};
 
 use super::RoutingResult;
 use crate::{
-    core::{errors, configs::dimension_state},
+    core::errors,
     db::domain,
     routes::{app::SessionStateInfo, SessionState},
     services::{self, logger},
@@ -2489,28 +2489,17 @@ pub fn should_skip_prerouting(
         .unwrap_or(false)
 }
 
-pub async fn perform_pre_routing(
-    state: &SessionState,
+pub fn perform_pre_routing(
     allowed_pm_for_pre_routing: &LazyLock<HashSet<enums::PaymentMethod>>,
     allowed_pmt_for_pre_routing: &LazyLock<HashSet<enums::PaymentMethodType>>,
     payment_method: &enums::PaymentMethod,
     payment_method_type: &enums::PaymentMethodType,
-    dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
-    customer_id: Option<&id_type::CustomerId>,
+    skip_map: &HashMap<enums::PaymentMethod, HashSet<enums::PaymentMethodType>>,
 ) -> bool {
-    let dimensions = dimensions
-        .with_payment_method(payment_method.clone())
-        .with_payment_method_type(payment_method_type.clone());
+    let should_skip_prerouting =
+        should_skip_prerouting(skip_map, payment_method, payment_method_type);
 
-    let should_skip = dimensions
-        .get_pre_routing_disabled(
-            state.store.as_ref(),
-            state.superposition_service.as_deref(),
-            customer_id,
-        )
-        .await;
-
-    let pm_allowed = allowed_pm_for_pre_routing.contains(&payment_method);
-    let pmt_allowed = allowed_pmt_for_pre_routing.contains(&payment_method_type);
-    (pm_allowed || pmt_allowed) && !should_skip
+    let pm_allowed = allowed_pm_for_pre_routing.contains(payment_method);
+    let pmt_allowed = allowed_pmt_for_pre_routing.contains(payment_method_type);
+    (pm_allowed || pmt_allowed) && !should_skip_prerouting
 }

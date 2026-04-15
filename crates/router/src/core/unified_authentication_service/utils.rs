@@ -733,31 +733,3 @@ async fn fetch_region(state: &SessionState, key: &str) -> Option<RoutingRegion> 
         .map(|conf| RoutingRegion::from_str(&conf.config).unwrap_or(RoutingRegion::Region1))
 }
 
-pub async fn get_bool_config(state: &SessionState, key: &str, default_value: bool) -> bool {
-    let default_str = if default_value { "true" } else { "false" };
-
-    let config = state
-        .store
-        .find_config_by_key_unwrap_or(key, Some(default_str.to_string()))
-        .await;
-
-    match config {
-        Ok(conf) => conf.config == "true",
-        Err(error) => {
-            router_env::logger::error!(?error);
-            default_value
-        }
-    }
-}
-
-pub async fn should_disable_vault_tokenization(
-    state: &SessionState,
-    merchant_id: &common_utils::id_type::MerchantId,
-) -> bool {
-    get_bool_config(
-        state,
-        &merchant_id.get_should_disable_vault_tokenization(),
-        false,
-    )
-    .await
-}

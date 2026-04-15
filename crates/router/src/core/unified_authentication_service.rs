@@ -2113,8 +2113,13 @@ pub async fn authentication_sync_core(
     }
 
     // Determine whether to tokenise or not
-    let should_disable_vault_tokenization =
-        utils::should_disable_vault_tokenization(&state, &authentication.merchant_id).await;
+    let should_disable_vault_tokenization = dimensions
+        .get_should_disable_vault_tokenization(
+            state.store.as_ref(),
+            state.superposition_service.as_deref(),
+            None,
+        )
+        .await;
 
     // Determine the authentication sync strategy based on current state
     let strategy = determine_auth_sync_strategy(
@@ -2140,21 +2145,9 @@ pub async fn authentication_sync_core(
                     should_disable_vault_tokenization,
                 ))
                 .await?
-            };
-
-            let should_disable_auth_tokenization = dimensions
-                .get_should_disable_auth_tokenization(
-                    state.store.as_ref(),
-                    state.superposition_service.as_deref(),
-                    authentication.payment_id.as_ref(),
-                )
-                .await;
-
-            let vault_token_data = if should_disable_auth_tokenization {
-                // Do not tokenize if the disable flag is present in the config
-                None
-            } else {
-                let response = Box::pin(utils::get_auth_multi_token_from_external_vault(
+            }
+            AuthSyncStrategy::UseStoredAuthValue => {
+                use_stored_authentication_value(
                     &state,
                     &platform,
                     &authentication,

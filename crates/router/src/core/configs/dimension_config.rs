@@ -1,3 +1,4 @@
+use common_enums;
 use external_services::superposition;
 use scheduler::consumer::types::process_data::RetryMapping;
 
@@ -240,38 +241,6 @@ impl DatabaseBackedConfig for EnableExtendedCardBin {
 }
 
 config! {
-    superposition_key = AUTHENTICATION_SERVICE_ELIGIBLE,
-    output = bool,
-    default = false,
-    requires = dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndOrgId,
-    targeting_key = id_type::CustomerId
-}
-
-impl DatabaseBackedConfig for AuthenticationServiceEligible {
-    const KEY: &'static str = "authentication_service_eligible";
-
-    fn db_key(_dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
-        None
-    }
-}
-
-config! {
-    superposition_key = SKIP_SAVING_WALLET_AT_CONNECTOR_MERCHANT,
-    output = bool,
-    default = false,
-    requires = dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileIdAndPaymentMethodType,
-    targeting_key = id_type::CustomerId
-}
-
-impl DatabaseBackedConfig for SkipSavingWalletAtConnectorMerchant {
-    const KEY: &'static str = "skip_saving_wallet_at_connector_merchant";
-
-    fn db_key(_dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
-        None
-    }
-}
-
-config! {
     superposition_key = PAYMENT_UPDATE_ENABLED_FOR_CLIENT_AUTH,
     output = bool,
     default = false,
@@ -300,37 +269,36 @@ config! {
 impl DatabaseBackedConfig for GsmPayoutCall {
     const KEY: &'static str = "gsm_payout_call";
 
-    fn db_key(_dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
-        None
+    fn db_key(dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
+        dimensions
+            .get_processor_merchant_id()
+            .and_then(|merchant_id| {
+                dimensions
+                    .get_payout_retry_type()
+                    .map(|retry_type| match retry_type {
+                        common_enums::PayoutRetryType::SingleConnector => format!(
+                            "should_call_gsm_single_connector_payout_{}",
+                            merchant_id.get_string_repr()
+                        ),
+                        common_enums::PayoutRetryType::MultiConnector => format!(
+                            "should_call_gsm_multiple_connector_payout_{}",
+                            merchant_id.get_string_repr()
+                        ),
+                    })
+            })
     }
 }
 
 config! {
-    superposition_key = PRE_ROUTING_DISABLED,
-    output = bool,
-    default = false,
-    requires = dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileIdAndPaymentMethodAndPaymentMethodType,
-    targeting_key = id_type::CustomerId
-}
-
-impl DatabaseBackedConfig for PreRoutingDisabled {
-    const KEY: &'static str = "pre_routing_disabled";
-
-    fn db_key(_dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
-        None
-    }
-}
-
-config! {
-    superposition_key = SHOULD_DISABLE_AUTH_TOKENIZATION,
+    superposition_key = SHOULD_DISABLE_VAULT_TOKENIZATION,
     output = bool,
     default = false,
     requires = dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
-    targeting_key = id_type::PaymentId
+    targeting_key = id_type::CustomerId
 }
 
-impl DatabaseBackedConfig for ShouldDisableAuthTokenization {
-    const KEY: &'static str = "should_disable_auth_tokenization";
+impl DatabaseBackedConfig for ShouldDisableVaultTokenization {
+    const KEY: &'static str = "should_disable_vault_tokenization";
 
     fn db_key(dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
         dimensions
@@ -354,7 +322,7 @@ impl DatabaseBackedConfig for ShouldReturnRawPaymentMethodDetails {
 
     fn db_key(dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
         dimensions
-            .get_processor_merchant_id()
+            .get_provider_merchant_id()
             .map(|id| format!("{}_{}", Self::KEY, id.get_string_repr()))
     }
 }

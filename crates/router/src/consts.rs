@@ -367,24 +367,15 @@ pub mod superposition {
     /// Store eligibility check data for authentication configuration key
     pub const SHOULD_STORE_ELIGIBILITY_CHECK_DATA_FOR_AUTHENTICATION: &str =
         "should_store_eligibility_check_data_for_authentication";
-    /// Step-up 3DS enabled configuration key
-    pub const STEP_UP_ENABLED: &str = "step_up_enabled";
     /// Extended card BIN configuration key
     pub const ENABLE_EXTENDED_CARD_BIN: &str = "enable_extended_card_bin";
-    /// Authentication service merchant eligibility configuration key
-    pub const AUTHENTICATION_SERVICE_ELIGIBLE: &str = "authentication_service_eligible";
-    /// Skip saving wallet at connector for a given merchant and payment method type
-    pub const SKIP_SAVING_WALLET_AT_CONNECTOR_MERCHANT: &str =
-        "skip_saving_wallet_at_connector_merchant";
     /// Allow payment update via client auth for a given merchant
     pub const PAYMENT_UPDATE_ENABLED_FOR_CLIENT_AUTH: &str =
         "payment_update_enabled_for_client_auth";
     /// GSM payout call configuration key (scoped by merchant, profile, and payout retry type)
     pub const GSM_PAYOUT_CALL: &str = "gsm_payout_call";
-    /// Pre-routing disabled configuration key (scoped by merchant, profile, payment method, and payment method type)
-    pub const PRE_ROUTING_DISABLED: &str = "pre_routing_disabled";
-    /// Disable auth tokenization configuration key
-    pub const SHOULD_DISABLE_AUTH_TOKENIZATION: &str = "should_disable_auth_tokenization";
+    /// Disable vault tokenization configuration key
+    pub const SHOULD_DISABLE_VAULT_TOKENIZATION: &str = "should_disable_vault_tokenization";
     /// Return raw payment method details configuration key
     pub const SHOULD_RETURN_RAW_PAYMENT_METHOD_DETAILS: &str =
         "should_return_raw_payment_method_details";

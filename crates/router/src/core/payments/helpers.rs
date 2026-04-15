@@ -8564,8 +8564,7 @@ pub async fn config_skip_saving_wallet_at_connector(
 
 #[cfg(feature = "v1")]
 pub async fn override_setup_future_usage_to_on_session<F, D>(
-    state: &SessionState,
-    dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
+    db: &dyn StorageInterface,
     payment_data: &mut D,
 ) -> CustomResult<(), errors::ApiErrorResponse>
 where
@@ -8574,26 +8573,23 @@ where
 {
     if payment_data.get_payment_intent().setup_future_usage == Some(enums::FutureUsage::OffSession)
     {
-        if let Some(payment_method_type) =
-            payment_data.get_payment_attempt().get_payment_method_type()
-        {
-            let dimensions = dimensions.with_payment_method_type(payment_method_type);
-            let customer_id = payment_data.get_payment_intent().customer_id.as_ref();
+        let skip_saving_wallet_at_connector_optional = config_skip_saving_wallet_at_connector(
+            db,
+            &payment_data.get_payment_intent().merchant_id,
+        )
+        .await?;
 
-            let skip_saving_wallet = dimensions
-                .get_skip_saving_wallet_at_connector_merchant(
-                    state.store.as_ref(),
-                    state.superposition_service.as_deref(),
-                    customer_id,
-                )
-                .await;
-
-            if skip_saving_wallet {
-                logger::debug!("Override setup_future_usage from off_session to on_session based on the merchant's skip_saving_wallet_at_connector_merchant configuration to avoid creating a connector mandate.");
-                payment_data
-                    .set_setup_future_usage_in_payment_intent(enums::FutureUsage::OnSession);
+        if let Some(skip_saving_wallet_at_connector) = skip_saving_wallet_at_connector_optional {
+            if let Some(payment_method_type) =
+                payment_data.get_payment_attempt().get_payment_method_type()
+            {
+                if skip_saving_wallet_at_connector.contains(&payment_method_type) {
+                    logger::debug!("Override setup_future_usage from off_session to on_session based on the merchant's skip_saving_wallet_at_connector configuration to avoid creating a connector mandate.");
+                    payment_data
+                        .set_setup_future_usage_in_payment_intent(enums::FutureUsage::OnSession);
+                }
             }
-        }
+        };
     };
     Ok(())
 }
