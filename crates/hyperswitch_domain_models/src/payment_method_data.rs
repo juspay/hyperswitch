@@ -13,7 +13,8 @@ use common_utils::{
     ext_traits::{OptionExt, StringExt},
     id_type,
     new_type::{
-        MaskedBankAccount, MaskedIban, MaskedRoutingNumber, MaskedSortCode, MaskedUpiVpaId,
+        MaskedBankAccount, MaskedBranchCode, MaskedIban, MaskedRoutingNumber, MaskedSortCode,
+        MaskedUpiVpaId,
     },
     payout_method_utils,
     pii::{self, Email},
@@ -1413,6 +1414,13 @@ pub enum BankDebitData {
         sort_code: Secret<String>,
         bank_account_holder_name: Option<Secret<String>>,
     },
+    EftBankDebit {
+        account_number: Secret<String>,
+        branch_code: Secret<String>,
+        bank_account_holder_name: Option<Secret<String>>,
+        bank_name: Option<common_enums::BankNames>,
+        bank_type: Option<common_enums::BankType>,
+    },
 }
 
 impl BankDebitData {
@@ -1454,6 +1462,7 @@ impl BankDebitData {
             Self::SepaBankDebit { .. }
             | Self::SepaGuarenteedBankDebit { .. }
             | Self::BecsBankDebit { .. }
+            | Self::EftBankDebit { .. }
             | Self::BacsBankDebit { .. } => None,
         }
     }
@@ -2667,6 +2676,21 @@ impl From<BankDebitData> for api_models::payments::additional_info::BankDebitAdd
                     bank_account_holder_name,
                 },
             )),
+            BankDebitData::EftBankDebit {
+                account_number,
+                branch_code,
+                bank_name,
+                bank_type,
+                bank_account_holder_name,
+            } => Self::Eft(Box::new(
+                payment_additional_types::EftBankDebitAdditionalData {
+                    account_number: MaskedBankAccount::from(account_number),
+                    branch_code: MaskedBranchCode::from(branch_code),
+                    bank_name,
+                    bank_type,
+                    bank_account_holder_name,
+                },
+            )),
             BankDebitData::SepaBankDebit {
                 iban,
                 bank_account_holder_name,
@@ -3137,6 +3161,7 @@ impl GetPaymentMethodType for BankDebitData {
     fn get_payment_method_type(&self) -> api_enums::PaymentMethodType {
         match self {
             Self::AchBankDebit { .. } => api_enums::PaymentMethodType::Ach,
+            Self::EftBankDebit { .. } => api_enums::PaymentMethodType::Eft,
             Self::SepaBankDebit { .. } => api_enums::PaymentMethodType::Sepa,
             Self::SepaGuarenteedBankDebit { .. } => {
                 api_enums::PaymentMethodType::SepaGuarenteedDebit

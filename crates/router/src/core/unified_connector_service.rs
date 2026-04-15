@@ -1040,12 +1040,12 @@ pub fn build_unified_connector_service_payment_method(
             hyperswitch_domain_models::payment_method_data::BankRedirectData::Eft {
                 provider
             } => {
-                let eft = payments_grpc::Eft {
+                let eft = payments_grpc::EftBankRedirect {
                     provider,
                 };
 
                 Ok(payments_grpc::PaymentMethod {
-                    payment_method: Some(PaymentMethod::Eft(eft)),
+                    payment_method: Some(PaymentMethod::EftBankRedirect(eft)),
                 })
             }
             hyperswitch_domain_models::payment_method_data::BankRedirectData::BancontactCard {
@@ -1550,6 +1550,33 @@ pub fn build_unified_connector_service_payment_method(
                     payment_method: Some(PaymentMethod::SepaGuaranteedDebit(sepa_guaranteed_debit)),
                 })
             }
+            hyperswitch_domain_models::payment_method_data::BankDebitData::EftBankDebit {
+                account_number,
+                branch_code,
+                bank_account_holder_name,
+                bank_name,
+                bank_type,
+            } => {
+                let bank_name = bank_name
+                    .map(payments_grpc::BankNames::foreign_try_from)
+                    .transpose()?;
+                let bank_type = bank_type
+                    .map(payments_grpc::BankType::foreign_try_from)
+                    .transpose()?;
+
+                let eft = payments_grpc::Eft {
+                    account_number: Some(account_number.expose().into()),
+                    branch_code: Some(branch_code.expose().into()),
+                    bank_account_holder_name: bank_account_holder_name
+                        .map(|name| name.expose().into()),
+                    bank_name: bank_name.map(Into::into).unwrap_or_default(),
+                    bank_type: bank_type.map(Into::into).unwrap_or_default(),
+                };
+
+                Ok(payments_grpc::PaymentMethod {
+                    payment_method: Some(PaymentMethod::Eft(eft)),
+                })
+            }     
         },
         hyperswitch_domain_models::payment_method_data::PaymentMethodData::Voucher(voucher_data) => {
             match voucher_data {

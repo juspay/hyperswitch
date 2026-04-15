@@ -390,6 +390,9 @@ impl FeatureMatrixConnectorData {
                 enums::Connector::Truelayer => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Truelayer::new())))
                 }
+                enums::Connector::Sanlammultidata => Ok(ConnectorEnum::Old(Box::new(
+                    connector::Sanlammultidata::new(),
+                ))),
                 enums::Connector::Trustly => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Trustly::new())))
                 }
