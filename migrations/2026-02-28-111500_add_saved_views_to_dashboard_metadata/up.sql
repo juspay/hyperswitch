@@ -9,7 +9,7 @@ ALTER TYPE "DashboardMetadata" ADD VALUE IF NOT EXISTS 'payout_views';
 
 DROP INDEX IF EXISTS dashboard_metadata_index;
 
-CREATE UNIQUE INDEX dashboard_metadata_index_v2
+CREATE UNIQUE INDEX dashboard_metadata_index
 ON dashboard_metadata (
     COALESCE(user_id, '0'),
     merchant_id,
