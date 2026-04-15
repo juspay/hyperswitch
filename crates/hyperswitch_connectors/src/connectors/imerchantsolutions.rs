@@ -34,8 +34,8 @@ use hyperswitch_domain_models::{
 };
 use hyperswitch_interfaces::{
     api::{
-        self, ConnectorCommon, ConnectorCommonExt, ConnectorIntegration, ConnectorSpecifications,
-        ConnectorValidation,
+        self, CaptureSyncMethod, ConnectorCommon, ConnectorCommonExt, ConnectorIntegration,
+        ConnectorSpecifications, ConnectorValidation,
     },
     configs::Connectors,
     errors,
@@ -356,6 +356,12 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Ime
         event_builder: Option<&mut ConnectorEvent>,
     ) -> CustomResult<ErrorResponse, errors::ConnectorError> {
         self.build_error_response(res, event_builder)
+    }
+
+    fn get_multiple_capture_sync_method(
+        &self,
+    ) -> CustomResult<CaptureSyncMethod, errors::ConnectorError> {
+        Ok(CaptureSyncMethod::Individual)
     }
 }
 
