@@ -95,7 +95,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         #[cfg(feature = "pm_modular")] payment_method_with_raw_data: Option<
             pm_transformers::PaymentMethodWithRawData,
         >,
-        dimensions: &dimension_state::DimensionsWithMerchantId,
+        dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
     ) -> RouterResult<operations::GetTrackerResponse<'a, F, api::PaymentsRequest, PaymentData<F>>>
     {
         let processor_merchant_id = platform.get_processor().get_account().get_id();

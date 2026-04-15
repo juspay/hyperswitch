@@ -225,7 +225,7 @@ pub trait GetTracker<F: Clone, D, R>: Send {
         #[cfg(feature = "pm_modular")] payment_method_with_raw_data: Option<
             PaymentMethodWithRawData,
         >,
-        dimensions: &dimension_state::DimensionsWithMerchantId,
+        dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
     ) -> RouterResult<GetTrackerResponse<'a, F, R, D>>;
 
     #[cfg(feature = "v2")]
@@ -281,7 +281,7 @@ pub trait Domain<F: Clone, R, D>: Send + Sync {
         request: Option<CustomerDetails>,
         provider: &domain::Provider,
         initiator: Option<&domain::Initiator>,
-        _dimensions: &dimension_state::&dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
+        _dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
         _mandate_type: Option<api::MandateTransactionType>,
     ) -> CustomResult<(BoxedOperation<'a, F, R, D>, Option<domain::Customer>), errors::StorageError>;
 

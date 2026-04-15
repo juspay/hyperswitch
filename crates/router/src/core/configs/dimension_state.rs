@@ -24,8 +24,6 @@ pub enum DimensionError {
     MissingPayoutRetryType,
     #[error("payment_method not available in dimension state")]
     MissingPaymentMethod,
-    #[error("connector not available in dimension state")]
-    MissingConnector,
 }
 
 /// Marker for state WITHOUT provider_merchant_id
@@ -106,28 +104,26 @@ pub struct HasPaymentMethod;
 /// * `Cn` - Connector type: `HasConnector` (present) or `NoConnector` (absent)
 /// * `Pmt` - Payment method type: `HasPaymentMethodType` (present) or `NoPaymentMethodType` (absent)
 /// * `Pr` - Payout retry type: `HasPayoutRetryType` (present) or `NoPayoutRetryType` (absent)
-/// * `Pm` - Payment method type: `HasPaymentMethod` (present) or `NoPaymentMethod` (absent)
+/// * `Pym` - Payment method: `HasPaymentMethod` (present) or `NoPaymentMethod` (absent)
 #[derive(Clone)]
-/// * `Cn` - Connector type: `HasConnector` (present) or `NoConnector` (absent)
-#[derive(Clone)]
-pub struct Dimensions<Pm, M, O, P, Cn, Pmt, Pr, Pm, Cn> {
+pub struct Dimensions<Pm, M, O, P, Cn, Pmt, Pr, Pym> {
     provider_merchant_id: Option<ProviderMerchantId>,
     processor_merchant_id: Option<ProcessorMerchantId>,
     organization_id: Option<id_type::OrganizationId>,
     profile_id: Option<id_type::ProfileId>,
     connector: Option<Connector>,
-    connector: Option<Connector>,
     payment_method_type: Option<PaymentMethodType>,
     payout_retry_type: Option<PayoutRetryType>,
     payment_method: Option<PaymentMethod>,
-    _phantom: PhantomData<(Pm, M, O, P, Cn, Pmt, Pr, Pm, Cn)>,
+    _phantom: PhantomData<(Pm, M, O, P, Cn, Pmt, Pr, Pym)>,
 }
 
 impl
     Dimensions<
-        NoProviderMerchantId, NoProcessorMerchantId,
+        NoProviderMerchantId,
+        NoProcessorMerchantId,
         NoOrgId,
-        NoProfileId, NoConnector,
+        NoProfileId,
         NoConnector,
         NoPaymentMethodType,
         NoPayoutRetryType,
@@ -141,24 +137,6 @@ impl
             organization_id: None,
             profile_id: None,
             connector: None,
-            _phantom: PhantomData,
-        }
-    }
-}
-
-/// Can only add provider_merchant_id if not already present
-impl<M, O, P, Cn> Dimensions<NoProviderMerchantId, M, O, P, Cn> {
-    pub fn with_provider_merchant_id(
-        &self,
-        id: ProviderMerchantId,
-    ) -> Dimensions<HasProviderMerchantId, M, O, P, Cn> {
-        Dimensions {
-            provider_merchant_id: Some(id),
-            processor_merchant_id: self.processor_merchant_id.clone(),
-            organization_id: self.organization_id.clone(),
-            profile_id: self.profile_id.clone(),
-            connector: self.connector,
-            connector: None,
             payment_method_type: None,
             payout_retry_type: None,
             payment_method: None,
@@ -167,21 +145,37 @@ impl<M, O, P, Cn> Dimensions<NoProviderMerchantId, M, O, P, Cn> {
     }
 }
 
-/// Can only add processor_merchant_id if not already present
-impl<Pm, O, P, Cn, Cn, Pmt, Pr, Pm> Dimensions<Pm, NoProcessorMerchantId, O, P, Cn, Cn, Pmt, Pr, Pm> {
-    pub fn with_processor_merchant_id(
-        &
+/// Can only add provider_merchant_id if not already present
+impl<M, O, P, Cn, Pmt, Pr, Pym> Dimensions<NoProviderMerchantId, M, O, P, Cn, Pmt, Pr, Pym> {
+    pub fn with_provider_merchant_id(
         &self,
-       
+        id: ProviderMerchantId,
+    ) -> Dimensions<HasProviderMerchantId, M, O, P, Cn, Pmt, Pr, Pym> {
+        Dimensions {
+            provider_merchant_id: Some(id),
+            processor_merchant_id: self.processor_merchant_id.clone(),
+            organization_id: self.organization_id.clone(),
+            profile_id: self.profile_id.clone(),
+            connector: self.connector,
+            payment_method_type: self.payment_method_type,
+            payout_retry_type: self.payout_retry_type.clone(),
+            payment_method: self.payment_method,
+            _phantom: PhantomData,
+        }
+    }
+}
+
+/// Can only add processor_merchant_id if not already present
+impl<Pm, O, P, Cn, Pmt, Pr, Pym> Dimensions<Pm, NoProcessorMerchantId, O, P, Cn, Pmt, Pr, Pym> {
+    pub fn with_processor_merchant_id(
+        &self,
         id: ProcessorMerchantId,
-    ,
-    ) -> Dimensions<Pm, HasProcessorMerchantId, O, P, Cn, Cn, Pmt, Pr, Pm> {
+    ) -> Dimensions<Pm, HasProcessorMerchantId, O, P, Cn, Pmt, Pr, Pym> {
         Dimensions {
             provider_merchant_id: self.provider_merchant_id.clone(),
             processor_merchant_id: Some(id),
-            organization_id: self.organization_id.clone().clone(),
+            organization_id: self.organization_id.clone(),
             profile_id: self.profile_id.clone(),
-            connector: self.connector.clone(),
             connector: self.connector,
             payment_method_type: self.payment_method_type,
             payout_retry_type: self.payout_retry_type.clone(),
@@ -192,20 +186,16 @@ impl<Pm, O, P, Cn, Cn, Pmt, Pr, Pm> Dimensions<Pm, NoProcessorMerchantId, O, P, 
 }
 
 /// Can only add organization_id if not already present
-impl<Pm, M, P, Cn, Cn, Pmt, Pr, Pm> Dimensions<Pm, M, NoOrgId, P, Cn, Cn, Pmt, Pr, Pm> {
+impl<Pm, M, P, Cn, Pmt, Pr, Pym> Dimensions<Pm, M, NoOrgId, P, Cn, Pmt, Pr, Pym> {
     pub fn with_organization_id(
-        &
         &self,
-       
         id: id_type::OrganizationId,
-    ,
-    ) -> Dimensions<Pm, M, HasOrgId, P, Cn, Cn, Pmt, Pr, Pm> {
+    ) -> Dimensions<Pm, M, HasOrgId, P, Cn, Pmt, Pr, Pym> {
         Dimensions {
             provider_merchant_id: self.provider_merchant_id.clone(),
-            processor_merchant_id: self.processor_merchant_id.clone().clone(),
+            processor_merchant_id: self.processor_merchant_id.clone(),
             organization_id: Some(id),
             profile_id: self.profile_id.clone(),
-            connector: self.connector.clone(),
             connector: self.connector,
             payment_method_type: self.payment_method_type,
             payout_retry_type: self.payout_retry_type.clone(),
@@ -216,104 +206,16 @@ impl<Pm, M, P, Cn, Cn, Pmt, Pr, Pm> Dimensions<Pm, M, NoOrgId, P, Cn, Cn, Pmt, P
 }
 
 /// Can only add profile_id if not already present
-impl<Pm, M, O, Cn, Cn, Pmt, Pr, Pm> Dimensions<Pm, M, O, NoProfileId, Cn, Cn, Pmt, Pr, Pm> {
+impl<Pm, M, O, Cn, Pmt, Pr, Pym> Dimensions<Pm, M, O, NoProfileId, Cn, Pmt, Pr, Pym> {
     pub fn with_profile_id(
-        &
         &self,
-       
         id: id_type::ProfileId,
-    ,
-    ) -> Dimensions<Pm, M, O, HasProfileId, Cn, Cn, Pmt, Pr, Pm> {
+    ) -> Dimensions<Pm, M, O, HasProfileId, Cn, Pmt, Pr, Pym> {
         Dimensions {
             provider_merchant_id: self.provider_merchant_id.clone(),
-            processor_merchant_id: self.processor_merchant_id.clone().clone(),
-            organization_id: self.organization_id.clone().clone(),
+            processor_merchant_id: self.processor_merchant_id.clone(),
+            organization_id: self.organization_id.clone(),
             profile_id: Some(id),
-            connector: self.connector,
-            _phantom: PhantomData,
-        }
-    }
-}
-
-/// Can only add connector if not already present
-impl<Pm, M, O, P> Dimensions<Pm, M, O, P, NoConnector> {
-    pub fn with_connector(&self, connector: Connector) -> Dimensions<Pm, M, O, P, HasConnector> {
-        Dimensions {
-            provider_merchant_id: self.provider_merchant_id.clone(),
-            processor_merchant_id: self.processor_merchant_id.clone(),
-            organization_id: self.organization_id.clone(),
-            profile_id: self.profile_id.clone(),
-            connector: Some(connector),
-            _phantom: PhantomData,
-        }
-    }
-}
-
-/// Can only remove provider_merchant_id if currently present
-impl<M, O, P, Cn> Dimensions<HasProviderMerchantId, M, O, P, Cn> {
-    pub fn without_provider_merchant_id(&self) -> Dimensions<NoProviderMerchantId, M, O, P, Cn> {
-        Dimensions {
-            provider_merchant_id: None,
-            processor_merchant_id: self.processor_merchant_id.clone(),
-            organization_id: self.organization_id.clone(),
-            profile_id: self.profile_id.clone(),
-            connector: self.connector,
-            _phantom: PhantomData,
-        }
-    }
-}
-
-/// Can only remove processor_merchant_id if currently present
-impl<Pm, O, P, Cn> Dimensions<Pm, HasProcessorMerchantId, O, P, Cn> {
-    pub fn without_processor_merchant_id(&self) -> Dimensions<Pm, NoProcessorMerchantId, O, P, Cn> {
-        Dimensions {
-            provider_merchant_id: self.provider_merchant_id.clone(),
-            processor_merchant_id: None,
-            organization_id: self.organization_id.clone(),
-            profile_id: self.profile_id.clone(),
-            connector: self.connector,
-            _phantom: PhantomData,
-        }
-    }
-}
-
-/// Can only remove organization_id if currently present
-impl<Pm, M, P, Cn> Dimensions<Pm, M, HasOrgId, P, Cn> {
-    pub fn without_organization_id(&self) -> Dimensions<Pm, M, NoOrgId, P, Cn> {
-        Dimensions {
-            provider_merchant_id: self.provider_merchant_id.clone(),
-            processor_merchant_id: self.processor_merchant_id.clone(),
-            organization_id: None,
-            profile_id: self.profile_id.clone(),
-            connector: self.connector,
-            _phantom: PhantomData,
-        }
-    }
-}
-
-/// Can only remove profile_id if currently present
-impl<Pm, M, O, Cn> Dimensions<Pm, M, O, HasProfileId, Cn> {
-    pub fn without_profile_id(&self) -> Dimensions<Pm, M, O, NoProfileId, Cn> {
-        Dimensions {
-            provider_merchant_id: self.provider_merchant_id.clone(),
-            processor_merchant_id: self.processor_merchant_id.clone(),
-            organization_id: self.organization_id.clone(),
-            profile_id: None,
-            connector: self.connector,
-            _phantom: PhantomData,
-        }
-    }
-}
-
-/// Can only remove connector if currently present
-impl<Pm, M, O, P> Dimensions<Pm, M, O, P, HasConnector> {
-    pub fn without_connector(&self) -> Dimensions<Pm, M, O, P, NoConnector> {
-        Dimensions {
-            provider_merchant_id: self.provider_merchant_id.clone(),
-            processor_merchant_id: self.processor_merchant_id.clone(),
-            organization_id: self.organization_id.clone(),
-            profile_id: self.profile_id.clone(),
-            connector: None,
             connector: self.connector,
             payment_method_type: self.payment_method_type,
             payout_retry_type: self.payout_retry_type.clone(),
@@ -324,13 +226,14 @@ impl<Pm, M, O, P> Dimensions<Pm, M, O, P, HasConnector> {
 }
 
 /// Can only add connector if not already present
-impl<M, O, P, Pmt, Pr, Pm> Dimensions<M, O, P, NoConnector, Pmt, Pr, Pm> {
+impl<Pm, M, O, P, Pmt, Pr, Pym> Dimensions<Pm, M, O, P, NoConnector, Pmt, Pr, Pym> {
     pub fn with_connector(
         &self,
         connector: Connector,
-    ) -> Dimensions<M, O, P, HasConnector, Pmt, Pr, Pm> {
+    ) -> Dimensions<Pm, M, O, P, HasConnector, Pmt, Pr, Pym> {
         Dimensions {
-            merchant_id: self.merchant_id.clone(),
+            provider_merchant_id: self.provider_merchant_id.clone(),
+            processor_merchant_id: self.processor_merchant_id.clone(),
             organization_id: self.organization_id.clone(),
             profile_id: self.profile_id.clone(),
             connector: Some(connector),
@@ -343,13 +246,14 @@ impl<M, O, P, Pmt, Pr, Pm> Dimensions<M, O, P, NoConnector, Pmt, Pr, Pm> {
 }
 
 /// Can only add payment_method_type if not already present
-impl<M, O, P, Cn, Pr, Pm> Dimensions<M, O, P, Cn, NoPaymentMethodType, Pr, Pm> {
+impl<Pm, M, O, P, Cn, Pr, Pym> Dimensions<Pm, M, O, P, Cn, NoPaymentMethodType, Pr, Pym> {
     pub fn with_payment_method_type(
         &self,
         pmt: PaymentMethodType,
-    ) -> Dimensions<M, O, P, Cn, HasPaymentMethodType, Pr, Pm> {
+    ) -> Dimensions<Pm, M, O, P, Cn, HasPaymentMethodType, Pr, Pym> {
         Dimensions {
-            merchant_id: self.merchant_id.clone(),
+            provider_merchant_id: self.provider_merchant_id.clone(),
+            processor_merchant_id: self.processor_merchant_id.clone(),
             organization_id: self.organization_id.clone(),
             profile_id: self.profile_id.clone(),
             connector: self.connector,
@@ -362,13 +266,14 @@ impl<M, O, P, Cn, Pr, Pm> Dimensions<M, O, P, Cn, NoPaymentMethodType, Pr, Pm> {
 }
 
 /// Can only add payout_retry_type if not already present
-impl<M, O, P, Cn, Pmt, Pm> Dimensions<M, O, P, Cn, Pmt, NoPayoutRetryType, Pm> {
+impl<Pm, M, O, P, Cn, Pmt, Pym> Dimensions<Pm, M, O, P, Cn, Pmt, NoPayoutRetryType, Pym> {
     pub fn with_payout_retry_type(
         &self,
         prt: PayoutRetryType,
-    ) -> Dimensions<M, O, P, Cn, Pmt, HasPayoutRetryType, Pm> {
+    ) -> Dimensions<Pm, M, O, P, Cn, Pmt, HasPayoutRetryType, Pym> {
         Dimensions {
-            merchant_id: self.merchant_id.clone(),
+            provider_merchant_id: self.provider_merchant_id.clone(),
+            processor_merchant_id: self.processor_merchant_id.clone(),
             organization_id: self.organization_id.clone(),
             profile_id: self.profile_id.clone(),
             connector: self.connector,
@@ -381,13 +286,14 @@ impl<M, O, P, Cn, Pmt, Pm> Dimensions<M, O, P, Cn, Pmt, NoPayoutRetryType, Pm> {
 }
 
 /// Can only add payment_method if not already present
-impl<M, O, P, Cn, Pmt, Pr> Dimensions<M, O, P, Cn, Pmt, Pr, NoPaymentMethod> {
+impl<Pm, M, O, P, Cn, Pmt, Pr> Dimensions<Pm, M, O, P, Cn, Pmt, Pr, NoPaymentMethod> {
     pub fn with_payment_method(
         &self,
         pm: PaymentMethod,
-    ) -> Dimensions<M, O, P, Cn, Pmt, Pr, HasPaymentMethod> {
+    ) -> Dimensions<Pm, M, O, P, Cn, Pmt, Pr, HasPaymentMethod> {
         Dimensions {
-            merchant_id: self.merchant_id.clone(),
+            provider_merchant_id: self.provider_merchant_id.clone(),
+            processor_merchant_id: self.processor_merchant_id.clone(),
             organization_id: self.organization_id.clone(),
             profile_id: self.profile_id.clone(),
             connector: self.connector,
@@ -399,11 +305,33 @@ impl<M, O, P, Cn, Pmt, Pr> Dimensions<M, O, P, Cn, Pmt, Pr, NoPaymentMethod> {
     }
 }
 
-/// Can only remove merchant_id if currently present
-impl<O, P, Cn, Pmt, Pr, Pm> Dimensions<HasMerchantId, O, P, Cn, Pmt, Pr, Pm> {
-    pub fn without_merchant_id(&self) -> Dimensions<NoMerchantId, O, P, Cn, Pmt, Pr, Pm> {
+/// Can only remove provider_merchant_id if currently present
+impl<M, O, P, Cn, Pmt, Pr, Pym> Dimensions<HasProviderMerchantId, M, O, P, Cn, Pmt, Pr, Pym> {
+    pub fn without_provider_merchant_id(
+        &self,
+    ) -> Dimensions<NoProviderMerchantId, M, O, P, Cn, Pmt, Pr, Pym> {
         Dimensions {
-            merchant_id: None,
+            provider_merchant_id: None,
+            processor_merchant_id: self.processor_merchant_id.clone(),
+            organization_id: self.organization_id.clone(),
+            profile_id: self.profile_id.clone(),
+            connector: self.connector,
+            payment_method_type: self.payment_method_type,
+            payout_retry_type: self.payout_retry_type.clone(),
+            payment_method: self.payment_method,
+            _phantom: PhantomData,
+        }
+    }
+}
+
+/// Can only remove processor_merchant_id if currently present
+impl<Pm, O, P, Cn, Pmt, Pr, Pym> Dimensions<Pm, HasProcessorMerchantId, O, P, Cn, Pmt, Pr, Pym> {
+    pub fn without_processor_merchant_id(
+        &self,
+    ) -> Dimensions<Pm, NoProcessorMerchantId, O, P, Cn, Pmt, Pr, Pym> {
+        Dimensions {
+            provider_merchant_id: self.provider_merchant_id.clone(),
+            processor_merchant_id: None,
             organization_id: self.organization_id.clone(),
             profile_id: self.profile_id.clone(),
             connector: self.connector,
@@ -416,10 +344,11 @@ impl<O, P, Cn, Pmt, Pr, Pm> Dimensions<HasMerchantId, O, P, Cn, Pmt, Pr, Pm> {
 }
 
 /// Can only remove organization_id if currently present
-impl<M, P, Cn, Pmt, Pr, Pm> Dimensions<M, HasOrgId, P, Cn, Pmt, Pr, Pm> {
-    pub fn without_organization_id(&self) -> Dimensions<M, NoOrgId, P, Cn, Pmt, Pr, Pm> {
+impl<Pm, M, P, Cn, Pmt, Pr, Pym> Dimensions<Pm, M, HasOrgId, P, Cn, Pmt, Pr, Pym> {
+    pub fn without_organization_id(&self) -> Dimensions<Pm, M, NoOrgId, P, Cn, Pmt, Pr, Pym> {
         Dimensions {
-            merchant_id: self.merchant_id.clone(),
+            provider_merchant_id: self.provider_merchant_id.clone(),
+            processor_merchant_id: self.processor_merchant_id.clone(),
             organization_id: None,
             profile_id: self.profile_id.clone(),
             connector: self.connector,
@@ -432,10 +361,11 @@ impl<M, P, Cn, Pmt, Pr, Pm> Dimensions<M, HasOrgId, P, Cn, Pmt, Pr, Pm> {
 }
 
 /// Can only remove profile_id if currently present
-impl<M, O, Cn, Pmt, Pr, Pm> Dimensions<M, O, HasProfileId, Cn, Pmt, Pr, Pm> {
-    pub fn without_profile_id(&self) -> Dimensions<M, O, NoProfileId, Cn, Pmt, Pr, Pm> {
+impl<Pm, M, O, Cn, Pmt, Pr, Pym> Dimensions<Pm, M, O, HasProfileId, Cn, Pmt, Pr, Pym> {
+    pub fn without_profile_id(&self) -> Dimensions<Pm, M, O, NoProfileId, Cn, Pmt, Pr, Pym> {
         Dimensions {
-            merchant_id: self.merchant_id.clone(),
+            provider_merchant_id: self.provider_merchant_id.clone(),
+            processor_merchant_id: self.processor_merchant_id.clone(),
             organization_id: self.organization_id.clone(),
             profile_id: None,
             connector: self.connector,
@@ -448,10 +378,11 @@ impl<M, O, Cn, Pmt, Pr, Pm> Dimensions<M, O, HasProfileId, Cn, Pmt, Pr, Pm> {
 }
 
 /// Can only remove connector if currently present
-impl<M, O, P, Pmt, Pr, Pm> Dimensions<M, O, P, HasConnector, Pmt, Pr, Pm> {
-    pub fn without_connector(&self) -> Dimensions<M, O, P, NoConnector, Pmt, Pr, Pm> {
+impl<Pm, M, O, P, Pmt, Pr, Pym> Dimensions<Pm, M, O, P, HasConnector, Pmt, Pr, Pym> {
+    pub fn without_connector(&self) -> Dimensions<Pm, M, O, P, NoConnector, Pmt, Pr, Pym> {
         Dimensions {
-            merchant_id: self.merchant_id.clone(),
+            provider_merchant_id: self.provider_merchant_id.clone(),
+            processor_merchant_id: self.processor_merchant_id.clone(),
             organization_id: self.organization_id.clone(),
             profile_id: self.profile_id.clone(),
             connector: None,
@@ -464,12 +395,13 @@ impl<M, O, P, Pmt, Pr, Pm> Dimensions<M, O, P, HasConnector, Pmt, Pr, Pm> {
 }
 
 /// Can only remove payment_method_type if currently present
-impl<M, O, P, Cn, Pr, Pm> Dimensions<M, O, P, Cn, HasPaymentMethodType, Pr, Pm> {
+impl<Pm, M, O, P, Cn, Pr, Pym> Dimensions<Pm, M, O, P, Cn, HasPaymentMethodType, Pr, Pym> {
     pub fn without_payment_method_type(
         &self,
-    ) -> Dimensions<M, O, P, Cn, NoPaymentMethodType, Pr, Pm> {
+    ) -> Dimensions<Pm, M, O, P, Cn, NoPaymentMethodType, Pr, Pym> {
         Dimensions {
-            merchant_id: self.merchant_id.clone(),
+            provider_merchant_id: self.provider_merchant_id.clone(),
+            processor_merchant_id: self.processor_merchant_id.clone(),
             organization_id: self.organization_id.clone(),
             profile_id: self.profile_id.clone(),
             connector: self.connector,
@@ -482,12 +414,13 @@ impl<M, O, P, Cn, Pr, Pm> Dimensions<M, O, P, Cn, HasPaymentMethodType, Pr, Pm> 
 }
 
 /// Can only remove payout_retry_type if currently present
-impl<M, O, P, Cn, Pmt, Pm> Dimensions<M, O, P, Cn, Pmt, HasPayoutRetryType, Pm> {
+impl<Pm, M, O, P, Cn, Pmt, Pym> Dimensions<Pm, M, O, P, Cn, Pmt, HasPayoutRetryType, Pym> {
     pub fn without_payout_retry_type(
         &self,
-    ) -> Dimensions<M, O, P, Cn, Pmt, NoPayoutRetryType, Pm> {
+    ) -> Dimensions<Pm, M, O, P, Cn, Pmt, NoPayoutRetryType, Pym> {
         Dimensions {
-            merchant_id: self.merchant_id.clone(),
+            provider_merchant_id: self.provider_merchant_id.clone(),
+            processor_merchant_id: self.processor_merchant_id.clone(),
             organization_id: self.organization_id.clone(),
             profile_id: self.profile_id.clone(),
             connector: self.connector,
@@ -500,10 +433,13 @@ impl<M, O, P, Cn, Pmt, Pm> Dimensions<M, O, P, Cn, Pmt, HasPayoutRetryType, Pm> 
 }
 
 /// Can only remove payment_method if currently present
-impl<M, O, P, Cn, Pmt, Pr> Dimensions<M, O, P, Cn, Pmt, Pr, HasPaymentMethod> {
-    pub fn without_payment_method(&self) -> Dimensions<M, O, P, Cn, Pmt, Pr, NoPaymentMethod> {
+impl<Pm, M, O, P, Cn, Pmt, Pr> Dimensions<Pm, M, O, P, Cn, Pmt, Pr, HasPaymentMethod> {
+    pub fn without_payment_method(
+        &self,
+    ) -> Dimensions<Pm, M, O, P, Cn, Pmt, Pr, NoPaymentMethod> {
         Dimensions {
-            merchant_id: self.merchant_id.clone(),
+            provider_merchant_id: self.provider_merchant_id.clone(),
+            processor_merchant_id: self.processor_merchant_id.clone(),
             organization_id: self.organization_id.clone(),
             profile_id: self.profile_id.clone(),
             connector: self.connector,
@@ -516,7 +452,7 @@ impl<M, O, P, Cn, Pmt, Pr> Dimensions<M, O, P, Cn, Pmt, Pr, HasPaymentMethod> {
 }
 
 /// provider_merchant_id getter - only available if HasProviderMerchantId
-impl<M, O, P, Cn, Cn, Pmt, Pr, Pm> Dimensions<HasProviderMerchantId, M, O, P, Cn, Cn, Pmt, Pr, Pm> {
+impl<M, O, P, Cn, Pmt, Pr, Pym> Dimensions<HasProviderMerchantId, M, O, P, Cn, Pmt, Pr, Pym> {
     pub fn provider_merchant_id(&self) -> Result<&id_type::MerchantId, DimensionError> {
         self.provider_merchant_id
             .as_ref()
@@ -526,7 +462,7 @@ impl<M, O, P, Cn, Cn, Pmt, Pr, Pm> Dimensions<HasProviderMerchantId, M, O, P, Cn
 }
 
 /// processor_merchant_id getter - only available if HasProcessorMerchantId
-impl<Pm, O, P, Cn> Dimensions<Pm, HasProcessorMerchantId, O, P, Cn> {
+impl<Pm, O, P, Cn, Pmt, Pr, Pym> Dimensions<Pm, HasProcessorMerchantId, O, P, Cn, Pmt, Pr, Pym> {
     pub fn processor_merchant_id(&self) -> Result<&id_type::MerchantId, DimensionError> {
         self.processor_merchant_id
             .as_ref()
@@ -536,7 +472,7 @@ impl<Pm, O, P, Cn> Dimensions<Pm, HasProcessorMerchantId, O, P, Cn> {
 }
 
 /// organization_id getter - only available if HasOrgId
-impl<Pm, M, P, Cn, Cn, Pmt, Pr, Pm> Dimensions<Pm, M, HasOrgId, P, Cn, Cn, Pmt, Pr, Pm> {
+impl<Pm, M, P, Cn, Pmt, Pr, Pym> Dimensions<Pm, M, HasOrgId, P, Cn, Pmt, Pr, Pym> {
     pub fn organization_id(&self) -> Result<&id_type::OrganizationId, DimensionError> {
         self.organization_id
             .as_ref()
@@ -545,7 +481,7 @@ impl<Pm, M, P, Cn, Cn, Pmt, Pr, Pm> Dimensions<Pm, M, HasOrgId, P, Cn, Cn, Pmt, 
 }
 
 /// profile_id getter - only available if HasProfileId
-impl<Pm, M, O, Cn, Cn, Pmt, Pr, Pm> Dimensions<Pm, M, O, HasProfileId, Cn, Cn, Pmt, Pr, Pm> {
+impl<Pm, M, O, Cn, Pmt, Pr, Pym> Dimensions<Pm, M, O, HasProfileId, Cn, Pmt, Pr, Pym> {
     pub fn profile_id(&self) -> Result<&id_type::ProfileId, DimensionError> {
         self.profile_id
             .as_ref()
@@ -554,21 +490,14 @@ impl<Pm, M, O, Cn, Cn, Pmt, Pr, Pm> Dimensions<Pm, M, O, HasProfileId, Cn, Cn, P
 }
 
 /// connector getter - only available if HasConnector
-impl<Pm, M, O, P> Dimensions<Pm, M, O, P, HasConnector> {
-    pub fn connector(&self) -> Result<Connector, DimensionError> {
-        self.connector.ok_or(DimensionError::MissingConnector)
-    }
-}
-
-/// connector getter - only available if HasConnector
-impl<M, O, P, Pmt, Pr, Pm> Dimensions<M, O, P, HasConnector, Pmt, Pr, Pm> {
+impl<Pm, M, O, P, Pmt, Pr, Pym> Dimensions<Pm, M, O, P, HasConnector, Pmt, Pr, Pym> {
     pub fn connector(&self) -> Result<Connector, DimensionError> {
         self.connector.ok_or(DimensionError::MissingConnector)
     }
 }
 
 /// payment_method_type getter - only available if HasPaymentMethodType
-impl<M, O, P, Cn, Pr, Pm> Dimensions<M, O, P, Cn, HasPaymentMethodType, Pr, Pm> {
+impl<Pm, M, O, P, Cn, Pr, Pym> Dimensions<Pm, M, O, P, Cn, HasPaymentMethodType, Pr, Pym> {
     pub fn payment_method_type(&self) -> Result<PaymentMethodType, DimensionError> {
         self.payment_method_type
             .ok_or(DimensionError::MissingPaymentMethodType)
@@ -576,7 +505,7 @@ impl<M, O, P, Cn, Pr, Pm> Dimensions<M, O, P, Cn, HasPaymentMethodType, Pr, Pm> 
 }
 
 /// payout_retry_type getter - only available if HasPayoutRetryType
-impl<M, O, P, Cn, Pmt, Pm> Dimensions<M, O, P, Cn, Pmt, HasPayoutRetryType, Pm> {
+impl<Pm, M, O, P, Cn, Pmt, Pym> Dimensions<Pm, M, O, P, Cn, Pmt, HasPayoutRetryType, Pym> {
     pub fn payout_retry_type(&self) -> Result<PayoutRetryType, DimensionError> {
         self.payout_retry_type
             .clone()
@@ -585,7 +514,7 @@ impl<M, O, P, Cn, Pmt, Pm> Dimensions<M, O, P, Cn, Pmt, HasPayoutRetryType, Pm> 
 }
 
 /// payment_method getter - only available if HasPaymentMethod
-impl<M, O, P, Cn, Pmt, Pr> Dimensions<M, O, P, Cn, Pmt, Pr, HasPaymentMethod> {
+impl<Pm, M, O, P, Cn, Pmt, Pr> Dimensions<Pm, M, O, P, Cn, Pmt, Pr, HasPaymentMethod> {
     pub fn payment_method(&self) -> Result<PaymentMethod, DimensionError> {
         self.payment_method
             .ok_or(DimensionError::MissingPaymentMethod)
@@ -593,7 +522,7 @@ impl<M, O, P, Cn, Pmt, Pr> Dimensions<M, O, P, Cn, Pmt, Pr, HasPaymentMethod> {
 }
 
 // Optional getters (available in any state)
-impl<Pm, M, O, P, Cn, Cn, Pmt, Pr, Pm> Dimensions<Pm, M, O, P, Cn, Cn, Pmt, Pr, Pm> {
+impl<Pm, M, O, P, Cn, Pmt, Pr, Pym> Dimensions<Pm, M, O, P, Cn, Pmt, Pr, Pym> {
     pub fn get_provider_merchant_id(&self) -> Option<&id_type::MerchantId> {
         self.provider_merchant_id.as_ref().map(|id| id.inner())
     }
@@ -614,10 +543,6 @@ impl<Pm, M, O, P, Cn, Cn, Pmt, Pr, Pm> Dimensions<Pm, M, O, P, Cn, Cn, Pmt, Pr, 
         self.connector
     }
 
-    pub fn get_connector(&self) -> Option<Connector> {
-        self.connector
-    }
-
     pub fn get_payment_method_type(&self) -> Option<PaymentMethodType> {
         self.payment_method_type
     }
@@ -632,7 +557,7 @@ impl<Pm, M, O, P, Cn, Cn, Pmt, Pr, Pm> Dimensions<Pm, M, O, P, Cn, Cn, Pmt, Pr, 
 }
 
 // Superposition context conversion
-impl<Pm, M, O, P, Cn, Cn, Pmt, Pr, Pm> Dimensions<Pm, M, O, P, Cn, Cn, Pmt, Pr, Pm> {
+impl<Pm, M, O, P, Cn, Pmt, Pr, Pym> Dimensions<Pm, M, O, P, Cn, Pmt, Pr, Pym> {
     /// Converts dimension state to Superposition config context
     pub fn to_superposition_context(&self) -> Option<superposition::ConfigContext> {
         let mut ctx = superposition::ConfigContext::new();
@@ -655,9 +580,6 @@ impl<Pm, M, O, P, Cn, Cn, Pmt, Pr, Pm> Dimensions<Pm, M, O, P, Cn, Cn, Pmt, Pr, 
             ctx = ctx.with("connector", conn.to_string().as_str());
         }
 
-        if let Some(conn) = self.connector {
-            ctx = ctx.with("connector", conn.to_string().as_str());
-        }
         if let Some(pmt) = self.payment_method_type {
             ctx = ctx.with("payment_method_type", pmt.to_string().as_str());
         }
@@ -673,7 +595,16 @@ impl<Pm, M, O, P, Cn, Cn, Pmt, Pr, Pm> Dimensions<Pm, M, O, P, Cn, Cn, Pmt, Pr, 
 }
 
 impl Default
-    for Dimensions<NoProviderMerchantId, NoProcessorMerchantId, NoOrgId, NoProfileId, NoConnector>
+    for Dimensions<
+        NoProviderMerchantId,
+        NoProcessorMerchantId,
+        NoOrgId,
+        NoProfileId,
+        NoConnector,
+        NoPaymentMethodType,
+        NoPayoutRetryType,
+        NoPaymentMethod,
+    >
 {
     fn default() -> Self {
         Self::new()
@@ -700,9 +631,6 @@ pub trait DimensionsBase {
     /// Get connector (if available)
     fn get_connector(&self) -> Option<Connector>;
 
-    /// Get connector (if available)
-    fn get_connector(&self) -> Option<Connector>;
-
     /// Get payment_method_type (if available)
     fn get_payment_method_type(&self) -> Option<PaymentMethodType>;
 
@@ -713,7 +641,7 @@ pub trait DimensionsBase {
     fn get_payment_method(&self) -> Option<PaymentMethod>;
 }
 
-impl<Pm, M, O, P, Cn, Cn, Pmt, Pr, Pm> DimensionsBase for Dimensions<Pm, M, O, P, Cn, Cn, Pmt, Pr, Pm> {
+impl<Pm, M, O, P, Cn, Pmt, Pr, Pym> DimensionsBase for Dimensions<Pm, M, O, P, Cn, Pmt, Pr, Pym> {
     fn to_superposition_context(&self) -> Option<superposition::ConfigContext> {
         self.to_superposition_context()
     }
@@ -751,8 +679,9 @@ impl<Pm, M, O, P, Cn, Cn, Pmt, Pr, Pm> DimensionsBase for Dimensions<Pm, M, O, P
     }
 }
 
-pub type DimensionsWithMerchantId = Dimensions<
-    HasMerchantId,
+pub type DimensionsWithProviderMerchantId = Dimensions<
+    HasProviderMerchantId,
+    NoProcessorMerchantId,
     NoOrgId,
     NoProfileId,
     NoConnector,
@@ -760,8 +689,9 @@ pub type DimensionsWithMerchantId = Dimensions<
     NoPayoutRetryType,
     NoPaymentMethod,
 >;
-pub type DimensionsWithOrgIdAndMerchantId = Dimensions<
-    HasMerchantId,
+pub type DimensionsWithProviderMerchantIdAndOrgId = Dimensions<
+    HasProviderMerchantId,
+    NoProcessorMerchantId,
     HasOrgId,
     NoProfileId,
     NoConnector,
@@ -769,8 +699,9 @@ pub type DimensionsWithOrgIdAndMerchantId = Dimensions<
     NoPayoutRetryType,
     NoPaymentMethod,
 >;
-pub type DimensionsWithOrgIdAndMerchantIdAndProfileId = Dimensions<
-    HasMerchantId,
+pub type DimensionsWithProviderMerchantIdAndOrgIdAndProfileId = Dimensions<
+    HasProviderMerchantId,
+    NoProcessorMerchantId,
     HasOrgId,
     HasProfileId,
     NoConnector,
@@ -778,8 +709,9 @@ pub type DimensionsWithOrgIdAndMerchantIdAndProfileId = Dimensions<
     NoPayoutRetryType,
     NoPaymentMethod,
 >;
-pub type DimensionsWithMerchantIdAndProfileId = Dimensions<
-    HasMerchantId,
+pub type DimensionsWithProviderMerchantIdAndProfileId = Dimensions<
+    HasProviderMerchantId,
+    NoProcessorMerchantId,
     NoOrgId,
     HasProfileId,
     NoConnector,
@@ -787,8 +719,9 @@ pub type DimensionsWithMerchantIdAndProfileId = Dimensions<
     NoPayoutRetryType,
     NoPaymentMethod,
 >;
-pub type DimensionsWithMerchantIdAndConnector = Dimensions<
-    HasMerchantId,
+pub type DimensionsWithProviderMerchantIdAndConnector = Dimensions<
+    HasProviderMerchantId,
+    NoProcessorMerchantId,
     NoOrgId,
     NoProfileId,
     HasConnector,
@@ -796,8 +729,9 @@ pub type DimensionsWithMerchantIdAndConnector = Dimensions<
     NoPayoutRetryType,
     NoPaymentMethod,
 >;
-pub type DimensionsWithMerchantIdAndProfileIdAndConnector = Dimensions<
-    HasMerchantId,
+pub type DimensionsWithProviderMerchantIdAndProfileIdAndConnector = Dimensions<
+    HasProviderMerchantId,
+    NoProcessorMerchantId,
     NoOrgId,
     HasProfileId,
     HasConnector,
@@ -805,8 +739,9 @@ pub type DimensionsWithMerchantIdAndProfileIdAndConnector = Dimensions<
     NoPayoutRetryType,
     NoPaymentMethod,
 >;
-pub type DimensionsWithMerchantIdAndPaymentMethodType = Dimensions<
-    HasMerchantId,
+pub type DimensionsWithProviderMerchantIdAndPaymentMethodType = Dimensions<
+    HasProviderMerchantId,
+    NoProcessorMerchantId,
     NoOrgId,
     NoProfileId,
     NoConnector,
@@ -814,8 +749,9 @@ pub type DimensionsWithMerchantIdAndPaymentMethodType = Dimensions<
     NoPayoutRetryType,
     NoPaymentMethod,
 >;
-pub type DimensionsWithMerchantIdAndProfileIdAndPaymentMethodType = Dimensions<
-    HasMerchantId,
+pub type DimensionsWithProviderMerchantIdAndProfileIdAndPaymentMethodType = Dimensions<
+    HasProviderMerchantId,
+    NoProcessorMerchantId,
     NoOrgId,
     HasProfileId,
     NoConnector,
@@ -823,8 +759,9 @@ pub type DimensionsWithMerchantIdAndProfileIdAndPaymentMethodType = Dimensions<
     NoPayoutRetryType,
     NoPaymentMethod,
 >;
-pub type DimensionsWithMerchantIdAndPayoutRetryType = Dimensions<
-    HasMerchantId,
+pub type DimensionsWithProviderMerchantIdAndPayoutRetryType = Dimensions<
+    HasProviderMerchantId,
+    NoProcessorMerchantId,
     NoOrgId,
     NoProfileId,
     NoConnector,
@@ -832,8 +769,9 @@ pub type DimensionsWithMerchantIdAndPayoutRetryType = Dimensions<
     HasPayoutRetryType,
     NoPaymentMethod,
 >;
-pub type DimensionsWithMerchantIdAndProfileIdAndPayoutRetryType = Dimensions<
-    HasMerchantId,
+pub type DimensionsWithProviderMerchantIdAndProfileIdAndPayoutRetryType = Dimensions<
+    HasProviderMerchantId,
+    NoProcessorMerchantId,
     NoOrgId,
     HasProfileId,
     NoConnector,
@@ -841,12 +779,105 @@ pub type DimensionsWithMerchantIdAndProfileIdAndPayoutRetryType = Dimensions<
     HasPayoutRetryType,
     NoPaymentMethod,
 >;
-pub type DimensionsWithMerchantIdAndProfileIdAndPaymentMethodAndPaymentMethodType = Dimensions<
-    HasMerchantId,
+pub type DimensionsWithProviderMerchantIdAndProfileIdAndPaymentMethodAndPaymentMethodType =
+    Dimensions<
+        HasProviderMerchantId,
+        NoProcessorMerchantId,
+        NoOrgId,
+        HasProfileId,
+        NoConnector,
+        HasPaymentMethodType,
+        NoPayoutRetryType,
+        HasPaymentMethod,
+    >;
+pub type DimensionsWithProcessorAndProviderMerchantId = Dimensions<
+    HasProviderMerchantId,
+    HasProcessorMerchantId,
+    NoOrgId,
+    NoProfileId,
+    NoConnector,
+    NoPaymentMethodType,
+    NoPayoutRetryType,
+    NoPaymentMethod,
+>;
+pub type DimensionsWithProcessorAndProviderMerchantIdAndProfileId = Dimensions<
+    HasProviderMerchantId,
+    HasProcessorMerchantId,
+    NoOrgId,
+    HasProfileId,
+    NoConnector,
+    NoPaymentMethodType,
+    NoPayoutRetryType,
+    NoPaymentMethod,
+>;
+pub type DimensionsWithProcessorAndProviderMerchantIdAndPayoutRetryType = Dimensions<
+    HasProviderMerchantId,
+    HasProcessorMerchantId,
+    NoOrgId,
+    NoProfileId,
+    NoConnector,
+    NoPaymentMethodType,
+    HasPayoutRetryType,
+    NoPaymentMethod,
+>;
+pub type DimensionsWithProcessorAndProviderMerchantIdAndProfileIdAndPayoutRetryType = Dimensions<
+    HasProviderMerchantId,
+    HasProcessorMerchantId,
+    NoOrgId,
+    HasProfileId,
+    NoConnector,
+    NoPaymentMethodType,
+    HasPayoutRetryType,
+    NoPaymentMethod,
+>;
+pub type DimensionsWithProcessorAndProviderMerchantIdAndOrgId = Dimensions<
+    HasProviderMerchantId,
+    HasProcessorMerchantId,
+    HasOrgId,
+    NoProfileId,
+    NoConnector,
+    NoPaymentMethodType,
+    NoPayoutRetryType,
+    NoPaymentMethod,
+>;
+pub type DimensionsWithProcessorAndProviderMerchantIdAndConnector = Dimensions<
+    HasProviderMerchantId,
+    HasProcessorMerchantId,
+    NoOrgId,
+    NoProfileId,
+    HasConnector,
+    NoPaymentMethodType,
+    NoPayoutRetryType,
+    NoPaymentMethod,
+>;
+pub type DimensionsWithProcessorAndProviderMerchantIdAndProfileIdAndConnector = Dimensions<
+    HasProviderMerchantId,
+    HasProcessorMerchantId,
+    NoOrgId,
+    HasProfileId,
+    HasConnector,
+    NoPaymentMethodType,
+    NoPayoutRetryType,
+    NoPaymentMethod,
+>;
+pub type DimensionsWithProcessorAndProviderMerchantIdAndProfileIdAndPaymentMethodType = Dimensions<
+    HasProviderMerchantId,
+    HasProcessorMerchantId,
     NoOrgId,
     HasProfileId,
     NoConnector,
     HasPaymentMethodType,
     NoPayoutRetryType,
-    HasPaymentMethod,
+    NoPaymentMethod,
 >;
+pub type DimensionsWithProcessorAndProviderMerchantIdAndProfileIdAndPaymentMethodAndPaymentMethodType =
+    Dimensions<
+        HasProviderMerchantId,
+        HasProcessorMerchantId,
+        NoOrgId,
+        HasProfileId,
+        NoConnector,
+        HasPaymentMethodType,
+        NoPayoutRetryType,
+        HasPaymentMethod,
+    >;

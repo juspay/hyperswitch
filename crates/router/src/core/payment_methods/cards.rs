@@ -3222,11 +3222,8 @@ pub async fn list_payment_methods(
         .filter_based_on_profile_and_connector_type(&profile_id, ConnectorType::PaymentProcessor);
 
     let dimensions = configs::dimension_state::Dimensions::new()
-        .with_merchant_id(platform.get_processor().get_account().get_id().clone())
-        .with_profile_id(profile_id.clone());
-
-    let dimensions = configs::dimension_state::Dimensions::new()
-        .with_merchant_id(platform.get_processor().get_account().get_id().clone())
+        .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id())
+        .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
         .with_profile_id(profile_id.clone());
 
     logger::debug!(mca_before_filtering=?filtered_mcas);

@@ -76,7 +76,8 @@ where
         services::api::ConnectorIntegration<F, FData, router_types::PaymentsResponseData>,
 {
     let dimensions = dimension_state::Dimensions::new()
-        .with_merchant_id(platform.get_processor().get_account().get_id().clone())
+        .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id())
+        .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
         .with_profile_id(profile.get_id().clone());
 
     let (payment_data, _req, customer, connector_http_status_code, external_latency) =
@@ -119,7 +120,7 @@ pub async fn payments_session_operation_core<F, Req, Op, FData, D>(
     payment_id: id_type::GlobalPaymentId,
     _call_connector_action: CallConnectorAction,
     header_payload: HeaderPayload,
-    dimensions: &dimension_state::DimensionsWithMerchantIdAndProfileId,
+    dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
 ) -> RouterResult<(D, Req, Option<domain::Customer>, Option<u16>, Option<u128>)>
 where
     F: Send + Clone + Sync,

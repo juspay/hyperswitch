@@ -316,7 +316,7 @@ pub async fn modify_trackers(
 
 pub async fn config_should_call_gsm_payout(
     state: &app::SessionState,
-    dimensions: &crate::core::configs::dimension_state::DimensionsWithMerchantIdAndProfileId,
+    dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
     retry_type: PayoutRetryType,
     customer_id: Option<&common_utils::id_type::CustomerId>,
 ) -> bool {

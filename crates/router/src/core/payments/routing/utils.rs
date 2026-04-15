@@ -2495,7 +2495,7 @@ pub async fn perform_pre_routing(
     allowed_pmt_for_pre_routing: &LazyLock<HashSet<enums::PaymentMethodType>>,
     payment_method: &enums::PaymentMethod,
     payment_method_type: &enums::PaymentMethodType,
-    dimensions: &dimension_state::DimensionsWithMerchantIdAndProfileId,
+    dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
     customer_id: Option<&id_type::CustomerId>,
 ) -> bool {
     let dimensions = dimensions

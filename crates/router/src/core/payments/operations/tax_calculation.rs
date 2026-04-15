@@ -52,7 +52,7 @@ impl<F: Send + Clone + Sync>
         #[cfg(feature = "pm_modular")] _payment_method_wrapper: Option<
             operations::PaymentMethodWithRawData,
         >,
-        _dimensions: &dimension_state::DimensionsWithMerchantId,
+        _dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
     ) -> RouterResult<
         operations::GetTrackerResponse<
             'a,
@@ -226,7 +226,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsDynamicTaxCalculationRequest
         _request: Option<payments::CustomerDetails>,
         _provider: &domain::Provider,
         _initiator: Option<&domain::Initiator>,
-        _dimensions: &dimension_state::&dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
+        _dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
         _mandate_type: Option<MandateTransactionType>,
     ) -> errors::CustomResult<
         (

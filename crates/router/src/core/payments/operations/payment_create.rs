@@ -84,7 +84,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         #[cfg(feature = "pm_modular")] payment_method_with_raw_data: Option<
             pm_transformers::PaymentMethodWithRawData,
         >,
-        dimensions: &dimension_state::DimensionsWithMerchantId,
+        dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
     ) -> RouterResult<operations::GetTrackerResponse<'a, F, api::PaymentsRequest, PaymentData<F>>>
     {
         let db = &*state.store;
@@ -1380,7 +1380,7 @@ impl PaymentCreate {
         customer_acceptance: &Option<common_payments_types::CustomerAcceptance>,
         payment_method_recurring_details: Option<domain::PaymentMethodData>,
         customer_id: Option<&common_utils::id_type::CustomerId>,
-        dimensions: &dimension_state::DimensionsWithMerchantId,
+        dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
     ) -> RouterResult<(
         PaymentAttempt,
         Option<api_models::payments::AdditionalPaymentData>,

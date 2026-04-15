@@ -464,7 +464,7 @@ pub async fn get_token_pm_type_mandate_details(
     payment_method_id: Option<String>,
     payment_intent_customer_id: Option<&id_type::CustomerId>,
     pm_info: Option<domain::PaymentMethod>,
-    dimensions: &dimension_state::DimensionsWithMerchantId,
+    dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
 ) -> RouterResult<MandateGenericData> {
     let mandate_data = request.mandate_data.clone().map(MandateData::foreign_from);
     #[cfg(feature = "pm_modular")]
@@ -5612,7 +5612,7 @@ pub async fn get_additional_payment_data(
     dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
     customer_id: Option<&id_type::CustomerId>,
     payment_method_token: Option<&PaymentMethodToken>,
-    dimensions: &dimension_state::DimensionsWithMerchantIdAndProfileId,
+    dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
 ) -> Result<
     Option<api_models::payments::AdditionalPaymentData>,
     error_stack::Report<errors::ApiErrorResponse>,
@@ -8565,7 +8565,7 @@ pub async fn config_skip_saving_wallet_at_connector(
 #[cfg(feature = "v1")]
 pub async fn override_setup_future_usage_to_on_session<F, D>(
     state: &SessionState,
-    dimensions: &dimension_state::DimensionsWithMerchantIdAndProfileId,
+    dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
     payment_data: &mut D,
 ) -> CustomResult<(), errors::ApiErrorResponse>
 where
@@ -9015,7 +9015,7 @@ pub async fn validate_allowed_payment_method_types_request(
 
 pub async fn allow_payment_update_enabled_for_client_auth(
     state: &SessionState,
-    dimensions: &dimension_state::DimensionsWithMerchantId,
+    dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
     auth_flow: services::AuthFlow,
 ) -> Result<(), error_stack::Report<errors::ApiErrorResponse>> {
     match auth_flow {

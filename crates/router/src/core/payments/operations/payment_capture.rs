@@ -49,7 +49,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, payments::PaymentData<F>, api::Paymen
         #[cfg(feature = "pm_modular")] _payment_method_wrapper: Option<
             operations::PaymentMethodWithRawData,
         >,
-        _dimensions: &dimension_state::DimensionsWithMerchantId,
+        _dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
     ) -> RouterResult<
         operations::GetTrackerResponse<
             'a,

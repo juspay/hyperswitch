@@ -1521,7 +1521,7 @@ pub async fn proxy_for_payments_operation_core<F, Req, Op, FData, D>(
     auth_flow: services::AuthFlow,
     header_payload: HeaderPayload,
     return_raw_connector_response: Option<bool>,
-    dimensions: &dimension_state::&dimension_state::DimensionsWithProcessorAndProviderMerchantId,
+    dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
 ) -> RouterResult<(D, Req, Option<u16>, Option<u128>)>
 where
     F: Send + Clone + Sync,
@@ -2040,7 +2040,8 @@ where
         .attach_printable("Failed while fetching/creating customer")?;
 
     let dimensions = dimension_state::Dimensions::new()
-        .with_merchant_id(platform.get_processor().get_account().get_id().clone())
+        .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id())
+        .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
         .with_profile_id(profile.get_id().clone());
     let (_operation, payment_data) = operation
         .to_update_tracker()?
@@ -2092,7 +2093,8 @@ where
     );
 
     let dimensions = dimension_state::Dimensions::new()
-        .with_merchant_id(platform.get_processor().get_account().get_id().clone())
+        .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id())
+        .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
         .with_profile_id(profile.get_id().clone());
 
     let _validate_result = operation
@@ -2969,7 +2971,8 @@ pub async fn record_attempt_core(
     };
 
     let dimensions = dimension_state::Dimensions::new()
-        .with_merchant_id(platform.get_processor().get_account().get_id().clone())
+        .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id())
+        .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
         .with_profile_id(profile.get_id().clone());
     let (_operation, final_payment_data) = boxed_operation
         .to_update_tracker()?
@@ -4867,9 +4870,7 @@ where
         + Sync,
 {
     // Update payment trackers
-    let dimensions = dimension_state::Dimensions::new()
-        .with_merchant_id(processor.get_account().get_id().clone())
-        .with_profile_id(business_profile.get_id().clone());
+    let dimensions = dimensions.with_profile_id(business_profile.get_id().clone());
     let (_, new_payment_data) = operation
         .to_update_tracker()?
         .update_trackers(
@@ -5364,9 +5365,7 @@ where
         + Sync,
 {
     // Update payment trackers
-    let dimensions = dimension_state::Dimensions::new()
-        .with_merchant_id(processor.get_account().get_id().clone())
-        .with_profile_id(business_profile.get_id().clone());
+    let dimensions = dimensions.with_profile_id(business_profile.get_id().clone());
     let (_, new_payment_data) = operation
         .to_update_tracker()?
         .update_trackers(
@@ -5781,7 +5780,8 @@ where
     };
 
     let dimensions = dimension_state::Dimensions::new()
-        .with_merchant_id(platform.get_processor().get_account().get_id().clone())
+        .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id())
+        .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
         .with_profile_id(business_profile.get_id().clone());
     (_, *payment_data) = operation
         .to_update_tracker()?
@@ -5956,9 +5956,7 @@ where
         services::api::ConnectorIntegration<F, RouterDReq, router_types::PaymentsResponseData>,
 {
     record_time_taken_with(|| async {
-        let dimensions = dimension_state::Dimensions::new()
-            .with_merchant_id(processor.get_account().get_id().clone())
-            .with_profile_id(business_profile.get_id().clone());
+        let dimensions = dimensions.with_profile_id(business_profile.get_id().clone());
         (_, *payment_data) = operation
             .to_update_tracker()?
             .update_trackers(
@@ -6159,7 +6157,8 @@ where
 
     let frm_suggestion = None;
     let dimensions = dimension_state::Dimensions::new()
-        .with_merchant_id(platform.get_processor().get_account().get_id().clone())
+        .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id())
+        .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
         .with_profile_id(business_profile.get_id().clone());
     (_, *payment_data) = operation
         .to_update_tracker()?
@@ -10424,7 +10423,7 @@ pub async fn plan_payment_execution_after_routing<F: Clone, D>(
     is_payment_method_modular_allowed: bool,
     is_connector_agnostic_mit_enabled: Option<bool>,
     is_network_tokenization_enabled: bool,
-    dimensions: &dimension_state::DimensionsWithMerchantIdAndProfileId,
+    dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
 ) -> RouterResult<ConnectorCallType>
 where
     D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
@@ -11407,7 +11406,9 @@ pub async fn payment_external_authentication<F: Clone + Sync>(
     let storage_scheme = platform.get_processor().get_account().storage_scheme;
     let payment_id = req.payment_id;
     let dimensions =
-        dimension_state::Dimensions::new().with_merchant_id(processor_merchant_id.clone());
+        dimension_state::Dimensions::new()
+            .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id())
+            .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id());
     let payment_intent = db
         .find_payment_intent_by_payment_id_processor_merchant_id(
             &payment_id,

@@ -2016,7 +2016,8 @@ pub async fn authentication_sync_core(
         })?;
 
     let dimensions = dimension_state::Dimensions::new()
-        .with_merchant_id(merchant_id.clone())
+        .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id())
+        .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
         .with_profile_id(profile_id.clone());
 
     let (authentication_connector, three_ds_connector_account) =

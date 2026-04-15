@@ -251,7 +251,7 @@ where
 pub async fn is_step_up_enabled_for_merchant_connector(
     state: &app::SessionState,
     connector_name: types::Connector,
-    dimensions: &DimensionsWithMerchantIdAndProfileId,
+    dimensions: &DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
     customer_id: Option<&common_utils::id_type::CustomerId>,
 ) -> bool {
     let dimensions = dimensions.with_connector(connector_name);

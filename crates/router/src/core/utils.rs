@@ -78,7 +78,7 @@ pub struct FeatureConfig {
 pub async fn get_feature_config(
     state: &SessionState,
     platform: &domain::Platform,
-    dimensions: &dimension_state::DimensionsWithMerchantId,
+    dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
 ) -> FeatureConfig {
     let dimensions = dimensions.with_organization_id(platform.get_processor().get_account().organization_id.clone());
 
