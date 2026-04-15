@@ -657,7 +657,11 @@ async fn update_saved_view(
         |existing: Option<types::PaymentViewsValue>| {
             let mut views_data = existing.ok_or(report!(UserErrors::SavedViewNotFound))?;
 
-            if !views_data.views.iter().any(|v| v.view_id == request.view_id) {
+            if !views_data
+                .views
+                .iter()
+                .any(|v| v.view_id == request.view_id)
+            {
                 return Err(report!(UserErrors::SavedViewNotFound))
                     .attach_printable("Saved view with this ID not found");
             }
