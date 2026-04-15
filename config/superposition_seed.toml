@@ -40,6 +40,12 @@ schema = { type = "string" }
 description = "Payment connector identifier (e.g. stripe, adyen)"
 change_reason = "Initial setup"
 
+[dimensions.payout_retry_type]
+position = 6
+schema = { type = "string" }
+description = "Type of payout retry (single_connector or multi_connector)"
+change_reason = "Initial setup"
+
 [default-configs.requires_cvv]
 value = true
 schema = { type = "boolean" }
