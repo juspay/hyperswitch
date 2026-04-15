@@ -1841,7 +1841,7 @@ pub async fn get_fingerprint_id_for_payment_method(
 
 #[cfg(feature = "v2")]
 #[instrument(skip_all)]
-async fn get_fingerprint_id_from_vault<D: domain::VaultingDataInterface + serde::Serialize>(
+async fn get_fingerprint_id_from_vault<D: serde::Serialize>(
     state: &routes::SessionState,
     data: &D,
     key: String,
@@ -2063,6 +2063,9 @@ pub async fn retrieve_payment_method_from_vault_using_payment_token(
     let payment_method_id = match pm_token_data {
         storage::PaymentTokenData::PermanentCard(card_token_data) => {
             card_token_data.payment_method_id
+        }
+        storage::PaymentTokenData::BankDebit(bank_debit_token_data) => {
+            bank_debit_token_data.payment_method_id
         }
         storage::PaymentTokenData::TemporaryGeneric(_) => {
             Err(errors::ApiErrorResponse::NotImplemented {

@@ -2,7 +2,7 @@ use std::{collections::HashMap, ops::Deref};
 
 #[cfg(all(feature = "v1", feature = "pm_modular"))]
 use ::payment_methods::client::{
-    CardDetailUpdate, PaymentMethodUpdateData, UpdatePaymentMethodV1Payload,
+    BankDebitDetailUpdate, CardDetailUpdate, PaymentMethodUpdateData, UpdatePaymentMethodV1Payload,
 };
 use api_models::payments::{ConnectorMandateReferenceId, MandateReferenceId};
 #[cfg(feature = "dynamic_routing")]
@@ -81,7 +81,7 @@ where
 {
     if matches!(
         payment_data.payment_attempt.payment_method,
-        Some(enums::PaymentMethod::Card)
+        Some(enums::PaymentMethod::Card | enums::PaymentMethod::BankDebit)
     ) {
         let is_volatile = payment_data
             .get_payment_method_info()
@@ -95,8 +95,15 @@ where
         match (is_volatile, payment_method_id) {
             (Some(false), Some(pm_id)) => {
                 let should_update = resp.status.should_update_payment_method();
+
+                let payment_method_type = payment_data
+                    .payment_attempt
+                    .payment_method
+                    .map(|pm| pm.to_string());
+
                 logger::info!(
-                    "Payment method is card; is eligible for modular update: {}",
+                    "Payment method is {:?}; is eligible for modular update: {}",
+                    payment_method_type,
                     should_update
                 );
 
@@ -190,6 +197,16 @@ where
                                 card_cvc: None,
                             }))
                         }
+                        domain::PaymentMethodData::BankDebit(
+                            domain::BankDebitData::AchBankDebit {
+                                bank_account_holder_name,
+                                ..
+                            },
+                        ) => Some(PaymentMethodUpdateData::BankDebit(
+                            BankDebitDetailUpdate::Ach {
+                                bank_account_holder_name: bank_account_holder_name.clone(),
+                            },
+                        )),
                         _ => None,
                     });
                 let acknowledgement_status = should_update
