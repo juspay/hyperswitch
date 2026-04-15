@@ -1,3 +1,4 @@
+import { DEFAULT_CURRENCY } from "./Modifiers";
 import { customerAcceptance } from "./Commons";
 
 const successfulNo3DSCardDetails = {
@@ -27,7 +28,7 @@ const singleUseMandateData = {
   mandate_type: {
     single_use: {
       amount: 8000,
-      currency: "USD",
+      currency: DEFAULT_CURRENCY,
     },
   },
 };
@@ -37,7 +38,7 @@ const multiUseMandateData = {
   mandate_type: {
     multi_use: {
       amount: 8000,
-      currency: "USD",
+      currency: DEFAULT_CURRENCY,
     },
   },
 };

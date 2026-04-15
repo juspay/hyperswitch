@@ -1,3 +1,4 @@
+import { DEFAULT_CURRENCY } from "./Modifiers";
 export const connectorDetails = {
   bank_transfer_pm: {
     Ach: {
@@ -40,7 +41,7 @@ export const connectorDetails = {
             last_name: "Doe",
           },
         },
-        currency: "USD",
+        currency: DEFAULT_CURRENCY,
       },
       Response: {
         status: 400,
