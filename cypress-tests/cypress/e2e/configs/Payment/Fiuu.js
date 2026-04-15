@@ -996,6 +996,11 @@ export const connectorDetails = {
       // Fiuu webhook handler uses PaymentAttemptId for lookup, not ConnectorTransactionId
       source: "paymentAttemptID",
     },
+    RefundIdConfig: {
+      // Fiuu refund webhooks carry the connector refund ID in the RefundID field
+      path: "RefundID",
+      type: "string",
+    },
   },
   payment_method_blocking_pm: {
     BlockIssuingCountry: {
