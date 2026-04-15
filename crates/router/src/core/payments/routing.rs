@@ -1312,8 +1312,7 @@ where
                     first_connector.connector_data.merchant_connector_id.clone();
 
                 crate::core::payments::helpers::override_setup_future_usage_to_on_session(
-                    state,
-                    dimensions,
+                    &*state.store,
                     payment_data,
                 )
                 .await?;

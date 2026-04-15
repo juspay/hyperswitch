@@ -373,7 +373,6 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             &customer_acceptance,
             payment_method_recurring_details.clone(),
             customer_details.customer_id.as_ref(),
-            customer_details.customer_id.as_ref(),
             dimensions,
         )
         .await?;
@@ -1421,7 +1420,6 @@ impl PaymentCreate {
                     &dimensions,
                     customer_id,
                     None,
-                    &dimensions,
                 )
                 .await
             })

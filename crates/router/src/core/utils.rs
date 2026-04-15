@@ -102,7 +102,10 @@ where
 {
     #[cfg(feature = "pm_modular")]
     {
-        let feature_config = get_feature_config(state, platform).await;
+        let dimensions = dimension_state::Dimensions::new()
+            .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
+            .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id());
+        let feature_config = get_feature_config(state, platform, &dimensions).await;
         common_utils::fp_utils::when(feature_config.is_payment_method_modular_allowed, || {
             Err(error_stack::report!(E::from(
                 errors::ApiErrorResponse::AccessForbidden {

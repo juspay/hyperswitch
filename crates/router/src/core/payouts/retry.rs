@@ -316,7 +316,7 @@ pub async fn modify_trackers(
 
 pub async fn config_should_call_gsm_payout(
     state: &app::SessionState,
-    dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
+    dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
     retry_type: PayoutRetryType,
     customer_id: Option<&common_utils::id_type::CustomerId>,
 ) -> bool {
@@ -324,7 +324,7 @@ pub async fn config_should_call_gsm_payout(
     dimensions
         .get_gsm_payout_call(
             state.store.as_ref(),
-            state.superposition_service.as_deref(),
+            state.superposition_service.as_ref(),
             customer_id,
         )
         .await

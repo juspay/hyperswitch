@@ -671,7 +671,7 @@ where
         .validate_request(&req, platform.get_processor())?;
 
     #[cfg(feature = "pm_modular")]
-    let feature_config = core_utils::get_feature_config(state, platform).await;
+    let feature_config = core_utils::get_feature_config(state, platform, dimensions).await;
 
     #[cfg(feature = "pm_modular")]
     let payment_method_info = operation
@@ -875,7 +875,7 @@ where
             .without_profile_id();
 
         let is_eligible_for_uas = helpers::is_merchant_eligible_authentication_service(
-            &dimensions_with_org_and_merchant_id,
+            platform.get_processor(),
             state,
         )
         .await?;
@@ -2052,7 +2052,7 @@ where
             payment_data,
             None,
             header_payload,
-            &dimensions,
+            &dimensions.without_profile_id(),
         )
         .await?;
 
@@ -2137,7 +2137,7 @@ where
             payment_data,
             None,
             header_payload,
-            &dimensions,
+            &dimensions.without_profile_id(),
         )
         .await?;
 
@@ -2983,7 +2983,7 @@ pub async fn record_attempt_core(
             record_payment_data,
             None,
             header_payload.clone(),
-            &dimensions,
+            &dimensions.without_profile_id(),
         )
         .await?;
 
@@ -4870,7 +4870,6 @@ where
         + Sync,
 {
     // Update payment trackers
-    let dimensions = dimensions.with_profile_id(business_profile.get_id().clone());
     let (_, new_payment_data) = operation
         .to_update_tracker()?
         .update_trackers(
@@ -5365,7 +5364,6 @@ where
         + Sync,
 {
     // Update payment trackers
-    let dimensions = dimensions.with_profile_id(business_profile.get_id().clone());
     let (_, new_payment_data) = operation
         .to_update_tracker()?
         .update_trackers(
@@ -5792,7 +5790,7 @@ where
             payment_data.clone(),
             None, // frm_suggestion is not used in internal flows
             header_payload.clone(),
-            &dimensions,
+            &dimensions.without_profile_id(),
         )
         .await?;
 
@@ -5966,7 +5964,7 @@ where
                 payment_data.clone(),
                 frm_suggestion,
                 header_payload.clone(),
-                &dimensions,
+                &dimensions.without_profile_id(),
             )
             .await?;
         let lineage_ids = grpc_client::LineageIds::new(
@@ -6158,8 +6156,7 @@ where
     let frm_suggestion = None;
     let dimensions = dimension_state::Dimensions::new()
         .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id())
-        .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
-        .with_profile_id(business_profile.get_id().clone());
+        .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id());
     (_, *payment_data) = operation
         .to_update_tracker()?
         .update_trackers(

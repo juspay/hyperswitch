@@ -188,20 +188,20 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             .get_required_value("profile_id")
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("'profile_id' not set in payment intent")?;
-        
-        let dimensions = dimensions.with_profile_id(profile_id.clone());
 
         let store = state.store.clone();
         let key_store_clone = platform.get_processor().get_key_store().clone();
+        let profile_id_clone = profile_id.clone();
 
         let business_profile_fut = tokio::spawn(
             async move {
+                let profile_id_error = profile_id_clone.clone();
                 store
-                    .find_business_profile_by_profile_id(&key_store_clone, &profile_id)
+                    .find_business_profile_by_profile_id(&key_store_clone, &profile_id_clone)
                     .map(|business_profile_result| {
                         business_profile_result.to_not_found_response(
                             errors::ApiErrorResponse::ProfileNotFound {
-                                id: profile_id.get_string_repr().to_owned(),
+                                id: profile_id_error.get_string_repr().to_owned(),
                             },
                         )
                     })
@@ -526,10 +526,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         let store = state.clone().store;
         let superposition_service = state.superposition_service.clone();
         let customer_id = payment_intent.customer_id.clone();
-        let additional_pm_data_dimensions = dimensions.clone();
-        let dimensions = dimension_state::Dimensions::new()
-            .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
-            .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id())
+        let additional_pm_data_dimensions = dimensions
             .with_profile_id(profile_id.clone());
 
         let additional_pm_data_fut = tokio::spawn(
@@ -540,10 +537,9 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                             &payment_method_data,
                             store.as_ref(),
                             superposition_service.as_ref(),
-                            &dimensions,
+                            &additional_pm_data_dimensions,
                             customer_id.as_ref(),
                             None,
-                            &additional_pm_data_dimensions,
                         )
                         .await
                     })
@@ -628,7 +624,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         #[cfg(not(feature = "pm_modular"))]
         let payment_method_info_from_modular = None;
 
-        let m_pm_dimensions = dimensions.without_profile_id();
+        let m_pm_dimensions = dimensions.clone();
         let mandate_details_fut = tokio::spawn(
             async move {
                 Box::pin(helpers::get_token_pm_type_mandate_details(
@@ -2427,8 +2423,6 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
 
         let customer_id = payment_data.payment_intent.customer_id.as_ref();
 
-        let customer_id = payment_data.payment_intent.customer_id.as_ref();
-
         let payment_experience = payment_data.payment_attempt.payment_experience;
         let dimensions = dimensions.with_profile_id(profile_id.clone());
         let additional_pm_data = payment_data
@@ -2442,7 +2436,6 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
                     &dimensions,
                     customer_id,
                     payment_data.payment_method_token.as_ref(),
-                    &dimensions,
                 )
                 .await
             })

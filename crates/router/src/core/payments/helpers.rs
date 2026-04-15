@@ -5612,7 +5612,6 @@ pub async fn get_additional_payment_data(
     dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
     customer_id: Option<&id_type::CustomerId>,
     payment_method_token: Option<&PaymentMethodToken>,
-    dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
 ) -> Result<
     Option<api_models::payments::AdditionalPaymentData>,
     error_stack::Report<errors::ApiErrorResponse>,
@@ -9019,7 +9018,7 @@ pub async fn allow_payment_update_enabled_for_client_auth(
             let enabled = dimensions
                 .get_payment_update_enabled_for_client_auth(
                     state.store.as_ref(),
-                    state.superposition_service.as_deref(),
+                    state.superposition_service.as_ref(),
                     None,
                 )
                 .await;

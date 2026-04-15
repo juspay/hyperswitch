@@ -473,7 +473,7 @@ pub async fn payouts_confirm_core(
         &mut payout_data,
         req.routing.clone(),
         req.connector.clone(),
-        &dimensions,
+        &dimensions.without_profile_id(),
     )
     .await?;
 
@@ -545,7 +545,6 @@ pub async fn payouts_update_core(
     }
 
     if let Some(true) = payout_data.payouts.confirm {
-        
         payouts_core(
             &state,
             &platform,
@@ -553,7 +552,7 @@ pub async fn payouts_update_core(
             &mut payout_data,
             req.routing.clone(),
             req.connector.clone(),
-            &dimensions,
+            &dimensions.without_profile_id(),
         )
         .await?;
     }

@@ -4303,7 +4303,7 @@ pub async fn get_raw_payment_method_data_fetch_access(
             let allowed = dimensions
                 .get_should_return_raw_payment_method_details(
                     state.store.as_ref(),
-                    state.superposition_service.as_deref(),
+                    state.superposition_service.as_ref(),
                     customer_id,
                 )
                 .await;

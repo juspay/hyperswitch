@@ -169,7 +169,7 @@ config! {
     superposition_key = SHOULD_PERFORM_ELIGIBILITY,
     output = bool,
     default = false,
-    requires = dimension_state::DimensionsWithProcessorAndProviderMerchantId,
+    requires = dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
     targeting_key = id_type::CustomerId
 }
 
@@ -262,7 +262,7 @@ config! {
     superposition_key = GSM_PAYOUT_CALL,
     output = bool,
     default = false,
-    requires = dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileIdAndPayoutRetryType,
+    requires = dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndPayoutRetryType,
     targeting_key = id_type::CustomerId
 }
 

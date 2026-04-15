@@ -21,7 +21,6 @@ use crate::{
             self, helpers,
             operations::{self, ValidateStatusForOperation},
         },
-        configs::dimension_state,
     },
     db::{domain::types, errors::RouterResult},
     routes::{app::ReqState, SessionState},

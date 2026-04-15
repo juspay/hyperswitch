@@ -2116,7 +2116,7 @@ pub async fn authentication_sync_core(
     let should_disable_vault_tokenization = dimensions
         .get_should_disable_vault_tokenization(
             state.store.as_ref(),
-            state.superposition_service.as_deref(),
+            state.superposition_service.as_ref(),
             None,
         )
         .await;

@@ -21,7 +21,6 @@ use crate::{
             PaymentData,
         },
         utils as core_utils,
-        configs::dimension_state,
     },
     routes::{app::ReqState, SessionState},
     services::{self, connector_integration_interface::ConnectorEnum},

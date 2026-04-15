@@ -14,12 +14,10 @@ use euclid::frontend::dir;
 use hyperswitch_constraint_graph as cgraph;
 use hyperswitch_masking::ExposeInterface;
 use kgraph_utils::{error::KgraphError, transformers::IntoDirValue};
-#[cfg(feature = "v1")]
-use router_env::logger;
 use storage_impl::redis::cache::{CacheKey, PM_FILTERS_CGRAPH_CACHE};
 
 use crate::{
-    configs::settings, core::configs::dimension_state, db::StorageInterface, routes::SessionState,
+    configs::settings, core::configs::dimension_state, routes::SessionState,
 };
 #[cfg(feature = "v2")]
 use crate::{
@@ -818,12 +816,12 @@ fn compile_accepted_currency_for_mca(
 
 pub async fn get_organization_eligibility_config_for_pm_modular_service(
     state: &SessionState,
-    dimensions: &dimension_state::DimensionsWithOrgIdAndMerchantId,
+    dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndOrgId,
 ) -> bool {
     dimensions
         .get_should_call_pm_modular_service(
             state.store.as_ref(),
-            state.superposition_service.as_deref(),
+            state.superposition_service.as_ref(),
             None,
         )
         .await
@@ -831,7 +829,7 @@ pub async fn get_organization_eligibility_config_for_pm_modular_service(
 
 pub async fn get_sdk_next_action_for_payment_method_list(
     state: &SessionState,
-    dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
+    dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
     customer_id: Option<&common_utils::id_type::CustomerId>,
 ) -> api_models::payments::SdkNextAction {
     let should_perform_eligibility_check = dimensions
