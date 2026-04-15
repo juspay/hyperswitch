@@ -1,8 +1,6 @@
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
-    behaviour::{Conversion, ReverseConversion},
-    merchant_key_store as domain,
-    merchant_key_store::MerchantKeyStoreInterface,
+    merchant_key_store as domain, merchant_key_store::MerchantKeyStoreInterface,
 };
 use hyperswitch_masking::Secret;
 use router_env::{instrument, tracing};
@@ -13,6 +11,7 @@ use crate::redis::{
     cache::{CacheKind, ACCOUNTS_CACHE},
 };
 use crate::{
+    behaviour::{Conversion, ReverseConversion},
     kv_router_store,
     utils::{pg_accounts_connection_read, pg_accounts_connection_write},
     CustomResult, DatabaseStore, MockDb, RouterStore, StorageError,
@@ -366,5 +365,70 @@ impl MerchantKeyStoreInterface for MockDb {
                 .change_context(StorageError::DecryptionError)
         }))
         .await
+    }
+}
+
+use common_utils::{
+    date_time,
+    errors::ValidationError,
+    type_name,
+    types::keymanager::{self, KeyManagerState},
+};
+use hyperswitch_domain_models::type_encryption::{crypto_operation, CryptoOperation};
+use hyperswitch_masking::PeekInterface;
+
+#[async_trait::async_trait]
+impl Conversion for domain::MerchantKeyStore {
+    type DstType = diesel_models::merchant_key_store::MerchantKeyStore;
+    type NewDstType = diesel_models::merchant_key_store::MerchantKeyStoreNew;
+    async fn convert(self) -> CustomResult<Self::DstType, ValidationError> {
+        Ok(diesel_models::merchant_key_store::MerchantKeyStore {
+            key: self.key.into(),
+            merchant_id: self.merchant_id,
+            created_at: self.created_at,
+        })
+    }
+
+    async fn convert_back(
+        state: &KeyManagerState,
+        item: Self::DstType,
+        key: &Secret<Vec<u8>>,
+        _key_manager_identifier: keymanager::Identifier,
+    ) -> CustomResult<Self, ValidationError>
+    where
+        Self: Sized,
+    {
+        let identifier = keymanager::Identifier::Merchant(item.merchant_id.clone());
+
+        let decryption_operation = if state.use_legacy_key_store_decryption {
+            CryptoOperation::Decrypt(item.key)
+        } else {
+            CryptoOperation::DecryptLocally(item.key)
+        };
+
+        Ok(Self {
+            key: crypto_operation(
+                state,
+                type_name!(Self::DstType),
+                decryption_operation,
+                identifier,
+                key.peek(),
+            )
+            .await
+            .and_then(|val| val.try_into_operation())
+            .change_context(ValidationError::InvalidValue {
+                message: "Failed while decrypting merchant key store".to_string(),
+            })?,
+            merchant_id: item.merchant_id,
+            created_at: item.created_at,
+        })
+    }
+
+    async fn construct_new(self) -> CustomResult<Self::NewDstType, ValidationError> {
+        Ok(diesel_models::merchant_key_store::MerchantKeyStoreNew {
+            merchant_id: self.merchant_id,
+            key: self.key.into(),
+            created_at: date_time::now(),
+        })
     }
 }

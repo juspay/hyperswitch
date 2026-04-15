@@ -1,7 +1,9 @@
 use diesel_models;
 use error_stack::{report, ResultExt};
-use hyperswitch_domain_models::behaviour::{Conversion, ReverseConversion};
-use storage_impl::MockDb;
+use storage_impl::{
+    behaviour::{Conversion, ReverseConversion},
+    MockDb,
+};
 
 use super::domain;
 use crate::{

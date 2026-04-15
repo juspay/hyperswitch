@@ -38,6 +38,7 @@ pub mod payouts;
 pub mod platform_wrapper;
 pub mod redis;
 pub mod refund;
+pub mod relay;
 mod reverse_lookup;
 pub mod subscription;
 pub mod utils;

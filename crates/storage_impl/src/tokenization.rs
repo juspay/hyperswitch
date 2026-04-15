@@ -1,18 +1,24 @@
 #[cfg(all(feature = "v2", feature = "tokenization_v2"))]
-use common_utils::errors::CustomResult;
+use common_utils::{
+    date_time,
+    errors::{CustomResult, ValidationError},
+    types::keymanager,
+};
 #[cfg(all(feature = "v2", feature = "tokenization_v2"))]
 use diesel_models::tokenization as tokenization_diesel;
 #[cfg(all(feature = "v2", feature = "tokenization_v2"))]
 use error_stack::{report, ResultExt};
 #[cfg(all(feature = "v2", feature = "tokenization_v2"))]
-use hyperswitch_domain_models::{
-    behaviour::{Conversion, ReverseConversion},
-    merchant_key_store::MerchantKeyStore,
-};
+use hyperswitch_domain_models::merchant_key_store::MerchantKeyStore;
+#[cfg(all(feature = "v2", feature = "tokenization_v2"))]
+use hyperswitch_masking::Secret;
 
 use super::MockDb;
 #[cfg(all(feature = "v2", feature = "tokenization_v2"))]
-use crate::{connection, errors};
+use crate::{
+    behaviour::{Conversion, ForeignFrom, ReverseConversion},
+    connection, errors,
+};
 use crate::{kv_router_store::KVRouterStore, DatabaseStore, RouterStore};
 
 #[cfg(not(all(feature = "v2", feature = "tokenization_v2")))]
@@ -106,11 +112,11 @@ impl<T: DatabaseStore> TokenizationInterface for RouterStore<T> {
         let tokenization_record = Conversion::convert(tokenization_record)
             .await
             .change_context(errors::StorageError::DecryptionError)?;
-        self.call_database(
+        self.call_database_new(
             merchant_key_store,
             tokenization_record.update_with_id(
                 &conn,
-                tokenization_diesel::TokenizationUpdateInternal::from(tokenization_update),
+                tokenization_diesel::TokenizationUpdateInternal::foreign_from(tokenization_update),
             ),
         )
         .await
@@ -198,3 +204,69 @@ impl<T: DatabaseStore> TokenizationInterface for KVRouterStore<T> {}
 
 #[cfg(not(all(feature = "v2", feature = "tokenization_v2")))]
 impl<T: DatabaseStore> TokenizationInterface for RouterStore<T> {}
+
+#[cfg(all(feature = "v2", feature = "tokenization_v2"))]
+#[async_trait::async_trait]
+impl Conversion for hyperswitch_domain_models::tokenization::Tokenization {
+    type DstType = diesel_models::tokenization::Tokenization;
+    type NewDstType = diesel_models::tokenization::Tokenization;
+
+    async fn convert(self) -> CustomResult<Self::DstType, ValidationError> {
+        Ok(diesel_models::tokenization::Tokenization {
+            id: self.id,
+            merchant_id: self.merchant_id,
+            customer_id: self.customer_id,
+            locker_id: self.locker_id,
+            created_at: self.created_at,
+            updated_at: self.updated_at,
+            version: self.version,
+            flag: self.flag,
+        })
+    }
+
+    async fn convert_back(
+        _state: &keymanager::KeyManagerState,
+        item: Self::DstType,
+        _key: &Secret<Vec<u8>>,
+        _key_manager_identifier: keymanager::Identifier,
+    ) -> CustomResult<Self, ValidationError> {
+        Ok(Self {
+            id: item.id,
+            merchant_id: item.merchant_id,
+            customer_id: item.customer_id,
+            locker_id: item.locker_id,
+            created_at: item.created_at,
+            updated_at: item.updated_at,
+            flag: item.flag,
+            version: item.version,
+        })
+    }
+
+    async fn construct_new(self) -> CustomResult<Self::NewDstType, ValidationError> {
+        Ok(diesel_models::tokenization::Tokenization {
+            id: self.id,
+            merchant_id: self.merchant_id,
+            customer_id: self.customer_id,
+            locker_id: self.locker_id,
+            created_at: self.created_at,
+            updated_at: self.updated_at,
+            version: self.version,
+            flag: self.flag,
+        })
+    }
+}
+
+#[cfg(all(feature = "v2", feature = "tokenization_v2"))]
+impl ForeignFrom<hyperswitch_domain_models::tokenization::TokenizationUpdate>
+    for diesel_models::tokenization::TokenizationUpdateInternal
+{
+    fn foreign_from(value: hyperswitch_domain_models::tokenization::TokenizationUpdate) -> Self {
+        let now = date_time::now();
+        match value {
+            hyperswitch_domain_models::tokenization::TokenizationUpdate::DeleteTokenizationRecordUpdate { flag } => Self {
+                updated_at: now,
+                flag,
+            },
+        }
+    }
+}
