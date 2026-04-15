@@ -1820,6 +1820,7 @@ pub struct SetupMandateRequestData {
         Option<common_types::payments::PartnerMerchantIdentifierDetails>,
     pub authentication_data: Option<AuthenticationData>,
     pub connector_intent_metadata: Option<ConnectorMetadata>,
+    pub merchant_order_reference_id: Option<String>,
 }
 
 #[derive(Debug, Clone)]

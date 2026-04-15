@@ -2130,10 +2130,13 @@ impl
             }
         };
 
-        let contrato = cit_data
-            .contract_id
+        let contrato = item
+            .request
+            .merchant_order_reference_id
             .clone()
-            .unwrap_or_else(|| item.payment_id.clone());
+            .ok_or(errors::ConnectorError::MissingRequiredField {
+                field_name: "merchant_order_reference_id",
+            })?;
 
         let politica_retentativa = if cit_data.retry_policy.unwrap_or(false) {
             RetryPolicy::Permite3r7d
