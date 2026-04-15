@@ -530,8 +530,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("'profile_id' not set in payment intent")?;
         let customer_id = payment_intent.customer_id.clone();
-        let additional_pm_data_dimensions = dimensions
-            .with_profile_id(profile_id.clone());
+        let additional_pm_data_dimensions = dimensions.with_profile_id(profile_id.clone());
 
         let additional_pm_data_fut = tokio::spawn(
             async move {

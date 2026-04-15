@@ -2474,8 +2474,6 @@ pub struct MerchantPreRoutingConfig {
     pub skip_rules: Vec<PreRoutingSkipRule>,
 }
 
-
-
 pub async fn load_skip_pre_routing_config(
     state: &SessionState,
     pre_routing_disabled_pm_pmt_key: String,

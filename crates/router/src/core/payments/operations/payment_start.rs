@@ -135,9 +135,10 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsStartReq
         // hence populating token data is not required
         #[cfg(feature = "pm_modular")]
         let token_data = {
-            let is_payment_method_modular_allowed = utils::get_feature_config(state, platform, dimensions)
-                .await
-                .is_payment_method_modular_allowed;
+            let is_payment_method_modular_allowed =
+                utils::get_feature_config(state, platform, dimensions)
+                    .await
+                    .is_payment_method_modular_allowed;
             match (
                 payment_attempt.payment_token.clone(),
                 is_payment_method_modular_allowed,
