@@ -657,15 +657,12 @@ async fn update_saved_view(
         |existing: Option<types::PaymentViewsValue>| {
             let mut views_data = existing.ok_or(report!(UserErrors::SavedViewNotFound))?;
 
-            let view_index = views_data
-                .views
-                .iter()
-                .position(|v| v.view_id == request.view_id)
-                .ok_or(report!(UserErrors::SavedViewNotFound))
-                .attach_printable("Saved view with this ID not found")?;
+            if !views_data.views.iter().any(|v| v.view_id == request.view_id) {
+                return Err(report!(UserErrors::SavedViewNotFound))
+                    .attach_printable("Saved view with this ID not found");
+            }
 
-            let now = common_utils::date_time::now();
-            if let Some(new_name) = request.view_name {
+            if let Some(ref new_name) = request.view_name {
                 if new_name.trim().is_empty() {
                     return Err(report!(UserErrors::InvalidSavedViewName))
                         .attach_printable("Saved view name cannot be empty");
@@ -674,15 +671,24 @@ async fn update_saved_view(
                 if views_data
                     .views
                     .iter()
-                    .any(|v| v.view_id != request.view_id && v.view_name == new_name)
+                    .any(|v| v.view_id != request.view_id && v.view_name == *new_name)
                 {
                     return Err(report!(UserErrors::SavedViewNameAlreadyExists))
                         .attach_printable("A saved view with this name already exists");
                 }
-                views_data.views[view_index].view_name = new_name;
             }
-            views_data.views[view_index].filters = get_payment_views_filters_v1(request.data);
-            views_data.views[view_index].updated_at = now.to_string();
+
+            let view = views_data
+                .views
+                .iter_mut()
+                .find(|v| v.view_id == request.view_id)
+                .ok_or(report!(UserErrors::SavedViewNotFound))?;
+
+            if let Some(new_name) = request.view_name {
+                view.view_name = new_name;
+            }
+            view.filters = get_payment_views_filters_v1(request.data);
+            view.updated_at = common_utils::date_time::now().to_string();
 
             Ok(views_data)
         },
