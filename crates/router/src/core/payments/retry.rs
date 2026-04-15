@@ -70,7 +70,6 @@ where
 
     metrics::AUTO_RETRY_ELIGIBLE_REQUEST_COUNT.add(1, &[]);
 
-
     let card_network = payment_data.get_payment_attempt().extract_card_network();
 
     let mut initial_gsm = get_gsm(state, &router_data, card_network.clone()).await?;

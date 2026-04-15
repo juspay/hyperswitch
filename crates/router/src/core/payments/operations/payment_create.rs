@@ -1384,7 +1384,6 @@ impl PaymentCreate {
         PaymentAttempt,
         Option<api_models::payments::AdditionalPaymentData>,
     )> {
-
         let dimensions = dimensions.with_profile_id(profile_id.clone());
         let payment_method_data =
             request
@@ -1408,7 +1407,6 @@ impl PaymentCreate {
             .or(payment_method_recurring_details)
             .zip(Some(profile_id.clone())) // since data is consumed by async move, profile_id needs to be send separately
             .async_map(|(payment_method_data, _)| async move {
-                
                 helpers::get_additional_payment_data(
                     &payment_method_data,
                     &*state.store,
