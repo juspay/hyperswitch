@@ -261,30 +261,35 @@ impl RedisConnectionPool {
             }
 
             let cluster_client = redis::cluster::ClusterClient::new(nodes)
-                .change_context(errors::RedisError::RedisConnectionError)?;
+                .change_context(errors::RedisError::RedisConnectionError)
+                .attach_printable_lazy(|| format!("Failed to create Redis cluster client for {}:{}", conf.host, conf.port))?;
 
             let cluster_conn = cluster_client
                 .get_async_connection()
                 .await
-                .change_context(errors::RedisError::RedisConnectionError)?;
+                .change_context(errors::RedisError::RedisConnectionError)
+                .attach_printable_lazy(|| format!("Failed to connect to Redis cluster at {}:{}", conf.host, conf.port))?;
 
             RedisConn::Cluster(cluster_conn)
         } else {
             // Build standalone connection
             let client = redis::Client::open(redis_connection_url.as_str())
-                .change_context(errors::RedisError::RedisConnectionError)?;
+                .change_context(errors::RedisError::RedisConnectionError)
+                .attach_printable_lazy(|| format!("Failed to open Redis client for {}:{}", conf.host, conf.port))?;
 
             let conn = client
                 .get_multiplexed_async_connection()
                 .await
-                .change_context(errors::RedisError::RedisConnectionError)?;
+                .change_context(errors::RedisError::RedisConnectionError)
+                .attach_printable_lazy(|| format!("Failed to connect to Redis at {}:{}", conf.host, conf.port))?;
 
             RedisConn::Standalone(conn)
         };
 
         // Create a separate client for publisher and subscriber
         let base_client = redis::Client::open(redis_connection_url.as_str())
-            .change_context(errors::RedisError::RedisConnectionError)?;
+            .change_context(errors::RedisError::RedisConnectionError)
+            .attach_printable_lazy(|| format!("Failed to open Redis pub/sub client for {}:{}", conf.host, conf.port))?;
 
         let subscriber = SubscriberClient::new(base_client.clone()).await?;
         let publisher = RedisClient::new(&base_client).await?;

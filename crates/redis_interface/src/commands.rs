@@ -518,9 +518,13 @@ impl super::RedisConnectionPool {
             .await
             .change_context(errors::RedisError::SetHashFailed)?;
 
-        // setting expiry for the key
-        self.set_expiry(key, ttl.unwrap_or(self.config.default_hash_ttl.into()))
-            .await
+        // setting expiry for the key — reuse the same connection
+        conn.expire::<_, ()>(
+            key.tenant_aware_key(self),
+            ttl.unwrap_or(self.config.default_hash_ttl.into()),
+        )
+        .await
+        .change_context(errors::RedisError::SetExpiryFailed)
     }
 
     #[instrument(level = "DEBUG", skip(self))]
@@ -542,8 +546,13 @@ impl super::RedisConnectionPool {
 
         output
             .async_and_then(|inner| async {
-                self.set_expiry(key, ttl.unwrap_or(self.config.default_hash_ttl).into())
-                    .await?;
+                // reuse the same connection for setting expiry
+                conn.expire::<_, ()>(
+                    key.tenant_aware_key(self),
+                    ttl.unwrap_or(self.config.default_hash_ttl).into(),
+                )
+                .await
+                .change_context(errors::RedisError::SetExpiryFailed)?;
                 Ok(inner)
             })
             .await
@@ -597,9 +606,9 @@ impl super::RedisConnectionPool {
     where
         T: Debug + ToString,
     {
+        let mut conn = self.pool.clone();
         let mut values_after_increment = Vec::with_capacity(fields_to_increment.len());
         for (field, increment) in fields_to_increment.iter() {
-            let mut conn = self.pool.clone();
             values_after_increment.push(
                 conn.hincr::<_, _, _, usize>(
                     key.tenant_aware_key(self),
