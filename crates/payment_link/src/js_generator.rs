@@ -55,11 +55,23 @@ pub fn convert_custom_message_keys_to_camel(value: &mut Value) {
         }
     }
 
+    // Rename the outer key to `preloadSDKWithParams` and camelCase its four
+    // direct children (payment_methods_list, customer_methods_list,
+    // session_tokens, blocked_bins) — but leave each child's *value*
+    // untouched, since the SDK expects those inner contents verbatim
+    // (snake_case).
     if let Some(mut preload_params) = value
         .as_object_mut()
         .and_then(|map| map.remove("preload_sdk_with_params"))
     {
-        camel_case_json(&mut preload_params);
+        if let Some(inner) = preload_params.as_object_mut() {
+            let keys: Vec<String> = inner.keys().cloned().collect();
+            for k in keys {
+                if let Some(v) = inner.remove(&k) {
+                    inner.insert(camel_case_key(&k), v);
+                }
+            }
+        }
         if let Some(map) = value.as_object_mut() {
             map.insert("preloadSDKWithParams".to_string(), preload_params);
         }
