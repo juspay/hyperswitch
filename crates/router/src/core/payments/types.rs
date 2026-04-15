@@ -324,7 +324,7 @@ impl SurchargeMetadata {
             redis_conn
                 .set_hash_fields(
                     &redis_key.as_str().into(),
-                    value_list,
+                    &value_list,
                     Some(intent_fulfillment_time),
                 )
                 .await

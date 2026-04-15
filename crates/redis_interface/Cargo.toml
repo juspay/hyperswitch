@@ -12,7 +12,7 @@ multitenancy_fallback = []
 
 [dependencies]
 error-stack = "0.4.1"
-fred = { version = "8.0.6", features = ["metrics", "partial-tracing", "subscriber-client"] }
+redis = { version = "1.0.5", features = ["tokio-comp", "cluster-async", "streams", "script", "connection-manager"] }
 futures = "0.3"
 serde = { version = "1.0.219", features = ["derive"] }
 thiserror = "1.0.69"
@@ -22,6 +22,7 @@ tracing = { workspace = true }
 
 # First party crates
 common_utils = { version = "0.1.0", path = "../common_utils", features = ["async_ext"] }
+router_env = { version = "0.1.0", path = "../router_env", features = ["log_extra_implicit_fields", "log_custom_entries_to_extra"] }
 
 [dev-dependencies]
 tokio = { version = "1.48.0", features = ["macros", "rt-multi-thread"] }

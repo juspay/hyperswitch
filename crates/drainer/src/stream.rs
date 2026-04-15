@@ -59,10 +59,10 @@ impl Store {
         max_read_count: u64,
     ) -> errors::DrainerResult<StreamReadResult> {
         // "0-0" id gives first entry
-        let stream_id = "0-0";
+        let stream_id = "0-0".to_string();
         let (output, execution_time) = common_utils::date_time::time_it(|| async {
             self.redis_conn
-                .stream_read_entries(stream_name, stream_id, Some(max_read_count))
+                .stream_read_entries(&[stream_name.into()], &[stream_id], Some(max_read_count))
                 .await
                 .map_err(errors::DrainerError::from)
         })
@@ -73,7 +73,41 @@ impl Store {
             router_env::metric_attributes!(("stream", stream_name.to_owned())),
         );
 
-        Ok(output?)
+        // Convert StreamReadReply to StreamReadResult
+        let reply = output?;
+        let result: StreamReadResult = reply
+            .keys
+            .into_iter()
+            .map(|stream_key| {
+                let entries: StreamEntries = stream_key
+                    .ids
+                    .into_iter()
+                    .map(|id| {
+                        let fields: HashMap<String, String> = id
+                            .map
+                            .into_iter()
+                            .filter_map(|(k, v)| {
+                                // Convert redis::Value to String, handling different value types
+                                let value_str = match v {
+                                    redis::Value::BulkString(bytes) => {
+                                        String::from_utf8(bytes).ok()
+                                    }
+                                    redis::Value::SimpleString(s) => Some(s),
+                                    redis::Value::Int(i) => Some(i.to_string()),
+                                    redis::Value::Nil => None,
+                                    _ => None,
+                                };
+                                value_str.map(|s| (k, s))
+                            })
+                            .collect();
+                        (id.id, fields)
+                    })
+                    .collect();
+                (stream_key.key, entries)
+            })
+            .collect();
+
+        Ok(result)
     }
     pub async fn trim_from_stream(
         &self,
@@ -87,14 +121,14 @@ impl Store {
             common_utils::date_time::time_it::<errors::DrainerResult<_>, _, _>(|| async {
                 let trim_result = self
                     .redis_conn
-                    .stream_trim_entries(&stream_name.into(), (trim_kind, trim_type, trim_id))
+                    .stream_trim_entries(&stream_name.into(), trim_kind, trim_type, trim_id)
                     .await
                     .map_err(errors::DrainerError::from)?;
 
                 // Since xtrim deletes entries below given id excluding the given id.
                 // Hence, deleting the minimum entry id
                 self.redis_conn
-                    .stream_delete_entries(&stream_name.into(), minimum_entry_id)
+                    .stream_delete_entries(&stream_name.into(), &[minimum_entry_id.to_string()])
                     .await
                     .map_err(errors::DrainerError::from)?;
 
@@ -119,7 +153,7 @@ impl Store {
         let (_trim_result, execution_time) =
             common_utils::date_time::time_it::<errors::DrainerResult<_>, _, _>(|| async {
                 self.redis_conn
-                    .stream_delete_entries(&stream_name.into(), entry_id)
+                    .stream_delete_entries(&stream_name.into(), &[entry_id.to_string()])
                     .await
                     .map_err(errors::DrainerError::from)?;
                 Ok(())

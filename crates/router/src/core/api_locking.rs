@@ -124,11 +124,14 @@ impl LockAction {
                 let lock_retries = input
                     .override_lock_retries
                     .unwrap_or(state.conf().lock_settings.lock_retries);
+                let request_id = state
+                    .get_request_id()
+                    .ok_or(errors::ApiErrorResponse::InternalServerError)?;
                 for _retry in 0..lock_retries {
                     let redis_lock_result = redis_conn
                         .set_key_if_not_exists_with_expiry(
                             &redis_locking_key.as_str().into(),
-                            state.get_request_id(),
+                            request_id.clone(),
                             Some(i64::from(redis_lock_expiry_seconds)),
                         )
                         .await;
