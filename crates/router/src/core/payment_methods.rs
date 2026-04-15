@@ -70,7 +70,10 @@ use super::{
 #[cfg(feature = "v2")]
 use crate::{
     configs::settings,
-    core::{payment_methods::transformers as pm_transforms, tokenization as tokenization_core, configs::dimension_state},
+    core::{
+        configs::dimension_state, payment_methods::transformers as pm_transforms,
+        tokenization as tokenization_core,
+    },
     headers,
     routes::{self, payment_methods as pm_routes},
     services::encryption,
@@ -89,7 +92,6 @@ use crate::{
         errors::{ProcessTrackerError, RouterResult},
         payments::{self as payments_core, helpers as payment_helpers},
         utils as core_utils,
-        
     },
     db::errors::ConnectorErrorExt,
     errors, logger,
@@ -3907,7 +3909,6 @@ pub async fn retrieve_payment_method(
         },
     )?;
 
-    
     let raw_payment_method_fetch_access = get_raw_payment_method_data_fetch_access(
         &state,
         &dimensions,

@@ -54,9 +54,9 @@ use crate::{
     configs::Settings,
     consts,
     core::{
+        configs::dimension_state,
         errors::{self, RouterResult, StorageErrorExt},
         payments::PaymentData,
-        configs::dimension_state
     },
     db::StorageInterface,
     routes::SessionState,
@@ -80,7 +80,13 @@ pub async fn get_feature_config(
     platform: &domain::Platform,
     dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
 ) -> FeatureConfig {
-    let dimensions = dimensions.with_organization_id(platform.get_processor().get_account().organization_id.clone());
+    let dimensions = dimensions.with_organization_id(
+        platform
+            .get_processor()
+            .get_account()
+            .organization_id
+            .clone(),
+    );
 
     let is_payment_method_modular_allowed = crate::core::payment_methods::utils::get_organization_eligibility_config_for_pm_modular_service(
         state,

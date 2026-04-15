@@ -732,4 +732,3 @@ async fn fetch_region(state: &SessionState, key: &str) -> Option<RoutingRegion> 
         .ok()
         .map(|conf| RoutingRegion::from_str(&conf.config).unwrap_or(RoutingRegion::Region1))
 }
-

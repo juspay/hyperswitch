@@ -3991,7 +3991,6 @@ pub async fn list_payment_methods(
         .and_then(|intent| intent.request_external_three_ds_authentication)
         .unwrap_or(false);
 
-
     let sdk_next_action = payment_method_utils::get_sdk_next_action_for_payment_method_list(
         &state,
         &dimensions,

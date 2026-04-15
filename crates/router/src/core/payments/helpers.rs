@@ -468,9 +468,10 @@ pub async fn get_token_pm_type_mandate_details(
 ) -> RouterResult<MandateGenericData> {
     let mandate_data = request.mandate_data.clone().map(MandateData::foreign_from);
     #[cfg(feature = "pm_modular")]
-    let is_payment_method_modular_allowed = core_utils::get_feature_config(state, platform, dimensions)
-        .await
-        .is_payment_method_modular_allowed;
+    let is_payment_method_modular_allowed =
+        core_utils::get_feature_config(state, platform, dimensions)
+            .await
+            .is_payment_method_modular_allowed;
     let (
         payment_token,
         payment_method,

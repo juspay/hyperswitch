@@ -465,7 +465,6 @@ pub async fn payouts_confirm_core(
         .await
         .transpose()?;
 
-    
     payouts_core(
         &state,
         &platform,

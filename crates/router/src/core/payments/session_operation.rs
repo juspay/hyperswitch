@@ -90,7 +90,7 @@ where
             payment_id,
             call_connector_action,
             header_payload.clone(),
-            &dimensions
+            &dimensions,
         )
         .await?;
 
