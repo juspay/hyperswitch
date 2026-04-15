@@ -247,7 +247,7 @@ fn into_response(
             Ok(api::GetMetaDataResponse::PaymentViews(resp.map(|d| {
                 d.views
                     .into_iter()
-                    .map(|v| api::SavedView {
+                    .map(|v| api::SavedViewResponse {
                         view_id: v.view_id,
                         view_name: v.view_name,
                         data: api::SavedViewFilters::V1(api::SavedViewFiltersV1::PaymentViews(

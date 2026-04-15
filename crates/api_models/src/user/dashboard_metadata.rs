@@ -197,7 +197,7 @@ pub enum GetMetaDataResponse {
     OnboardingSurvey(Option<OnboardingSurvey>),
     ReconStatus(Option<ReconStatus>),
     #[cfg(feature = "v1")]
-    PaymentViews(Option<Vec<SavedView>>),
+    PaymentViews(Option<Vec<SavedViewResponse>>),
 }
 
 // === Saved Views API Types ===
@@ -246,7 +246,7 @@ pub enum SavedViewFilters {
 
 #[cfg(feature = "v1")]
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
-pub struct SavedView {
+pub struct SavedViewResponse {
     pub view_id: String,
     pub view_name: String,
     pub data: SavedViewFilters,

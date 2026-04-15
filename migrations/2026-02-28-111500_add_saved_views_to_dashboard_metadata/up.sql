@@ -18,4 +18,3 @@ ON dashboard_metadata (
     data_key
 );
 
-ALTER INDEX dashboard_metadata_index_v2 RENAME TO dashboard_metadata_index;
