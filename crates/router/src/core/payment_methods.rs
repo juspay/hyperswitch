@@ -1138,10 +1138,11 @@ pub async fn create_persistent_payment_method_core(
         .billing
         .clone()
         .async_map(|billing| {
-            cards::create_encrypted_data(
+            core_utils::create_encrypted_data(
                 key_manager_state,
                 platform.get_provider().get_key_store(),
                 billing,
+                common_utils::type_name!(diesel_models::payment_method::PaymentMethod),
             )
         })
         .await
@@ -1222,10 +1223,11 @@ pub async fn create_volatile_payment_method_core(
         .billing
         .clone()
         .async_map(|billing| {
-            cards::create_encrypted_data(
+            core_utils::create_encrypted_data(
                 key_manager_state,
                 platform.get_provider().get_key_store(),
                 billing,
+                common_utils::type_name!(diesel_models::payment_method::PaymentMethod),
             )
         })
         .await
@@ -1304,7 +1306,9 @@ async fn payment_method_resolver(
                     Box::new(existing_pm),
                 )))
             }
-            enums::PaymentMethodStatus::AwaitingData | enums::PaymentMethodStatus::Processing => {
+            enums::PaymentMethodStatus::AwaitingData
+            | enums::PaymentMethodStatus::Processing
+            | enums::PaymentMethodStatus::Redacted => {
                 // no payment method entry will be found with finger print id and awaiting data or processing state
                 logger::info!("Payment method is in awaiting data or processing state, no existing payment method entry found with fingerprint id");
                 Err(
@@ -1518,8 +1522,13 @@ impl PaymentMethodResolver {
                     None
                 };
 
-                let update_payment_method_data: DomainPaymentMethodUpdate =
+                let mut update_payment_method_data: DomainPaymentMethodUpdate =
                     (req, source_payment_method_data).into();
+
+                // Reset Inactive status to New when customer re-adds the card
+                if payment_method.status == enums::PaymentMethodStatus::Inactive {
+                    update_payment_method_data.status = Some(enums::PaymentMethodStatus::New);
+                }
 
                 let (response, updated_payment_method) = Box::pin(update_payment_method_core(
                     state,
@@ -1901,10 +1910,11 @@ pub async fn create_payment_method_proxy_card_core(
 
     let encrypted_payment_method_data = additional_payment_method_data
         .async_map(|payment_method_data| {
-            cards::create_encrypted_data(
+            core_utils::create_encrypted_data(
                 key_manager_state,
                 platform.get_provider().get_key_store(),
                 payment_method_data,
+                common_utils::type_name!(diesel_models::payment_method::PaymentMethod),
             )
         })
         .await
@@ -1922,10 +1932,11 @@ pub async fn create_payment_method_proxy_card_core(
 
     let encrypted_external_vault_token_data = external_vault_token_data
         .async_map(|external_vault_token_data| {
-            cards::create_encrypted_data(
+            core_utils::create_encrypted_data(
                 key_manager_state,
                 platform.get_provider().get_key_store(),
                 external_vault_token_data,
+                common_utils::type_name!(diesel_models::payment_method::PaymentMethod),
             )
         })
         .await
@@ -2046,10 +2057,11 @@ pub async fn network_tokenize_and_vault_the_pmd(
         .attach_printable("Failed to vault network token")?;
 
         let key_manager_state = &(state).into();
-        let network_token_pmd = cards::create_encrypted_data(
+        let network_token_pmd = core_utils::create_encrypted_data(
             key_manager_state,
             platform.get_provider().get_key_store(),
             network_token_vaulting_data.get_payment_methods_data(),
+            common_utils::type_name!(diesel_models::payment_method::PaymentMethod),
         )
         .await
         .change_context(errors::NetworkTokenizationError::NetworkTokenDetailsEncryptionFailed)
@@ -2349,7 +2361,12 @@ pub async fn payment_method_intent_create(
         .billing
         .clone()
         .async_map(|billing| {
-            cards::create_encrypted_data(key_manager_state, provider.get_key_store(), billing)
+            core_utils::create_encrypted_data(
+                key_manager_state,
+                provider.get_key_store(),
+                billing,
+                common_utils::type_name!(diesel_models::payment_method::PaymentMethod),
+            )
         })
         .await
         .transpose()
@@ -2844,10 +2861,15 @@ pub async fn construct_payment_method_object(
         .async_map(|payment_method_details| async {
             let key_manager_state = &(state).into();
 
-            cards::create_encrypted_data(key_manager_state, key_store, payment_method_details)
-                .await
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Unable to encrypt Payment method data")
+            core_utils::create_encrypted_data(
+                key_manager_state,
+                key_store,
+                payment_method_details,
+                common_utils::type_name!(diesel_models::payment_method::PaymentMethod),
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Unable to encrypt Payment method data")
         })
         .await
         .transpose()?
@@ -3131,10 +3153,15 @@ pub async fn create_pm_additional_data_update(
         .async_map(|payment_method_details| async {
             let key_manager_state = &(state).into();
 
-            cards::create_encrypted_data(key_manager_state, key_store, payment_method_details)
-                .await
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Unable to encrypt Payment method data")
+            core_utils::create_encrypted_data(
+                key_manager_state,
+                key_store,
+                payment_method_details,
+                common_utils::type_name!(diesel_models::payment_method::PaymentMethod),
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Unable to encrypt Payment method data")
         })
         .await
         .transpose()?
@@ -3566,12 +3593,16 @@ pub async fn vault_payment_method_in_volatile_storage(
     let vault_id = domain::VaultId::generate(generate_id(consts::ID_LENGTH, "vault"));
     let merchant_key_store = platform.get_provider().get_key_store();
 
-    let encrypted_payload: Encryption =
-        cards::create_encrypted_data(&(state).into(), merchant_key_store, pmd.clone())
-            .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to encrypt Payment method vaulting data")?
-            .into();
+    let encrypted_payload: Encryption = core_utils::create_encrypted_data(
+        &(state).into(),
+        merchant_key_store,
+        pmd.clone(),
+        common_utils::type_name!(diesel_models::payment_method::PaymentMethod),
+    )
+    .await
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("Failed to encrypt Payment method vaulting data")?
+    .into();
 
     let redis_connection = state
         .store
@@ -4495,9 +4526,9 @@ pub async fn delete_payment_method_by_record(
     profile: &domain::Profile,
     payment_method: domain::PaymentMethod,
 ) -> RouterResult<()> {
-    // Soft delete
+    // Soft delete - mark as Redacted (terminal state, no transitions allowed)
     let pm_update = storage::PaymentMethodUpdate::StatusAndFingerprintUpdate {
-        status: Some(enums::PaymentMethodStatus::Inactive),
+        status: Some(enums::PaymentMethodStatus::Redacted),
         last_modified_by: platform
             .get_initiator()
             .and_then(|initiator| initiator.to_created_by())
@@ -5737,14 +5768,13 @@ impl<'a> pm_types::PaymentMethodUpdateHandler<'a> {
     fn validate(&self) -> RouterResult<()> {
         let payment_method = &self.payment_method;
         when(
-            payment_method.status == enums::PaymentMethodStatus::Inactive,
+            payment_method.status == enums::PaymentMethodStatus::Redacted,
             || {
                 Err(errors::ApiErrorResponse::InvalidRequestData {
-                    message: "Inactive Payment Method cannot be updated".to_string(),
+                    message: "Redacted Payment Method cannot be updated".to_string(),
                 })
             },
         )?;
-
         Ok(())
     }
 
@@ -5919,15 +5949,15 @@ impl<'a> pm_types::PaymentMethodUpdateHandler<'a> {
             return Ok(());
         }
 
-        let pm_status = match self.request.acknowledgement_status {
-            Some(common_enums::AcknowledgementStatus::Authenticated) => {
-                Some(common_enums::PaymentMethodStatus::Active)
-            }
-            Some(common_enums::AcknowledgementStatus::Failed) => {
-                Some(common_enums::PaymentMethodStatus::Inactive)
-            }
-            None => None,
-        };
+        // Get target status from request
+        // Domain model always uses PaymentMethodStatus - transformation from AcknowledgementStatus
+        // happens at the API boundary (From<api_models::PaymentMethodUpdate> impl)
+        let pm_status = self.request.status;
+
+        // Validate status transition
+        // Invalid transitions are silently ignored - status won't be updated
+        let pm_status = pm_status
+            .filter(|&new_status| self.payment_method.status.can_transition_to(new_status));
 
         let db = self.state.store.as_ref();
 

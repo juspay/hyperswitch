@@ -20718,6 +20718,24 @@
             "enum": [
               "order_details_product_name"
             ]
+          },
+          {
+            "type": "string",
+            "enum": [
+              "user_branch_code"
+            ]
+          },
+          {
+            "type": "string",
+            "enum": [
+              "user_bank_identifier"
+            ]
+          },
+          {
+            "type": "string",
+            "enum": [
+              "user_pix_account_number"
+            ]
           }
         ],
         "description": "Possible field type of required fields in payment_method_data"
@@ -21382,6 +21400,11 @@
           "assurance_details_required": {
             "type": "boolean",
             "description": "Whether assurance details are required",
+            "nullable": true
+          },
+          "allow_credit_cards": {
+            "type": "boolean",
+            "description": "Set to false if you don't want to allow credit cards",
             "nullable": true
           }
         }
@@ -27793,6 +27816,14 @@
               }
             ],
             "nullable": true
+          },
+          "wallet": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/WalletBlockingConfig"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -29009,7 +29040,8 @@
           "inactive",
           "processing",
           "awaiting_data",
-          "new"
+          "new",
+          "redacted"
         ]
       },
       "PaymentMethodTokenizationDetails": {
@@ -40435,6 +40467,12 @@
           "transfer_account_id": {
             "type": "string",
             "description": "Identifier for the reseller's account where the funds were transferred"
+          },
+          "on_behalf_of": {
+            "type": "string",
+            "description": "The Stripe account ID that these funds are intended for",
+            "example": "acct_1234567890",
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -40467,6 +40505,12 @@
           "transfer_account_id": {
             "type": "string",
             "description": "Identifier for the reseller's account where the funds were transferred"
+          },
+          "on_behalf_of": {
+            "type": "string",
+            "description": "The Stripe account ID that these funds are intended for",
+            "example": "acct_1234567890",
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -42305,6 +42349,20 @@
             "type": "string",
             "description": "Unique authorisation code generated for the payment",
             "example": "009825",
+            "nullable": true
+          }
+        }
+      },
+      "WalletBlockingConfig": {
+        "type": "object",
+        "description": "Wallet-specific blocking configuration for Apple Pay and Google Pay",
+        "properties": {
+          "card_types": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CardType"
+            },
+            "description": "Set of card types to block for wallet payments (e.g., [\"Credit\", \"Debit\"])",
             "nullable": true
           }
         }

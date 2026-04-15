@@ -45,6 +45,7 @@ use crate::{
         errors::StorageErrorExt,
         payment_methods::{cards as pm_cards, utils},
         payments::{self as payments_core, helpers as payment_helpers},
+        utils::create_encrypted_data,
     },
     utils::ext_traits::OptionExt,
 };
@@ -2145,10 +2146,11 @@ pub async fn insert_cvc_using_payment_token(
     let payload_to_be_encrypted = TemporaryVaultCvc { card_cvc };
 
     // Encrypt the CVC and store it in Redis
-    let encrypted_payload: Encryption = pm_cards::create_encrypted_data(
+    let encrypted_payload: Encryption = create_encrypted_data(
         &(state.into()),
         key_store,
         payload_to_be_encrypted.clone(),
+        common_utils::type_name!(diesel_models::payment_method::PaymentMethod),
     )
     .await
     .change_context(errors::ApiErrorResponse::InternalServerError)

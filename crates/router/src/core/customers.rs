@@ -21,9 +21,9 @@ use payment_methods::controller::PaymentMethodsController;
 use router_env::{instrument, tracing};
 
 #[cfg(feature = "v2")]
-use crate::core::payment_methods::cards::create_encrypted_data;
-#[cfg(feature = "v2")]
 use crate::core::payment_methods::delete_payment_method_by_record;
+#[cfg(feature = "v2")]
+use crate::core::utils::create_encrypted_data;
 #[cfg(feature = "v1")]
 use crate::utils::CustomerAddress;
 use crate::{
@@ -297,7 +297,12 @@ impl CustomerCreateBridge for customers::CustomerRequest {
         let default_customer_billing_address = self.get_default_customer_billing_address();
         let encrypted_customer_billing_address = default_customer_billing_address
             .async_map(|billing_address| {
-                create_encrypted_data(key_state, provider.get_key_store(), billing_address)
+                create_encrypted_data(
+                    key_state,
+                    provider.get_key_store(),
+                    billing_address,
+                    common_utils::type_name!(diesel_models::payment_method::PaymentMethod),
+                )
             })
             .await
             .transpose()
@@ -306,7 +311,12 @@ impl CustomerCreateBridge for customers::CustomerRequest {
         let default_customer_shipping_address = self.get_default_customer_shipping_address();
         let encrypted_customer_shipping_address = default_customer_shipping_address
             .async_map(|shipping_address| {
-                create_encrypted_data(key_state, provider.get_key_store(), shipping_address)
+                create_encrypted_data(
+                    key_state,
+                    provider.get_key_store(),
+                    shipping_address,
+                    common_utils::type_name!(diesel_models::payment_method::PaymentMethod),
+                )
             })
             .await
             .transpose()
@@ -1459,7 +1469,12 @@ impl CustomerUpdateBridge for customers::CustomerUpdateRequest {
         let default_billing_address = self.get_default_customer_billing_address();
         let encrypted_customer_billing_address = default_billing_address
             .async_map(|billing_address| {
-                create_encrypted_data(key_manager_state, provider.get_key_store(), billing_address)
+                create_encrypted_data(
+                    key_manager_state,
+                    provider.get_key_store(),
+                    billing_address,
+                    common_utils::type_name!(diesel_models::payment_method::PaymentMethod),
+                )
             })
             .await
             .transpose()
@@ -1473,6 +1488,7 @@ impl CustomerUpdateBridge for customers::CustomerUpdateRequest {
                     key_manager_state,
                     provider.get_key_store(),
                     shipping_address,
+                    common_utils::type_name!(diesel_models::payment_method::PaymentMethod),
                 )
             })
             .await
