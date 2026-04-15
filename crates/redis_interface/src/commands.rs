@@ -40,7 +40,7 @@ impl super::RedisConnectionPool {
 
     // ─── Key Commands ────────────────────────────────────────────────────────
 
-    #[instrument(level = "DEBUG", skip(self, value), fields(key = %key.tenant_aware_key(self)))]
+    #[instrument(level = "DEBUG", skip(self))]
     pub async fn set_key<V>(&self, key: &RedisKey, value: V) -> CustomResult<(), errors::RedisError>
     where
         V: redis::ToRedisArgs + Debug + Send + Sync + ToSingleRedisArg,
@@ -86,7 +86,7 @@ impl super::RedisConnectionPool {
             .change_context(errors::RedisError::SetFailed)
     }
 
-    #[instrument(level = "DEBUG", skip(self, value), fields(key = %key.tenant_aware_key(self)))]
+    #[instrument(level = "DEBUG", skip(self))]
     pub async fn serialize_and_set_key_if_not_exist<V>(
         &self,
         key: &RedisKey,
@@ -103,7 +103,7 @@ impl super::RedisConnectionPool {
             .await
     }
 
-    #[instrument(level = "DEBUG", skip(self, value), fields(key = %key.tenant_aware_key(self)))]
+    #[instrument(level = "DEBUG", skip(self))]
     pub async fn serialize_and_set_key<V>(
         &self,
         key: &RedisKey,
@@ -119,7 +119,7 @@ impl super::RedisConnectionPool {
         self.set_key(key, serialized.as_slice()).await
     }
 
-    #[instrument(level = "DEBUG", skip(self, value), fields(key = %key.tenant_aware_key(self)))]
+    #[instrument(level = "DEBUG", skip(self))]
     pub async fn serialize_and_set_key_without_modifying_ttl<V>(
         &self,
         key: &RedisKey,
@@ -136,7 +136,7 @@ impl super::RedisConnectionPool {
             .await
     }
 
-    #[instrument(level = "DEBUG", skip(self, value), fields(key = %key.tenant_aware_key(self), ttl_seconds = seconds))]
+    #[instrument(level = "DEBUG", skip(self))]
     pub async fn serialize_and_set_key_with_expiry<V>(
         &self,
         key: &RedisKey,
@@ -161,7 +161,7 @@ impl super::RedisConnectionPool {
         Ok(())
     }
 
-    #[instrument(level = "DEBUG", skip(self), fields(key = %key.tenant_aware_key(self)))]
+    #[instrument(level = "DEBUG", skip(self))]
     pub async fn get_key<V>(&self, key: &RedisKey) -> CustomResult<V, errors::RedisError>
     where
         V: FromRedisValue + Send + 'static,
@@ -316,7 +316,7 @@ impl super::RedisConnectionPool {
         }
     }
 
-    #[instrument(level = "DEBUG", skip(self), fields(key = %key.tenant_aware_key(self), type_name = type_name))]
+    #[instrument(level = "DEBUG", skip(self))]
     pub async fn get_and_deserialize_key<T>(
         &self,
         key: &RedisKey,
@@ -363,7 +363,7 @@ impl super::RedisConnectionPool {
         Ok(results)
     }
 
-    #[instrument(level = "DEBUG", skip(self), fields(key = %key.tenant_aware_key(self)))]
+    #[instrument(level = "DEBUG", skip(self))]
     pub async fn delete_key(&self, key: &RedisKey) -> CustomResult<DelReply, errors::RedisError> {
         let mut conn = self.pool.clone();
         let deleted_count: usize = conn
@@ -415,7 +415,7 @@ impl super::RedisConnectionPool {
         Ok(del_result)
     }
 
-    #[instrument(level = "DEBUG", skip(self, value), fields(key = %key.tenant_aware_key(self), ttl_seconds = seconds))]
+    #[instrument(level = "DEBUG", skip(self))]
     pub async fn set_key_with_expiry<V>(
         &self,
         key: &RedisKey,
@@ -436,7 +436,7 @@ impl super::RedisConnectionPool {
         Ok(())
     }
 
-    #[instrument(level = "DEBUG", skip(self, value), fields(key = %key.tenant_aware_key(self), ttl_seconds = seconds.unwrap_or(self.config.default_ttl.into())))]
+    #[instrument(level = "DEBUG", skip(self))]
     pub async fn set_key_if_not_exists_with_expiry<V>(
         &self,
         key: &RedisKey,
