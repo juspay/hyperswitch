@@ -10,11 +10,10 @@ use diesel_models::{
 use error_stack::{Report, ResultExt};
 use futures::{future::try_join_all, FutureExt};
 use hyperswitch_domain_models::{
-    behaviour::Conversion,
     merchant_key_store::MerchantKeyStore,
     payments::{payment_attempt::PaymentAttempt, PaymentIntent},
 };
-use storage_impl::errors::StorageError;
+use storage_impl::{behaviour::Conversion, errors::StorageError};
 
 use crate::{connection::pg_connection_write, core::errors::CustomResult, services::Store};
 

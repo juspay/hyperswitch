@@ -2,8 +2,6 @@ use common_utils::errors::CustomResult;
 use diesel_models::enums as storage_enums;
 #[cfg(feature = "v1")]
 use error_stack::ResultExt;
-#[cfg(feature = "v1")]
-use hyperswitch_domain_models::behaviour::Conversion;
 use hyperswitch_domain_models::{
     merchant_key_store::MerchantKeyStore,
     payments::{
@@ -13,7 +11,9 @@ use hyperswitch_domain_models::{
 };
 
 use super::MockDb;
-use crate::errors::StorageError;
+#[cfg(feature = "v1")]
+use crate::behaviour::Conversion;
+use crate::{behaviour::ForeignFrom, errors::StorageError};
 
 #[async_trait::async_trait]
 impl PaymentIntentInterface for MockDb {
@@ -141,7 +141,7 @@ impl PaymentIntentInterface for MockDb {
             })
             .unwrap();
 
-        let diesel_payment_intent_update = diesel_models::PaymentIntentUpdate::from(update);
+        let diesel_payment_intent_update = diesel_models::PaymentIntentUpdate::foreign_from(update);
         let diesel_payment_intent = payment_intent
             .clone()
             .convert()

@@ -14,8 +14,8 @@ oltp = []
 accounts_cache = []
 olap = ["hyperswitch_domain_models/olap"]
 payouts = ["hyperswitch_domain_models/payouts"]
-v1 = ["api_models/v1", "diesel_models/v1", "hyperswitch_domain_models/v1", "common_utils/v1"]
-v2 = ["api_models/v2", "diesel_models/v2", "hyperswitch_domain_models/v2", "common_utils/v2"]
+v1 = ["api_models/v1", "diesel_models/v1", "hyperswitch_domain_models/v1", "common_utils/v1", "common_types/v1"]
+v2 = ["api_models/v2", "diesel_models/v2", "hyperswitch_domain_models/v2", "common_utils/v2", "common_types/v2"]
 tokenization_v2 = ["diesel_models/tokenization_v2", "api_models/tokenization_v2", "hyperswitch_domain_models/tokenization_v2"]
 
 [dependencies]
@@ -23,6 +23,7 @@ tokenization_v2 = ["diesel_models/tokenization_v2", "api_models/tokenization_v2"
 api_models = { version = "0.1.0", path = "../api_models" }
 common_enums = { version = "0.1.0", path = "../common_enums" }
 common_utils = { version = "0.1.0", path = "../common_utils" }
+common_types = { version = "0.1.0", path = "../common_types" }
 diesel_models = { version = "0.1.0", path = "../diesel_models", default-features = false }
 hyperswitch_domain_models = { version = "0.1.0", path = "../hyperswitch_domain_models", default-features = false }
 hyperswitch_masking = "0.0.1"
