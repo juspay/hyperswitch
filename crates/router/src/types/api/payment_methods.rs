@@ -1,12 +1,13 @@
 #[cfg(feature = "v2")]
 pub use api_models::payment_methods::{
-    CardDetail, CardDetailFromLocker, CardDetailsPaymentMethod, CardNetworkTokenizeRequest,
-    CardNetworkTokenizeResponse, CardType, CustomerPaymentMethodResponseItem,
-    DeleteTokenizeByTokenRequest, GetNetworkTokenEiligibilityResponse, GetTokenizePayloadRequest,
-    GetTokenizePayloadResponse, ListCountriesCurrenciesRequest, MigrateCardDetail,
-    NetworkTokenDetailsPaymentMethod, NetworkTokenDetailsResponse, NetworkTokenEligibilityRequest,
-    NetworkTokenResponse, PaymentMethodCollectLinkRenderRequest, PaymentMethodCollectLinkRequest,
-    PaymentMethodCreate, PaymentMethodCreateData, PaymentMethodDeleteResponse, PaymentMethodId,
+    BankDebitDetailUpdate, CardDetail, CardDetailFromLocker, CardDetailsPaymentMethod,
+    CardNetworkTokenizeRequest, CardNetworkTokenizeResponse, CardType,
+    CustomerPaymentMethodResponseItem, DeleteTokenizeByTokenRequest,
+    GetNetworkTokenEiligibilityResponse, GetTokenizePayloadRequest, GetTokenizePayloadResponse,
+    ListCountriesCurrenciesRequest, MigrateCardDetail, NetworkTokenDetailsPaymentMethod,
+    NetworkTokenDetailsResponse, NetworkTokenEligibilityRequest, NetworkTokenResponse,
+    PaymentMethodCollectLinkRenderRequest, PaymentMethodCollectLinkRequest, PaymentMethodCreate,
+    PaymentMethodCreateData, PaymentMethodDeleteResponse, PaymentMethodId,
     PaymentMethodIntentConfirm, PaymentMethodIntentCreate, PaymentMethodListData,
     PaymentMethodListResponseForSession, PaymentMethodMigrate, PaymentMethodMigrateResponse,
     PaymentMethodResponse, PaymentMethodResponseData, PaymentMethodUpdate, PaymentMethodUpdateData,
@@ -166,6 +167,16 @@ impl PaymentMethodSessionExt for api_models::payment_methods::PaymentMethodSessi
             || {
                 Err(report!(errors::ApiErrorResponse::MissingRequiredField {
                     field_name: "customer_acceptance"
+                }))
+            },
+        )?;
+
+        utils::when(
+            self.payment_method_type == api_models::enums::PaymentMethod::BankDebit
+                && self.payment_method_subtype.is_none(),
+            || {
+                Err(report!(errors::ApiErrorResponse::MissingRequiredField {
+                    field_name: "payment_method_subtype"
                 }))
             },
         )?;

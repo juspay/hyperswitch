@@ -521,6 +521,9 @@ impl PaymentMethodCreate {
                     PaymentMethodCreateData::Card(_) | PaymentMethodCreateData::ProxyCard(_)
                 )
             }
+            api_enums::PaymentMethod::BankDebit => {
+                matches!(payment_method_data, PaymentMethodCreateData::BankDebit(_))
+            }
             _ => false,
         }
     }
@@ -576,12 +579,23 @@ pub struct PaymentMethodUpdate {
 }
 
 #[cfg(feature = "v2")]
-#[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone, PartialEq, Eq, ToSchema)]
 #[serde(deny_unknown_fields)]
 #[serde(rename_all = "snake_case")]
 #[serde(rename = "payment_method_data")]
 pub enum PaymentMethodUpdateData {
     Card(CardDetailUpdate),
+    BankDebit(BankDebitDetailUpdate),
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone, PartialEq, Eq, ToSchema)]
+#[serde(deny_unknown_fields)]
+#[serde(rename_all = "snake_case")]
+pub enum BankDebitDetailUpdate {
+    Ach {
+        #[schema(value_type = Option<String>)]
+        bank_account_holder_name: Option<hyperswitch_masking::Secret<String>>,
+    },
 }
 
 #[cfg(feature = "v2")]
@@ -592,6 +606,7 @@ pub enum PaymentMethodUpdateData {
 pub enum PaymentMethodCreateData {
     Card(CardDetail),
     ProxyCard(ProxyCardDetails),
+    BankDebit(BankDebitDetail),
 }
 
 #[cfg(feature = "v2")]
@@ -614,6 +629,7 @@ pub enum PaymentMethodCreateData {
     BankDebit(BankDebitDetail),
 }
 
+#[cfg(feature = "v1")]
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
 #[serde(deny_unknown_fields)]
 #[serde(rename_all = "snake_case")]
@@ -632,6 +648,31 @@ pub enum BankDebitDetail {
         #[schema(value_type = Option<BankHolderType>)]
         #[serde(default)]
         bank_holder_type: Option<common_enums::BankHolderType>,
+    },
+}
+
+#[cfg(feature = "v2")]
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
+#[serde(deny_unknown_fields)]
+#[serde(rename_all = "snake_case")]
+pub enum BankDebitDetail {
+    Ach {
+        #[schema(value_type = String)]
+        account_number: hyperswitch_masking::Secret<String>,
+        #[schema(value_type = String)]
+        routing_number: hyperswitch_masking::Secret<String>,
+        #[schema(value_type = Option<String>)]
+        #[serde(default)]
+        bank_account_holder_name: Option<hyperswitch_masking::Secret<String>>,
+        #[schema(value_type = Option<BankType>)]
+        #[serde(default)]
+        bank_type: Option<common_enums::BankType>,
+        #[schema(value_type = Option<BankHolderType>)]
+        #[serde(default)]
+        bank_holder_type: Option<common_enums::BankHolderType>,
+        #[schema(value_type = Option<BankNames>)]
+        #[serde(default)]
+        bank_name: Option<common_enums::BankNames>,
     },
 }
 
@@ -684,6 +725,30 @@ impl BankDebitDetail {
             Self::Ach {
                 bank_holder_type, ..
             } => *bank_holder_type,
+        }
+    }
+}
+
+#[cfg(feature = "v2")]
+impl From<BankDebitDetail> for BankDebitDetailsPaymentMethod {
+    fn from(bank_debit: BankDebitDetail) -> Self {
+        let account_number_last4_digits = bank_debit.get_masked_account_number();
+        let routing_number_last4_digits = bank_debit.get_masked_routing_number();
+        match bank_debit {
+            BankDebitDetail::Ach {
+                bank_account_holder_name,
+                bank_type,
+                bank_holder_type,
+                bank_name,
+                ..
+            } => Self::AchBankDebit {
+                account_number_last4_digits,
+                routing_number_last4_digits,
+                bank_account_holder_name,
+                bank_name,
+                bank_type,
+                bank_holder_type,
+            },
         }
     }
 }
@@ -1012,7 +1077,7 @@ impl CardDetailUpdate {
 }
 
 #[cfg(feature = "v2")]
-#[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone, PartialEq, Eq, ToSchema)]
 #[serde(deny_unknown_fields)]
 pub struct CardDetailUpdate {
     /// Card Holder Name
@@ -1058,6 +1123,7 @@ impl CardDetailUpdate {
 #[serde(rename = "payment_method_data")]
 pub enum PaymentMethodResponseData {
     Card(CardDetailFromLocker),
+    BankDebit(BankDebitDetailsPaymentMethod),
 }
 
 #[cfg(feature = "v2")]
@@ -1079,6 +1145,7 @@ pub struct RawCardWithNTDetails {
 pub enum RawPaymentMethodData {
     Card(CardDetail),
     CardWithNT(RawCardWithNTDetails),
+    BankDebit(BankDebitDetail),
 }
 
 #[cfg(feature = "v1")]
@@ -1383,16 +1450,38 @@ pub struct CardDetailsPaymentMethod {
     pub co_badged_card_data: Option<CoBadgedCardDataToBeSaved>,
 }
 
-#[derive(serde::Deserialize, serde::Serialize, Debug, Clone, Eq, PartialEq)]
+#[cfg(feature = "v1")]
+#[derive(serde::Deserialize, serde::Serialize, Debug, Clone, Eq, PartialEq, ToSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum BankDebitDetailsPaymentMethod {
     AchBankDebit {
         masked_account_number: String,
         masked_routing_number: String,
-        card_holder_name: Option<hyperswitch_masking::Secret<String>>,
+        #[schema(value_type=Option<String>)]
         bank_account_holder_name: Option<hyperswitch_masking::Secret<String>>,
+        #[schema(value_type = String, example = "ach")]
         bank_name: Option<common_enums::BankNames>,
+        #[schema(value_type = String, example = "checking")]
         bank_type: Option<common_enums::BankType>,
+        #[schema(value_type = String, example = "personal")]
+        bank_holder_type: Option<common_enums::BankHolderType>,
+    },
+}
+
+#[cfg(feature = "v2")]
+#[derive(serde::Deserialize, serde::Serialize, Debug, Clone, Eq, PartialEq, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum BankDebitDetailsPaymentMethod {
+    AchBankDebit {
+        account_number_last4_digits: String,
+        routing_number_last4_digits: String,
+        #[schema(value_type=Option<String>)]
+        bank_account_holder_name: Option<hyperswitch_masking::Secret<String>>,
+        #[schema(value_type = String, example = "ach")]
+        bank_name: Option<common_enums::BankNames>,
+        #[schema(value_type = String, example = "checking")]
+        bank_type: Option<common_enums::BankType>,
+        #[schema(value_type = String, example = "personal")]
         bank_holder_type: Option<common_enums::BankHolderType>,
     },
 }
@@ -2975,6 +3064,7 @@ pub struct CustomerPaymentMethodResponseItem {
 #[serde(rename_all = "snake_case")]
 pub enum PaymentMethodListData {
     Card(CardDetailFromLocker),
+    BankDebit(BankDebitDetailsPaymentMethod),
     #[cfg(feature = "payouts")]
     #[schema(value_type = Bank)]
     Bank(payouts::Bank),
@@ -3349,6 +3439,8 @@ pub struct PaymentMethodRecord {
     pub bank_type: Option<common_enums::BankType>,
     #[serde(default)]
     pub bank_holder_type: Option<common_enums::BankHolderType>,
+    #[serde(default)]
+    pub bank_name: Option<common_enums::BankNames>,
 }
 
 #[cfg(feature = "v1")]
@@ -3934,7 +4026,14 @@ impl PaymentMethodSessionUpdateSavedPaymentMethod {
             Some(PaymentMethodUpdateData::Card(card_update)) => {
                 card_update.card_holder_name.is_some() || card_update.nick_name.is_some()
             }
-            _ => false,
+            Some(PaymentMethodUpdateData::BankDebit(bank_debit_update)) => {
+                match bank_debit_update {
+                    BankDebitDetailUpdate::Ach {
+                        bank_account_holder_name,
+                    } => bank_account_holder_name.is_some(),
+                }
+            }
+            None => false,
         }
     }
 }
