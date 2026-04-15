@@ -1576,7 +1576,7 @@ pub fn build_unified_connector_service_payment_method(
                 Ok(payments_grpc::PaymentMethod {
                     payment_method: Some(PaymentMethod::Eft(eft)),
                 })
-            }     
+            }
         },
         hyperswitch_domain_models::payment_method_data::PaymentMethodData::Voucher(voucher_data) => {
             match voucher_data {
