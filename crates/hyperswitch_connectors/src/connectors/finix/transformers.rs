@@ -35,7 +35,10 @@ pub use response::*;
 use crate::{
     types::{RefundsResponseRouterData, ResponseRouterData},
     unimplemented_payment_method,
-    utils::{self, AddressDetailsData, CardData, RouterData as _},
+    utils::{
+        self, get_unimplemented_payment_method_error_message, AddressDetailsData, CardData,
+        RouterData as _,
+    },
 };
 
 pub struct FinixRouterData<'a, Flow, Req, Res> {
@@ -135,6 +138,19 @@ impl TryFrom<&FinixRouterData<'_, Authorize, PaymentsAuthorizeData, PaymentsResp
     fn try_from(
         item: &FinixRouterData<'_, Authorize, PaymentsAuthorizeData, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
+        if matches!(
+            item.router_data.request.payment_method_data,
+            PaymentMethodData::Card(_)
+        ) && matches!(
+            item.router_data.auth_type,
+            enums::AuthenticationType::ThreeDs
+        ) {
+            return Err(ConnectorError::NotImplemented(
+                get_unimplemented_payment_method_error_message("finix"),
+            )
+            .into());
+        }
+
         let source =
             match item.router_data.request.payment_method_data.clone() {
                 PaymentMethodData::Card(_)
