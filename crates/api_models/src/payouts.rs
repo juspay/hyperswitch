@@ -850,7 +850,7 @@ pub struct PayoutActionRequest {
     pub payout_id: id_type::PayoutId,
 }
 
-#[derive(Default, Debug, ToSchema, Clone, Deserialize)]
+#[derive(Default, Debug, ToSchema, Clone, Serialize, Deserialize)]
 pub struct PayoutVendorAccountDetails {
     pub vendor_details: PayoutVendorDetails,
     pub individual_details: PayoutIndividualDetails,
@@ -1243,11 +1243,22 @@ impl From<Wallet> for payout_method_utils::WalletAdditionalData {
                 email,
                 telephone_number,
                 paypal_id,
-            }) => Self::Paypal(Box::new(payout_method_utils::PaypalAdditionalData {
-                email: email.map(ForeignFrom::foreign_from),
-                telephone_number: telephone_number.map(From::from),
-                paypal_id: paypal_id.map(From::from),
-            })),
+            }) => {
+                let paypal_additional_data = if let Some(e) = email {
+                    payout_method_utils::PaypalAdditionalData::Email {
+                        email: ForeignFrom::foreign_from(e),
+                    }
+                } else if let Some(id) = paypal_id {
+                    payout_method_utils::PaypalAdditionalData::PaypalId {
+                        paypal_id: From::from(id),
+                    }
+                } else {
+                    payout_method_utils::PaypalAdditionalData::TelephoneNumber {
+                        telephone_number: telephone_number.map(From::from),
+                    }
+                };
+                Self::Paypal(Box::new(paypal_additional_data))
+            }
             Wallet::Venmo(Venmo { telephone_number }) => {
                 Self::Venmo(Box::new(payout_method_utils::VenmoAdditionalData {
                     telephone_number: telephone_number.map(From::from),
@@ -1374,4 +1385,37 @@ pub struct PayoutsManualUpdateResponse {
     pub error_message: Option<String>,
     /// A unique identifier for a payout provided by the connector
     pub connector_payout_id: Option<String>,
+}
+
+impl From<&PayoutMethodData> for api_enums::PaymentMethodType {
+    fn from(data: &PayoutMethodData) -> Self {
+        match data {
+            // debit represent card payout methods, todo: consider renaming it to card in future
+            PayoutMethodData::Card(_) => Self::Debit,
+            PayoutMethodData::Bank(bank) => match bank {
+                Bank::Ach(_) => Self::Ach,
+                Bank::Bacs(_) => Self::Bacs,
+                Bank::Sepa(_) => Self::SepaBankTransfer,
+                Bank::Pix(_) => Self::Pix,
+                Bank::Trustly(_) => Self::Trustly,
+            },
+            PayoutMethodData::BankTransfer(bank_transfer) => match bank_transfer {
+                BankTransfer::Ach(_) => Self::Ach,
+                BankTransfer::Bacs(_) => Self::Bacs,
+                BankTransfer::Sepa(_) => Self::SepaBankTransfer,
+                BankTransfer::Pix(_) => Self::Pix,
+                BankTransfer::Trustly(_) => Self::Trustly,
+            },
+            PayoutMethodData::Wallet(wallet) => match wallet {
+                Wallet::ApplePayDecrypt(_) => Self::ApplePay,
+                Wallet::Paypal(_) => Self::Paypal,
+                Wallet::Venmo(_) => Self::Venmo,
+            },
+            PayoutMethodData::BankRedirect(bank_redirect) => match bank_redirect {
+                BankRedirect::Interac(_) => Self::Interac,
+                BankRedirect::OpenBankingUk(_) => Self::OpenBankingUk,
+            },
+            PayoutMethodData::Passthrough(passthrough) => passthrough.token_type,
+        }
+    }
 }

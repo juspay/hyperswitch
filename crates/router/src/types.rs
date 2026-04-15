@@ -758,6 +758,48 @@ pub struct UcsPaymentSetupRecurringResponseData {
     pub minor_amount_captured: Option<MinorUnit>,
 }
 
+#[cfg(feature = "payouts")]
+pub struct UcsPayoutCreateResponseData {
+    pub router_data_response: Result<PayoutsResponseData, ErrorResponse>,
+    pub status_code: u16,
+}
+
+#[cfg(feature = "payouts")]
+pub struct UcsPayoutTransferResponseData {
+    pub router_data_response: Result<PayoutsResponseData, ErrorResponse>,
+    pub status_code: u16,
+}
+
+#[cfg(feature = "payouts")]
+pub struct UcsPayoutGetResponseData {
+    pub router_data_response: Result<PayoutsResponseData, ErrorResponse>,
+    pub status_code: u16,
+}
+
+#[cfg(feature = "payouts")]
+pub struct UcsPayoutVoidResponseData {
+    pub router_data_response: Result<PayoutsResponseData, ErrorResponse>,
+    pub status_code: u16,
+}
+
+#[cfg(feature = "payouts")]
+pub struct UcsPayoutStageResponseData {
+    pub router_data_response: Result<PayoutsResponseData, ErrorResponse>,
+    pub status_code: u16,
+}
+
+#[cfg(feature = "payouts")]
+pub struct UcsPayoutCreateRecipientResponseData {
+    pub router_data_response: Result<PayoutsResponseData, ErrorResponse>,
+    pub status_code: u16,
+}
+
+#[cfg(feature = "payouts")]
+pub struct UcsPayoutEnrollDisburseAccountResponseData {
+    pub router_data_response: Result<PayoutsResponseData, ErrorResponse>,
+    pub status_code: u16,
+}
+
 #[derive(Debug, Clone, Copy)]
 pub enum Redirection {
     Redirect,
