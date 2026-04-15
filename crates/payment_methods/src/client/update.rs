@@ -62,6 +62,7 @@ pub struct ModularPMUpdateRequest {
 #[serde(rename = "payment_method_data")]
 pub enum PaymentMethodUpdateData {
     Card(CardDetailUpdate),
+    BankDebit(BankDebitDetailUpdate),
 }
 
 /// Card update payload for the modular service.
@@ -73,6 +74,16 @@ pub struct CardDetailUpdate {
     pub nick_name: Option<Secret<String>>,
     /// Card CVC (optional).
     pub card_cvc: Option<Secret<String>>,
+}
+
+/// Bank debit update payload for the modular service.
+#[derive(Debug, Serialize, Clone)]
+#[serde(rename_all = "snake_case")]
+pub enum BankDebitDetailUpdate {
+    Ach {
+        /// Bank account holder name.
+        bank_account_holder_name: Option<Secret<String>>,
+    },
 }
 
 /// V1-facing update response.

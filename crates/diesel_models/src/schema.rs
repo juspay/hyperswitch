@@ -440,6 +440,8 @@ diesel::table! {
         #[max_length = 255]
         last_modified_by -> Nullable<Varchar>,
         document_details -> Nullable<Bytea>,
+        #[max_length = 64]
+        id -> Nullable<Varchar>,
     }
 }
 
@@ -639,6 +641,10 @@ diesel::table! {
         #[max_length = 64]
         last_step -> Varchar,
         payment_capture_method -> Nullable<CaptureMethod>,
+        #[max_length = 64]
+        processor_merchant_id -> Nullable<Varchar>,
+        #[max_length = 255]
+        created_by -> Nullable<Varchar>,
     }
 }
 
@@ -1660,6 +1666,8 @@ diesel::table! {
         profile_id -> Nullable<Varchar>,
         #[max_length = 64]
         tenant_id -> Varchar,
+        #[max_length = 64]
+        merchant_product_type -> Nullable<Varchar>,
     }
 }
 
