@@ -5744,10 +5744,13 @@ pub(crate) fn get_adyen_webhook_event(
             Some(DisputeStatus::Responded) => {
                 api_models::webhooks::IncomingWebhookEvent::DisputeChallenged
             }
-            Some(DisputeStatus::Expired) | None => {
+            Some(DisputeStatus::Expired) => {
                 api_models::webhooks::IncomingWebhookEvent::DisputeExpired
             }
-            Some(_) => api_models::webhooks::IncomingWebhookEvent::DisputeOpened,
+            Some(DisputeStatus::Unresponded) => {
+                api_models::webhooks::IncomingWebhookEvent::EventNotSupported
+            }
+            None | Some(_) => api_models::webhooks::IncomingWebhookEvent::DisputeOpened,
         },
         WebhookEventCode::ChargebackReversed => match dispute_status {
             Some(DisputeStatus::Pending) => {
