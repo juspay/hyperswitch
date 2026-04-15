@@ -77,7 +77,7 @@ pub async fn do_gsm_multiple_connector_actions(
                 ))
                 .await?;
 
-                retries = retries.map(|i| i - 1);
+                retries = retries.map(|i| i.saturating_sub(1));
             }
             common_enums::GsmDecision::DoDefault => break,
         }
@@ -137,7 +137,7 @@ pub async fn do_gsm_single_connector_actions(
                 ))
                 .await?;
 
-                retries = retries.map(|i| i - 1);
+                retries = retries.map(|i| i.saturating_sub(1));
             }
             common_enums::GsmDecision::DoDefault => break,
         }
@@ -148,11 +148,11 @@ pub async fn do_gsm_single_connector_actions(
 #[instrument(skip_all)]
 pub async fn get_retries(
     state: &app::SessionState,
-    retries: Option<i64>,
+    retries: Option<u32>,
     dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
     customer_id: Option<&common_utils::id_type::CustomerId>,
     retry_type: PayoutRetryType,
-) -> Option<i64> {
+) -> Option<u32> {
     match retries {
         Some(retries) => Some(retries),
         None => {

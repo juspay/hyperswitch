@@ -265,8 +265,8 @@ impl DatabaseBackedConfig for ClientSessionValidationEnabled {
 
 config! {
     superposition_key = MAX_AUTO_PAYOUT_RETRIES,
-    output = i64,
-    default = 0i64,
+    output = u32,
+    default = 0u32,
     requires = dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndPayoutRetryType,
     targeting_key = id_type::CustomerId
 }
