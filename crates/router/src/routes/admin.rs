@@ -564,7 +564,7 @@ pub async fn connector_create(
             create_connector(
                 state,
                 req,
-                auth_data.platform.get_processor().clone(),
+                auth_data.platform,
                 auth_data.profile.map(|profile| profile.get_id().clone()),
             )
         },
@@ -600,7 +600,7 @@ pub async fn connector_create(
         &req,
         payload,
         |state, auth_data: auth::AuthenticationData, req, _| {
-            create_connector(state, req, auth_data.platform.get_processor().clone(), None)
+            create_connector(state, req, auth_data.platform, None)
         },
         auth::auth_type(
             &auth::AdminApiAuthWithMerchantIdFromHeader,

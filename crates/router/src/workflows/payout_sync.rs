@@ -267,6 +267,10 @@ impl PayoutSyncWorkFlow {
             .await
             .map_err(errors::ProcessTrackerError::EStorageError)?;
 
+        let dimensions = dimension_state::Dimensions::new()
+        .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id())
+        .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
+        .with_organization_id(platform.get_processor().get_account().get_org_id().clone());
         // Trigger webhook to the merchant if it is a terminal status
         // If event is NOT an UnsupportedEvent, trigger Outgoing Webhook
         if let Some(outgoing_event_type) = event_type {
@@ -282,6 +286,7 @@ impl PayoutSyncWorkFlow {
                 enums::EventObjectType::PayoutDetails,
                 api::OutgoingWebhookContent::PayoutDetails(Box::new(payout_response)),
                 Some(payout_data.payout_attempt.created_at),
+                dimensions
             ))
             .await?;
         }

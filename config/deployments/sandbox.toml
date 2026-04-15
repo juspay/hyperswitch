@@ -293,12 +293,6 @@ card.debit = { connector_list = "cybersource" }             # Update Mandate sup
 card.credit = "adyen"
 card.debit = "adyen"
 
-[network_transaction_id_supported_connectors]
-connector_list = "adyen,archipel,checkout,cybersource,novalnet,nuvei,stripe,worldpay,worldpayvantiv"
-
-[card_only_mit_supported_connectors]
-connector_list = "peachpayments" # Supported connectors for card only mit
-
 [notify_iframe_exit_and_redirect]
 connector_list = "worldpayxml"
 
@@ -981,10 +975,6 @@ dwolla = { long_lived_token = true, payment_method = "bank_debit" }
 finix= { long_lived_token = false, payment_method = "card,wallet" }
 paysafe= { long_lived_token = false, payment_method = "card,wallet" ,payment_method_type = { type = "enable_only", list = "apple_pay,credit,debit"},allowed_card_authentication_type= "no_three_ds"}
 
-[webhooks]
-outgoing_enabled = true
-redis_lock_expiry_seconds = 180
-
 [l2_l3_data_config]
 enabled = "true"
 
@@ -1021,9 +1011,6 @@ click_to_pay = {connector_list = "adyen, cybersource, trustpay"}
 
 [authentication_service_enabled_connectors]
 connector_list = "juspaythreedsserver, ctp_mastercard, ctp_visa"
-
-[list_dispute_supported_connectors]
-connector_list = "worldpayvantiv"
 
 [grpc_client.unified_connector_service]
 ucs_only_connectors = "paytm, phonepe, hyperpg, revolv3, fiservcommercehub"    # Comma-separated list of connectors that use UCS only

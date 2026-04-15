@@ -34,6 +34,7 @@ use crate::types::transformers::ForeignFrom;
 use crate::{
     consts,
     core::{
+        configs::dimension_state,
         connector_validation::ConnectorAuthTypeAndMetadataValidation,
         disputes,
         encryption::transfer_encryption_key,
@@ -2692,10 +2693,15 @@ impl MerchantConnectorAccountCreateBridge for api::MerchantConnectorCreate {
 pub async fn create_connector(
     state: SessionState,
     req: api::MerchantConnectorCreate,
-    processor: domain::Processor,
+    platform: domain::Platform,
     auth_profile_id: Option<id_type::ProfileId>,
 ) -> RouterResponse<api_models::admin::MerchantConnectorResponse> {
     let store = state.store.as_ref();
+    let processor = platform.get_processor();
+    let dimensions = dimension_state::Dimensions::new()
+        .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
+        .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id());
+
     let key_manager_state = &(&state).into();
     #[cfg(feature = "dummy_connector")]
     fp_utils::when(
@@ -2712,7 +2718,7 @@ pub async fn create_connector(
         connector_metadata: &req.metadata,
     };
 
-    let merchant_id = processor.get_account().get_id();
+    let merchant_id = platform.get_provider().get_account().get_id();
 
     connector_metadata.validate_apple_pay_certificates_in_mca_metadata()?;
 
@@ -2720,12 +2726,12 @@ pub async fn create_connector(
     helpers::validate_business_details(
         req.business_country,
         req.business_label.as_ref(),
-        &processor,
+        processor,
     )?;
 
     let business_profile = req
         .clone()
-        .validate_and_get_business_profile(&processor, store)
+        .validate_and_get_business_profile(processor, store)
         .await?;
 
     #[cfg(feature = "v2")]
@@ -2801,7 +2807,7 @@ pub async fn create_connector(
     redact_cgraph_cache(&state, merchant_id, business_profile.get_id()).await?;
 
     #[cfg(feature = "v1")]
-    disputes::schedule_dispute_sync_task(&state, &business_profile, &mca).await?;
+    disputes::schedule_dispute_sync_task(&state,dimensions, &business_profile, &mca).await?;
 
     #[cfg(feature = "v1")]
     //update merchant default config

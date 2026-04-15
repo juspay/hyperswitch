@@ -1115,12 +1115,6 @@ card.debit = { connector_list = "cybersource" }
 card.credit = "adyen"
 card.debit = "adyen"
 
-[network_transaction_id_supported_connectors]
-connector_list = "adyen,archipel,checkout,cybersource,novalnet,stripe,worldpay,worldpayvantiv"
-
-[card_only_mit_supported_connectors]
-connector_list = "peachpayments" # Supported connectors for card only mit
-
 [notify_iframe_exit_and_redirect]
 connector_list = "worldpayxml"
 
@@ -1383,8 +1377,6 @@ header_name = "x-request-id"    # HTTP header name for request tracing
 
 [proxy_status_mapping]
 proxy_connector_http_status_code = false    # If enabled, the http status code of the connector will be proxied in the response
-[list_dispute_supported_connectors]
-connector_list = "worldpayvantiv"
 
 # Authentication to communicate between internal services using common_api_key, merchant id and profile id
 [internal_merchant_id_profile_id_auth]

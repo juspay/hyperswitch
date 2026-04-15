@@ -54,17 +54,14 @@ use crate::{
     configs::Settings,
     consts,
     core::{
-        errors::{self, RouterResult, StorageErrorExt},
-        payments::PaymentData,
+        configs::dimension_state, errors::{self, RouterResult, StorageErrorExt}, payments::PaymentData
     },
     db::StorageInterface,
     routes::SessionState,
     types::{
-        self, api, domain,
-        storage::{self, enums},
-        PollConfig,
+        self, PollConfig, api, domain, storage::{self, enums}
     },
-    utils::{generate_id, OptionExt, ValueExt},
+    utils::{OptionExt, ValueExt, generate_id},
 };
 
 #[cfg(all(feature = "v1", feature = "pm_modular"))]
@@ -2890,13 +2887,18 @@ fn validate_plusgiro_number(number: &Secret<String>) -> RouterResult<()> {
     Ok(())
 }
 
-pub fn should_add_dispute_sync_task_to_pt(state: &SessionState, connector_name: Connector) -> bool {
-    let list_dispute_supported_connectors = state
-        .conf
-        .list_dispute_supported_connectors
-        .connector_list
-        .clone();
-    list_dispute_supported_connectors.contains(&connector_name)
+pub async fn should_add_dispute_sync_task_to_pt(
+    state: &SessionState,
+    dimensions: dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileIdAndConnector) 
+    -> bool {
+    let is_dispute_supported_connector = dimensions
+        .get_dispute_supported_connector(
+            state.store.as_ref(),
+            state.superposition_service.as_ref(),
+            None,
+        )
+        .await;
+    is_dispute_supported_connector
 }
 
 pub fn should_proceed_with_submit_evidence(

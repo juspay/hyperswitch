@@ -837,12 +837,6 @@ wildcard_origin = false
 card.credit = { connector_list = "cybersource" }
 card.debit = { connector_list = "cybersource" }
 
-[network_transaction_id_supported_connectors]
-connector_list = "adyen,archipel,checkout,cybersource,novalnet,stripe,worldpay,worldpayvantiv"
-
-[card_only_mit_supported_connectors]
-connector_list = "peachpayments" # Supported connectors for card only mit
-
 [notify_iframe_exit_and_redirect]
 connector_list = "worldpayxml"
 

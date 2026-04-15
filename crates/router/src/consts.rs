@@ -381,6 +381,14 @@ pub mod superposition {
         "should_store_eligibility_check_data_for_authentication";
     /// Extended card BIN configuration key
     pub const ENABLE_EXTENDED_CARD_BIN: &str = "enable_extended_card_bin";
+    /// Webhooks settings configuration key
+    pub const WEBHOOKS: &str = "webhooks";
+    /// Network_transaction_id supported connector configuration key
+    pub const NETWORK_TRANSACTION_ID_SUPPORTED_CONNECTOR: &str = "is_network_transaction_id_supported_connector";
+    /// Card only mit supported connector configuration key
+    pub const CARD_ONLY_MIT_SUPPORTED_CONNECTOR: &str = "is_card_only_mit_supported_connector";
+    /// Dispute supported connector configuration key
+    pub const DISPUTE_SUPPORTED_CONNECTOR: &str = "is_dispute_supported_connector";
 }
 
 #[cfg(test)]

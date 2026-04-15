@@ -20,6 +20,50 @@ installment_config_supported = true
 _context_ = { connector = "adyen", currency = "JPY" }
 installment_config_supported = true
 
+[[overrides]]
+_context_ = { connector = "adyen" }
+is_network_transaction_id_supported_connector = true
+
+[[overrides]]
+_context_ = { connector = "archipel" }
+is_network_transaction_id_supported_connector = true
+
+[[overrides]]
+_context_ = { connector = "checkout" }
+is_network_transaction_id_supported_connector = true
+
+[[overrides]]
+_context_ = { connector = "cybersource" }
+is_network_transaction_id_supported_connector = true
+
+[[overrides]]
+_context_ = { connector = "novalnet" }
+is_network_transaction_id_supported_connector = true
+
+[[overrides]]
+_context_ = { connector = "nuvei" }
+is_network_transaction_id_supported_connector = true
+
+[[overrides]]
+_context_ = { connector = "stripe" }
+is_network_transaction_id_supported_connector = true
+
+[[overrides]]
+_context_ = { connector = "worldpay" }
+is_network_transaction_id_supported_connector = true
+
+[[overrides]]
+_context_ = { connector = "worldpayvantiv" }
+is_network_transaction_id_supported_connector = true
+
+[[overrides]]
+_context_ = { connector = "peachpayments" }
+is_card_only_mit_supported_connector = true
+
+[[overrides]]
+_context_ = { connector = "worldpayvantiv" }
+is_dispute_supported_connector = true
+
 [dimensions.organization_id]
 position = 1
 schema = { type = "string" }
@@ -135,3 +179,29 @@ schema = { type = "boolean" }
 description = "Whether to use extended card BIN (8-digit) for payment method data"
 change_reason = "Initial setup"
 
+[default-configs.webhooks]
+schema = { type = "object" }
+description = "Webhook settings: outgoing_enabled and redis_lock_expiry_seconds"
+change_reason = "Initial setup"
+
+[default-configs.webhooks.value]
+outgoing_enabled = true
+redis_lock_expiry_seconds = 180
+
+[default-configs.is_network_transaction_id_supported_connector]
+value = false
+schema = { type = "boolean" }
+description = "Whether the connector supports network transaction ID based MIT flow"
+change_reason = "Initial setup"
+
+[default-configs.is_card_only_mit_supported_connector]
+value = false
+schema = { type = "boolean" }
+description = "Whether the connector supports Cards only MIT flow"
+change_reason = "Initial setup"
+
+[default-configs.is_dispute_supported_connector]
+value = false
+schema = { type = "boolean" }
+description = "Whether the connector supports dispute flow"
+change_reason = "Initial setup"
