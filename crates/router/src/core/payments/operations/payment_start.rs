@@ -54,7 +54,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsStartReq
     > {
         // Should be removed, if we use dimensions in this method for any other purpose, but currently we are only using it for PM modular feature which is gated behind `pm_modular` feature flag
         #[cfg(not(feature = "pm_modular"))]
-        let _ = dimensions ;
+        let _ = dimensions;
         let (mut payment_intent, payment_attempt, currency, amount);
         let db = &*state.store;
 
