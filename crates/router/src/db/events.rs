@@ -980,10 +980,7 @@ mod tests {
     use tokio::time::{timeout, Duration};
 
     use crate::{
-        core::{
-            configs::dimension_state,
-            webhooks as webhooks_core,
-        },
+        core::{configs::dimension_state, webhooks as webhooks_core},
         db::{events::EventInterface, merchant_key_store::MerchantKeyStoreInterface, MockDb},
         routes::{
             self,
@@ -1545,9 +1542,9 @@ mod tests {
             api_webhooks::OutgoingWebhookContent::PaymentDetails(Box::new(expected_response));
 
         let dimensions = dimension_state::Dimensions::new()
-        .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id())
-        .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
-        .with_organization_id(platform.get_processor().get_account().get_org_id().clone());
+            .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id())
+            .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
+            .with_organization_id(platform.get_processor().get_account().get_org_id().clone());
         // Run 10 concurrent webhook creations
         let mut handles = vec![];
         for _ in 0..10 {
@@ -1569,7 +1566,7 @@ mod tests {
                     primary_object_type,
                     content_clone,
                     primary_object_created_at,
-                    dimensions_clone
+                    dimensions_clone,
                 )
                 .await
                 .map_err(|e| format!("create_event_and_trigger_outgoing_webhook failed: {e}"))

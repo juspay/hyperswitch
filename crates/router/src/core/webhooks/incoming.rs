@@ -762,7 +762,10 @@ async fn process_non_ucs_webhook<'a>(
         )
         .await;
 
-    let is_allow_webhook_event_type_not_found = webhooks_config.ignore_error.payment_not_found.unwrap_or(true);
+    let is_allow_webhook_event_type_not_found = webhooks_config
+        .ignore_error
+        .payment_not_found
+        .unwrap_or(true);
 
     let object_ref_id = connector
         .get_webhook_object_reference_id(&updated_request_details)
@@ -790,9 +793,7 @@ async fn process_non_ucs_webhook<'a>(
                 .map(WebhookContext::from)
                 .as_ref(),
         )
-        .allow_webhook_event_type_not_found(
-            is_allow_webhook_event_type_not_found
-        )
+        .allow_webhook_event_type_not_found(is_allow_webhook_event_type_not_found)
         .switch()
         .attach_printable("Could not find event type in incoming webhook body")?
     {
@@ -1471,7 +1472,10 @@ async fn payments_incoming_webhook_flow(
         )
         .await;
 
-    let is_allow_webhook_event_type_not_found = webhooks_config.ignore_error.payment_not_found.unwrap_or(true);
+    let is_allow_webhook_event_type_not_found = webhooks_config
+        .ignore_error
+        .payment_not_found
+        .unwrap_or(true);
 
     // Determine shadow UCS call connector action based on shadow UCS data
     let shadow_ucs_call_connector_action = shadow_ucs_data.as_ref().and_then(|shadow_data| {
@@ -1645,7 +1649,7 @@ async fn payments_incoming_webhook_flow(
                     enums::EventObjectType::PaymentDetails,
                     api::OutgoingWebhookContent::PaymentDetails(Box::new(payments_response)),
                     primary_object_created_at,
-                    dimensions
+                    dimensions,
                 ))
                 .await?;
             };
@@ -1957,7 +1961,7 @@ async fn payout_incoming_webhook_update_status(
             enums::EventObjectType::PayoutDetails,
             api::OutgoingWebhookContent::PayoutDetails(Box::new(payout_create_response)),
             Some(payout_data.payout_attempt.created_at),
-            dimensions
+            dimensions,
         ))
         .await?;
     }
@@ -2032,7 +2036,7 @@ async fn payout_incoming_webhook_retrieve_status(
             enums::EventObjectType::PayoutDetails,
             api::OutgoingWebhookContent::PayoutDetails(Box::new(payout_response)),
             Some(payout_data.payout_attempt.created_at),
-            dimensions
+            dimensions,
         ))
         .await?;
     }
@@ -2260,7 +2264,7 @@ async fn refunds_incoming_webhook_flow(
             enums::EventObjectType::RefundDetails,
             api::OutgoingWebhookContent::RefundDetails(Box::new(refund_response)),
             Some(updated_refund.created_at),
-            dimensions
+            dimensions,
         ))
         .await?;
     }
@@ -2653,7 +2657,7 @@ async fn external_authentication_incoming_webhook_flow(
                                     payments_response,
                                 )),
                                 primary_object_created_at,
-                                dimensions
+                                dimensions,
                             ))
                             .await?;
                         };
@@ -2692,9 +2696,9 @@ async fn mandates_incoming_webhook_flow(
     if source_verified {
         let db = &*state.store;
         let dimensions = dimension_state::Dimensions::new()
-        .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id())
-        .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
-        .with_organization_id(platform.get_processor().get_account().get_org_id().clone());
+            .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id())
+            .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
+            .with_organization_id(platform.get_processor().get_account().get_org_id().clone());
         let mandate = match webhook_details.object_reference_id {
             webhooks::ObjectReferenceId::MandateId(webhooks::MandateIdType::MandateId(
                 mandate_id,
@@ -2754,7 +2758,7 @@ async fn mandates_incoming_webhook_flow(
                 enums::EventObjectType::MandateDetails,
                 api::OutgoingWebhookContent::MandateDetails(mandates_response),
                 Some(updated_mandate.created_at),
-                dimensions
+                dimensions,
             ))
             .await?;
         }
@@ -2790,9 +2794,9 @@ async fn frm_incoming_webhook_flow(
         .await?;
 
         let dimensions = dimension_state::Dimensions::new()
-        .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id())
-        .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
-        .with_organization_id(platform.get_processor().get_account().get_org_id().clone());
+            .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id())
+            .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
+            .with_organization_id(platform.get_processor().get_account().get_org_id().clone());
         let payment_response = match event_type {
             webhooks::IncomingWebhookEvent::FrmApproved => {
                 Box::pin(payments::payments_core::<
@@ -2869,7 +2873,7 @@ async fn frm_incoming_webhook_flow(
                         enums::EventObjectType::PaymentDetails,
                         api::OutgoingWebhookContent::PaymentDetails(Box::new(payments_response)),
                         primary_object_created_at,
-                        dimensions
+                        dimensions,
                     ))
                     .await?;
                 };
@@ -2905,9 +2909,9 @@ async fn disputes_incoming_webhook_flow(
     if source_verified {
         let db = &*state.store;
         let dimensions = dimension_state::Dimensions::new()
-        .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id())
-        .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
-        .with_organization_id(platform.get_processor().get_account().get_org_id().clone());
+            .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id())
+            .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
+            .with_organization_id(platform.get_processor().get_account().get_org_id().clone());
         let payment_attempt = match webhook_resource_data.as_ref() {
             Some(context) => context.get_payment_attempt().clone(),
             None => {
@@ -3005,7 +3009,7 @@ async fn disputes_incoming_webhook_flow(
             enums::EventObjectType::DisputeDetails,
             api::OutgoingWebhookContent::DisputeDetails(disputes_response),
             Some(dispute_object.created_at),
-            dimensions
+            dimensions,
         ))
         .await?;
         metrics::INCOMING_DISPUTE_WEBHOOK_MERCHANT_NOTIFIED_METRIC.add(1, &[]);
@@ -3097,7 +3101,7 @@ async fn bank_transfer_webhook_flow(
                     enums::EventObjectType::PaymentDetails,
                     api::OutgoingWebhookContent::PaymentDetails(Box::new(payments_response)),
                     primary_object_created_at,
-                    dimensions
+                    dimensions,
                 ))
                 .await?;
             }

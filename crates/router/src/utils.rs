@@ -51,6 +51,7 @@ use crate::{
     consts,
     core::{
         authentication::types::ExternalThreeDSConnectorMetadata,
+        configs::dimension_state::Dimensions,
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
         payments as payments_core,
     },
@@ -62,7 +63,6 @@ use crate::{
 };
 #[cfg(feature = "v1")]
 use crate::{core::webhooks as webhooks_core, types::storage};
-use crate::core::configs::dimension_state::Dimensions;
 
 pub mod error_parser {
     use std::fmt::Display;
@@ -1246,7 +1246,7 @@ where
                                 payments_response_json,
                             )),
                             primary_object_created_at,
-                            dimensions
+                            dimensions,
                         ))
                         .await
                     }
@@ -1323,7 +1323,7 @@ pub async fn trigger_refund_outgoing_webhook(
                         common_enums::EventObjectType::RefundDetails,
                         webhooks::OutgoingWebhookContent::RefundDetails(Box::new(refund_response)),
                         primary_object_created_at,
-                        dimensions
+                        dimensions,
                     ))
                     .await
                 }
@@ -1406,7 +1406,7 @@ pub async fn trigger_payouts_webhook(
                         common_enums::EventObjectType::PayoutDetails,
                         webhooks::OutgoingWebhookContent::PayoutDetails(Box::new(cloned_response)),
                         primary_object_created_at,
-                        dimensions
+                        dimensions,
                     ))
                     .await
                 }
@@ -1475,7 +1475,7 @@ pub async fn trigger_subscriptions_outgoing_webhook(
             common_enums::EventObjectType::SubscriptionDetails,
             webhooks::OutgoingWebhookContent::SubscriptionDetails(Box::new(response)),
             Some(created_at),
-            dimensions
+            dimensions,
         ))
         .await
     });

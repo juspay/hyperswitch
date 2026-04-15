@@ -189,13 +189,14 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
         )
         .await;
 
-    let is_allow_webhook_event_type_not_found = webhooks_config.ignore_error.payment_not_found.unwrap_or(true);
+    let is_allow_webhook_event_type_not_found = webhooks_config
+        .ignore_error
+        .payment_not_found
+        .unwrap_or(true);
 
     let event_type = match connector
         .get_webhook_event_type(&request_details, None)
-        .allow_webhook_event_type_not_found(
-            is_allow_webhook_event_type_not_found
-        )
+        .allow_webhook_event_type_not_found(is_allow_webhook_event_type_not_found)
         .switch()
         .attach_printable("Could not find event type in incoming webhook body")?
     {
@@ -458,7 +459,7 @@ async fn payments_incoming_webhook_flow(
     let dimensions = dimension_state::Dimensions::new()
         .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id())
         .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
-        .with_organization_id(platform.get_processor().get_account().get_org_id().clone());   
+        .with_organization_id(platform.get_processor().get_account().get_org_id().clone());
 
     let webhooks_config = dimensions
         .get_webhooks(
@@ -468,7 +469,10 @@ async fn payments_incoming_webhook_flow(
         )
         .await;
 
-    let is_allow_webhook_event_type_not_found = webhooks_config.ignore_error.payment_not_found.unwrap_or(true);
+    let is_allow_webhook_event_type_not_found = webhooks_config
+        .ignore_error
+        .payment_not_found
+        .unwrap_or(true);
 
     let payments_response = match webhook_details.object_reference_id {
         webhooks::ObjectReferenceId::PaymentId(id) => {
@@ -596,7 +600,7 @@ async fn payments_incoming_webhook_flow(
                     enums::EventObjectType::PaymentDetails,
                     api::OutgoingWebhookContent::PaymentDetails(Box::new(payments_response)),
                     primary_object_created_at,
-                    dimensions
+                    dimensions,
                 ))
                 .await?;
             };

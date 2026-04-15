@@ -1590,9 +1590,13 @@ impl RevenueRecoveryOutgoingWebhook {
         match payments_response {
             ApplicationResponse::JsonWithHeaders((response, _headers)) => {
                 let dimensions = dimension_state::Dimensions::new()
-                                .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id())
-                                .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
-                                .with_organization_id(platform.get_processor().get_account().get_org_id().clone());
+                    .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id())
+                    .with_processor_merchant_id(
+                        platform.get_processor().get_processor_merchant_id(),
+                    )
+                    .with_organization_id(
+                        platform.get_processor().get_account().get_org_id().clone(),
+                    );
                 let outgoing_webhook_content =
                     api_models::webhooks::OutgoingWebhookContent::PaymentDetails(Box::new(
                         response,
@@ -1607,7 +1611,7 @@ impl RevenueRecoveryOutgoingWebhook {
                     common_enums::EventObjectType::PaymentDetails,
                     outgoing_webhook_content,
                     payment_intent.created_at,
-                    dimensions
+                    dimensions,
                 )
                 .await
                 .change_context(errors::RecoveryError::InvalidTask)

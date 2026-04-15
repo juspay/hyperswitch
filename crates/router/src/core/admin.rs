@@ -2807,7 +2807,7 @@ pub async fn create_connector(
     redact_cgraph_cache(&state, merchant_id, business_profile.get_id()).await?;
 
     #[cfg(feature = "v1")]
-    disputes::schedule_dispute_sync_task(&state,dimensions, &business_profile, &mca).await?;
+    disputes::schedule_dispute_sync_task(&state, dimensions, &business_profile, &mca).await?;
 
     #[cfg(feature = "v1")]
     //update merchant default config

@@ -4967,7 +4967,9 @@ where
         business_profile,
         customer_acceptance,
         connector.connector_name,
-    ).await {
+    )
+    .await
+    {
         let payment_method_data = payment_data.get_payment_method_data();
         let customer_id = payment_data.get_payment_intent().customer_id.clone();
 
@@ -9610,8 +9612,7 @@ pub async fn is_pre_network_tokenization_enabled(
     customer_acceptance: Option<Secret<serde_json::Value>>,
     connector_name: enums::Connector,
 ) -> bool {
-    let new_dimensions = dimensions
-        .with_connector(connector_name);
+    let new_dimensions = dimensions.with_connector(connector_name);
 
     let is_nt_supported_connector = new_dimensions
         .get_network_transaction_id_supported_connector(
@@ -9882,8 +9883,7 @@ pub async fn get_proxy_connector_filters(
         .into_iter()
         .flatten()
         .collect::<HashSet<_>>()),
-        RecurringDetails::CardWithLimitedData(_) =>
-            Ok(join_all(
+        RecurringDetails::CardWithLimitedData(_) => Ok(join_all(
             candidate_connectors
                 .into_iter()
                 .filter_map(|connector_name| {
@@ -10454,7 +10454,7 @@ where
         is_payment_method_modular_allowed,
         business_profile.is_connector_agnostic_mit_enabled,
         business_profile.is_network_tokenization_enabled,
-        dimensions
+        dimensions,
     )
     .await
 }
@@ -10470,7 +10470,7 @@ pub async fn plan_payment_execution_after_routing<F: Clone, D>(
     is_payment_method_modular_allowed: bool,
     is_connector_agnostic_mit_enabled: Option<bool>,
     is_network_tokenization_enabled: bool,
-    dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId
+    dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
 ) -> RouterResult<ConnectorCallType>
 where
     D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
@@ -10522,7 +10522,7 @@ where
                             &payment_method.clone(),
                             payment_method_data.as_ref(),
                             connector_routing_data.connector_data.clone(),
-                            dimensions
+                            dimensions,
                         )
                         .await;
 
@@ -10872,12 +10872,11 @@ pub async fn get_all_action_types(
     payment_method_info: &domain::PaymentMethod,
     payment_method_data: Option<&domain::PaymentMethodData>,
     connector: api::ConnectorData,
-    dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId
+    dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
 ) -> Vec<ActionType> {
     let merchant_connector_id = connector.merchant_connector_id.as_ref();
 
-    let new_dimensions = dimensions
-        .with_connector(connector.connector_name);
+    let new_dimensions = dimensions.with_connector(connector.connector_name);
 
     //fetch connectors that support ntid flow
     let is_network_transaction_id_supported_connector = new_dimensions
@@ -10906,7 +10905,8 @@ pub async fn get_all_action_types(
         new_dimensions,
         is_connector_agnostic_mit_enabled,
         payment_method_info,
-    ).await;
+    )
+    .await;
     let payments_mandate_reference = payment_method_info
         .get_common_mandate_reference()
         .map_err(|err| {
@@ -10923,7 +10923,7 @@ pub async fn get_all_action_types(
         .unwrap_or(false);
 
     let is_nt_with_ntid_supported_connector = is_network_transaction_id_supported_connector
-     && network_tokenization_supported_connectors.contains(&connector.connector_name);
+        && network_tokenization_supported_connectors.contains(&connector.connector_name);
 
     ActionTypesBuilder::new()
         .with_mandate_flow(is_mandate_flow, payments_mandate_reference)

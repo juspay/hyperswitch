@@ -924,7 +924,7 @@ pub async fn update_dispute_data(
         storage_enums::EventObjectType::DisputeDetails,
         api::OutgoingWebhookContent::DisputeDetails(Box::new(disputes_response.clone())),
         Some(dispute_object.created_at),
-        dimensions
+        dimensions,
     ))
     .await?;
     Ok(disputes_response)

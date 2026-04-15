@@ -384,7 +384,8 @@ pub mod superposition {
     /// Webhooks settings configuration key
     pub const WEBHOOKS: &str = "webhooks";
     /// Network_transaction_id supported connector configuration key
-    pub const NETWORK_TRANSACTION_ID_SUPPORTED_CONNECTOR: &str = "is_network_transaction_id_supported_connector";
+    pub const NETWORK_TRANSACTION_ID_SUPPORTED_CONNECTOR: &str =
+        "is_network_transaction_id_supported_connector";
     /// Card only mit supported connector configuration key
     pub const CARD_ONLY_MIT_SUPPORTED_CONNECTOR: &str = "is_card_only_mit_supported_connector";
     /// Dispute supported connector configuration key

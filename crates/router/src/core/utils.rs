@@ -54,14 +54,18 @@ use crate::{
     configs::Settings,
     consts,
     core::{
-        configs::dimension_state, errors::{self, RouterResult, StorageErrorExt}, payments::PaymentData
+        configs::dimension_state,
+        errors::{self, RouterResult, StorageErrorExt},
+        payments::PaymentData,
     },
     db::StorageInterface,
     routes::SessionState,
     types::{
-        self, PollConfig, api, domain, storage::{self, enums}
+        self, api, domain,
+        storage::{self, enums},
+        PollConfig,
     },
-    utils::{OptionExt, ValueExt, generate_id},
+    utils::{generate_id, OptionExt, ValueExt},
 };
 
 #[cfg(all(feature = "v1", feature = "pm_modular"))]
@@ -2889,8 +2893,8 @@ fn validate_plusgiro_number(number: &Secret<String>) -> RouterResult<()> {
 
 pub async fn should_add_dispute_sync_task_to_pt(
     state: &SessionState,
-    dimensions: dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileIdAndConnector) 
-    -> bool {
+    dimensions: dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileIdAndConnector,
+) -> bool {
     let is_dispute_supported_connector = dimensions
         .get_dispute_supported_connector(
             state.store.as_ref(),

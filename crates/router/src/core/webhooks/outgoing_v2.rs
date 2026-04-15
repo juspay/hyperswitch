@@ -45,7 +45,7 @@ pub(crate) async fn create_event_and_trigger_outgoing_webhook(
     primary_object_type: enums::EventObjectType,
     content: api::OutgoingWebhookContent,
     primary_object_created_at: time::PrimitiveDateTime,
-    dimensions: dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndOrgId
+    dimensions: dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndOrgId,
 ) -> CustomResult<(), errors::ApiErrorResponse> {
     let delivery_attempt = enums::WebhookDeliveryAttempt::InitialAttempt;
     let idempotent_event_id =
