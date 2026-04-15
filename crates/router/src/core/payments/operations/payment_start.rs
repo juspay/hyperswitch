@@ -131,8 +131,6 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsStartReq
         )
         .await?;
 
-        let feature_config = utils::get_feature_config(state, platform, dimensions).await;
-
         // In case of modular payment method flow payment token in the request will belong to payment method modular service
         // hence populating token data is not required
         #[cfg(feature = "pm_modular")]

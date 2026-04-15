@@ -191,17 +191,15 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
 
         let store = state.store.clone();
         let key_store_clone = platform.get_processor().get_key_store().clone();
-        let profile_id_clone = profile_id.clone();
 
         let business_profile_fut = tokio::spawn(
             async move {
-                let profile_id_error = profile_id_clone.clone();
                 store
-                    .find_business_profile_by_profile_id(&key_store_clone, &profile_id_clone)
+                    .find_business_profile_by_profile_id(&key_store_clone, &profile_id)
                     .map(|business_profile_result| {
                         business_profile_result.to_not_found_response(
                             errors::ApiErrorResponse::ProfileNotFound {
-                                id: profile_id_error.get_string_repr().to_owned(),
+                                id: profile_id.get_string_repr().to_owned(),
                             },
                         )
                     })
@@ -525,6 +523,12 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
 
         let store = state.clone().store;
         let superposition_service = state.superposition_service.clone();
+        let profile_id = payment_intent
+            .profile_id
+            .clone()
+            .get_required_value("profile_id")
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("'profile_id' not set in payment intent")?;
         let customer_id = payment_intent.customer_id.clone();
         let additional_pm_data_dimensions = dimensions
             .with_profile_id(profile_id.clone());
@@ -674,15 +678,13 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             &token,
             &request.ctp_service_details,
         )?;
-        let pm_modular_dimensions = dimensions
-            .with_organization_id(
-                platform
-                    .get_processor()
-                    .get_account()
-                    .organization_id
-                    .clone(),
-            )
-            .without_profile_id();
+        let pm_modular_dimensions = dimensions.with_organization_id(
+            platform
+                .get_processor()
+                .get_account()
+                .organization_id
+                .clone(),
+        );
 
         //fetch for repeat cit using payment token
 
