@@ -138,7 +138,6 @@ where
 {
     let operation: BoxedOperation<'_, F, Req, D> = Box::new(operation);
 
-
     let _validate_result = operation
         .to_validate_request()?
         .validate_request(&req, &platform)?;
