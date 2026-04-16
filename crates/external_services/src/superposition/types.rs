@@ -29,71 +29,12 @@ impl ToDocument for bool {
 
 impl ToDocument for i64 {
     fn to_document(&self) -> Document {
-        if *self >= 0 {
-            let converted = u64::try_from(*self).unwrap_or_else(|e| {
-                router_env::logger::warn!("Failed to convert i64 {} to u64: {}", self, e);
-                u64::default()
-            });
-            Document::Number(aws_smithy_types::Number::PosInt(converted))
-        } else {
-            Document::Number(aws_smithy_types::Number::NegInt(*self))
-        }
-    }
-}
-
-impl ToDocument for i32 {
-    fn to_document(&self) -> Document {
-        if *self >= 0 {
-            let converted = u64::try_from(*self).unwrap_or_else(|e| {
-                router_env::logger::warn!("Failed to convert i32 {} to u64: {}", self, e);
-                u64::default()
-            });
-            Document::Number(aws_smithy_types::Number::PosInt(converted))
-        } else {
-            // let converted = i64::try_from(*self).unwrap_or_else(|e| {
-            //     router_env::logger::warn!("Failed to convert i32 {} to i64: {}", self, e);
-            //     i64::default()
-            // });
-            let converted = i64::from(*self);
-            Document::Number(aws_smithy_types::Number::NegInt(converted))
-        }
-    }
-}
-
-impl ToDocument for serde_json::Value {
-    fn to_document(&self) -> Document {
-        match self {
-            Self::String(s) => Document::String(s.clone()),
-            Self::Bool(b) => Document::Bool(*b),
-            Self::Number(n) => {
-                if let Some(n) = n.as_i64() {
-                    if n >= 0 {
-                        let converted = u64::try_from(n).unwrap_or_else(|e| {
-                            router_env::logger::warn!(
-                                "Failed to convert i64 {} to u64 in JSON value: {}",
-                                n,
-                                e
-                            );
-                            u64::default()
-                        });
-                        Document::Number(aws_smithy_types::Number::PosInt(converted))
-                    } else {
-                        Document::Number(aws_smithy_types::Number::NegInt(n))
-                    }
-                } else if let Some(n) = n.as_u64() {
-                    Document::Number(aws_smithy_types::Number::PosInt(n))
-                } else {
-                    // For floats, serialize as string since Document Number doesn't support floats directly
-                    Document::String(n.to_string())
-                }
-            }
-            Self::Object(obj) => Document::Object(
-                obj.iter()
-                    .map(|(k, v)| (k.clone(), v.to_document()))
-                    .collect(),
-            ),
-            Self::Array(arr) => Document::Array(arr.iter().map(|v| v.to_document()).collect()),
-            Self::Null => Document::Null,
+        // u64::try_from(i64) has exactly one failure reason: the value is negative.
+        // Any non-negative i64 always fits in u64 (i64::MAX < u64::MAX), so Err(_)
+        // here means "was negative" — use NegInt. No overflow or precision loss possible.
+        match u64::try_from(*self) {
+            Ok(n) => Document::Number(aws_smithy_types::Number::PosInt(n)),
+            Err(_) => Document::Number(aws_smithy_types::Number::NegInt(*self)),
         }
     }
 }
