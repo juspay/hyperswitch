@@ -4386,10 +4386,9 @@ pub async fn get_raw_payment_method_data_fetch_access(
                 )
                 .await;
 
-            if allowed {
-                Ok(fetch_access)
-            } else {
-                Ok(RawPaymentMethodFetchAccess::Denied)
+            match allowed {
+                true => Ok(fetch_access),
+                false => Ok(RawPaymentMethodFetchAccess::Denied),
             }
         }
     }

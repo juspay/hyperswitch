@@ -138,9 +138,6 @@ where
 {
     let operation: BoxedOperation<'_, F, Req, D> = Box::new(operation);
 
-    let dimensions = dimension_state::Dimensions::new()
-        .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
-        .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id());
 
     let _validate_result = operation
         .to_validate_request()?
@@ -203,7 +200,7 @@ where
                     payment_data.clone(),
                     None,
                     header_payload.clone(),
-                    &dimensions,
+                    &dimensions.without_profile_id(),
                 )
                 .await?;
             // todo: call surcharge manager for session token call.
