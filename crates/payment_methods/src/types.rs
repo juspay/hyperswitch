@@ -1,6 +1,7 @@
 use api_models::payment_methods::{CardDetailFromLocker, NetworkTokenResponse};
 use common_enums::{PaymentMethod, PaymentMethodType};
 use common_utils::{id_type, pii};
+use hyperswitch_masking::Secret;
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 
@@ -50,7 +51,34 @@ pub enum WalletPaymentMethodData {
 #[serde(rename_all = "snake_case")]
 pub enum PaymentMethodResponseData {
     Card(Box<CardDetailFromLocker>),
+    BankDebit(BankDebitDetailsPaymentMethod),
     Wallet(WalletPaymentMethodData),
+}
+
+#[derive(Deserialize, Serialize, Debug, Clone)]
+#[serde(rename_all = "snake_case")]
+pub enum BankDebitDetailsPaymentMethod {
+    AchBankDebit {
+        account_number_last4_digits: String,
+        routing_number_last4_digits: String,
+        bank_account_holder_name: Option<Secret<String>>,
+        bank_name: Option<common_enums::BankNames>,
+        bank_type: Option<common_enums::BankType>,
+        bank_holder_type: Option<common_enums::BankHolderType>,
+    },
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+#[serde(rename_all = "snake_case")]
+pub enum BankDebitDetail {
+    Ach {
+        account_number: Secret<String>,
+        routing_number: Secret<String>,
+        bank_account_holder_name: Option<Secret<String>>,
+        bank_type: Option<common_enums::BankType>,
+        bank_holder_type: Option<common_enums::BankHolderType>,
+        bank_name: Option<common_enums::BankNames>,
+    },
 }
 
 /// V2 modular service request payload.
@@ -86,6 +114,7 @@ pub struct ModularPMRetrieveResponse {
 pub enum RawPaymentMethodData {
     Card(CardDetail),
     CardWithNT(RawCardWithNTDetails),
+    BankDebit(BankDebitDetail),
 }
 
 #[derive(Clone, Debug, Deserialize)]
@@ -105,7 +134,7 @@ pub struct ConnectorTokenDetails {
     pub original_payment_authorized_currency: Option<common_enums::Currency>,
     pub metadata: Option<pii::SecretSerdeValue>,
     pub connector_customer_id: Option<String>,
-    pub token: hyperswitch_masking::Secret<String>,
+    pub token: Secret<String>,
 }
 
 /// V2 CardCVCTokenStorageDetails (for deserialization, ignored in transformation)
