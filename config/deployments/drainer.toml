@@ -45,5 +45,6 @@ pool_size = 5
 port = 6379
 reconnect_delay = 5
 reconnect_max_attempts = 5
+max_failure_threshold = 5         # Max seconds Redis can be unreachable before server shutdown
 stream_read_count = 1
 use_legacy_version = false

@@ -34,7 +34,7 @@ pub use self::types::*;
 /// `AsyncCommands` work transparently on either.
 #[derive(Clone)]
 pub enum RedisConn {
-    Standalone(redis::aio::MultiplexedConnection),
+    Standalone(redis::aio::ConnectionManager),
     Cluster(redis::cluster_async::ClusterConnection),
 }
 
@@ -205,15 +205,14 @@ impl SubscriberClient {
 
 // ─── Publisher client ────────────────────────────────────────────────────────
 
-/// A simple wrapper around a multiplexed connection used for publishing.
+/// A simple wrapper around a connection manager used for publishing.
 pub struct RedisClient {
-    inner: redis::aio::MultiplexedConnection,
+    inner: redis::aio::ConnectionManager,
 }
 
 impl RedisClient {
     pub async fn new(client: &redis::Client) -> CustomResult<Self, errors::RedisError> {
-        let conn = client
-            .get_multiplexed_async_connection()
+        let conn = redis::aio::ConnectionManager::new(client.clone())
             .await
             .change_context(errors::RedisError::RedisConnectionError)?;
         Ok(Self { inner: conn })
@@ -292,8 +291,7 @@ impl RedisConnectionPool {
                     )
                 })?;
 
-            let conn = client
-                .get_multiplexed_async_connection()
+            let conn = redis::aio::ConnectionManager::new(client)
                 .await
                 .change_context(errors::RedisError::RedisConnectionError)
                 .attach_printable_lazy(|| {
@@ -340,38 +338,59 @@ impl RedisConnectionPool {
     }
 
     /// Monitor for connection errors.
-    /// When a fatal error is detected, signals via the oneshot sender and marks
-    /// redis as unavailable.
+    /// When Redis is unreachable for longer than `max_failure_threshold` seconds,
+    /// signals via the oneshot sender and marks redis as unavailable.
     pub async fn on_error(&self, tx: tokio::sync::oneshot::Sender<()>) {
-        // Periodically ping to detect if the connection is alive
-        let check_interval = self.config.unresponsive_check_interval.max(2);
+        let check_interval = self.config.unresponsive_check_interval.max(1);
+        let max_unreachable_secs = self.config.max_failure_threshold;
         let mut interval = tokio::time::interval(std::time::Duration::from_secs(check_interval));
-
-        let mut consecutive_failures: u32 = 0;
-        let max_failures: u32 = 3;
+        let mut first_failure_at: Option<std::time::Instant> = None;
 
         loop {
             interval.tick().await;
             let mut conn = self.pool.clone();
-            let result: Result<String, _> = conn.ping().await;
 
-            match result {
-                Ok(_) => {
-                    consecutive_failures = 0;
+            // Timeout the ping so we can check threshold frequently,
+            // even when ConnectionManager is retrying internally
+            let result = tokio::time::timeout(
+                std::time::Duration::from_secs(check_interval),
+                conn.ping::<String>(),
+            )
+            .await;
+
+            let ping_ok = result.is_ok() && result.unwrap().is_ok();
+
+            if ping_ok {
+                if first_failure_at.is_some() {
+                    tracing::info!("Redis connection restored");
                 }
-                Err(error) => {
-                    consecutive_failures += 1;
-                    tracing::error!(?error, "Redis protocol or connection error");
-                    if consecutive_failures >= max_failures {
-                        if tx.send(()).is_err() {
-                            tracing::error!("The redis shutdown signal sender failed to signal");
-                        }
-                        self.is_redis_available
-                            .store(false, atomic::Ordering::SeqCst);
-                        break;
-                    }
-                }
+                first_failure_at = None;
+                self.is_redis_available
+                    .store(true, atomic::Ordering::SeqCst);
+                continue;
             }
+
+            let now = std::time::Instant::now();
+            let first_failure = *first_failure_at.get_or_insert(now);
+            let unreachable_secs = now.duration_since(first_failure).as_secs();
+
+            if unreachable_secs >= max_unreachable_secs as u64 {
+                tracing::error!(
+                    "Redis has been unreachable for {}s (threshold: {}s), shutting down",
+                    unreachable_secs,
+                    max_unreachable_secs
+                );
+                let _ = tx.send(());
+                self.is_redis_available
+                    .store(false, atomic::Ordering::SeqCst);
+                break;
+            }
+
+            tracing::warn!(
+                "Redis unreachable for {}s (threshold: {}s), reconnecting",
+                unreachable_secs,
+                max_unreachable_secs
+            );
         }
     }
 
@@ -417,6 +436,7 @@ pub struct RedisConfig {
     pub(crate) cluster_enabled: bool,
     pub(crate) unresponsive_timeout: u64,
     pub(crate) unresponsive_check_interval: u64,
+    pub(crate) max_failure_threshold: u32,
 }
 
 impl From<&RedisSettings> for RedisConfig {
@@ -428,6 +448,7 @@ impl From<&RedisSettings> for RedisConfig {
             cluster_enabled: config.cluster_enabled,
             unresponsive_timeout: config.unresponsive_timeout,
             unresponsive_check_interval: config.unresponsive_check_interval,
+            max_failure_threshold: config.max_failure_threshold,
         }
     }
 }

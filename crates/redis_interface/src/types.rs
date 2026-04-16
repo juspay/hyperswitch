@@ -107,6 +107,8 @@ pub struct RedisSettings {
     pub unresponsive_timeout: u64,
     pub unresponsive_check_interval: u64,
     pub broadcast_channel_capacity: usize,
+    /// Maximum duration (in seconds) that Redis can be unreachable before the server shuts down.
+    pub max_failure_threshold: u32,
 }
 
 impl RedisSettings {
@@ -160,6 +162,7 @@ impl Default for RedisSettings {
             unresponsive_timeout: 10,
             unresponsive_check_interval: 2,
             broadcast_channel_capacity: 32,
+            max_failure_threshold: 5,
         }
     }
 }

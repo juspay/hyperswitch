@@ -85,6 +85,7 @@ max_in_flight_commands = 5000     # The maximum number of in-flight commands (pe
 default_command_timeout = 30      # An optional timeout to apply to all commands. In seconds
 unresponsive_timeout = 10         # An optional timeout for Unresponsive commands in seconds. This should be less than default_command_timeout.
 unresponsive_check_interval = 2   # The frequency at which the client checks for unresponsive connections. In seconds. This value should usually be less than half of `unresponsive_timeout` and always more than 1 ms.
+max_failure_threshold = 5         # Max seconds Redis can be unreachable before server shutdown (min 5s)
 max_feed_count = 200              # The maximum number of frames that will be fed to a socket before flushing.
 
 # This section provides configs for currency conversion api
