@@ -3942,11 +3942,16 @@ pub async fn retrieve_payment_method(
         resolve_storage_type_from_token(&state, &pm.payment_method_id).await?;
 
     // 2. Fetch payment method record based on resolved storage type
-    let (storage_type, payment_method) =
-        fetch_payment_method_by_storage(&state, &platform, &pm, storage_type, pm_token_data_opt)
-            .await
-            .change_context(errors::ApiErrorResponse::PaymentMethodNotFound)
-            .attach_printable("Failed to fetch payment method by storage")?;
+    let (storage_type, payment_method) = fetch_payment_method_by_storage(
+        &state,
+        platform.get_provider(),
+        &pm,
+        storage_type,
+        pm_token_data_opt,
+    )
+    .await
+    .change_context(errors::ApiErrorResponse::PaymentMethodNotFound)
+    .attach_printable("Failed to fetch payment method by storage")?;
     when(
         payment_method.status == common_enums::PaymentMethodStatus::Inactive,
         || {
@@ -4030,9 +4035,9 @@ pub async fn retrieve_payment_method(
 
 #[cfg(feature = "v2")]
 #[instrument(skip_all)]
-async fn fetch_payment_method_by_storage(
+pub async fn fetch_payment_method_by_storage(
     state: &SessionState,
-    platform: &domain::Platform,
+    provider: &domain::Provider,
     pm_incoming: &api::PaymentMethodId,
     storage_type: common_enums::StorageType,
     pm_token_data_opt: Option<storage::PaymentTokenData>,
@@ -4057,7 +4062,7 @@ async fn fetch_payment_method_by_storage(
 
             let volatile_payment_method = fetch_volatile_payment_method_record(
                 state,
-                platform.get_provider().get_key_store(),
+                provider.get_key_store(),
                 pm_id.get_string_repr(),
             )
             .await
@@ -4083,7 +4088,7 @@ async fn fetch_payment_method_by_storage(
                 .attach_printable("Unable to generate GlobalPaymentMethodId"),
             }?;
 
-            fetch_payment_method_with_fallback(state, platform, &pm_id, storage_type)
+            fetch_payment_method_with_fallback(state, provider, &pm_id, storage_type)
                 .await
                 .attach_printable("Failed to get payment method with fallback")
         }
@@ -4093,13 +4098,13 @@ async fn fetch_payment_method_by_storage(
 #[cfg(feature = "v2")]
 pub async fn fetch_payment_method_with_fallback(
     state: &SessionState,
-    platform: &domain::Platform,
+    provider: &domain::Provider,
     pm_id: &id_type::GlobalPaymentMethodId,
     storage_type: common_enums::StorageType,
 ) -> RouterResult<(common_enums::StorageType, domain::PaymentMethod)> {
     let volatile_payment_method = fetch_volatile_payment_method_record(
         state,
-        platform.get_provider().get_key_store(),
+        provider.get_key_store(),
         pm_id.get_string_repr(),
     )
     .await
@@ -4120,10 +4125,9 @@ pub async fn fetch_payment_method_with_fallback(
 
             logger::debug!("Redis lookup failed, falling back to DB");
 
-            let persistent_payment_method =
-                fetch_payment_method(state, platform.get_provider(), pm_id)
-                    .await
-                    .attach_printable("Failed to get payment method record from DB")?;
+            let persistent_payment_method = fetch_payment_method(state, provider, pm_id)
+                .await
+                .attach_printable("Failed to get payment method record from DB")?;
 
             Ok((storage_type, persistent_payment_method))
         }
@@ -4166,7 +4170,7 @@ async fn fetch_volatile_payment_method_record(
 }
 
 #[cfg(feature = "v2")]
-async fn resolve_storage_type_from_token(
+pub async fn resolve_storage_type_from_token(
     state: &SessionState,
     token: &String,
 ) -> RouterResult<(common_enums::StorageType, Option<storage::PaymentTokenData>)> {
