@@ -105,7 +105,7 @@ change_reason = "Initial setup"
 
 [default-configs.max_auto_payout_retries]
 value = 0
-schema = { type = "integer" }
+schema = { type = "integer", minimum = 0, maximum = 4294967295 }
 description = "Maximum auto payout retries, differentiated by payout_retry_type dimension (single_connector or multi_connector)"
 change_reason = "Initial setup"
 
