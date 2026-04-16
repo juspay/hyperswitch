@@ -25974,7 +25974,8 @@
         "type": "object",
         "required": [
           "bank_account_number",
-          "pix_key"
+          "pix_key",
+          "pix_emv"
         ],
         "properties": {
           "bank_name": {
@@ -25998,6 +25999,11 @@
             "type": "string",
             "description": "Unique key for pix customer",
             "example": "000123456"
+          },
+          "pix_emv": {
+            "type": "string",
+            "description": "String formated QR code for pix payout",
+            "example": "00020126580014br.gov.bcb.pix0114000123456785204000053039865802BR5925John Doe6009Sao Paulo61080540900062070503***63041D3D"
           },
           "tax_id": {
             "type": "string",
