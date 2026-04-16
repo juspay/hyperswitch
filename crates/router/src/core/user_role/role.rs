@@ -659,8 +659,11 @@ pub async fn list_roles_with_info(
                     .product_type
                     .unwrap_or(MerchantProductType::Orchestration);
 
-                role_info_vec
-                    .retain(|role_info| role_info.get_merchant_product_type() == product_type);
+                role_info_vec.retain(|role_info| {
+                    role_info
+                        .get_merchant_product_type()
+                        .is_none_or(|merchant_product_type| merchant_product_type == product_type)
+                });
             }
         }
     }
@@ -833,7 +836,11 @@ pub async fn list_roles_at_entity_level(
                         .unwrap_or(MerchantProductType::Orchestration)
                 })
                 .to_not_found_response(UserErrors::MerchantIdNotFound)?;
-            role_info_vec.retain(|role_info| role_info.get_merchant_product_type() == product_type);
+            role_info_vec.retain(|role_info| {
+                role_info
+                    .get_merchant_product_type()
+                    .is_none_or(|merchant_product_type| merchant_product_type == product_type)
+            });
         }
     }
 
