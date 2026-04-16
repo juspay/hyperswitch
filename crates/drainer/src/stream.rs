@@ -1,12 +1,10 @@
-use std::collections::HashMap;
-
 use redis_interface as redis;
 use router_env::{logger, tracing};
 
 use crate::{errors, metrics, Store};
 
-pub type StreamEntries = Vec<(String, HashMap<String, String>)>;
-pub type StreamReadResult = HashMap<String, StreamEntries>;
+pub type StreamEntries = redis::StreamEntries;
+pub type StreamReadResult = redis::StreamReadResult;
 
 impl Store {
     #[inline(always)]
@@ -62,7 +60,7 @@ impl Store {
         let stream_id = "0-0".to_string();
         let (output, execution_time) = common_utils::date_time::time_it(|| async {
             self.redis_conn
-                .stream_read_entries(&[stream_name.into()], &[stream_id], Some(max_read_count))
+                .stream_read_grouped(&[stream_name.into()], &[stream_id], Some(max_read_count))
                 .await
                 .map_err(errors::DrainerError::from)
         })
@@ -73,41 +71,7 @@ impl Store {
             router_env::metric_attributes!(("stream", stream_name.to_owned())),
         );
 
-        // Convert StreamReadReply to StreamReadResult
-        let reply = output?;
-        let result: StreamReadResult = reply
-            .keys
-            .into_iter()
-            .map(|stream_key| {
-                let entries: StreamEntries = stream_key
-                    .ids
-                    .into_iter()
-                    .map(|id| {
-                        let fields: HashMap<String, String> = id
-                            .map
-                            .into_iter()
-                            .filter_map(|(k, v)| {
-                                // Convert redis::Value to String, handling different value types
-                                let value_str = match v {
-                                    redis::Value::BulkString(bytes) => {
-                                        String::from_utf8(bytes).ok()
-                                    }
-                                    redis::Value::SimpleString(s) => Some(s),
-                                    redis::Value::Int(i) => Some(i.to_string()),
-                                    redis::Value::Nil => None,
-                                    _ => None,
-                                };
-                                value_str.map(|s| (k, s))
-                            })
-                            .collect();
-                        (id.id, fields)
-                    })
-                    .collect();
-                (stream_key.key, entries)
-            })
-            .collect();
-
-        Ok(result)
+        Ok(output?)
     }
     pub async fn trim_from_stream(
         &self,

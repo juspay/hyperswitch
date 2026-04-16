@@ -262,6 +262,27 @@ impl redis::FromRedisValue for MsetnxReply {
     }
 }
 
+/// Converts a `redis::Value` to `Option<String>`.
+///
+/// - `BulkString` → decoded as UTF-8, returns `None` if invalid
+/// - `SimpleString` → `Some(s)`
+/// - `Int` → `Some(i.to_string())`
+/// - `Nil` / other variants → `None`
+pub fn redis_value_to_option_string(v: &Value) -> Option<String> {
+    match v {
+        Value::BulkString(bytes) => String::from_utf8(bytes.clone()).ok(),
+        Value::SimpleString(s) => Some(s.clone()),
+        Value::Int(i) => Some(i.to_string()),
+        _ => None,
+    }
+}
+
+/// Entries within a single stream, as `(entry_id, fields)`.
+pub type StreamEntries = Vec<(String, std::collections::HashMap<String, String>)>;
+
+/// Grouped result of a stream read: stream key → list of `(entry_id, fields)`.
+pub type StreamReadResult = std::collections::HashMap<String, StreamEntries>;
+
 #[derive(Debug)]
 pub enum StreamCapKind {
     MinID,

@@ -26,7 +26,8 @@ use crate::{
     errors,
     types::{
         DelReply, HsetnxReply, MsetnxReply, RedisEntryId, RedisKey, SaddReply, SetGetReply,
-        SetnxReply, StreamCapKind, StreamCapTrim, Value,
+        SetnxReply, StreamCapKind, StreamCapTrim, StreamEntries, StreamReadResult, Value,
+        redis_value_to_option_string,
     },
 };
 
@@ -940,6 +941,43 @@ impl super::RedisConnectionPool {
                     _ => report!(err).change_context(errors::RedisError::StreamReadFailed),
                 }
             })
+    }
+
+    /// Read stream entries and return them as a [`StreamReadResult`]
+    /// (stream key → list of `(entry_id, fields)`), so callers don't
+    /// have to manually parse `StreamReadReply` every time.
+    pub async fn stream_read_grouped(
+        &self,
+        streams: &[RedisKey],
+        ids: &[String],
+        read_count: Option<u64>,
+    ) -> CustomResult<StreamReadResult, errors::RedisError> {
+        let reply = self.stream_read_entries(streams, ids, read_count).await?;
+
+        let result: StreamReadResult = reply
+            .keys
+            .into_iter()
+            .map(|stream_key| {
+                let entries: StreamEntries = stream_key
+                    .ids
+                    .into_iter()
+                    .map(|id| {
+                        let fields: std::collections::HashMap<String, String> = id
+                            .map
+                            .into_iter()
+                            .filter_map(|(field_name, redis_value)| {
+                                redis_value_to_option_string(&redis_value)
+                                    .map(|field_value| (field_name, field_value))
+                            })
+                            .collect();
+                        (id.id, fields)
+                    })
+                    .collect();
+                (stream_key.key, entries)
+            })
+            .collect();
+
+        Ok(result)
     }
 
     /// Read entries from streams with options (XREAD / XREADGROUP)

@@ -238,17 +238,8 @@ pub async fn get_batches(
                     let fields: std::collections::HashMap<String, Option<String>> = id
                         .map
                         .into_iter()
-                        .map(|(k, v)| {
-                            let value_opt = match v {
-                                redis_interface::types::Value::BulkString(bytes) => {
-                                    String::from_utf8(bytes).ok()
-                                }
-                                redis_interface::types::Value::SimpleString(s) => Some(s),
-                                redis_interface::types::Value::Int(i) => Some(i.to_string()),
-                                redis_interface::types::Value::Nil => None,
-                                _ => None,
-                            };
-                            (k, value_opt)
+                        .map(|(field_name, redis_value)| {
+                            (field_name, redis_interface::redis_value_to_option_string(&redis_value))
                         })
                         .collect();
                     batches.push(ProcessTrackerBatch::from_redis_stream_entry(fields)?);
