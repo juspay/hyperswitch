@@ -116,6 +116,57 @@ const billingAddressEurope = {
 
 // Main connector details export
 export const connectorDetails = {
+  bank_redirect_pm: {
+    PaymentIntent: (paymentMethodType) => ({
+      Request: {
+        currency: "EUR",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+        },
+      },
+    }),
+    Ideal: {
+      Request: {
+        payment_method: "bank_redirect",
+        payment_method_type: "ideal",
+        payment_method_data: {
+          bank_redirect: {
+            ideal: {
+              bank_name: "ing",
+              country: "NL",
+              preferred_language: "en",
+            },
+          },
+        },
+        billing: {
+          address: {
+            line1: "123 Test Street",
+            line2: "",
+            line3: "",
+            city: "Amsterdam",
+            state: "North Holland",
+            zip: "1012 AB",
+            country: "NL",
+            first_name: "Test",
+            last_name: "Customer",
+          },
+          email: "test.customer@example.com",
+        },
+        currency: "EUR",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "failed",
+          error_code: "ACTION_NOT_AUTHORIZED",
+          error_message: "Access token and merchant info do not match",
+        },
+      },
+    },
+  },
   card_pm: {
     PaymentIntent: {
       Request: {
