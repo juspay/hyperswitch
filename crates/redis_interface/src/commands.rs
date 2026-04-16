@@ -23,6 +23,7 @@ use tracing::instrument;
 
 use crate::{
     errors,
+    constant::{REDIS_ARG_EX, REDIS_ARG_NX, REDIS_CMD_GET, REDIS_CMD_HSCAN, REDIS_CMD_SET},
     types::{
         DelReply, HsetnxReply, MsetnxReply, RedisEntryId, RedisKey, SaddReply, SetGetReply,
         SetnxReply, StreamCapKind, StreamCapTrim, Value,
@@ -633,7 +634,7 @@ impl super::RedisConnectionPool {
         let mut conn = self.pool.clone();
 
         // Build HSCAN command with MATCH and optional COUNT
-        let mut cmd = redis::cmd("HSCAN");
+        let mut cmd = redis::cmd(REDIS_CMD_HSCAN);
         cmd.arg(key.tenant_aware_key(self))
             .arg("MATCH")
             .arg(pattern);
@@ -911,7 +912,8 @@ impl super::RedisConnectionPool {
             .change_context(errors::RedisError::GetLengthFailed)
     }
 
-    /// Read entries from one or more streams using XREAD
+    /// Read entries from one or more streams using XREAD.
+    /// Returns a StreamReadReply - use `into_stream_iter()` for easy iteration.
     #[instrument(level = "DEBUG", skip(self))]
     pub async fn stream_read_entries(
         &self,
@@ -941,6 +943,7 @@ impl super::RedisConnectionPool {
     }
 
     /// Read entries from streams with options (XREAD / XREADGROUP)
+    /// Returns a StreamReadReply - use `into_stream_iter()` for easy iteration.
     #[instrument(level = "DEBUG", skip(self))]
     pub async fn stream_read_with_options(
         &self,
@@ -1203,15 +1206,14 @@ impl super::RedisConnectionPool {
         pipe.atomic();
 
         // SET key value EX ttl NX
-        pipe.cmd("SET")
+        pipe.cmd(REDIS_CMD_SET)
             .arg(&redis_key)
             .arg(&value)
-            .arg("EX")
+            .arg(REDIS_ARG_EX)
             .arg(ttl_seconds)
-            .arg("NX");
+            .arg(REDIS_ARG_NX);
 
-        // GET key
-        pipe.cmd("GET").arg(&redis_key);
+        pipe.cmd(REDIS_CMD_GET).arg(&redis_key);
 
         // Execute the transaction
         let results: Vec<Value> = pipe

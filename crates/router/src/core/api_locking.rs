@@ -67,7 +67,9 @@ impl LockAction {
                     .iter()
                     .find_map(|input| input.override_lock_retries)
                     .unwrap_or(state.conf().lock_settings.lock_retries);
-                let request_id = state.get_request_id();
+                let request_id = state
+                    .get_request_id()
+                    .ok_or(errors::ApiErrorResponse::InternalServerError)?;
                 let redis_lock_expiry_seconds =
                     state.conf().lock_settings.redis_lock_expiry_seconds;
                 let redis_conn = state

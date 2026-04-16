@@ -16,6 +16,7 @@
 //! ```
 
 pub mod commands;
+pub mod constant;
 pub mod errors;
 pub mod types;
 
