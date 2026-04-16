@@ -361,7 +361,7 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Ime
     fn get_multiple_capture_sync_method(
         &self,
     ) -> CustomResult<CaptureSyncMethod, errors::ConnectorError> {
-        Ok(CaptureSyncMethod::Individual)
+        Ok(CaptureSyncMethod::Bulk)
     }
 }
 
