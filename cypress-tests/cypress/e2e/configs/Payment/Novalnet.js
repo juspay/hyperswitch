@@ -765,5 +765,11 @@ export const connectorDetails = {
       // Type of payment reference ID
       type: "number",
     },
+    RefundIdConfig: {
+      // Novalnet refund webhooks use the transaction ID (tid) as the connector refund reference
+      // Must be "number" type because Rust struct expects i64
+      path: "event.tid",
+      type: "number",
+    },
   },
 };

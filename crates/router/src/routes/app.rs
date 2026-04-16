@@ -3144,7 +3144,8 @@ impl User {
                 )
                 .service(
                     web::resource("/members").route(web::get().to(user::list_members_for_entity)),
-                ),
+                )
+                .service(web::resource("/authorize").route(web::post().to(user::authorize_token))),
         );
 
         route

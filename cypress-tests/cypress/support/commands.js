@@ -2621,21 +2621,24 @@ Cypress.Commands.add(
           ) {
             switch (response.body.payment_method_type) {
               case "pix":
-                expect(response.body)
-                  .to.have.property("next_action")
-                  .to.have.property("qr_code_url");
-                if (response.body.next_action.qr_code_url !== null) {
-                  globalState.set(
-                    "nextActionUrl", // This is intentionally kept as nextActionUrl to avoid issues during handleRedirection call,
-                    response.body.next_action.qr_code_url
-                  );
-                  globalState.set("nextActionType", "qr_code_url");
-                } else {
-                  globalState.set(
-                    "nextActionUrl", // This is intentionally kept as nextActionUrl to avoid issues during handleRedirection call,
-                    response.body.next_action.image_data_url
-                  );
-                  globalState.set("nextActionType", "image_data_url");
+                // Skip qr_code_url validation for facilitapay connector
+                if (globalState.get("connectorId") !== "facilitapay") {
+                  expect(response.body)
+                    .to.have.property("next_action")
+                    .to.have.property("qr_code_url");
+                  if (response.body.next_action.qr_code_url !== null) {
+                    globalState.set(
+                      "nextActionUrl", // This is intentionally kept as nextActionUrl to avoid issues during handleRedirection call,
+                      response.body.next_action.qr_code_url
+                    );
+                    globalState.set("nextActionType", "qr_code_url");
+                  } else {
+                    globalState.set(
+                      "nextActionUrl", // This is intentionally kept as nextActionUrl to avoid issues during handleRedirection call,
+                      response.body.next_action.image_data_url
+                    );
+                    globalState.set("nextActionType", "image_data_url");
+                  }
                 }
                 break;
               case "ach":
@@ -3415,6 +3418,7 @@ Cypress.Commands.add("refundCallTest", (requestBody, data, globalState) => {
       expect(response.headers["content-type"]).to.include("application/json");
       if (response.status === 200) {
         globalState.set("refundId", response.body.refund_id);
+        globalState.set("connectorRefundId", response.body.connector_refund_id);
         for (const key in resData.body) {
           expect(resData.body[key]).to.equal(response.body[key]);
         }
@@ -3444,6 +3448,9 @@ Cypress.Commands.add("syncRefundCallTest", (data, globalState) => {
 
     cy.wrap(response).then(() => {
       expect(response.headers["content-type"]).to.include("application/json");
+      if (response.status === 200) {
+        globalState.set("connectorRefundId", response.body.connector_refund_id);
+      }
       for (const key in resData.body) {
         expect(resData.body[key]).to.equal(response.body[key]);
       }
@@ -5615,20 +5622,83 @@ Cypress.Commands.add(
 );
 
 Cypress.Commands.add(
+  "manualRefundStatusUpdateTest",
+  (globalState, refundManualUpdateRequestBody) => {
+    const merchantId = globalState.get("merchantId");
+    const refundId = globalState.get("refundId");
+    const completeUrl = `${Cypress.env("BASEURL")}/refunds/${refundId}/manual-update`;
+    const adminApiKey = globalState.get("adminApiKey");
+
+    cy.request({
+      method: "PUT",
+      url: completeUrl,
+      headers: {
+        "Content-Type": "application/json",
+        "api-key": adminApiKey,
+        "X-Merchant-Id": merchantId,
+      },
+      body: refundManualUpdateRequestBody,
+      failOnStatusCode: false,
+    }).then((response) => {
+      logRequestId(response.headers["x-request-id"]);
+
+      cy.wrap(response).then(() => {
+        if (response.status === 200) {
+          expect(response.status).to.eq(200);
+        } else {
+          throw new Error(
+            `Refund Manual Update Call Failed with error code "${response.body?.error?.code}" error message "${response.body?.error?.message}"`
+          );
+        }
+      });
+    });
+  }
+);
+
+Cypress.Commands.add(
   "IncomingWebhookTest",
-  (globalState, webhookBody, webhookConfig) => {
+  (globalState, webhookBody, webhookConfig, webhookType = "payment") => {
     const connector = globalState.get("connectorId");
     const merchantId = globalState.get("merchantId");
     const completeUrl = `${Cypress.env("BASEURL")}/webhooks/${merchantId}/${connector}`;
 
-    // Normalize transaction ID
-    const txnConfig = webhookConfig.TransactionIdConfig;
-    const txnId =
-      txnConfig.source === "paymentAttemptID"
-        ? `${globalState.get("paymentID")}_1`
-        : globalState.get("connectorTransactionID");
+    // Resolve the reference ID based on webhook type
+    const webhookTypeMap = {
+      payment: {
+        configKey: "TransactionIdConfig",
+        resolveId: (config) =>
+          config.source === "paymentAttemptID"
+            ? `${globalState.get("paymentID")}_1`
+            : globalState.get("connectorTransactionID"),
+      },
+      refund: {
+        configKey: "RefundIdConfig",
+        resolveId: (config) =>
+          config.source === "refundId"
+            ? globalState.get("refundId")
+            : globalState.get("connectorRefundId"),
+      },
+    };
 
-    setNormalizedValue(webhookBody, txnConfig, txnId);
+    const { configKey, resolveId } = webhookTypeMap[webhookType];
+    const config = webhookConfig[configKey];
+    const id = resolveId(config);
+
+    cy.task(
+      "cli_log",
+      `${webhookType} webhook ID: ${id}, config: ${configKey}`
+    );
+
+    if (!id) {
+      cy.task(
+        "cli_log",
+        `Skipping ${webhookType} webhook: ID is not available`
+      );
+
+      return;
+    }
+
+    setNormalizedValue(webhookBody, config, id);
 
     const contentType = webhookConfig.contentType || "application/json";
 

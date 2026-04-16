@@ -452,7 +452,7 @@ credit = { currency = "INR,USD,GBP,EUR" }
 debit = { currency = "INR,USD,GBP,EUR" }
 
 [pm_filters.truelayer]
-open_banking_uk = { currency = "GBP,EUR" }
+open_banking = { currency = "GBP,EUR" }
 
 [payout_method_filters.truelayer]
 open_banking_uk = { currency = "GBP,EUR,PLN" }
@@ -845,7 +845,7 @@ card.credit = { connector_list = "cybersource" }
 card.debit = { connector_list = "cybersource" }
 
 [network_transaction_id_supported_connectors]
-connector_list = "adyen,archipel,checkout,cybersource,novalnet,stripe,worldpay,worldpayvantiv"
+connector_list = "adyen,archipel,checkout,cybersource,novalnet,stripe,worldpay,worldpayvantiv,revolv3"
 
 [card_only_mit_supported_connectors]
 connector_list = "peachpayments" # Supported connectors for card only mit
