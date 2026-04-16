@@ -693,6 +693,7 @@ pub struct TokenizedBankSensitiveValues {
     pub bank_sort_code: Option<hyperswitch_masking::Secret<String>>,
     pub iban: Option<hyperswitch_masking::Secret<String>>,
     pub pix_key: Option<hyperswitch_masking::Secret<String>>,
+    pub pix_emv: Option<hyperswitch_masking::Secret<String>>,
     pub tax_id: Option<hyperswitch_masking::Secret<String>>,
     pub bank_number: Option<hyperswitch_masking::Secret<String>>,
 }
@@ -723,6 +724,7 @@ impl Vaultable for api::BankPayout {
                 pix_key: None,
                 tax_id: None,
                 bank_number: None,
+                pix_emv: None,
             },
             Self::Bacs(b) => TokenizedBankSensitiveValues {
                 bank_account_number: Some(b.bank_account_number.to_owned()),
@@ -733,6 +735,7 @@ impl Vaultable for api::BankPayout {
                 pix_key: None,
                 tax_id: None,
                 bank_number: None,
+                pix_emv: None,
             },
             Self::Sepa(b) => TokenizedBankSensitiveValues {
                 bank_account_number: None,
@@ -743,16 +746,18 @@ impl Vaultable for api::BankPayout {
                 pix_key: None,
                 tax_id: None,
                 bank_number: None,
+                pix_emv: None,
             },
             Self::Pix(bank_details) => TokenizedBankSensitiveValues {
-                bank_account_number: Some(bank_details.bank_account_number.to_owned()),
+                bank_account_number: bank_details.bank_account_number.to_owned(),
                 bank_routing_number: None,
                 bic: None,
                 bank_sort_code: None,
                 iban: None,
-                pix_key: Some(bank_details.pix_key.to_owned()),
+                pix_key: bank_details.pix_key.to_owned(),
                 tax_id: bank_details.tax_id.to_owned(),
                 bank_number: None,
+                pix_emv: bank_details.pix_emv.to_owned(),
             },
             Self::Trustly(bank_details) => TokenizedBankSensitiveValues {
                 bank_account_number: bank_details.account_number.to_owned(),
@@ -763,6 +768,7 @@ impl Vaultable for api::BankPayout {
                 pix_key: None,
                 tax_id: None,
                 bank_number: bank_details.bank_number.to_owned(),
+                pix_emv: None,
             },
         };
 
@@ -899,11 +905,12 @@ impl Vaultable for api::BankPayout {
             }
             (Some(ban), None, None, None, None, Some(pix_key), tax_id, _, _) => {
                 Self::Pix(payouts::PixBankTransfer {
-                    bank_account_number: ban,
+                    bank_account_number: Some(ban),
                     bank_branch: bank_insensitive_data.bank_branch,
                     bank_name: bank_insensitive_data.bank_name,
-                    pix_key,
+                    pix_key: Some(pix_key),
                     tax_id,
+                    pix_emv: bank_sensitive_data.pix_emv.to_owned(),
                 })
             }
             _ => Err(errors::VaultError::ResponseDeserializationFailed)?,
@@ -934,6 +941,7 @@ impl Vaultable for api::BankTransferPayout {
                 pix_key: None,
                 tax_id: None,
                 bank_number: None,
+                pix_emv: None,
             },
             Self::Bacs(b) => TokenizedBankSensitiveValues {
                 bank_account_number: Some(b.bank_account_number.to_owned()),
@@ -944,6 +952,7 @@ impl Vaultable for api::BankTransferPayout {
                 pix_key: None,
                 tax_id: None,
                 bank_number: None,
+                pix_emv: None,
             },
             Self::Sepa(b) => TokenizedBankSensitiveValues {
                 bank_account_number: None,
@@ -954,15 +963,17 @@ impl Vaultable for api::BankTransferPayout {
                 pix_key: None,
                 tax_id: None,
                 bank_number: None,
+                pix_emv: None,
             },
             Self::Pix(bank_details) => TokenizedBankSensitiveValues {
-                bank_account_number: Some(bank_details.bank_account_number.to_owned()),
+                bank_account_number: bank_details.bank_account_number.to_owned(),
                 bank_routing_number: None,
                 bic: None,
                 bank_sort_code: None,
                 iban: None,
-                pix_key: Some(bank_details.pix_key.to_owned()),
+                pix_key: bank_details.pix_key.to_owned(),
                 tax_id: bank_details.tax_id.to_owned(),
+                pix_emv: bank_details.pix_emv.to_owned(),
                 bank_number: None,
             },
             Self::Trustly(bank_details) => TokenizedBankSensitiveValues {
@@ -974,6 +985,7 @@ impl Vaultable for api::BankTransferPayout {
                 pix_key: None,
                 tax_id: None,
                 bank_number: bank_details.bank_number.to_owned(),
+                pix_emv: None,
             },
         };
 
@@ -1101,19 +1113,12 @@ impl Vaultable for api::BankTransferPayout {
                 bank_city: bank_insensitive_data.bank_city,
             }),
             Some(PaymentMethodType::Pix) => Self::Pix(payouts::PixBankTransfer {
-                bank_account_number: bank_sensitive_data.bank_account_number.ok_or(
-                    errors::VaultError::MissingRequiredField {
-                        field_name: "bank_account_number",
-                    },
-                )?,
+                bank_account_number: bank_sensitive_data.bank_account_number,
                 bank_branch: bank_insensitive_data.bank_branch,
                 bank_name: bank_insensitive_data.bank_name,
-                pix_key: bank_sensitive_data.pix_key.ok_or(
-                    errors::VaultError::MissingRequiredField {
-                        field_name: "pix_key",
-                    },
-                )?,
+                pix_key: bank_sensitive_data.pix_key,
                 tax_id: bank_sensitive_data.tax_id,
+                pix_emv: bank_sensitive_data.pix_emv,
             }),
             _ => Err(errors::VaultError::ResponseDeserializationFailed)?,
         };

@@ -6987,9 +6987,10 @@ impl transformers::ForeignTryFrom<&api_models::payouts::PixBankTransfer>
         Ok(Self {
             bank_name: None,
             bank_branch: item.bank_branch.clone(),
-            bank_account_number: Some(item.bank_account_number.clone()),
-            pix_key: Some(item.pix_key.clone()),
+            bank_account_number: item.bank_account_number.clone(),
+            pix_key: item.pix_key.clone(),
             tax_id: item.tax_id.clone(),
+            // pix_emv: item.pix_emv.clone(), to be added in future when UCS supports it
         })
     }
 }

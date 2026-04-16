@@ -104,7 +104,7 @@ impl TryFrom<&EbanxRouterData<&PayoutsRouterData<PoCreate>>> for EbanxPayoutCrea
         match item.router_data.get_payout_method_data()? {
             PayoutMethodData::BankTransfer(BankTransfer::Pix(pix_data)) => {
                 let bank_info = EbanxBankDetails {
-                    bank_account: Some(pix_data.bank_account_number),
+                    bank_account: pix_data.bank_account_number,
                     bank_branch: pix_data.bank_branch,
                     bank_name: pix_data.bank_name,
                     account_type: Some(EbanxBankAccountType::CheckingAccount),
@@ -135,7 +135,11 @@ impl TryFrom<&EbanxRouterData<&PayoutsRouterData<PoCreate>>> for EbanxPayoutCrea
                     currency: item.router_data.request.source_currency,
                     external_reference: item.router_data.connector_request_reference_id.to_owned(),
                     target: EbanxPayoutType::PixKey,
-                    target_account: pix_data.pix_key,
+                    target_account: pix_data.pix_key.ok_or(
+                        ConnectorError::MissingRequiredField {
+                            field_name: "pix_key",
+                        },
+                    )?,
                     payee,
                 })
             }

@@ -424,11 +424,15 @@ pub struct PixBankTransfer {
 
     /// Bank account number is an unique identifier assigned by a bank to a customer.
     #[schema(value_type = String, example = "000123456")]
-    pub bank_account_number: Secret<String>,
+    pub bank_account_number: Option<Secret<String>>,
 
     /// Unique key for pix customer
     #[schema(value_type = String, example = "000123456")]
-    pub pix_key: Secret<String>,
+    pub pix_key: Option<Secret<String>>,
+
+    /// String formated QR code for pix payout
+    #[schema(value_type = String, example = "00020126580014br.gov.bcb.pix0114000123456785204000053039865802BR5925John Doe6009Sao Paulo61080540900062070503***63041D3D")]
+    pub pix_emv: Option<Secret<String>>,
 
     /// Individual taxpayer identification number
     #[schema(value_type = Option<String>, example = "000123456")]
@@ -1129,13 +1133,15 @@ impl From<Bank> for payout_method_utils::BankAdditionalData {
                 bank_branch,
                 bank_account_number,
                 pix_key,
+                pix_emv,
                 tax_id,
             }) => Self::Pix(Box::new(
                 payout_method_utils::PixBankTransferAdditionalData {
                     bank_name,
                     bank_branch,
-                    bank_account_number: bank_account_number.into(),
-                    pix_key: pix_key.into(),
+                    bank_account_number: bank_account_number.map(From::from),
+                    pix_key: pix_key.map(From::from),
+                    pix_emv: pix_emv.map(From::from),
                     tax_id: tax_id.map(From::from),
                 },
             )),
@@ -1209,13 +1215,15 @@ impl From<BankTransfer> for payout_method_utils::BankAdditionalData {
                 bank_branch,
                 bank_account_number,
                 pix_key,
+                pix_emv,
                 tax_id,
             }) => Self::Pix(Box::new(
                 payout_method_utils::PixBankTransferAdditionalData {
                     bank_name,
                     bank_branch,
-                    bank_account_number: bank_account_number.into(),
-                    pix_key: pix_key.into(),
+                    bank_account_number: bank_account_number.map(From::from),
+                    pix_key: pix_key.map(From::from),
+                    pix_emv: pix_emv.map(From::from),
                     tax_id: tax_id.map(From::from),
                 },
             )),
