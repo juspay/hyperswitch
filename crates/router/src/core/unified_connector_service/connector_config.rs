@@ -1477,12 +1477,9 @@ mod tests {
     fn fiserv_metadata_populated_sets_terminal_id() {
         let auth = fiserv_auth();
         let meta = json!({ "terminal_id": "T-123" });
-        let config = ConnectorSpecificConfig::foreign_try_from((
-            Connector::Fiserv,
-            &auth,
-            Some(&meta),
-        ))
-        .expect("populated metadata must parse");
+        let config =
+            ConnectorSpecificConfig::foreign_try_from((Connector::Fiserv, &auth, Some(&meta)))
+                .expect("populated metadata must parse");
         match config {
             ConnectorSpecificConfig::Fiserv { terminal_id, .. } => {
                 assert_eq!(
@@ -1497,9 +1494,8 @@ mod tests {
     #[test]
     fn fiserv_metadata_absent_yields_none_without_error() {
         let auth = fiserv_auth();
-        let config =
-            ConnectorSpecificConfig::foreign_try_from((Connector::Fiserv, &auth, None))
-                .expect("absent metadata must not error");
+        let config = ConnectorSpecificConfig::foreign_try_from((Connector::Fiserv, &auth, None))
+            .expect("absent metadata must not error");
         match config {
             ConnectorSpecificConfig::Fiserv { terminal_id, .. } => {
                 assert!(terminal_id.is_none());
