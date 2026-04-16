@@ -3073,7 +3073,6 @@ pub async fn list_payment_methods(
 ) -> errors::RouterResponse<api::PaymentMethodListResponse> {
     let db = &*state.store;
     let pm_config_mapping = &state.conf.pm_filters;
-
     let payment_intent = if let Some(cs) = &req.client_secret {
         if cs.starts_with("pm_") {
             validate_payment_method_and_client_secret(cs, db, &platform).await?;
