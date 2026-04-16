@@ -358,7 +358,7 @@ impl RedisConnectionPool {
             )
             .await;
 
-            let ping_ok = result.is_ok() && result.unwrap().is_ok();
+            let ping_ok = matches!(result, Ok(Ok(_)));
 
             if ping_ok {
                 if first_failure_at.is_some() {
@@ -374,7 +374,7 @@ impl RedisConnectionPool {
             let first_failure = *first_failure_at.get_or_insert(now);
             let unreachable_secs = now.duration_since(first_failure).as_secs();
 
-            if unreachable_secs >= max_unreachable_secs as u64 {
+            if unreachable_secs >= u64::from(max_unreachable_secs) {
                 tracing::error!(
                     "Redis has been unreachable for {}s (threshold: {}s), shutting down",
                     unreachable_secs,
