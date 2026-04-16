@@ -814,7 +814,7 @@ fn compile_accepted_currency_for_mca(
 
 pub async fn get_organization_eligibility_config_for_pm_modular_service(
     state: &SessionState,
-    dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndOrgId,
+    dimensions: &dimension_state::DimensionsWithOrgId,
 ) -> bool {
     dimensions
         .get_should_call_pm_modular_service(

@@ -679,13 +679,16 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         )?;
 
         #[cfg(feature = "pm_modular")]
-        let pm_modular_dimensions = dimensions.with_organization_id(
-            platform
-                .get_processor()
-                .get_account()
-                .organization_id
-                .clone(),
-        );
+        let pm_modular_dimensions = dimensions
+            .with_organization_id(
+                platform
+                    .get_processor()
+                    .get_account()
+                    .organization_id
+                    .clone(),
+            )
+            .without_provider_merchant_id()
+            .without_processor_merchant_id();
 
         //fetch for repeat cit using payment token
 

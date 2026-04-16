@@ -369,6 +369,8 @@ pub mod superposition {
         "should_store_eligibility_check_data_for_authentication";
     /// Extended card BIN configuration key
     pub const ENABLE_EXTENDED_CARD_BIN: &str = "enable_extended_card_bin";
+    /// Max auto payout retries configuration key
+    pub const MAX_AUTO_PAYOUT_RETRIES: &str = "max_auto_payout_retries";
     /// GSM payout call configuration key (scoped by merchant, profile, and payout retry type)
     pub const GSM_PAYOUT_CALL: &str = "gsm_payout_call";
     /// Disable vault tokenization configuration key

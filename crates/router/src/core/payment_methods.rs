@@ -3941,9 +3941,7 @@ pub async fn retrieve_payment_method(
     let db = state.store.as_ref();
 
     let dimensions = dimension_state::Dimensions::new()
-        .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id())
-        .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
-        .with_profile_id(profile.get_id().clone());
+        .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id());
 
     // 1. Resolve parent token (if any) -> storage type & optional token data
     let (storage_type, pm_token_data_opt) =
@@ -4360,7 +4358,7 @@ impl RawPaymentMethodFetchAccess {
 #[cfg(feature = "v2")]
 pub async fn get_raw_payment_method_data_fetch_access(
     state: &SessionState,
-    dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
+    dimensions: &dimension_state::DimensionsWithProviderMerchantId,
     api_key_type: enums::ApiKeyType,
     fetch_raw_detail_query_param: bool,
     customer_id: Option<&id_type::GlobalCustomerId>,
