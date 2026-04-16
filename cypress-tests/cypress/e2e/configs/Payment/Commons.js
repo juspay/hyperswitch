@@ -992,10 +992,6 @@ export const connectorDetails = {
         customer_acceptance: null,
         setup_future_usage: "on_session",
       },
-      Response: {
-        status: 200,
-        body: {},
-      },
     }),
     ManualRetryPaymentDisabled: getCustomExchange({
       Request: {
@@ -1779,7 +1775,7 @@ export const connectorDetails = {
             city: "San Fransico",
             state: "CA",
             zip: "94122",
-            country: "PL",
+            country: "US",
             first_name: "joseph",
             last_name: "Doe",
           },
