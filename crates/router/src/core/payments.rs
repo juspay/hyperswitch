@@ -1190,6 +1190,13 @@ where
                         )
                         .await?;
 
+                    let config_bool = retry::config_should_call_gsm(
+                        &*state.store,
+                        platform.get_processor().get_account().get_id(),
+                        &business_profile,
+                    )
+                    .await;
+
                     let (router_data, mca) = complete_connector_service(
                         &updated_state,
                         platform.get_processor(),
@@ -1215,13 +1222,6 @@ where
                     #[cfg(all(feature = "retry", feature = "v1"))]
                     {
                         use crate::core::payments::retry::{self, GsmValidation};
-                        // let config_bool = retry::config_should_call_gsm(
-                        //     &*state.store,
-                        //     platform.get_processor().get_account().get_id(),
-                        //     &business_profile,
-                        // )
-                        // .await;
-                        let config_bool = false;
 
                         if config_bool && router_data.should_call_gsm() {
                             router_data = retry::do_gsm_actions(
