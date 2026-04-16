@@ -19,6 +19,7 @@ use crate::{
     crypto::Encryptable,
     encryption::Encryption,
     errors::{self, CustomResult},
+    external_service::{ExternalServiceEventEmitter, NoOpEventEmitter},
     id_type,
     transformers::{ForeignFrom, ForeignTryFrom},
 };
@@ -553,8 +554,3 @@ pub trait ToEncryptable<T, S: Clone, E>: Sized {
         hashmap: FxHashMap<String, Encryptable<S>>,
     ) -> CustomResult<T, errors::ParsingError>;
 }
-
-// Re-export types from external_service module for backward compatibility
-pub use crate::external_service::{
-    ExternalServiceCall, ExternalServiceEventEmitter, NoOpEventEmitter,
-};

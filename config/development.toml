@@ -1300,6 +1300,7 @@ enabled = true
 
 [events]
 source = "kafka"
+emit_external_service_call_events = false
 
 [events.kafka]
 brokers = ["localhost:9092"]

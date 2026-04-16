@@ -87,6 +87,7 @@ sts_role_session_name = "" # An identifier for the assumed role session, used to
 
 [events]
 source = "logs" # The event sink to push events supports kafka or logs (stdout)
+emit_external_service_call_events = false # Enable external service call event emission
 
 [events.kafka]
 brokers = []                             # Kafka broker urls for bootstrapping the client

@@ -1166,6 +1166,7 @@ enabled = true                      # Switch to enable or disable PayPal onboard
 
 [events]
 source = "logs" # The event sink to push events supports kafka or logs (stdout)
+emit_external_service_call_events = false # Enable external service call event emission
 
 [events.kafka]
 brokers = []                             # Kafka broker urls for bootstrapping the client

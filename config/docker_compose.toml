@@ -1187,6 +1187,7 @@ enabled = true
 
 [events]
 source = "kafka"
+emit_external_service_call_events = false
 
 [file_storage]
 file_storage_backend = "file_system"
