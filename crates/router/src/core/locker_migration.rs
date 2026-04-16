@@ -79,7 +79,7 @@ pub async fn rust_locker_migration(
             )
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .and_then(|pm| {
-                call_to_locker(&state, pm, &customer.customer_id, merchant_id, &platform)
+                call_to_locker(&state, pm, &customer.customer_id, merchant_id, &platform.get_provider())
             })
             .await?;
 
@@ -103,7 +103,7 @@ pub async fn call_to_locker(
     payment_methods: Vec<domain::PaymentMethod>,
     customer_id: &id_type::CustomerId,
     merchant_id: &id_type::MerchantId,
-    platform: &domain::Platform,
+    provider: &domain::Provider,
 ) -> CustomResult<usize, errors::ApiErrorResponse> {
     let mut cards_moved = 0;
 
@@ -167,7 +167,7 @@ pub async fn call_to_locker(
 
         let add_card_result = cards::PmCards{
             state,
-            provider: platform.get_provider(),
+            provider,
         }.add_card_hs(
                 pm_create,
                 &card_details,
