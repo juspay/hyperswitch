@@ -1,35 +1,7 @@
 use external_services::superposition;
 use scheduler::consumer::types::process_data::RetryMapping;
-use serde::{self, Deserialize, Serialize};
-
-#[derive(Serialize, Deserialize)]
-pub struct RefundConfig {
-    pub max_attempts: usize,
-    pub max_age: i64,
-}
-
-impl Default for RefundConfig {
-    fn default() -> Self {
-        Self {
-            max_attempts: 10,
-            max_age: 365,
-        }
-    }
-}
-
-#[derive(Serialize, Deserialize)]
-pub struct EphemeralKeyConfig {
-    pub validity: i64,
-}
-
-impl Default for EphemeralKeyConfig {
-    fn default() -> Self {
-        Self { validity: 1 }
-    }
-}
-
 use super::{dimension_state, fetch_db_config_for_dimensions, DatabaseBackedConfig};
-use crate::{consts::superposition as superposition_consts, db::StorageInterface, utils::id_type};
+use crate::{consts::superposition as superposition_consts, db::StorageInterface, utils::id_type, configs::settings};
 
 /// Macro to generate config struct and superposition::Config trait implementation.
 /// Note: Manually implement `DatabaseBackedConfig` for the config struct:
@@ -307,8 +279,8 @@ impl DatabaseBackedConfig for InstallmentConfigSupported {
 
 config! {
     superposition_key = REFUND,
-    output = RefundConfig,
-    default = RefundConfig::default(),
+    output = settings::Refund,
+    default = settings::Refund::default(),
     object = true,
     requires = dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndOrgId,
     targeting_key = String
@@ -316,8 +288,8 @@ config! {
 
 config! {
     superposition_key = EPHEMERAL_KEY,
-    output = EphemeralKeyConfig,
-    default = EphemeralKeyConfig::default(),
+    output = settings::EphemeralConfig,
+    default = settings::EphemeralConfig::default(),
     object = true,
     requires = dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndOrgId,
     targeting_key = String

@@ -51,7 +51,7 @@ description = "Payment connector identifier (e.g. stripe, adyen)"
 change_reason = "Initial setup"
 
 [dimensions.currency]
-position = 5
+position = 6
 schema = { type = "string" }
 description = "Payment currency (e.g. USD, JPY)"
 change_reason = "Initial setup"

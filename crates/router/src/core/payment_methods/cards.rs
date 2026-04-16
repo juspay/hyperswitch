@@ -4011,7 +4011,18 @@ pub async fn list_payment_methods(
             futures::stream::iter(
                 filtered_mcas
                     .iter()
-                    .filter_map(|mca| mca.connector_name.parse::<api_enums::Connector>().ok()),
+                    .filter_map(|mca| {
+                        mca.connector_name
+                            .parse::<api_enums::Connector>()
+                            .inspect_err(|&e| {
+                                logger::error!(
+                                    connector_name = %mca.connector_name,
+                                    error = ?e,
+                                    "Failed to parse connector name, skipping"
+                                );
+                            })
+                            .ok()
+                    }),
             )
             .any(|connector| {
                 let platform = platform.clone();
@@ -4027,20 +4038,14 @@ pub async fn list_payment_methods(
                         )
                         .with_connector(connector)
                         .with_currency(cur);
-                    let supported = dimensions
+                    let is_installment_supported = dimensions
                         .get_installment_config_supported(
                             store.as_ref(),
                             superposition_service.as_ref(),
                             installment_customer_id,
                         )
                         .await;
-                    logger::debug!(
-                        connector = %connector,
-                        currency = %cur,
-                        installment_config_supported = supported,
-                        "installment support check via superposition"
-                    );
-                    supported
+                    is_installment_supported
                 }
             })
             .await
