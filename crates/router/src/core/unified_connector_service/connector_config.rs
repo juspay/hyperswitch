@@ -106,6 +106,11 @@ pub struct PeachpaymentsMetadata {
     merchant_payment_method_route_id: Secret<String>,
 }
 
+#[derive(Debug, serde::Deserialize)]
+pub struct FiservMetadata {
+    terminal_id: Option<Secret<String>>,
+}
+
 /// Connector-specific configuration enum for all supported connectors
 #[derive(Debug, Clone, serde::Serialize)]
 pub enum ConnectorSpecificConfig {
@@ -1006,12 +1011,21 @@ impl ForeignTryFrom<(Connector, &ConnectorAuthType, Option<&serde_json::Value>)>
                     api_key,
                     key1,
                     api_secret,
-                } => Ok(Self::Fiserv {
-                    api_key: api_key.clone(),
-                    merchant_account: key1.clone(),
-                    api_secret: api_secret.clone(),
-                    terminal_id: None,
-                }),
+                } => {
+                    let fiserv_meta = metadata
+                        .map(|m| {
+                            serde_json::from_value::<FiservMetadata>(m.clone())
+                                .map_err(|_| err("Invalid Fiserv metadata format"))
+                        })
+                        .transpose()?;
+
+                    Ok(Self::Fiserv {
+                        api_key: api_key.clone(),
+                        merchant_account: key1.clone(),
+                        api_secret: api_secret.clone(),
+                        terminal_id: fiserv_meta.and_then(|m| m.terminal_id),
+                    })
+                }
                 _ => Err(err("Fiserv requires SignatureKey auth type")),
             },
             Connector::Fiservemea => match auth {
@@ -1439,4 +1453,90 @@ pub fn build_connector_config_header(
         .attach_printable("Failed to serialize ConnectorSpecificConfig")?;
 
     Ok(Some(config_string))
+}
+
+#[cfg(test)]
+mod tests {
+    use common_enums::connector_enums::Connector;
+    use hyperswitch_domain_models::router_data::ConnectorAuthType;
+    use hyperswitch_masking::{PeekInterface, Secret};
+    use serde_json::json;
+
+    use super::{build_connector_config_header, ConnectorSpecificConfig};
+    use crate::types::transformers::ForeignTryFrom;
+
+    fn fiserv_auth() -> ConnectorAuthType {
+        ConnectorAuthType::SignatureKey {
+            api_key: Secret::new("ak".to_string()),
+            key1: Secret::new("merchant".to_string()),
+            api_secret: Secret::new("sk".to_string()),
+        }
+    }
+
+    #[test]
+    fn fiserv_metadata_populated_sets_terminal_id() {
+        let auth = fiserv_auth();
+        let meta = json!({ "terminal_id": "T-123" });
+        let config = ConnectorSpecificConfig::foreign_try_from((
+            Connector::Fiserv,
+            &auth,
+            Some(&meta),
+        ))
+        .expect("populated metadata must parse");
+        match config {
+            ConnectorSpecificConfig::Fiserv { terminal_id, .. } => {
+                assert_eq!(
+                    terminal_id.as_ref().map(|s| s.peek().clone()),
+                    Some("T-123".to_string())
+                );
+            }
+            _ => panic!("expected Fiserv variant"),
+        }
+    }
+
+    #[test]
+    fn fiserv_metadata_absent_yields_none_without_error() {
+        let auth = fiserv_auth();
+        let config =
+            ConnectorSpecificConfig::foreign_try_from((Connector::Fiserv, &auth, None))
+                .expect("absent metadata must not error");
+        match config {
+            ConnectorSpecificConfig::Fiserv { terminal_id, .. } => {
+                assert!(terminal_id.is_none());
+            }
+            _ => panic!("expected Fiserv variant"),
+        }
+    }
+
+    fn extract_fiserv_terminal_id(header: &str) -> Option<serde_json::Value> {
+        let parsed: serde_json::Value =
+            serde_json::from_str(header).expect("header must be valid JSON");
+        parsed
+            .get("config")
+            .and_then(|config| config.get("Fiserv"))
+            .and_then(|fiserv| fiserv.get("terminal_id"))
+            .cloned()
+    }
+
+    #[test]
+    fn build_header_contains_terminal_id_when_populated() {
+        let auth = fiserv_auth();
+        let meta = json!({ "terminal_id": "T-42" });
+        let header = build_connector_config_header("fiserv", &auth, Some(&meta))
+            .expect("build header must succeed")
+            .expect("header must be produced for fiserv");
+        assert_eq!(extract_fiserv_terminal_id(&header), Some(json!("T-42")));
+    }
+
+    #[test]
+    fn build_header_serialises_null_terminal_id_when_absent() {
+        let auth = fiserv_auth();
+        let header = build_connector_config_header("fiserv", &auth, None)
+            .expect("build header must succeed")
+            .expect("header must be produced for fiserv");
+        assert_eq!(
+            extract_fiserv_terminal_id(&header),
+            Some(serde_json::Value::Null)
+        );
+    }
 }
