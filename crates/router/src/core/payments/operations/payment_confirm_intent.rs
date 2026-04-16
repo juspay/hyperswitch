@@ -729,6 +729,7 @@ impl<F: Clone + Send + Sync> Domain<F, PaymentsConfirmIntentRequest, PaymentConf
                         payment_method,
                         payment_method_type,
                         mandate_flow_enabled,
+                        None,
                     )?;
 
                 if is_connector_tokenization_enabled {
