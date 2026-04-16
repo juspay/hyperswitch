@@ -356,7 +356,7 @@ impl TryFrom<payment_methods::PaymentMethodCreateData> for PaymentMethodVaulting
                     message: "Wallet for PaymentMethodCreateData".to_string(),
                 }
                 .into(),
-            )
+            ),
         }
     }
 }

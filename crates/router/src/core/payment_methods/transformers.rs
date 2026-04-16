@@ -927,14 +927,16 @@ impl transformers::ForeignTryFrom<(domain::PaymentMethod, String)>
             .and_then(|payment_method_data| match payment_method_data {
                 payment_method_data::PaymentMethodsData::Card(card_details_payment_method) => {
                     let card_details = card_details_payment_method.to_card_details_from_locker();
-                    Some(api_models::payment_methods::PaymentMethodListData::Card(card_details))
-                }
-                payment_method_data::PaymentMethodsData::BankDetails(..) => todo!(),
-                payment_method_data::PaymentMethodsData::BankDebit(bank_debit_details) => {
-                    Some(api_models::payment_methods::PaymentMethodListData::BankDebit(
-                        bank_debit_details.into(),
+                    Some(api_models::payment_methods::PaymentMethodListData::Card(
+                        card_details,
                     ))
                 }
+                payment_method_data::PaymentMethodsData::BankDetails(..) => todo!(),
+                payment_method_data::PaymentMethodsData::BankDebit(bank_debit_details) => Some(
+                    api_models::payment_methods::PaymentMethodListData::BankDebit(
+                        bank_debit_details.into(),
+                    ),
+                ),
                 payment_method_data::PaymentMethodsData::WalletDetails(info) => {
                     match payment_method_subtype {
                         api_enums::PaymentMethodType::ApplePay => {
@@ -1018,14 +1020,16 @@ impl transformers::ForeignTryFrom<domain::PaymentMethod> for PaymentMethodRespon
             .and_then(|payment_method_data| match payment_method_data {
                 payment_method_data::PaymentMethodsData::Card(card_details_payment_method) => {
                     let card_details = card_details_payment_method.to_card_details_from_locker();
-                    Some(api_models::payment_methods::PaymentMethodListData::Card(card_details))
-                }
-                payment_method_data::PaymentMethodsData::BankDetails(..) => todo!(),
-                payment_method_data::PaymentMethodsData::BankDebit(bank_debit_details) => {
-                    Some(api_models::payment_methods::PaymentMethodListData::BankDebit(
-                        bank_debit_details.into(),
+                    Some(api_models::payment_methods::PaymentMethodListData::Card(
+                        card_details,
                     ))
                 }
+                payment_method_data::PaymentMethodsData::BankDetails(..) => todo!(),
+                payment_method_data::PaymentMethodsData::BankDebit(bank_debit_details) => Some(
+                    api_models::payment_methods::PaymentMethodListData::BankDebit(
+                        bank_debit_details.into(),
+                    ),
+                ),
                 payment_method_data::PaymentMethodsData::WalletDetails(info) => {
                     match payment_method_subtype {
                         api_enums::PaymentMethodType::ApplePay => {

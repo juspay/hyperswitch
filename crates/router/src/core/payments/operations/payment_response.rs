@@ -81,7 +81,11 @@ where
 {
     let is_eligible_pm = matches!(
         payment_data.payment_attempt.payment_method,
-        Some(enums::PaymentMethod::Card | enums::PaymentMethod::BankDebit | enums::PaymentMethod::Wallet)
+        Some(
+            enums::PaymentMethod::Card
+                | enums::PaymentMethod::BankDebit
+                | enums::PaymentMethod::Wallet
+        )
     );
 
     if is_eligible_pm {
