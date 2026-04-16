@@ -17,8 +17,8 @@ use crate::{
     external_service::ExternalServiceCall,
     types::keymanager::{
         BatchDecryptDataRequest, DataKeyCreateResponse, DecryptDataRequest,
-        EncryptionCreateRequest, EncryptionTransferRequest, GetKeymanagerTenant,
-        KeyManagerState, TransientBatchDecryptDataRequest, TransientDecryptDataRequest,
+        EncryptionCreateRequest, EncryptionTransferRequest, GetKeymanagerTenant, KeyManagerState,
+        TransientBatchDecryptDataRequest, TransientDecryptDataRequest,
     },
 };
 
@@ -100,16 +100,18 @@ where
     let created_at_timestamp = OffsetDateTime::now_utc().unix_timestamp_nanos();
 
     if let Some(request_id) = &state.request_id {
-        state.event_emitter.emit_external_service_call(ExternalServiceCall {
-            service_name: "keymanager".to_string(),
-            endpoint: endpoint.to_string(),
-            method: method_str,
-            request_id: request_id.clone(),
-            status_code: response.status().as_u16(),
-            success: response.status().is_success(),
-            latency_ms,
-            created_at_timestamp,
-        });
+        state
+            .event_emitter
+            .emit_external_service_call(ExternalServiceCall {
+                service_name: "keymanager".to_string(),
+                endpoint: endpoint.to_string(),
+                method: method_str,
+                request_id: request_id.clone(),
+                status_code: response.status().as_u16(),
+                success: response.status().is_success(),
+                latency_ms,
+                created_at_timestamp,
+            });
     } else {
         logger::warn!("KeyManager call made without emitting event: request_id missing");
     }
@@ -131,7 +133,10 @@ where
 {
     let url = format!("{}/{endpoint}", &state.url);
 
-    let tenant_id = request_body.get_tenant_id(state).get_string_repr().to_owned();
+    let tenant_id = request_body
+        .get_tenant_id(state)
+        .get_string_repr()
+        .to_owned();
 
     logger::info!(key_manager_request=?request_body);
     let mut header = vec![];

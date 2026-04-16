@@ -7,7 +7,6 @@ use base64::Engine;
 use masking::{ExposeInterface, PeekInterface, Secret, Strategy, StrongSecret};
 #[cfg(feature = "encryption_service")]
 use router_env::logger;
-
 use rustc_hash::FxHashMap;
 use serde::{
     de::{self, Unexpected, Visitor},

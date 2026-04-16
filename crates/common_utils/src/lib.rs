@@ -6,7 +6,6 @@ use masking::{ExposeInterface, PeekInterface, Secret};
 pub mod access_token;
 pub mod consts;
 pub mod crypto;
-pub mod external_service;
 pub mod custom_serde;
 #[allow(missing_docs)] // Todo: add docs
 pub mod encryption;
@@ -14,6 +13,7 @@ pub mod errors;
 #[allow(missing_docs)] // Todo: add docs
 pub mod events;
 pub mod ext_traits;
+pub mod external_service;
 pub mod fp_utils;
 /// Used for hashing
 pub mod hashing;
