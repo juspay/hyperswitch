@@ -19,7 +19,7 @@ pub struct RoleInfo {
     is_deletable: bool,
     is_updatable: bool,
     is_internal: bool,
-    merchant_product_type: Option<MerchantProductType>,
+    product_type_filter: Option<MerchantProductType>,
 }
 
 impl RoleInfo {
@@ -64,11 +64,11 @@ impl RoleInfo {
         self.is_updatable
     }
 
-    pub fn get_merchant_product_type(&self) -> Option<MerchantProductType> {
+    pub fn get_product_type_filter(&self) -> Option<MerchantProductType> {
         match self.entity_type {
             EntityType::Organization | EntityType::Tenant => None,
             EntityType::Merchant | EntityType::Profile => Some(
-                self.merchant_product_type
+                self.product_type_filter
                     .unwrap_or(MerchantProductType::Orchestration),
             ),
         }
@@ -149,7 +149,7 @@ impl From<diesel_models::role::Role> for RoleInfo {
             is_deletable: true,
             is_updatable: true,
             is_internal: false,
-            merchant_product_type: role.merchant_product_type,
+            product_type_filter: role.merchant_product_type,
         }
     }
 }

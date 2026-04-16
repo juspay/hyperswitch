@@ -41,7 +41,7 @@ pub static PREDEFINED_ROLES: LazyLock<HashMap<&'static str, RoleInfo>> = LazyLoc
             is_deletable: false,
             is_updatable: false,
             is_internal: true,
-            merchant_product_type: Some(MerchantProductType::Orchestration),
+            product_type_filter: None,
         },
     );
     roles.insert(
@@ -67,7 +67,7 @@ pub static PREDEFINED_ROLES: LazyLock<HashMap<&'static str, RoleInfo>> = LazyLoc
             is_deletable: false,
             is_updatable: false,
             is_internal: true,
-            merchant_product_type: Some(MerchantProductType::Orchestration),
+            product_type_filter: None,
         },
     );
     roles.insert(
@@ -94,7 +94,7 @@ pub static PREDEFINED_ROLES: LazyLock<HashMap<&'static str, RoleInfo>> = LazyLoc
             is_deletable: false,
             is_updatable: false,
             is_internal: true,
-            merchant_product_type: Some(MerchantProductType::Orchestration),
+            product_type_filter: None,
         },
     );
 
@@ -131,7 +131,7 @@ pub static PREDEFINED_ROLES: LazyLock<HashMap<&'static str, RoleInfo>> = LazyLoc
             is_deletable: false,
             is_updatable: false,
             is_internal: false,
-            merchant_product_type: None,
+            product_type_filter: None,
         },
     );
 
@@ -171,7 +171,7 @@ pub static PREDEFINED_ROLES: LazyLock<HashMap<&'static str, RoleInfo>> = LazyLoc
             is_updatable: true,
             is_internal: false,
             // Org level roles should not have any product type
-            merchant_product_type: None,
+            product_type_filter: None,
         },
     );
 
@@ -200,7 +200,7 @@ pub static PREDEFINED_ROLES: LazyLock<HashMap<&'static str, RoleInfo>> = LazyLoc
             is_deletable: true,
             is_updatable: true,
             is_internal: false,
-            merchant_product_type: Some(MerchantProductType::Orchestration),
+            product_type_filter: Some(MerchantProductType::Orchestration),
         },
     );
     roles.insert(
@@ -222,7 +222,7 @@ pub static PREDEFINED_ROLES: LazyLock<HashMap<&'static str, RoleInfo>> = LazyLoc
             is_deletable: true,
             is_updatable: true,
             is_internal: false,
-            merchant_product_type: Some(MerchantProductType::Orchestration),
+            product_type_filter: Some(MerchantProductType::Orchestration),
         },
     );
     roles.insert(
@@ -243,7 +243,7 @@ pub static PREDEFINED_ROLES: LazyLock<HashMap<&'static str, RoleInfo>> = LazyLoc
             is_deletable: true,
             is_updatable: true,
             is_internal: false,
-            merchant_product_type: Some(MerchantProductType::Orchestration),
+            product_type_filter: Some(MerchantProductType::Orchestration),
         },
     );
     roles.insert(
@@ -265,7 +265,7 @@ pub static PREDEFINED_ROLES: LazyLock<HashMap<&'static str, RoleInfo>> = LazyLoc
             is_deletable: true,
             is_updatable: true,
             is_internal: false,
-            merchant_product_type: Some(MerchantProductType::Orchestration),
+            product_type_filter: Some(MerchantProductType::Orchestration),
         },
     );
     roles.insert(
@@ -288,7 +288,7 @@ pub static PREDEFINED_ROLES: LazyLock<HashMap<&'static str, RoleInfo>> = LazyLoc
             is_deletable: true,
             is_updatable: true,
             is_internal: false,
-            merchant_product_type: Some(MerchantProductType::Orchestration),
+            product_type_filter: Some(MerchantProductType::Orchestration),
         },
     );
     roles.insert(
@@ -308,7 +308,7 @@ pub static PREDEFINED_ROLES: LazyLock<HashMap<&'static str, RoleInfo>> = LazyLoc
             is_deletable: true,
             is_updatable: true,
             is_internal: false,
-            merchant_product_type: Some(MerchantProductType::Orchestration),
+            product_type_filter: Some(MerchantProductType::Orchestration),
         },
     );
 
@@ -337,7 +337,7 @@ pub static PREDEFINED_ROLES: LazyLock<HashMap<&'static str, RoleInfo>> = LazyLoc
             is_deletable: true,
             is_updatable: true,
             is_internal: false,
-            merchant_product_type: Some(MerchantProductType::Orchestration),
+            product_type_filter: Some(MerchantProductType::Orchestration),
         },
     );
     roles.insert(
@@ -359,7 +359,7 @@ pub static PREDEFINED_ROLES: LazyLock<HashMap<&'static str, RoleInfo>> = LazyLoc
             is_deletable: true,
             is_updatable: true,
             is_internal: false,
-            merchant_product_type: Some(MerchantProductType::Orchestration),
+            product_type_filter: Some(MerchantProductType::Orchestration),
         },
     );
     roles.insert(
@@ -380,7 +380,7 @@ pub static PREDEFINED_ROLES: LazyLock<HashMap<&'static str, RoleInfo>> = LazyLoc
             is_deletable: true,
             is_updatable: true,
             is_internal: false,
-            merchant_product_type: Some(MerchantProductType::Orchestration),
+            product_type_filter: Some(MerchantProductType::Orchestration),
         },
     );
     roles.insert(
@@ -402,7 +402,7 @@ pub static PREDEFINED_ROLES: LazyLock<HashMap<&'static str, RoleInfo>> = LazyLoc
             is_deletable: true,
             is_updatable: true,
             is_internal: false,
-            merchant_product_type: Some(MerchantProductType::Orchestration),
+            product_type_filter: Some(MerchantProductType::Orchestration),
         },
     );
     roles.insert(
@@ -425,7 +425,7 @@ pub static PREDEFINED_ROLES: LazyLock<HashMap<&'static str, RoleInfo>> = LazyLoc
             is_deletable: true,
             is_updatable: true,
             is_internal: false,
-            merchant_product_type: Some(MerchantProductType::Orchestration),
+            product_type_filter: Some(MerchantProductType::Orchestration),
         },
     );
     roles.insert(
@@ -445,7 +445,7 @@ pub static PREDEFINED_ROLES: LazyLock<HashMap<&'static str, RoleInfo>> = LazyLoc
             is_deletable: true,
             is_updatable: true,
             is_internal: false,
-            merchant_product_type: Some(MerchantProductType::Orchestration),
+            product_type_filter: Some(MerchantProductType::Orchestration),
         },
     );
     // Recon Roles
@@ -472,7 +472,7 @@ pub static PREDEFINED_ROLES: LazyLock<HashMap<&'static str, RoleInfo>> = LazyLoc
             is_deletable: true,
             is_updatable: true,
             is_internal: false,
-            merchant_product_type: Some(MerchantProductType::Recon),
+            product_type_filter: Some(MerchantProductType::Recon),
         },
     );
     roles.insert(
@@ -493,7 +493,7 @@ pub static PREDEFINED_ROLES: LazyLock<HashMap<&'static str, RoleInfo>> = LazyLoc
             is_deletable: true,
             is_updatable: true,
             is_internal: false,
-            merchant_product_type: Some(MerchantProductType::Recon),
+            product_type_filter: Some(MerchantProductType::Recon),
         },
     );
     roles.insert(
@@ -515,7 +515,7 @@ pub static PREDEFINED_ROLES: LazyLock<HashMap<&'static str, RoleInfo>> = LazyLoc
             is_deletable: true,
             is_updatable: true,
             is_internal: false,
-            merchant_product_type: Some(MerchantProductType::Recon),
+            product_type_filter: Some(MerchantProductType::Recon),
         },
     );
     roles.insert(
@@ -536,7 +536,7 @@ pub static PREDEFINED_ROLES: LazyLock<HashMap<&'static str, RoleInfo>> = LazyLoc
             is_deletable: true,
             is_updatable: true,
             is_internal: false,
-            merchant_product_type: Some(MerchantProductType::Recon),
+            product_type_filter: Some(MerchantProductType::Recon),
         },
     );
 
@@ -564,7 +564,7 @@ pub static PREDEFINED_ROLES: LazyLock<HashMap<&'static str, RoleInfo>> = LazyLoc
             is_deletable: true,
             is_updatable: true,
             is_internal: false,
-            merchant_product_type: Some(MerchantProductType::Recon),
+            product_type_filter: Some(MerchantProductType::Recon),
         },
     );
     roles.insert(
@@ -585,7 +585,7 @@ pub static PREDEFINED_ROLES: LazyLock<HashMap<&'static str, RoleInfo>> = LazyLoc
             is_deletable: true,
             is_updatable: true,
             is_internal: false,
-            merchant_product_type: Some(MerchantProductType::Recon),
+            product_type_filter: Some(MerchantProductType::Recon),
         },
     );
     roles.insert(
@@ -607,7 +607,7 @@ pub static PREDEFINED_ROLES: LazyLock<HashMap<&'static str, RoleInfo>> = LazyLoc
             is_deletable: true,
             is_updatable: true,
             is_internal: false,
-            merchant_product_type: Some(MerchantProductType::Recon),
+            product_type_filter: Some(MerchantProductType::Recon),
         },
     );
     roles.insert(
@@ -628,7 +628,7 @@ pub static PREDEFINED_ROLES: LazyLock<HashMap<&'static str, RoleInfo>> = LazyLoc
             is_deletable: true,
             is_updatable: true,
             is_internal: false,
-            merchant_product_type: Some(MerchantProductType::Recon),
+            product_type_filter: Some(MerchantProductType::Recon),
         },
     );
 
