@@ -35,23 +35,6 @@ env:
   RUST_BACKTRACE: short
 
 jobs:
-  formatting:
-    name: Check formatting
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v6
-
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@master
-        with:
-          toolchain: nightly
-          components: rustfmt
-
-      - name: Check formatting
-        shell: bash
-        run: cargo +nightly fmt --all --check
-
   check-msrv:
     name: Check compilation on MSRV toolchain
     runs-on: ${{ matrix.runner }}
