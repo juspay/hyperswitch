@@ -6270,7 +6270,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::SetupMandateRequ
                         .attach_printable("Failed parsing ConnectorMetadata")
                 })
                 .transpose()?,
-                merchant_order_reference_id,
+            merchant_order_reference_id,
         })
     }
 }
