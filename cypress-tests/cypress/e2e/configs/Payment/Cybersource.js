@@ -1214,7 +1214,7 @@ export const connectorDetails = {
                         options: ["ALL"],
                       },
                     },
-                    value: "PL",
+                    value: "US",
                   },
                   "billing.address.first_name": {
                     required_field:
