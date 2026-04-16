@@ -228,31 +228,40 @@ pub struct TrustlyBankTransferAdditionalData {
 #[diesel(sql_type = Jsonb)]
 #[serde(untagged)]
 pub enum WalletAdditionalData {
+    /// Additional data for Apple pay decrypt wallet payout method
+    ApplePayDecrypt(Box<ApplePayDecryptAdditionalData>),
     /// Additional data for paypal wallet payout method
     Paypal(Box<PaypalAdditionalData>),
     /// Additional data for venmo wallet payout method
     Venmo(Box<VenmoAdditionalData>),
-    /// Additional data for Apple pay decrypt wallet payout method
-    ApplePayDecrypt(Box<ApplePayDecryptAdditionalData>),
 }
 
 /// Masked payout method details for paypal wallet payout method
 #[derive(
-    Default, Eq, PartialEq, Clone, Debug, Deserialize, Serialize, FromSqlRow, AsExpression, ToSchema,
+    Eq, PartialEq, Clone, Debug, Deserialize, Serialize, FromSqlRow, AsExpression, ToSchema,
 )]
 #[diesel(sql_type = Jsonb)]
-pub struct PaypalAdditionalData {
+#[serde(tag = "field_type", rename_all = "snake_case")]
+pub enum PaypalAdditionalData {
+    // Exactly one of the three identifiers will always be present
     /// Email linked with paypal account
-    #[schema(value_type = Option<String>, example = "john.doe@example.com")]
-    pub email: Option<MaskedEmail>,
-
-    /// mobile number linked to paypal account
-    #[schema(value_type = Option<String>, example = "******* 3349")]
-    pub telephone_number: Option<MaskedPhoneNumber>,
-
+    Email {
+        /// Email linked with paypal account
+        #[schema(value_type = String, example = "john.doe@example.com")]
+        email: MaskedEmail,
+    },
     /// id of the paypal account
-    #[schema(value_type = Option<String>, example = "G83K ***** HCQ2")]
-    pub paypal_id: Option<MaskedBankAccount>,
+    PaypalId {
+        /// id of the paypal account
+        #[schema(value_type = String, example = "G83K*****HCQ2")]
+        paypal_id: MaskedBankAccount,
+    },
+    /// mobile number linked to paypal account
+    TelephoneNumber {
+        /// mobile number linked to paypal account
+        #[schema(value_type = Option<String>, example = "G83K ***** HCQ2")]
+        telephone_number: Option<MaskedPhoneNumber>, // Keeping this optional does not affect serialization because the enum is tagged with `field_type`, so the correct variant is chosen explicitly
+    },
 }
 
 /// Masked payout method details for venmo wallet payout method
@@ -335,4 +344,30 @@ pub struct PassthroughAdditionalData {
     /// token_type of the passthrough flow
     #[schema(value_type = PaymentMethodType, example = "paypal")]
     pub token_type: common_enums::PaymentMethodType,
+}
+
+impl From<&AdditionalPayoutMethodData> for common_enums::PaymentMethodType {
+    fn from(data: &AdditionalPayoutMethodData) -> Self {
+        match data {
+            // debit represent card payout methods, todo: consider renaming it to card in future
+            AdditionalPayoutMethodData::Card(_) => Self::Debit,
+            AdditionalPayoutMethodData::Bank(bank) => match **bank {
+                BankAdditionalData::Ach(_) => Self::Ach,
+                BankAdditionalData::Bacs(_) => Self::Bacs,
+                BankAdditionalData::Sepa(_) => Self::SepaBankTransfer,
+                BankAdditionalData::Pix(_) => Self::Pix,
+                BankAdditionalData::Trustly(_) => Self::Trustly,
+            },
+            AdditionalPayoutMethodData::Wallet(wallet) => match **wallet {
+                WalletAdditionalData::ApplePayDecrypt(_) => Self::ApplePay,
+                WalletAdditionalData::Paypal(_) => Self::Paypal,
+                WalletAdditionalData::Venmo(_) => Self::Venmo,
+            },
+            AdditionalPayoutMethodData::BankRedirect(bank_redirect) => match **bank_redirect {
+                BankRedirectAdditionalData::Interac(_) => Self::Interac,
+                BankRedirectAdditionalData::OpenBankingUk(_) => Self::OpenBankingUk,
+            },
+            AdditionalPayoutMethodData::Passthrough(passthrough) => passthrough.token_type,
+        }
+    }
 }

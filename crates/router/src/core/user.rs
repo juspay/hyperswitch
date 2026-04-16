@@ -7,7 +7,7 @@ use api_models::{
     payments::RedirectionResponse,
     user::{self as user_api, InviteMultipleUserResponse, NameIdUnit},
 };
-use common_enums::{connector_enums, EntityType, UserAuthType};
+use common_enums::{connector_enums, EntityType, MerchantProductType, UserAuthType};
 use common_utils::{
     fp_utils, type_name,
     types::{keymanager::Identifier, user::LineageContext},
@@ -24,14 +24,14 @@ use error_stack::{report, ResultExt};
 use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 use router_env::{env, logger};
 use storage_impl::errors::StorageError;
+#[cfg(feature = "v1")]
+use subscriptions::RouterResponse;
 #[cfg(not(feature = "email"))]
 use user_api::dashboard_metadata::SetMetaDataRequest;
 
-#[cfg(feature = "v1")]
-use super::admin;
 use super::errors::{StorageErrorExt, UserErrors, UserResponse, UserResult};
 #[cfg(feature = "v1")]
-use crate::types::transformers::ForeignFrom;
+use super::{admin, errors::ApiErrorResponse};
 use crate::{
     consts,
     core::encryption::send_request_to_key_service_for_user,
@@ -40,13 +40,19 @@ use crate::{
         user_role::ListUserRolesByUserIdPayload,
     },
     routes::{app::ReqState, SessionState},
-    services::{authentication as auth, authorization::roles, openidconnect, ApplicationResponse},
+    services::{
+        authentication::{self as auth, blacklist::BlackList},
+        authorization::{self, permissions::Permission, roles},
+        openidconnect, ApplicationResponse,
+    },
     types::{domain, transformers::ForeignInto},
     utils::{
         self,
         user::{theme as theme_utils, two_factor_auth as tfa_utils},
     },
 };
+#[cfg(feature = "v1")]
+use crate::{db::user_role::ListUserRolesByOrgIdPayload, types::transformers::ForeignFrom};
 #[cfg(feature = "email")]
 use crate::{services::email::types as email_types, utils::user as user_utils};
 
@@ -730,6 +736,40 @@ async fn handle_invitation(
     if !req_role_info.is_invitable() {
         Err(report!(UserErrors::InvalidRoleId))
             .attach_printable(format!("role_id = {} is not invitable", request.role_id))?;
+    }
+
+    match req_role_info.get_entity_type() {
+        EntityType::Tenant | EntityType::Organization => {}
+        EntityType::Merchant | EntityType::Profile => {
+            let merchant_key_store = state
+                .store
+                .get_merchant_key_store_by_merchant_id(
+                    &user_from_token.merchant_id,
+                    &state.store.get_master_key().to_vec().into(),
+                )
+                .await
+                .change_context(UserErrors::InternalServerError)
+                .attach_printable("Failed to retrieve merchant key store by merchant_id")?;
+
+            let merchant_account = state
+                .store
+                .find_merchant_account_by_merchant_id(
+                    &user_from_token.merchant_id,
+                    &merchant_key_store,
+                )
+                .await
+                .to_not_found_response(UserErrors::MerchantIdNotFound)?;
+
+            let merchant_product_type = merchant_account
+                .product_type
+                .unwrap_or(MerchantProductType::Orchestration);
+            if req_role_info.get_merchant_product_type() != merchant_product_type {
+                Err(report!(UserErrors::InvalidRoleId)).attach_printable(format!(
+                    "role_id = {} is not for product_type = {}",
+                    request.role_id, merchant_product_type
+                ))?;
+            }
+        }
     }
 
     let invitee_email = domain::UserEmail::from_pii_email(request.email.clone())?;
@@ -4036,4 +4076,128 @@ pub async fn list_users_internal(
             users: users_minimal_details,
         },
     ))
+}
+
+#[cfg(feature = "v1")]
+pub async fn list_members_for_entity(
+    state: SessionState,
+    auth: auth::AuthenticationData,
+    access_level: EntityType,
+) -> UserResponse<user_api::ListUsersInternalResponse> {
+    let merchant_id = auth.platform.get_processor().get_account().get_id();
+
+    let profile = auth
+        .profile
+        .ok_or(report!(UserErrors::InternalServerError))
+        .attach_printable("Profile is required for list_members_for_entity")?;
+
+    let profile_id = profile.get_id();
+    let org_id = auth.platform.get_processor().get_account().get_org_id();
+    let tenant_id = &state.tenant.tenant_id;
+
+    let entity_types_to_query: Vec<EntityType> = match access_level {
+        EntityType::Profile => {
+            vec![
+                EntityType::Organization,
+                EntityType::Merchant,
+                EntityType::Profile,
+            ]
+        }
+        EntityType::Merchant => {
+            vec![EntityType::Organization, EntityType::Merchant]
+        }
+        EntityType::Organization => {
+            vec![EntityType::Organization]
+        }
+        EntityType::Tenant => {
+            return Err(report!(UserErrors::InvalidRoleOperation))
+                .attach_printable("Tenant-level access is not supported for this endpoint");
+        }
+    };
+
+    let user_ids =
+        futures::future::try_join_all(entity_types_to_query.into_iter().map(|entity_type| {
+            let state = &state;
+            async move {
+                let (merchant_id_filter, profile_id_filter) = match entity_type {
+                    EntityType::Organization => (None, None),
+                    EntityType::Merchant => (Some(merchant_id), None),
+                    EntityType::Profile => (Some(merchant_id), Some(profile_id)),
+                    EntityType::Tenant => {
+                        return Err(report!(UserErrors::InternalServerError))
+                            .attach_printable("Unexpected tenant entity type in query list");
+                    }
+                };
+
+                state
+                    .global_store
+                    .list_user_roles_by_org_id(ListUserRolesByOrgIdPayload {
+                        user_id: None,
+                        tenant_id,
+                        org_id,
+                        merchant_id: merchant_id_filter,
+                        profile_id: profile_id_filter,
+                        entity_type: Some(entity_type),
+                        version: None,
+                        limit: None,
+                    })
+                    .await
+                    .change_context(UserErrors::InternalServerError)
+                    .attach_printable(format!("Failed to fetch user roles for {:?}", entity_type))
+            }
+        }))
+        .await?
+        .into_iter()
+        .flatten()
+        .map(|user_role| user_role.user_id)
+        .collect::<HashSet<_>>();
+
+    let users = state
+        .global_store
+        .find_active_users_by_user_ids(user_ids.into_iter().collect())
+        .await
+        .change_context(UserErrors::InternalServerError)
+        .attach_printable("Failed to fetch users from database")?;
+
+    let users_minimal_details = users
+        .into_iter()
+        .map(domain::UserFromStorage::from)
+        .map(|user| user_api::GetUserInternalDetailsResponse {
+            user_id: user.get_user_id().to_string(),
+            name: user.get_name(),
+            email: user.get_email(),
+            is_active: user.is_active(),
+        })
+        .collect();
+
+    Ok(ApplicationResponse::Json(
+        user_api::ListUsersInternalResponse {
+            users: users_minimal_details,
+        },
+    ))
+}
+
+#[cfg(feature = "v1")]
+pub async fn authorize_token(
+    state: SessionState,
+    payload: user_api::AuthorizeTokenRequest,
+) -> RouterResponse<()> {
+    let permission: Permission =
+        payload
+            .permission
+            .parse()
+            .map_err(|_| ApiErrorResponse::InvalidRequestData {
+                message: "Invalid permission".to_string(),
+            })?;
+
+    let token = auth::decode_jwt::<auth::AuthToken>(&payload.token.expose(), &state).await?;
+
+    if token.check_in_blacklist(&state).await? {
+        return Err(ApiErrorResponse::InvalidJwtToken.into());
+    }
+
+    let role_info = authorization::get_role_info(&state, &token).await?;
+    authorization::check_permission(permission, &role_info)?;
+
+    Ok(ApplicationResponse::StatusOk)
 }

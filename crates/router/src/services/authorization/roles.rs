@@ -4,7 +4,7 @@ use std::collections::HashSet;
 
 #[cfg(feature = "recon")]
 use api_models::enums::ReconPermissionScope;
-use common_enums::{EntityType, PermissionGroup, Resource, RoleScope};
+use common_enums::{EntityType, MerchantProductType, PermissionGroup, Resource, RoleScope};
 use common_utils::{errors::CustomResult, id_type};
 
 #[cfg(feature = "recon")]
@@ -25,6 +25,7 @@ pub struct RoleInfo {
     is_deletable: bool,
     is_updatable: bool,
     is_internal: bool,
+    merchant_product_type: MerchantProductType,
 }
 
 impl RoleInfo {
@@ -67,6 +68,10 @@ impl RoleInfo {
 
     pub fn is_updatable(&self) -> bool {
         self.is_updatable
+    }
+
+    pub fn get_merchant_product_type(&self) -> MerchantProductType {
+        self.merchant_product_type
     }
 
     pub fn get_resources_set(&self) -> HashSet<Resource> {
@@ -176,6 +181,9 @@ impl From<diesel_models::role::Role> for RoleInfo {
             is_deletable: true,
             is_updatable: true,
             is_internal: false,
+            merchant_product_type: role
+                .merchant_product_type
+                .unwrap_or(MerchantProductType::Orchestration),
         }
     }
 }

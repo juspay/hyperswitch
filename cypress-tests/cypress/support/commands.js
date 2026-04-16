@@ -2408,6 +2408,70 @@ Cypress.Commands.add(
 );
 
 Cypress.Commands.add(
+  "confirmCallAutoRetryTest",
+  (confirmBody, data, confirm, globalState) => {
+    const { Request: reqData = {}, Response: resData = {} } = data || {};
+
+    const apiKey = globalState.get("publishableKey");
+    const baseUrl = globalState.get("baseUrl");
+
+    const paymentIntentID = globalState.get("paymentID");
+    const profileId = globalState.get("profileId");
+
+    const maxRetries = globalState.get("max_auto_retries_enabled");
+    const primaryConnector = globalState.get("connectorId");
+    const secondaryConnector = globalState.get("secondaryConnector");
+
+    const url = `${baseUrl}/payments/${paymentIntentID}/confirm`;
+
+    confirmBody.client_secret = globalState.get("clientSecret");
+    confirmBody.confirm = confirm;
+    confirmBody.profile_id = profileId;
+
+    for (const key in reqData) {
+      confirmBody[key] = reqData[key];
+    }
+
+    cy.request({
+      method: "POST",
+      url,
+      headers: {
+        "Content-Type": "application/json",
+        "api-key": apiKey,
+      },
+      failOnStatusCode: false,
+      body: confirmBody,
+    }).then((response) => {
+      logRequestId(response.headers["x-request-id"]);
+      storeRequestId(response.headers["x-request-id"], globalState);
+
+      expect(response.headers["content-type"]).to.include("application/json");
+
+      if (response.status === 200) {
+        expect(paymentIntentID).to.equal(response.body.payment_id);
+
+        if (maxRetries === 0) {
+          // If retries are disabled, it MUST stay on the primary connector and FAIL
+          expect(response.body.connector).to.equal(primaryConnector);
+          expect(response.body.status).to.be.oneOf(["failed", "processing"]);
+        } else {
+          // If retries are enabled, it should have fallen back to the secondary connector
+          expect(response.body.connector).to.equal(secondaryConnector);
+        }
+
+        globalState.set("paymentIntentStatus", response.body.status);
+        globalState.set(
+          "connectorTransactionID",
+          response.body.connector_transaction_id
+        );
+      } else {
+        defaultErrorHandler(response, resData);
+      }
+    });
+  }
+);
+
+Cypress.Commands.add(
   "confirmBankRedirectCallTest",
   (confirmBody, data, confirm, globalState) => {
     const {
@@ -3309,6 +3373,57 @@ Cypress.Commands.add(
   }
 );
 
+Cypress.Commands.add(
+  "retrievePaymentCallAutoRetryTest",
+  ({ globalState, attempt = null, expectedIntentStatus }) => {
+    const paymentId = globalState.get("paymentID");
+    const baseUrl = globalState.get("baseUrl");
+    const apiKey = globalState.get("apiKey");
+    const maxRetries = globalState.get("max_auto_retries_enabled");
+    const url = `${baseUrl}/payments/${paymentId}?force_sync=true&expand_attempts=true`;
+
+    cy.request({
+      method: "GET",
+      url: url,
+      headers: {
+        "Content-Type": "application/json",
+        "api-key": apiKey,
+      },
+      failOnStatusCode: false,
+    }).then((response) => {
+      logRequestId(response.headers["x-request-id"]);
+      storeRequestId(response.headers["x-request-id"], globalState);
+
+      expect(response.status).to.equal(200);
+      expect(response.headers["content-type"]).to.include("application/json");
+      expect(response.body.payment_id).to.equal(paymentId);
+      expect(response.body.amount).to.equal(globalState.get("paymentAmount"));
+      expect(response.body.profile_id).to.not.be.null;
+      expect(response.body.billing).to.not.be.null;
+      expect(response.body.customer).to.not.be.empty;
+
+      if (expectedIntentStatus) {
+        expect(response.body.status).to.equal(expectedIntentStatus);
+      }
+
+      if (response.body.attempts && response.body.attempts.length > 0) {
+        // Expected attempts = initial attempt (1) + max_auto_retries
+        const expectedAttempts = (maxRetries || 0) + 1;
+
+        expect(response.body.attempts.length).to.equal(expectedAttempts);
+        expect(response.body.attempt_count).to.equal(
+          attempt || expectedAttempts
+        );
+
+        response.body.attempts.forEach((attemptObj) => {
+          expect(attemptObj.attempt_id).to.include(paymentId);
+          expect(attemptObj.connector).to.not.be.null;
+        });
+      }
+    });
+  }
+);
+
 Cypress.Commands.add("refundCallTest", (requestBody, data, globalState) => {
   const {
     Configs: configs = {},
@@ -3342,6 +3457,7 @@ Cypress.Commands.add("refundCallTest", (requestBody, data, globalState) => {
       expect(response.headers["content-type"]).to.include("application/json");
       if (response.status === 200) {
         globalState.set("refundId", response.body.refund_id);
+        globalState.set("connectorRefundId", response.body.connector_refund_id);
         for (const key in resData.body) {
           expect(resData.body[key]).to.equal(response.body[key]);
         }
@@ -3371,6 +3487,9 @@ Cypress.Commands.add("syncRefundCallTest", (data, globalState) => {
 
     cy.wrap(response).then(() => {
       expect(response.headers["content-type"]).to.include("application/json");
+      if (response.status === 200) {
+        globalState.set("connectorRefundId", response.body.connector_refund_id);
+      }
       for (const key in resData.body) {
         expect(resData.body[key]).to.equal(response.body[key]);
       }
@@ -5566,20 +5685,83 @@ Cypress.Commands.add(
 );
 
 Cypress.Commands.add(
+  "manualRefundStatusUpdateTest",
+  (globalState, refundManualUpdateRequestBody) => {
+    const merchantId = globalState.get("merchantId");
+    const refundId = globalState.get("refundId");
+    const completeUrl = `${Cypress.env("BASEURL")}/refunds/${refundId}/manual-update`;
+    const adminApiKey = globalState.get("adminApiKey");
+
+    cy.request({
+      method: "PUT",
+      url: completeUrl,
+      headers: {
+        "Content-Type": "application/json",
+        "api-key": adminApiKey,
+        "X-Merchant-Id": merchantId,
+      },
+      body: refundManualUpdateRequestBody,
+      failOnStatusCode: false,
+    }).then((response) => {
+      logRequestId(response.headers["x-request-id"]);
+
+      cy.wrap(response).then(() => {
+        if (response.status === 200) {
+          expect(response.status).to.eq(200);
+        } else {
+          throw new Error(
+            `Refund Manual Update Call Failed with error code "${response.body?.error?.code}" error message "${response.body?.error?.message}"`
+          );
+        }
+      });
+    });
+  }
+);
+
+Cypress.Commands.add(
   "IncomingWebhookTest",
-  (globalState, webhookBody, webhookConfig) => {
+  (globalState, webhookBody, webhookConfig, webhookType = "payment") => {
     const connector = globalState.get("connectorId");
     const merchantId = globalState.get("merchantId");
     const completeUrl = `${Cypress.env("BASEURL")}/webhooks/${merchantId}/${connector}`;
 
-    // Normalize transaction ID
-    const txnConfig = webhookConfig.TransactionIdConfig;
-    const txnId =
-      txnConfig.source === "paymentAttemptID"
-        ? `${globalState.get("paymentID")}_1`
-        : globalState.get("connectorTransactionID");
+    // Resolve the reference ID based on webhook type
+    const webhookTypeMap = {
+      payment: {
+        configKey: "TransactionIdConfig",
+        resolveId: (config) =>
+          config.source === "paymentAttemptID"
+            ? `${globalState.get("paymentID")}_1`
+            : globalState.get("connectorTransactionID"),
+      },
+      refund: {
+        configKey: "RefundIdConfig",
+        resolveId: (config) =>
+          config.source === "refundId"
+            ? globalState.get("refundId")
+            : globalState.get("connectorRefundId"),
+      },
+    };
 
-    setNormalizedValue(webhookBody, txnConfig, txnId);
+    const { configKey, resolveId } = webhookTypeMap[webhookType];
+    const config = webhookConfig[configKey];
+    const id = resolveId(config);
+
+    cy.task(
+      "cli_log",
+      `${webhookType} webhook ID: ${id}, config: ${configKey}`
+    );
+
+    if (!id) {
+      cy.task(
+        "cli_log",
+        `Skipping ${webhookType} webhook: ID is not available`
+      );
+
+      return;
+    }
+
+    setNormalizedValue(webhookBody, config, id);
 
     const contentType = webhookConfig.contentType || "application/json";
 
