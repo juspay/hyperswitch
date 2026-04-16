@@ -1,7 +1,11 @@
 use external_services::superposition;
 use scheduler::consumer::types::process_data::RetryMapping;
+
 use super::{dimension_state, fetch_db_config_for_dimensions, DatabaseBackedConfig};
-use crate::{consts::superposition as superposition_consts, db::StorageInterface, utils::id_type, configs::settings};
+use crate::{
+    configs::settings, consts::superposition as superposition_consts, db::StorageInterface,
+    utils::id_type,
+};
 
 /// Macro to generate config struct and superposition::Config trait implementation.
 /// Note: Manually implement `DatabaseBackedConfig` for the config struct:

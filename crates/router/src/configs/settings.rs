@@ -46,7 +46,7 @@ use redis_interface::RedisSettings;
 pub use router_env::config::{Log, LogConsole, LogFile, LogTelemetry};
 use rust_decimal::Decimal;
 use scheduler::SchedulerSettings;
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 use storage_impl::config::QueueStrategy;
 
 #[cfg(feature = "olap")]

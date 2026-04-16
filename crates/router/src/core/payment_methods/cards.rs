@@ -4007,22 +4007,18 @@ pub async fn list_payment_methods(
     let connector_supports_installments = match currency {
         None => false,
         Some(cur) => {
-            futures::stream::iter(
-                filtered_mcas
-                    .iter()
-                    .filter_map(|mca| {
-                        mca.connector_name
-                            .parse::<api_enums::Connector>()
-                            .inspect_err(|&e| {
-                                logger::error!(
-                                    connector_name = %mca.connector_name,
-                                    error = ?e,
-                                    "Failed to parse connector name, skipping"
-                                );
-                            })
-                            .ok()
-                    }),
-            )
+            futures::stream::iter(filtered_mcas.iter().filter_map(|mca| {
+                mca.connector_name
+                    .parse::<api_enums::Connector>()
+                    .inspect_err(|&e| {
+                        logger::error!(
+                            connector_name = %mca.connector_name,
+                            error = ?e,
+                            "Failed to parse connector name, skipping"
+                        );
+                    })
+                    .ok()
+            }))
             .any(|connector| {
                 let platform = platform.clone();
                 let store = state.store.clone();
