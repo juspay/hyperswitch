@@ -20,7 +20,7 @@ use router_env::logger;
 use crate::{
     core::errors::{StorageErrorExt, UserErrors, UserResponse},
     db::{
-        domain::role::{get_accessible_product_categories, RoleProductCategory},
+        domain::role::get_accessible_product_categories,
         user_role::{ListUserRolesByOrgIdPayload, ListUserRolesByUserIdPayload},
     },
     routes::{app::ReqState, SessionState},
@@ -120,33 +120,34 @@ pub async fn get_parent_group_info(
         ));
     }
 
-    let accessible_groups = request
-        .product_type
-        .map(get_accessible_product_categories)
-        .unwrap_or(RoleProductCategory::iter().collect());
-
-    let parent_groups = ParentGroup::get_descriptions_for_groups(
-        entity_type,
+    let permission_groups = if let Some(product_type) = request.product_type {
+        let accessible_product_categories = get_accessible_product_categories(product_type);
         PermissionGroup::iter()
-            .filter(|group| accessible_groups.contains(&group.get_role_product_category()))
-            .collect(),
-    )
-    .unwrap_or_default()
-    .into_iter()
-    .map(
-        |(parent_group, description)| role_api::ParentGroupDescription {
-            name: parent_group.clone(),
-            description,
-            scopes: PermissionGroup::iter()
-                .filter_map(|group| (group.parent() == parent_group).then_some(group.scope()))
-                // TODO: Remove this hashset conversion when merchant access
-                // and organization access groups are removed
-                .collect::<HashSet<_>>()
-                .into_iter()
-                .collect(),
-        },
-    )
-    .collect::<Vec<_>>();
+            .filter(|group| {
+                accessible_product_categories.contains(&group.get_role_product_category())
+            })
+            .collect()
+    } else {
+        PermissionGroup::iter().collect()
+    };
+
+    let parent_groups = ParentGroup::get_descriptions_for_groups(entity_type, permission_groups)
+        .unwrap_or_default()
+        .into_iter()
+        .map(
+            |(parent_group, description)| role_api::ParentGroupDescription {
+                name: parent_group.clone(),
+                description,
+                scopes: PermissionGroup::iter()
+                    .filter_map(|group| (group.parent() == parent_group).then_some(group.scope()))
+                    // TODO: Remove this hashset conversion when merchant access
+                    // and organization access groups are removed
+                    .collect::<HashSet<_>>()
+                    .into_iter()
+                    .collect(),
+            },
+        )
+        .collect::<Vec<_>>();
 
     Ok(ApplicationResponse::Json(parent_groups))
 }
