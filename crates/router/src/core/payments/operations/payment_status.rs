@@ -8,6 +8,8 @@ use router_derive::PaymentOperation;
 use router_env::{instrument, logger, tracing};
 
 use super::{BoxedOperation, Domain, GetTracker, Operation, UpdateTracker, ValidateRequest};
+#[cfg(feature = "pm_modular")]
+use crate::core::{payment_methods::transformers as pm_transformers, utils as core_utils};
 use crate::{
     core::{
         configs::dimension_state,
@@ -446,8 +448,25 @@ async fn get_tracker_for_sync<
             id: profile_id.get_string_repr().to_owned(),
         })?;
 
-    let payment_method_info =
-        if let Some(ref payment_method_id) = payment_attempt.payment_method_id.clone() {
+    let payment_method_info = if let Some(ref payment_method_id) =
+        payment_attempt.payment_method_id.clone()
+    {
+        #[cfg(feature = "pm_modular")]
+        if core_utils::get_feature_config(state, platform)
+            .await
+            .is_payment_method_modular_allowed
+        {
+            let pm_info = pm_transformers::fetch_payment_method_from_modular_service(
+                state,
+                platform,
+                profile_id,
+                payment_method_id,
+                None,
+            )
+            .await
+            .attach_printable("Failed to fetch payment method from modular service in sync flow")?;
+            Some(pm_info.payment_method.0)
+        } else {
             match db
                 .find_payment_method(
                     platform.get_provider().get_key_store(),
@@ -468,9 +487,34 @@ async fn get_tracker_for_sync<
                     }
                 }
             }
-        } else {
-            None
-        };
+        }
+
+        #[cfg(not(feature = "pm_modular"))]
+        {
+            match db
+                .find_payment_method(
+                    platform.get_provider().get_key_store(),
+                    payment_method_id,
+                    storage_scheme,
+                )
+                .await
+            {
+                Ok(payment_method) => Some(payment_method),
+                Err(error) => {
+                    if error.current_context().is_db_not_found() {
+                        logger::info!("Payment Method not found in db {:?}", error);
+                        None
+                    } else {
+                        Err(error)
+                            .change_context(errors::ApiErrorResponse::InternalServerError)
+                            .attach_printable("Error retrieving payment method from db")?
+                    }
+                }
+            }
+        }
+    } else {
+        None
+    };
 
     let merchant_id = payment_intent.merchant_id.clone();
     let key_manager_state = &(state).into();

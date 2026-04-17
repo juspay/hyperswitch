@@ -350,7 +350,7 @@ pub async fn payouts_create_core(
 ) -> RouterResponse<payouts::PayoutCreateResponse> {
     // Validate create request
     let (payout_id, payout_method_data, profile_id, customer, payment_method) =
-        validator::validate_create_request(&state, &platform, &req).await?;
+        Box::pin(validator::validate_create_request(&state, &platform, &req)).await?;
     let dimensions = dimension_state::Dimensions::new()
         .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
         .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id())
