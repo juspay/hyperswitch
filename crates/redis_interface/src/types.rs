@@ -90,9 +90,14 @@ pub struct RedisSettings {
     pub cluster_enabled: bool,
     pub cluster_urls: Vec<String>,
     pub use_legacy_version: bool,
+    /// Number of reconnection attempts before giving up (default: 5).
+    /// Passed to `ConnectionManagerConfig::set_number_of_retries`.
     pub pool_size: usize,
+    /// Maximum number of connection retry attempts (default: 5).
+    /// Passed to `ConnectionManagerConfig::set_number_of_retries`.
     pub reconnect_max_attempts: u32,
-    /// Reconnect delay in milliseconds
+    /// Initial delay in milliseconds between reconnection attempts (default: 5).
+    /// Passed to `ConnectionManagerConfig::set_min_delay`.
     pub reconnect_delay: u32,
     /// TTL in seconds
     pub default_ttl: u32,
@@ -101,11 +106,15 @@ pub struct RedisSettings {
     pub stream_read_count: u64,
     pub auto_pipeline: bool,
     pub disable_auto_backpressure: bool,
+    /// Maximum number of in-flight commands before backpressure is applied.
+    /// Passed to `ConnectionManagerConfig::set_response_timeout` indirectly via command timeout.
     pub max_in_flight_commands: u64,
+    /// Command timeout in seconds. Passed to `ConnectionManagerConfig::set_response_timeout`.
     pub default_command_timeout: u64,
     pub max_feed_count: u64,
     pub unresponsive_timeout: u64,
     pub unresponsive_check_interval: u64,
+    /// Capacity of the broadcast channel used for pub/sub message distribution.
     pub broadcast_channel_capacity: usize,
     /// Maximum duration (in seconds) that Redis can be unreachable before the server shuts down.
     pub max_failure_threshold: u32,
@@ -270,7 +279,7 @@ impl redis::FromRedisValue for MsetnxReply {
 /// - `Nil` / other variants → `None`
 pub fn redis_value_to_option_string(v: &Value) -> Option<String> {
     match v {
-        Value::BulkString(bytes) => String::from_utf8(bytes.clone()).ok(),
+        Value::BulkString(bytes) => std::str::from_utf8(bytes).ok().map(|s| s.to_string()),
         Value::SimpleString(s) => Some(s.clone()),
         Value::Int(i) => Some(i.to_string()),
         _ => None,

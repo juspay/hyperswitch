@@ -24,7 +24,7 @@ use std::sync::{atomic, Arc};
 
 use common_utils::errors::CustomResult;
 use error_stack::ResultExt;
-use redis::AsyncCommands;
+use redis::{AsyncCommands, IntoConnectionInfo};
 
 pub use self::types::*;
 
@@ -70,12 +70,23 @@ impl redis::aio::ConnectionLike for RedisConn {
 // ─── Subscriber client with auto-resubscribe ────────────────────────────────
 
 /// A pub/sub subscriber that tracks its subscriptions and can resubscribe on reconnect.
-pub struct SubscriberClient {
-    client: redis::Client,
-    pubsub: tokio::sync::Mutex<redis::aio::PubSub>,
-    subscriptions: tokio::sync::RwLock<std::collections::HashSet<String>>,
-    message_tx: tokio::sync::broadcast::Sender<PubSubMessage>,
-    pub is_subscriber_handler_spawned: Arc<atomic::AtomicBool>,
+pub enum SubscriberClient {
+    /// Standalone pub/sub using `redis::aio::PubSub`
+    Standalone {
+        redis_client: redis::Client,
+        pubsub_connection: tokio::sync::Mutex<redis::aio::PubSub>,
+        subscriptions: tokio::sync::RwLock<std::collections::HashSet<String>>,
+        broadcast_sender: tokio::sync::broadcast::Sender<PubSubMessage>,
+        is_subscriber_handler_spawned: Arc<atomic::AtomicBool>,
+    },
+    /// Cluster pub/sub using RESP3 push messages via an mpsc channel
+    Cluster {
+        cluster_connection: tokio::sync::Mutex<redis::cluster_async::ClusterConnection>,
+        push_receiver: tokio::sync::Mutex<tokio::sync::mpsc::UnboundedReceiver<redis::PushInfo>>,
+        subscriptions: tokio::sync::RwLock<std::collections::HashSet<String>>,
+        broadcast_sender: tokio::sync::broadcast::Sender<PubSubMessage>,
+        is_subscriber_handler_spawned: Arc<atomic::AtomicBool>,
+    },
 }
 
 /// Represents a message received from a pub/sub channel.
@@ -86,32 +97,72 @@ pub struct PubSubMessage {
 }
 
 impl SubscriberClient {
-    pub async fn new(client: redis::Client) -> CustomResult<Self, errors::RedisError> {
-        let pubsub = client
+    /// Create a new standalone subscriber
+    pub async fn new(redis_client: redis::Client, broadcast_capacity: usize) -> CustomResult<Self, errors::RedisError> {
+        let pubsub = redis_client
             .get_async_pubsub()
             .await
             .change_context(errors::RedisError::RedisConnectionError)?;
 
-        let (message_tx, _) = tokio::sync::broadcast::channel(256);
+        let (broadcast_sender, _) = tokio::sync::broadcast::channel(broadcast_capacity);
 
-        Ok(Self {
-            client,
-            pubsub: tokio::sync::Mutex::new(pubsub),
+        Ok(Self::Standalone {
+            redis_client,
+            pubsub_connection: tokio::sync::Mutex::new(pubsub),
             subscriptions: tokio::sync::RwLock::new(std::collections::HashSet::new()),
-            message_tx,
+            broadcast_sender,
+            is_subscriber_handler_spawned: Arc::new(atomic::AtomicBool::new(false)),
+        })
+    }
+
+    /// Create a new cluster subscriber using RESP3 push messages
+    pub async fn new_cluster(
+        nodes: Vec<String>,
+        broadcast_capacity: usize,
+    ) -> CustomResult<Self, errors::RedisError> {
+        let (push_sender, push_receiver_channel) = tokio::sync::mpsc::unbounded_channel();
+
+        let cluster_client = redis::cluster::ClusterClient::builder(nodes)
+            .use_protocol(redis::ProtocolVersion::RESP3)
+            .push_sender(push_sender)
+            .build()
+            .change_context(errors::RedisError::RedisConnectionError)?;
+
+        let cluster_conn = cluster_client
+            .get_async_connection()
+            .await
+            .change_context(errors::RedisError::RedisConnectionError)?;
+
+        let (broadcast_sender, _) = tokio::sync::broadcast::channel(broadcast_capacity);
+
+        Ok(Self::Cluster {
+            cluster_connection: tokio::sync::Mutex::new(cluster_conn),
+            push_receiver: tokio::sync::Mutex::new(push_receiver_channel),
+            subscriptions: tokio::sync::RwLock::new(std::collections::HashSet::new()),
+            broadcast_sender,
             is_subscriber_handler_spawned: Arc::new(atomic::AtomicBool::new(false)),
         })
     }
 
     /// Subscribe to a channel and track it for auto-resubscribe
     pub async fn subscribe(&self, channel: &str) -> CustomResult<(), errors::RedisError> {
-        let mut pubsub = self.pubsub.lock().await;
-        pubsub
-            .subscribe(channel)
-            .await
-            .change_context(errors::RedisError::SubscribeError)?;
+        match self {
+            Self::Standalone { pubsub_connection, .. } => {
+                let mut pubsub = pubsub_connection.lock().await;
+                pubsub
+                    .subscribe(channel)
+                    .await
+                    .change_context(errors::RedisError::SubscribeError)?;
+            }
+            Self::Cluster { cluster_connection, .. } => {
+                let mut connection = cluster_connection.lock().await;
+                connection.subscribe(channel)
+                    .await
+                    .change_context(errors::RedisError::SubscribeError)?;
+            }
+        }
 
-        let mut subs = self.subscriptions.write().await;
+        let mut subs = self.subscriptions().write().await;
         subs.insert(channel.to_string());
 
         Ok(())
@@ -119,13 +170,23 @@ impl SubscriberClient {
 
     /// Unsubscribe from a channel and remove it from tracking
     pub async fn unsubscribe(&self, channel: &str) -> CustomResult<(), errors::RedisError> {
-        let mut pubsub = self.pubsub.lock().await;
-        pubsub
-            .unsubscribe(channel)
-            .await
-            .change_context(errors::RedisError::SubscribeError)?;
+        match self {
+            Self::Standalone { pubsub_connection, .. } => {
+                let mut pubsub = pubsub_connection.lock().await;
+                pubsub
+                    .unsubscribe(channel)
+                    .await
+                    .change_context(errors::RedisError::SubscribeError)?;
+            }
+            Self::Cluster { cluster_connection, .. } => {
+                let mut connection = cluster_connection.lock().await;
+                connection.unsubscribe(channel)
+                    .await
+                    .change_context(errors::RedisError::SubscribeError)?;
+            }
+        }
 
-        let mut subs = self.subscriptions.write().await;
+        let mut subs = self.subscriptions().write().await;
         subs.remove(channel);
 
         Ok(())
@@ -133,22 +194,40 @@ impl SubscriberClient {
 
     /// Get a receiver for pub/sub messages
     pub fn message_rx(&self) -> tokio::sync::broadcast::Receiver<PubSubMessage> {
-        self.message_tx.subscribe()
+        self.broadcast_sender().subscribe()
     }
 
     /// Spawn the message forwarding loop.
-    /// Reads from the underlying PubSub and forwards messages to the broadcast channel.
-    /// On disconnect, it attempts to reconnect and resubscribe.
+    /// Reads from the underlying PubSub (standalone) or push channel (cluster)
+    /// and forwards messages to the broadcast channel.
     pub async fn manage_subscriptions(&self) {
+        match self {
+            Self::Standalone { pubsub_connection, redis_client, subscriptions, broadcast_sender, is_subscriber_handler_spawned, .. } => {
+                Self::manage_standalone(pubsub_connection, redis_client, subscriptions, broadcast_sender, is_subscriber_handler_spawned).await
+            }
+            Self::Cluster { push_receiver, broadcast_sender, is_subscriber_handler_spawned, .. } => {
+                Self::manage_cluster(push_receiver, broadcast_sender, is_subscriber_handler_spawned).await
+            }
+        }
+    }
+
+    // ── Standalone message loop ──────────────────────────────────────────────
+
+    async fn manage_standalone(
+        pubsub_connection: &tokio::sync::Mutex<redis::aio::PubSub>,
+        redis_client: &redis::Client,
+        subscriptions: &tokio::sync::RwLock<std::collections::HashSet<String>>,
+        broadcast_sender: &tokio::sync::broadcast::Sender<PubSubMessage>,
+        _is_subscriber_handler_spawned: &Arc<atomic::AtomicBool>,
+    ) {
         use futures::StreamExt;
 
-        let tx = self.message_tx.clone();
+        let sender = broadcast_sender.clone();
+        let mut retry_delay = std::time::Duration::from_secs(1);
 
-        // We process messages in a loop; on error we attempt reconnection
         loop {
-            // Hold the lock and process messages
             let result = {
-                let mut pubsub = self.pubsub.lock().await;
+                let mut pubsub = pubsub_connection.lock().await;
                 let msg = pubsub.on_message().next().await;
                 drop(pubsub);
                 msg
@@ -156,44 +235,48 @@ impl SubscriberClient {
 
             match result {
                 Some(msg) => {
+                    retry_delay = std::time::Duration::from_secs(1);
                     let channel = msg.get_channel_name().to_string();
                     let payload: Value = msg.get_payload().unwrap_or(Value::Nil);
-                    let _ = tx.send(PubSubMessage {
+                    let _ = sender.send(PubSubMessage {
                         channel,
                         value: payload,
                     });
                 }
                 None => {
-                    // Stream ended — connection likely dropped. Try to reconnect.
                     tracing::warn!("PubSub connection dropped, attempting to reconnect");
-                    let mut pubsub = self.pubsub.lock().await;
-                    match self.reconnect_and_resubscribe(&mut pubsub).await {
+                    let mut pubsub = pubsub_connection.lock().await;
+                    match Self::reconnect_standalone(redis_client, &mut pubsub, subscriptions).await {
                         Ok(()) => {
+                            retry_delay = std::time::Duration::from_secs(1);
                             tracing::info!("PubSub reconnected and resubscribed successfully");
                         }
                         Err(e) => {
-                            tracing::error!(?e, "Failed to reconnect PubSub");
-                            break;
-                        }
+                            tracing::error!(?e, "Failed to reconnect PubSub, retrying in {:?}", retry_delay);
+                            drop(pubsub);
+                            tokio::time::sleep(retry_delay).await;
+                            retry_delay = (retry_delay * 2).min(crate::constant::PUBSUB_MAX_RETRY_DELAY);                        }
                     }
                 }
             }
         }
+        // If this loop ever exits, reset the flag so a new handler can be spawned
+        // (currently this loop runs forever due to retry logic above)
+        // is_subscriber_handler_spawned.store(false, atomic::Ordering::SeqCst);
     }
 
-    /// Reconnect the underlying PubSub and resubscribe to all tracked channels
-    async fn reconnect_and_resubscribe(
-        &self,
+    async fn reconnect_standalone(
+        redis_client: &redis::Client,
         pubsub: &mut redis::aio::PubSub,
+        subscriptions: &tokio::sync::RwLock<std::collections::HashSet<String>>,
     ) -> CustomResult<(), errors::RedisError> {
-        let new_pubsub = self
-            .client
+        let new_pubsub = redis_client
             .get_async_pubsub()
             .await
             .change_context(errors::RedisError::RedisConnectionError)?;
         *pubsub = new_pubsub;
 
-        let subs = self.subscriptions.read().await;
+        let subs = subscriptions.read().await;
         for channel in subs.iter() {
             pubsub
                 .subscribe(channel.as_str())
@@ -202,13 +285,67 @@ impl SubscriberClient {
         }
         Ok(())
     }
+
+    // ── Cluster message loop ─────────────────────────────────────────────────
+
+    async fn manage_cluster(
+        push_receiver: &tokio::sync::Mutex<tokio::sync::mpsc::UnboundedReceiver<redis::PushInfo>>,
+        broadcast_sender: &tokio::sync::broadcast::Sender<PubSubMessage>,
+        _is_subscriber_handler_spawned: &Arc<atomic::AtomicBool>,
+    ) {
+
+        let sender = broadcast_sender.clone();
+        let mut receiver = push_receiver.lock().await;
+
+        while let Some(push_info) = receiver.recv().await {
+            let channel = push_info
+                .data
+                .first()
+                .map(|v| match v {
+                    Value::BulkString(bytes) => String::from_utf8_lossy(bytes).into_owned(),
+                    Value::SimpleString(s) => s.clone(),
+                    _ => String::new(),
+                })
+                .unwrap_or_default();
+
+            let payload = push_info.data.into_iter().nth(1).unwrap_or(Value::Nil);
+
+            let _ = sender.send(PubSubMessage {
+                channel,
+                value: payload,
+            });
+        }
+    }
+
+    // ── Shared accessors ─────────────────────────────────────────────────────
+
+    fn subscriptions(&self) -> &tokio::sync::RwLock<std::collections::HashSet<String>> {
+        match self {
+            Self::Standalone { subscriptions, .. } => subscriptions,
+            Self::Cluster { subscriptions, .. } => subscriptions,
+        }
+    }
+
+    fn broadcast_sender(&self) -> &tokio::sync::broadcast::Sender<PubSubMessage> {
+        match self {
+            Self::Standalone { broadcast_sender, .. } => broadcast_sender,
+            Self::Cluster { broadcast_sender, .. } => broadcast_sender,
+        }
+    }
+
+    pub fn is_subscriber_handler_spawned(&self) -> &Arc<atomic::AtomicBool> {
+        match self {
+            Self::Standalone { is_subscriber_handler_spawned, .. } => is_subscriber_handler_spawned,
+            Self::Cluster { is_subscriber_handler_spawned, .. } => is_subscriber_handler_spawned,
+        }
+    }
 }
 
 // ─── Publisher client ────────────────────────────────────────────────────────
 
-/// A simple wrapper around a connection manager used for publishing.
+/// A simple wrapper around a connection used for publishing.
 pub struct RedisClient {
-    inner: redis::aio::ConnectionManager,
+    inner: RedisConn,
 }
 
 impl RedisClient {
@@ -216,7 +353,7 @@ impl RedisClient {
         let conn = redis::aio::ConnectionManager::new(client.clone())
             .await
             .change_context(errors::RedisError::RedisConnectionError)?;
-        Ok(Self { inner: conn })
+        Ok(Self { inner: RedisConn::Standalone(conn) })
     }
 
     /// Publish a message to a channel
@@ -260,16 +397,14 @@ impl RedisConnectionPool {
                 }
             }
 
-            let cluster_client = redis::cluster::ClusterClient::new(nodes)
+            let cluster_conn = redis::cluster::ClusterClient::new(nodes)
                 .change_context(errors::RedisError::RedisConnectionError)
                 .attach_printable_lazy(|| {
                     format!(
                         "Failed to create Redis cluster client for {}:{}",
                         conf.host, conf.port
                     )
-                })?;
-
-            let cluster_conn = cluster_client
+                })?
                 .get_async_connection()
                 .await
                 .change_context(errors::RedisError::RedisConnectionError)
@@ -282,8 +417,28 @@ impl RedisConnectionPool {
 
             RedisConn::Cluster(cluster_conn)
         } else {
-            // Build standalone connection
-            let client = redis::Client::open(redis_connection_url.as_str())
+            // Build standalone connection.
+            //
+            // Design note: `ConnectionManager` uses a single multiplexed TCP connection
+            // with automatic reconnection (exponential backoff). This differs from the
+            // old `fred::RedisPool` which maintained `pool_size` physical connections.
+            // A single multiplexed connection is sufficient for most workloads because
+            // Redis itself is single-threaded. The `pool_size` config field has no
+            // equivalent — if a connection pool is needed, consider `bb8-redis`.
+            let mut connection_info = redis_connection_url
+                .as_str()
+                .into_connection_info()
+                .change_context(errors::RedisError::RedisConnectionError)?;
+
+            if !conf.use_legacy_version {
+                let redis_settings = connection_info
+                    .redis_settings()
+                    .clone()
+                    .set_protocol(redis::ProtocolVersion::RESP3);
+                connection_info = connection_info.set_redis_settings(redis_settings);
+            }
+
+            let client = redis::Client::open(connection_info)
                 .change_context(errors::RedisError::RedisConnectionError)
                 .attach_printable_lazy(|| {
                     format!(
@@ -292,7 +447,31 @@ impl RedisConnectionPool {
                     )
                 })?;
 
-            let conn = redis::aio::ConnectionManager::new(client)
+            // Build ConnectionManagerConfig from RedisSettings
+            let reconnection_retries =
+                usize::try_from(conf.reconnect_max_attempts).unwrap_or_default();
+            let reconnection_min_delay = std::time::Duration::from_millis(
+                u64::from(conf.reconnect_delay),
+            );
+
+            let mut connection_manager_config = redis::aio::ConnectionManagerConfig::new()
+                .set_number_of_retries(reconnection_retries)
+                .set_min_delay(reconnection_min_delay);
+
+            if conf.default_command_timeout > 0 {
+                connection_manager_config = connection_manager_config.set_response_timeout(Some(
+                    std::time::Duration::from_secs(conf.default_command_timeout),
+                ));
+            }
+
+            if conf.max_in_flight_commands > 0 {
+                let pipeline_buffer_size =
+                    usize::try_from(conf.max_in_flight_commands).unwrap_or_default();
+                connection_manager_config =
+                    connection_manager_config.set_pipeline_buffer_size(pipeline_buffer_size);
+            }
+
+            let conn = redis::aio::ConnectionManager::new_with_config(client, connection_manager_config)
                 .await
                 .change_context(errors::RedisError::RedisConnectionError)
                 .attach_printable_lazy(|| {
@@ -302,18 +481,72 @@ impl RedisConnectionPool {
             RedisConn::Standalone(conn)
         };
 
-        // Create a separate client for publisher and subscriber
-        let base_client = redis::Client::open(redis_connection_url.as_str())
-            .change_context(errors::RedisError::RedisConnectionError)
-            .attach_printable_lazy(|| {
-                format!(
-                    "Failed to open Redis pub/sub client for {}:{}",
-                    conf.host, conf.port
-                )
-            })?;
+        // Create a separate client for publisher and subscriber.
+        // In cluster mode, use the cluster client so pub/sub goes through the cluster.
+        // In standalone mode, use the same redis://host:port.
+        let (subscriber, publisher) = if conf.cluster_enabled {
+            let mut nodes = vec![redis_connection_url.clone()];
+            for url in &conf.cluster_urls {
+                if url.starts_with("redis://") {
+                    nodes.push(url.clone());
+                } else {
+                    nodes.push(format!("redis://{url}"));
+                }
+            }
 
-        let subscriber = SubscriberClient::new(base_client.clone()).await?;
-        let publisher = RedisClient::new(&base_client).await?;
+            let cluster_conn = redis::cluster::ClusterClient::builder(nodes.clone())
+                .build()
+                .change_context(errors::RedisError::RedisConnectionError)
+                .attach_printable_lazy(|| {
+                    format!(
+                        "Failed to create Redis cluster pub/sub client for {}:{}",
+                        conf.host, conf.port
+                    )
+                })?
+                .get_async_connection()
+                .await
+                .change_context(errors::RedisError::RedisConnectionError)
+                .attach_printable_lazy(|| {
+                    format!(
+                        "Failed to connect Redis cluster pub/sub at {}:{}",
+                        conf.host, conf.port
+                    )
+                })?;
+
+            let publisher = RedisClient {
+                inner: RedisConn::Cluster(cluster_conn),
+            };
+            let subscriber = SubscriberClient::new_cluster(nodes, conf.broadcast_channel_capacity).await?;
+
+            (Arc::new(subscriber), Arc::new(publisher))
+        } else {
+            let mut base_connection_info = redis_connection_url
+                .as_str()
+                .into_connection_info()
+                .change_context(errors::RedisError::RedisConnectionError)?;
+
+            if !conf.use_legacy_version {
+                let redis_settings = base_connection_info
+                    .redis_settings()
+                    .clone()
+                    .set_protocol(redis::ProtocolVersion::RESP3);
+                base_connection_info = base_connection_info.set_redis_settings(redis_settings);
+            }
+
+            let base_client = redis::Client::open(base_connection_info)
+                .change_context(errors::RedisError::RedisConnectionError)
+                .attach_printable_lazy(|| {
+                    format!(
+                        "Failed to open Redis pub/sub client for {}:{}",
+                        conf.host, conf.port
+                    )
+                })?;
+
+            let subscriber = Arc::new(SubscriberClient::new(base_client.clone(), conf.broadcast_channel_capacity).await?);
+            let publisher = Arc::new(RedisClient::new(&base_client).await?);
+
+            (subscriber, publisher)
+        };
 
         let config = RedisConfig::from(conf);
 
@@ -321,8 +554,8 @@ impl RedisConnectionPool {
             pool,
             config: Arc::new(config),
             is_redis_available: Arc::new(atomic::AtomicBool::new(true)),
-            subscriber: Arc::new(subscriber),
-            publisher: Arc::new(publisher),
+            subscriber,
+            publisher,
             key_prefix: String::default(),
         })
     }
@@ -344,11 +577,10 @@ impl RedisConnectionPool {
     pub async fn on_error(&self, tx: tokio::sync::oneshot::Sender<()>) {
         let check_interval = self.config.unresponsive_check_interval.max(1);
         let max_unreachable_secs = self.config.max_failure_threshold;
-        let mut interval = tokio::time::interval(std::time::Duration::from_secs(check_interval));
         let mut first_failure_at: Option<std::time::Instant> = None;
 
         loop {
-            interval.tick().await;
+            tokio::time::sleep(std::time::Duration::from_secs(check_interval)).await;
             let mut conn = self.pool.clone();
 
             // Timeout the ping so we can check threshold frequently,
@@ -401,10 +633,8 @@ impl RedisConnectionPool {
         let check_interval = self.config.unresponsive_check_interval.max(2);
         let max_timeout = self.config.unresponsive_timeout.max(5);
 
-        let mut interval = tokio::time::interval(std::time::Duration::from_secs(check_interval));
-
         loop {
-            interval.tick().await;
+            tokio::time::sleep(std::time::Duration::from_secs(check_interval)).await;
             let mut conn = self.pool.clone();
             let result = tokio::time::timeout(
                 std::time::Duration::from_secs(max_timeout),

@@ -8,7 +8,7 @@ use std::fmt::Debug;
 
 use common_utils::{
     errors::CustomResult,
-    ext_traits::{AsyncExt, ByteSliceExt, Encode, StringExt},
+    ext_traits::{ByteSliceExt, Encode, StringExt},
     fp_utils,
 };
 use error_stack::{report, ResultExt};
@@ -22,7 +22,7 @@ use router_env::tracing;
 use tracing::instrument;
 
 use crate::{
-    constant::{REDIS_ARG_EX, REDIS_ARG_NX, REDIS_CMD_GET, REDIS_CMD_HSCAN, REDIS_CMD_SET},
+    constant::{REDIS_ARG_COUNT, REDIS_ARG_EX, REDIS_ARG_MATCH, REDIS_ARG_NX, REDIS_CMD_GET, REDIS_CMD_HSCAN, REDIS_CMD_SET},
     errors,
     types::{
         DelReply, HsetnxReply, MsetnxReply, RedisEntryId, RedisKey, SaddReply, SetGetReply,
@@ -368,6 +368,8 @@ impl super::RedisConnectionPool {
     #[instrument(level = "DEBUG", skip(self))]
     pub async fn delete_key(&self, key: &RedisKey) -> CustomResult<DelReply, errors::RedisError> {
         let mut conn = self.pool.clone();
+        // Redis DEL returns the number of keys that were deleted.
+        // 0 means the key did not exist (not an error).
         let deleted_count: usize = conn
             .del(key.tenant_aware_key(self))
             .await
@@ -376,31 +378,30 @@ impl super::RedisConnectionPool {
         let reply = if deleted_count > 0 {
             DelReply::KeyDeleted
         } else {
-            DelReply::KeyNotDeleted
-        };
+            // Key was not found in tenant-aware namespace.
+            // With multitenancy_fallback, try the tenant-unaware namespace.
+            // This mirrors the old behavior where a failed DEL in tenant-aware
+            // namespace would fall back to tenant-unaware.
+            #[cfg(not(feature = "multitenancy_fallback"))]
+            {
+                DelReply::KeyNotDeleted
+            }
 
-        match reply {
-            DelReply::KeyDeleted => Ok(reply),
-            DelReply::KeyNotDeleted => {
-                #[cfg(not(feature = "multitenancy_fallback"))]
-                {
-                    Ok(reply)
-                }
-
-                #[cfg(feature = "multitenancy_fallback")]
-                {
-                    let fallback_count: usize = conn
-                        .del(key.tenant_unaware_key(self))
-                        .await
-                        .change_context(errors::RedisError::DeleteFailed)?;
-                    Ok(if fallback_count > 0 {
-                        DelReply::KeyDeleted
-                    } else {
-                        DelReply::KeyNotDeleted
-                    })
+            #[cfg(feature = "multitenancy_fallback")]
+            {
+                let fallback_count: usize = conn
+                    .del(key.tenant_unaware_key(self))
+                    .await
+                    .change_context(errors::RedisError::DeleteFailed)?;
+                if fallback_count > 0 {
+                    DelReply::KeyDeleted
+                } else {
+                    DelReply::KeyNotDeleted
                 }
             }
-        }
+        };
+
+        Ok(reply)
     }
 
     #[instrument(level = "DEBUG", skip(self))]
@@ -541,23 +542,22 @@ impl super::RedisConnectionPool {
         V: redis::ToRedisArgs + ToSingleRedisArg + Debug + Send + Sync,
     {
         let mut conn = self.pool.clone();
-        let output: Result<HsetnxReply, _> = conn
+        let result: HsetnxReply = conn
             .hset_nx::<_, _, _, HsetnxReply>(key.tenant_aware_key(self), field, value)
             .await
-            .change_context(errors::RedisError::SetHashFieldFailed);
+            .change_context(errors::RedisError::SetHashFieldFailed)?;
 
-        output
-            .async_and_then(|inner| async {
-                // reuse the same connection for setting expiry
-                conn.expire::<_, ()>(
-                    key.tenant_aware_key(self),
-                    ttl.unwrap_or(self.config.default_hash_ttl).into(),
-                )
-                .await
-                .change_context(errors::RedisError::SetExpiryFailed)?;
-                Ok(inner)
-            })
+        // Only set expiry if the field was actually set
+        if matches!(result, HsetnxReply::KeySet) {
+            conn.expire::<_, ()>(
+                key.tenant_aware_key(self),
+                ttl.unwrap_or(self.config.default_hash_ttl).into(),
+            )
             .await
+            .change_context(errors::RedisError::SetExpiryFailed)?;
+        }
+
+        Ok(result)
     }
 
     #[instrument(level = "DEBUG", skip(self))]
@@ -637,11 +637,11 @@ impl super::RedisConnectionPool {
         // Build HSCAN command with MATCH and optional COUNT
         let mut cmd = redis::cmd(REDIS_CMD_HSCAN);
         cmd.arg(key.tenant_aware_key(self))
-            .arg("MATCH")
+            .arg(REDIS_ARG_MATCH)
             .arg(pattern);
 
         if let Some(c) = count {
-            cmd.arg("COUNT").arg(c);
+            cmd.arg(REDIS_ARG_COUNT).arg(c);
         }
 
         // Use iter_async to get an async iterator that handles cursor management
@@ -650,7 +650,10 @@ impl super::RedisConnectionPool {
             .await
             .change_context(errors::RedisError::GetHashFieldFailed)?;
 
-        // HSCAN returns alternating field/value pairs; we want the values (odd indices)
+        // HSCAN returns alternating field/value pairs; we want the values (odd indices).
+        // NOTE: `iter_async::<String>` will fail on non-UTF-8 hash values, causing
+        // the entire hscan to error. If non-UTF-8 values are expected, switch to
+        // `iter_async::<Value>` and use `String::from_utf8_lossy` for conversion.
         let mut results: Vec<String> = Vec::new();
         let mut index = 0;
         while let Some(item) = iter.next().await {
@@ -669,6 +672,9 @@ impl super::RedisConnectionPool {
         &self,
         pattern: &RedisKey,
         count: Option<u32>,
+        // NOTE: `scan_type` is intentionally ignored. The `redis` crate's `ScanOptions`
+        // does not support the TYPE filter. Callers that need key-type filtering must
+        // post-filter the results using the `TYPE` command on each returned key.
         _scan_type: Option<()>,
     ) -> CustomResult<Vec<String>, errors::RedisError> {
         let mut conn = self.pool.clone();
@@ -1109,6 +1115,10 @@ impl super::RedisConnectionPool {
             .xgroup_destroy(stream.tenant_aware_key(self), group)
             .await
             .change_context(errors::RedisError::ConsumerGroupDestroyFailed)?;
+        // XGROUP DESTROY returns true (1) if the group was destroyed,
+        // false (0) if the group did not exist. The usize return type
+        // preserves the numeric result for compatibility with callers
+        // that compare against 0.
         Ok(if destroyed { 1 } else { 0 })
     }
 
@@ -1253,7 +1263,9 @@ impl super::RedisConnectionPool {
 
         pipe.cmd(REDIS_CMD_GET).arg(&redis_key);
 
-        // Execute the transaction
+        // Execute the transaction.
+        // Redis MULTI/EXEC guarantees results are returned in the same order
+        // as the commands were queued: [SET result, GET result].
         let results: Vec<Value> = pipe
             .query_async(&mut conn)
             .await

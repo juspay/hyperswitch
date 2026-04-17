@@ -33,7 +33,7 @@ impl PubSubInterface for std::sync::Arc<redis_interface::RedisConnectionPool> {
         // Spawn only one thread handling all the published messages to different channels
         if self
             .subscriber
-            .is_subscriber_handler_spawned
+            .is_subscriber_handler_spawned()
             .compare_exchange(
                 false,
                 true,
