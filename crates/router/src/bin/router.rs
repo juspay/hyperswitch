@@ -71,8 +71,14 @@ fn main() -> ApplicationResult<()> {
         clippy::unwrap_in_result
     )]
     {
+        let cpu_count = std::thread::available_parallelism()
+            .map(|n| n.get())
+            .unwrap_or(2);
+        dbg!(format!("number of available cpu = {:?}", cpu_count));
+        let worker_threads = (cpu_count * 4).clamp(4, 32);
         return tokio::runtime::Builder::new_multi_thread()
             .enable_all()
+            .worker_threads(worker_threads)
             // Thread lifecycle callbacks
             .on_thread_start(|| {
                 let thread_id = THREAD_START_COUNTER.fetch_add(1, Ordering::SeqCst);
