@@ -9528,6 +9528,14 @@ pub enum PermissionGroup {
     InternalManage,
     ThemeView,
     ThemeManage,
+    ReconSourcesView,
+    ReconSourcesManage,
+    ReconExceptionsView,
+    ReconExceptionsManage,
+    ReconTransactionsView,
+    ReconTransactionsManage,
+    ReconRulesView,
+    ReconRulesManage,
 }
 
 #[derive(
@@ -9544,6 +9552,10 @@ pub enum ParentGroup {
     Account,
     Internal,
     Theme,
+    ReconSources,
+    ReconExceptions,
+    ReconTransactions,
+    ReconRules,
 }
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Hash, serde::Serialize, serde::Deserialize)]
@@ -9576,6 +9588,12 @@ pub enum Resource {
     Subscription,
     InternalConnector,
     Theme,
+    ReconIngestion,
+    ReconTransformation,
+    ReconException,
+    ReconStagingEntry,
+    ReconTransaction,
+    ReconRule,
 }
 
 #[derive(
@@ -9929,8 +9947,9 @@ pub enum EntityType {
     Profile = 0,
 }
 
-#[derive(Clone, Debug, serde::Serialize)]
+#[derive(Clone, Debug, serde::Serialize, strum::Display)]
 #[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
 pub enum PayoutRetryType {
     SingleConnector,
     MultiConnector,
@@ -10482,7 +10501,7 @@ pub enum TokenizationType {
 }
 
 /// The network tokenization toggle, whether to enable or skip the network tokenization
-#[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema)]
+#[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
 pub enum NetworkTokenizationToggle {
     /// Enable network tokenization for the payment method
     Enable,

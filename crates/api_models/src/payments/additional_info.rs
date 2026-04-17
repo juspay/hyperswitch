@@ -42,11 +42,6 @@ pub struct AchBankDebitAdditionalData {
     #[smithy(value_type = "String")]
     pub routing_number: MaskedRoutingNumber,
 
-    /// Card holder's name
-    #[schema(value_type = Option<String>, example = "John Doe")]
-    #[smithy(value_type = "Option<String>")]
-    pub card_holder_name: Option<Secret<String>>,
-
     /// Bank account's owner name
     #[schema(value_type = Option<String>, example = "John Doe")]
     #[smithy(value_type = "Option<String>")]

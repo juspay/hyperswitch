@@ -311,6 +311,7 @@ impl
             metadata,
             test_mode: router_data.test_mode,
             state,
+            connector_order_id: None,
             description: router_data.description.clone(),
             setup_mandate_details: router_data
                 .request
@@ -1291,6 +1292,7 @@ impl
             threeds_completion_indicator: None,
             redirection_response: None,
             continue_redirection_url: None,
+            connector_order_id: None,
             l2_l3_data: None,
             connector_order_id: None,
         })
@@ -1629,6 +1631,7 @@ impl
             threeds_completion_indicator: None,
             redirection_response: None,
             continue_redirection_url: None,
+            connector_order_id: None,
             l2_l3_data: None,
             connector_order_id: None,
         })
@@ -2050,6 +2053,7 @@ impl transformers::ForeignTryFrom<&RouterData<Session, PaymentsSessionData, Paym
             }),
             return_url: None,
             metadata: None,
+            return_url: None,
         };
 
         Ok(Self {

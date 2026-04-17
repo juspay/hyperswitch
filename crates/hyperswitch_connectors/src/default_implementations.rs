@@ -11197,7 +11197,6 @@ default_impl_connector_access_token!(
     connectors::Tokenex,
     connectors::Tokenio,
     connectors::Truelayer,
-    connectors::Sanlammultidata,
     connectors::Trustly,
     connectors::Trustpay,
     connectors::Trustpayments,
