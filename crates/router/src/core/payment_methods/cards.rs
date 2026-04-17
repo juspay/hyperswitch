@@ -514,7 +514,6 @@ impl PaymentMethodsController for PmCards<'_> {
                     api_models::payment_methods::BankDebitDetailsPaymentMethod::AchBankDebit {
                         masked_account_number: bank_debit.get_masked_account_number(),
                         masked_routing_number: bank_debit.get_masked_routing_number(),
-                        card_holder_name: None,
                         bank_account_holder_name: bank_debit.get_bank_account_holder_name(),
                         bank_name: None,
                         bank_type: bank_debit.get_bank_type(),
@@ -4008,11 +4007,18 @@ pub async fn list_payment_methods(
     let connector_supports_installments = match currency {
         None => false,
         Some(cur) => {
-            futures::stream::iter(
-                filtered_mcas
-                    .iter()
-                    .filter_map(|mca| mca.connector_name.parse::<api_enums::Connector>().ok()),
-            )
+            futures::stream::iter(filtered_mcas.iter().filter_map(|mca| {
+                mca.connector_name
+                    .parse::<api_enums::Connector>()
+                    .inspect_err(|&e| {
+                        logger::error!(
+                            connector_name = %mca.connector_name,
+                            error = ?e,
+                            "Failed to parse connector name, skipping"
+                        );
+                    })
+                    .ok()
+            }))
             .any(|connector| {
                 let platform = platform.clone();
                 let store = state.store.clone();
@@ -4025,22 +4031,19 @@ pub async fn list_payment_methods(
                         .with_processor_merchant_id(
                             platform.get_processor().get_processor_merchant_id(),
                         )
+                        .with_organization_id(
+                            platform.get_processor().get_account().get_org_id().clone(),
+                        )
                         .with_connector(connector)
                         .with_currency(cur);
-                    let supported = dimensions
+                    let is_installment_supported = dimensions
                         .get_installment_config_supported(
                             store.as_ref(),
                             superposition_service.as_ref(),
                             installment_customer_id,
                         )
                         .await;
-                    logger::debug!(
-                        connector = %connector,
-                        currency = %cur,
-                        installment_config_supported = supported,
-                        "installment support check via superposition"
-                    );
-                    supported
+                    is_installment_supported
                 }
             })
             .await
@@ -5262,11 +5265,13 @@ pub async fn get_masked_bank_details(
         let payment_method_data = pm.payment_method_data.clone().map(|x| x.into_inner());
         match payment_method_data {
             Some(pmd) => match pmd {
-                PaymentMethodsData::Card(_) => Ok(None),
-                PaymentMethodsData::BankDetails(bank_details) => Ok(Some(MaskedBankDetails {
-                    mask: bank_details.mask,
-                })),
-                PaymentMethodsData::WalletDetails(_) => Ok(None),
+                domain::PaymentMethodsData::Card(_) => Ok(None),
+                domain::PaymentMethodsData::BankDetails(bank_details) => {
+                    Ok(Some(MaskedBankDetails {
+                        mask: bank_details.mask,
+                    }))
+                }
+                domain::PaymentMethodsData::WalletDetails(_) => Ok(None),
                 _ => Ok(None),
             },
             None => Err(report!(errors::ApiErrorResponse::InternalServerError))
@@ -5474,7 +5479,7 @@ pub async fn get_bank_debit_from_hs_locker(
     provider: &domain::Provider,
     customer_id: &id_type::CustomerId,
     token_ref: &str,
-) -> errors::RouterResult<api_models::payment_methods::BankDebitDetail> {
+) -> errors::RouterResult<hyperswitch_domain_models::payment_method_data::BankDebitDetail> {
     let vault_request = pm_types::VaultRetrieveRequest {
         entity_id: hyperswitch_domain_models::vault::V1VaultEntityId::new(
             provider.get_account().get_id().clone(),

@@ -105,6 +105,18 @@ impl ConfigType for i64 {
     }
 }
 
+impl ConfigType for u32 {
+    fn from_config_str(config_str: &str) -> CustomResult<Self, errors::StorageError> {
+        config_str
+            .parse::<Self>()
+            .change_context(errors::StorageError::DeserializationFailed)
+    }
+
+    fn to_config_string(&self) -> CustomResult<String, errors::StorageError> {
+        Ok(self.to_string())
+    }
+}
+
 impl ConfigType for f64 {
     fn from_config_str(config_str: &str) -> CustomResult<Self, errors::StorageError> {
         config_str
@@ -138,7 +150,7 @@ pub async fn fetch_db_config_for_dimensions<C>(
 ) -> C::Output
 where
     C: DatabaseBackedConfig,
-    C::Output: ConfigType,
+    C::Output: ConfigType + std::fmt::Debug,
     open_feature::Client: superposition::GetValue<C::Output>,
 {
     let db_key = <C as DatabaseBackedConfig>::db_key(dimensions);
@@ -176,7 +188,7 @@ pub async fn fetch_db_config<C>(
 ) -> C::Output
 where
     C: DatabaseBackedConfig,
-    C::Output: ConfigType,
+    C::Output: ConfigType + std::fmt::Debug,
     open_feature::Client: superposition::GetValue<C::Output>,
 {
     let config_type = C::KEY;

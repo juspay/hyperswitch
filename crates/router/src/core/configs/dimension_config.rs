@@ -1,35 +1,11 @@
 use external_services::superposition;
 use scheduler::consumer::types::process_data::RetryMapping;
-use serde::{self, Deserialize, Serialize};
-
-#[derive(Serialize, Deserialize)]
-pub struct RefundConfig {
-    pub max_attempts: usize,
-    pub max_age: i64,
-}
-
-impl Default for RefundConfig {
-    fn default() -> Self {
-        Self {
-            max_attempts: 10,
-            max_age: 365,
-        }
-    }
-}
-
-#[derive(Serialize, Deserialize)]
-pub struct EphemeralKeyConfig {
-    pub validity: i64,
-}
-
-impl Default for EphemeralKeyConfig {
-    fn default() -> Self {
-        Self { validity: 1 }
-    }
-}
 
 use super::{dimension_state, fetch_db_config_for_dimensions, DatabaseBackedConfig};
-use crate::{consts::superposition as superposition_consts, db::StorageInterface, utils::id_type};
+use crate::{
+    configs::settings, consts::superposition as superposition_consts, db::StorageInterface,
+    utils::id_type,
+};
 
 /// Macro to generate config struct and superposition::Config trait implementation.
 /// Note: Manually implement `DatabaseBackedConfig` for the config struct:
@@ -307,8 +283,8 @@ impl DatabaseBackedConfig for InstallmentConfigSupported {
 
 config! {
     superposition_key = REFUND,
-    output = RefundConfig,
-    default = RefundConfig::default(),
+    output = settings::Refund,
+    default = settings::Refund::default(),
     object = true,
     requires = dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndOrgId,
     targeting_key = String
@@ -316,8 +292,8 @@ config! {
 
 config! {
     superposition_key = EPHEMERAL_KEY,
-    output = EphemeralKeyConfig,
-    default = EphemeralKeyConfig::default(),
+    output = settings::EphemeralConfig,
+    default = settings::EphemeralConfig::default(),
     object = true,
     requires = dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndOrgId,
     targeting_key = String
@@ -374,5 +350,35 @@ impl DatabaseBackedConfig for DisputeSupportedConnector {
     const KEY: &'static str = "is_dispute_supported_connector";
     fn db_key(_dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
         None
+    }
+}
+
+config! {
+    superposition_key = MAX_AUTO_PAYOUT_RETRIES,
+    output = u32,
+    default = 0u32,
+    requires = dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndPayoutRetryType,
+    targeting_key = id_type::CustomerId
+}
+
+impl DatabaseBackedConfig for MaxAutoPayoutRetries {
+    const KEY: &'static str = "max_auto_payout_retries";
+    fn db_key(dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
+        dimensions
+            .get_processor_merchant_id()
+            .and_then(|merchant_id| {
+                dimensions
+                    .get_payout_retry_type()
+                    .map(|retry_type| match retry_type {
+                        common_enums::PayoutRetryType::SingleConnector => format!(
+                            "max_auto_single_connector_payout_retries_enabled_{}",
+                            merchant_id.get_string_repr()
+                        ),
+                        common_enums::PayoutRetryType::MultiConnector => format!(
+                            "max_auto_multiple_connector_payout_retries_enabled_{}",
+                            merchant_id.get_string_repr()
+                        ),
+                    })
+            })
     }
 }

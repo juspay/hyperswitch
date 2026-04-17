@@ -1203,11 +1203,6 @@ pub async fn validate_and_create_refund(
             Some(&payment_id),
         )
         .await;
-    logger::debug!(
-        refund_max_age = refund_config.max_age,
-        refund_max_attempts = refund_config.max_attempts,
-        "refund config fetched from superposition"
-    );
 
     refunds_validator::validate_payment_order_age(
         &payment_intent.created_at,

@@ -390,6 +390,8 @@ pub mod superposition {
     pub const CARD_ONLY_MIT_SUPPORTED_CONNECTOR: &str = "is_card_only_mit_supported_connector";
     /// Dispute supported connector configuration key
     pub const DISPUTE_SUPPORTED_CONNECTOR: &str = "is_dispute_supported_connector";
+    /// Max auto payout retries configuration key
+    pub const MAX_AUTO_PAYOUT_RETRIES: &str = "max_auto_payout_retries";
 }
 
 #[cfg(test)]

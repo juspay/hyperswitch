@@ -3012,10 +3012,6 @@ pub enum BankDebitData {
         #[smithy(value_type = "String")]
         routing_number: Secret<String>,
 
-        #[schema(value_type = String, example = "John Test")]
-        #[smithy(value_type = "Option<String>")]
-        card_holder_name: Option<Secret<String>>,
-
         #[schema(value_type = String, example = "John Doe")]
         #[smithy(value_type = "Option<String>")]
         bank_account_holder_name: Option<Secret<String>>,
@@ -12835,7 +12831,6 @@ mod billing_from_payment_method_data {
                 billing_details: Some(bank_redirect_billing),
                 account_number: Secret::new("1234".to_string()),
                 routing_number: Secret::new("1235".to_string()),
-                card_holder_name: None,
                 bank_account_holder_name: None,
                 bank_name: None,
                 bank_type: None,

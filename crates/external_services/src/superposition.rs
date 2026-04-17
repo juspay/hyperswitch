@@ -72,6 +72,22 @@ impl GetValue<i64> for open_feature::Client {
     }
 }
 
+impl GetValue<u32> for open_feature::Client {
+    async fn get_value(
+        &self,
+        key: &str,
+        context: &open_feature::EvaluationContext,
+    ) -> Result<u32, open_feature::EvaluationError> {
+        let value = self.get_int_value(key, Some(context), None).await?;
+        u32::try_from(value).map_err(|err| {
+            open_feature::EvaluationError::builder()
+                .code(open_feature::EvaluationErrorCode::TypeMismatch)
+                .message(err.to_string())
+                .build()
+        })
+    }
+}
+
 impl GetValue<f64> for open_feature::Client {
     async fn get_value(
         &self,
@@ -312,6 +328,7 @@ pub trait Config {
     ) -> impl std::future::Future<Output = CustomResult<Self::Output, SuperpositionError>> + Send
     where
         open_feature::Client: GetValue<Self::Output>,
+        Self::Output: std::fmt::Debug,
     {
         let targeting_key_str = targeting_key.map(|id| id.targeting_key_value().to_owned());
         async move {
@@ -325,9 +342,11 @@ pub trait Config {
             {
                 Ok(value) => {
                     router_env::logger::info!(
-                        "Superposition config hit: key='{}', type='{}'",
+                        "Superposition config hit: key='{}', type='{}', value='{:?}', dimensions='{:?}'",
                         Self::SUPERPOSITION_KEY,
-                        std::any::type_name::<Self::Output>()
+                        std::any::type_name::<Self::Output>(),
+                        value,
+                        context
                     );
                     config_metrics::CONFIG_SUPERPOSITION_FETCH.add(
                         1,
@@ -337,10 +356,11 @@ pub trait Config {
                 }
                 Err(e) => {
                     router_env::logger::warn!(
-                        "Superposition config miss: key='{}', type='{}', error='{:?}'",
+                        "Superposition config miss: key='{}', type='{}', error='{:?}', dimensions='{:?}'",
                         Self::SUPERPOSITION_KEY,
                         std::any::type_name::<Self::Output>(),
-                        e
+                        e,
+                        context
                     );
                     Err(e)
                 }

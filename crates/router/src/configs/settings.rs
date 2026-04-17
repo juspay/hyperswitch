@@ -46,7 +46,7 @@ use redis_interface::RedisSettings;
 pub use router_env::config::{Log, LogConsole, LogFile, LogTelemetry};
 use rust_decimal::Decimal;
 use scheduler::SchedulerSettings;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use storage_impl::config::QueueStrategy;
 
 #[cfg(feature = "olap")]
@@ -775,6 +775,32 @@ pub enum DecryptionScheme {
     RsaOaep,
     #[serde(rename = "RSA-OAEP-256")]
     RsaOaep256,
+}
+
+#[derive(Debug, Deserialize, Clone, Serialize)]
+pub struct Refund {
+    pub max_attempts: usize,
+    pub max_age: i64,
+}
+
+impl Default for Refund {
+    fn default() -> Self {
+        Self {
+            max_attempts: 100,
+            max_age: 3650,
+        }
+    }
+}
+
+#[derive(Debug, Deserialize, Clone, Serialize)]
+pub struct EphemeralConfig {
+    pub validity: i64,
+}
+
+impl Default for EphemeralConfig {
+    fn default() -> Self {
+        Self { validity: 1 }
+    }
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
