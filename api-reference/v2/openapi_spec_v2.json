@@ -6,7 +6,7 @@
     "contact": {
       "name": "Hyperswitch Support",
       "url": "https://hyperswitch.io",
-      "email": "hyperswitch@juspay.in"
+      "email": "support.global@juspay.io"
     },
     "license": {
       "name": "Apache-2.0"
@@ -30926,7 +30926,8 @@
         "enum": [
           "tokenization_id",
           "payment_method_id",
-          "volatile_payment_method_id"
+          "volatile_payment_method_id",
+          "payment_method_token"
         ]
       },
       "Tokenization": {
