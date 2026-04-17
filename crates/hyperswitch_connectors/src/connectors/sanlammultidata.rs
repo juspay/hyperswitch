@@ -3,7 +3,7 @@ pub mod transformers;
 use std::sync::LazyLock;
 
 use common_enums::enums;
-use common_utils::errors::CustomResult;
+use common_utils::{errors::CustomResult, request::Request};
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
     payment_method_data::PaymentMethodData,
@@ -19,8 +19,10 @@ use hyperswitch_domain_models::{
         RefundsData, SetupMandateRequestData,
     },
     router_response_types::{
-        ConnectorInfo, PaymentsResponseData, RefundsResponseData, SupportedPaymentMethods,
+        ConnectorInfo, PaymentMethodDetails, PaymentsResponseData, RefundsResponseData, SupportedPaymentMethods, SupportedPaymentMethodsExt
     },
+    types::{RefreshTokenRouterData, PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData, PaymentsSessionRouterData, PaymentsSyncRouterData, RefundExecuteRouterData, SetupMandateRouterData,
+    RefundSyncRouterData, TokenizationRouterData}
 };
 use hyperswitch_interfaces::{
     api::{
@@ -140,37 +142,149 @@ impl ConnectorValidation for Sanlammultidata {
     }
 }
 
-impl ConnectorIntegration<Session, PaymentsSessionData, PaymentsResponseData> for Sanlammultidata {}
+impl ConnectorIntegration<Session, PaymentsSessionData, PaymentsResponseData> for Sanlammultidata {
+    fn build_request(
+        &self,
+        _req: &PaymentsSessionRouterData,
+        _connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
+        Err(errors::ConnectorError::FlowNotSupported {
+            flow: "Session".to_string(),
+            connector: "Sanlammultidata".to_string(),
+        }
+        .into())
+    }
+}
 
 impl ConnectorIntegration<PaymentMethodToken, PaymentMethodTokenizationData, PaymentsResponseData>
-    for Sanlammultidata
-{
+    for Sanlammultidata {
+    fn build_request(
+        &self,
+        _req: &TokenizationRouterData,
+        _connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
+        Err(errors::ConnectorError::FlowNotSupported {
+            flow: "PaymentMethodToken".to_string(),
+            connector: "Sanlammultidata".to_string(),
+        }
+        .into())
+    }
 }
 
 impl ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken>
-    for Sanlammultidata
-{
+    for Sanlammultidata {
+    fn build_request(
+        &self,
+        _req: &RefreshTokenRouterData,
+        _connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
+        Err(errors::ConnectorError::FlowNotSupported {
+            flow: "AccessTokenAuth".to_string(),
+            connector: "Sanlammultidata".to_string(),
+        }
+        .into())
+    }
 }
 
 impl ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsResponseData>
-    for Sanlammultidata
-{
+    for Sanlammultidata {
+    fn build_request(
+        &self,
+        _req: &SetupMandateRouterData,
+        _connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
+        Err(errors::ConnectorError::FlowNotSupported {
+            flow: "SetupMandate".to_string(),
+            connector: "Sanlammultidata".to_string(),
+        }
+        .into())
+    }
 }
 
 impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData>
-    for Sanlammultidata
-{
+    for Sanlammultidata {
+    fn build_request(
+        &self,
+        _req: &PaymentsAuthorizeRouterData,
+        _connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
+        Err(errors::ConnectorError::FlowNotSupported {
+            flow: "Authorize".to_string(),
+            connector: "Sanlammultidata".to_string(),
+        }
+        .into())
+    }
 }
 
-impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Sanlammultidata {}
+impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Sanlammultidata {
+    fn build_request(
+        &self,
+        _req: &PaymentsSyncRouterData,
+        _connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
+        Err(errors::ConnectorError::FlowNotSupported {
+            flow: "PSync".to_string(),
+            connector: "Sanlammultidata".to_string(),
+        }
+        .into())
+    }
+}
 
-impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> for Sanlammultidata {}
+impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> for Sanlammultidata {
+    fn build_request(
+        &self,
+        _req: &PaymentsCaptureRouterData,
+        _connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
+        Err(errors::ConnectorError::FlowNotSupported {
+            flow: "Capture".to_string(),
+            connector: "Sanlammultidata".to_string(),
+        }
+        .into())
+    }
+}
 
-impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Sanlammultidata {}
+impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Sanlammultidata {
+    fn build_request(
+        &self,
+        _req: &PaymentsCancelRouterData,
+        _connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
+        Err(errors::ConnectorError::FlowNotSupported {
+            flow: "Void".to_string(),
+            connector: "Sanlammultidata".to_string(),
+        }
+        .into())
+    }
+}
 
-impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Sanlammultidata {}
+impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Sanlammultidata {
+    fn build_request(
+        &self,
+        _req: &RefundExecuteRouterData,
+        _connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
+        Err(errors::ConnectorError::FlowNotSupported {
+            flow: "Execute".to_string(),
+            connector: "Sanlammultidata".to_string(),
+        }
+        .into())
+    }
+}
 
-impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Sanlammultidata {}
+impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Sanlammultidata {
+    fn build_request(
+        &self,
+        _req: &RefundSyncRouterData,
+        _connectors: &Connectors,
+    ) -> CustomResult<Option<Request>, errors::ConnectorError> {
+        Err(errors::ConnectorError::FlowNotSupported {
+            flow: "RSync".to_string(),
+            connector: "Sanlammultidata".to_string(),
+        }
+        .into())
+    }
+}
 
 #[async_trait::async_trait]
 impl webhooks::IncomingWebhook for Sanlammultidata {
@@ -199,7 +313,23 @@ impl webhooks::IncomingWebhook for Sanlammultidata {
 }
 
 static SANLAMMULTIDATA_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
-    LazyLock::new(SupportedPaymentMethods::new);
+    LazyLock::new(|| {
+        let supported_capture_methods = vec![enums::CaptureMethod::Automatic];
+
+        let mut sanlammultidata_supported_payment_methods = SupportedPaymentMethods::new();
+        sanlammultidata_supported_payment_methods.add(
+            enums::PaymentMethod::BankDebit,
+            enums::PaymentMethodType::Eft,
+            PaymentMethodDetails {
+                mandates: common_enums::FeatureStatus::NotSupported,
+                refunds: common_enums::FeatureStatus::NotSupported,
+                supported_capture_methods: supported_capture_methods.clone(),
+                specific_features: None,
+            },
+        );
+
+        sanlammultidata_supported_payment_methods
+    });
 
 static SANLAMMULTIDATA_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
     display_name: "Sanlammultidata",

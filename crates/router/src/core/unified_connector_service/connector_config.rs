@@ -514,6 +514,11 @@ pub enum ConnectorSpecificConfig {
         client_id: Secret<String>,
         client_secret: Secret<String>,
     },
+    /// Sanlammultidata connector configuration
+    Sanlammultidata {
+        api_key: Secret<String>,
+        merchant_id: Secret<String>,
+    },
 }
 
 impl ForeignTryFrom<(Connector, &ConnectorAuthType, Option<&serde_json::Value>)>
@@ -1338,7 +1343,6 @@ impl ForeignTryFrom<(Connector, &ConnectorAuthType, Option<&serde_json::Value>)>
                 }),
                 _ => Err(err("Payload requires CurrencyAuthKey auth type")),
             },
-
             Connector::Worldpayvantiv => match auth {
                 ConnectorAuthType::SignatureKey {
                     api_key,
@@ -1363,7 +1367,6 @@ impl ForeignTryFrom<(Connector, &ConnectorAuthType, Option<&serde_json::Value>)>
                     "Worldpayvantiv requires SignatureKey or MultiAuthKey auth type",
                 )),
             },
-
             Connector::Payme => match auth {
                 ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Payme {
                     seller_payme_id: api_key.clone(),
@@ -1391,13 +1394,19 @@ impl ForeignTryFrom<(Connector, &ConnectorAuthType, Option<&serde_json::Value>)>
                 }),
                 _ => Err(err("Trustly requires SignatureKey auth type")),
             },
-
             Connector::Itaubank => match auth {
                 ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Itaubank {
                     client_secret: api_key.clone(),
                     client_id: key1.clone(),
                 }),
                 _ => Err(err("Itaubank requires BodyKey auth type")),
+            },
+            Connector::Sanlammultidata => match auth {
+                ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Sanlammultidata {
+                    api_key: api_key.clone(),
+                    merchant_id: key1.clone(),
+                }),
+                _ => Err(err("Sanlammultidata requires BodyKey auth type")),
             },
             // --- Unsupported connectors ---
             _ => Err(

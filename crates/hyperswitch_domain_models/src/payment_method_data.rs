@@ -2650,6 +2650,20 @@ impl From<api_models::payments::BankDebitData> for BankDebitData {
                 sort_code,
                 bank_account_holder_name,
             },
+            api_models::payments::BankDebitData::EftBankDebit { 
+                account_number, 
+                branch_code, 
+                bank_account_holder_name, 
+                bank_name, 
+                bank_type ,
+                ..
+            } => Self::EftBankDebit {
+                account_number,
+                branch_code,
+                bank_account_holder_name,
+                bank_name,
+                bank_type,
+            },
         }
     }
 }

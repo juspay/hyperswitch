@@ -3096,6 +3096,32 @@ pub enum BankDebitData {
         #[smithy(value_type = "Option<String>")]
         bank_account_holder_name: Option<Secret<String>>,
     },
+    #[smithy(nested_value_type)]
+    EftBankDebit {
+        /// Billing details for bank debit
+        #[smithy(value_type = "Option<BankDebitBilling>")]
+        billing_details: Option<BankDebitBilling>,
+        /// Account number for eft bank debit payment
+        #[schema(value_type = String, example = "000123456789")]
+        #[smithy(value_type = "String")]
+        account_number: Secret<String>,
+        /// Routing number for eft bank debit payment
+        #[schema(value_type = String, example = "110000000")]
+        #[smithy(value_type = "String")]
+        branch_code: Secret<String>,
+
+        #[schema(value_type = String, example = "John Doe")]
+        #[smithy(value_type = "Option<String>")]
+        bank_account_holder_name: Option<Secret<String>>,
+
+        #[schema(value_type = String, example = "ACH")]
+        #[smithy(value_type = "Option<BankNames>")]
+        bank_name: Option<common_enums::BankNames>,
+
+        #[schema(value_type = String, example = "Checking")]
+        #[smithy(value_type = "Option<BankType>")]
+        bank_type: Option<common_enums::BankType>,
+    },
 }
 
 impl GetAddressFromPaymentMethodData for BankDebitData {
@@ -3140,6 +3166,11 @@ impl GetAddressFromPaymentMethodData for BankDebitData {
                 ..
             }
             | Self::BacsBankDebit {
+                billing_details,
+                bank_account_holder_name,
+                ..
+            }
+            | Self::EftBankDebit {
                 billing_details,
                 bank_account_holder_name,
                 ..
@@ -3817,6 +3848,7 @@ impl GetPaymentMethodType for BankDebitData {
             Self::SepaBankDebit { .. } => api_enums::PaymentMethodType::Sepa,
             Self::BecsBankDebit { .. } => api_enums::PaymentMethodType::Becs,
             Self::BacsBankDebit { .. } => api_enums::PaymentMethodType::Bacs,
+            Self::EftBankDebit { .. } => api_enums::PaymentMethodType::Eft,
             Self::SepaGuarenteedBankDebit { .. } => {
                 api_enums::PaymentMethodType::SepaGuarenteedDebit
             }

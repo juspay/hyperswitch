@@ -626,6 +626,7 @@ impl ConnectorConfig {
             Connector::Tokenex => Ok(connector_data.tokenex),
             Connector::Tokenio => Ok(connector_data.tokenio),
             Connector::Truelayer => Ok(connector_data.truelayer),
+            Connector::Sanlammultidata => Ok(connector_data.sanlammultidata),
             Connector::Trustly => Ok(connector_data.trustly),
             Connector::Trustpay => Ok(connector_data.trustpay),
             Connector::Trustpayments => Ok(connector_data.trustpayments),
