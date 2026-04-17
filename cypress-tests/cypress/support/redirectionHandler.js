@@ -961,9 +961,7 @@ function bankRedirectRedirection(
                     $body.find('button[id*="bank"], a[id*="bank"]').length > 0
                   ) {
                     // Try clicking any bank-related button (usually first one is a test bank)
-                    cy.get('button[id*="bank"], a[id*="bank"]')
-                      .first()
-                      .click();
+                    cy.get('button[id*="bank"], a[id*="bank"]').first().click();
                   } else {
                     // Look for success/continue button as fallback
                     cy.contains(
