@@ -98,7 +98,10 @@ pub struct PubSubMessage {
 
 impl SubscriberClient {
     /// Create a new standalone subscriber
-    pub async fn new(redis_client: redis::Client, broadcast_capacity: usize) -> CustomResult<Self, errors::RedisError> {
+    pub async fn new(
+        redis_client: redis::Client,
+        broadcast_capacity: usize,
+    ) -> CustomResult<Self, errors::RedisError> {
         let pubsub = redis_client
             .get_async_pubsub()
             .await
@@ -147,16 +150,21 @@ impl SubscriberClient {
     /// Subscribe to a channel and track it for auto-resubscribe
     pub async fn subscribe(&self, channel: &str) -> CustomResult<(), errors::RedisError> {
         match self {
-            Self::Standalone { pubsub_connection, .. } => {
+            Self::Standalone {
+                pubsub_connection, ..
+            } => {
                 let mut pubsub = pubsub_connection.lock().await;
                 pubsub
                     .subscribe(channel)
                     .await
                     .change_context(errors::RedisError::SubscribeError)?;
             }
-            Self::Cluster { cluster_connection, .. } => {
+            Self::Cluster {
+                cluster_connection, ..
+            } => {
                 let mut connection = cluster_connection.lock().await;
-                connection.subscribe(channel)
+                connection
+                    .subscribe(channel)
                     .await
                     .change_context(errors::RedisError::SubscribeError)?;
             }
@@ -171,16 +179,21 @@ impl SubscriberClient {
     /// Unsubscribe from a channel and remove it from tracking
     pub async fn unsubscribe(&self, channel: &str) -> CustomResult<(), errors::RedisError> {
         match self {
-            Self::Standalone { pubsub_connection, .. } => {
+            Self::Standalone {
+                pubsub_connection, ..
+            } => {
                 let mut pubsub = pubsub_connection.lock().await;
                 pubsub
                     .unsubscribe(channel)
                     .await
                     .change_context(errors::RedisError::SubscribeError)?;
             }
-            Self::Cluster { cluster_connection, .. } => {
+            Self::Cluster {
+                cluster_connection, ..
+            } => {
                 let mut connection = cluster_connection.lock().await;
-                connection.unsubscribe(channel)
+                connection
+                    .unsubscribe(channel)
                     .await
                     .change_context(errors::RedisError::SubscribeError)?;
             }
@@ -202,11 +215,35 @@ impl SubscriberClient {
     /// and forwards messages to the broadcast channel.
     pub async fn manage_subscriptions(&self) {
         match self {
-            Self::Standalone { pubsub_connection, redis_client, subscriptions, broadcast_sender, is_subscriber_handler_spawned, .. } => {
-                Self::manage_standalone(pubsub_connection, redis_client, subscriptions, broadcast_sender, is_subscriber_handler_spawned).await
+            Self::Standalone {
+                pubsub_connection,
+                redis_client,
+                subscriptions,
+                broadcast_sender,
+                is_subscriber_handler_spawned,
+                ..
+            } => {
+                Self::manage_standalone(
+                    pubsub_connection,
+                    redis_client,
+                    subscriptions,
+                    broadcast_sender,
+                    is_subscriber_handler_spawned,
+                )
+                .await
             }
-            Self::Cluster { push_receiver, broadcast_sender, is_subscriber_handler_spawned, .. } => {
-                Self::manage_cluster(push_receiver, broadcast_sender, is_subscriber_handler_spawned).await
+            Self::Cluster {
+                push_receiver,
+                broadcast_sender,
+                is_subscriber_handler_spawned,
+                ..
+            } => {
+                Self::manage_cluster(
+                    push_receiver,
+                    broadcast_sender,
+                    is_subscriber_handler_spawned,
+                )
+                .await
             }
         }
     }
@@ -246,16 +283,23 @@ impl SubscriberClient {
                 None => {
                     tracing::warn!("PubSub connection dropped, attempting to reconnect");
                     let mut pubsub = pubsub_connection.lock().await;
-                    match Self::reconnect_standalone(redis_client, &mut pubsub, subscriptions).await {
+                    match Self::reconnect_standalone(redis_client, &mut pubsub, subscriptions).await
+                    {
                         Ok(()) => {
                             retry_delay = std::time::Duration::from_secs(1);
                             tracing::info!("PubSub reconnected and resubscribed successfully");
                         }
                         Err(e) => {
-                            tracing::error!(?e, "Failed to reconnect PubSub, retrying in {:?}", retry_delay);
+                            tracing::error!(
+                                ?e,
+                                "Failed to reconnect PubSub, retrying in {:?}",
+                                retry_delay
+                            );
                             drop(pubsub);
                             tokio::time::sleep(retry_delay).await;
-                            retry_delay = (retry_delay * 2).min(crate::constant::PUBSUB_MAX_RETRY_DELAY);                        }
+                            retry_delay =
+                                (retry_delay * 2).min(crate::constant::PUBSUB_MAX_RETRY_DELAY);
+                        }
                     }
                 }
             }
@@ -293,7 +337,6 @@ impl SubscriberClient {
         broadcast_sender: &tokio::sync::broadcast::Sender<PubSubMessage>,
         _is_subscriber_handler_spawned: &Arc<atomic::AtomicBool>,
     ) {
-
         let sender = broadcast_sender.clone();
         let mut receiver = push_receiver.lock().await;
 
@@ -328,15 +371,25 @@ impl SubscriberClient {
 
     fn broadcast_sender(&self) -> &tokio::sync::broadcast::Sender<PubSubMessage> {
         match self {
-            Self::Standalone { broadcast_sender, .. } => broadcast_sender,
-            Self::Cluster { broadcast_sender, .. } => broadcast_sender,
+            Self::Standalone {
+                broadcast_sender, ..
+            } => broadcast_sender,
+            Self::Cluster {
+                broadcast_sender, ..
+            } => broadcast_sender,
         }
     }
 
     pub fn is_subscriber_handler_spawned(&self) -> &Arc<atomic::AtomicBool> {
         match self {
-            Self::Standalone { is_subscriber_handler_spawned, .. } => is_subscriber_handler_spawned,
-            Self::Cluster { is_subscriber_handler_spawned, .. } => is_subscriber_handler_spawned,
+            Self::Standalone {
+                is_subscriber_handler_spawned,
+                ..
+            } => is_subscriber_handler_spawned,
+            Self::Cluster {
+                is_subscriber_handler_spawned,
+                ..
+            } => is_subscriber_handler_spawned,
         }
     }
 }
@@ -353,7 +406,9 @@ impl RedisClient {
         let conn = redis::aio::ConnectionManager::new(client.clone())
             .await
             .change_context(errors::RedisError::RedisConnectionError)?;
-        Ok(Self { inner: RedisConn::Standalone(conn) })
+        Ok(Self {
+            inner: RedisConn::Standalone(conn),
+        })
     }
 
     /// Publish a message to a channel
@@ -450,9 +505,8 @@ impl RedisConnectionPool {
             // Build ConnectionManagerConfig from RedisSettings
             let reconnection_retries =
                 usize::try_from(conf.reconnect_max_attempts).unwrap_or_default();
-            let reconnection_min_delay = std::time::Duration::from_millis(
-                u64::from(conf.reconnect_delay),
-            );
+            let reconnection_min_delay =
+                std::time::Duration::from_millis(u64::from(conf.reconnect_delay));
 
             let mut connection_manager_config = redis::aio::ConnectionManagerConfig::new()
                 .set_number_of_retries(reconnection_retries)
@@ -471,12 +525,13 @@ impl RedisConnectionPool {
                     connection_manager_config.set_pipeline_buffer_size(pipeline_buffer_size);
             }
 
-            let conn = redis::aio::ConnectionManager::new_with_config(client, connection_manager_config)
-                .await
-                .change_context(errors::RedisError::RedisConnectionError)
-                .attach_printable_lazy(|| {
-                    format!("Failed to connect to Redis at {}:{}", conf.host, conf.port)
-                })?;
+            let conn =
+                redis::aio::ConnectionManager::new_with_config(client, connection_manager_config)
+                    .await
+                    .change_context(errors::RedisError::RedisConnectionError)
+                    .attach_printable_lazy(|| {
+                        format!("Failed to connect to Redis at {}:{}", conf.host, conf.port)
+                    })?;
 
             RedisConn::Standalone(conn)
         };
@@ -516,7 +571,8 @@ impl RedisConnectionPool {
             let publisher = RedisClient {
                 inner: RedisConn::Cluster(cluster_conn),
             };
-            let subscriber = SubscriberClient::new_cluster(nodes, conf.broadcast_channel_capacity).await?;
+            let subscriber =
+                SubscriberClient::new_cluster(nodes, conf.broadcast_channel_capacity).await?;
 
             (Arc::new(subscriber), Arc::new(publisher))
         } else {
@@ -542,7 +598,9 @@ impl RedisConnectionPool {
                     )
                 })?;
 
-            let subscriber = Arc::new(SubscriberClient::new(base_client.clone(), conf.broadcast_channel_capacity).await?);
+            let subscriber = Arc::new(
+                SubscriberClient::new(base_client.clone(), conf.broadcast_channel_capacity).await?,
+            );
             let publisher = Arc::new(RedisClient::new(&base_client).await?);
 
             (subscriber, publisher)
