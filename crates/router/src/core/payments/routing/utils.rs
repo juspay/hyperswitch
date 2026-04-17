@@ -64,6 +64,32 @@ pub struct ConfigApiClient;
 
 pub struct SRApiClient;
 
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct HybridRoutingRequest {
+    pub static_routing_request: Option<RoutingEvaluateRequest>,
+    pub dynamic_routing_request: Option<or_types::OpenRouterDecideGatewayRequest>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct HybridRoutingResponse {
+    pub static_routing: Option<RoutingEvaluateResponse>,
+    pub dynamic_routing: Option<DynamicRoutingWrapper>,
+    pub evaluated_connectors: Option<Vec<DeRoutableConnectorChoice>>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct DynamicRoutingWrapper {
+    pub status: String,
+    pub decision: Option<or_types::DecideGatewayResponse>,
+    pub fallback_connectors: Option<Vec<DeRoutableConnectorChoice>>,
+}
+
+#[derive(Clone, Debug)]
+pub struct HybridRoutingOutcome {
+    pub connectors: Vec<RoutableConnectorChoice>,
+    pub routing_approach: RoutingApproach,
+}
+
 pub async fn build_and_send_decision_engine_http_request<Req, Res, ErrRes>(
     state: &SessionState,
     http_method: services::Method,
@@ -301,26 +327,209 @@ impl DecisionEngineApiHandler for SRApiClient {
 
 const EUCLID_API_TIMEOUT: u64 = 5;
 
+fn convert_fallback_to_de_choices(
+    fallback_output: Vec<RoutableConnectorChoice>,
+) -> Vec<DeRoutableConnectorChoice> {
+    fallback_output
+        .into_iter()
+        .map(|connector| DeRoutableConnectorChoice {
+            gateway_name: connector.connector,
+            gateway_id: connector.merchant_connector_id,
+        })
+        .collect()
+}
+
+pub fn build_static_routing_request_for_hybrid(
+    created_by: String,
+    payment_id: String,
+    input: BackendInput,
+    fallback_output: Vec<RoutableConnectorChoice>,
+) -> RoutingResult<RoutingEvaluateRequest> {
+    convert_backend_input_to_routing_eval(
+        created_by,
+        Some(payment_id),
+        input,
+        convert_fallback_to_de_choices(fallback_output),
+    )
+}
+
+fn infer_hybrid_routing_approach(response: &HybridRoutingResponse) -> RoutingApproach {
+    response
+        .dynamic_routing
+        .as_ref()
+        .and_then(|dynamic_routing| dynamic_routing.decision.as_ref())
+        .and_then(|decision| decision.routing_approach.as_deref())
+        .map(RoutingApproach::from_decision_engine_approach)
+        .unwrap_or_else(|| {
+            if response.static_routing.is_some() {
+                RoutingApproach::StaticRouting
+            } else {
+                RoutingApproach::Default
+            }
+        })
+}
+
+pub fn normalize_hybrid_routing_response(
+    response: &HybridRoutingResponse,
+) -> RoutingResult<HybridRoutingOutcome> {
+    let outcome = if let Some(evaluated_connectors) = response
+        .evaluated_connectors
+        .as_ref()
+        .filter(|connectors| !connectors.is_empty())
+    {
+        let connectors = evaluated_connectors
+            .iter()
+            .cloned()
+            .map(RoutableConnectorChoice::from)
+            .collect();
+
+        HybridRoutingOutcome {
+            connectors,
+            routing_approach: infer_hybrid_routing_approach(response),
+        }
+    } else if let Some(static_routing_response) = response.static_routing.as_ref() {
+        let static_output_connectors = extract_de_output_connectors(
+            static_routing_response.output.clone(),
+        )
+        .map_err(|error| {
+            logger::error!(
+                error=?error,
+                "euclid: failed to extract connector from hybrid static output"
+            );
+            error
+        })?;
+
+        let static_connectors = transform_de_output_for_router(
+            static_output_connectors,
+            static_routing_response.evaluated_output.clone(),
+        )
+        .map_err(|error| {
+            logger::error!(
+                error=?error,
+                "euclid: failed to transform connectors from hybrid static output"
+            );
+            error
+        })?;
+
+        HybridRoutingOutcome {
+            connectors: static_connectors,
+            routing_approach: RoutingApproach::StaticRouting,
+        }
+    } else {
+        logger::debug!(
+            "euclid: hybrid routing response did not include usable evaluated connectors or static output; returning empty connector set"
+        );
+        HybridRoutingOutcome {
+            connectors: Vec::new(),
+            routing_approach: RoutingApproach::Default,
+        }
+    };
+
+    Ok(outcome)
+}
+
+#[derive(Debug, Clone, serde::Deserialize)]
+#[serde(untagged)]
+enum HybridErrorResponse {
+    Static(DeErrorResponse),
+    Dynamic(or_types::ErrorResponse),
+}
+
+impl DecisionEngineErrorsInterface for HybridErrorResponse {
+    fn get_error_message(&self) -> String {
+        match self {
+            Self::Static(error) => error.get_error_message(),
+            Self::Dynamic(error) => error.get_error_message(),
+        }
+    }
+
+    fn get_error_code(&self) -> String {
+        match self {
+            Self::Static(error) => error.get_error_code(),
+            Self::Dynamic(error) => error.get_error_code(),
+        }
+    }
+
+    fn get_error_data(&self) -> Option<String> {
+        match self {
+            Self::Static(error) => error.get_error_data(),
+            Self::Dynamic(error) => error.get_error_data(),
+        }
+    }
+}
+
+pub async fn decision_engine_hybrid_routing(
+    state: &SessionState,
+    business_profile: &domain::Profile,
+    payment_id: String,
+    hybrid_request: HybridRoutingRequest,
+    _fallback_connectors: Vec<RoutableConnectorChoice>,
+) -> RoutingResult<HybridRoutingOutcome> {
+    let routing_events_wrapper = RoutingEventsWrapper::new(
+        state.tenant.tenant_id.clone(),
+        state.request_id.clone(),
+        payment_id,
+        business_profile.get_id().to_owned(),
+        business_profile.merchant_id.to_owned(),
+        "DecisionEngine: Routing".to_string(),
+        Some(hybrid_request.clone()),
+        true,
+        false,
+    );
+
+    let event_response = build_and_send_decision_engine_http_request::<_, _, HybridErrorResponse>(
+        state,
+        services::Method::Post,
+        "routing/hybrid",
+        Some(hybrid_request),
+        Some(EUCLID_API_TIMEOUT),
+        "parsing response",
+        Some(routing_events_wrapper),
+    )
+    .await?;
+
+    let hybrid_response: HybridRoutingResponse =
+        event_response
+            .response
+            .ok_or(errors::RoutingError::OpenRouterError(
+                "euclid: response from decision engine hybrid API is empty".to_string(),
+            ))?;
+
+    let outcome = normalize_hybrid_routing_response(&hybrid_response)?;
+    let mut routing_event =
+        event_response
+            .event
+            .ok_or(errors::RoutingError::RoutingEventsError {
+                message: "euclid: routing event not found in hybrid events response".to_string(),
+                status_code: 500,
+            })?;
+
+    routing_event.set_routing_approach(outcome.routing_approach.to_string());
+    routing_event.set_routable_connectors(outcome.connectors.clone());
+    state.event_handler().log_event(&routing_event);
+
+    Ok(outcome)
+}
+
 pub async fn perform_decision_euclid_routing(
     state: &SessionState,
     input: BackendInput,
     created_by: String,
+    payment_id: String,
     events_wrapper: RoutingEventsWrapper<RoutingEvaluateRequest>,
     fallback_output: Vec<RoutableConnectorChoice>,
 ) -> RoutingResult<RoutingEvaluateResponse> {
     logger::debug!("decision_engine_euclid: evaluate api call for euclid routing evaluation");
 
     let mut events_wrapper = events_wrapper;
-    let fallback_output = fallback_output
-        .into_iter()
-        .map(|c| DeRoutableConnectorChoice {
-            gateway_name: c.connector,
-            gateway_id: c.merchant_connector_id,
-        })
-        .collect::<Vec<_>>();
+    let fallback_output = convert_fallback_to_de_choices(fallback_output);
 
-    let routing_request =
-        convert_backend_input_to_routing_eval(created_by, input, fallback_output)?;
+    let routing_request = convert_backend_input_to_routing_eval(
+        created_by,
+        Some(payment_id),
+        input,
+        fallback_output,
+    )?;
     events_wrapper.set_request_body(routing_request.clone());
 
     let event_response = EuclidApiClient::send_decision_engine_request(
@@ -375,7 +584,13 @@ pub fn transform_de_output_for_router(
 
     // Add remaining connectors from de_output (only if not already seen), for fallback
     for conn in de_output {
-        let key = RoutableConnectors::from_str(&conn.gateway_name).map_err(|_| {
+        let connector_name = conn.gateway_name.clone();
+        let key = RoutableConnectors::from_str(&connector_name).map_err(|error| {
+            logger::error!(
+                error=?error,
+                connector_name = %connector_name,
+                "euclid: failed to parse connector name from decision engine output"
+            );
             errors::RoutingError::GenericConversionError {
                 from: "String".to_string(),
                 to: "RoutableConnectors".to_string(),
@@ -399,7 +614,7 @@ pub async fn decision_engine_routing(
     let routing_events_wrapper = RoutingEventsWrapper::new(
         state.tenant.tenant_id.clone(),
         state.request_id.clone(),
-        payment_id,
+        payment_id.clone(),
         business_profile.get_id().to_owned(),
         business_profile.merchant_id.to_owned(),
         "DecisionEngine: Euclid Static Routing".to_string(),
@@ -412,6 +627,7 @@ pub async fn decision_engine_routing(
         state,
         backend_input.clone(),
         business_profile.get_id().get_string_repr().to_string(),
+        payment_id,
         routing_events_wrapper,
         merchant_fallback_config,
     )
@@ -764,9 +980,15 @@ impl RoutingEq<Self> for RoutableConnectorChoice {
 
 pub fn to_json_string<T: Serialize>(value: &T) -> String {
     serde_json::to_string(value)
-        .map_err(|_| errors::RoutingError::GenericConversionError {
-            from: "T".to_string(),
-            to: "JsonValue".to_string(),
+        .map_err(|error| {
+            logger::error!(
+                error=?error,
+                "euclid: failed to serialize value to json string"
+            );
+            errors::RoutingError::GenericConversionError {
+                from: "T".to_string(),
+                to: "JsonValue".to_string(),
+            }
         })
         .unwrap_or_default()
 }
@@ -785,6 +1007,7 @@ pub struct ListRountingAlgorithmsRequest {
 // Maps Hyperswitch `BackendInput` to a `RoutingEvaluateRequest` compatible with Decision Engine
 pub fn convert_backend_input_to_routing_eval(
     created_by: String,
+    payment_id: Option<String>,
     input: BackendInput,
     fallback_output: Vec<DeRoutableConnectorChoice>,
 ) -> RoutingResult<RoutingEvaluateRequest> {
@@ -919,6 +1142,7 @@ pub fn convert_backend_input_to_routing_eval(
 
     Ok(RoutingEvaluateRequest {
         created_by,
+        payment_id,
         parameters: params,
         fallback_output,
     })
@@ -1181,9 +1405,16 @@ impl TryFrom<ConnectorInfo> for DeRoutableConnectorChoice {
             .transpose()?;
 
         let gateway_name = RoutableConnectors::from_str(&c.gateway_name)
-            .map_err(|_| errors::RoutingError::GenericConversionError {
-                from: "String".to_string(),
-                to: "RoutableConnectors".to_string(),
+            .map_err(|error| {
+                logger::error!(
+                    error=?error,
+                    gateway_name = %c.gateway_name,
+                    "euclid: unable to convert connector name to RoutableConnectors"
+                );
+                errors::RoutingError::GenericConversionError {
+                    from: "String".to_string(),
+                    to: "RoutableConnectors".to_string(),
+                }
             })
             .attach_printable("unable to convert connector name to RoutableConnectors")?;
 
@@ -1495,25 +1726,161 @@ fn stringify_choice(c: RoutableConnectorChoice) -> ConnectorInfo {
     )
 }
 
-pub async fn select_routing_result<T>(
+pub async fn get_routing_result_source(
     state: &SessionState,
     business_profile: &business_profile::Profile,
-    hyperswitch_result: T,
-    de_result: T,
-) -> T
-where
-    T: Clone + IntoIterator,
-{
-    // No customer_id and payment_id in call sites so passing Targeting key as None
-    let dimensions = dimension_state::Dimensions::new()
-        .with_merchant_id(business_profile.merchant_id.clone())
-        .with_profile_id(business_profile.get_id().clone());
-    let routing_result_source = dimensions
-        .get_routing_result_source(
-            state.store.as_ref(),
-            state.superposition_service.as_deref(),
-            None,
-        )
+) -> Option<api_routing::RoutingResultSource> {
+    fn db_key(dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
+        dimensions
+            .get_provider_merchant_id()
+            .map(|id| format!("{}_{}", id.get_string_repr(), Self::KEY))
+    }
+}
+
+config! {
+    superposition_key = SHOULD_CALL_GSM,
+    output = bool,
+    default = false,
+    requires = dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
+    targeting_key = id_type::CustomerId
+}
+
+impl DatabaseBackedConfig for ShouldCallGsm {
+    const KEY: &'static str = "should_call_gsm";
+
+    fn db_key(dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
+        dimensions
+            .get_processor_merchant_id()
+            .map(|id| format!("{}_{}", Self::KEY, id.get_string_repr()))
+    }
+}
+
+config! {
+    superposition_key = SHOULD_PERFORM_ELIGIBILITY,
+    output = bool,
+    default = false,
+    requires = dimension_state::DimensionsWithProcessorAndProviderMerchantId,
+    targeting_key = id_type::CustomerId
+}
+
+impl DatabaseBackedConfig for ShouldPerformEligibility {
+    const KEY: &'static str = "should_perform_eligibility";
+
+    fn db_key(dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
+        // Matches the existing key format: "should_perform_eligibility_{merchant_id}"
+        dimensions
+            .get_processor_merchant_id()
+            .map(|id| format!("{}_{}", Self::KEY, id.get_string_repr()))
+    }
+}
+
+config! {
+    superposition_key = SHOULD_ENABLE_MIT_WITH_LIMITED_CARD_DATA,
+    output = bool,
+    default = false,
+    requires = dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
+    targeting_key = id_type::PaymentId
+}
+
+impl DatabaseBackedConfig for ShouldEnableMitWithLimitedCardData {
+    const KEY: &'static str = "should_enable_mit_with_limited_card_data";
+
+    fn db_key(dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
+        dimensions
+            .get_processor_merchant_id()
+            .map(|id| format!("{}_{}", Self::KEY, id.get_string_repr()))
+    }
+}
+
+config! {
+    superposition_key = SHOULD_STORE_ELIGIBILITY_CHECK_DATA_FOR_AUTHENTICATION,
+    output = bool,
+    default = false,
+    requires = dimension_state::DimensionsWithProcessorAndProviderMerchantId,
+    targeting_key = id_type::AuthenticationId
+}
+
+impl DatabaseBackedConfig for ShouldStoreEligibilityCheckDataForAuthentication {
+    const KEY: &'static str = "should_store_eligibility_check_data_for_authentication";
+
+    fn db_key(dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
+        // Matches the existing key format: "should_store_eligibility_check_data_for_authentication_{merchant_id}"
+        dimensions
+            .get_processor_merchant_id()
+            .map(|id| format!("{}_{}", Self::KEY, id.get_string_repr()))
+    }
+}
+
+config! {
+    superposition_key = ENABLE_EXTENDED_CARD_BIN,
+    output = bool,
+    default = false,
+    requires = dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
+    targeting_key = id_type::CustomerId
+}
+
+impl DatabaseBackedConfig for EnableExtendedCardBin {
+    const KEY: &'static str = "enable_extended_card_bin";
+
+    fn db_key(dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
+        // Matches the existing key format: "{profile_id}_enable_extended_card_bin"
+        dimensions
+            .get_profile_id()
+            .map(|id| format!("{}_{}", id.get_string_repr(), Self::KEY))
+    }
+}
+
+config! {
+    superposition_key = PAYOUT_TRACKER_MAPPING,
+    output = RetryMapping,
+    default = RetryMapping::default(),
+    object = true,
+    requires = dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndConnector,
+    targeting_key = id_type::PayoutId
+}
+
+config! {
+    superposition_key = CLIENT_SESSION_VALIDATION_ENABLED,
+    output = bool,
+    default = true,
+    requires = dimension_state::DimensionsWithProcessorAndProviderMerchantId,
+    targeting_key = id_type::PaymentId
+}
+
+impl DatabaseBackedConfig for ClientSessionValidationEnabled {
+    const KEY: &'static str = "client_session_validation_enabled";
+    fn db_key(_dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
+        None
+    }
+}
+
+config! {
+    superposition_key = MAX_AUTO_PAYOUT_RETRIES,
+    output = u32,
+    default = 0u32,
+    requires = dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndPayoutRetryType,
+    targeting_key = id_type::CustomerId
+}
+
+impl DatabaseBackedConfig for MaxAutoPayoutRetries {
+    const KEY: &'static str = "max_auto_payout_retries";
+    fn db_key(dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
+        dimensions
+            .get_processor_merchant_id()
+            .and_then(|merchant_id| {
+                dimensions
+                    .get_payout_retry_type()
+                    .map(|retry_type| match retry_type {
+                        common_enums::PayoutRetryType::SingleConnector => format!(
+                            "max_auto_single_connector_payout_retries_enabled_{}",
+                            merchant_id.get_string_repr()
+                        ),
+                        common_enums::PayoutRetryType::MultiConnector => format!(
+                            "max_auto_multiple_connector_payout_retries_enabled_{}",
+                            merchant_id.get_string_repr()
+                        ),
+                    })
+            })
         .await
         .parse::<api_routing::RoutingResultSource>()
         .ok();

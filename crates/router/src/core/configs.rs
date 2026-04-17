@@ -1,6 +1,11 @@
 pub mod dimension_config;
 pub mod dimension_state;
 use common_utils::errors::CustomResult;
+pub use dimension_config::{
+    EnableExtendedCardBin, ImplicitCustomerUpdate, RequiresCvv, ShouldCallGsm,
+    ShouldEnableMitWithLimitedCardData, ShouldPerformEligibility,
+    ShouldStoreEligibilityCheckDataForAuthentication,
+};
 use error_stack::ResultExt;
 use external_services::superposition::{self, ConfigContext};
 
@@ -99,6 +104,18 @@ impl ConfigType for i64 {
     }
 }
 
+impl ConfigType for u32 {
+    fn from_config_str(config_str: &str) -> CustomResult<Self, errors::StorageError> {
+        config_str
+            .parse::<Self>()
+            .change_context(errors::StorageError::DeserializationFailed)
+    }
+
+    fn to_config_string(&self) -> CustomResult<String, errors::StorageError> {
+        Ok(self.to_string())
+    }
+}
+
 impl ConfigType for f64 {
     fn from_config_str(config_str: &str) -> CustomResult<Self, errors::StorageError> {
         config_str
@@ -123,10 +140,10 @@ impl ConfigType for serde_json::Value {
 
 /// Fetch configuration value from Superposition with database fallback using dimension-aware key.
 /// This function accepts any type that implements DimensionsBase (including type aliases).
-/// This allows configs to be used with pre-defined dimension type aliases like DimensionsWithMerchantId or DimensionsWithMerchantIdAndProfileId.
+/// This allows configs to be used with pre-defined dimension type aliases like DimensionsWithProcessorAndProviderMerchantId or DimensionsWithProcessorAndProviderMerchantIdAndProfileId.
 pub async fn fetch_db_config_for_dimensions<C>(
     storage: &dyn db::StorageInterface,
-    superposition_client: Option<&superposition::SuperpositionClient>,
+    superposition_client: &superposition::SuperpositionClient,
     dimensions: &impl dimension_state::DimensionsBase,
     targeting_key: Option<&C::TargetingKey>,
 ) -> C::Output
@@ -163,7 +180,7 @@ pub trait DatabaseBackedConfig: superposition::Config {
 /// that database fallback is used when superposition fetch fails.
 pub async fn fetch_db_config<C>(
     storage: &dyn db::StorageInterface,
-    superposition_client: Option<&superposition::SuperpositionClient>,
+    superposition_client: &superposition::SuperpositionClient,
     db_key: Option<&str>,
     context: Option<ConfigContext>,
     targeting_key: Option<&C::TargetingKey>,
@@ -176,14 +193,7 @@ where
     let config_type = C::KEY;
     let default_value = C::default_value();
 
-    let superposition_result = match superposition_client {
-        Some(client) => C::fetch(client, context.clone(), targeting_key).await,
-        None => Err(error_stack::report!(
-            superposition::SuperpositionError::ClientError(
-                "No superposition client available".to_string()
-            )
-        )),
-    };
+    let superposition_result = C::fetch(superposition_client, context, targeting_key).await;
 
     let resolved_value = match superposition_result {
         Ok(value) => {
@@ -191,7 +201,6 @@ where
                 config_key = %config_type,
                 source = "superposition",
                 value = %value.to_config_string().unwrap_or_default(),
-                context = ?context,
                 "Config resolved from superposition"
             );
             value
@@ -261,7 +270,7 @@ where
 /// Used when Config Output is serde_json::Value but caller wants a specific type.
 pub async fn fetch_db_config_object<C, T>(
     storage: &dyn db::StorageInterface,
-    superposition_client: Option<&superposition::SuperpositionClient>,
+    superposition_client: &superposition::SuperpositionClient,
     db_key: Option<&str>,
     context: Option<ConfigContext>,
     targeting_key: Option<&C::TargetingKey>,
@@ -298,7 +307,7 @@ where
 /// Fetch dimension-aware object-type config with JSON deserialization.
 pub async fn fetch_db_config_for_objects<C, T>(
     storage: &dyn db::StorageInterface,
-    superposition_client: Option<&superposition::SuperpositionClient>,
+    superposition_client: &superposition::SuperpositionClient,
     dimensions: &impl dimension_state::DimensionsBase,
     targeting_key: Option<&C::TargetingKey>,
 ) -> T

@@ -21,7 +21,7 @@ use hyperswitch_domain_models::{
     type_encryption::AsyncLift,
 };
 use hyperswitch_interfaces::webhooks::IncomingWebhookRequestDetails;
-use masking::{ExposeInterface, PeekInterface};
+use hyperswitch_masking::{ExposeInterface, PeekInterface};
 
 use super::types::{
     IRRELEVANT_ATTEMPT_ID_IN_AUTHENTICATION_FLOW,
@@ -149,6 +149,7 @@ pub fn construct_uas_router_data<F: Clone, Req, Res>(
         minor_amount_capturable: None,
         authorized_amount: None,
         customer_document_details: None,
+        feature_data: None,
     })
 }
 
@@ -180,7 +181,7 @@ pub async fn external_authentication_update_trackers<F: Clone, Req>(
                     .clone()
                     .map(|billing| {
                         common_utils::ext_traits::Encode::encode_to_value(&billing)
-                            .map(masking::Secret::<serde_json::Value>::new)
+                            .map(hyperswitch_masking::Secret::<serde_json::Value>::new)
                     })
                     .transpose()
                     .change_context(ApiErrorResponse::InternalServerError)
@@ -190,7 +191,7 @@ pub async fn external_authentication_update_trackers<F: Clone, Req>(
                     .clone()
                     .map(|shipping| {
                         common_utils::ext_traits::Encode::encode_to_value(&shipping)
-                            .map(masking::Secret::<serde_json::Value>::new)
+                            .map(hyperswitch_masking::Secret::<serde_json::Value>::new)
                     })
                     .transpose()
                     .change_context(ApiErrorResponse::InternalServerError)
@@ -618,7 +619,7 @@ pub fn get_authentication_payment_method_data<F, Req>(
         authentication_details,
     }) = router_data.response.clone()
     {
-        authentication_details.into()
+        authentication_details.to_authentication_payment_method_data_response()
     } else {
         None
     }
@@ -701,6 +702,7 @@ pub fn construct_uas_webhook_router_data<F: Clone, Req, Res>(
         raw_connector_response: None,
         is_payment_id_from_merchant: None,
         customer_document_details: None,
+        feature_data: None,
     })
 }
 
@@ -722,4 +724,33 @@ pub async fn fetch_routing_region_for_uas(
         .await;
 
     Ok(RoutingRegion::from_str(&region_str).unwrap_or(RoutingRegion::Region1))
+}
+
+pub async fn get_bool_config(state: &SessionState, key: &str, default_value: bool) -> bool {
+    let default_str = if default_value { "true" } else { "false" };
+
+    let config = state
+        .store
+        .find_config_by_key_unwrap_or(key, Some(default_str.to_string()))
+        .await;
+
+    match config {
+        Ok(conf) => conf.config == "true",
+        Err(error) => {
+            router_env::logger::error!(?error);
+            default_value
+        }
+    }
+}
+
+pub async fn should_disable_vault_tokenization(
+    state: &SessionState,
+    merchant_id: &common_utils::id_type::MerchantId,
+) -> bool {
+    get_bool_config(
+        state,
+        &merchant_id.get_should_disable_vault_tokenization(),
+        false,
+    )
+    .await
 }

@@ -47,6 +47,7 @@ mod envoy;
 mod facilitapay;
 mod finix;
 mod fiserv;
+mod fiservcommercehub;
 mod fiservemea;
 mod fiuu;
 mod flexiti;

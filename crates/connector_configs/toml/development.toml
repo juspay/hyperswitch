@@ -2527,6 +2527,49 @@ options=["Connector", "Hyperswitch"]
 api_key="API Key"
 key1="Secret Key"
 
+[fiservcommercehub]
+[[fiservcommercehub.credit]]
+  payment_method_type = "Mastercard"
+[[fiservcommercehub.credit]]
+  payment_method_type = "Visa"
+[[fiservcommercehub.credit]]
+  payment_method_type = "Interac"
+[[fiservcommercehub.credit]]
+  payment_method_type = "AmericanExpress"
+[[fiservcommercehub.credit]]
+  payment_method_type = "JCB"
+[[fiservcommercehub.credit]]
+  payment_method_type = "DinersClub"
+[[fiservcommercehub.credit]]
+  payment_method_type = "Discover"
+[[fiservcommercehub.credit]]
+  payment_method_type = "CartesBancaires"
+[[fiservcommercehub.credit]]
+  payment_method_type = "UnionPay"
+[[fiservcommercehub.debit]]
+  payment_method_type = "Mastercard"
+[[fiservcommercehub.debit]]
+  payment_method_type = "Visa"
+[[fiservcommercehub.debit]]
+  payment_method_type = "Interac"
+[[fiservcommercehub.debit]]
+  payment_method_type = "AmericanExpress"
+[[fiservcommercehub.debit]]
+  payment_method_type = "JCB"
+[[fiservcommercehub.debit]]
+  payment_method_type = "DinersClub"
+[[fiservcommercehub.debit]]
+  payment_method_type = "Discover"
+[[fiservcommercehub.debit]]
+  payment_method_type = "CartesBancaires"
+[[fiservcommercehub.debit]]
+  payment_method_type = "UnionPay"
+[fiservcommercehub.connector_auth.MultiAuthKey]
+api_key="API Key"
+key1="Merchant ID"
+api_secret="API Secret"
+key2="Terminal ID"
+
 [forte]
 [[forte.credit]]
   payment_method_type = "Mastercard"
@@ -3460,6 +3503,14 @@ key1="Business Identifier"
 api_secret="Application Identifier"
 [noon.connector_webhook_details]
 merchant_secret="Source verification key"
+
+[noon.metadata.region]
+name="region"
+label="Region of your Noon Merchant Account"
+placeholder="Enter Region of your Noon Merchant Account"
+required=false
+type="Select"
+options=["Global","Ksa","Egypt"]
 
 [[noon.metadata.apple_pay]]
 name="certificate"
@@ -5706,6 +5757,14 @@ key1 = "Wise Account Id"
 [wise_payout.connector_webhook_details]
 merchant_secret="Source verification key"
 
+
+[itaubank_payout]
+[[itaubank_payout.bank_transfer]]
+  payment_method_type = "pix"
+[itaubank_payout.connector_auth.BodyKey]
+key1="Client Id"
+api_key="Client Secret"
+
 [threedsecureio]
 [threedsecureio.connector_auth.HeaderKey]
 api_key="Api Key"
@@ -7065,6 +7124,10 @@ options=[]
 [santander]
 [[santander.bank_transfer]]
 payment_method_type = "pix"
+[[santander.bank_transfer]]
+payment_method_type = "pix_automatico_push"
+[[santander.bank_transfer]]
+payment_method_type = "pix_automatico_qr"
 [[santander.voucher]]
 payment_method_type = "boleto"
 [santander.connector_auth.CertificateAuth]
@@ -7106,6 +7169,58 @@ type="Text"
 name="merchant_name"
 label="Merchant Name"
 placeholder="Enter the merchant name"
+required=true
+type="Text"
+
+[[santander.metadata.pix_automatico_push]]
+name="pix_key_type"
+label="Chave Key Type"
+placeholder="Enter your Chave/Pix Key Type"
+required=true
+type="Select"
+options=["CPF", "CNPJ", "EMAIL", "CELLULAR", "EVP"]
+[[santander.metadata.pix_automatico_push]]
+name="pix_key_value"
+label="Chave Key"
+placeholder="Enter your Chave/Pix Key"
+required=true
+type="Text"
+[[santander.metadata.pix_automatico_push]]
+name="client_id"
+label="Client ID"
+placeholder="Enter your Client Id"
+required=true
+type="Text"
+[[santander.metadata.pix_automatico_push]]
+name="client_secret"
+label="Client Secret"
+placeholder="Enter your Client Secret"
+required=true
+type="Text"
+
+[[santander.metadata.pix_automatico_qr]]
+name="pix_key_type"
+label="Chave Key Type"
+placeholder="Enter your Chave/Pix Key Type"
+required=true
+type="Select"
+options=["CPF", "CNPJ", "EMAIL", "CELLULAR", "EVP"]
+[[santander.metadata.pix_automatico_qr]]
+name="pix_key_value"
+label="Chave Key"
+placeholder="Enter your Chave/Pix Key"
+required=true
+type="Text"
+[[santander.metadata.pix_automatico_qr]]
+name="client_id"
+label="Client ID"
+placeholder="Enter your Client Id"
+required=true
+type="Text"
+[[santander.metadata.pix_automatico_qr]]
+name="client_secret"
+label="Client Secret"
+placeholder="Enter your Client Secret"
 required=true
 type="Text"
 
@@ -7204,8 +7319,8 @@ merchant_secret="Source verification key"
 [[affirm.pay_later]]
   payment_method_type = "affirm"
 [affirm.connector_auth.BodyKey]
-api_key = "API Key"
-key1 = "API Secret"
+api_key = "Public Key"
+key1 = "Private Key"
 
 [trustpayments]
 [[trustpayments.credit]]
@@ -7754,7 +7869,7 @@ merchant_secret="Source verification key"
 api_key = "Client ID"
 key1 = "Client Secret"
 [[truelayer.bank_redirect]]
-payment_method_type = "open_banking_uk"
+payment_method_type = "open_banking"
 
 [truelayer.metadata.kid]
 name = "kid"
@@ -7826,6 +7941,16 @@ label = "Private Key (Base64 encoded)"
 placeholder = "Enter your Private Key(Base64 encoded)"
 required = true
 type = "Text"
+
+[trustly_payout]
+[trustly_payout.connector_auth.SignatureKey]
+api_key = "Username"
+key1 = "Password"
+api_secret = "Private Key(Base64 encoded)"
+[[trustly_payout.bank_transfer]]
+payment_method_type = "trustly"
+[trustly_payout.connector_webhook_details]
+merchant_secret="Trustly's public key"
 
 [tesouro]
 [[tesouro.credit]]
@@ -8240,5 +8365,11 @@ payment_method_type = "UnionPay"
 api_key = "Static Tokens"
 
 [trustly]
-[trustly.connector_auth.HeaderKey]
-api_key = "API Key"
+[trustly.connector_auth.SignatureKey]
+api_key = "Username"
+key1 = "Password"
+api_secret = "Private Key(Base64 encoded)"
+[[trustly.bank_redirect]]
+payment_method_type = "trustly"
+[trustly.connector_webhook_details]
+merchant_secret="Trustly's public key"

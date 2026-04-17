@@ -12,7 +12,7 @@ use hyperswitch_domain_models::{
     types,
 };
 use hyperswitch_interfaces::{api, consts::NO_ERROR_CODE, errors};
-use masking::{ExposeInterface, Secret};
+use hyperswitch_masking::{ExposeInterface, Secret};
 use ring::digest;
 use serde::{Deserialize, Serialize};
 
@@ -162,6 +162,8 @@ impl TryFrom<&ZslRouterData<&types::PaymentsAuthorizeRouterData>> for ZslPayment
                 | BankTransferData::DanamonVaBankTransfer { .. }
                 | BankTransferData::MandiriVaBankTransfer { .. }
                 | BankTransferData::Pix { .. }
+                | BankTransferData::PixAutomaticoPush { .. }
+                | BankTransferData::PixAutomaticoQr {}
                 | BankTransferData::Pse {}
                 | BankTransferData::InstantBankTransferFinland {}
                 | BankTransferData::InstantBankTransferPoland {}
@@ -191,6 +193,8 @@ impl TryFrom<&ZslRouterData<&types::PaymentsAuthorizeRouterData>> for ZslPayment
             | PaymentMethodData::CardToken(_)
             | PaymentMethodData::NetworkToken(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+            | PaymentMethodData::CardWithOptionalCVC(_)
+            | PaymentMethodData::CardWithNetworkTokenDetails(_)
             | PaymentMethodData::CardWithLimitedDetails(_)
             | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
             | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_)

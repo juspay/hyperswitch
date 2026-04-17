@@ -2,7 +2,7 @@ use api_models::enums as api_enums;
 use common_utils::pii;
 use error_stack::ResultExt;
 use external_services::http_client::client;
-use masking::PeekInterface;
+use hyperswitch_masking::PeekInterface;
 use pm_auth::connector::plaid::transformers::PlaidAuthType;
 
 use crate::{core::errors, types, types::transformers::ForeignTryFrom};
@@ -253,6 +253,12 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
             }
             api_enums::Connector::Fiservemea => {
                 fiservemea::transformers::FiservemeaAuthType::try_from(self.auth_type)?;
+                Ok(())
+            }
+            api_enums::Connector::Fiservcommercehub => {
+                fiservcommercehub::transformers::FiservcommercehubAuthType::try_from(
+                    self.auth_type,
+                )?;
                 Ok(())
             }
             api_enums::Connector::Fiuu => {
@@ -528,6 +534,10 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
             }
             api_enums::Connector::Truelayer => {
                 truelayer::transformers::TruelayerAuthType::try_from(self.auth_type)?;
+                Ok(())
+            }
+            api_enums::Connector::Trustly => {
+                trustly::transformers::TrustlyAuthType::try_from(self.auth_type)?;
                 Ok(())
             }
             api_enums::Connector::Trustpay => {
