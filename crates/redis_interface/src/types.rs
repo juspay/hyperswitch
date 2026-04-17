@@ -228,9 +228,13 @@ impl redis::FromRedisValue for SetnxReply {
             Value::BulkString(ref s) if s == b"OK" => Ok(Self::KeySet),
             // Returns Nil if key already exists
             Value::Nil => Ok(Self::KeyNotSet),
-            _ => Err(redis::ParsingError::from(
-                "Unexpected SETNX command reply".to_string(),
-            )),
+            _ => {
+                tracing::error!(received = ?v, "Unexpected SETNX command reply from Redis");
+                Err(redis::ParsingError::from(format!(
+                    "Unexpected SETNX command reply: {:?}",
+                    v
+                )))
+            }
         }
     }
 }
@@ -246,9 +250,13 @@ impl redis::FromRedisValue for HsetnxReply {
         match v {
             Value::Int(1) => Ok(Self::KeySet),
             Value::Int(0) => Ok(Self::KeyNotSet),
-            _ => Err(redis::ParsingError::from(
-                "Unexpected HSETNX command reply".to_string(),
-            )),
+            _ => {
+                tracing::error!(received = ?v, "Unexpected HSETNX command reply from Redis");
+                Err(redis::ParsingError::from(format!(
+                    "Unexpected HSETNX command reply: {:?}",
+                    v
+                )))
+            }
         }
     }
 }
@@ -264,9 +272,13 @@ impl redis::FromRedisValue for MsetnxReply {
         match v {
             Value::Int(1) => Ok(Self::KeysSet),
             Value::Int(0) => Ok(Self::KeysNotSet),
-            _ => Err(redis::ParsingError::from(
-                "Unexpected MSETNX command reply".to_string(),
-            )),
+            _ => {
+                tracing::error!(received = ?v, "Unexpected MSETNX command reply from Redis");
+                Err(redis::ParsingError::from(format!(
+                    "Unexpected MSETNX command reply: {:?}",
+                    v
+                )))
+            }
         }
     }
 }
@@ -325,9 +337,13 @@ impl redis::FromRedisValue for DelReply {
         match v {
             Value::Int(1) => Ok(Self::KeyDeleted),
             Value::Int(0) => Ok(Self::KeyNotDeleted),
-            _ => Err(redis::ParsingError::from(
-                "Unexpected del command reply".to_string(),
-            )),
+            _ => {
+                tracing::error!(received = ?v, "Unexpected DEL command reply from Redis");
+                Err(redis::ParsingError::from(format!(
+                    "Unexpected DEL command reply: {:?}",
+                    v
+                )))
+            }
         }
     }
 }
@@ -343,9 +359,13 @@ impl redis::FromRedisValue for SaddReply {
         match v {
             Value::Int(1) => Ok(Self::KeySet),
             Value::Int(0) => Ok(Self::KeyNotSet),
-            _ => Err(redis::ParsingError::from(
-                "Unexpected sadd command reply".to_string(),
-            )),
+            _ => {
+                tracing::error!(received = ?v, "Unexpected SADD command reply from Redis");
+                Err(redis::ParsingError::from(format!(
+                    "Unexpected SADD command reply: {:?}",
+                    v
+                )))
+            }
         }
     }
 }
