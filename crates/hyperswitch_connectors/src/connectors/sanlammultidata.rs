@@ -19,10 +19,15 @@ use hyperswitch_domain_models::{
         RefundsData, SetupMandateRequestData,
     },
     router_response_types::{
-        ConnectorInfo, PaymentMethodDetails, PaymentsResponseData, RefundsResponseData, SupportedPaymentMethods, SupportedPaymentMethodsExt
+        ConnectorInfo, PaymentMethodDetails, PaymentsResponseData, RefundsResponseData,
+        SupportedPaymentMethods, SupportedPaymentMethodsExt,
     },
-    types::{RefreshTokenRouterData, PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData, PaymentsSessionRouterData, PaymentsSyncRouterData, RefundExecuteRouterData, SetupMandateRouterData,
-    RefundSyncRouterData, TokenizationRouterData}
+    types::{
+        PaymentsAuthorizeRouterData, PaymentsCancelRouterData, PaymentsCaptureRouterData,
+        PaymentsSessionRouterData, PaymentsSyncRouterData, RefreshTokenRouterData,
+        RefundExecuteRouterData, RefundSyncRouterData, SetupMandateRouterData,
+        TokenizationRouterData,
+    },
 };
 use hyperswitch_interfaces::{
     api::{
@@ -157,7 +162,8 @@ impl ConnectorIntegration<Session, PaymentsSessionData, PaymentsResponseData> fo
 }
 
 impl ConnectorIntegration<PaymentMethodToken, PaymentMethodTokenizationData, PaymentsResponseData>
-    for Sanlammultidata {
+    for Sanlammultidata
+{
     fn build_request(
         &self,
         _req: &TokenizationRouterData,
@@ -172,7 +178,8 @@ impl ConnectorIntegration<PaymentMethodToken, PaymentMethodTokenizationData, Pay
 }
 
 impl ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken>
-    for Sanlammultidata {
+    for Sanlammultidata
+{
     fn build_request(
         &self,
         _req: &RefreshTokenRouterData,
@@ -187,7 +194,8 @@ impl ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken>
 }
 
 impl ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsResponseData>
-    for Sanlammultidata {
+    for Sanlammultidata
+{
     fn build_request(
         &self,
         _req: &SetupMandateRouterData,
@@ -202,7 +210,8 @@ impl ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsRespons
 }
 
 impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData>
-    for Sanlammultidata {
+    for Sanlammultidata
+{
     fn build_request(
         &self,
         _req: &PaymentsAuthorizeRouterData,
