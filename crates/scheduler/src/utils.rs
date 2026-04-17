@@ -239,7 +239,10 @@ pub async fn get_batches(
                         .map
                         .into_iter()
                         .map(|(field_name, redis_value)| {
-                            (field_name, redis_interface::redis_value_to_option_string(&redis_value))
+                            (
+                                field_name,
+                                redis_interface::redis_value_to_option_string(&redis_value),
+                            )
                         })
                         .collect();
                     batches.push(ProcessTrackerBatch::from_redis_stream_entry(fields)?);
