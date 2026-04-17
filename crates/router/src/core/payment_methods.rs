@@ -1645,6 +1645,7 @@ async fn execute_payment_method_create(
         None,
         fingerprint_id_from_vault,
         customer_id,
+        Some(pm_types::WriteMode::Insert), // Insert mode for new payment methods
     )
     .await;
 
@@ -2078,6 +2079,7 @@ pub async fn network_tokenize_and_vault_the_pmd(
             &network_token_vaulting_data,
             None,
             customer_id,
+            Some(pm_types::WriteMode::Insert), // Insert mode for new network tokens
         )
         .await
         .change_context(errors::NetworkTokenizationError::SaveNetworkTokenFailed)
@@ -3251,14 +3253,21 @@ pub async fn vault_payment_method_internal(
     existing_vault_id: Option<domain::VaultId>,
     fingerprint_id_from_vault: String,
     customer_id: &id_type::GlobalCustomerId,
+    write_mode: Option<pm_types::WriteMode>,
 ) -> RouterResult<pm_types::AddVaultResponse> {
     let db = &*state.store;
 
-    let mut resp_from_vault =
-        vault::add_payment_method_to_vault(state, platform, pmd, existing_vault_id, customer_id)
-            .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to add payment method in vault")?;
+    let mut resp_from_vault = vault::add_payment_method_to_vault(
+        state,
+        platform,
+        pmd,
+        existing_vault_id,
+        customer_id,
+        write_mode,
+    )
+    .await
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("Failed to add payment method in vault")?;
 
     // add fingerprint_id to the response
     resp_from_vault.fingerprint_id = Some(fingerprint_id_from_vault);
@@ -3536,6 +3545,7 @@ pub fn get_vault_response_for_insert_payment_method_data<F>(
 
 #[cfg(feature = "v2")]
 #[instrument(skip_all)]
+#[allow(clippy::too_many_arguments)]
 pub async fn vault_payment_method(
     state: &SessionState,
     pmd: &domain::PaymentMethodVaultingData,
@@ -3544,6 +3554,7 @@ pub async fn vault_payment_method(
     existing_vault_id: Option<domain::VaultId>,
     fingerprint_id_from_vault: String,
     customer_id: &id_type::GlobalCustomerId,
+    write_mode: Option<pm_types::WriteMode>,
 ) -> RouterResult<(
     pm_types::AddVaultResponse,
     Option<id_type::MerchantConnectorAccountId>,
@@ -3596,6 +3607,7 @@ pub async fn vault_payment_method(
             existing_vault_id,
             fingerprint_id_from_vault,
             customer_id,
+            write_mode,
         )
         .await
         .map(|value| (value, None)),
@@ -4504,10 +4516,10 @@ async fn execute_payment_method_update_handler(
         .await
         .attach_printable("Failed to update card cvc")?;
 
-    let (vaulting_data, vaulting_resp) = handler
-        .perform_vaulting_operations_if_required()
-        .await
-        .attach_printable("Failed to perform vaulting operations for payment method update")?;
+    let (vaulting_data, vaulting_resp) =
+        Box::pin(handler.perform_vaulting_operations_if_required())
+            .await
+            .attach_printable("Failed to perform vaulting operations for payment method update")?;
 
     handler
         .update_payment_method_if_required(vaulting_data, vaulting_resp, network_tokenization_resp)
@@ -5990,7 +6002,23 @@ impl<'a> pm_types::PaymentMethodUpdateHandler<'a> {
                     logger::info!(
                         "Payment method fingerprint is same, updating only payment method metadata in db"
                     );
-                    Ok((Some(vault_request_data), None))
+                    let (vault_response, _) = vault_payment_method(
+                        self.state,
+                        &vault_request_data,
+                        self.platform,
+                        self.profile,
+                        current_vault_id,
+                        fingerprint_id_from_vault,
+                        &self
+                            .payment_method
+                            .customer_id
+                            .to_owned()
+                            .get_required_value("GlobalCustomerId")?,
+                        Some(pm_types::WriteMode::Upsert), // Use Upsert mode for updates
+                    )
+                    .await
+                    .attach_printable("Failed to add payment method in vault")?;
+                    Ok((Some(vault_request_data), Some(vault_response)))
                 } else {
                     logger::info!(
                         "Payment method vault data is same as in request, skipping vault update"
@@ -6012,6 +6040,7 @@ impl<'a> pm_types::PaymentMethodUpdateHandler<'a> {
                         .customer_id
                         .to_owned()
                         .get_required_value("GlobalCustomerId")?,
+                    Some(pm_types::WriteMode::Insert), // Use Insert mode for new payment methods
                 )
                 .await
                 .attach_printable("Failed to add payment method in vault")?;
