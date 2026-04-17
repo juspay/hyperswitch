@@ -22,7 +22,10 @@ use router_env::tracing;
 use tracing::instrument;
 
 use crate::{
-    constant::{REDIS_ARG_COUNT, REDIS_ARG_EX, REDIS_ARG_MATCH, REDIS_ARG_NX, REDIS_CMD_GET, REDIS_CMD_HSCAN, REDIS_CMD_SET},
+    constant::{
+        REDIS_ARG_COUNT, REDIS_ARG_EX, REDIS_ARG_MATCH, REDIS_ARG_NX, REDIS_CMD_GET,
+        REDIS_CMD_HSCAN, REDIS_CMD_SET,
+    },
     errors,
     types::{
         redis_value_to_option_string, DelReply, HsetnxReply, MsetnxReply, RedisEntryId, RedisKey,
