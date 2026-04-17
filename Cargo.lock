@@ -4594,6 +4594,7 @@ dependencies = [
  "thiserror 1.0.69",
  "time 0.3.41",
  "tokio 1.48.0",
+ "tonic 0.14.5",
  "url 2.5.4",
 ]
 

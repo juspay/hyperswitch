@@ -204,6 +204,11 @@ impl<T> ConnectorErrorExt<T> for error_stack::Result<T, errors::ConnectorError> 
         self.map_err(|err| {
             let error = match err.current_context() {
                 errors::ConnectorError::ProcessingStepFailed(Some(bytes)) => {
+                    // Check if this is a UCS validation error (not a connector/payment error)
+                    // UCS validation errors should return HTTP 4xx, not payment failure with HTTP 200
+                    if let Some(ucs_api_error) = try_extract_ucs_validation_error(bytes) {
+                        return err.change_context(ucs_api_error);
+                    }
                     let response_str = std::str::from_utf8(bytes);
                     let data = match response_str {
                         Ok(s) => serde_json::from_str(s)
@@ -661,4 +666,37 @@ impl<T> StorageErrorExt<T, errors::UserErrors> for error_stack::Result<T, errors
             }
         })
     }
+}
+
+/// Returns `None` if the bytes don't represent a UCS validation error.
+fn try_extract_ucs_validation_error(bytes: &[u8]) -> Option<errors::ApiErrorResponse> {
+    let json_str = std::str::from_utf8(bytes).ok()?;
+    let parsed: serde_json::Value = serde_json::from_str(json_str).ok()?;
+
+    // Check if this is a UCS validation error
+    if parsed.get("type")?.as_str()? != "ucs_validation_error" {
+        return None;
+    }
+
+    let message = parsed.get("message")?.as_str()?.to_string();
+    let status_code = parsed.get("status_code")?.as_u64()? as u16;
+
+    let api_error = match status_code {
+        400 => errors::ApiErrorResponse::InvalidRequestData { message },
+        401 => errors::ApiErrorResponse::Unauthorized,
+        403 => errors::ApiErrorResponse::AccessForbidden { resource: message },
+        404 => errors::ApiErrorResponse::InvalidRequestData {
+            message: format!("Resource not found: {message}"),
+        },
+        409 => errors::ApiErrorResponse::InvalidRequestData {
+            message: format!("Resource already exists: {message}"),
+        },
+        501 => errors::ApiErrorResponse::NotImplemented {
+            message: errors::NotImplementedMessage::Reason(message),
+        },
+        503 | 504 => errors::ApiErrorResponse::InternalServerError,
+        _ => errors::ApiErrorResponse::InternalServerError,
+    };
+
+    Some(api_error)
 }
