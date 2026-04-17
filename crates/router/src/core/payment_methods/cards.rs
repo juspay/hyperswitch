@@ -513,7 +513,6 @@ impl PaymentMethodsController for PmCards<'_> {
                     api_models::payment_methods::BankDebitDetailsPaymentMethod::AchBankDebit {
                         masked_account_number: bank_debit.get_masked_account_number(),
                         masked_routing_number: bank_debit.get_masked_routing_number(),
-                        card_holder_name: None,
                         bank_account_holder_name: bank_debit.get_bank_account_holder_name(),
                         bank_name: None,
                         bank_type: bank_debit.get_bank_type(),
@@ -761,7 +760,7 @@ impl PaymentMethodsController for PmCards<'_> {
         .change_context(errors::VaultError::RequestEncodingFailed)
         .attach_printable("Failed to encode VaultFingerprintRequest")?;
 
-        let resp = vault::call_to_vault::<pm_types::GetVaultFingerprint>(self.state, payload)
+        let resp = vault::call_to_vault::<pm_types::GetVaultFingerprint>(self.state, payload, None)
             .await
             .change_context(errors::VaultError::VaultAPIError)
             .attach_printable("Call to vault failed")?;
@@ -816,10 +815,13 @@ impl PaymentMethodsController for PmCards<'_> {
             .change_context(errors::VaultError::RequestEncodingFailed)
             .attach_printable("Failed to encode AddVaultRequest")?;
 
-            let resp = vault::call_to_vault::<pm_types::AddVault>(self.state, payload)
-                .await
-                .change_context(errors::VaultError::VaultAPIError)
-                .attach_printable("Call to vault failed")?;
+            let query_params = Some(pm_types::VaultQueryParam::from(pm_types::WriteMode::Insert));
+
+            let resp =
+                vault::call_to_vault::<pm_types::AddVault>(self.state, payload, query_params)
+                    .await
+                    .change_context(errors::VaultError::VaultAPIError)
+                    .attach_printable("Call to vault failed")?;
 
             let stored_pm_resp: pm_types::InternalAddVaultResponse = resp
                 .parse_struct("InternalAddVaultResponse")
@@ -5230,11 +5232,13 @@ pub async fn get_masked_bank_details(
         let payment_method_data = pm.payment_method_data.clone().map(|x| x.into_inner());
         match payment_method_data {
             Some(pmd) => match pmd {
-                PaymentMethodsData::Card(_) => Ok(None),
-                PaymentMethodsData::BankDetails(bank_details) => Ok(Some(MaskedBankDetails {
-                    mask: bank_details.mask,
-                })),
-                PaymentMethodsData::WalletDetails(_) => Ok(None),
+                domain::PaymentMethodsData::Card(_) => Ok(None),
+                domain::PaymentMethodsData::BankDetails(bank_details) => {
+                    Ok(Some(MaskedBankDetails {
+                        mask: bank_details.mask,
+                    }))
+                }
+                domain::PaymentMethodsData::WalletDetails(_) => Ok(None),
                 _ => Ok(None),
             },
             None => Err(report!(errors::ApiErrorResponse::InternalServerError))
@@ -5442,7 +5446,7 @@ pub async fn get_bank_debit_from_hs_locker(
     provider: &domain::Provider,
     customer_id: &id_type::CustomerId,
     token_ref: &str,
-) -> errors::RouterResult<api_models::payment_methods::BankDebitDetail> {
+) -> errors::RouterResult<hyperswitch_domain_models::payment_method_data::BankDebitDetail> {
     let vault_request = pm_types::VaultRetrieveRequest {
         entity_id: hyperswitch_domain_models::vault::V1VaultEntityId::new(
             provider.get_account().get_id().clone(),
@@ -5458,7 +5462,7 @@ pub async fn get_bank_debit_from_hs_locker(
         .attach_printable("Failed to encode VaultRetrieveRequest")
         .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
-    let resp = vault::call_to_vault::<pm_types::VaultRetrieve>(state, payload)
+    let resp = vault::call_to_vault::<pm_types::VaultRetrieve>(state, payload, None)
         .await
         .change_context(errors::VaultError::VaultAPIError)
         .attach_printable("Call to vault failed")
