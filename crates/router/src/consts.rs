@@ -220,6 +220,9 @@ pub const AUTHENTICATION_SERVICE_ELIGIBLE_CONFIG: &str =
 /// Payment flow identifier used for performing GSM operations
 pub const PAYMENT_FLOW_STR: &str = "Payment";
 
+/// Redis key prefix for client session storage
+pub(crate) const CLIENT_SESSION_KEY_PREFIX: &str = "client_session";
+
 /// Default subflow identifier used for performing GSM operations
 pub const DEFAULT_SUBFLOW_STR: &str = "sub_flow";
 
@@ -354,6 +357,26 @@ pub mod superposition {
     pub const REQUIRES_CVV: &str = "requires_cvv";
     /// implicit customer update configuration key
     pub const IMPLICIT_CUSTOMER_UPDATE: &str = "implicit_customer_update";
+    /// dynamic fields configuration key for sdk config
+    pub const DYNAMIC_FIELDS: &str = "dynamic_fields";
+    /// payout sync tracker configuration key
+    pub const PAYOUT_TRACKER_MAPPING: &str = "payout_tracker_mapping";
+    /// client session validation enabled configuration key
+    pub const CLIENT_SESSION_VALIDATION_ENABLED: &str = "client_session_validation_enabled";
+    /// GSM (Global Status Map) call configuration key
+    pub const SHOULD_CALL_GSM: &str = "should_call_gsm";
+    /// Eligibility check configuration key
+    pub const SHOULD_PERFORM_ELIGIBILITY: &str = "should_perform_eligibility";
+    /// MIT with limited card data configuration key
+    pub const SHOULD_ENABLE_MIT_WITH_LIMITED_CARD_DATA: &str =
+        "should_enable_mit_with_limited_card_data";
+    /// Store eligibility check data for authentication configuration key
+    pub const SHOULD_STORE_ELIGIBILITY_CHECK_DATA_FOR_AUTHENTICATION: &str =
+        "should_store_eligibility_check_data_for_authentication";
+    /// Extended card BIN configuration key
+    pub const ENABLE_EXTENDED_CARD_BIN: &str = "enable_extended_card_bin";
+    /// Max auto payout retries configuration key
+    pub const MAX_AUTO_PAYOUT_RETRIES: &str = "max_auto_payout_retries";
 }
 
 #[cfg(test)]

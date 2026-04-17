@@ -28,7 +28,7 @@ use hyperswitch_domain_models::{
     types::RefundsRouterData,
 };
 use hyperswitch_interfaces::{consts, disputes::DisputePayload, errors::ConnectorError};
-use masking::{ExposeInterface, Secret};
+use hyperswitch_masking::{ExposeInterface, Secret};
 pub use request::*;
 pub use response::*;
 
@@ -192,6 +192,22 @@ impl TryFrom<&FinixRouterData<'_, Authorize, PaymentsAuthorizeData, PaymentsResp
                     "Payment method not supported".to_string(),
                 ))?,
             };
+
+        let three_d_secure =
+            if let Some(auth_data) = item.router_data.request.authentication_data.as_ref() {
+                Some(FinixThreeDSecure {
+                    cardholder_authentication: auth_data.cavv.clone(),
+                    electronic_commerce_indicator: auth_data.eci.clone().ok_or(
+                        ConnectorError::MissingRequiredField {
+                            field_name: "Electronic Commerce Indicator (ECI)",
+                        },
+                    )?,
+                    transaction_id: auth_data.threeds_server_transaction_id.clone(),
+                })
+            } else {
+                None
+            };
+
         let statement_descriptor = item
             .router_data
             .request
@@ -205,7 +221,7 @@ impl TryFrom<&FinixRouterData<'_, Authorize, PaymentsAuthorizeData, PaymentsResp
             merchant: item.merchant_id.clone(),
             idempotency_id: Some(item.router_data.connector_request_reference_id.clone()),
             tags: None,
-            three_d_secure: None,
+            three_d_secure_authentication: three_d_secure,
             statement_descriptor,
         })
     }

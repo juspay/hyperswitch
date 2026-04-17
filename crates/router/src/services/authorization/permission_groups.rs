@@ -4,12 +4,14 @@ use common_enums::{EntityType, ParentGroup, PermissionGroup, PermissionScope, Re
 use strum::IntoEnumIterator;
 
 use super::permissions;
+use crate::db::domain::role::RoleProductCategory;
 
 pub trait PermissionGroupExt {
     fn scope(&self) -> PermissionScope;
     fn parent(&self) -> ParentGroup;
     fn resources(&self) -> Vec<Resource>;
     fn accessible_groups(&self) -> Vec<PermissionGroup>;
+    fn get_role_product_category(&self) -> RoleProductCategory;
 }
 
 impl PermissionGroupExt for PermissionGroup {
@@ -23,7 +25,11 @@ impl PermissionGroupExt for PermissionGroup {
             | Self::AccountView
             | Self::ReconOpsView
             | Self::ReconReportsView
-            | Self::ThemeView => PermissionScope::Read,
+            | Self::ThemeView
+            | Self::ReconSourcesView
+            | Self::ReconTransactionsView
+            | Self::ReconExceptionsView
+            | Self::ReconRulesView => PermissionScope::Read,
 
             Self::OperationsManage
             | Self::ConnectorsManage
@@ -33,7 +39,11 @@ impl PermissionGroupExt for PermissionGroup {
             | Self::ReconOpsManage
             | Self::ReconReportsManage
             | Self::InternalManage
-            | Self::ThemeManage => PermissionScope::Write,
+            | Self::ThemeManage
+            | Self::ReconSourcesManage
+            | Self::ReconExceptionsManage
+            | Self::ReconTransactionsManage
+            | Self::ReconRulesManage => PermissionScope::Write,
         }
     }
 
@@ -50,6 +60,12 @@ impl PermissionGroupExt for PermissionGroup {
             Self::ReconOpsView | Self::ReconOpsManage => ParentGroup::ReconOps,
             Self::ReconReportsView | Self::ReconReportsManage => ParentGroup::ReconReports,
             Self::InternalManage => ParentGroup::Internal,
+            Self::ReconSourcesView | Self::ReconSourcesManage => ParentGroup::ReconSources,
+            Self::ReconExceptionsView | Self::ReconExceptionsManage => ParentGroup::ReconExceptions,
+            Self::ReconTransactionsView | Self::ReconTransactionsManage => {
+                ParentGroup::ReconTransactions
+            }
+            Self::ReconRulesView | Self::ReconRulesManage => ParentGroup::ReconRules,
         }
     }
 
@@ -95,6 +111,75 @@ impl PermissionGroupExt for PermissionGroup {
             Self::InternalManage => vec![Self::InternalManage],
             Self::ThemeView => vec![Self::ThemeView, Self::AccountView],
             Self::ThemeManage => vec![Self::ThemeManage, Self::AccountView],
+
+            Self::ReconSourcesView => vec![
+                Self::ReconSourcesView,
+                Self::ReconTransactionsView,
+                Self::ReconRulesView,
+            ],
+            Self::ReconSourcesManage => vec![
+                Self::ReconSourcesManage,
+                Self::ReconSourcesView,
+                Self::ReconTransactionsView,
+                Self::ReconRulesView,
+            ],
+            Self::ReconExceptionsView => vec![
+                Self::ReconExceptionsView,
+                Self::ReconTransactionsView,
+                Self::ReconRulesView,
+            ],
+            Self::ReconExceptionsManage => vec![
+                Self::ReconExceptionsManage,
+                Self::ReconTransactionsView,
+                Self::ReconRulesView,
+            ],
+            Self::ReconTransactionsView => vec![Self::ReconTransactionsView, Self::ReconRulesView],
+            Self::ReconTransactionsManage => vec![
+                Self::ReconTransactionsManage,
+                Self::ReconTransactionsView,
+                Self::ReconRulesView,
+            ],
+            Self::ReconRulesView => vec![Self::ReconRulesView, Self::ReconTransactionsView],
+            Self::ReconRulesManage => vec![
+                Self::ReconRulesManage,
+                Self::ReconRulesView,
+                Self::ReconTransactionsView,
+            ],
+        }
+    }
+
+    fn get_role_product_category(&self) -> RoleProductCategory {
+        match self {
+            // Common across every product — not validated against the merchant's category.
+            Self::UsersView | Self::UsersManage => RoleProductCategory::Dashboard,
+
+            // Orchestration-only groups.
+            Self::OperationsView
+            | Self::OperationsManage
+            | Self::ConnectorsView
+            | Self::ConnectorsManage
+            | Self::WorkflowsView
+            | Self::WorkflowsManage
+            | Self::AnalyticsView
+            | Self::AccountView
+            | Self::AccountManage
+            | Self::ReconReportsView
+            | Self::ReconReportsManage
+            | Self::ReconOpsView
+            | Self::ReconOpsManage
+            | Self::InternalManage
+            | Self::ThemeView
+            | Self::ThemeManage => RoleProductCategory::Orchestration,
+
+            // Recon-only groups.
+            Self::ReconSourcesView
+            | Self::ReconSourcesManage
+            | Self::ReconExceptionsView
+            | Self::ReconExceptionsManage
+            | Self::ReconTransactionsView
+            | Self::ReconTransactionsManage
+            | Self::ReconRulesView
+            | Self::ReconRulesManage => RoleProductCategory::Recon,
         }
     }
 }
@@ -121,6 +206,10 @@ impl ParentGroupExt for ParentGroup {
             Self::ReconReports => RECON_REPORTS.to_vec(),
             Self::Internal => INTERNAL.to_vec(),
             Self::Theme => THEME.to_vec(),
+            Self::ReconSources => RECON_SOURCES.to_vec(),
+            Self::ReconExceptions => RECON_EXCEPTIONS.to_vec(),
+            Self::ReconTransactions => RECON_TRANSACTIONS.to_vec(),
+            Self::ReconRules => RECON_RULES.to_vec(),
         }
     }
 
@@ -208,3 +297,12 @@ pub static RECON_REPORTS: [Resource; 4] = [
 ];
 
 pub static THEME: [Resource; 1] = [Resource::Theme];
+
+pub static RECON_SOURCES: [Resource; 2] = [Resource::ReconIngestion, Resource::ReconTransformation];
+
+pub static RECON_EXCEPTIONS: [Resource; 1] = [Resource::ReconException];
+
+pub static RECON_TRANSACTIONS: [Resource; 2] =
+    [Resource::ReconStagingEntry, Resource::ReconTransaction];
+
+pub static RECON_RULES: [Resource; 1] = [Resource::ReconRule];

@@ -8,6 +8,7 @@ pub mod blocklist_lookup;
 pub mod business_profile;
 pub mod callback_mapper;
 pub mod capture;
+pub mod card_issuer;
 pub mod cards_info;
 pub mod configs;
 pub mod customers;
@@ -73,8 +74,8 @@ pub use scheduler::db::process_tracker;
 pub use self::{
     address::*, api_keys::*, authentication::*, authorization::*, blocklist::*,
     blocklist_fingerprint::*, blocklist_lookup::*, business_profile::*, callback_mapper::*,
-    capture::*, cards_info::*, configs::*, customers::*, dashboard_metadata::*, dispute::*,
-    dynamic_routing_stats::*, ephemeral_key::*, events::*, file::*, fraud_check::*,
+    capture::*, card_issuer::*, cards_info::*, configs::*, customers::*, dashboard_metadata::*,
+    dispute::*, dynamic_routing_stats::*, ephemeral_key::*, events::*, file::*, fraud_check::*,
     generic_link::*, gsm::*, hyperswitch_ai_interaction::*, locker_mock_up::*, mandate::*,
     merchant_account::*, merchant_connector_account::*, merchant_key_store::*, payment_link::*,
     payment_method::*, process_tracker::*, refund::*, reverse_lookup::*, role::*,

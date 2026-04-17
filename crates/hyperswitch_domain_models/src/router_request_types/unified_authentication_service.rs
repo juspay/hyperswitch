@@ -2,7 +2,7 @@ use api_models::payments::DeviceChannel;
 use common_enums::{MerchantCategoryCode, RoutingRegion};
 use common_types::payments::MerchantCountryCode;
 use common_utils::types::MinorUnit;
-use masking::Secret;
+use hyperswitch_masking::Secret;
 
 use crate::address::Address;
 
@@ -217,26 +217,36 @@ pub struct ThreeDsMetaData {
 }
 
 #[cfg(feature = "v1")]
-impl From<PostAuthenticationDetails>
-    for Option<api_models::authentication::AuthenticationPaymentMethodDataResponse>
-{
-    fn from(item: PostAuthenticationDetails) -> Self {
-        match (item.raw_card_details, item.token_details) {
-            (Some(card_data), _) => Some(
-                api_models::authentication::AuthenticationPaymentMethodDataResponse::CardData {
-                    card_expiry_year: Some(card_data.expiration_year),
-                    card_expiry_month: Some(card_data.expiration_month),
-                },
-            ),
-            (None, Some(network_token_data)) => {
-                Some(
+impl PostAuthenticationDetails {
+    pub fn to_authentication_payment_method_data_response(
+        self,
+    ) -> Option<api_models::authentication::AuthenticationPaymentMethodDataResponse> {
+        match (self.raw_card_details, self.token_details) {
+                (Some(card_data), _) => Some(
+                    api_models::authentication::AuthenticationPaymentMethodDataResponse::CardData {
+                        card_expiry_year: Some(card_data.expiration_year),
+                        card_expiry_month: Some(card_data.expiration_month),
+                    },
+                ),
+                (None, Some(network_token_data)) => Some(
                     api_models::authentication::AuthenticationPaymentMethodDataResponse::NetworkTokenData {
                         network_token_expiry_year: Some(network_token_data.token_expiration_year),
                         network_token_expiry_month: Some(network_token_data.token_expiration_month),
                     },
-                )
+                ),
+                (None, None) => None,
             }
-            (None, None) => None,
+    }
+
+    pub fn get_post_authentication_details(&self) -> Self {
+        Self {
+            eci: self.eci.clone(),
+            token_details: self.token_details.clone(),
+            dynamic_data_details: self.dynamic_data_details.clone(),
+            trans_status: self.trans_status.clone(),
+            challenge_cancel: self.challenge_cancel.clone(),
+            challenge_code_reason: self.challenge_code_reason.clone(),
+            raw_card_details: self.raw_card_details.clone(),
         }
     }
 }

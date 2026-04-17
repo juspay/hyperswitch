@@ -121,6 +121,7 @@ impl Feature<api::ExtendAuthorization, types::PaymentsExtendAuthorizationData>
             self,
             creds_identifier,
             gateway_context,
+            None,
         ))
         .await
     }
