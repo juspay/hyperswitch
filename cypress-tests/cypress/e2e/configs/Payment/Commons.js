@@ -491,6 +491,39 @@ export const payment_methods_enabled = [
       },
     ],
   },
+  {
+    payment_method: "bank_debit",
+    payment_method_types: [
+      {
+        payment_method_type: "ach",
+        minimum_amount: 0,
+        maximum_amount: 68607706,
+        recurring_enabled: true,
+        installment_payment_enabled: false,
+      },
+      {
+        payment_method_type: "sepa",
+        minimum_amount: 0,
+        maximum_amount: 68607706,
+        recurring_enabled: true,
+        installment_payment_enabled: false,
+      },
+      {
+        payment_method_type: "becs",
+        minimum_amount: 0,
+        maximum_amount: 68607706,
+        recurring_enabled: true,
+        installment_payment_enabled: false,
+      },
+      {
+        payment_method_type: "bacs",
+        minimum_amount: 0,
+        maximum_amount: 68607706,
+        recurring_enabled: true,
+        installment_payment_enabled: false,
+      },
+    ],
+  },
 ];
 
 export const connectorDetails = {
@@ -824,6 +857,192 @@ export const connectorDetails = {
       },
     }),
   },
+  bank_debit_pm: {
+    PaymentIntent: (paymentMethodType) => {
+      const currencyMap = {
+        Sepa: "EUR",
+        Ach: "USD",
+        Becs: "AUD",
+        Bacs: "GBP",
+      };
+      return {
+        Request: {
+          currency: currencyMap[paymentMethodType] || "USD",
+          setup_future_usage: "off_session",
+        },
+        Response: {
+          status: 200,
+          body: {
+            status: "requires_payment_method",
+          },
+        },
+      };
+    },
+
+    Sepa: getCustomExchange({
+      Request: {
+        payment_method: "bank_debit",
+        payment_method_type: "sepa",
+        payment_method_data: {
+          bank_debit: {
+            sepa_bank_debit: {
+              iban: "DE89370400440532013000",
+              bank_account_holder_name: "John Doe",
+            },
+          },
+        },
+        billing: {
+          address: {
+            line1: "1467",
+            line2: "Harrison Street",
+            line3: "Harrison Street",
+            city: "Amsterdam",
+            state: "North Holland",
+            zip: "1012",
+            country: "NL",
+            first_name: "John",
+            last_name: "Doe",
+          },
+        },
+        currency: "EUR",
+        customer_acceptance: customerAcceptance,
+        mandate_data: {
+          customer_acceptance: customerAcceptance,
+          mandate_type: {
+            multi_use: {
+              amount: 8000,
+              currency: "EUR",
+            },
+          },
+        },
+        payment_type: "setup_mandate",
+      },
+    }),
+
+    Ach: getCustomExchange({
+      Request: {
+        payment_method: "bank_debit",
+        payment_method_type: "ach",
+        payment_method_data: {
+          bank_debit: {
+            ach_bank_debit: {
+              account_number: "000123456789",
+              routing_number: "121000358",
+              bank_type: "checking",
+              bank_account_holder_name: "John Doe",
+            },
+          },
+        },
+        billing: {
+          address: {
+            line1: "1467",
+            line2: "Harrison Street",
+            line3: "Harrison Street",
+            city: "San Francisco",
+            state: "California",
+            zip: "94122",
+            country: "US",
+            first_name: "John",
+            last_name: "Doe",
+          },
+        },
+        currency: "USD",
+        customer_acceptance: customerAcceptance,
+        mandate_data: {
+          customer_acceptance: customerAcceptance,
+          mandate_type: {
+            multi_use: {
+              amount: 8000,
+              currency: "USD",
+            },
+          },
+        },
+        payment_type: "setup_mandate",
+      },
+    }),
+
+    Becs: getCustomExchange({
+      Request: {
+        payment_method: "bank_debit",
+        payment_method_type: "becs",
+        payment_method_data: {
+          bank_debit: {
+            becs_bank_debit: {
+              account_number: "12345678",
+              bsb_number: "000-000",
+              bank_account_holder_name: "John Doe",
+            },
+          },
+        },
+        billing: {
+          address: {
+            line1: "1467",
+            line2: "Harrison Street",
+            line3: "Harrison Street",
+            city: "Sydney",
+            state: "New South Wales",
+            zip: "2000",
+            country: "AU",
+            first_name: "John",
+            last_name: "Doe",
+          },
+        },
+        currency: "AUD",
+        customer_acceptance: customerAcceptance,
+        mandate_data: {
+          customer_acceptance: customerAcceptance,
+          mandate_type: {
+            multi_use: {
+              amount: 8000,
+              currency: "AUD",
+            },
+          },
+        },
+        payment_type: "setup_mandate",
+      },
+    }),
+
+    Bacs: getCustomExchange({
+      Request: {
+        payment_method: "bank_debit",
+        payment_method_type: "bacs",
+        payment_method_data: {
+          bank_debit: {
+            bacs_bank_debit: {
+              account_number: "09083055",
+              sort_code: "560036",
+              bank_account_holder_name: "David Archer",
+            },
+          },
+        },
+        billing: {
+          address: {
+            line1: "1467",
+            line2: "Harrison Street",
+            line3: "Harrison Street",
+            city: "London",
+            state: "England",
+            zip: "SW1A 1AA",
+            country: "GB",
+            first_name: "John",
+            last_name: "Doe",
+          },
+        },
+        currency: "GBP",
+        customer_acceptance: customerAcceptance,
+        mandate_data: {
+          customer_acceptance: customerAcceptance,
+          mandate_type: {
+            multi_use: {
+              amount: 8000,
+              currency: "GBP",
+            },
+          },
+        },
+        payment_type: "setup_mandate",
+      },
+    }),
+  },
   wallet_pm: {
     PaymentIntent: (paymentMethodType) =>
       getCustomExchange({
@@ -983,6 +1202,18 @@ export const connectorDetails = {
         setup_future_usage: "on_session",
       },
     }),
+    BillingDescriptorNo3DSAutoCapture: getCustomExchange({
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "USD",
+        billing_descriptor: {
+          statement_descriptor: "ONLINE-PURCHASE",
+        },
+      },
+    }),
     No3DSFailPayment: getCustomExchange({
       Request: {
         payment_method: "card",
@@ -991,6 +1222,10 @@ export const connectorDetails = {
         },
         customer_acceptance: null,
         setup_future_usage: "on_session",
+      },
+      Response: {
+        status: 200,
+        body: {},
       },
     }),
     ManualRetryPaymentDisabled: getCustomExchange({
@@ -1775,7 +2010,7 @@ export const connectorDetails = {
             city: "San Fransico",
             state: "CA",
             zip: "94122",
-            country: "US",
+            country: "PL",
             first_name: "joseph",
             last_name: "Doe",
           },
