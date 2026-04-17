@@ -190,7 +190,7 @@ where
                 logger::debug!(kv_operation= %operation, value = ?value);
 
                 redis_conn
-                    .set_hash_fields(&key.into(), value, Some(ttl.into()))
+                    .set_hash_fields(&key.into(), &[value], Some(ttl.into()))
                     .await?;
 
                 store

@@ -54,6 +54,7 @@ max_in_flight_commands = 5000
 default_command_timeout = 30
 unresponsive_timeout = 10
 max_feed_count = 200
+max_failure_threshold = 5
 
 [trace_header]
 header_name = "x-request-id"
