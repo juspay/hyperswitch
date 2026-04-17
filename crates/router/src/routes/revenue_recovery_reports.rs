@@ -1,14 +1,14 @@
 use std::sync::Arc;
 
-use actix_multipart::Multipart;
+use actix_multipart::{Multipart, MultipartError};
 use actix_web::{web, HttpRequest, HttpResponse};
 use api_models::revenue_recovery_reports::{
     RevenueRecoveryReportMetadata, RevenueRecoveryReportUploadResponse, UploadStatus,
     UploadStatusData,
 };
 use common_utils::consts::{DEFAULT_TENANT, TENANT_HEADER};
-use futures::StreamExt;
-use router_env::{instrument, logger, Flow};
+use futures::{StreamExt, TryStreamExt};
+use router_env::{instrument, logger, tracing, Flow};
 
 use crate::{
     consts,
@@ -16,9 +16,10 @@ use crate::{
     headers,
     routes::app::SessionState,
     routes::AppState,
-    services::{api, authentication as auth},
+    services::{api, authentication as auth, ApplicationResponse},
     types::storage::revenue_recovery_reports::RevenueRecoveryUploadStatusManager,
 };
+use crate::services::authentication::AuthenticateAndFetch;
 
 const UPLOAD_STATUS_TTL_SECONDS: i64 = 86400;
 
@@ -117,7 +118,7 @@ pub async fn upload_revenue_recovery_report_stream_handler(
                 content_type = field.content_type().map(|m| m.essence_str().to_string());
                 file_content_stream =
                     Some(field.map(|chunk_res| {
-                        chunk_res.map_err(actix_web::error::MultipartError::from)
+                        chunk_res.map_err(MultipartError::from)
                     }));
             }
             Some("timeline") => {
@@ -216,7 +217,7 @@ pub async fn upload_revenue_recovery_report_stream_handler(
         return api::log_and_return_error_response(err);
     }
 
-    tokio::spawn(async move {
+    actix_web::rt::spawn(async move {
         let _ = revenue_recovery_reports::upload_revenue_recovery_report_background(
             session_state_clone,
             platform_clone,
@@ -229,12 +230,12 @@ pub async fn upload_revenue_recovery_report_stream_handler(
     });
 
     HttpResponse::Ok().json(RevenueRecoveryReportUploadResponse {
-        file_id,
+        file_id: file_id.clone(),
         s3_key: format!(
             "revenue_recovery_reports/{}/{}_{}_{}",
             merchant_id_str, metadata.timeline, file_id, metadata.file_name
         ),
-        status: UploadStatus::Uploading.to_string(),
+        status: "uploading".to_string(),
         uploaded_at: upload_request_time.to_string(),
         merchant_id: merchant_id_str.clone(),
     })
@@ -322,7 +323,10 @@ pub async fn get_revenue_recovery_report_status_handler(
     )
     .await
     {
-        Ok(response) => api::log_and_return_response(response, &flow),
+        Ok(ApplicationResponse::Json(response)) => HttpResponse::Ok().json(response),
+        Ok(_) => HttpResponse::InternalServerError().json(serde_json::json!({
+            "error": "Unexpected response type"
+        })),
         Err(err) => api::log_and_return_error_response(err),
     }
 }
