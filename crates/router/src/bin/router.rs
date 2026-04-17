@@ -76,6 +76,11 @@ fn main() -> ApplicationResult<()> {
             .unwrap_or(2);
         dbg!(format!("number of available cpu = {:?}", cpu_count));
         let worker_threads = (cpu_count * 4).clamp(4, 32);
+        let tokio_worker_threads_env = std::env::var("TOKIO_WORKER_THREADS").unwrap_or_default();
+        dbg!(format!(
+            "TOKIO_WORKER_THREADS env variable value = {:?}",
+            tokio_worker_threads_env
+        ));
         return tokio::runtime::Builder::new_multi_thread()
             .enable_all()
             .worker_threads(worker_threads)
