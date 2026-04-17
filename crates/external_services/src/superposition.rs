@@ -78,6 +78,22 @@ impl GetValue<i64> for open_feature::Client {
     }
 }
 
+impl GetValue<u32> for open_feature::Client {
+    async fn get_value(
+        &self,
+        key: &str,
+        context: &open_feature::EvaluationContext,
+    ) -> Result<u32, open_feature::EvaluationError> {
+        let value = self.get_int_value(key, Some(context), None).await?;
+        u32::try_from(value).map_err(|err| {
+            open_feature::EvaluationError::builder()
+                .code(open_feature::EvaluationErrorCode::TypeMismatch)
+                .message(err.to_string())
+                .build()
+        })
+    }
+}
+
 impl GetValue<f64> for open_feature::Client {
     async fn get_value(
         &self,

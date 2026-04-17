@@ -330,3 +330,33 @@ impl DatabaseBackedConfig for ClientSessionValidationEnabled {
         None
     }
 }
+
+config! {
+    superposition_key = MAX_AUTO_PAYOUT_RETRIES,
+    output = u32,
+    default = 0u32,
+    requires = dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndPayoutRetryType,
+    targeting_key = id_type::CustomerId
+}
+
+impl DatabaseBackedConfig for MaxAutoPayoutRetries {
+    const KEY: &'static str = "max_auto_payout_retries";
+    fn db_key(dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
+        dimensions
+            .get_processor_merchant_id()
+            .and_then(|merchant_id| {
+                dimensions
+                    .get_payout_retry_type()
+                    .map(|retry_type| match retry_type {
+                        common_enums::PayoutRetryType::SingleConnector => format!(
+                            "max_auto_single_connector_payout_retries_enabled_{}",
+                            merchant_id.get_string_repr()
+                        ),
+                        common_enums::PayoutRetryType::MultiConnector => format!(
+                            "max_auto_multiple_connector_payout_retries_enabled_{}",
+                            merchant_id.get_string_repr()
+                        ),
+                    })
+            })
+    }
+}
