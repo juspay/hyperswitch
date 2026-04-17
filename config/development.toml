@@ -1299,7 +1299,7 @@ soft_kill = false
 enabled = true
 
 [events]
-source = "kafka"
+source = "logs"
 emit_external_service_call_events = false
 
 [events.kafka]
