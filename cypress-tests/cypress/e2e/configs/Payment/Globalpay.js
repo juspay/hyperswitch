@@ -119,7 +119,7 @@ export const connectorDetails = {
   bank_redirect_pm: {
     PaymentIntent: (paymentMethodType) => ({
       Request: {
-        currency: "EUR",
+        currency: paymentMethodType === "Ideal" ? "EUR" : "EUR",
       },
       Response: {
         status: 200,
@@ -160,9 +160,7 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "failed",
-          error_code: "ACTION_NOT_AUTHORIZED",
-          error_message: "Access token and merchant info do not match",
+          status: "requires_customer_action",
         },
       },
     },
