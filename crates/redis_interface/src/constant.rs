@@ -11,5 +11,11 @@ pub const REDIS_ARG_NX: &str = "NX";
 pub const REDIS_ARG_MATCH: &str = "MATCH";
 pub const REDIS_ARG_COUNT: &str = "COUNT";
 
+/// Initial delay between PubSub reconnection attempts
+pub const PUBSUB_INITIAL_RETRY_DELAY: std::time::Duration = std::time::Duration::from_secs(1);
+
 /// Maximum delay between PubSub reconnection attempts
 pub const PUBSUB_MAX_RETRY_DELAY: std::time::Duration = std::time::Duration::from_secs(30);
+
+/// Multiplier for exponential backoff between PubSub reconnection attempts
+pub const PUBSUB_RETRY_BACKOFF_FACTOR: u32 = 2;

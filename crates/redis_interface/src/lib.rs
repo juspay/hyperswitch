@@ -223,7 +223,7 @@ impl SubscriberClient {
         use futures::StreamExt;
 
         let sender = broadcast_sender.clone();
-        let mut retry_delay = std::time::Duration::from_secs(1);
+        let mut retry_delay = constant::PUBSUB_INITIAL_RETRY_DELAY;
 
         loop {
             let result = {
@@ -235,7 +235,7 @@ impl SubscriberClient {
 
             match result {
                 Some(msg) => {
-                    retry_delay = std::time::Duration::from_secs(1);
+                    retry_delay = constant::PUBSUB_INITIAL_RETRY_DELAY;
                     let channel = msg.get_channel_name().to_string();
                     let payload: Value = msg.get_payload().unwrap_or(Value::Nil);
                     let _ = sender.send(PubSubMessage {
@@ -248,14 +248,16 @@ impl SubscriberClient {
                     let mut pubsub = pubsub_connection.lock().await;
                     match Self::reconnect_standalone(redis_client, &mut pubsub, subscriptions).await {
                         Ok(()) => {
-                            retry_delay = std::time::Duration::from_secs(1);
+                            retry_delay = constant::PUBSUB_INITIAL_RETRY_DELAY;
                             tracing::info!("PubSub reconnected and resubscribed successfully");
                         }
                         Err(e) => {
                             tracing::error!(?e, "Failed to reconnect PubSub, retrying in {:?}", retry_delay);
                             drop(pubsub);
                             tokio::time::sleep(retry_delay).await;
-                            retry_delay = (retry_delay * 2).min(crate::constant::PUBSUB_MAX_RETRY_DELAY);                        }
+                            retry_delay = (retry_delay * constant::PUBSUB_RETRY_BACKOFF_FACTOR)
+                                .min(constant::PUBSUB_MAX_RETRY_DELAY);
+                        }
                     }
                 }
             }
