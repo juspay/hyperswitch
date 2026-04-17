@@ -21264,6 +21264,17 @@
                 "$ref": "#/components/schemas/BankDebitDetail"
               }
             }
+          },
+          {
+            "type": "object",
+            "required": [
+              "wallet"
+            ],
+            "properties": {
+              "wallet": {
+                "$ref": "#/components/schemas/WalletPaymentMethodData"
+              }
+            }
           }
         ]
       },
@@ -21730,6 +21741,50 @@
           }
         ]
       },
+      "PaymentMethodDataWalletInfo": {
+        "type": "object",
+        "properties": {
+          "last4": {
+            "type": "string",
+            "description": "Last 4 digits of the card number",
+            "nullable": true
+          },
+          "card_network": {
+            "type": "string",
+            "description": "The information of the payment method",
+            "nullable": true
+          },
+          "type": {
+            "type": "string",
+            "description": "The type of payment method",
+            "nullable": true
+          },
+          "card_exp_month": {
+            "type": "string",
+            "description": "The card's expiry month",
+            "example": "10",
+            "nullable": true
+          },
+          "card_exp_year": {
+            "type": "string",
+            "description": "The card's expiry year",
+            "example": "25",
+            "nullable": true
+          },
+          "auth_code": {
+            "type": "string",
+            "description": "Unique authorisation code for the payment",
+            "example": "003225",
+            "nullable": true
+          },
+          "email": {
+            "type": "string",
+            "description": "Email address associated with the wallet (e.g. PayPal email)",
+            "example": "johntest@test.com",
+            "nullable": true
+          }
+        }
+      },
       "PaymentMethodDeleteResponse": {
         "type": "object",
         "required": [
@@ -21879,6 +21934,17 @@
             "properties": {
               "bank": {
                 "$ref": "#/components/schemas/Bank"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "wallet"
+            ],
+            "properties": {
+              "wallet": {
+                "$ref": "#/components/schemas/WalletPaymentMethodData"
               }
             }
           }
@@ -22071,6 +22137,17 @@
             "properties": {
               "bank_debit": {
                 "$ref": "#/components/schemas/BankDebitDetailsPaymentMethod"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "wallet"
+            ],
+            "properties": {
+              "wallet": {
+                "$ref": "#/components/schemas/WalletPaymentMethodData"
               }
             }
           }
@@ -31896,18 +31973,16 @@
       },
       "WalletAdditionalDataForCard": {
         "type": "object",
-        "required": [
-          "last4",
-          "card_network"
-        ],
         "properties": {
           "last4": {
             "type": "string",
-            "description": "Last 4 digits of the card number"
+            "description": "Last 4 digits of the card number",
+            "nullable": true
           },
           "card_network": {
             "type": "string",
-            "description": "The information of the payment method"
+            "description": "The information of the payment method",
+            "nullable": true
           },
           "type": {
             "type": "string",
@@ -31930,6 +32005,12 @@
             "type": "string",
             "description": "Unique authorisation code generated for the payment",
             "example": "009825",
+            "nullable": true
+          },
+          "email": {
+            "type": "string",
+            "description": "Email address associated with the wallet (e.g. PayPal email)",
+            "example": "johntest@test.com",
             "nullable": true
           }
         }
@@ -32345,6 +32426,43 @@
             "properties": {
               "we_chat_pay_redirect": {
                 "$ref": "#/components/schemas/WeChatPayRedirection"
+              }
+            }
+          }
+        ]
+      },
+      "WalletPaymentMethodData": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "apple_pay"
+            ],
+            "properties": {
+              "apple_pay": {
+                "$ref": "#/components/schemas/PaymentMethodDataWalletInfo"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "google_pay"
+            ],
+            "properties": {
+              "google_pay": {
+                "$ref": "#/components/schemas/PaymentMethodDataWalletInfo"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "pay_pal"
+            ],
+            "properties": {
+              "pay_pal": {
+                "$ref": "#/components/schemas/PaypalRedirection"
               }
             }
           }
