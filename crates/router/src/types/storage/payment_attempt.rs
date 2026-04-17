@@ -243,6 +243,7 @@ mod tests {
             encrypted_payment_method_data: Default::default(),
             error_details: Default::default(),
             retry_type: Default::default(),
+            installment_data: Default::default(),
         };
 
         let store = state
@@ -362,6 +363,7 @@ mod tests {
             encrypted_payment_method_data: Default::default(),
             error_details: Default::default(),
             retry_type: Default::default(),
+            installment_data: Default::default(),
         };
         let store = state
             .stores
@@ -495,6 +497,7 @@ mod tests {
             encrypted_payment_method_data: Default::default(),
             error_details: Default::default(),
             retry_type: Default::default(),
+            installment_data: Default::default(),
         };
         let store = state
             .stores

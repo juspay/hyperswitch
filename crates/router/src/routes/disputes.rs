@@ -58,6 +58,8 @@ pub async fn retrieve_dispute(
             }),
             &auth::JWTAuth {
                 permission: Permission::ProfileDisputeRead,
+                allow_connected: false,
+                allow_platform: false,
             },
             req.headers(),
         ),
@@ -93,6 +95,8 @@ pub async fn fetch_disputes(
             }),
             &auth::JWTAuth {
                 permission: Permission::ProfileDisputeRead,
+                allow_connected: false,
+                allow_platform: false,
             },
             req.headers(),
         ),
@@ -139,7 +143,12 @@ pub async fn retrieve_disputes_list(
         &req,
         payload,
         |state, auth: auth::AuthenticationData, req, _| {
-            disputes::retrieve_disputes_list(state, auth.platform, None, req)
+            disputes::retrieve_disputes_list(
+                state,
+                auth.platform.get_processor().clone(),
+                None,
+                req,
+            )
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
@@ -148,6 +157,8 @@ pub async fn retrieve_disputes_list(
             }),
             &auth::JWTAuth {
                 permission: Permission::MerchantDisputeRead,
+                allow_connected: true,
+                allow_platform: false,
             },
             req.headers(),
         ),
@@ -197,7 +208,7 @@ pub async fn retrieve_disputes_list_profile(
         |state, auth: auth::AuthenticationData, req, _| {
             disputes::retrieve_disputes_list(
                 state,
-                auth.platform,
+                auth.platform.get_processor().clone(),
                 auth.profile.map(|profile| vec![profile.get_id().clone()]),
                 req,
             )
@@ -209,6 +220,8 @@ pub async fn retrieve_disputes_list_profile(
             }),
             &auth::JWTAuth {
                 permission: Permission::ProfileDisputeRead,
+                allow_connected: true,
+                allow_platform: false,
             },
             req.headers(),
         ),
@@ -238,7 +251,7 @@ pub async fn get_disputes_filters(state: web::Data<AppState>, req: HttpRequest) 
         &req,
         (),
         |state, auth: auth::AuthenticationData, _, _| {
-            disputes::get_filters_for_disputes(state, auth.platform, None)
+            disputes::get_filters_for_disputes(state, auth.platform.get_processor().clone(), None)
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
@@ -247,6 +260,8 @@ pub async fn get_disputes_filters(state: web::Data<AppState>, req: HttpRequest) 
             }),
             &auth::JWTAuth {
                 permission: Permission::MerchantDisputeRead,
+                allow_connected: true,
+                allow_platform: false,
             },
             req.headers(),
         ),
@@ -281,7 +296,7 @@ pub async fn get_disputes_filters_profile(
         |state, auth: auth::AuthenticationData, _, _| {
             disputes::get_filters_for_disputes(
                 state,
-                auth.platform,
+                auth.platform.get_processor().clone(),
                 auth.profile.map(|profile| vec![profile.get_id().clone()]),
             )
         },
@@ -292,6 +307,8 @@ pub async fn get_disputes_filters_profile(
             }),
             &auth::JWTAuth {
                 permission: Permission::ProfileDisputeRead,
+                allow_connected: true,
+                allow_platform: false,
             },
             req.headers(),
         ),
@@ -333,7 +350,12 @@ pub async fn accept_dispute(
         dispute_id,
         |state, auth: auth::AuthenticationData, req, _| {
             let profile_id = auth.profile.map(|profile| profile.get_id().clone());
-            disputes::accept_dispute(state, auth.platform, profile_id, req)
+            disputes::accept_dispute(
+                state,
+                auth.platform.get_processor().clone(),
+                profile_id,
+                req,
+            )
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
@@ -342,6 +364,8 @@ pub async fn accept_dispute(
             }),
             &auth::JWTAuth {
                 permission: Permission::ProfileDisputeWrite,
+                allow_connected: false,
+                allow_platform: false,
             },
             req.headers(),
         ),
@@ -378,7 +402,12 @@ pub async fn submit_dispute_evidence(
         json_payload.into_inner(),
         |state, auth: auth::AuthenticationData, req, _| {
             let profile_id = auth.profile.map(|profile| profile.get_id().clone());
-            disputes::submit_evidence(state, auth.platform, profile_id, req)
+            disputes::submit_evidence(
+                state,
+                auth.platform.get_processor().clone(),
+                profile_id,
+                req,
+            )
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
@@ -387,6 +416,8 @@ pub async fn submit_dispute_evidence(
             }),
             &auth::JWTAuth {
                 permission: Permission::ProfileDisputeWrite,
+                allow_connected: false,
+                allow_platform: false,
             },
             req.headers(),
         ),
@@ -430,7 +461,12 @@ pub async fn attach_dispute_evidence(
         attach_evidence_request,
         |state, auth: auth::AuthenticationData, req, _| {
             let profile_id = auth.profile.map(|profile| profile.get_id().clone());
-            disputes::attach_evidence(state, auth.platform, profile_id, req)
+            disputes::attach_evidence(
+                state,
+                auth.platform.get_processor().clone(),
+                profile_id,
+                req,
+            )
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
@@ -439,6 +475,8 @@ pub async fn attach_dispute_evidence(
             }),
             &auth::JWTAuth {
                 permission: Permission::ProfileDisputeWrite,
+                allow_connected: false,
+                allow_platform: false,
             },
             req.headers(),
         ),
@@ -480,7 +518,12 @@ pub async fn retrieve_dispute_evidence(
         dispute_id,
         |state, auth: auth::AuthenticationData, req, _| {
             let profile_id = auth.profile.map(|profile| profile.get_id().clone());
-            disputes::retrieve_dispute_evidence(state, auth.platform, profile_id, req)
+            disputes::retrieve_dispute_evidence(
+                state,
+                auth.platform.get_processor().clone(),
+                profile_id,
+                req,
+            )
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
@@ -489,6 +532,8 @@ pub async fn retrieve_dispute_evidence(
             }),
             &auth::JWTAuth {
                 permission: Permission::ProfileDisputeRead,
+                allow_connected: false,
+                allow_platform: false,
             },
             req.headers(),
         ),
@@ -525,7 +570,7 @@ pub async fn delete_dispute_evidence(
         &req,
         json_payload.into_inner(),
         |state, auth: auth::AuthenticationData, req, _| {
-            disputes::delete_evidence(state, auth.platform, req)
+            disputes::delete_evidence(state, auth.platform.get_processor().clone(), req)
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
@@ -534,6 +579,8 @@ pub async fn delete_dispute_evidence(
             }),
             &auth::JWTAuth {
                 permission: Permission::ProfileDisputeWrite,
+                allow_connected: false,
+                allow_platform: false,
             },
             req.headers(),
         ),
@@ -557,7 +604,12 @@ pub async fn get_disputes_aggregate(
         &req,
         query_param,
         |state, auth: auth::AuthenticationData, req, _| {
-            disputes::get_aggregates_for_disputes(state, auth.platform, None, req)
+            disputes::get_aggregates_for_disputes(
+                state,
+                auth.platform.get_processor().clone(),
+                None,
+                req,
+            )
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
@@ -566,6 +618,8 @@ pub async fn get_disputes_aggregate(
             }),
             &auth::JWTAuth {
                 permission: Permission::MerchantDisputeRead,
+                allow_connected: true,
+                allow_platform: false,
             },
             req.headers(),
         ),
@@ -592,7 +646,7 @@ pub async fn get_disputes_aggregate_profile(
         |state, auth: auth::AuthenticationData, req, _| {
             disputes::get_aggregates_for_disputes(
                 state,
-                auth.platform,
+                auth.platform.get_processor().clone(),
                 auth.profile.map(|profile| vec![profile.get_id().clone()]),
                 req,
             )
@@ -604,6 +658,8 @@ pub async fn get_disputes_aggregate_profile(
             }),
             &auth::JWTAuth {
                 permission: Permission::ProfileDisputeRead,
+                allow_connected: true,
+                allow_platform: false,
             },
             req.headers(),
         ),

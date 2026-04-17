@@ -67,6 +67,11 @@ pub enum PaymentsResponseData {
         authentication_data: Option<Box<UcsAuthenticationData>>,
         charges: Option<common_types::payments::ConnectorChargeResponseData>,
     },
+    PostCaptureVoidResponse {
+        post_capture_void_status: common_enums::PostCaptureVoidStatus,
+        connector_reference_id: Option<String>,
+        description: Option<String>,
+    },
     MultipleCaptureResponse {
         // pending_capture_id_list: Vec<String>,
         capture_sync_response_list: HashMap<String, CaptureSyncResponse>,
@@ -113,6 +118,7 @@ pub enum PaymentsResponseData {
     },
     PaymentsCreateOrderResponse {
         order_id: String,
+        session_token: Option<api_models::payments::SessionToken>,
     },
 }
 
@@ -169,14 +175,16 @@ impl CaptureSyncResponse {
     }
 }
 impl PaymentsResponseData {
-    pub fn get_connector_metadata(&self) -> Option<masking::Secret<serde_json::Value>> {
+    pub fn get_connector_metadata(&self) -> Option<hyperswitch_masking::Secret<serde_json::Value>> {
         match self {
             Self::TransactionResponse {
                 connector_metadata, ..
             }
             | Self::PreProcessingResponse {
                 connector_metadata, ..
-            } => connector_metadata.clone().map(masking::Secret::new),
+            } => connector_metadata
+                .clone()
+                .map(hyperswitch_masking::Secret::new),
             _ => None,
         }
     }
@@ -362,7 +370,7 @@ pub enum RedirectForm {
     Nmi {
         amount: String,
         currency: common_enums::Currency,
-        public_key: masking::Secret<String>,
+        public_key: hyperswitch_masking::Secret<String>,
         customer_vault_id: String,
         order_id: String,
     },
@@ -374,6 +382,10 @@ pub enum RedirectForm {
         method: Method,
         form_fields: HashMap<String, String>,
         collection_id: Option<String>,
+    },
+    WorldpayxmlDDCForm {
+        bin: String,
+        jwt: String,
     },
     WorldpayxmlRedirectForm {
         jwt: String,
@@ -493,6 +505,7 @@ impl From<RedirectForm> for diesel_models::payment_attempt::RedirectForm {
                 form_fields,
                 collection_id,
             },
+            RedirectForm::WorldpayxmlDDCForm { bin, jwt } => Self::WorldpayxmlDDCForm { bin, jwt },
             RedirectForm::WorldpayxmlRedirectForm { jwt } => Self::WorldpayxmlRedirectForm { jwt },
         }
     }
@@ -594,6 +607,9 @@ impl From<diesel_models::payment_attempt::RedirectForm> for RedirectForm {
                 form_fields,
                 collection_id,
             },
+            diesel_models::payment_attempt::RedirectForm::WorldpayxmlDDCForm { bin, jwt } => {
+                Self::WorldpayxmlDDCForm { bin, jwt }
+            }
             diesel_models::payment_attempt::RedirectForm::WorldpayxmlRedirectForm { jwt } => {
                 Self::WorldpayxmlRedirectForm { jwt }
             }
@@ -611,7 +627,7 @@ pub struct RetrieveFileResponse {
 }
 
 #[cfg(feature = "payouts")]
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug, Default, Serialize)]
 pub struct PayoutsResponseData {
     pub status: Option<common_enums::PayoutStatus>,
     pub connector_payout_id: Option<String>,
@@ -662,7 +678,7 @@ pub enum AuthenticationResponseData {
     },
     AuthNResponse {
         authn_flow_type: AuthNFlowType,
-        authentication_value: Option<masking::Secret<String>>,
+        authentication_value: Option<hyperswitch_masking::Secret<String>>,
         trans_status: common_enums::TransactionStatus,
         connector_metadata: Option<serde_json::Value>,
         ds_trans_id: Option<String>,
@@ -674,7 +690,7 @@ pub enum AuthenticationResponseData {
     },
     PostAuthNResponse {
         trans_status: common_enums::TransactionStatus,
-        authentication_value: Option<masking::Secret<String>>,
+        authentication_value: Option<hyperswitch_masking::Secret<String>>,
         eci: Option<String>,
         challenge_cancel: Option<String>,
         challenge_code_reason: Option<String>,
@@ -719,6 +735,12 @@ pub trait SupportedPaymentMethodsExt {
         payment_method_type: common_enums::PaymentMethodType,
         payment_method_details: PaymentMethodDetails,
     );
+
+    fn is_refund_supported(
+        &self,
+        payment_method: &common_enums::PaymentMethod,
+        payment_method_type: &common_enums::PaymentMethodType,
+    ) -> bool;
 }
 
 impl SupportedPaymentMethodsExt for SupportedPaymentMethods {
@@ -737,13 +759,30 @@ impl SupportedPaymentMethodsExt for SupportedPaymentMethods {
             self.insert(payment_method, payment_method_type_metadata);
         }
     }
+
+    fn is_refund_supported(
+        &self,
+        payment_method: &common_enums::PaymentMethod,
+        payment_method_type: &common_enums::PaymentMethodType,
+    ) -> bool {
+        self.get(payment_method)
+            .and_then(|pm_types| pm_types.get(payment_method_type))
+            .map(|details| details.supports_refund())
+            .unwrap_or(true)
+    }
+}
+
+impl PaymentMethodDetails {
+    fn supports_refund(&self) -> bool {
+        self.refunds.is_supported()
+    }
 }
 
 #[derive(Debug, Clone)]
 pub enum VaultResponseData {
     ExternalVaultCreateResponse {
-        session_id: masking::Secret<String>,
-        client_secret: masking::Secret<String>,
+        session_id: hyperswitch_masking::Secret<String>,
+        client_secret: hyperswitch_masking::Secret<String>,
     },
     ExternalVaultInsertResponse {
         connector_vault_id: VaultIdType,
@@ -766,16 +805,16 @@ pub enum VaultIdType {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum MultiVaultIdType {
     Card {
-        tokenized_card_number: Option<masking::Secret<String>>,
-        tokenized_card_expiry_year: Option<masking::Secret<String>>,
-        tokenized_card_expiry_month: Option<masking::Secret<String>>,
-        tokenized_card_cvc: Option<masking::Secret<String>>,
+        tokenized_card_number: Option<hyperswitch_masking::Secret<String>>,
+        tokenized_card_expiry_year: Option<hyperswitch_masking::Secret<String>>,
+        tokenized_card_expiry_month: Option<hyperswitch_masking::Secret<String>>,
+        tokenized_card_cvc: Option<hyperswitch_masking::Secret<String>>,
     },
     NetworkToken {
-        tokenized_network_token: Option<masking::Secret<String>>,
-        tokenized_network_token_exp_year: Option<masking::Secret<String>>,
-        tokenized_network_token_exp_month: Option<masking::Secret<String>>,
-        tokenized_cryptogram: Option<masking::Secret<String>>,
+        tokenized_network_token: Option<hyperswitch_masking::Secret<String>>,
+        tokenized_network_token_exp_year: Option<hyperswitch_masking::Secret<String>>,
+        tokenized_network_token_exp_month: Option<hyperswitch_masking::Secret<String>>,
+        tokenized_cryptogram: Option<hyperswitch_masking::Secret<String>>,
     },
 }
 

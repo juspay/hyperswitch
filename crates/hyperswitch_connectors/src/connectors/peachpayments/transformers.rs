@@ -19,7 +19,7 @@ use hyperswitch_interfaces::{
     consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE},
     errors,
 };
-use masking::Secret;
+use hyperswitch_masking::Secret;
 use serde::{Deserialize, Serialize};
 use time::OffsetDateTime;
 
@@ -27,7 +27,7 @@ use crate::{
     types::ResponseRouterData,
     utils::{
         self, CardData, CardWithLimitedData as _, NetworkTokenData as _,
-        RouterData as OtherRouterData,
+        PaymentsAuthorizeRequestData, RouterData as OtherRouterData,
     },
 };
 
@@ -90,7 +90,7 @@ pub enum PeachpaymentsPaymentsRequest {
 #[serde(rename_all = "camelCase")]
 pub struct CardOnFileData {
     #[serde(rename = "type")]
-    pub _type: CofType,
+    pub cof_type: CofType,
     pub source: CofSource,
     pub mode: CofMode,
 }
@@ -108,6 +108,10 @@ pub struct EcommerceCardPaymentOnlyTransactionData {
     pub pre_auth_inc_ext_capture_flow: Option<PreAuthIncExtCaptureFlow>,
     #[serde(skip_serializing_if = "Option::is_none")]
     cof_data: Option<CardOnFileData>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub trace_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub transaction_link_id: Option<String>,
 }
 
 #[derive(Debug, Serialize, PartialEq)]
@@ -144,6 +148,10 @@ pub struct EcommerceNetworkTokenPaymentOnlyTransactionData {
     pub rrn: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub pre_auth_inc_ext_capture_flow: Option<PreAuthIncExtCaptureFlow>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub trace_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub transaction_link_id: Option<String>,
 }
 
 #[derive(Debug, Serialize, PartialEq)]
@@ -498,12 +506,14 @@ impl
                 network_token_data,
                 amount,
                 cof_data: CardOnFileData {
-                    _type: CofType::Adhoc,
+                    cof_type: CofType::Adhoc,
                     source: CofSource::Cit,
                     mode: CofMode::Initial,
                 },
                 rrn: item.router_data.request.merchant_order_reference_id.clone(),
                 pre_auth_inc_ext_capture_flow,
+                trace_id: None,
+                transaction_link_id: None,
             },
         );
 
@@ -576,6 +586,16 @@ impl TryFrom<(&PeachpaymentsRouterData<&PaymentsAuthorizeRouterData>, Card)>
             None
         };
 
+        let cof_data = if item.router_data.request.is_cit_mandate_payment() {
+            Some(CardOnFileData {
+                cof_type: CofType::Adhoc,
+                source: CofSource::Cit,
+                mode: CofMode::Initial,
+            })
+        } else {
+            None
+        };
+
         let ecommerce_data =
             EcommercePaymentOnlyTransactionData::Card(EcommerceCardPaymentOnlyTransactionData {
                 merchant_information,
@@ -584,7 +604,9 @@ impl TryFrom<(&PeachpaymentsRouterData<&PaymentsAuthorizeRouterData>, Card)>
                 amount,
                 rrn: item.router_data.request.merchant_order_reference_id.clone(),
                 pre_auth_inc_ext_capture_flow,
-                cof_data: None,
+                cof_data,
+                trace_id: None,
+                transaction_link_id: None,
             });
 
         // Generate current timestamp for sendDateTime (ISO 8601 format: YYYY-MM-DDTHH:MM:SSZ)
@@ -656,6 +678,16 @@ impl
             None
         };
 
+        let cof_data = if item.router_data.request.is_cit_mandate_payment() {
+            Some(CardOnFileData {
+                cof_type: CofType::Adhoc,
+                source: CofSource::Cit,
+                mode: CofMode::Initial,
+            })
+        } else {
+            None
+        };
+
         let ecommerce_data =
             EcommercePaymentOnlyTransactionData::Card(EcommerceCardPaymentOnlyTransactionData {
                 merchant_information,
@@ -664,7 +696,9 @@ impl
                 amount,
                 rrn: item.router_data.request.merchant_order_reference_id.clone(),
                 pre_auth_inc_ext_capture_flow,
-                cof_data: None,
+                cof_data,
+                trace_id: None,
+                transaction_link_id: None,
             });
 
         // Generate current timestamp for sendDateTime (ISO 8601 format: YYYY-MM-DDTHH:MM:SSZ)
@@ -758,6 +792,7 @@ impl From<PeachpaymentsRefundStatus> for common_enums::RefundStatus {
 #[serde(rename_all = "camelCase")]
 pub struct PeachpaymentsPaymentsData {
     pub transaction_id: String,
+    pub reference_id: String,
     pub response_code: Option<ResponseCode>,
     pub transaction_result: PeachpaymentsPaymentStatus,
     pub ecommerce_card_payment_only_transaction_data: Option<EcommerceCardPaymentOnlyResponseData>,
@@ -767,6 +802,7 @@ pub struct PeachpaymentsPaymentsData {
 #[serde(rename_all = "camelCase")]
 pub struct PeachpaymentsRsyncResponse {
     pub transaction_id: String,
+    pub reference_id: String,
     pub transaction_result: PeachpaymentsRefundStatus,
     pub response_code: Option<ResponseCode>,
 }
@@ -823,7 +859,7 @@ impl<F>
                 status_code: item.http_code,
                 attempt_status: None,
                 connector_transaction_id: Some(item.response.transaction_id),
-                connector_response_reference_id: None,
+                connector_response_reference_id: Some(item.response.reference_id),
                 network_advice_code: None,
                 network_decline_code: None,
                 network_error_message: None,
@@ -863,8 +899,8 @@ impl
                 reason: None,
                 status_code: item.http_code,
                 attempt_status: None,
-                connector_transaction_id: Some(item.response.transaction_id),
-                connector_response_reference_id: None,
+                connector_transaction_id: None,
+                connector_response_reference_id: Some(item.response.reference_id),
                 network_advice_code: None,
                 network_decline_code: None,
                 network_error_message: None,
@@ -889,6 +925,7 @@ impl
 #[serde(rename_all = "camelCase")]
 pub struct PeachpaymentsCaptureResponse {
     pub transaction_id: String,
+    pub reference_id: String,
     pub response_code: Option<ResponseCode>,
     pub transaction_result: PeachpaymentsPaymentStatus,
     pub authorization_code: Option<String>,
@@ -940,6 +977,7 @@ pub struct EcommerceCardPaymentOnlyResponseData {
     pub merchant_advice_code: Option<String>,
     pub description: Option<String>,
     pub trace_id: Option<String>,
+    pub transaction_link_id: Option<String>,
 }
 
 fn get_error_code(response_code: Option<&ResponseCode>) -> String {
@@ -986,8 +1024,8 @@ pub fn get_peachpayments_response(
                 .and_then(|data| data.description),
             status_code,
             attempt_status: Some(status),
-            connector_transaction_id: Some(response.transaction_id.clone()),
-            connector_response_reference_id: None,
+            connector_transaction_id: Some(response.transaction_id),
+            connector_response_reference_id: Some(response.reference_id),
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
@@ -999,8 +1037,10 @@ pub fn get_peachpayments_response(
             redirection_data: Box::new(None),
             mandate_reference: Box::new(None),
             connector_metadata: None,
-            network_txn_id: None,
-            connector_response_reference_id: Some(response.transaction_id),
+            network_txn_id: response
+                .ecommerce_card_payment_only_transaction_data
+                .and_then(|data| data.trace_id),
+            connector_response_reference_id: Some(response.reference_id),
             incremental_authorization_allowed: None,
             authentication_data: None,
             charges: None,
@@ -1033,7 +1073,7 @@ pub fn get_webhook_response(
             status_code,
             attempt_status: Some(status),
             connector_transaction_id: Some(transaction.transaction_id.clone()),
-            connector_response_reference_id: None,
+            connector_response_reference_id: Some(transaction.reference_id),
             network_advice_code: None,
             network_decline_code: None,
             network_error_message: None,
@@ -1041,16 +1081,14 @@ pub fn get_webhook_response(
         })
     } else {
         Ok(PaymentsResponseData::TransactionResponse {
-            resource_id: ResponseId::ConnectorTransactionId(
-                transaction
-                    .original_transaction_id
-                    .unwrap_or(transaction.transaction_id.clone()),
-            ),
+            resource_id: ResponseId::ConnectorTransactionId(transaction.transaction_id),
             redirection_data: Box::new(None),
             mandate_reference: Box::new(None),
             connector_metadata: None,
-            network_txn_id: None,
-            connector_response_reference_id: Some(transaction.transaction_id.clone()),
+            network_txn_id: transaction
+                .ecommerce_card_payment_only_transaction_data
+                .and_then(|data| data.trace_id),
+            connector_response_reference_id: Some(transaction.reference_id.clone()),
             incremental_authorization_allowed: None,
             authentication_data: None,
             charges: None,
@@ -1102,7 +1140,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, PeachpaymentsCaptureResponse, T, Paymen
                 status_code: item.http_code,
                 attempt_status: Some(status),
                 connector_transaction_id: Some(item.response.transaction_id.clone()),
-                connector_response_reference_id: None,
+                connector_response_reference_id: Some(item.response.reference_id),
                 network_advice_code: None,
                 network_decline_code: None,
                 network_error_message: None,
@@ -1121,7 +1159,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, PeachpaymentsCaptureResponse, T, Paymen
                     })
                 }),
                 network_txn_id: None,
-                connector_response_reference_id: Some(item.response.transaction_id),
+                connector_response_reference_id: Some(item.response.reference_id),
                 incremental_authorization_allowed: None,
                 authentication_data: None,
                 charges: None,

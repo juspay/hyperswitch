@@ -17,7 +17,7 @@ use hyperswitch_interfaces::{
     api::Connector as ConnectorTrait,
     connector_integration_v2::{ConnectorIntegrationV2, ConnectorV2},
 };
-use masking::ExposeInterface;
+use hyperswitch_masking::ExposeInterface;
 use router_env::{env::Env, instrument, tracing};
 
 use crate::{
@@ -91,6 +91,7 @@ where
             state,
             customer,
             platform.get_processor(),
+            platform.get_initiator(),
             &merchant_connector_account,
             payment_data,
         )
@@ -132,6 +133,7 @@ pub async fn call_create_connector_customer_if_required<F, Req, D>(
     state: &SessionState,
     customer: &Option<domain::Customer>,
     processor: &domain::Processor,
+    initiator: Option<&domain::Initiator>,
     merchant_connector_account_type: &domain::MerchantConnectorAccountTypeDetails,
     payment_data: &mut D,
 ) -> RouterResult<Option<storage::CustomerUpdate>>
@@ -174,7 +176,6 @@ where
                 customers::should_call_connector_create_customer(
                     &connector,
                     customer,
-                    payment_data.get_payment_attempt(),
                     merchant_connector_account_type,
                 );
 
@@ -200,6 +201,7 @@ where
                     merchant_connector_account_type,
                     customer.as_ref(),
                     connector_customer_id.clone(),
+                    initiator,
                 )
                 .await;
 
@@ -299,8 +301,8 @@ async fn generate_hyperswitch_vault_session_details(
     merchant_connector_account_type: &domain::MerchantConnectorAccountTypeDetails,
     connector_customer_id: Option<String>,
     connector_name: String,
-    vault_publishable_key: masking::Secret<String>,
-    vault_profile_id: masking::Secret<String>,
+    vault_publishable_key: hyperswitch_masking::Secret<String>,
+    vault_profile_id: hyperswitch_masking::Secret<String>,
 ) -> RouterResult<Option<api::VaultSessionDetails>> {
     let connector_response = call_external_vault_create(
         state,

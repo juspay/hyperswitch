@@ -321,6 +321,7 @@ impl PaymentAttemptBatchNew {
             tokenization: self.tokenization,
             error_details: None,
             retry_type: None,
+            installment_data: None,
         }
     }
 }

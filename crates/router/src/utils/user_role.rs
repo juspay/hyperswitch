@@ -4,7 +4,7 @@ use std::{
 };
 
 use api_models::user_role::role as role_api;
-use common_enums::{EntityType, ParentGroup, PermissionGroup};
+use common_enums::{EntityType, MerchantProductType, ParentGroup, PermissionGroup};
 use common_utils::id_type;
 use diesel_models::{
     enums::UserRoleVersion,
@@ -20,6 +20,7 @@ use crate::{
     consts,
     core::errors::{UserErrors, UserResult},
     db::{
+        domain::role::RoleProductCategory,
         errors::StorageErrorExt,
         user_role::{ListUserRolesByOrgIdPayload, ListUserRolesByUserIdPayload},
     },
@@ -31,11 +32,32 @@ use crate::{
     },
     types::domain,
 };
+#[cfg(feature = "email")]
+use crate::{
+    services::{authentication as auth, email::types as email_types},
+    utils::user::{self as user_utils, theme as theme_utils},
+};
 
-pub fn validate_role_groups(groups: &[PermissionGroup]) -> UserResult<()> {
+pub fn validate_role_groups(
+    groups: &[PermissionGroup],
+    merchant_product_type: Option<MerchantProductType>,
+) -> UserResult<()> {
     if groups.is_empty() {
         return Err(report!(UserErrors::InvalidRoleOperation))
             .attach_printable("Role groups cannot be empty");
+    }
+
+    if let Some(product_type) = merchant_product_type {
+        if !groups.iter().all(|group| {
+            let role_product_category = group.get_role_product_category();
+            match role_product_category {
+                RoleProductCategory::Dashboard => true,
+                _ => role_product_category == RoleProductCategory::from(product_type),
+            }
+        }) {
+            return Err(report!(UserErrors::InvalidRoleOperation))
+                .attach_printable("Permission groups of different product types found");
+        }
     }
 
     let unique_groups: HashSet<_> = groups.iter().copied().collect();
@@ -596,4 +618,74 @@ pub fn resources_to_description(
         .join(", ");
 
     Some(description)
+}
+
+#[cfg(feature = "email")]
+pub async fn send_role_deletion_email_using_db(
+    state: &SessionState,
+    user_from_db: &domain::UserFromStorage,
+    role_info: &roles::RoleInfo,
+    user_from_token: &auth::UserFromToken,
+) -> UserResult<()> {
+    let theme = theme_utils::get_most_specific_theme_using_token_and_min_entity(
+        state,
+        user_from_token,
+        role_info.get_entity_type(),
+    )
+    .await?;
+
+    let theme_config = theme
+        .as_ref()
+        .map(|theme| theme.email_config())
+        .unwrap_or(state.conf.theme.email_config.clone());
+
+    let org = state
+        .accounts_store
+        .find_organization_by_org_id(&user_from_token.org_id)
+        .await
+        .change_context(UserErrors::InternalServerError)?;
+
+    let merchant_key_store = state
+        .store
+        .get_merchant_key_store_by_merchant_id(
+            &user_from_token.merchant_id,
+            &state.store.get_master_key().to_vec().into(),
+        )
+        .await
+        .change_context(UserErrors::InternalServerError)?;
+
+    let merchant = state
+        .store
+        .find_merchant_account_by_merchant_id(&user_from_token.merchant_id, &merchant_key_store)
+        .await
+        .change_context(UserErrors::InternalServerError)?;
+
+    let profile = state
+        .store
+        .find_business_profile_by_profile_id(&merchant_key_store, &user_from_token.profile_id)
+        .await
+        .change_context(UserErrors::InternalServerError)?;
+
+    let email_contents = email_types::RoleDeleted {
+        recipient_email: domain::UserEmail::from_pii_email(user_from_db.get_email())?,
+        user_name: domain::UserName::new(user_from_db.get_name())?,
+        role_name: role_info.get_role_name().to_string(),
+        entity_type: role_info.get_entity_type(),
+        org,
+        merchant,
+        profile,
+        theme_config,
+    };
+
+    state
+        .email_client
+        .compose_and_send_email(
+            user_utils::get_base_url(state),
+            Box::new(email_contents),
+            state.conf.proxy.https_url.as_ref(),
+        )
+        .await
+        .change_context(UserErrors::InternalServerError)?;
+
+    Ok(())
 }

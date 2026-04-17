@@ -2,7 +2,7 @@ use std::fmt::Debug;
 
 use common_utils::ext_traits::AsyncExt;
 use error_stack::{report, ResultExt};
-use masking::PeekInterface;
+use hyperswitch_masking::PeekInterface;
 use maud::html;
 use rand::{distributions::Uniform, prelude::Distribution};
 use tokio::time as tokio;
@@ -160,7 +160,7 @@ pub fn get_authorize_page(
                     div.border_vertical {}
                     div.contact_item.email {
                         p { "Or email us at" }
-                        a href="mailto:hyperswitch@juspay.in" { "hyperswitch@juspay.in" }
+                        a href="mailto:support.global@juspay.io" { "support.global@juspay.io" }
                     }
                 }
             }
@@ -199,7 +199,7 @@ pub fn get_expired_page(dummy_connector_conf: &settings::DummyConnector) -> Stri
                     div.border_vertical {}
                     div.contact_item.email {
                         p { "Or email us at" }
-                        a href="mailto:hyperswitch@juspay.in" { "hyperswitch@juspay.in" }
+                        a href="mailto:support.global@juspay.io" { "support.global@juspay.io" }
                     }
                 }
             }

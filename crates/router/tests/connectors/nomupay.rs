@@ -1,5 +1,5 @@
 use api_models::payments::{Address, AddressDetails};
-use masking::Secret;
+use hyperswitch_masking::Secret;
 use router::types::{self, api, storage::enums, PaymentAddress};
 use test_utils::connector_auth;
 
@@ -57,15 +57,15 @@ impl NomupayTest {
                 None,
                 None,
             )),
-            payout_method_data: Some(api::PayoutMethodData::Bank(api::payouts::BankPayout::Sepa(
-                api::SepaBankTransfer {
+            payout_method_data: Some(api::PayoutMethodData::BankTransfer(
+                api::payouts::BankTransferPayout::Sepa(api::SepaBankTransfer {
                     bank_name: Some("Deutsche Bank".to_string()),
                     bank_country_code: Some(enums::CountryAlpha2::DE),
                     bank_city: Some("Munich".to_string()),
                     iban: Secret::new("DE57331060435647542639".to_string()),
                     bic: Some(Secret::new("DEUTDE5M551".to_string())),
-                },
-            ))),
+                }),
+            )),
             ..Default::default()
         })
     }

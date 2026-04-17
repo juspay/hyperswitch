@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use common_enums::Currency;
 use common_utils::{pii::Email, types::MinorUnit};
-use masking::Secret;
+use hyperswitch_masking::Secret;
 use serde::{Deserialize, Serialize};
 
 use super::*;
@@ -14,7 +14,8 @@ pub struct FinixPaymentsRequest {
     pub source: Secret<String>,
     pub merchant: Secret<String>,
     pub tags: Option<FinixTags>,
-    pub three_d_secure: Option<FinixThreeDSecure>,
+    #[serde(rename = "3d_secure_authentication")]
+    pub three_d_secure_authentication: Option<FinixThreeDSecure>,
     pub idempotency_id: Option<String>,
     pub statement_descriptor: Option<String>,
 }
@@ -217,12 +218,12 @@ pub enum FinixCardType {
 /// 3D Secure authentication details.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct FinixThreeDSecure {
-    pub authenticated: Option<bool>,
-    pub liability_shift: Option<Secret<String>>,
-    pub version: Option<String>,
-    pub eci: Option<Secret<String>>,
-    pub cavv: Option<Secret<String>>,
-    pub xid: Option<Secret<String>>,
+    // The cardholder authentication value or CAVV.
+    pub cardholder_authentication: Secret<String>,
+    // The electronic commerce indicator (ECI).
+    pub electronic_commerce_indicator: String,
+    // The transaction ID returned by the 3D Secure authentication.
+    pub transaction_id: Option<String>,
 }
 
 /// Key-value pair tags.

@@ -1,4 +1,4 @@
-use masking::{Maskable, Secret};
+use hyperswitch_masking::{Maskable, Secret};
 use reqwest::multipart::Form;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
@@ -50,6 +50,7 @@ pub struct Request {
     pub certificate_key: Option<Secret<String>>,
     pub body: Option<RequestContent>,
     pub ca_certificate: Option<Secret<String>>,
+    pub query_params: Option<serde_json::Value>,
 }
 
 impl std::fmt::Debug for RequestContent {
@@ -65,10 +66,15 @@ impl std::fmt::Debug for RequestContent {
 }
 
 pub enum RequestContent {
-    Json(Box<dyn masking::ErasedMaskSerialize + Send>),
-    FormUrlEncoded(Box<dyn masking::ErasedMaskSerialize + Send>),
-    FormData((Form, Box<dyn masking::ErasedMaskSerialize + Send>)),
-    Xml(Box<dyn masking::ErasedMaskSerialize + Send>),
+    Json(Box<dyn hyperswitch_masking::ErasedMaskSerialize + Send>),
+    FormUrlEncoded(Box<dyn hyperswitch_masking::ErasedMaskSerialize + Send>),
+    FormData(
+        (
+            Form,
+            Box<dyn hyperswitch_masking::ErasedMaskSerialize + Send>,
+        ),
+    ),
+    Xml(Box<dyn hyperswitch_masking::ErasedMaskSerialize + Send>),
     RawBytes(Vec<u8>),
 }
 
@@ -94,6 +100,7 @@ impl Request {
             certificate_key: None,
             body: None,
             ca_certificate: None,
+            query_params: None,
         }
     }
 
@@ -127,6 +134,7 @@ pub struct RequestBuilder {
     pub certificate_key: Option<Secret<String>>,
     pub body: Option<RequestContent>,
     pub ca_certificate: Option<Secret<String>>,
+    pub query_params: Option<serde_json::Value>,
 }
 
 impl RequestBuilder {
@@ -139,6 +147,7 @@ impl RequestBuilder {
             certificate_key: None,
             body: None,
             ca_certificate: None,
+            query_params: None,
         }
     }
 
@@ -192,6 +201,11 @@ impl RequestBuilder {
         self
     }
 
+    pub fn set_query_params(mut self, query_params: Option<serde_json::Value>) -> Self {
+        self.query_params = query_params;
+        self
+    }
+
     pub fn build(self) -> Request {
         Request {
             method: self.method,
@@ -201,6 +215,7 @@ impl RequestBuilder {
             certificate_key: self.certificate_key,
             body: self.body,
             ca_certificate: self.ca_certificate,
+            query_params: self.query_params,
         }
     }
 }

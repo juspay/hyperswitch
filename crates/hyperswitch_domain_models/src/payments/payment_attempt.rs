@@ -1,3 +1,5 @@
+use std::str::FromStr;
+
 #[cfg(all(feature = "v1", feature = "olap"))]
 use api_models::enums::Connector;
 #[cfg(feature = "v2")]
@@ -37,8 +39,8 @@ use diesel_models::{
 };
 use error_stack::ResultExt;
 #[cfg(feature = "v2")]
-use masking::ExposeInterface;
-use masking::{PeekInterface, Secret};
+use hyperswitch_masking::ExposeInterface;
+use hyperswitch_masking::{PeekInterface, Secret};
 #[cfg(feature = "v1")]
 use router_env::logger;
 use rustc_hash::FxHashMap;
@@ -53,7 +55,8 @@ use url::Url;
 use super::PaymentIntent;
 #[cfg(feature = "v2")]
 use crate::{
-    address::Address, consts, payment_method_data::PaymentMethodData, router_response_types,
+    address::Address, consts, payment_method_data::PaymentMethodData, platform,
+    router_response_types,
 };
 use crate::{
     behaviour, errors,
@@ -801,7 +804,7 @@ pub struct PaymentAttempt {
     /// The reference to the payment at the connector side
     pub connector_payment_id: Option<String>,
     /// The payment method subtype for the payment attempt.
-    pub payment_method_subtype: storage_enums::PaymentMethodType,
+    pub payment_method_subtype: Option<storage_enums::PaymentMethodType>,
     /// The authentication type that was applied for the payment attempt.
     pub authentication_applied: Option<common_enums::AuthenticationType>,
     /// A reference to the payment at connector side. This is returned by the connector
@@ -848,8 +851,7 @@ impl PaymentAttempt {
 
     #[cfg(feature = "v2")]
     pub fn get_payment_method_type(&self) -> Option<storage_enums::PaymentMethodType> {
-        // TODO: check if we can fix this
-        Some(self.payment_method_subtype)
+        self.payment_method_subtype
     }
 
     #[cfg(feature = "v1")]
@@ -906,6 +908,7 @@ impl PaymentAttempt {
         storage_scheme: storage_enums::MerchantStorageScheme,
         request: &api_models::payments::PaymentsConfirmIntentRequest,
         encrypted_data: DecryptedPaymentAttempt,
+        initiator: Option<&platform::Initiator>,
     ) -> CustomResult<Self, errors::api_error_response::ApiErrorResponse> {
         let id = id_type::GlobalAttemptId::generate(&cell_id);
         let intent_amount_details = payment_intent.amount_details.clone();
@@ -988,7 +991,7 @@ impl PaymentAttempt {
             card_discovery: None,
             feature_metadata: None,
             processor_merchant_id: payment_intent.merchant_id.clone(),
-            created_by: None,
+            created_by: initiator.and_then(|initiator| initiator.to_created_by()),
             connector_request_reference_id: None,
             network_transaction_id: None,
             authorized_amount: None,
@@ -1002,6 +1005,7 @@ impl PaymentAttempt {
         storage_scheme: storage_enums::MerchantStorageScheme,
         request: &api_models::payments::ProxyPaymentsRequest,
         encrypted_data: DecryptedPaymentAttempt,
+        initiator: Option<&platform::Initiator>,
     ) -> CustomResult<Self, errors::api_error_response::ApiErrorResponse> {
         let id = id_type::GlobalAttemptId::generate(&cell_id);
         let intent_amount_details = payment_intent.amount_details.clone();
@@ -1069,8 +1073,7 @@ impl PaymentAttempt {
                 .unwrap_or(common_enums::PaymentMethod::Card),
             payment_method_id: None,
             connector_payment_id: None,
-            payment_method_subtype: payment_method_subtype_data
-                .unwrap_or(common_enums::PaymentMethodType::Credit),
+            payment_method_subtype: payment_method_subtype_data,
             authentication_applied: None,
             external_reference_id: None,
             payment_method_billing_address,
@@ -1080,7 +1083,7 @@ impl PaymentAttempt {
             id,
             card_discovery: None,
             processor_merchant_id: payment_intent.merchant_id.clone(),
-            created_by: None,
+            created_by: initiator.and_then(|initiator| initiator.to_created_by()),
             connector_request_reference_id: None,
             network_transaction_id: None,
             authorized_amount: None,
@@ -1094,6 +1097,7 @@ impl PaymentAttempt {
         storage_scheme: storage_enums::MerchantStorageScheme,
         request: &api_models::payments::ExternalVaultProxyPaymentsRequest,
         encrypted_data: DecryptedPaymentAttempt,
+        initiator: Option<&platform::Initiator>,
     ) -> CustomResult<Self, errors::api_error_response::ApiErrorResponse> {
         let id = id_type::GlobalAttemptId::generate(&cell_id);
         let intent_amount_details = payment_intent.amount_details.clone();
@@ -1168,8 +1172,7 @@ impl PaymentAttempt {
                 .unwrap_or(common_enums::PaymentMethod::Card),
             payment_method_id: request.payment_method_id.clone(),
             connector_payment_id: None,
-            payment_method_subtype: payment_method_subtype_data
-                .unwrap_or(common_enums::PaymentMethodType::Credit),
+            payment_method_subtype: payment_method_subtype_data,
             authentication_applied: None,
             external_reference_id: None,
             payment_method_billing_address,
@@ -1179,7 +1182,7 @@ impl PaymentAttempt {
             id,
             card_discovery: None,
             processor_merchant_id: payment_intent.merchant_id.clone(),
-            created_by: None,
+            created_by: initiator.and_then(|initiator| initiator.to_created_by()),
             connector_request_reference_id: None,
             network_transaction_id: None,
             authorized_amount: None,
@@ -1194,6 +1197,7 @@ impl PaymentAttempt {
         storage_scheme: storage_enums::MerchantStorageScheme,
         request: &api_models::payments::PaymentsAttemptRecordRequest,
         encrypted_data: DecryptedPaymentAttempt,
+        initiator: Option<&platform::Initiator>,
     ) -> CustomResult<Self, errors::api_error_response::ApiErrorResponse> {
         let id = id_type::GlobalAttemptId::generate(&cell_id);
 
@@ -1288,7 +1292,7 @@ impl PaymentAttempt {
             payment_method_type: request.payment_method_type,
             payment_method_id: None,
             connector_payment_id,
-            payment_method_subtype: request.payment_method_subtype,
+            payment_method_subtype: Some(request.payment_method_subtype),
             authentication_applied: None,
             external_reference_id: None,
             payment_method_billing_address,
@@ -1302,7 +1306,7 @@ impl PaymentAttempt {
             card_discovery: None,
             charges: None,
             processor_merchant_id: payment_intent.merchant_id.clone(),
-            created_by: None,
+            created_by: initiator.and_then(|initiator| initiator.to_created_by()),
             connector_request_reference_id,
             network_transaction_id: None,
             authorized_amount: None,
@@ -1420,6 +1424,8 @@ pub struct PaymentAttempt {
     pub error_details: Option<PaymentAttemptErrorDetails>,
     /// Indicates the type of retry for this payment attempt (None for initial attempt)
     pub retry_type: Option<storage_enums::RetryType>,
+    /// Installment data selected by the customer (number of installments and billing frequency)
+    pub installment_data: Option<common_types::payments::InstallmentData>,
 }
 
 #[cfg(feature = "v1")]
@@ -1435,6 +1441,8 @@ pub struct NetAmount {
     surcharge_amount: Option<MinorUnit>,
     /// tax on surcharge amount
     tax_on_surcharge: Option<MinorUnit>,
+    /// Installment interest amount for installment payments
+    installment_interest: Option<MinorUnit>,
 }
 
 #[cfg(feature = "v1")]
@@ -1445,6 +1453,7 @@ impl NetAmount {
         order_tax_amount: Option<MinorUnit>,
         surcharge_amount: Option<MinorUnit>,
         tax_on_surcharge: Option<MinorUnit>,
+        installment_interest: Option<MinorUnit>,
     ) -> Self {
         Self {
             order_amount,
@@ -1452,6 +1461,7 @@ impl NetAmount {
             order_tax_amount,
             surcharge_amount,
             tax_on_surcharge,
+            installment_interest,
         }
     }
 
@@ -1475,6 +1485,10 @@ impl NetAmount {
         self.tax_on_surcharge
     }
 
+    pub fn get_installment_interest(&self) -> Option<MinorUnit> {
+        self.installment_interest
+    }
+
     pub fn get_total_surcharge_amount(&self) -> Option<MinorUnit> {
         self.surcharge_amount
             .map(|surcharge_amount| surcharge_amount + self.tax_on_surcharge.unwrap_or_default())
@@ -1486,6 +1500,7 @@ impl NetAmount {
             + self.order_tax_amount.unwrap_or_default()
             + self.surcharge_amount.unwrap_or_default()
             + self.tax_on_surcharge.unwrap_or_default()
+            + self.installment_interest.unwrap_or_default()
     }
 
     pub fn get_additional_amount(&self) -> MinorUnit {
@@ -1510,6 +1525,10 @@ impl NetAmount {
         self.tax_on_surcharge = surcharge_details.map(|details| details.tax_on_surcharge_amount);
     }
 
+    pub fn set_installment_interest(&mut self, installment_interest: Option<MinorUnit>) {
+        self.installment_interest = installment_interest;
+    }
+
     pub fn from_payments_request(
         payments_request: &api_models::payments::PaymentsRequest,
         order_amount: MinorUnit,
@@ -1526,6 +1545,7 @@ impl NetAmount {
             order_tax_amount: payments_request.order_tax_amount,
             surcharge_amount,
             tax_on_surcharge,
+            installment_interest: None,
         }
     }
 
@@ -1560,12 +1580,15 @@ impl NetAmount {
                         payment_attempt.net_amount.get_tax_on_surcharge()
                     })
                 });
+            let installment_interest = payment_attempt
+                .and_then(|payment_attempt| payment_attempt.net_amount.get_installment_interest());
             Self {
                 order_amount,
                 shipping_cost,
                 order_tax_amount,
                 surcharge_amount,
                 tax_on_surcharge,
+                installment_interest,
             }
         })
     }
@@ -1652,22 +1675,23 @@ impl PaymentAttempt {
             match (self.payment_method_type, self.payment_method_subtype) {
                 (
                     storage_enums::PaymentMethod::Upi,
-                    storage_enums::PaymentMethodType::UpiIntent,
+                    Some(storage_enums::PaymentMethodType::UpiIntent),
                 ) => sdk_uri_opt
                     .zip(wait_screen_info)
                     .map(|(sdk_uri, wait_info)| {
                         api_models::payments::NextActionData::from_upi_intent(sdk_uri, wait_info)
                     }),
-                (storage_enums::PaymentMethod::Upi, storage_enums::PaymentMethodType::UpiQr) => {
-                    sdk_uri_opt
-                        .zip(wait_screen_info)
-                        .map(|(sdk_uri, wait_info)| {
-                            api_models::payments::NextActionData::from_upi_qr(sdk_uri, wait_info)
-                        })
-                }
                 (
                     storage_enums::PaymentMethod::Upi,
-                    storage_enums::PaymentMethodType::UpiCollect,
+                    Some(storage_enums::PaymentMethodType::UpiQr),
+                ) => sdk_uri_opt
+                    .zip(wait_screen_info)
+                    .map(|(sdk_uri, wait_info)| {
+                        api_models::payments::NextActionData::from_upi_qr(sdk_uri, wait_info)
+                    }),
+                (
+                    storage_enums::PaymentMethod::Upi,
+                    Some(storage_enums::PaymentMethodType::UpiCollect),
                 ) => wait_screen_info.map(api_models::payments::NextActionData::from_wait_screen),
                 _ => None,
             },
@@ -1826,6 +1850,31 @@ impl PaymentAttempt {
                 .is_some_and(|unsupported_set| unsupported_set.contains(&pm_type))
         })
     }
+
+    /// Extract connector response metadata from the payment attempt metadata based on the connector's configuration
+    pub fn get_connector_response_metadata_from_attempt_metadata(
+        &self,
+    ) -> Option<api_models::payments::ConnectorMetadataResponse> {
+        let connector = self
+            .connector
+            .as_deref()
+            .and_then(|s| Connector::from_str(s).ok())?;
+
+        self.connector_metadata
+            .clone()
+            .and_then(|metadata| match connector {
+                Connector::Santander => metadata
+                    .parse_value::<api_models::payments::SantanderData>("SantanderData")
+                    .map_err(|_| {
+                        router_env::logger::warn!(
+                            "Failed to parse payment_attempt.connector_metadata to SantanderData"
+                        )
+                    })
+                    .ok()
+                    .map(api_models::payments::ConnectorMetadataResponse::Santander),
+                _ => None,
+            })
+    }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -1905,6 +1954,7 @@ pub enum PaymentAttemptUpdate {
         client_source: Option<String>,
         client_version: Option<String>,
         customer_acceptance: Option<pii::SecretSerdeValue>,
+        installment_data: Option<common_types::payments::InstallmentData>,
         connector_mandate_detail: Option<ConnectorMandateReferenceId>,
         tokenization: Option<common_enums::Tokenization>,
         card_discovery: Option<common_enums::CardDiscovery>,
@@ -2075,6 +2125,14 @@ pub enum PaymentAttemptUpdate {
         updated_by: String,
         connector_metadata: Option<Value>,
     },
+    RecurrenceUpdate {
+        status: storage_enums::AttemptStatus,
+        error_code: Option<String>,
+        error_message: Option<String>,
+        error_reason: Option<String>,
+        updated_by: String,
+        connector_mandate_detail: Option<ConnectorMandateReferenceId>,
+    },
 }
 
 #[cfg(feature = "v1")]
@@ -2214,6 +2272,7 @@ impl PaymentAttemptUpdate {
                 client_source,
                 client_version,
                 customer_acceptance,
+                installment_data,
                 connector_mandate_detail,
                 tokenization,
                 card_discovery,
@@ -2254,6 +2313,7 @@ impl PaymentAttemptUpdate {
                 customer_acceptance,
                 shipping_cost: net_amount.get_shipping_cost(),
                 order_tax_amount: net_amount.get_order_tax_amount(),
+                installment_data,
                 connector_mandate_detail,
                 tokenization,
                 card_discovery,
@@ -2626,6 +2686,21 @@ impl PaymentAttemptUpdate {
                 updated_by,
                 connector_metadata,
             },
+            Self::RecurrenceUpdate {
+                status,
+                error_code,
+                error_message,
+                error_reason,
+                updated_by,
+                connector_mandate_detail,
+            } => DieselPaymentAttemptUpdate::RecurrenceUpdate {
+                status,
+                error_code,
+                error_message,
+                error_reason,
+                updated_by,
+                connector_mandate_detail,
+            },
         }
     }
 
@@ -2654,7 +2729,8 @@ impl PaymentAttemptUpdate {
             | Self::IncrementalAuthorizationAmountUpdate { .. }
             | Self::AuthenticationUpdate { .. }
             | Self::ManualUpdate { .. }
-            | Self::PostSessionTokensUpdate { .. } => None,
+            | Self::PostSessionTokensUpdate { .. }
+            | Self::RecurrenceUpdate { .. } => None,
         }
     }
 }
@@ -2833,6 +2909,7 @@ impl behaviour::Conversion for PaymentAttempt {
             card_network,
             order_tax_amount: self.net_amount.get_order_tax_amount(),
             shipping_cost: self.net_amount.get_shipping_cost(),
+            installment_data: self.installment_data,
             connector_mandate_detail: self.connector_mandate_detail,
             tokenization: self.tokenization,
             request_extended_authorization: self.request_extended_authorization,
@@ -2905,6 +2982,10 @@ impl behaviour::Conversion for PaymentAttempt {
                     storage_model.order_tax_amount,
                     storage_model.surcharge_amount,
                     storage_model.tax_amount,
+                    storage_model
+                        .installment_data
+                        .as_ref()
+                        .and_then(|d| d.installment_interest),
                 ),
                 currency: storage_model.currency,
                 save_to_locker: storage_model.save_to_locker,
@@ -2987,6 +3068,7 @@ impl behaviour::Conversion for PaymentAttempt {
                 encrypted_payment_method_data,
                 error_details: storage_model.error_details.map(Into::into),
                 retry_type: storage_model.retry_type,
+                installment_data: storage_model.installment_data,
             })
         }
         .await
@@ -3086,6 +3168,7 @@ impl behaviour::Conversion for PaymentAttempt {
             encrypted_payment_method_data: self.encrypted_payment_method_data.map(Encryption::from),
             error_details: self.error_details.map(Into::into),
             retry_type: self.retry_type,
+            installment_data: self.installment_data,
         })
     }
 }
@@ -3269,6 +3352,7 @@ impl behaviour::Conversion for PaymentAttempt {
             encrypted_payment_method_data: None,
             error_details: None,
             retry_type: None,
+            installment_data: None,
         })
     }
 

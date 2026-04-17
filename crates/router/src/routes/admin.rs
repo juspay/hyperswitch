@@ -310,6 +310,8 @@ pub async fn retrieve_merchant_account(
                 // this API call for profile level users.
                 // TODO: Convert this to MerchantAccountRead once FE changes are done.
                 required_permission: Permission::ProfileAccountRead,
+                allow_connected: true,
+                allow_platform: true,
             },
             req.headers(),
         ),
@@ -348,6 +350,8 @@ pub async fn retrieve_merchant_account(
                 // this API call for profile level users.
                 // TODO: Convert this to MerchantAccountRead once FE changes are done.
                 required_permission: Permission::ProfileAccountRead,
+                allow_connected: true,
+                allow_platform: true,
             },
             req.headers(),
         ),
@@ -379,6 +383,8 @@ pub async fn merchant_account_list(
             &auth::V2AdminApiAuth,
             &auth::JWTAuthMerchantFromHeader {
                 required_permission: Permission::MerchantAccountRead,
+                allow_connected: true,
+                allow_platform: true,
             },
             req.headers(),
         ),
@@ -409,6 +415,8 @@ pub async fn merchant_account_list(
             },
             &auth::JWTAuthMerchantFromHeader {
                 required_permission: Permission::MerchantAccountRead,
+                allow_connected: true,
+                allow_platform: true,
             },
             req.headers(),
         ),
@@ -441,6 +449,8 @@ pub async fn update_merchant_account(
             &auth::JWTAuthMerchantFromRoute {
                 merchant_id: merchant_id.clone(),
                 required_permission: Permission::MerchantAccountWrite,
+                allow_connected: true,
+                allow_platform: true,
             },
             req.headers(),
         ),
@@ -472,6 +482,8 @@ pub async fn update_merchant_account(
             &auth::JWTAuthMerchantFromRoute {
                 merchant_id: merchant_id.clone(),
                 required_permission: Permission::MerchantAccountWrite,
+                allow_connected: true,
+                allow_platform: true,
             },
             req.headers(),
         ),
@@ -561,6 +573,8 @@ pub async fn connector_create(
             &auth::JWTAndEmbeddedAuth {
                 merchant_id_from_route: Some(merchant_id.clone()),
                 permission: Some(Permission::ProfileConnectorWrite),
+                allow_connected: true,
+                allow_platform: false,
             },
             req.headers(),
         ),
@@ -592,6 +606,8 @@ pub async fn connector_create(
             &auth::AdminApiAuthWithMerchantIdFromHeader,
             &auth::JWTAuthMerchantFromHeader {
                 required_permission: Permission::MerchantConnectorWrite,
+                allow_connected: true,
+                allow_platform: false,
             },
             req.headers(),
         ),
@@ -641,6 +657,8 @@ pub async fn connector_retrieve(
                 // sensitive data, keeping this as ProfileConnectorWrite
                 // TODO: Convert this to ProfileConnectorRead once data is masked.
                 permission: Some(Permission::ProfileConnectorWrite),
+                allow_connected: true,
+                allow_platform: false,
             },
             req.headers(),
         ),
@@ -674,6 +692,8 @@ pub async fn connector_retrieve(
             &auth::AdminApiAuthWithMerchantIdFromHeader,
             &auth::JWTAuthMerchantFromHeader {
                 required_permission: Permission::MerchantConnectorRead,
+                allow_connected: true,
+                allow_platform: false,
             },
             req.headers(),
         ),
@@ -708,6 +728,8 @@ pub async fn connector_list(
             &auth::AdminApiAuthWithMerchantIdFromHeader,
             &auth::JWTAuthMerchantFromHeader {
                 required_permission: Permission::MerchantConnectorRead,
+                allow_connected: true,
+                allow_platform: false,
             },
             req.headers(),
         ),
@@ -742,6 +764,8 @@ pub async fn connector_list(
             &auth::JWTAuthMerchantFromRoute {
                 merchant_id,
                 required_permission: Permission::MerchantConnectorRead,
+                allow_connected: true,
+                allow_platform: false,
             },
             req.headers(),
         ),
@@ -780,6 +804,8 @@ pub async fn connector_list_profile(
             &auth::JWTAndEmbeddedAuth {
                 merchant_id_from_route: Some(merchant_id),
                 permission: Some(Permission::ProfileConnectorRead),
+                allow_connected: true,
+                allow_platform: false,
             },
             req.headers(),
         ),
@@ -824,6 +850,8 @@ pub async fn connector_update(
             &auth::JWTAndEmbeddedAuth {
                 merchant_id_from_route: Some(merchant_id.clone()),
                 permission: Some(Permission::ProfileConnectorWrite),
+                allow_connected: true,
+                allow_platform: false,
             },
             req.headers(),
         ),
@@ -859,6 +887,8 @@ pub async fn connector_update(
             &auth::JWTAuthMerchantFromRoute {
                 merchant_id: merchant_id.clone(),
                 required_permission: Permission::MerchantConnectorWrite,
+                allow_connected: true,
+                allow_platform: false,
             },
             req.headers(),
         ),
@@ -898,6 +928,8 @@ pub async fn connector_delete(
             &auth::JWTAuthMerchantFromRoute {
                 merchant_id,
                 required_permission: Permission::MerchantConnectorWrite,
+                allow_connected: true,
+                allow_platform: false,
             },
             req.headers(),
         ),
@@ -931,6 +963,8 @@ pub async fn connector_delete(
             &auth::AdminApiAuthWithMerchantIdFromHeader,
             &auth::JWTAuthMerchantFromHeader {
                 required_permission: Permission::MerchantConnectorWrite,
+                allow_connected: true,
+                allow_platform: false,
             },
             req.headers(),
         ),
@@ -1119,6 +1153,58 @@ pub async fn connector_webhook_register(
             &auth::JWTAuthMerchantFromRoute {
                 merchant_id: merchant_id.clone(),
                 required_permission: Permission::ProfileConnectorWrite,
+                allow_connected: true,
+                allow_platform: false,
+            },
+            req.headers(),
+        ),
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+/// Configure Connector Webhook - Register
+///
+/// List webhooks configured with hyperswitch at the connector
+#[cfg(feature = "v1")]
+#[
+    instrument(skip_all, fields(flow = ?Flow::MerchantConnectorWebhookList))]
+pub async fn retrieve_connector_webhook(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    path: web::Path<(
+        common_utils::id_type::MerchantId,
+        common_utils::id_type::MerchantConnectorAccountId,
+    )>,
+) -> HttpResponse {
+    let flow = Flow::MerchantConnectorWebhookList;
+    let (merchant_id, merchant_connector_id) = path.into_inner();
+    let payload = web::Json(admin::MerchantConnectorId {
+        merchant_id: merchant_id.clone(),
+        merchant_connector_id,
+    })
+    .into_inner();
+
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        payload,
+        |state, auth, req, _| {
+            fetch_connector_webhook(
+                state,
+                req.merchant_id.clone(),
+                auth.profile.map(|profile| profile.get_id().clone()),
+                req.merchant_connector_id,
+            )
+        },
+        auth::auth_type(
+            &auth::ApiKeyAuthWithMerchantIdFromRoute(merchant_id.clone()),
+            &auth::JWTAuthMerchantFromRoute {
+                merchant_id,
+                required_permission: Permission::ProfileAccountRead,
+                allow_connected: true,
+                allow_platform: true,
             },
             req.headers(),
         ),

@@ -9,7 +9,8 @@ use common_utils::generate_id;
 use common_utils::id_type;
 #[cfg(feature = "v2")]
 use hyperswitch_domain_models::payment_method_data::NetworkTokenDetails;
-use masking::Secret;
+use hyperswitch_masking::Secret;
+use router_env::logger;
 use serde::{Deserialize, Serialize};
 
 #[cfg(feature = "v2")]
@@ -331,6 +332,11 @@ pub struct TokenDetails {
     pub exp_year: Secret<String>,
 }
 
+#[derive(Debug, Serialize, Deserialize)]
+pub struct TokenCardDetails {
+    pub par: Secret<String>,
+}
+
 #[derive(Debug, Deserialize)]
 pub struct TokenResponse {
     pub authentication_details: AuthenticationDetails,
@@ -340,6 +346,7 @@ pub struct TokenResponse {
     pub card_type: Option<String>,
     pub issuer: Option<String>,
     pub nickname: Option<Secret<String>>,
+    pub card_details: Option<TokenCardDetails>,
 }
 
 #[cfg(feature = "v1")]
@@ -448,6 +455,48 @@ pub struct NetworkTokenMetaDataUpdateBody {
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct PanMetadataUpdateBody {
     pub card: NetworkTokenRequestorData,
+}
+
+/// Write mode for vault operations
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "lowercase")]
+pub enum WriteMode {
+    Insert,
+    Upsert,
+}
+#[derive(Debug, Clone, Serialize)]
+pub struct AddVaultQueryParam {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub mode: Option<WriteMode>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub enum VaultQueryParam {
+    Add(AddVaultQueryParam),
+}
+
+impl VaultQueryParam {
+    pub fn to_query_value(&self) -> Option<serde_json::Value> {
+        match self {
+            Self::Add(params) => match serde_json::to_value(params) {
+                Ok(value) => Some(value),
+                Err(error) => {
+                    logger::error!(
+                        error = ?error,
+                        params = ?params,
+                        "Failed to serialize VaultQueryParam::Add to JSON value"
+                    );
+                    None
+                }
+            },
+        }
+    }
+}
+
+impl From<WriteMode> for VaultQueryParam {
+    fn from(mode: WriteMode) -> Self {
+        Self::Add(AddVaultQueryParam { mode: Some(mode) })
+    }
 }
 
 #[cfg(feature = "v2")]

@@ -16,7 +16,7 @@ use diesel_models::{types::OrderDetailsWithAmount, TaxDetails};
 use hyperswitch_domain_models::payments::PaymentIntent;
 #[cfg(feature = "v2")]
 use hyperswitch_domain_models::{address, routing};
-use masking::{PeekInterface, Secret};
+use hyperswitch_masking::{PeekInterface, Secret};
 use serde_json::Value;
 use time::OffsetDateTime;
 
@@ -58,6 +58,8 @@ pub struct KafkaPaymentIntentEvent<'a> {
     pub feature_metadata: Option<&'a Value>,
     pub merchant_order_reference_id: Option<&'a String>,
     pub organization_id: &'a id_type::OrganizationId,
+    pub processor_merchant_id: &'a id_type::MerchantId,
+    pub created_by: Option<&'a common_types::CreatedBy>,
     #[serde(flatten)]
     pub infra_values: Option<Value>,
 }
@@ -194,6 +196,8 @@ impl<'a> KafkaPaymentIntentEvent<'a> {
             feature_metadata: intent.feature_metadata.as_ref(),
             merchant_order_reference_id: intent.merchant_order_reference_id.as_ref(),
             organization_id: &intent.organization_id,
+            processor_merchant_id: &intent.processor_merchant_id,
+            created_by: intent.created_by.as_ref(),
             infra_values: infra_values.clone(),
         }
     }
