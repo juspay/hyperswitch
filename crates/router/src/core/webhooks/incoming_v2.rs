@@ -185,7 +185,7 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
         .get_webhooks(
             state.store.as_ref(),
             state.superposition_service.as_ref(),
-            None,
+            Some(platform.get_processor().get_account().get_id()),
         )
         .await;
 
@@ -465,7 +465,7 @@ async fn payments_incoming_webhook_flow(
         .get_webhooks(
             state.store.as_ref(),
             state.superposition_service.as_ref(),
-            None,
+            Some(platform.get_processor().get_account().get_id()),
         )
         .await;
 

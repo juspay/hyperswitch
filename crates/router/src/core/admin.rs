@@ -2718,7 +2718,7 @@ pub async fn create_connector(
         connector_metadata: &req.metadata,
     };
 
-    let merchant_id = platform.get_provider().get_account().get_id();
+    let merchant_id = platform.get_processor().get_account().get_id();
 
     connector_metadata.validate_apple_pay_certificates_in_mca_metadata()?;
 
@@ -2807,7 +2807,7 @@ pub async fn create_connector(
     redact_cgraph_cache(&state, merchant_id, business_profile.get_id()).await?;
 
     #[cfg(feature = "v1")]
-    disputes::schedule_dispute_sync_task(&state, dimensions, &business_profile, &mca).await?;
+    disputes::schedule_dispute_sync_task(&state, dimensions, &business_profile, &mca, merchant_id).await?;
 
     #[cfg(feature = "v1")]
     //update merchant default config

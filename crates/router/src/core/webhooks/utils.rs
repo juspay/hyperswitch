@@ -215,7 +215,7 @@ pub async fn is_outgoing_webhook_disabled(
         .get_webhooks(
             state.store.as_ref(),
             state.superposition_service.as_ref(),
-            None,
+            Some(&business_profile.merchant_id),
         )
         .await;
     if !webhooks_config.outgoing_enabled

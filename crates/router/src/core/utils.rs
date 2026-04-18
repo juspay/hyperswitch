@@ -2894,12 +2894,13 @@ fn validate_plusgiro_number(number: &Secret<String>) -> RouterResult<()> {
 pub async fn should_add_dispute_sync_task_to_pt(
     state: &SessionState,
     dimensions: dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileIdAndConnector,
+    merchant_id: &common_utils::id_type::MerchantId,
 ) -> bool {
     let is_dispute_supported_connector = dimensions
         .get_dispute_supported_connector(
             state.store.as_ref(),
             state.superposition_service.as_ref(),
-            None,
+            Some(merchant_id),
         )
         .await;
     is_dispute_supported_connector

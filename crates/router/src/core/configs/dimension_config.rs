@@ -301,8 +301,8 @@ config! {
 
 config! {
     superposition_key = WEBHOOKS,
-    output = crate::configs::settings::WebhooksSettings,
-    default = crate::configs::settings::WebhooksSettings::default(),
+    output = settings::WebhooksSettings,
+    default = settings::WebhooksSettings::default(),
     object = true,
     requires = dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndOrgId,
     targeting_key = id_type::MerchantId
@@ -313,11 +313,11 @@ config! {
     output = bool,
     default = false,
     requires = dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileIdAndConnector,
-    targeting_key = id_type::CustomerId
+    targeting_key = String
 }
 
 impl DatabaseBackedConfig for NetworkTransactionIdSupportedConnector {
-    const KEY: &'static str = "is_network_transaction_id_supported_connector";
+    const KEY: &'static str = "network_transaction_id_supported_connector";
     fn db_key(_dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
         None
     }
@@ -332,7 +332,7 @@ config! {
 }
 
 impl DatabaseBackedConfig for CardOnlyMitSupportedConnector {
-    const KEY: &'static str = "is_card_only_mit_supported_connector";
+    const KEY: &'static str = "card_only_mit_supported_connector";
     fn db_key(_dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
         None
     }
@@ -343,11 +343,11 @@ config! {
     output = bool,
     default = false,
     requires = dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileIdAndConnector,
-    targeting_key = id_type::CustomerId
+    targeting_key = id_type::MerchantId
 }
 
 impl DatabaseBackedConfig for DisputeSupportedConnector {
-    const KEY: &'static str = "is_dispute_supported_connector";
+    const KEY: &'static str = "dispute_supported_connector";
     fn db_key(_dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
         None
     }

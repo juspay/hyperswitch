@@ -9808,7 +9808,6 @@ where
     D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
 {
     // Since this flow will only be used in the MIT flow, recurring details are mandatory.
-    // Clone to release the immutable borrow on payment_data before the mutable borrow in get_routable_connectors.
     let recurring_payment_details = payment_data
         .get_recurring_details()
         .ok_or(errors::ApiErrorResponse::IncorrectPaymentMethodConfiguration)
@@ -9863,6 +9862,12 @@ pub async fn get_proxy_connector_filters(
                 .filter_map(|connector_name| {
                     connector_name
                         .parse::<enums::Connector>()
+                        .inspect_err(|err| {
+                            logger::error!(
+                                ?err,
+                                "Failed to parse connector name: {connector_name} in NetworkTransactionIdAndNetworkTokenDetails"
+                            )
+                        })
                         .ok()
                         .map(|connector| {
                             let connector_dimensions = dimensions.with_connector(connector);
@@ -9889,6 +9894,12 @@ pub async fn get_proxy_connector_filters(
                 .filter_map(|connector_name| {
                     connector_name
                         .parse::<enums::Connector>()
+                        .inspect_err(|err| {
+                            logger::error!(
+                                ?err,
+                                "Failed to parse connector name: {connector_name} in CardWithLimitedData"
+                            )
+                        })
                         .ok()
                         .map(|connector| {
                             let connector_dimensions = dimensions.with_connector(connector);
@@ -10863,7 +10874,7 @@ impl ActionTypesBuilder {
 }
 
 #[cfg(feature = "v1")]
-#[warn(clippy::too_many_arguments)]
+#[allow(clippy::too_many_arguments)]
 pub async fn get_all_action_types(
     state: &SessionState,
     is_payment_method_modular_allowed: bool,

@@ -71,7 +71,7 @@ pub(crate) async fn create_event_and_trigger_outgoing_webhook(
         .get_webhooks(
             state.store.as_ref(),
             state.superposition_service.as_ref(),
-            None,
+            Some(&business_profile.merchant_id),
         )
         .await;
 

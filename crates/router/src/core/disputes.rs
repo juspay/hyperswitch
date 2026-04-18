@@ -1048,6 +1048,7 @@ pub async fn schedule_dispute_sync_task(
     dimensions: dimension_state::DimensionsWithProcessorAndProviderMerchantId,
     business_profile: &domain::Profile,
     mca: &domain::MerchantConnectorAccount,
+    merchant_id: &common_utils::id_type::MerchantId,
 ) -> common_utils::errors::CustomResult<(), errors::ApiErrorResponse> {
     let connector = api::enums::Connector::from_str(&mca.connector_name).change_context(
         errors::ApiErrorResponse::InvalidDataValue {
@@ -1057,9 +1058,9 @@ pub async fn schedule_dispute_sync_task(
 
     let new_dimensions = dimensions
         .with_profile_id(business_profile.get_id().clone())
-        .with_connector(connector.clone());
+        .with_connector(connector);
 
-    if core_utils::should_add_dispute_sync_task_to_pt(state, new_dimensions).await {
+    if core_utils::should_add_dispute_sync_task_to_pt(state, new_dimensions, merchant_id).await {
         let offset_date_time = time::OffsetDateTime::now_utc();
         let created_from =
             time::PrimitiveDateTime::new(offset_date_time.date(), offset_date_time.time());
