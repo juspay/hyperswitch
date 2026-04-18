@@ -418,6 +418,7 @@ jobs:
         contains(github.event.pull_request.labels.*.name, 'S-test-ready'))) && !cancelled()
     permissions:
       pull-requests: write
+      statuses: write
     steps:
       - name: Evaluate Matrix Results
         shell: bash
@@ -446,6 +447,18 @@ jobs:
             fi
             exit 1
           fi
+
+      - name: Post commit status for workflow_dispatch runs
+        if: ${{ github.event_name == 'workflow_dispatch' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          RESULT="${{ needs.mandatory-cypress-tests.result }}"
+          STATE=$( [ "$RESULT" == "success" ] && echo "success" || echo "failure" )
+          gh api repos/${{ github.repository }}/statuses/${{ github.sha }} \
+            -f state="$STATE" \
+            -f context="Run Cypress tests / Mandatory Cypress Tests" \
+            -f description="Triggered via workflow_dispatch"
 
 
   prepare-optional-matrix:
