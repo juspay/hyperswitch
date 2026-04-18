@@ -29,6 +29,9 @@ pub struct ComparisonData {
     pub hyperswitch_data: hyperswitch_masking::Secret<serde_json::Value>,
     /// Unified Connector Service router data
     pub unified_connector_service_data: hyperswitch_masking::Secret<serde_json::Value>,
+    /// Connector-specific config snapshot for parity comparison
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub connector_config_header: Option<String>,
 }
 
 /// Trait to get comparison service configuration
@@ -45,6 +48,35 @@ pub async fn serialize_router_data_and_send_to_comparison_service<F, RouterDReq,
     unified_connector_service_router_data: router_data::RouterData<F, RouterDReq, RouterDResp>,
     comparison_service_config: types::ComparisonServiceConfig,
     request_id: Option<String>,
+) -> common_utils_errors::CustomResult<(), errors::HttpClientError>
+where
+    F: Send + Clone + Sync + 'static,
+    RouterDReq: Send + Sync + Clone + 'static + serde::Serialize,
+    RouterDResp: Send + Sync + Clone + 'static + serde::Serialize,
+{
+    serialize_router_data_with_config_and_send_to_comparison_service(
+        state,
+        hyperswitch_router_data,
+        unified_connector_service_router_data,
+        comparison_service_config,
+        request_id,
+        None,
+    )
+    .await
+}
+
+/// Serialize router data with an optional connector config snapshot and send to comparison service
+pub async fn serialize_router_data_with_config_and_send_to_comparison_service<
+    F,
+    RouterDReq,
+    RouterDResp,
+>(
+    state: &dyn api_client::ApiClientWrapper,
+    hyperswitch_router_data: router_data::RouterData<F, RouterDReq, RouterDResp>,
+    unified_connector_service_router_data: router_data::RouterData<F, RouterDReq, RouterDResp>,
+    comparison_service_config: types::ComparisonServiceConfig,
+    request_id: Option<String>,
+    connector_config_header: Option<String>,
 ) -> common_utils_errors::CustomResult<(), errors::HttpClientError>
 where
     F: Send + Clone + Sync + 'static,
@@ -74,6 +106,7 @@ where
     let comparison_data = ComparisonData {
         hyperswitch_data,
         unified_connector_service_data,
+        connector_config_header,
     };
     let _ = send_comparison_data(
         state,

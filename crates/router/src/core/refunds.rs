@@ -612,6 +612,36 @@ async fn execute_refund_execute_via_direct(
     Ok(refund_router_data_res)
 }
 
+#[cfg(feature = "v1")]
+fn build_connector_config_header_from_mca(
+    merchant_connector_account: &MerchantConnectorAccountType,
+) -> Option<serde_json::Value> {
+    use common_utils::ext_traits::ValueExt;
+    use hyperswitch_domain_models::router_data::ConnectorAuthType;
+    use hyperswitch_masking::ExposeInterface;
+
+    let connector_name = merchant_connector_account.get_connector_name()?;
+    let auth_type: ConnectorAuthType = merchant_connector_account
+        .get_connector_account_details()
+        .parse_value("ConnectorAuthType")
+        .ok()?;
+    let metadata = merchant_connector_account.get_metadata();
+    let metadata_value = metadata
+        .as_ref()
+        .and_then(|m| serde_json::to_value(m.clone().expose()).ok());
+
+    let config_string =
+        unified_connector_service::connector_config::build_connector_config_header(
+            &connector_name,
+            &auth_type,
+            metadata_value.as_ref(),
+        )
+        .ok()
+        .flatten()?;
+
+    serde_json::from_str(&config_string).ok()
+}
+
 /// Execute refund via Direct connector with UCS shadow comparison
 async fn execute_refund_execute_via_direct_with_ucs_shadow(
     state: &SessionState,
@@ -638,6 +668,10 @@ async fn execute_refund_execute_via_direct_with_ucs_shadow(
     let ucs_platform = platform.clone();
     let ucs_state = state.clone();
 
+    let connector_config_header = build_connector_config_header_from_mca(
+        &merchant_connector_account,
+    );
+
     // Clone direct result for comparison (if successful)
     let direct_router_data_for_comparison = direct_result.as_ref().ok().cloned();
 
@@ -656,10 +690,11 @@ async fn execute_refund_execute_via_direct_with_ucs_shadow(
                 match (ucs_result, direct_router_data_for_comparison) {
                     (Ok(ucs_router_data), Some(direct_router_data)) => {
                         Box::pin(
-                            unified_connector_service::serialize_router_data_and_send_to_comparison_service(
+                            unified_connector_service::serialize_router_data_with_config_and_send_to_comparison_service(
                                 &ucs_state,
                                 direct_router_data,
-                                ucs_router_data
+                                ucs_router_data,
+                                connector_config_header,
                             )
                         ).await
                             .inspect_err(|e| {
@@ -1207,6 +1242,9 @@ async fn execute_refund_sync_via_direct_with_ucs_shadow(
     let state = state.clone();
     let processor = processor.clone();
     let merchant_connector_account = merchant_connector_account.clone();
+    let connector_config_header = build_connector_config_header_from_mca(
+        &merchant_connector_account,
+    );
     let direct_router_data_for_comparison = direct_result.as_ref().ok().cloned();
 
     tokio::spawn(
@@ -1224,10 +1262,11 @@ async fn execute_refund_sync_via_direct_with_ucs_shadow(
                 match (ucs_result, direct_router_data_for_comparison) {
                     (Ok(ucs_router_data), Some(direct_router_data)) => {
                         Box::pin(
-                            unified_connector_service::serialize_router_data_and_send_to_comparison_service(
+                            unified_connector_service::serialize_router_data_with_config_and_send_to_comparison_service(
                                 &state,
                                 direct_router_data,
-                                ucs_router_data
+                                ucs_router_data,
+                                connector_config_header,
                             )
                         ).await
                             .inspect_err(|e| {
