@@ -155,8 +155,8 @@ pub(crate) async fn create_event_and_trigger_outgoing_webhook(
 
     if (state
         .store
-        .find_event_by_merchant_id_idempotent_event_id(
-            &provider_merchant_id,
+        .find_event_by_initiator_merchant_id_idempotent_event_id(
+            &webhook_recipient.key_store.merchant_id,
             &idempotent_event_id,
             &webhook_recipient.key_store,
         )

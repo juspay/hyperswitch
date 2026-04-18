@@ -513,12 +513,7 @@ async fn update_event_in_storage(
     };
     state
         .store
-        .update_event_by_merchant_id_event_id(
-            merchant_id,
-            event_id,
-            event_update,
-            &merchant_key_store,
-        )
+        .update_event_by_event_id(event_id, event_update, &merchant_key_store)
         .await
         .change_context(errors::WebhooksFlowError::WebhookEventUpdationFailed)
 }
@@ -544,8 +539,7 @@ async fn update_overall_delivery_status_in_storage(
     {
         state
             .store
-            .update_event_by_merchant_id_event_id(
-                merchant_id,
+            .update_event_by_event_id(
                 initial_attempt_id.as_str(),
                 update_overall_delivery_status,
                 &merchant_key_store,

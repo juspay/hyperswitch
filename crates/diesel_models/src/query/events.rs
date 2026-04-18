@@ -62,6 +62,28 @@ impl Event {
         .await
     }
 
+    pub async fn find_by_initiator_merchant_id_idempotent_event_id(
+        conn: &PgPooledConn,
+        initiator_merchant_id: &common_utils::id_type::MerchantId,
+        idempotent_event_id: &str,
+    ) -> StorageResult<Self> {
+        // Fallback on merchant_id for rows with NULL initiator_merchant_id to
+        // handle events created during staggered rollout by older code.
+        generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
+            conn,
+            dsl::idempotent_event_id
+                .eq(idempotent_event_id.to_owned())
+                .and(
+                    dsl::initiator_merchant_id
+                        .eq(initiator_merchant_id.to_owned())
+                        .or(dsl::initiator_merchant_id
+                            .is_null()
+                            .and(dsl::merchant_id.eq(initiator_merchant_id.to_owned()))),
+                ),
+        )
+        .await
+    }
+
     pub async fn list_initial_attempts_by_merchant_id_primary_object_id(
         conn: &PgPooledConn,
         merchant_id: &common_utils::id_type::MerchantId,
@@ -162,29 +184,41 @@ impl Event {
         conn: &PgPooledConn,
         initiator_merchant_id: &common_utils::id_type::MerchantId,
         primary_object_id: &str,
+        profile_id: Option<common_utils::id_type::ProfileId>,
     ) -> StorageResult<Vec<Self>> {
         // Fallback on merchant_id for rows with NULL initiator_merchant_id to
         // handle events created during staggered rollout by older code. This
         // fallback is correct for standard merchants where merchant_id equals
         // the webhook recipient.
-        generics::generic_filter::<<Self as HasTable>::Table, _, _, _>(
-            conn,
-            dsl::event_id
-                .nullable()
-                .eq(dsl::initial_attempt_id) // Filter initial attempts only
-                .and(
-                    dsl::initiator_merchant_id
-                        .eq(initiator_merchant_id.to_owned())
-                        .or(dsl::initiator_merchant_id
-                            .is_null()
-                            .and(dsl::merchant_id.eq(initiator_merchant_id.to_owned()))),
-                )
-                .and(dsl::primary_object_id.eq(primary_object_id.to_owned())),
-            None,
-            None,
-            Some(dsl::created_at.desc()),
-        )
-        .await
+        let mut query = Self::table()
+            .filter(
+                dsl::event_id
+                    .nullable()
+                    .eq(dsl::initial_attempt_id) // Filter initial attempts only
+                    .and(
+                        dsl::initiator_merchant_id
+                            .eq(initiator_merchant_id.to_owned())
+                            .or(dsl::initiator_merchant_id
+                                .is_null()
+                                .and(dsl::merchant_id.eq(initiator_merchant_id.to_owned()))),
+                    )
+                    .and(dsl::primary_object_id.eq(primary_object_id.to_owned())),
+            )
+            .order(dsl::created_at.desc())
+            .into_boxed();
+
+        if let Some(profile_id) = profile_id {
+            query = query.filter(dsl::business_profile_id.eq(profile_id));
+        }
+
+        logger::debug!(query = %debug_query::<Pg, _>(&query).to_string());
+
+        track_database_call::<Self, _, _>(query.get_results_async(conn), DatabaseOperation::Filter)
+            .await
+            .change_context(DatabaseError::Others)
+            .attach_printable(
+                "Error filtering initial events by initiator merchant ID and primary object ID",
+            )
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -236,13 +270,24 @@ impl Event {
             .attach_printable("Error filtering events by constraints")
     }
 
-    pub async fn list_by_initial_attempt_id(
+    pub async fn list_by_initiator_merchant_id_initial_attempt_id(
         conn: &PgPooledConn,
         initial_attempt_id: &str,
+        initiator_merchant_id: &common_utils::id_type::MerchantId,
     ) -> StorageResult<Vec<Self>> {
+        // Fallback on merchant_id for rows with NULL initiator_merchant_id to
+        // handle events created during staggered rollout by older code.
         generics::generic_filter::<<Self as HasTable>::Table, _, _, _>(
             conn,
-            dsl::initial_attempt_id.eq(initial_attempt_id.to_owned()),
+            dsl::initial_attempt_id
+                .eq(initial_attempt_id.to_owned())
+                .and(
+                    dsl::initiator_merchant_id
+                        .eq(initiator_merchant_id.to_owned())
+                        .or(dsl::initiator_merchant_id
+                            .is_null()
+                            .and(dsl::merchant_id.eq(initiator_merchant_id.to_owned()))),
+                ),
             None,
             None,
             Some(dsl::created_at.desc()),

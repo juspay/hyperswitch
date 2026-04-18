@@ -759,6 +759,21 @@ impl EventInterface for KafkaStore {
             .await
     }
 
+    async fn find_event_by_initiator_merchant_id_idempotent_event_id(
+        &self,
+        initiator_merchant_id: &id_type::MerchantId,
+        idempotent_event_id: &str,
+        merchant_key_store: &domain::MerchantKeyStore,
+    ) -> CustomResult<domain::Event, errors::StorageError> {
+        self.diesel_store
+            .find_event_by_initiator_merchant_id_idempotent_event_id(
+                initiator_merchant_id,
+                idempotent_event_id,
+                merchant_key_store,
+            )
+            .await
+    }
+
     async fn list_initial_events_by_initiator_merchant_id_constraints(
         &self,
         initiator_merchant_id: &id_type::MerchantId,
@@ -809,13 +824,18 @@ impl EventInterface for KafkaStore {
             .await
     }
 
-    async fn list_events_by_initial_attempt_id(
+    async fn list_events_by_initiator_merchant_id_initial_attempt_id(
         &self,
         initial_attempt_id: &str,
+        initiator_merchant_id: &id_type::MerchantId,
         merchant_key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<Vec<domain::Event>, errors::StorageError> {
         self.diesel_store
-            .list_events_by_initial_attempt_id(initial_attempt_id, merchant_key_store)
+            .list_events_by_initiator_merchant_id_initial_attempt_id(
+                initial_attempt_id,
+                initiator_merchant_id,
+                merchant_key_store,
+            )
             .await
     }
 
@@ -838,12 +858,14 @@ impl EventInterface for KafkaStore {
         &self,
         initiator_merchant_id: &id_type::MerchantId,
         primary_object_id: &str,
+        profile_id: Option<id_type::ProfileId>,
         merchant_key_store: &domain::MerchantKeyStore,
     ) -> CustomResult<Vec<domain::Event>, errors::StorageError> {
         self.diesel_store
             .list_initial_events_by_initiator_merchant_id_primary_object_id(
                 initiator_merchant_id,
                 primary_object_id,
+                profile_id,
                 merchant_key_store,
             )
             .await

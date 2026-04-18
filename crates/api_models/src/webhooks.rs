@@ -452,7 +452,7 @@ pub struct OutgoingWebhook {
     #[serde(default, with = "custom_serde::iso8601")]
     pub timestamp: PrimitiveDateTime,
 
-    /// The processor merchant id whose credentials are used for payment processing
+    /// The merchant id of the merchant account whose connector credentials are used for payment processing
     #[schema(value_type = Option<String>)]
     pub processor_merchant_id: Option<common_utils::id_type::MerchantId>,
 }

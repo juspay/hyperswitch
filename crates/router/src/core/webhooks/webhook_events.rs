@@ -60,20 +60,12 @@ pub async fn list_initial_delivery_attempts(
                 .list_initial_events_by_initiator_merchant_id_primary_object_id(
                     &merchant_id,
                     object_id.as_str(),
+                    profile_id.clone(),
                     &key_store,
                 )
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Failed to list events with specified constraints")?;
-
-            let events = if let Some(ref profile_id) = profile_id {
-                events
-                    .into_iter()
-                    .filter(|event| event.business_profile_id.as_ref() == Some(profile_id))
-                    .collect()
-            } else {
-                events
-            };
 
             let total_count = i64::try_from(events.len())
                 .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -268,22 +260,14 @@ pub async fn list_delivery_attempts(
         .to_not_found_response(errors::ApiErrorResponse::MerchantAccountNotFound)?;
 
     let events = store
-        .list_events_by_initial_attempt_id(&initial_attempt_id, &key_store)
+        .list_events_by_initiator_merchant_id_initial_attempt_id(
+            &initial_attempt_id,
+            &merchant_id,
+            &key_store,
+        )
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to list delivery attempts for initial event")?;
-
-    // Ensure the calling merchant is the initiator (webhook recipient) of this
-    // event chain. Fall back to `merchant_id` column for events created before
-    // the `initiator_merchant_id` column existed.
-    let events = events
-        .into_iter()
-        .filter(|event| {
-            event.initiator_merchant_id.as_ref() == Some(&merchant_id)
-                || (event.initiator_merchant_id.is_none()
-                    && event.merchant_id.as_ref() == Some(&merchant_id))
-        })
-        .collect::<Vec<_>>();
 
     if events.is_empty() {
         Err(error_stack::report!(
@@ -326,11 +310,10 @@ pub async fn retry_delivery_attempt(
     // Ensure the calling merchant is the initiator (webhook recipient) of this
     // event. Fall back to `merchant_id` column for events created before the
     // `initiator_merchant_id` column existed.
-    let is_caller_the_initiator = event_to_retry.initiator_merchant_id.as_ref()
-        == Some(&merchant_id)
+    let caller_owns_event = event_to_retry.initiator_merchant_id.as_ref() == Some(&merchant_id)
         || (event_to_retry.initiator_merchant_id.is_none()
             && event_to_retry.merchant_id.as_ref() == Some(&merchant_id));
-    if !is_caller_the_initiator {
+    if !caller_owns_event {
         return Err(error_stack::report!(
             errors::ApiErrorResponse::EventNotFound
         ));
