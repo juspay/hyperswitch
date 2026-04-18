@@ -5,13 +5,14 @@ on:
     types:
       - checks_requested
   pull_request:
+    types: [opened, synchronize, reopened, labeled]
   workflow_dispatch:
 
 permissions:
   contents: read
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: ${{ github.workflow }}-${{ github.ref }}-${{ (github.event.action == 'labeled' && github.event.label.name != 'S-test-ready') && github.run_id || 'shared' }}
   cancel-in-progress: true
 
 env:
@@ -418,7 +419,7 @@ jobs:
         contains(github.event.pull_request.labels.*.name, 'S-test-ready'))) && !cancelled()
     permissions:
       pull-requests: write
-      statuses: write
+      checks: write
     steps:
       - name: Evaluate Matrix Results
         shell: bash
@@ -448,17 +449,18 @@ jobs:
             exit 1
           fi
 
-      - name: Post commit status for workflow_dispatch runs
+      - name: Post check run result for workflow_dispatch runs
         if: ${{ github.event_name == 'workflow_dispatch' }}
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           RESULT="${{ needs.mandatory-cypress-tests.result }}"
-          STATE=$( [ "$RESULT" == "success" ] && echo "success" || echo "failure" )
-          gh api repos/${{ github.repository }}/statuses/${{ github.sha }} \
-            -f state="$STATE" \
-            -f context="Run Cypress tests / Mandatory Cypress Tests" \
-            -f description="Triggered via workflow_dispatch"
+          CONCLUSION=$( [ "$RESULT" == "success" ] && echo "success" || echo "failure" )
+          gh api repos/${{ github.repository }}/check-runs \
+            -f name="Mandatory Cypress Tests — Consolidated Result" \
+            -f head_sha="${{ github.sha }}" \
+            -f status="completed" \
+            -f conclusion="$CONCLUSION"
 
 
   prepare-optional-matrix:
