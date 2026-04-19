@@ -9,6 +9,7 @@ pub mod transformers;
 pub mod validator;
 use std::{
     collections::{HashMap, HashSet},
+    str::FromStr,
     vec::IntoIter,
 };
 
@@ -346,7 +347,7 @@ pub async fn payouts_create_core(
 ) -> RouterResponse<payouts::PayoutCreateResponse> {
     // Validate create request
     let (payout_id, payout_method_data, profile_id, customer, payment_method) =
-        validator::validate_create_request(&state, &platform, &req).await?;
+        Box::pin(validator::validate_create_request(&state, &platform, &req)).await?;
     let dimensions = dimension_state::Dimensions::new()
         .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
         .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id())
@@ -619,6 +620,11 @@ pub async fn payouts_cancel_core(
     let payout_attempt = payout_data.payout_attempt.to_owned();
     let status = payout_attempt.status;
 
+    let connector_name = payout_attempt
+        .connector
+        .as_deref()
+        .and_then(|connector| common_enums::connector_enums::Connector::from_str(connector).ok());
+
     // Verify if cancellation can be triggered
     if helpers::is_payout_terminal_state(status) {
         return Err(report!(errors::ApiErrorResponse::InvalidRequestData {
@@ -629,7 +635,12 @@ pub async fn payouts_cancel_core(
         }));
 
     // Make local cancellation
-    } else if helpers::is_eligible_for_local_payout_cancellation(status) {
+    } else if helpers::is_eligible_for_local_payout_cancellation(status)
+        && connector_name
+            .as_ref()
+            .map(|name| name.supports_instant_payout(payout_data.payouts.payout_type))
+            .unwrap_or(true)
+    {
         let status = storage_enums::PayoutStatus::Cancelled;
         let updated_payout_attempt = storage::PayoutAttemptUpdate::StatusUpdate {
             connector_payout_id: payout_attempt.connector_payout_id.to_owned(),

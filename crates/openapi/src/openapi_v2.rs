@@ -9,7 +9,7 @@ use crate::routes;
         contact(
             name = "Hyperswitch Support",
             url = "https://hyperswitch.io",
-            email = "hyperswitch@juspay.in"
+            email = "support.global@juspay.io"
         ),
         // terms_of_service = "https://www.juspay.io/terms",
         description = r#"
@@ -326,6 +326,8 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payment_methods::NetworkTokenStatusCheckFailureResponse,
         api_models::payment_methods::PaymentMethodGetTokenDetailsResponse,
         api_models::payment_methods::RawCardWithNTDetails,
+        api_models::payment_methods::PaymentMethodDataWalletInfo,
+        api_models::payment_methods::WalletPaymentMethodData,
         api_models::enums::TokenStatus,
         api_models::poll::PollResponse,
         api_models::poll::PollStatus,
