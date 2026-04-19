@@ -11407,7 +11407,13 @@ pub async fn payment_external_authentication<F: Clone + Sync>(
     let dimensions = dimension_state::Dimensions::new()
         .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
         .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id())
-        .with_organization_id(platform.get_processor().get_account().organization_id.clone());
+        .with_organization_id(
+            platform
+                .get_processor()
+                .get_account()
+                .organization_id
+                .clone(),
+        );
 
     let processor_merchant_id = platform.get_processor().get_account().get_id();
     let storage_scheme = platform.get_processor().get_account().storage_scheme;
@@ -11583,14 +11589,10 @@ pub async fn payment_external_authentication<F: Clone + Sync>(
         if helpers::is_merchant_eligible_authentication_service(platform.get_processor(), &state)
             .await?
         {
-            
-            let routing_region = uas_utils::fetch_routing_region_for_uas(
-                &state,
-                &dimensions,
-            )
-            .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to fetch routing path")?;
+            let routing_region = uas_utils::fetch_routing_region_for_uas(&state, &dimensions)
+                .await
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to fetch routing path")?;
             let auth_response =
                 <ExternalAuthentication as UnifiedAuthenticationService>::authentication(
                     &state,

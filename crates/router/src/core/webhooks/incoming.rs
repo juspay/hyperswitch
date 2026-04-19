@@ -3470,12 +3470,14 @@ pub async fn process_uas_incoming_webhook<'a>(
     let dimensions = dimension_state::Dimensions::new()
         .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
         .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id())
-        .with_organization_id(platform.get_processor().get_account().organization_id.clone());
-    let routing_region = uas_utils::fetch_routing_region_for_uas(
-        state,
-        &dimensions,
-    )
-    .await?;
+        .with_organization_id(
+            platform
+                .get_processor()
+                .get_account()
+                .organization_id
+                .clone(),
+        );
+    let routing_region = uas_utils::fetch_routing_region_for_uas(state, &dimensions).await?;
     let webhook_data =
         uas_utils::get_webhook_request_data_for_uas(incoming_webhook_request, Some(routing_region));
 

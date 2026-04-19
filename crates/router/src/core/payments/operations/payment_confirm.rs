@@ -2036,7 +2036,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                 .transpose()
                 .change_context(errors::StorageError::DeserializationFailed)
                 .attach_printable("Failed to parse customer data from payment intent")
-                .change_context(errors::ApiErrorResponse::InternalServerError)?.and_then(|cust| cust.email);        
+                .change_context(errors::ApiErrorResponse::InternalServerError)?.and_then(|cust| cust.email);
             let routing_region = uas_utils::utils::fetch_routing_region_for_uas(
                 state,
                 &dimensions,

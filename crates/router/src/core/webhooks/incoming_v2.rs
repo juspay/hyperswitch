@@ -19,8 +19,8 @@ use super::{types, utils, MERCHANT_ID};
 use crate::core::webhooks::recovery_incoming;
 use crate::{
     core::{
-        configs::dimension_state,
         api_locking,
+        configs::dimension_state,
         errors::{self, ConnectorErrorExt, CustomResult, RouterResponse, StorageErrorExt},
         metrics,
         payments::{
@@ -152,7 +152,7 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
     let dimensions = dimension_state::Dimensions::new()
         .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id())
         .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id());
-    
+
     let mut request_details = IncomingWebhookRequestDetails {
         method: req.method().clone(),
         uri: req.uri().clone(),

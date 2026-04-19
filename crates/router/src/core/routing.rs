@@ -1454,7 +1454,14 @@ pub async fn retrieve_linked_routing_config(
                 .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
                 .with_profile_id(business_profile.get_id().clone());
             active_algorithms.append(
-                &mut select_routing_result(&state, &dimensions, &business_profile, hs_records, de_records).await,
+                &mut select_routing_result(
+                    &state,
+                    &dimensions,
+                    &business_profile,
+                    hs_records,
+                    de_records,
+                )
+                .await,
             );
         }
 
