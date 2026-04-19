@@ -478,10 +478,6 @@ pub struct AltIdOrderData {
     /// Required for RuPay cards (post-3DS authentication reference)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub auth_ref_number: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub submerchant_id: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub correlation_id: Option<String>,
 }
 
 /// Alt-ID API request payload
@@ -493,9 +489,6 @@ pub struct FetchAltIdRequest {
     pub order_data: AltIdOrderData,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub key_id: Option<String>,
-    /// Set to true for international cards where Alt-ID is not applicable
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub should_send_raw_card: Option<bool>,
 }
 
 /// Decrypted Alt-ID details (after JWE decryption of altIdDetails field)
@@ -539,6 +532,44 @@ pub struct AltIdResponsePayload {
     pub card_brand: api_enums::CardNetwork,
     pub provider: Option<String>,
     pub provider_category: Option<String>,
+}
+
+impl From<(AltIdResponsePayloadRaw, AltIdDetails)> for AltIdResponsePayload {
+    fn from(
+        (alt_id_raw_response, alt_id_details): (AltIdResponsePayloadRaw, AltIdDetails),
+    ) -> Self {
+        Self {
+            card_issuer_country: alt_id_raw_response.card_issuer_country,
+            correlation_id: alt_id_raw_response.correlation_id,
+            card_issuer_bank: alt_id_raw_response.card_issuer_bank,
+            alt_id_details,
+            card_brand: alt_id_raw_response.card_brand,
+            provider: alt_id_raw_response.provider,
+            provider_category: alt_id_raw_response.provider_category,
+        }
+    }
+}
+
+#[cfg(feature = "v1")]
+impl From<AltIdResponsePayload>
+    for hyperswitch_domain_models::payment_method_data::NetworkTokenData
+{
+    fn from(payload: AltIdResponsePayload) -> Self {
+        Self {
+            token_number: payload.alt_id_details.alt_id,
+            token_exp_month: payload.alt_id_details.exp_month,
+            token_exp_year: payload.alt_id_details.exp_year,
+            token_cryptogram: Some(payload.alt_id_details.tavv),
+            nick_name: None,
+            card_issuer: payload.card_issuer_bank,
+            card_network: Some(payload.card_brand),
+            card_type: None,
+            card_issuing_country: payload.card_issuer_country,
+            bank_code: None,
+            eci: None,
+            par: payload.alt_id_details.par,
+        }
+    }
 }
 
 /// Alt-ID API response wrapper (raw, before decryption)

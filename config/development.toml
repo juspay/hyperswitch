@@ -1414,11 +1414,15 @@ id = "12345"
 [network_tokenization_supported_card_networks]
 card_networks = "Visa, AmericanExpress, Mastercard"
 
-[alt_id_supported_card_networks]
-card_networks = "Visa, Mastercard, AmericanExpress, DinersClub, RuPay"
-
 [network_tokenization_supported_connectors]
 connector_list = "adyen,cybersource,peachpayments,trustpay"
+
+[alt_id_supported_card_networks_and_connector]
+networks.Visa = ["razorpay"]
+networks.Mastercard = ["razorpay"]
+networks.AmericanExpress = ["razorpay"]
+networks.DinersClub = ["razorpay"]
+networks.RuPay = []  # RuPay requires auth_ref_number which is not yet implemented
 
 [grpc_client.dynamic_routing_client]
 host = "localhost"

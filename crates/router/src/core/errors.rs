@@ -402,10 +402,10 @@ pub enum NetworkTokenizationError {
     NetworkTokenDetailsEncryptionFailed,
     #[error("Failed to fetch Alt-ID from network token service")]
     FetchAltIdFailed,
-    #[error("Failed to encrypt card data for Alt-ID request")]
-    AltIdCardDataEncryptionFailed,
-    #[error("Failed to decrypt Alt-ID response")]
-    AltIdResponseDecryptionFailed,
+    #[error("Failed to encrypt card data")]
+    CardDataEncryptionFailed,
+    #[error("Failed to decrypt response data")]
+    ResponseDecryptionFailed,
 }
 
 #[derive(Debug, thiserror::Error)]
