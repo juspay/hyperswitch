@@ -11687,7 +11687,7 @@
                   },
                   "branch_code": {
                     "type": "string",
-                    "description": "Routing number for eft bank debit payment",
+                    "description": "Branch code for eft bank debit payment",
                     "example": "110000000"
                   },
                   "bank_account_holder_name": {
