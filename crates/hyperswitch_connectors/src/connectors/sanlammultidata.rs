@@ -3,8 +3,8 @@ pub mod transformers;
 use std::sync::LazyLock;
 
 use common_enums::enums;
-use common_utils::{errors::CustomResult, request::Request};
-use error_stack::{report, ResultExt};
+use common_utils::{crypto, errors::CustomResult, ext_traits::ByteSliceExt, request::Request};
+use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     payment_method_data::PaymentMethodData,
     router_data::{AccessToken, ConnectorAuthType, RouterData},
@@ -35,12 +35,15 @@ use hyperswitch_interfaces::{
         ConnectorValidation,
     },
     configs::Connectors,
-    errors, webhooks,
+    errors,
+    events::connector_api_logs::ConnectorEvent,
+    types::Response,
+    webhooks,
 };
 use hyperswitch_masking::{Mask, PeekInterface};
 use transformers as sanlammultidata;
 
-use crate::constants::headers;
+use crate::{constants::headers, types::ResponseRouterData, utils::get_header_key_value};
 
 #[derive(Clone)]
 pub struct Sanlammultidata {}
@@ -237,6 +240,25 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for San
         }
         .into())
     }
+
+    fn handle_response(
+        &self,
+        data: &PaymentsSyncRouterData,
+        event_builder: Option<&mut ConnectorEvent>,
+        res: Response,
+    ) -> CustomResult<PaymentsSyncRouterData, errors::ConnectorError> {
+        let response: sanlammultidata::SanlammultidataWebhookEvent = res
+            .response
+            .parse_struct("SanlammultidataWebhookEvent")
+            .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
+        event_builder.map(|i| i.set_response_body(&response));
+        router_env::logger::info!(connector_response=?response);
+        RouterData::try_from(ResponseRouterData {
+            response,
+            data: data.clone(),
+            http_code: res.status_code,
+        })
+    }
 }
 
 impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> for Sanlammultidata {
@@ -297,27 +319,96 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Sanlammul
 
 #[async_trait::async_trait]
 impl webhooks::IncomingWebhook for Sanlammultidata {
-    fn get_webhook_object_reference_id(
+    fn get_webhook_source_verification_algorithm(
         &self,
         _request: &webhooks::IncomingWebhookRequestDetails<'_>,
+    ) -> CustomResult<Box<dyn crypto::VerifySignature + Send>, errors::ConnectorError> {
+        Ok(Box::new(crypto::HmacSha256))
+    }
+
+    fn get_webhook_source_verification_signature(
+        &self,
+        request: &webhooks::IncomingWebhookRequestDetails<'_>,
+        _connector_webhook_secrets: &api_models::webhooks::ConnectorWebhookSecrets,
+    ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
+        let signature = get_header_key_value("X-Signature", request.headers)?;
+        hex::decode(signature)
+            .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)
+    }
+
+    fn get_webhook_source_verification_message(
+        &self,
+        request: &webhooks::IncomingWebhookRequestDetails<'_>,
+        _merchant_id: &common_utils::id_type::MerchantId,
+        _connector_webhook_secrets: &api_models::webhooks::ConnectorWebhookSecrets,
+    ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
+        let message = std::str::from_utf8(request.body)
+            .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
+        Ok(message.to_string().into_bytes())
+    }
+
+    fn get_webhook_object_reference_id(
+        &self,
+        request: &webhooks::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api_models::webhooks::ObjectReferenceId, errors::ConnectorError> {
-        Err(report!(errors::ConnectorError::WebhooksNotImplemented))
+        let details: sanlammultidata::SanlammultidataWebhookEvent = request
+            .body
+            .parse_struct("SanlammultidataWebhookEvent")
+            .change_context(errors::ConnectorError::WebhookReferenceIdNotFound)?;
+
+        let id = match details {
+            sanlammultidata::SanlammultidataWebhookEvent::Payment(ref event) => {
+                api_models::webhooks::ObjectReferenceId::PaymentId(
+                    api_models::payments::PaymentIdType::PaymentAttemptId(
+                        event.payment.user_reference.clone(),
+                    ),
+                )
+            }
+        };
+
+        Ok(id)
     }
 
     fn get_webhook_event_type(
         &self,
-        _request: &webhooks::IncomingWebhookRequestDetails<'_>,
+        request: &webhooks::IncomingWebhookRequestDetails<'_>,
         _context: Option<&webhooks::WebhookContext>,
     ) -> CustomResult<api_models::webhooks::IncomingWebhookEvent, errors::ConnectorError> {
-        Err(report!(errors::ConnectorError::WebhooksNotImplemented))
+        let details: sanlammultidata::SanlammultidataWebhookEvent = request
+            .body
+            .parse_struct("SanlammultidataWebhookEvent")
+            .change_context(errors::ConnectorError::WebhookReferenceIdNotFound)?;
+
+        let event_type = match details {
+            sanlammultidata::SanlammultidataWebhookEvent::Payment(ref event) => {
+                match event.event_type {
+                    sanlammultidata::SanlammultidataWebhookEventType::PaymentSucceeded => {
+                        api_models::webhooks::IncomingWebhookEvent::PaymentIntentSuccess
+                    }
+                    sanlammultidata::SanlammultidataWebhookEventType::PaymentFailed => {
+                        api_models::webhooks::IncomingWebhookEvent::PaymentIntentFailure
+                    }
+                    sanlammultidata::SanlammultidataWebhookEventType::DisputeOpened => {
+                        api_models::webhooks::IncomingWebhookEvent::DisputeOpened
+                    }
+                }
+            }
+        };
+
+        Ok(event_type)
     }
 
     fn get_webhook_resource_object(
         &self,
-        _request: &webhooks::IncomingWebhookRequestDetails<'_>,
+        request: &webhooks::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<Box<dyn hyperswitch_masking::ErasedMaskSerialize>, errors::ConnectorError>
     {
-        Err(report!(errors::ConnectorError::WebhooksNotImplemented))
+        let details: sanlammultidata::SanlammultidataWebhookEvent = request
+            .body
+            .parse_struct("SanlammultidataWebhookEvent")
+            .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?;
+
+        Ok(Box::new(details))
     }
 }
 
