@@ -285,6 +285,10 @@ async fn get_tracker_for_sync<
 ) -> RouterResult<operations::GetTrackerResponse<'a, F, api::PaymentsRetrieveRequest, PaymentData<F>>>
 {
     let (payment_intent, mut payment_attempt, currency, amount);
+    #[cfg(feature = "pm_modular")]
+    let dimensions = dimension_state::Dimensions::new()
+        .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
+        .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id());
 
     (payment_intent, payment_attempt) = get_payment_intent_payment_attempt(
         state,
@@ -452,7 +456,7 @@ async fn get_tracker_for_sync<
         payment_attempt.payment_method_id.clone()
     {
         #[cfg(feature = "pm_modular")]
-        if core_utils::get_feature_config(state, platform)
+        if core_utils::get_feature_config(state, platform, &dimensions)
             .await
             .is_payment_method_modular_allowed
         {
