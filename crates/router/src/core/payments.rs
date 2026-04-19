@@ -8804,9 +8804,8 @@ impl PaymentEligibilityData {
         })
     }
 
-    /// Resolves a `payment_token` to raw card data for blocklist/card-testing checks.
-    /// Uses modular PM service if enabled for the org, otherwise falls back to Redis → DB → locker.
-    ///
+    /// Resolves a `payment_token` to raw card data for blocklist checks.
+    /// Uses modular PM service if enabled for the org, otherwise falls back to locker.
     async fn resolve_payment_token_to_method_data(
         state: &SessionState,
         platform: &domain::Platform,
