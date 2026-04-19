@@ -6,7 +6,6 @@ on:
       - checks_requested
   pull_request:
     types: [opened, synchronize, reopened, labeled]
-  workflow_dispatch:
 
 permissions:
   contents: read
@@ -30,7 +29,7 @@ env:
   PLATFORM_CONNECTORS: "stripe cybersource"
   RUST_BACKTRACE: short
   RUSTUP_MAX_RETRIES: 10
-  RUN_TESTS: ${{ ((github.event_name == 'pull_request') && (github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name)) || (github.event_name == 'merge_group') || (github.event_name == 'workflow_dispatch')}}
+  RUN_TESTS: ${{ ((github.event_name == 'pull_request') && (github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name)) || (github.event_name == 'merge_group')}}
   DEBUG: cypress:cli
   RUST_MIN_STACK: 11534336
 
@@ -98,7 +97,6 @@ jobs:
     name: Build hyperswitch server
     if: |
       github.event_name == 'merge_group' ||
-      github.event_name == 'workflow_dispatch' ||
       (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'S-test-ready'))
     runs-on:  hyperswitch-runners
     env:
@@ -157,7 +155,6 @@ jobs:
     name: Prepare Mandatory Connectors matrix to run cypress tests
     if: |
       github.event_name == 'merge_group' ||
-      github.event_name == 'workflow_dispatch' ||
       (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'S-test-ready'))
     runs-on: hyperswitch-runners
     outputs:
@@ -203,7 +200,6 @@ jobs:
     needs: [build-hyperswitch, prepare-mandatory-matrix]
     if: |
       (github.event_name == 'merge_group' ||
-      github.event_name == 'workflow_dispatch' ||
       (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'S-test-ready')))
     permissions:
       pull-requests: write
@@ -414,12 +410,10 @@ jobs:
     runs-on: ubuntu-latest
     if: |
       (github.event_name == 'merge_group' ||
-      github.event_name == 'workflow_dispatch' ||
       (github.event_name == 'pull_request' &&
         contains(github.event.pull_request.labels.*.name, 'S-test-ready'))) && !cancelled()
     permissions:
       pull-requests: write
-      checks: write
     steps:
       - name: Evaluate Matrix Results
         shell: bash
@@ -449,18 +443,6 @@ jobs:
             exit 1
           fi
 
-      - name: Post check run result for workflow_dispatch runs
-        if: ${{ github.event_name == 'workflow_dispatch' }}
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          RESULT="${{ needs.mandatory-cypress-tests.result }}"
-          CONCLUSION=$( [ "$RESULT" == "success" ] && echo "success" || echo "failure" )
-          gh api repos/${{ github.repository }}/check-runs \
-            -f name="Mandatory Cypress Tests — Consolidated Result" \
-            -f head_sha="${{ github.sha }}" \
-            -f status="completed" \
-            -f conclusion="$CONCLUSION"
 
 
   prepare-optional-matrix:
@@ -711,7 +693,6 @@ jobs:
     name: Run optional Cypress tests for alpha connectors
     needs: build-hyperswitch
     if: |
-      github.event_name == 'workflow_dispatch' ||
       (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'S-test-ready'))
     runs-on: hyperswitch-runners
     env:
@@ -919,7 +900,6 @@ jobs:
   runner_v2:
     name: Run Cypress tests on v2 and generate coverage report
     if: |
-      github.event_name == 'workflow_dispatch' ||
       (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'S-test-ready'))
     runs-on: hyperswitch-runners
     permissions:
