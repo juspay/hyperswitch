@@ -3097,11 +3097,13 @@ pub enum BankDebitData {
         /// Billing details for bank debit
         #[smithy(value_type = "Option<BankDebitBilling>")]
         billing_details: Option<BankDebitBilling>,
+
         /// Account number for eft bank debit payment
         #[schema(value_type = String, example = "000123456789")]
         #[smithy(value_type = "String")]
         account_number: Secret<String>,
-        /// Routing number for eft bank debit payment
+
+        /// Branch code for eft bank debit payment
         #[schema(value_type = String, example = "110000000")]
         #[smithy(value_type = "String")]
         branch_code: Secret<String>,
