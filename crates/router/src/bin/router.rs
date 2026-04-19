@@ -83,7 +83,7 @@ fn main() -> ApplicationResult<()> {
         ));
         return tokio::runtime::Builder::new_multi_thread()
             .enable_all()
-            .worker_threads(worker_threads)
+            // .worker_threads(worker_threads)
             // Thread lifecycle callbacks
             .on_thread_start(|| {
                 let thread_id = THREAD_START_COUNTER.fetch_add(1, Ordering::SeqCst);
