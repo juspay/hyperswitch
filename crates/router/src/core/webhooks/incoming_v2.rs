@@ -19,6 +19,7 @@ use super::{types, utils, MERCHANT_ID};
 use crate::core::webhooks::recovery_incoming;
 use crate::{
     core::{
+        configs::dimension_state,
         api_locking,
         errors::{self, ConnectorErrorExt, CustomResult, RouterResponse, StorageErrorExt},
         metrics,
@@ -61,6 +62,10 @@ pub async fn incoming_webhooks_wrapper<W: types::OutgoingWebhookType>(
     body: actix_web::web::Bytes,
     is_relay_webhook: bool,
 ) -> RouterResponse<serde_json::Value> {
+    let dimensions = dimension_state::Dimensions::new()
+        .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id())
+        .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id());
+
     let start_instant = Instant::now();
     let (application_response, webhooks_response_tracker, serialized_req) =
         Box::pin(incoming_webhooks_core::<W>(
@@ -144,6 +149,10 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
             platform.get_processor().get_account().get_id().clone()
         )),
     );
+    let dimensions = dimension_state::Dimensions::new()
+        .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id())
+        .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id());
+    
     let mut request_details = IncomingWebhookRequestDetails {
         method: req.method().clone(),
         uri: req.uri().clone(),
@@ -242,7 +251,7 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
     let is_webhook_event_enabled = !utils::is_webhook_event_disabled(
         &state,
         connector_name.as_str(),
-        platform.get_processor().get_account().get_id(),
+        &dimensions,
         &event_type,
     )
     .await;

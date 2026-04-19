@@ -297,13 +297,13 @@ config! {
     superposition_key = ROUTING_RESULT_SOURCE,
     output = String,
     default = "hyperswitch_routing".to_string(),
-    requires = DimensionsWithMerchantIdAndProfileId,
+    requires = dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
     targeting_key = id_type::ProfileId
 }
 
 impl DatabaseBackedConfig for RoutingResultSource {
     const KEY: &'static str = "routing_result_source";
-    fn db_key(dimensions: &impl super::dimension_state::DimensionsBase) -> Option<String> {
+    fn db_key(dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
         let profile_id = dimensions
             .get_profile_id()
             .map(|id| id.get_string_repr())
@@ -316,15 +316,15 @@ config! {
     superposition_key = THREEDS_ROUTING_REGION_UAS,
     output = String,
     default = "region1".to_string(),
-    requires = DimensionsWithOrgIdAndMerchantId,
+    requires = dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndOrgId,
     targeting_key = id_type::MerchantId
 }
 
 impl DatabaseBackedConfig for ThreedsRoutingRegionUas {
     const KEY: &'static str = "threeds_routing_region_uas";
-    fn db_key(dimensions: &impl super::dimension_state::DimensionsBase) -> Option<String> {
+    fn db_key(dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
         let merchant_id = dimensions
-            .get_merchant_id()
+            .get_processor_merchant_id()
             .map(|id| id.get_string_repr())
             .unwrap_or_default();
         Some(format!("{}_{}", Self::KEY, merchant_id))
@@ -335,13 +335,13 @@ config! {
     superposition_key = INCOMING_WEBHOOK_DISABLED_EVENTS,
     output = bool,
     default = false,
-    requires = DimensionsWithMerchantIdConnectorAndWebhookEvent,
+    requires = dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndConnectorAndWebhookEvent,
     targeting_key = id_type::MerchantId
 }
 
 impl DatabaseBackedConfig for IncomingWebhookDisabledEvents {
     const KEY: &'static str = "incoming_webhook_disabled_events";
-    fn db_key(_dimensions: &impl super::dimension_state::DimensionsBase) -> Option<String> {
+    fn db_key(_dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
         None
     }
 }

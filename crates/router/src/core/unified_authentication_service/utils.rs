@@ -708,17 +708,12 @@ pub fn construct_uas_webhook_router_data<F: Clone, Req, Res>(
 
 pub async fn fetch_routing_region_for_uas(
     state: &SessionState,
-    merchant_id: common_utils::id_type::MerchantId,
-    organization_id: common_utils::id_type::OrganizationId,
+    dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndOrgId,
 ) -> RouterResult<RoutingRegion> {
-    // profile id not present in call site of incoming webhook for UAS, so passing NoProfileId as type parameter
-    let dimensions = dimension_state::Dimensions::new()
-        .with_merchant_id(merchant_id)
-        .with_organization_id(organization_id);
     let region_str = dimensions
         .get_threeds_routing_region_uas(
             state.store.as_ref(),
-            state.superposition_service.as_deref(),
+            state.superposition_service.as_ref(),
             None,
         )
         .await;

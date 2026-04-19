@@ -1728,162 +1728,30 @@ fn stringify_choice(c: RoutableConnectorChoice) -> ConnectorInfo {
 
 pub async fn get_routing_result_source(
     state: &SessionState,
-    business_profile: &business_profile::Profile,
+    dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
 ) -> Option<api_routing::RoutingResultSource> {
-    fn db_key(dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
-        dimensions
-            .get_provider_merchant_id()
-            .map(|id| format!("{}_{}", id.get_string_repr(), Self::KEY))
-    }
-}
-
-config! {
-    superposition_key = SHOULD_CALL_GSM,
-    output = bool,
-    default = false,
-    requires = dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
-    targeting_key = id_type::CustomerId
-}
-
-impl DatabaseBackedConfig for ShouldCallGsm {
-    const KEY: &'static str = "should_call_gsm";
-
-    fn db_key(dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
-        dimensions
-            .get_processor_merchant_id()
-            .map(|id| format!("{}_{}", Self::KEY, id.get_string_repr()))
-    }
-}
-
-config! {
-    superposition_key = SHOULD_PERFORM_ELIGIBILITY,
-    output = bool,
-    default = false,
-    requires = dimension_state::DimensionsWithProcessorAndProviderMerchantId,
-    targeting_key = id_type::CustomerId
-}
-
-impl DatabaseBackedConfig for ShouldPerformEligibility {
-    const KEY: &'static str = "should_perform_eligibility";
-
-    fn db_key(dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
-        // Matches the existing key format: "should_perform_eligibility_{merchant_id}"
-        dimensions
-            .get_processor_merchant_id()
-            .map(|id| format!("{}_{}", Self::KEY, id.get_string_repr()))
-    }
-}
-
-config! {
-    superposition_key = SHOULD_ENABLE_MIT_WITH_LIMITED_CARD_DATA,
-    output = bool,
-    default = false,
-    requires = dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
-    targeting_key = id_type::PaymentId
-}
-
-impl DatabaseBackedConfig for ShouldEnableMitWithLimitedCardData {
-    const KEY: &'static str = "should_enable_mit_with_limited_card_data";
-
-    fn db_key(dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
-        dimensions
-            .get_processor_merchant_id()
-            .map(|id| format!("{}_{}", Self::KEY, id.get_string_repr()))
-    }
-}
-
-config! {
-    superposition_key = SHOULD_STORE_ELIGIBILITY_CHECK_DATA_FOR_AUTHENTICATION,
-    output = bool,
-    default = false,
-    requires = dimension_state::DimensionsWithProcessorAndProviderMerchantId,
-    targeting_key = id_type::AuthenticationId
-}
-
-impl DatabaseBackedConfig for ShouldStoreEligibilityCheckDataForAuthentication {
-    const KEY: &'static str = "should_store_eligibility_check_data_for_authentication";
-
-    fn db_key(dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
-        // Matches the existing key format: "should_store_eligibility_check_data_for_authentication_{merchant_id}"
-        dimensions
-            .get_processor_merchant_id()
-            .map(|id| format!("{}_{}", Self::KEY, id.get_string_repr()))
-    }
-}
-
-config! {
-    superposition_key = ENABLE_EXTENDED_CARD_BIN,
-    output = bool,
-    default = false,
-    requires = dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
-    targeting_key = id_type::CustomerId
-}
-
-impl DatabaseBackedConfig for EnableExtendedCardBin {
-    const KEY: &'static str = "enable_extended_card_bin";
-
-    fn db_key(dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
-        // Matches the existing key format: "{profile_id}_enable_extended_card_bin"
-        dimensions
-            .get_profile_id()
-            .map(|id| format!("{}_{}", id.get_string_repr(), Self::KEY))
-    }
-}
-
-config! {
-    superposition_key = PAYOUT_TRACKER_MAPPING,
-    output = RetryMapping,
-    default = RetryMapping::default(),
-    object = true,
-    requires = dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndConnector,
-    targeting_key = id_type::PayoutId
-}
-
-config! {
-    superposition_key = CLIENT_SESSION_VALIDATION_ENABLED,
-    output = bool,
-    default = true,
-    requires = dimension_state::DimensionsWithProcessorAndProviderMerchantId,
-    targeting_key = id_type::PaymentId
-}
-
-impl DatabaseBackedConfig for ClientSessionValidationEnabled {
-    const KEY: &'static str = "client_session_validation_enabled";
-    fn db_key(_dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
-        None
-    }
-}
-
-config! {
-    superposition_key = MAX_AUTO_PAYOUT_RETRIES,
-    output = u32,
-    default = 0u32,
-    requires = dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndPayoutRetryType,
-    targeting_key = id_type::CustomerId
-}
-
-impl DatabaseBackedConfig for MaxAutoPayoutRetries {
-    const KEY: &'static str = "max_auto_payout_retries";
-    fn db_key(dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
-        dimensions
-            .get_processor_merchant_id()
-            .and_then(|merchant_id| {
-                dimensions
-                    .get_payout_retry_type()
-                    .map(|retry_type| match retry_type {
-                        common_enums::PayoutRetryType::SingleConnector => format!(
-                            "max_auto_single_connector_payout_retries_enabled_{}",
-                            merchant_id.get_string_repr()
-                        ),
-                        common_enums::PayoutRetryType::MultiConnector => format!(
-                            "max_auto_multiple_connector_payout_retries_enabled_{}",
-                            merchant_id.get_string_repr()
-                        ),
-                    })
-            })
+    // No customer_id and payment_id in call sites so passing Targeting key as None
+    dimensions
+        .get_routing_result_source(
+            state.store.as_ref(),
+            state.superposition_service.as_ref(),
+            None,
+        )
         .await
         .parse::<api_routing::RoutingResultSource>()
-        .ok();
+        .ok()
+}
+pub async fn select_routing_result<T>(
+    state: &SessionState,
+    dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
+    business_profile: &business_profile::Profile,
+    hyperswitch_result: T,
+    de_result: T,
+) -> T
+where
+    T: Clone + IntoIterator,
+{
+    let routing_result_source = get_routing_result_source(state, dimensions).await;
 
     if let Some(api_routing::RoutingResultSource::DecisionEngine) = routing_result_source {
         logger::debug!(

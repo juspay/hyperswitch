@@ -420,7 +420,7 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
     let is_webhook_event_enabled = !utils::is_webhook_event_disabled(
         &state,
         connector_name.as_str(),
-        platform.get_processor().get_account().get_id(),
+        &dimensions.without_organization_id(),
         &webhook_processing_result.event_type,
     )
     .await;
@@ -3467,14 +3467,13 @@ pub async fn process_uas_incoming_webhook<'a>(
     connector_integration: ConnectorEnum,
     platform: domain::Platform,
 ) -> errors::RouterResult<WebhookProcessingResult<'a>> {
+    let dimensions = dimension_state::Dimensions::new()
+        .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
+        .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id())
+        .with_organization_id(platform.get_processor().get_account().organization_id.clone());
     let routing_region = uas_utils::fetch_routing_region_for_uas(
         state,
-        platform.get_processor().get_account().get_id().clone(),
-        platform
-            .get_processor()
-            .get_account()
-            .organization_id
-            .clone(),
+        &dimensions,
     )
     .await?;
     let webhook_data =

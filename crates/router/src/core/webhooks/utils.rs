@@ -36,7 +36,7 @@ const IRRELEVANT_CONNECTOR_REQUEST_REFERENCE_ID_IN_SOURCE_VERIFICATION_FLOW: &st
 pub async fn is_webhook_event_disabled(
     state: &SessionState,
     connector_id: &str,
-    merchant_id: &common_utils::id_type::MerchantId,
+    dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
     event: &api::IncomingWebhookEvent,
 ) -> bool {
     let connector = match common_enums::connector_enums::Connector::from_str(connector_id) {
@@ -47,15 +47,14 @@ pub async fn is_webhook_event_disabled(
         }
     };
 
-    let dimensions = dimension_state::Dimensions::new()
-        .with_merchant_id(merchant_id.clone())
+    let dimensions = dimensions
         .with_connector(connector)
         .with_incoming_webhook_event(*event);
 
     dimensions
         .get_incoming_webhook_disabled_events(
             state.store.as_ref(),
-            state.superposition_service.as_deref(),
+            state.superposition_service.as_ref(),
             None,
         )
         .await

@@ -56,6 +56,7 @@ use crate::utils::ValueExt;
 use crate::{core::admin, db::StorageInterface, utils::ValueExt};
 use crate::{
     core::{
+        configs::dimension_state,
         errors::{self, CustomResult, RouterResponse},
         metrics, utils as core_utils,
     },
@@ -246,9 +247,15 @@ async fn build_list_routing_result(
             id: profile_id.get_string_repr().to_owned(),
         })?;
 
+        let dimensions = dimension_state::Dimensions::new()
+            .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id())
+            .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
+            .with_profile_id(business_profile.get_id().clone());
+
         list_result.append(
             &mut select_routing_result(
                 state,
+                &dimensions,
                 &business_profile,
                 hs_result_for_profile,
                 de_result_for_profile,
@@ -1442,8 +1449,12 @@ pub async fn retrieve_linked_routing_config(
                 hs_records.clone(),
                 "list_active_routing".to_string(),
             );
+            let dimensions = dimension_state::Dimensions::new()
+                .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id())
+                .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
+                .with_profile_id(business_profile.get_id().clone());
             active_algorithms.append(
-                &mut select_routing_result(&state, &business_profile, hs_records, de_records).await,
+                &mut select_routing_result(&state, &dimensions, &business_profile, hs_records, de_records).await,
             );
         }
 
@@ -2373,6 +2384,7 @@ pub trait GetRoutableConnectorsForChoice {
     async fn get_routable_connectors<F, D>(
         &self,
         state: &SessionState,
+        dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
         business_profile: &domain::Profile,
         payment_data: &mut D,
     ) -> RouterResult<RoutableConnectors>
@@ -2388,6 +2400,7 @@ impl GetRoutableConnectorsForChoice for StraightThroughAlgorithmTypeSingle {
     async fn get_routable_connectors<F, D>(
         &self,
         _state: &SessionState,
+        _dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
         _business_profile: &domain::Profile,
         _payment_data: &mut D,
     ) -> RouterResult<RoutableConnectors>
@@ -2426,6 +2439,7 @@ impl GetRoutableConnectorsForChoice for DecideConnector {
     async fn get_routable_connectors<F, D>(
         &self,
         state: &SessionState,
+        dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
         business_profile: &domain::Profile,
         payment_data: &mut D,
     ) -> RouterResult<RoutableConnectors>
@@ -2447,6 +2461,7 @@ impl GetRoutableConnectorsForChoice for DecideConnector {
         let (connectors, routing_approach) = payments_routing::perform_static_routing_v1(
             state,
             &business_profile.merchant_id,
+            dimensions,
             routing_algorithm_id.as_ref(),
             business_profile,
             &TransactionData::Payment(transaction_data),

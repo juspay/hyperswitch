@@ -1749,6 +1749,10 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
             )
             .await?;
         let key_manager_state = &(state).into();
+        let dimensions = dimension_state::Dimensions::new()
+            .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
+            .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id())
+            .with_organization_id(payment_data.payment_attempt.organization_id.clone());
 
         if let Some(unified_authentication_service_flow) = unified_authentication_service_flow {
             match unified_authentication_service_flow {
@@ -2032,13 +2036,10 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                 .transpose()
                 .change_context(errors::StorageError::DeserializationFailed)
                 .attach_printable("Failed to parse customer data from payment intent")
-                .change_context(errors::ApiErrorResponse::InternalServerError)?.and_then(|cust| cust.email);
-
-
+                .change_context(errors::ApiErrorResponse::InternalServerError)?.and_then(|cust| cust.email);        
             let routing_region = uas_utils::utils::fetch_routing_region_for_uas(
                 state,
-                payment_data.payment_attempt.merchant_id.clone(),
-                payment_data.payment_attempt.organization_id.clone(),
+                &dimensions,
             )
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -2143,8 +2144,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
 
                 let routing_region = uas_utils::utils::fetch_routing_region_for_uas(
                     state,
-                    payment_data.payment_attempt.merchant_id.clone(),
-                    payment_data.payment_attempt.organization_id.clone(),
+                    &dimensions,
                 )
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)
