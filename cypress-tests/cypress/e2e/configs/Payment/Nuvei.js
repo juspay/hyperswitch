@@ -735,6 +735,79 @@ export const connectorDetails = {
         },
       },
     },
+    // Billing descriptor test cases
+    BillingDescriptorNo3DSAutoCapture: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        billing_descriptor: {
+          name: "Test Merchant",
+          phone: "1234567890",
+        },
+        amount: 11500,
+        currency: "USD",
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+          payment_method: "card",
+          attempt_count: 1,
+        },
+      },
+    },
+    BillingDescriptorInvalidPhone: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        billing_descriptor: {
+          name: "Test Merchant",
+          phone: "12345678901234", // Exceeds 13 chars
+        },
+        amount: 11500,
+        currency: "USD",
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+          payment_method: "card",
+          attempt_count: 1,
+        },
+      },
+    },
+    BillingDescriptorEmptyDescriptor: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        billing_descriptor: {
+          name: "",
+          phone: "",
+        },
+        amount: 11500,
+        currency: "USD",
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+          payment_method: "card",
+          attempt_count: 1,
+        },
+      },
+    },
   },
   // Bank redirect payment methods
   bank_redirect_pm: {
