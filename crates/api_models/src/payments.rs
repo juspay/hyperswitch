@@ -12408,11 +12408,15 @@ pub struct PaymentsEligibilityRequest {
     #[schema(value_type = Option<PaymentMethodType>)]
     pub payment_method_subtype: Option<api_enums::PaymentMethodType>,
     /// The payment instrument data for eligibility check
-    #[serde(with = "eligibility_payment_method_data_serde")]
-    pub payment_method_data: EligibilityPaymentMethodDataRequest,
+    #[serde(with = "eligibility_payment_method_data_serde", default)]
+    pub payment_method_data: Option<EligibilityPaymentMethodDataRequest>,
     /// The browser information for the payment
     #[schema(value_type = Option<BrowserInformation>)]
     pub browser_info: Option<BrowserInformation>,
+    /// The payment token to look up the saved payment method
+    /// When provided, the system will fetch the payment method data from the locker/vault
+    #[schema(value_type = String, example = "token_abc123xyz")]
+    pub payment_token: Option<Secret<String>>,
 }
 
 /// Card data for eligibility check — only card_number is required, no CVV needed
@@ -12535,7 +12539,7 @@ mod eligibility_payment_method_data_serde {
 
     pub fn deserialize<'de, D>(
         deserializer: D,
-    ) -> Result<EligibilityPaymentMethodDataRequest, D::Error>
+    ) -> Result<Option<EligibilityPaymentMethodDataRequest>, D::Error>
     where
         D: Deserializer<'de>,
     {
@@ -12549,9 +12553,14 @@ mod eligibility_payment_method_data_serde {
             payment_method_data: Option<serde_json::Value>,
         }
 
-        let parsed = __Inner::deserialize(deserializer)?;
+        let parsed = Option::<__Inner>::deserialize(deserializer)?;
 
-        let payment_method_data = if let Some(value) = parsed.payment_method_data {
+        let inner = match parsed {
+            None => return Ok(None),
+            Some(inner) => inner,
+        };
+
+        let payment_method_data = if let Some(value) = inner.payment_method_data {
             // Even when no payment method data is sent, flatten produces Some(Object {})
             if let serde_json::Value::Object(ref map) = value {
                 if map.is_empty() {
@@ -12569,10 +12578,15 @@ mod eligibility_payment_method_data_serde {
             None
         };
 
-        Ok(EligibilityPaymentMethodDataRequest {
+        // Return None if both billing and payment_method_data are absent
+        if payment_method_data.is_none() && inner.billing.is_none() {
+            return Ok(None);
+        }
+
+        Ok(Some(EligibilityPaymentMethodDataRequest {
             payment_method_data,
-            billing: parsed.billing,
-        })
+            billing: inner.billing,
+        }))
     }
 }
 
