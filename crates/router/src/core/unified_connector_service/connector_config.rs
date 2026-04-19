@@ -514,6 +514,8 @@ pub enum ConnectorSpecificConfig {
         client_id: Secret<String>,
         client_secret: Secret<String>,
     },
+    /// Imerchantsolutions connector configuration
+    Imerchantsolutions { api_key: Secret<String> },
     /// Sanlammultidata connector configuration
     Sanlammultidata {
         api_key: Secret<String>,
@@ -1400,6 +1402,12 @@ impl ForeignTryFrom<(Connector, &ConnectorAuthType, Option<&serde_json::Value>)>
                     client_id: key1.clone(),
                 }),
                 _ => Err(err("Itaubank requires BodyKey auth type")),
+            },
+            Connector::Imerchantsolutions => match auth {
+                ConnectorAuthType::HeaderKey { api_key } => Ok(Self::Imerchantsolutions {
+                    api_key: api_key.clone(),
+                }),
+                _ => Err(err("Imerchantsolutions requires HeaderKey auth type")),
             },
             Connector::Sanlammultidata => match auth {
                 ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Sanlammultidata {

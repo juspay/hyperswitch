@@ -281,6 +281,7 @@ pub struct ConnectorConfig {
     #[cfg(feature = "payouts")]
     pub cybersource_payout: Option<ConnectorTomlConfig>,
     pub iatapay: Option<ConnectorTomlConfig>,
+    pub imerchantsolutions: Option<ConnectorTomlConfig>,
     pub itaubank: Option<ConnectorTomlConfig>,
     pub opennode: Option<ConnectorTomlConfig>,
     pub bambora: Option<ConnectorTomlConfig>,
@@ -666,6 +667,7 @@ impl ConnectorConfig {
             Connector::Phonepe => Ok(connector_data.phonepe),
             Connector::Payjustnow => Ok(connector_data.payjustnow),
             Connector::Payjustnowinstore => Ok(connector_data.payjustnowinstore),
+            Connector::Imerchantsolutions => Ok(connector_data.imerchantsolutions),
         }
     }
 }

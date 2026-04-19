@@ -89,6 +89,7 @@ impl ForeignTryFrom<api_enums::Connector> for euclid::enums::RoutableConnectors 
                 })?
             }
             api_enums::Connector::Iatapay => Self::Iatapay,
+            api_enums::Connector::Imerchantsolutions => Self::Imerchantsolutions,
             api_enums::Connector::Inespay => Self::Inespay,
             api_enums::Connector::Itaubank => Self::Itaubank,
             api_enums::Connector::Jpmorgan => Self::Jpmorgan,

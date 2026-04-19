@@ -1760,12 +1760,6 @@ impl TryFrom<payment_methods::PaymentMethodCreateData> for PaymentMethodData {
                 card_holder_name,
                 co_badged_card_data: None,
             })),
-            payment_methods::PaymentMethodCreateData::ProxyCard(_) => Err(
-                common_utils::errors::ValidationError::IncorrectValueProvided {
-                    field_name: "Payment method data",
-                }
-                .into(),
-            ),
             payment_methods::PaymentMethodCreateData::BankDebit(
                 payment_methods::BankDebitDetail::Ach {
                     account_number,
@@ -1783,6 +1777,18 @@ impl TryFrom<payment_methods::PaymentMethodCreateData> for PaymentMethodData {
                 bank_type,
                 bank_holder_type,
             })),
+            payment_methods::PaymentMethodCreateData::ProxyCard(_) => Err(
+                common_utils::errors::ValidationError::IncorrectValueProvided {
+                    field_name: "Payment method data",
+                }
+                .into(),
+            ),
+            payment_methods::PaymentMethodCreateData::Wallet(_) => Err(
+                common_utils::errors::ValidationError::IncorrectValueProvided {
+                    field_name: "Payment method data",
+                }
+                .into(),
+            ),
         }
     }
 }
@@ -3479,22 +3485,24 @@ pub fn get_applepay_wallet_info(
         _ => (None, None),
     };
     payment_methods::PaymentMethodDataWalletInfo {
-        last4: item
-            .payment_method
-            .display_name
-            .chars()
-            .rev()
-            .take(4)
-            .collect::<Vec<_>>()
-            .into_iter()
-            .rev()
-            .collect(),
-        card_network: item.payment_method.network,
+        last4: Some(
+            item.payment_method
+                .display_name
+                .chars()
+                .rev()
+                .take(4)
+                .collect::<Vec<_>>()
+                .into_iter()
+                .rev()
+                .collect(),
+        ),
+        card_network: Some(item.payment_method.network),
         card_type: Some(item.payment_method.pm_type),
         card_exp_month,
         card_exp_year,
         // To be populated after connector response
         auth_code: None,
+        email: None,
     }
 }
 
@@ -3510,13 +3518,14 @@ pub fn get_googlepay_wallet_info(
         _ => (None, None),
     };
     payment_methods::PaymentMethodDataWalletInfo {
-        last4: item.info.card_details,
-        card_network: item.info.card_network,
+        last4: Some(item.info.card_details),
+        card_network: Some(item.info.card_network),
         card_type: Some(item.pm_type),
         card_exp_month,
         card_exp_year,
         // to be populated after connector response
         auth_code: None,
+        email: None,
     }
 }
 
