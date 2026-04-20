@@ -413,6 +413,15 @@ pub mod superposition {
     /// Network tokenization supported card network configuration key
     pub const NETWORK_TOKENIZATION_SUPPORTED_CARD_NETWORK: &str =
         "network_tokenization_supported_card_network";
+    /// GSM payout call configuration key (scoped by merchant, profile, and payout retry type)
+    pub const GSM_PAYOUT_CALL: &str = "gsm_payout_call";
+    /// Disable vault tokenization configuration key
+    pub const SHOULD_DISABLE_VAULT_TOKENIZATION: &str = "should_disable_vault_tokenization";
+    /// Return raw payment method details configuration key
+    pub const SHOULD_RETURN_RAW_PAYMENT_METHOD_DETAILS: &str =
+        "should_return_raw_payment_method_details";
+    /// Call PM modular service configuration key
+    pub const SHOULD_CALL_PM_MODULAR_SERVICE: &str = "should_call_pm_modular_service";
 }
 
 #[cfg(test)]
