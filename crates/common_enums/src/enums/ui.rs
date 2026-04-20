@@ -56,6 +56,7 @@ pub enum ElementSize {
     Deserialize,
     strum::Display,
     strum::EnumString,
+    strum::AsRefStr,
     ToSchema,
 )]
 #[router_derive::diesel_enum(storage_type = "db_enum")]
@@ -185,13 +186,170 @@ impl Serialize for ElementSize {
         S: serde::ser::Serializer,
     {
         match self {
-            Self::Variants(variant) => serializer.serialize_str(variant.to_string().as_str()),
-            Self::Pixels(pixel_count) => {
-                serializer.serialize_str(format!("{pixel_count}px").as_str())
-            }
+            Self::Variants(variant) => serializer.serialize_str(variant.as_ref()),
+            Self::Pixels(pixel_count) => serializer.collect_str(&format_args!("{pixel_count}px")),
             Self::Percentage(pixel_count) => {
-                serializer.serialize_str(format!("{pixel_count}%").as_str())
+                serializer.collect_str(&format_args!("{pixel_count}%"))
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_size_variants_serialize_cover() {
+        let variant = SizeVariants::Cover;
+        let serialized = serde_json::to_string(&variant).unwrap();
+        assert_eq!(serialized, r#""cover""#);
+    }
+
+    #[test]
+    fn test_size_variants_serialize_contain() {
+        let variant = SizeVariants::Contain;
+        let serialized = serde_json::to_string(&variant).unwrap();
+        assert_eq!(serialized, r#""contain""#);
+    }
+
+    #[test]
+    fn test_size_variants_deserialize_cover() {
+        let json = r#""cover""#;
+        let variant: SizeVariants = serde_json::from_str(json).unwrap();
+        assert_eq!(variant, SizeVariants::Cover);
+    }
+
+    #[test]
+    fn test_size_variants_deserialize_contain() {
+        let json = r#""contain""#;
+        let variant: SizeVariants = serde_json::from_str(json).unwrap();
+        assert_eq!(variant, SizeVariants::Contain);
+    }
+
+    #[test]
+    fn test_element_size_serialize_variants_cover() {
+        let size = ElementSize::Variants(SizeVariants::Cover);
+        let serialized = serde_json::to_string(&size).unwrap();
+        assert_eq!(serialized, r#""cover""#);
+    }
+
+    #[test]
+    fn test_element_size_serialize_variants_contain() {
+        let size = ElementSize::Variants(SizeVariants::Contain);
+        let serialized = serde_json::to_string(&size).unwrap();
+        assert_eq!(serialized, r#""contain""#);
+    }
+
+    #[test]
+    fn test_element_size_serialize_pixels() {
+        let size = ElementSize::Pixels(42);
+        let serialized = serde_json::to_string(&size).unwrap();
+        assert_eq!(serialized, r#""42px""#);
+
+        let size = ElementSize::Pixels(100);
+        let serialized = serde_json::to_string(&size).unwrap();
+        assert_eq!(serialized, r#""100px""#);
+    }
+
+    #[test]
+    fn test_element_size_serialize_percentage() {
+        let size = ElementSize::Percentage(50);
+        let serialized = serde_json::to_string(&size).unwrap();
+        assert_eq!(serialized, r#""50%""#);
+
+        let size = ElementSize::Percentage(100);
+        let serialized = serde_json::to_string(&size).unwrap();
+        assert_eq!(serialized, r#""100%""#);
+    }
+
+    #[test]
+    fn test_element_size_deserialize_cover() {
+        let json = r#""cover""#;
+        let size: ElementSize = serde_json::from_str(json).unwrap();
+        assert_eq!(size, ElementSize::Variants(SizeVariants::Cover));
+    }
+
+    #[test]
+    fn test_element_size_deserialize_contain() {
+        let json = r#""contain""#;
+        let size: ElementSize = serde_json::from_str(json).unwrap();
+        assert_eq!(size, ElementSize::Variants(SizeVariants::Contain));
+    }
+
+    #[test]
+    fn test_element_size_deserialize_pixels() {
+        let json = r#""42px""#;
+        let size: ElementSize = serde_json::from_str(json).unwrap();
+        assert_eq!(size, ElementSize::Pixels(42));
+
+        let json = r#""320px""#;
+        let size: ElementSize = serde_json::from_str(json).unwrap();
+        assert_eq!(size, ElementSize::Pixels(320));
+    }
+
+    #[test]
+    fn test_element_size_deserialize_percentage() {
+        let json = r#""50%""#;
+        let size: ElementSize = serde_json::from_str(json).unwrap();
+        assert_eq!(size, ElementSize::Percentage(50));
+
+        let json = r#""100%""#;
+        let size: ElementSize = serde_json::from_str(json).unwrap();
+        assert_eq!(size, ElementSize::Percentage(100));
+    }
+
+    #[test]
+    fn test_element_size_deserialize_invalid_variant() {
+        let json = r#""invalid""#;
+        let result: Result<ElementSize, _> = serde_json::from_str(json);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_element_size_deserialize_invalid_pixel_format() {
+        let json = r#""42""#;
+        let result: Result<ElementSize, _> = serde_json::from_str(json);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_element_size_deserialize_invalid_number() {
+        let json = r#""notanumberpx""#;
+        let result: Result<ElementSize, _> = serde_json::from_str(json);
+        assert!(result.is_err());
+
+        let json = r#""notanumber%""#;
+        let result: Result<ElementSize, _> = serde_json::from_str(json);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_element_size_round_trip_variants() {
+        let original = ElementSize::Variants(SizeVariants::Cover);
+        let serialized = serde_json::to_string(&original).unwrap();
+        let deserialized: ElementSize = serde_json::from_str(&serialized).unwrap();
+        assert_eq!(original, deserialized);
+
+        let original = ElementSize::Variants(SizeVariants::Contain);
+        let serialized = serde_json::to_string(&original).unwrap();
+        let deserialized: ElementSize = serde_json::from_str(&serialized).unwrap();
+        assert_eq!(original, deserialized);
+    }
+
+    #[test]
+    fn test_element_size_round_trip_pixels() {
+        let original = ElementSize::Pixels(768);
+        let serialized = serde_json::to_string(&original).unwrap();
+        let deserialized: ElementSize = serde_json::from_str(&serialized).unwrap();
+        assert_eq!(original, deserialized);
+    }
+
+    #[test]
+    fn test_element_size_round_trip_percentage() {
+        let original = ElementSize::Percentage(75);
+        let serialized = serde_json::to_string(&original).unwrap();
+        let deserialized: ElementSize = serde_json::from_str(&serialized).unwrap();
+        assert_eq!(original, deserialized);
     }
 }
