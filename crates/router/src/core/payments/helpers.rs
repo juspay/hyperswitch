@@ -4200,9 +4200,7 @@ pub async fn create_client_secret(
         .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
         .with_organization_id(platform.get_processor().get_account().get_org_id().clone());
     let customer_id = match &resource_id {
-        common_utils::types::authentication::ResourceId::Customer(id) => {
-            Some(id)
-        }
+        common_utils::types::authentication::ResourceId::Customer(id) => Some(id),
         _ => None,
     };
     let eph_key_config = eph_key_dimensions
