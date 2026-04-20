@@ -456,6 +456,7 @@ pub async fn get_address_by_id(
 }
 
 #[cfg(feature = "v1")]
+#[allow(clippy::too_many_arguments)]
 pub async fn get_token_pm_type_mandate_details(
     state: &SessionState,
     request: &api::PaymentsRequest,
@@ -464,12 +465,17 @@ pub async fn get_token_pm_type_mandate_details(
     payment_method_id: Option<String>,
     payment_intent_customer_id: Option<&id_type::CustomerId>,
     pm_info: Option<domain::PaymentMethod>,
+    dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
 ) -> RouterResult<MandateGenericData> {
     let mandate_data = request.mandate_data.clone().map(MandateData::foreign_from);
+    // Should be removed, if we use dimensions in this method for any other purpose, but currently we are only using it for PM modular feature which is gated behind `pm_modular` feature flag
+    #[cfg(not(feature = "pm_modular"))]
+    let _ = dimensions;
     #[cfg(feature = "pm_modular")]
-    let is_payment_method_modular_allowed = core_utils::get_feature_config(state, platform)
-        .await
-        .is_payment_method_modular_allowed;
+    let is_payment_method_modular_allowed =
+        core_utils::get_feature_config(state, platform, dimensions)
+            .await
+            .is_payment_method_modular_allowed;
     let (
         payment_token,
         payment_method,
@@ -808,6 +814,7 @@ pub async fn get_token_pm_type_mandate_details(
             )
         }
     };
+
     Ok(MandateGenericData {
         token: payment_token,
         payment_method,
