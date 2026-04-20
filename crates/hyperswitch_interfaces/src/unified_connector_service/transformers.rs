@@ -1036,8 +1036,7 @@ impl UnifiedConnectorServiceError {
 
         // Attempt to decode the ConnectorError from the status details
         let connector_error = payments_grpc::ConnectorError::decode(details).ok()?;
-        let status_code = connector_error.http_status_code? as u16;
-
+        let status_code = u16::try_from(connector_error.http_status_code?).ok()?;
         Some(Self::ConnectorError {
             code: connector_error.error_code,
             message: connector_error.error_message,
