@@ -3,31 +3,34 @@ import State from "../../../utils/State";
 import getConnectorDetails, * as utils from "../../configs/Payment/Utils";
 
 let globalState;
+let connector;
 
 describe("MIT with Limited Card Data", () => {
-  let shouldContinue = true;
+  before(function () {
+    let skip = false;
 
-  before("seed global state", () => {
-    cy.task("getGlobalState").then((state) => {
-      globalState = new State(state);
-      if (
-        !utils.CONNECTOR_LISTS.INCLUDE.MIT_WITH_LIMITED_CARD_DATA.includes(
-          globalState.get("connectorId")
-        )
-      ) {
-        shouldContinue = false;
-      }
-    });
+    cy.task("getGlobalState")
+      .then((state) => {
+        globalState = new State(state);
+        connector = globalState.get("connectorId");
+        if (
+          utils.shouldIncludeConnector(
+            connector,
+            utils.CONNECTOR_LISTS.INCLUDE.MIT_WITH_LIMITED_CARD_DATA
+          )
+        ) {
+          skip = true;
+        }
+      })
+      .then(() => {
+        if (skip) {
+          this.skip();
+        }
+      });
   });
 
-  after("flush global state", () => {
+  afterEach("flush global state", () => {
     cy.task("setGlobalState", globalState.data);
-  });
-
-  beforeEach(function () {
-    if (!shouldContinue) {
-      this.skip();
-    }
   });
 
   context("MIT with Limited Card Data - Auto Capture", () => {
