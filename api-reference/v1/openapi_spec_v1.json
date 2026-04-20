@@ -38542,6 +38542,11 @@
             "type": "string",
             "description": "Identifier for Merchant"
           },
+          "processor_merchant_id": {
+            "type": "string",
+            "description": "Identifier for the processor merchant",
+            "nullable": true
+          },
           "link_to_pay": {
             "type": "string",
             "description": "Open payment link (without any security checks and listing SPMs)"
