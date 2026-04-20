@@ -336,7 +336,20 @@ describe("Platform - Card Refund flow test", () => {
   context(
     "Connected Merchant 2 makes own payment - Full Refund flow for No-3DS",
     () => {
+      let savedMerchantId,
+        savedApiKey,
+        savedPublishableKey,
+        savedProfileId,
+        savedMerchantConnectorId;
+
       before(() => {
+        savedMerchantId = globalState.get("merchantId");
+        savedApiKey = globalState.get("apiKey");
+        savedPublishableKey = globalState.get("publishableKey");
+        savedProfileId = globalState.get("profileId");
+        savedMerchantConnectorId = globalState.get("merchantConnectorId");
+
+        globalState.set("merchantId", globalState.get("connectedMerchantId2"));
         globalState.set("apiKey", globalState.get("apiKeyCm2"));
         globalState.set("publishableKey", globalState.get("publishableKeyCm2"));
         globalState.set("profileId", globalState.get("profileIdCm2"));
@@ -344,6 +357,14 @@ describe("Platform - Card Refund flow test", () => {
           "merchantConnectorId",
           globalState.get("connectorIdCm2")
         );
+      });
+
+      after(() => {
+        globalState.set("merchantId", savedMerchantId);
+        globalState.set("apiKey", savedApiKey);
+        globalState.set("publishableKey", savedPublishableKey);
+        globalState.set("profileId", savedProfileId);
+        globalState.set("merchantConnectorId", savedMerchantConnectorId);
       });
 
       it("Create Payment Intent -> Payment Methods Call -> Confirm Payment Intent -> Retrieve Payment after Confirmation -> Refund Payment -> Sync Refund Payment", () => {
@@ -444,7 +465,20 @@ describe("Platform - Card Refund flow test", () => {
   context(
     "Connected Merchant 2 makes own payment - Partial Refund flow for No-3DS",
     () => {
+      let savedMerchantId,
+        savedApiKey,
+        savedPublishableKey,
+        savedProfileId,
+        savedMerchantConnectorId;
+
       before(() => {
+        savedMerchantId = globalState.get("merchantId");
+        savedApiKey = globalState.get("apiKey");
+        savedPublishableKey = globalState.get("publishableKey");
+        savedProfileId = globalState.get("profileId");
+        savedMerchantConnectorId = globalState.get("merchantConnectorId");
+
+        globalState.set("merchantId", globalState.get("connectedMerchantId2"));
         globalState.set("apiKey", globalState.get("apiKeyCm2"));
         globalState.set("publishableKey", globalState.get("publishableKeyCm2"));
         globalState.set("profileId", globalState.get("profileIdCm2"));
@@ -452,6 +486,14 @@ describe("Platform - Card Refund flow test", () => {
           "merchantConnectorId",
           globalState.get("connectorIdCm2")
         );
+      });
+
+      after(() => {
+        globalState.set("merchantId", savedMerchantId);
+        globalState.set("apiKey", savedApiKey);
+        globalState.set("publishableKey", savedPublishableKey);
+        globalState.set("profileId", savedProfileId);
+        globalState.set("merchantConnectorId", savedMerchantConnectorId);
       });
 
       it("Create Payment Intent -> Payment Methods Call -> Confirm Payment Intent -> Retrieve Payment after Confirmation -> Partial Refund Payment -> Partial Refund Payment - 2nd Attempt -> Sync Refund Payment", () => {
@@ -755,7 +797,20 @@ describe("Platform - Card Refund flow test", () => {
   context(
     "Connected Merchant 2 makes own payment - Full Refund for fully captured No-3DS payment",
     () => {
+      let savedMerchantId,
+        savedApiKey,
+        savedPublishableKey,
+        savedProfileId,
+        savedMerchantConnectorId;
+
       before(() => {
+        savedMerchantId = globalState.get("merchantId");
+        savedApiKey = globalState.get("apiKey");
+        savedPublishableKey = globalState.get("publishableKey");
+        savedProfileId = globalState.get("profileId");
+        savedMerchantConnectorId = globalState.get("merchantConnectorId");
+
+        globalState.set("merchantId", globalState.get("connectedMerchantId2"));
         globalState.set("apiKey", globalState.get("apiKeyCm2"));
         globalState.set("publishableKey", globalState.get("publishableKeyCm2"));
         globalState.set("profileId", globalState.get("profileIdCm2"));
@@ -763,6 +818,14 @@ describe("Platform - Card Refund flow test", () => {
           "merchantConnectorId",
           globalState.get("connectorIdCm2")
         );
+      });
+
+      after(() => {
+        globalState.set("merchantId", savedMerchantId);
+        globalState.set("apiKey", savedApiKey);
+        globalState.set("publishableKey", savedPublishableKey);
+        globalState.set("profileId", savedProfileId);
+        globalState.set("merchantConnectorId", savedMerchantConnectorId);
       });
 
       it("Create Payment Intent -> Payment Methods Call -> Confirm Payment Intent -> Retrieve Payment after Confirmation -> Capture Payment -> Retrieve Payment after Capture -> Refund Payment -> Sync Refund Payment", () => {
