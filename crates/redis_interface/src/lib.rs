@@ -133,10 +133,10 @@ impl SubscriberClient {
         let mut cluster_builder = redis::cluster::ClusterClient::builder(nodes)
             .use_protocol(redis::ProtocolVersion::RESP3)
             .push_sender(push_sender)
-            .retries(u32::try_from(conf.reconnect_max_attempts).unwrap_or(5))
+            .retries(conf.reconnect_max_attempts)
             .min_retry_wait(u64::from(conf.reconnect_delay))
             .response_timeout(std::time::Duration::from_secs(
-                conf.default_command_timeout.max(1) as u64,
+                conf.default_command_timeout.max(1),
             ));
 
         if conf.max_in_flight_commands > 0 {
@@ -501,10 +501,10 @@ impl RedisConnectionPool {
                     .collect();
 
                 let mut pool_builder = redis::cluster::ClusterClient::builder(nodes.clone())
-                    .retries(u32::try_from(conf.reconnect_max_attempts).unwrap_or(5))
+                    .retries(conf.reconnect_max_attempts)
                     .min_retry_wait(u64::from(conf.reconnect_delay))
                     .response_timeout(std::time::Duration::from_secs(
-                        conf.default_command_timeout.max(1) as u64,
+                        conf.default_command_timeout.max(1),
                     ));
 
                 if conf.max_in_flight_commands > 0 {
@@ -539,10 +539,10 @@ impl RedisConnectionPool {
                 let pool = RedisConn::Cluster(pool_conn);
 
                 let mut publisher_builder = redis::cluster::ClusterClient::builder(nodes.clone())
-                    .retries(u32::try_from(conf.reconnect_max_attempts).unwrap_or(5))
+                    .retries(conf.reconnect_max_attempts)
                     .min_retry_wait(u64::from(conf.reconnect_delay))
                     .response_timeout(std::time::Duration::from_secs(
-                        conf.default_command_timeout.max(1) as u64,
+                        conf.default_command_timeout.max(1),
                     ));
 
                 if !conf.use_legacy_version {

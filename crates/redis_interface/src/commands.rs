@@ -1382,7 +1382,7 @@ mod tests {
 
         let settings = RedisSettings {
             host,
-            port: port.into(),
+            port,
             cluster_enabled: true,
             cluster_urls,
             ..RedisSettings::default()
@@ -2434,8 +2434,12 @@ mod tests {
                 match result {
                     Ok(reply) => {
                         reply.keys.len() == 1
-                            && reply.keys[0].ids.len() == 1
-                            && reply.keys[0].ids[0].map.contains_key(&"task".to_string())
+                            && reply.keys.first().is_some_and(|key| key.ids.len() == 1)
+                            && reply
+                                .keys
+                                .first()
+                                .and_then(|key| key.ids.first())
+                                .is_some_and(|id| id.map.contains_key("task"))
                     }
                     Err(_) => false,
                 }
@@ -2486,7 +2490,7 @@ mod tests {
 
                 // Trim using MinID — keep entries after the 2nd one
                 if entries.len() >= 3 {
-                    let trim_id = &entries[1].0; // ID of 2nd entry
+                    let trim_id = &entries.get(1).expect("checked len >= 3").0; // ID of 2nd entry
                     let trim_result = pool
                         .stream_trim_entries(
                             &stream,
@@ -2690,7 +2694,7 @@ mod tests {
                 if entries.is_empty() {
                     return false;
                 }
-                let entry_id = entries[0].0.clone();
+                let entry_id = entries.first().expect("checked non-empty").0.clone();
 
                 // Act — delete the entry
                 let delete_result = pool.stream_delete_entries(&stream, &[entry_id]).await;
@@ -2881,7 +2885,7 @@ mod tests {
 
                 // Assert — should be 15
                 match result {
-                    Ok(values) => values.len() == 1 && values[0] == 15,
+                    Ok(values) => values.len() == 1 && values.first() == Some(&15),
                     Err(_) => false,
                 }
             })
@@ -2981,9 +2985,9 @@ mod tests {
                 match result {
                     Ok(replies) => {
                         replies.len() == 3
-                            && replies[0] == crate::types::DelReply::KeyDeleted
-                            && replies[1] == crate::types::DelReply::KeyDeleted
-                            && replies[2] == crate::types::DelReply::KeyNotDeleted
+                            && replies.first() == Some(&crate::types::DelReply::KeyDeleted)
+                            && replies.get(1) == Some(&crate::types::DelReply::KeyDeleted)
+                            && replies.get(2) == Some(&crate::types::DelReply::KeyNotDeleted)
                     }
                     Err(_) => false,
                 }
@@ -3020,8 +3024,8 @@ mod tests {
                 match result {
                     Ok(replies) => {
                         replies.len() == 2
-                            && matches!(replies[0], crate::types::SetGetReply::ValueSet(ref v) if v == "val1")
-                            && matches!(replies[1], crate::types::SetGetReply::ValueSet(ref v) if v == "val2")
+                            && matches!(replies.first(), Some(crate::types::SetGetReply::ValueSet(ref value)) if value == "val1")
+                            && matches!(replies.get(1), Some(crate::types::SetGetReply::ValueSet(ref value)) if value == "val2")
                     }
                     Err(_) => false,
                 }
@@ -3101,13 +3105,13 @@ mod tests {
                     .serialize_and_set_key_if_not_exist(&key, &Data { id: 100 }, Some(60))
                     .await;
 
-                match (set_result, dup_result) {
+                matches!(
+                    (set_result, dup_result),
                     (
                         Ok(crate::types::SetnxReply::KeySet),
                         Ok(crate::types::SetnxReply::KeyNotSet),
-                    ) => true,
-                    _ => false,
-                }
+                    )
+                )
             })
         })
         .await
@@ -3306,10 +3310,13 @@ mod tests {
                 let _ = pool.set_key(&key, "value".to_string()).await;
 
                 // Act — set expire at a future timestamp (now + 120s)
-                let future_ts = std::time::SystemTime::now()
-                    .duration_since(std::time::UNIX_EPOCH)
-                    .unwrap()
-                    .as_secs() as i64
+                let future_ts = i64::try_from(
+                    std::time::SystemTime::now()
+                        .duration_since(std::time::UNIX_EPOCH)
+                        .unwrap()
+                        .as_secs(),
+                )
+                .unwrap()
                     + 120;
                 let set_result = pool.set_expire_at(&key, future_ts).await;
                 let ttl_result = pool.get_ttl(&key).await;
@@ -3372,7 +3379,7 @@ mod tests {
                     .await;
 
                 // Assert — should succeed (returns number of pending messages)
-                matches!(result, Ok(_))
+                result.is_ok()
             })
         })
         .await
@@ -3471,8 +3478,16 @@ mod tests {
                     .await;
 
                 let entry_id = match read_result {
-                    Ok(reply) if !reply.keys.is_empty() && !reply.keys[0].ids.is_empty() => {
-                        reply.keys[0].ids[0].id.clone()
+                    Ok(reply) if !reply.keys.is_empty()
+                        && reply.keys.first().is_some_and(|key| !key.ids.is_empty()) =>
+                    {
+                        reply
+                            .keys
+                            .first()
+                            .and_then(|key| key.ids.first())
+                            .expect("checked non-empty")
+                            .id
+                            .clone()
                     }
                     _ => return false,
                 };
@@ -3489,7 +3504,7 @@ mod tests {
                     .await;
 
                 // Assert — claim should succeed
-                matches!(claim_result, Ok(_))
+                claim_result.is_ok()
             })
         })
         .await
@@ -3529,8 +3544,8 @@ mod tests {
                 match result {
                     Ok(replies) => {
                         replies.len() == 2
-                            && replies[0] == crate::types::HsetnxReply::KeySet
-                            && replies[1] == crate::types::HsetnxReply::KeySet
+                            && replies.first() == Some(&crate::types::HsetnxReply::KeySet)
+                            && replies.get(1) == Some(&crate::types::HsetnxReply::KeySet)
                     }
                     Err(_) => false,
                 }
@@ -3569,7 +3584,13 @@ mod tests {
 
                 // Assert — should get StreamReadReply with one entry
                 match result {
-                    Ok(reply) => reply.keys.len() == 1 && reply.keys[0].ids.len() >= 1,
+                    Ok(reply) => {
+                        reply.keys.len() == 1
+                            && reply
+                                .keys
+                                .first()
+                                .is_some_and(|key| !key.ids.is_empty())
+                    }
                     Err(_) => false,
                 }
             })
@@ -3736,7 +3757,12 @@ mod tests {
                     destroy_result,
                 ) {
                     (Ok(()), Ok(len), Ok(()), Ok(reply), Ok(_)) => {
-                        len >= 1 && reply.keys.len() == 1 && reply.keys[0].ids.len() >= 1
+                        len >= 1
+                            && reply.keys.len() == 1
+                            && reply
+                                .keys
+                                .first()
+                                .is_some_and(|key| !key.ids.is_empty())
                     }
                     _ => false,
                 }
