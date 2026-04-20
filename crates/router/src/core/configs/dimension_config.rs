@@ -393,6 +393,60 @@ config! {
 }
 
 config! {
+    superposition_key = WEBHOOKS,
+    output = settings::WebhooksSettings,
+    default = settings::WebhooksSettings::default(),
+    object = true,
+    requires = dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndOrgId,
+    targeting_key = id_type::MerchantId
+}
+
+config! {
+    superposition_key = NETWORK_TRANSACTION_ID_SUPPORTED_CONNECTOR,
+    output = bool,
+    default = false,
+    requires = dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileIdAndConnector,
+    targeting_key = String
+}
+
+impl DatabaseBackedConfig for NetworkTransactionIdSupportedConnector {
+    const KEY: &'static str = "network_transaction_id_supported_connector";
+    fn db_key(_dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
+        None
+    }
+}
+
+config! {
+    superposition_key = CARD_ONLY_MIT_SUPPORTED_CONNECTOR ,
+    output = bool,
+    default = false,
+    requires = dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileIdAndConnector,
+    targeting_key = id_type::CustomerId
+}
+
+impl DatabaseBackedConfig for CardOnlyMitSupportedConnector {
+    const KEY: &'static str = "card_only_mit_supported_connector";
+    fn db_key(_dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
+        None
+    }
+}
+
+config! {
+    superposition_key = DISPUTE_SUPPORTED_CONNECTOR ,
+    output = bool,
+    default = false,
+    requires = dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileIdAndConnector,
+    targeting_key = id_type::MerchantId
+}
+
+impl DatabaseBackedConfig for DisputeSupportedConnector {
+    const KEY: &'static str = "dispute_supported_connector";
+    fn db_key(_dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
+        None
+    }
+}
+
+config! {
     superposition_key = MAX_AUTO_PAYOUT_RETRIES,
     output = u32,
     default = 0u32,

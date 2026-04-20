@@ -2463,6 +2463,10 @@ impl GetRoutableConnectorsForChoice for DecideConnector {
 pub struct RoutableConnectors(Vec<routing_types::RoutableConnectorChoice>);
 
 impl RoutableConnectors {
+    pub fn connector_names(&self) -> Vec<String> {
+        self.0.iter().map(|c| c.connector.to_string()).collect()
+    }
+
     pub fn filter_proxy_flow_supported_connectors(
         self,
         proxy_connector_filters: HashSet<String>,

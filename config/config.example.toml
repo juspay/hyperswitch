@@ -1287,12 +1287,6 @@ check_tokenize_eligibility_url="" # base url to check tokenization eligibility f
 [network_tokenization_supported_connectors]
 connector_list = "adyen,cybersource,peachpayments,trustpay" # Supported connectors for network tokenization
 
-[network_transaction_id_supported_connectors]
-connector_list = "adyen,archipel,checkout,cybersource,novalnet,stripe,worldpay,worldpayvantiv,revolv3" # Supported connectors for network transaction id
-
-[card_only_mit_supported_connectors]
-connector_list = "peachpayments" # Supported connectors for card only mit
-
 [notify_iframe_exit_and_redirect]
 connector_list = "worldpayxml"
 
@@ -1383,8 +1377,6 @@ id_reuse_strategy = "ignore_incoming"  # Options: "ignore_incoming" (default) or
 
 [proxy_status_mapping]
 proxy_connector_http_status_code = false    # If enabled, the http status code of the connector will be proxied in the response
-[list_dispute_supported_connectors]
-connector_list = "worldpayvantiv"
 
 # Authentication to communicate between internal services using common_api_key, merchant id and profile id
 [internal_merchant_id_profile_id_auth]

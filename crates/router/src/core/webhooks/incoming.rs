@@ -749,6 +749,24 @@ async fn process_non_ucs_webhook<'a>(
         query_params: request_details.query_params.clone(),
         body: &decoded_body,
     };
+    let dimensions = dimension_state::Dimensions::new()
+        .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
+        .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id())
+        .with_organization_id(platform.get_processor().get_account().get_org_id().clone());
+
+    let webhooks_config = dimensions
+        .get_webhooks(
+            state.store.as_ref(),
+            state.superposition_service.as_ref(),
+            Some(platform.get_processor().get_account().get_id()),
+        )
+        .await;
+
+    let is_allow_webhook_event_type_not_found = webhooks_config
+        .ignore_error
+        .payment_not_found
+        .unwrap_or(true);
+
     let object_ref_id = connector
         .get_webhook_object_reference_id(&updated_request_details)
         .ok();
@@ -775,15 +793,7 @@ async fn process_non_ucs_webhook<'a>(
                 .map(WebhookContext::from)
                 .as_ref(),
         )
-        .allow_webhook_event_type_not_found(
-            state
-                .clone()
-                .conf
-                .webhooks
-                .ignore_error
-                .event_type
-                .unwrap_or(true),
-        )
+        .allow_webhook_event_type_not_found(is_allow_webhook_event_type_not_found)
         .switch()
         .attach_printable("Could not find event type in incoming webhook body")?
     {
@@ -1449,6 +1459,24 @@ async fn payments_incoming_webhook_flow(
         payments::CallConnectorAction::Trigger
     };
 
+    let dimensions = dimension_state::Dimensions::new()
+        .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
+        .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id())
+        .with_organization_id(platform.get_processor().get_account().get_org_id().clone());
+
+    let webhooks_config = dimensions
+        .get_webhooks(
+            state.store.as_ref(),
+            state.superposition_service.as_ref(),
+            Some(platform.get_processor().get_account().get_id()),
+        )
+        .await;
+
+    let is_allow_webhook_event_type_not_found = webhooks_config
+        .ignore_error
+        .payment_not_found
+        .unwrap_or(true);
+
     // Determine shadow UCS call connector action based on shadow UCS data
     let shadow_ucs_call_connector_action = shadow_ucs_data.as_ref().and_then(|shadow_data| {
         if shadow_data.ucs_source_verified {
@@ -1561,12 +1589,7 @@ async fn payments_incoming_webhook_flow(
                     if matches!(
                         err.current_context(),
                         &errors::ApiErrorResponse::PaymentNotFound
-                    ) && state
-                        .conf
-                        .webhooks
-                        .ignore_error
-                        .payment_not_found
-                        .unwrap_or(true) =>
+                    ) && is_allow_webhook_event_type_not_found =>
                 {
                     metrics::WEBHOOK_PAYMENT_NOT_FOUND.add(
                         1,
@@ -1626,6 +1649,7 @@ async fn payments_incoming_webhook_flow(
                     enums::EventObjectType::PaymentDetails,
                     api::OutgoingWebhookContent::PaymentDetails(Box::new(payments_response)),
                     primary_object_created_at,
+                    dimensions,
                 ))
                 .await?;
             };
@@ -1840,6 +1864,10 @@ async fn payout_incoming_webhook_update_status(
     connector: &ConnectorEnum,
     payout_data: &mut payouts::PayoutData,
 ) -> CustomResult<WebhookResponseTracker, errors::ApiErrorResponse> {
+    let dimensions = dimension_state::Dimensions::new()
+        .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id())
+        .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
+        .with_organization_id(platform.get_processor().get_account().get_org_id().clone());
     let payout_attempt = &payout_data.payout_attempt;
     let db = &*state.store;
     let status = common_enums::PayoutStatus::foreign_try_from(event_type)
@@ -1933,6 +1961,7 @@ async fn payout_incoming_webhook_update_status(
             enums::EventObjectType::PayoutDetails,
             api::OutgoingWebhookContent::PayoutDetails(Box::new(payout_create_response)),
             Some(payout_data.payout_attempt.created_at),
+            dimensions,
         ))
         .await?;
     }
@@ -1972,6 +2001,10 @@ async fn payout_incoming_webhook_retrieve_status(
         })
         .attach_printable("Connector not found for payout fulfillment")?,
     };
+    let dimensions = dimension_state::Dimensions::new()
+        .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id())
+        .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
+        .with_organization_id(platform.get_processor().get_account().get_org_id().clone());
 
     Box::pin(payouts::create_payout_retrieve(
         &state,
@@ -2003,6 +2036,7 @@ async fn payout_incoming_webhook_retrieve_status(
             enums::EventObjectType::PayoutDetails,
             api::OutgoingWebhookContent::PayoutDetails(Box::new(payout_response)),
             Some(payout_data.payout_attempt.created_at),
+            dimensions,
         ))
         .await?;
     }
@@ -2111,6 +2145,10 @@ async fn refunds_incoming_webhook_flow(
     event_type: webhooks::IncomingWebhookEvent,
 ) -> CustomResult<WebhookResponseTracker, errors::ApiErrorResponse> {
     let db = &*state.store;
+    let dimensions = dimension_state::Dimensions::new()
+        .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id())
+        .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
+        .with_organization_id(platform.get_processor().get_account().get_org_id().clone());
     //find refund by connector refund id
     let refund = match webhook_details.object_reference_id {
         webhooks::ObjectReferenceId::RefundId(refund_id_type) => match refund_id_type {
@@ -2226,6 +2264,7 @@ async fn refunds_incoming_webhook_flow(
             enums::EventObjectType::RefundDetails,
             api::OutgoingWebhookContent::RefundDetails(Box::new(refund_response)),
             Some(updated_refund.created_at),
+            dimensions,
         ))
         .await?;
     }
@@ -2421,6 +2460,10 @@ async fn external_authentication_incoming_webhook_flow(
     merchant_connector_account: domain::MerchantConnectorAccount,
 ) -> CustomResult<WebhookResponseTracker, errors::ApiErrorResponse> {
     let key_manager_state = (&state).into();
+    let dimensions = dimension_state::Dimensions::new()
+        .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id())
+        .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
+        .with_organization_id(platform.get_processor().get_account().get_org_id().clone());
     if source_verified {
         let authentication_details = connector
             .get_external_authentication_details(request_details)
@@ -2614,6 +2657,7 @@ async fn external_authentication_incoming_webhook_flow(
                                     payments_response,
                                 )),
                                 primary_object_created_at,
+                                dimensions,
                             ))
                             .await?;
                         };
@@ -2651,6 +2695,10 @@ async fn mandates_incoming_webhook_flow(
 ) -> CustomResult<WebhookResponseTracker, errors::ApiErrorResponse> {
     if source_verified {
         let db = &*state.store;
+        let dimensions = dimension_state::Dimensions::new()
+            .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id())
+            .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
+            .with_organization_id(platform.get_processor().get_account().get_org_id().clone());
         let mandate = match webhook_details.object_reference_id {
             webhooks::ObjectReferenceId::MandateId(webhooks::MandateIdType::MandateId(
                 mandate_id,
@@ -2710,6 +2758,7 @@ async fn mandates_incoming_webhook_flow(
                 enums::EventObjectType::MandateDetails,
                 api::OutgoingWebhookContent::MandateDetails(mandates_response),
                 Some(updated_mandate.created_at),
+                dimensions,
             ))
             .await?;
         }
@@ -2743,6 +2792,11 @@ async fn frm_incoming_webhook_flow(
             platform.get_processor(),
         )
         .await?;
+
+        let dimensions = dimension_state::Dimensions::new()
+            .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id())
+            .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
+            .with_organization_id(platform.get_processor().get_account().get_org_id().clone());
         let payment_response = match event_type {
             webhooks::IncomingWebhookEvent::FrmApproved => {
                 Box::pin(payments::payments_core::<
@@ -2819,6 +2873,7 @@ async fn frm_incoming_webhook_flow(
                         enums::EventObjectType::PaymentDetails,
                         api::OutgoingWebhookContent::PaymentDetails(Box::new(payments_response)),
                         primary_object_created_at,
+                        dimensions,
                     ))
                     .await?;
                 };
@@ -2853,6 +2908,10 @@ async fn disputes_incoming_webhook_flow(
     metrics::INCOMING_DISPUTE_WEBHOOK_METRIC.add(1, &[]);
     if source_verified {
         let db = &*state.store;
+        let dimensions = dimension_state::Dimensions::new()
+            .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id())
+            .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
+            .with_organization_id(platform.get_processor().get_account().get_org_id().clone());
         let payment_attempt = match webhook_resource_data.as_ref() {
             Some(context) => context.get_payment_attempt().clone(),
             None => {
@@ -2950,6 +3009,7 @@ async fn disputes_incoming_webhook_flow(
             enums::EventObjectType::DisputeDetails,
             api::OutgoingWebhookContent::DisputeDetails(disputes_response),
             Some(dispute_object.created_at),
+            dimensions,
         ))
         .await?;
         metrics::INCOMING_DISPUTE_WEBHOOK_MERCHANT_NOTIFIED_METRIC.add(1, &[]);
@@ -2975,6 +3035,10 @@ async fn bank_transfer_webhook_flow(
     webhook_details: api::IncomingWebhookDetails,
     source_verified: bool,
 ) -> CustomResult<WebhookResponseTracker, errors::ApiErrorResponse> {
+    let dimensions = dimension_state::Dimensions::new()
+        .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id())
+        .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
+        .with_organization_id(platform.get_processor().get_account().get_org_id().clone());
     let response = if source_verified {
         let payment_attempt = get_payment_attempt_from_object_reference_id(
             &state,
@@ -3037,6 +3101,7 @@ async fn bank_transfer_webhook_flow(
                     enums::EventObjectType::PaymentDetails,
                     api::OutgoingWebhookContent::PaymentDetails(Box::new(payments_response)),
                     primary_object_created_at,
+                    dimensions,
                 ))
                 .await?;
             }

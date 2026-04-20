@@ -20,6 +20,7 @@ use crate::core::webhooks::recovery_incoming;
 use crate::{
     core::{
         api_locking,
+        configs::dimension_state,
         errors::{self, ConnectorErrorExt, CustomResult, RouterResponse, StorageErrorExt},
         metrics,
         payments::{
@@ -175,17 +176,27 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
 
     request_details.body = &decoded_body;
 
+    let dimensions = dimension_state::Dimensions::new()
+        .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
+        .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id())
+        .with_organization_id(platform.get_processor().get_account().get_org_id().clone());
+
+    let webhooks_config = dimensions
+        .get_webhooks(
+            state.store.as_ref(),
+            state.superposition_service.as_ref(),
+            Some(platform.get_processor().get_account().get_id()),
+        )
+        .await;
+
+    let is_allow_webhook_event_type_not_found = webhooks_config
+        .ignore_error
+        .payment_not_found
+        .unwrap_or(true);
+
     let event_type = match connector
         .get_webhook_event_type(&request_details, None)
-        .allow_webhook_event_type_not_found(
-            state
-                .clone()
-                .conf
-                .webhooks
-                .ignore_error
-                .event_type
-                .unwrap_or(true),
-        )
+        .allow_webhook_event_type_not_found(is_allow_webhook_event_type_not_found)
         .switch()
         .attach_printable("Could not find event type in incoming webhook body")?
     {
@@ -445,6 +456,24 @@ async fn payments_incoming_webhook_flow(
         payments::CallConnectorAction::Trigger
     };
     let key_manager_state = &(&state).into();
+    let dimensions = dimension_state::Dimensions::new()
+        .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id())
+        .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
+        .with_organization_id(platform.get_processor().get_account().get_org_id().clone());
+
+    let webhooks_config = dimensions
+        .get_webhooks(
+            state.store.as_ref(),
+            state.superposition_service.as_ref(),
+            Some(platform.get_processor().get_account().get_id()),
+        )
+        .await;
+
+    let is_allow_webhook_event_type_not_found = webhooks_config
+        .ignore_error
+        .payment_not_found
+        .unwrap_or(true);
+
     let payments_response = match webhook_details.object_reference_id {
         webhooks::ObjectReferenceId::PaymentId(id) => {
             let get_trackers_response = get_trackers_response_for_payment_get_operation(
@@ -530,13 +559,7 @@ async fn payments_incoming_webhook_flow(
                     if matches!(
                         err.current_context(),
                         &errors::ApiErrorResponse::PaymentNotFound
-                    ) && state
-                        .clone()
-                        .conf
-                        .webhooks
-                        .ignore_error
-                        .payment_not_found
-                        .unwrap_or(true) =>
+                    ) && is_allow_webhook_event_type_not_found =>
                 {
                     metrics::WEBHOOK_PAYMENT_NOT_FOUND.add(
                         1,
@@ -577,6 +600,7 @@ async fn payments_incoming_webhook_flow(
                     enums::EventObjectType::PaymentDetails,
                     api::OutgoingWebhookContent::PaymentDetails(Box::new(payments_response)),
                     primary_object_created_at,
+                    dimensions,
                 ))
                 .await?;
             };

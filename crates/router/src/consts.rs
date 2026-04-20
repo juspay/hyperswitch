@@ -375,6 +375,15 @@ pub mod superposition {
         "should_store_eligibility_check_data_for_authentication";
     /// Extended card BIN configuration key
     pub const ENABLE_EXTENDED_CARD_BIN: &str = "enable_extended_card_bin";
+    /// Webhooks settings configuration key
+    pub const WEBHOOKS: &str = "webhooks";
+    /// Network_transaction_id supported connector configuration key
+    pub const NETWORK_TRANSACTION_ID_SUPPORTED_CONNECTOR: &str =
+        "network_transaction_id_supported_connector";
+    /// Card only mit supported connector configuration key
+    pub const CARD_ONLY_MIT_SUPPORTED_CONNECTOR: &str = "card_only_mit_supported_connector";
+    /// Dispute supported connector configuration key
+    pub const DISPUTE_SUPPORTED_CONNECTOR: &str = "dispute_supported_connector";
     /// Max auto payout retries configuration key
     pub const MAX_AUTO_PAYOUT_RETRIES: &str = "max_auto_payout_retries";
     /// GSM payout call configuration key (scoped by merchant, profile, and payout retry type)
@@ -386,12 +395,6 @@ pub mod superposition {
         "should_return_raw_payment_method_details";
     /// Call PM modular service configuration key
     pub const SHOULD_CALL_PM_MODULAR_SERVICE: &str = "should_call_pm_modular_service";
-    /// dynamic fields configuration key for sdk config
-    pub const DYNAMIC_FIELDS: &str = "dynamic_fields";
-    /// payout sync tracker configuration key
-    pub const PAYOUT_TRACKER_MAPPING: &str = "payout_tracker_mapping";
-    /// client session validation enabled configuration key
-    pub const CLIENT_SESSION_VALIDATION_ENABLED: &str = "client_session_validation_enabled";
 }
 
 #[cfg(test)]

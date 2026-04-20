@@ -19,7 +19,7 @@ use super::{
     metrics,
 };
 use crate::{
-    core::{files, payments, utils as core_utils, webhooks},
+    core::{configs::dimension_state, files, payments, utils as core_utils, webhooks},
     routes::{app::StorageInterface, metrics::TASKS_ADDED_COUNT, SessionState},
     services,
     types::{
@@ -924,6 +924,11 @@ pub async fn update_dispute_data(
     let disputes_response: dispute_models::DisputeResponse = dispute_object.clone().foreign_into();
     let event_type: storage_enums::EventType = dispute_details.dispute_status.into();
 
+    let dimensions = dimension_state::Dimensions::new()
+        .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id())
+        .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
+        .with_organization_id(platform.get_processor().get_account().get_org_id().clone());
+
     Box::pin(webhooks::create_event_and_trigger_outgoing_webhook(
         state.clone(),
         platform.get_processor().clone(),
@@ -934,6 +939,7 @@ pub async fn update_dispute_data(
         storage_enums::EventObjectType::DisputeDetails,
         api::OutgoingWebhookContent::DisputeDetails(Box::new(disputes_response.clone())),
         Some(dispute_object.created_at),
+        dimensions,
     ))
     .await?;
     Ok(disputes_response)
@@ -1039,8 +1045,10 @@ pub async fn add_dispute_list_task_to_pt(
 #[cfg(feature = "v1")]
 pub async fn schedule_dispute_sync_task(
     state: &SessionState,
+    dimensions: dimension_state::DimensionsWithProcessorAndProviderMerchantId,
     business_profile: &domain::Profile,
     mca: &domain::MerchantConnectorAccount,
+    merchant_id: &common_utils::id_type::MerchantId,
 ) -> common_utils::errors::CustomResult<(), errors::ApiErrorResponse> {
     let connector = api::enums::Connector::from_str(&mca.connector_name).change_context(
         errors::ApiErrorResponse::InvalidDataValue {
@@ -1048,7 +1056,11 @@ pub async fn schedule_dispute_sync_task(
         },
     )?;
 
-    if core_utils::should_add_dispute_sync_task_to_pt(state, connector) {
+    let new_dimensions = dimensions
+        .with_profile_id(business_profile.get_id().clone())
+        .with_connector(connector);
+
+    if core_utils::should_add_dispute_sync_task_to_pt(state, new_dimensions, merchant_id).await {
         let offset_date_time = time::OffsetDateTime::now_utc();
         let created_from =
             time::PrimitiveDateTime::new(offset_date_time.date(), offset_date_time.time());

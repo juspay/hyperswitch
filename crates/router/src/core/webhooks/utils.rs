@@ -14,6 +14,7 @@ use router_env::tracing;
 use super::MERCHANT_ID;
 use crate::{
     core::{
+        configs::dimension_state,
         errors::{self},
         metrics,
         payments::helpers,
@@ -203,13 +204,21 @@ pub fn increment_webhook_outgoing_not_received_count(
     );
 }
 
-pub fn is_outgoing_webhook_disabled(
+pub async fn is_outgoing_webhook_disabled(
     state: &SessionState,
+    dimensions: dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndOrgId,
     webhook_url_result: &Result<String, Report<errors::WebhooksFlowError>>,
     business_profile: &domain::Profile,
     idempotent_event_id: &str,
 ) -> bool {
-    if !state.conf.webhooks.outgoing_enabled
+    let webhooks_config = dimensions
+        .get_webhooks(
+            state.store.as_ref(),
+            state.superposition_service.as_ref(),
+            Some(&business_profile.merchant_id),
+        )
+        .await;
+    if !webhooks_config.outgoing_enabled
         || webhook_url_result.is_err()
         || webhook_url_result.as_ref().is_ok_and(String::is_empty)
     {
@@ -230,6 +239,7 @@ pub(super) async fn perform_redis_lock<A>(
     state: &A,
     unique_locking_key: &str,
     merchant_id: common_utils::id_type::MerchantId,
+    redis_lock_expiry_seconds: u32,
 ) -> RouterResult<Option<String>>
 where
     A: SessionStateInfo,
@@ -247,7 +257,6 @@ where
         merchant_id.get_string_repr(),
         unique_locking_key
     );
-    let redis_lock_expiry_seconds = state.conf().webhooks.redis_lock_expiry_seconds;
 
     let redis_lock_result = redis_conn
         .set_key_if_not_exists_with_expiry(

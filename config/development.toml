@@ -1218,12 +1218,6 @@ card.debit = { connector_list = "cybersource" }
 card.credit = "adyen"
 card.debit = "adyen"
 
-[network_transaction_id_supported_connectors]
-connector_list = "adyen,archipel,checkout,cybersource,novalnet,nuvei,stripe,worldpay,worldpayvantiv,revolv3"
-
-[card_only_mit_supported_connectors]
-connector_list = "peachpayments" # Supported connectors for card only mit
-
 [notify_iframe_exit_and_redirect]
 connector_list = "worldpayxml"
 
@@ -1505,8 +1499,6 @@ encryption_key = ""
 
 [proxy_status_mapping]
 proxy_connector_http_status_code = false    # If enabled, the http status code of the connector will be proxied in the response
-[list_dispute_supported_connectors]
-connector_list = "worldpayvantiv"
 
 [internal_merchant_id_profile_id_auth]
 enabled = false

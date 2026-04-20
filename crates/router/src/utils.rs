@@ -51,6 +51,7 @@ use crate::{
     consts,
     core::{
         authentication::types::ExternalThreeDSConnectorMetadata,
+        configs::dimension_state::Dimensions,
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
         payments as payments_core,
     },
@@ -1167,8 +1168,7 @@ where
 #[cfg(feature = "v1")]
 #[allow(clippy::too_many_arguments)]
 pub async fn trigger_payments_webhook<F, Op, D>(
-    processor: &domain::Processor,
-    initiator: Option<&domain::Initiator>,
+    platform: &domain::Platform,
     business_profile: domain::Profile,
     payment_data: D,
     state: &SessionState,
@@ -1179,6 +1179,13 @@ where
     Op: Debug,
     D: payments_core::OperationSessionGetters<F>,
 {
+    let dimensions = Dimensions::new()
+        .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id())
+        .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
+        .with_organization_id(platform.get_processor().get_account().get_org_id().clone());
+
+    let processor = platform.get_processor();
+    let initiator = platform.get_initiator();
     let status = payment_data.get_payment_intent().status;
 
     // Trigger an outgoing webhook regardless of the current payment intent status if nothing is configured in the profile.
@@ -1239,6 +1246,7 @@ where
                                 payments_response_json,
                             )),
                             primary_object_created_at,
+                            dimensions,
                         ))
                         .await
                     }
@@ -1284,6 +1292,11 @@ pub async fn trigger_refund_outgoing_webhook(
             id: profile_id.get_string_repr().to_owned(),
         })?;
 
+    let dimensions = Dimensions::new()
+        .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id())
+        .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
+        .with_organization_id(platform.get_processor().get_account().get_org_id().clone());
+
     // Trigger an outgoing webhook regardless of the current refund status if nothing is configured in the profile.
     let should_trigger_webhook = business_profile
         .get_configured_refund_webhook_statuses()
@@ -1310,6 +1323,7 @@ pub async fn trigger_refund_outgoing_webhook(
                         common_enums::EventObjectType::RefundDetails,
                         webhooks::OutgoingWebhookContent::RefundDetails(Box::new(refund_response)),
                         primary_object_created_at,
+                        dimensions,
                     ))
                     .await
                 }
@@ -1358,6 +1372,11 @@ pub async fn trigger_payouts_webhook(
 
     let status = &payout_response.status;
 
+    let dimensions = Dimensions::new()
+        .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id())
+        .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
+        .with_organization_id(platform.get_processor().get_account().get_org_id().clone());
+
     // Trigger an outgoing webhook regardless of the current payout status if nothing is configured in the profile.
     let should_trigger_webhook = business_profile
         .get_configured_payout_webhook_statuses()
@@ -1387,6 +1406,7 @@ pub async fn trigger_payouts_webhook(
                         common_enums::EventObjectType::PayoutDetails,
                         webhooks::OutgoingWebhookContent::PayoutDetails(Box::new(cloned_response)),
                         primary_object_created_at,
+                        dimensions,
                     ))
                     .await
                 }
@@ -1433,6 +1453,11 @@ pub async fn trigger_subscriptions_outgoing_webhook(
         None,
     );
 
+    let dimensions = Dimensions::new()
+        .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id())
+        .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
+        .with_organization_id(platform.get_processor().get_account().get_org_id().clone());
+
     let cloned_state = state.clone();
     let cloned_profile = profile.clone();
     let invoice_id = invoice.id.get_string_repr().to_owned();
@@ -1450,6 +1475,7 @@ pub async fn trigger_subscriptions_outgoing_webhook(
             common_enums::EventObjectType::SubscriptionDetails,
             webhooks::OutgoingWebhookContent::SubscriptionDetails(Box::new(response)),
             Some(created_at),
+            dimensions,
         ))
         .await
     });

@@ -25,6 +25,7 @@ use super::{types, utils, MERCHANT_ID};
 use crate::compatibility::stripe::webhooks as stripe_webhooks;
 use crate::{
     core::{
+        configs::dimension_state,
         errors::{self, CustomResult},
         metrics,
     },
@@ -57,6 +58,7 @@ pub(crate) async fn create_event_and_trigger_outgoing_webhook(
     primary_object_type: enums::EventObjectType,
     content: api::OutgoingWebhookContent,
     primary_object_created_at: Option<time::PrimitiveDateTime>,
+    dimensions: dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndOrgId,
 ) -> CustomResult<(), errors::ApiErrorResponse> {
     let delivery_attempt = enums::WebhookDeliveryAttempt::InitialAttempt;
     let idempotent_event_id =
@@ -65,7 +67,15 @@ pub(crate) async fn create_event_and_trigger_outgoing_webhook(
             .attach_printable("Failed to generate idempotent event ID")?;
     let webhook_url_result = get_webhook_url_from_business_profile(&business_profile);
 
-    if !state.conf.webhooks.outgoing_enabled
+    let webhooks_config = dimensions
+        .get_webhooks(
+            state.store.as_ref(),
+            state.superposition_service.as_ref(),
+            Some(&business_profile.merchant_id),
+        )
+        .await;
+
+    if !webhooks_config.outgoing_enabled
         || webhook_url_result.is_err()
         || webhook_url_result.as_ref().is_ok_and(String::is_empty)
     {
@@ -139,6 +149,7 @@ pub(crate) async fn create_event_and_trigger_outgoing_webhook(
         &state,
         &idempotent_event_id,
         processor.get_account().get_id().to_owned(),
+        webhooks_config.redis_lock_expiry_seconds,
     )
     .await?;
 
