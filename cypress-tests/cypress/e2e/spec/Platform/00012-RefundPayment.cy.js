@@ -135,9 +135,9 @@ describe("Platform - Card Refund Payment flow test", () => {
             cy.task("cli_log", "Skipping step: Refund Payment");
             return;
           }
-          const refundData = getConnectorDetails(globalState.get("connectorId"))[
-            "card_pm"
-          ]["Refund"];
+          const refundData = getConnectorDetails(
+            globalState.get("connectorId")
+          )["card_pm"]["Refund"];
 
           cy.refundCallTest(
             fixtures.refundBody,
@@ -173,9 +173,7 @@ describe("Platform - Card Refund Payment flow test", () => {
   context(
     "Connected Merchant 2 makes own payment - Full Refund for Auto-Capture payment",
     () => {
-      let savedApiKey,
-        savedPublishableKey,
-        savedMerchantConnectorId;
+      let savedApiKey, savedPublishableKey, savedMerchantConnectorId;
 
       before(() => {
         savedApiKey = globalState.get("apiKey");
@@ -184,7 +182,10 @@ describe("Platform - Card Refund Payment flow test", () => {
 
         globalState.set("apiKey", globalState.get("apiKeyCm2"));
         globalState.set("publishableKey", globalState.get("publishableKeyCm2"));
-        globalState.set("merchantConnectorId", globalState.get("connectorIdCm2"));
+        globalState.set(
+          "merchantConnectorId",
+          globalState.get("connectorIdCm2")
+        );
       });
 
       after(() => {
@@ -475,9 +476,7 @@ describe("Platform - Card Refund Payment flow test", () => {
   context(
     "Connected Merchant 2 makes own payment - Partial Refund for Auto-Capture payment",
     () => {
-      let savedApiKey,
-        savedPublishableKey,
-        savedMerchantConnectorId;
+      let savedApiKey, savedPublishableKey, savedMerchantConnectorId;
 
       before(() => {
         savedApiKey = globalState.get("apiKey");
@@ -486,7 +485,10 @@ describe("Platform - Card Refund Payment flow test", () => {
 
         globalState.set("apiKey", globalState.get("apiKeyCm2"));
         globalState.set("publishableKey", globalState.get("publishableKeyCm2"));
-        globalState.set("merchantConnectorId", globalState.get("connectorIdCm2"));
+        globalState.set(
+          "merchantConnectorId",
+          globalState.get("connectorIdCm2")
+        );
       });
 
       after(() => {
@@ -742,9 +744,9 @@ describe("Platform - Card Refund Payment flow test", () => {
             cy.task("cli_log", "Skipping step: Capture Payment");
             return;
           }
-          const captureData = getConnectorDetails(globalState.get("connectorId"))[
-            "card_pm"
-          ]["Capture"];
+          const captureData = getConnectorDetails(
+            globalState.get("connectorId")
+          )["card_pm"]["Capture"];
 
           cy.captureCallTest(
             fixtures.captureBody,
@@ -763,9 +765,9 @@ describe("Platform - Card Refund Payment flow test", () => {
             cy.task("cli_log", "Skipping step: Retrieve Payment after Capture");
             return;
           }
-          const captureData = getConnectorDetails(globalState.get("connectorId"))[
-            "card_pm"
-          ]["Capture"];
+          const captureData = getConnectorDetails(
+            globalState.get("connectorId")
+          )["card_pm"]["Capture"];
 
           cy.retrievePaymentCallTest({
             globalState,
@@ -783,9 +785,9 @@ describe("Platform - Card Refund Payment flow test", () => {
             cy.task("cli_log", "Skipping step: Refund Payment");
             return;
           }
-          const refundData = getConnectorDetails(globalState.get("connectorId"))[
-            "card_pm"
-          ]["manualPaymentRefund"];
+          const refundData = getConnectorDetails(
+            globalState.get("connectorId")
+          )["card_pm"]["manualPaymentRefund"];
           const newRefundData = {
             ...refundData,
             Response: refundData.ResponseCustom || refundData.Response,
@@ -825,9 +827,7 @@ describe("Platform - Card Refund Payment flow test", () => {
   context(
     "Connected Merchant 2 makes own payment - Full Refund for Manual-Capture payment",
     () => {
-      let savedApiKey,
-        savedPublishableKey,
-        savedMerchantConnectorId;
+      let savedApiKey, savedPublishableKey, savedMerchantConnectorId;
 
       before(() => {
         savedApiKey = globalState.get("apiKey");
@@ -836,7 +836,10 @@ describe("Platform - Card Refund Payment flow test", () => {
 
         globalState.set("apiKey", globalState.get("apiKeyCm2"));
         globalState.set("publishableKey", globalState.get("publishableKeyCm2"));
-        globalState.set("merchantConnectorId", globalState.get("connectorIdCm2"));
+        globalState.set(
+          "merchantConnectorId",
+          globalState.get("connectorIdCm2")
+        );
       });
 
       after(() => {
@@ -1101,9 +1104,9 @@ describe("Platform - Card Refund Payment flow test", () => {
             cy.task("cli_log", "Skipping step: Capture Payment");
             return;
           }
-          const captureData = getConnectorDetails(globalState.get("connectorId"))[
-            "card_pm"
-          ]["Capture"];
+          const captureData = getConnectorDetails(
+            globalState.get("connectorId")
+          )["card_pm"]["Capture"];
 
           cy.captureCallTest(
             fixtures.captureBody,
@@ -1122,9 +1125,9 @@ describe("Platform - Card Refund Payment flow test", () => {
             cy.task("cli_log", "Skipping step: Retrieve Payment after Capture");
             return;
           }
-          const captureData = getConnectorDetails(globalState.get("connectorId"))[
-            "card_pm"
-          ]["Capture"];
+          const captureData = getConnectorDetails(
+            globalState.get("connectorId")
+          )["card_pm"]["Capture"];
 
           cy.retrievePaymentCallTest({
             globalState,
@@ -1230,9 +1233,7 @@ describe("Platform - Card Refund Payment flow test", () => {
   context(
     "Connected Merchant 2 makes own payment - Partial Refund for Manual-Capture payment",
     () => {
-      let savedApiKey,
-        savedPublishableKey,
-        savedMerchantConnectorId;
+      let savedApiKey, savedPublishableKey, savedMerchantConnectorId;
 
       before(() => {
         savedApiKey = globalState.get("apiKey");
@@ -1241,7 +1242,10 @@ describe("Platform - Card Refund Payment flow test", () => {
 
         globalState.set("apiKey", globalState.get("apiKeyCm2"));
         globalState.set("publishableKey", globalState.get("publishableKeyCm2"));
-        globalState.set("merchantConnectorId", globalState.get("connectorIdCm2"));
+        globalState.set(
+          "merchantConnectorId",
+          globalState.get("connectorIdCm2")
+        );
       });
 
       after(() => {
