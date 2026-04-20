@@ -593,6 +593,7 @@ pub type DimensionsWithProviderMerchantId = Dimensions<
     NoOrgId,
     NoProfileId,
     NoConnector,
+    NoCurrency,
     NoPayoutRetryType,
 >;
 

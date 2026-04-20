@@ -369,13 +369,18 @@ impl DatabaseBackedConfig for InstallmentConfigSupported {
     }
 }
 
+#[cfg(feature = "v1")]
+type CustomerID = id_type::CustomerId;
+#[cfg(feature = "v2")]
+type CustomerID = id_type::GlobalCustomerId;
+
 config! {
     superposition_key = REFUND,
     output = settings::Refund,
     default = settings::Refund::default(),
     object = true,
     requires = dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndOrgId,
-    targeting_key = String
+    targeting_key = CustomerID
 }
 
 config! {
@@ -384,7 +389,7 @@ config! {
     default = settings::EphemeralConfig::default(),
     object = true,
     requires = dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndOrgId,
-    targeting_key = String
+    targeting_key = CustomerID
 }
 
 config! {

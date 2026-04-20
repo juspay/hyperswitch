@@ -1195,12 +1195,12 @@ pub async fn validate_and_create_refund(
         .to_not_found_response(errors::ApiErrorResponse::RefundNotFound)?;
 
     let currency = payment_intent.amount_details.currency;
-    let payment_id = payment_intent.id.get_string_repr().to_owned();
+    let customer_id = &payment_intent.customer_id;
     let refund_config = dimensions
         .get_refund(
             state.store.as_ref(),
             state.superposition_service.as_ref(),
-            Some(&payment_id),
+            customer_id.as_ref(),
         )
         .await;
 

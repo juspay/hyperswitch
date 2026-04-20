@@ -4127,7 +4127,7 @@ pub async fn make_ephemeral_key(
         .get_ephemeral_key(
             state.store.as_ref(),
             state.superposition_service.as_ref(),
-            Some(&customer_id.get_string_repr().to_owned()),
+            Some(&customer_id),
         )
         .await;
     let ek = store
@@ -4199,12 +4199,17 @@ pub async fn create_client_secret(
         .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id())
         .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
         .with_organization_id(platform.get_processor().get_account().get_org_id().clone());
-    let customer_id = resource_id.to_str().to_owned();
+    let customer_id = match &resource_id {
+        common_utils::types::authentication::ResourceId::Customer(id) => {
+            Some(id)
+        }
+        _ => None,
+    };
     let eph_key_config = eph_key_dimensions
         .get_ephemeral_key(
             state.store.as_ref(),
             state.superposition_service.as_ref(),
-            Some(&customer_id),
+            customer_id,
         )
         .await;
 
