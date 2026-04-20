@@ -309,6 +309,21 @@ config! {
 }
 
 config! {
+    superposition_key = AUTHENTICATION_SERVICE_ENABLED_CONNECTOR,
+    output = bool,
+    default = false,
+    requires = dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndConnector,
+    targeting_key = String
+}
+
+impl DatabaseBackedConfig for AuthenticationServiceEnabledConnector {
+    const KEY: &'static str = "authentication_service_enabled_connector";
+    fn db_key(_dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
+        None
+    }
+}
+
+config! {
     superposition_key = NETWORK_TRANSACTION_ID_SUPPORTED_CONNECTOR,
     output = bool,
     default = false,
@@ -382,3 +397,118 @@ impl DatabaseBackedConfig for MaxAutoPayoutRetries {
             })
     }
 }
+
+config! {
+    superposition_key = PAYOUT_ELIGIBILITY,
+    output = bool,
+    default = true,
+    requires = dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndOrgIdAndProfileId,
+    targeting_key = id_type::PayoutId
+}
+
+impl DatabaseBackedConfig for PayoutEligibility {
+    const KEY: &'static str = "payout_eligibility";
+    fn db_key(_dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
+        None
+    }
+}
+
+config! {
+    superposition_key = IS_FRM_ENABLED,
+    output = bool,
+    default = true,
+    requires = dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndOrgIdAndProfileId,
+    targeting_key = String
+}
+
+impl DatabaseBackedConfig for IsFrmEnabled {
+    const KEY: &'static str = "is_frm_enabled";
+    fn db_key(_dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
+        None
+    }
+}
+
+config! {
+    superposition_key = L2_L3_DATA_ENABLED,
+    output = bool,
+    default = true,
+    requires = dimension_state::DimensionsWithProcessorMerchantIdAndOrgId,
+    targeting_key = id_type::PaymentId
+}
+
+impl DatabaseBackedConfig for L2L3DataEnabled {
+    const KEY: &'static str = "l2_l3_data_enabled";
+    fn db_key(_dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
+        None
+    }
+}
+
+config! {
+    superposition_key = DEBIT_ROUTING_SUPPORTED,
+    output = bool,
+    default = false,
+    requires = dimension_state::DimensionsWithConnectorAndCurrencyAndNetwork,
+    targeting_key = id_type::PaymentId
+}
+
+impl DatabaseBackedConfig for DebitRoutingSupported {
+    const KEY: &'static str = "debit_routing_supported";
+    fn db_key(_dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
+        None
+    }
+}
+
+config! {
+    superposition_key = MERCHANT_ADVICE_CODES,
+    output = settings::MerchantAdviceCodeLookupConfig,
+    default = settings::MerchantAdviceCodeLookupConfig::default(),
+    object = true,
+    requires = dimension_state::DimensionsWithProcessorMerchantId,
+    targeting_key = String
+}
+
+config! {
+    superposition_key = CLICK_TO_PAY_SUPPORTED_CONNECTOR,
+    output = bool,
+    default = false,
+    requires = dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndConnector,
+    targeting_key = id_type::MerchantId
+}
+
+impl DatabaseBackedConfig for ClickToPaySupportedConnector {
+    const KEY: &'static str = "click_to_pay_supported_connector";
+    fn db_key(_dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
+        None
+    }
+}
+
+config! {
+    superposition_key = NETWORK_TOKENIZATION_SUPPORTED_CONNECTOR,
+    output = bool,
+    default = false,
+    requires = dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileIdAndConnector,
+    targeting_key = id_type::MerchantId
+}
+
+impl DatabaseBackedConfig for NetworkTokenizationSupportedConnector {
+    const KEY: &'static str = "network_tokenization_supported_connector";
+    fn db_key(_dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
+        None
+    }
+}
+
+config! {
+    superposition_key = NETWORK_TOKENIZATION_SUPPORTED_CARD_NETWORK,
+    output = bool,
+    default = false,
+    requires = dimension_state::DimensionsWithNetwork,
+    targeting_key = String
+}
+
+impl DatabaseBackedConfig for NetworkTokenizationSupportedCardNetwork {
+    const KEY: &'static str = "network_tokenization_supported_card_network";
+    fn db_key(_dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
+        None
+    }
+}
+

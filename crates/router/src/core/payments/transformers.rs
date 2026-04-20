@@ -58,6 +58,7 @@ use super::{flows::Feature, types::AuthenticationData, OperationSessionGetters, 
 use crate::{
     configs::settings::ConnectorRequestReferenceIdConfig,
     core::{
+        configs::dimension_state,
         errors::{self, RouterResponse, RouterResult},
         payments::{self, helpers},
         utils as core_utils,
@@ -1833,8 +1834,21 @@ where
                 .collect::<Result<Vec<_>, _>>()
         })
         .transpose()?;
+    let l2_l3_data_enabled = {
+        let dimensions = dimension_state::Dimensions::new()
+            .with_processor_merchant_id(processor.get_processor_merchant_id())
+            .with_organization_id(processor.get_account().get_org_id().clone());
+        let payment_id = payment_data.payment_attempt.payment_id.clone();
+        dimensions
+            .get_l2_l3_data_enabled(
+                state.store.as_ref(),
+                state.superposition_service.as_ref(),
+                Some(&payment_id),
+            )
+            .await
+    };
     let l2_l3_data =
-        (state.conf.l2_l3_data_config.enabled && payment_data.is_l2_l3_enabled).then(|| {
+        (l2_l3_data_enabled && payment_data.is_l2_l3_enabled).then(|| {
             let shipping_address = unified_address.get_shipping();
             let billing_address = unified_address.get_payment_billing();
             let merchant_tax_registration_id =

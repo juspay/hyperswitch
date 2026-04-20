@@ -521,16 +521,24 @@ async fn fetch_three_ds_execution_path(
         connector_name: connector_name.clone(),
     };
 
-    let eligible_connector_list = state
-        .conf
-        .authentication_service_enabled_connectors
-        .connector_list
-        .clone();
     let connector_enum = Connector::from_str(&connector_name)
         .change_context(errors::ApiErrorResponse::InvalidDataValue {
             field_name: "connector",
         })
         .attach_printable_lazy(|| format!("unable to parse connector name {connector_name:?}"))?;
+
+    let connector_dimensions = dimension_state::Dimensions::new()
+        .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
+        .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id())
+        .with_connector(connector_enum);
+    let is_authentication_service_enabled_connector = connector_dimensions
+        .get_authentication_service_enabled_connector(
+            state.store.as_ref(),
+            state.superposition_service.as_ref(),
+            None,
+        )
+        .await;
+
     let is_merchant_eligible_for_uas =
         payments::helpers::is_merchant_eligible_authentication_service(
             platform.get_processor(),
@@ -538,7 +546,7 @@ async fn fetch_three_ds_execution_path(
         )
         .await?;
 
-    if is_merchant_eligible_for_uas && eligible_connector_list.contains(&connector_enum) {
+    if is_merchant_eligible_for_uas && is_authentication_service_enabled_connector {
         Ok(ThreeDsProcessingMode::UnifiedAuthenticationService(
             mca_details,
         ))

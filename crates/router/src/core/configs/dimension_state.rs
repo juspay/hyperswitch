@@ -1,6 +1,6 @@
 use std::marker::PhantomData;
 
-use common_enums::{connector_enums::Connector, enums::Currency, PayoutRetryType};
+use common_enums::{connector_enums::Connector, enums::CardNetwork, enums::Currency, PayoutRetryType};
 use common_utils::id_type;
 use external_services::superposition;
 pub use hyperswitch_domain_models::platform::{ProcessorMerchantId, ProviderMerchantId};
@@ -21,6 +21,8 @@ pub enum DimensionError {
     MissingCurrency,
     #[error("payout_retry_type not available in dimension state")]
     MissingPayoutRetryType,
+    #[error("network not available in dimension state")]
+    MissingNetwork,
 }
 
 /// Marker for state WITHOUT provider_merchant_id
@@ -79,6 +81,10 @@ pub struct NoPayoutRetryType;
 #[derive(Clone)]
 pub struct HasPayoutRetryType;
 
+/// Marker for state WITH network
+#[derive(Clone)]
+pub struct HasNetwork;
+
 // Dimensional State with type parameters
 
 /// Dimensional state with type-level guarantees about which dimensions are present.
@@ -92,9 +98,9 @@ pub struct HasPayoutRetryType;
 /// * `P` - Profile ID type: `HasProfileId` or `NoProfileId`
 /// * `Cn` - Connector type: `HasConnector` or `NoConnector`
 /// * `Cu` - Currency type: `HasCurrency` or `NoCurrency`
-/// * `PRT` - Payout retry type: `HasPayoutRetryType` or `NoPayoutRetryType`
+/// * `PRT` - Payout retry type / Network: `HasPayoutRetryType`, `HasNetwork`, or `NoPayoutRetryType`
 #[derive(Clone)]
-pub struct Dimensions<Pm, M, O, P, Cn, Cu, PRT> {
+pub struct Dimensions<Pm, M, O, P, Cn, Cu = NoCurrency, PRT = NoPayoutRetryType> {
     provider_merchant_id: Option<ProviderMerchantId>,
     processor_merchant_id: Option<ProcessorMerchantId>,
     organization_id: Option<id_type::OrganizationId>,
@@ -102,6 +108,7 @@ pub struct Dimensions<Pm, M, O, P, Cn, Cu, PRT> {
     connector: Option<Connector>,
     currency: Option<Currency>,
     payout_retry_type: Option<PayoutRetryType>,
+    network: Option<CardNetwork>,
     _phantom: PhantomData<(Pm, M, O, P, Cn, Cu, PRT)>,
 }
 
@@ -125,6 +132,7 @@ impl
             connector: None,
             currency: None,
             payout_retry_type: None,
+            network: None,
             _phantom: PhantomData,
         }
     }
@@ -144,6 +152,7 @@ impl<M, O, P, Cn, Cu, PRT> Dimensions<NoProviderMerchantId, M, O, P, Cn, Cu, PRT
             connector: self.connector,
             currency: self.currency,
             payout_retry_type: self.payout_retry_type.clone(),
+            network: self.network.clone(),
             _phantom: PhantomData,
         }
     }
@@ -163,6 +172,7 @@ impl<Pm, O, P, Cn, Cu, PRT> Dimensions<Pm, NoProcessorMerchantId, O, P, Cn, Cu, 
             connector: self.connector,
             currency: self.currency,
             payout_retry_type: self.payout_retry_type.clone(),
+            network: self.network.clone(),
             _phantom: PhantomData,
         }
     }
@@ -182,6 +192,7 @@ impl<Pm, M, P, Cn, Cu, PRT> Dimensions<Pm, M, NoOrgId, P, Cn, Cu, PRT> {
             connector: self.connector,
             currency: self.currency,
             payout_retry_type: self.payout_retry_type.clone(),
+            network: self.network.clone(),
             _phantom: PhantomData,
         }
     }
@@ -201,6 +212,7 @@ impl<Pm, M, O, Cn, Cu, PRT> Dimensions<Pm, M, O, NoProfileId, Cn, Cu, PRT> {
             connector: self.connector,
             currency: self.currency,
             payout_retry_type: self.payout_retry_type.clone(),
+            network: self.network.clone(),
             _phantom: PhantomData,
         }
     }
@@ -220,6 +232,7 @@ impl<Pm, M, O, P, Cu, PRT> Dimensions<Pm, M, O, P, NoConnector, Cu, PRT> {
             connector: Some(connector),
             currency: self.currency,
             payout_retry_type: self.payout_retry_type.clone(),
+            network: self.network.clone(),
             _phantom: PhantomData,
         }
     }
@@ -239,12 +252,13 @@ impl<Pm, M, O, P, Cn, PRT> Dimensions<Pm, M, O, P, Cn, NoCurrency, PRT> {
             connector: self.connector,
             currency: Some(currency),
             payout_retry_type: self.payout_retry_type.clone(),
+            network: self.network.clone(),
             _phantom: PhantomData,
         }
     }
 }
 
-/// Can only add payout_retry_type if not already present
+/// Can only add payout_retry_type if in the neutral state
 impl<Pm, M, O, P, Cn, Cu> Dimensions<Pm, M, O, P, Cn, Cu, NoPayoutRetryType> {
     pub fn with_payout_retry_type(
         &self,
@@ -258,6 +272,24 @@ impl<Pm, M, O, P, Cn, Cu> Dimensions<Pm, M, O, P, Cn, Cu, NoPayoutRetryType> {
             connector: self.connector,
             currency: self.currency,
             payout_retry_type: Some(payout_retry_type),
+            network: self.network.clone(),
+            _phantom: PhantomData,
+        }
+    }
+
+    pub fn with_network(
+        &self,
+        network: CardNetwork,
+    ) -> Dimensions<Pm, M, O, P, Cn, Cu, HasNetwork> {
+        Dimensions {
+            provider_merchant_id: self.provider_merchant_id.clone(),
+            processor_merchant_id: self.processor_merchant_id.clone(),
+            organization_id: self.organization_id.clone(),
+            profile_id: self.profile_id.clone(),
+            connector: self.connector,
+            currency: self.currency,
+            payout_retry_type: self.payout_retry_type.clone(),
+            network: Some(network),
             _phantom: PhantomData,
         }
     }
@@ -276,6 +308,7 @@ impl<M, O, P, Cn, Cu, PRT> Dimensions<HasProviderMerchantId, M, O, P, Cn, Cu, PR
             connector: self.connector,
             currency: self.currency,
             payout_retry_type: self.payout_retry_type.clone(),
+            network: self.network.clone(),
             _phantom: PhantomData,
         }
     }
@@ -294,6 +327,7 @@ impl<Pm, O, P, Cn, Cu, PRT> Dimensions<Pm, HasProcessorMerchantId, O, P, Cn, Cu,
             connector: self.connector,
             currency: self.currency,
             payout_retry_type: self.payout_retry_type.clone(),
+            network: self.network.clone(),
             _phantom: PhantomData,
         }
     }
@@ -310,6 +344,7 @@ impl<Pm, M, P, Cn, Cu, PRT> Dimensions<Pm, M, HasOrgId, P, Cn, Cu, PRT> {
             connector: self.connector,
             currency: self.currency,
             payout_retry_type: self.payout_retry_type.clone(),
+            network: self.network.clone(),
             _phantom: PhantomData,
         }
     }
@@ -326,6 +361,7 @@ impl<Pm, M, O, Cn, Cu, PRT> Dimensions<Pm, M, O, HasProfileId, Cn, Cu, PRT> {
             connector: self.connector,
             currency: self.currency,
             payout_retry_type: self.payout_retry_type.clone(),
+            network: self.network.clone(),
             _phantom: PhantomData,
         }
     }
@@ -342,6 +378,7 @@ impl<Pm, M, O, P, Cu, PRT> Dimensions<Pm, M, O, P, HasConnector, Cu, PRT> {
             connector: None,
             currency: self.currency,
             payout_retry_type: self.payout_retry_type.clone(),
+            network: self.network.clone(),
             _phantom: PhantomData,
         }
     }
@@ -358,6 +395,7 @@ impl<Pm, M, O, P, Cn, PRT> Dimensions<Pm, M, O, P, Cn, HasCurrency, PRT> {
             connector: self.connector,
             currency: None,
             payout_retry_type: self.payout_retry_type.clone(),
+            network: self.network.clone(),
             _phantom: PhantomData,
         }
     }
@@ -374,6 +412,24 @@ impl<Pm, M, O, P, Cn, Cu> Dimensions<Pm, M, O, P, Cn, Cu, HasPayoutRetryType> {
             connector: self.connector,
             currency: self.currency,
             payout_retry_type: None,
+            network: self.network.clone(),
+            _phantom: PhantomData,
+        }
+    }
+}
+
+/// Can only remove network if currently present
+impl<Pm, M, O, P, Cn, Cu> Dimensions<Pm, M, O, P, Cn, Cu, HasNetwork> {
+    pub fn without_network(&self) -> Dimensions<Pm, M, O, P, Cn, Cu, NoPayoutRetryType> {
+        Dimensions {
+            provider_merchant_id: self.provider_merchant_id.clone(),
+            processor_merchant_id: self.processor_merchant_id.clone(),
+            organization_id: self.organization_id.clone(),
+            profile_id: self.profile_id.clone(),
+            connector: self.connector,
+            currency: self.currency,
+            payout_retry_type: self.payout_retry_type.clone(),
+            network: None,
             _phantom: PhantomData,
         }
     }
@@ -440,6 +496,13 @@ impl<Pm, M, O, P, Cn, Cu> Dimensions<Pm, M, O, P, Cn, Cu, HasPayoutRetryType> {
     }
 }
 
+/// network getter - only available if HasNetwork
+impl<Pm, M, O, P, Cn, Cu> Dimensions<Pm, M, O, P, Cn, Cu, HasNetwork> {
+    pub fn network(&self) -> Result<CardNetwork, DimensionError> {
+        self.network.clone().ok_or(DimensionError::MissingNetwork)
+    }
+}
+
 // Optional getters (available in any state)
 impl<Pm, M, O, P, Cn, Cu, PRT> Dimensions<Pm, M, O, P, Cn, Cu, PRT> {
     pub fn get_provider_merchant_id(&self) -> Option<&id_type::MerchantId> {
@@ -468,6 +531,10 @@ impl<Pm, M, O, P, Cn, Cu, PRT> Dimensions<Pm, M, O, P, Cn, Cu, PRT> {
 
     pub fn get_payout_retry_type(&self) -> Option<PayoutRetryType> {
         self.payout_retry_type.clone()
+    }
+
+    pub fn get_network(&self) -> Option<CardNetwork> {
+        self.network.clone()
     }
 }
 
@@ -503,6 +570,10 @@ impl<Pm, M, O, P, Cn, Cu, PRT> Dimensions<Pm, M, O, P, Cn, Cu, PRT> {
 
         if let Some(ref prt) = self.payout_retry_type {
             ctx = ctx.with("payout_retry_type", prt.to_string().as_str());
+        }
+
+        if let Some(ref net) = self.network {
+            ctx = ctx.with("network", net.to_string().as_str());
         }
 
         Some(ctx)
@@ -550,6 +621,9 @@ pub trait DimensionsBase {
 
     /// Get payout_retry_type (if available)
     fn get_payout_retry_type(&self) -> Option<PayoutRetryType>;
+
+    /// Get network (if available)
+    fn get_network(&self) -> Option<CardNetwork>;
 }
 
 impl<Pm, M, O, P, Cn, Cu, PRT> DimensionsBase for Dimensions<Pm, M, O, P, Cn, Cu, PRT> {
@@ -583,6 +657,10 @@ impl<Pm, M, O, P, Cn, Cu, PRT> DimensionsBase for Dimensions<Pm, M, O, P, Cn, Cu
 
     fn get_payout_retry_type(&self) -> Option<PayoutRetryType> {
         self.get_payout_retry_type()
+    }
+
+    fn get_network(&self) -> Option<CardNetwork> {
+        self.get_network()
     }
 }
 
@@ -658,4 +736,40 @@ pub type DimensionsWithProcessorAndProviderMerchantIdAndPayoutRetryType = Dimens
     NoConnector,
     NoCurrency,
     HasPayoutRetryType,
+>;
+pub type DimensionsWithProcessorMerchantIdAndOrgId = Dimensions<
+    NoProviderMerchantId,
+    HasProcessorMerchantId,
+    HasOrgId,
+    NoProfileId,
+    NoConnector,
+    NoCurrency,
+    NoPayoutRetryType,
+>;
+pub type DimensionsWithConnectorAndCurrencyAndNetwork = Dimensions<
+    NoProviderMerchantId,
+    NoProcessorMerchantId,
+    NoOrgId,
+    NoProfileId,
+    HasConnector,
+    HasCurrency,
+    HasNetwork,
+>;
+pub type DimensionsWithProcessorMerchantId = Dimensions<
+    NoProviderMerchantId,
+    HasProcessorMerchantId,
+    NoOrgId,
+    NoProfileId,
+    NoConnector,
+    NoCurrency,
+    NoPayoutRetryType,
+>;
+pub type DimensionsWithNetwork = Dimensions<
+    NoProviderMerchantId,
+    NoProcessorMerchantId,
+    NoOrgId,
+    NoProfileId,
+    NoConnector,
+    NoCurrency,
+    HasNetwork,
 >;

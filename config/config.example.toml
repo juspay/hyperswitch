@@ -523,13 +523,6 @@ billwerk = { long_lived_token = false, payment_method = "card" }
 globalpay = { long_lived_token = false, payment_method = "card", flow = "mandates" }
 dwolla = { long_lived_token = true, payment_method = "bank_debit" }
 
-[debit_routing_config]                                       # Debit Routing configs
-supported_currencies = "USD"                                 # Supported currencies for debit routing
-supported_connectors = "adyen"                               # Supported connectors for debit routing
-
-[debit_routing_config.connector_supported_debit_networks]    # Debit Routing config that contains the supported debit networks for each connector
-adyen = "Star,Pulse,Accel,Nyce"                              # Debit networks supported by adyen connector
-
 [temp_locker_enable_config]
 stripe = { payment_method = "bank_transfer" }
 nuvei = { payment_method = "card" }
@@ -620,9 +613,6 @@ afterpay_clearpay = { fields = { stripe = [ # payment_method_type = afterpay_cle
     "IN",
   ] } } },
 ] } }
-
-[payouts]
-payout_eligibility = true # Defaults the eligibility of a payout method to true in case connector does not provide checks for payout eligibility
 
 [pm_filters.adyen]
 sofort = { country = "AT,BE,DE,ES,CH,NL", currency = "CHF,EUR" }
@@ -1268,8 +1258,6 @@ recon = "test@example.com"
 [cell_information]
 id = "12345" # Default CellID for Global Cell Information
 
-[network_tokenization_supported_card_networks]
-card_networks = "Visa, AmericanExpress, Mastercard" # Supported card networks for network tokenization
 
 [network_tokenization_service] # Network Tokenization Service Configuration
 generate_token_url= ""        # base url to generate token
@@ -1283,8 +1271,6 @@ check_token_status_url= ""    # base url to check token status from token servic
 webhook_source_verification_key= "" # webhook source verification key to verify the webhook payload from token service
 check_tokenize_eligibility_url="" # base url to check tokenization eligibility from token service
 
-[network_tokenization_supported_connectors]
-connector_list = "adyen,cybersource,peachpayments,trustpay" # Supported connectors for network tokenization
 
 [notify_iframe_exit_and_redirect]
 connector_list = "worldpayxml"

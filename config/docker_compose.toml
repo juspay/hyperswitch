@@ -481,9 +481,6 @@ default_return_url = "https://app.hyperswitch.io/"
 slack_invite_url = "https://join.slack.com/t/hyperswitch-io/shared_invite/zt-2awm23agh-p_G5xNpziv6yAiedTkkqLg"
 discord_invite_url = "https://discord.gg/wJZ7DVW8mm"
 
-[payouts]
-payout_eligibility = true
-
 [pm_filters.adyen]
 ach = { country = "US", currency = "USD" }
 affirm = { country = "US", currency = "USD" }
@@ -754,13 +751,6 @@ sofort = { country = "DE",currency = "EUR" }
 eps = { country = "DE",currency = "EUR" }
 apple_pay = { country = "DE",currency = "EUR" }
 paypal = { country = "DE",currency = "EUR" }
-
-[debit_routing_config]
-supported_currencies = "USD"
-supported_connectors = "adyen"
-
-[debit_routing_config.connector_supported_debit_networks]
-adyen = "Star,Pulse,Accel,Nyce"
 
 [pm_filters.nuvei]
 credit = { country = "AF,AX,AL,DZ,AS,AD,AO,AI,AQ,AG,AR,AM,AW,AU,AT,AZ,BS,BH,BD,BB,BY,BE,BZ,BJ,BM,BT,BO,BQ,BA,BW,BV,BR,IO,BN,BG,BF,BI,KH,CM,CA,CV,KY,CF,TD,CL,CN,CX,CC,CO,KM,CG,CD,CK,CR,CI,HR,CU,CW,CY,CZ,DK,DJ,DM,DO,EC,EG,SV,GQ,ER,EE,ET,FK,FO,FJ,FI,FR,GF,PF,TF,GA,GM,GE,DE,GH,GI,GR,GL,GD,GP,GU,GT,GG,GN,GW,GY,HT,HM,VA,HN,HK,HU,IS,IN,ID,IR,IQ,IE,IM,IL,IT,JM,JP,JE,JO,KZ,KE,KI,KP,KR,KW,KG,LA,LV,LB,LS,LR,LY,LI,LT,LU,MO,MK,MG,MW,MY,MV,ML,MT,MH,MQ,MR,MU,YT,MX,FM,MD,MC,MN,ME,MS,MA,MZ,MM,NA,NR,NP,NL,NC,NZ,NI,NE,NG,NU,NF,MP,NO,OM,PK,PW,PS,PA,PG,PY,PE,PH,PN,PL,PT,PR,QA,RE,RO,RU,RW,BL,SH,KN,LC,MF,PM,VC,WS,SM,ST,SA,SN,RS,SC,SL,SG,SX,SK,SI,SB,SO,ZA,GS,SS,ES,LK,SD,SR,SJ,SZ,SE,CH,SY,TW,TJ,TZ,TH,TL,TG,TK,TO,TT,TN,TR,TM,TC,TV,UG,UA,AE,GB,UM,UY,UZ,VU,VE,VN,VG,VI,WF,EH,YE,ZM,ZW,US",currency = "AED,ALL,AMD,ARS,AUD,AZN,BAM,BDT,BGN,BHD,BMD,BND,BRL,BYN,CAD,CHF,CLP,CNY,COP,CRC,CZK,DKK,DOP,DZD,EGP,EUR,GBP,GEL,GHS,GTQ,HKD,HUF,IDR,INR,IQD,ISK,JOD,JPY,KES,KGS,KRW,KWD,KYD,KZT,LBP,LKR,MAD,MDL,MKD,MMK,MNT,MUR,MWK,MXN,MYR,MZN,NAD,NGN,NOK,NZD,OMR,PEN,PHP,PKR,PLN,PYG,QAR,RON,RSD,RUB,SAR,SEK,SGD,SOS,THB,TND,TOP,TRY,TTD,TWD,UAH,UGX,USD,UYU,UZS,VND,XAF,XOF,YER,ZAR" }
@@ -1180,9 +1170,6 @@ queue_strategy = "Fifo"
 ttl = 900         # 15 * 60 seconds
 soft_kill = false
 
-[frm]
-enabled = true
-
 [connector_onboarding.paypal]
 client_id = ""
 client_secret = ""
@@ -1287,13 +1274,8 @@ connector_list = "tokenio"
 [cell_information]
 id = "12345"
 
-[network_tokenization_supported_card_networks]
-card_networks = "Visa, AmericanExpress, Mastercard"
 
-[network_tokenization_supported_connectors]
-connector_list = "adyen,cybersource,peachpayments,trustpay"
 
-# EmailClient configuration. Only applicable when the `email` feature flag is enabled.
 [email]
 sender_email = "example@example.com"                 # Sender email
 aws_region = ""                                      # AWS region used by AWS SES
@@ -1333,11 +1315,6 @@ enabled = false
 hyperswitch_ai_host = "http://0.0.0.0:8000"
 encryption_key = ""
 
-[authentication_providers]
-click_to_pay = {connector_list = "adyen, cybersource, trustpay"}
-
-[authentication_service_enabled_connectors]
-connector_list = "juspaythreedsserver, ctp_mastercard, ctp_visa"
 
 [revenue_recovery]
 monitoring_threshold_in_seconds = 60 # threshold for monitoring the retry system
@@ -1399,24 +1376,5 @@ polling_interval = 15 # Polling interval in seconds for configuration updates
 backup_file_path = "./config/superposition_seed.toml" # Path to a local file for fallback configuration. Used when the Superposition HTTP service is unavailable. If set, the client will fall back to reading configuration from this file instead of failing completely. This ensures graceful degradation during network outages or service disruptions.
 
 # Merchant Advice Code Configuration
-[merchant_advice_codes.visa]
-"01" = { description = "The issuer will never approve (do not reattempt with the same card)", recommended_action = "do_not_retry" }
-"02" = { description = "The issuer cannot approve at this time (limit the reattempts with the same card to a maximum of 20 times within 30 days)", recommended_action = "retry_later" }
-"03" = { description = "Data quality (monitor for fraud attacks, revalidate the customer data prior to reattempt for a maximum of 20 times within 30 days)", recommended_action = "retry_after_instrument_update" }
-"04" = { description = "Generic response codes (limit the reattempts with the same card to a maximum of 20 times within 30 days)", recommended_action = "retry_later" }
 
-[merchant_advice_codes.mastercard]
-"01" = { description = "New account information available", recommended_action = "retry_after_instrument_update" }
-"02" = { description = "Cannot approve at this time, try again later", recommended_action = "retry_later" }
-"03" = { description = "Do not try again", recommended_action = "do_not_retry" }
-"04" = { description = "Token not supported", recommended_action = "retry_with_different_payment_method_data" }
-"05" = { description = "Negotiated value not approved", recommended_action = "do_not_retry" }
-"21" = { description = "Stop recurring payment", recommended_action = "stop_recurring" }
-"22" = { description = "Merchant does not qualify for product code", recommended_action = "do_not_retry" }
-"24" = { description = "Retry after 1 hour", recommended_action = "retry_after_1_hour" }
-"25" = { description = "Retry after 24 hours", recommended_action = "retry_after_24_hours" }
-"26" = { description = "Retry after 2 days", recommended_action = "retry_after_2_days" }
-"27" = { description = "Retry after 4 days", recommended_action = "retry_after_4_days" }
-"28" = { description = "Retry after 6 days", recommended_action = "retry_after_6_days" }
-"29" = { description = "Retry after 8 days", recommended_action = "retry_after_8_days" }
-"30" = { description = "Retry after 10 days", recommended_action = "retry_after_10_days" }
+

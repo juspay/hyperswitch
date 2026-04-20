@@ -13,6 +13,7 @@ use router_env::logger;
 
 use crate::{
     core::{
+        configs::dimension_state,
         payment_methods::{
             cards::{add_card_to_vault, tokenize_card_flow},
             network_tokenization, transformers as pm_transformers,
@@ -221,7 +222,7 @@ pub trait NetworkTokenizationProcess<'a, D> {
         card_type: Option<&api_models::payment_methods::CardType>,
         card_issuing_country: Option<&String>,
     ) -> RouterResult<Option<diesel_models::CardInfo>>;
-    fn validate_card_network(
+    async fn validate_card_network(
         &self,
         optional_card_network: Option<&api_enums::CardNetwork>,
     ) -> RouterResult<()>;
@@ -340,19 +341,21 @@ where
             && card_type.is_some()
             && card_issuing_country.is_some()
         {
-            self.validate_card_network(card_network)?;
+            self.validate_card_network(card_network).await?;
             return Ok(None);
         }
 
-        db.get_card_info(&card_number.get_card_isin())
+        let card_info_opt = db
+            .get_card_info(&card_number.get_card_isin())
             .await
             .attach_printable("Failed to perform BIN lookup")
-            .change_context(errors::ApiErrorResponse::InternalServerError)?
-            .map(|card_info| {
-                self.validate_card_network(card_info.card_network.as_ref())?;
-                Ok(card_info)
-            })
-            .transpose()
+            .change_context(errors::ApiErrorResponse::InternalServerError)?;
+
+        if let Some(ref card_info) = card_info_opt {
+            self.validate_card_network(card_info.card_network.as_ref())
+                .await?;
+        }
+        Ok(card_info_opt)
     }
     async fn tokenize_card(
         &self,
@@ -372,32 +375,30 @@ where
             report!(errors::ApiErrorResponse::InternalServerError)
         })
     }
-    fn validate_card_network(
+    async fn validate_card_network(
         &self,
         optional_card_network: Option<&api_enums::CardNetwork>,
     ) -> RouterResult<()> {
-        optional_card_network.map_or(
-            Err(report!(errors::ApiErrorResponse::NotSupported {
+        let card_network = optional_card_network.ok_or_else(|| {
+            report!(errors::ApiErrorResponse::NotSupported {
                 message: "Unknown card network".to_string()
-            })),
-            |card_network| {
-                if self
-                    .state
-                    .conf
-                    .network_tokenization_supported_card_networks
-                    .card_networks
-                    .contains(card_network)
-                {
-                    Ok(())
-                } else {
-                    Err(report!(errors::ApiErrorResponse::NotSupported {
-                        message: format!(
-                            "Network tokenization for {card_network} is not supported",
-                        )
-                    }))
-                }
-            },
-        )
+            })
+        })?;
+        let is_supported = dimension_state::Dimensions::new()
+            .with_network(card_network.clone())
+            .get_network_tokenization_supported_card_network(
+                self.state.store.as_ref(),
+                self.state.superposition_service.as_ref(),
+                None,
+            )
+            .await;
+        if is_supported {
+            Ok(())
+        } else {
+            Err(report!(errors::ApiErrorResponse::NotSupported {
+                message: format!("Network tokenization for {card_network} is not supported"),
+            }))
+        }
     }
     async fn store_network_token_in_locker(
         &self,

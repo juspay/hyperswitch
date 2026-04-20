@@ -126,8 +126,6 @@ pub struct Settings<S: SecretState> {
     #[cfg(feature = "payouts")]
     pub payouts: Payouts,
     pub payout_method_filters: ConnectorFilters,
-    pub l2_l3_data_config: L2L3DataConfig,
-    pub debit_routing_config: DebitRoutingConfig,
     pub applepay_decrypt_keys: SecretStateContainer<ApplePayDecryptConfig, S>,
     pub paze_decrypt_keys: Option<SecretStateContainer<PazeDecryptConfig, S>>,
     pub google_pay_decrypt_keys: Option<GooglePayDecryptConfig>,
@@ -141,8 +139,6 @@ pub struct Settings<S: SecretState> {
     pub analytics: SecretStateContainer<AnalyticsConfig, S>,
     #[cfg(feature = "kv_store")]
     pub kv_config: KvConfig,
-    #[cfg(feature = "frm")]
-    pub frm: Frm,
     #[cfg(feature = "olap")]
     pub report_download_config: ReportConfig,
     #[cfg(feature = "olap")]
@@ -159,16 +155,12 @@ pub struct Settings<S: SecretState> {
     pub grpc_client: GrpcClientSettings,
     #[cfg(feature = "v2")]
     pub cell_information: CellInformation,
-    pub network_tokenization_supported_card_networks: NetworkTokenizationSupportedCardNetworks,
     pub network_tokenization_service: Option<SecretStateContainer<NetworkTokenizationService, S>>,
-    pub network_tokenization_supported_connectors: NetworkTokenizationSupportedConnectors,
     pub theme: ThemeSettings,
     pub platform: Platform,
-    pub authentication_providers: AuthenticationProviders,
     pub open_router: OpenRouter,
     #[cfg(feature = "v2")]
     pub revenue_recovery: revenue_recovery::RevenueRecoverySettings,
-    pub merchant_advice_codes: MerchantAdviceCodeLookupConfig,
     pub clone_connector_allowlist: Option<CloneConnectorAllowlistConfig>,
     pub merchant_id_auth: MerchantIdAuthSettings,
     pub internal_merchant_id_profile_id_auth: InternalMerchantIdProfileIdAuthSettings,
@@ -183,7 +175,6 @@ pub struct Settings<S: SecretState> {
     #[serde(default)]
     pub micro_services: MicroServicesConfig,
     pub comparison_service: Option<ComparisonServiceConfig>,
-    pub authentication_service_enabled_connectors: AuthenticationServiceEnabledConnectors,
     pub save_payment_method_on_session: OnSessionConfig,
 }
 
@@ -192,16 +183,6 @@ pub struct OnSessionConfig {
     #[serde(default, deserialize_with = "deserialize_hashmap")]
     pub unsupported_payment_methods:
         HashMap<enums::PaymentMethod, HashSet<enums::PaymentMethodType>>,
-}
-
-#[derive(Debug, Deserialize, Clone, Default)]
-pub struct DebitRoutingConfig {
-    #[serde(deserialize_with = "deserialize_hashmap")]
-    pub connector_supported_debit_networks: HashMap<enums::Connector, HashSet<enums::CardNetwork>>,
-    #[serde(deserialize_with = "deserialize_hashset")]
-    pub supported_currencies: HashSet<enums::Currency>,
-    #[serde(deserialize_with = "deserialize_hashset")]
-    pub supported_connectors: HashSet<enums::Connector>,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
@@ -349,20 +330,9 @@ impl TenantConfig {
     }
 }
 #[derive(Debug, Deserialize, Clone, Default)]
-pub struct L2L3DataConfig {
-    pub enabled: bool,
-}
-
-#[derive(Debug, Deserialize, Clone, Default)]
 pub struct UnmaskedHeaders {
     #[serde(deserialize_with = "deserialize_hashset")]
     pub keys: HashSet<String>,
-}
-
-#[cfg(feature = "frm")]
-#[derive(Debug, Deserialize, Clone, Default)]
-pub struct Frm {
-    pub enabled: bool,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -541,46 +511,9 @@ pub struct CorsSettings {
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]
-pub struct AuthenticationProviders {
-    #[serde(deserialize_with = "deserialize_connector_list")]
-    pub click_to_pay: HashSet<enums::Connector>,
-}
-
-fn deserialize_connector_list<'a, D>(deserializer: D) -> Result<HashSet<enums::Connector>, D::Error>
-where
-    D: serde::Deserializer<'a>,
-{
-    use serde::de::Error;
-
-    #[derive(Deserialize)]
-    struct Wrapper {
-        connector_list: String,
-    }
-
-    let wrapper = Wrapper::deserialize(deserializer)?;
-    wrapper
-        .connector_list
-        .split(',')
-        .map(|s| s.trim().parse().map_err(D::Error::custom))
-        .collect()
-}
-
-#[derive(Debug, Deserialize, Clone, Default)]
-pub struct AuthenticationServiceEnabledConnectors {
-    #[serde(deserialize_with = "deserialize_hashset")]
-    pub connector_list: HashSet<enums::Connector>,
-}
-
-#[derive(Debug, Deserialize, Clone, Default)]
 pub struct NotifyIframeExitAndRedirectConnectors {
     #[serde(deserialize_with = "deserialize_hashset")]
     pub connector_list: HashSet<enums::Connector>,
-}
-
-#[derive(Debug, Deserialize, Clone, Default)]
-pub struct NetworkTokenizationSupportedCardNetworks {
-    #[serde(deserialize_with = "deserialize_hashset")]
-    pub card_networks: HashSet<enums::CardNetwork>,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -1047,11 +980,6 @@ pub struct UserAuthMethodSettings {
     pub encryption_key: Secret<String>,
 }
 
-#[derive(Debug, Deserialize, Clone, Default)]
-pub struct NetworkTokenizationSupportedConnectors {
-    #[serde(deserialize_with = "deserialize_hashset")]
-    pub connector_list: HashSet<enums::Connector>,
-}
 
 /// Configuration structure for individual merchant advice code
 #[derive(Debug, Deserialize, Clone)]
@@ -1075,7 +1003,7 @@ impl MerchantAdviceCodeMap {
 }
 
 /// Each network has its own field for direct lookup
-#[derive(Debug, Clone, Default, Deserialize)]
+#[derive(Debug, Clone, Default, Deserialize, Serialize)]
 pub struct MerchantAdviceCodeLookupConfig {
     pub visa: Option<MerchantAdviceCodeMap>,
     pub mastercard: Option<MerchantAdviceCodeMap>,
@@ -1302,7 +1230,6 @@ impl Settings<RawSecret> {
 #[cfg(feature = "payouts")]
 #[derive(Debug, Deserialize, Clone, Default)]
 pub struct Payouts {
-    pub payout_eligibility: bool,
     #[serde(default)]
     pub required_fields: PayoutRequiredFields,
 }

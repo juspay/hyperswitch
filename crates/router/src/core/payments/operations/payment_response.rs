@@ -43,6 +43,7 @@ use crate::{
     consts,
     core::{
         card_testing_guard::utils as card_testing_guard_utils,
+        configs::dimension_state,
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
         mandate, payment_methods,
         payments::{
@@ -2122,9 +2123,19 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                             .and_then(|gsm| gsm.user_guidance_message.clone());
 
                         // For MIT transactions, lookup recommended action from merchant_advice_codes config
+                        let merchant_advice_codes = dimension_state::Dimensions::new()
+                            .with_processor_merchant_id(
+                                processor.get_processor_merchant_id(),
+                            )
+                            .get_merchant_advice_codes(
+                                state.store.as_ref(),
+                                state.superposition_service.as_ref(),
+                                None,
+                            )
+                            .await;
                         let recommended_action =
                             payments_helpers::get_merchant_advice_code_recommended_action(
-                                &state.conf.merchant_advice_codes,
+                                &merchant_advice_codes,
                                 payment_data.payment_intent.off_session,
                                 card_network.as_ref(),
                                 err.network_advice_code.as_deref(),

@@ -1194,6 +1194,7 @@ pub async fn call_connector_payout(
         platform,
         connector_data,
         payout_data,
+        dimensions,
     ))
     .await?;
     // Create customer flow
@@ -1564,6 +1565,7 @@ pub async fn complete_payout_eligibility(
     platform: &domain::Platform,
     connector_data: &api::ConnectorData,
     payout_data: &mut PayoutData,
+    dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
 ) -> RouterResult<()> {
     let payout_attempt = &payout_data.payout_attempt.to_owned();
 
@@ -1583,10 +1585,22 @@ pub async fn complete_payout_eligibility(
         .attach_printable("Eligibility failed for given Payout request")?;
     }
 
+    let new_dimensions = dimensions
+        .with_profile_id(payout_data.profile_id.clone())
+        .with_organization_id(platform.get_processor().get_account().clone().organization_id);
+
+    let payout_eligibility_default = new_dimensions
+        .get_payout_eligibility(
+            state.store.as_ref(),
+            state.superposition_service.as_ref(),
+            Some(&payout_data.payouts.payout_id),
+        )
+        .await;
+
     utils::when(
         !payout_attempt
             .is_eligible
-            .unwrap_or(state.conf.payouts.payout_eligibility),
+            .unwrap_or(payout_eligibility_default),
         || {
             Err(report!(errors::ApiErrorResponse::InvalidRequestData {
                 message: "Payout method data is invalid".to_string(),

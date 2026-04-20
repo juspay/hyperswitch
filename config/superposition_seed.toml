@@ -57,12 +57,52 @@ _context_ = { connector = "worldpayvantiv" }
 network_transaction_id_supported_connector = true
 
 [[overrides]]
+_context_ = { connector = "ctp_visa" }
+authentication_service_enabled_connector = true
+
+[[overrides]]
+_context_ = { connector = "ctp_mastercard" }
+authentication_service_enabled_connector = true
+
+[[overrides]]
+_context_ = { connector = "juspaythreedsserver" }
+authentication_service_enabled_connector = true
+
+[[overrides]]
 _context_ = { connector = "peachpayments" }
 card_only_mit_supported_connector = true
 
 [[overrides]]
 _context_ = { connector = "worldpayvantiv" }
-dispute_supported_connector = true
+is_dispute_supported_connector = true
+
+[[overrides]]
+_context_ = { connector = "adyen" }
+click_to_pay_supported_connector = true
+
+[[overrides]]
+_context_ = { connector = "cybersource" }
+click_to_pay_supported_connector = true
+
+[[overrides]]
+_context_ = { connector = "trustpay" }
+click_to_pay_supported_connector = true
+
+[[overrides]]
+_context_ = { connector = "adyen" }
+network_tokenization_supported_connector = true
+
+[[overrides]]
+_context_ = { connector = "cybersource" }
+network_tokenization_supported_connector = true
+
+[[overrides]]
+_context_ = { connector = "peachpayments" }
+network_tokenization_supported_connector = true
+
+[[overrides]]
+_context_ = { connector = "trustpay" }
+network_tokenization_supported_connector = true
 
 [dimensions.organization_id]
 position = 1
@@ -98,12 +138,6 @@ change_reason = "Initial setup"
 position = 6
 schema = { type = "string" }
 description = "Payment currency (e.g. USD, JPY)"
-change_reason = "Initial setup"
-
-[dimensions.payout_retry_type]
-position = 7
-schema = { type = "string" }
-description = "Type of payout retry (single_connector or multi_connector)"
 change_reason = "Initial setup"
 
 [default-configs.requires_cvv]
@@ -217,3 +251,91 @@ value = false
 schema = { type = "boolean" }
 description = "Whether the connector supports dispute flow"
 change_reason = "Initial setup"
+
+[default-configs.authentication_service_enabled_connector]
+value = false
+schema = { type = "boolean" }
+description = "Whether the connector supports authentication service (UAS) flow"
+change_reason = "Initial setup"
+
+[default-configs.payout_eligibility]
+value = true
+schema = { type = "boolean" }
+description = "Default eligibility of a payout method when the connector does not provide payout eligibility checks"
+change_reason = "Initial setup"
+
+[default-configs.l2_l3_data_enabled]
+value = true
+schema = { type = "boolean" }
+description = "Whether to populate L2/L3 line-item and tax data when constructing payment router data"
+change_reason = "Initial setup"
+
+[default-configs.debit_routing_supported]
+value = false
+schema = { type = "boolean" }
+description = "Whether debit routing is supported for a given connector, network, or currency combination"
+change_reason = "Initial setup"
+
+[default-configs.is_frm_enabled]
+value = true
+schema = { type = "boolean" }
+description = "Whether FRM is enabled"
+change_reason = "Initial setup"
+
+[default-configs.merchant_advice_codes]
+schema = { type = "object" }
+description = "Mapping of card network advice codes to recommended retry actions for MIT transactions"
+change_reason = "Initial setup"
+
+[default-configs.merchant_advice_codes.value.visa]
+"01" = { recommended_action = "do_not_retry", description = "The issuer will never approve (do not reattempt with the same card)" }
+"02" = { recommended_action = "retry_later", description = "The issuer cannot approve at this time (limit the reattempts with the same card to a maximum of 20 times within 30 days)" }
+"03" = { recommended_action = "retry_after_instrument_update", description = "Data quality (monitor for fraud attacks, revalidate the customer data prior to reattempt for a maximum of 20 times within 30 days)" }
+"04" = { recommended_action = "retry_later", description = "Generic response codes (limit the reattempts with the same card to a maximum of 20 times within 30 days)" }
+
+[default-configs.merchant_advice_codes.value.mastercard]
+"01" = { recommended_action = "retry_after_instrument_update", description = "New account information available" }
+"02" = { recommended_action = "retry_later", description = "Cannot approve at this time, try again later" }
+"03" = { recommended_action = "do_not_retry", description = "Do not try again" }
+"04" = { recommended_action = "retry_with_different_payment_method_data", description = "Token not supported" }
+"05" = { recommended_action = "do_not_retry", description = "Negotiated value not approved" }
+"21" = { recommended_action = "stop_recurring", description = "Stop recurring payment" }
+"22" = { recommended_action = "do_not_retry", description = "Merchant does not qualify for product code" }
+"24" = { recommended_action = "retry_after_1_hour", description = "Retry after 1 hour" }
+"25" = { recommended_action = "retry_after_24_hours", description = "Retry after 24 hours" }
+"26" = { recommended_action = "retry_after_2_days", description = "Retry after 2 days" }
+"27" = { recommended_action = "retry_after_4_days", description = "Retry after 4 days" }
+"28" = { recommended_action = "retry_after_6_days", description = "Retry after 6 days" }
+"29" = { recommended_action = "retry_after_8_days", description = "Retry after 8 days" }
+"30" = { recommended_action = "retry_after_10_days", description = "Retry after 10 days" }
+
+[default-configs.click_to_pay_supported_connector]
+value = false
+schema = { type = "boolean" }
+description = "Whether the connector supports Click to Pay authentication flow"
+change_reason = "Initial setup"
+
+[default-configs.network_tokenization_supported_connector]
+value = false
+schema = { type = "boolean" }
+description = "Whether the connector supports network tokenization flow"
+change_reason = "Initial setup"
+
+[[overrides]]
+_context_ = { network = "Visa" }
+network_tokenization_supported_card_network = true
+
+[[overrides]]
+_context_ = { network = "AmericanExpress" }
+network_tokenization_supported_card_network = true
+
+[[overrides]]
+_context_ = { network = "Mastercard" }
+network_tokenization_supported_card_network = true
+
+[default-configs.network_tokenization_supported_card_network]
+value = false
+schema = { type = "boolean" }
+description = "Whether network tokenization is supported for a given card network"
+change_reason = "Initial setup"
+

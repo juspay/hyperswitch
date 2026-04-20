@@ -392,6 +392,27 @@ pub mod superposition {
     pub const DISPUTE_SUPPORTED_CONNECTOR: &str = "dispute_supported_connector";
     /// Max auto payout retries configuration key
     pub const MAX_AUTO_PAYOUT_RETRIES: &str = "max_auto_payout_retries";
+    /// Payout eligibility configuration key
+    pub const PAYOUT_ELIGIBILITY: &str = "payout_eligibility";
+    /// FRM configuration key
+    pub const IS_FRM_ENABLED: &str = "is_frm_enabled";
+    /// L2/L3 data enabled configuration key
+    pub const L2_L3_DATA_ENABLED: &str = "l2_l3_data_enabled";
+    /// Debit routing supported configuration key
+    pub const DEBIT_ROUTING_SUPPORTED: &str = "debit_routing_supported";
+    /// Authentication service enabled connector configuration key
+    pub const AUTHENTICATION_SERVICE_ENABLED_CONNECTOR: &str =
+        "authentication_service_enabled_connector";
+    /// Merchant advice codes configuration key
+    pub const MERCHANT_ADVICE_CODES: &str = "merchant_advice_codes";
+    /// Click to pay supported connector configuration key
+    pub const CLICK_TO_PAY_SUPPORTED_CONNECTOR: &str = "click_to_pay_supported_connector";
+    /// Network tokenization supported connector configuration key
+    pub const NETWORK_TOKENIZATION_SUPPORTED_CONNECTOR: &str =
+        "network_tokenization_supported_connector";
+    /// Network tokenization supported card network configuration key
+    pub const NETWORK_TOKENIZATION_SUPPORTED_CARD_NETWORK: &str =
+        "network_tokenization_supported_card_network";
 }
 
 #[cfg(test)]
