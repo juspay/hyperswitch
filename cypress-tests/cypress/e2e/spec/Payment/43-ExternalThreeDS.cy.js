@@ -34,35 +34,38 @@ describe("Card - External 3DS payment flow test", () => {
     cy.task("setGlobalState", globalState.data);
   });
 
-  context("Card-External-3DS payment flow test Create, Confirm and Retrieve", () => {
-    it("create confirm payment with external 3ds -> retrieve payment", () => {
-      let shouldContinue = true;
+  context(
+    "Card-External-3DS payment flow test Create, Confirm and Retrieve",
+    () => {
+      it("create confirm payment with external 3ds -> retrieve payment", () => {
+        let shouldContinue = true;
 
-      cy.step("create and confirm payment with external 3ds", () => {
-        const data = getConnectorDetails(globalState.get("connectorId"))[
-          "card_pm"
-        ]["external_three_ds"];
+        cy.step("create and confirm payment with external 3ds", () => {
+          const data = getConnectorDetails(globalState.get("connectorId"))[
+            "card_pm"
+          ]["external_three_ds"];
 
-        cy.createConfirmPaymentTest(
-          fixtures.createConfirmPaymentBody,
-          data,
-          "three_ds",
-          "automatic",
-          globalState
-        );
+          cy.createConfirmPaymentTest(
+            fixtures.createConfirmPaymentBody,
+            data,
+            "three_ds",
+            "automatic",
+            globalState
+          );
 
-        if (!utils.should_continue_further(data)) {
-          shouldContinue = false;
-        }
+          if (!utils.should_continue_further(data)) {
+            shouldContinue = false;
+          }
+        });
+
+        cy.step("retrieve payment", () => {
+          if (!shouldContinue) {
+            cy.task("cli_log", "Skipping step: retrieve payment");
+            return;
+          }
+          cy.retrievePaymentCallTest({ globalState });
+        });
       });
-
-      cy.step("retrieve payment", () => {
-        if (!shouldContinue) {
-          cy.task("cli_log", "Skipping step: retrieve payment");
-          return;
-        }
-        cy.retrievePaymentCallTest({ globalState });
-      });
-    });
-  });
+    }
+  );
 });
