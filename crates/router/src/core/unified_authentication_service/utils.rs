@@ -1,4 +1,4 @@
-use std::{marker::PhantomData, str::FromStr};
+use std::marker::PhantomData;
 
 #[cfg(feature = "v1")]
 use api_models::payments::BrowserInformation;
@@ -710,15 +710,13 @@ pub async fn fetch_routing_region_for_uas(
     state: &SessionState,
     dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndOrgId,
 ) -> RouterResult<RoutingRegion> {
-    let region_str = dimensions
+    Ok(dimensions
         .get_threeds_routing_region_uas(
             state.store.as_ref(),
             state.superposition_service.as_ref(),
             None,
         )
-        .await;
-
-    Ok(RoutingRegion::from_str(&region_str).unwrap_or(RoutingRegion::Region1))
+        .await)
 }
 
 pub async fn get_bool_config(state: &SessionState, key: &str, default_value: bool) -> bool {

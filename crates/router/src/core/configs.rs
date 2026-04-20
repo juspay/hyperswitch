@@ -7,7 +7,8 @@ pub use dimension_config::{
     ShouldStoreEligibilityCheckDataForAuthentication,
 };
 use error_stack::ResultExt;
-use external_services::superposition::{self, ConfigContext};
+pub use external_services::superposition::ConfigContext;
+use external_services::superposition;
 
 use crate::{
     core::errors::{self, utils::StorageErrorExt, RouterResponse},
@@ -173,6 +174,19 @@ pub trait DatabaseBackedConfig: superposition::Config {
 
     /// Generate the database key for this config based on dimensions
     fn db_key(dimensions: &impl dimension_state::DimensionsBase) -> Option<String>;
+
+    /// Parse the raw database config string into the output type.
+    /// Override this for configs whose DB format differs from the Output type
+    /// (e.g. a list stored in DB that must be converted to a bool using context).
+    fn parse_db_config(
+        config_str: &str,
+        _context: Option<&ConfigContext>,
+    ) -> Option<Self::Output>
+    where
+        Self::Output: ConfigType,
+    {
+        Self::Output::from_config_str(config_str).ok()
+    }
 }
 
 /// Fetch configuration value from Superposition with database fallback.
@@ -193,7 +207,7 @@ where
     let config_type = C::KEY;
     let default_value = C::default_value();
 
-    let superposition_result = C::fetch(superposition_client, context, targeting_key).await;
+    let superposition_result = C::fetch(superposition_client, context.as_ref(), targeting_key).await;
 
     let resolved_value = match superposition_result {
         Ok(value) => {
@@ -221,7 +235,7 @@ where
 
                 match config_result
                     .ok()
-                    .and_then(|config| C::Output::from_config_str(&config.config).ok())
+                    .and_then(|config| C::parse_db_config(&config.config, context.as_ref()))
                 {
                     Some(value) => {
                         router_env::logger::info!(
@@ -327,4 +341,43 @@ where
         targeting_key,
     )
     .await
+}
+
+/// Fetch dimension-aware string-enum config with String-to-Enum parsing.
+/// Used when Config Output is String but caller wants a specific enum type.
+pub async fn fetch_db_config_for_string_enum<C, T>(
+    storage: &dyn db::StorageInterface,
+    superposition_client: &superposition::SuperpositionClient,
+    dimensions: &impl dimension_state::DimensionsBase,
+    targeting_key: Option<&C::TargetingKey>,
+) -> T
+where
+    C: DatabaseBackedConfig<Output = String>,
+    T: std::str::FromStr + Default,
+    open_feature::Client: superposition::GetValue<String>,
+{
+    let db_key = <C as DatabaseBackedConfig>::db_key(dimensions);
+    let context = dimensions.to_superposition_context();
+
+    let s = fetch_db_config::<C>(
+        storage,
+        superposition_client,
+        db_key.as_deref(),
+        context,
+        targeting_key,
+    )
+    .await;
+
+    let config_type = C::KEY;
+    s.parse::<T>().unwrap_or_else(|_| {
+        router_env::logger::error!(
+            "Failed to parse string enum for config '{}', using default",
+            config_type
+        );
+        metrics::CONFIG_DEFAULT_FALLBACK.add(
+            1,
+            router_env::metric_attributes!(("config_type", config_type)),
+        );
+        T::default()
+    })
 }

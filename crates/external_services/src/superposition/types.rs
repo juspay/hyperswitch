@@ -164,6 +164,11 @@ impl ConfigContext {
         self.values.insert(key.to_string(), value.to_string());
         self
     }
+
+    /// Get a value from the context by key.
+    pub fn get(&self, key: &str) -> Option<&str> {
+        self.values.get(key).map(String::as_str)
+    }
 }
 
 #[cfg(feature = "superposition")]

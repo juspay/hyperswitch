@@ -1,7 +1,10 @@
+use std::collections::HashSet;
+
+use api_models::webhooks::IncomingWebhookEvent;
 use external_services::superposition;
 use scheduler::consumer::types::process_data::RetryMapping;
 
-use super::{dimension_state, fetch_db_config_for_dimensions, DatabaseBackedConfig};
+use super::{dimension_state, fetch_db_config_for_dimensions, ConfigContext, DatabaseBackedConfig};
 use crate::{consts::superposition as superposition_consts, db::StorageInterface, utils::id_type};
 
 /// Macro to generate config struct and superposition::Config trait implementation.
@@ -73,6 +76,42 @@ macro_rules! config {
                 const KEY: &'static str = stringify!([<$key:snake>]);
                 fn db_key(_dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
                     None
+                }
+            }
+        }
+    };
+
+    // String-enum config variant
+    (
+        superposition_key = $key:ident,
+        output = $output:ty,
+        default = $default:expr,
+        string_enum = true,
+        requires = $requirement:ty,
+        targeting_key = $targeting_type:ty
+    ) => {
+        paste::paste! {
+            pub struct [<$key:camel>];
+
+            impl superposition::Config for [<$key:camel>] {
+                type Output = String;
+                type TargetingKey = $targeting_type;
+                const SUPERPOSITION_KEY: &'static str = superposition_consts::$key;
+                fn default_value() -> Self::Output {
+                    $default.to_string()
+                }
+            }
+
+            impl $requirement {
+                pub async fn [<get_ $key:lower>](
+                    &self,
+                    storage: &dyn StorageInterface,
+                    superposition_client: &superposition::SuperpositionClient,
+                    targeting_key: Option<&$targeting_type>,
+                ) -> $output {
+                    crate::core::configs::fetch_db_config_for_string_enum::<[<$key:camel>], $output>(
+                        storage, superposition_client, self, targeting_key
+                    ).await
                 }
             }
         }
@@ -295,8 +334,9 @@ impl DatabaseBackedConfig for MaxAutoPayoutRetries {
 
 config! {
     superposition_key = ROUTING_RESULT_SOURCE,
-    output = String,
-    default = "hyperswitch_routing".to_string(),
+    output = api_models::routing::RoutingResultSource,
+    default = api_models::routing::RoutingResultSource::HyperswitchRouting,
+    string_enum = true,
     requires = dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
     targeting_key = id_type::ProfileId
 }
@@ -304,18 +344,18 @@ config! {
 impl DatabaseBackedConfig for RoutingResultSource {
     const KEY: &'static str = "routing_result_source";
     fn db_key(dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
-        let profile_id = dimensions
+        dimensions
             .get_profile_id()
-            .map(|id| id.get_string_repr())
-            .unwrap_or_default();
-        Some(format!("{}_{}", Self::KEY, profile_id))
+            .map(|id| format!("{}_{}", Self::KEY, id.get_string_repr()))
+
     }
 }
 
 config! {
     superposition_key = THREEDS_ROUTING_REGION_UAS,
-    output = String,
-    default = "region1".to_string(),
+    output = common_enums::RoutingRegion,
+    default = common_enums::RoutingRegion::Region1,
+    string_enum = true,
     requires = dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndOrgId,
     targeting_key = id_type::MerchantId
 }
@@ -323,11 +363,9 @@ config! {
 impl DatabaseBackedConfig for ThreedsRoutingRegionUas {
     const KEY: &'static str = "threeds_routing_region_uas";
     fn db_key(dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
-        let merchant_id = dimensions
-            .get_processor_merchant_id()
-            .map(|id| id.get_string_repr())
-            .unwrap_or_default();
-        Some(format!("{}_{}", Self::KEY, merchant_id))
+        dimensions
+            .get_organization_id()
+            .map(|id| format!("{}_{}", Self::KEY, id.get_string_repr()))
     }
 }
 
@@ -341,7 +379,55 @@ config! {
 
 impl DatabaseBackedConfig for IncomingWebhookDisabledEvents {
     const KEY: &'static str = "incoming_webhook_disabled_events";
-    fn db_key(_dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
-        None
+
+    fn db_key(dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
+        dimensions
+            .get_processor_merchant_id()
+            .and_then(|merchant_id| {
+                dimensions
+                    .get_connector()
+                    .map(|connector| {
+                        format!(
+                            "whconf_{}_{}",
+                            merchant_id.get_string_repr(),
+                            connector
+                        )
+                    })
+            })
+    }
+
+    fn parse_db_config(
+        config_str: &str,
+        context: Option<&ConfigContext>,
+    ) -> Option<Self::Output>
+    where
+        Self::Output: super::ConfigType,
+    {
+        let disabled_events: HashSet<IncomingWebhookEvent> =
+            serde_json::from_str(config_str)
+                .inspect_err(|err| {
+                    router_env::logger::error!(
+                        ?err,
+                        "Failed to parse incoming_webhook_disabled_events list from db config"
+                    )
+                })
+                .ok()?;
+
+        context
+            .and_then(|ctx| ctx.get("incoming_webhook_events"))
+            .and_then(|event_str| {
+                serde_json::from_value::<IncomingWebhookEvent>(serde_json::Value::String(
+                    event_str.to_string(),
+                ))
+                .inspect_err(|err| {
+                    router_env::logger::error!(
+                        ?err,
+                        event = %event_str,
+                        "Failed to parse incoming_webhook_event from context"
+                    )
+                })
+                .ok()
+            })
+            .map(|event| disabled_events.contains(&event))
     }
 }

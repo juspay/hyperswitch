@@ -1731,15 +1731,15 @@ pub async fn get_routing_result_source(
     dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
 ) -> Option<api_routing::RoutingResultSource> {
     // No customer_id and payment_id in call sites so passing Targeting key as None
-    dimensions
-        .get_routing_result_source(
-            state.store.as_ref(),
-            state.superposition_service.as_ref(),
-            None,
-        )
-        .await
-        .parse::<api_routing::RoutingResultSource>()
-        .ok()
+    Some(
+        dimensions
+            .get_routing_result_source(
+                state.store.as_ref(),
+                state.superposition_service.as_ref(),
+                None,
+            )
+            .await,
+    )
 }
 pub async fn select_routing_result<T>(
     state: &SessionState,
