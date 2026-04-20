@@ -530,9 +530,7 @@ export const CONNECTOR_LISTS = {
       "worldpay",
       "worldpayvantiv",
     ],
-    STEP_UP_RETRIES: [
-      "cybersource",
-    ],
+    STEP_UP_RETRIES: ["cybersource"],
     // Add more inclusion lists
   },
 };
