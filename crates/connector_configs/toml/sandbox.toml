@@ -8377,11 +8377,11 @@ payment_method_type = "Discover"
 [[imerchantsolutions.debit]]
 payment_method_type = "UnionPay"
 
-[sanlammultidata]
-[sanlammultidata.connector_auth.BodyKey]
+[sanlam]
+[sanlam.connector_auth.BodyKey]
 api_key = "API Key"
 key1 = "Merchant Id"
-[[sanlammultidata.bank_debit]]
+[[sanlam.bank_debit]]
 payment_method_type = "eft"
-[sanlammultidata.connector_webhook_details]
+[sanlam.connector_webhook_details]
 merchant_secret="Source verification key"

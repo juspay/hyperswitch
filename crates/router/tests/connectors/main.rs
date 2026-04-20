@@ -112,7 +112,7 @@ mod rapyd;
 mod razorpay;
 mod redsys;
 mod revolv3;
-mod sanlammultidata;
+mod sanlam;
 mod santander;
 mod shift4;
 mod sift;

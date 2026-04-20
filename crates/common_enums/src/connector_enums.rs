@@ -168,7 +168,7 @@ pub enum Connector {
     Recurly,
     Redsys,
     Revolv3,
-    Sanlammultidata,
+    Sanlam,
     Santander,
     Shift4,
     Silverflow,
@@ -392,7 +392,7 @@ impl Connector {
             | Self::Recurly
             | Self::Redsys
             | Self::Revolv3
-            | Self::Sanlammultidata
+            | Self::Sanlam
             | Self::Santander
             | Self::Shift4
             | Self::Silverflow

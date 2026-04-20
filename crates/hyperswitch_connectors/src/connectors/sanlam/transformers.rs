@@ -12,12 +12,12 @@ use serde::{Deserialize, Serialize};
 
 use crate::{types::ResponseRouterData, utils};
 
-pub struct SanlammultidataAuthType {
+pub struct SanlamAuthType {
     pub(super) api_key: Secret<String>,
     pub(super) merchant_id: Secret<String>,
 }
 
-impl TryFrom<&ConnectorAuthType> for SanlammultidataAuthType {
+impl TryFrom<&ConnectorAuthType> for SanlamAuthType {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(auth_type: &ConnectorAuthType) -> Result<Self, Self::Error> {
         match auth_type {
@@ -32,26 +32,26 @@ impl TryFrom<&ConnectorAuthType> for SanlammultidataAuthType {
 
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(untagged)]
-pub enum SanlammultidataWebhookEvent {
-    Payment(SanlammultidataPaymentWebhookEvent),
+pub enum SanlamWebhookEvent {
+    Payment(SanlamPaymentWebhookEvent),
 }
 
 #[derive(Debug, Deserialize, Serialize)]
-pub struct SanlammultidataPaymentWebhookEvent {
-    pub event_type: SanlammultidataWebhookEventType,
-    pub payment: SanlammultidataWebhookPayment,
-    pub error: Option<SanlammultidataWebhookError>,
+pub struct SanlamPaymentWebhookEvent {
+    pub event_type: SanlamWebhookEventType,
+    pub payment: SanlamWebhookPayment,
+    pub error: Option<SanlamWebhookError>,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
-pub struct SanlammultidataWebhookError {
+pub struct SanlamWebhookError {
     pub code: Option<String>,
     pub message: Option<String>,
     pub reason: Option<String>,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
-pub enum SanlammultidataWebhookEventType {
+pub enum SanlamWebhookEventType {
     #[serde(rename = "payment.succeeded")]
     PaymentSucceeded,
     #[serde(rename = "payment.failed")]
@@ -61,28 +61,28 @@ pub enum SanlammultidataWebhookEventType {
 }
 
 #[derive(Debug, Deserialize, Serialize)]
-pub struct SanlammultidataWebhookPayment {
+pub struct SanlamWebhookPayment {
     pub user_reference: String,
-    pub status: SanlammultidataPaymentStatus,
+    pub status: SanlamPaymentStatus,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(rename_all = "snake_case")]
-pub enum SanlammultidataPaymentStatus {
+pub enum SanlamPaymentStatus {
     Success,
     Failure,
     Dispute,
 }
 
-impl<F, T> TryFrom<ResponseRouterData<F, SanlammultidataWebhookEvent, T, PaymentsResponseData>>
+impl<F, T> TryFrom<ResponseRouterData<F, SanlamWebhookEvent, T, PaymentsResponseData>>
     for RouterData<F, T, PaymentsResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        item: ResponseRouterData<F, SanlammultidataWebhookEvent, T, PaymentsResponseData>,
+        item: ResponseRouterData<F, SanlamWebhookEvent, T, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         match item.response {
-            SanlammultidataWebhookEvent::Payment(payment_event) => {
+            SanlamWebhookEvent::Payment(payment_event) => {
                 let status = common_enums::AttemptStatus::try_from(&payment_event.payment.status)?;
                 let response = if utils::is_payment_failure(status) {
                     Err(ErrorResponse {
@@ -130,13 +130,13 @@ impl<F, T> TryFrom<ResponseRouterData<F, SanlammultidataWebhookEvent, T, Payment
     }
 }
 
-impl TryFrom<&SanlammultidataPaymentStatus> for common_enums::AttemptStatus {
+impl TryFrom<&SanlamPaymentStatus> for common_enums::AttemptStatus {
     type Error = error_stack::Report<errors::ConnectorError>;
-    fn try_from(item: &SanlammultidataPaymentStatus) -> Result<Self, Self::Error> {
+    fn try_from(item: &SanlamPaymentStatus) -> Result<Self, Self::Error> {
         match item {
-            SanlammultidataPaymentStatus::Success => Ok(Self::Charged),
-            SanlammultidataPaymentStatus::Failure => Ok(Self::Failure),
-            SanlammultidataPaymentStatus::Dispute => {
+            SanlamPaymentStatus::Success => Ok(Self::Charged),
+            SanlamPaymentStatus::Failure => Ok(Self::Failure),
+            SanlamPaymentStatus::Dispute => {
                 Err(errors::ConnectorError::ResponseDeserializationFailed)?
             }
         }

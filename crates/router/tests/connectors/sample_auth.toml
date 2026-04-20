@@ -395,6 +395,6 @@ key1 = "Client Secret"
 [imerchantsolutions]
 api_key = "API Key"
 
-[sanlammultidata]
+[sanlam]
 api_key = "API Key"
 key1 = "Merchant Id"

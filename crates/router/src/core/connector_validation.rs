@@ -501,8 +501,8 @@ impl ConnectorAuthTypeAndMetadataValidation<'_> {
                 revolv3::transformers::Revolv3AuthType::try_from(self.auth_type)?;
                 Ok(())
             }
-            api_enums::Connector::Sanlammultidata => {
-                sanlammultidata::transformers::SanlammultidataAuthType::try_from(self.auth_type)?;
+            api_enums::Connector::Sanlam => {
+                sanlam::transformers::SanlamAuthType::try_from(self.auth_type)?;
                 Ok(())
             }
             api_enums::Connector::Santander => {

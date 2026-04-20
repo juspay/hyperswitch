@@ -41,33 +41,33 @@ use hyperswitch_interfaces::{
     webhooks,
 };
 use hyperswitch_masking::{Mask, PeekInterface};
-use transformers as sanlammultidata;
+use transformers as sanlam;
 
 use crate::{constants::headers, types::ResponseRouterData, utils::get_header_key_value};
 
 #[derive(Clone)]
-pub struct Sanlammultidata {}
+pub struct Sanlam {}
 
-impl Sanlammultidata {
+impl Sanlam {
     pub fn new() -> &'static Self {
         &Self {}
     }
 }
 
-impl api::Payment for Sanlammultidata {}
-impl api::PaymentSession for Sanlammultidata {}
-impl api::ConnectorAccessToken for Sanlammultidata {}
-impl api::MandateSetup for Sanlammultidata {}
-impl api::PaymentAuthorize for Sanlammultidata {}
-impl api::PaymentSync for Sanlammultidata {}
-impl api::PaymentCapture for Sanlammultidata {}
-impl api::PaymentVoid for Sanlammultidata {}
-impl api::Refund for Sanlammultidata {}
-impl api::RefundExecute for Sanlammultidata {}
-impl api::RefundSync for Sanlammultidata {}
-impl api::PaymentToken for Sanlammultidata {}
+impl api::Payment for Sanlam {}
+impl api::PaymentSession for Sanlam {}
+impl api::ConnectorAccessToken for Sanlam {}
+impl api::MandateSetup for Sanlam {}
+impl api::PaymentAuthorize for Sanlam {}
+impl api::PaymentSync for Sanlam {}
+impl api::PaymentCapture for Sanlam {}
+impl api::PaymentVoid for Sanlam {}
+impl api::Refund for Sanlam {}
+impl api::RefundExecute for Sanlam {}
+impl api::RefundSync for Sanlam {}
+impl api::PaymentToken for Sanlam {}
 
-impl<Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response> for Sanlammultidata
+impl<Flow, Request, Response> ConnectorCommonExt<Flow, Request, Response> for Sanlam
 where
     Self: ConnectorIntegration<Flow, Request, Response>,
 {
@@ -87,9 +87,9 @@ where
     }
 }
 
-impl ConnectorCommon for Sanlammultidata {
+impl ConnectorCommon for Sanlam {
     fn id(&self) -> &'static str {
-        "sanlammultidata"
+        "sanlam"
     }
 
     fn get_currency_unit(&self) -> api::CurrencyUnit {
@@ -101,7 +101,7 @@ impl ConnectorCommon for Sanlammultidata {
     }
 
     fn base_url<'a>(&self, connectors: &'a Connectors) -> &'a str {
-        connectors.sanlammultidata.base_url.as_ref()
+        connectors.sanlam.base_url.as_ref()
     }
 
     fn get_auth_header(
@@ -109,7 +109,7 @@ impl ConnectorCommon for Sanlammultidata {
         auth_type: &ConnectorAuthType,
     ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
     {
-        let auth = sanlammultidata::SanlammultidataAuthType::try_from(auth_type)
+        let auth = sanlam::SanlamAuthType::try_from(auth_type)
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
         Ok(vec![
             (
@@ -124,7 +124,7 @@ impl ConnectorCommon for Sanlammultidata {
     }
 }
 
-impl ConnectorValidation for Sanlammultidata {
+impl ConnectorValidation for Sanlam {
     fn validate_mandate_payment(
         &self,
         _pm_type: Option<enums::PaymentMethodType>,
@@ -150,7 +150,7 @@ impl ConnectorValidation for Sanlammultidata {
     }
 }
 
-impl ConnectorIntegration<Session, PaymentsSessionData, PaymentsResponseData> for Sanlammultidata {
+impl ConnectorIntegration<Session, PaymentsSessionData, PaymentsResponseData> for Sanlam {
     fn build_request(
         &self,
         _req: &PaymentsSessionRouterData,
@@ -158,14 +158,14 @@ impl ConnectorIntegration<Session, PaymentsSessionData, PaymentsResponseData> fo
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         Err(errors::ConnectorError::FlowNotSupported {
             flow: "Session".to_string(),
-            connector: "Sanlammultidata".to_string(),
+            connector: "Sanlam".to_string(),
         }
         .into())
     }
 }
 
 impl ConnectorIntegration<PaymentMethodToken, PaymentMethodTokenizationData, PaymentsResponseData>
-    for Sanlammultidata
+    for Sanlam
 {
     fn build_request(
         &self,
@@ -174,15 +174,13 @@ impl ConnectorIntegration<PaymentMethodToken, PaymentMethodTokenizationData, Pay
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         Err(errors::ConnectorError::FlowNotSupported {
             flow: "PaymentMethodToken".to_string(),
-            connector: "Sanlammultidata".to_string(),
+            connector: "Sanlam".to_string(),
         }
         .into())
     }
 }
 
-impl ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken>
-    for Sanlammultidata
-{
+impl ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken> for Sanlam {
     fn build_request(
         &self,
         _req: &RefreshTokenRouterData,
@@ -190,15 +188,13 @@ impl ConnectorIntegration<AccessTokenAuth, AccessTokenRequestData, AccessToken>
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         Err(errors::ConnectorError::FlowNotSupported {
             flow: "AccessTokenAuth".to_string(),
-            connector: "Sanlammultidata".to_string(),
+            connector: "Sanlam".to_string(),
         }
         .into())
     }
 }
 
-impl ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsResponseData>
-    for Sanlammultidata
-{
+impl ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsResponseData> for Sanlam {
     fn build_request(
         &self,
         _req: &SetupMandateRouterData,
@@ -206,15 +202,13 @@ impl ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsRespons
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         Err(errors::ConnectorError::FlowNotSupported {
             flow: "SetupMandate".to_string(),
-            connector: "Sanlammultidata".to_string(),
+            connector: "Sanlam".to_string(),
         }
         .into())
     }
 }
 
-impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData>
-    for Sanlammultidata
-{
+impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData> for Sanlam {
     fn build_request(
         &self,
         _req: &PaymentsAuthorizeRouterData,
@@ -222,13 +216,13 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         Err(errors::ConnectorError::FlowNotSupported {
             flow: "Authorize".to_string(),
-            connector: "Sanlammultidata".to_string(),
+            connector: "Sanlam".to_string(),
         }
         .into())
     }
 }
 
-impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Sanlammultidata {
+impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Sanlam {
     fn build_request(
         &self,
         _req: &PaymentsSyncRouterData,
@@ -236,7 +230,7 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for San
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         Err(errors::ConnectorError::FlowNotSupported {
             flow: "PSync".to_string(),
-            connector: "Sanlammultidata".to_string(),
+            connector: "Sanlam".to_string(),
         }
         .into())
     }
@@ -247,9 +241,9 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for San
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<PaymentsSyncRouterData, errors::ConnectorError> {
-        let response: sanlammultidata::SanlammultidataWebhookEvent = res
+        let response: sanlam::SanlamWebhookEvent = res
             .response
-            .parse_struct("SanlammultidataWebhookEvent")
+            .parse_struct("SanlamWebhookEvent")
             .change_context(errors::ConnectorError::ResponseDeserializationFailed)?;
         event_builder.map(|i| i.set_response_body(&response));
         router_env::logger::info!(connector_response=?response);
@@ -261,7 +255,7 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for San
     }
 }
 
-impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> for Sanlammultidata {
+impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> for Sanlam {
     fn build_request(
         &self,
         _req: &PaymentsCaptureRouterData,
@@ -269,13 +263,13 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         Err(errors::ConnectorError::FlowNotSupported {
             flow: "Capture".to_string(),
-            connector: "Sanlammultidata".to_string(),
+            connector: "Sanlam".to_string(),
         }
         .into())
     }
 }
 
-impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Sanlammultidata {
+impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Sanlam {
     fn build_request(
         &self,
         _req: &PaymentsCancelRouterData,
@@ -283,13 +277,13 @@ impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Sa
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         Err(errors::ConnectorError::FlowNotSupported {
             flow: "Void".to_string(),
-            connector: "Sanlammultidata".to_string(),
+            connector: "Sanlam".to_string(),
         }
         .into())
     }
 }
 
-impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Sanlammultidata {
+impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Sanlam {
     fn build_request(
         &self,
         _req: &RefundExecuteRouterData,
@@ -297,13 +291,13 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Sanlamm
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         Err(errors::ConnectorError::FlowNotSupported {
             flow: "Execute".to_string(),
-            connector: "Sanlammultidata".to_string(),
+            connector: "Sanlam".to_string(),
         }
         .into())
     }
 }
 
-impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Sanlammultidata {
+impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Sanlam {
     fn build_request(
         &self,
         _req: &RefundSyncRouterData,
@@ -311,14 +305,14 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Sanlammul
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         Err(errors::ConnectorError::FlowNotSupported {
             flow: "RSync".to_string(),
-            connector: "Sanlammultidata".to_string(),
+            connector: "Sanlam".to_string(),
         }
         .into())
     }
 }
 
 #[async_trait::async_trait]
-impl webhooks::IncomingWebhook for Sanlammultidata {
+impl webhooks::IncomingWebhook for Sanlam {
     fn get_webhook_source_verification_algorithm(
         &self,
         _request: &webhooks::IncomingWebhookRequestDetails<'_>,
@@ -351,13 +345,14 @@ impl webhooks::IncomingWebhook for Sanlammultidata {
         &self,
         request: &webhooks::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api_models::webhooks::ObjectReferenceId, errors::ConnectorError> {
-        let details: sanlammultidata::SanlammultidataWebhookEvent = request
-            .body
-            .parse_struct("SanlammultidataWebhookEvent")
-            .change_context(errors::ConnectorError::WebhookReferenceIdNotFound)?;
+        let details: sanlam::SanlamWebhookEvent =
+            request
+                .body
+                .parse_struct("SanlamWebhookEvent")
+                .change_context(errors::ConnectorError::WebhookReferenceIdNotFound)?;
 
         let id = match details {
-            sanlammultidata::SanlammultidataWebhookEvent::Payment(ref event) => {
+            sanlam::SanlamWebhookEvent::Payment(ref event) => {
                 api_models::webhooks::ObjectReferenceId::PaymentId(
                     api_models::payments::PaymentIdType::PaymentAttemptId(
                         event.payment.user_reference.clone(),
@@ -374,25 +369,24 @@ impl webhooks::IncomingWebhook for Sanlammultidata {
         request: &webhooks::IncomingWebhookRequestDetails<'_>,
         _context: Option<&webhooks::WebhookContext>,
     ) -> CustomResult<api_models::webhooks::IncomingWebhookEvent, errors::ConnectorError> {
-        let details: sanlammultidata::SanlammultidataWebhookEvent = request
-            .body
-            .parse_struct("SanlammultidataWebhookEvent")
-            .change_context(errors::ConnectorError::WebhookReferenceIdNotFound)?;
+        let details: sanlam::SanlamWebhookEvent =
+            request
+                .body
+                .parse_struct("SanlamWebhookEvent")
+                .change_context(errors::ConnectorError::WebhookReferenceIdNotFound)?;
 
         let event_type = match details {
-            sanlammultidata::SanlammultidataWebhookEvent::Payment(ref event) => {
-                match event.event_type {
-                    sanlammultidata::SanlammultidataWebhookEventType::PaymentSucceeded => {
-                        api_models::webhooks::IncomingWebhookEvent::PaymentIntentSuccess
-                    }
-                    sanlammultidata::SanlammultidataWebhookEventType::PaymentFailed => {
-                        api_models::webhooks::IncomingWebhookEvent::PaymentIntentFailure
-                    }
-                    sanlammultidata::SanlammultidataWebhookEventType::DisputeOpened => {
-                        api_models::webhooks::IncomingWebhookEvent::DisputeOpened
-                    }
+            sanlam::SanlamWebhookEvent::Payment(ref event) => match event.event_type {
+                sanlam::SanlamWebhookEventType::PaymentSucceeded => {
+                    api_models::webhooks::IncomingWebhookEvent::PaymentIntentSuccess
                 }
-            }
+                sanlam::SanlamWebhookEventType::PaymentFailed => {
+                    api_models::webhooks::IncomingWebhookEvent::PaymentIntentFailure
+                }
+                sanlam::SanlamWebhookEventType::DisputeOpened => {
+                    api_models::webhooks::IncomingWebhookEvent::DisputeOpened
+                }
+            },
         };
 
         Ok(event_type)
@@ -403,53 +397,53 @@ impl webhooks::IncomingWebhook for Sanlammultidata {
         request: &webhooks::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<Box<dyn hyperswitch_masking::ErasedMaskSerialize>, errors::ConnectorError>
     {
-        let details: sanlammultidata::SanlammultidataWebhookEvent = request
-            .body
-            .parse_struct("SanlammultidataWebhookEvent")
-            .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?;
+        let details: sanlam::SanlamWebhookEvent =
+            request
+                .body
+                .parse_struct("SanlamWebhookEvent")
+                .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)?;
 
         Ok(Box::new(details))
     }
 }
 
-static SANLAMMULTIDATA_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
-    LazyLock::new(|| {
-        let supported_capture_methods = vec![enums::CaptureMethod::Automatic];
+static SANLAM_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = LazyLock::new(|| {
+    let supported_capture_methods = vec![enums::CaptureMethod::Automatic];
 
-        let mut sanlammultidata_supported_payment_methods = SupportedPaymentMethods::new();
-        sanlammultidata_supported_payment_methods.add(
-            enums::PaymentMethod::BankDebit,
-            enums::PaymentMethodType::Eft,
-            PaymentMethodDetails {
-                mandates: common_enums::FeatureStatus::NotSupported,
-                refunds: common_enums::FeatureStatus::NotSupported,
-                supported_capture_methods: supported_capture_methods.clone(),
-                specific_features: None,
-            },
-        );
+    let mut sanlam_supported_payment_methods = SupportedPaymentMethods::new();
+    sanlam_supported_payment_methods.add(
+        enums::PaymentMethod::BankDebit,
+        enums::PaymentMethodType::Eft,
+        PaymentMethodDetails {
+            mandates: common_enums::FeatureStatus::NotSupported,
+            refunds: common_enums::FeatureStatus::NotSupported,
+            supported_capture_methods: supported_capture_methods.clone(),
+            specific_features: None,
+        },
+    );
 
-        sanlammultidata_supported_payment_methods
-    });
+    sanlam_supported_payment_methods
+});
 
-static SANLAMMULTIDATA_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
-    display_name: "Sanlammultidata",
-    description: "Sanlammultidata connector",
+static SANLAM_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
+    display_name: "Sanlam",
+    description: "Sanlam connector",
     connector_type: enums::HyperswitchConnectorCategory::PaymentGateway,
     integration_status: enums::ConnectorIntegrationStatus::Live,
 };
 
-static SANLAMMULTIDATA_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 0] = [];
+static SANLAM_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 0] = [];
 
-impl ConnectorSpecifications for Sanlammultidata {
+impl ConnectorSpecifications for Sanlam {
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
-        Some(&SANLAMMULTIDATA_CONNECTOR_INFO)
+        Some(&SANLAM_CONNECTOR_INFO)
     }
 
     fn get_supported_payment_methods(&self) -> Option<&'static SupportedPaymentMethods> {
-        Some(&*SANLAMMULTIDATA_SUPPORTED_PAYMENT_METHODS)
+        Some(&*SANLAM_SUPPORTED_PAYMENT_METHODS)
     }
 
     fn get_supported_webhook_flows(&self) -> Option<&'static [enums::EventClass]> {
-        Some(&SANLAMMULTIDATA_SUPPORTED_WEBHOOK_FLOWS)
+        Some(&SANLAM_SUPPORTED_WEBHOOK_FLOWS)
     }
 }
