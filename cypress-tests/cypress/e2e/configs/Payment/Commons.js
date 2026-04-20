@@ -2455,5 +2455,14 @@ export const connectorDetails = {
       },
       Response: blockedPaymentErrorBody,
     }),
+    MITWithLimitedCardData: getCustomExchange({
+      Request: {},
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    }),
   },
 };

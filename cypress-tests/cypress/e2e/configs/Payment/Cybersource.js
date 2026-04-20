@@ -1331,5 +1331,19 @@ export const connectorDetails = {
         ],
       },
     },
+    MITWithLimitedCardData: getCustomExchange({
+      Configs: {
+        CONNECTOR_CREDENTIAL: {
+          value: "connector_1",
+        },
+      },
+      Request: {},
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    }),
   },
 };

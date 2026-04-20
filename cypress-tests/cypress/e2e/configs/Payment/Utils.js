@@ -531,6 +531,7 @@ export const CONNECTOR_LISTS = {
       "worldpay",
       "worldpayvantiv",
     ],
+    MIT_WITH_LIMITED_CARD_DATA: ["cybersource", "peachpayments"],
     // Add more inclusion lists
   },
 };

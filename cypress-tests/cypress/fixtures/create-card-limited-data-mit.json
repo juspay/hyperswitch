@@ -1,0 +1,29 @@
+{
+  "amount": 999,
+  "currency": "USD",
+  "confirm": true,
+  "return_url": "https://example.com",
+  "recurring_details": {
+    "type": "card_with_limited_data",
+    "data": {
+      "card_number": "4242424242424242",
+      "card_exp_month": "11",
+      "card_exp_year": "2050",
+      "card_holder_name": "John Doe",
+      "eci": null
+    }
+  },
+  "off_session": true,
+  "billing": {
+    "address": {
+      "first_name": "John",
+      "last_name": "Doe",
+      "line1": "1467",
+      "line2": "Harrison Street",
+      "city": "San Fransico",
+      "state": "California",
+      "zip": "94122",
+      "country": "US"
+    }
+  }
+}

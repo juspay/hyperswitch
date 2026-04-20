@@ -24,6 +24,7 @@ import updateConnectorBody from "./update-connector-body.json";
 import customerUpdateBody from "./update-customer-body.json";
 import voidBody from "./void-payment-body.json";
 import ntidConfirmBody from "./create-ntid-mit.json";
+import cardLimitedDataMITBody from "./create-card-limited-data-mit.json";
 import blocklistCreateBody from "./blocklist-create-body.json";
 import eligibilityCheckBody from "./eligibility-check-body.json";
 import * as IncomingWebhookBody from "./webhooks/import";
@@ -56,6 +57,7 @@ export {
   merchantUpdateBody,
   mitConfirmBody,
   ntidConfirmBody,
+  cardLimitedDataMITBody,
   pmIdConfirmBody,
   refundBody,
   routingConfigBody,
