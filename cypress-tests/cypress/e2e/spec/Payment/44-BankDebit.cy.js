@@ -13,7 +13,12 @@ describe("Bank Debit tests", () => {
         globalState = new State(state);
         const connector = globalState.get("connectorId");
 
-        if (utils.shouldIncludeConnector(connector, utils.CONNECTOR_LISTS.INCLUDE.BANK_DEBIT)) {
+        if (
+          utils.shouldIncludeConnector(
+            connector,
+            utils.CONNECTOR_LISTS.INCLUDE.BANK_DEBIT
+          )
+        ) {
           skip = true;
           return;
         }
