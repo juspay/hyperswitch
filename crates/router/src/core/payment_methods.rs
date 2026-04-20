@@ -70,7 +70,10 @@ use super::{
 #[cfg(feature = "v2")]
 use crate::{
     configs::settings,
-    core::{payment_methods::transformers as pm_transforms, tokenization as tokenization_core},
+    core::{
+        configs::dimension_state, payment_methods::transformers as pm_transforms,
+        tokenization as tokenization_core,
+    },
     headers,
     routes::{self, payment_methods as pm_routes},
     services::encryption,
@@ -4107,6 +4110,9 @@ pub async fn retrieve_payment_method(
 ) -> RouterResponse<api::PaymentMethodResponse> {
     let db = state.store.as_ref();
 
+    let dimensions = dimension_state::Dimensions::new()
+        .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id());
+
     // 1. Resolve parent token (if any) -> storage type & optional token data
     let (storage_type, pm_token_data_opt) =
         resolve_storage_type_from_token(&state, &pm.payment_method_id).await?;
@@ -4131,10 +4137,11 @@ pub async fn retrieve_payment_method(
     )?;
 
     let raw_payment_method_fetch_access = get_raw_payment_method_data_fetch_access(
-        db,
-        platform.get_provider().get_account().get_id(),
+        &state,
+        &dimensions,
         api_key_type,
         fetch_raw_detail_query_param,
+        payment_method.customer_id.as_ref(),
     )
     .await
     .attach_printable("Failed to get raw payment method fetch access")?;
@@ -4530,11 +4537,13 @@ impl RawPaymentMethodFetchAccess {
     }
 }
 
+#[cfg(feature = "v2")]
 pub async fn get_raw_payment_method_data_fetch_access(
-    db: &dyn StorageInterface,
-    merchant_id: &id_type::MerchantId,
+    state: &SessionState,
+    dimensions: &dimension_state::DimensionsWithProviderMerchantId,
     api_key_type: enums::ApiKeyType,
     fetch_raw_detail_query_param: bool,
+    customer_id: Option<&id_type::GlobalCustomerId>,
 ) -> RouterResult<RawPaymentMethodFetchAccess> {
     // If query param not set, never allowed to fetch raw payment method details
     let fetch_access = match fetch_raw_detail_query_param {
@@ -4549,23 +4558,17 @@ pub async fn get_raw_payment_method_data_fetch_access(
         // External API keys allowed only via org-level config
         // This supports cases where a PCI-compliant entity needs to retrieve raw payment method details.
         enums::ApiKeyType::External => {
-            let config = db
-                .find_config_by_key_unwrap_or(
-                    &merchant_id.should_return_raw_payment_method_details_key(),
-                    Some("false".to_string()),
+            let allowed = dimensions
+                .get_should_return_raw_payment_method_details(
+                    state.store.as_ref(),
+                    state.superposition_service.as_ref(),
+                    customer_id,
                 )
                 .await;
 
-            match config {
-                Ok(conf) if conf.config.eq_ignore_ascii_case("true") => Ok(fetch_access),
-                Ok(_) => Ok(RawPaymentMethodFetchAccess::Denied),
-                Err(error) => {
-                    router_env::logger::error!(
-                        ?error,
-                        "Failed to fetch raw payment method details config"
-                    );
-                    Ok(RawPaymentMethodFetchAccess::Denied)
-                }
+            match allowed {
+                true => Ok(fetch_access),
+                false => Ok(RawPaymentMethodFetchAccess::Denied),
             }
         }
     }
