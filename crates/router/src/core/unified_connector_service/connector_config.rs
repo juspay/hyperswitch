@@ -8,7 +8,7 @@ use std::{collections::HashMap, str::FromStr};
 use common_enums::{connector_enums::Connector, enums::Currency};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::router_data::ConnectorAuthType;
-use hyperswitch_masking::{Secret, PeekInterface};
+use hyperswitch_masking::{PeekInterface, Secret};
 use serde::Serialize;
 
 use crate::{
