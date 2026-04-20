@@ -133,9 +133,7 @@ impl SubscriberClient {
         let mut cluster_builder = redis::cluster::ClusterClient::builder(nodes)
             .use_protocol(redis::ProtocolVersion::RESP3)
             .push_sender(push_sender)
-            .retries(
-                u32::try_from(conf.reconnect_max_attempts).unwrap_or(5),
-            )
+            .retries(u32::try_from(conf.reconnect_max_attempts).unwrap_or(5))
             .min_retry_wait(u64::from(conf.reconnect_delay))
             .response_timeout(std::time::Duration::from_secs(
                 conf.default_command_timeout.max(1) as u64,
@@ -503,9 +501,7 @@ impl RedisConnectionPool {
                     .collect();
 
                 let mut pool_builder = redis::cluster::ClusterClient::builder(nodes.clone())
-                    .retries(
-                        u32::try_from(conf.reconnect_max_attempts).unwrap_or(5),
-                    )
+                    .retries(u32::try_from(conf.reconnect_max_attempts).unwrap_or(5))
                     .min_retry_wait(u64::from(conf.reconnect_delay))
                     .response_timeout(std::time::Duration::from_secs(
                         conf.default_command_timeout.max(1) as u64,
@@ -518,8 +514,7 @@ impl RedisConnectionPool {
                 }
 
                 if !conf.use_legacy_version {
-                    pool_builder =
-                        pool_builder.use_protocol(redis::ProtocolVersion::RESP3);
+                    pool_builder = pool_builder.use_protocol(redis::ProtocolVersion::RESP3);
                 }
 
                 let pool_conn = pool_builder
@@ -543,15 +538,12 @@ impl RedisConnectionPool {
 
                 let pool = RedisConn::Cluster(pool_conn);
 
-                let mut publisher_builder =
-                    redis::cluster::ClusterClient::builder(nodes.clone())
-                        .retries(
-                            u32::try_from(conf.reconnect_max_attempts).unwrap_or(5),
-                        )
-                        .min_retry_wait(u64::from(conf.reconnect_delay))
-                        .response_timeout(std::time::Duration::from_secs(
-                            conf.default_command_timeout.max(1) as u64,
-                        ));
+                let mut publisher_builder = redis::cluster::ClusterClient::builder(nodes.clone())
+                    .retries(u32::try_from(conf.reconnect_max_attempts).unwrap_or(5))
+                    .min_retry_wait(u64::from(conf.reconnect_delay))
+                    .response_timeout(std::time::Duration::from_secs(
+                        conf.default_command_timeout.max(1) as u64,
+                    ));
 
                 if !conf.use_legacy_version {
                     publisher_builder =
@@ -623,9 +615,9 @@ impl RedisConnectionPool {
                     .set_min_delay(reconnection_min_delay);
 
                 if conf.default_command_timeout > 0 {
-                    connection_manager_config = connection_manager_config.set_response_timeout(Some(
-                        std::time::Duration::from_secs(conf.default_command_timeout),
-                    ));
+                    connection_manager_config = connection_manager_config.set_response_timeout(
+                        Some(std::time::Duration::from_secs(conf.default_command_timeout)),
+                    );
                 }
 
                 if conf.max_in_flight_commands > 0 {
@@ -635,13 +627,15 @@ impl RedisConnectionPool {
                         connection_manager_config.set_pipeline_buffer_size(pipeline_buffer_size);
                 }
 
-                let conn =
-                    redis::aio::ConnectionManager::new_with_config(client, connection_manager_config)
-                        .await
-                        .change_context(errors::RedisError::RedisConnectionError)
-                        .attach_printable_lazy(|| {
-                            format!("Failed to connect to Redis at {}:{}", conf.host, conf.port)
-                        })?;
+                let conn = redis::aio::ConnectionManager::new_with_config(
+                    client,
+                    connection_manager_config,
+                )
+                .await
+                .change_context(errors::RedisError::RedisConnectionError)
+                .attach_printable_lazy(|| {
+                    format!("Failed to connect to Redis at {}:{}", conf.host, conf.port)
+                })?;
 
                 let pool = RedisConn::Standalone(conn);
 
@@ -668,7 +662,8 @@ impl RedisConnectionPool {
                     })?;
 
                 let subscriber = Arc::new(
-                    SubscriberClient::new(base_client.clone(), conf.broadcast_channel_capacity).await?,
+                    SubscriberClient::new(base_client.clone(), conf.broadcast_channel_capacity)
+                        .await?,
                 );
                 let publisher = Arc::new(RedisClient::new(&base_client).await?);
 

@@ -421,8 +421,9 @@ impl<T: AsRef<str>> From<T> for RedisKey {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use redis::FromRedisValue;
+
+    use super::*;
 
     // ── redis_value_to_option_string ───────────────────────────────────────
 

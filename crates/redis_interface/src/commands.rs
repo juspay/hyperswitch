@@ -947,7 +947,10 @@ impl super::RedisConnectionPool {
         read_count: Option<u64>,
     ) -> CustomResult<redis::streams::StreamReadReply, errors::RedisError> {
         let mut conn = self.pool.clone();
-        let stream_keys: Vec<String> = streams.iter().map(|stream| stream.tenant_aware_key(self)).collect();
+        let stream_keys: Vec<String> = streams
+            .iter()
+            .map(|stream| stream.tenant_aware_key(self))
+            .collect();
 
         let count = read_count.unwrap_or(self.config.default_stream_read_count);
 
@@ -1017,7 +1020,10 @@ impl super::RedisConnectionPool {
         group: Option<(&str, &str)>,
     ) -> CustomResult<redis::streams::StreamReadReply, errors::RedisError> {
         let mut conn = self.pool.clone();
-        let stream_keys: Vec<String> = streams.iter().map(|stream| stream.tenant_aware_key(self)).collect();
+        let stream_keys: Vec<String> = streams
+            .iter()
+            .map(|stream| stream.tenant_aware_key(self))
+            .collect();
 
         let mut options = StreamReadOptions::default();
 
@@ -1565,7 +1571,8 @@ mod tests {
                 let pool = RedisConnectionPool::new(&RedisSettings::default())
                     .await
                     .expect("failed to create redis connection pool");
-                let key: crate::types::RedisKey = format!("test_setnx_new_{}", unique_test_id()).into();
+                let key: crate::types::RedisKey =
+                    format!("test_setnx_new_{}", unique_test_id()).into();
                 let value = "test_value".to_string();
 
                 // Act
@@ -1596,7 +1603,8 @@ mod tests {
                 let pool = RedisConnectionPool::new(&RedisSettings::default())
                     .await
                     .expect("failed to create redis connection pool");
-                let key: crate::types::RedisKey = format!("test_setnx_exist_{}", unique_test_id()).into();
+                let key: crate::types::RedisKey =
+                    format!("test_setnx_exist_{}", unique_test_id()).into();
                 let initial_value = "initial_value".to_string();
                 let new_value = "new_value".to_string();
 
@@ -1889,7 +1897,8 @@ mod tests {
                 let pool = RedisConnectionPool::new(&RedisSettings::default())
                     .await
                     .expect("failed to create redis connection pool");
-                let key: crate::types::RedisKey = format!("test_set_expiry_{}", unique_test_id()).into();
+                let key: crate::types::RedisKey =
+                    format!("test_set_expiry_{}", unique_test_id()).into();
                 let value = "test_value".to_string();
 
                 // Act
@@ -1913,7 +1922,8 @@ mod tests {
                 let pool = RedisConnectionPool::new(&RedisSettings::default())
                     .await
                     .expect("failed to create redis connection pool");
-                let key: crate::types::RedisKey = format!("test_keepttl_{}", unique_test_id()).into();
+                let key: crate::types::RedisKey =
+                    format!("test_keepttl_{}", unique_test_id()).into();
                 let initial_value = "initial".to_string();
                 let new_value = "new_value".to_string();
 
@@ -1943,7 +1953,8 @@ mod tests {
                 let pool = RedisConnectionPool::new(&RedisSettings::default())
                     .await
                     .expect("failed to create redis connection pool");
-                let key: crate::types::RedisKey = format!("test_setnx_new_{}", unique_test_id()).into();
+                let key: crate::types::RedisKey =
+                    format!("test_setnx_new_{}", unique_test_id()).into();
                 let value = "test_value".to_string();
 
                 // Act
@@ -1969,7 +1980,8 @@ mod tests {
                 let pool = RedisConnectionPool::new(&RedisSettings::default())
                     .await
                     .expect("failed to create redis connection pool");
-                let key: crate::types::RedisKey = format!("test_setnx_exist_{}", unique_test_id()).into();
+                let key: crate::types::RedisKey =
+                    format!("test_setnx_exist_{}", unique_test_id()).into();
                 let initial_value = "initial".to_string();
                 let new_value = "new_value".to_string();
 
@@ -2027,7 +2039,8 @@ mod tests {
                 let pool = RedisConnectionPool::new(&RedisSettings::default())
                     .await
                     .expect("failed to create redis connection pool");
-                let stream: crate::types::RedisKey = format!("test_stream_append_{}", unique_test_id()).into();
+                let stream: crate::types::RedisKey =
+                    format!("test_stream_append_{}", unique_test_id()).into();
                 let fields: Vec<(&str, &str)> = vec![("field1", "value1")];
 
                 // Act - append entry
@@ -2097,7 +2110,8 @@ mod tests {
                 let pool = RedisConnectionPool::new(&RedisSettings::default())
                     .await
                     .expect("failed to create redis connection pool");
-                let stream: crate::types::RedisKey = format!("test_stream_ack_{}", unique_test_id()).into();
+                let stream: crate::types::RedisKey =
+                    format!("test_stream_ack_{}", unique_test_id()).into();
                 let group = "test_ack_group";
                 let fields: Vec<(&str, &str)> = vec![("field1", "value1")];
 
@@ -2139,8 +2153,10 @@ mod tests {
                 let pool = RedisConnectionPool::new(&RedisSettings::default())
                     .await
                     .expect("failed to create redis connection pool");
-                let existing_key: crate::types::RedisKey = format!("test_del_exist_{}", unique_test_id()).into();
-                let non_existing_key: crate::types::RedisKey = format!("test_del_miss_{}", unique_test_id()).into();
+                let existing_key: crate::types::RedisKey =
+                    format!("test_del_exist_{}", unique_test_id()).into();
+                let non_existing_key: crate::types::RedisKey =
+                    format!("test_del_miss_{}", unique_test_id()).into();
 
                 // Set up an existing key
                 let _ = pool.set_key(&existing_key, "value".to_string()).await;
@@ -2289,7 +2305,8 @@ mod tests {
                     .expect("failed to create redis connection pool with custom config");
 
                 // Act — set and get a key
-                let key: crate::types::RedisKey = format!("test_config_{}", unique_test_id()).into();
+                let key: crate::types::RedisKey =
+                    format!("test_config_{}", unique_test_id()).into();
                 let value = "custom_config_value".to_string();
                 let _ = pool.set_key(&key, value.clone()).await;
                 let result: Result<String, _> = pool.get_key(&key).await;
@@ -3886,11 +3903,7 @@ mod tests {
         });
 
         // Wait for the shutdown signal with a generous timeout
-        let result = tokio::time::timeout(
-            std::time::Duration::from_secs(10),
-            shutdown_rx,
-        )
-        .await;
+        let result = tokio::time::timeout(std::time::Duration::from_secs(10), shutdown_rx).await;
 
         // Assert — shutdown signal should have been sent
         assert!(
@@ -3905,7 +3918,9 @@ mod tests {
             .await
             .expect("failed to create redis connection pool");
 
-        let initial_state = pool.is_redis_available.load(std::sync::atomic::Ordering::SeqCst);
+        let initial_state = pool
+            .is_redis_available
+            .load(std::sync::atomic::Ordering::SeqCst);
 
         // Verify the pool is healthy by setting and getting a key
         let key: crate::types::RedisKey = format!("test_health_{}", unique_test_id()).into();
@@ -3947,11 +3962,7 @@ mod tests {
             pool.on_error(shutdown_tx).await;
         });
 
-        let result = tokio::time::timeout(
-            std::time::Duration::from_secs(10),
-            shutdown_rx,
-        )
-        .await;
+        let result = tokio::time::timeout(std::time::Duration::from_secs(10), shutdown_rx).await;
 
         if result.is_ok() && result.unwrap().is_ok() {
             // After shutdown signal, redis should be marked unavailable
