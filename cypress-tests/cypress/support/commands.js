@@ -1897,7 +1897,10 @@ Cypress.Commands.add(
     }
     createPaymentBody.authentication_type = authentication_type;
     createPaymentBody.capture_method = capture_method;
-    createPaymentBody.customer_id = globalState.get("customerId");
+    const customerId = globalState.get("customerId");
+    if (customerId) {
+      createPaymentBody.customer_id = customerId;
+    }
     createPaymentBody.profile_id = profile_id;
 
     const headers = {
@@ -1964,9 +1967,12 @@ Cypress.Commands.add(
           expect(createPaymentBody.email, "customer.email").to.equal(
             response.body.customer.email
           );
-          expect(createPaymentBody.customer_id, "customer.id").to.equal(
-            response.body.customer.id
-          );
+          // Only assert customer.id if customer_id was sent in the request
+          if (createPaymentBody.customer_id) {
+            expect(createPaymentBody.customer_id, "customer.id").to.equal(
+              response.body.customer.id
+            );
+          }
           expect(createPaymentBody.metadata, "metadata").to.deep.equal(
             response.body.metadata
           );
@@ -3427,78 +3433,102 @@ Cypress.Commands.add(
   }
 );
 
-Cypress.Commands.add("refundCallTest", (requestBody, data, globalState) => {
-  const {
-    Configs: configs = {},
-    Request: reqData,
-    Response: resData,
-  } = data || {};
+Cypress.Commands.add(
+  "refundCallTest",
+  (requestBody, data, globalState, connectedMerchantId) => {
+    const {
+      Configs: configs = {},
+      Request: reqData,
+      Response: resData,
+    } = data || {};
 
-  const payment_id = globalState.get("paymentID");
+    const payment_id = globalState.get("paymentID");
 
-  // we only need this to set the delay. We don't need the return value
-  execConfig(validateConfig(configs));
+    // we only need this to set the delay. We don't need the return value
+    execConfig(validateConfig(configs));
 
-  for (const key in reqData) {
-    requestBody[key] = reqData[key];
-  }
-  requestBody.payment_id = payment_id;
+    for (const key in reqData) {
+      requestBody[key] = reqData[key];
+    }
+    requestBody.payment_id = payment_id;
 
-  cy.request({
-    method: "POST",
-    url: `${globalState.get("baseUrl")}/refunds`,
-    headers: {
+    const headers = {
       "Content-Type": "application/json",
       "api-key": globalState.get("apiKey"),
-    },
-    failOnStatusCode: false,
-    body: requestBody,
-  }).then((response) => {
-    logRequestId(response.headers["x-request-id"]);
+    };
 
-    cy.wrap(response).then(() => {
-      expect(response.headers["content-type"]).to.include("application/json");
-      if (response.status === 200) {
-        globalState.set("refundId", response.body.refund_id);
-        globalState.set("connectorRefundId", response.body.connector_refund_id);
+    if (connectedMerchantId) {
+      headers["x-connected-merchant-id"] = connectedMerchantId;
+    }
+
+    cy.request({
+      method: "POST",
+      url: `${globalState.get("baseUrl")}/refunds`,
+      headers: headers,
+      failOnStatusCode: false,
+      body: requestBody,
+    }).then((response) => {
+      logRequestId(response.headers["x-request-id"]);
+
+      cy.wrap(response).then(() => {
+        expect(response.headers["content-type"]).to.include("application/json");
+        if (response.status === 200) {
+          globalState.set("refundId", response.body.refund_id);
+          globalState.set(
+            "connectorRefundId",
+            response.body.connector_refund_id
+          );
+          for (const key in resData.body) {
+            expect(resData.body[key]).to.equal(response.body[key]);
+          }
+          expect(response.body.payment_id).to.equal(payment_id);
+        } else {
+          defaultErrorHandler(response, resData);
+        }
+      });
+    });
+  }
+);
+
+Cypress.Commands.add(
+  "syncRefundCallTest",
+  (data, globalState, connectedMerchantId) => {
+    const { Response: resData } = data || {};
+
+    const refundId = globalState.get("refundId");
+
+    const headers = {
+      "Content-Type": "application/json",
+      "api-key": globalState.get("apiKey"),
+    };
+
+    if (connectedMerchantId) {
+      headers["x-connected-merchant-id"] = connectedMerchantId;
+    }
+
+    cy.request({
+      method: "GET",
+      url: `${globalState.get("baseUrl")}/refunds/${refundId}`,
+      headers: headers,
+      failOnStatusCode: false,
+    }).then((response) => {
+      logRequestId(response.headers["x-request-id"]);
+
+      cy.wrap(response).then(() => {
+        expect(response.headers["content-type"]).to.include("application/json");
+        if (response.status === 200) {
+          globalState.set(
+            "connectorRefundId",
+            response.body.connector_refund_id
+          );
+        }
         for (const key in resData.body) {
           expect(resData.body[key]).to.equal(response.body[key]);
         }
-        expect(response.body.payment_id).to.equal(payment_id);
-      } else {
-        defaultErrorHandler(response, resData);
-      }
+      });
     });
-  });
-});
-
-Cypress.Commands.add("syncRefundCallTest", (data, globalState) => {
-  const { Response: resData } = data || {};
-
-  const refundId = globalState.get("refundId");
-
-  cy.request({
-    method: "GET",
-    url: `${globalState.get("baseUrl")}/refunds/${refundId}`,
-    headers: {
-      "Content-Type": "application/json",
-      "api-key": globalState.get("apiKey"),
-    },
-    failOnStatusCode: false,
-  }).then((response) => {
-    logRequestId(response.headers["x-request-id"]);
-
-    cy.wrap(response).then(() => {
-      expect(response.headers["content-type"]).to.include("application/json");
-      if (response.status === 200) {
-        globalState.set("connectorRefundId", response.body.connector_refund_id);
-      }
-      for (const key in resData.body) {
-        expect(resData.body[key]).to.equal(response.body[key]);
-      }
-    });
-  });
-});
+  }
+);
 
 Cypress.Commands.add(
   "citForMandatesCallTest",
