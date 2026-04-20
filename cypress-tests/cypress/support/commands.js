@@ -226,9 +226,9 @@ function createUcsConfigs(globalState, flow, type) {
                     return cy.task(
                       "cli_log",
                       `Failed configs: ${JSON.stringify(failedConfigs)}`
-        );
-      }
-    });
+                    );
+                  }
+                });
             }
 
             const currentFlow = flows[index];
