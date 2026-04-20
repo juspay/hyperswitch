@@ -595,6 +595,8 @@ pub type DimensionsWithProviderMerchantId = Dimensions<
     NoConnector,
     NoPayoutRetryType,
 >;
+
+// Type aliases - both provider and processor merchant IDs present
 pub type DimensionsWithProcessorAndProviderMerchantId = Dimensions<
     HasProviderMerchantId,
     HasProcessorMerchantId,
