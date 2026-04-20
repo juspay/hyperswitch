@@ -128,5 +128,4 @@ pub enum FileStorageError {
     /// Indicates that the file deletion operation failed.
     #[error("Failed to delete file")]
     DeleteFailed,
-
 }
