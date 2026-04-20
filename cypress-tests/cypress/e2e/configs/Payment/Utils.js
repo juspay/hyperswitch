@@ -508,6 +508,7 @@ export const CONNECTOR_LISTS = {
       "paypal",
       "stripe",
     ],
+    BANK_DEBIT: ["adyen"],
     CARD_INSTALLMENTS: ["adyen"],
     BILLING_DESCRIPTOR: [
       "adyen",
