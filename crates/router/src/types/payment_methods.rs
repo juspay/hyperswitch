@@ -621,11 +621,7 @@ impl From<WriteMode> for VaultQueryParam {
         Self::Add(AddVaultQueryParam { mode: Some(mode) })
     }
 }
-        }
-    }
-}
 
-<<<<<<< HEAD
 #[cfg(feature = "v1")]
 impl From<AltIdResponsePayload>
     for hyperswitch_domain_models::payment_method_data::NetworkTokenData
@@ -654,15 +650,6 @@ pub struct AltIdResponse {
     pub status: String,
     pub payload: AltIdResponsePayloadRaw,
 }
-
-=======
-impl From<WriteMode> for VaultQueryParam {
-    fn from(mode: WriteMode) -> Self {
-        Self::Add(AddVaultQueryParam { mode: Some(mode) })
-    }
-}
-
->>>>>>> main
 #[cfg(feature = "v2")]
 pub struct PaymentMethodUpdateHandler<'a> {
     pub platform: &'a hyperswitch_domain_models::platform::Platform,
