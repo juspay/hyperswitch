@@ -3478,8 +3478,9 @@ mod tests {
                     .await;
 
                 let entry_id = match read_result {
-                    Ok(reply) if !reply.keys.is_empty()
-                        && reply.keys.first().is_some_and(|key| !key.ids.is_empty()) =>
+                    Ok(reply)
+                        if !reply.keys.is_empty()
+                            && reply.keys.first().is_some_and(|key| !key.ids.is_empty()) =>
                     {
                         reply
                             .keys
@@ -3586,10 +3587,7 @@ mod tests {
                 match result {
                     Ok(reply) => {
                         reply.keys.len() == 1
-                            && reply
-                                .keys
-                                .first()
-                                .is_some_and(|key| !key.ids.is_empty())
+                            && reply.keys.first().is_some_and(|key| !key.ids.is_empty())
                     }
                     Err(_) => false,
                 }
@@ -3759,10 +3757,7 @@ mod tests {
                     (Ok(()), Ok(len), Ok(()), Ok(reply), Ok(_)) => {
                         len >= 1
                             && reply.keys.len() == 1
-                            && reply
-                                .keys
-                                .first()
-                                .is_some_and(|key| !key.ids.is_empty())
+                            && reply.keys.first().is_some_and(|key| !key.ids.is_empty())
                     }
                     _ => false,
                 }
