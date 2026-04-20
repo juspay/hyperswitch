@@ -357,7 +357,6 @@ impl
                 .map(payments_grpc::Tokenization::foreign_from)
                 .map(Into::into),
             l2_l3_data: None,
-            connector_order_id: None,
         })
     }
 }
@@ -1294,7 +1293,6 @@ impl
             continue_redirection_url: None,
             connector_order_id: None,
             l2_l3_data: None,
-            connector_order_id: None,
         })
     }
 }
@@ -1474,7 +1472,6 @@ impl
             continue_redirection_url: None,
             connector_order_id: None,
             l2_l3_data: None,
-            connector_order_id: None,
         })
     }
 }
@@ -1634,7 +1631,6 @@ impl
             continue_redirection_url: None,
             connector_order_id: None,
             l2_l3_data: None,
-            connector_order_id: None,
         })
     }
 }

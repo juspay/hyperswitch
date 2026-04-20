@@ -807,7 +807,7 @@ pub mod core {
                 "Certificate configuration applied"
             );
 
-            let mut request_builder = RequestBuilder::new()
+            let request_builder = RequestBuilder::new()
                 .method(method)
                 .url(url.as_str())
                 .headers(headers)

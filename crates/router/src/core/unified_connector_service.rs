@@ -1058,7 +1058,11 @@ pub fn build_unified_connector_service_payment_method(
                 provider
             } => {
                 let eft = payments_grpc::Eft {
-                    provider,
+                    account_number: Some(Secret::new(provider)),
+                    branch_code: None,
+                    bank_account_holder_name: None,
+                    bank_name: todo!(), //check with connector team
+                    bank_type: todo!(),
                 };
 
                 Ok(payments_grpc::PaymentMethod {
