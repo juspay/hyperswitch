@@ -404,6 +404,7 @@ where
         state,
         connector.connector_name.to_string(),
         payment_data,
+        platform,
         platform.get_processor().get_key_store(),
         platform.get_processor().get_account().storage_scheme,
         router_data,
@@ -491,6 +492,7 @@ pub async fn modify_trackers<F, FData, D>(
     state: &routes::SessionState,
     connector: String,
     payment_data: &mut D,
+    platform: &domain::Platform,
     key_store: &domain::MerchantKeyStore,
     storage_scheme: storage_enums::MerchantStorageScheme,
     router_data: types::RouterData<F, FData, types::PaymentsResponseData>,
@@ -512,6 +514,7 @@ pub async fn modify_trackers<F, FData, D>(
     state: &routes::SessionState,
     connector: String,
     payment_data: &mut D,
+    platform: &domain::Platform,
     key_store: &domain::MerchantKeyStore,
     storage_scheme: storage_enums::MerchantStorageScheme,
     router_data: types::RouterData<F, FData, types::PaymentsResponseData>,
@@ -675,8 +678,16 @@ where
             };
 
             // For MIT transactions, lookup recommended action from merchant_advice_codes config
+            let merchant_advice_codes = dimension_state::Dimensions::new()
+                .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
+                .get_merchant_advice_codes(
+                    state.store.as_ref(),
+                    state.superposition_service.as_ref(),
+                    None,
+                )
+                .await;
             let recommended_action = payments_helpers::get_merchant_advice_code_recommended_action(
-                &state.conf.merchant_advice_codes,
+                &merchant_advice_codes,
                 payment_data.get_payment_intent().off_session,
                 card_network.as_ref(),
                 error_response.network_advice_code.as_deref(),

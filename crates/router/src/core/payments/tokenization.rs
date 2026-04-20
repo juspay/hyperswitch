@@ -13,6 +13,7 @@ use common_utils::{
 };
 use diesel_models::business_profile::ExternalVaultConnectorDetails;
 use error_stack::{report, ResultExt};
+use futures::future::OptionFuture;
 use hyperswitch_domain_models::payment_method_data::{
     get_applepay_wallet_info, get_googlepay_wallet_info,
 };
@@ -34,6 +35,7 @@ use crate::core::payment_methods::{
 use crate::{
     consts,
     core::{
+        configs::dimension_state,
         errors::{self, ConnectorErrorExt, RouterResult, StorageErrorExt},
         mandate,
         payment_methods::{self, cards::PmCards, network_tokenization},
@@ -1053,17 +1055,19 @@ pub async fn pre_payment_tokenization(
     customer_id: id_type::CustomerId,
     card: &payment_method_data::Card,
 ) -> RouterResult<(Option<pm_types::TokenResponse>, Option<String>)> {
-    let network_tokenization_supported_card_networks = &state
-        .conf
-        .network_tokenization_supported_card_networks
-        .card_networks;
+    let is_network_supported = OptionFuture::from(card.card_network.as_ref().map(|card_network| {
+        dimension_state::Dimensions::new()
+            .with_network(card_network.clone())
+            .get_network_tokenization_supported_card_network(
+                state.store.as_ref(),
+                state.superposition_service.as_ref(),
+                None,
+            )
+    }))
+    .await
+    .unwrap_or(false);
 
-    if card
-        .card_network
-        .as_ref()
-        .filter(|cn| network_tokenization_supported_card_networks.contains(cn))
-        .is_some()
-    {
+    if is_network_supported {
         let optional_card_cvc = Some(card.card_cvc.clone());
         let card_detail = payment_method_data::CardDetail::from(card);
         match network_tokenization::make_card_network_tokenization_request(
@@ -1439,10 +1443,6 @@ pub async fn save_network_token_in_locker(
         .customer_id
         .clone()
         .get_required_value("customer_id")?;
-    let network_tokenization_supported_card_networks = &state
-        .conf
-        .network_tokenization_supported_card_networks
-        .card_networks;
 
     match network_token_data {
         Some(nt_data) => {
@@ -1465,12 +1465,20 @@ pub async fn save_network_token_in_locker(
             Ok((Some(res), dc, None))
         }
         None => {
-            if card_data
-                .card_network
-                .as_ref()
-                .filter(|cn| network_tokenization_supported_card_networks.contains(cn))
-                .is_some()
-            {
+            let is_network_supported =
+                OptionFuture::from(card_data.card_network.as_ref().map(|card_network| {
+                    dimension_state::Dimensions::new()
+                        .with_network(card_network.clone())
+                        .get_network_tokenization_supported_card_network(
+                            state.store.as_ref(),
+                            state.superposition_service.as_ref(),
+                            None,
+                        )
+                }))
+                .await
+                .unwrap_or(false);
+
+            if is_network_supported {
                 let optional_card_cvc = Some(card_data.card_cvc.clone());
                 match network_tokenization::make_card_network_tokenization_request(
                     state,

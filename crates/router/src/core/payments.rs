@@ -825,7 +825,18 @@ where
         #[cfg(feature = "frm")]
         let mut should_continue_capture: bool = true;
         #[cfg(feature = "frm")]
-        let frm_configs = if state.conf.frm.enabled {
+        let new_dimensions = dimensions
+            .with_organization_id(platform.get_processor().get_account().get_org_id().clone());
+        #[cfg(feature = "frm")]
+        let is_frm_enabled = new_dimensions
+            .get_is_frm_enabled(
+                state.store.as_ref(),
+                state.superposition_service.as_ref(),
+                None,
+            )
+            .await;
+        #[cfg(feature = "frm")]
+        let frm_configs = if is_frm_enabled {
             match Box::pin(frm_core::call_frm_before_connector_call(
                 &operation,
                 platform,
@@ -1386,7 +1397,7 @@ where
                         .await?;
                     Box::pin(call_multiple_connectors_service(
                         state,
-                        platform.get_processor(),
+                        platform,
                         connectors,
                         &operation,
                         payment_data,
@@ -7058,7 +7069,7 @@ where
 #[allow(clippy::too_many_arguments)]
 pub async fn call_multiple_connectors_service<F, Op, Req, D>(
     state: &SessionState,
-    processor: &domain::Processor,
+    platform: &domain::Platform,
     connectors: api::SessionConnectorDatas,
     _operation: &Op,
     mut payment_data: D,
@@ -7086,6 +7097,7 @@ where
     for session_connector_data in connectors.iter() {
         let connector_id = session_connector_data.connector.connector.id();
 
+        let processor = platform.get_processor();
         let merchant_connector_account = construct_profile_id_and_get_mca(
             state,
             processor,
@@ -7177,7 +7189,7 @@ where
         if let Some(value) = business_profile.authentication_product_ids.clone() {
             let session_token = get_session_token_for_click_to_pay(
                 state,
-                processor,
+                platform,
                 value,
                 payment_data.get_payment_intent(),
                 business_profile.get_id(),
@@ -7267,11 +7279,12 @@ where
 #[cfg(feature = "v1")]
 pub async fn get_session_token_for_click_to_pay(
     state: &SessionState,
-    processor: &domain::Processor,
+    platform: &domain::Platform,
     authentication_product_ids: common_types::payments::AuthenticationConnectorAccountMap,
     payment_intent: &payments::PaymentIntent,
     profile_id: &id_type::ProfileId,
 ) -> RouterResult<api_models::payments::SessionToken> {
+    let processor = platform.get_processor();
     let click_to_pay_mca_id = authentication_product_ids
         .get_click_to_pay_connector_account_id()
         .change_context(errors::ApiErrorResponse::MissingRequiredField {
@@ -7323,7 +7336,7 @@ pub async fn get_session_token_for_click_to_pay(
     };
 
     let card_brands =
-        get_card_brands_based_on_active_merchant_connector_account(state, profile_id, processor)
+        get_card_brands_based_on_active_merchant_connector_account(state, profile_id, platform)
             .await?;
 
     Ok(api_models::payments::SessionToken::ClickToPay(Box::new(
@@ -7351,8 +7364,9 @@ pub async fn get_session_token_for_click_to_pay(
 async fn get_card_brands_based_on_active_merchant_connector_account(
     state: &SessionState,
     profile_id: &id_type::ProfileId,
-    processor: &domain::Processor,
+    platform: &domain::Platform,
 ) -> RouterResult<HashSet<enums::CardNetwork>> {
+    let processor = platform.get_processor();
     let merchant_configured_payment_connectors = state
         .store
         .list_enabled_connector_accounts_by_profile_id(
@@ -7364,24 +7378,26 @@ async fn get_card_brands_based_on_active_merchant_connector_account(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("error when fetching merchant connector accounts")?;
 
-    let payment_connectors_eligible_for_click_to_pay =
-        state.conf.authentication_providers.click_to_pay.clone();
-
-    let filtered_payment_connector_accounts: Vec<
-        hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccount,
-    > = merchant_configured_payment_connectors
-        .into_iter()
-        .filter(|account| {
-            enums::Connector::from_str(&account.connector_name)
-                .ok()
-                .map(|connector| payment_connectors_eligible_for_click_to_pay.contains(&connector))
-                .unwrap_or(false)
-        })
-        .collect();
-
     let mut card_brands = HashSet::new();
 
-    for account in filtered_payment_connector_accounts {
+    for account in merchant_configured_payment_connectors {
+        let Some(connector) = enums::Connector::from_str(&account.connector_name).ok() else {
+            continue;
+        };
+        let connector_dimensions = dimension_state::Dimensions::new()
+            .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
+            .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id())
+            .with_connector(connector);
+        let is_click_to_pay_eligible = connector_dimensions
+            .get_click_to_pay_supported_connector(
+                state.store.as_ref(),
+                state.superposition_service.as_ref(),
+                None,
+            )
+            .await;
+        if !is_click_to_pay_eligible {
+            continue;
+        }
         if let Some(values) = &account.payment_methods_enabled {
             for val in values {
                 let payment_methods_enabled: api_models::admin::PaymentMethodsEnabled =
@@ -10754,18 +10770,6 @@ pub enum ActionType {
     ConnectorMandate(hyperswitch_domain_models::mandates::PaymentsMandateReference),
 }
 
-pub fn filter_network_tokenization_supported_connectors(
-    connectors: Vec<api::ConnectorRoutingData>,
-    network_tokenization_supported_connectors: &HashSet<enums::Connector>,
-) -> Vec<api::ConnectorRoutingData> {
-    connectors
-        .into_iter()
-        .filter(|data| {
-            network_tokenization_supported_connectors.contains(&data.connector_data.connector_name)
-        })
-        .collect()
-}
-
 #[cfg(feature = "v1")]
 #[derive(Default)]
 pub struct ActionTypesBuilder {
@@ -10899,6 +10903,7 @@ pub async fn get_all_action_types(
 
     //fetch connectors that support ntid flow
     let is_network_transaction_id_supported_connector = new_dimensions
+        .clone()
         .get_network_transaction_id_supported_connector(
             state.store.as_ref(),
             state.superposition_service.as_ref(),
@@ -10907,10 +10912,14 @@ pub async fn get_all_action_types(
         .await;
 
     //fetch connectors that support network tokenization flow
-    let network_tokenization_supported_connectors = &state
-        .conf
-        .network_tokenization_supported_connectors
-        .connector_list;
+    let is_network_tokenization_supported_connector = new_dimensions
+        .clone()
+        .get_network_tokenization_supported_connector(
+            state.store.as_ref(),
+            state.superposition_service.as_ref(),
+            None,
+        )
+        .await;
 
     let is_network_token_with_ntid_flow = is_network_token_with_network_transaction_id_flow(
         is_payment_method_modular_allowed,
@@ -10942,7 +10951,7 @@ pub async fn get_all_action_types(
         .unwrap_or(false);
 
     let is_nt_with_ntid_supported_connector = is_network_transaction_id_supported_connector
-        && network_tokenization_supported_connectors.contains(&connector.connector_name);
+        && is_network_tokenization_supported_connector;
 
     ActionTypesBuilder::new()
         .with_mandate_flow(is_mandate_flow, payments_mandate_reference)

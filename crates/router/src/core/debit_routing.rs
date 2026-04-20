@@ -12,12 +12,15 @@ use super::{
 };
 use crate::{
     core::{
+        configs::{
+            dimension_config::DebitRoutingSupported, dimension_state,
+            fetch_db_config_for_dimensions,
+        },
         errors,
         payments::{operations::BoxedOperation, routing},
     },
     logger,
     routes::SessionState,
-    settings,
     types::{
         api::{self, ConnectorCallType},
         domain,
@@ -28,6 +31,34 @@ use crate::{
 pub struct DebitRoutingResult {
     pub debit_routing_connector_call_type: ConnectorCallType,
     pub debit_routing_output: open_router::DebitRoutingOutput,
+}
+
+async fn is_connector_debit_routing_supported(
+    state: &SessionState,
+    connector: api_enums::Connector,
+) -> bool {
+    let dimensions = dimension_state::Dimensions::new().with_connector(connector);
+    fetch_db_config_for_dimensions::<DebitRoutingSupported>(
+        state.store.as_ref(),
+        state.superposition_service.as_ref(),
+        &dimensions,
+        None::<&id_type::PaymentId>,
+    )
+    .await
+}
+
+async fn is_currency_debit_routing_supported(
+    state: &SessionState,
+    currency: enums::Currency,
+) -> bool {
+    let dimensions = dimension_state::Dimensions::new().with_currency(currency);
+    fetch_db_config_for_dimensions::<DebitRoutingSupported>(
+        state.store.as_ref(),
+        state.superposition_service.as_ref(),
+        &dimensions,
+        None::<&id_type::PaymentId>,
+    )
+    .await
 }
 
 pub async fn perform_debit_routing<F, Req, D>(
@@ -47,9 +78,6 @@ where
     let mut debit_routing_output = None;
 
     if should_execute_debit_routing(state, business_profile, operation, payment_data).await {
-        let debit_routing_config = state.conf.debit_routing_config.clone();
-        let debit_routing_supported_connectors = debit_routing_config.supported_connectors.clone();
-
         // If the business profile does not have a country set, we cannot perform debit routing,
         // because the merchant_business_country will be treated as the acquirer_country,
         // which is used to determine whether a transaction is local or global in the open router.
@@ -66,7 +94,6 @@ where
                     logger::info!("Performing debit routing for PreDetermined connector");
                     handle_pre_determined_connector(
                         state,
-                        debit_routing_supported_connectors,
                         &connector_data,
                         payment_data,
                         acquirer_country,
@@ -77,7 +104,6 @@ where
                     logger::info!("Performing debit routing for Retryable connector");
                     handle_retryable_connector(
                         state,
-                        debit_routing_supported_connectors,
                         connector_data,
                         payment_data,
                         acquirer_country,
@@ -124,10 +150,7 @@ where
     if business_profile.is_debit_routing_enabled && state.conf.open_router.dynamic_routing_enabled {
         logger::info!("Debit routing is enabled for the profile");
 
-        let debit_routing_config = &state.conf.debit_routing_config;
-
-        if should_perform_debit_routing_for_the_flow(operation, payment_data, debit_routing_config)
-        {
+        if should_perform_debit_routing_for_the_flow(state, operation, payment_data).await {
             let is_debit_routable_connector_present = check_for_debit_routing_connector_in_profile(
                 state,
                 business_profile.get_id(),
@@ -144,10 +167,10 @@ where
     false
 }
 
-pub fn should_perform_debit_routing_for_the_flow<Op: Debug, F: Clone, D>(
+pub async fn should_perform_debit_routing_for_the_flow<Op: Debug, F: Clone, D>(
+    state: &SessionState,
     operation: &Op,
     payment_data: &D,
-    debit_routing_config: &settings::DebitRoutingConfig,
 ) -> bool
 where
     D: OperationSessionGetters<F> + Send + Sync + Clone,
@@ -156,45 +179,32 @@ where
         "PaymentConfirm" => {
             logger::info!("Checking if debit routing is required");
 
-            request_validation(payment_data, debit_routing_config)
+            request_validation(state, payment_data).await
         }
         _ => false,
     }
 }
 
-fn request_validation<F: Clone, D>(
-    payment_data: &D,
-    debit_routing_config: &settings::DebitRoutingConfig,
-) -> bool
+async fn request_validation<F: Clone, D>(state: &SessionState, payment_data: &D) -> bool
 where
     D: OperationSessionGetters<F> + Send + Sync + Clone,
 {
     let payment_intent = payment_data.get_payment_intent();
     let payment_attempt = payment_data.get_payment_attempt();
 
-    let is_currency_supported = is_currency_supported(payment_intent, debit_routing_config);
+    let is_supported_currency = if let Some(currency) = payment_intent.currency {
+        is_currency_debit_routing_supported(state, currency).await
+    } else {
+        false
+    };
 
     let is_valid_payment_method = validate_payment_method_for_debit_routing(payment_data);
 
     payment_intent.setup_future_usage != Some(enums::FutureUsage::OffSession)
         && payment_intent.amount.is_greater_than(0)
-        && is_currency_supported
+        && is_supported_currency
         && payment_attempt.authentication_type == Some(enums::AuthenticationType::NoThreeDs)
         && is_valid_payment_method
-}
-
-fn is_currency_supported(
-    payment_intent: &hyperswitch_domain_models::payments::PaymentIntent,
-    debit_routing_config: &settings::DebitRoutingConfig,
-) -> bool {
-    payment_intent
-        .currency
-        .map(|currency| {
-            debit_routing_config
-                .supported_currencies
-                .contains(&currency)
-        })
-        .unwrap_or(false)
 }
 
 fn validate_payment_method_for_debit_routing<F: Clone, D>(payment_data: &D) -> bool
@@ -236,8 +246,6 @@ pub async fn check_for_debit_routing_connector_in_profile<
     payment_data: &D,
 ) -> bool {
     logger::debug!("Checking for debit routing connector in profile");
-    let debit_routing_supported_connectors =
-        state.conf.debit_routing_config.supported_connectors.clone();
 
     let transaction_data = super::routing::PaymentsDslInput::new(
         payment_data.get_setup_mandate(),
@@ -261,22 +269,21 @@ pub async fn check_for_debit_routing_connector_in_profile<
     })
     .ok();
 
-    let is_debit_routable_connector_present = fallback_config_optional
-        .map(|fallback_config| {
-            fallback_config.iter().any(|fallback_config_connector| {
-                debit_routing_supported_connectors.contains(&api_enums::Connector::from(
-                    fallback_config_connector.connector,
-                ))
-            })
-        })
-        .unwrap_or(false);
+    let is_debit_routable_connector_present = match fallback_config_optional {
+        Some(fallback_config) => futures::future::join_all(fallback_config.iter().map(|fc| {
+            is_connector_debit_routing_supported(state, api_enums::Connector::from(fc.connector))
+        }))
+        .await
+        .into_iter()
+        .any(|supported| supported),
+        None => false,
+    };
 
     is_debit_routable_connector_present
 }
 
 async fn handle_pre_determined_connector<F, D>(
     state: &SessionState,
-    debit_routing_supported_connectors: HashSet<api_enums::Connector>,
     connector_data: &api::ConnectorRoutingData,
     payment_data: &mut D,
     acquirer_country: enums::CountryAlpha2,
@@ -292,7 +299,9 @@ where
         .clone();
     let profile_id = payment_data.get_payment_attempt().profile_id.clone();
 
-    if debit_routing_supported_connectors.contains(&connector_data.connector_data.connector_name) {
+    if is_connector_debit_routing_supported(state, connector_data.connector_data.connector_name)
+        .await
+    {
         logger::debug!("Chosen connector is supported for debit routing");
 
         let debit_routing_output =
@@ -544,7 +553,6 @@ where
 
 async fn handle_retryable_connector<F, D>(
     state: &SessionState,
-    debit_routing_supported_connectors: HashSet<api_enums::Connector>,
     connector_data_list: Vec<api::ConnectorRoutingData>,
     payment_data: &mut D,
     acquirer_country: enums::CountryAlpha2,
@@ -560,10 +568,15 @@ where
         .processor_merchant_id
         .clone();
     let is_any_debit_routing_connector_supported =
-        connector_data_list.iter().any(|connector_data| {
-            debit_routing_supported_connectors
-                .contains(&connector_data.connector_data.connector_name)
-        });
+        futures::future::join_all(connector_data_list.iter().map(|connector_data| {
+            is_connector_debit_routing_supported(
+                state,
+                connector_data.connector_data.connector_name,
+            )
+        }))
+        .await
+        .into_iter()
+        .any(|supported| supported);
 
     if is_any_debit_routing_connector_supported {
         let debit_routing_output =
@@ -622,19 +635,29 @@ async fn build_connector_routing_data(
     eligible_connector_data_list: Vec<api::ConnectorRoutingData>,
     fee_sorted_debit_networks: Vec<common_enums::CardNetwork>,
 ) -> CustomResult<Vec<api::ConnectorRoutingData>, errors::ApiErrorResponse> {
-    let debit_routing_config = &state.conf.debit_routing_config;
-
     let mcas_for_profile = fetch_merchant_connector_accounts(state, profile_id, key_store).await?;
+
+    // Pre-fetch routing support for all connectors in parallel
+    let connector_support: Vec<bool> =
+        futures::future::join_all(eligible_connector_data_list.iter().map(|connector_data| {
+            is_connector_debit_routing_supported(
+                state,
+                connector_data.connector_data.connector_name,
+            )
+        }))
+        .await;
 
     let mut connector_routing_data = Vec::new();
     let mut has_us_local_network = false;
 
-    for connector_data in eligible_connector_data_list {
+    for (connector_data, is_routing_enabled) in
+        eligible_connector_data_list.iter().zip(connector_support)
+    {
         if let Some(routing_data) = process_connector_for_networks(
-            &connector_data,
+            connector_data,
             &mcas_for_profile,
             &fee_sorted_debit_networks,
-            debit_routing_config,
+            is_routing_enabled,
             &mut has_us_local_network,
         )? {
             connector_routing_data.extend(routing_data);
@@ -668,7 +691,7 @@ fn process_connector_for_networks(
     connector_data: &api::ConnectorRoutingData,
     mcas_for_profile: &[domain::MerchantConnectorAccount],
     fee_sorted_debit_networks: &[common_enums::CardNetwork],
-    debit_routing_config: &settings::DebitRoutingConfig,
+    is_routing_enabled: bool,
     has_us_local_network: &mut bool,
 ) -> CustomResult<Option<Vec<api::ConnectorRoutingData>>, errors::ApiErrorResponse> {
     let Some(merchant_connector_id) = &connector_data.connector_data.merchant_connector_id else {
@@ -690,7 +713,7 @@ fn process_connector_for_networks(
         &merchant_debit_networks,
         fee_sorted_debit_networks,
         connector_data,
-        debit_routing_config,
+        is_routing_enabled,
         has_us_local_network,
     );
 
@@ -712,13 +735,9 @@ fn find_matching_networks(
     merchant_debit_networks: &HashSet<common_enums::CardNetwork>,
     fee_sorted_debit_networks: &[common_enums::CardNetwork],
     connector_routing_data: &api::ConnectorRoutingData,
-    debit_routing_config: &settings::DebitRoutingConfig,
+    is_routing_enabled: bool,
     has_us_local_network: &mut bool,
 ) -> Vec<api::ConnectorRoutingData> {
-    let is_routing_enabled = debit_routing_config
-        .supported_connectors
-        .contains(&connector_routing_data.connector_data.connector_name.clone());
-
     fee_sorted_debit_networks
         .iter()
         .filter(|network| merchant_debit_networks.contains(network))

@@ -2416,8 +2416,7 @@ pub enum VaultFetchAction {
 pub fn decide_payment_method_retrieval_action(
     is_network_tokenization_enabled: bool,
     mandate_id: Option<api_models::payments::MandateIds>,
-    connector: Option<api_enums::Connector>,
-    network_tokenization_supported_connectors: &HashSet<api_enums::Connector>,
+    is_network_tokenization_supported_connector: bool,
     should_retry_with_pan: bool,
     network_token_requestor_ref_id: Option<String>,
 ) -> VaultFetchAction {
@@ -2425,8 +2424,7 @@ pub fn decide_payment_method_retrieval_action(
         determine_standard_vault_action(
             is_network_tokenization_enabled,
             mandate_id,
-            connector,
-            network_tokenization_supported_connectors,
+            is_network_tokenization_supported_connector,
             network_token_requestor_ref_id,
         )
     };
@@ -2645,8 +2643,7 @@ pub async fn should_execute_based_on_rollout(
 pub fn determine_standard_vault_action(
     is_network_tokenization_enabled: bool,
     mandate_id: Option<api_models::payments::MandateIds>,
-    connector: Option<api_enums::Connector>,
-    network_tokenization_supported_connectors: &HashSet<api_enums::Connector>,
+    is_network_tokenization_supported_connector: bool,
     network_token_requestor_ref_id: Option<String>,
 ) -> VaultFetchAction {
     let is_network_transaction_id_flow = mandate_id
@@ -2678,9 +2675,8 @@ pub fn determine_standard_vault_action(
             },
             None => {
                 //saved card flow
-                let is_network_token_supported_connector = connector
-                    .map(|conn| network_tokenization_supported_connectors.contains(&conn))
-                    .unwrap_or(false);
+                let is_network_token_supported_connector =
+                    is_network_tokenization_supported_connector;
 
                 match (
                     is_network_token_supported_connector,
@@ -2723,11 +2719,6 @@ pub async fn retrieve_payment_method_data_with_permanent_token(
             message: "no customer id provided for the payment".to_string(),
         })?;
 
-    let network_tokenization_supported_connectors = &state
-        .conf
-        .network_tokenization_supported_connectors
-        .connector_list;
-
     let connector_variant = connector
         .as_ref()
         .map(|conn| {
@@ -2739,11 +2730,27 @@ pub async fn retrieve_payment_method_data_with_permanent_token(
         })
         .transpose()?;
 
+    let is_network_tokenization_supported_connector =
+        if let Some(connector_name) = connector_variant {
+            dimension_state::Dimensions::new()
+                .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
+                .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id())
+                .with_connector(connector_name)
+                .with_profile_id(business_profile.get_id().clone())
+                .get_network_tokenization_supported_connector(
+                    state.store.as_ref(),
+                    state.superposition_service.as_ref(),
+                    None,
+                )
+                .await
+        } else {
+            false
+        };
+
     let vault_fetch_action = decide_payment_method_retrieval_action(
         business_profile.is_network_tokenization_enabled,
         mandate_id,
-        connector_variant,
-        network_tokenization_supported_connectors,
+        is_network_tokenization_supported_connector,
         should_retry_with_pan,
         payment_method_info
             .network_token_requestor_reference_id

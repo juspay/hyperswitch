@@ -593,8 +593,6 @@ pub(crate) async fn fetch_raw_secrets(
         opensearch: conf.opensearch,
         #[cfg(feature = "kv_store")]
         kv_config: conf.kv_config,
-        #[cfg(feature = "frm")]
-        frm: conf.frm,
         #[cfg(feature = "olap")]
         report_download_config: conf.report_download_config,
         events: conf.events,
@@ -611,19 +609,12 @@ pub(crate) async fn fetch_raw_secrets(
         crm: conf.crm,
         #[cfg(feature = "v2")]
         cell_information: conf.cell_information,
-        network_tokenization_supported_card_networks: conf
-            .network_tokenization_supported_card_networks,
         network_tokenization_service,
-        network_tokenization_supported_connectors: conf.network_tokenization_supported_connectors,
         theme: conf.theme,
         platform: conf.platform,
-        l2_l3_data_config: conf.l2_l3_data_config,
-        authentication_providers: conf.authentication_providers,
         open_router: conf.open_router,
         #[cfg(feature = "v2")]
         revenue_recovery: conf.revenue_recovery,
-        merchant_advice_codes: conf.merchant_advice_codes,
-        debit_routing_config: conf.debit_routing_config,
         clone_connector_allowlist: conf.clone_connector_allowlist,
         merchant_id_auth: conf.merchant_id_auth,
         internal_merchant_id_profile_id_auth: conf.internal_merchant_id_profile_id_auth,
@@ -635,7 +626,6 @@ pub(crate) async fn fetch_raw_secrets(
         micro_services: conf.micro_services,
         superposition,
         comparison_service: conf.comparison_service,
-        authentication_service_enabled_connectors: conf.authentication_service_enabled_connectors,
         save_payment_method_on_session: conf.save_payment_method_on_session,
     }
 }
