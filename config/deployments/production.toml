@@ -92,6 +92,7 @@ hipay.secondary_base_url = "https://secure2-vault.hipay-tpp.com/rest/"
 hipay.third_base_url = "https://api-gateway.hipay.com/"
 hyperwallet.base_url = "https://uat-api.paylution.com"
 iatapay.base_url = "https://iata-pay.iata.org/api/v1"
+imerchantsolutions.base_url = "https://imerchantsolutions.com/api"
 inespay.base_url = "https://apiflow.inespay.com/san/v21"
 itaubank.base_url = "https://secure.api.itau/"
 jpmorgan.base_url = "https://api-ms.payments.jpmorgan.com/api/v2"
@@ -1008,7 +1009,7 @@ click_to_pay = {connector_list = "adyen, cybersource, trustpay"}
 connector_list = "juspaythreedsserver, ctp_mastercard, ctp_visa"
 
 [grpc_client.unified_connector_service]
-ucs_only_connectors = "paytm, phonepe, hyperpg, revolv3, fiservcommercehub"    # Comma-separated list of connectors that use UCS only
+ucs_only_connectors = "imerchantsolutions, paytm, phonepe, hyperpg, revolv3, fiservcommercehub"    # Comma-separated list of connectors that use UCS only
 ucs_psync_disabled_connectors = "cashtocode, trustly"    # Comma-separated list of connectors to disable UCS PSync call
 
 # Merchant Advice Code Configuration

@@ -587,6 +587,15 @@ impl<Pm, M, O, P, Cn, Cu, PRT> DimensionsBase for Dimensions<Pm, M, O, P, Cn, Cu
 }
 
 // Type aliases
+pub type DimensionsWithProviderMerchantId = Dimensions<
+    HasProviderMerchantId,
+    NoProcessorMerchantId,
+    NoOrgId,
+    NoProfileId,
+    NoConnector,
+    NoPayoutRetryType,
+>;
+// Type aliases - both provider and processor merchant IDs present
 pub type DimensionsWithProcessorAndProviderMerchantId = Dimensions<
     HasProviderMerchantId,
     HasProcessorMerchantId,
@@ -603,6 +612,14 @@ pub type DimensionsWithProcessorAndProviderMerchantIdAndProfileId = Dimensions<
     HasProfileId,
     NoConnector,
     NoCurrency,
+    NoPayoutRetryType,
+>;
+pub type DimensionsWithOrgId = Dimensions<
+    NoProviderMerchantId,
+    NoProcessorMerchantId,
+    HasOrgId,
+    NoProfileId,
+    NoConnector,
     NoPayoutRetryType,
 >;
 pub type DimensionsWithProcessorAndProviderMerchantIdAndConnector = Dimensions<

@@ -225,6 +225,7 @@ pub trait GetTracker<F: Clone, D, R>: Send {
         #[cfg(feature = "pm_modular")] payment_method_with_raw_data: Option<
             PaymentMethodWithRawData,
         >,
+        dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
     ) -> RouterResult<GetTrackerResponse<'a, F, R, D>>;
 
     #[cfg(feature = "v2")]
