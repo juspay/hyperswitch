@@ -289,10 +289,7 @@ pub async fn form_payment_link_data(
         order_details,
         return_url,
         session_expiry,
-        pub_key: processor
-            .get_account()
-            .publishable_key
-            .to_owned(),
+        pub_key: processor.get_account().publishable_key.to_owned(),
         client_secret,
         merchant_logo: payment_link_config.logo.clone(),
         max_items_visible_after_collapse: 3,
@@ -522,7 +519,7 @@ pub async fn list_payment_link(
 ) -> RouterResponse<Vec<api_models::payments::RetrievePaymentLinkResponse>> {
     let db = state.store.as_ref();
     let payment_link = db
-        .list_payment_link_by_merchant_id(merchant.get_id(), constraints)
+        .list_payment_link_by_processor_merchant_id(merchant.get_id(), constraints)
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Unable to retrieve payment link")?;

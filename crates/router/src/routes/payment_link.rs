@@ -19,7 +19,10 @@ pub async fn payment_link_retrieve(
 ) -> impl Responder {
     let flow = Flow::PaymentLinkRetrieve;
     let payload = json_payload.into_inner();
-    let api_auth = auth::ApiKeyAuth::default();
+    let api_auth = auth::ApiKeyAuth {
+        allow_connected_scope_operation: true,
+        allow_platform_self_operation: false,
+    };
 
     let (auth_type, _) = {
         #[cfg(feature = "v1")]
