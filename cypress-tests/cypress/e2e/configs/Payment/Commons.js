@@ -1049,6 +1049,42 @@ export const connectorDetails = {
         },
       },
     }),
+    StepUpRetries: getCustomExchange({
+      Request: {
+        connector: "cybersource",
+        flow: "Authorize",
+        sub_flow: "Debit",
+        code: "201",
+        message: "Insufficient funds",
+        status: "failure",
+        decision: "retry",
+        step_up_possible: true,
+        clear_pan_possible: false,
+        alternate_network_possible: false,
+      },
+      Response: {
+        status: 200,
+        body: {
+          connector: "cybersource",
+          flow: "Authorize",
+          sub_flow: "Debit",
+          code: "201",
+          message: "Insufficient funds",
+          status: "failure",
+          decision: "retry",
+          step_up_possible: true,
+          feature: "retry",
+          feature_data: {
+            retry: {
+              step_up_possible: true,
+              clear_pan_possible: false,
+              alternate_network_possible: false,
+              decision: "retry",
+            },
+          },
+        },
+      },
+    }),
     Capture: getCustomExchange({
       Request: {
         amount_to_capture: 6000,
