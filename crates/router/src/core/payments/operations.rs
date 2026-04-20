@@ -337,17 +337,6 @@ pub trait Domain<F: Clone, R, D>: Send + Sync {
         Ok(None)
     }
 
-    #[cfg(not(feature = "v1"))]
-    async fn fetch_payment_method(
-        &self,
-        _state: &SessionState,
-        _request: &R,
-        _platform: &domain::Platform,
-        _feature_config: &core_utils::FeatureConfig,
-    ) -> RouterResult<Option<()>> {
-        Ok(None)
-    }
-
     #[allow(clippy::too_many_arguments)]
     async fn make_pm_data<'a>(
         &'a self,
@@ -637,7 +626,7 @@ pub trait PostUpdateTracker<F, D, R: Send>: Send {
         _initiator: Option<&domain::Initiator>,
         _payment_data: &D,
         _router_data: &types::RouterData<F, R, PaymentsResponseData>,
-        _feature_set: &core_utils::FeatureConfig,
+        _feature_config: &core_utils::FeatureConfig,
     ) -> RouterResult<()>
     where
         F: 'b + Clone + Send + Sync,
@@ -645,6 +634,7 @@ pub trait PostUpdateTracker<F, D, R: Send>: Send {
         Ok(())
     }
 
+    #[cfg(feature = "v1")]
     async fn update_modular_pm_and_mandate<'b>(
         &self,
         _state: &SessionState,
