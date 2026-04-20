@@ -66,6 +66,10 @@ describe("Dynamic Fields Verification", () => {
           ]["PmListResponse"]["pmListDynamicFieldWithoutBilling"];
           cy.paymentMethodListTestWithRequiredFields(data, globalState);
         });
+
+        it("Delete Business Profile", () => {
+          cy.deleteBusinessProfileTest(globalState);
+        });
       }
     );
 
