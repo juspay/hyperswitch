@@ -14,7 +14,6 @@ describe("Dynamic Fields Verification", () => {
 
     after("flush global state and cleanup", () => {
       cy.task("setGlobalState", globalState.data);
-      cy.deleteBusinessProfileTest(globalState);
     });
 
     context(
@@ -65,6 +64,10 @@ describe("Dynamic Fields Verification", () => {
             "pm_list"
           ]["PmListResponse"]["pmListDynamicFieldWithoutBilling"];
           cy.paymentMethodListTestWithRequiredFields(data, globalState);
+        });
+
+        it("Delete Business Profile", () => {
+          cy.deleteBusinessProfileTest(globalState);
         });
       }
     );
