@@ -1742,7 +1742,7 @@ export const connectorDetails = {
           error: {
             type: "invalid_request",
             message: "Selected payment method through Adyen is not implemented",
-            code: "IR_19",
+            code: "IR_00",
           },
         },
       },
