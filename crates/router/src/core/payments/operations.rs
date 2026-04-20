@@ -314,6 +314,7 @@ pub trait Domain<F: Clone, R, D>: Send + Sync {
     ) -> CustomResult<(), errors::ApiErrorResponse> {
         Ok(())
     }
+    #[cfg(feature = "v1")]
     async fn create_payment_method(
         &self,
         _state: &SessionState,
