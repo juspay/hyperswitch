@@ -1,6 +1,6 @@
 use std::{collections::HashMap, ops::Deref};
 
-#[cfg(all(feature = "v1", feature = "pm_modular"))]
+#[cfg(feature = "v1")]
 use ::payment_methods::client::{
     BankDebitDetailUpdate, CardDetailUpdate, PaymentMethodUpdateData, UpdatePaymentMethodV1Payload,
 };
@@ -8,9 +8,7 @@ use api_models::payments::{ConnectorMandateReferenceId, MandateReferenceId};
 #[cfg(feature = "dynamic_routing")]
 use api_models::routing::RoutableConnectorChoice;
 use async_trait::async_trait;
-use common_enums::AuthorizationStatus;
-#[cfg(all(feature = "v1", feature = "pm_modular"))]
-use common_enums::{ConnectorTokenStatus, TokenizationType};
+use common_enums::{AuthorizationStatus, ConnectorTokenStatus, TokenizationType};
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 use common_utils::ext_traits::ValueExt;
 use common_utils::{
@@ -32,7 +30,7 @@ use router_env::{instrument, logger, tracing};
 use tracing_futures::Instrument;
 
 use super::{Operation, OperationSessionSetters, PostUpdateTracker};
-#[cfg(all(feature = "v1", feature = "pm_modular"))]
+#[cfg(feature = "v1")]
 use crate::core::payment_methods::transformers::call_modular_payment_method_update;
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 use crate::core::routing::helpers as routing_helpers;
@@ -69,7 +67,7 @@ use crate::{
 /// This implementation executes the flow only when
 /// 1. Payment was created with supported payment methods
 /// 2. Payment attempt's status was not a terminal failure
-#[cfg(all(feature = "v1", feature = "pm_modular"))]
+#[cfg(feature = "v1")]
 async fn update_modular_pm_and_mandate_impl<F, T>(
     state: &SessionState,
     resp: &types::RouterData<F, T, types::PaymentsResponseData>,
@@ -743,39 +741,25 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
             types::PaymentsAuthorizeData,
             types::PaymentsResponseData,
         >,
-        #[cfg(feature = "pm_modular")] feature_set: &core_utils::FeatureConfig,
+        feature_set: &core_utils::FeatureConfig,
     ) -> RouterResult<()>
     where
         F: 'b + Clone + Send + Sync,
     {
-        #[cfg(feature = "pm_modular")]
-        {
-            if !feature_set.is_payment_method_modular_allowed {
-                return update_pm_connector_mandate_details(
-                    state,
-                    provider,
-                    initiator,
-                    payment_data,
-                    router_data,
-                )
-                .await;
-            }
-            Ok(())
-        }
-        #[cfg(not(feature = "pm_modular"))]
-        {
-            update_pm_connector_mandate_details(
+        if !feature_set.is_payment_method_modular_allowed {
+            return update_pm_connector_mandate_details(
                 state,
                 provider,
                 initiator,
                 payment_data,
                 router_data,
             )
-            .await
+            .await;
         }
+        Ok(())
     }
 
-    #[cfg(all(feature = "v1", feature = "pm_modular"))]
+    #[cfg(feature = "v1")]
     async fn update_modular_pm_and_mandate<'b>(
         &self,
         state: &SessionState,
@@ -1057,39 +1041,25 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsSyncData> for
         initiator: Option<&domain::Initiator>,
         payment_data: &PaymentData<F>,
         router_data: &types::RouterData<F, types::PaymentsSyncData, types::PaymentsResponseData>,
-        #[cfg(feature = "pm_modular")] feature_set: &core_utils::FeatureConfig,
+        feature_set: &core_utils::FeatureConfig,
     ) -> RouterResult<()>
     where
         F: 'b + Clone + Send + Sync,
     {
-        #[cfg(feature = "pm_modular")]
-        {
-            if !feature_set.is_payment_method_modular_allowed {
-                return update_pm_connector_mandate_details(
-                    state,
-                    provider,
-                    initiator,
-                    payment_data,
-                    router_data,
-                )
-                .await;
-            }
-            Ok(())
-        }
-        #[cfg(not(feature = "pm_modular"))]
-        {
-            update_pm_connector_mandate_details(
+        if !feature_set.is_payment_method_modular_allowed {
+            return update_pm_connector_mandate_details(
                 state,
                 provider,
                 initiator,
                 payment_data,
                 router_data,
             )
-            .await
+            .await;
         }
+        Ok(())
     }
 
-    #[cfg(all(feature = "v1", feature = "pm_modular"))]
+    #[cfg(feature = "v1")]
     async fn update_modular_pm_and_mandate<'b>(
         &self,
         state: &SessionState,
@@ -1819,7 +1789,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::SetupMandateRequestDa
             types::SetupMandateRequestData,
             types::PaymentsResponseData,
         >,
-        #[cfg(feature = "pm_modular")] _feature_set: &core_utils::FeatureConfig,
+        _feature_set: &core_utils::FeatureConfig,
     ) -> RouterResult<()>
     where
         F: 'b + Clone + Send + Sync,
@@ -1827,7 +1797,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::SetupMandateRequestDa
         update_pm_connector_mandate_details(state, provider, initiator, payment_data, router_data)
             .await
     }
-    #[cfg(all(feature = "v1", feature = "pm_modular"))]
+    #[cfg(feature = "v1")]
     async fn update_modular_pm_and_mandate<'b>(
         &self,
         state: &SessionState,
@@ -1945,39 +1915,25 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::CompleteAuthorizeData
             types::CompleteAuthorizeData,
             types::PaymentsResponseData,
         >,
-        #[cfg(feature = "pm_modular")] feature_set: &core_utils::FeatureConfig,
+        feature_set: &core_utils::FeatureConfig,
     ) -> RouterResult<()>
     where
         F: 'b + Clone + Send + Sync,
     {
-        #[cfg(feature = "pm_modular")]
-        {
-            if !feature_set.is_payment_method_modular_allowed {
-                return update_pm_connector_mandate_details(
-                    state,
-                    provider,
-                    initiator,
-                    payment_data,
-                    router_data,
-                )
-                .await;
-            }
-            Ok(())
-        }
-        #[cfg(not(feature = "pm_modular"))]
-        {
-            update_pm_connector_mandate_details(
+        if !feature_set.is_payment_method_modular_allowed {
+            return update_pm_connector_mandate_details(
                 state,
                 provider,
                 initiator,
                 payment_data,
                 router_data,
             )
-            .await
+            .await;
         }
+        Ok(())
     }
 
-    #[cfg(all(feature = "v1", feature = "pm_modular"))]
+    #[cfg(feature = "v1")]
     async fn update_modular_pm_and_mandate<'b>(
         &self,
         state: &SessionState,
