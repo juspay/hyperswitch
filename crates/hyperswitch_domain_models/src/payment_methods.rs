@@ -423,7 +423,8 @@ impl
                     bank_account_holder_name: bank_account_holder_name.clone(),
                 },
             )),
-            payment_methods::PaymentMethodCreateData::ProxyCard(_) => None,
+            payment_methods::PaymentMethodCreateData::ProxyCard(_)
+            | payment_methods::PaymentMethodCreateData::Wallet(_) => None,
         };
 
         Self {

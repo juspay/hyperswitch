@@ -115,3 +115,27 @@ schema = { type = "integer", minimum = 0, maximum = 4294967295 }
 description = "Maximum auto payout retries, differentiated by payout_retry_type dimension (single_connector or multi_connector)"
 change_reason = "Initial setup"
 
+[default-configs.gsm_payout_call]
+value = false
+schema = { type = "boolean" }
+description = "Whether to call GSM for payout retries"
+change_reason = "Initial setup"
+
+[default-configs.should_disable_vault_tokenization]
+value = false
+schema = { type = "boolean" }
+description = "Whether to disable vault tokenization for a merchant"
+change_reason = "Initial setup"
+
+[default-configs.should_call_pm_modular_service]
+value = false
+schema = { type = "boolean" }
+description = "Whether to call the PM modular service for an organization"
+change_reason = "Initial setup"
+
+[default-configs.should_return_raw_payment_method_details]
+value = false
+schema = { type = "boolean" }
+description = "Whether to return raw payment method details (v2 only)"
+change_reason = "Initial setup"
+

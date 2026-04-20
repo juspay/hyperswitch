@@ -1,4 +1,5 @@
 use common_utils::errors::CustomResult;
+use common_enums;
 use external_services::superposition;
 use scheduler::consumer::types::process_data::RetryMapping;
 
@@ -229,7 +230,7 @@ config! {
     superposition_key = SHOULD_PERFORM_ELIGIBILITY,
     output = bool,
     default = false,
-    requires = dimension_state::DimensionsWithProcessorAndProviderMerchantId,
+    requires = dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
     targeting_key = id_type::CustomerId
 }
 
@@ -305,6 +306,93 @@ writable_config! {
     superposition_key = FINGERPRINT_SECRET,
     input = String,
     requires = dimension_state::DimensionsWithProcessorAndProviderMerchantId
+}
+
+config! {
+    superposition_key = GSM_PAYOUT_CALL,
+    output = bool,
+    default = false,
+    requires = dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndPayoutRetryType,
+    targeting_key = id_type::CustomerId
+}
+
+impl DatabaseBackedConfig for GsmPayoutCall {
+    const KEY: &'static str = "gsm_payout_call";
+
+    fn db_key(dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
+        dimensions
+            .get_processor_merchant_id()
+            .and_then(|merchant_id| {
+                dimensions
+                    .get_payout_retry_type()
+                    .map(|retry_type| match retry_type {
+                        common_enums::PayoutRetryType::SingleConnector => format!(
+                            "should_call_gsm_single_connector_payout_{}",
+                            merchant_id.get_string_repr()
+                        ),
+                        common_enums::PayoutRetryType::MultiConnector => format!(
+                            "should_call_gsm_multiple_connector_payout_{}",
+                            merchant_id.get_string_repr()
+                        ),
+                    })
+            })
+    }
+}
+
+config! {
+    superposition_key = SHOULD_DISABLE_VAULT_TOKENIZATION,
+    output = bool,
+    default = false,
+    requires = dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
+    targeting_key = id_type::CustomerId
+}
+
+impl DatabaseBackedConfig for ShouldDisableVaultTokenization {
+    const KEY: &'static str = "should_disable_vault_tokenization";
+
+    fn db_key(dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
+        dimensions
+            .get_processor_merchant_id()
+            .map(|id| format!("{}_{}", Self::KEY, id.get_string_repr()))
+    }
+}
+
+#[cfg(feature = "v2")]
+config! {
+    superposition_key = SHOULD_RETURN_RAW_PAYMENT_METHOD_DETAILS,
+    output = bool,
+    default = false,
+    requires = dimension_state::DimensionsWithProviderMerchantId,
+    targeting_key = id_type::GlobalCustomerId
+}
+
+#[cfg(feature = "v2")]
+impl DatabaseBackedConfig for ShouldReturnRawPaymentMethodDetails {
+    const KEY: &'static str = "should_return_raw_payment_method_details";
+
+    fn db_key(dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
+        dimensions
+            .get_provider_merchant_id()
+            .map(|id| format!("{}_{}", Self::KEY, id.get_string_repr()))
+    }
+}
+
+config! {
+    superposition_key = SHOULD_CALL_PM_MODULAR_SERVICE,
+    output = bool,
+    default = false,
+    requires = dimension_state::DimensionsWithOrgId,
+    targeting_key = id_type::CustomerId
+}
+
+impl DatabaseBackedConfig for ShouldCallPmModularService {
+    const KEY: &'static str = "should_call_pm_modular_service";
+
+    fn db_key(dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
+        dimensions
+            .get_organization_id()
+            .map(|id| format!("{}_{}", Self::KEY, id.get_string_repr()))
+    }
 }
 
 config! {

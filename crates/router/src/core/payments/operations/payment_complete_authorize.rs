@@ -52,6 +52,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         #[cfg(feature = "pm_modular")] _payment_method_wrapper: Option<
             operations::PaymentMethodWithRawData,
         >,
+        dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
     ) -> RouterResult<operations::GetTrackerResponse<'a, F, api::PaymentsRequest, PaymentData<F>>>
     {
         let db = &*state.store;
@@ -142,6 +143,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             payment_attempt.payment_method_id.clone(),
             payment_intent.customer_id.as_ref(),
             None,
+            dimensions,
         ))
         .await?;
         let customer_acceptance: Option<CustomerAcceptance> =
