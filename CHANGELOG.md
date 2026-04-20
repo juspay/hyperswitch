@@ -4,6 +4,20 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.04.20.0
+
+### Features
+
+- **Connector:** [iMerchant Solutions] Add Connector Template Code ([#11820](https://github.com/juspay/hyperswitch/pull/11820)) ([`9291580`](https://github.com/juspay/hyperswitch/commit/92915809b938ee2acefcf55f5fb72ad9f5b493af))
+- **pm-modular:** Add wallet flows ([#11712](https://github.com/juspay/hyperswitch/pull/11712)) ([`5d2eeb7`](https://github.com/juspay/hyperswitch/commit/5d2eeb7d5ae5faa3b15db890b83a44f8918de6bf))
+- **roles:** Remove legacy recon Roles and product_type filter in `get_parent_group_info` ([#11833](https://github.com/juspay/hyperswitch/pull/11833)) ([`2b8cd2f`](https://github.com/juspay/hyperswitch/commit/2b8cd2f9bb7e78efb6491effe5dcda293c6d3a2b))
+- **ucs:** Bump UCS client dependency to bring latest changes ([#11819](https://github.com/juspay/hyperswitch/pull/11819)) ([`9474c85`](https://github.com/juspay/hyperswitch/commit/9474c85389374728ad2ddb401908dc8fd3927469))
+- **vault:** Add upsert support for vault operations and update related functions ([#11451](https://github.com/juspay/hyperswitch/pull/11451)) ([`925fa78`](https://github.com/juspay/hyperswitch/commit/925fa78a8a15a73dca2aa26a3d06ef3e17e7f775))
+
+**Full Changelog:** [`2026.04.17.0...2026.04.20.0`](https://github.com/juspay/hyperswitch/compare/2026.04.17.0...2026.04.20.0)
+
+- - -
+
 ## 2026.04.17.0
 
 ### Features
