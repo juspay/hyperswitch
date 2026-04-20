@@ -92,6 +92,11 @@ pub use self::app::DummyConnector;
 pub use self::app::PaymentMethodSession;
 #[cfg(all(feature = "oltp", feature = "v2"))]
 pub use self::app::Proxy;
+#[cfg(all(feature = "olap", feature = "recon", feature = "v1"))]
+pub use self::app::Recon;
+// Update exports:
+#[cfg(feature = "v2")]
+pub use self::app::RecoveryReports;
 pub use self::app::{
     ApiKeys, AppState, ApplePayCertificatesMigration, Authentication, Cache, CardIssuers, Cards,
     Chat, Configs, ConnectorOnboarding, Customers, Disputes, Embedded, EphemeralKey, FeatureMatrix,
@@ -110,7 +115,3 @@ pub use self::app::{RecoveryDataBackfill, Tokenization};
 pub use super::compatibility::stripe::StripeApis;
 #[cfg(feature = "olap")]
 pub use crate::analytics::routes::{self as analytics, Analytics};
-
-// Update exports:
-#[cfg(feature = "v2")]
-pub use self::app::RecoveryReports;
