@@ -581,6 +581,7 @@ impl RedisTokenManager {
         state: &SessionState,
         connector_customer_id: &str,
         token_data: PaymentProcessorTokenStatus,
+        is_account_updater: bool,
     ) -> CustomResult<bool, errors::StorageError> {
         let mut token_map =
             Self::get_connector_customer_payment_processor_tokens(state, connector_customer_id)
@@ -614,9 +615,9 @@ impl RedisTokenManager {
                         .and_modify(|v| *v += value)
                         .or_insert(value);
                 }
-                existing_token.account_update_history = token_data.account_update_history.clone();
                 existing_token.payment_processor_token_details =
                     token_data.payment_processor_token_details.clone();
+                is_account_updater.then(|| existing_token.is_active = token_data.is_active);
 
                 existing_token
                     .modified_at
@@ -636,9 +637,6 @@ impl RedisTokenManager {
                         existing_token.modified_at = Some(last_external_attempt_at);
                         existing_token.error_code = error_code;
                         existing_token.is_hard_decline = token_data.is_hard_decline;
-                        token_data
-                            .is_active
-                            .map(|is_active| existing_token.is_active = Some(is_active));
                     });
             })
             .or_else(|| {
@@ -1328,15 +1326,25 @@ impl AccountUpdaterAction {
                     OffsetDateTime::now_utc().date(),
                     OffsetDateTime::now_utc().time(),
                 ));
+                updated_token.daily_retry_history = HashMap::new();
 
                 RedisTokenManager::upsert_payment_processor_token(
                     state,
                     customer_id,
                     updated_token,
+                    true,
                 )
                 .await?;
 
                 logger::info!("Successfully deactivated old token.");
+
+                let is_existing_token =
+                    RedisTokenManager::get_payment_processor_token_using_token_id(
+                        state,
+                        customer_id,
+                        new_token.to_owned().as_str(),
+                    )
+                    .await?;
 
                 let new_token = PaymentProcessorTokenStatus {
                     payment_processor_token_details: PaymentProcessorTokenDetails {
@@ -1379,9 +1387,19 @@ impl AccountUpdaterAction {
                     decision_threshold: None,
                 };
 
-                RedisTokenManager::upsert_payment_processor_token(state, customer_id, new_token)
+                /// Check whether we got have the new token in redis or not. If we have it we dont have to anything. If it dosent we have to insert it inton Redis.
+                if is_existing_token.is_some() {
+                    logger::info!("New token already exists. Skipping the insertion into Redis.");
+                } else {
+                    RedisTokenManager::upsert_payment_processor_token(
+                        state,
+                        customer_id,
+                        new_token,
+                        true,
+                    )
                     .await?;
-                logger::info!("Successfully updated token with new token information.")
+                    logger::info!("Successfully updated token with new token information.");
+                }
             }
             Self::ExpiryUpdate(updated_mandate_details) => {
                 logger::info!("Handling ExpiryUpdate action");
@@ -1400,6 +1418,8 @@ impl AccountUpdaterAction {
                     OffsetDateTime::now_utc().date(),
                     OffsetDateTime::now_utc().time(),
                 ));
+                updated_token.is_active = Some(true);
+                updated_token.daily_retry_history = HashMap::new();
                 updated_token
                     .account_update_history
                     .get_or_insert_with(Vec::new)
@@ -1428,6 +1448,7 @@ impl AccountUpdaterAction {
                     state,
                     customer_id,
                     updated_token,
+                    true,
                 )
                 .await?;
 
@@ -1444,5 +1465,9 @@ impl AccountUpdaterAction {
         };
 
         Ok(())
+    }
+
+    pub fn is_expiry_update(&self) -> bool {
+        matches!(self, Self::ExpiryUpdate(_))
     }
 }
