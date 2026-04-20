@@ -229,8 +229,31 @@ function createUcsConfigs(globalState, flow, type) {
         );
       }
     });
-  });
-});
+            }
+
+            const currentFlow = flows[index];
+            return cy
+              .task(
+                "cli_log",
+                `INFO: Creating ${type} config ${index + 1}/${flows.length}: ${currentFlow}`
+              )
+              .then(() => {
+                return createIndividualRolloutConfig(
+                  currentFlow,
+                  globalState,
+                  type
+                );
+              })
+              .then((result) => {
+                results.push(result);
+                return processFlowsSequentially(flows, index + 1, results);
+              });
+          }
+
+          return processFlowsSequentially(methodFlows, 0, []);
+        });
+    });
+}
 
 Cypress.Commands.add("deleteBusinessProfileTest", (globalState) => {
   const apiKey = globalState.get("apiKey");
@@ -267,31 +290,6 @@ Cypress.Commands.add("deleteBusinessProfileTest", (globalState) => {
     });
   });
 });
-            }
-
-            const currentFlow = flows[index];
-            return cy
-              .task(
-                "cli_log",
-                `INFO: Creating ${type} config ${index + 1}/${flows.length}: ${currentFlow}`
-              )
-              .then(() => {
-                return createIndividualRolloutConfig(
-                  currentFlow,
-                  globalState,
-                  type
-                );
-              })
-              .then((result) => {
-                results.push(result);
-                return processFlowsSequentially(flows, index + 1, results);
-              });
-          }
-
-          return processFlowsSequentially(methodFlows, 0, []);
-        });
-    });
-}
 
 function storeRequestId(xRequestId, globalState) {
   if (xRequestId && globalState) {
