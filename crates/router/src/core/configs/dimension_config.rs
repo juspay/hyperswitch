@@ -347,7 +347,6 @@ impl DatabaseBackedConfig for RoutingResultSource {
         dimensions
             .get_profile_id()
             .map(|id| format!("{}_{}", Self::KEY, id.get_string_repr()))
-
     }
 }
 
@@ -384,34 +383,24 @@ impl DatabaseBackedConfig for IncomingWebhookDisabledEvents {
         dimensions
             .get_processor_merchant_id()
             .and_then(|merchant_id| {
-                dimensions
-                    .get_connector()
-                    .map(|connector| {
-                        format!(
-                            "whconf_{}_{}",
-                            merchant_id.get_string_repr(),
-                            connector
-                        )
-                    })
+                dimensions.get_connector().map(|connector| {
+                    format!("whconf_{}_{}", merchant_id.get_string_repr(), connector)
+                })
             })
     }
 
-    fn parse_db_config(
-        config_str: &str,
-        context: Option<&ConfigContext>,
-    ) -> Option<Self::Output>
+    fn parse_db_config(config_str: &str, context: Option<&ConfigContext>) -> Option<Self::Output>
     where
         Self::Output: super::ConfigType,
     {
-        let disabled_events: HashSet<IncomingWebhookEvent> =
-            serde_json::from_str(config_str)
-                .inspect_err(|err| {
-                    router_env::logger::error!(
-                        ?err,
-                        "Failed to parse incoming_webhook_disabled_events list from db config"
-                    )
-                })
-                .ok()?;
+        let disabled_events: HashSet<IncomingWebhookEvent> = serde_json::from_str(config_str)
+            .inspect_err(|err| {
+                router_env::logger::error!(
+                    ?err,
+                    "Failed to parse incoming_webhook_disabled_events list from db config"
+                )
+            })
+            .ok()?;
 
         context
             .and_then(|ctx| ctx.get("incoming_webhook_events"))

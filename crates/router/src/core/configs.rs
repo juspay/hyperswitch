@@ -7,8 +7,8 @@ pub use dimension_config::{
     ShouldStoreEligibilityCheckDataForAuthentication,
 };
 use error_stack::ResultExt;
-pub use external_services::superposition::ConfigContext;
 use external_services::superposition;
+pub use external_services::superposition::ConfigContext;
 
 use crate::{
     core::errors::{self, utils::StorageErrorExt, RouterResponse},
@@ -178,10 +178,7 @@ pub trait DatabaseBackedConfig: superposition::Config {
     /// Parse the raw database config string into the output type.
     /// Override this for configs whose DB format differs from the Output type
     /// (e.g. a list stored in DB that must be converted to a bool using context).
-    fn parse_db_config(
-        config_str: &str,
-        _context: Option<&ConfigContext>,
-    ) -> Option<Self::Output>
+    fn parse_db_config(config_str: &str, _context: Option<&ConfigContext>) -> Option<Self::Output>
     where
         Self::Output: ConfigType,
     {
@@ -207,7 +204,8 @@ where
     let config_type = C::KEY;
     let default_value = C::default_value();
 
-    let superposition_result = C::fetch(superposition_client, context.as_ref(), targeting_key).await;
+    let superposition_result =
+        C::fetch(superposition_client, context.as_ref(), targeting_key).await;
 
     let resolved_value = match superposition_result {
         Ok(value) => {
