@@ -1737,9 +1737,13 @@ export const connectorDetails = {
         setup_future_usage: "off_session",
       },
       Response: {
-        status: 200,
+        status: 400,
         body: {
-          status: "succeeded",
+          error: {
+            type: "invalid_request",
+            message: "Payment method type not supported",
+            code: "IR_19",
+          },
         },
       },
     },
