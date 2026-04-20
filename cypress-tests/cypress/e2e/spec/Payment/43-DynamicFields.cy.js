@@ -12,7 +12,8 @@ describe("Dynamic Fields Verification", () => {
       });
     });
 
-    after("flush global state", () => {
+    after("flush global state and cleanup", () => {
+      cy.deleteBusinessProfileTest(globalState);
       cy.task("setGlobalState", globalState.data);
     });
 
