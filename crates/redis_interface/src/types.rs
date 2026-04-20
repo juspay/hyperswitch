@@ -298,6 +298,17 @@ pub fn redis_value_to_option_string(v: &Value) -> Option<String> {
     }
 }
 
+/// Converts a stream entry's field map (`HashMap<String, Value>`) into
+/// `HashMap<String, Option<String>>`, preserving `Nil` as `None`.
+pub fn stream_fields_to_option_strings(
+    fields: std::collections::HashMap<String, Value>,
+) -> std::collections::HashMap<String, Option<String>> {
+    fields
+        .into_iter()
+        .map(|(field_name, redis_value)| (field_name, redis_value_to_option_string(&redis_value)))
+        .collect()
+}
+
 /// Entries within a single stream, as `(entry_id, fields)`.
 pub type StreamEntries = Vec<(String, std::collections::HashMap<String, String>)>;
 

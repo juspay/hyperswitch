@@ -19,7 +19,9 @@ use x509_parser::nom::{
 use crate::{
     core::{
         errors::{self, RouterResult},
-        payment_methods::{cards, vault},
+        payment_methods::{
+            cards, fetch_payment_method_by_storage, resolve_storage_type_from_token, vault,
+        },
     },
     routes::SessionState,
     types::{domain, payment_methods as pm_types},
@@ -36,8 +38,7 @@ impl ProxyRequestWrapper {
     pub async fn get_proxy_record(
         &self,
         state: &SessionState,
-        key_store: &domain::MerchantKeyStore,
-        storage_scheme: common_enums::enums::MerchantStorageScheme,
+        provider: &domain::Provider,
     ) -> RouterResult<ProxyRecord> {
         let token = &self.0.token;
 
@@ -53,7 +54,11 @@ impl ProxyRequestWrapper {
 
                 let payment_method_record = state
                     .store
-                    .find_payment_method(key_store, &pm_id, storage_scheme)
+                    .find_payment_method(
+                        provider.get_key_store(),
+                        &pm_id,
+                        provider.get_account().storage_scheme,
+                    )
                     .await
                     .change_context(errors::ApiErrorResponse::PaymentMethodNotFound)?;
                 Ok(ProxyRecord::PaymentMethodRecord(Box::new(
@@ -69,7 +74,7 @@ impl ProxyRequestWrapper {
                 let db = state.store.as_ref();
 
                 let tokenization_record = db
-                    .get_entity_id_vault_id_by_token_id(&token_id, key_store)
+                    .get_entity_id_vault_id_by_token_id(&token_id, provider.get_key_store())
                     .await
                     .change_context(errors::ApiErrorResponse::InternalServerError)
                     .attach_printable("Error while fetching tokenization record from vault")?;
@@ -80,7 +85,7 @@ impl ProxyRequestWrapper {
             }
             proxy_api_models::TokenType::VolatilePaymentMethodId => {
                 let pm_id = token.as_str();
-                let encryption_key = key_store.key.get_inner();
+                let encryption_key = provider.get_key_store().key.get_inner();
 
                 let redis_conn = state
                     .store
@@ -102,8 +107,8 @@ impl ProxyRequestWrapper {
                         let domain_payment_method = domain::PaymentMethod::convert_back(
                             keymanager_state,
                             payment_method,
-                            key_store.key.get_inner(),
-                            key_store.merchant_id.clone().into(),
+                            provider.get_key_store().key.get_inner(),
+                            provider.get_key_store().merchant_id.clone().into(),
                         )
                         .await
                         .change_context(errors::StorageError::EncryptionError)
@@ -121,6 +126,36 @@ impl ProxyRequestWrapper {
                 Ok(ProxyRecord::VolatilePaymentMethodRecord(Box::new(
                     payment_method_record,
                 )))
+            }
+            proxy_api_models::TokenType::PaymentMethodToken => {
+                // 1. Resolve parent token (if any) -> storage type & optional token data
+                let (storage_type, card_token_data_opt) =
+                    resolve_storage_type_from_token(state, token).await?;
+
+                let pm_id = PaymentMethodId {
+                    payment_method_id: token.clone(),
+                };
+
+                // 2. Fetch payment method record based on resolved storage type
+                let (storage_type, payment_method) = fetch_payment_method_by_storage(
+                    state,
+                    provider,
+                    &pm_id,
+                    storage_type,
+                    card_token_data_opt,
+                )
+                .await
+                .change_context(errors::ApiErrorResponse::PaymentMethodNotFound)
+                .attach_printable("Failed to fetch payment method by storage")?;
+
+                match storage_type {
+                    common_enums::enums::StorageType::Persistent => {
+                        Ok(ProxyRecord::PaymentMethodRecord(Box::new(payment_method)))
+                    }
+                    common_enums::enums::StorageType::Volatile => Ok(
+                        ProxyRecord::VolatilePaymentMethodRecord(Box::new(payment_method)),
+                    ),
+                }
             }
         }
     }
@@ -190,7 +225,7 @@ impl ProxyRecord {
         platform: domain::Platform,
     ) -> RouterResult<Value> {
         match self {
-            Self::PaymentMethodRecord(_) => {
+            Self::PaymentMethodRecord(payment_method) => {
                 let customer_id = self
                     .get_customer_id()?
                     .get_required_value("customer_id")
@@ -206,8 +241,34 @@ impl ProxyRecord {
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Error while fetching data from vault")?;
 
-                Ok(vault_resp
-                    .data
+                let mut vault_data = vault_resp.data;
+
+                // If vault data is card, try to retrieve CVC from redis and attach it
+                if vault_data.get_card().is_some() {
+                    let payment_method_id_str =
+                        payment_method.get_id().get_string_repr().to_string();
+                    let key_store = platform.get_provider().get_key_store();
+
+                    match vault::retrieve_and_delete_cvc_from_payment_token(
+                        state,
+                        &payment_method_id_str,
+                        key_store,
+                    )
+                    .await
+                    {
+                        Ok(card_cvc) => {
+                            vault_data.set_card_cvc(card_cvc);
+                        }
+                        Err(err) => {
+                            router_env::logger::warn!(
+                                "Failed to retrieve CVC from redis: {:?}",
+                                err
+                            );
+                        }
+                    }
+                }
+
+                Ok(vault_data
                     .encode_to_value()
                     .change_context(errors::ApiErrorResponse::InternalServerError)
                     .attach_printable("Failed to serialize vault data")?)
@@ -230,7 +291,7 @@ impl ProxyRecord {
 
                 Ok(vault_data.get("data").cloned().unwrap_or(Value::Null))
             }
-            Self::VolatilePaymentMethodRecord(_) => {
+            Self::VolatilePaymentMethodRecord(payment_method) => {
                 //retrieve from redis
                 let vault_id = self.get_vault_id()?;
                 let key_store = platform.get_provider().get_key_store();
@@ -258,7 +319,34 @@ impl ProxyRecord {
                             .change_context(errors::ApiErrorResponse::InternalServerError)
                             .attach_printable("Failed to get required decrypted volatile payment method vault data")?;
 
-                        Ok(decrypted_payload
+                        let mut vault_data = decrypted_payload.clone();
+
+                        // If vault data is card, try to retrieve CVC from redis and attach it
+                        if vault_data.get_card().is_some() {
+                            let payment_method_id_str =
+                                payment_method.get_id().get_string_repr().to_string();
+                            let key_store = platform.get_provider().get_key_store();
+
+                            match vault::retrieve_and_delete_cvc_from_payment_token(
+                                state,
+                                &payment_method_id_str,
+                                key_store,
+                            )
+                            .await
+                            {
+                                Ok(card_cvc) => {
+                                    vault_data.set_card_cvc(card_cvc);
+                                }
+                                Err(err) => {
+                                    router_env::logger::warn!(
+                                        "Failed to retrieve CVC from redis: {:?}",
+                                        err
+                                    );
+                                }
+                            }
+                        }
+
+                        Ok(vault_data
                             .encode_to_value()
                             .change_context(errors::ApiErrorResponse::InternalServerError)
                             .attach_printable("Failed to serialize vault data")?)

@@ -989,6 +989,7 @@ impl super::RedisConnectionPool {
         Ok(result)
     }
 
+    /// Read stream entries and return them grouped by stream key with optional field values.
     /// Read entries from streams with options (XREAD / XREADGROUP)
     /// Returns a StreamReadReply - use `into_stream_iter()` for easy iteration.
     #[instrument(level = "DEBUG", skip(self))]
@@ -1294,18 +1295,15 @@ impl super::RedisConnectionPool {
             .change_context(errors::RedisError::SetFailed)
             .attach_printable("Failed to convert from redis value")?;
 
-        // Check if SET NX succeeded or failed
-        match set_result {
-            // SET NX returns Okay if key was set (newer redis crate)
-            Value::Okay => Ok(SetGetReply::ValueSet(actual_value)),
-            // SET NX returns "OK" if key was set (older format)
-            Value::SimpleString(ref s) if s == "OK" => Ok(SetGetReply::ValueSet(actual_value)),
-            Value::BulkString(ref s) if s == b"OK" => Ok(SetGetReply::ValueSet(actual_value)),
-            // SET NX returns Nil if key already exists
-            Value::Nil => Ok(SetGetReply::ValueExists(actual_value)),
-            _ => Err(report!(errors::RedisError::SetFailed))
-                .attach_printable("Unexpected result from SET NX operation"),
-        }
+        // Check if SET NX succeeded or failed using the existing SetnxReply type
+        let setnx_reply = SetnxReply::from_redis_value(set_result)
+            .change_context(errors::RedisError::SetFailed)
+            .attach_printable("Unexpected result from SET NX operation")?;
+
+        Ok(match setnx_reply {
+            SetnxReply::KeySet => SetGetReply::ValueSet(actual_value),
+            SetnxReply::KeyNotSet => SetGetReply::ValueExists(actual_value),
+        })
     }
 }
 

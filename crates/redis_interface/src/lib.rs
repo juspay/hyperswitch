@@ -123,7 +123,11 @@ impl SubscriberClient {
         nodes: Vec<String>,
         broadcast_capacity: usize,
     ) -> CustomResult<Self, errors::RedisError> {
-        let (push_sender, push_receiver_channel) = tokio::sync::mpsc::unbounded_channel();
+        // Note: Using an unbounded channel because redis-rs only implements
+        // `AsyncPushSender` for `UnboundedSender`, not bounded `Sender`.
+        // The broadcast channel below provides backpressure to actual consumers.
+        let (push_sender, push_receiver_channel) =
+            tokio::sync::mpsc::unbounded_channel::<redis::PushInfo>();
 
         let cluster_client = redis::cluster::ClusterClient::builder(nodes)
             .use_protocol(redis::ProtocolVersion::RESP3)
@@ -263,6 +267,11 @@ impl SubscriberClient {
         let mut retry_delay = constant::PUBSUB_INITIAL_RETRY_DELAY;
 
         loop {
+            // Note: We hold the Mutex across `.await` here because
+            // `pubsub.on_message()` borrows the PubSub. This is safe because
+            // this is the only task that reads messages — subscribe/unsubscribe
+            // are the only other operations that acquire this lock, and they
+            // complete quickly. The lock is released explicitly after reading.
             let result = {
                 let mut pubsub = pubsub_connection.lock().await;
                 let msg = pubsub.on_message().next().await;
@@ -275,16 +284,24 @@ impl SubscriberClient {
                     retry_delay = constant::PUBSUB_INITIAL_RETRY_DELAY;
                     let channel = msg.get_channel_name().to_string();
                     let payload: Value = msg.get_payload().unwrap_or(Value::Nil);
-                    let _ = sender.send(PubSubMessage {
+                    if let Err(error) = sender.send(PubSubMessage {
                         channel,
                         value: payload,
-                    });
+                    }) {
+                        tracing::warn!(
+                            ?error,
+                            "Failed to broadcast pub/sub message — no active receivers"
+                        );
+                    }
                 }
                 None => {
                     tracing::warn!("PubSub connection dropped, attempting to reconnect");
-                    let mut pubsub = pubsub_connection.lock().await;
-                    match Self::reconnect_standalone(redis_client, &mut pubsub, subscriptions).await
-                    {
+                    let reconnection_result = {
+                        let mut pubsub = pubsub_connection.lock().await;
+                        Self::reconnect_standalone(redis_client, &mut pubsub, subscriptions).await
+                    };
+
+                    match reconnection_result {
                         Ok(()) => {
                             retry_delay = constant::PUBSUB_INITIAL_RETRY_DELAY;
                             tracing::info!("PubSub reconnected and resubscribed successfully");
@@ -295,7 +312,6 @@ impl SubscriberClient {
                                 "Failed to reconnect PubSub, retrying in {:?}",
                                 retry_delay
                             );
-                            drop(pubsub);
                             tokio::time::sleep(retry_delay).await;
                             retry_delay = (retry_delay * constant::PUBSUB_RETRY_BACKOFF_FACTOR)
                                 .min(constant::PUBSUB_MAX_RETRY_DELAY);
@@ -304,9 +320,6 @@ impl SubscriberClient {
                 }
             }
         }
-        // If this loop ever exits, reset the flag so a new handler can be spawned
-        // (currently this loop runs forever due to retry logic above)
-        // is_subscriber_handler_spawned.store(false, atomic::Ordering::SeqCst);
     }
 
     async fn reconnect_standalone(
@@ -353,10 +366,15 @@ impl SubscriberClient {
 
             let payload = push_info.data.into_iter().nth(1).unwrap_or(Value::Nil);
 
-            let _ = sender.send(PubSubMessage {
+            if let Err(error) = sender.send(PubSubMessage {
                 channel,
                 value: payload,
-            });
+            }) {
+                tracing::warn!(
+                    ?error,
+                    "Failed to broadcast cluster pub/sub message — no active receivers"
+                );
+            }
         }
     }
 
