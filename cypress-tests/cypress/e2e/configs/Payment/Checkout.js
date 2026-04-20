@@ -676,7 +676,6 @@ export const connectorDetails = {
         billing_descriptor: {
           name: "Juspay",
           city: "San Francisco",
-          reference: "ref-qa-001",
         },
       },
       Response: {
@@ -702,7 +701,6 @@ export const connectorDetails = {
           billing_descriptor: {
             name: "Juspay",
             city: "San Francisco",
-            reference: "ref-qa-001",
           },
         },
       },
