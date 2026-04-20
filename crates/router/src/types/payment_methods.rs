@@ -10,6 +10,7 @@ use common_utils::id_type;
 #[cfg(feature = "v2")]
 use hyperswitch_domain_models::payment_method_data::NetworkTokenDetails;
 use hyperswitch_masking::Secret;
+use router_env::logger;
 use serde::{Deserialize, Serialize};
 
 #[cfg(feature = "v2")]
@@ -579,6 +580,89 @@ pub struct AltIdResponse {
     pub payload: AltIdResponsePayloadRaw,
 }
 
+/// Write mode for vault operations
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "lowercase")]
+pub enum WriteMode {
+    Insert,
+    Upsert,
+}
+#[derive(Debug, Clone, Serialize)]
+pub struct AddVaultQueryParam {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub mode: Option<WriteMode>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub enum VaultQueryParam {
+    Add(AddVaultQueryParam),
+}
+
+impl VaultQueryParam {
+    pub fn to_query_value(&self) -> Option<serde_json::Value> {
+        match self {
+            Self::Add(params) => match serde_json::to_value(params) {
+                Ok(value) => Some(value),
+                Err(error) => {
+                    logger::error!(
+                        error = ?error,
+                        params = ?params,
+                        "Failed to serialize VaultQueryParam::Add to JSON value"
+                    );
+                    None
+                }
+            },
+        }
+    }
+}
+
+impl From<WriteMode> for VaultQueryParam {
+    fn from(mode: WriteMode) -> Self {
+        Self::Add(AddVaultQueryParam { mode: Some(mode) })
+    }
+}
+        }
+    }
+}
+
+<<<<<<< HEAD
+#[cfg(feature = "v1")]
+impl From<AltIdResponsePayload>
+    for hyperswitch_domain_models::payment_method_data::NetworkTokenData
+{
+    fn from(payload: AltIdResponsePayload) -> Self {
+        Self {
+            token_number: payload.alt_id_details.alt_id,
+            token_exp_month: payload.alt_id_details.exp_month,
+            token_exp_year: payload.alt_id_details.exp_year,
+            token_cryptogram: Some(payload.alt_id_details.tavv),
+            nick_name: None,
+            card_issuer: payload.card_issuer_bank,
+            card_network: Some(payload.card_brand),
+            card_type: None,
+            card_issuing_country: payload.card_issuer_country,
+            bank_code: None,
+            eci: None,
+            par: payload.alt_id_details.par,
+        }
+    }
+}
+
+/// Alt-ID API response wrapper (raw, before decryption)
+#[derive(Debug, Deserialize, Clone)]
+pub struct AltIdResponse {
+    pub status: String,
+    pub payload: AltIdResponsePayloadRaw,
+}
+
+=======
+impl From<WriteMode> for VaultQueryParam {
+    fn from(mode: WriteMode) -> Self {
+        Self::Add(AddVaultQueryParam { mode: Some(mode) })
+    }
+}
+
+>>>>>>> main
 #[cfg(feature = "v2")]
 pub struct PaymentMethodUpdateHandler<'a> {
     pub platform: &'a hyperswitch_domain_models::platform::Platform,

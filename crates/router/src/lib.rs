@@ -182,7 +182,8 @@ pub fn mk_app(
             server_app = server_app
                 .service(routes::Refunds::server(state.clone()))
                 .service(routes::Mandates::server(state.clone()))
-                .service(routes::Authentication::server(state.clone()));
+                .service(routes::Authentication::server(state.clone()))
+                .service(routes::SdkConfig::server(state.clone()));
         }
     }
 
@@ -257,11 +258,6 @@ pub fn mk_app(
     #[cfg(all(feature = "oltp", feature = "v2"))]
     {
         server_app = server_app.service(routes::Proxy::server(state.clone()));
-    }
-
-    #[cfg(all(feature = "recon", feature = "v1"))]
-    {
-        server_app = server_app.service(routes::Recon::server(state.clone()));
     }
 
     server_app = server_app.service(routes::Cache::server(state.clone()));

@@ -70,8 +70,8 @@ pub async fn rust_locker_migration(
         None,
     );
     for customer in domain_customers {
-        let result = db
-            .find_payment_method_by_customer_id_merchant_id_list(
+        let result = Box::pin(
+            db.find_payment_method_by_customer_id_merchant_id_list(
                 &key_store,
                 &customer.customer_id,
                 merchant_id,
@@ -80,8 +80,9 @@ pub async fn rust_locker_migration(
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .and_then(|pm| {
                 call_to_locker(&state, pm, &customer.customer_id, merchant_id, &platform)
-            })
-            .await?;
+            }),
+        )
+        .await?;
 
         customers_moved += 1;
         cards_moved += result;
@@ -153,8 +154,10 @@ pub async fn call_to_locker(
             wallet: None,
             #[cfg(feature = "payouts")]
             bank_transfer: None,
+            #[cfg(feature = "payouts")]
+            bank_transfer_data: None,
             metadata: pm.metadata,
-            customer_id: Some(pm.customer_id),
+            customer_id: pm.customer_id,
             card_network: card.card_brand,
             client_secret: None,
             payment_method_data: None,

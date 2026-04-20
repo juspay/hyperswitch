@@ -826,4 +826,11 @@ export const connectorDetails = {
       commonConnectorDetails.bank_transfer_pm.InstantBankTransferPoland
     ),
   },
+  webhook: {
+    TransactionIdConfig: {
+      path: "PaymentInformation.References.MerchantReference",
+      type: "string",
+      source: "paymentAttemptID",
+    },
+  },
 };

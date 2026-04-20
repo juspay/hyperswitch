@@ -152,6 +152,8 @@ pub struct ConfigMetadata {
     pub apple_pay: Option<Vec<InputData>>,
     pub paypal_sdk: Option<Vec<InputData>>,
     pub pix: Option<Vec<InputData>>,
+    pub pix_automatico_push: Option<Vec<InputData>>,
+    pub pix_automatico_qr: Option<Vec<InputData>>,
     pub boleto: Option<Vec<InputData>>,
     pub merchant_id: Option<InputData>,
     pub endpoint_prefix: Option<InputData>,
@@ -165,6 +167,7 @@ pub struct ConfigMetadata {
     pub three_ds_requestor_id: Option<InputData>,
     pub pull_mechanism_for_external_3ds_enabled: Option<InputData>,
     pub klarna_region: Option<InputData>,
+    pub region: Option<InputData>,
     pub pricing_type: Option<InputData>,
     pub source_balance_account: Option<InputData>,
     pub brand_id: Option<InputData>,
@@ -278,6 +281,7 @@ pub struct ConnectorConfig {
     #[cfg(feature = "payouts")]
     pub cybersource_payout: Option<ConnectorTomlConfig>,
     pub iatapay: Option<ConnectorTomlConfig>,
+    pub imerchantsolutions: Option<ConnectorTomlConfig>,
     pub itaubank: Option<ConnectorTomlConfig>,
     pub opennode: Option<ConnectorTomlConfig>,
     pub bambora: Option<ConnectorTomlConfig>,
@@ -450,6 +454,7 @@ impl ConnectorConfig {
             PayoutConnectors::Worldpay => Ok(connector_data.worldpay_payout),
             PayoutConnectors::Worldpayxml => Ok(connector_data.worldpayxml_payout),
             PayoutConnectors::Envoy => Ok(connector_data.envoy_payout),
+            PayoutConnectors::Itaubank => Ok(connector_data.itaubank),
         }
     }
 
@@ -660,6 +665,7 @@ impl ConnectorConfig {
             Connector::Phonepe => Ok(connector_data.phonepe),
             Connector::Payjustnow => Ok(connector_data.payjustnow),
             Connector::Payjustnowinstore => Ok(connector_data.payjustnowinstore),
+            Connector::Imerchantsolutions => Ok(connector_data.imerchantsolutions),
         }
     }
 }

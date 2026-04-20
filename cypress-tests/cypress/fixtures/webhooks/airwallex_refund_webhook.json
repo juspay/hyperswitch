@@ -1,0 +1,7 @@
+{
+  "name": "refund.succeeded",
+  "sourceId": "{{connector_refund_id}}",
+  "data": {
+    "object": {}
+  }
+}
