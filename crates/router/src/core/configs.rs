@@ -226,12 +226,7 @@ where
                     config_type
                 );
 
-                let config_result = storage
-                    .find_config_by_key_unwrap_or(
-                        db_key,
-                        Some(default_value.to_config_string().unwrap_or_default()),
-                    )
-                    .await;
+                let config_result = storage.find_config_by_key(db_key).await;
 
                 match config_result
                     .ok()
