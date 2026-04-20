@@ -54,7 +54,7 @@ disable_auto_backpressure = false
 max_in_flight_commands = 5000
 default_command_timeout = 30
 unresponsive_timeout = 10
-unresponsive_check_interval = 1
+unresponsive_check_interval = 2
 max_feed_count = 200
 max_failure_threshold = 5
 
