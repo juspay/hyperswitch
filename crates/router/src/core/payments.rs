@@ -109,7 +109,6 @@ use super::{
         extract_gateway_system_from_payment_intent, should_call_unified_connector_service,
     },
 };
-use crate::core::payment_methods::utils as pm_utils;
 #[cfg(feature = "v1")]
 use crate::core::blocklist::utils as blocklist_utils;
 #[cfg(feature = "v1")]
@@ -135,7 +134,7 @@ use crate::{
     core::{
         configs::dimension_state,
         errors::{self, CustomResult, RouterResponse, RouterResult},
-        payment_methods::{cards, network_tokenization},
+        payment_methods::{cards, network_tokenization, utils as pm_utils},
         payments::helpers::{
             get_applepay_metadata, is_applepay_predecrypted_flow_supported,
             is_googlepay_predecrypted_flow_supported,
