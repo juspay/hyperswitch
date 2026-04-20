@@ -13,10 +13,13 @@ async fn main() -> ApplicationResult<()> {
 
     #[allow(clippy::expect_used)]
     let conf = Settings::with_config_path(cmd_line.config_path)
-        .expect("Unable to construct application configuration");
+        .change_context(ApplicationError::ConfigurationError)
+        .attach_printable("Unable to construct application configuration")?;
+
     #[allow(clippy::expect_used)]
     conf.validate()
-        .expect("Failed to validate router configuration");
+        .change_context(ApplicationError::ConfigurationError)
+        .attach_printable("Failed to validate router configuration")?;
 
     #[allow(clippy::print_stdout)] // The logger has not yet been initialized
     #[cfg(feature = "vergen")]
