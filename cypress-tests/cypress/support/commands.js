@@ -3463,7 +3463,7 @@ Cypress.Commands.add(
   }
 );
 
-Cypress.Commands.add("refundCallTest", (requestBody, data, globalState) => {
+Cypress.Commands.add("refundCallTest", (requestBody, data, globalState, connectedMerchantId) => {
   const {
     Configs: configs = {},
     Request: reqData,
@@ -3480,13 +3480,19 @@ Cypress.Commands.add("refundCallTest", (requestBody, data, globalState) => {
   }
   requestBody.payment_id = payment_id;
 
+  const headers = {
+    "Content-Type": "application/json",
+    "api-key": globalState.get("apiKey"),
+  };
+
+  if (connectedMerchantId) {
+    headers["x-connected-merchant-id"] = connectedMerchantId;
+  }
+
   cy.request({
     method: "POST",
     url: `${globalState.get("baseUrl")}/refunds`,
-    headers: {
-      "Content-Type": "application/json",
-      "api-key": globalState.get("apiKey"),
-    },
+    headers,
     failOnStatusCode: false,
     body: requestBody,
   }).then((response) => {
@@ -3508,18 +3514,24 @@ Cypress.Commands.add("refundCallTest", (requestBody, data, globalState) => {
   });
 });
 
-Cypress.Commands.add("syncRefundCallTest", (data, globalState) => {
+Cypress.Commands.add("syncRefundCallTest", (data, globalState, connectedMerchantId) => {
   const { Response: resData } = data || {};
 
   const refundId = globalState.get("refundId");
 
+  const headers = {
+    "Content-Type": "application/json",
+    "api-key": globalState.get("apiKey"),
+  };
+
+  if (connectedMerchantId) {
+    headers["x-connected-merchant-id"] = connectedMerchantId;
+  }
+
   cy.request({
     method: "GET",
     url: `${globalState.get("baseUrl")}/refunds/${refundId}`,
-    headers: {
-      "Content-Type": "application/json",
-      "api-key": globalState.get("apiKey"),
-    },
+    headers,
     failOnStatusCode: false,
   }).then((response) => {
     logRequestId(response.headers["x-request-id"]);
@@ -4632,14 +4644,20 @@ Cypress.Commands.add("listCustomerPMByClientSecret", (globalState) => {
   });
 });
 
-Cypress.Commands.add("listRefundCallTest", (requestBody, globalState) => {
+Cypress.Commands.add("listRefundCallTest", (requestBody, globalState, connectedMerchantId) => {
+  const headers = {
+    "Content-Type": "application/json",
+    "api-key": globalState.get("apiKey"),
+  };
+
+  if (connectedMerchantId) {
+    headers["x-connected-merchant-id"] = connectedMerchantId;
+  }
+
   cy.request({
     method: "POST",
     url: `${globalState.get("baseUrl")}/refunds/list`,
-    headers: {
-      "Content-Type": "application/json",
-      "api-key": globalState.get("apiKey"),
-    },
+    headers,
     body: requestBody,
   }).then((response) => {
     logRequestId(response.headers["x-request-id"]);
