@@ -401,12 +401,6 @@ pub mod superposition {
         "should_return_raw_payment_method_details";
     /// Call PM modular service configuration key
     pub const SHOULD_CALL_PM_MODULAR_SERVICE: &str = "should_call_pm_modular_service";
-    /// dynamic fields configuration key for sdk config
-    pub const DYNAMIC_FIELDS: &str = "dynamic_fields";
-    /// payout sync tracker configuration key
-    pub const PAYOUT_TRACKER_MAPPING: &str = "payout_tracker_mapping";
-    /// client session validation enabled configuration key
-    pub const CLIENT_SESSION_VALIDATION_ENABLED: &str = "client_session_validation_enabled";
 }
 
 #[cfg(test)]
