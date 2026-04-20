@@ -679,7 +679,7 @@ fn try_extract_ucs_validation_error(bytes: &[u8]) -> Option<errors::ApiErrorResp
     }
 
     let message = parsed.get("message")?.as_str()?.to_string();
-    let status_code = parsed.get("status_code")?.as_u64()? as u16;
+    let status_code = u16::try_from(parsed.get("status_code")?.as_u64()?).ok()?;
 
     let api_error = match status_code {
         400 => errors::ApiErrorResponse::InvalidRequestData { message },

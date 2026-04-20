@@ -229,9 +229,7 @@ where
             ))
             .await
             .map(|(router_data, _)| router_data)
-            .map_err(|report| {
-                convert_ucs_error_to_connector_error(report)
-            })?
+            .map_err(convert_ucs_error_to_connector_error)?
         } else {
             logger::debug!("Granular Gateway: Regular authorize flow");
             let granular_authorize_request =
@@ -348,7 +346,7 @@ where
             ))
             .await
             .map(|(router_data, _)| router_data)
-            .map_err(|report| convert_ucs_error_to_connector_error(report))?
+            .map_err(convert_ucs_error_to_connector_error)?
         };
 
         Ok(updated_router_data)

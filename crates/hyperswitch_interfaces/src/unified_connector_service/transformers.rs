@@ -13,6 +13,7 @@ use hyperswitch_domain_models::{
     router_response_types::{PaymentsResponseData, RedirectForm},
 };
 use hyperswitch_masking::ExposeInterface;
+use prost::Message;
 
 use crate::{
     helpers::{ForeignFrom, ForeignTryFrom},
@@ -968,21 +969,15 @@ impl ForeignFrom<payments_grpc::UpiSource>
 
 impl UnifiedConnectorServiceError {
     /// Maps a tonic::Status to UnifiedConnectorServiceError based on the status code.
-    /// This differentiates between UCS validation errors and connector errors passed through UCS.
-    ///
-    /// When UCS receives a connector 4xx error, it returns a tonic 4xx status with the connector
-    /// error details embedded in the message. We need to extract these details to determine
-    /// if this is a UCS validation error or a connector error.
     pub fn from_tonic_status(status: &tonic::Status) -> Self {
         let message = status.message().to_string();
 
-        // Try to parse connector error from the message
-        // UCS encodes connector errors with status_code in the error details
-        if let Some(connector_error) = Self::try_parse_connector_error(&message) {
+        if let Some(connector_error) = Self::try_parse_structured_error(&message) {
             return connector_error;
         }
-
-        // If no connector error found, treat as UCS validation error
+        if let Some(error_from_details) = Self::try_parse_from_details(status) {
+            return error_from_details;
+        }
         match status.code() {
             tonic::Code::InvalidArgument => Self::TonicInvalidArgument { message },
             tonic::Code::NotFound => Self::TonicNotFound { message },
@@ -994,69 +989,64 @@ impl UnifiedConnectorServiceError {
             tonic::Code::Unavailable => Self::TonicUnavailable { message },
             tonic::Code::DeadlineExceeded => Self::TonicDeadlineExceeded { message },
             tonic::Code::Internal => Self::TonicInternal { message },
-            // For unknown or other codes, treat as internal error
             _ => Self::TonicInternal { message },
         }
     }
 
-    /// Try to parse a connector error from the tonic status message.
-    ///
-    /// Logic:
-    /// - If the message contains a status code (e.g., "status 400"), it's a connector error
-    /// - If no status code is present, it's a UCS validation error
-    ///
-    /// Returns Some(ConnectorErrorViaUcs) if a connector error is detected, None otherwise.
-    fn try_parse_connector_error(message: &str) -> Option<Self> {
-        // Extract HTTP status code from message
-        // If present and in 4xx/5xx range, this is a connector error
-        let status_code = Self::extract_http_status_code(message)?;
+    fn try_parse_structured_error(message: &str) -> Option<Self> {
+        let parsed: serde_json::Value = serde_json::from_str(message).ok()?;
 
-        // Only treat 4xx and 5xx status codes as connector errors
-        if (400..600).contains(&status_code) {
-            Some(Self::ConnectorError {
-                code: Self::map_status_to_error_code(status_code),
-                message: message.to_string(),
-                status_code,
-                reason: None, // status_code is the key differentiator; reason is optional
-            })
-        } else {
-            None
-        }
-    }
+        let error_type = parsed.get("type")?.as_str()?;
 
-    /// Extract HTTP status code from message by parsing "status NNN" pattern.
-    /// Returns Some(status_code) if found and valid, None otherwise.
-    fn extract_http_status_code(message: &str) -> Option<u16> {
-        // Case-insensitive search for "status " followed by digits
-        let message_lower = message.to_lowercase();
+        match error_type {
+            "connector_error" => {
+                let status_code = u16::try_from(parsed.get("status_code")?.as_u64()?).ok()?;
+                let code = parsed
+                    .get("code")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("UNKNOWN")
+                    .to_string();
+                let error_message = parsed
+                    .get("message")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("")
+                    .to_string();
+                let reason = parsed
+                    .get("reason")
+                    .and_then(|v| v.as_str())
+                    .map(String::from);
 
-        if let Some(pos) = message_lower.find("status ") {
-            let after_status = &message[pos + 7..]; // Skip "status "
-            let trimmed = after_status.trim_start();
-
-            // Extract consecutive digits (HTTP status codes are 3 digits)
-            let digits: String = trimmed.chars().take_while(|c| c.is_ascii_digit()).collect();
-
-            // Must be exactly 3 digits for valid HTTP status code
-            if digits.len() == 3 {
-                return digits.parse::<u16>().ok();
+                Some(Self::ConnectorError {
+                    code,
+                    message: error_message,
+                    status_code,
+                    reason,
+                })
             }
+            "validation_error" | "ucs_error" => None,
+            _ => None,
         }
-        None
     }
 
-    /// Map HTTP status code to connector error code.
-    fn map_status_to_error_code(status_code: u16) -> String {
-        format!("CE_{:02}", status_code % 100)
+    fn try_parse_from_details(status: &tonic::Status) -> Option<Self> {
+        let details = status.details();
+        if details.is_empty() {
+            return None;
+        }
+
+        // Attempt to decode the ConnectorError from the status details
+        let connector_error = payments_grpc::ConnectorError::decode(details).ok()?;
+        let status_code = connector_error.http_status_code? as u16;
+
+        Some(Self::ConnectorError {
+            code: connector_error.error_code,
+            message: connector_error.error_message,
+            status_code,
+            reason: None,
+        })
     }
 }
 
-// ErrorSwitch implementation for UnifiedConnectorServiceError to ApiErrorResponse
-///
-/// Maps UCS errors to appropriate HTTP responses:
-/// 1. UCS validation errors (no connector status_code) -> client-facing 4xx
-/// 2. Connector errors via UCS (status_code present) -> ExternalConnectorError
-/// 3. UCS server errors -> 500 Internal Server Error
 impl ErrorSwitch<ApiErrorResponse> for UnifiedConnectorServiceError {
     fn switch(&self) -> ApiErrorResponse {
         match self {
