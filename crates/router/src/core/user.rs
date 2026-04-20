@@ -3862,6 +3862,25 @@ pub async fn clone_connector(
     state: SessionState,
     request: user_api::CloneConnectorRequest,
 ) -> UserResponse<api_models::admin::MerchantConnectorResponse> {
+    let Some(allowlist) = &state.conf.clone_connector_allowlist else {
+        return Err(UserErrors::InvalidCloneConnectorOperation(
+            "Cloning is not allowed".to_string(),
+        )
+        .into());
+    };
+
+    fp_utils::when(
+        allowlist
+            .merchant_ids
+            .contains(&request.source.merchant_id)
+            .not(),
+        || {
+            Err(UserErrors::InvalidCloneConnectorOperation(
+                "Cloning is not allowed from this merchant".to_string(),
+            ))
+        },
+    )?;
+    
     let source_key_store = state
         .store
         .get_merchant_key_store_by_merchant_id(
