@@ -1,5 +1,5 @@
-use common_utils::errors::CustomResult;
 use common_enums;
+use common_utils::errors::CustomResult;
 use external_services::superposition;
 use scheduler::consumer::types::process_data::RetryMapping;
 
