@@ -1959,11 +1959,11 @@ async fn create_payment_link(
     let created_at @ last_modified_at = Some(common_utils::date_time::now());
     let payment_link_id = utils::generate_id(consts::ID_LENGTH, "plink");
     let locale_str = locale.unwrap_or("en".to_owned());
-    let merchant_id = platform.get_processor().get_account().get_id();
+    let processor_merchant_id = platform.get_processor().get_account().get_id();
     let open_payment_link = format!(
         "{}/payment_link/{}/{}?locale={}",
         domain_name,
-        merchant_id.get_string_repr(),
+        processor_merchant_id.get_string_repr(),
         payment_id.get_string_repr(),
         locale_str.clone(),
     );
@@ -1972,7 +1972,7 @@ async fn create_payment_link(
         format!(
             "{}/payment_link/s/{}/{}?locale={}",
             domain_name,
-            merchant_id.get_string_repr(),
+            processor_merchant_id.get_string_repr(),
             payment_id.get_string_repr(),
             locale_str,
         )
@@ -1999,7 +1999,7 @@ async fn create_payment_link(
         payment_link_config: Some(payment_link_config_encoded_value),
         profile_id: Some(profile_id),
         secure_link,
-        processor_merchant_id: Some(merchant_id.clone()),
+        processor_merchant_id: Some(processor_merchant_id.clone()),
         created_by: platform
             .get_initiator()
             .and_then(|initiator| initiator.to_created_by())
