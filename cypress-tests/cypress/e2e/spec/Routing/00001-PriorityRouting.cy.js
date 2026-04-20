@@ -7,9 +7,11 @@ let globalState;
 describe("Priority Based Routing Test", () => {
   let shouldContinue = true;
 
-  beforeEach(() => {
+  beforeEach(function () {
+    if (!shouldContinue) {
+      this.skip();
+    }
     cy.session("login", () => {
-      // Make sure we have credentials
       if (!globalState.get("email") || !globalState.get("password")) {
         throw new Error("Missing login credentials in global state");
       }
@@ -18,7 +20,6 @@ describe("Priority Based Routing Test", () => {
         .then(() => cy.terminate2Fa(globalState))
         .then(() => cy.userInfo(globalState))
         .then(() => {
-          // Verify we have all necessary tokens and IDs
           const requiredKeys = [
             "userInfoToken",
             "merchantId",
@@ -97,14 +98,12 @@ describe("Priority Based Routing Test", () => {
 
     it("retrieve-routing-call-test", () => {
       const data = utils.getConnectorDetails("common")["priorityRouting"];
-
       cy.retrieveRoutingConfig(data, globalState);
       if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
 
     it("activate-routing-call-test", () => {
       const data = utils.getConnectorDetails("common")["priorityRouting"];
-
       cy.activateRoutingConfig(data, globalState);
       if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
@@ -112,7 +111,6 @@ describe("Priority Based Routing Test", () => {
     it("payment-routing-test", () => {
       const data =
         utils.getConnectorDetails("stripe")["card_pm"]["No3DSAutoCapture"];
-
       cy.createConfirmPaymentTest(
         fixtures.createConfirmPaymentBody,
         data,
@@ -120,7 +118,6 @@ describe("Priority Based Routing Test", () => {
         "automatic",
         globalState
       );
-
       if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
 
@@ -129,7 +126,7 @@ describe("Priority Based Routing Test", () => {
     });
   });
 
-  context("Routing with adyen as top priority", () => {
+  context("Routing with Adyen as top priority", () => {
     before("seed global state", () => {
       cy.task("getGlobalState").then((state) => {
         globalState = new State(state);
@@ -176,14 +173,12 @@ describe("Priority Based Routing Test", () => {
 
     it("retrieve-routing-call-test", () => {
       const data = utils.getConnectorDetails("common")["priorityRouting"];
-
       cy.retrieveRoutingConfig(data, globalState);
       if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
 
     it("activate-routing-call-test", () => {
       const data = utils.getConnectorDetails("common")["priorityRouting"];
-
       cy.activateRoutingConfig(data, globalState);
       if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
@@ -191,7 +186,6 @@ describe("Priority Based Routing Test", () => {
     it("payment-routing-test", () => {
       const data =
         utils.getConnectorDetails("adyen")["card_pm"]["No3DSAutoCapture"];
-
       cy.createConfirmPaymentTest(
         fixtures.createConfirmPaymentBody,
         data,

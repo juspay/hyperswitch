@@ -1,4 +1,19 @@
 export const connectorDetails = {
+  defaultRouting: {
+    Request: {
+      name: "default routing",
+      description: "Default routing - no explicit algorithm",
+      algorithm: {
+        type: "priority",
+        data: [],
+      },
+      profile_id: "{{profile_id}}",
+    },
+    Response: {
+      status: 200,
+      body: {},
+    },
+  },
   priorityRouting: {
     Request: {
       name: "priority routing",
