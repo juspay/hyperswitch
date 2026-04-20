@@ -622,34 +622,6 @@ impl From<WriteMode> for VaultQueryParam {
     }
 }
 
-#[cfg(feature = "v1")]
-impl From<AltIdResponsePayload>
-    for hyperswitch_domain_models::payment_method_data::NetworkTokenData
-{
-    fn from(payload: AltIdResponsePayload) -> Self {
-        Self {
-            token_number: payload.alt_id_details.alt_id,
-            token_exp_month: payload.alt_id_details.exp_month,
-            token_exp_year: payload.alt_id_details.exp_year,
-            token_cryptogram: Some(payload.alt_id_details.tavv),
-            nick_name: None,
-            card_issuer: payload.card_issuer_bank,
-            card_network: Some(payload.card_brand),
-            card_type: None,
-            card_issuing_country: payload.card_issuer_country,
-            bank_code: None,
-            eci: None,
-            par: payload.alt_id_details.par,
-        }
-    }
-}
-
-/// Alt-ID API response wrapper (raw, before decryption)
-#[derive(Debug, Deserialize, Clone)]
-pub struct AltIdResponse {
-    pub status: String,
-    pub payload: AltIdResponsePayloadRaw,
-}
 #[cfg(feature = "v2")]
 pub struct PaymentMethodUpdateHandler<'a> {
     pub platform: &'a hyperswitch_domain_models::platform::Platform,
