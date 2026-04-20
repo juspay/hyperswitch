@@ -109,6 +109,36 @@ export const connectorDetails = {
         },
       },
     },
+    PaymentIntentWithBillingDescriptor: {
+      Request: {
+        currency: "USD",
+        billing_descriptor: {
+          statement_descriptor: "Test Billing Descriptor",
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+        },
+      },
+    },
+    PaymentConfirmWithBillingDescriptor: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    },
     "3DSManualCapture": {
       Request: {
         payment_method: "card",
