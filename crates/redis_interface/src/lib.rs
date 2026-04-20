@@ -122,6 +122,7 @@ impl SubscriberClient {
     pub async fn new_cluster(
         nodes: Vec<String>,
         broadcast_capacity: usize,
+        conf: &RedisSettings,
     ) -> CustomResult<Self, errors::RedisError> {
         // Note: Using an unbounded channel because redis-rs only implements
         // `AsyncPushSender` for `UnboundedSender`, not bounded `Sender`.
@@ -129,9 +130,24 @@ impl SubscriberClient {
         let (push_sender, push_receiver_channel) =
             tokio::sync::mpsc::unbounded_channel::<redis::PushInfo>();
 
-        let cluster_client = redis::cluster::ClusterClient::builder(nodes)
+        let mut cluster_builder = redis::cluster::ClusterClient::builder(nodes)
             .use_protocol(redis::ProtocolVersion::RESP3)
             .push_sender(push_sender)
+            .retries(
+                u32::try_from(conf.reconnect_max_attempts).unwrap_or(5),
+            )
+            .min_retry_wait(u64::from(conf.reconnect_delay))
+            .response_timeout(std::time::Duration::from_secs(
+                conf.default_command_timeout.max(1) as u64,
+            ));
+
+        if conf.max_in_flight_commands > 0 {
+            cluster_builder = cluster_builder.connection_concurrency_limit(
+                usize::try_from(conf.max_in_flight_commands).unwrap_or_default(),
+            );
+        }
+
+        let cluster_client = cluster_builder
             .build()
             .change_context(errors::RedisError::RedisConnectionError)?;
 
@@ -351,29 +367,45 @@ impl SubscriberClient {
         _is_subscriber_handler_spawned: &Arc<atomic::AtomicBool>,
     ) {
         let sender = broadcast_sender.clone();
-        let mut receiver = push_receiver.lock().await;
 
-        while let Some(push_info) = receiver.recv().await {
-            let channel = push_info
-                .data
-                .first()
-                .map(|v| match v {
-                    Value::BulkString(bytes) => String::from_utf8_lossy(bytes).into_owned(),
-                    Value::SimpleString(s) => s.clone(),
-                    _ => String::new(),
-                })
-                .unwrap_or_default();
+        loop {
+            let result = {
+                let mut receiver = push_receiver.lock().await;
+                receiver.recv().await
+            };
 
-            let payload = push_info.data.into_iter().nth(1).unwrap_or(Value::Nil);
+            match result {
+                Some(push_info) => {
+                    let channel = push_info
+                        .data
+                        .first()
+                        .map(|value| match value {
+                            Value::BulkString(bytes) => String::from_utf8_lossy(bytes).into_owned(),
+                            Value::SimpleString(s) => s.clone(),
+                            _ => String::new(),
+                        })
+                        .unwrap_or_default();
 
-            if let Err(error) = sender.send(PubSubMessage {
-                channel,
-                value: payload,
-            }) {
-                tracing::warn!(
-                    ?error,
-                    "Failed to broadcast cluster pub/sub message — no active receivers"
-                );
+                    let payload = push_info.data.into_iter().nth(1).unwrap_or(Value::Nil);
+
+                    if let Err(error) = sender.send(PubSubMessage {
+                        channel,
+                        value: payload,
+                    }) {
+                        tracing::warn!(
+                            ?error,
+                            "Failed to broadcast cluster pub/sub message — no active receivers"
+                        );
+                    }
+                }
+                None => {
+                    // The push_sender was dropped — this only happens if the
+                    // ClusterClient is dropped entirely. Transient connection
+                    // loss is handled internally by ClusterClient (it reconnects
+                    // and resubscribes automatically, push channel stays open).
+                    tracing::error!("Cluster pub/sub push channel closed — ClusterClient dropped");
+                    break;
+                }
             }
         }
     }
@@ -456,172 +488,192 @@ pub struct RedisConnectionPool {
 impl RedisConnectionPool {
     /// Create a new Redis connection
     pub async fn new(conf: &RedisSettings) -> CustomResult<Self, errors::RedisError> {
-        let redis_connection_url = format!("redis://{}:{}", conf.host, conf.port);
+        let (pool, subscriber, publisher) = match conf.cluster_enabled {
+            true => {
+                let nodes: Vec<String> = conf
+                    .cluster_urls
+                    .iter()
+                    .map(|url| {
+                        if url.starts_with("redis://") {
+                            url.clone()
+                        } else {
+                            format!("redis://{url}")
+                        }
+                    })
+                    .collect();
 
-        let pool = if conf.cluster_enabled {
-            // Build cluster connection
-            let mut nodes = vec![redis_connection_url.clone()];
-            for url in &conf.cluster_urls {
-                // cluster_urls might be "host:port" or full URLs
-                if url.starts_with("redis://") {
-                    nodes.push(url.clone());
-                } else {
-                    nodes.push(format!("redis://{url}"));
+                let mut pool_builder = redis::cluster::ClusterClient::builder(nodes.clone())
+                    .retries(
+                        u32::try_from(conf.reconnect_max_attempts).unwrap_or(5),
+                    )
+                    .min_retry_wait(u64::from(conf.reconnect_delay))
+                    .response_timeout(std::time::Duration::from_secs(
+                        conf.default_command_timeout.max(1) as u64,
+                    ));
+
+                if conf.max_in_flight_commands > 0 {
+                    pool_builder = pool_builder.connection_concurrency_limit(
+                        usize::try_from(conf.max_in_flight_commands).unwrap_or_default(),
+                    );
                 }
-            }
 
-            let cluster_conn = redis::cluster::ClusterClient::new(nodes)
-                .change_context(errors::RedisError::RedisConnectionError)
-                .attach_printable_lazy(|| {
-                    format!(
-                        "Failed to create Redis cluster client for {}:{}",
-                        conf.host, conf.port
-                    )
-                })?
-                .get_async_connection()
-                .await
-                .change_context(errors::RedisError::RedisConnectionError)
-                .attach_printable_lazy(|| {
-                    format!(
-                        "Failed to connect to Redis cluster at {}:{}",
-                        conf.host, conf.port
-                    )
-                })?;
+                if !conf.use_legacy_version {
+                    pool_builder =
+                        pool_builder.use_protocol(redis::ProtocolVersion::RESP3);
+                }
 
-            RedisConn::Cluster(cluster_conn)
-        } else {
-            // Build standalone connection.
-            //
-            // Design note: `ConnectionManager` uses a single multiplexed TCP connection
-            // with automatic reconnection (exponential backoff). This differs from the
-            // old `fred::RedisPool` which maintained `pool_size` physical connections.
-            // A single multiplexed connection is sufficient for most workloads because
-            // Redis itself is single-threaded. The `pool_size` config field has no
-            // equivalent — if a connection pool is needed, consider `bb8-redis`.
-            let mut connection_info = redis_connection_url
-                .as_str()
-                .into_connection_info()
-                .change_context(errors::RedisError::RedisConnectionError)?;
-
-            if !conf.use_legacy_version {
-                let redis_settings = connection_info
-                    .redis_settings()
-                    .clone()
-                    .set_protocol(redis::ProtocolVersion::RESP3);
-                connection_info = connection_info.set_redis_settings(redis_settings);
-            }
-
-            let client = redis::Client::open(connection_info)
-                .change_context(errors::RedisError::RedisConnectionError)
-                .attach_printable_lazy(|| {
-                    format!(
-                        "Failed to open Redis client for {}:{}",
-                        conf.host, conf.port
-                    )
-                })?;
-
-            // Build ConnectionManagerConfig from RedisSettings
-            let reconnection_retries =
-                usize::try_from(conf.reconnect_max_attempts).unwrap_or_default();
-            let reconnection_min_delay =
-                std::time::Duration::from_millis(u64::from(conf.reconnect_delay));
-
-            let mut connection_manager_config = redis::aio::ConnectionManagerConfig::new()
-                .set_number_of_retries(reconnection_retries)
-                .set_min_delay(reconnection_min_delay);
-
-            if conf.default_command_timeout > 0 {
-                connection_manager_config = connection_manager_config.set_response_timeout(Some(
-                    std::time::Duration::from_secs(conf.default_command_timeout),
-                ));
-            }
-
-            if conf.max_in_flight_commands > 0 {
-                let pipeline_buffer_size =
-                    usize::try_from(conf.max_in_flight_commands).unwrap_or_default();
-                connection_manager_config =
-                    connection_manager_config.set_pipeline_buffer_size(pipeline_buffer_size);
-            }
-
-            let conn =
-                redis::aio::ConnectionManager::new_with_config(client, connection_manager_config)
+                let pool_conn = pool_builder
+                    .build()
+                    .change_context(errors::RedisError::RedisConnectionError)
+                    .attach_printable_lazy(|| {
+                        format!(
+                            "Failed to create Redis cluster client for {}:{}",
+                            conf.host, conf.port
+                        )
+                    })?
+                    .get_async_connection()
                     .await
                     .change_context(errors::RedisError::RedisConnectionError)
                     .attach_printable_lazy(|| {
-                        format!("Failed to connect to Redis at {}:{}", conf.host, conf.port)
+                        format!(
+                            "Failed to connect to Redis cluster at {}:{}",
+                            conf.host, conf.port
+                        )
                     })?;
 
-            RedisConn::Standalone(conn)
-        };
+                let pool = RedisConn::Cluster(pool_conn);
 
-        // Create a separate client for publisher and subscriber.
-        // In cluster mode, use the cluster client so pub/sub goes through the cluster.
-        // In standalone mode, use the same redis://host:port.
-        let (subscriber, publisher) = if conf.cluster_enabled {
-            let mut nodes = vec![redis_connection_url.clone()];
-            for url in &conf.cluster_urls {
-                if url.starts_with("redis://") {
-                    nodes.push(url.clone());
-                } else {
-                    nodes.push(format!("redis://{url}"));
+                let mut publisher_builder =
+                    redis::cluster::ClusterClient::builder(nodes.clone())
+                        .retries(
+                            u32::try_from(conf.reconnect_max_attempts).unwrap_or(5),
+                        )
+                        .min_retry_wait(u64::from(conf.reconnect_delay))
+                        .response_timeout(std::time::Duration::from_secs(
+                            conf.default_command_timeout.max(1) as u64,
+                        ));
+
+                if !conf.use_legacy_version {
+                    publisher_builder =
+                        publisher_builder.use_protocol(redis::ProtocolVersion::RESP3);
                 }
+
+                let publisher_conn = publisher_builder
+                    .build()
+                    .change_context(errors::RedisError::RedisConnectionError)
+                    .attach_printable_lazy(|| {
+                        format!(
+                            "Failed to create Redis cluster pub/sub client for {}:{}",
+                            conf.host, conf.port
+                        )
+                    })?
+                    .get_async_connection()
+                    .await
+                    .change_context(errors::RedisError::RedisConnectionError)
+                    .attach_printable_lazy(|| {
+                        format!(
+                            "Failed to connect Redis cluster pub/sub at {}:{}",
+                            conf.host, conf.port
+                        )
+                    })?;
+
+                let publisher = Arc::new(RedisClient {
+                    inner: RedisConn::Cluster(publisher_conn),
+                });
+
+                let subscriber = Arc::new(
+                    SubscriberClient::new_cluster(nodes, conf.broadcast_channel_capacity, conf)
+                        .await?,
+                );
+
+                (pool, subscriber, publisher)
             }
+            false => {
+                let redis_connection_url = format!("redis://{}:{}", conf.host, conf.port);
 
-            let cluster_conn = redis::cluster::ClusterClient::builder(nodes.clone())
-                .build()
-                .change_context(errors::RedisError::RedisConnectionError)
-                .attach_printable_lazy(|| {
-                    format!(
-                        "Failed to create Redis cluster pub/sub client for {}:{}",
-                        conf.host, conf.port
-                    )
-                })?
-                .get_async_connection()
-                .await
-                .change_context(errors::RedisError::RedisConnectionError)
-                .attach_printable_lazy(|| {
-                    format!(
-                        "Failed to connect Redis cluster pub/sub at {}:{}",
-                        conf.host, conf.port
-                    )
-                })?;
+                let mut connection_info = redis_connection_url
+                    .as_str()
+                    .into_connection_info()
+                    .change_context(errors::RedisError::RedisConnectionError)?;
 
-            let publisher = RedisClient {
-                inner: RedisConn::Cluster(cluster_conn),
-            };
-            let subscriber =
-                SubscriberClient::new_cluster(nodes, conf.broadcast_channel_capacity).await?;
+                if !conf.use_legacy_version {
+                    let redis_settings = connection_info
+                        .redis_settings()
+                        .clone()
+                        .set_protocol(redis::ProtocolVersion::RESP3);
+                    connection_info = connection_info.set_redis_settings(redis_settings);
+                }
 
-            (Arc::new(subscriber), Arc::new(publisher))
-        } else {
-            let mut base_connection_info = redis_connection_url
-                .as_str()
-                .into_connection_info()
-                .change_context(errors::RedisError::RedisConnectionError)?;
+                let client = redis::Client::open(connection_info)
+                    .change_context(errors::RedisError::RedisConnectionError)
+                    .attach_printable_lazy(|| {
+                        format!(
+                            "Failed to open Redis client for {}:{}",
+                            conf.host, conf.port
+                        )
+                    })?;
 
-            if !conf.use_legacy_version {
-                let redis_settings = base_connection_info
-                    .redis_settings()
-                    .clone()
-                    .set_protocol(redis::ProtocolVersion::RESP3);
-                base_connection_info = base_connection_info.set_redis_settings(redis_settings);
+                let reconnection_retries =
+                    usize::try_from(conf.reconnect_max_attempts).unwrap_or_default();
+                let reconnection_min_delay =
+                    std::time::Duration::from_millis(u64::from(conf.reconnect_delay));
+
+                let mut connection_manager_config = redis::aio::ConnectionManagerConfig::new()
+                    .set_number_of_retries(reconnection_retries)
+                    .set_min_delay(reconnection_min_delay);
+
+                if conf.default_command_timeout > 0 {
+                    connection_manager_config = connection_manager_config.set_response_timeout(Some(
+                        std::time::Duration::from_secs(conf.default_command_timeout),
+                    ));
+                }
+
+                if conf.max_in_flight_commands > 0 {
+                    let pipeline_buffer_size =
+                        usize::try_from(conf.max_in_flight_commands).unwrap_or_default();
+                    connection_manager_config =
+                        connection_manager_config.set_pipeline_buffer_size(pipeline_buffer_size);
+                }
+
+                let conn =
+                    redis::aio::ConnectionManager::new_with_config(client, connection_manager_config)
+                        .await
+                        .change_context(errors::RedisError::RedisConnectionError)
+                        .attach_printable_lazy(|| {
+                            format!("Failed to connect to Redis at {}:{}", conf.host, conf.port)
+                        })?;
+
+                let pool = RedisConn::Standalone(conn);
+
+                let mut base_connection_info = redis_connection_url
+                    .as_str()
+                    .into_connection_info()
+                    .change_context(errors::RedisError::RedisConnectionError)?;
+
+                if !conf.use_legacy_version {
+                    let redis_settings = base_connection_info
+                        .redis_settings()
+                        .clone()
+                        .set_protocol(redis::ProtocolVersion::RESP3);
+                    base_connection_info = base_connection_info.set_redis_settings(redis_settings);
+                }
+
+                let base_client = redis::Client::open(base_connection_info)
+                    .change_context(errors::RedisError::RedisConnectionError)
+                    .attach_printable_lazy(|| {
+                        format!(
+                            "Failed to open Redis pub/sub client for {}:{}",
+                            conf.host, conf.port
+                        )
+                    })?;
+
+                let subscriber = Arc::new(
+                    SubscriberClient::new(base_client.clone(), conf.broadcast_channel_capacity).await?,
+                );
+                let publisher = Arc::new(RedisClient::new(&base_client).await?);
+
+                (pool, subscriber, publisher)
             }
-
-            let base_client = redis::Client::open(base_connection_info)
-                .change_context(errors::RedisError::RedisConnectionError)
-                .attach_printable_lazy(|| {
-                    format!(
-                        "Failed to open Redis pub/sub client for {}:{}",
-                        conf.host, conf.port
-                    )
-                })?;
-
-            let subscriber = Arc::new(
-                SubscriberClient::new(base_client.clone(), conf.broadcast_channel_capacity).await?,
-            );
-            let publisher = Arc::new(RedisClient::new(&base_client).await?);
-
-            (subscriber, publisher)
         };
 
         let config = RedisConfig::from(conf);
