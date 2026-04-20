@@ -1277,6 +1277,10 @@ diesel::table! {
         profile_id -> Nullable<Varchar>,
         #[max_length = 255]
         secure_link -> Nullable<Varchar>,
+        #[max_length = 64]
+        processor_merchant_id -> Nullable<Varchar>,
+        #[max_length = 255]
+        created_by -> Nullable<Varchar>,
     }
 }
 
