@@ -2730,21 +2730,22 @@ pub async fn retrieve_payment_method_data_with_permanent_token(
         })
         .transpose()?;
 
-    let is_network_tokenization_supported_connector = if let Some(connector_name) = connector_variant {
-        dimension_state::Dimensions::new()
-            .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
-            .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id())
-            .with_connector(connector_name)
-            .with_profile_id(business_profile.get_id().clone())
-            .get_network_tokenization_supported_connector(
-                state.store.as_ref(),
-                state.superposition_service.as_ref(),
-                None,
-            )
-            .await
-    } else {
-        false
-    };
+    let is_network_tokenization_supported_connector =
+        if let Some(connector_name) = connector_variant {
+            dimension_state::Dimensions::new()
+                .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
+                .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id())
+                .with_connector(connector_name)
+                .with_profile_id(business_profile.get_id().clone())
+                .get_network_tokenization_supported_connector(
+                    state.store.as_ref(),
+                    state.superposition_service.as_ref(),
+                    None,
+                )
+                .await
+        } else {
+            false
+        };
 
     let vault_fetch_action = decide_payment_method_retrieval_action(
         business_profile.is_network_tokenization_enabled,

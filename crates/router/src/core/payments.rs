@@ -834,7 +834,7 @@ where
                 state.superposition_service.as_ref(),
                 None,
             )
-        .await;
+            .await;
         #[cfg(feature = "frm")]
         let frm_configs = if is_frm_enabled {
             match Box::pin(frm_core::call_frm_before_connector_call(
@@ -10769,7 +10769,6 @@ pub enum ActionType {
     #[cfg(feature = "v1")]
     ConnectorMandate(hyperswitch_domain_models::mandates::PaymentsMandateReference),
 }
-
 
 #[cfg(feature = "v1")]
 #[derive(Default)]

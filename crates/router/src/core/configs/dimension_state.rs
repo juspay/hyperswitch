@@ -1,6 +1,10 @@
 use std::marker::PhantomData;
 
-use common_enums::{connector_enums::Connector, enums::CardNetwork, enums::Currency, PayoutRetryType};
+use common_enums::{
+    connector_enums::Connector,
+    enums::{CardNetwork, Currency},
+    PayoutRetryType,
+};
 use common_utils::id_type;
 use external_services::superposition;
 pub use hyperswitch_domain_models::platform::{ProcessorMerchantId, ProviderMerchantId};

@@ -2132,9 +2132,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
 
                         // For MIT transactions, lookup recommended action from merchant_advice_codes config
                         let merchant_advice_codes = dimension_state::Dimensions::new()
-                            .with_processor_merchant_id(
-                                processor.get_processor_merchant_id(),
-                            )
+                            .with_processor_merchant_id(processor.get_processor_merchant_id())
                             .get_merchant_advice_codes(
                                 state.store.as_ref(),
                                 state.superposition_service.as_ref(),

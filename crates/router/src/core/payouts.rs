@@ -1590,7 +1590,13 @@ pub async fn complete_payout_eligibility(
 
     let new_dimensions = dimensions
         .with_profile_id(payout_data.profile_id.clone())
-        .with_organization_id(platform.get_processor().get_account().clone().organization_id);
+        .with_organization_id(
+            platform
+                .get_processor()
+                .get_account()
+                .clone()
+                .organization_id,
+        );
 
     let payout_eligibility_default = new_dimensions
         .get_payout_eligibility(

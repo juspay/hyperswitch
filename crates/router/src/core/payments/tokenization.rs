@@ -1055,17 +1055,15 @@ pub async fn pre_payment_tokenization(
     customer_id: id_type::CustomerId,
     card: &payment_method_data::Card,
 ) -> RouterResult<(Option<pm_types::TokenResponse>, Option<String>)> {
-    let is_network_supported = OptionFuture::from(
-        card.card_network.as_ref().map(|card_network| {
-            dimension_state::Dimensions::new()
-                .with_network(card_network.clone())
-                .get_network_tokenization_supported_card_network(
-                    state.store.as_ref(),
-                    state.superposition_service.as_ref(),
-                    None,
-                )
-        }),
-    )
+    let is_network_supported = OptionFuture::from(card.card_network.as_ref().map(|card_network| {
+        dimension_state::Dimensions::new()
+            .with_network(card_network.clone())
+            .get_network_tokenization_supported_card_network(
+                state.store.as_ref(),
+                state.superposition_service.as_ref(),
+                None,
+            )
+    }))
     .await
     .unwrap_or(false);
 
@@ -1467,8 +1465,8 @@ pub async fn save_network_token_in_locker(
             Ok((Some(res), dc, None))
         }
         None => {
-            let is_network_supported = OptionFuture::from(
-                card_data.card_network.as_ref().map(|card_network| {
+            let is_network_supported =
+                OptionFuture::from(card_data.card_network.as_ref().map(|card_network| {
                     dimension_state::Dimensions::new()
                         .with_network(card_network.clone())
                         .get_network_tokenization_supported_card_network(
@@ -1476,10 +1474,9 @@ pub async fn save_network_token_in_locker(
                             state.superposition_service.as_ref(),
                             None,
                         )
-                }),
-            )
-            .await
-            .unwrap_or(false);
+                }))
+                .await
+                .unwrap_or(false);
 
             if is_network_supported {
                 let optional_card_cvc = Some(card_data.card_cvc.clone());

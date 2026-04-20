@@ -12,7 +12,10 @@ use super::{
 };
 use crate::{
     core::{
-        configs::{dimension_config::DebitRoutingSupported, dimension_state, fetch_db_config_for_dimensions},
+        configs::{
+            dimension_config::DebitRoutingSupported, dimension_state,
+            fetch_db_config_for_dimensions,
+        },
         errors,
         payments::{operations::BoxedOperation, routing},
     },
@@ -182,10 +185,7 @@ where
     }
 }
 
-async fn request_validation<F: Clone, D>(
-    state: &SessionState,
-    payment_data: &D,
-) -> bool
+async fn request_validation<F: Clone, D>(state: &SessionState, payment_data: &D) -> bool
 where
     D: OperationSessionGetters<F> + Send + Sync + Clone,
 {
@@ -270,17 +270,12 @@ pub async fn check_for_debit_routing_connector_in_profile<
     .ok();
 
     let is_debit_routable_connector_present = match fallback_config_optional {
-        Some(fallback_config) => {
-            futures::future::join_all(fallback_config.iter().map(|fc| {
-                is_connector_debit_routing_supported(
-                    state,
-                    api_enums::Connector::from(fc.connector),
-                )
-            }))
-            .await
-            .into_iter()
-            .any(|supported| supported)
-        }
+        Some(fallback_config) => futures::future::join_all(fallback_config.iter().map(|fc| {
+            is_connector_debit_routing_supported(state, api_enums::Connector::from(fc.connector))
+        }))
+        .await
+        .into_iter()
+        .any(|supported| supported),
         None => false,
     };
 
@@ -572,17 +567,16 @@ where
         .get_payment_attempt()
         .processor_merchant_id
         .clone();
-    let is_any_debit_routing_connector_supported = futures::future::join_all(
-        connector_data_list.iter().map(|connector_data| {
+    let is_any_debit_routing_connector_supported =
+        futures::future::join_all(connector_data_list.iter().map(|connector_data| {
             is_connector_debit_routing_supported(
                 state,
                 connector_data.connector_data.connector_name,
             )
-        }),
-    )
-    .await
-    .into_iter()
-    .any(|supported| supported);
+        }))
+        .await
+        .into_iter()
+        .any(|supported| supported);
 
     if is_any_debit_routing_connector_supported {
         let debit_routing_output =
@@ -644,15 +638,14 @@ async fn build_connector_routing_data(
     let mcas_for_profile = fetch_merchant_connector_accounts(state, profile_id, key_store).await?;
 
     // Pre-fetch routing support for all connectors in parallel
-    let connector_support: Vec<bool> = futures::future::join_all(
-        eligible_connector_data_list.iter().map(|connector_data| {
+    let connector_support: Vec<bool> =
+        futures::future::join_all(eligible_connector_data_list.iter().map(|connector_data| {
             is_connector_debit_routing_supported(
                 state,
                 connector_data.connector_data.connector_name,
             )
-        }),
-    )
-    .await;
+        }))
+        .await;
 
     let mut connector_routing_data = Vec::new();
     let mut has_us_local_network = false;

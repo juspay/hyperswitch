@@ -980,7 +980,6 @@ pub struct UserAuthMethodSettings {
     pub encryption_key: Secret<String>,
 }
 
-
 /// Configuration structure for individual merchant advice code
 #[derive(Debug, Deserialize, Clone)]
 pub struct MerchantAdviceCodeConfig {

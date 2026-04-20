@@ -599,4 +599,3 @@ impl DatabaseBackedConfig for NetworkTokenizationSupportedCardNetwork {
         None
     }
 }
-
