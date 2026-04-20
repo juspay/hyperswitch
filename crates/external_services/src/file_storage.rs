@@ -53,7 +53,9 @@ impl FileStorageConfig {
 /// Part entry for S3 multipart upload completion.
 #[derive(Debug, Clone)]
 pub struct CompletedPart {
+    /// One-based part number for multipart upload completion.
     pub part_number: i32,
+    /// ETag returned by storage backend for this uploaded part.
     pub e_tag: String,
 }
 
@@ -73,32 +75,29 @@ pub trait FileStorageInterface: dyn_clone::DynClone + Sync + Send {
     /// Retrieves a file from the selected storage scheme.
     async fn retrieve_file(&self, file_key: &str) -> CustomResult<Vec<u8>, FileStorageError>;
 
+    /// Starts a multipart upload and returns the upload identifier.
     async fn initiate_multipart_upload(
         &self,
-        _file_key: &str,
-        _content_type: &str,
-    ) -> CustomResult<String, FileStorageError> {
-        Err(FileStorageError::NotSupported.into())
-    }
+        file_key: &str,
+        content_type: &str,
+    ) -> CustomResult<String, FileStorageError>;
 
+    /// Uploads one part and returns the part ETag.
     async fn upload_part(
         &self,
-        _file_key: &str,
-        _upload_id: &str,
-        _part_number: i32,
-        _body: Vec<u8>,
-    ) -> CustomResult<String, FileStorageError> {
-        Err(FileStorageError::NotSupported.into())
-    }
+        file_key: &str,
+        upload_id: &str,
+        part_number: i32,
+        body: Vec<u8>,
+    ) -> CustomResult<String, FileStorageError>;
 
+    /// Completes multipart upload with all uploaded part metadata.
     async fn complete_multipart_upload(
         &self,
-        _file_key: &str,
-        _upload_id: &str,
-        _parts: Vec<CompletedPart>,
-    ) -> CustomResult<(), FileStorageError> {
-        Err(FileStorageError::NotSupported.into())
-    }
+        file_key: &str,
+        upload_id: &str,
+        parts: Vec<CompletedPart>,
+    ) -> CustomResult<(), FileStorageError>;
 }
 
 dyn_clone::clone_trait_object!(FileStorageInterface);
@@ -130,6 +129,4 @@ pub enum FileStorageError {
     #[error("Failed to delete file")]
     DeleteFailed,
 
-    #[error("Operation not supported")]
-    NotSupported,
 }

@@ -17,7 +17,11 @@ use crate::{
     types::{domain, storage::revenue_recovery_reports::RevenueRecoveryUploadStatusManager},
 };
 const DEFAULT_S3_CONTENT_TYPE: &str = "text/csv";
+/// Minimum multipart chunk size in bytes (5 MiB).
 const MIN_S3_MULTIPART_PART_SIZE: usize = 5 * 1024 * 1024;
+/// Maximum allowed time for a background upload before it is marked as failed.
+const MAX_UPLOAD_DURATION_SECONDS: u64 = 3 * 60 * 60;
+/// Status retention window in seconds (24 hours) to allow polling even after long-running uploads complete.
 const UPLOAD_STATUS_TTL_SECONDS: i64 = 86400;
 
 pub async fn upload_revenue_recovery_report_background(
@@ -49,7 +53,7 @@ pub async fn upload_revenue_recovery_report_background(
         "revenue_recovery_reports/{}/{:04}{:02}{:02}T{:02}{:02}{:02}Z_{}_{}",
         merchant_id_str,
         parsed_timeline.year(),
-        parsed_timeline.month() as u8,
+        u8::from(parsed_timeline.month()),
         parsed_timeline.day(),
         parsed_timeline.hour(),
         parsed_timeline.minute(),
@@ -63,101 +67,128 @@ pub async fn upload_revenue_recovery_report_background(
     let mut current_status_data = initial_status_data;
     current_status_data.s3_key = Some(s3_key.clone());
 
-    let result: RouterResult<()> = async {
-        let upload_id = state
-            .file_storage_client
-            .initiate_multipart_upload(&s3_key, &s3_content_type)
-            .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to initiate S3 multipart upload")?;
+    let result: RouterResult<()> = match tokio::time::timeout(
+        std::time::Duration::from_secs(MAX_UPLOAD_DURATION_SECONDS),
+        async {
+            let upload_id = state
+                .file_storage_client
+                .initiate_multipart_upload(&s3_key, &s3_content_type)
+                .await
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to initiate S3 multipart upload")?;
 
-        let mut current_part_number = 1;
-        let mut uploaded_parts = Vec::new();
-        let mut part_buffer = Vec::new();
+            let mut current_part_number = 1;
+            let mut uploaded_parts = Vec::new();
+            let mut part_buffer = Vec::new();
 
-        while let Some(chunk_result) = file_stream.next().await {
-            let chunk = chunk_result
-                .map_err(|_| {
-                    error_stack::Report::from(errors::ApiErrorResponse::InternalServerError)
-                })
-                .attach_printable("Error while reading file stream chunk in background")?;
+            while let Some(chunk_result) = file_stream.next().await {
+                let chunk = chunk_result
+                    .map_err(|_| {
+                        error_stack::Report::from(errors::ApiErrorResponse::InternalServerError)
+                    })
+                    .attach_printable("Error while reading file stream chunk in background")?;
 
-            part_buffer.extend_from_slice(&chunk);
+                part_buffer.extend_from_slice(&chunk);
 
-            if part_buffer.len() >= MIN_S3_MULTIPART_PART_SIZE {
+                if part_buffer.len() >= MIN_S3_MULTIPART_PART_SIZE {
+                    logger::info!(
+                        "Background: Uploading part {} for {}. Size: {}",
+                        current_part_number,
+                        s3_key,
+                        part_buffer.len()
+                    );
+                    let e_tag = state
+                        .file_storage_client
+                        .upload_part(
+                            &s3_key,
+                            &upload_id,
+                            current_part_number,
+                            part_buffer.clone(),
+                        )
+                        .await
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable_lazy(|| {
+                            format!("Failed to upload S3 part {}", current_part_number)
+                        })?;
+
+                    uploaded_parts.push(StorageCompletedPart {
+                        part_number: current_part_number,
+                        e_tag,
+                    });
+
+                    part_buffer.clear();
+                    current_part_number += 1;
+                }
+            }
+
+            if !part_buffer.is_empty() {
                 logger::info!(
-                    "Background: Uploading part {} for {}. Size: {}",
+                    "Background: Uploading final part {} for {}. Size: {}",
                     current_part_number,
                     s3_key,
                     part_buffer.len()
                 );
                 let e_tag = state
                     .file_storage_client
-                    .upload_part(
-                        &s3_key,
-                        &upload_id,
-                        current_part_number,
-                        part_buffer.clone(),
-                    )
+                    .upload_part(&s3_key, &upload_id, current_part_number, part_buffer)
                     .await
                     .change_context(errors::ApiErrorResponse::InternalServerError)
                     .attach_printable_lazy(|| {
-                        format!("Failed to upload S3 part {}", current_part_number)
+                        format!("Failed to upload final S3 part {}", current_part_number)
                     })?;
 
                 uploaded_parts.push(StorageCompletedPart {
                     part_number: current_part_number,
                     e_tag,
                 });
-
-                part_buffer.clear();
-                current_part_number += 1;
             }
-        }
 
-        if !part_buffer.is_empty() {
+            uploaded_parts.sort_by_key(|p| p.part_number);
+
             logger::info!(
-                "Background: Uploading final part {} for {}. Size: {}",
-                current_part_number,
+                "Background: Completing multipart upload for {}. Total parts: {}",
                 s3_key,
-                part_buffer.len()
+                uploaded_parts.len()
             );
-            let e_tag = state
+            state
                 .file_storage_client
-                .upload_part(&s3_key, &upload_id, current_part_number, part_buffer)
+                .complete_multipart_upload(&s3_key, &upload_id, uploaded_parts)
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable_lazy(|| {
-                    format!("Failed to upload final S3 part {}", current_part_number)
-                })?;
+                .attach_printable("Failed to complete S3 multipart upload")?;
 
-            uploaded_parts.push(StorageCompletedPart {
-                part_number: current_part_number,
-                e_tag,
-            });
+            logger::info!(
+                "Background: Successfully uploaded revenue recovery report to {}",
+                s3_key
+            );
+            Ok(())
+        },
+    )
+    .await
+    {
+        Ok(upload_result) => upload_result,
+        Err(_) => {
+            logger::error!(
+                "Background upload timed out for file_id {} after {} seconds",
+                file_id,
+                MAX_UPLOAD_DURATION_SECONDS
+            );
+            current_status_data.status = UploadStatus::Failed;
+            current_status_data.error = Some(format!(
+                "Upload timed out after {} seconds",
+                MAX_UPLOAD_DURATION_SECONDS
+            ));
+            current_status_data.completed_at = Some(time::OffsetDateTime::now_utc().to_string());
+            let _ = RevenueRecoveryUploadStatusManager::set_upload_status(
+                &state,
+                &file_id,
+                current_status_data,
+                UPLOAD_STATUS_TTL_SECONDS,
+            )
+            .await;
+            return Ok(());
         }
-
-        uploaded_parts.sort_by_key(|p| p.part_number);
-
-        logger::info!(
-            "Background: Completing multipart upload for {}. Total parts: {}",
-            s3_key,
-            uploaded_parts.len()
-        );
-        state
-            .file_storage_client
-            .complete_multipart_upload(&s3_key, &upload_id, uploaded_parts)
-            .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to complete S3 multipart upload")?;
-
-        logger::info!(
-            "Background: Successfully uploaded revenue recovery report to {}",
-            s3_key
-        );
-        Ok(())
-    }
-    .await;
+    };
 
     match result {
         Ok(_) => {

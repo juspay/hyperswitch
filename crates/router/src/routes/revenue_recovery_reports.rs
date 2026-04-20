@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use actix_multipart::{Multipart, MultipartError};
+use actix_multipart::Multipart;
 use actix_web::{web, HttpRequest, HttpResponse};
 use api_models::revenue_recovery_reports::{
     RevenueRecoveryReportMetadata, RevenueRecoveryReportUploadResponse, UploadStatus,
@@ -116,8 +116,7 @@ pub async fn upload_revenue_recovery_report_stream_handler(
             Some("file") => {
                 file_name = content_disposition.get_filename().map(String::from);
                 content_type = field.content_type().map(|m| m.essence_str().to_string());
-                file_content_stream =
-                    Some(field.map(|chunk_res| chunk_res.map_err(MultipartError::from)));
+                file_content_stream = Some(field);
             }
             Some("timeline") => {
                 let mut bytes = web::BytesMut::new();

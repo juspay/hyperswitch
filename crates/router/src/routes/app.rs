@@ -397,7 +397,7 @@ impl AsRef<Self> for AppState {
 pub async fn create_email_client(
     settings: &settings::Settings<RawSecret>,
 ) -> Box<dyn EmailService> {
-    match &settings.email.client_config {
+    let client: Box<dyn EmailService> = match &settings.email.client_config {
         EmailClientConfigs::Ses { aws_ses } => Box::new(
             AwsSes::create(
                 &settings.email,
@@ -405,15 +405,13 @@ pub async fn create_email_client(
                 settings.proxy.https_url.to_owned(),
             )
             .await,
-        ) as Box<dyn EmailService>,
+        ),
         EmailClientConfigs::Smtp { smtp } => {
             Box::new(SmtpServer::create(&settings.email, smtp.clone()).await)
-                as Box<dyn EmailService>
         }
-        EmailClientConfigs::NoEmailClient => {
-            Box::new(NoEmailClient::create().await) as Box<dyn EmailService>
-        }
-    }
+        EmailClientConfigs::NoEmailClient => Box::new(NoEmailClient::create().await),
+    };
+    client
 }
 
 impl AppState {
@@ -573,7 +571,7 @@ impl AppState {
             infra_values: Self::process_env_mappings(conf.infra_values.clone()),
             use_legacy_key_store_decryption: km_conf.use_legacy_key_store_decryption,
         };
-        match storage_impl {
+        let store: Box<dyn CommonStorageInterface> = match storage_impl {
             StorageImpl::Postgresql | StorageImpl::PostgresqlTest => match event_handler {
                 EventsHandler::Kafka(kafka_client) => Box::new(
                     KafkaStore::new(
@@ -604,7 +602,7 @@ impl AppState {
                     )
                     .await
                     .expect("Failed to create store"),
-                ) as Box<dyn CommonStorageInterface>,
+                ),
             },
             #[allow(clippy::expect_used)]
             StorageImpl::Mock => Box::new(
@@ -612,7 +610,8 @@ impl AppState {
                     .await
                     .expect("Failed to create mock store"),
             ),
-        }
+        };
+        store
     }
 
     pub async fn new(

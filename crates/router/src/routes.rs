@@ -92,8 +92,6 @@ pub use self::app::DummyConnector;
 pub use self::app::PaymentMethodSession;
 #[cfg(all(feature = "oltp", feature = "v2"))]
 pub use self::app::Proxy;
-#[cfg(all(feature = "olap", feature = "recon", feature = "v1"))]
-pub use self::app::Recon;
 // Update exports:
 #[cfg(feature = "v2")]
 pub use self::app::RecoveryReports;
