@@ -8,7 +8,7 @@ use std::{collections::HashMap, str::FromStr};
 use common_enums::{connector_enums::Connector, enums::Currency};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::router_data::ConnectorAuthType;
-use hyperswitch_masking::Secret;
+use hyperswitch_masking::{Secret, PeekInterface};
 use serde::Serialize;
 
 use crate::{
@@ -519,7 +519,7 @@ pub enum ConnectorSpecificConfig {
     /// Sanlammultidata connector configuration
     Sanlammultidata {
         api_key: Secret<String>,
-        merchant_id: Secret<String>,
+        merchant_id: String,
     },
 }
 
@@ -1412,7 +1412,7 @@ impl ForeignTryFrom<(Connector, &ConnectorAuthType, Option<&serde_json::Value>)>
             Connector::Sanlammultidata => match auth {
                 ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Sanlammultidata {
                     api_key: api_key.clone(),
-                    merchant_id: key1.clone(),
+                    merchant_id: key1.peek().clone(),
                 }),
                 _ => Err(err("Sanlammultidata requires BodyKey auth type")),
             },
