@@ -109,6 +109,7 @@ use super::{
         extract_gateway_system_from_payment_intent, should_call_unified_connector_service,
     },
 };
+use crate::core::payment_methods::utils as pm_utils;
 #[cfg(feature = "v1")]
 use crate::core::blocklist::utils as blocklist_utils;
 #[cfg(feature = "v1")]
@@ -8907,7 +8908,17 @@ impl PaymentEligibilityData {
                 ))
             }
             // Wallet and other token types: no raw card data available via this path.
-            _ => None,
+            #[cfg(feature = "v1")]
+            storage::PaymentTokenData::Temporary(_)
+            | storage::PaymentTokenData::TemporaryGeneric(_)
+            | storage::PaymentTokenData::Permanent(_)
+            | storage::PaymentTokenData::AuthBankDebit(_)
+            | storage::PaymentTokenData::WalletToken(_)
+            | storage::PaymentTokenData::BankDebit(_) => None,
+            #[cfg(feature = "v2")]
+            storage::PaymentTokenData::TemporaryGeneric(_)
+            | storage::PaymentTokenData::AuthBankDebit(_)
+            | storage::PaymentTokenData::BankDebit(_) => None,
         };
 
         Ok(payment_method_data)
