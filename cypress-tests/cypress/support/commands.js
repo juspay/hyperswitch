@@ -755,6 +755,33 @@ Cypress.Commands.add(
 );
 
 Cypress.Commands.add(
+  "deleteBusinessProfileTest",
+  (globalState, profilePrefix = "profile") => {
+    const apiKey = globalState.get("adminApiKey");
+    const baseUrl = globalState.get("baseUrl");
+    const merchantId = globalState.get("merchantId");
+    const profileId = globalState.get(`${profilePrefix}Id`);
+    const url = `${baseUrl}/account/${merchantId}/business_profile/${profileId}`;
+
+    cy.request({
+      method: "DELETE",
+      url: url,
+      headers: {
+        Accept: "application/json",
+        "api-key": apiKey,
+      },
+      failOnStatusCode: false,
+    }).then((response) => {
+      logRequestId(response.headers["x-request-id"]);
+
+      cy.wrap(response).then(() => {
+        expect(response.status).to.equal(200);
+      });
+    });
+  }
+);
+
+Cypress.Commands.add(
   "UpdateBusinessProfileTest",
   (
     updateBusinessProfileBody,
