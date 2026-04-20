@@ -2015,7 +2015,7 @@ pub async fn authentication_sync_core(
         .to_not_found_response(ApiErrorResponse::ProfileNotFound {
             id: profile_id.get_string_repr().to_owned(),
         })?;
-     let dimensions = dimension_state::Dimensions::new()
+    let dimensions = dimension_state::Dimensions::new()
         .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
         .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id())
         .with_organization_id(
@@ -2067,7 +2067,8 @@ pub async fn authentication_sync_core(
             force_3ds_challenge: authentication.force_3ds_challenge,
             psd2_sca_exemption_type: authentication.psd2_sca_exemption_type,
         };
-        let routing_region = utils::fetch_routing_region_for_uas(&state, &dimensions.without_profile_id()).await?;
+        let routing_region =
+            utils::fetch_routing_region_for_uas(&state, &dimensions.without_profile_id()).await?;
 
         let authentication_info = Some(AuthenticationInfo {
             authentication_type: None,
@@ -2113,7 +2114,7 @@ pub async fn authentication_sync_core(
         .await?;
     }
 
-    let dimensions= dimensions.without_organization_id();
+    let dimensions = dimensions.without_organization_id();
 
     // Determine whether to tokenise or not
     let should_disable_vault_tokenization = dimensions

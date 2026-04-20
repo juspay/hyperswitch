@@ -718,4 +718,3 @@ pub async fn fetch_routing_region_for_uas(
         )
         .await)
 }
-
