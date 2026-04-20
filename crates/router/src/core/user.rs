@@ -3880,7 +3880,7 @@ pub async fn clone_connector(
             ))
         },
     )?;
-    
+
     let source_key_store = state
         .store
         .get_merchant_key_store_by_merchant_id(
