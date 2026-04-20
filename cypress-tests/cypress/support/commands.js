@@ -255,6 +255,42 @@ function createUcsConfigs(globalState, flow, type) {
     });
 }
 
+Cypress.Commands.add("deleteBusinessProfileTest", (globalState) => {
+  const apiKey = globalState.get("apiKey");
+  const baseUrl = globalState.get("baseUrl");
+  const profileId = globalState.get("profileId");
+  const merchantId = globalState.get("merchantId");
+  const url = `${baseUrl}/account/${merchantId}/business_profile/${profileId}`;
+
+  if (!profileId) {
+    cy.log("No profileId found in globalState, skipping delete");
+    return;
+  }
+
+  cy.request({
+    method: "DELETE",
+    url: url,
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json",
+      "api-key": apiKey,
+    },
+    failOnStatusCode: false,
+  }).then((response) => {
+    logRequestId(response.headers["x-request-id"]);
+
+    cy.wrap(response).then(() => {
+      if (response.status === 200) {
+        cy.log(`Business profile ${profileId} deleted successfully`);
+      } else {
+        cy.log(
+          `Failed to delete business profile: ${response.body.error?.message || response.statusText}`
+        );
+      }
+    });
+  });
+});
+
 function storeRequestId(xRequestId, globalState) {
   if (xRequestId && globalState) {
     // Get existing request IDs array or initialize empty array
