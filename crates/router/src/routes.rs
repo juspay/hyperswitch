@@ -47,8 +47,6 @@ pub mod poll;
 pub mod profile_acquirer;
 #[cfg(feature = "olap")]
 pub mod profiles;
-#[cfg(feature = "recon")]
-pub mod recon;
 pub mod refunds;
 #[cfg(feature = "v2")]
 pub mod revenue_recovery_data_backfill;
@@ -94,8 +92,6 @@ pub use self::app::DummyConnector;
 pub use self::app::PaymentMethodSession;
 #[cfg(all(feature = "oltp", feature = "v2"))]
 pub use self::app::Proxy;
-#[cfg(all(feature = "olap", feature = "recon", feature = "v1"))]
-pub use self::app::Recon;
 pub use self::app::{
     ApiKeys, AppState, ApplePayCertificatesMigration, Authentication, Cache, CardIssuers, Cards,
     Chat, Configs, ConnectorOnboarding, Customers, Disputes, Embedded, EphemeralKey, FeatureMatrix,

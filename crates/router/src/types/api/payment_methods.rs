@@ -14,7 +14,7 @@ pub use api_models::payment_methods::{
     PaymentMethodsData, ProxyCardDetails, RequestPaymentMethodTypes, TokenDataResponse,
     TokenDetailsResponse, TokenizePayloadEncrypted, TokenizePayloadRequest, TokenizedCardValue1,
     TokenizedCardValue2, TokenizedWalletValue1, TokenizedWalletValue2,
-    TotalPaymentMethodCountResponse,
+    TotalPaymentMethodCountResponse, WalletPaymentMethodData,
 };
 #[cfg(feature = "v1")]
 pub use api_models::payment_methods::{
