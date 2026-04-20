@@ -342,15 +342,21 @@ impl TryFrom<payment_methods::PaymentMethodCreateData> for PaymentMethodVaulting
                     ..card
                 }))
             }
+            payment_methods::PaymentMethodCreateData::BankDebit(bank_debit) => {
+                Ok(Self::BankDebit(bank_debit.into()))
+            }
             payment_methods::PaymentMethodCreateData::ProxyCard(card) => Err(
                 errors::api_error_response::ApiErrorResponse::UnprocessableEntity {
                     message: "Proxy Card for PaymentMethodCreateData".to_string(),
                 }
                 .into(),
             ),
-            payment_methods::PaymentMethodCreateData::BankDebit(bank_debit) => {
-                Ok(Self::BankDebit(bank_debit.into()))
-            }
+            payment_methods::PaymentMethodCreateData::Wallet(_) => Err(
+                errors::api_error_response::ApiErrorResponse::UnprocessableEntity {
+                    message: "Wallet for PaymentMethodCreateData".to_string(),
+                }
+                .into(),
+            ),
         }
     }
 }

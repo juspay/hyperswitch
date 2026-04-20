@@ -591,6 +591,7 @@ pub async fn list_roles_with_info(
         .as_ref()
         .unwrap_or(&state.tenant.tenant_id)
         .to_owned();
+    let merchant_id = user_from_token.merchant_id.clone();
     let custom_roles =
         match utils::user_role::get_min_entity(user_role_entity, request.entity_type)? {
             EntityType::Tenant | EntityType::Organization => state
@@ -607,7 +608,7 @@ pub async fn list_roles_with_info(
             EntityType::Merchant => state
                 .global_store
                 .generic_list_roles_by_entity_type(
-                    ListRolesByEntityPayload::Merchant(user_from_token.merchant_id),
+                    ListRolesByEntityPayload::Merchant(merchant_id),
                     is_lineage_data_required,
                     tenant_id,
                     user_from_token.org_id,
@@ -619,10 +620,7 @@ pub async fn list_roles_with_info(
             EntityType::Profile => state
                 .global_store
                 .generic_list_roles_by_entity_type(
-                    ListRolesByEntityPayload::Profile(
-                        user_from_token.merchant_id,
-                        user_from_token.profile_id,
-                    ),
+                    ListRolesByEntityPayload::Profile(merchant_id, user_from_token.profile_id),
                     is_lineage_data_required,
                     tenant_id,
                     user_from_token.org_id,
@@ -633,6 +631,42 @@ pub async fn list_roles_with_info(
         };
 
     role_info_vec.extend(custom_roles.into_iter().map(roles::RoleInfo::from));
+
+    if let Some(entity_type) = request.entity_type {
+        match entity_type {
+            EntityType::Tenant | EntityType::Organization => {}
+            EntityType::Merchant | EntityType::Profile => {
+                let merchant_key_store = state
+                    .store
+                    .get_merchant_key_store_by_merchant_id(
+                        &user_from_token.merchant_id,
+                        &state.store.get_master_key().to_vec().into(),
+                    )
+                    .await
+                    .change_context(UserErrors::InternalServerError)
+                    .attach_printable("Failed to retrieve merchant key store by merchant_id")?;
+
+                let merchant_account = state
+                    .store
+                    .find_merchant_account_by_merchant_id(
+                        &user_from_token.merchant_id,
+                        &merchant_key_store,
+                    )
+                    .await
+                    .to_not_found_response(UserErrors::MerchantIdNotFound)?;
+
+                let product_type = merchant_account
+                    .product_type
+                    .unwrap_or(MerchantProductType::Orchestration);
+
+                role_info_vec.retain(|role_info| {
+                    role_info
+                        .get_product_type_filter()
+                        .is_none_or(|merchant_product_type| merchant_product_type == product_type)
+                });
+            }
+        }
+    }
 
     if request.groups == Some(true) {
         let list_role_info_response = role_info_vec
@@ -802,7 +836,11 @@ pub async fn list_roles_at_entity_level(
                         .unwrap_or(MerchantProductType::Orchestration)
                 })
                 .to_not_found_response(UserErrors::MerchantIdNotFound)?;
-            role_info_vec.retain(|role_info| role_info.get_merchant_product_type() == product_type);
+            role_info_vec.retain(|role_info| {
+                role_info
+                    .get_product_type_filter()
+                    .is_none_or(|merchant_product_type| merchant_product_type == product_type)
+            });
         }
     }
 

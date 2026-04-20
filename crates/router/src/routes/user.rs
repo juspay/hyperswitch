@@ -1255,10 +1255,7 @@ pub async fn authorize_token(
         &http_req,
         json_payload.into_inner(),
         |state, _: (), payload, _| user_core::authorize_token(state, payload),
-        &auth::InternalMerchantIdProfileIdAuth(auth::DashboardNoPermissionAuth {
-            allow_connected: true,
-            allow_platform: true,
-        }),
+        &auth::InternalMerchantIdProfileIdAuth(auth::NoAuth),
         api_locking::LockAction::NotApplicable,
     ))
     .await

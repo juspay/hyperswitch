@@ -2026,6 +2026,11 @@ pub async fn authentication_sync_core(
             id: profile_id.get_string_repr().to_owned(),
         })?;
 
+    let dimensions = dimension_state::Dimensions::new()
+        .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id())
+        .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
+        .with_profile_id(profile_id.clone());
+
     let (authentication_connector, three_ds_connector_account) =
         auth_utils::get_authentication_connector_data(
             &state,
@@ -2113,8 +2118,13 @@ pub async fn authentication_sync_core(
     }
 
     // Determine whether to tokenise or not
-    let should_disable_vault_tokenization =
-        utils::should_disable_vault_tokenization(&state, &authentication.merchant_id).await;
+    let should_disable_vault_tokenization = dimensions
+        .get_should_disable_vault_tokenization(
+            state.store.as_ref(),
+            state.superposition_service.as_ref(),
+            None,
+        )
+        .await;
 
     // Determine the authentication sync strategy based on current state
     let strategy = determine_auth_sync_strategy(
