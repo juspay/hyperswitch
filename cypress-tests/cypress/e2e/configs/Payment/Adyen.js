@@ -1449,5 +1449,32 @@ export const connectorDetails = {
         },
       },
     },
+    Becs: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+      Request: {
+        payment_method: "bank_debit",
+        payment_method_type: "becs",
+        payment_method_data: {
+          bank_debit: {
+            becs_bank_debit: {
+              account_number: "000123456",
+              bsb_number: "000000",
+              bank_account_holder_name: "John Doe",
+            },
+          },
+        },
+        currency: "AUD",
+        customer_acceptance: customerAcceptance,
+        setup_future_usage: "off_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    },
   },
 };
