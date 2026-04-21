@@ -870,6 +870,25 @@ export const connectorDetails = {
         },
       },
     },
+    PaymentWithBillingDescriptor: {
+      Request: {
+        currency: "USD",
+        billing_descriptor: {
+          name: "TestStore",
+          city: "SFO",
+          phone: "+14155551234",
+          statement_descriptor: "TESTSTORE",
+          statement_descriptor_suffix: "ORDER1",
+          reference: "ref-001",
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+        },
+      },
+    },
   },
   bank_transfer_pm: {
     Ach: {
