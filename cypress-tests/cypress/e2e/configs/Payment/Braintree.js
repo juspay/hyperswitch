@@ -149,7 +149,7 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "succeeded",// Braintree returns succeeded status for failed payments with test cards
+          status: "succeeded", // Braintree returns succeeded status for failed payments with test cards
         },
       },
     },
