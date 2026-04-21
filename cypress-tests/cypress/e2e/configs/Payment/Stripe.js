@@ -1093,10 +1093,10 @@ export const connectorDetails = {
     },
   },
   paylater_pm: {
-    PaymentIntent: (paymentMethodType) =>
+    PaymentIntent: () =>
       getCustomExchange({
         Request: {
-          currency: getCurrency(paymentMethodType),
+          currency: "USD",
         },
         Response: {
           status: 200,
@@ -1109,6 +1109,7 @@ export const connectorDetails = {
       Request: {
         payment_method: "pay_later",
         payment_method_type: "affirm",
+        payment_experience: "redirect_to_url",
         payment_method_data: {
           pay_later: {
             affirm_redirect: {},
@@ -1143,9 +1144,13 @@ export const connectorDetails = {
       Request: {
         payment_method: "pay_later",
         payment_method_type: "klarna",
+        payment_experience: "redirect_to_url",
         payment_method_data: {
           pay_later: {
-            klarna_redirect: {},
+            klarna_redirect: {
+              billing_email: "guest@juspay.in",
+              billing_country: "US",
+            },
           },
         },
         billing: {
