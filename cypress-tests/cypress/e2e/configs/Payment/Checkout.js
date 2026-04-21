@@ -130,7 +130,9 @@ export const connectorDetails = {
       },
     },
     MITManualCapture: {
-      Request: {},
+      Request: {
+        mit_category: "installment",
+      },
       Response: {
         status: 200,
         body: {
@@ -585,7 +587,9 @@ export const connectorDetails = {
       },
     },
     MITAutoCapture: {
-      Request: {},
+      Request: {
+        mit_category: "installment",
+      },
       Response: {
         status: 200,
         body: {
