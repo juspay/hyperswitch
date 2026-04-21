@@ -44,6 +44,8 @@ pub struct UnifiedConnectorServiceClient {
     /// The Payment Method Authentication Service Client
     pub payment_method_authentication_service_client:
         payments_grpc::payment_method_authentication_service_client::PaymentMethodAuthenticationServiceClient<tonic::transport::Channel>,
+        /// The Payout Service Client
+    pub payout_service_client: payments_grpc::payout_service_client::PayoutServiceClient<tonic::transport::Channel>,
 }
 
 /// Contains the Unified Connector Service Client config
@@ -240,6 +242,15 @@ impl UnifiedConnectorServiceClient {
                     timeout
                 );
 
+                let payout_service_client = build_grpc_client!(
+                    payments_grpc::payout_service_client::PayoutServiceClient<
+                        tonic::transport::Channel,
+                    >,
+                    "payout_service_client",
+                    uri,
+                    timeout
+                );
+
                 logger::info!("Successfully connected to Unified Connector Service");
 
                 Some(Self {
@@ -252,6 +263,7 @@ impl UnifiedConnectorServiceClient {
                     customer_service_client,
                     merchant_authentication_service_client,
                     payment_method_authentication_service_client,
+                    payout_service_client,
                 })
             }
             None => {
@@ -295,11 +307,13 @@ impl UnifiedConnectorServiceClient {
     /// Performs SDK Session Token Create
     pub async fn create_sdk_session_token(
         &self,
-        create_sdk_session_token_request: payments_grpc::MerchantAuthenticationServiceCreateSdkSessionTokenRequest,
+        create_sdk_session_token_request: payments_grpc::MerchantAuthenticationServiceCreateClientAuthenticationTokenRequest,
         connector_auth_metadata: ConnectorAuthMetadata,
         grpc_headers: GrpcHeadersUcs,
     ) -> UnifiedConnectorServiceResult<
-        tonic::Response<payments_grpc::MerchantAuthenticationServiceCreateSdkSessionTokenResponse>,
+        tonic::Response<
+            payments_grpc::MerchantAuthenticationServiceCreateClientAuthenticationTokenResponse,
+        >,
     > {
         let mut request = tonic::Request::new(create_sdk_session_token_request);
 
@@ -310,15 +324,15 @@ impl UnifiedConnectorServiceClient {
 
         self.merchant_authentication_service_client
             .clone()
-            .create_sdk_session_token(request)
+            .create_client_authentication_token(request)
             .await
             .change_context(UnifiedConnectorServiceError::CreateSdkSessionTokenFailure)
             .inspect_err(|error| {
                 logger::error!(
                     grpc_error=?error,
-                    method="create_sdk_session_token",
+                    method="create_client_authentication_token",
                     connector_name=?connector_name,
-                    "UCS create_sdk_session_token gRPC call failed"
+                    "UCS create client authentication token gRPC call failed"
                 )
             })
     }
@@ -482,12 +496,12 @@ impl UnifiedConnectorServiceClient {
     /// Performs Session token create
     pub async fn create_session_token(
         &self,
-        create_session_token_request: payments_grpc::MerchantAuthenticationServiceCreateSessionTokenRequest,
+        create_session_token_request: payments_grpc::MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenRequest,
         connector_auth_metadata: ConnectorAuthMetadata,
         grpc_headers: GrpcHeadersUcs,
     ) -> UnifiedConnectorServiceResult<
-        tonic::Response<payments_grpc::MerchantAuthenticationServiceCreateSessionTokenResponse>,
-    > {
+        tonic::Response<payments_grpc::MerchantAuthenticationServiceCreateServerSessionAuthenticationTokenResponse>,
+    >{
         let mut request = tonic::Request::new(create_session_token_request);
 
         let connector_name = connector_auth_metadata.connector_name.clone();
@@ -497,15 +511,15 @@ impl UnifiedConnectorServiceClient {
 
         self.merchant_authentication_service_client
             .clone()
-            .create_session_token(request)
+            .create_server_session_authentication_token(request)
             .await
             .change_context(UnifiedConnectorServiceError::CreateSessionTokenFailure)
             .inspect_err(|error| {
                 logger::error!(
                     grpc_error=?error,
-                    method="create_session_token",
+                    method="create_server_session_authentication_token",
                     connector_name=?connector_name,
-                    "UCS create_session_token gRPC call failed"
+                    "UCS createm server session authentication token gRPC call failed"
                 )
             })
     }
@@ -814,14 +828,47 @@ impl UnifiedConnectorServiceClient {
             })
     }
 
+    /// Performs Payout Create
+    pub async fn payout_create(
+        &self,
+        payout_create_request: payments_grpc::PayoutServiceCreateRequest,
+        connector_auth_metadata: ConnectorAuthMetadata,
+        grpc_headers: GrpcHeadersUcs,
+    ) -> UnifiedConnectorServiceResult<tonic::Response<payments_grpc::PayoutServiceCreateResponse>>
+    {
+        let mut request = tonic::Request::new(payout_create_request);
+
+        let connector_name = connector_auth_metadata.connector_name.clone();
+        let metadata =
+            build_unified_connector_service_grpc_headers(connector_auth_metadata, grpc_headers)?;
+
+        *request.metadata_mut() = metadata;
+
+        self.payout_service_client
+            .clone()
+            .create(request)
+            .await
+            .change_context(UnifiedConnectorServiceError::PayoutCreateFailure)
+            .inspect_err(|error| {
+                logger::error!(
+                    grpc_error=?error,
+                    method="payout_create",
+                    connector_name=?connector_name,
+                    "UCS payout create gRPC call failed"
+                )
+            })
+    }
+
     /// Performs Create Access Token Granular
     pub async fn create_access_token(
         &self,
-        create_access_token_request: payments_grpc::MerchantAuthenticationServiceCreateAccessTokenRequest,
+        create_access_token_request: payments_grpc::MerchantAuthenticationServiceCreateServerAuthenticationTokenRequest,
         connector_auth_metadata: ConnectorAuthMetadata,
         grpc_headers: GrpcHeadersUcs,
     ) -> UnifiedConnectorServiceResult<
-        tonic::Response<payments_grpc::MerchantAuthenticationServiceCreateAccessTokenResponse>,
+        tonic::Response<
+            payments_grpc::MerchantAuthenticationServiceCreateServerAuthenticationTokenResponse,
+        >,
     > {
         let mut request = tonic::Request::new(create_access_token_request);
         let connector_name = connector_auth_metadata.connector_name.clone();
@@ -831,15 +878,203 @@ impl UnifiedConnectorServiceClient {
 
         self.merchant_authentication_service_client
             .clone()
-            .create_access_token(request)
+            .create_server_authentication_token(request)
             .await
             .change_context(UnifiedConnectorServiceError::CreateAccessTokenFailure)
             .inspect_err(|error| {
                 logger::error!(
                     grpc_error=?error,
-                    method="create_access_token",
+                    method="create_server_authentication_token",
                     connector_name=?connector_name,
-                    "UCS create access token gRPC call failed"
+                    "UCS create server authentication token gRPC call failed"
+                )
+            })
+    }
+
+    /// Performs Payout Transfer
+    pub async fn payout_transfer(
+        &self,
+        payout_transfer_request: payments_grpc::PayoutServiceTransferRequest,
+        connector_auth_metadata: ConnectorAuthMetadata,
+        grpc_headers: GrpcHeadersUcs,
+    ) -> UnifiedConnectorServiceResult<tonic::Response<payments_grpc::PayoutServiceTransferResponse>>
+    {
+        let mut request = tonic::Request::new(payout_transfer_request);
+
+        let connector_name = connector_auth_metadata.connector_name.clone();
+        let metadata =
+            build_unified_connector_service_grpc_headers(connector_auth_metadata, grpc_headers)?;
+
+        *request.metadata_mut() = metadata;
+
+        self.payout_service_client
+            .clone()
+            .transfer(request)
+            .await
+            .change_context(UnifiedConnectorServiceError::PayoutTransferFailure)
+            .inspect_err(|error| {
+                logger::error!(
+                    grpc_error=?error,
+                    method="payout_transfer",
+                    connector_name=?connector_name,
+                    "UCS payout transfer gRPC call failed"
+                )
+            })
+    }
+
+    /// Performs Payout Get
+    pub async fn payout_get(
+        &self,
+        payout_get_request: payments_grpc::PayoutServiceGetRequest,
+        connector_auth_metadata: ConnectorAuthMetadata,
+        grpc_headers: GrpcHeadersUcs,
+    ) -> UnifiedConnectorServiceResult<tonic::Response<payments_grpc::PayoutServiceGetResponse>>
+    {
+        let mut request = tonic::Request::new(payout_get_request);
+
+        let connector_name = connector_auth_metadata.connector_name.clone();
+        let metadata =
+            build_unified_connector_service_grpc_headers(connector_auth_metadata, grpc_headers)?;
+
+        *request.metadata_mut() = metadata;
+
+        self.payout_service_client
+            .clone()
+            .get(request)
+            .await
+            .change_context(UnifiedConnectorServiceError::PayoutGetFailure)
+            .inspect_err(|error| {
+                logger::error!(
+                    grpc_error=?error,
+                    method="payout_get",
+                    connector_name=?connector_name,
+                    "UCS payout get gRPC call failed"
+                )
+            })
+    }
+
+    /// Performs Payout Void
+    pub async fn payout_void(
+        &self,
+        payout_void_request: payments_grpc::PayoutServiceVoidRequest,
+        connector_auth_metadata: ConnectorAuthMetadata,
+        grpc_headers: GrpcHeadersUcs,
+    ) -> UnifiedConnectorServiceResult<tonic::Response<payments_grpc::PayoutServiceVoidResponse>>
+    {
+        let mut request = tonic::Request::new(payout_void_request);
+
+        let connector_name = connector_auth_metadata.connector_name.clone();
+        let metadata =
+            build_unified_connector_service_grpc_headers(connector_auth_metadata, grpc_headers)?;
+
+        *request.metadata_mut() = metadata;
+
+        self.payout_service_client
+            .clone()
+            .void(request)
+            .await
+            .change_context(UnifiedConnectorServiceError::PayoutVoidFailure)
+            .inspect_err(|error| {
+                logger::error!(
+                    grpc_error=?error,
+                    method="payout_void",
+                    connector_name=?connector_name,
+                    "UCS payout void gRPC call failed"
+                )
+            })
+    }
+
+    /// Performs Payout Stage
+    pub async fn payout_stage(
+        &self,
+        payout_stage_request: payments_grpc::PayoutServiceStageRequest,
+        connector_auth_metadata: ConnectorAuthMetadata,
+        grpc_headers: GrpcHeadersUcs,
+    ) -> UnifiedConnectorServiceResult<tonic::Response<payments_grpc::PayoutServiceStageResponse>>
+    {
+        let mut request = tonic::Request::new(payout_stage_request);
+
+        let connector_name = connector_auth_metadata.connector_name.clone();
+        let metadata =
+            build_unified_connector_service_grpc_headers(connector_auth_metadata, grpc_headers)?;
+
+        *request.metadata_mut() = metadata;
+
+        self.payout_service_client
+            .clone()
+            .stage(request)
+            .await
+            .change_context(UnifiedConnectorServiceError::PayoutStageFailure)
+            .inspect_err(|error| {
+                logger::error!(
+                    grpc_error=?error,
+                    method="payout_stage",
+                    connector_name=?connector_name,
+                    "UCS payout stage gRPC call failed"
+                )
+            })
+    }
+
+    /// Performs Payout Create Recipient
+    pub async fn payout_create_recipient(
+        &self,
+        payout_create_recipient_request: payments_grpc::PayoutServiceCreateRecipientRequest,
+        connector_auth_metadata: ConnectorAuthMetadata,
+        grpc_headers: GrpcHeadersUcs,
+    ) -> UnifiedConnectorServiceResult<
+        tonic::Response<payments_grpc::PayoutServiceCreateRecipientResponse>,
+    > {
+        let mut request = tonic::Request::new(payout_create_recipient_request);
+
+        let connector_name = connector_auth_metadata.connector_name.clone();
+        let metadata =
+            build_unified_connector_service_grpc_headers(connector_auth_metadata, grpc_headers)?;
+
+        *request.metadata_mut() = metadata;
+
+        self.payout_service_client
+            .clone()
+            .create_recipient(request)
+            .await
+            .change_context(UnifiedConnectorServiceError::PayoutCreateRecipientFailure)
+            .inspect_err(|error| {
+                logger::error!(
+                    grpc_error=?error,
+                    method="payout_create_recipient",
+                    connector_name=?connector_name,
+                    "UCS payout create recipient gRPC call failed"
+                )
+            })
+    }
+
+    /// Performs Payout Enroll Disburse Account
+    pub async fn payout_enroll_disburse_account(
+        &self,
+        payout_enroll_disburse_account_request: payments_grpc::PayoutServiceEnrollDisburseAccountRequest,
+        connector_auth_metadata: ConnectorAuthMetadata,
+        grpc_headers: GrpcHeadersUcs,
+    ) -> UnifiedConnectorServiceResult<
+        tonic::Response<payments_grpc::PayoutServiceEnrollDisburseAccountResponse>,
+    > {
+        let mut request = tonic::Request::new(payout_enroll_disburse_account_request);
+
+        let connector_name = connector_auth_metadata.connector_name.clone();
+        let metadata =
+            build_unified_connector_service_grpc_headers(connector_auth_metadata, grpc_headers)?;
+
+        *request.metadata_mut() = metadata;
+
+        self.payout_service_client
+            .clone()
+            .enroll_disburse_account(request)
+            .await
+            .change_context(UnifiedConnectorServiceError::PayoutEnrollDisburseAccountFailure)
+            .inspect_err(|error| {
+                logger::error!(
+                    grpc_error=?error,
+                    method="payout_enroll_disburse_account",
+                    connector_name=?connector_name,
+                    "UCS payout enroll disburse account gRPC call failed"
                 )
             })
     }
