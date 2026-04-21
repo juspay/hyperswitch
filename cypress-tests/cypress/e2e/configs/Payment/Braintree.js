@@ -13,6 +13,14 @@ const successful3DSCardDetails = {
   card_number: "4012000077777777",
 };
 
+const failedNo3DSCardDetails = {
+  card_number: "4000111111111115",
+  card_exp_month: "01",
+  card_exp_year: "35",
+  card_holder_name: "joseph Doe",
+  card_cvc: "123",
+};
+
 const singleUseMandateData = {
   customer_acceptance: customerAcceptance,
   mandate_type: {
@@ -125,6 +133,23 @@ export const connectorDetails = {
         body: {
           status: "succeeded",
           payment_method_data: paymentMethodDataNo3DSResponse,
+        },
+      },
+    },
+    No3DSFailPayment: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: failedNo3DSCardDetails,
+        },
+        currency: "USD",
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",// Braintree returns succeeded status for failed payments with test cards
         },
       },
     },

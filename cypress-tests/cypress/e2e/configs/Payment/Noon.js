@@ -27,7 +27,7 @@ const singleUseMandateData = {
   mandate_type: {
     single_use: {
       amount: 8000,
-      currency: "USD",
+      currency: "SAR",
     },
   },
 };
@@ -37,7 +37,7 @@ const multiUseMandateData = {
   mandate_type: {
     multi_use: {
       amount: 8000,
-      currency: "USD",
+      currency: "SAR",
     },
   },
 };
@@ -47,7 +47,7 @@ const payment_method_data_3ds = {
     last4: "1091",
     card_type: "CREDIT",
     card_network: "Visa",
-    card_issuer: "Intl Hdqtrs Center Owned",
+    card_issuer: "INTL HDQTRS CENTER OWNED",
     card_issuing_country: "UNITED STATES OF AMERICA",
     card_isin: "400000",
     card_extended_bin: null,
@@ -65,7 +65,7 @@ export const connectorDetails = {
   card_pm: {
     PaymentIntent: {
       Request: {
-        currency: "AED",
+        currency: "SAR",
         amount: 9000,
         customer_acceptance: null,
         setup_future_usage: "on_session",
@@ -81,7 +81,7 @@ export const connectorDetails = {
     },
     PaymentIntentOffSession: {
       Request: {
-        currency: "AED",
+        currency: "SAR",
         amount: 9000,
         authentication_type: "no_three_ds",
         customer_acceptance: null,
@@ -98,7 +98,7 @@ export const connectorDetails = {
     },
     PaymentIntentWithShippingCost: {
       Request: {
-        currency: "AED",
+        currency: "SAR",
         shipping_cost: 50,
       },
       Response: {
@@ -132,7 +132,7 @@ export const connectorDetails = {
       Request: {
         amount: 9000,
         payment_method: "card",
-        currency: "AED",
+        currency: "SAR",
         payment_method_data: {
           card: successfulThreeDSTestCardDetails,
         },
@@ -156,7 +156,7 @@ export const connectorDetails = {
         payment_method_data: {
           card: successfulThreeDSTestCardDetails,
         },
-        currency: "AED",
+        currency: "SAR",
         customer_acceptance: null,
         connector_metadata: connectorMetadata,
         setup_future_usage: "on_session",
@@ -181,7 +181,7 @@ export const connectorDetails = {
         },
         connector_metadata: connectorMetadata,
         customer_acceptance: null,
-        currency: "AED",
+        currency: "SAR",
         setup_future_usage: "on_session",
       },
       Response: {
@@ -201,7 +201,7 @@ export const connectorDetails = {
           card: successfulNo3DSCardDetails,
         },
         connector_metadata: connectorMetadata,
-        currency: "AED",
+        currency: "SAR",
         customer_acceptance: null,
         setup_future_usage: "on_session",
       },
@@ -350,7 +350,7 @@ export const connectorDetails = {
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
-        currency: "AED",
+        currency: "SAR",
         mandate_data: singleUseMandateData,
         connector_metadata: connectorMetadata,
       },
@@ -370,7 +370,7 @@ export const connectorDetails = {
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
-        currency: "AED",
+        currency: "SAR",
         mandate_data: singleUseMandateData,
         connector_metadata: connectorMetadata,
       },
@@ -390,7 +390,7 @@ export const connectorDetails = {
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
-        currency: "AED",
+        currency: "SAR",
         mandate_data: multiUseMandateData,
         connector_metadata: connectorMetadata,
       },
@@ -410,7 +410,7 @@ export const connectorDetails = {
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
-        currency: "AED",
+        currency: "SAR",
         mandate_data: multiUseMandateData,
         connector_metadata: connectorMetadata,
       },
@@ -485,7 +485,7 @@ export const connectorDetails = {
       Request: {
         amount: 0,
         setup_future_usage: "off_session",
-        currency: "AED",
+        currency: "SAR",
       },
       Response: {
         status: 200,
@@ -527,7 +527,7 @@ export const connectorDetails = {
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
-        currency: "AED",
+        currency: "SAR",
         setup_future_usage: "on_session",
         customer_acceptance: customerAcceptance,
         connector_metadata: connectorMetadata,
@@ -549,7 +549,7 @@ export const connectorDetails = {
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
-        currency: "AED",
+        currency: "SAR",
         connector_metadata: connectorMetadata,
         setup_future_usage: "off_session",
         customer_acceptance: customerAcceptance,
@@ -655,7 +655,7 @@ export const connectorDetails = {
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
-        currency: "AED",
+        currency: "SAR",
         mandate_data: null,
         customer_acceptance: customerAcceptance,
         connector_metadata: connectorMetadata,
@@ -676,7 +676,7 @@ export const connectorDetails = {
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
-        currency: "AED",
+        currency: "SAR",
         mandate_data: null,
         customer_acceptance: customerAcceptance,
         connector_metadata: connectorMetadata,
@@ -697,7 +697,7 @@ export const connectorDetails = {
         payment_method_data: {
           card: successfulThreeDSTestCardDetails,
         },
-        currency: "AED",
+        currency: "SAR",
         mandate_data: null,
         authentication_type: "three_ds",
         customer_acceptance: customerAcceptance,
@@ -719,7 +719,7 @@ export const connectorDetails = {
         payment_method_data: {
           card: successfulThreeDSTestCardDetails,
         },
-        currency: "AED",
+        currency: "SAR",
         mandate_data: null,
         authentication_type: "three_ds",
         customer_acceptance: customerAcceptance,

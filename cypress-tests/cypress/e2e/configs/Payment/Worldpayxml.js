@@ -57,9 +57,9 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "processing",
+          status: "succeeded",
           shipping_cost: 50,
-          amount_received: null,
+          amount_received: 6050,
           amount: 6000,
           net_amount: 6050,
         },
@@ -139,8 +139,8 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "processing",
-          amount_received: null,
+          status: "succeeded",
+          amount_received: 6000,
         },
       },
     },
@@ -190,7 +190,7 @@ export const connectorDetails = {
           error: {
             type: "invalid_request",
             message:
-              "You cannot confirm this payment because it has status processing",
+              "You cannot confirm this payment because it has status succeeded",
             code: "IR_16",
           },
         },
@@ -207,7 +207,7 @@ export const connectorDetails = {
         body: {
           type: "invalid_request",
           message:
-            "You cannot cancel this payment because it has status processing",
+            "You cannot cancel this payment because it has status succeeded",
           code: "IR_16",
         },
       },
@@ -221,8 +221,7 @@ export const connectorDetails = {
         body: {
           error: {
             type: "invalid_request",
-            message:
-              "This Payment could not be refund because it has a status of processing. The expected state is succeeded, partially_captured",
+            message: "The refund amount exceeds the amount captured",
             code: "IR_14",
           },
         },
@@ -293,7 +292,7 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "processing",
+          status: "succeeded",
         },
       },
     },
@@ -307,7 +306,7 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "processing",
+          status: "succeeded",
         },
       },
     },
@@ -375,14 +374,9 @@ export const connectorDetails = {
         amount: 6000,
       },
       Response: {
-        status: 400,
+        status: 200,
         body: {
-          error: {
-            type: "invalid_request",
-            message:
-              "This Payment could not be refund because it has a status of processing. The expected state is succeeded, partially_captured",
-            code: "IR_14",
-          },
+          status: "pending",
         },
       },
     },
@@ -391,14 +385,17 @@ export const connectorDetails = {
         amount: 2000,
       },
       Response: {
-        status: 400,
+        status: 200,
         body: {
-          error: {
-            type: "invalid_request",
-            message:
-              "This Payment could not be refund because it has a status of processing. The expected state is succeeded, partially_captured",
-            code: "IR_14",
-          },
+          status: "pending",
+        },
+      },
+    },
+    SyncRefund: {
+      Response: {
+        status: 200,
+        body: {
+          status: "pending",
         },
       },
     },
@@ -451,7 +448,7 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "processing",
+          status: "succeeded",
         },
       },
     },
@@ -490,7 +487,7 @@ export const connectorDetails = {
     Response: {
       status: 200,
       body: {
-        status: "processing",
+        status: "succeeded",
       },
     },
     PaymentMethodIdMandate3DSAutoCapture: {
@@ -551,7 +548,7 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "processing",
+          status: "succeeded",
         },
       },
     },
