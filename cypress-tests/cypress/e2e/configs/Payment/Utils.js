@@ -532,6 +532,7 @@ export const CONNECTOR_LISTS = {
       "worldpay",
       "worldpayvantiv",
     ],
+    EXTERNAL_THREE_DS: ["stripe"],
     // Add more inclusion lists
   },
 };
