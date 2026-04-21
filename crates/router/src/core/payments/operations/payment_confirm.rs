@@ -95,6 +95,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         #[cfg(feature = "pm_modular")] payment_method_with_raw_data: Option<
             pm_transformers::PaymentMethodWithRawData,
         >,
+        dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
     ) -> RouterResult<operations::GetTrackerResponse<'a, F, api::PaymentsRequest, PaymentData<F>>>
     {
         let processor_merchant_id = platform.get_processor().get_account().get_id();
@@ -529,10 +530,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("'profile_id' not set in payment intent")?;
         let customer_id = payment_intent.customer_id.clone();
-        let dimensions = dimension_state::Dimensions::new()
-            .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
-            .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id())
-            .with_profile_id(profile_id.clone());
+        let additional_pm_data_dimensions = dimensions.with_profile_id(profile_id.clone());
 
         let additional_pm_data_fut = tokio::spawn(
             async move {
@@ -542,7 +540,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                             &payment_method_data,
                             store.as_ref(),
                             superposition_service.as_ref(),
-                            &dimensions,
+                            &additional_pm_data_dimensions,
                             customer_id.as_ref(),
                             None,
                         )
@@ -629,6 +627,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         #[cfg(not(feature = "pm_modular"))]
         let payment_method_info_from_modular = None;
 
+        let m_pm_dimensions = dimensions.clone();
         let mandate_details_fut = tokio::spawn(
             async move {
                 Box::pin(helpers::get_token_pm_type_mandate_details(
@@ -639,6 +638,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                     None,
                     payment_intent_customer_id.as_ref(),
                     payment_method_info_from_modular,
+                    &m_pm_dimensions,
                 ))
                 .await
             }
@@ -678,13 +678,25 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             &request.ctp_service_details,
         )?;
 
+        #[cfg(feature = "pm_modular")]
+        let pm_modular_dimensions = dimensions
+            .with_organization_id(
+                platform
+                    .get_processor()
+                    .get_account()
+                    .organization_id
+                    .clone(),
+            )
+            .without_provider_merchant_id()
+            .without_processor_merchant_id();
+
         //fetch for repeat cit using payment token
 
         #[cfg(feature = "pm_modular")]
         let is_modular_payment_method_flow =
             pm_utils::get_organization_eligibility_config_for_pm_modular_service(
-                &*state.store,
-                &platform.get_processor().get_account().organization_id,
+                state,
+                &pm_modular_dimensions,
             )
             .await;
 
@@ -2321,7 +2333,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
         _customer: Option<domain::Customer>,
         _frm_suggestion: Option<FrmSuggestion>,
         _header_payload: hyperswitch_domain_models::payments::HeaderPayload,
-        _dimensions: &dimension_state::Dimensions,
+        _dimensions: &dimension_state::DimensionWithProcessorAndProviderMerchaantId,
     ) -> RouterResult<(
         BoxedOperation<'b, F, api::PaymentsRequest, PaymentData<F>>,
         PaymentData<F>,
