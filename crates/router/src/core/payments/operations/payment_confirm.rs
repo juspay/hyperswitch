@@ -95,6 +95,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         #[cfg(feature = "pm_modular")] payment_method_with_raw_data: Option<
             pm_transformers::PaymentMethodWithRawData,
         >,
+        dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
     ) -> RouterResult<operations::GetTrackerResponse<'a, F, api::PaymentsRequest, PaymentData<F>>>
     {
         let processor_merchant_id = platform.get_processor().get_account().get_id();
@@ -529,10 +530,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("'profile_id' not set in payment intent")?;
         let customer_id = payment_intent.customer_id.clone();
-        let dimensions = dimension_state::Dimensions::new()
-            .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
-            .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id())
-            .with_profile_id(profile_id.clone());
+        let additional_pm_data_dimensions = dimensions.with_profile_id(profile_id.clone());
 
         let additional_pm_data_fut = tokio::spawn(
             async move {
@@ -542,7 +540,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                             &payment_method_data,
                             store.as_ref(),
                             superposition_service.as_ref(),
-                            &dimensions,
+                            &additional_pm_data_dimensions,
                             customer_id.as_ref(),
                             None,
                         )
@@ -629,6 +627,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         #[cfg(not(feature = "pm_modular"))]
         let payment_method_info_from_modular = None;
 
+        let m_pm_dimensions = dimensions.clone();
         let mandate_details_fut = tokio::spawn(
             async move {
                 Box::pin(helpers::get_token_pm_type_mandate_details(
@@ -639,6 +638,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                     None,
                     payment_intent_customer_id.as_ref(),
                     payment_method_info_from_modular,
+                    &m_pm_dimensions,
                 ))
                 .await
             }
@@ -678,13 +678,25 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             &request.ctp_service_details,
         )?;
 
+        #[cfg(feature = "pm_modular")]
+        let pm_modular_dimensions = dimensions
+            .with_organization_id(
+                platform
+                    .get_processor()
+                    .get_account()
+                    .organization_id
+                    .clone(),
+            )
+            .without_provider_merchant_id()
+            .without_processor_merchant_id();
+
         //fetch for repeat cit using payment token
 
         #[cfg(feature = "pm_modular")]
         let is_modular_payment_method_flow =
             pm_utils::get_organization_eligibility_config_for_pm_modular_service(
-                &*state.store,
-                &platform.get_processor().get_account().organization_id,
+                state,
+                &pm_modular_dimensions,
             )
             .await;
 
@@ -1191,59 +1203,78 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                         .as_ref()
                         .and_then(|pmd| pmd.payment_method_data.as_ref())
                     {
-                        Some(api_models::payments::PaymentMethodData::Card(_)) => {
-                            let payment_method = req.payment_method.ok_or(
-                                errors::ApiErrorResponse::MissingRequiredField {
-                                    field_name: "payment_method",
-                                },
-                            )?;
-
-                            let payment_method_data = req
+                        Some(api_models::payments::PaymentMethodData::Card(_))
+                        | Some(api_models::payments::PaymentMethodData::BankDebit(_))
+                        | Some(api_models::payments::PaymentMethodData::Wallet(_)) => {
+                            let should_create = match req
                                 .payment_method_data
                                 .as_ref()
-                                .and_then(|pmd| pmd.payment_method_data.clone())
-                                .map(Into::into)
-                                .ok_or(errors::ApiErrorResponse::MissingRequiredField {
-                                    field_name: "payment_method_data",
-                                })?;
-
-                            match pm_transformers::create_payment_method_in_modular_service(
-                                state,
-                                platform.get_provider().get_account().get_id(),
-                                platform.get_processor().get_account().get_id(),
-                                business_profile.get_id(),
-                                payment_method,
-                                req.payment_method_type,
-                                payment_method_data,
-                                payment_data
-                                    .address
-                                    .get_request_payment_method_billing()
-                                    .cloned(),
-                                payment_data
-                                    .payment_intent
-                                    .customer_id
-                                    .clone()
-                                    .get_required_value("customer_id")?,
-                                business_profile.is_network_tokenization_enabled,
-                            )
-                            .await
+                                .and_then(|pmd| pmd.payment_method_data.as_ref())
                             {
-                                Ok(pm_info) => {
-                                    logger::info!(
-                                        "Payment method created in PM Modular service successfully"
-                                    );
-                                    //set payment_data.payment_method_info
-                                    payment_data.set_payment_method_id_in_attempt(Some(
-                                        pm_info.get_id().clone(),
-                                    ));
-                                    payment_data.set_payment_method_info(Some(pm_info));
+                                Some(api_models::payments::PaymentMethodData::Wallet(_)) => {
+                                    req.setup_future_usage
+                                        .or(payment_data.payment_intent.setup_future_usage)
+                                        == Some(common_enums::FutureUsage::OffSession)
                                 }
-                                Err(err) => {
-                                    logger::error!(
-                                        "Error creating payment method in PM Modular service: {:?}",
-                                        err
-                                    );
+                                Some(api_models::payments::PaymentMethodData::Card(_)) => true,
+                                _ => false,
+                            };
+
+                            if should_create {
+                                let payment_method = req.payment_method.ok_or(
+                                    errors::ApiErrorResponse::MissingRequiredField {
+                                        field_name: "payment_method",
+                                    },
+                                )?;
+
+                                let payment_method_data = req
+                                    .payment_method_data
+                                    .as_ref()
+                                    .and_then(|pmd| pmd.payment_method_data.clone())
+                                    .map(Into::into)
+                                    .ok_or(errors::ApiErrorResponse::MissingRequiredField {
+                                        field_name: "payment_method_data",
+                                    })?;
+
+                                match pm_transformers::create_payment_method_in_modular_service(
+                                    state,
+                                    platform.get_provider().get_account().get_id(),
+                                    platform.get_processor().get_account().get_id(),
+                                    business_profile.get_id(),
+                                    payment_method,
+                                    req.payment_method_type,
+                                    payment_method_data,
+                                    payment_data
+                                        .address
+                                        .get_request_payment_method_billing()
+                                        .cloned(),
+                                    payment_data
+                                        .payment_intent
+                                        .customer_id
+                                        .clone()
+                                        .get_required_value("customer_id")?,
+                                    business_profile.is_network_tokenization_enabled,
+                                )
+                                .await
+                                {
+                                    Ok(pm_info) => {
+                                        logger::info!(
+                                            "Payment method created in PM Modular service successfully"
+                                        );
+                                        payment_data.set_payment_method_id_in_attempt(Some(
+                                            pm_info.get_id().clone(),
+                                        ));
+                                        payment_data.set_payment_method_info(Some(pm_info));
+                                    }
+                                    Err(err) => {
+                                        logger::error!(
+                                            "Error creating payment method in PM Modular service: {:?}",
+                                            err
+                                        );
+                                    }
                                 }
+                            } else {
+                                logger::info!("Skipping wallet PM creation - setup_future_usage is not off_session");
                             }
                         }
                         _ => {
@@ -2314,7 +2345,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
         _customer: Option<domain::Customer>,
         _frm_suggestion: Option<FrmSuggestion>,
         _header_payload: hyperswitch_domain_models::payments::HeaderPayload,
-        _dimensions: &dimension_state::Dimensions,
+        _dimensions: &dimension_state::DimensionWithProcessorAndProviderMerchaantId,
     ) -> RouterResult<(
         BoxedOperation<'b, F, api::PaymentsRequest, PaymentData<F>>,
         PaymentData<F>,

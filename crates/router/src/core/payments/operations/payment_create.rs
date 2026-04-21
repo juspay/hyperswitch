@@ -84,6 +84,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         #[cfg(feature = "pm_modular")] payment_method_with_raw_data: Option<
             pm_transformers::PaymentMethodWithRawData,
         >,
+        dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
     ) -> RouterResult<operations::GetTrackerResponse<'a, F, api::PaymentsRequest, PaymentData<F>>>
     {
         let db = &*state.store;
@@ -181,6 +182,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             None,
             None,
             payment_method_info_from_modular,
+            dimensions,
         )
         .await?;
 
@@ -371,6 +373,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             &customer_acceptance,
             payment_method_recurring_details.clone(),
             customer_details.customer_id.as_ref(),
+            dimensions,
         )
         .await?;
 
@@ -1376,10 +1379,12 @@ impl PaymentCreate {
         customer_acceptance: &Option<common_payments_types::CustomerAcceptance>,
         payment_method_recurring_details: Option<domain::PaymentMethodData>,
         customer_id: Option<&common_utils::id_type::CustomerId>,
+        dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
     ) -> RouterResult<(
         PaymentAttempt,
         Option<api_models::payments::AdditionalPaymentData>,
     )> {
+        let dimensions = dimensions.with_profile_id(profile_id.clone());
         let payment_method_data =
             request
                 .payment_method_data
@@ -1387,10 +1392,6 @@ impl PaymentCreate {
                 .and_then(|payment_method_data_request| {
                     payment_method_data_request.payment_method_data.as_ref()
                 });
-
-        let dimensions = dimension_state::Dimensions::new()
-            .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
-            .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id());
 
         let created_at @ modified_at @ last_synced = common_utils::date_time::now();
         let status = helpers::payment_attempt_status_fsm(payment_method_data, request.confirm);
@@ -1405,8 +1406,7 @@ impl PaymentCreate {
             .map(domain::PaymentMethodData::from)
             .or(payment_method_recurring_details)
             .zip(Some(profile_id.clone())) // since data is consumed by async move, profile_id needs to be send separately
-            .async_map(|(payment_method_data, profile_id)| async move {
-                let dimensions = dimensions.with_profile_id(profile_id);
+            .async_map(|(payment_method_data, _)| async move {
                 helpers::get_additional_payment_data(
                     &payment_method_data,
                     &*state.store,

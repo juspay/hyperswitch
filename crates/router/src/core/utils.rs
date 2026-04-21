@@ -54,6 +54,7 @@ use crate::{
     configs::Settings,
     consts,
     core::{
+        configs::dimension_state,
         errors::{self, RouterResult, StorageErrorExt},
         payments::PaymentData,
     },
@@ -77,10 +78,22 @@ pub struct FeatureConfig {
 pub async fn get_feature_config(
     state: &SessionState,
     platform: &domain::Platform,
+    dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
 ) -> FeatureConfig {
+    let dimensions = dimensions
+        .with_organization_id(
+            platform
+                .get_processor()
+                .get_account()
+                .organization_id
+                .clone(),
+        )
+        .without_provider_merchant_id()
+        .without_processor_merchant_id();
+
     let is_payment_method_modular_allowed = crate::core::payment_methods::utils::get_organization_eligibility_config_for_pm_modular_service(
-        state.store.as_ref(),
-        &platform.get_processor().get_account().organization_id,
+        state,
+        &dimensions,
     )
     .await;
     FeatureConfig {
@@ -96,9 +109,13 @@ pub async fn validate_legacy_endpoint_access<E>(
 where
     E: From<errors::ApiErrorResponse> + error_stack::Context,
 {
+    let dimensions = dimension_state::Dimensions::new()
+        .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
+        .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id());
+
     #[cfg(feature = "pm_modular")]
     {
-        let feature_config = get_feature_config(state, platform).await;
+        let feature_config = get_feature_config(state, platform, &dimensions).await;
         common_utils::fp_utils::when(feature_config.is_payment_method_modular_allowed, || {
             Err(error_stack::report!(E::from(
                 errors::ApiErrorResponse::AccessForbidden {
@@ -108,7 +125,7 @@ where
         })?;
     }
     #[cfg(not(feature = "pm_modular"))]
-    let _ = (state, platform);
+    let _ = (state, platform, dimensions);
     Ok(())
 }
 
@@ -1093,7 +1110,7 @@ pub async fn construct_accept_dispute_router_data<'a>(
     state: &'a SessionState,
     payment_intent: &'a storage::PaymentIntent,
     payment_attempt: &storage::PaymentAttempt,
-    platform: &domain::Platform,
+    processor: &domain::Processor,
     dispute: &storage::Dispute,
 ) -> RouterResult<types::AcceptDisputeRouterData> {
     let profile_id = payment_intent
@@ -1106,7 +1123,7 @@ pub async fn construct_accept_dispute_router_data<'a>(
 
     let merchant_connector_account = helpers::get_merchant_connector_account(
         state,
-        platform.get_processor(),
+        processor,
         None,
         &profile_id,
         &dispute.connector,
@@ -1125,7 +1142,7 @@ pub async fn construct_accept_dispute_router_data<'a>(
 
     let router_data = types::RouterData {
         flow: PhantomData,
-        merchant_id: platform.get_processor().get_account().get_id().clone(),
+        merchant_id: processor.get_account().get_id().clone(),
         connector: dispute.connector.to_string(),
         tenant_id: state.tenant.tenant_id.clone(),
         payment_id: payment_attempt.payment_id.get_string_repr().to_owned(),
@@ -1160,7 +1177,7 @@ pub async fn construct_accept_dispute_router_data<'a>(
         preprocessing_id: None,
         connector_request_reference_id: get_connector_request_reference_id(
             &state.conf,
-            platform.get_processor(),
+            processor,
             payment_intent,
             payment_attempt,
             &dispute.connector,
@@ -1206,7 +1223,7 @@ pub async fn construct_submit_evidence_router_data<'a>(
     state: &'a SessionState,
     payment_intent: &'a storage::PaymentIntent,
     payment_attempt: &storage::PaymentAttempt,
-    platform: &domain::Platform,
+    processor: &domain::Processor,
     dispute: &storage::Dispute,
     submit_evidence_request_data: types::SubmitEvidenceRequestData,
 ) -> RouterResult<types::SubmitEvidenceRouterData> {
@@ -1221,7 +1238,7 @@ pub async fn construct_submit_evidence_router_data<'a>(
 
     let merchant_connector_account = helpers::get_merchant_connector_account(
         state,
-        platform.get_processor(),
+        processor,
         None,
         &profile_id,
         connector_id,
@@ -1240,7 +1257,7 @@ pub async fn construct_submit_evidence_router_data<'a>(
 
     let router_data = types::RouterData {
         flow: PhantomData,
-        merchant_id: platform.get_processor().get_account().get_id().clone(),
+        merchant_id: processor.get_account().get_id().clone(),
         connector: connector_id.to_string(),
         payment_id: payment_attempt.payment_id.get_string_repr().to_owned(),
         tenant_id: state.tenant.tenant_id.clone(),
@@ -1272,7 +1289,7 @@ pub async fn construct_submit_evidence_router_data<'a>(
         payment_method_status: None,
         connector_request_reference_id: get_connector_request_reference_id(
             &state.conf,
-            platform.get_processor(),
+            processor,
             payment_intent,
             payment_attempt,
             connector_id,
@@ -1318,7 +1335,7 @@ pub async fn construct_upload_file_router_data<'a>(
     state: &'a SessionState,
     payment_intent: &'a storage::PaymentIntent,
     payment_attempt: &storage::PaymentAttempt,
-    platform: &domain::Platform,
+    processor: &domain::Processor,
     create_file_request: &api::CreateFileRequest,
     dispute_data: storage::Dispute,
     connector_id: &str,
@@ -1334,7 +1351,7 @@ pub async fn construct_upload_file_router_data<'a>(
 
     let merchant_connector_account = helpers::get_merchant_connector_account(
         state,
-        platform.get_processor(),
+        processor,
         None,
         &profile_id,
         connector_id,
@@ -1353,7 +1370,7 @@ pub async fn construct_upload_file_router_data<'a>(
 
     let router_data = types::RouterData {
         flow: PhantomData,
-        merchant_id: platform.get_processor().get_account().get_id().clone(),
+        merchant_id: processor.get_account().get_id().clone(),
         connector: connector_id.to_string(),
         payment_id: payment_attempt.payment_id.get_string_repr().to_owned(),
         tenant_id: state.tenant.tenant_id.clone(),
@@ -1392,7 +1409,7 @@ pub async fn construct_upload_file_router_data<'a>(
         payment_method_balance: None,
         connector_request_reference_id: get_connector_request_reference_id(
             &state.conf,
-            platform.get_processor(),
+            processor,
             payment_intent,
             payment_attempt,
             connector_id,
@@ -1511,7 +1528,7 @@ pub async fn construct_dispute_sync_router_data<'a>(
     state: &'a SessionState,
     payment_intent: &'a storage::PaymentIntent,
     payment_attempt: &storage::PaymentAttempt,
-    platform: &domain::Platform,
+    processor: &domain::Processor,
     dispute: &storage::Dispute,
 ) -> RouterResult<types::DisputeSyncRouterData> {
     let _db = &*state.store;
@@ -1526,7 +1543,7 @@ pub async fn construct_dispute_sync_router_data<'a>(
 
     let merchant_connector_account = helpers::get_merchant_connector_account(
         state,
-        platform.get_processor(),
+        processor,
         None,
         &profile_id,
         connector_id,
@@ -1541,11 +1558,11 @@ pub async fn construct_dispute_sync_router_data<'a>(
         .change_context(errors::ApiErrorResponse::InternalServerError)?;
     let payment_method = payment_attempt
         .payment_method
-        .get_required_value("payment_method")?;
+        .get_required_value("payment_method_type")?;
 
     let router_data = types::RouterData {
         flow: PhantomData,
-        merchant_id: platform.get_processor().get_account().get_id().clone(),
+        merchant_id: processor.get_account().get_id().clone(),
         connector: connector_id.to_string(),
         payment_id: payment_attempt.payment_id.get_string_repr().to_owned(),
         tenant_id: state.tenant.tenant_id.clone(),
@@ -1580,7 +1597,7 @@ pub async fn construct_dispute_sync_router_data<'a>(
         payment_method_balance: None,
         connector_request_reference_id: get_connector_request_reference_id(
             &state.conf,
-            platform.get_processor(),
+            processor,
             payment_intent,
             payment_attempt,
             connector_id,
@@ -1761,7 +1778,7 @@ pub async fn construct_defend_dispute_router_data<'a>(
     state: &'a SessionState,
     payment_intent: &'a storage::PaymentIntent,
     payment_attempt: &storage::PaymentAttempt,
-    platform: &domain::Platform,
+    processor: &domain::Processor,
     dispute: &storage::Dispute,
 ) -> RouterResult<types::DefendDisputeRouterData> {
     let _db = &*state.store;
@@ -1776,7 +1793,7 @@ pub async fn construct_defend_dispute_router_data<'a>(
 
     let merchant_connector_account = helpers::get_merchant_connector_account(
         state,
-        platform.get_processor(),
+        processor,
         None,
         &profile_id,
         connector_id,
@@ -1795,7 +1812,7 @@ pub async fn construct_defend_dispute_router_data<'a>(
 
     let router_data = types::RouterData {
         flow: PhantomData,
-        merchant_id: platform.get_processor().get_account().get_id().clone(),
+        merchant_id: processor.get_account().get_id().clone(),
         connector: connector_id.to_string(),
         payment_id: payment_attempt.payment_id.get_string_repr().to_owned(),
         tenant_id: state.tenant.tenant_id.clone(),
@@ -1830,7 +1847,7 @@ pub async fn construct_defend_dispute_router_data<'a>(
         payment_method_balance: None,
         connector_request_reference_id: get_connector_request_reference_id(
             &state.conf,
-            platform.get_processor(),
+            processor,
             payment_intent,
             payment_attempt,
             connector_id,
@@ -1872,7 +1889,7 @@ pub async fn construct_defend_dispute_router_data<'a>(
 #[instrument(skip_all)]
 pub async fn construct_retrieve_file_router_data<'a>(
     state: &'a SessionState,
-    platform: &domain::Platform,
+    processor: &domain::Processor,
     file_metadata: &diesel_models::file::FileMetadata,
     dispute: Option<storage::Dispute>,
     connector_id: &str,
@@ -1888,7 +1905,7 @@ pub async fn construct_retrieve_file_router_data<'a>(
 
     let merchant_connector_account = helpers::get_merchant_connector_account(
         state,
-        platform.get_processor(),
+        processor,
         None,
         profile_id,
         connector_id,
@@ -1903,7 +1920,7 @@ pub async fn construct_retrieve_file_router_data<'a>(
         .change_context(errors::ApiErrorResponse::InternalServerError)?;
     let router_data = types::RouterData {
         flow: PhantomData,
-        merchant_id: platform.get_processor().get_account().get_id().clone(),
+        merchant_id: processor.get_account().get_id().clone(),
         connector: connector_id.to_string(),
         tenant_id: state.tenant.tenant_id.clone(),
         customer_id: None,

@@ -120,8 +120,6 @@ use crate::core::fraud_check as frm_core;
 #[cfg(any(feature = "v2", all(feature = "v1", feature = "pm_modular")))]
 use crate::core::payment_methods::vault;
 #[cfg(feature = "v2")]
-use crate::core::revenue_recovery::get_workflow_entries;
-#[cfg(feature = "v2")]
 use crate::core::revenue_recovery::map_to_recovery_payment_item;
 #[cfg(feature = "v1")]
 use crate::core::routing::helpers as routing_helpers;
@@ -129,7 +127,8 @@ use crate::core::routing::helpers as routing_helpers;
 use crate::types::api::convert_connector_data_to_routable_connectors;
 use crate::{
     configs::settings::{
-        ApplePayPreDecryptFlow, GooglePayPreDecryptFlow, PaymentFlow, PaymentMethodTypeTokenFilter,
+        ApplePayPreDecryptFlow, GooglePayPreDecryptFlow, PaymentFlow, PaymentMethodTokenFilter,
+        PaymentMethodTypeTokenFilter,
     },
     consts,
     core::{
@@ -162,6 +161,8 @@ use crate::{
     },
     workflows::payment_sync,
 };
+#[cfg(feature = "v2")]
+use crate::{core::revenue_recovery::get_workflow_entries, db::storage::payment_method};
 #[cfg(feature = "v1")]
 use crate::{
     core::{
@@ -671,7 +672,7 @@ where
         .validate_request(&req, platform.get_processor())?;
 
     #[cfg(feature = "pm_modular")]
-    let feature_config = core_utils::get_feature_config(state, platform).await;
+    let feature_config = core_utils::get_feature_config(state, platform, dimensions).await;
 
     #[cfg(feature = "pm_modular")]
     let payment_method_info = operation
@@ -699,6 +700,7 @@ where
             &header_payload,
             #[cfg(feature = "pm_modular")]
             payment_method_info,
+            dimensions,
         )
         .await?;
     let dimensions = dimensions.with_profile_id(business_profile.get_id().clone());
@@ -1552,7 +1554,7 @@ where
     tracing::Span::current().record("payment_id", format!("{}", validate_result.payment_id));
 
     #[cfg(feature = "pm_modular")]
-    let feature_config = core_utils::get_feature_config(state, &platform).await;
+    let feature_config = core_utils::get_feature_config(state, &platform, dimensions).await;
 
     let operations::GetTrackerResponse {
         operation,
@@ -1571,6 +1573,7 @@ where
             &header_payload,
             #[cfg(feature = "pm_modular")]
             None,
+            dimensions,
         )
         .await?;
     let dimensions = dimensions.with_profile_id(business_profile.get_id().clone());
@@ -2031,6 +2034,7 @@ where
         .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)
         .attach_printable("Failed while fetching/creating customer")?;
 
+    let dimensions = dimensions.with_profile_id(profile.get_id().clone());
     let (_operation, payment_data) = operation
         .to_update_tracker()?
         .update_trackers(
@@ -2040,7 +2044,7 @@ where
             payment_data,
             None,
             header_payload,
-            &dimensions,
+            &dimensions.without_profile_id(),
         )
         .await?;
 
@@ -2067,9 +2071,6 @@ where
     D: OperationSessionGetters<F> + Send + Sync + Clone,
 {
     let operation: BoxedOperation<'_, F, Req, D> = Box::new(operation);
-    let dimensions = dimension_state::Dimensions::new()
-        .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
-        .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id());
 
     tracing::Span::current().record(
         "merchant_id",
@@ -2079,6 +2080,11 @@ where
             .get_id()
             .get_string_repr(),
     );
+
+    let dimensions = dimension_state::Dimensions::new()
+        .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id())
+        .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
+        .with_profile_id(profile.get_id().clone());
 
     let _validate_result = operation
         .to_validate_request()?
@@ -2119,7 +2125,7 @@ where
             payment_data,
             None,
             header_payload,
-            &dimensions,
+            &dimensions.without_profile_id(),
         )
         .await?;
 
@@ -5755,6 +5761,10 @@ where
         None => true,
     };
 
+    let dimensions = dimension_state::Dimensions::new()
+        .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id())
+        .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
+        .with_profile_id(business_profile.get_id().clone());
     (_, *payment_data) = operation
         .to_update_tracker()?
         .update_trackers(
@@ -5764,7 +5774,7 @@ where
             payment_data.clone(),
             None, // frm_suggestion is not used in internal flows
             header_payload.clone(),
-            &dimensions,
+            &dimensions.without_profile_id(),
         )
         .await?;
 
@@ -5996,10 +6006,6 @@ where
     dyn api::Connector:
         services::api::ConnectorIntegration<F, RouterDReq, router_types::PaymentsResponseData>,
 {
-    let dimensions = dimension_state::Dimensions::new()
-        .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
-        .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id());
-
     let stime_connector = Instant::now();
 
     let merchant_connector_account = construct_profile_id_and_get_mca(
@@ -6127,7 +6133,9 @@ where
     }
 
     let frm_suggestion = None;
-
+    let dimensions = dimension_state::Dimensions::new()
+        .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id())
+        .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id());
     (_, *payment_data) = operation
         .to_update_tracker()?
         .update_trackers(
@@ -7576,7 +7584,6 @@ where
                 customers::should_call_connector_create_customer(
                     &connector,
                     customer,
-                    payment_data.get_payment_attempt(),
                     merchant_connector_account,
                 );
 
@@ -7805,6 +7812,7 @@ fn is_payment_method_tokenization_enabled_for_connector(
     payment_method: storage::enums::PaymentMethod,
     payment_method_type: Option<storage::enums::PaymentMethodType>,
     mandate_flow_enabled: storage_enums::FutureUsage,
+    payment_method_token: Option<&PaymentMethodToken>,
 ) -> RouterResult<bool> {
     let connector_tokenization_filter = state.conf.tokenization.0.get(connector_name);
 
@@ -7816,7 +7824,8 @@ fn is_payment_method_tokenization_enabled_for_connector(
                 .contains(&payment_method)
                 && is_payment_method_type_allowed_for_connector(
                     payment_method_type,
-                    connector_filter.payment_method_type.clone(),
+                    payment_method_token,
+                    connector_filter,
                 )
                 && is_payment_flow_allowed_for_connector(
                     mandate_flow_enabled,
@@ -7859,17 +7868,8 @@ fn is_payment_method_tokenization_enabled_for_connector(
                 .contains(&payment_method)
                 && is_payment_method_type_allowed_for_connector(
                     payment_method_type,
-                    connector_filter.payment_method_type.clone(),
-                )
-                && is_apple_pay_pre_decrypt_type_connector_tokenization(
-                    payment_method_type,
                     payment_method_token,
-                    connector_filter.apple_pay_pre_decrypt_flow.clone(),
-                )
-                && is_google_pay_pre_decrypt_type_connector_tokenization(
-                    payment_method_type,
-                    payment_method_token,
-                    connector_filter.google_pay_pre_decrypt_flow.clone(),
+                    connector_filter,
                 )
                 && is_payment_flow_allowed_for_connector(
                     mandate_flow_enabled,
@@ -7920,16 +7920,22 @@ fn is_apple_pay_pre_decrypt_type_connector_tokenization(
     payment_method_type: Option<storage::enums::PaymentMethodType>,
     payment_method_token: Option<&PaymentMethodToken>,
     apple_pay_pre_decrypt_flow_filter: Option<ApplePayPreDecryptFlow>,
-) -> bool {
-    match (payment_method_type, payment_method_token) {
+) -> Option<bool> {
+    match (
+        payment_method_type,
+        payment_method_token,
+        apple_pay_pre_decrypt_flow_filter,
+    ) {
         (
             Some(storage::enums::PaymentMethodType::ApplePay),
             Some(PaymentMethodToken::ApplePayDecrypt(..)),
-        ) => !matches!(
+            Some(apple_pay_pre_decrypt_flow_filter),
+        ) => Some(matches!(
             apple_pay_pre_decrypt_flow_filter,
-            Some(ApplePayPreDecryptFlow::NetworkTokenization)
-        ),
-        _ => true,
+            ApplePayPreDecryptFlow::ConnectorTokenization
+        )),
+        // not applicable
+        _ => None,
     }
 }
 
@@ -7937,21 +7943,22 @@ fn is_google_pay_pre_decrypt_type_connector_tokenization(
     payment_method_type: Option<storage::enums::PaymentMethodType>,
     payment_method_token: Option<&PaymentMethodToken>,
     google_pay_pre_decrypt_flow_filter: Option<GooglePayPreDecryptFlow>,
-) -> bool {
-    if let (
-        Some(storage::enums::PaymentMethodType::GooglePay),
-        Some(PaymentMethodToken::GooglePayDecrypt(..)),
-    ) = (payment_method_type, payment_method_token)
-    {
-        !matches!(
+) -> Option<bool> {
+    match (
+        payment_method_type,
+        payment_method_token,
+        google_pay_pre_decrypt_flow_filter,
+    ) {
+        (
+            Some(storage::enums::PaymentMethodType::GooglePay),
+            Some(PaymentMethodToken::GooglePayDecrypt(..)),
+            Some(google_pay_pre_decrypt_flow_filter),
+        ) => Some(matches!(
             google_pay_pre_decrypt_flow_filter,
-            Some(GooglePayPreDecryptFlow::NetworkTokenization)
-        )
-    } else {
-        // Always return true for non–Google Pay pre-decrypt cases,
-        // because the filter is only relevant for Google Pay pre-decrypt tokenization.
-        // Returning true ensures that other payment methods or token types are not blocked.
-        true
+            GooglePayPreDecryptFlow::ConnectorTokenization
+        )),
+        // not applicable
+        _ => None,
     }
 }
 
@@ -8187,8 +8194,24 @@ fn get_google_pay_connector_wallet_details(
 
 fn is_payment_method_type_allowed_for_connector(
     current_pm_type: Option<storage::enums::PaymentMethodType>,
-    pm_type_filter: Option<PaymentMethodTypeTokenFilter>,
+    payment_method_token: Option<&PaymentMethodToken>,
+    connector_filter: &PaymentMethodTokenFilter,
 ) -> bool {
+    if let Some(apple_pay_enabled) = is_apple_pay_pre_decrypt_type_connector_tokenization(
+        current_pm_type,
+        payment_method_token,
+        connector_filter.apple_pay_pre_decrypt_flow.clone(),
+    ) {
+        return apple_pay_enabled;
+    }
+    if let Some(google_pay_enabled) = is_google_pay_pre_decrypt_type_connector_tokenization(
+        current_pm_type,
+        payment_method_token,
+        connector_filter.google_pay_pre_decrypt_flow.clone(),
+    ) {
+        return google_pay_enabled;
+    }
+    let pm_type_filter = connector_filter.payment_method_type.clone();
     match (current_pm_type).zip(pm_type_filter) {
         Some((pm_type, type_filter)) => match type_filter {
             PaymentMethodTypeTokenFilter::AllAccepted => true,
@@ -10375,6 +10398,7 @@ where
         is_payment_method_modular_allowed,
         business_profile.is_connector_agnostic_mit_enabled,
         business_profile.is_network_tokenization_enabled,
+        dimensions,
     )
     .await
 }
@@ -10390,6 +10414,7 @@ pub async fn plan_payment_execution_after_routing<F: Clone, D>(
     is_payment_method_modular_allowed: bool,
     is_connector_agnostic_mit_enabled: Option<bool>,
     is_network_tokenization_enabled: bool,
+    _dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
 ) -> RouterResult<ConnectorCallType>
 where
     D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
@@ -10520,7 +10545,8 @@ where
             }
         }
         _ => {
-            helpers::override_setup_future_usage_to_on_session(&*state.store, payment_data).await?;
+            helpers::override_setup_future_usage_to_on_session(state.store.as_ref(), payment_data)
+                .await?;
 
             let first_choice = connectors
                 .first()
@@ -12742,7 +12768,7 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentIntentData<F> {
     }
 
     fn get_creds_identifier(&self) -> Option<&str> {
-        todo!()
+        None
     }
 
     fn get_token(&self) -> Option<&str> {

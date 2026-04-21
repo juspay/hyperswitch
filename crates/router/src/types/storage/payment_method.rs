@@ -23,12 +23,20 @@ pub struct CardTokenData {
     pub network_token_locker_id: Option<String>,
 }
 
+#[cfg(feature = "v1")]
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct BankDebitTokenData {
     pub payment_method_id: String,
     pub locker_id: Option<String>,
 }
 
+#[cfg(feature = "v2")]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct BankDebitTokenData {
+    pub payment_method_id: common_utils::id_type::GlobalPaymentMethodId,
+    pub locker_id: Option<String>,
+    pub storage_type: enums::StorageType,
+}
 #[cfg(feature = "v2")]
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct CardTokenData {
@@ -77,6 +85,7 @@ pub enum PaymentTokenData {
     TemporaryGeneric(GenericTokenData),
     PermanentCard(CardTokenData),
     AuthBankDebit(payment_methods::BankAccountTokenData),
+    BankDebit(BankDebitTokenData),
 }
 
 impl PaymentTokenData {
@@ -112,6 +121,19 @@ impl PaymentTokenData {
 
     pub fn temporary_generic(token: String) -> Self {
         Self::TemporaryGeneric(GenericTokenData { token })
+    }
+
+    #[cfg(feature = "v2")]
+    pub fn bank_debit(
+        payment_method_id: common_utils::id_type::GlobalPaymentMethodId,
+        locker_id: Option<String>,
+        storage_type: enums::StorageType,
+    ) -> Self {
+        Self::BankDebit(BankDebitTokenData {
+            payment_method_id,
+            locker_id,
+            storage_type,
+        })
     }
 
     #[cfg(feature = "v1")]
@@ -158,6 +180,10 @@ pub enum PaymentMethodListContext {
     TemporaryToken {
         token_data: Option<PaymentTokenData>,
     },
+    BankDebit {
+        bank_debit_details: payment_methods::BankDebitDetailsPaymentMethod,
+        token_data: Option<PaymentTokenData>,
+    },
 }
 
 #[cfg(feature = "v2")]
@@ -167,7 +193,8 @@ impl PaymentMethodListContext {
             Self::Card { token_data, .. }
             | Self::Bank { token_data }
             | Self::BankTransfer { token_data, .. }
-            | Self::TemporaryToken { token_data } => token_data.clone(),
+            | Self::TemporaryToken { token_data }
+            | Self::BankDebit { token_data, .. } => token_data.clone(),
         }
     }
 }

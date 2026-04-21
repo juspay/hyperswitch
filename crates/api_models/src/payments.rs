@@ -3016,10 +3016,6 @@ pub enum BankDebitData {
         #[smithy(value_type = "String")]
         routing_number: Secret<String>,
 
-        #[schema(value_type = String, example = "John Test")]
-        #[smithy(value_type = "Option<String>")]
-        card_holder_name: Option<Secret<String>>,
-
         #[schema(value_type = String, example = "John Doe")]
         #[smithy(value_type = "Option<String>")]
         bank_account_holder_name: Option<Secret<String>>,
@@ -9327,21 +9323,24 @@ impl From<AdditionalPaymentData> for PaymentMethodDataResponse {
                 (Some(apple_pay_pm), _, _) => Self::Wallet(Box::new(WalletResponse {
                     details: Some(WalletResponseData::ApplePay(Box::new(
                         WalletAdditionalDataForCard {
-                            last4: apple_pay_pm
-                                .display_name
-                                .clone()
-                                .chars()
-                                .rev()
-                                .take(4)
-                                .collect::<String>()
-                                .chars()
-                                .rev()
-                                .collect::<String>(),
-                            card_network: apple_pay_pm.network.clone(),
+                            last4: Some(
+                                apple_pay_pm
+                                    .display_name
+                                    .clone()
+                                    .chars()
+                                    .rev()
+                                    .take(4)
+                                    .collect::<String>()
+                                    .chars()
+                                    .rev()
+                                    .collect::<String>(),
+                            ),
+                            card_network: Some(apple_pay_pm.network.clone()),
                             card_type: Some(apple_pay_pm.pm_type.clone()),
                             card_exp_month: apple_pay_pm.card_exp_month,
                             card_exp_year: apple_pay_pm.card_exp_year,
                             auth_code: apple_pay_pm.auth_code,
+                            email: None,
                         },
                     ))),
                 })),
@@ -12839,7 +12838,6 @@ mod billing_from_payment_method_data {
                 billing_details: Some(bank_redirect_billing),
                 account_number: Secret::new("1234".to_string()),
                 routing_number: Secret::new("1235".to_string()),
-                card_holder_name: None,
                 bank_account_holder_name: None,
                 bank_name: None,
                 bank_type: None,

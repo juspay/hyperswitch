@@ -2318,9 +2318,7 @@ pub async fn get_or_update_dispute_object(
     state: SessionState,
     option_dispute: Option<diesel_models::dispute::Dispute>,
     dispute_details: api::disputes::DisputePayload,
-    merchant_id: &common_utils::id_type::MerchantId,
-    organization_id: &common_utils::id_type::OrganizationId,
-    initiator: Option<&domain::Initiator>,
+    platform: &domain::Platform,
     payment_attempt: &PaymentAttempt,
     dispute_status: common_enums::enums::DisputeStatus,
     business_profile: &domain::Profile,
@@ -2340,7 +2338,7 @@ pub async fn get_or_update_dispute_object(
                 payment_id: payment_attempt.payment_id.to_owned(),
                 connector: connector_name.to_owned(),
                 attempt_id: payment_attempt.attempt_id.to_owned(),
-                merchant_id: merchant_id.to_owned(),
+                merchant_id: platform.get_provider().get_account().get_id().to_owned(),
                 connector_status: dispute_details.connector_status,
                 connector_dispute_id: dispute_details.connector_dispute_id,
                 connector_reason: dispute_details.connector_reason,
@@ -2361,11 +2359,18 @@ pub async fn get_or_update_dispute_object(
                         amount_type: "MinorUnit",
                     },
                 )?,
-                organization_id: organization_id.clone(),
+                organization_id: platform
+                    .get_processor()
+                    .get_account()
+                    .organization_id
+                    .clone(),
                 dispute_currency: Some(dispute_details.currency),
-                processor_merchant_id: Some(payment_attempt.processor_merchant_id.clone()),
-                created_by: initiator
-                    .and_then(|initiator| initiator.to_created_by())
+                processor_merchant_id: Some(
+                    platform.get_processor().get_account().get_id().to_owned(),
+                ),
+                created_by: payment_attempt
+                    .created_by
+                    .as_ref()
                     .map(|created_by| created_by.to_string()),
             };
             state
@@ -2870,7 +2875,7 @@ async fn disputes_incoming_webhook_flow(
             .switch()?;
 
         let option_dispute = db
-            .find_by_merchant_id_payment_id_connector_dispute_id(
+            .find_by_processor_merchant_id_payment_id_connector_dispute_id(
                 platform.get_processor().get_account().get_id(),
                 &payment_attempt.payment_id,
                 &dispute_details.connector_dispute_id,
@@ -2885,9 +2890,7 @@ async fn disputes_incoming_webhook_flow(
             state.clone(),
             option_dispute.clone(),
             dispute_details,
-            platform.get_processor().get_account().get_id(),
-            &platform.get_processor().get_account().organization_id,
-            platform.get_initiator(),
+            &platform,
             &payment_attempt,
             dispute_status,
             &business_profile,
