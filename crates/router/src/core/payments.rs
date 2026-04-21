@@ -11251,19 +11251,21 @@ impl EligibilityCheck for BlockListCheck {
         payment_elgibility_data: &PaymentEligibilityData,
         business_profile: &domain::Profile,
     ) -> CustomResult<CheckResult, errors::ApiErrorResponse> {
-        let should_payment_be_blocked = blocklist_utils::should_payment_be_blocked(
+        let block_reason = blocklist_utils::should_payment_be_blocked(
             state,
             platform.get_processor(),
             &payment_elgibility_data.payment_method_data,
             business_profile,
         )
         .await?;
-        if should_payment_be_blocked {
-            Ok(CheckResult::Deny {
-                message: "Card number is blocklisted".to_string(),
-            })
-        } else {
-            Ok(CheckResult::Allow)
+        match block_reason {
+            Some(reason) => {
+                logger::warn!(block_reason = ?reason, "Payment blocked by blocklist");
+                Ok(CheckResult::Deny {
+                    message: reason.error_message(),
+                })
+            }
+            None => Ok(CheckResult::Allow),
         }
     }
 
