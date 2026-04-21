@@ -447,14 +447,14 @@ jobs:
                 {
                   "name": "batch-1",
                   "connectors": "'"${OPTIONAL_PAYMENTS_CONNECTORS_BATCH_1}"'",
-                  "parallel": 3,
+                  "parallel": 6,
                   "report_artifact_name": "cypress-test-results-batch-1",
                   "server_logs_artifact": "optional-server-logs-batch-1"
                 },
                 {
                   "name": "batch-2",
                   "connectors": "'"${OPTIONAL_PAYMENTS_CONNECTORS_BATCH_2}"'",
-                  "parallel": 3,
+                  "parallel": 6,
                   "report_artifact_name": "cypress-test-results-batch-2",
                   "server_logs_artifact": "optional-server-logs-batch-2"
                 }
