@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.04.02.0-hotfix7
+
+### Bug Fixes
+
+- **connector:** [Worldpayxml] update status mapping ([#11889](https://github.com/juspay/hyperswitch/pull/11889)) ([`552b6dd`](https://github.com/juspay/hyperswitch/commit/552b6dd9f76cf082b5107840c062b8dbc0f235a6))
+
+**Full Changelog:** [`2026.04.02.0-hotfix6...2026.04.02.0-hotfix7`](https://github.com/juspay/hyperswitch/compare/2026.04.02.0-hotfix6...2026.04.02.0-hotfix7)
+
+- - -
+
 ## 2026.04.02.0-hotfix6
 
 ### Bug Fixes
