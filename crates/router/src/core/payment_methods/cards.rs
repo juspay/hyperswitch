@@ -1,6 +1,5 @@
 use std::{
     collections::{HashMap, HashSet},
-    fmt::Debug,
     str::FromStr,
 };
 
@@ -77,8 +76,7 @@ use crate::{
     configs::settings,
     consts as router_consts,
     core::{
-        configs,
-        configs::dimension_state::DimensionsWithMerchantId,
+        configs::dimension_state,
         errors::{self, StorageErrorExt},
         payment_methods::{
             network_tokenization, transformers as payment_methods, utils as payment_method_utils,
@@ -424,7 +422,12 @@ impl PaymentMethodsController for PmCards<'_> {
                 });
                 let pm_network_token_data_encrypted = pm_token_details
                     .async_map(|pm_card| {
-                        create_encrypted_data(key_manager_state, key_store, pm_card)
+                        core_utils::create_encrypted_data(
+                            key_manager_state,
+                            key_store,
+                            pm_card,
+                            common_utils::type_name!(payment_method::PaymentMethod),
+                        )
                     })
                     .await
                     .transpose()
@@ -510,7 +513,6 @@ impl PaymentMethodsController for PmCards<'_> {
                     api_models::payment_methods::BankDebitDetailsPaymentMethod::AchBankDebit {
                         masked_account_number: bank_debit.get_masked_account_number(),
                         masked_routing_number: bank_debit.get_masked_routing_number(),
-                        card_holder_name: None,
                         bank_account_holder_name: bank_debit.get_bank_account_holder_name(),
                         bank_name: None,
                         bank_type: bank_debit.get_bank_type(),
@@ -524,7 +526,14 @@ impl PaymentMethodsController for PmCards<'_> {
         let key_manager_state = self.state.into();
         let pm_data_encrypted: crypto::OptionalEncryptableValue = pm_card_details
             .clone()
-            .async_map(|pm_card| create_encrypted_data(&key_manager_state, key_store, pm_card))
+            .async_map(|pm_card| {
+                core_utils::create_encrypted_data(
+                    &key_manager_state,
+                    key_store,
+                    pm_card,
+                    type_name!(payment_method::PaymentMethod),
+                )
+            })
             .await
             .transpose()
             .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -751,7 +760,7 @@ impl PaymentMethodsController for PmCards<'_> {
         .change_context(errors::VaultError::RequestEncodingFailed)
         .attach_printable("Failed to encode VaultFingerprintRequest")?;
 
-        let resp = vault::call_to_vault::<pm_types::GetVaultFingerprint>(self.state, payload)
+        let resp = vault::call_to_vault::<pm_types::GetVaultFingerprint>(self.state, payload, None)
             .await
             .change_context(errors::VaultError::VaultAPIError)
             .attach_printable("Call to vault failed")?;
@@ -806,10 +815,13 @@ impl PaymentMethodsController for PmCards<'_> {
             .change_context(errors::VaultError::RequestEncodingFailed)
             .attach_printable("Failed to encode AddVaultRequest")?;
 
-            let resp = vault::call_to_vault::<pm_types::AddVault>(self.state, payload)
-                .await
-                .change_context(errors::VaultError::VaultAPIError)
-                .attach_printable("Call to vault failed")?;
+            let query_params = Some(pm_types::VaultQueryParam::from(pm_types::WriteMode::Insert));
+
+            let resp =
+                vault::call_to_vault::<pm_types::AddVault>(self.state, payload, query_params)
+                    .await
+                    .change_context(errors::VaultError::VaultAPIError)
+                    .attach_printable("Call to vault failed")?;
 
             let stored_pm_resp: pm_types::InternalAddVaultResponse = resp
                 .parse_struct("InternalAddVaultResponse")
@@ -1312,7 +1324,12 @@ impl PaymentMethodsController for PmCards<'_> {
             .billing
             .clone()
             .async_map(|billing| {
-                create_encrypted_data(&key_manager_state, self.provider.get_key_store(), billing)
+                core_utils::create_encrypted_data(
+                    &key_manager_state,
+                    self.provider.get_key_store(),
+                    billing,
+                    type_name!(payment_method::PaymentMethod),
+                )
             })
             .await
             .transpose()
@@ -1504,10 +1521,11 @@ impl PaymentMethodsController for PmCards<'_> {
                         let pm_data_encrypted: Option<Encryptable<Secret<serde_json::Value>>> =
                             updated_pmd
                                 .async_map(|updated_pmd| {
-                                    create_encrypted_data(
+                                    core_utils::create_encrypted_data(
                                         &key_manager_state,
                                         self.provider.get_key_store(),
                                         updated_pmd,
+                                        type_name!(payment_method::PaymentMethod),
                                     )
                                 })
                                 .await
@@ -1600,7 +1618,12 @@ pub async fn get_client_secret_or_add_payment_method(
         .billing
         .clone()
         .async_map(|billing| {
-            create_encrypted_data(&key_manager_state, provider.get_key_store(), billing)
+            core_utils::create_encrypted_data(
+                &key_manager_state,
+                provider.get_key_store(),
+                billing,
+                type_name!(payment_method::PaymentMethod),
+            )
         })
         .await
         .transpose()
@@ -1829,10 +1852,11 @@ pub async fn add_payment_method_data(
                             co_badged_card_data: None,
                         };
                         let pm_data_encrypted: Encryptable<Secret<serde_json::Value>> =
-                            create_encrypted_data(
+                            core_utils::create_encrypted_data(
                                 &key_manager_state,
                                 provider.get_key_store(),
                                 PaymentMethodsData::Card(updated_card),
+                                type_name!(payment_method::PaymentMethod),
                             )
                             .await
                             .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -2108,7 +2132,12 @@ pub async fn update_customer_payment_method(
             let key_manager_state = (&state).into();
             let pm_data_encrypted: Option<Encryptable<Secret<serde_json::Value>>> = updated_pmd
                 .async_map(|updated_pmd| {
-                    create_encrypted_data(&key_manager_state, provider.get_key_store(), updated_pmd)
+                    core_utils::create_encrypted_data(
+                        &key_manager_state,
+                        provider.get_key_store(),
+                        updated_pmd,
+                        type_name!(payment_method::PaymentMethod),
+                    )
                 })
                 .await
                 .transpose()
@@ -2188,11 +2217,15 @@ pub async fn update_customer_payment_method(
 
         let updated_pmd = PaymentMethodsData::WalletDetails(wallet_update);
         let key_manager_state = (&state).into();
-        let pm_data_encrypted =
-            create_encrypted_data(&key_manager_state, provider.get_key_store(), updated_pmd)
-                .await
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Unable to encrypt payment method data")?;
+        let pm_data_encrypted = core_utils::create_encrypted_data(
+            &key_manager_state,
+            provider.get_key_store(),
+            updated_pmd,
+            type_name!(payment_method::PaymentMethod),
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Unable to encrypt payment method data")?;
 
         let pm_update = storage::PaymentMethodUpdate::PaymentMethodDataUpdate {
             payment_method_data: Some(pm_data_encrypted.into()),
@@ -3182,6 +3215,11 @@ pub async fn list_payment_methods(
             }
         };
 
+    let dimensions = dimension_state::Dimensions::new()
+        .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
+        .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id())
+        .with_profile_id(profile_id.clone());
+
     // filter out payment connectors based on profile_id
     let filtered_mcas = all_mcas
         .clone()
@@ -3954,9 +3992,13 @@ pub async fn list_payment_methods(
         .as_ref()
         .and_then(|intent| intent.request_external_three_ds_authentication)
         .unwrap_or(false);
+
     let sdk_next_action = payment_method_utils::get_sdk_next_action_for_payment_method_list(
-        db,
-        platform.get_processor().get_account().get_id(),
+        &state,
+        &dimensions,
+        payment_intent
+            .as_ref()
+            .and_then(|pi| pi.customer_id.as_ref()),
     )
     .await;
     let is_guest_customer = payment_intent
@@ -4569,8 +4611,9 @@ pub async fn do_list_customer_pm_fetch_customer_if_not_passed(
     customer_id: Option<&id_type::CustomerId>,
     ephemeral_api_key: Option<&str>,
 ) -> errors::RouterResponse<api::CustomerPaymentMethodsListResponse> {
-    let dimensions = configs::dimension_state::Dimensions::new()
-        .with_merchant_id(platform.get_processor().get_account().get_id().clone());
+    let dimensions = dimension_state::Dimensions::new()
+        .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
+        .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id());
     let limit = req.clone().and_then(|pml_req| pml_req.limit);
 
     let auth_cust = if let Some(key) = ephemeral_api_key {
@@ -4594,7 +4637,7 @@ pub async fn do_list_customer_pm_fetch_customer_if_not_passed(
             None,
             customer_id,
             limit,
-            dimensions,
+            &dimensions,
         ))
         .await
     } else {
@@ -4614,7 +4657,7 @@ pub async fn do_list_customer_pm_fetch_customer_if_not_passed(
                     payment_intent,
                     &customer_id,
                     limit,
-                    dimensions,
+                    &dimensions,
                 ))
                 .await
             }
@@ -4636,7 +4679,7 @@ pub async fn list_customer_payment_method(
     payment_intent: Option<storage::PaymentIntent>,
     customer_id: &id_type::CustomerId,
     limit: Option<i64>,
-    dimensions: DimensionsWithMerchantId,
+    dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
 ) -> errors::RouterResponse<api::CustomerPaymentMethodsListResponse> {
     let db = &*state.store;
     let off_session_payment_flag = payment_intent
@@ -4663,7 +4706,7 @@ pub async fn list_customer_payment_method(
     let requires_cvv = dimensions
         .get_requires_cvv(
             state.store.as_ref(),
-            state.superposition_service.as_deref(),
+            state.superposition_service.as_ref(),
             Some(customer_id),
         )
         .await;
@@ -5191,11 +5234,13 @@ pub async fn get_masked_bank_details(
         let payment_method_data = pm.payment_method_data.clone().map(|x| x.into_inner());
         match payment_method_data {
             Some(pmd) => match pmd {
-                PaymentMethodsData::Card(_) => Ok(None),
-                PaymentMethodsData::BankDetails(bank_details) => Ok(Some(MaskedBankDetails {
-                    mask: bank_details.mask,
-                })),
-                PaymentMethodsData::WalletDetails(_) => Ok(None),
+                domain::PaymentMethodsData::Card(_) => Ok(None),
+                domain::PaymentMethodsData::BankDetails(bank_details) => {
+                    Ok(Some(MaskedBankDetails {
+                        mask: bank_details.mask,
+                    }))
+                }
+                domain::PaymentMethodsData::WalletDetails(_) => Ok(None),
                 _ => Ok(None),
             },
             None => Err(report!(errors::ApiErrorResponse::InternalServerError))
@@ -5403,7 +5448,7 @@ pub async fn get_bank_debit_from_hs_locker(
     provider: &domain::Provider,
     customer_id: &id_type::CustomerId,
     token_ref: &str,
-) -> errors::RouterResult<api_models::payment_methods::BankDebitDetail> {
+) -> errors::RouterResult<hyperswitch_domain_models::payment_method_data::BankDebitDetail> {
     let vault_request = pm_types::VaultRetrieveRequest {
         entity_id: hyperswitch_domain_models::vault::V1VaultEntityId::new(
             provider.get_account().get_id().clone(),
@@ -5419,7 +5464,7 @@ pub async fn get_bank_debit_from_hs_locker(
         .attach_printable("Failed to encode VaultRetrieveRequest")
         .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
-    let resp = vault::call_to_vault::<pm_types::VaultRetrieve>(state, payload)
+    let resp = vault::call_to_vault::<pm_types::VaultRetrieve>(state, payload, None)
         .await
         .change_context(errors::VaultError::VaultAPIError)
         .attach_printable("Call to vault failed")
@@ -5535,7 +5580,7 @@ pub async fn create_encrypted_data<T>(
     data: T,
 ) -> Result<Encryptable<Secret<serde_json::Value>>, error_stack::Report<errors::StorageError>>
 where
-    T: Debug + serde::Serialize,
+    T: std::fmt::Debug + serde::Serialize,
 {
     let key = key_store.key.get_inner().peek();
     let identifier = Identifier::Merchant(key_store.merchant_id.clone());

@@ -1,4 +1,4 @@
-import { customerAcceptance } from "./Commons";
+import { customerAcceptance, multiUseMandateData } from "./Commons";
 import { getCustomExchange } from "./Modifiers";
 
 const successfulNo3DSCardDetails = {
@@ -29,16 +29,6 @@ const singleUseMandateData = {
   customer_acceptance: customerAcceptance,
   mandate_type: {
     single_use: {
-      amount: 8000,
-      currency: "USD",
-    },
-  },
-};
-
-const multiUseMandateData = {
-  customer_acceptance: customerAcceptance,
-  mandate_type: {
-    multi_use: {
       amount: 8000,
       currency: "USD",
     },
@@ -788,7 +778,7 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "succeeded",
-          net_amount: 6300,
+          net_amount: 6610,
         },
       },
     },
@@ -817,6 +807,49 @@ export const connectorDetails = {
             message:
               "installment_options and installment_data are not supported when confirm is true.",
             code: "IR_06",
+          },
+        },
+      },
+    },
+    PaymentIntentWithBillingDescriptor: {
+      Request: {
+        currency: "USD",
+        billing_descriptor: {
+          name: "Juspay",
+          city: "San Francisco",
+          phone: "8056594427",
+          statement_descriptor: "QA-BillingDesc",
+          statement_descriptor_suffix: "SUFFIX1",
+          reference: "ref-qa-001",
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+        },
+      },
+    },
+    PaymentConfirmWithBillingDescriptor: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+          billing_descriptor: {
+            name: "Juspay",
+            city: "San Francisco",
+            phone: "8056594427",
+            statement_descriptor: "QA-BillingDesc",
+            statement_descriptor_suffix: "SUFFIX1",
+            reference: "ref-qa-001",
           },
         },
       },
@@ -1054,8 +1087,8 @@ export const connectorDetails = {
                   billing_frequency: "month",
                   interest_rate: 5,
                   amount_details: {
-                    amount_per_installment: 21,
-                    total_amount: 63,
+                    amount_per_installment: 22.04,
+                    total_amount: 66.1,
                   },
                 },
                 {
@@ -1063,8 +1096,8 @@ export const connectorDetails = {
                   billing_frequency: "month",
                   interest_rate: 5,
                   amount_details: {
-                    amount_per_installment: 10.5,
-                    total_amount: 63,
+                    amount_per_installment: 11.83,
+                    total_amount: 70.93,
                   },
                 },
                 {
@@ -1072,8 +1105,8 @@ export const connectorDetails = {
                   billing_frequency: "month",
                   interest_rate: 5,
                   amount_details: {
-                    amount_per_installment: 5.25,
-                    total_amount: 63,
+                    amount_per_installment: 6.77,
+                    total_amount: 81.24,
                   },
                 },
               ],

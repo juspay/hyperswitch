@@ -61,6 +61,7 @@ use crate::core::routing::transformers::OpenRouterDecideGatewayRequestExt;
 use crate::routes::app::SessionStateInfo;
 use crate::{
     core::{
+        configs::dimension_state,
         errors, errors as oss_errors,
         payments::{
             routing::utils::DecisionEngineApiHandler, OperationSessionGetters,
@@ -1229,6 +1230,7 @@ pub async fn try_pre_routing_connectors<F, D>(
     business_profile: &domain::Profile,
     payment_data: &mut D,
     routing_data: &mut RoutingData,
+    dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
 ) -> errors::RouterResult<Option<api::ConnectorCallType>>
 where
     F: Send + Clone,
@@ -1261,9 +1263,10 @@ where
             #[cfg(feature = "retry")]
             {
                 let should_do_retry = crate::core::payments::retry::config_should_call_gsm(
-                    &*state.store,
-                    processor.get_account().get_id(),
+                    state,
+                    dimensions,
                     business_profile,
+                    payment_data.get_payment_intent().customer_id.as_ref(),
                 )
                 .await;
 
@@ -1490,6 +1493,13 @@ impl RoutingStage for HybridRoutingStage {
             let should_include_static_request = input.state.conf.open_router.static_routing_enabled
                 && input.static_approach == common_enums::RoutingApproach::RuleBasedRouting;
 
+            let payment_id = input
+                .payment_dsl_input
+                .payment_attempt
+                .payment_id
+                .get_string_repr()
+                .to_string();
+
             let static_routing_request = if should_include_static_request {
                 Some(utils::build_static_routing_request_for_hybrid(
                     input
@@ -1497,6 +1507,7 @@ impl RoutingStage for HybridRoutingStage {
                         .get_id()
                         .get_string_repr()
                         .to_string(),
+                    payment_id.clone(),
                     input.backend_input.clone(),
                     input.fallback_config.to_vec(),
                 )?)
@@ -1510,13 +1521,6 @@ impl RoutingStage for HybridRoutingStage {
                 );
                 RoutingConnectorOutcomeWithApproach::empty()
             } else {
-                let payment_id = input
-                    .payment_dsl_input
-                    .payment_attempt
-                    .payment_id
-                    .get_string_repr()
-                    .to_string();
-
                 let hybrid_outcome = utils::decision_engine_hybrid_routing(
                     input.state,
                     input.business_profile,

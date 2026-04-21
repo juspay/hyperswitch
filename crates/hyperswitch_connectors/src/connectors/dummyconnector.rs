@@ -654,5 +654,3 @@ impl<const T: u8> IncomingWebhook for DummyConnector<T> {
 }
 
 impl<const T: u8> ConnectorSpecifications for DummyConnector<T> {}
-
-impl<const T: u8> hyperswitch_interfaces::api::ConnectorAccessTokenSuffix for DummyConnector<T> {}
