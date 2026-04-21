@@ -622,7 +622,7 @@ impl super::RedisConnectionPool {
                         let v = v.take_results()?;
 
                         let v: Vec<String> =
-                            v.iter().filter_map(|(_, val)| val.as_string()).collect();
+                            v.values().filter_map(|val| val.as_string()).collect();
                         Some(futures::stream::iter(v))
                     }
                     Err(err) => {
