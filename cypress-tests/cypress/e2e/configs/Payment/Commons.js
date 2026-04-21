@@ -446,6 +446,14 @@ export const payment_methods_enabled = [
         recurring_enabled: false,
         installment_payment_enabled: false,
       },
+      {
+        payment_method_type: "ali_pay_hk",
+        payment_experience: "redirect_to_url",
+        minimum_amount: 1,
+        maximum_amount: 68607706,
+        recurring_enabled: false,
+        installment_payment_enabled: false,
+      },
     ],
   },
   {
@@ -853,6 +861,27 @@ export const connectorDetails = {
             country: "AT",
           },
         },
+      },
+    }),
+    AliPayHk: getCustomExchange({
+      Request: {
+        payment_method: "wallet",
+        payment_method_type: "ali_pay_hk",
+        payment_method_data: {
+          wallet: {
+            ali_pay_hk_redirect: {},
+          },
+        },
+        billing: {
+          ...standardBillingAddress,
+          address: {
+            ...standardBillingAddress.address,
+            country: "HK",
+          },
+        },
+      },
+      Configs: {
+        TRIGGER_SKIP: true,
       },
     }),
   },
