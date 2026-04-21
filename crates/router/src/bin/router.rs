@@ -7,7 +7,13 @@ use router::{
 };
 
 fn main() -> ApplicationResult<()> {
-    <::actix_web::rt::System>::new().block_on(async move {
+    let multi_threaded_rt = || {
+        tokio::runtime::Builder::new_multi_thread()
+            .enable_all()
+            .build()
+            .expect("Multithreaded Tokio runtime could not be created.")
+    };
+    <::actix_web::rt::System>::with_tokio_rt(multi_threaded_rt).block_on(async move {
         {
             let cmd_line = <CmdLineConf as clap::Parser>::parse();
             #[allow(clippy::expect_used)]
