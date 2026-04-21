@@ -456,6 +456,7 @@ pub async fn get_address_by_id(
 }
 
 #[cfg(feature = "v1")]
+#[allow(clippy::too_many_arguments)]
 pub async fn get_token_pm_type_mandate_details(
     state: &SessionState,
     request: &api::PaymentsRequest,
@@ -464,12 +465,17 @@ pub async fn get_token_pm_type_mandate_details(
     payment_method_id: Option<String>,
     payment_intent_customer_id: Option<&id_type::CustomerId>,
     pm_info: Option<domain::PaymentMethod>,
+    dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
 ) -> RouterResult<MandateGenericData> {
     let mandate_data = request.mandate_data.clone().map(MandateData::foreign_from);
+    // Should be removed, if we use dimensions in this method for any other purpose, but currently we are only using it for PM modular feature which is gated behind `pm_modular` feature flag
+    #[cfg(not(feature = "pm_modular"))]
+    let _ = dimensions;
     #[cfg(feature = "pm_modular")]
-    let is_payment_method_modular_allowed = core_utils::get_feature_config(state, platform)
-        .await
-        .is_payment_method_modular_allowed;
+    let is_payment_method_modular_allowed =
+        core_utils::get_feature_config(state, platform, dimensions)
+            .await
+            .is_payment_method_modular_allowed;
     let (
         payment_token,
         payment_method,
@@ -808,6 +814,7 @@ pub async fn get_token_pm_type_mandate_details(
             )
         }
     };
+
     Ok(MandateGenericData {
         token: payment_token,
         payment_method,
@@ -3403,6 +3410,13 @@ impl<'a>
                     co_badged_card_data: card_details.co_badged_card_data.clone(),
                 }))
             }
+            // Wallet MIT via PSP token (ConnectorMandateId)
+            (
+                Some(domain::PaymentMethodData::Wallet(_)),
+                Some(&api_models::payments::MandateReferenceId::ConnectorMandateId(_)),
+            ) => Some(domain::PaymentMethodData::MandatePayment),
+            // Wallet CIT flow - pass through as-is
+            (Some(domain::PaymentMethodData::Wallet(_)), _) => payment_method_data.cloned(),
             // Keep data as-is, otherwise.
             (Some(payment_method_data), _) => Some(payment_method_data.clone()),
             // Preserve empty input.
@@ -6042,13 +6056,14 @@ pub async fn get_additional_payment_data(
                     apple_pay: None,
                     google_pay: Some(Box::new(
                         payment_additional_types::WalletAdditionalDataForCard {
-                            last4: google_pay_pm_data.info.card_details.clone(),
-                            card_network: google_pay_pm_data.info.card_network.clone(),
+                            last4: Some(google_pay_pm_data.info.card_details.clone()),
+                            card_network: Some(google_pay_pm_data.info.card_network.clone()),
                             card_type: Some(google_pay_pm_data.pm_type.clone()),
                             card_exp_month,
                             card_exp_year,
                             // These are filled after calling the processor / connector
                             auth_code: None,
+                            email: None,
                         },
                     )),
                     samsung_pay: None,
@@ -6060,19 +6075,24 @@ pub async fn get_additional_payment_data(
                     google_pay: None,
                     samsung_pay: Some(Box::new(
                         payment_additional_types::WalletAdditionalDataForCard {
-                            last4: samsung_pay_pm_data
-                                .payment_credential
-                                .card_last_four_digits
-                                .clone(),
-                            card_network: samsung_pay_pm_data
-                                .payment_credential
-                                .card_brand
-                                .to_string(),
+                            last4: Some(
+                                samsung_pay_pm_data
+                                    .payment_credential
+                                    .card_last_four_digits
+                                    .clone(),
+                            ),
+                            card_network: Some(
+                                samsung_pay_pm_data
+                                    .payment_credential
+                                    .card_brand
+                                    .to_string(),
+                            ),
                             card_type: None,
                             card_exp_month: None,
                             card_exp_year: None,
                             // These are filled after calling the processor / connector
                             auth_code: None,
+                            email: None,
                         },
                     )),
                 }))
