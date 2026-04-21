@@ -887,7 +887,7 @@ export const connectorDetails = {
                         options: ["ALL"],
                       },
                     },
-                    value: "PL",
+                    value: "US",
                   },
                   "payment_method_data.card.card_exp_year": {
                     required_field: "payment_method_data.card.card_exp_year",
