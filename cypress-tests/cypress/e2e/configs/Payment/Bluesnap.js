@@ -182,11 +182,11 @@ export const connectorDetails = {
         payment_method: "card",
         payment_method_data: {
           card: {
-             card_number: "378282246310005",
-        card_exp_month: "05",
-        card_exp_year: "26",
-        card_holder_name: "John",
-        card_cvc: "1234",  // Amex uses 4-digit CVV
+            card_number: "378282246310005",
+            card_exp_month: "05",
+            card_exp_year: "26",
+            card_holder_name: "John",
+            card_cvc: "1234", // Amex uses 4-digit CVV
           },
         },
         customer_acceptance: null,
