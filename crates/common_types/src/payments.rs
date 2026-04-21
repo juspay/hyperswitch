@@ -770,6 +770,9 @@ pub struct ApplePayPredecryptData {
     #[schema(value_type = ApplePayCryptogramData)]
     #[smithy(value_type = "ApplePayCryptogramData")]
     pub payment_data: ApplePayCryptogramData,
+    /// Device manufacturer identifier from the decrypted Apple Pay token
+    #[schema(value_type = Option<String>)]
+    pub device_manufacturer_identifier: Option<Secret<String>>,
 }
 
 #[derive(

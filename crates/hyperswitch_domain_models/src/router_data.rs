@@ -494,6 +494,7 @@ impl TryFrom<ApplePayPredecryptDataInternal> for common_payment_types::ApplePayP
             application_expiration_month,
             application_expiration_year,
             payment_data: data.payment_data.into(),
+            device_manufacturer_identifier: Some(data.device_manufacturer_identifier),
         })
     }
 }
