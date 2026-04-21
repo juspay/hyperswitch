@@ -75,7 +75,7 @@ describe("Bank Debit tests", () => {
           cy.task("cli_log", "Skipping step: Retrieve Payment");
           return;
         }
-        cy.retrievePaymentCallTest(globalState);
+        cy.retrievePaymentCallTest({ globalState });
       });
     });
   });
