@@ -1,4 +1,11 @@
-import { cardRequiredField, customerAcceptance } from "./Commons";
+import {
+  cardRequiredField,
+  customerAcceptance,
+  blockedPaymentErrorBodyForIssuingCountry,
+  blockedPaymentErrorBodyForDebitCard,
+  blockedPaymentErrorBodyForCardSubtype,
+  blockedPaymentErrorBodyForBinUnavailable,
+} from "./Commons";
 
 const successfulNo3DSCardDetails = {
   card_number: "5105105105105100",
@@ -1019,7 +1026,7 @@ export const connectorDetails = {
         billing: billingAddress,
         currency: "MYR",
       },
-      Response: blockedPaymentErrorBody,
+      Response: blockedPaymentErrorBodyForIssuingCountry,
     },
     BlockCardType: {
       Request: {
@@ -1037,7 +1044,7 @@ export const connectorDetails = {
         billing: billingAddress,
         currency: "MYR",
       },
-      Response: blockedPaymentErrorBody,
+      Response: blockedPaymentErrorBodyForDebitCard,
     },
     BlockCardSubtype: {
       Request: {
@@ -1055,7 +1062,7 @@ export const connectorDetails = {
         currency: "MYR",
         billing: billingAddress,
       },
-      Response: blockedPaymentErrorBody,
+      Response: blockedPaymentErrorBodyForCardSubtype,
     },
     BlockIfBinInfoUnavailable: {
       Request: {
@@ -1073,7 +1080,7 @@ export const connectorDetails = {
         billing: billingAddress,
         currency: "MYR",
       },
-      Response: blockedPaymentErrorBody,
+      Response: blockedPaymentErrorBodyForBinUnavailable,
     },
   },
 };

@@ -1,4 +1,10 @@
 import { getCustomExchange } from "./Modifiers";
+import {
+  blockedPaymentErrorBodyForIssuingCountry,
+  blockedPaymentErrorBodyForDebitCard,
+  blockedPaymentErrorBodyForCardSubtype,
+  blockedPaymentErrorBodyForBinUnavailable,
+} from "./Commons";
 
 const ThreeDSChallengeTestCardDetails = {
   card_number: "4548817212493017",
@@ -554,7 +560,7 @@ export const connectorDetails = {
         shipping: Address,
         currency: "EUR",
       },
-      Response: blockedPaymentErrorBody,
+      Response: blockedPaymentErrorBodyForIssuingCountry,
     },
     BlockCardType: {
       Request: {
@@ -573,7 +579,7 @@ export const connectorDetails = {
         shipping: Address,
         currency: "EUR",
       },
-      Response: blockedPaymentErrorBody,
+      Response: blockedPaymentErrorBodyForDebitCard,
     },
     BlockCardSubtype: {
       Request: {
@@ -592,7 +598,7 @@ export const connectorDetails = {
         shipping: Address,
         currency: "EUR",
       },
-      Response: blockedPaymentErrorBody,
+      Response: blockedPaymentErrorBodyForCardSubtype,
     },
     BlockIfBinInfoUnavailable: {
       Request: {
@@ -611,7 +617,7 @@ export const connectorDetails = {
         shipping: Address,
         currency: "EUR",
       },
-      Response: blockedPaymentErrorBody,
+      Response: blockedPaymentErrorBodyForBinUnavailable,
     },
   },
 };
