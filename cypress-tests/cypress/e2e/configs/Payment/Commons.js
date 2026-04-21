@@ -5,11 +5,13 @@ export const blockedPaymentErrorBodyForIssuingCountry = {
   status: 200,
   expectBlockedPayment: true,
   body: {
-    type: "blocked",
-    message:
-      "Cards issued in your region aren't supported for this transaction, please try a different card",
-    code: "HE_03",
-    reason: "Blocked",
+    error: {
+      type: "blocked",
+      message:
+        "Cards issued in your region aren't supported for this transaction, please try a different card",
+      code: "HE_03",
+      reason: "Blocked",
+    },
   },
 };
 
@@ -17,11 +19,13 @@ export const blockedPaymentErrorBodyForDebitCard = {
   status: 200,
   expectBlockedPayment: true,
   body: {
-    type: "blocked",
-    message:
-      "Debit cards are not accepted for this transaction, please try a different card",
-    code: "HE_03",
-    reason: "Blocked",
+    error: {
+      type: "blocked",
+      message:
+        "Debit cards are not accepted for this transaction, please try a different card",
+      code: "HE_03",
+      reason: "Blocked",
+    },
   },
 };
 
@@ -29,11 +33,13 @@ export const blockedPaymentErrorBodyForCardSubtype = {
   status: 200,
   expectBlockedPayment: true,
   body: {
-    type: "blocked",
-    message:
-      "This card is not accepted for this transaction, please try a different card",
-    code: "HE_03",
-    reason: "Blocked",
+    error: {
+      type: "blocked",
+      message:
+        "This card is not accepted for this transaction, please try a different card",
+      code: "HE_03",
+      reason: "Blocked",
+    },
   },
 };
 
@@ -41,11 +47,13 @@ export const blockedPaymentErrorBodyForBinUnavailable = {
   status: 200,
   expectBlockedPayment: true,
   body: {
-    type: "blocked",
-    message:
-      "We're unable to accept this card, please try another card or a different payment method",
-    code: "HE_03",
-    reason: "Blocked",
+    error: {
+      type: "blocked",
+      message:
+        "We're unable to accept this card, please try another card or a different payment method",
+      code: "HE_03",
+      reason: "Blocked",
+    },
   },
 };
 

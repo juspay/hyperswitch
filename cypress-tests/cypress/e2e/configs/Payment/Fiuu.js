@@ -66,19 +66,6 @@ const billingAddress = {
   email: "johndoe@gmail.com",
 };
 
-const blockedPaymentErrorBody = {
-  status: 200,
-  expectBlockedPayment: true,
-  body: {
-    error: {
-      type: "blocked",
-      message: "This payment method is blocked",
-      code: "HE_03",
-      reason: "Blocked",
-    },
-  },
-};
-
 const requiredFields = {
   payment_methods: [
     {

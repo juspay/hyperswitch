@@ -22,19 +22,6 @@ const failedNo3DSCardDetails = {
   card_cvc: "123",
 };
 
-const blockedPaymentErrorBody = {
-  status: 200,
-  expectBlockedPayment: true,
-  body: {
-    error: {
-      type: "blocked",
-      message: "This payment method is blocked",
-      code: "HE_03",
-      reason: "Blocked",
-    },
-  },
-};
-
 const billingAddress = {
   address: {
     state: "New York",
