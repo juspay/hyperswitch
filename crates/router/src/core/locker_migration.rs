@@ -79,7 +79,13 @@ pub async fn rust_locker_migration(
             )
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .and_then(|pm| {
-                call_to_locker(&state, pm, &customer.customer_id, merchant_id, platform.get_provider())
+                call_to_locker(
+                    &state,
+                    pm,
+                    &customer.customer_id,
+                    merchant_id,
+                    platform.get_provider(),
+                )
             }),
         )
         .await?;

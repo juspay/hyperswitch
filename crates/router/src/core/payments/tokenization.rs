@@ -112,7 +112,13 @@ async fn save_in_locker(
         }
         domain::ExternalVaultDetails::Skip => {
             // Use internal vault (locker)
-            save_in_locker_internal(state, platform.get_provider(), payment_method_request, card_detail).await
+            save_in_locker_internal(
+                state,
+                platform.get_provider(),
+                payment_method_request,
+                card_detail,
+            )
+            .await
         }
     }
 }
@@ -1243,16 +1249,17 @@ pub async fn save_in_locker_internal(
         card_detail,
         payment_method_request.payment_method_data.clone(),
     ) {
-        (_, Some(card), _) | (Some(card), _, _) => Box::pin(
-            PmCards {
-                state,
-                provider,
-            }
-            .add_card_to_locker(payment_method_request, &card, &customer_id, None),
-        )
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Add Card Failed"),
+        (_, Some(card), _) | (Some(card), _, _) => {
+            Box::pin(PmCards { state, provider }.add_card_to_locker(
+                payment_method_request,
+                &card,
+                &customer_id,
+                None,
+            ))
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Add Card Failed")
+        }
 
         (
             None,
@@ -1260,18 +1267,12 @@ pub async fn save_in_locker_internal(
             Some(api_models::payment_methods::PaymentMethodCreateData::BankDebit(
                 bank_debit_create_data,
             )),
-        ) => Box::pin(
-            PmCards {
-                state,
-                provider,
-            }
-            .add_bank_debit_to_locker(
-                payment_method_request,
-                bank_debit_create_data,
-                provider.get_key_store(),
-                &customer_id,
-            ),
-        )
+        ) => Box::pin(PmCards { state, provider }.add_bank_debit_to_locker(
+            payment_method_request,
+            bank_debit_create_data,
+            provider.get_key_store(),
+            &customer_id,
+        ))
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Add Bank Debit Failed"),
@@ -1446,18 +1447,12 @@ pub async fn save_network_token_in_locker(
 
     match network_token_data {
         Some(nt_data) => {
-            let (res, dc) = Box::pin(
-                PmCards {
-                    state,
-                    provider,
-                }
-                .add_card_to_locker(
-                    payment_method_request,
-                    &nt_data,
-                    &customer_id,
-                    None,
-                ),
-            )
+            let (res, dc) = Box::pin(PmCards { state, provider }.add_card_to_locker(
+                payment_method_request,
+                &nt_data,
+                &customer_id,
+                None,
+            ))
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Add Network Token Failed")?;
@@ -1496,18 +1491,12 @@ pub async fn save_network_token_in_locker(
                             card_type: None,
                         };
 
-                        let (res, dc) = Box::pin(
-                            PmCards {
-                                state,
-                                provider,
-                            }
-                            .add_card_to_locker(
-                                payment_method_request,
-                                &network_token_data,
-                                &customer_id,
-                                None,
-                            ),
-                        )
+                        let (res, dc) = Box::pin(PmCards { state, provider }.add_card_to_locker(
+                            payment_method_request,
+                            &network_token_data,
+                            &customer_id,
+                            None,
+                        ))
                         .await
                         .change_context(errors::ApiErrorResponse::InternalServerError)
                         .attach_printable("Add Network Token Failed")?;
