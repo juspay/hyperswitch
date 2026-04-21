@@ -1,6 +1,6 @@
 use std::marker::PhantomData;
 
-use api_models::enums::FrmSuggestion;
+use api_models::{enums::FrmSuggestion, payments::MandateTransactionType};
 use async_trait::async_trait;
 use common_utils::ext_traits::AsyncExt;
 use error_stack::ResultExt;
@@ -10,7 +10,7 @@ use router_env::{instrument, logger, tracing};
 use super::{BoxedOperation, Domain, GetTracker, Operation, UpdateTracker, ValidateRequest};
 use crate::{
     core::{
-        configs::dimension_state::DimensionsWithMerchantIdAndProfileId,
+        configs::dimension_state,
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
         payments::{
             helpers, operations, types as payment_types, CustomerDetails, PaymentAddress,
@@ -68,7 +68,8 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
         request: Option<CustomerDetails>,
         provider: &domain::Provider,
         initiator: Option<&domain::Initiator>,
-        dimensions: DimensionsWithMerchantIdAndProfileId,
+        dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
+        _mandate_type: Option<MandateTransactionType>,
     ) -> CustomResult<
         (
             PaymentStatusOperation<'a, F, api::PaymentsRequest>,
@@ -169,6 +170,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
         payment_data: PaymentData<F>,
         _frm_suggestion: Option<FrmSuggestion>,
         _header_payload: hyperswitch_domain_models::payments::HeaderPayload,
+        _dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
     ) -> RouterResult<(
         PaymentStatusOperation<'b, F, api::PaymentsRequest>,
         PaymentData<F>,
@@ -198,6 +200,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRetrieveRequ
         payment_data: PaymentData<F>,
         _frm_suggestion: Option<FrmSuggestion>,
         _header_payload: hyperswitch_domain_models::payments::HeaderPayload,
+        _dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
     ) -> RouterResult<(
         PaymentStatusOperation<'b, F, api::PaymentsRetrieveRequest>,
         PaymentData<F>,
@@ -228,7 +231,9 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRetrieve
         platform: &domain::Platform,
         _auth_flow: services::AuthFlow,
         _header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
-        _payment_method_wrapper: Option<operations::PaymentMethodWithRawData>,
+        #[cfg(feature = "pm_modular")] _payment_method_wrapper: Option<
+            operations::PaymentMethodWithRawData,
+        >,
     ) -> RouterResult<
         operations::GetTrackerResponse<'a, F, api::PaymentsRetrieveRequest, PaymentData<F>>,
     > {
@@ -360,7 +365,7 @@ async fn get_tracker_for_sync<
     };
 
     let refunds = db
-        .find_refund_by_payment_id_merchant_id(
+        .find_refund_by_payment_id_processor_merchant_id(
             &payment_id,
             platform.get_processor().get_account().get_id(),
             storage_scheme,
@@ -391,7 +396,7 @@ async fn get_tracker_for_sync<
         })?;
 
     let disputes = db
-        .find_disputes_by_merchant_id_payment_id(platform.get_processor().get_account().get_id(), &payment_id)
+        .find_disputes_by_processor_merchant_id_payment_id(platform.get_processor().get_account().get_id(), &payment_id)
         .await
         .change_context(errors::ApiErrorResponse::PaymentNotFound)
         .attach_printable_lazy(|| {
@@ -567,7 +572,7 @@ async fn get_tracker_for_sync<
         is_manual_retry_enabled: business_profile.is_manual_retry_enabled,
         is_l2_l3_enabled: business_profile.is_l2_l3_enabled,
         external_authentication_data: None,
-        payment_session_id: None,
+        client_session_id: None,
     };
 
     let get_trackers_response = operations::GetTrackerResponse {

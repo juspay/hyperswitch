@@ -48,6 +48,7 @@ use hyperswitch_domain_models::{
         payment_intent::PaymentIntentFetchConstraints, PaymentIntent,
     },
     router_data::{InteracCustomerInfo, KlarnaSdkResponse, PaymentMethodToken},
+    router_request_types::MandateIdSettable,
 };
 pub use hyperswitch_interfaces::{
     api::ConnectorSpecifications,
@@ -88,7 +89,7 @@ use crate::{
     consts::{self, BASE64_ENGINE},
     core::{
         authentication,
-        configs::dimension_state::DimensionsWithMerchantIdAndProfileId,
+        configs::dimension_state,
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
         mandate::helpers::MandateGenericData,
         payment_methods::{
@@ -123,9 +124,7 @@ use crate::{
 #[cfg(feature = "v2")]
 use crate::{core::admin as core_admin, headers, types::ConnectorAuthType};
 #[cfg(feature = "v1")]
-use crate::{
-    core::payment_methods::cards::create_encrypted_data, types::storage::CustomerUpdate::Update,
-};
+use crate::{core::utils::create_encrypted_data, types::storage::CustomerUpdate::Update};
 
 #[instrument(skip_all)]
 #[allow(clippy::too_many_arguments)]
@@ -467,7 +466,10 @@ pub async fn get_token_pm_type_mandate_details(
     pm_info: Option<domain::PaymentMethod>,
 ) -> RouterResult<MandateGenericData> {
     let mandate_data = request.mandate_data.clone().map(MandateData::foreign_from);
-    let feature_config = core_utils::get_feature_config(state, platform).await;
+    #[cfg(feature = "pm_modular")]
+    let is_payment_method_modular_allowed = core_utils::get_feature_config(state, platform)
+        .await
+        .is_payment_method_modular_allowed;
     let (
         payment_token,
         payment_method,
@@ -750,7 +752,8 @@ pub async fn get_token_pm_type_mandate_details(
             }
         }
         None => {
-            let payment_method_info = if feature_config.is_payment_method_modular_allowed {
+            #[cfg(feature = "pm_modular")]
+            let payment_method_info = if is_payment_method_modular_allowed {
                 pm_info
             } else {
                 payment_method_id
@@ -768,6 +771,21 @@ pub async fn get_token_pm_type_mandate_details(
                     .await
                     .transpose()?
             };
+            #[cfg(not(feature = "pm_modular"))]
+            let payment_method_info = payment_method_id
+                .async_map(|payment_method_id| async move {
+                    state
+                        .store
+                        .find_payment_method(
+                            platform.get_provider().get_key_store(),
+                            &payment_method_id,
+                            platform.get_provider().get_account().storage_scheme,
+                        )
+                        .await
+                        .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)
+                })
+                .await
+                .transpose()?;
             let resolved_payment_method = request.payment_method.or_else(|| {
                 payment_method_info
                     .as_ref()
@@ -1685,9 +1703,14 @@ pub async fn validate_blocking_threshold(
 /// Get the customer details from customer field if present
 /// or from the individual fields in `PaymentsRequest`
 #[instrument(skip_all)]
-pub fn get_customer_details_from_request(
+pub fn get_customer_details_from_request_or_pm_table(
     request: &api_models::payments::PaymentsRequest,
-) -> CustomerDetails {
+    payment_method: Option<&domain::PaymentMethod>,
+    mandate_type: Option<&api::MandateTransactionType>,
+) -> Result<
+    CustomerDetails,
+    error_stack::Report<hyperswitch_domain_models::errors::api_error_response::ApiErrorResponse>,
+> {
     let customer_id = request.get_customer_id().map(ToOwned::to_owned);
 
     let customer_name = request
@@ -1721,12 +1744,34 @@ pub fn get_customer_details_from_request(
         .as_ref()
         .and_then(|customer_details| customer_details.tax_registration_id.clone());
 
-    let document_details = request
-        .customer
-        .as_ref()
-        .and_then(|customer_details| customer_details.document_details.clone());
+    let document_details = match mandate_type {
+        Some(api::MandateTransactionType::NewMandateTransaction) | None => {
+            // Extracting customer details from request in case of CIT/One-Off
+            request
+                .customer
+                .as_ref()
+                .and_then(|customer_details| customer_details.document_details.clone())
+        }
+        Some(api::MandateTransactionType::RecurringMandateTransaction) => {
+            // Extracting customer details from Payment Methods Table in case of MIT
+            payment_method
+                .and_then(|data| data.customer_details.clone())
+                .as_ref()
+                .map(|encryptable| {
+                    encryptable
+                        .clone()
+                        .into_inner()
+                        .parse_value::<CustomerDocumentDetails>("CustomerDocumentDetails")
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable(
+                            "Failed to parse CustomerDocumentDetails from Payment Method",
+                        )
+                })
+                .transpose()?
+        }
+    };
 
-    CustomerDetails {
+    Ok(CustomerDetails {
         customer_id,
         name: customer_name,
         email: customer_email,
@@ -1734,7 +1779,7 @@ pub fn get_customer_details_from_request(
         phone_country_code: customer_phone_code,
         tax_registration_id,
         document_details,
-    }
+    })
 }
 
 pub async fn get_connector_default(
@@ -1847,7 +1892,12 @@ pub async fn populate_raw_customer_details<F: Clone>(
     let key_manager_state = state.into();
     payment_data.payment_intent.customer_details = raw_customer_details
         .async_map(|customer_details| {
-            create_encrypted_data(&key_manager_state, key_store, customer_details)
+            create_encrypted_data(
+                &key_manager_state,
+                key_store,
+                customer_details,
+                common_utils::type_name!(diesel_models::payment_method::PaymentMethod),
+            )
         })
         .await
         .transpose()
@@ -1887,7 +1937,7 @@ pub async fn merge_request_and_intent_customer_data(
 
             // Encrypt and update customer details in payment intent
             Some(
-                create_encrypted_data(&key_manager_state, key_store, request_customer_data)
+                create_encrypted_data(&key_manager_state, key_store, request_customer_data, common_utils::type_name!(diesel_models::payment_method::PaymentMethod))
                     .await
                     .change_context(errors::StorageError::EncryptionError)
                     .attach_printable("Unable to encrypt customer details")?,
@@ -1908,7 +1958,7 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R, D>(
     _payment_data: &mut PaymentData<F>,
     _req: Option<CustomerDetails>,
     _provider: &domain::Provider,
-    _dimensions: DimensionsWithMerchantIdAndProfileId,
+    _dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
 ) -> CustomResult<(BoxedOperation<'a, F, R, D>, Option<domain::Customer>), errors::StorageError> {
     todo!()
 }
@@ -1923,7 +1973,7 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R, D>(
     req: Option<CustomerDetails>,
     provider: &domain::Provider,
     initiator: Option<&domain::Initiator>,
-    dimensions: DimensionsWithMerchantIdAndProfileId,
+    dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
 ) -> CustomResult<(BoxedOperation<'a, F, R, D>, Option<domain::Customer>), errors::StorageError> {
     let merchant_id = provider.get_account().get_id();
     let storage_scheme = provider.get_account().storage_scheme;
@@ -2022,7 +2072,7 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R, D>(
                     let implicit_customer_update = dimensions
                         .get_implicit_customer_update(
                             state.store.as_ref(),
-                            state.superposition_service.as_deref(),
+                            state.superposition_service.as_ref(),
                             Some(&customer_id),
                         )
                         .await;
@@ -2162,10 +2212,15 @@ pub async fn create_customer_if_not_exist<'a, F: Clone, R, D>(
 
                 // Encrypt and store the final customer data
                 payment_data.payment_intent.customer_details = Some(
-                    create_encrypted_data(key_manager_state, key_store, final_customer_data)
-                        .await
-                        .change_context(errors::StorageError::EncryptionError)
-                        .attach_printable("Unable to encrypt customer details")?,
+                    create_encrypted_data(
+                        key_manager_state,
+                        key_store,
+                        final_customer_data,
+                        common_utils::type_name!(diesel_models::payment_method::PaymentMethod),
+                    )
+                    .await
+                    .change_context(errors::StorageError::EncryptionError)
+                    .attach_printable("Unable to encrypt customer details")?,
                 );
 
                 payment_data.payment_intent.customer_id = Some(customer.customer_id.clone());
@@ -5079,6 +5134,7 @@ pub fn router_data_type_conversion<F1, F2, Req1, Req2, Res1, Res2>(
         minor_amount_capturable: router_data.minor_amount_capturable,
         authorized_amount: router_data.authorized_amount,
         customer_document_details: router_data.customer_document_details,
+        feature_data: router_data.feature_data,
     }
 }
 
@@ -5551,27 +5607,27 @@ mod test {
 pub async fn get_additional_payment_data(
     pm_data: &domain::PaymentMethodData,
     db: &dyn StorageInterface,
-    profile_id: &id_type::ProfileId,
+    superposition_service: &external_services::superposition::SuperpositionClient,
+    dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
+    customer_id: Option<&id_type::CustomerId>,
     payment_method_token: Option<&PaymentMethodToken>,
 ) -> Result<
     Option<api_models::payments::AdditionalPaymentData>,
     error_stack::Report<errors::ApiErrorResponse>,
 > {
+    let enable_extended_bin = dimensions
+        .get_enable_extended_card_bin(db, superposition_service, customer_id)
+        .await;
+
     match pm_data {
         domain::PaymentMethodData::Card(card_data) => {
             //todo!
             let card_isin = Some(card_data.card_number.get_card_isin());
-            let enable_extended_bin =db
-            .find_config_by_key_unwrap_or(
-                format!("{}_enable_extended_card_bin", profile_id.get_string_repr()).as_str(),
-             Some("false".to_string()))
-            .await.map_err(|err| services::logger::error!(message="Failed to fetch the config", extended_card_bin_error=?err)).ok();
 
-            let card_extended_bin = match enable_extended_bin {
-                Some(config) if config.config == "true" => {
-                    Some(card_data.card_number.get_extended_card_bin())
-                }
-                _ => None,
+            let card_extended_bin = if enable_extended_bin {
+                Some(card_data.card_number.get_extended_card_bin())
+            } else {
+                None
             };
 
             // Added an additional check for card_data.co_badged_card_data.is_some()
@@ -5705,17 +5761,11 @@ pub async fn get_additional_payment_data(
         }
         domain::PaymentMethodData::CardWithOptionalCVC(card_data) => {
             let card_isin = Some(card_data.card_number.get_card_isin());
-            let enable_extended_bin =db
-            .find_config_by_key_unwrap_or(
-                format!("{}_enable_extended_card_bin", profile_id.get_string_repr()).as_str(),
-             Some("false".to_string()))
-            .await.map_err(|err| services::logger::error!(message="Failed to fetch the config", extended_card_bin_error=?err)).ok();
 
-            let card_extended_bin = match enable_extended_bin {
-                Some(config) if config.config == "true" => {
-                    Some(card_data.card_number.get_extended_card_bin())
-                }
-                _ => None,
+            let card_extended_bin = if enable_extended_bin {
+                Some(card_data.card_number.get_extended_card_bin())
+            } else {
+                None
             };
 
             // Added an additional check for card_data.co_badged_card_data.is_some()
@@ -5853,7 +5903,9 @@ pub async fn get_additional_payment_data(
                     card_with_network_token_details.card_details.clone(),
                 ),
                 db,
-                profile_id,
+                superposition_service,
+                dimensions,
+                customer_id,
                 payment_method_token,
             ))
             .await
@@ -6092,17 +6144,11 @@ pub async fn get_additional_payment_data(
         )),
         domain::PaymentMethodData::CardDetailsForNetworkTransactionId(card_data) => {
             let card_isin = Some(card_data.card_number.get_card_isin());
-            let enable_extended_bin =db
-            .find_config_by_key_unwrap_or(
-                format!("{}_enable_extended_card_bin", profile_id.get_string_repr()).as_str(),
-             Some("false".to_string()))
-            .await.map_err(|err| services::logger::error!(message="Failed to fetch the config", extended_card_bin_error=?err)).ok();
 
-            let card_extended_bin = match enable_extended_bin {
-                Some(config) if config.config == "true" => {
-                    Some(card_data.card_number.get_extended_card_bin())
-                }
-                _ => None,
+            let card_extended_bin = if enable_extended_bin {
+                Some(card_data.card_number.get_extended_card_bin())
+            } else {
+                None
             };
 
             let card_network = match card_data
@@ -6208,19 +6254,15 @@ pub async fn get_additional_payment_data(
         }
         domain::PaymentMethodData::CardWithLimitedDetails(card_with_limited_details) => {
             let card_isin = Some(card_with_limited_details.card_number.get_card_isin());
-            let enable_extended_bin =db
-            .find_config_by_key_unwrap_or(
-                format!("{}_enable_extended_card_bin", profile_id.get_string_repr()).as_str(),
-             Some("false".to_string()))
-            .await.map_err(|err| services::logger::error!(message="Failed to fetch the config", extended_card_bin_error=?err)).ok();
 
-            let card_extended_bin = match enable_extended_bin {
-                Some(config) if config.config == "true" => Some(
+            let card_extended_bin = if enable_extended_bin {
+                Some(
                     card_with_limited_details
                         .card_number
                         .get_extended_card_bin(),
-                ),
-                _ => None,
+                )
+            } else {
+                None
             };
 
             let last4 = Some(card_with_limited_details.card_number.get_last4());
@@ -8076,6 +8118,7 @@ pub async fn get_payment_method_data_and_encrypted_payment_method_data(
                     key_manager_state,
                     key_store,
                     additional_payment_method_data_intermediate,
+                    common_utils::type_name!(diesel_models::payment_method::PaymentMethod),
                 )
             })
             .await
@@ -9122,5 +9165,38 @@ pub fn get_merchant_advice_code_recommended_action(
                 None
             }),
         _ => None,
+    }
+}
+
+// Update request data with mandate_id received from SetupMandate router response.
+// Mandate information is needed in consecutive flows (e.g., PaymentTrigger, GenerateQR)
+// triggered after successful completion of the SetupMandate flow.
+pub fn update_request_data_with_mandate_id(
+    request_data: &mut impl MandateIdSettable,
+    setup_mandate_response: &Result<PaymentsResponseData, ErrorResponse>,
+) {
+    if let Ok(PaymentsResponseData::TransactionResponse {
+        mandate_reference, ..
+    }) = setup_mandate_response
+    {
+        if let Some(mandate_ref) = mandate_reference.as_ref() {
+            if let Some(connector_mandate_id) = &mandate_ref.connector_mandate_id {
+                request_data.set_mandate_id(api_models::payments::MandateIds {
+                    mandate_id: Some(connector_mandate_id.clone()),
+                    mandate_reference_id: Some(
+                        api_models::payments::MandateReferenceId::ConnectorMandateId(
+                            api_models::payments::ConnectorMandateReferenceId::new(
+                                Some(connector_mandate_id.clone()),
+                                None,
+                                None,
+                                None,
+                                None,
+                                None,
+                            ),
+                        ),
+                    ),
+                });
+            }
+        }
     }
 }

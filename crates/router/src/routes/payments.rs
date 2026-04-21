@@ -7,7 +7,7 @@ use actix_web::{web, Responder};
 use error_stack::report;
 use hyperswitch_domain_models::{ext_traits::OptionExt, payments::HeaderPayload};
 #[cfg(feature = "v1")]
-use hyperswitch_interfaces::api::ConnectorValidation;
+use hyperswitch_interfaces::api::ConnectorSpecifications;
 use hyperswitch_masking::{PeekInterface, Secret};
 use router_env::{env, instrument, logger, tracing, types, Flow};
 
@@ -21,7 +21,7 @@ use crate::routes::payments::payments::operations::payment_recurrence::PaymentRe
 use crate::{
     self as app,
     core::{
-        configs::dimension_state::Dimensions,
+        configs::dimension_state,
         errors::{self, http_not_implemented},
         payments::{self, transformers::ToResponse, OperationSessionGetters, PaymentRedirectFlow},
     },
@@ -2373,8 +2373,9 @@ where
                 .flat_map(|c| c.foreign_try_into())
                 .collect()
         });
-        let dimensions = Dimensions::new()
-            .with_merchant_id(platform.get_processor().get_account().get_id().clone());
+        let dimensions = dimension_state::Dimensions::new()
+            .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
+            .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id());
         match req.payment_type.unwrap_or_default() {
             api_models::enums::PaymentType::Normal
             | api_models::enums::PaymentType::RecurringMandate
@@ -2399,7 +2400,7 @@ where
                         auth_flow,
                         eligible_routable_connectors.clone(),
                         header_payload.clone(),
-                        dimensions.clone(),
+                        &dimensions,
                     ))
                     .await?;
 
@@ -2414,7 +2415,9 @@ where
                     )?;
                     let should_continue_further = connector_data
                         .connector
-                        .should_continue_further(&payment_data.payment_intent.clone())
+                        .is_payment_recurrence_operation_needed(
+                            &payment_data.payment_intent.clone(),
+                        )
                         .unwrap_or(false);
                     if should_continue_further {
                         logger::info!(
@@ -2422,27 +2425,44 @@ where
                             should_continue_further,
                             payment_data.get_payment_intent().payment_id,
                         );
-                        Box::pin(payments::payments_operation_core::<
-                            api_types::SetupMandate,
-                            _,
-                            _,
-                            _,
-                            payments::PaymentData<api_types::SetupMandate>,
-                        >(
-                            &state,
-                            req_state,
-                            &platform,
-                            profile_id,
-                            PaymentRecurrence,
-                            req,
-                            payments::CallConnectorAction::Trigger,
-                            None,
+                        let (pd, _req, connector_status_code, ext_latency) =
+                            Box::pin(payments::payments_operation_core::<
+                                api_types::SetupMandate,
+                                _,
+                                _,
+                                _,
+                                payments::PaymentData<api_types::SetupMandate>,
+                            >(
+                                &state,
+                                req_state,
+                                &platform,
+                                profile_id,
+                                PaymentRecurrence,
+                                req,
+                                payments::CallConnectorAction::Trigger,
+                                None,
+                                auth_flow,
+                                eligible_routable_connectors,
+                                header_payload.clone(),
+                                &dimensions,
+                            ))
+                            .await?;
+                        let total_ext_latency = match (external_latency, ext_latency) {
+                            (Some(l1), Some(l2)) => Some(l1 + l2),
+                            (Some(l), None) | (None, Some(l)) => Some(l),
+                            (None, None) => None,
+                        };
+                        return payment_types::PaymentsResponse::generate_response(
+                            pd,
                             auth_flow,
-                            eligible_routable_connectors,
-                            header_payload.clone(),
-                            dimensions,
-                        ))
-                        .await?;
+                            &state.base_url,
+                            operation,
+                            &state.conf.connector_request_reference_id_config,
+                            connector_status_code,
+                            total_ext_latency,
+                            header_payload.x_hs_latency,
+                            &platform,
+                        );
                     }
                 }
 

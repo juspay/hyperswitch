@@ -9,7 +9,7 @@
     "contact": {
       "name": "Hyperswitch Support",
       "url": "https://hyperswitch.io",
-      "email": "hyperswitch@juspay.in"
+      "email": "support.global@juspay.io"
     },
     "license": {
       "name": "Apache-2.0"
@@ -8520,6 +8520,15 @@
           "write_off"
         ]
       },
+      "AccountType": {
+        "type": "string",
+        "description": "Account type for Santander Pix Automatico recurring charges",
+        "enum": [
+          "current",
+          "savings",
+          "payment"
+        ]
+      },
       "AchBankDebitAdditionalData": {
         "type": "object",
         "required": [
@@ -8536,12 +8545,6 @@
             "type": "string",
             "description": "Partially masked routing number for ach bank debit payment",
             "example": "110***000"
-          },
-          "card_holder_name": {
-            "type": "string",
-            "description": "Card holder's name",
-            "example": "John Doe",
-            "nullable": true
           },
           "bank_account_holder_name": {
             "type": "string",
@@ -10154,14 +10157,6 @@
             "description": "The business profile that is associated with this authentication",
             "nullable": true
           },
-          "customer": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/CustomerDetails"
-              }
-            ],
-            "nullable": true
-          },
           "amount": {
             "$ref": "#/components/schemas/MinorUnit"
           },
@@ -10212,6 +10207,19 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/CustomerDetails"
+              }
+            ],
+            "nullable": true
+          }
+        }
+      },
+      "AuthenticationDetails": {
+        "type": "object",
+        "properties": {
+          "three_ds_data": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ExternalThreeDsData"
               }
             ],
             "nullable": true
@@ -10906,6 +10914,14 @@
             ],
             "nullable": true
           },
+          "authentication_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AuthenticationDetails"
+              }
+            ],
+            "nullable": true
+          },
           "billing": {
             "allOf": [
               {
@@ -11283,15 +11299,16 @@
             "$ref": "#/components/schemas/BacsBankTransfer"
           },
           {
+            "$ref": "#/components/schemas/TrustlyBankTransfer"
+          },
+          {
             "$ref": "#/components/schemas/SepaBankTransfer"
           },
           {
             "$ref": "#/components/schemas/PixBankTransfer"
-          },
-          {
-            "$ref": "#/components/schemas/TrustlyBankTransfer"
           }
-        ]
+        ],
+        "description": "Deprecated - Use `BankTransfer` instead"
       },
       "BankAdditionalData": {
         "oneOf": [
@@ -11302,13 +11319,13 @@
             "$ref": "#/components/schemas/BacsBankTransferAdditionalData"
           },
           {
+            "$ref": "#/components/schemas/TrustlyBankTransferAdditionalData"
+          },
+          {
             "$ref": "#/components/schemas/SepaBankTransferAdditionalData"
           },
           {
             "$ref": "#/components/schemas/PixBankTransferAdditionalData"
-          },
-          {
-            "$ref": "#/components/schemas/TrustlyBankTransferAdditionalData"
           }
         ],
         "description": "Masked payout method details for bank payout method"
@@ -11432,7 +11449,6 @@
                 "required": [
                   "account_number",
                   "routing_number",
-                  "card_holder_name",
                   "bank_account_holder_name",
                   "bank_name",
                   "bank_type",
@@ -11456,10 +11472,6 @@
                     "type": "string",
                     "description": "Routing number for ach bank debit payment",
                     "example": "110000000"
-                  },
-                  "card_holder_name": {
-                    "type": "string",
-                    "example": "John Test"
                   },
                   "bank_account_holder_name": {
                     "type": "string",
@@ -12458,6 +12470,118 @@
             }
           }
         ]
+      },
+      "BankTransfer": {
+        "oneOf": [
+          {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AchBankTransfer"
+              },
+              {
+                "type": "object",
+                "required": [
+                  "payout_method_type"
+                ],
+                "properties": {
+                  "payout_method_type": {
+                    "type": "string",
+                    "enum": [
+                      "ach"
+                    ]
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/BacsBankTransfer"
+              },
+              {
+                "type": "object",
+                "required": [
+                  "payout_method_type"
+                ],
+                "properties": {
+                  "payout_method_type": {
+                    "type": "string",
+                    "enum": [
+                      "bacs"
+                    ]
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SepaBankTransfer"
+              },
+              {
+                "type": "object",
+                "required": [
+                  "payout_method_type"
+                ],
+                "properties": {
+                  "payout_method_type": {
+                    "type": "string",
+                    "enum": [
+                      "sepa"
+                    ]
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PixBankTransfer"
+              },
+              {
+                "type": "object",
+                "required": [
+                  "payout_method_type"
+                ],
+                "properties": {
+                  "payout_method_type": {
+                    "type": "string",
+                    "enum": [
+                      "pix"
+                    ]
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/TrustlyBankTransferData"
+              },
+              {
+                "type": "object",
+                "required": [
+                  "payout_method_type"
+                ],
+                "properties": {
+                  "payout_method_type": {
+                    "type": "string",
+                    "enum": [
+                      "trustly"
+                    ]
+                  }
+                }
+              }
+            ]
+          }
+        ],
+        "discriminator": {
+          "propertyName": "payout_method_type"
+        }
       },
       "BankTransferAdditionalData": {
         "oneOf": [
@@ -18349,6 +18473,22 @@
           }
         }
       },
+      "DDCData": {
+        "type": "object",
+        "required": [
+          "iframe_url"
+        ],
+        "properties": {
+          "iframe_url": {
+            "type": "string"
+          },
+          "timeout_ms": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          }
+        }
+      },
       "DeRoutableConnectorChoice": {
         "type": "object",
         "description": "Connector representation used in API request/response.\n\nRepresents a Merchant Connector Account.",
@@ -19945,48 +20085,35 @@
       },
       "ExternalThreeDsData": {
         "type": "object",
-        "description": "Represents external 3DS authentication data used in the payment flow.",
         "required": [
-          "authentication_cryptogram",
-          "ds_trans_id",
-          "version",
-          "eci",
           "transaction_status"
         ],
         "properties": {
           "authentication_cryptogram": {
-            "$ref": "#/components/schemas/Cryptogram"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Cryptogram"
+              }
+            ],
+            "nullable": true
           },
           "ds_trans_id": {
             "type": "string",
-            "description": "Directory Server Transaction ID generated during the 3DS process."
+            "description": "Directory Server Transaction ID generated during the 3DS process.",
+            "nullable": true
           },
           "version": {
             "type": "string",
-            "description": "The version of the 3DS protocol used (e.g., \"2.1.0\" or \"2.2.0\")."
+            "description": "The version of the 3DS protocol used (e.g., \"2.1.0\" or \"2.2.0\").",
+            "nullable": true
           },
           "eci": {
             "type": "string",
-            "description": "Electronic Commerce Indicator (ECI) value representing the 3DS authentication result."
+            "description": "Electronic Commerce Indicator (ECI) value representing the 3DS authentication result.",
+            "nullable": true
           },
           "transaction_status": {
             "$ref": "#/components/schemas/TransactionStatus"
-          },
-          "exemption_indicator": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/ExemptionIndicator"
-              }
-            ],
-            "nullable": true
-          },
-          "network_params": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/NetworkParams"
-              }
-            ],
-            "nullable": true
           }
         }
       },
@@ -20095,6 +20222,14 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/BoletoAdditionalDetails"
+              }
+            ],
+            "nullable": true
+          },
+          "pix_automatico_additional_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PixAutomaticoAdditionalDetails"
               }
             ],
             "nullable": true
@@ -20571,6 +20706,24 @@
             "type": "string",
             "enum": [
               "order_details_product_name"
+            ]
+          },
+          {
+            "type": "string",
+            "enum": [
+              "user_branch_code"
+            ]
+          },
+          {
+            "type": "string",
+            "enum": [
+              "user_bank_identifier"
+            ]
+          },
+          {
+            "type": "string",
+            "enum": [
+              "user_pix_account_number"
             ]
           }
         ],
@@ -21236,6 +21389,11 @@
           "assurance_details_required": {
             "type": "boolean",
             "description": "Whether assurance details are required",
+            "nullable": true
+          },
+          "allow_credit_cards": {
+            "type": "boolean",
+            "description": "Set to false if you don't want to allow credit cards",
             "nullable": true
           }
         }
@@ -25459,6 +25617,25 @@
                 ]
               }
             }
+          },
+          {
+            "type": "object",
+            "description": "The data required to trigger the DDC (Device Data Collection) flow by rendering the provided URL in a hidden iframe.",
+            "required": [
+              "ddc_data",
+              "type"
+            ],
+            "properties": {
+              "ddc_data": {
+                "$ref": "#/components/schemas/DDCData"
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "invoke_ddc"
+                ]
+              }
+            }
           }
         ],
         "discriminator": {
@@ -27628,6 +27805,14 @@
               }
             ],
             "nullable": true
+          },
+          "wallet": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/WalletBlockingConfig"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -27830,6 +28015,14 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/Bank"
+              }
+            ],
+            "nullable": true
+          },
+          "bank_transfer_data": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/BankTransfer"
               }
             ],
             "nullable": true
@@ -28836,7 +29029,8 @@
           "inactive",
           "processing",
           "awaiting_data",
-          "new"
+          "new",
+          "redacted"
         ]
       },
       "PaymentMethodTokenizationDetails": {
@@ -33923,7 +34117,8 @@
           "wise",
           "worldpay",
           "worldpayxml",
-          "envoy"
+          "envoy",
+          "itaubank"
         ]
       },
       "PayoutCreatePayoutLinkConfig": {
@@ -34554,6 +34749,17 @@
             "properties": {
               "passthrough": {
                 "$ref": "#/components/schemas/Passthrough"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "bank_transfer"
+            ],
+            "properties": {
+              "bank_transfer": {
+                "$ref": "#/components/schemas/BankTransfer"
               }
             }
           }
@@ -35199,27 +35405,74 @@
         }
       },
       "PaypalAdditionalData": {
-        "type": "object",
-        "description": "Masked payout method details for paypal wallet payout method",
-        "properties": {
-          "email": {
-            "type": "string",
+        "oneOf": [
+          {
+            "type": "object",
             "description": "Email linked with paypal account",
-            "example": "john.doe@example.com",
-            "nullable": true
+            "required": [
+              "email",
+              "field_type"
+            ],
+            "properties": {
+              "email": {
+                "type": "string",
+                "description": "Email linked with paypal account",
+                "example": "john.doe@example.com"
+              },
+              "field_type": {
+                "type": "string",
+                "enum": [
+                  "email"
+                ]
+              }
+            }
           },
-          "telephone_number": {
-            "type": "string",
-            "description": "mobile number linked to paypal account",
-            "example": "******* 3349",
-            "nullable": true
-          },
-          "paypal_id": {
-            "type": "string",
+          {
+            "type": "object",
             "description": "id of the paypal account",
-            "example": "G83K ***** HCQ2",
-            "nullable": true
+            "required": [
+              "paypal_id",
+              "field_type"
+            ],
+            "properties": {
+              "paypal_id": {
+                "type": "string",
+                "description": "id of the paypal account",
+                "example": "G83K*****HCQ2"
+              },
+              "field_type": {
+                "type": "string",
+                "enum": [
+                  "paypal_id"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "mobile number linked to paypal account",
+            "required": [
+              "field_type"
+            ],
+            "properties": {
+              "telephone_number": {
+                "type": "string",
+                "description": "mobile number linked to paypal account",
+                "example": "G83K ***** HCQ2",
+                "nullable": true
+              },
+              "field_type": {
+                "type": "string",
+                "enum": [
+                  "telephone_number"
+                ]
+              }
+            }
           }
+        ],
+        "description": "Masked payout method details for paypal wallet payout method",
+        "discriminator": {
+          "propertyName": "field_type"
         }
       },
       "PaypalFlow": {
@@ -35270,6 +35523,11 @@
                 "$ref": "#/components/schemas/PaypalTransactionInfo"
               }
             ],
+            "nullable": true
+          },
+          "data_user_id_token": {
+            "type": "string",
+            "description": "User token required for returning customer flow, used by client to initiate sdk",
             "nullable": true
           }
         }
@@ -35452,6 +35710,86 @@
           }
         ]
       },
+      "PixAutomaticoAdditionalDetails": {
+        "oneOf": [
+          {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PixAutomaticoPushDetails"
+              },
+              {
+                "type": "object",
+                "required": [
+                  "type"
+                ],
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "enum": [
+                      "pix_automatico_push"
+                    ]
+                  }
+                }
+              }
+            ]
+          }
+        ],
+        "discriminator": {
+          "propertyName": "type"
+        }
+      },
+      "PixAutomaticoCitData": {
+        "type": "object",
+        "description": "Data for Santander Pix Automatico CIT (Customer Initiated Transaction) - used during mandate setup",
+        "properties": {
+          "contract_id": {
+            "type": "string",
+            "description": "Contract ID to identify the recurring payment contract",
+            "example": "pm_16503867",
+            "nullable": true
+          },
+          "retry_policy": {
+            "type": "boolean",
+            "description": "Enable retry policy for failed payments (maps to PERMITE_3R_7D if true)",
+            "example": true,
+            "nullable": true
+          },
+          "mandate_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SantanderMandateDetails"
+              }
+            ],
+            "nullable": true
+          }
+        }
+      },
+      "PixAutomaticoMitData": {
+        "type": "object",
+        "description": "Data for Santander Pix Automatico MIT (Merchant Initiated Transaction) - used during recurring charge creation",
+        "properties": {
+          "receiver_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SantanderPixAutomaticoReceiverDetails"
+              }
+            ],
+            "nullable": true
+          },
+          "mandate_execution_date": {
+            "type": "string",
+            "description": "Execution date for the mandate charge (maps to data_de_vencimento). Format: YYYY-MM-DD.\nIf not provided, defaults to current date + 1 day.",
+            "example": "2026-12-31",
+            "nullable": true
+          },
+          "auto_adjust_date": {
+            "type": "boolean",
+            "description": "Whether to automatically adjust the due date to the next business day if it falls on a non-business day.\nMaps to ajuste_dia_util in Santander API. Defaults to true if not provided.",
+            "example": true,
+            "nullable": true
+          }
+        }
+      },
       "PixAutomaticoPushAdditionalData": {
         "type": "object",
         "properties": {
@@ -35472,6 +35810,21 @@
             "description": "Bank identifier for Pix Automatico Push payment method",
             "example": "91193552",
             "nullable": true
+          }
+        }
+      },
+      "PixAutomaticoPushDetails": {
+        "type": "object",
+        "required": [
+          "time"
+        ],
+        "properties": {
+          "time": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Time in seconds until which the push notification is valid",
+            "example": 3600,
+            "minimum": 0
           }
         }
       },
@@ -38640,6 +38993,12 @@
             "description": "Identifier of the user/system triggering routing evaluation.\n\nExample:\n```json\n\"created_by\": \"some_id\"\n```",
             "example": "profile_123"
           },
+          "payment_id": {
+            "type": "string",
+            "description": "Payment ID for debugging and tracing routing decisions.\n\nExample:\n```json\n\"payment_id\": \"pay_abc123\"\n```",
+            "example": "pay_abc123",
+            "nullable": true
+          },
           "parameters": {
             "type": "object",
             "description": "Dynamic parameters used during routing evaluation.\n\nEach key represents a routing attribute.\n\nExample fields:\n\n- `payment_method`\n- `payment_method_type`\n- `amount`\n- `currency`\n- `authentication_type`\n- `card_bin`\n- `capture_method`\n- `business_country`\n- `billing_country`\n- `business_label`\n- `setup_future_usage`\n- `card_network`\n- `payment_type`\n- `mandate_type`\n- `mandate_acceptance_type`\n- `metadata`\n\nExample:\n```json\n{\n\"payment_method\": { \"type\": \"enum_variant\", \"value\": \"card\" },\n\"amount\": { \"type\": \"number\", \"value\": 10 },\n\"currency\": { \"type\": \"str_value\", \"value\": \"INR\" },\n\"authentication_type\": { \"type\": \"enum_variant\", \"value\": \"three_ds\" },\n\"card_bin\": { \"type\": \"str_value\", \"value\": \"424242\" },\n\"business_country\": { \"type\": \"str_value\", \"value\": \"IN\" },\n\"setup_future_usage\": { \"type\": \"enum_variant\", \"value\": \"off_session\" },\n\"card_network\": { \"type\": \"enum_variant\", \"value\": \"visa\" },\n\"metadata\": {\n\"type\": \"metadata_variant\",\n\"value\": { \"key\": \"key1\", \"value\": \"value1\" }\n}\n}\n```\n\nFor the complete superset of supported routing keys,\nrefer to `routing_configs.keys` in:\nhttps://github.com/juspay/decision-engine/blob/main/config/development.toml"
@@ -39071,6 +39430,14 @@
               }
             ],
             "nullable": true
+          },
+          "pix_automatico": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SantanderPixAutomaticoData"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -39083,6 +39450,49 @@
           }
         },
         "additionalProperties": false
+      },
+      "SantanderMandateDetails": {
+        "type": "object",
+        "properties": {
+          "amount": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Maximum amount for each recurring charge",
+            "example": 6540,
+            "nullable": true,
+            "minimum": 0
+          },
+          "start_date": {
+            "type": "string",
+            "description": "Start date for the recurring charges. Format: YYYY-MM-DD. If not provided, the mandate will be valid immediately.",
+            "example": "2026-12-31",
+            "nullable": true
+          },
+          "end_date": {
+            "type": "string",
+            "description": "End date for the recurring charges. Format: YYYY-MM-DD. If not provided, the mandate will be valid indefinitely.",
+            "example": "2026-12-31",
+            "nullable": true
+          },
+          "periodicity": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SantanderMandatePeriodicity"
+              }
+            ],
+            "nullable": true
+          }
+        }
+      },
+      "SantanderMandatePeriodicity": {
+        "type": "string",
+        "enum": [
+          "weekly",
+          "monthly",
+          "quarterly",
+          "semiannually",
+          "annually"
+        ]
       },
       "SantanderPaymentDiscountRules": {
         "type": "object",
@@ -39105,6 +39515,59 @@
               "$ref": "#/components/schemas/DiscountTier"
             },
             "description": "A generic vector of discount tiers"
+          }
+        }
+      },
+      "SantanderPixAutomaticoData": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "cit"
+            ],
+            "properties": {
+              "cit": {
+                "$ref": "#/components/schemas/PixAutomaticoCitData"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "mit"
+            ],
+            "properties": {
+              "mit": {
+                "$ref": "#/components/schemas/PixAutomaticoMitData"
+              }
+            }
+          }
+        ],
+        "description": "Represents the specific data for Santander Pix Automatico (recurring PIX payments)\nSplit into CIT (Customer Initiated Transaction) and MIT (Merchant Initiated Transaction) variants"
+      },
+      "SantanderPixAutomaticoReceiverDetails": {
+        "type": "object",
+        "description": "Represents the receiver details for Santander Pix Automatico recurring charges",
+        "properties": {
+          "branch_code": {
+            "type": "string",
+            "description": "Branch code (agencia) of the receiver's bank account",
+            "example": "0001",
+            "nullable": true
+          },
+          "account_number": {
+            "type": "string",
+            "description": "Account number (conta) of the receiver",
+            "example": "130333323",
+            "nullable": true
+          },
+          "account_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AccountType"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -40040,6 +40503,12 @@
           "transfer_account_id": {
             "type": "string",
             "description": "Identifier for the reseller's account where the funds were transferred"
+          },
+          "on_behalf_of": {
+            "type": "string",
+            "description": "The Stripe account ID that these funds are intended for",
+            "example": "acct_1234567890",
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -40072,6 +40541,12 @@
           "transfer_account_id": {
             "type": "string",
             "description": "Identifier for the reseller's account where the funds were transferred"
+          },
+          "on_behalf_of": {
+            "type": "string",
+            "description": "The Stripe account ID that these funds are intended for",
+            "example": "acct_1234567890",
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -41073,6 +41548,35 @@
           }
         }
       },
+      "TrustlyBankTransferData": {
+        "type": "object",
+        "required": [
+          "iban",
+          "bank_country_code",
+          "bank_account_number",
+          "bank_number"
+        ],
+        "properties": {
+          "iban": {
+            "type": "string",
+            "description": "International Bank Account Number (iban) - used in many countries for identifying a bank along with it's customer.",
+            "example": "token_12345"
+          },
+          "bank_country_code": {
+            "$ref": "#/components/schemas/CountryAlpha2"
+          },
+          "bank_account_number": {
+            "type": "string",
+            "description": "The account number, identifying the end-user's account in the bank.",
+            "example": "69706212"
+          },
+          "bank_number": {
+            "type": "string",
+            "description": "The bank number identifying the end-user's bank in the given clearing house.",
+            "example": "6112"
+          }
+        }
+      },
       "TxnStatus": {
         "type": "string",
         "enum": [
@@ -41834,13 +42338,13 @@
       "WalletAdditionalData": {
         "oneOf": [
           {
+            "$ref": "#/components/schemas/ApplePayDecryptAdditionalData"
+          },
+          {
             "$ref": "#/components/schemas/PaypalAdditionalData"
           },
           {
             "$ref": "#/components/schemas/VenmoAdditionalData"
-          },
-          {
-            "$ref": "#/components/schemas/ApplePayDecryptAdditionalData"
           }
         ],
         "description": "Masked payout method details for wallet payout method"
@@ -41881,6 +42385,20 @@
             "type": "string",
             "description": "Unique authorisation code generated for the payment",
             "example": "009825",
+            "nullable": true
+          }
+        }
+      },
+      "WalletBlockingConfig": {
+        "type": "object",
+        "description": "Wallet-specific blocking configuration for Apple Pay and Google Pay",
+        "properties": {
+          "card_types": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CardType"
+            },
+            "description": "Set of card types to block for wallet payments (e.g., [\"Credit\", \"Debit\"])",
             "nullable": true
           }
         }

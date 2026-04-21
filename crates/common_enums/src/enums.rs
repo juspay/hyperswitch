@@ -778,6 +778,7 @@ pub enum CallConnectorAction {
     HandleResponse(Vec<u8>),
     UCSConsumeResponse(Vec<u8>),
     UCSHandleResponse(Vec<u8>),
+    HandleResponseWithoutBuildRequest,
 }
 
 /// The three-letter ISO 4217 currency code (e.g., "USD", "EUR") for the payment amount. This field is mandatory for creating a payment.
@@ -2167,6 +2168,8 @@ pub enum PaymentMethodStatus {
     AwaitingData,
     /// Indicates that the payment method is in new state
     New,
+    /// Indicates that the payment method has been redacted/deleted and cannot be used or recovered
+    Redacted,
 }
 
 impl From<AttemptStatus> for PaymentMethodStatus {
@@ -2199,6 +2202,19 @@ impl From<AttemptStatus> for PaymentMethodStatus {
             | AttemptStatus::IntegrityFailure
             | AttemptStatus::Expired => Self::Inactive,
             AttemptStatus::Charged | AttemptStatus::Authorized => Self::Active,
+        }
+    }
+}
+
+impl PaymentMethodStatus {
+    /// Checks if transitioning from `self` to `target` status is valid.
+    /// This defines the allowed status transitions for payment method updates.
+    pub fn can_transition_to(self, target: Self) -> bool {
+        match self {
+            Self::Processing | Self::AwaitingData | Self::Redacted => false,
+            Self::Active => false,
+            Self::Inactive => target == Self::Active || target == Self::New,
+            Self::New => target == Self::Active || target == Self::Inactive,
         }
     }
 }
@@ -9512,6 +9528,14 @@ pub enum PermissionGroup {
     InternalManage,
     ThemeView,
     ThemeManage,
+    ReconSourcesView,
+    ReconSourcesManage,
+    ReconExceptionsView,
+    ReconExceptionsManage,
+    ReconTransactionsView,
+    ReconTransactionsManage,
+    ReconRulesView,
+    ReconRulesManage,
 }
 
 #[derive(
@@ -9528,6 +9552,10 @@ pub enum ParentGroup {
     Account,
     Internal,
     Theme,
+    ReconSources,
+    ReconExceptions,
+    ReconTransactions,
+    ReconRules,
 }
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Hash, serde::Serialize, serde::Deserialize)]
@@ -9560,6 +9588,12 @@ pub enum Resource {
     Subscription,
     InternalConnector,
     Theme,
+    ReconIngestion,
+    ReconTransformation,
+    ReconException,
+    ReconStagingEntry,
+    ReconTransaction,
+    ReconRule,
 }
 
 #[derive(
@@ -9912,8 +9946,9 @@ pub enum EntityType {
     Profile = 0,
 }
 
-#[derive(Clone, Debug, serde::Serialize)]
+#[derive(Clone, Debug, serde::Serialize, strum::Display)]
 #[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
 pub enum PayoutRetryType {
     SingleConnector,
     MultiConnector,
@@ -10465,7 +10500,7 @@ pub enum TokenizationType {
 }
 
 /// The network tokenization toggle, whether to enable or skip the network tokenization
-#[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema)]
+#[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
 pub enum NetworkTokenizationToggle {
     /// Enable network tokenization for the payment method
     Enable,
@@ -11035,6 +11070,15 @@ pub enum StorageType {
 pub enum AcknowledgementStatus {
     Authenticated,
     Failed,
+}
+
+impl From<AcknowledgementStatus> for PaymentMethodStatus {
+    fn from(ack: AcknowledgementStatus) -> Self {
+        match ack {
+            AcknowledgementStatus::Authenticated => Self::Active,
+            AcknowledgementStatus::Failed => Self::Inactive,
+        }
+    }
 }
 
 /// Represents the type of retry for a payment attempt

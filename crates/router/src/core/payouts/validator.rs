@@ -61,7 +61,7 @@ pub async fn validate_create_request(
 ) -> RouterResult<(
     String,
     Option<payouts::PayoutMethodData>,
-    String,
+    id_type::ProfileId,
     Option<domain::Customer>,
     Option<PaymentMethod>,
 )> {
@@ -139,6 +139,7 @@ pub async fn validate_create_request(
         || customer_in_request.email.is_some()
         || customer_in_request.phone.is_some()
         || customer_in_request.phone_country_code.is_some()
+        || customer_in_request.document_details.is_some()
     {
         helpers::get_or_create_customer_details(state, &customer_in_request, platform).await?
     } else {
@@ -268,7 +269,7 @@ pub async fn validate_create_request(
                                 card_network: card.card_network.clone(),
                             },
                         ))),
-                        (_, Some(bank)) => Ok(Some(payouts::PayoutMethodData::Bank(bank))),
+                        (_, Some(bank)) => Ok(Some(payouts::PayoutMethodData::BankTransfer(bank))),
                         _ => Ok(None),
                     },
                     None => Ok(None),

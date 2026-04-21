@@ -442,6 +442,17 @@ impl PaymentIntent {
             .transpose()
     }
 
+    pub fn get_intent_customer_details(
+        &self,
+    ) -> CustomResult<Option<CustomerData>, common_utils::errors::ParsingError> {
+        self.customer_details
+            .as_ref()
+            .map(|details| {
+                let decrypted_value = details.clone().into_inner().expose();
+                ValueExt::parse_value::<CustomerData>(decrypted_value, "CustomerData")
+            })
+            .transpose()
+    }
     #[cfg(feature = "v1")]
     pub fn get_optional_feature_metadata(
         &self,
@@ -530,6 +541,12 @@ impl PaymentIntent {
             attempt_count: self.attempt_count,
             installment_options,
         })
+    }
+
+    #[cfg(feature = "v1")]
+    pub fn is_setup_mandate(&self) -> bool {
+        self.amount == MinorUnit::zero()
+            && self.setup_future_usage == Some(common_enums::FutureUsage::OffSession)
     }
 }
 
@@ -1525,6 +1542,9 @@ where
             boleto_additional_details: payment_intent_feature_metadata
                 .as_ref()
                 .and_then(|data| data.boleto_additional_details.clone()),
+            pix_automatico_additional_details: payment_intent_feature_metadata
+                .as_ref()
+                .and_then(|data| data.pix_automatico_additional_details.clone()),
         }))
     }
 }

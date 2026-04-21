@@ -165,6 +165,34 @@ pub enum UnifiedConnectorServiceError {
     /// Failed to perform Payment Incremental Authorization from gRPC Server
     #[error("Failed to perform Payment Incremental Authorization from gRPC Server")]
     PaymentIncrementalAuthorizationFailure,
+
+    /// Failed to perform Payout Create from gRPC Server
+    #[error("Failed to perform Payout Create from gRPC Server")]
+    PayoutCreateFailure,
+
+    /// Failed to perform Payout Transfer from gRPC Server
+    #[error("Failed to perform Payout Transfer from gRPC Server")]
+    PayoutTransferFailure,
+
+    /// Failed to perform Payout Get from gRPC Server
+    #[error("Failed to perform Payout Get from gRPC Server")]
+    PayoutGetFailure,
+
+    /// Failed to perform Payout Void from gRPC Server
+    #[error("Failed to perform Payout Void from gRPC Server")]
+    PayoutVoidFailure,
+
+    /// Failed to perform Payout Stage from gRPC Server
+    #[error("Failed to perform Payout Stage from gRPC Server")]
+    PayoutStageFailure,
+
+    /// Failed to perform Payout Create Recipient from gRPC Server
+    #[error("Failed to perform Payout Create Recipient from gRPC Server")]
+    PayoutCreateRecipientFailure,
+
+    /// Failed to perform Payout Enroll Disburse Account from gRPC Server
+    #[error("Failed to perform Payout Enroll Disburse Account from gRPC Server")]
+    PayoutEnrollDisburseAccountFailure,
 }
 
 /// UCS Webhook transformation status
@@ -549,9 +577,6 @@ impl ForeignTryFrom<payments_grpc::Ach>
                     })?
                     .expose(),
             ),
-            card_holder_name: ach
-                .card_holder_name
-                .map(|s| hyperswitch_masking::Secret::new(s.expose())),
             bank_account_holder_name: ach
                 .bank_account_holder_name
                 .map(|s| hyperswitch_masking::Secret::new(s.expose())),
@@ -759,6 +784,36 @@ impl ForeignTryFrom<payments_grpc::RedirectForm> for RedirectForm {
             Some(payments_grpc::redirect_form::FormType::Mifinity(mifinity)) => {
                 Ok(Self::Mifinity {
                     initialization_token: mifinity.initialization_token,
+                })
+            }
+            Some(payments_grpc::redirect_form::FormType::Nmi(nmi)) => {
+                let amount_money =
+                    nmi.amount
+                        .ok_or(UnifiedConnectorServiceError::MissingRequiredField {
+                            field_name: "amount",
+                        })?;
+                let currency = match payments_grpc::Currency::try_from(amount_money.currency) {
+                    Ok(payments_grpc::Currency::Unspecified) | Err(_) => {
+                        Err(UnifiedConnectorServiceError::MissingRequiredField {
+                            field_name: "currency",
+                        })
+                    }
+                    Ok(c) => common_enums::Currency::from_str(c.as_str_name())
+                        .map_err(|_| UnifiedConnectorServiceError::ParsingFailed),
+                }
+                .attach_printable("Failed to parse currency from UCS Nmi redirect form")?;
+                Ok(Self::Nmi {
+                    amount: amount_money.minor_amount.to_string(),
+                    currency,
+                    public_key: hyperswitch_masking::Secret::new(
+                        nmi.public_key
+                            .ok_or(UnifiedConnectorServiceError::MissingRequiredField {
+                                field_name: "public_key",
+                            })?
+                            .expose(),
+                    ),
+                    customer_vault_id: nmi.customer_vault_id,
+                    order_id: nmi.order_id,
                 })
             }
             None => Err(
