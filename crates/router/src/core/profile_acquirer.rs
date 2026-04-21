@@ -38,10 +38,10 @@ pub async fn create_profile_acquirer(
     };
 
     let incoming_acquirer_config = common_types::domain::AcquirerConfig {
-        acquirer_assigned_merchant_id: request.acquirer_assigned_merchant_id.clone(),
-        merchant_name: request.merchant_name.clone(),
+        acquirer_assigned_merchant_id: Some(request.acquirer_assigned_merchant_id.clone()),
+        acquirer_merchant_name: Some(request.acquirer_merchant_name.clone()),
         network: request.network.clone(),
-        acquirer_bin: request.acquirer_bin.clone(),
+        acquirer_bin: Some(request.acquirer_bin.clone()),
         acquirer_ica: request.acquirer_ica.clone(),
         acquirer_fraud_rate: request.acquirer_fraud_rate,
         acquirer_country_code: request.acquirer_country_code.clone(),
@@ -249,11 +249,11 @@ fn upsert_acquirer_config_in_bucket(
 
     let base = existing_pos
         .and_then(|pos| bucket.get(pos).cloned())
-        .unwrap_or_else(|| common_types::domain::AcquirerConfig {
+        .unwrap_or(common_types::domain::AcquirerConfig {
             network: target_network,
-            acquirer_assigned_merchant_id: String::new(),
-            merchant_name: String::new(),
-            acquirer_bin: String::new(),
+            acquirer_assigned_merchant_id: None,
+            acquirer_merchant_name: None,
+            acquirer_bin: None,
             acquirer_ica: None,
             acquirer_fraud_rate: None,
             acquirer_country_code: None,
@@ -263,9 +263,12 @@ fn upsert_acquirer_config_in_bucket(
         acquirer_assigned_merchant_id: request
             .acquirer_assigned_merchant_id
             .clone()
-            .unwrap_or(base.acquirer_assigned_merchant_id),
-        merchant_name: request.merchant_name.clone().unwrap_or(base.merchant_name),
-        acquirer_bin: request.acquirer_bin.clone().unwrap_or(base.acquirer_bin),
+            .or(base.acquirer_assigned_merchant_id),
+        acquirer_merchant_name: request
+            .acquirer_merchant_name
+            .clone()
+            .or(base.acquirer_merchant_name),
+        acquirer_bin: request.acquirer_bin.clone().or(base.acquirer_bin),
         acquirer_ica: request.acquirer_ica.clone().or(base.acquirer_ica),
         acquirer_fraud_rate: request.acquirer_fraud_rate.or(base.acquirer_fraud_rate),
         acquirer_country_code: request

@@ -8697,21 +8697,20 @@
         "type": "object",
         "description": "Acquirer configuration",
         "required": [
-          "acquirer_assigned_merchant_id",
-          "merchant_name",
-          "network",
-          "acquirer_bin"
+          "network"
         ],
         "properties": {
           "acquirer_assigned_merchant_id": {
             "type": "string",
             "description": "The merchant id assigned by the acquirer",
-            "example": "M123456789"
+            "example": "M123456789",
+            "nullable": true
           },
-          "merchant_name": {
+          "acquirer_merchant_name": {
             "type": "string",
             "description": "merchant name",
-            "example": "NewAge Retailer"
+            "example": "NewAge Retailer",
+            "nullable": true
           },
           "network": {
             "type": "string",
@@ -8721,7 +8720,8 @@
           "acquirer_bin": {
             "type": "string",
             "description": "Acquirer bin",
-            "example": "456789"
+            "example": "456789",
+            "nullable": true
           },
           "acquirer_ica": {
             "type": "string",
@@ -35982,7 +35982,7 @@
         "type": "object",
         "required": [
           "acquirer_assigned_merchant_id",
-          "merchant_name",
+          "acquirer_merchant_name",
           "network",
           "acquirer_bin",
           "profile_id"
@@ -35993,7 +35993,7 @@
             "description": "The merchant id assigned by the acquirer",
             "example": "M123456789"
           },
-          "merchant_name": {
+          "acquirer_merchant_name": {
             "type": "string",
             "description": "merchant name",
             "example": "NewAge Retailer"
@@ -36039,6 +36039,10 @@
           }
         }
       },
+      "ProfileAcquirerId": {
+        "type": "string",
+        "description": "A type for profile_acquirer_id that can be used for profile acquirer ids"
+      },
       "ProfileAcquirerResponse": {
         "type": "object",
         "required": [
@@ -36058,7 +36062,7 @@
             "example": "M123456789",
             "nullable": true
           },
-          "merchant_name": {
+          "acquirer_merchant_name": {
             "type": "string",
             "description": "Merchant name",
             "example": "NewAge Retailer",
@@ -36114,7 +36118,7 @@
             "example": "M987654321",
             "nullable": true
           },
-          "merchant_name": {
+          "acquirer_merchant_name": {
             "type": "string",
             "example": "Updated Retailer Name",
             "nullable": true

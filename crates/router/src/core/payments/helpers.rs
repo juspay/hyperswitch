@@ -8485,8 +8485,8 @@ pub async fn get_payment_external_authentication_flow_during_confirm<F: Clone>(
                     };
 
                     Some(authentication::types::AcquirerDetails {
-                        acquirer_bin: resolved.acquirer_bin,
-                        acquirer_merchant_id: resolved.acquirer_assigned_merchant_id,
+                        acquirer_bin: resolved.acquirer_bin.unwrap_or_default(),
+                        acquirer_merchant_id: resolved.acquirer_assigned_merchant_id.unwrap_or_default(),
                         acquirer_country_code: resolved.acquirer_country_code,
                     })
                 }

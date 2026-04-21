@@ -1030,6 +1030,7 @@ Never share your secret api keys. Keep them guarded and secure.
         common_utils::id_type::PaymentId,
         common_utils::id_type::ProfileId,
         common_utils::id_type::AuthenticationId,
+        common_utils::id_type::ProfileAcquirerId,
         api_models::open_router::RankingAlgorithm,
         api_models::open_router::TxnStatus,
         api_models::open_router::PriorityLogicOutput,

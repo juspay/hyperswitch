@@ -1200,8 +1200,8 @@ pub async fn authentication_eligibility_core(
             db.update_authentication_by_merchant_id_authentication_id(
                 authentication.clone(),
                 hyperswitch_domain_models::authentication::AuthenticationUpdate::AcquirerDetailsUpdate {
-                    acquirer_bin: Some(acquirer_details.acquirer_bin.clone()),
-                    acquirer_merchant_id: Some(acquirer_details.acquirer_assigned_merchant_id.clone()),
+                    acquirer_bin: acquirer_details.acquirer_bin.clone(),
+                    acquirer_merchant_id: acquirer_details.acquirer_assigned_merchant_id.clone(),
                     acquirer_country_code: acquirer_details.acquirer_country_code.clone(),
                 },
                 platform.get_processor().get_key_store(),
@@ -1212,10 +1212,10 @@ pub async fn authentication_eligibility_core(
             .attach_printable("Failed to persist resolved acquirer details to authentication record")?;
 
             (
-                Some(acquirer_details.acquirer_bin.clone()),
-                Some(acquirer_details.acquirer_assigned_merchant_id.clone()),
+                acquirer_details.acquirer_bin.clone(),
+                acquirer_details.acquirer_assigned_merchant_id.clone(),
                 acquirer_details.acquirer_country_code.clone(),
-                Some(acquirer_details.merchant_name.clone()),
+                acquirer_details.acquirer_merchant_name.clone(),
             )
         } else {
             (

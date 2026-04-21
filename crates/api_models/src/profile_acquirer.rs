@@ -8,7 +8,7 @@ pub struct ProfileAcquirerCreate {
     pub acquirer_assigned_merchant_id: String,
     /// merchant name
     #[schema(value_type= String,example = "NewAge Retailer")]
-    pub merchant_name: String,
+    pub acquirer_merchant_name: String,
     /// Network provider
     #[schema(value_type= String,example = "VISA")]
     pub network: common_enums::enums::CardNetwork,
@@ -41,7 +41,7 @@ pub struct ProfileAcquirerResponse {
     pub acquirer_assigned_merchant_id: Option<String>,
     /// Merchant name
     #[schema(value_type= Option<String>,example = "NewAge Retailer")]
-    pub merchant_name: Option<String>,
+    pub acquirer_merchant_name: Option<String>,
     /// Network provider
     #[schema(value_type= Option<String>,example = "VISA")]
     pub network: Option<common_enums::enums::CardNetwork>,
@@ -67,17 +67,17 @@ pub struct ProfileAcquirerResponse {
 #[derive(Debug, Serialize, Deserialize, ToSchema, Clone)]
 pub struct AcquirerBucketConfigResponse {
     /// The merchant id assigned by the acquirer
-    #[schema(value_type= String,example = "M123456789")]
-    pub acquirer_assigned_merchant_id: String,
+    #[schema(value_type= Option<String>,example = "M123456789")]
+    pub acquirer_assigned_merchant_id: Option<String>,
     /// Merchant name
-    #[schema(value_type= String,example = "NewAge Retailer")]
-    pub merchant_name: String,
+    #[schema(value_type= Option<String>,example = "NewAge Retailer")]
+    pub acquirer_merchant_name: Option<String>,
     /// Network provider
     #[schema(value_type= String,example = "VISA")]
     pub network: common_enums::enums::CardNetwork,
     /// Acquirer bin
-    #[schema(value_type= String,example = "456789")]
-    pub acquirer_bin: String,
+    #[schema(value_type= Option<String>,example = "456789")]
+    pub acquirer_bin: Option<String>,
     /// Acquirer ica provided by acquirer
     #[schema(value_type= Option<String>,example = "401288")]
     pub acquirer_ica: Option<String>,
@@ -124,10 +124,10 @@ impl
             profile_acquirer_id,
             profile_id: profile_id.clone(),
             acquirer_assigned_merchant_id: acquirer_config
-                .map(|c| c.acquirer_assigned_merchant_id.clone()),
-            merchant_name: acquirer_config.map(|c| c.merchant_name.clone()),
+                .and_then(|c| c.acquirer_assigned_merchant_id.clone()),
+            acquirer_merchant_name: acquirer_config.and_then(|c| c.acquirer_merchant_name.clone()),
             network: acquirer_config.map(|c| c.network.clone()),
-            acquirer_bin: acquirer_config.map(|c| c.acquirer_bin.clone()),
+            acquirer_bin: acquirer_config.and_then(|c| c.acquirer_bin.clone()),
             acquirer_ica: acquirer_config.and_then(|c| c.acquirer_ica.clone()),
             acquirer_fraud_rate: acquirer_config.and_then(|c| c.acquirer_fraud_rate),
             acquirer_country_code: acquirer_config.and_then(|c| c.acquirer_country_code.clone()),
@@ -140,7 +140,7 @@ impl From<&common_types::domain::AcquirerConfig> for AcquirerBucketConfigRespons
     fn from(acquirer_config: &common_types::domain::AcquirerConfig) -> Self {
         Self {
             acquirer_assigned_merchant_id: acquirer_config.acquirer_assigned_merchant_id.clone(),
-            merchant_name: acquirer_config.merchant_name.clone(),
+            acquirer_merchant_name: acquirer_config.acquirer_merchant_name.clone(),
             network: acquirer_config.network.clone(),
             acquirer_bin: acquirer_config.acquirer_bin.clone(),
             acquirer_ica: acquirer_config.acquirer_ica.clone(),
@@ -156,7 +156,7 @@ pub struct ProfileAcquirerUpdate {
     #[schema(value_type = Option<String>, example = "M987654321")]
     pub acquirer_assigned_merchant_id: Option<String>,
     #[schema(value_type = Option<String>, example = "Updated Retailer Name")]
-    pub merchant_name: Option<String>,
+    pub acquirer_merchant_name: Option<String>,
     /// The card network this configuration entry targets — optional if updating just the default.
     #[schema(value_type = Option<String>, example = "MASTERCARD")]
     pub network: Option<common_enums::enums::CardNetwork>,

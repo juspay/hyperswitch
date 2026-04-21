@@ -101,17 +101,17 @@ impl_to_sql_from_sql_json!(XenditSplitSubMerchantData);
 #[derive(Clone, Debug, Deserialize, ToSchema, Serialize, PartialEq)]
 pub struct AcquirerConfig {
     /// The merchant id assigned by the acquirer
-    #[schema(value_type= String,example = "M123456789")]
-    pub acquirer_assigned_merchant_id: String,
+    #[schema(value_type= Option<String>,example = "M123456789")]
+    pub acquirer_assigned_merchant_id: Option<String>,
     /// merchant name
-    #[schema(value_type= String,example = "NewAge Retailer")]
-    pub merchant_name: String,
+    #[schema(value_type= Option<String>,example = "NewAge Retailer")]
+    pub acquirer_merchant_name: Option<String>,
     /// Network provider
     #[schema(value_type= String,example = "VISA")]
     pub network: common_enums::CardNetwork,
     /// Acquirer bin
-    #[schema(value_type= String,example = "456789")]
-    pub acquirer_bin: String,
+    #[schema(value_type= Option<String>,example = "456789")]
+    pub acquirer_bin: Option<String>,
     /// Acquirer ica provided by acquirer
     #[schema(value_type= Option<String>,example = "401288")]
     pub acquirer_ica: Option<String>,
