@@ -63,7 +63,6 @@ function initializeSDK() {
     },
   });
 
-  // ES5 compatible widget options object
   var widgetOptions = {
     appearance: appearance,
     clientSecret: clientSecret,

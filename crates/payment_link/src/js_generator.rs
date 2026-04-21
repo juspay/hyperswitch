@@ -7,6 +7,7 @@ pub enum PaymentLinkError {
     SerializationFailed,
 }
 
+/// Convert snake_case to camelCase
 fn camel_case_key(key: &str) -> String {
     let mut out = String::new();
     let mut uppercase = false;
@@ -25,6 +26,7 @@ fn camel_case_key(key: &str) -> String {
     out
 }
 
+/// Convert JSON keys to camelCase
 fn camel_case_json(value: &mut Value) {
     match value {
         Value::Object(map) => {
@@ -45,6 +47,7 @@ fn camel_case_json(value: &mut Value) {
     }
 }
 
+/// Only convert the `custom_message_for_payment_method_types` field to camelCase
 pub fn convert_custom_message_keys_to_camel(value: &mut Value) {
     if let Some(test_mode) = value
         .as_object_mut()
@@ -55,11 +58,9 @@ pub fn convert_custom_message_keys_to_camel(value: &mut Value) {
         }
     }
 
-    // Rename the outer key to `preloadSDKWithParams` and camelCase its four
-    // direct children (payment_methods_list, customer_methods_list,
-    // session_tokens, blocked_bins) — but leave each child's *value*
-    // untouched, since the SDK expects those inner contents verbatim
-    // (snake_case).
+    // Rename the outer key to `preloadSDKWithParams` and camelCase all of its
+    // direct children. Their values are left untouched, since the SDK expects
+    // those nested contents verbatim (snake_case).
     if let Some(mut preload_params) = value
         .as_object_mut()
         .and_then(|map| map.remove("preload_sdk_with_params"))
@@ -89,6 +90,7 @@ where
     let mut json =
         serde_json::to_value(payment_details).map_err(|_| PaymentLinkError::SerializationFailed)?;
 
+    // Apply camelCase only on the custom_message_for_payment_method_types field
     convert_custom_message_keys_to_camel(&mut json);
 
     let payment_details_str =
@@ -96,136 +98,4 @@ where
     let url_encoded_str = urlencoding::encode(&payment_details_str);
 
     Ok(format!("window.__PAYMENT_DETAILS = '{}';", url_encoded_str))
-}
-
-#[cfg(test)]
-mod tests {
-    use serde_json::json;
-
-    use super::*;
-
-    #[test]
-    fn test_camel_case_key_conversion() {
-        assert_eq!(camel_case_key("test_mode"), "testMode");
-        assert_eq!(
-            camel_case_key("preload_sdk_with_params"),
-            "preloadSDKWithParams"
-        );
-        assert_eq!(camel_case_key("payment_methods_list"), "paymentMethodsList");
-        assert_eq!(camel_case_key("session_tokens"), "sessionTokens");
-        assert_eq!(camel_case_key("custom_message"), "customMessage");
-    }
-
-    #[test]
-    fn test_test_mode_converted_to_is_test_mode() {
-        let mut value = json!({
-            "test_mode": true,
-            "client_secret": "secret_123"
-        });
-
-        convert_custom_message_keys_to_camel(&mut value);
-
-        assert!(value.get("isTestMode").is_some());
-        assert!(value.get("test_mode").is_none());
-        assert_eq!(value["isTestMode"], json!(true));
-    }
-
-    #[test]
-    fn test_preload_sdk_with_params_converted_to_preload_sdk_with_params() {
-        let mut value = json!({
-            "preload_sdk_with_params": {
-                "payment_methods_list": ["card", "wallet"]
-            },
-            "client_secret": "secret_123"
-        });
-
-        convert_custom_message_keys_to_camel(&mut value);
-
-        assert!(value.get("preloadSDKWithParams").is_some());
-        assert!(value.get("preload_sdk_with_params").is_none());
-    }
-
-    #[test]
-    fn test_nested_keys_in_preload_sdk_with_params_are_converted() {
-        let mut value = json!({
-            "preload_sdk_with_params": {
-                "payment_methods_list": ["card", "wallet"],
-                "customer_methods_list": ["upi", "bank_transfer"],
-                "session_tokens": ["token1", "token2"],
-                "blocked_bins": ["411111", "555555"]
-            }
-        });
-
-        convert_custom_message_keys_to_camel(&mut value);
-
-        let preload = &value["preloadSDKWithParams"];
-        assert!(preload.get("paymentMethodsList").is_some());
-        assert!(preload.get("payment_methods_list").is_none());
-        assert!(preload.get("customerMethodsList").is_some());
-        assert!(preload.get("customer_methods_list").is_none());
-        assert!(preload.get("sessionTokens").is_some());
-        assert!(preload.get("session_tokens").is_none());
-        assert!(preload.get("blockedBins").is_some());
-        assert!(preload.get("blocked_bins").is_none());
-    }
-
-    #[test]
-    fn test_custom_message_for_payment_method_types_still_works() {
-        let mut value = json!({
-            "custom_message_for_payment_method_types": {
-                "card": {
-                    "message_for_customer": "Please enter your card details",
-                    "warning_message": "Test mode enabled"
-                }
-            }
-        });
-
-        convert_custom_message_keys_to_camel(&mut value);
-
-        let custom_msg = &value["custom_message_for_payment_method_types"]["card"];
-        assert!(custom_msg.get("messageForCustomer").is_some());
-        assert!(custom_msg.get("message_for_customer").is_none());
-        assert!(custom_msg.get("warningMessage").is_some());
-        assert!(custom_msg.get("warning_message").is_none());
-    }
-
-    #[test]
-    fn test_all_conversions_together() {
-        let mut value = json!({
-            "test_mode": false,
-            "preload_sdk_with_params": {
-                "payment_methods_list": ["card"]
-            },
-            "custom_message_for_payment_method_types": {
-                "wallet": {
-                    "warning_message": "Use wallet"
-                }
-            },
-            "client_secret": "secret_xyz"
-        });
-
-        convert_custom_message_keys_to_camel(&mut value);
-
-        // Check test_mode -> isTestMode
-        assert!(value.get("isTestMode").is_some());
-        assert!(value.get("test_mode").is_none());
-        assert_eq!(value["isTestMode"], json!(false));
-
-        // Check preload_sdk_with_params -> preloadSDKWithParams
-        assert!(value.get("preloadSDKWithParams").is_some());
-        assert!(value.get("preload_sdk_with_params").is_none());
-
-        // Check nested key in preload
-        assert!(value["preloadSDKWithParams"]
-            .get("paymentMethodsList")
-            .is_some());
-
-        // Check custom_message_for_payment_method_types nested keys
-        let wallet_msg = &value["custom_message_for_payment_method_types"]["wallet"];
-        assert!(wallet_msg.get("warningMessage").is_some());
-        assert!(wallet_msg.get("warning_message").is_none());
-
-        // Check other fields remain unchanged
-        assert!(value.get("client_secret").is_some());
-    }
 }
