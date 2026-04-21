@@ -3,7 +3,7 @@ import {
   connectorDetails as commonConnectorDetails,
   customerAcceptance,
 } from "./Commons";
-import { getCustomExchange } from "./Modifiers";
+import { getCurrency, getCustomExchange } from "./Modifiers";
 
 const successfulNo3DSCardDetails = {
   card_number: "378282246310005",
@@ -1081,6 +1081,88 @@ export const connectorDetails = {
                 email: "guest@juspay.in",
               },
             },
+          },
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+    },
+  },
+  paylater_pm: {
+    PaymentIntent: (paymentMethodType) =>
+      getCustomExchange({
+        Request: {
+          currency: getCurrency(paymentMethodType),
+        },
+        Response: {
+          status: 200,
+          body: {
+            status: "requires_payment_method",
+          },
+        },
+      }),
+    Affirm: {
+      Request: {
+        payment_method: "pay_later",
+        payment_method_type: "affirm",
+        payment_method_data: {
+          pay_later: {
+            affirm_redirect: {},
+          },
+        },
+        billing: {
+          address: {
+            line1: "1467",
+            line2: "Harrison Street",
+            line3: "Harrison Street",
+            city: "San Francisco",
+            state: "CA",
+            zip: "94122",
+            country: "US",
+            first_name: "John",
+            last_name: "Doe",
+          },
+          phone: {
+            number: "8056594427",
+            country_code: "+1",
+          },
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+    },
+    Klarna: {
+      Request: {
+        payment_method: "pay_later",
+        payment_method_type: "klarna",
+        payment_method_data: {
+          pay_later: {
+            klarna_redirect: {},
+          },
+        },
+        billing: {
+          address: {
+            line1: "1467",
+            line2: "Harrison Street",
+            line3: "Harrison Street",
+            city: "San Francisco",
+            state: "CA",
+            zip: "94122",
+            country: "US",
+            first_name: "John",
+            last_name: "Doe",
+          },
+          phone: {
+            number: "8056594427",
+            country_code: "+1",
           },
         },
       },

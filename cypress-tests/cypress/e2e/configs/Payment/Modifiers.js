@@ -131,6 +131,9 @@ const CURRENCY_MAP = {
   OpenBankingUk: "GBP", // Great British Pound payment method
   OnlineBankingFpx: "MYR", // Malaysian payment methods
   Interac: "CAD", // Canadian payment method
+
+  // Pay Later / BNPL
+  Affirm: "USD",
 };
 
 export const getCurrency = (paymentMethodType) => {
