@@ -1350,16 +1350,20 @@ pub struct MerchantConnectorInfo {
     pub connector_label: String,
     #[schema(value_type = String)]
     pub merchant_connector_id: id_type::MerchantConnectorAccountId,
+    #[schema(value_type = ConnectorType, example = "payment_processor")]
+    pub connector_type: api_enums::ConnectorType,
 }
 
 impl MerchantConnectorInfo {
     pub fn new(
         connector_label: String,
         merchant_connector_id: id_type::MerchantConnectorAccountId,
+        connector_type: api_enums::ConnectorType,
     ) -> Self {
         Self {
             connector_label,
             merchant_connector_id,
+            connector_type,
         }
     }
 }
@@ -1445,6 +1449,7 @@ impl MerchantConnectorResponse {
         MerchantConnectorInfo {
             connector_label: connector_label.to_string(),
             merchant_connector_id: self.id.clone(),
+            connector_type: self.connector_type,
         }
     }
 }
@@ -1573,6 +1578,7 @@ impl MerchantConnectorResponse {
         MerchantConnectorInfo {
             connector_label: connector_label.to_string(),
             merchant_connector_id: self.merchant_connector_id.clone(),
+            connector_type: self.connector_type,
         }
     }
 }
@@ -1672,6 +1678,7 @@ impl MerchantConnectorListResponse {
         MerchantConnectorInfo {
             connector_label: connector_label.to_string(),
             merchant_connector_id: self.merchant_connector_id.clone(),
+            connector_type: self.connector_type,
         }
     }
     pub fn get_connector_name(&self) -> String {
@@ -1731,6 +1738,7 @@ impl MerchantConnectorListResponse {
         MerchantConnectorInfo {
             connector_label: connector_label.to_string(),
             merchant_connector_id: self.id.clone(),
+            connector_type: self.connector_type,
         }
     }
     pub fn get_connector_name(&self) -> common_enums::connector_enums::Connector {
