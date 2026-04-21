@@ -1,7 +1,7 @@
 use common_enums::connector_enums::Connector;
 pub use common_enums::{
-    AuthenticationType, CaptureMethod, CardNetwork, Country, CountryAlpha2, Currency,
-    FutureUsage as SetupFutureUsage, PaymentMethod, PaymentMethodType,
+    AuthenticationType, CaptureMethod, CardDiscovery, CardNetwork, Country, CountryAlpha2,
+    Currency, FutureUsage as SetupFutureUsage, PaymentMethod, PaymentMethodType,
 };
 use strum::VariantNames;
 use utoipa::ToSchema;
@@ -36,6 +36,7 @@ collect_variants!(CaptureMethod);
 collect_variants!(Currency);
 collect_variants!(Country);
 collect_variants!(SetupFutureUsage);
+collect_variants!(CardDiscovery);
 #[cfg(feature = "payouts")]
 collect_variants!(PayoutType);
 #[cfg(feature = "payouts")]
@@ -281,6 +282,7 @@ pub enum RoutableConnectors {
     Helcim,
     Hyperpg,
     Iatapay,
+    Imerchantsolutions,
     Inespay,
     Itaubank,
     Jpmorgan,
@@ -440,6 +442,7 @@ impl TryFrom<Connector> for RoutableConnectors {
             Connector::Helcim => Ok(Self::Helcim),
             Connector::Hyperpg => Ok(Self::Hyperpg),
             Connector::Iatapay => Ok(Self::Iatapay),
+            Connector::Imerchantsolutions => Ok(Self::Imerchantsolutions),
             Connector::Itaubank => Ok(Self::Itaubank),
             Connector::Jpmorgan => Ok(Self::Jpmorgan),
             Connector::Klarna => Ok(Self::Klarna),
@@ -601,6 +604,7 @@ impl From<RoutableConnectors> for Connector {
             RoutableConnectors::Helcim => Self::Helcim,
             RoutableConnectors::Hyperpg => Self::Hyperpg,
             RoutableConnectors::Iatapay => Self::Iatapay,
+            RoutableConnectors::Imerchantsolutions => Self::Imerchantsolutions,
             RoutableConnectors::Itaubank => Self::Itaubank,
             RoutableConnectors::Jpmorgan => Self::Jpmorgan,
             RoutableConnectors::Klarna => Self::Klarna,

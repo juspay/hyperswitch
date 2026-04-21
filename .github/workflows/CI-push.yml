@@ -220,7 +220,7 @@ jobs:
 
       - name: Run clippy
         shell: bash
-        run: just clippy
+        run: just clippy --jobs 3
 
       - name: Cargo hack
         if: ${{ github.event_name == 'push' }}
@@ -241,6 +241,28 @@ jobs:
 
       - name: Spell check
         uses: crate-ci/typos@master
+
+  typos-required:
+    name: Spell check specific critical directories
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Spell check specific directories
+        uses: crate-ci/typos@v1.45.0
+        with:
+          files: |
+            api-reference/
+            crates/api_models/
+            crates/common_utils/
+            crates/common_enums/
+            crates/diesel_models/
+            migrations/
+            v2_migrations/
+            v2_compatible_migrations/
+            config/
+            docs/
 
   check-v2:
     name: Check compilation for V2 features

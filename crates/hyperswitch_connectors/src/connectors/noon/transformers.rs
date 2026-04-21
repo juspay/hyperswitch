@@ -30,7 +30,7 @@ use crate::{
 #[derive(Debug, Serialize, Deserialize)]
 pub struct NoonConnectorMetadataObject {
     #[serde(default)]
-    pub noon_region: NoonRegion,
+    pub region: NoonRegion,
 }
 
 #[derive(Debug, Serialize, Deserialize, Default)]
@@ -54,11 +54,19 @@ impl From<NoonRegion> for String {
 impl TryFrom<&Option<pii::SecretSerdeValue>> for NoonConnectorMetadataObject {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(meta_data: &Option<pii::SecretSerdeValue>) -> Result<Self, Self::Error> {
-        let metadata: Self = utils::to_connector_meta_from_secret::<Self>(meta_data.clone())
-            .change_context(errors::ConnectorError::InvalidConnectorConfig {
-                config: "metadata",
-            })?;
-        Ok(metadata)
+        match meta_data {
+            None => Ok(Self {
+                region: NoonRegion::Global,
+            }),
+            Some(_) => {
+                let metadata: Self =
+                    utils::to_connector_meta_from_secret::<Self>(meta_data.clone())
+                        .change_context(errors::ConnectorError::InvalidConnectorConfig {
+                            config: "metadata",
+                        })?;
+                Ok(metadata)
+            }
+        }
     }
 }
 
@@ -406,6 +414,8 @@ impl TryFrom<&NoonRouterData<&PaymentsAuthorizeRouterData>> for NoonPaymentsRequ
                     | PaymentMethodData::CardToken(_)
                     | PaymentMethodData::NetworkToken(_)
                     | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+                    | PaymentMethodData::CardWithOptionalCVC(_)
+                    | PaymentMethodData::CardWithNetworkTokenDetails(_)
                     | PaymentMethodData::CardWithLimitedDetails(_)
                     | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
                     | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {

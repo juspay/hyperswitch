@@ -707,4 +707,17 @@ export const connectorDetails = {
       pmListDynamicFieldWithEmail: requiredFields,
     },
   },
+  webhook: {
+    TransactionIdConfig: {
+      // Defines how to locate and parse the payment reference ID from connector-specific webhook payloads
+      path: "_embedded.authorizations.0.id",
+      // Type of payment reference ID
+      type: "string",
+    },
+    RefundIdConfig: {
+      // Finix refund (REVERSAL) webhooks carry the connector refund ID in the transfers array
+      path: "_embedded.transfers.0.id",
+      type: "string",
+    },
+  },
 };

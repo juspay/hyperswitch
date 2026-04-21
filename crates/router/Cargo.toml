@@ -21,7 +21,7 @@ encryption_service = ["keymanager_create", "hyperswitch_domain_models/encryption
 km_forward_x_request_id = ["common_utils/km_forward_x_request_id"]
 frm = ["api_models/frm", "hyperswitch_domain_models/frm", "hyperswitch_connectors/frm", "hyperswitch_interfaces/frm"]
 stripe = []
-release = ["stripe", "email", "accounts_cache", "kv_store", "vergen", "recon", "external_services/aws_kms", "external_services/aws_s3", "keymanager_mtls", "keymanager_create", "encryption_service", "dynamic_routing", "payout_retry"]
+release = ["stripe", "email", "accounts_cache", "kv_store", "vergen", "external_services/aws_kms", "external_services/aws_s3", "keymanager_mtls", "keymanager_create", "encryption_service", "dynamic_routing", "payout_retry"]
 oltp = ["storage_impl/oltp"]
 kv_store = ["scheduler/kv_store"]
 accounts_cache = ["storage_impl/accounts_cache"]
@@ -30,13 +30,13 @@ dummy_connector = ["api_models/dummy_connector", "euclid/dummy_connector", "hype
 external_access_dc = ["dummy_connector"]
 payouts = ["api_models/payouts", "common_enums/payouts", "hyperswitch_connectors/payouts", "hyperswitch_domain_models/payouts", "storage_impl/payouts", "payment_methods/payouts"]
 payout_retry = ["payouts"]
-recon = ["email", "api_models/recon"]
 retry = []
 v2 = [ "common_default", "api_models/v2", "diesel_models/v2", "hyperswitch_domain_models/v2", "storage_impl/v2", "kgraph_utils/v2", "common_utils/v2", "hyperswitch_connectors/v2", "hyperswitch_interfaces/v2", "common_types/v2", "revenue_recovery", "scheduler/v2", "euclid/v2", "payment_methods/v2", "tokenization_v2", "subscriptions/v2"]
 v1 = ["common_default", "api_models/v1", "diesel_models/v1", "hyperswitch_domain_models/v1", "storage_impl/v1", "hyperswitch_interfaces/v1", "kgraph_utils/v1", "common_utils/v1", "hyperswitch_connectors/v1", "common_types/v1", "scheduler/v1", "payment_link/v1", "payment_methods/v1", "subscriptions/v1", "analytics/v1"]
 dynamic_routing = ["external_services/dynamic_routing", "storage_impl/dynamic_routing", "api_models/dynamic_routing"]
 revenue_recovery = ["api_models/revenue_recovery", "hyperswitch_interfaces/revenue_recovery", "hyperswitch_domain_models/revenue_recovery", "hyperswitch_connectors/revenue_recovery", "external_services/revenue_recovery", "dep:prost-types"]
 tokenization_v2 = ["api_models/tokenization_v2", "diesel_models/tokenization_v2", "hyperswitch_domain_models/tokenization_v2", "storage_impl/tokenization_v2"]
+pm_modular = []
 
 # Partial Auth
 # The feature reduces the overhead of the router authenticating the merchant for every request, and trusts on `x-merchant-id` header to be present in the request.
@@ -90,8 +90,8 @@ reqwest = { version = "0.11.27", features = ["json", "rustls-tls", "gzip", "mult
 ring = "0.17.14"
 rust_decimal = { version = "1.37.1", features = ["serde-with-float", "serde-with-str"] }
 rust-i18n = { git = "https://github.com/kashif-m/rust-i18n", rev = "f2d8096aaaff7a87a847c35a5394c269f75e077a" }
-unified-connector-service-client = { git = "https://github.com/juspay/connector-service", tag = "2026.03.04.0-hotfix1", package = "rust-grpc-client" }
-unified-connector-service-cards = { git = "https://github.com/juspay/connector-service", tag = "2026.03.04.0-hotfix1", package = "ucs_cards" }
+unified-connector-service-client = { git = "https://github.com/juspay/connector-service", rev = "71fcc81f627c63c4cdc42a8d55eb73f257e3b4c5", package = "rust-grpc-client" }
+unified-connector-service-cards = { git = "https://github.com/juspay/connector-service", rev = "71fcc81f627c63c4cdc42a8d55eb73f257e3b4c5", package = "ucs_cards" }
 rustc-hash = "1.1.0"
 rustls = "0.22"
 rustls-pemfile = "2"
@@ -112,7 +112,7 @@ unicode-segmentation = "1.12.0"
 url = { version = "2.5.4", features = ["serde"] }
 urlencoding = "2.1.3"
 utoipa = { version = "4.2.3", features = ["preserve_order", "preserve_path_order", "time"] }
-uuid = { version = "1.17.0", features = ["v4"] }
+uuid = { version = "1.20.0", features = ["v4"] }
 validator = "0.17.0"
 x509-parser = "0.16.0"
 
