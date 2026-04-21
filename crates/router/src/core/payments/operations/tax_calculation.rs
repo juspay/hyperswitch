@@ -11,6 +11,7 @@ use router_env::{instrument, tracing};
 use super::{BoxedOperation, Domain, GetTracker, Operation, UpdateTracker, ValidateRequest};
 use crate::{
     core::{
+        configs::dimension_state::DimensionsWithMerchantId,
         errors::{self, RouterResult, StorageErrorExt},
         payment_methods::cards::create_encrypted_data,
         payments::{self, helpers, operations, PaymentData, PaymentMethodChecker},
@@ -215,6 +216,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsDynamicTaxCalculationRequest
         _payment_data: &mut PaymentData<F>,
         _request: Option<payments::CustomerDetails>,
         _provider: &domain::Provider,
+        _dimensions: DimensionsWithMerchantId,
     ) -> errors::CustomResult<
         (
             PaymentSessionUpdateOperation<'a, F>,
