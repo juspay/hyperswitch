@@ -532,6 +532,7 @@ export const CONNECTOR_LISTS = {
       "worldpayvantiv",
     ],
     MIT_WITH_LIMITED_CARD_DATA: ["cybersource", "peachpayments"],
+    EXTERNAL_THREE_DS: ["stripe"],
     // Add more inclusion lists
   },
 };
