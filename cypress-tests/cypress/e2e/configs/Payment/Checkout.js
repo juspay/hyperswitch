@@ -701,6 +701,10 @@ export const connectorDetails = {
           billing_descriptor: {
             name: "Juspay",
             city: "San Francisco",
+            phone: null,
+            statement_descriptor: null,
+            statement_descriptor_suffix: null,
+            reference: null,
           },
         },
       },
