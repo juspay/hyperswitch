@@ -134,7 +134,9 @@ use crate::{
     core::{
         configs::dimension_state,
         errors::{self, CustomResult, RouterResponse, RouterResult},
-        payment_methods::{cards, network_tokenization},
+        payment_methods::{
+            cards, network_tokenization, transformers as pm_transformers, utils as pm_utils,
+        },
         payments::helpers::{
             get_applepay_metadata, is_applepay_predecrypted_flow_supported,
             is_googlepay_predecrypted_flow_supported,
@@ -8820,28 +8822,33 @@ impl PaymentEligibilityData {
         payment_method_type: common_enums::PaymentMethod,
         profile_id: &id_type::ProfileId,
     ) -> CustomResult<Option<domain::EligibilityPaymentMethodData>, errors::ApiErrorResponse> {
-        use crate::core::payment_methods::utils as pm_utils;
+        let pm_modular_dimensions = dimension_state::Dimensions::new().with_organization_id(
+            platform
+                .get_processor()
+                .get_account()
+                .organization_id
+                .clone(),
+        );
 
         let is_modular_flow = pm_utils::get_organization_eligibility_config_for_pm_modular_service(
-            &*state.store,
-            &platform.get_processor().get_account().organization_id,
+            state,
+            &pm_modular_dimensions,
         )
         .await;
 
         if is_modular_flow {
             // Modular path: payment_token IS the payment_method_id in the modular service.
             logger::info!("Resolving payment token via PM Modular Service for eligibility check");
-            let pm_response =
-                crate::core::payment_methods::transformers::fetch_payment_method_from_modular_service(
-                    state,
-                    platform,
-                    profile_id,
-                    payment_token.clone().expose().as_str(),
-                    None,// CVC token data is not passed in create api
-                )
-                .await
-                .change_context(errors::ApiErrorResponse::PaymentMethodNotFound)
-                .attach_printable("Failed to fetch payment method from modular service")?;
+            let pm_response = pm_transformers::fetch_payment_method_from_modular_service(
+                state,
+                platform,
+                profile_id,
+                payment_token.clone().expose().as_str(),
+                None, // CVC token data is not passed in create api
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::PaymentMethodNotFound)
+            .attach_printable("Failed to fetch payment method from modular service")?;
 
             Ok(pm_response
                 .raw_payment_method_data
