@@ -1,6 +1,62 @@
 // This file is the default. To override, add to connector.js
 import { getCurrency, getCustomExchange } from "./Modifiers";
 
+export const blockedPaymentErrorBodyForIssuingCountry = {
+  status: 200,
+  expectBlockedPayment: true,
+  body: {
+    error: {
+      type: "blocked",
+      message:
+        "Cards issued in your region aren't supported for this transaction, please try a different card",
+      code: "HE_03",
+      reason: "Blocked",
+    },
+  },
+};
+
+export const blockedPaymentErrorBodyForDebitCard = {
+  status: 200,
+  expectBlockedPayment: true,
+  body: {
+    error: {
+      type: "blocked",
+      message:
+        "Debit cards are not accepted for this transaction, please try a different card",
+      code: "HE_03",
+      reason: "Blocked",
+    },
+  },
+};
+
+export const blockedPaymentErrorBodyForCardSubtype = {
+  status: 200,
+  expectBlockedPayment: true,
+  body: {
+    error: {
+      type: "blocked",
+      message:
+        "This card is not accepted for this transaction, please try a different card",
+      code: "HE_03",
+      reason: "Blocked",
+    },
+  },
+};
+
+export const blockedPaymentErrorBodyForBinUnavailable = {
+  status: 200,
+  expectBlockedPayment: true,
+  body: {
+    error: {
+      type: "blocked",
+      message:
+        "We're unable to accept this card, please try another card or a different payment method",
+      code: "HE_03",
+      reason: "Blocked",
+    },
+  },
+};
+
 export const customerAcceptance = {
   acceptance_type: "offline",
   accepted_at: "1963-05-03T04:07:52.723Z",
@@ -2308,7 +2364,8 @@ export const connectorDetails = {
           sdk_next_action: {
             next_action: {
               deny: {
-                message: "Card number is blocklisted",
+                message:
+                  "We're unable to accept this card, please try another card or a different payment method",
               },
             },
           },
@@ -2348,4 +2405,70 @@ export const connectorDetails = {
       },
     },
   }),
+  payment_method_blocking_pm: {
+    BlockIssuingCountry: getCustomExchange({
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: {
+            card_number: "4000000000000002",
+            card_exp_month: "03",
+            card_exp_year: "30",
+            card_holder_name: "joseph Doeeee",
+            card_cvc: "737",
+            card_network: "Visa",
+          },
+        },
+      },
+      Response: blockedPaymentErrorBodyForIssuingCountry,
+    }),
+    BlockCardType: getCustomExchange({
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: {
+            card_number: "4111111111111111",
+            card_exp_month: "03",
+            card_exp_year: "30",
+            card_holder_name: "joseph Doeeee",
+            card_cvc: "737",
+            card_network: "Visa",
+          },
+        },
+      },
+      Response: blockedPaymentErrorBodyForDebitCard,
+    }),
+    BlockCardSubtype: getCustomExchange({
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: {
+            card_number: "378282246310005",
+            card_exp_month: "03",
+            card_exp_year: "30",
+            card_holder_name: "joseph Doeeee",
+            card_cvc: "737",
+            card_network: "Visa",
+          },
+        },
+      },
+      Response: blockedPaymentErrorBodyForCardSubtype,
+    }),
+    BlockIfBinInfoUnavailable: getCustomExchange({
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: {
+            card_number: "6304000000000000",
+            card_exp_month: "03",
+            card_exp_year: "30",
+            card_holder_name: "joseph Doeeee",
+            card_cvc: "737",
+            card_network: "Visa",
+          },
+        },
+      },
+      Response: blockedPaymentErrorBodyForBinUnavailable,
+    }),
+  },
 };
