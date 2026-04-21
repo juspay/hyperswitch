@@ -177,7 +177,7 @@ export const connectorDetails = {
           error: {
             type: "invalid_request",
             message:
-              "This Payment could not be captured because it has a capture_method of automatic. The expected state is manual_multiple",
+              "This Payment could not be captured because it has a payment.status of succeeded. The expected state is requires_capture, partially_captured_and_capturable, processing",
             code: "IR_14",
           },
         },
@@ -222,7 +222,7 @@ export const connectorDetails = {
           error: {
             type: "invalid_request",
             message: "The refund amount exceeds the amount captured",
-            code: "IR_14",
+            code: "IR_13",
           },
         },
       },
@@ -569,6 +569,93 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "requires_customer_action",
+        },
+      },
+    },
+    No3DSFailPayment: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "USD",
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded", // WorldpayXML returns succeeded status for all test cards
+        },
+      },
+    },
+    ManualRetryPaymentDisabled: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "USD",
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+      Response: {
+        status: 400,
+        body: {
+          error: {
+            type: "invalid_request",
+            message:
+              "You cannot confirm this payment because it has status succeeded",
+            code: "IR_16",
+          },
+        },
+      },
+    },
+    ManualRetryPaymentEnabled: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "USD",
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    },
+    ManualRetryPaymentCutoffExpired: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "USD",
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+      Response: {
+        status: 400,
+        body: {
+          error: {
+            type: "invalid_request",
+            message:
+              "You cannot confirm this payment using `manual_retry` because the allowed duration has expired",
+            code: "IR_16",
+          },
         },
       },
     },
