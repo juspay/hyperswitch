@@ -141,6 +141,7 @@ jobs:
       # Use `sccache` for caching compilation artifacts
       # RUSTC_WRAPPER: sccache
       RUSTFLAGS: "-D warnings"
+      CARGO_BUILD_JOBS: ${{ matrix.cargo_jobs }}
 
     strategy:
       fail-fast: false
@@ -202,8 +203,6 @@ jobs:
 
       - name: Run clippy
         shell: bash
-        env:
-          CARGO_BUILD_JOBS: ${{ matrix.cargo_jobs }}
         run: just clippy
 
       - name: Check Cargo.lock changed

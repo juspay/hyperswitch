@@ -158,12 +158,14 @@ jobs:
       # Use `sccache` for caching compilation artifacts
       # RUSTC_WRAPPER: sccache
       RUSTFLAGS: "-D warnings"
+      CARGO_BUILD_JOBS: ${{ matrix.cargo_jobs }}
 
     strategy:
       fail-fast: true
       matrix:
-        runner:
-          - ubuntu-latest
+        include:
+          - runner: ubuntu-latest
+            cargo_jobs: 2
 
     steps:
       - name: Checkout repository
@@ -220,7 +222,7 @@ jobs:
 
       - name: Run clippy
         shell: bash
-        run: just clippy --jobs 3
+        run: just clippy
 
       - name: Cargo hack
         if: ${{ github.event_name == 'push' }}
