@@ -134,7 +134,7 @@ use crate::{
     core::{
         configs::dimension_state,
         errors::{self, CustomResult, RouterResponse, RouterResult},
-        payment_methods::{cards, network_tokenization, utils as pm_utils},
+        payment_methods::{cards, network_tokenization},
         payments::helpers::{
             get_applepay_metadata, is_applepay_predecrypted_flow_supported,
             is_googlepay_predecrypted_flow_supported,
@@ -8889,15 +8889,20 @@ impl PaymentEligibilityData {
                     .get_required_value("customer_id")
                     .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
-                let locker_id = card_token.locker_id.as_ref().unwrap_or(&card_token.token);
-                let card = helpers::fetch_card_details_from_internal_locker(
+                let locker_id = card_token
+                    .locker_id
+                    .as_ref()
+                    .ok_or(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Missing locker_id in PermanentCard token data")?;
+                let card = Box::pin(helpers::fetch_card_details_from_locker(
                     state,
                     &customer_id,
-                    platform.get_processor().get_account().get_id(),
+                    platform,
                     locker_id,
                     None, // no CardToken CVC for eligibility
                     None, // no co-badged data needed
-                )
+                    pm_record,
+                ))
                 .await
                 .change_context(errors::ApiErrorResponse::PaymentMethodNotFound)
                 .attach_printable("Failed to retrieve card from locker")?;
