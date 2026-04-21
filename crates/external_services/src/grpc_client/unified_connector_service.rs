@@ -114,7 +114,7 @@ pub struct VaultConnectorAuth {
     /// API key for authenticating with the vault connector
     pub api_key: Secret<String>,
     /// API secret for authenticating with the vault connector
-    pub api_secret: Secret<String>,
+    pub profile_id: Secret<String>,
 }
 
 /// External Vault Proxy Related Metadata

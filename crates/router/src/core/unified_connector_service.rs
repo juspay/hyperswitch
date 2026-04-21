@@ -1061,8 +1061,8 @@ pub fn build_unified_connector_service_payment_method(
                     account_number: Some(Secret::new(provider)),
                     branch_code: None,
                     bank_account_holder_name: None,
-                    bank_name: todo!(), //check with connector team
-                    bank_type: todo!(),
+                    bank_name: Default::default(),
+                    bank_type: Default::default(),
                 };
 
                 Ok(payments_grpc::PaymentMethod {
@@ -1894,7 +1894,7 @@ pub fn build_unified_connector_service_external_vault_proxy_metadata(
                 .change_context(UnifiedConnectorServiceError::FailedToObtainAuthType)
                 .attach_printable("Failed to obtain ConnectorAuthType for HyperswitchVault")?;
 
-            let (api_key, api_secret) = match &auth_type {
+            let (api_key, profile_id) = match &auth_type {
                 ConnectorAuthType::SignatureKey {
                     api_key,
                     api_secret,
@@ -1917,7 +1917,7 @@ pub fn build_unified_connector_service_external_vault_proxy_metadata(
                         vault_endpoint: vault_endpoint_url,
                         vault_auth_data: external_services::grpc_client::unified_connector_service::VaultConnectorAuth {
                             api_key,
-                            api_secret,
+                            profile_id,
                         },
                     },
                 ),
