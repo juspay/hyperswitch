@@ -674,5 +674,44 @@ export const connectorDetails = {
         },
       },
     },
+    PaymentIntentWithBillingDescriptor: {
+      Request: {
+        currency: "USD",
+        billing_descriptor: {
+          name: "Juspay",
+          city: "San Francisco",
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+        },
+      },
+    },
+    PaymentConfirmWithBillingDescriptor: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+          billing_descriptor: {
+            name: "Juspay",
+            city: "San Francisco",
+            phone: null,
+            statement_descriptor: null,
+            statement_descriptor_suffix: null,
+            reference: null,
+          },
+        },
+      },
+    },
   },
 };
