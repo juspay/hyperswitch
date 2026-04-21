@@ -19,7 +19,7 @@ env:
   MANDATORY_PAYMENTS_CONNECTORS_BATCH_1: "cybersource stripe authorizedotnet cashtocode loonio checkout"
   MANDATORY_PAYMENTS_CONNECTORS_BATCH_2: "adyen nexixpay nmi fiuu finix airwallex"
   OPTIONAL_PAYMENTS_CONNECTORS_BATCH_1: "worldpay braintree cryptopay paypal worldpayxml volt"
-  OPTIONAL_PAYMENTS_CONNECTORS_BATCH_2: "gigadat zift resys novalnet noon"
+  OPTIONAL_PAYMENTS_CONNECTORS_BATCH_2: "gigadat zift redsys novalnet noon"
   ALPHA_PAYMENTS_CONNECTORS: "celero silverflow"
   RUST_BACKTRACE: short
   RUSTUP_MAX_RETRIES: 10
