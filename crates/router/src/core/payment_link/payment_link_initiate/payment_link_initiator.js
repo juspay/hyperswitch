@@ -70,7 +70,7 @@ function initializeSDK() {
   };
 
   if (preloadSDKWithParams != null && typeof preloadSDKWithParams === "object") {
-  // @ts-ignore
+    // @ts-ignore
     widgetOptions.preloadSDKWithParams = preloadSDKWithParams;
   }
 
