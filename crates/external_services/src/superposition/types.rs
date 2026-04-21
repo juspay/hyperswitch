@@ -73,8 +73,6 @@ impl TryFrom<open_feature::StructValue> for JsonValue {
 #[derive(Debug, Clone, serde::Deserialize)]
 #[serde(default)]
 pub struct SuperpositionClientConfig {
-    /// Whether Superposition is enabled
-    pub enabled: bool,
     /// Superposition API endpoint
     pub endpoint: String,
     /// Authentication token for Superposition
@@ -95,7 +93,6 @@ pub struct SuperpositionClientConfig {
 impl Default for SuperpositionClientConfig {
     fn default() -> Self {
         Self {
-            enabled: false,
             endpoint: String::new(),
             token: Secret::new(String::new()),
             org_id: String::new(),
@@ -146,10 +143,6 @@ impl SuperpositionClientConfig {
 
     /// Validate the Superposition configuration
     pub fn validate(&self) -> Result<(), SuperpositionError> {
-        if !self.enabled {
-            return Ok(());
-        }
-
         when(self.endpoint.is_empty(), || {
             Err(SuperpositionError::InvalidConfiguration(
                 "Superposition endpoint cannot be empty".to_string(),
@@ -216,13 +209,9 @@ impl hyperswitch_interfaces::secrets_interface::secret_handler::SecretsHandler
         hyperswitch_interfaces::secrets_interface::SecretsManagementError,
     > {
         let superposition_config = value.get_inner();
-        let token = if superposition_config.enabled {
-            secret_management_client
-                .get_secret(superposition_config.token.clone())
-                .await?
-        } else {
-            superposition_config.token.clone()
-        };
+        let token = secret_management_client
+            .get_secret(superposition_config.token.clone())
+            .await?;
 
         Ok(value.transition_state(|superposition_config| Self {
             token,

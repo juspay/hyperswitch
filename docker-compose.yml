@@ -85,6 +85,10 @@ services:
       - router_net
     environment:
       - API_HOSTNAME=http://localhost:8081
+      - REDIS_URL=redis://redis-standalone:6379
+    depends_on:
+      redis-standalone:
+        condition: service_healthy
 
   superposition-init:
     image: alpine:latest

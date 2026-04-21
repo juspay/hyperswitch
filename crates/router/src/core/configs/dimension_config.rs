@@ -30,9 +30,6 @@ macro_rules! writable_config {
                     &self,
                     superposition_client: &superposition::SuperpositionClient,
                     value: &$input,
-                    org_id: &str,
-                    workspace_id: &str,
-                    change_reason: Option<&str>,
                 ) -> CustomResult<(), superposition::SuperpositionError> {
 
                     let context = self.to_superposition_context()
@@ -41,7 +38,7 @@ macro_rules! writable_config {
                         )))?;
 
                     superposition_client
-                        .set_config_value::<[<$key:camel>]>(value, &context, org_id, workspace_id, change_reason)
+                        .set_config_value::<[<$key:camel>]>(value, &context)
                         .await
                 }
             }

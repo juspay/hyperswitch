@@ -127,6 +127,10 @@ pub struct SuperpositionClient {
     provider: superposition_provider::local_provider::LocalResolutionProvider,
     /// SDK client for writing configs (create/update operations)
     sdk_client: superposition_sdk::Client,
+    /// Organization ID for write operations
+    org_id: String,
+    /// Workspace ID for write operations
+    workspace_id: String,
 }
 
 impl SuperpositionClient {
@@ -211,6 +215,8 @@ impl SuperpositionClient {
             client,
             sdk_client,
             provider,
+            org_id: config.org_id,
+            workspace_id: config.workspace_id,
         })
     }
 
@@ -333,9 +339,6 @@ impl SuperpositionClient {
     /// # Arguments
     /// * `value` - The value to write
     /// * `context` - The context (dimensions) for this config
-    /// * `org_id` - Organization ID for Superposition
-    /// * `workspace_id` - Workspace ID for Superposition
-    /// * `change_reason` - Optional custom change reason (defaults to generated reason from key)
     ///
     /// # Returns
     /// * `CustomResult<(), SuperpositionError>` - Success or error
@@ -343,9 +346,6 @@ impl SuperpositionClient {
         &self,
         value: &T::Input,
         context: &ConfigContext,
-        org_id: &str,
-        workspace_id: &str,
-        change_reason: Option<&str>,
     ) -> CustomResult<(), SuperpositionError> {
         let mut builder = superposition_sdk::types::ContextPut::builder();
 
@@ -354,17 +354,14 @@ impl SuperpositionClient {
             builder = builder.context(key, Document::String(val.clone()));
         }
 
-        // Add override value
-        let change_reason = change_reason
-            .map(|s| s.to_string())
-            .unwrap_or_else(|| generate_change_reason(T::SUPERPOSITION_KEY));
+        let change_reason = generate_change_reason(T::SUPERPOSITION_KEY);
 
         // Log request details before API call
         router_env::logger::info!(
             "Superposition set_config_value request: key='{}', org_id='{}', workspace_id='{}', context={:?}, change_reason='{}'",
             T::SUPERPOSITION_KEY,
-            org_id,
-            workspace_id,
+            self.org_id,
+            self.workspace_id,
             context.values,
             change_reason
         );
@@ -384,8 +381,8 @@ impl SuperpositionClient {
         let response = self
             .sdk_client
             .create_context()
-            .workspace_id(workspace_id.to_string())
-            .org_id(org_id.to_string())
+            .workspace_id(self.workspace_id.clone())
+            .org_id(self.org_id.clone())
             .request(context_put)
             .send()
             .await;
@@ -402,60 +399,6 @@ impl SuperpositionClient {
         Ok(())
     }
 
-    /// Create a fingerprint secret override for a merchant in Superposition
-    ///
-    /// # Arguments
-    /// * `merchant_id` - The merchant ID to use as dimension
-    /// * `fingerprint_secret` - The fingerprint secret value to store
-    /// * `org_id` - Organization ID for Superposition
-    /// * `workspace_id` - Workspace ID for Superposition
-    ///
-    /// # Returns
-    /// * `CustomResult<(), SuperpositionError>` - Success or error
-    #[deprecated(note = "Use set_config_value with WritableConfig trait instead")]
-    pub async fn create_fingerprint_secret_override(
-        &self,
-        merchant_id: &str,
-        fingerprint_secret: &str,
-        org_id: &str,
-        workspace_id: &str,
-    ) -> CustomResult<(), SuperpositionError> {
-        // Build the ContextPut request
-        let context_put = superposition_sdk::types::ContextPut::builder()
-            .context("merchant_id", Document::String(merchant_id.to_string()))
-            .r#override(
-                "fingerprint_secret",
-                Document::String(fingerprint_secret.to_string()),
-            )
-            .change_reason("Created during merchant creation")
-            .build()
-            .map_err(|e| {
-                report!(SuperpositionError::ClientError(format!(
-                    "Failed to build ContextPut: {e:?}"
-                )))
-            })?;
-
-        // Call create_context API
-        self.sdk_client
-            .create_context()
-            .workspace_id(workspace_id.to_string())
-            .org_id(org_id.to_string())
-            .request(context_put)
-            .send()
-            .await
-            .map_err(|e| {
-                report!(SuperpositionError::ClientError(format!(
-                    "Failed to create fingerprint_secret override for merchant '{merchant_id}': {e:?}"
-                )))
-            })?;
-
-        router_env::logger::info!(
-            "Created fingerprint_secret override for merchant '{}'",
-            merchant_id
-        );
-
-        Ok(())
-    }
 }
 
 /// Trait for configs that can be written to Superposition.

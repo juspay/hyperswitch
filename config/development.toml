@@ -1526,7 +1526,6 @@ internal_api_key = "test_internal_api_key"
 payments_base_url = "http://localhost:8080"
 
 [superposition]
-enabled = true # Enable Superposition integration
 endpoint = "http://localhost:8081" # Superposition service endpoint
 token = "123456" # Superposition token
 org_id = "localorg" # Organization ID in Superposition

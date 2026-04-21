@@ -80,19 +80,11 @@ pub async fn insert_merchant_configs_with_superposition(
     dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
 ) -> RouterResult<()> {
     let fingerprint_secret = utils::generate_id(consts::FINGERPRINT_SECRET_LENGTH, "fs");
-    // Get org_id and workspace_id from state config
-    let conf = state.conf();
-    let superposition_config = conf.superposition.get_inner();
-    let org_id = &superposition_config.org_id;
-    let workspace_id = &superposition_config.workspace_id;
 
     dimensions
         .set_fingerprint_secret(
             state.superposition_service.as_ref(),
             &fingerprint_secret,
-            org_id,
-            workspace_id,
-            None,
         )
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)

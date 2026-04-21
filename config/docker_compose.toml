@@ -1405,7 +1405,6 @@ internal_api_key = "test_internal_api_key" # API key for internal merchant id an
 payments_base_url = "http://localhost:8080"
 
 [superposition]
-enabled = true # Enable Superposition for dynamic configuration management
 endpoint = "http://superposition:8080" # Superposition service endpoint
 token = "123456" # Superposition token
 org_id = "localorg" # Organization ID in Superposition
