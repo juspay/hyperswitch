@@ -16,8 +16,8 @@ concurrency:
 env:
   CARGO_INCREMENTAL: 0
   CARGO_NET_RETRY: 10
-  MANDATORY_PAYMENTS_CONNECTORS_BATCH_1: "cybersource stripe authorizedotnet"
-  MANDATORY_PAYMENTS_CONNECTORS_BATCH_2: "adyen nexixpay nmi"
+  MANDATORY_PAYMENTS_CONNECTORS_BATCH_1: "cybersource stripe authorizedotnet cashtocode loonio"
+  MANDATORY_PAYMENTS_CONNECTORS_BATCH_2: "adyen nexixpay nmi fiuu finix airwallex"
   OPTIONAL_PAYMENTS_CONNECTORS_BATCH_1: "cashtocode loonio fiuu"
   OPTIONAL_PAYMENTS_CONNECTORS_BATCH_2: "gigadat zift resys"
   OPTIONAL_PAYMENTS_CONNECTORS_BATCH_3: "worldpay braintree cryptopay"
@@ -169,14 +169,14 @@ jobs:
                 {
                   "name": "batch-1",
                   "connectors": "'"${MANDATORY_PAYMENTS_CONNECTORS_BATCH_1}"'",
-                  "parallel": 3,
+                  "parallel": 6,
                   "report_artifact_name": "cypress-mandatory-test-results-batch-1",
                   "server_logs_artifact": "mandatory-server-logs-batch-1"
                 },
                 {
                   "name": "batch-2",
                   "connectors": "'"${MANDATORY_PAYMENTS_CONNECTORS_BATCH_2}"'",
-                  "parallel": 3,
+                  "parallel": 6,
                   "report_artifact_name": "cypress-mandatory-test-results-batch-2",
                   "server_logs_artifact": "mandatory-server-logs-batch-2"
                 }
