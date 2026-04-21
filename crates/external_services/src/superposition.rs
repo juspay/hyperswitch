@@ -398,7 +398,6 @@ impl SuperpositionClient {
 
         Ok(())
     }
-
 }
 
 /// Trait for configs that can be written to Superposition.

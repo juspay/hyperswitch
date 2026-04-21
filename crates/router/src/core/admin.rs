@@ -82,10 +82,7 @@ pub async fn insert_merchant_configs_with_superposition(
     let fingerprint_secret = utils::generate_id(consts::FINGERPRINT_SECRET_LENGTH, "fs");
 
     dimensions
-        .set_fingerprint_secret(
-            state.superposition_service.as_ref(),
-            &fingerprint_secret,
-        )
+        .set_fingerprint_secret(state.superposition_service.as_ref(), &fingerprint_secret)
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to create fingerprint_secret in Superposition")?;
