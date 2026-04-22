@@ -7460,13 +7460,10 @@ where
     dyn api::Connector:
         services::api::ConnectorIntegration<F, Req, router_types::PaymentsResponseData>,
 {
-    println!("did it customerr22");
     let connector_name = merchant_connector_account.get_connector_name();
-    println!("connector_name: {:?}", connector_name);
 
     match connector_name {
         Some(connector_name) => {
-            println!("custt222");
             let connector = api::ConnectorData::get_connector_by_name(
                 &state.conf.connectors,
                 &connector_name,

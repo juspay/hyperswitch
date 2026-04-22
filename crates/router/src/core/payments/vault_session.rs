@@ -18,12 +18,13 @@ use hyperswitch_interfaces::connector_integration_v2::{ConnectorIntegrationV2, C
 use router_env::env::Env;
 
 #[cfg(feature = "v2")]
-use crate::core::payments::{customers, gateway::context as gateway_context};
+use crate::core::payments::customers;
+#[cfg(feature = "v1")]
+use crate::core::payments::call_create_connector_customer_if_required;
 use crate::{
     core::{
         errors::{self, RouterResult},
         payments::{
-            call_create_connector_customer_if_required,
             flows::{ConstructFlowSpecificData, Feature},
             gateway::context as gateway_context,
             helpers,
@@ -191,7 +192,6 @@ where
             profile.get_id().clone(),
             payment_data.get_creds_identifier().map(|id| id.to_string()),
         );
-        println!("here111");
 
         let updated_customer = call_create_connector_customer_if_required(
             state,
@@ -209,8 +209,6 @@ where
             let db = &*state.store;
             let customer_id = customer.get_id().clone();
             let customer_merchant_id = customer.merchant_id.clone();
-
-            println!("customerrrr");
 
             let _updated_customer = db
                 .update_customer_by_customer_id_merchant_id(
@@ -541,8 +539,6 @@ where
         .attach_printable(
             "Cannot construct router data for making the external vault create api call",
         )?;
-
-    println!("heyy, is it working???");
 
     let connector_integration: services::BoxedVaultConnectorIntegrationInterface<
         ExternalVaultCreateFlow,
