@@ -58,9 +58,29 @@ describe("Partner Merchant Identifier Tests", () => {
     it("Create Payment Intent without Partner Merchant Identifier (baseline comparison)", () => {
       let shouldContinue = true;
 
-      const data = getConnectorDetails(globalState.get("connectorId"))[
+      const baseData = getConnectorDetails(globalState.get("connectorId"))[
         "card_pm"
       ]["PaymentIntent"];
+
+      const data = {
+        ...baseData,
+        Request: {
+          ...baseData.Request,
+          billing: {
+            address: {
+              line1: "1467",
+              line2: "Harrison Street",
+              line3: "Harrison Street",
+              city: "San Francisco",
+              state: "California",
+              zip: "94122",
+              country: "US",
+              first_name: "joseph",
+              last_name: "Doe",
+            },
+          },
+        },
+      };
 
       cy.step(
         "Create Payment Intent without Partner Merchant Identifier",
