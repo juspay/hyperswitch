@@ -755,7 +755,12 @@ export const connectorDetails = {
       },
     },
     PaymentConfirmWithBillingDescriptor: {
-      Request: {},
+      Request: {
+        payment_method: "card",
+        payment_method_data: { card: successfulNo3DSCardDetails },
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
       Response: {
         status: 200,
         body: {
@@ -783,7 +788,12 @@ export const connectorDetails = {
       },
     },
     PaymentConfirmWithBillingDescriptorInvalidPhone: {
-      Request: {},
+      Request: {
+        payment_method: "card",
+        payment_method_data: { card: successfulNo3DSCardDetails },
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
       Response: {
         status: 400,
         body: {

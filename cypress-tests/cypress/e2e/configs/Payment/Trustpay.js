@@ -650,6 +650,10 @@ export const connectorDetails = {
     },
     PaymentConfirmWithBillingDescriptor: {
       Request: {
+        payment_method: "card",
+        payment_method_data: { card: successfulNo3DSCardDetails },
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
         browser_info: {
           user_agent:
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
