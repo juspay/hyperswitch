@@ -220,9 +220,9 @@ impl SubscriberClient {
             )));
 
         if conf.default_command_timeout > 0 {
-            config = config.set_response_timeout(Some(
-                std::time::Duration::from_secs(conf.default_command_timeout),
-            ));
+            config = config.set_response_timeout(Some(std::time::Duration::from_secs(
+                conf.default_command_timeout,
+            )));
         }
 
         config
@@ -424,8 +424,7 @@ impl RedisConnectionPool {
                         conf.default_command_timeout.max(1),
                     ));
 
-                publisher_builder =
-                    publisher_builder.use_protocol(redis::ProtocolVersion::RESP3);
+                publisher_builder = publisher_builder.use_protocol(redis::ProtocolVersion::RESP3);
 
                 let publisher_conn = publisher_builder
                     .build()
@@ -477,8 +476,8 @@ impl RedisConnectionPool {
                         )
                     })?;
 
-                let reconnection_retries =
-                    usize::try_from(conf.reconnect_max_attempts).unwrap_or_else(|_| {
+                let reconnection_retries = usize::try_from(conf.reconnect_max_attempts)
+                    .unwrap_or_else(|_| {
                         tracing::warn!(
                             "reconnect_max_attempts ({}) exceeds usize, using default (5)",
                             conf.reconnect_max_attempts
@@ -493,33 +492,29 @@ impl RedisConnectionPool {
                     .set_min_delay(reconnection_min_delay);
 
                 if conf.default_command_timeout > 0 {
-                    pool_config = pool_config.set_response_timeout(
-                        Some(std::time::Duration::from_secs(conf.default_command_timeout)),
-                    );
+                    pool_config = pool_config.set_response_timeout(Some(
+                        std::time::Duration::from_secs(conf.default_command_timeout),
+                    ));
                 }
 
                 if conf.max_in_flight_commands > 0 {
-                    let pipeline_buffer_size =
-                        usize::try_from(conf.max_in_flight_commands).unwrap_or_else(|_| {
+                    let pipeline_buffer_size = usize::try_from(conf.max_in_flight_commands)
+                        .unwrap_or_else(|_| {
                             tracing::warn!(
                                 "max_in_flight_commands ({}) exceeds usize, using usize::MAX",
                                 conf.max_in_flight_commands
                             );
                             usize::MAX
                         });
-                    pool_config =
-                        pool_config.set_pipeline_buffer_size(pipeline_buffer_size);
+                    pool_config = pool_config.set_pipeline_buffer_size(pipeline_buffer_size);
                 }
 
-                let conn = redis::aio::ConnectionManager::new_with_config(
-                    client,
-                    pool_config,
-                )
-                .await
-                .change_context(errors::RedisError::RedisConnectionError)
-                .attach_printable_lazy(|| {
-                    format!("Failed to connect to Redis at {}:{}", conf.host, conf.port)
-                })?;
+                let conn = redis::aio::ConnectionManager::new_with_config(client, pool_config)
+                    .await
+                    .change_context(errors::RedisError::RedisConnectionError)
+                    .attach_printable_lazy(|| {
+                        format!("Failed to connect to Redis at {}:{}", conf.host, conf.port)
+                    })?;
 
                 let pool = RedisConn::Standalone(conn);
 
