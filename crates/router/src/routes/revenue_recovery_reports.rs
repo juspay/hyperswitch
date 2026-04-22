@@ -9,6 +9,7 @@ use api_models::revenue_recovery_reports::{
 use common_utils::consts::{DEFAULT_TENANT, TENANT_HEADER};
 use futures::{StreamExt, TryStreamExt};
 use router_env::{instrument, logger, tracing, Flow};
+use serde::Deserialize;
 
 use crate::{
     consts,
@@ -23,10 +24,16 @@ use crate::{
 
 const UPLOAD_STATUS_TTL_SECONDS: i64 = 86400;
 
+#[derive(Debug, Deserialize)]
+pub struct UploadRevenueRecoveryReportQuery {
+    pub timeline: String,
+}
+
 #[instrument(skip_all, fields(flow = ?Flow::RevenueRecoveryReportUpload))]
 pub async fn upload_revenue_recovery_report_stream_handler(
     state: web::Data<AppState>,
     req: HttpRequest,
+    query: web::Query<UploadRevenueRecoveryReportQuery>,
     mut payload: Multipart,
 ) -> HttpResponse {
     let flow = Flow::RevenueRecoveryReportUpload;
@@ -103,8 +110,8 @@ pub async fn upload_revenue_recovery_report_stream_handler(
         .get_string_repr()
         .to_string();
 
+    let timeline = query.into_inner().timeline;
     let mut file_name: Option<String> = None;
-    let mut timeline: Option<String> = None;
     let mut content_type: Option<String> = None;
     let mut file_content_stream = None;
 
@@ -117,30 +124,7 @@ pub async fn upload_revenue_recovery_report_stream_handler(
                 file_name = content_disposition.get_filename().map(String::from);
                 content_type = field.content_type().map(|m| m.essence_str().to_string());
                 file_content_stream = Some(field);
-            }
-            Some("timeline") => {
-                let mut bytes = web::BytesMut::new();
-                let mut stream = field.into_stream();
-                while let Some(chunk_result) = stream.next().await {
-                    match chunk_result {
-                        Ok(chunk) => bytes.extend_from_slice(&chunk),
-                        Err(err) => {
-                            logger::error!("Error reading timeline field: {:?}", err);
-                            return HttpResponse::BadRequest().json(serde_json::json!({
-                                "error": "Error reading timeline field"
-                            }));
-                        }
-                    }
-                }
-                timeline = match String::from_utf8(bytes.to_vec()) {
-                    Ok(s) => Some(s),
-                    Err(err) => {
-                        logger::error!("Error decoding timeline to UTF-8: {:?}", err);
-                        return HttpResponse::BadRequest().json(serde_json::json!({
-                            "error": "Invalid timeline encoding"
-                        }));
-                    }
-                };
+                break;
             }
             _ => {
                 let mut stream = field.into_stream();
@@ -158,15 +142,6 @@ pub async fn upload_revenue_recovery_report_stream_handler(
         }
     };
 
-    let extracted_timeline = match timeline {
-        Some(t) => t,
-        None => {
-            return HttpResponse::BadRequest().json(serde_json::json!({
-                "error": "Missing 'timeline' field in multipart form"
-            }));
-        }
-    };
-
     let file_stream = match file_content_stream {
         Some(stream) => stream,
         None => {
@@ -178,7 +153,7 @@ pub async fn upload_revenue_recovery_report_stream_handler(
 
     let metadata = RevenueRecoveryReportMetadata {
         file_name: extracted_file_name,
-        timeline: extracted_timeline,
+        timeline,
         content_type,
     };
 
