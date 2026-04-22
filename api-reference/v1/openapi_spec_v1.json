@@ -8765,7 +8765,8 @@
           "items": {
             "$ref": "#/components/schemas/AcquirerConfig"
           },
-          "description": "Flattened map of acquirer profiles keyed by configuration id"
+          "description": "Flattened map of acquirer profiles keyed by configuration id",
+          "example": "{\n        \"profile_acquirer_id\": \"profile_acquirer_id\",\n        \"acquirer_config\": {\n            \"acquirer_assigned_merchant_id\": \"M123456789\",\n            \"acquirer_merchant_name\": \"NewAge Retailer\",\n            \"network\": \"VISA\",\n            \"acquirer_bin\": \"456789\",\n            \"acquirer_ica\": \"401288\",\n            \"acquirer_fraud_rate\": 0.01,\n            \"acquirer_country_code\": \"US\"\n    }"
         }
       },
       "AcquirerData": {

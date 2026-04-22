@@ -131,6 +131,17 @@ pub struct AcquirerConfigMap {
     pub default_acquirer_config: Option<common_utils::id_type::ProfileAcquirerId>,
     /// Flattened map of acquirer profiles keyed by configuration id
     #[serde(flatten)]
+    #[schema(value_type= HashMap<String, Vec<AcquirerConfig>>, example = r#"{
+        "profile_acquirer_id": "profile_acquirer_id",
+        "acquirer_config": {
+            "acquirer_assigned_merchant_id": "M123456789",
+            "acquirer_merchant_name": "NewAge Retailer",
+            "network": "VISA",
+            "acquirer_bin": "456789",
+            "acquirer_ica": "401288",
+            "acquirer_fraud_rate": 0.01,
+            "acquirer_country_code": "US"
+    }"#)]
     pub configs: HashMap<common_utils::id_type::ProfileAcquirerId, Vec<AcquirerConfig>>,
 }
 
