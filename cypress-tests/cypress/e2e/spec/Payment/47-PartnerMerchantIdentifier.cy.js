@@ -38,24 +38,34 @@ describe("Partner Merchant Identifier Tests", () => {
         }
       });
 
-      cy.step("Retrieve Payment to verify persisted Partner Merchant Identifier", () => {
-        if (!shouldContinue) {
-          cy.task("cli_log", "Skipping step: Retrieve Payment to verify persisted Partner Merchant Identifier");
-          return;
+      cy.step(
+        "Retrieve Payment to verify persisted Partner Merchant Identifier",
+        () => {
+          if (!shouldContinue) {
+            cy.task(
+              "cli_log",
+              "Skipping step: Retrieve Payment to verify persisted Partner Merchant Identifier"
+            );
+            return;
+          }
+          const expectedPMIData = {
+            partner_details: {
+              name: "TestPartner",
+              version: "1.0.0",
+              integrator: "TestIntegrator123",
+            },
+            merchant_details: {
+              name: "TestMerchantApp",
+              version: "2.0.0",
+            },
+          };
+          cy.retrievePaymentWithPMICheckTest(
+            globalState,
+            "exists",
+            expectedPMIData
+          );
         }
-        const expectedPMIData = {
-          partner_details: {
-            name: "TestPartner",
-            version: "1.0.0",
-            integrator: "TestIntegrator123",
-          },
-          merchant_details: {
-            name: "TestMerchantApp",
-            version: "2.0.0",
-          },
-        };
-        cy.retrievePaymentWithPMICheckTest(globalState, "exists", expectedPMIData);
-      });
+      );
     });
   });
 
@@ -67,28 +77,37 @@ describe("Partner Merchant Identifier Tests", () => {
         "card_pm"
       ]["PaymentIntent"];
 
-      cy.step("Create Payment Intent without Partner Merchant Identifier", () => {
-        const requestBody = { ...fixtures.createPaymentBody };
-        cy.createPaymentIntentTest(
-          requestBody,
-          data,
-          "no_three_ds",
-          "automatic",
-          globalState
-        );
+      cy.step(
+        "Create Payment Intent without Partner Merchant Identifier",
+        () => {
+          const requestBody = { ...fixtures.createPaymentBody };
+          cy.createPaymentIntentTest(
+            requestBody,
+            data,
+            "no_three_ds",
+            "automatic",
+            globalState
+          );
 
-        if (!utils.should_continue_further(data)) {
-          shouldContinue = false;
+          if (!utils.should_continue_further(data)) {
+            shouldContinue = false;
+          }
         }
-      });
+      );
 
-      cy.step("Retrieve Payment to verify no Partner Merchant Identifier present", () => {
-        if (!shouldContinue) {
-          cy.task("cli_log", "Skipping step: Retrieve Payment to verify no Partner Merchant Identifier present");
-          return;
+      cy.step(
+        "Retrieve Payment to verify no Partner Merchant Identifier present",
+        () => {
+          if (!shouldContinue) {
+            cy.task(
+              "cli_log",
+              "Skipping step: Retrieve Payment to verify no Partner Merchant Identifier present"
+            );
+            return;
+          }
+          cy.retrievePaymentWithPMICheckTest(globalState, "null", null);
         }
-        cy.retrievePaymentWithPMICheckTest(globalState, "null", null);
-      });
+      );
     });
   });
 
@@ -114,28 +133,37 @@ describe("Partner Merchant Identifier Tests", () => {
         },
       };
 
-      cy.step("Create Payment Intent with empty partner_merchant_identifier_details", () => {
-        const requestBody = { ...fixtures.createPaymentBody };
-        cy.createPaymentIntentTest(
-          requestBody,
-          modifiedData,
-          "no_three_ds",
-          "automatic",
-          globalState
-        );
+      cy.step(
+        "Create Payment Intent with empty partner_merchant_identifier_details",
+        () => {
+          const requestBody = { ...fixtures.createPaymentBody };
+          cy.createPaymentIntentTest(
+            requestBody,
+            modifiedData,
+            "no_three_ds",
+            "automatic",
+            globalState
+          );
 
-        if (!utils.should_continue_further(modifiedData)) {
-          shouldContinue = false;
+          if (!utils.should_continue_further(modifiedData)) {
+            shouldContinue = false;
+          }
         }
-      });
+      );
 
-      cy.step("Verify empty partner_merchant_identifier_details returns nulls", () => {
-        if (!shouldContinue) {
-          cy.task("cli_log", "Skipping step: Verify empty partner_merchant_identifier_details returns nulls");
-          return;
+      cy.step(
+        "Verify empty partner_merchant_identifier_details returns nulls",
+        () => {
+          if (!shouldContinue) {
+            cy.task(
+              "cli_log",
+              "Skipping step: Verify empty partner_merchant_identifier_details returns nulls"
+            );
+            return;
+          }
+          cy.retrievePaymentWithPMICheckTest(globalState, "empty", null);
         }
-        cy.retrievePaymentWithPMICheckTest(globalState, "empty", null);
-      });
+      );
     });
   });
 });
