@@ -109,9 +109,12 @@ describe("Partner Merchant Identifier Tests", () => {
           expect(response.status).to.eq(200);
           expect(response.body.payment_id).to.eq(payment_id);
           expect(
-            response.body,
-            "payment without PMI"
-          ).to.not.have.property("partner_merchant_identifier_details");
+            response.body.partner_merchant_identifier_details,
+            "partner_merchant_identifier_details without PMI"
+          ).to.deep.eq({
+            partner_details: null,
+            merchant_details: null,
+          });
         });
       });
     });
