@@ -1971,10 +1971,16 @@ Cypress.Commands.add(
           );
           cy.log(clientSecret);
           for (const key in resData.body) {
-            expect(resData.body[key]).to.equal(
-              response.body[key],
-              `Expected ${resData.body[key]} but got ${response.body[key]}`
-            );
+            if (typeof resData.body[key] === "object" && resData.body[key] !== null) {
+              expect(response.body[key], `Expected ${key} to deep equal`).to.deep.eq(
+                resData.body[key]
+              );
+            } else {
+              expect(resData.body[key]).to.equal(
+                response.body[key],
+                `Expected ${resData.body[key]} but got ${response.body[key]}`
+              );
+            }
           }
           expect(response.body.payment_id, "payment_id").to.not.be.null;
           expect(response.body.merchant_id, "merchant_id").to.not.be.null;
@@ -4905,31 +4911,6 @@ Cypress.Commands.add("retrievePayoutCallTest", (globalState) => {
   });
 });
 
-Cypress.Commands.add(
-  "retrievePaymentWithPmiAssertion",
-  ({ globalState, expectedPmi = null }) => {
-    const payment_id = globalState.get("paymentID");
-    const headers = {
-      "Content-Type": "application/json",
-      "api-key": globalState.get("apiKey"),
-    };
-    cy.request({
-      method: "GET",
-      url: `${globalState.get("baseUrl")}/payments/${payment_id}?force_sync=true`,
-      headers,
-      failOnStatusCode: false,
-    }).then((response) => {
-      logRequestId(response.headers["x-request-id"]);
-      storeRequestId(response.headers["x-request-id"], globalState);
-      cy.wrap(response).should("have.property", "status", 200);
-      expect(response.body.payment_id).to.equal(payment_id);
-      expect(
-        response.body.partner_merchant_identifier_details,
-        "partner_merchant_identifier_details"
-      ).to.deep.eq(expectedPmi);
-    });
-  }
-);
 
 // User API calls
 // Below 3 commands should be called in sequence to login a user
@@ -6554,47 +6535,4 @@ Cypress.Commands.add("blocklistToggle", (status, globalState) => {
   });
 });
 
-Cypress.Commands.add(
-  "retrievePaymentWithPMICheckTest",
-  (globalState, expectedPMICheckType = "exists", expectedPMIData = null) => {
-    const payment_id = globalState.get("paymentID");
-    const headers = {
-      "Content-Type": "application/json",
-      "api-key": globalState.get("apiKey"),
-    };
 
-    cy.request({
-      method: "GET",
-      url: `${globalState.get("baseUrl")}/payments/${payment_id}?force_sync=true`,
-      headers,
-      failOnStatusCode: false,
-    }).then((response) => {
-      logRequestId(response.headers["x-request-id"]);
-
-      cy.wrap(response).then(() => {
-        expect(response.status).to.eq(200);
-        expect(response.body.payment_id).to.eq(payment_id);
-
-        if (expectedPMICheckType === "exists") {
-          expect(
-            response.body.partner_merchant_identifier_details,
-            "partner_merchant_identifier_details"
-          ).to.deep.eq(expectedPMIData);
-        } else if (expectedPMICheckType === "null") {
-          expect(
-            response.body.partner_merchant_identifier_details,
-            "partner_merchant_identifier_details without PMI"
-          ).to.eq(null);
-        } else if (expectedPMICheckType === "empty") {
-          expect(
-            response.body.partner_merchant_identifier_details,
-            "partner_merchant_identifier_details"
-          ).to.deep.eq({
-            partner_details: null,
-            merchant_details: null,
-          });
-        }
-      });
-    });
-  }
-);

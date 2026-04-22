@@ -48,22 +48,7 @@ describe("Partner Merchant Identifier Tests", () => {
             );
             return;
           }
-          const expectedPMIData = {
-            partner_details: {
-              name: "TestPartner",
-              version: "1.0.0",
-              integrator: "TestIntegrator123",
-            },
-            merchant_details: {
-              name: "TestMerchantApp",
-              version: "2.0.0",
-            },
-          };
-          cy.retrievePaymentWithPMICheckTest(
-            globalState,
-            "exists",
-            expectedPMIData
-          );
+          cy.retrievePaymentCallTest({ globalState, data });
         }
       );
     });
@@ -105,7 +90,7 @@ describe("Partner Merchant Identifier Tests", () => {
             );
             return;
           }
-          cy.retrievePaymentWithPMICheckTest(globalState, "null", null);
+          cy.retrievePaymentCallTest({ globalState, data });
         }
       );
     });
@@ -161,7 +146,7 @@ describe("Partner Merchant Identifier Tests", () => {
             );
             return;
           }
-          cy.retrievePaymentWithPMICheckTest(globalState, "empty", null);
+          cy.retrievePaymentCallTest({ globalState, data: modifiedData });
         }
       );
     });
