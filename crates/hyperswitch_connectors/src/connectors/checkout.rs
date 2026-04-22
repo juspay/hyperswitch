@@ -209,6 +209,7 @@ impl ConnectorValidation for Checkout {
             PaymentMethodDataType::NetworkTransactionIdAndCardDetails,
             PaymentMethodDataType::GooglePay,
             PaymentMethodDataType::ApplePay,
+            PaymentMethodDataType::NetworkToken,
         ]);
         is_mandate_supported(pm_data, pm_type, mandate_supported_pmd, self.id())
     }
