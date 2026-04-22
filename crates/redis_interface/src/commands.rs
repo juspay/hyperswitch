@@ -2245,17 +2245,11 @@ mod tests {
                     .await
                     .expect("failed to subscribe");
 
-                // Get the receiver BEFORE spawning manage_subscriptions,
+                // Get the receiver BEFORE publishing,
                 // otherwise the broadcast may send before we're listening.
                 let mut receiver = pool.subscriber.message_rx();
 
-                // Spawn the message loop so published messages get broadcast
-                let subscriber = pool.subscriber.clone();
-                let _handle = tokio::spawn(async move {
-                    subscriber.manage_subscriptions().await;
-                });
-
-                // Give the message loop a moment to start
+                // Give the background task a moment to process the subscription
                 tokio::time::sleep(std::time::Duration::from_millis(100)).await;
 
                 // Act — publish a message. `publisher` is an Arc<RedisClient> field.
@@ -2325,23 +2319,15 @@ mod tests {
     async fn test_resp3_set_and_get() {
         let is_success = tokio::task::spawn_blocking(move || {
             futures::executor::block_on(async {
-                // Arrange — use_legacy_version = false enables RESP3
-                let settings = RedisSettings {
-                    use_legacy_version: false,
-                    ..RedisSettings::default()
-                };
-
-                let pool = RedisConnectionPool::new(&settings)
+                let pool = RedisConnectionPool::new(&RedisSettings::default())
                     .await
-                    .expect("failed to create redis connection pool with RESP3");
+                    .expect("failed to create redis connection pool");
 
-                // Act — set and get a key
                 let key: crate::types::RedisKey = format!("test_resp3_{}", unique_test_id()).into();
                 let value = "resp3_value".to_string();
                 let _ = pool.set_key(&key, value.clone()).await;
                 let result: Result<String, _> = pool.get_key(&key).await;
 
-                // Assert — RESP3 connection works for basic operations
                 result.is_ok() && result.unwrap() == value
             })
         })
@@ -2713,13 +2699,7 @@ mod tests {
     async fn test_hscan_returns_values() {
         let is_success = tokio::task::spawn_blocking(move || {
             futures::executor::block_on(async {
-                // Use RESP2 (use_legacy_version = true) since iter_async
-                // has known issues with RESP3 HSCAN cursor parsing
-                let settings = RedisSettings {
-                    use_legacy_version: true,
-                    ..RedisSettings::default()
-                };
-                let pool = RedisConnectionPool::new(&settings)
+                let pool = RedisConnectionPool::new(&RedisSettings::default())
                     .await
                     .expect("failed to create redis connection pool");
                 let unique_id = unique_test_id();
@@ -3861,12 +3841,6 @@ mod tests {
                     .expect("failed to subscribe on cluster");
 
                 let mut receiver = pool.subscriber.message_rx();
-
-                // Spawn message loop
-                let subscriber = pool.subscriber.clone();
-                let _handle = tokio::spawn(async move {
-                    subscriber.manage_subscriptions().await;
-                });
 
                 tokio::time::sleep(std::time::Duration::from_millis(100)).await;
 
