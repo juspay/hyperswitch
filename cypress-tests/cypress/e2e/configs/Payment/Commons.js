@@ -1,13 +1,56 @@
 // This file is the default. To override, add to connector.js
 import { getCurrency, getCustomExchange } from "./Modifiers";
 
-export const blockedPaymentErrorBody = {
+export const blockedPaymentErrorBodyForIssuingCountry = {
   status: 200,
   expectBlockedPayment: true,
   body: {
     error: {
       type: "blocked",
-      message: "This payment method is blocked",
+      message:
+        "Cards issued in your region aren't supported for this transaction, please try a different card",
+      code: "HE_03",
+      reason: "Blocked",
+    },
+  },
+};
+
+export const blockedPaymentErrorBodyForDebitCard = {
+  status: 200,
+  expectBlockedPayment: true,
+  body: {
+    error: {
+      type: "blocked",
+      message:
+        "Debit cards are not accepted for this transaction, please try a different card",
+      code: "HE_03",
+      reason: "Blocked",
+    },
+  },
+};
+
+export const blockedPaymentErrorBodyForCardSubtype = {
+  status: 200,
+  expectBlockedPayment: true,
+  body: {
+    error: {
+      type: "blocked",
+      message:
+        "This card is not accepted for this transaction, please try a different card",
+      code: "HE_03",
+      reason: "Blocked",
+    },
+  },
+};
+
+export const blockedPaymentErrorBodyForBinUnavailable = {
+  status: 200,
+  expectBlockedPayment: true,
+  body: {
+    error: {
+      type: "blocked",
+      message:
+        "We're unable to accept this card, please try another card or a different payment method",
       code: "HE_03",
       reason: "Blocked",
     },
@@ -2317,7 +2360,8 @@ export const connectorDetails = {
           sdk_next_action: {
             next_action: {
               deny: {
-                message: "Card number is blocklisted",
+                message:
+                  "We're unable to accept this card, please try another card or a different payment method",
               },
             },
           },
@@ -2372,7 +2416,7 @@ export const connectorDetails = {
           },
         },
       },
-      Response: blockedPaymentErrorBody,
+      Response: blockedPaymentErrorBodyForIssuingCountry,
     }),
     BlockCardType: getCustomExchange({
       Request: {
@@ -2388,7 +2432,7 @@ export const connectorDetails = {
           },
         },
       },
-      Response: blockedPaymentErrorBody,
+      Response: blockedPaymentErrorBodyForDebitCard,
     }),
     BlockCardSubtype: getCustomExchange({
       Request: {
@@ -2404,7 +2448,7 @@ export const connectorDetails = {
           },
         },
       },
-      Response: blockedPaymentErrorBody,
+      Response: blockedPaymentErrorBodyForCardSubtype,
     }),
     BlockIfBinInfoUnavailable: getCustomExchange({
       Request: {
@@ -2420,7 +2464,7 @@ export const connectorDetails = {
           },
         },
       },
-      Response: blockedPaymentErrorBody,
+      Response: blockedPaymentErrorBodyForBinUnavailable,
     }),
   },
 };
