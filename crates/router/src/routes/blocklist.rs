@@ -37,12 +37,12 @@ pub async fn add_entry_to_blocklist(
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
-                allow_connected_scope_operation: false,
+                allow_connected_scope_operation: true,
                 allow_platform_self_operation: false,
             }),
             &auth::JWTAuth {
                 permission: Permission::MerchantAccountWrite,
-                allow_connected: false,
+                allow_connected: true,
                 allow_platform: false,
             },
             req.headers(),
@@ -76,16 +76,16 @@ pub async fn remove_entry_from_blocklist(
         &req,
         json_payload.into_inner(),
         |state, auth: auth::AuthenticationData, body, _| {
-            blocklist::remove_entry_from_blocklist(state, auth.platform, body)
+            blocklist::remove_entry_from_blocklist(state, auth.platform.get_processor().clone(), body)
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
-                allow_connected_scope_operation: false,
+                allow_connected_scope_operation: true,
                 allow_platform_self_operation: false,
             }),
             &auth::JWTAuth {
                 permission: Permission::MerchantAccountWrite,
-                allow_connected: false,
+                allow_connected: true,
                 allow_platform: false,
             },
             req.headers(),
@@ -118,7 +118,7 @@ pub async fn list_blocked_payment_methods(
     let payload = query_payload.into_inner();
 
     let api_auth = auth::ApiKeyAuth {
-        allow_connected_scope_operation: false,
+        allow_connected_scope_operation: true,
         allow_platform_self_operation: false,
     };
 
@@ -138,13 +138,13 @@ pub async fn list_blocked_payment_methods(
                 query.client_secret = Some(client_secret);
             }
 
-            blocklist::list_blocklist_entries(state, auth.platform, query)
+            blocklist::list_blocklist_entries(state, auth.platform.get_processor().clone(), query)
         },
         auth::auth_type(
             &*auth_type,
             &auth::JWTAuth {
                 permission: Permission::MerchantAccountRead,
-                allow_connected: false,
+                allow_connected: true,
                 allow_platform: false,
             },
             req.headers(),
@@ -180,16 +180,16 @@ pub async fn toggle_blocklist_guard(
         &req,
         query_payload.into_inner(),
         |state, auth: auth::AuthenticationData, query, _| {
-            blocklist::toggle_blocklist_guard(state, auth.platform, query)
+            blocklist::toggle_blocklist_guard(state, auth.platform.get_processor().clone(), query)
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
-                allow_connected_scope_operation: false,
+                allow_connected_scope_operation: true,
                 allow_platform_self_operation: false,
             }),
             &auth::JWTAuth {
                 permission: Permission::MerchantAccountWrite,
-                allow_connected: false,
+                allow_connected: true,
                 allow_platform: false,
             },
             req.headers(),
