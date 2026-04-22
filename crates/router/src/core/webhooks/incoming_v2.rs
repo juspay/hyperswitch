@@ -249,13 +249,8 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
         event_type,
         webhooks::IncomingWebhookEvent::EventNotSupported
     );
-    let is_webhook_event_enabled = !utils::is_webhook_event_disabled(
-        &state,
-        connector_enum,
-        &dimensions,
-        &event_type,
-    )
-    .await;
+    let is_webhook_event_enabled =
+        !utils::is_webhook_event_disabled(&state, connector_enum, &dimensions, &event_type).await;
 
     //process webhook further only if webhook event is enabled and is not event_not_supported
     let process_webhook_further = is_webhook_event_enabled && is_webhook_event_supported;
@@ -831,11 +826,8 @@ async fn fetch_mca_and_connector(
         .attach_printable("error while fetching merchant_connector_account from connector_id")?;
 
     let connector_enum = mca.connector_name;
-    let (connector, connector_name) = get_connector_by_connector_name(
-        state,
-        &connector_enum.to_string(),
-        Some(mca.get_id()),
-    )?;
+    let (connector, connector_name) =
+        get_connector_by_connector_name(state, &connector_enum.to_string(), Some(mca.get_id()))?;
 
     Ok((mca, connector, connector_enum, connector_name))
 }

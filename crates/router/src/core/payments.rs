@@ -11599,8 +11599,7 @@ pub async fn payment_external_authentication<F: Clone + Sync>(
         if helpers::is_merchant_eligible_authentication_service(platform.get_processor(), &state)
             .await?
         {
-            let routing_region =
-                uas_utils::fetch_routing_region_for_uas(&state, &dimensions).await;
+            let routing_region = uas_utils::fetch_routing_region_for_uas(&state, &dimensions).await;
             let auth_response =
                 <ExternalAuthentication as UnifiedAuthenticationService>::authentication(
                     &state,

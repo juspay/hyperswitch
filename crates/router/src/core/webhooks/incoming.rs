@@ -421,9 +421,7 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
         .change_context(errors::ApiErrorResponse::InvalidDataValue {
             field_name: "connector",
         })
-        .attach_printable_lazy(|| {
-            format!("unable to parse connector name {connector_name:?}")
-        })?;
+        .attach_printable_lazy(|| format!("unable to parse connector name {connector_name:?}"))?;
     let is_webhook_event_enabled = !utils::is_webhook_event_disabled(
         &state,
         connector_enum,
