@@ -173,11 +173,17 @@ impl SubscriberClient {
                 conf.default_command_timeout.max(1),
             ));
 
-        if conf.max_in_flight_commands > 0 {
-            cluster_builder = cluster_builder.connection_concurrency_limit(
-                usize::try_from(conf.max_in_flight_commands).expect("max_in_flight_commands exceeds usize"),
-            );
-        }
+                if conf.max_in_flight_commands > 0 {
+                    let limit = usize::try_from(conf.max_in_flight_commands)
+                        .unwrap_or_else(|_| {
+                            tracing::warn!(
+                                "max_in_flight_commands ({}) exceeds usize, using usize::MAX",
+                                conf.max_in_flight_commands
+                            );
+                            usize::MAX
+                        });
+                    cluster_builder = cluster_builder.connection_concurrency_limit(limit);
+                }
 
         let cluster_client = cluster_builder
             .build()
