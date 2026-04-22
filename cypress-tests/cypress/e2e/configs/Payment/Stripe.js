@@ -1091,6 +1091,41 @@ export const connectorDetails = {
         },
       },
     },
+    PaymentIntentWithBillingDescriptor: {
+      Request: {
+        currency: "USD",
+        amount: 6540,
+        authentication_type: "no_three_ds",
+        capture_method: "automatic",
+        billing_descriptor: {
+          statement_descriptor: "QA-BillingDesc",
+          statement_descriptor_suffix: "SUFFIX1",
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+          billing_descriptor: {
+            name: null,
+            city: null,
+            phone: null,
+            statement_descriptor: "QA-BillingDesc",
+            statement_descriptor_suffix: "SUFFIX1",
+            reference: null,
+          },
+        },
+      },
+    },
+    PaymentConfirmWithBillingDescriptor: {
+      Request: {},
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    },
   },
   pm_list: {
     PmListResponse: {

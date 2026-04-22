@@ -959,5 +959,71 @@ export const connectorDetails = {
         },
       },
     },
+    PaymentIntentWithBillingDescriptor: {
+      Request: {
+        currency: "USD",
+        amount: 6540,
+        authentication_type: "no_three_ds",
+        capture_method: "automatic",
+        billing_descriptor: {
+          name: "Juspay",
+          phone: "8056594427",
+        },
+        email: "test@example.com",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+          billing_descriptor: {
+            name: "Juspay",
+            city: null,
+            phone: "8056594427",
+            statement_descriptor: null,
+            statement_descriptor_suffix: null,
+            reference: null,
+          },
+        },
+      },
+    },
+    PaymentConfirmWithBillingDescriptor: {
+      Request: {},
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    },
+    PaymentIntentWithBillingDescriptorInvalidPhone: {
+      Request: {
+        currency: "USD",
+        amount: 6540,
+        authentication_type: "no_three_ds",
+        capture_method: "automatic",
+        billing_descriptor: {
+          name: "Juspay",
+          phone: "12345678901234",
+        },
+        email: "test@example.com",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+        },
+      },
+    },
+    PaymentConfirmWithBillingDescriptorInvalidPhone: {
+      Request: {},
+      Response: {
+        status: 400,
+        body: {
+          error: {
+            code: "IR_47",
+          },
+        },
+      },
+    },
   },
 };
