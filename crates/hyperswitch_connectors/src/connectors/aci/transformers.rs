@@ -1044,6 +1044,13 @@ pub struct Instruction {
     #[serde(rename = "standingInstruction.frequency")]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub frequency: Option<String>,
+
+    /// Mastercard Economically Related Transaction ID (TLID).
+    /// Returned by Mastercard on initial CIT and must be echoed on all subsequent MITs.
+    /// During the transitional period both this and `initialTransactionId` must be sent.
+    #[serde(rename = "standingInstruction.agreementId")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub agreement_id: Option<String>,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, Serialize)]
@@ -1504,6 +1511,7 @@ fn get_instruction_details(
             reason: None,
             expiry: None,
             frequency: None,
+            agreement_id: None,
         });
     } else if item.router_data.request.mandate_id.is_some() {
         // For MIT: pass the CITI (traceId) as standingInstruction.initialTransactionId.
@@ -1538,6 +1546,16 @@ fn get_instruction_details(
             _ => None,
         };
 
+        // Read Mastercard agreementId (TLID) stored in mandate_metadata from the initial CIT.
+        // During the transitional period both agreementId and initialTransactionId must be sent.
+        let agreement_id = item
+            .router_data
+            .request
+            .mandate_id
+            .as_ref()
+            .and_then(|m| m.get_connector_mandate_metadata())
+            .and_then(|meta| meta.peek()["agreementId"].as_str().map(|s| s.to_string()));
+
         return Some(Instruction {
             mode: InstructionMode::Subsequent,
             transaction_type,
@@ -1547,6 +1565,7 @@ fn get_instruction_details(
             reason,
             expiry: None,
             frequency: None,
+            agreement_id,
         });
     } else if matches!(
         item.router_data.request.setup_future_usage,
@@ -1564,6 +1583,7 @@ fn get_instruction_details(
             reason: None,
             expiry: None,
             frequency: None,
+            agreement_id: None,
         });
     }
     None
@@ -1739,6 +1759,9 @@ pub struct AciPaymentsResponse {
     #[serde(rename = "threeDSecure")]
     #[serde(skip_serializing)]
     three_d_secure: Option<AciThreeDSecureResponse>,
+    /// Standing instruction fields (Mastercard agreementId/TLID returned on initial CIT)
+    #[serde(skip_serializing)]
+    standing_instruction: Option<AciResponseStandingInstruction>,
 }
 
 /// Masked card details returned in an ACI payment response.
@@ -1774,6 +1797,16 @@ pub struct AciResponseResultDetails {
     pub auth_code: Option<String>,
     #[serde(rename = "MerchantAdviceCode")]
     pub merchant_advice_code: Option<String>,
+}
+
+/// Standing instruction fields returned in an ACI payment response.
+/// Mastercard returns `agreementId` (TLID) on initial CIT responses.
+/// During the transitional period both `agreementId` and `initialTransactionId` are returned.
+#[derive(Debug, Default, Clone, Deserialize, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AciResponseStandingInstruction {
+    pub agreement_id: Option<String>,
+    pub initial_transaction_id: Option<String>,
 }
 
 #[derive(Debug, Default, Clone, Deserialize, PartialEq, Eq, Serialize)]
@@ -1919,6 +1952,16 @@ where
         // connector_mandate_id = ACI registrationId (RG ID) — used for subsequent MIT lookup.
         // connector_mandate_request_reference_id = CITI (traceId) — passed as
         // standingInstruction.initialTransactionId on subsequent MIT requests.
+        // mandate_metadata = JSON with Mastercard agreementId (TLID) when present —
+        // both agreementId and initialTransactionId must be sent during the transitional period.
+        let agreement_id = item
+            .response
+            .standing_instruction
+            .as_ref()
+            .and_then(|si| si.agreement_id.clone());
+        let mandate_metadata = agreement_id.as_ref().map(|aid| {
+            Secret::new(serde_json::json!({ "agreementId": aid }))
+        });
         let mandate_reference = item
             .response
             .registration_id
@@ -1926,7 +1969,7 @@ where
             .map(|id| MandateReference {
                 connector_mandate_id: Some(id.expose()),
                 payment_method_id: None,
-                mandate_metadata: None,
+                mandate_metadata,
                 connector_mandate_request_reference_id: citi.clone(),
             });
 
