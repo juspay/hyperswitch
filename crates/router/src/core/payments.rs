@@ -8747,18 +8747,11 @@ impl PaymentEligibilityData {
         platform: &domain::Platform,
         payments_eligibility_request: &api_models::payments::PaymentsEligibilityRequest,
     ) -> CustomResult<Self, errors::ApiErrorResponse> {
-        let has_payment_token = payments_eligibility_request.payment_token.is_some();
-        let has_payment_method_data = payments_eligibility_request
-            .payment_method_data
-            .as_ref()
-            .and_then(|pmd| pmd.payment_method_data.as_ref())
-            .is_some();
-
-        utils::when(!has_payment_token && !has_payment_method_data, || {
-            Err(errors::ApiErrorResponse::MissingRequiredField {
+        payments_eligibility_request
+            .validate_payment_method_input()
+            .change_context(errors::ApiErrorResponse::MissingRequiredField {
                 field_name: "Either payment_token or payment_method_data",
-            })
-        })?;
+            })?;
         let payment_intent = state
             .store
             .find_payment_intent_by_payment_id_processor_merchant_id(

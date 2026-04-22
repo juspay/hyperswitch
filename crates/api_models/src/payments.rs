@@ -12422,6 +12422,30 @@ pub struct PaymentsEligibilityRequest {
     pub payment_token: Option<Secret<String>>,
 }
 
+#[cfg(feature = "v1")]
+impl PaymentsEligibilityRequest {
+    /// Validates that either payment_token or payment_method_data is provided
+    pub fn validate_payment_method_input(
+        &self,
+    ) -> common_utils::errors::CustomResult<(), ValidationError> {
+        let has_payment_token = self.payment_token.is_some();
+        let has_payment_method_data = self
+            .payment_method_data
+            .as_ref()
+            .and_then(|pmd| pmd.payment_method_data.as_ref())
+            .is_some();
+
+        if !has_payment_token && !has_payment_method_data {
+            return Err(ValidationError::MissingRequiredField {
+                field_name: "Either payment_token or payment_method_data".to_string(),
+            }
+            .into());
+        }
+
+        Ok(())
+    }
+}
+
 /// Card data for eligibility check — only card_number is required, no CVV needed
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema, Eq, PartialEq)]
 pub struct EligibilityCard {
@@ -12531,11 +12555,10 @@ pub enum EligibilityPaymentMethodData {
     NetworkToken(NetworkTokenData),
 }
 
-/// Custom deserializer for EligibilityPaymentMethodDataRequest.
+/// Custom deserializer for `Option<EligibilityPaymentMethodDataRequest>`.
 /// Required to catch deserialization errors: bare #[serde(flatten)] on
 /// Option<ExternallyTaggedEnum> uses FlatMapDeserializer which swallows all
-/// errors and returns None, hiding malformed card data. This mirrors the
-/// approach used by payment_method_data_serde for PaymentMethodDataRequest.
+/// errors and returns None, hiding malformed card data.
 #[cfg(feature = "v1")]
 mod eligibility_payment_method_data_serde {
     use super::*;
