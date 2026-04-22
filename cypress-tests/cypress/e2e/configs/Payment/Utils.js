@@ -516,6 +516,7 @@ export const CONNECTOR_LISTS = {
       "trustpay",
       "finix",
     ],
+    BILLING_DESCRIPTOR_INVALID_PHONE: ["nuvei"],
     AUTO_RETRY: [
       "cybersource",
       "checkout",
