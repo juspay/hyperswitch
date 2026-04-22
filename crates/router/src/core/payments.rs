@@ -12016,7 +12016,7 @@ impl EligibilityCheck for BlockListCheck {
             .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
             .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id());
 
-        let should_payment_be_blocked = blocklist_utils::should_payment_be_blocked(
+        let block_reason = blocklist_utils::should_payment_be_blocked(
             state,
             platform.get_processor(),
             &dimensions,
@@ -12024,12 +12024,14 @@ impl EligibilityCheck for BlockListCheck {
             business_profile,
         )
         .await?;
-        if should_payment_be_blocked {
-            Ok(CheckResult::Deny {
-                message: "Card number is blocklisted".to_string(),
-            })
-        } else {
-            Ok(CheckResult::Allow)
+        match block_reason {
+            Some(reason) => {
+                logger::warn!(block_reason = ?reason, "Payment blocked by blocklist");
+                Ok(CheckResult::Deny {
+                    message: reason.error_message(),
+                })
+            }
+            None => Ok(CheckResult::Allow),
         }
     }
 
