@@ -550,7 +550,7 @@ jobs:
         ports:
           - 5432:5432
       superposition:
-        image: ghcr.io/juspay/superposition-demo:latest
+        image: ghcr.io/juspay/superposition-demo:0.102.0
         env:
           API_HOSTNAME: http://localhost:8081
         ports:
@@ -748,7 +748,7 @@ jobs:
         ports:
           - 5432:5432
       superposition:
-        image: ghcr.io/juspay/superposition-demo:latest
+        image: ghcr.io/juspay/superposition-demo:0.102.0
         env:
           API_HOSTNAME: http://localhost:8081
         ports:
@@ -979,7 +979,7 @@ jobs:
         ports:
           - 5432:5432
       superposition:
-        image: ghcr.io/juspay/superposition-demo:latest
+        image: ghcr.io/juspay/superposition-demo:0.102.0
         env:
           API_HOSTNAME: http://localhost:8081
         ports:

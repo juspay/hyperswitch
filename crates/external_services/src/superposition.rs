@@ -356,16 +356,6 @@ impl SuperpositionClient {
 
         let change_reason = generate_change_reason(T::SUPERPOSITION_KEY);
 
-        // Log request details before API call
-        router_env::logger::info!(
-            "Superposition set_config_value request: key='{}', org_id='{}', workspace_id='{}', context={:?}, change_reason='{}'",
-            T::SUPERPOSITION_KEY,
-            self.org_id,
-            self.workspace_id,
-            context.values,
-            change_reason
-        );
-
         builder = builder
             .r#override(T::SUPERPOSITION_KEY, value.to_document())
             .change_reason(change_reason)
