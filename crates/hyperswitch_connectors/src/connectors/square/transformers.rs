@@ -3,7 +3,10 @@ use common_enums::enums;
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     payment_method_data::{BankDebitData, Card, PayLaterData, PaymentMethodData, WalletData},
-    router_data::{ConnectorAuthType, PaymentMethodToken, RouterData},
+    router_data::{
+        AdditionalPaymentMethodConnectorResponse, ConnectorAuthType, ConnectorResponseData,
+        PaymentMethodToken, RouterData,
+    },
     router_flow_types::{refunds::Execute, RSync},
     router_request_types::ResponseId,
     router_response_types::{PaymentsResponseData, RefundsResponseData},
@@ -386,11 +389,18 @@ impl From<SquarePaymentStatus> for enums::AttemptStatus {
 }
 
 #[derive(Debug, Deserialize, Serialize)]
+pub struct SquareCardPaymentDetails {
+    pub avs_status: Option<String>,
+    pub cvv_status: Option<String>,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
 pub struct SquarePaymentsResponseDetails {
     status: SquarePaymentStatus,
     id: String,
     amount_money: SquarePaymentsAmountData,
     reference_id: Option<String>,
+    card_details: Option<SquareCardPaymentDetails>,
 }
 #[derive(Debug, Deserialize, Serialize)]
 pub struct SquarePaymentsResponse {
@@ -410,6 +420,32 @@ impl<F, T> TryFrom<ResponseRouterData<F, SquarePaymentsResponse, T, PaymentsResp
         if status == enums::AttemptStatus::Charged {
             amount_captured = Some(item.response.payment.amount_money.amount)
         };
+        let connector_response_data =
+            item.response
+                .payment
+                .card_details
+                .as_ref()
+                .and_then(|card| {
+                    if card.avs_status.is_some() || card.cvv_status.is_some() {
+                        let payment_checks = serde_json::json!({
+                            "avs_status": card.avs_status,
+                            "cvv_status": card.cvv_status,
+                            "avs_result": card.avs_status,
+                            "card_validation_result": card.cvv_status,
+                        });
+                        Some(ConnectorResponseData::with_additional_payment_method_data(
+                            AdditionalPaymentMethodConnectorResponse::Card {
+                                authentication_data: None,
+                                payment_checks: Some(payment_checks),
+                                card_network: None,
+                                domestic_network: None,
+                                auth_code: None,
+                            },
+                        ))
+                    } else {
+                        None
+                    }
+                });
         Ok(Self {
             status,
             response: Ok(PaymentsResponseData::TransactionResponse {
@@ -423,6 +459,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, SquarePaymentsResponse, T, PaymentsResp
                 authentication_data: None,
                 charges: None,
             }),
+            connector_response: connector_response_data,
             amount_captured,
             ..item.data
         })
