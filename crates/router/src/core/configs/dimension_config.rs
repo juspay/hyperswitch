@@ -14,6 +14,8 @@ use crate::{
     db::StorageInterface, utils::id_type,
 };
 
+
+
 /// Macro to generate config struct and superposition::Config trait implementation.
 /// Note: Manually implement `DatabaseBackedConfig` for the config struct:
 /// The `fetch_db` method is provided by the default implementation in DatabaseBackedConfig.
