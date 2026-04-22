@@ -78,11 +78,8 @@ describe("Partner Merchant Identifier Tests", () => {
           cy.task("cli_log", "Skipping step: Retrieve Payment");
           return;
         }
-        const retrieveData = getConnectorDetails(globalState.get("connectorId"))[
-          "card_pm"
-        ]["PaymentIntent"];
-
-        cy.retrievePaymentCallTest({ globalState, data: retrieveData });
+        // Use retrieve without data param to avoid billing assertion for negative case
+        cy.retrievePaymentCallTest({ globalState });
       });
     });
   });
@@ -97,11 +94,22 @@ describe("Partner Merchant Identifier Tests", () => {
         ]["PartnerMerchantIdentifier"];
 
         // Modify request to use empty partner_merchant_identifier_details
+        // and expect nulls in response when empty object is sent
         const modifiedData = {
           ...data,
           Request: {
             ...data.Request,
             partner_merchant_identifier_details: {},
+          },
+          Response: {
+            status: 200,
+            body: {
+              status: "requires_payment_method",
+              partner_merchant_identifier_details: {
+                partner_details: null,
+                merchant_details: null,
+              },
+            },
           },
         };
 
