@@ -244,7 +244,8 @@ jobs:
           --health-cmd "wget -qO- http://localhost:8080/health || exit 1"
           --health-interval 10s
           --health-timeout 5s
-          --health-retries 10
+          --health-retries 30
+          --health-start-period 60s
 
     steps:
       - name: Skip tests for PRs from forks
@@ -572,7 +573,8 @@ jobs:
           --health-cmd "wget -qO- http://localhost:8080/health || exit 1"
           --health-interval 10s
           --health-timeout 5s
-          --health-retries 10
+          --health-retries 30
+          --health-start-period 60s
 
     steps:
       - name: Checkout repository
@@ -771,7 +773,8 @@ jobs:
           --health-cmd "wget -qO- http://localhost:8080/health || exit 1"
           --health-interval 10s
           --health-timeout 5s
-          --health-retries 10
+          --health-retries 30
+          --health-start-period 60s
 
     steps:
       - name: Skip tests for PRs from forks
@@ -1003,7 +1006,8 @@ jobs:
           --health-cmd "wget -qO- http://localhost:8080/health || exit 1"
           --health-interval 10s
           --health-timeout 5s
-          --health-retries 10
+          --health-retries 30
+          --health-start-period 60s
 
     steps:
       - name: Skip tests for PRs from forks
