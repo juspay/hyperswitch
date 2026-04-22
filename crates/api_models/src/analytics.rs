@@ -1,11 +1,7 @@
 use std::collections::HashSet;
 
 pub use common_utils::types::TimeRange;
-use common_utils::{
-    events::ApiEventMetric,
-    pii::Email,
-    types::authentication::AuthInfo,
-};
+use common_utils::{events::ApiEventMetric, pii::Email, types::authentication::AuthInfo};
 
 use self::{
     active_payments::ActivePaymentsMetrics,
@@ -564,16 +560,7 @@ pub enum ReportType {
     RevenueRecovery,
 }
 
-#[derive(
-    Debug,
-    serde::Deserialize,
-    serde::Serialize,
-    Clone,
-    PartialEq,
-    Eq,
-    Hash,
-    PartialOrd,
-)]
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone, PartialEq, Eq, Hash, PartialOrd)]
 /// This domain type is specifically for merchant webhook URLs with validation
 pub struct MerchantWebhookUrl(url::Url);
 
@@ -616,4 +603,3 @@ impl MerchantWebhookUrl {
         Err("URL scheme must be HTTPS".to_string())
     }
 }
-

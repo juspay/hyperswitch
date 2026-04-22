@@ -25,7 +25,9 @@ pub async fn request_validator(
 
 pub fn validate_report_request(request: &ReportRequest) -> Result<(), AnalyticsError> {
     match request.return_url {
-        Some(ref return_url) => return_url.verify_https_scheme().map_err(AnalyticsError::InvalidReturnUrl),
+        Some(ref return_url) => return_url
+            .verify_https_scheme()
+            .map_err(AnalyticsError::InvalidReturnUrl),
         None => Ok(()),
     }
 }
