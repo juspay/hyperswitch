@@ -181,6 +181,20 @@ export const connectorDetails = {
         },
       },
     },
+    IncrementalAuth: {
+      Request: {
+        amount: 8000,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_capture",
+          amount: 8000,
+          amount_capturable: 8000,
+          amount_received: null,
+        },
+      },
+    },
     Capture: {
       Request: {
         amount_to_capture: 6000,
