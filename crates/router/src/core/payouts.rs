@@ -936,7 +936,7 @@ pub async fn payouts_filtered_list_core(
         .await
         .to_not_found_response(errors::ApiErrorResponse::PayoutNotFound)?;
     let list = core_utils::filter_objects_based_on_profile_id_list(profile_id_list, list);
-    let data: Vec<api::PayoutCreateResponse> =
+    let raw_data: Vec<api::PayoutCreateResponse> =
         join_all(list.into_iter().map(|(p, pa, customer, address)| async {
             let customer: Option<domain::Customer> = customer
                 .async_and_then(|cust| async {
@@ -990,6 +990,30 @@ pub async fn payouts_filtered_list_core(
         .flatten()
         .map(ForeignFrom::foreign_from)
         .collect();
+    // We group the payout records by `payout_id` to ensure that a payout appears only once in the final response.
+    // The individual attempts are aggregated into the `attempts` array of the respective payout.
+    let mut data: Vec<api::PayoutCreateResponse> = Vec::new();
+    let mut payout_id_to_index: HashMap<String, usize> = HashMap::new();
+
+    for mut resp in raw_data {
+        let payout_id = resp.payout_id.get_string_repr().to_owned();
+
+        if let Some(&index) = payout_id_to_index.get(&payout_id) {
+            // If the payout is already in our `data` vector, extract the attempts
+            // from the current response and append them to the existing payout's `attempts` list.
+            data.get_mut(index).map(|existing_payout| {
+                existing_payout.attempts.as_mut().map(|existing_attempts| {
+                    if let Some(mut new_attempts) = resp.attempts.take() {
+                        existing_attempts.append(&mut new_attempts);
+                    }
+                });
+            });
+        } else {
+            // First time we encounter this payout, record its index and push it into the `data` vector.
+            payout_id_to_index.insert(payout_id, data.len());
+            data.push(resp);
+        }
+    }
 
     let active_payout_ids = db
         .filter_active_payout_ids_by_constraints(
