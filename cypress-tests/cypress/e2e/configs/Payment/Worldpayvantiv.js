@@ -589,6 +589,18 @@ export const connectorDetails = {
         },
       },
     },
+    L2L3Data: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+      Request: {},
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    },
     PaymentIntentOffSession: {
       Configs: {
         TRIGGER_SKIP: true,
