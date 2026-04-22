@@ -237,6 +237,7 @@ jobs:
         image: ghcr.io/juspay/superposition-demo:0.102.0
         env:
           API_HOSTNAME: http://localhost:8081
+          REDIS_URL: redis://redis:6379
         ports:
           - 8081:8080
         options: >-
@@ -564,6 +565,7 @@ jobs:
         image: ghcr.io/juspay/superposition-demo:0.102.0
         env:
           API_HOSTNAME: http://localhost:8081
+          REDIS_URL: redis://redis:6379
         ports:
           - 8081:8080
         options: >-
@@ -762,6 +764,7 @@ jobs:
         image: ghcr.io/juspay/superposition-demo:0.102.0
         env:
           API_HOSTNAME: http://localhost:8081
+          REDIS_URL: redis://redis:6379
         ports:
           - 8081:8080
         options: >-
@@ -993,6 +996,7 @@ jobs:
         image: ghcr.io/juspay/superposition-demo:0.102.0
         env:
           API_HOSTNAME: http://localhost:8081
+          REDIS_URL: redis://redis:6379
         ports:
           - 8081:8080
         options: >-
