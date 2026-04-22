@@ -2546,6 +2546,38 @@ export const connectorDetails = {
       },
     }),
   },
+  Dispute: {
+    ListDisputes: {
+      Response: {
+        status: 200,
+      },
+    },
+    RetrieveDispute: {
+      Response: {
+        status: 200,
+      },
+    },
+    AcceptDispute: {
+      Response: {
+        status: 200,
+      },
+    },
+    SubmitEvidence: {
+      Response: {
+        status: 200,
+      },
+    },
+    RetrieveEvidence: {
+      Response: {
+        status: 200,
+      },
+    },
+    FetchDisputes: {
+      Response: {
+        status: 200,
+      },
+    },
+  },
   mandate_id_too_long: getCustomExchange({
     Request: {
       mandate_id: "mnd_" + "a".repeat(63),

@@ -1103,6 +1103,49 @@ export const connectorDetails = {
       pmListDynamicFieldWithEmail: requiredFields,
     },
   },
+  Dispute: {
+    ListDisputes: {
+      Response: {
+        status: 200,
+        body: {
+          data: [],
+        },
+      },
+    },
+    RetrieveDispute: {
+      Response: {
+        status: 200,
+      },
+    },
+    AcceptDispute: {
+      Response: {
+        status: 200,
+        body: {
+          dispute_status: "accepted",
+          dispute_stage: "dispute_lost",
+        },
+      },
+    },
+    SubmitEvidence: {
+      Response: {
+        status: 200,
+        body: {
+          dispute_status: "needs_response",
+          dispute_stage: "dispute_challenged",
+        },
+      },
+    },
+    RetrieveEvidence: {
+      Response: {
+        status: 200,
+      },
+    },
+    FetchDisputes: {
+      Response: {
+        status: 200,
+      },
+    },
+  },
   webhook: {
     TransactionIdConfig: {
       // Defines how to locate and parse the payment reference ID from connector-specific webhook payloads
