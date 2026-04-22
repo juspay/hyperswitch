@@ -379,13 +379,10 @@ impl RedisTokenManager {
         }
         let seconds = &state.conf.revenue_recovery.redis_ttl_in_seconds;
 
+        let items: Vec<_> = serialized_payment_processor_tokens.into_iter().collect();
         // Update or add tokens
         redis_conn
-            .set_hash_fields(
-                &tokens_key.into(),
-                serialized_payment_processor_tokens,
-                Some(*seconds),
-            )
+            .set_hash_fields(&tokens_key.into(), &items, Some(*seconds))
             .await
             .change_context(errors::StorageError::RedisError(
                 errors::RedisError::SetHashFieldFailed.into(),
