@@ -8750,14 +8750,14 @@
       "AcquirerConfigMap": {
         "type": "object",
         "description": "Acquirer config buckets: each ProfileAcquirerId maps to an array of per-network configs",
+        "required": [
+          "default_acquirer_config"
+        ],
         "properties": {
           "default_acquirer_config": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/common_utils.id_type.ProfileAcquirerId"
-              }
-            ],
-            "nullable": true
+            "type": "string",
+            "description": "The default acquirer config id",
+            "example": "pro_acq_LCRdERuylQvNQ4qh3QE0"
           }
         },
         "additionalProperties": {

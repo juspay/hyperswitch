@@ -128,6 +128,7 @@ pub struct AcquirerConfig {
 /// Acquirer config buckets: each ProfileAcquirerId maps to an array of per-network configs
 pub struct AcquirerConfigMap {
     /// The default acquirer config id
+    #[schema(value_type= String,example = "pro_acq_LCRdERuylQvNQ4qh3QE0")]
     pub default_acquirer_config: Option<common_utils::id_type::ProfileAcquirerId>,
     /// Flattened map of acquirer profiles keyed by configuration id
     #[serde(flatten)]
