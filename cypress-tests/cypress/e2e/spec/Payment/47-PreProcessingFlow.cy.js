@@ -204,10 +204,7 @@ describe("Pre-processing flow test", () => {
 
         cy.step("Retrieve Payment after Capture", () => {
           if (!shouldContinue) {
-            cy.task(
-              "cli_log",
-              "Skipping step: Retrieve Payment after Capture"
-            );
+            cy.task("cli_log", "Skipping step: Retrieve Payment after Capture");
             return;
           }
           const captureData = getConnectorDetails(
