@@ -508,7 +508,7 @@ export const CONNECTOR_LISTS = {
       "stripe",
     ],
     CARD_INSTALLMENTS: ["adyen"],
-    BILLING_DESCRIPTOR: ["adyen"],
+    BILLING_DESCRIPTOR: ["adyen", "checkout"],
     AUTO_RETRY: [
       "cybersource",
       "checkout",
