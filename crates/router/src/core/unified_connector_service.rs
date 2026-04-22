@@ -1054,16 +1054,15 @@ pub fn build_unified_connector_service_payment_method(
                     payment_method: Some(PaymentMethod::OnlineBankingThailand(online_banking_thailand)),
                 })
             }
-            hyperswitch_domain_models::payment_method_data::BankRedirectData::Eft {
-                provider
-            } => {
-                let eft = payments_grpc::Eft {
-                    provider,
-                };
-
-                Ok(payments_grpc::PaymentMethod {
-                    payment_method: Some(PaymentMethod::Eft(eft)),
-                })
+            hyperswitch_domain_models::payment_method_data::BankRedirectData::Eft { .. } => {
+                // Upstream UCS `Eft` message was restructured (account_number / branch_code /
+                // bank_account_holder_name / bank_name) and no longer accepts a bare
+                // `provider` string. HS domain currently only carries `provider`, so route
+                // Eft via UCS through the unimplemented path until the HS domain model is
+                // extended to carry the richer fields.
+                Err(UnifiedConnectorServiceError::NotImplemented(
+                    "Eft via Unified Connector Service".to_string(),
+                ))?
             }
             hyperswitch_domain_models::payment_method_data::BankRedirectData::BancontactCard {
                 card_number,
@@ -1668,10 +1667,8 @@ pub fn build_unified_connector_service_payment_method_for_external_proxy(
                 .card_network
                 .clone()
                 .map(payments_grpc::CardNetwork::foreign_from);
-            let card_details = CardDetails {
-                card_number: Some(CardNumber::from_str(external_vault_card.card_number.peek()).change_context(
-                    UnifiedConnectorServiceError::RequestEncodingFailedWithReason("Failed to parse card number".to_string())
-                )?),
+            let card_details = payments_grpc::ProxyCardDetails {
+                card_number: Some(external_vault_card.card_number.peek().clone().into()),
                 card_exp_month: Some(external_vault_card.card_exp_month.expose().into()),
                 card_exp_year: Some(external_vault_card.card_exp_year.expose().into()),
                 card_cvc: Some(external_vault_card.card_cvc.expose().into()),

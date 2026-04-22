@@ -154,6 +154,10 @@ pub enum UnifiedConnectorServiceError {
     #[error("Failed to handle incoming webhook event from gRPC Server")]
     IncomingWebhookHandleEventFailure,
 
+    /// Failed to parse incoming webhook event from gRPC Server
+    #[error("Failed to parse incoming webhook event from gRPC Server")]
+    IncomingWebhookParseEventFailure,
+
     /// Failed to perform Payment Void from gRPC Server
     #[error("Failed to perform Void from gRPC Server")]
     PaymentVoidFailure,
@@ -675,6 +679,18 @@ impl ForeignTryFrom<payments_grpc::BankType> for common_enums::BankType {
                 UnifiedConnectorServiceError::ResponseDeserializationFailed,
             )
             .attach_printable("BankType unspecified")),
+            // Variants present in the UCS proto but not modelled in `common_enums::BankType`
+            // yet. Enumerated explicitly so any future addition to the UCS enum forces this
+            // match to be updated (and the corresponding HS-side variant decided) rather
+            // than silently falling through a catch-all.
+            payments_grpc::BankType::Transmission
+            | payments_grpc::BankType::Current
+            | payments_grpc::BankType::Bond
+            | payments_grpc::BankType::SubscriptionShare => Err(error_stack::Report::new(
+                UnifiedConnectorServiceError::NotImplemented(format!(
+                    "UCS BankType variant not yet mapped to HS: {bank_type:?}"
+                )),
+            )),
         }
     }
 }

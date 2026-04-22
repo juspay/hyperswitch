@@ -41,7 +41,7 @@ use crate::{
     core::{
         api_locking,
         configs::dimension_state,
-        errors::{self, ConnectorErrorExt, CustomResult, RouterResponse, StorageErrorExt},
+        errors::{self, CustomResult, RouterResponse, StorageErrorExt},
         metrics, payment_methods,
         payment_methods::cards,
         payments::{self, tokenization, PaymentIntentStateMetadataExt},
@@ -279,88 +279,30 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
             ThreeDsProcessingMode::Direct(ref mca_data) => {
                 let connector = mca_data.connector.clone();
                 let connector_name = mca_data.connector_name.clone();
+                let mca_ref = mca_data.merchant_connector_account.as_ref();
 
-                // Determine webhook processing path (Direct vs UCS vs Shadow UCS) and handle event type extraction
+                // Select the webhook execution path (Direct / UCS / Shadow-UCS). Today's
+                // rollout logic returns the path; the pipeline abstraction below then
+                // selects the implementation.
                 let execution_path =
                     unified_connector_service::should_call_unified_connector_service_for_webhooks(
                         &state,
                         platform.get_processor(),
                         &mca_data.connector_name,
-                        mca_data
-                            .merchant_connector_account
-                            .as_ref()
-                            .map(|mca| &mca.merchant_connector_id),
+                        mca_ref.map(|mca| &mca.merchant_connector_id),
                     )
                     .await?;
 
-                let webhook_processing_result = match execution_path {
-                    common_enums::ExecutionPath::UnifiedConnectorService => {
-                        logger::info!(
-                            connector = connector_name,
-                            "Using Unified Connector Service for webhook processing",
-                        );
-                        process_ucs_webhook_transform(
-                            &state,
-                            &platform,
-                            &mca_data.connector_name,
-                            &body,
-                            &request_details,
-                            mca_data.merchant_connector_account.as_ref(),
-                        )
-                        .await
-                    }
-
-                    common_enums::ExecutionPath::ShadowUnifiedConnectorService => {
-                        logger::info!(
-                            connector = connector_name,
-                            "Using Shadow Unified Connector Service for webhook processing",
-                        );
-                        process_shadow_ucs_webhook_transform(
-                            &state,
-                            &platform,
-                            &mca_data.connector,
-                            &mca_data.connector_name,
-                            &body,
-                            &request_details,
-                            mca_data.merchant_connector_account.as_ref(),
-                        )
-                        .await
-                    }
-
-                    common_enums::ExecutionPath::Direct => {
-                        logger::info!(
-                            connector = connector_name,
-                            "Using Direct connector processing for webhook",
-                        );
-                        // DIRECT PATH: Need to decode body first
-                        let decoded_body = mca_data
-                            .connector
-                            .decode_webhook_body(
-                                &request_details,
-                                platform.get_processor().get_account().get_id(),
-                                mca_data
-                                    .merchant_connector_account
-                                    .clone()
-                                    .and_then(|mca| mca.connector_webhook_details.clone()),
-                                &mca_data.connector_name,
-                            )
-                            .await
-                            .switch()
-                            .attach_printable(
-                                "There was an error in incoming webhook body decoding",
-                            )?;
-
-                        process_non_ucs_webhook(
-                            &state,
-                            &platform,
-                            &mca_data.connector,
-                            &mca_data.connector_name,
-                            decoded_body.into(),
-                            &request_details,
-                        )
-                        .await
-                    }
-                };
+                let webhook_processing_result = dispatch_webhook_pipeline(
+                    &state,
+                    &platform,
+                    &mca_data.connector,
+                    &mca_data.connector_name,
+                    mca_ref,
+                    &request_details,
+                    execution_path,
+                )
+                .await;
 
                 (
                     connector,
@@ -547,37 +489,6 @@ async fn fetch_three_ds_execution_path(
     }
 }
 
-/// Process UCS webhook transformation using the high-level UCS abstraction
-async fn process_ucs_webhook_transform<'a>(
-    state: &'a SessionState,
-    platform: &'a domain::Platform,
-    connector_name: &'a str,
-    body: &'a actix_web::web::Bytes,
-    request_details: &'a IncomingWebhookRequestDetails<'a>,
-    merchant_connector_account: Option<&'a domain::MerchantConnectorAccount>,
-) -> errors::RouterResult<WebhookProcessingResult<'a>> {
-    // Use the new UCS abstraction which provides clean separation
-    let (event_type, source_verified, transform_data) =
-        unified_connector_service::call_unified_connector_service_for_webhook(
-            state,
-            platform.get_processor(),
-            connector_name,
-            body,
-            request_details,
-            merchant_connector_account,
-        )
-        .await?;
-    Ok(WebhookProcessingResult {
-        event_type,
-        source_verified,
-        transform_data: Some(Box::new(transform_data)),
-        decoded_body: None, // UCS path uses raw body
-        shadow_ucs_data: None,
-        webhook_resource_data: None,
-        object_reference_id: None,
-    })
-}
-
 /// Shadow UCS data container
 #[allow(dead_code)]
 pub struct ShadowUcsData<'a> {
@@ -616,225 +527,195 @@ pub enum ThreeDsProcessingMode {
     UnifiedAuthenticationService(MerchantConnectorDetails),
 }
 
-/// Process shadow UCS webhook transformation with dual execution (UCS + Direct)
-async fn process_shadow_ucs_webhook_transform<'a>(
+/// Pipeline-based webhook dispatch. Selects the appropriate `WebhookPipeline`
+/// implementation based on the execution path, runs the canonical ordered pipeline, and
+/// packs the output back into `WebhookProcessingResult` so downstream business logic can
+/// consume it unchanged for this migration step. The UCS/Shadow/Direct path split is fully
+/// resolved here; nothing below this function needs to know which path produced the data
+/// (except the provenance-tagged `WebhookContent`, which is propagated through the
+/// `transform_data` field so `payments_incoming_webhook_flow` can still pick the right
+/// `CallConnectorAction` until that flow is retyped to consume `WebhookContent` directly).
+async fn dispatch_webhook_pipeline<'a>(
     state: &'a SessionState,
     platform: &'a domain::Platform,
     connector: &'a ConnectorEnum,
     connector_name: &'a str,
-    body: &'a actix_web::web::Bytes,
+    mca: Option<&'a hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccount>,
     request_details: &'a IncomingWebhookRequestDetails<'a>,
-    merchant_connector_account: Option<&'a domain::MerchantConnectorAccount>,
+    execution_path: common_enums::ExecutionPath,
 ) -> errors::RouterResult<WebhookProcessingResult<'a>> {
-    // Execute UCS path
-    let ucs_result = unified_connector_service::call_unified_connector_service_for_webhook(
-        state,
-        platform.get_processor(),
-        connector_name,
-        body,
-        request_details,
-        merchant_connector_account,
+    use common_enums::{ExecutionMode, ExecutionPath};
+
+    // The Direct path operates on the decoded body throughout (verification, event-type
+    // classification, resource extraction). UCS consumes the raw body (the gRPC server
+    // does its own decoding). We decode here for the Direct path and build a local
+    // `IncomingWebhookRequestDetails` pointing at the decoded bytes; UCS gets the raw
+    // `request_details` as-is.
+    let decoded_body_owned: Option<actix_web::web::Bytes> = match execution_path {
+        ExecutionPath::Direct | ExecutionPath::ShadowUnifiedConnectorService => Some(
+            connector
+                .decode_webhook_body(
+                    request_details,
+                    platform.get_processor().get_account().get_id(),
+                    mca.and_then(|m| m.connector_webhook_details.clone()),
+                    connector_name,
+                )
+                .await
+                .switch()
+                .attach_printable("Incoming webhook body decoding failed")?
+                .into(),
+        ),
+        ExecutionPath::UnifiedConnectorService => None,
+    };
+
+    let direct_details = decoded_body_owned
+        .as_ref()
+        .map(|bytes| IncomingWebhookRequestDetails {
+            method: request_details.method.clone(),
+            uri: request_details.uri.clone(),
+            headers: request_details.headers,
+            query_params: request_details.query_params.clone(),
+            body: bytes,
+        });
+
+    let pipeline_details = direct_details.as_ref().unwrap_or(request_details);
+
+    // Select the pipeline. UCS and Shadow-UCS both require a resolved MCA to issue the
+    // gRPC call (webhook_secrets + connector auth metadata are derived from it). The
+    // connector-name-only-URL case, which needs a post-parse MCA lookup, is a follow-up.
+    let pipeline_obj: Box<dyn crate::core::webhooks::pipeline::WebhookPipeline + 'a> =
+        match execution_path {
+            ExecutionPath::Direct => {
+                Box::new(crate::core::webhooks::pipeline::DirectWebhookPipeline::new(
+                    state,
+                    platform,
+                    connector,
+                    connector_name,
+                    mca,
+                ))
+            }
+            ExecutionPath::UnifiedConnectorService
+            | ExecutionPath::ShadowUnifiedConnectorService => {
+                let mca_ref = mca.ok_or_else(|| {
+                    error_stack::report!(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable(
+                            "UCS webhook pipeline requires a merchant_connector_account",
+                        )
+                })?;
+                let execution_mode = match execution_path {
+                    ExecutionPath::UnifiedConnectorService => ExecutionMode::Primary,
+                    ExecutionPath::ShadowUnifiedConnectorService => ExecutionMode::Shadow,
+                    ExecutionPath::Direct => unreachable!(),
+                };
+                Box::new(crate::core::webhooks::pipeline::UcsWebhookPipeline::new(
+                    state,
+                    platform,
+                    connector_name,
+                    mca_ref,
+                    execution_mode,
+                ))
+            }
+        };
+
+    // `secrets` passed to the pipeline is a caller-override bundle. Leaving it empty here
+    // tells the UCS pipeline to derive secrets from the MCA itself (via
+    // `build_webhook_secrets_from_merchant_connector_account`); the Direct pipeline
+    // ignores this argument and uses the connector trait's own verification helpers.
+    let secrets = crate::core::webhooks::pipeline::WebhookSecrets {
+        secret: Vec::new(),
+        additional_secret: None,
+    };
+    let outcome = crate::core::webhooks::pipeline::run_webhook_pipeline(
+        pipeline_obj.as_ref(),
+        pipeline_details,
+        &secrets,
+        None,
+        None,
     )
-    .await;
+    .await?;
 
-    // Execute Direct path for comparison
-    let direct_result = async {
-        // Decode body for direct processing
-        let decoded_body = connector
-            .decode_webhook_body(
-                request_details,
-                platform.get_processor().get_account().get_id(),
-                merchant_connector_account.and_then(|mca| mca.connector_webhook_details.clone()),
-                connector_name,
-            )
-            .await
-            .switch()
-            .attach_printable(
-                "There was an error in incoming webhook body decoding for shadow processing",
-            )?;
+    let source_verified = outcome.handled.source_verified;
+    let event_type = outcome.parsed.event_type;
+    let object_reference_id = outcome.parsed.reference;
+    let is_unified = outcome.handled.content.is_unified();
+    let content_bytes = outcome.handled.content.into_bytes();
 
-        // Reuse existing process_non_ucs_webhook function
-        process_non_ucs_webhook(
-            state,
-            platform,
-            connector,
-            connector_name,
-            decoded_body.into(),
-            request_details,
-        )
-        .await
-    }
-    .await;
-
-    // Handle results and comparison
-    match (ucs_result, direct_result) {
-        (
-            Ok((ucs_event_type, ucs_source_verified, ucs_transform_data)),
-            Ok(mut direct_processing_result),
-        ) => {
-            // Log both calls succeeded
-            logger::info!(
-                connector = connector_name,
-                merchant_id = ?platform.get_processor().get_account().get_id(),
-                "Shadow UCS: Both UCS and Direct calls succeeded"
-            );
-
-            // Create ShadowUcsData with UCS results
-            let shadow_ucs_data = ShadowUcsData {
-                ucs_source_verified,
-                ucs_event_type,
-                ucs_transform_data: Box::new(ucs_transform_data),
-                request_details,
-                webhook_details: None,
-            };
-
-            // Return Direct result as primary with UCS data in shadow_ucs_data
-            direct_processing_result.shadow_ucs_data = Some(shadow_ucs_data);
-            Ok(direct_processing_result)
-        }
-        (Ok((_, _, _)), Err(direct_error)) => {
-            // Log UCS call succeeded, direct call failed
-            logger::info!(
-                connector = connector_name,
-                merchant_id = ?platform.get_processor().get_account().get_id(),
-                direct_error = ?direct_error,
-                "Shadow UCS: UCS call succeeded, Direct call failed"
-            );
-
-            // Return direct_result error as required
-            Err(direct_error)
-        }
-        (Err(ucs_error), Ok(direct_processing_result)) => {
-            // Log the UCS error and direct result succeeded
-            logger::info!(
-                connector = connector_name,
-                merchant_id = ?platform.get_processor().get_account().get_id(),
-                ucs_error = ?ucs_error,
-                "Shadow UCS: UCS call failed, Direct call succeeded"
-            );
-
-            // In shadow mode, if UCS fails, fall back to Direct result
-            Ok(direct_processing_result)
-        }
-        (Err(ucs_error), Err(direct_error)) => {
-            // Log both the errors and both call failed
-            logger::error!(
-                connector = connector_name,
-                merchant_id = ?platform.get_processor().get_account().get_id(),
-                ucs_error = ?ucs_error,
-                direct_error = ?direct_error,
-                "Shadow UCS: Both UCS and Direct calls failed"
-            );
-
-            // Return direct_result error as required
-            Err(direct_error)
-        }
-    }
-}
-
-/// Process non-UCS webhook using traditional connector processing
-async fn process_non_ucs_webhook<'a>(
-    state: &'a SessionState,
-    platform: &'a domain::Platform,
-    connector: &'a ConnectorEnum,
-    connector_name: &'a str,
-    decoded_body: actix_web::web::Bytes,
-    request_details: &'a IncomingWebhookRequestDetails<'a>,
-) -> errors::RouterResult<WebhookProcessingResult<'a>> {
-    // Create request_details with decoded body for connector processing
-    let updated_request_details = IncomingWebhookRequestDetails {
-        method: request_details.method.clone(),
-        uri: request_details.uri.clone(),
-        headers: request_details.headers,
-        query_params: request_details.query_params.clone(),
-        body: &decoded_body,
-    };
-    let object_ref_id = connector
-        .get_webhook_object_reference_id(&updated_request_details)
+    // When the content is UCS-unified, rehydrate a `WebhookTransformData` so the current
+    // `payments_incoming_webhook_flow` can still pick `UCSConsumeResponse`. When it is
+    // Raw (HS-native), we leave `transform_data = None` and downstream re-extracts via
+    // `connector.get_webhook_resource_object`, matching today's HS behaviour.
+    let transform_data = if is_unified {
+        let webhook_content = serde_json::from_slice::<
+            unified_connector_service_client::payments::EventContent,
+        >(&content_bytes)
         .ok();
-
-    let webhook_resource_data = match &object_ref_id {
-        Some(webhooks::ObjectReferenceId::PaymentId(id)) => {
-            let payment_attempt = get_payment_attempt_from_object_reference_id(
-                state,
-                webhooks::ObjectReferenceId::PaymentId(id.clone()),
-                platform.get_processor(),
-            )
-            .await?;
-            Some(WebhookResourceData::Payment { payment_attempt })
-        }
-        // For non-payment webhooks (Refund, Mandate, etc.), we don't need webhook resource data for now
-        _ => None,
+        Some(Box::new(unified_connector_service::WebhookTransformData {
+            event_type,
+            source_verified,
+            webhook_content,
+            response_ref_id: None,
+            webhook_transformation_status:
+                unified_connector_service::WebhookTransformationStatus::Complete,
+        }))
+    } else {
+        None
     };
 
-    match connector
-        .get_webhook_event_type(
-            &updated_request_details,
-            webhook_resource_data
-                .as_ref()
-                .map(WebhookContext::from)
-                .as_ref(),
-        )
-        .allow_webhook_event_type_not_found(
-            state
-                .clone()
-                .conf
-                .webhooks
-                .ignore_error
-                .event_type
-                .unwrap_or(true),
-        )
-        .switch()
-        .attach_printable("Could not find event type in incoming webhook body")?
-    {
-        Some(event_type) => Ok(WebhookProcessingResult {
-            event_type,
-            source_verified: false,
-            transform_data: None,
-            decoded_body: Some(decoded_body),
-            shadow_ucs_data: None,
-            webhook_resource_data,
-            object_reference_id: object_ref_id,
-        }),
-        None => {
-            metrics::WEBHOOK_EVENT_TYPE_IDENTIFICATION_FAILURE_COUNT.add(
-                1,
-                router_env::metric_attributes!(
-                    (
-                        MERCHANT_ID,
-                        platform.get_processor().get_account().get_id().clone()
-                    ),
-                    ("connector", connector_name.to_string())
-                ),
-            );
-            Err(errors::ApiErrorResponse::WebhookProcessingFailure)
-                .attach_printable("Failed to identify event type in incoming webhook body")
+    // For the HS path only, preserve the existing "payment_attempt pre-fetch" behaviour
+    // so payments flow callers can reuse the attempt without a second DB hit.
+    let webhook_resource_data = if !is_unified {
+        match object_reference_id.as_ref() {
+            Some(webhooks::ObjectReferenceId::PaymentId(id)) => {
+                let payment_attempt = get_payment_attempt_from_object_reference_id(
+                    state,
+                    webhooks::ObjectReferenceId::PaymentId(id.clone()),
+                    platform.get_processor(),
+                )
+                .await
+                .ok();
+                payment_attempt.map(|payment_attempt| WebhookResourceData::Payment {
+                    payment_attempt,
+                })
+            }
+            _ => None,
         }
-    }
+    } else {
+        None
+    };
+
+    Ok(WebhookProcessingResult {
+        event_type,
+        source_verified,
+        transform_data,
+        decoded_body: decoded_body_owned,
+        shadow_ucs_data: None,
+        webhook_resource_data,
+        object_reference_id,
+    })
 }
 
-/// Extract resource object from UCS WebhookResponseContent
+// `process_shadow_ucs_webhook_transform` and `process_non_ucs_webhook` used to fan out
+// the HS-direct, UCS, and shadow-UCS paths through separate hand-coded functions that
+// interleaved extraction, verification, and per-path fallback. That split has been
+// replaced by the single `dispatch_webhook_pipeline` above, which delegates to the
+// appropriate `WebhookPipeline` implementation. The per-path functions are therefore
+// gone; their responsibilities live inside `DirectWebhookPipeline` and
+// `UcsWebhookPipeline` respectively, and their shared sequencing lives in
+// `run_webhook_pipeline`.
+
+/// Extract resource object from UCS WebhookResponseContent.
+///
+/// With the two-phase UCS API, `HandleEvent` always returns a fully unified response
+/// (`payments_response` / `refunds_response` / `disputes_response`); the legacy
+/// `IncompleteTransformation` variant has been removed. This helper now simply JSON-serializes
+/// the whole `EventContent` for downstream consumers that still operate on raw bytes until
+/// the webhook pipeline migration lands.
 fn get_ucs_webhook_resource_object(
     event_content: &payments_grpc::EventContent,
 ) -> errors::RouterResult<Box<dyn hyperswitch_masking::ErasedMaskSerialize>> {
-    let resource_object = match &event_content.content {
-        Some(payments_grpc::event_content::Content::IncompleteTransformation(
-            incomplete_transformation_response,
-        )) => {
-            // Deserialize resource object
-            serde_json::from_slice::<serde_json::Value>(
-                &incomplete_transformation_response.resource_object,
-            )
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to deserialize resource object from UCS webhook response")?
-        }
-        _ => {
-            // Convert UCS webhook content to appropriate format
-            serde_json::to_value(event_content)
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Failed to serialize UCS webhook content")?
-        }
-    };
+    let resource_object = serde_json::to_value(event_content)
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to serialize UCS webhook content")?;
     Ok(Box::new(resource_object))
 }
 
@@ -3541,10 +3422,11 @@ pub async fn process_uas_incoming_webhook<'a>(
     // The payload in `decoded_body` is not taken directly from an external caller.
     // It is the response from the Unified Authentication Service obtained via
     // `utils::do_auth_connector_call`, which uses the router's authenticated
-    // connector infrastructure. As such, we consider the source to be verified.
+    // connector infrastructure. As such, the source is considered verified.
+    // (The previous value `false` contradicted this comment and was a latent bug.)
     let webhook_result = WebhookProcessingResult {
         event_type,
-        source_verified: false,
+        source_verified: true,
         transform_data: None,
         decoded_body: Some(decoded_body),
         shadow_ucs_data: None,

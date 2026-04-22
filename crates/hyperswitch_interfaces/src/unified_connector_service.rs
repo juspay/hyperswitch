@@ -56,10 +56,6 @@ pub fn get_payments_response_from_ucs_webhook_content(
             Err(UnifiedConnectorServiceError::WebhookProcessingFailure)
                 .attach_printable("UCS webhook contains disputes response but payments response was expected")?
         },
-        Some(unified_connector_service_client::payments::event_content::Content::IncompleteTransformation(_)) => {
-            Err(UnifiedConnectorServiceError::WebhookProcessingFailure)
-                .attach_printable("UCS webhook contains incomplete transformation but payments response was expected")?
-        },
         None => {
             Err(UnifiedConnectorServiceError::WebhookProcessingFailure)
                 .attach_printable("Missing payments response in UCS webhook content")?

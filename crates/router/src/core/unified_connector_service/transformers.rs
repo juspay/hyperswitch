@@ -682,10 +682,14 @@ impl
 
         let currency = payments_grpc::Currency::foreign_try_from(router_data.request.currency)?;
 
-        let handle_response = match call_connector_action {
-            common_enums::CallConnectorAction::UCSHandleResponse(res) => Some(res),
+        // `handle_response` was removed from PaymentServiceGetRequest upstream along with
+        // the incomplete-transformation webhook flow. Validate the CallConnectorAction
+        // variant is still something PSync-over-UCS supports, then drop the value on the
+        // floor — the proto no longer carries it.
+        match call_connector_action {
             common_enums::CallConnectorAction::Trigger
-            | common_enums::CallConnectorAction::HandleResponseWithoutBuildRequest => None,
+            | common_enums::CallConnectorAction::HandleResponseWithoutBuildRequest
+            | common_enums::CallConnectorAction::UCSHandleResponse(_) => {}
             common_enums::CallConnectorAction::HandleResponse(_)
             | common_enums::CallConnectorAction::UCSConsumeResponse(_)
             | common_enums::CallConnectorAction::Avoid
@@ -719,7 +723,6 @@ impl
             merchant_transaction_id,
             encoded_data: router_data.request.encoded_data.clone(),
             capture_method: capture_method.map(|capture_method| capture_method.into()),
-            handle_response,
             setup_future_usage: setup_future_usage.map(|s| s.into()),
             connector_order_reference_id,
             amount: Some(payments_grpc::Money {
@@ -5665,21 +5668,15 @@ pub fn transform_ucs_webhook_response(
     let event_type =
         api_models::webhooks::IncomingWebhookEvent::from_ucs_event_type(response.event_type);
 
-    let webhook_transformation_status = if matches!(
-        response.event_status(),
-        payments_grpc::EventStatus::Incomplete
-    ) {
-        WebhookTransformationStatus::Incomplete
-    } else {
-        WebhookTransformationStatus::Complete
-    };
-
+    // EventStatus / IncompleteTransformation were removed upstream: HandleEvent always
+    // returns a complete unified response now. Kept the field on WebhookTransformData for
+    // callers that haven't migrated off it yet; the Complete variant is always set.
     Ok(WebhookTransformData {
         event_type,
         source_verified: response.source_verified,
         webhook_content: response.event_content,
         response_ref_id: response.merchant_event_id,
-        webhook_transformation_status,
+        webhook_transformation_status: WebhookTransformationStatus::Complete,
     })
 }
 
@@ -5707,7 +5704,8 @@ pub fn build_webhook_transform_request(
         )),
         request_details: Some(request_details_grpc),
         webhook_secrets,
-        state: None,
+        access_token: None,
+        event_context: None,
     })
 }
 
