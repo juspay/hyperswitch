@@ -4,6 +4,43 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.04.22.0
+
+### Features
+
+- **router:** Improve blocklist error messages with specific reasons ([#11870](https://github.com/juspay/hyperswitch/pull/11870)) ([`1e72e69`](https://github.com/juspay/hyperswitch/commit/1e72e698830e93edaa656d148cd545d52d02b973))
+
+### Testing
+
+- **cypress:**
+  - External 3DS for stripe ([#11884](https://github.com/juspay/hyperswitch/pull/11884)) ([`19f166a`](https://github.com/juspay/hyperswitch/commit/19f166adab0d30a3476377a69b49954e590ae804))
+  - Mit_category in MIT payments for checkout connector ([#11878](https://github.com/juspay/hyperswitch/pull/11878)) ([`66fbb15`](https://github.com/juspay/hyperswitch/commit/66fbb15f05819d1fe454f74c9d4a52c869d9b728))
+  - Platform Refund for stripe ([#11876](https://github.com/juspay/hyperswitch/pull/11876)) ([`b02ee62`](https://github.com/juspay/hyperswitch/commit/b02ee626206d09071a67be4c857d89789d287803))
+  - Add billing descriptor coverage for checkout ([#11897](https://github.com/juspay/hyperswitch/pull/11897)) ([`39aa4ab`](https://github.com/juspay/hyperswitch/commit/39aa4abf99afc6913af51d4887fd1c1d352192e5))
+
+**Full Changelog:** [`2026.04.21.0...2026.04.22.0`](https://github.com/juspay/hyperswitch/compare/2026.04.21.0...2026.04.22.0)
+
+- - -
+
+## 2026.04.21.0
+
+### Features
+
+- **superposition:** Migrate additional boolean configs to superposition ([#11507](https://github.com/juspay/hyperswitch/pull/11507)) ([`20956f5`](https://github.com/juspay/hyperswitch/commit/20956f555369b0d35bcce7b89f5cde61d6bd1917))
+
+### Bug Fixes
+
+- **connetors:** [adyen] fix dispute_status deserialization error ([#11790](https://github.com/juspay/hyperswitch/pull/11790)) ([`620c851`](https://github.com/juspay/hyperswitch/commit/620c851e6475525f1f70f643ca3cf868dec533c9))
+- **cypress:** Delete business profile as standalone it-block in 43-DynamicFields ([#11871](https://github.com/juspay/hyperswitch/pull/11871)) ([`5a0b41c`](https://github.com/juspay/hyperswitch/commit/5a0b41cdff9a741a5715a5f969f31d9727efb605))
+
+### Testing
+
+- **cypress:** Billing descriptor testcases for adyen ([#11853](https://github.com/juspay/hyperswitch/pull/11853)) ([`0f5eeea`](https://github.com/juspay/hyperswitch/commit/0f5eeea0b10e2a78a21e90a64d35d3d0b10c50ec))
+
+**Full Changelog:** [`2026.04.20.0...2026.04.21.0`](https://github.com/juspay/hyperswitch/compare/2026.04.20.0...2026.04.21.0)
+
+- - -
+
 ## 2026.04.20.0
 
 ### Features
