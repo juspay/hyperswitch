@@ -307,9 +307,9 @@ where
             let query_params = req.query_string();
             let locale_param =
                 serde_qs::from_str::<LocaleQueryParam>(query_params).map_err(|error| {
-                    actix_web::error::ErrorBadRequest(format!(
-                        "Could not convert query params to locale query parmas: {error:?}",
-                    ))
+                actix_web::error::ErrorBadRequest(format!(
+                    "Could not convert query params to locale query params: {error:?}",
+                ))
                 })?;
             let accept_language_header = req.headers().get(http::header::ACCEPT_LANGUAGE);
             if let Some(locale) = locale_param.locale {
