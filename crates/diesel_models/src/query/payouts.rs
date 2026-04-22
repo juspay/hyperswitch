@@ -98,11 +98,11 @@ impl Payouts {
         conn: &PgPooledConn,
         merchant_id: &common_utils::id_type::MerchantId,
         active_payout_ids: &[common_utils::id_type::PayoutId],
+        profile_id_list: Option<Vec<common_utils::id_type::ProfileId>>,
         connector: Option<Vec<String>>,
         currency: Option<Vec<enums::Currency>>,
         status: Option<Vec<enums::PayoutStatus>>,
         payout_type: Option<Vec<enums::PayoutType>>,
-        profile_id_list: Option<Vec<common_utils::id_type::ProfileId>>,
     ) -> StorageResult<i64> {
         let mut filter = <Self as HasTable>::table()
             .inner_join(payout_attempt::table.on(payout_attempt::dsl::payout_id.eq(dsl::payout_id)))

@@ -805,11 +805,11 @@ impl<T: DatabaseStore> PayoutsInterface for crate::RouterStore<T> {
             &conn,
             merchant_id,
             active_payout_ids,
+            profile_id_list,
             connector_strings,
             currency,
             status,
             payout_type,
-            profile_id_list,
         )
         .await
         .map_err(|er| {

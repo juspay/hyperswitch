@@ -102,19 +102,8 @@ impl PayoutsInterface for MockDb {
         _status: Option<Vec<storage_enums::PayoutStatus>>,
         _payout_method: Option<Vec<storage_enums::PayoutType>>,
     ) -> CustomResult<i64, StorageError> {
-        let payouts = self.payouts.lock().await;
-        let count = payouts
-            .iter()
-            .filter(|payout| payout.merchant_id == *_merchant_id)
-            .filter(|payout| {
-                _profile_id_list
-                    .as_ref()
-                    .map(|profiles| profiles.contains(&payout.profile_id))
-                    .unwrap_or(true)
-            })
-            .count();
-        let count = i64::try_from(count).unwrap_or(i64::MAX);
-        Ok(count)
+        // TODO: Implement function for `MockDb`
+        Err(StorageError::MockDbError)?
     }
 
     #[cfg(feature = "olap")]

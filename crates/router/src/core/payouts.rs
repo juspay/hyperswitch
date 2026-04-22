@@ -830,7 +830,7 @@ pub async fn payouts_list_core(
         .map(ForeignFrom::foreign_from)
         .collect();
 
-    let constraints = constraints.clone().into();
+    let constraints = constraints.into();
     let active_payout_ids = db
         .filter_active_payout_ids_by_constraints(merchant_id, &constraints)
         .await
