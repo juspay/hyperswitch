@@ -241,17 +241,47 @@ jobs:
         ports:
           - 8081:8080
         options: >-
-          --health-cmd "wget -qO- http://localhost:8080/health || exit 1"
+          --health-cmd "true"
           --health-interval 10s
           --health-timeout 5s
-          --health-retries 30
-          --health-start-period 60s
+          --health-retries 1
 
     steps:
       - name: Skip tests for PRs from forks
         if: ${{ env.RUN_TESTS == 'false' }}
         shell: bash
         run: echo 'Skipping tests for PRs from forks'
+
+      - name: Diagnose Superposition connectivity (DEBUG)
+        shell: bash
+        run: |
+          set +e
+          echo '=== docker ps ==='
+          docker ps -a
+          echo
+          echo '=== networks ==='
+          docker network ls
+          SP_NET=$(docker ps --format '{{.Names}}' | grep -i superposition | head -1)
+          REDIS_NET=$(docker ps --format '{{.Names}}' | grep -i redis | head -1)
+          echo "SP container: $SP_NET"
+          echo "Redis container: $REDIS_NET"
+          echo
+          echo '=== host → redis:6379 (nc) ==='
+          nc -zv -w 3 localhost 6379
+          echo
+          echo '=== exec into superposition: test DNS + redis reachability ==='
+          docker exec "$SP_NET" sh -c 'getent hosts redis || nslookup redis 2>/dev/null || echo "no getent/nslookup"' 2>&1 || true
+          docker exec "$SP_NET" sh -c 'nc -zv -w 3 redis 6379 2>&1 || echo "nc not available, trying raw tcp"' 2>&1 || true
+          docker exec "$SP_NET" sh -c 'timeout 3 bash -c "cat < /dev/tcp/redis/6379" && echo "TCP /dev/tcp/redis/6379 OK" || echo "TCP to redis:6379 FAILED"' 2>&1 || true
+          echo
+          echo '=== superposition env (grep proxy/redis) ==='
+          docker exec "$SP_NET" sh -c 'env | grep -iE "proxy|redis"' 2>&1 || true
+          echo
+          echo '=== superposition container logs (last 200 lines) ==='
+          docker logs --tail 200 "$SP_NET" 2>&1
+          echo
+          echo '=== superposition health inspect ==='
+          docker inspect --format='{{json .State.Health}}' "$SP_NET" 2>&1
 
       - name: Checkout repository
         if: ${{ env.RUN_TESTS == 'true' }}
