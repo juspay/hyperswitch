@@ -1385,7 +1385,7 @@ async fn create_tokenize(
         redis_conn
             .set_key_if_not_exists_with_expiry(
                 &redis_key.as_str().into(),
-                encrypted_payload.as_slice(),,
+                encrypted_payload.as_slice(),
                 expiry_time.or(Some(i64::from(consts::LOCKER_REDIS_EXPIRY_SECONDS))),
             )
             .await
