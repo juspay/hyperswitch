@@ -713,5 +713,40 @@ export const connectorDetails = {
         },
       },
     },
+    PartnerMerchantIdentifier: {
+      Request: {
+        currency: "USD",
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+        partner_merchant_identifier_details: {
+          partner_details: {
+            name: "TestPartner",
+            version: "1.0.0",
+            integrator: "TestIntegrator123",
+          },
+          merchant_details: {
+            name: "TestMerchantApp",
+            version: "2.0.0",
+          },
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+          partner_merchant_identifier_details: {
+            partner_details: {
+              name: "TestPartner",
+              version: "1.0.0",
+              integrator: "TestIntegrator123",
+            },
+            merchant_details: {
+              name: "TestMerchantApp",
+              version: "2.0.0",
+            },
+          },
+        },
+      },
+    },
   },
 };
