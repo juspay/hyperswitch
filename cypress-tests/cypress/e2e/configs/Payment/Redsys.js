@@ -491,6 +491,70 @@ export const connectorDetails = {
       },
     },
 
+    PreProcessingNo3DSAutoCapture: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: ThreeDSChallengeTestCardDetails,
+        },
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    },
+    PreProcessingNo3DSManualCapture: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: ThreeDSChallengeTestCardDetails,
+        },
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_capture",
+        },
+      },
+    },
+    PreProcessing3DSAutoCapture: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: ThreeDSChallengeTestCardDetails,
+        },
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+    },
+    PreProcessing3DSManualCapture: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: ThreeDSChallengeTestCardDetails,
+        },
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+    },
     No3DSFailPayment: getCustomExchange({
       Request: {
         payment_method: "card",
@@ -525,6 +589,52 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "requires_payment_method",
+        },
+      },
+    },
+    PreProcessingNo3DSAutoCapture: getCustomExchange({
+      Request: {
+        payment_method: "card",
+        amount: 5000,
+        payment_method_data: {
+          card: ThreeDSChallengeTestCardDetails,
+        },
+        currency: "EUR",
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+        billing: Address,
+        shipping: Address,
+      },
+    }),
+    PreProcessingNo3DSManualCapture: getCustomExchange({
+      Request: {
+        currency: "EUR",
+        payment_method: "card",
+        payment_method_data: {
+          card: ThreeDSChallengeTestCardDetails,
+        },
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+        billing: Address,
+        shipping: Address,
+      },
+    }),
+    PreProcessing3DSAutoCapture: {
+      Request: {
+        currency: "EUR",
+        payment_method: "card",
+        payment_method_data: {
+          card: ThreeDSChallengeTestCardDetails,
+        },
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+        billing: Address,
+        shipping: Address,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
         },
       },
     },
