@@ -12,7 +12,7 @@ multitenancy_fallback = []
 
 [dependencies]
 error-stack = "0.4.1"
-redis = { version = "1.0.5", features = ["tokio-comp", "cluster-async", "streams", "script", "connection-manager"] }
+redis = { version = "1.2.0", features = ["tokio-comp", "cluster-async", "streams", "script", "connection-manager"] }
 futures = "0.3"
 serde = { version = "1.0.219", features = ["derive"] }
 thiserror = "1.0.69"
