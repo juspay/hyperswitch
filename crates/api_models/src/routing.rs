@@ -1893,7 +1893,7 @@ impl RuleMigrationResponse {
 /// - `decision_engine` → External Decision Engine evaluated the rule
 /// - `hyperswitch_routing` → Internal Hyperswitch routing logic was used
 #[derive(
-    Clone, Debug, Default, serde::Deserialize, serde::Serialize, strum::Display, strum::EnumString,
+    Clone, Debug, serde::Deserialize, serde::Serialize, strum::Display, strum::EnumString,
 )]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
@@ -1901,7 +1901,6 @@ pub enum RoutingResultSource {
     /// External Decision Engine
     DecisionEngine,
     /// Inbuilt Hyperswitch Routing Engine
-    #[default]
     HyperswitchRouting,
 }
 

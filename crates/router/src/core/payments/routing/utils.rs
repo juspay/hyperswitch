@@ -1729,17 +1729,15 @@ fn stringify_choice(c: RoutableConnectorChoice) -> ConnectorInfo {
 pub async fn get_routing_result_source(
     state: &SessionState,
     dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
-) -> Option<api_routing::RoutingResultSource> {
+) -> api_routing::RoutingResultSource {
     // No customer_id and payment_id in call sites so passing Targeting key as None
-    Some(
-        dimensions
-            .get_routing_result_source(
-                state.store.as_ref(),
-                state.superposition_service.as_ref(),
-                None,
-            )
-            .await,
-    )
+    dimensions
+        .get_routing_result_source(
+            state.store.as_ref(),
+            state.superposition_service.as_ref(),
+            None,
+        )
+        .await
 }
 pub async fn select_routing_result<T>(
     state: &SessionState,
@@ -1753,28 +1751,31 @@ where
 {
     let routing_result_source = get_routing_result_source(state, dimensions).await;
 
-    if let Some(api_routing::RoutingResultSource::DecisionEngine) = routing_result_source {
-        logger::debug!(
-            business_profile_id=?business_profile.get_id(),
-            "decision_engine_euclid: Using Decision Engine routing result"
-        );
-
-        let is_de_result_empty = de_result.clone().into_iter().next().is_none();
-        if is_de_result_empty {
+    match routing_result_source {
+        api_routing::RoutingResultSource::DecisionEngine => {
             logger::debug!(
                 business_profile_id=?business_profile.get_id(),
-                "decision_engine_euclid: DE result empty, falling back to Hyperswitch result"
+                "decision_engine_euclid: Using Decision Engine routing result"
+            );
+
+            let is_de_result_empty = de_result.clone().into_iter().next().is_none();
+            if is_de_result_empty {
+                logger::debug!(
+                    business_profile_id=?business_profile.get_id(),
+                    "decision_engine_euclid: DE result empty, falling back to Hyperswitch result"
+                );
+                hyperswitch_result
+            } else {
+                de_result
+            }
+        }
+        api_routing::RoutingResultSource::HyperswitchRouting => {
+            logger::debug!(
+                business_profile_id=?business_profile.get_id(),
+                "decision_engine_euclid: Using Hyperswitch routing result"
             );
             hyperswitch_result
-        } else {
-            de_result
         }
-    } else {
-        logger::debug!(
-            business_profile_id=?business_profile.get_id(),
-            "decision_engine_euclid: Using Hyperswitch routing result"
-        );
-        hyperswitch_result
     }
 }
 

@@ -1583,7 +1583,7 @@ pub async fn perform_hybrid_routing_if_enabled(
 
     let is_decision_engine_cutover_enabled = matches!(
         utils::get_routing_result_source(state, dimensions).await,
-        Some(api_models::routing::RoutingResultSource::DecisionEngine)
+        api_models::routing::RoutingResultSource::DecisionEngine
     );
 
     if is_decision_engine_cutover_enabled {

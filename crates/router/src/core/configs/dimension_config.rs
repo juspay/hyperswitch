@@ -112,7 +112,9 @@ macro_rules! config {
                 ) -> $output {
                     crate::core::configs::fetch_db_config_for_string_enum::<[<$key:camel>], $output>(
                         storage, superposition_client, self, targeting_key
-                    ).await
+                    )
+                    .await
+                    .unwrap_or($default)
                 }
             }
         }

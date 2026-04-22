@@ -1,4 +1,4 @@
-use std::{marker::PhantomData, str::FromStr};
+use std::marker::PhantomData;
 
 use base64::Engine;
 use common_utils::{
@@ -35,18 +35,10 @@ const IRRELEVANT_CONNECTOR_REQUEST_REFERENCE_ID_IN_SOURCE_VERIFICATION_FLOW: &st
 /// Uses superposition with dimensions [merchant_id, connector, incoming_webhook_events]
 pub async fn is_webhook_event_disabled(
     state: &SessionState,
-    connector_id: &str,
+    connector: common_enums::connector_enums::Connector,
     dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
     event: &api::IncomingWebhookEvent,
 ) -> bool {
-    let connector = match common_enums::connector_enums::Connector::from_str(connector_id) {
-        Ok(connector_enum) => connector_enum,
-        Err(_) => {
-            logger::error!("Failed to parse connector name: {}", connector_id);
-            return false;
-        }
-    };
-
     let dimensions = dimensions
         .with_connector(connector)
         .with_incoming_webhook_event(*event);

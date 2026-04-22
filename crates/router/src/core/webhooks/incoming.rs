@@ -417,9 +417,16 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
         webhook_processing_result.event_type,
         webhooks::IncomingWebhookEvent::EventNotSupported
     );
+    let connector_enum = Connector::from_str(connector_name.as_str())
+        .change_context(errors::ApiErrorResponse::InvalidDataValue {
+            field_name: "connector",
+        })
+        .attach_printable_lazy(|| {
+            format!("unable to parse connector name {connector_name:?}")
+        })?;
     let is_webhook_event_enabled = !utils::is_webhook_event_disabled(
         &state,
-        connector_name.as_str(),
+        connector_enum,
         &dimensions.without_organization_id(),
         &webhook_processing_result.event_type,
     )
@@ -3477,7 +3484,7 @@ pub async fn process_uas_incoming_webhook<'a>(
                 .organization_id
                 .clone(),
         );
-    let routing_region = uas_utils::fetch_routing_region_for_uas(state, &dimensions).await?;
+    let routing_region = uas_utils::fetch_routing_region_for_uas(state, &dimensions).await;
     let webhook_data =
         uas_utils::get_webhook_request_data_for_uas(incoming_webhook_request, Some(routing_region));
 

@@ -164,12 +164,13 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
     // Fetch the merchant connector account to get the webhooks source secret
     // `webhooks source secret` is a secret shared between the merchant and connector
     // This is used for source verification and webhooks integrity
-    let (merchant_connector_account, connector, connector_name) = fetch_mca_and_connector(
-        &state,
-        connector_id,
-        platform.get_processor().get_key_store(),
-    )
-    .await?;
+    let (merchant_connector_account, connector, connector_enum, connector_name) =
+        fetch_mca_and_connector(
+            &state,
+            connector_id,
+            platform.get_processor().get_key_store(),
+        )
+        .await?;
 
     let decoded_body = connector
         .decode_webhook_body(
@@ -250,7 +251,7 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
     );
     let is_webhook_event_enabled = !utils::is_webhook_event_disabled(
         &state,
-        connector_name.as_str(),
+        connector_enum,
         &dimensions,
         &event_type,
     )
@@ -271,13 +272,6 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
             .get_webhook_object_reference_id(&request_details)
             .switch()
             .attach_printable("Could not find object reference id in incoming webhook body")?;
-        let connector_enum = api_models::enums::Connector::from_str(&connector_name)
-            .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                field_name: "connector",
-            })
-            .attach_printable_lazy(|| {
-                format!("unable to parse connector name {connector_name:?}")
-            })?;
         let connectors_with_source_verification_call = &state.conf.webhook_source_verification_call;
 
         let source_verified = if connectors_with_source_verification_call
@@ -818,8 +812,15 @@ async fn fetch_mca_and_connector(
     state: &SessionState,
     connector_id: &common_utils::id_type::MerchantConnectorAccountId,
     key_store: &domain::MerchantKeyStore,
-) -> CustomResult<(domain::MerchantConnectorAccount, ConnectorEnum, String), errors::ApiErrorResponse>
-{
+) -> CustomResult<
+    (
+        domain::MerchantConnectorAccount,
+        ConnectorEnum,
+        common_enums::connector_enums::Connector,
+        String,
+    ),
+    errors::ApiErrorResponse,
+> {
     let db = &state.store;
     let mca = db
         .find_merchant_connector_account_by_id(connector_id, key_store)
@@ -829,11 +830,12 @@ async fn fetch_mca_and_connector(
         })
         .attach_printable("error while fetching merchant_connector_account from connector_id")?;
 
+    let connector_enum = mca.connector_name;
     let (connector, connector_name) = get_connector_by_connector_name(
         state,
-        &mca.connector_name.to_string(),
+        &connector_enum.to_string(),
         Some(mca.get_id()),
     )?;
 
-    Ok((mca, connector, connector_name))
+    Ok((mca, connector, connector_enum, connector_name))
 }

@@ -11124,11 +11124,10 @@ pub enum RetryType {
     AutoRetry,
 }
 
-#[derive(Debug, Default, serde::Serialize, Clone, strum::EnumString, strum::Display)]
+#[derive(Debug, serde::Serialize, Clone, strum::EnumString, strum::Display)]
 #[serde(rename_all = "snake_case")]
 #[strum(ascii_case_insensitive)]
 pub enum RoutingRegion {
-    #[default]
     Region1,
     Region2,
 }

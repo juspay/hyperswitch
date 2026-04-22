@@ -709,12 +709,12 @@ pub fn construct_uas_webhook_router_data<F: Clone, Req, Res>(
 pub async fn fetch_routing_region_for_uas(
     state: &SessionState,
     dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndOrgId,
-) -> RouterResult<RoutingRegion> {
-    Ok(dimensions
+) -> RoutingRegion {
+    dimensions
         .get_threeds_routing_region_uas(
             state.store.as_ref(),
             state.superposition_service.as_ref(),
             None,
         )
-        .await)
+        .await
 }

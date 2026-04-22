@@ -343,10 +343,10 @@ pub async fn fetch_db_config_for_string_enum<C, T>(
     superposition_client: &superposition::SuperpositionClient,
     dimensions: &impl dimension_state::DimensionsBase,
     targeting_key: Option<&C::TargetingKey>,
-) -> T
+) -> Option<T>
 where
     C: DatabaseBackedConfig<Output = String>,
-    T: std::str::FromStr + Default,
+    T: std::str::FromStr,
     open_feature::Client: superposition::GetValue<String>,
 {
     let db_key = <C as DatabaseBackedConfig>::db_key(dimensions);
@@ -362,15 +362,16 @@ where
     .await;
 
     let config_type = C::KEY;
-    s.parse::<T>().unwrap_or_else(|_| {
-        router_env::logger::error!(
-            "Failed to parse string enum for config '{}', using default",
-            config_type
-        );
-        metrics::CONFIG_DEFAULT_FALLBACK.add(
-            1,
-            router_env::metric_attributes!(("config_type", config_type)),
-        );
-        T::default()
-    })
+    s.parse::<T>()
+        .map_err(|_| {
+            router_env::logger::error!(
+                "Failed to parse string enum for config '{}', using default",
+                config_type
+            );
+            metrics::CONFIG_DEFAULT_FALLBACK.add(
+                1,
+                router_env::metric_attributes!(("config_type", config_type)),
+            );
+        })
+        .ok()
 }

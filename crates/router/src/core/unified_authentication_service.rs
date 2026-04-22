@@ -1184,10 +1184,7 @@ pub async fn authentication_eligibility_core(
         .billing
         .clone()
         .map(hyperswitch_domain_models::address::Address::from);
-    let routing_region = utils::fetch_routing_region_for_uas(&state, &dimensions)
-        .await
-        .change_context(ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to fetch routing path")?;
+    let routing_region = utils::fetch_routing_region_for_uas(&state, &dimensions).await;
 
     let pre_auth_response =
         <ExternalAuthentication as UnifiedAuthenticationService>::pre_authentication(
@@ -1340,10 +1337,7 @@ pub async fn authentication_authenticate_core(
         merchant_connector_account_id_or_connector_name,
     );
 
-    let routing_region = utils::fetch_routing_region_for_uas(&state, &dimensions)
-        .await
-        .change_context(ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to fetch routing path")?;
+    let routing_region = utils::fetch_routing_region_for_uas(&state, &dimensions).await;
 
     let auth_response = <ExternalAuthentication as UnifiedAuthenticationService>::authentication(
         &state,
@@ -1814,10 +1808,7 @@ async fn execute_post_authentication_flow(
         metrics::POST_AUTHENTICATION_CARDS_SUCCESSFULLY_DECRYPTED.add(1, &[]);
         response
     } else {
-        let routing_region = utils::fetch_routing_region_for_uas(state, &dimensions)
-            .await
-            .change_context(ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to fetch routing path")?;
+        let routing_region = utils::fetch_routing_region_for_uas(state, &dimensions).await;
         ExternalAuthentication::post_authentication(
             state,
             business_profile,
@@ -2068,7 +2059,7 @@ pub async fn authentication_sync_core(
             psd2_sca_exemption_type: authentication.psd2_sca_exemption_type,
         };
         let routing_region =
-            utils::fetch_routing_region_for_uas(&state, &dimensions.without_profile_id()).await?;
+            utils::fetch_routing_region_for_uas(&state, &dimensions.without_profile_id()).await;
 
         let authentication_info = Some(AuthenticationInfo {
             authentication_type: None,
@@ -2332,10 +2323,7 @@ pub async fn authentication_post_sync_core(
             authentication.authentication_connector.clone(),
         )
         .await?;
-    let routing_region = utils::fetch_routing_region_for_uas(&state, &dimensions)
-        .await
-        .change_context(ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to fetch routing path")?;
+    let routing_region = utils::fetch_routing_region_for_uas(&state, &dimensions).await;
 
     let post_auth_response =
         <ExternalAuthentication as UnifiedAuthenticationService>::post_authentication(
