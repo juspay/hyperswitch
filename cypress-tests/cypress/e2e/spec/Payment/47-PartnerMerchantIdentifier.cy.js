@@ -24,8 +24,10 @@ describe("Partner Merchant Identifier Tests", () => {
       ]["PartnerMerchantIdentifier"];
 
       cy.step("Create Payment Intent with Partner Merchant Identifier", () => {
+        // Clone fixture to prevent state leakage between tests
+        const requestBody = { ...fixtures.createPaymentBody };
         cy.createPaymentIntentTest(
-          fixtures.createPaymentBody,
+          requestBody,
           data,
           "no_three_ds",
           "automatic",
@@ -39,32 +41,34 @@ describe("Partner Merchant Identifier Tests", () => {
 
       cy.step("Retrieve Payment to verify persisted Partner Merchant Identifier", () => {
         if (!shouldContinue) return;
-        const payment_id = globalState.get("paymentID");
-        const headers = {
-          "Content-Type": "application/json",
-          "api-key": globalState.get("apiKey"),
-        };
-        cy.request({
-          method: "GET",
-          url: `${globalState.get("baseUrl")}/payments/${payment_id}?force_sync=true`,
-          headers,
-          failOnStatusCode: false,
-        }).then((response) => {
-          expect(response.status).to.eq(200);
-          expect(response.body.payment_id).to.eq(payment_id);
-          expect(
-            response.body.partner_merchant_identifier_details,
-            "partner_merchant_identifier_details"
-          ).to.deep.eq({
-            partner_details: {
-              name: "TestPartner",
-              version: "1.0.0",
-              integrator: "TestIntegrator123",
-            },
-            merchant_details: {
-              name: "TestMerchantApp",
-              version: "2.0.0",
-            },
+        cy.then(() => {
+          const payment_id = globalState.get("paymentID");
+          const headers = {
+            "Content-Type": "application/json",
+            "api-key": globalState.get("apiKey"),
+          };
+          return cy.request({
+            method: "GET",
+            url: `${globalState.get("baseUrl")}/payments/${payment_id}?force_sync=true`,
+            headers,
+            failOnStatusCode: false,
+          }).then((response) => {
+            expect(response.status).to.eq(200);
+            expect(response.body.payment_id).to.eq(payment_id);
+            expect(
+              response.body.partner_merchant_identifier_details,
+              "partner_merchant_identifier_details"
+            ).to.deep.eq({
+              partner_details: {
+                name: "TestPartner",
+                version: "1.0.0",
+                integrator: "TestIntegrator123",
+              },
+              merchant_details: {
+                name: "TestMerchantApp",
+                version: "2.0.0",
+              },
+            });
           });
         });
       });
@@ -80,8 +84,10 @@ describe("Partner Merchant Identifier Tests", () => {
       ]["PaymentIntent"];
 
       cy.step("Create Payment Intent without Partner Merchant Identifier", () => {
+        // Clone fixture to prevent state leakage between tests
+        const requestBody = { ...fixtures.createPaymentBody };
         cy.createPaymentIntentTest(
-          fixtures.createPaymentBody,
+          requestBody,
           data,
           "no_three_ds",
           "automatic",
@@ -95,25 +101,27 @@ describe("Partner Merchant Identifier Tests", () => {
 
       cy.step("Retrieve Payment to verify no Partner Merchant Identifier present", () => {
         if (!shouldContinue) return;
-        const payment_id = globalState.get("paymentID");
-        const headers = {
-          "Content-Type": "application/json",
-          "api-key": globalState.get("apiKey"),
-        };
-        cy.request({
-          method: "GET",
-          url: `${globalState.get("baseUrl")}/payments/${payment_id}?force_sync=true`,
-          headers,
-          failOnStatusCode: false,
-        }).then((response) => {
-          expect(response.status).to.eq(200);
-          expect(response.body.payment_id).to.eq(payment_id);
-          expect(
-            response.body.partner_merchant_identifier_details,
-            "partner_merchant_identifier_details without PMI"
-          ).to.deep.eq({
-            partner_details: null,
-            merchant_details: null,
+        cy.then(() => {
+          const payment_id = globalState.get("paymentID");
+          const headers = {
+            "Content-Type": "application/json",
+            "api-key": globalState.get("apiKey"),
+          };
+          return cy.request({
+            method: "GET",
+            url: `${globalState.get("baseUrl")}/payments/${payment_id}?force_sync=true`,
+            headers,
+            failOnStatusCode: false,
+          }).then((response) => {
+            expect(response.status).to.eq(200);
+            expect(response.body.payment_id).to.eq(payment_id);
+            expect(
+              response.body.partner_merchant_identifier_details,
+              "partner_merchant_identifier_details without PMI"
+            ).to.deep.eq({
+              partner_details: null,
+              merchant_details: null,
+            });
           });
         });
       });
@@ -143,8 +151,10 @@ describe("Partner Merchant Identifier Tests", () => {
       };
 
       cy.step("Create Payment Intent with empty partner_merchant_identifier_details", () => {
+        // Clone fixture to prevent state leakage between tests
+        const requestBody = { ...fixtures.createPaymentBody };
         cy.createPaymentIntentTest(
-          fixtures.createPaymentBody,
+          requestBody,
           modifiedData,
           "no_three_ds",
           "automatic",
@@ -158,25 +168,27 @@ describe("Partner Merchant Identifier Tests", () => {
 
       cy.step("Verify empty partner_merchant_identifier_details returns nulls", () => {
         if (!shouldContinue) return;
-        const payment_id = globalState.get("paymentID");
-        const headers = {
-          "Content-Type": "application/json",
-          "api-key": globalState.get("apiKey"),
-        };
-        cy.request({
-          method: "GET",
-          url: `${globalState.get("baseUrl")}/payments/${payment_id}?force_sync=true`,
-          headers,
-          failOnStatusCode: false,
-        }).then((response) => {
-          expect(response.status).to.eq(200);
-          expect(response.body.payment_id).to.eq(payment_id);
-          expect(
-            response.body.partner_merchant_identifier_details,
-            "partner_merchant_identifier_details"
-          ).to.deep.eq({
-            partner_details: null,
-            merchant_details: null,
+        cy.then(() => {
+          const payment_id = globalState.get("paymentID");
+          const headers = {
+            "Content-Type": "application/json",
+            "api-key": globalState.get("apiKey"),
+          };
+          return cy.request({
+            method: "GET",
+            url: `${globalState.get("baseUrl")}/payments/${payment_id}?force_sync=true`,
+            headers,
+            failOnStatusCode: false,
+          }).then((response) => {
+            expect(response.status).to.eq(200);
+            expect(response.body.payment_id).to.eq(payment_id);
+            expect(
+              response.body.partner_merchant_identifier_details,
+              "partner_merchant_identifier_details"
+            ).to.deep.eq({
+              partner_details: null,
+              merchant_details: null,
+            });
           });
         });
       });
