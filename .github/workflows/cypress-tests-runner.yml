@@ -233,6 +233,17 @@ jobs:
           --health-retries 5
         ports:
           - 5432:5432
+      superposition:
+        image: ghcr.io/juspay/superposition-demo:0.102.0
+        env:
+          API_HOSTNAME: http://localhost:8081
+        ports:
+          - 8081:8080
+        options: >-
+          --health-cmd "wget -qO- http://localhost:8080/health || exit 1"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
 
     steps:
       - name: Skip tests for PRs from forks
