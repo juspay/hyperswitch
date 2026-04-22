@@ -202,6 +202,9 @@ enum RequiredField {
     DcbClientUid,
     OrderDetailsProductName,
     Description,
+    PixAccountNumber,
+    PixBranchCode,
+    PixBankIdentifier,
 }
 
 impl RequiredField {
@@ -213,6 +216,39 @@ impl RequiredField {
                     required_field: "payment_method_data.card.card_number".to_string(),
                     display_name: "card_number".to_string(),
                     field_type: FieldType::UserCardNumber,
+                    value: None,
+                },
+            ),
+            Self::PixAccountNumber => (
+                "payment_method_data.bank_transfer.pix_automatico_push.account_number".to_string(),
+                RequiredFieldInfo {
+                    required_field:
+                        "payment_method_data.bank_transfer.pix_automatico_push.account_number"
+                            .to_string(),
+                    display_name: "account_number".to_string(),
+                    field_type: FieldType::UserPixAccountNumber,
+                    value: None,
+                },
+            ),
+            Self::PixBranchCode => (
+                "payment_method_data.bank_transfer.pix_automatico_push.branch_code".to_string(),
+                RequiredFieldInfo {
+                    required_field:
+                        "payment_method_data.bank_transfer.pix_automatico_push.branch_code"
+                            .to_string(),
+                    display_name: "branch_code".to_string(),
+                    field_type: FieldType::UserBranchCode,
+                    value: None,
+                },
+            ),
+            Self::PixBankIdentifier => (
+                "payment_method_data.bank_transfer.pix_automatico_push.bank_identifier".to_string(),
+                RequiredFieldInfo {
+                    required_field:
+                        "payment_method_data.bank_transfer.pix_automatico_push.bank_identifier"
+                            .to_string(),
+                    display_name: "bank_identifier".to_string(),
+                    field_type: FieldType::UserBankIdentifier,
                     value: None,
                 },
             ),
@@ -1724,6 +1760,10 @@ fn get_cards_required_fields() -> HashMap<Connector, RequiredFieldFinal> {
                 ]),
                 common: HashMap::new(),
             },
+        ),
+        (
+            Connector::Imerchantsolutions,
+            fields(vec![], card_basic(), vec![]),
         ),
     ])
 }
@@ -3759,6 +3799,43 @@ fn get_bank_transfer_required_fields() -> HashMap<enums::PaymentMethodType, Conn
                     },
                 ),
             ]),
+        ),
+        (
+            enums::PaymentMethodType::PixAutomaticoPush,
+            connectors(vec![(
+                Connector::Santander,
+                RequiredFieldFinal {
+                    // recheck
+                    mandate: HashMap::new(),
+                    // recheck
+                    non_mandate: HashMap::new(),
+                    common: HashMap::from([
+                        RequiredField::PixDocumentType(vec!["cpf", "cnpj"]).to_tuple(),
+                        RequiredField::PixDocumentNumber.to_tuple(),
+                        RequiredField::PixAccountNumber.to_tuple(),
+                        RequiredField::PixBranchCode.to_tuple(),
+                        RequiredField::PixBankIdentifier.to_tuple(),
+                        RequiredField::BillingUserFirstName.to_tuple(),
+                        RequiredField::BillingUserLastName.to_tuple(),
+                    ]),
+                },
+            )]),
+        ),
+        (
+            enums::PaymentMethodType::PixAutomaticoQr,
+            connectors(vec![(
+                Connector::Santander,
+                RequiredFieldFinal {
+                    mandate: HashMap::new(),
+                    non_mandate: HashMap::new(),
+                    common: HashMap::from([
+                        RequiredField::PixDocumentType(vec!["cpf", "cnpj"]).to_tuple(),
+                        RequiredField::PixDocumentNumber.to_tuple(),
+                        RequiredField::BillingUserFirstName.to_tuple(),
+                        RequiredField::BillingUserLastName.to_tuple(),
+                    ]),
+                },
+            )]),
         ),
         (
             enums::PaymentMethodType::PermataBankTransfer,

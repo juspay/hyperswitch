@@ -1,7 +1,7 @@
 use common_utils::ext_traits::AsyncExt;
 use error_stack::ResultExt;
 use hyperswitch_interfaces::{
-    api::{gateway, ConnectorCommon},
+    api::{gateway, ConnectorCommon, ConnectorValidation},
     consts,
 };
 
@@ -68,7 +68,13 @@ pub async fn add_access_token_for_payout<F: Clone + 'static>(
 
         let key = connector
             .connector
-            .get_access_token_key(router_data, connector.connector.id().to_string(), None)
+            .get_access_token_key(
+                &router_data.merchant_id,
+                connector.connector.id().to_string(),
+                None,
+                None,
+                None,
+            )
             .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
         let old_access_token = store

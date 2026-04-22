@@ -118,7 +118,7 @@ pub struct PaymentMethod {
     pub payment_method_type: Option<storage_enums::PaymentMethod>,
     pub payment_method_subtype: Option<storage_enums::PaymentMethodType>,
     #[encrypt(ty = Value)]
-    pub payment_method_data: Option<Encryptable<PaymentMethodsData>>,
+    pub payment_method_data: Option<Encryptable<domain_payment_method_data::PaymentMethodsData>>,
     pub locker_id: Option<VaultId>,
     pub last_used_at: PrimitiveDateTime,
     pub connector_mandate_details: Option<CommonMandateReference>,
@@ -335,6 +335,7 @@ pub struct PaymentMethodUpdate {
     pub acknowledgement_status: Option<common_enums::AcknowledgementStatus>,
     pub network_tokenization: Option<common_types::payment_methods::NetworkTokenization>,
     pub source_payment_method_data: Option<crate::vault::PaymentMethodVaultingData>,
+    pub status: Option<common_enums::PaymentMethodStatus>,
 }
 
 #[cfg(feature = "v2")]
@@ -347,6 +348,7 @@ impl From<payment_methods::PaymentMethodUpdate> for PaymentMethodUpdate {
             acknowledgement_status: value.acknowledgement_status,
             network_tokenization: None,
             source_payment_method_data: None,
+            status: value.acknowledgement_status.map(|ack| ack.into()),
         }
     }
 }
@@ -367,7 +369,14 @@ impl PaymentMethodUpdate {
             Some(payment_methods::PaymentMethodUpdateData::Card(card_update)) => {
                 card_update.card_holder_name.is_some() || card_update.nick_name.is_some()
             }
-            _ => false,
+            Some(payment_methods::PaymentMethodUpdateData::BankDebit(bank_debit_update)) => {
+                match bank_debit_update {
+                    payment_methods::BankDebitDetailUpdate::Ach {
+                        bank_account_holder_name,
+                    } => bank_account_holder_name.is_some(),
+                }
+            }
+            None => false,
         }
     }
 
@@ -376,6 +385,7 @@ impl PaymentMethodUpdate {
             || self.connector_token_details.is_some()
             || self.network_transaction_id.is_some()
             || self.acknowledgement_status.is_some()
+            || self.status.is_some()
     }
 }
 
@@ -401,7 +411,20 @@ impl
                     card_cvc: card_data.card_cvc.clone(),
                 }),
             ),
-            payment_methods::PaymentMethodCreateData::ProxyCard(_) => None,
+            payment_methods::PaymentMethodCreateData::BankDebit(
+                payment_methods::BankDebitDetail::Ach {
+                    bank_account_holder_name,
+                    bank_type,
+                    bank_holder_type,
+                    ..
+                },
+            ) => Some(payment_methods::PaymentMethodUpdateData::BankDebit(
+                payment_methods::BankDebitDetailUpdate::Ach {
+                    bank_account_holder_name: bank_account_holder_name.clone(),
+                },
+            )),
+            payment_methods::PaymentMethodCreateData::ProxyCard(_)
+            | payment_methods::PaymentMethodCreateData::Wallet(_) => None,
         };
 
         Self {
@@ -411,6 +434,7 @@ impl
             acknowledgement_status: None,
             network_tokenization: req.network_tokenization.clone(),
             source_payment_method_data: Some(source_payment_method_data),
+            status: None,
         }
     }
 }

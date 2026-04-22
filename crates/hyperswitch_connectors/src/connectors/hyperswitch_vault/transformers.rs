@@ -28,9 +28,11 @@ impl TryFrom<&VaultRouterData<ExternalVaultCreateFlow>> for HyperswitchVaultCrea
             .connector_customer_id
             .clone()
             .ok_or_else(utils::missing_field_err("connector_customer"))?;
-        Ok(Self { customer_id,
+
+        Ok(Self {
+            customer_id,
             storage_type: common_enums::StorageType::Persistent,
-         })
+        })
     }
 }
 

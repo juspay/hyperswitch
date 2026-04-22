@@ -689,6 +689,7 @@ pub async fn should_call_unified_connector_service_for_webhooks(
     state: &SessionState,
     processor: &Processor,
     connector_name: &str,
+    merchant_connector_id: Option<&id_type::MerchantConnectorAccountId>,
 ) -> RouterResult<ExecutionPath> {
     // Extract context information
     let merchant_id = processor.get_account().get_id().get_string_repr();
@@ -702,12 +703,16 @@ pub async fn should_call_unified_connector_service_for_webhooks(
     // Check UCS availability using idiomatic helper
     let ucs_availability = check_ucs_availability(state).await;
 
+    let connector_key = merchant_connector_id
+        .map(|id| id.get_string_repr().to_owned())
+        .unwrap_or_else(|| connector_name.to_string());
+
     // Build rollout keys - webhooks don't use payment method, so use a simplified key format
     let rollout_key = format!(
         "{}_{}_{}_{}",
         consts::UCS_ROLLOUT_PERCENT_CONFIG_PREFIX,
         merchant_id,
-        connector_name,
+        connector_key,
         flow_name
     );
 
@@ -753,43 +758,55 @@ pub fn build_unified_connector_service_payment_method(
 ) -> CustomResult<payments_grpc::PaymentMethod, UnifiedConnectorServiceError> {
     match payment_method_data {
         hyperswitch_domain_models::payment_method_data::PaymentMethodData::Card(card) => {
-            let card_exp_month = card
-                .get_card_expiry_month_2_digit()
-                .attach_printable("Failed to extract 2-digit expiry month from card")
-                .change_context(UnifiedConnectorServiceError::InvalidDataFormat {
-                    field_name: "card_exp_month",
-                })?
-                .peek()
-                .to_string();
+            match payment_method_token {
+                Some(PaymentMethodToken::Token(token)) => {
+                    let token_payment_method = payments_grpc::TokenPaymentMethodType {
+                        token: Some(token.clone()),
+                    };
+                    Ok(payments_grpc::PaymentMethod {
+                        payment_method: Some(PaymentMethod::Token(token_payment_method)),
+                    })
+                }
+                _ => {
+                    let card_exp_month = card
+                        .get_card_expiry_month_2_digit()
+                        .attach_printable("Failed to extract 2-digit expiry month from card")
+                        .change_context(UnifiedConnectorServiceError::InvalidDataFormat {
+                            field_name: "card_exp_month",
+                        })?
+                        .peek()
+                        .to_string();
 
-            let card_network = card
-                .card_network
-                .clone()
-                .map(payments_grpc::CardNetwork::foreign_from);
+                    let card_network = card
+                        .card_network
+                        .clone()
+                        .map(payments_grpc::CardNetwork::foreign_from);
 
-            let card_details = CardDetails {
-                card_number: Some(
-                    CardNumber::from_str(&card.card_number.get_card_no()).change_context(
-                        UnifiedConnectorServiceError::RequestEncodingFailedWithReason(
-                            "Failed to parse card number".to_string(),
+                    let card_details = CardDetails {
+                        card_number: Some(
+                            CardNumber::from_str(&card.card_number.get_card_no()).change_context(
+                                UnifiedConnectorServiceError::RequestEncodingFailedWithReason(
+                                    "Failed to parse card number".to_string(),
+                                ),
+                            )?,
                         ),
-                    )?,
-                ),
-                card_exp_month: Some(card_exp_month.into()),
-                card_exp_year: Some(card.card_exp_year.expose().into()),
-                card_cvc: Some(card.card_cvc.expose().into()),
-                card_holder_name: card.card_holder_name.map(|name| name.expose().into()),
-                card_issuer: card.card_issuer.clone(),
-                card_network: card_network.map(|card_network| card_network.into()),
-                card_type: card.card_type.clone(),
-                bank_code: card.bank_code.clone(),
-                nick_name: card.nick_name.map(|n| n.expose()),
-                card_issuing_country_alpha2: card.card_issuing_country.clone(),
-            };
+                        card_exp_month: Some(card_exp_month.into()),
+                        card_exp_year: Some(card.card_exp_year.expose().into()),
+                        card_cvc: Some(card.card_cvc.expose().into()),
+                        card_holder_name: card.card_holder_name.map(|name| name.expose().into()),
+                        card_issuer: card.card_issuer.clone(),
+                        card_network: card_network.map(|card_network| card_network.into()),
+                        card_type: card.card_type.clone(),
+                        bank_code: card.bank_code.clone(),
+                        nick_name: card.nick_name.map(|n| n.expose()),
+                        card_issuing_country_alpha2: card.card_issuing_country.clone(),
+                    };
 
-            Ok(payments_grpc::PaymentMethod {
-                payment_method: Some(PaymentMethod::Card(card_details)),
-            })
+                    Ok(payments_grpc::PaymentMethod {
+                        payment_method: Some(PaymentMethod::Card(card_details)),
+                    })
+                }
+            }
         }
         hyperswitch_domain_models::payment_method_data::PaymentMethodData::CardRedirect(
             card_redirect_data,
@@ -1459,7 +1476,6 @@ pub fn build_unified_connector_service_payment_method(
             hyperswitch_domain_models::payment_method_data::BankDebitData::AchBankDebit {
                 account_number,
                 routing_number,
-                card_holder_name,
                 bank_account_holder_name,
                 bank_name,
                 bank_type,
@@ -1478,7 +1494,7 @@ pub fn build_unified_connector_service_payment_method(
                 let ach = payments_grpc::Ach {
                     account_number: Some(account_number.expose().into()),
                     routing_number: Some(routing_number.expose().into()),
-                    card_holder_name: card_holder_name.map(|name| name.expose().into()),
+                    card_holder_name: None,
                     bank_account_holder_name: bank_account_holder_name
                         .map(|name| name.expose().into()),
                     bank_name: bank_name.map(Into::into).unwrap_or_default(),

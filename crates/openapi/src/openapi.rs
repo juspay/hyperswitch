@@ -7,7 +7,7 @@ use crate::routes;
         contact(
             name = "Hyperswitch Support",
             url = "https://hyperswitch.io",
-            email = "hyperswitch@juspay.in"
+            email = "support.global@juspay.io"
         ),
         // terms_of_service = "https://www.juspay.io/terms",
         description = r#"

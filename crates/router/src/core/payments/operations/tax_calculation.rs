@@ -1,6 +1,6 @@
 use std::marker::PhantomData;
 
-use api_models::enums::FrmSuggestion;
+use api_models::{enums::FrmSuggestion, payments::MandateTransactionType};
 use async_trait::async_trait;
 use common_utils::ext_traits::AsyncExt;
 use error_stack::ResultExt;
@@ -11,14 +11,10 @@ use router_env::{instrument, tracing};
 use super::{BoxedOperation, Domain, GetTracker, Operation, UpdateTracker, ValidateRequest};
 use crate::{
     core::{
-        configs::dimension_state::{
-            DimensionsWithProcessorAndProviderMerchantId,
-            DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
-        },
+        configs::dimension_state,
         errors::{self, RouterResult, StorageErrorExt},
-        payment_methods::cards::create_encrypted_data,
         payments::{self, helpers, operations, PaymentData, PaymentMethodChecker},
-        utils as core_utils,
+        utils::{self as core_utils, create_encrypted_data},
     },
     db::errors::ConnectorErrorExt,
     routes::{app::ReqState, SessionState},
@@ -56,6 +52,7 @@ impl<F: Send + Clone + Sync>
         #[cfg(feature = "pm_modular")] _payment_method_wrapper: Option<
             operations::PaymentMethodWithRawData,
         >,
+        _dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
     ) -> RouterResult<
         operations::GetTrackerResponse<
             'a,
@@ -230,7 +227,8 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsDynamicTaxCalculationRequest
         _request: Option<payments::CustomerDetails>,
         _provider: &domain::Provider,
         _initiator: Option<&domain::Initiator>,
-        _dimensions: &DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
+        _dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
+        _mandate_type: Option<MandateTransactionType>,
     ) -> errors::CustomResult<
         (
             PaymentSessionUpdateOperation<'a, F>,
@@ -396,7 +394,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsDynamicTaxCa
         mut payment_data: PaymentData<F>,
         _frm_suggestion: Option<FrmSuggestion>,
         _header_payload: hyperswitch_domain_models::payments::HeaderPayload,
-        _dimensions: &DimensionsWithProcessorAndProviderMerchantId,
+        _dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
     ) -> RouterResult<(PaymentSessionUpdateOperation<'b, F>, PaymentData<F>)>
     where
         F: 'b + Send,
@@ -414,7 +412,12 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsDynamicTaxCa
             let shipping_details = shipping_address
                 .clone()
                 .async_map(|shipping_details| {
-                    create_encrypted_data(&key_manager_state, key_store, shipping_details)
+                    create_encrypted_data(
+                        &key_manager_state,
+                        key_store,
+                        shipping_details,
+                        common_utils::type_name!(diesel_models::payment_method::PaymentMethod),
+                    )
                 })
                 .await
                 .transpose()

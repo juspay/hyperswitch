@@ -4,7 +4,7 @@ use std::{
 };
 
 use api_models::user_role::role as role_api;
-use common_enums::{EntityType, ParentGroup, PermissionGroup};
+use common_enums::{EntityType, MerchantProductType, ParentGroup, PermissionGroup};
 use common_utils::id_type;
 use diesel_models::{
     enums::UserRoleVersion,
@@ -20,6 +20,7 @@ use crate::{
     consts,
     core::errors::{UserErrors, UserResult},
     db::{
+        domain::role::get_accessible_product_categories,
         errors::StorageErrorExt,
         user_role::{ListUserRolesByOrgIdPayload, ListUserRolesByUserIdPayload},
     },
@@ -37,10 +38,23 @@ use crate::{
     utils::user::{self as user_utils, theme as theme_utils},
 };
 
-pub fn validate_role_groups(groups: &[PermissionGroup]) -> UserResult<()> {
+pub fn validate_role_groups(
+    groups: &[PermissionGroup],
+    merchant_product_type: Option<MerchantProductType>,
+) -> UserResult<()> {
     if groups.is_empty() {
         return Err(report!(UserErrors::InvalidRoleOperation))
             .attach_printable("Role groups cannot be empty");
+    }
+
+    if let Some(product_type) = merchant_product_type {
+        let accessible_product_categories = get_accessible_product_categories(product_type);
+        if groups.iter().any(|group| {
+            !accessible_product_categories.contains(&group.get_role_product_category())
+        }) {
+            return Err(report!(UserErrors::InvalidRoleOperation))
+                .attach_printable("Permission groups of different product types found");
+        }
     }
 
     let unique_groups: HashSet<_> = groups.iter().copied().collect();

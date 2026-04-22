@@ -3,6 +3,8 @@ use api_models::payment_methods;
 use common_utils::{crypto::Encryptable, errors::CustomResult, ext_traits::OptionExt};
 #[cfg(feature = "v2")]
 use error_stack::ResultExt;
+#[cfg(feature = "v2")]
+use hyperswitch_masking::PeekInterface;
 use serde::{Deserialize, Serialize};
 
 use crate::{errors, payment_method_data};
@@ -12,14 +14,20 @@ pub enum PaymentMethodVaultingData {
     Card(payment_methods::CardDetail),
     NetworkToken(payment_method_data::NetworkTokenDetails),
     CardNumber(cards::CardNumber),
-    #[cfg(feature = "v1")]
-    BankDebit(payment_methods::BankDebitDetail),
+    BankDebit(payment_method_data::BankDebitDetail),
 }
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub enum FingerprintData {
     Card(FingerprintCardData),
     NetworkToken(FingerprintNetworkTokenData),
     CardNumber(cards::CardNumber),
+    BankDebit(FingerprintBankDebitData),
+}
+
+#[derive(Debug, Default, Deserialize, Serialize, Clone)]
+pub struct FingerprintBankDebitData {
+    account_number: hyperswitch_masking::Secret<String>,
+    routing_number: hyperswitch_masking::Secret<String>,
 }
 
 #[derive(Debug, Default, Deserialize, Serialize, Clone)]
@@ -41,8 +49,7 @@ impl PaymentMethodVaultingData {
     pub fn get_card(&self) -> Option<&payment_methods::CardDetail> {
         match self {
             Self::Card(card) => Some(card),
-            Self::NetworkToken(_) => None,
-            Self::CardNumber(_) => None,
+            Self::NetworkToken(_) | Self::CardNumber(_) | Self::BankDebit(_) => None,
         }
     }
 
@@ -52,8 +59,7 @@ impl PaymentMethodVaultingData {
             Self::Card(card_details) => {
                 card_details.card_cvc = Some(card_cvc);
             }
-            Self::NetworkToken(_) => {}
-            Self::CardNumber(_) => {}
+            Self::NetworkToken(_) | Self::CardNumber(_) | Self::BankDebit(_) => {}
         }
     }
 
@@ -64,17 +70,22 @@ impl PaymentMethodVaultingData {
         match self {
             Self::Card(card) => Some(payment_methods::RawPaymentMethodData::Card(card.clone())),
             // Raw payment methods data is not available for network tokens
-            Self::NetworkToken(network_token) => None,
+            Self::NetworkToken(_) => None,
             // When it is card number populated_payment_methods_data_and_get_payment_method_vaulting_data
             // will be called which will populated the payment methods data for card number and convert it to type CardDetail
-            Self::CardNumber(card_number) => None,
+            Self::CardNumber(_) => None,
+            Self::BankDebit(bank_debit) => Some(payment_methods::RawPaymentMethodData::BankDebit(
+                bank_debit.clone().into(),
+            )),
         }
     }
 
     #[cfg(feature = "v2")]
     pub fn populated_payment_methods_data_and_get_payment_method_vaulting_data(
         &self,
-        payment_methods_data_optional: Option<&Encryptable<payment_methods::PaymentMethodsData>>,
+        payment_methods_data_optional: Option<
+            &Encryptable<payment_method_data::PaymentMethodsData>,
+        >,
     ) -> CustomResult<Self, errors::api_error_response::ApiErrorResponse> {
         match self {
             Self::Card(card_details) => {
@@ -100,7 +111,7 @@ impl PaymentMethodVaultingData {
 
                 Ok(Self::Card(card_detail))
             }
-            Self::NetworkToken(_) => Ok(self.clone()),
+            Self::NetworkToken(_) | Self::BankDebit(_) => Ok(self.clone()),
             Self::CardNumber(card_number) => {
                 let payment_methods_data = payment_methods_data_optional
                     .get_required_value("payment methods data")
@@ -124,7 +135,7 @@ impl PaymentMethodVaultingData {
     pub fn populated_payment_methods_data_for_payment_method_vaulting_data_card_number(
         card_number: &cards::CardNumber,
         card_cvc: Option<hyperswitch_masking::Secret<String>>,
-        payment_methods_data: &Encryptable<payment_methods::PaymentMethodsData>,
+        payment_methods_data: &Encryptable<payment_method_data::PaymentMethodsData>,
     ) -> CustomResult<payment_methods::CardDetail, errors::api_error_response::ApiErrorResponse>
     {
         let stored_card_metadata = payment_methods_data
@@ -138,7 +149,7 @@ impl PaymentMethodVaultingData {
         let card_with_details = payment_method_data::CardNumberWithStoredDetails::new(
             card_number.clone(),
             card_cvc.clone(),
-            stored_card_metadata.into(),
+            stored_card_metadata,
         );
 
         payment_methods::CardDetail::try_from(card_with_details)
@@ -180,6 +191,9 @@ impl PaymentMethodVaultingData {
                     co_badged_card_data: None,
                 },
             ),
+            Self::BankDebit(bank_debit) => payment_method_data::PaymentMethodsData::BankDebit(
+                payment_method_data::BankDebitDetailsPaymentMethod::from(bank_debit.clone()),
+            ),
         }
     }
 
@@ -197,6 +211,26 @@ impl PaymentMethodVaultingData {
                 network_token_exp_year: nt.network_token_exp_year.clone(),
             }),
             Self::CardNumber(card_number) => FingerprintData::CardNumber(card_number.clone()),
+            Self::BankDebit(bank_debit) => {
+                FingerprintData::BankDebit(Self::get_bank_debit_fingerprint_data(bank_debit))
+            }
+        }
+    }
+
+    #[cfg(feature = "v2")]
+    pub fn get_bank_debit_fingerprint_data(
+        bank_debit: &payment_method_data::BankDebitDetail,
+    ) -> FingerprintBankDebitData {
+        let (account_number, routing_number) = match bank_debit {
+            payment_method_data::BankDebitDetail::Ach {
+                account_number,
+                routing_number,
+                ..
+            } => (account_number.clone(), routing_number.clone()),
+        };
+        FingerprintBankDebitData {
+            account_number,
+            routing_number,
         }
     }
 }
@@ -298,32 +332,6 @@ impl<'de> Deserialize<'de> for V1VaultEntityId {
 }
 
 #[cfg(feature = "v2")]
-pub trait VaultingDataInterface {
-    fn get_vaulting_data_key(&self) -> String;
-}
-
-#[cfg(feature = "v2")]
-impl VaultingDataInterface for PaymentMethodVaultingData {
-    fn get_vaulting_data_key(&self) -> String {
-        match &self {
-            Self::Card(card) => card.card_number.get_card_no(),
-            Self::NetworkToken(network_token) => network_token.network_token.get_card_no(),
-            Self::CardNumber(card_number) => card_number.get_card_no(),
-        }
-    }
-}
-#[cfg(feature = "v2")]
-impl VaultingDataInterface for FingerprintData {
-    fn get_vaulting_data_key(&self) -> String {
-        match self {
-            Self::Card(card) => card.card_number.get_card_no(),
-            Self::NetworkToken(network_token) => network_token.network_token.get_card_no(),
-            Self::CardNumber(card_number) => card_number.get_card_no(),
-        }
-    }
-}
-
-#[cfg(feature = "v2")]
 impl TryFrom<payment_methods::PaymentMethodCreateData> for PaymentMethodVaultingData {
     type Error = error_stack::Report<errors::api_error_response::ApiErrorResponse>;
     fn try_from(item: payment_methods::PaymentMethodCreateData) -> Result<Self, Self::Error> {
@@ -334,9 +342,18 @@ impl TryFrom<payment_methods::PaymentMethodCreateData> for PaymentMethodVaulting
                     ..card
                 }))
             }
+            payment_methods::PaymentMethodCreateData::BankDebit(bank_debit) => {
+                Ok(Self::BankDebit(bank_debit.into()))
+            }
             payment_methods::PaymentMethodCreateData::ProxyCard(card) => Err(
                 errors::api_error_response::ApiErrorResponse::UnprocessableEntity {
                     message: "Proxy Card for PaymentMethodCreateData".to_string(),
+                }
+                .into(),
+            ),
+            payment_methods::PaymentMethodCreateData::Wallet(_) => Err(
+                errors::api_error_response::ApiErrorResponse::UnprocessableEntity {
+                    message: "Wallet for PaymentMethodCreateData".to_string(),
                 }
                 .into(),
             ),
@@ -355,7 +372,7 @@ impl From<payment_methods::PaymentMethodCreateData> for PaymentMethodVaultingDat
                 })
             }
             payment_methods::PaymentMethodCreateData::BankDebit(bank_debit_detail) => {
-                Self::BankDebit(bank_debit_detail)
+                Self::BankDebit(bank_debit_detail.into())
             }
         }
     }
@@ -388,7 +405,6 @@ impl TryFrom<PaymentMethodVaultingData> for PaymentMethodCustomVaultingData {
                     card_cvc: None,
                 }))
             }
-            #[cfg(feature = "v1")]
             PaymentMethodVaultingData::BankDebit(_) => Err(
                 errors::api_error_response::ApiErrorResponse::NotImplemented {
                     message: errors::api_error_response::NotImplementedMessage::Reason(
