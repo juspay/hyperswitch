@@ -439,6 +439,7 @@ export const CONNECTOR_LISTS = {
       // "cybersource",    // issues with MULTIPLE_CONNECTORS handling
       "paypal",
       // "stripe",
+      "wellsfargo",
     ],
     DDC_RACE_CONDITION: ["worldpay"],
     // ucs connectors
