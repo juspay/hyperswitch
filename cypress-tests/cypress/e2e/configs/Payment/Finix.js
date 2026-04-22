@@ -709,14 +709,6 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "requires_payment_method",
-          billing_descriptor: {
-            name: null,
-            city: null,
-            phone: null,
-            statement_descriptor: "QA-BillingDesc",
-            statement_descriptor_suffix: null,
-            reference: null,
-          },
         },
       },
     },
