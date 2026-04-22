@@ -1389,6 +1389,8 @@ diesel::table! {
         #[max_length = 64]
         locker_fingerprint_id -> Nullable<Varchar>,
         network_tokenization_data -> Nullable<Bytea>,
+        #[max_length = 64]
+        id -> Nullable<Varchar>,
     }
 }
 

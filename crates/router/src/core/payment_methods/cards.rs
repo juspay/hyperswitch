@@ -213,6 +213,17 @@ impl PaymentMethodsController for PmCards<'_> {
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to add payment method in db")?;
 
+        super::add_payment_method_modular_compat_task(
+            &*self.state.store,
+            &response,
+            merchant_id,
+            self.state.conf.application_source,
+            initiator,
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to add payment method modular compatibility task in process tracker")?;
+
         if customer.default_payment_method_id.is_none() && req.payment_method.is_some() {
             let _ = self
                 .set_default_payment_method(

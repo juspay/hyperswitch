@@ -68,6 +68,7 @@ pub struct PaymentMethod {
     pub customer_details: Option<Encryption>,
     pub locker_fingerprint_id: Option<String>,
     pub network_tokenization_data: Option<Encryption>,
+    pub id: Option<String>,
 }
 
 #[cfg(feature = "v2")]
@@ -166,6 +167,7 @@ pub struct PaymentMethodNew {
     pub customer_details: Option<Encryption>,
     pub locker_fingerprint_id: Option<String>,
     pub network_tokenization_data: Option<Encryption>,
+    pub id: Option<String>,
 }
 
 #[cfg(feature = "v2")]
@@ -290,6 +292,10 @@ pub enum PaymentMethodUpdate {
         network_transaction_id: Option<String>,
         status: Option<storage_enums::PaymentMethodStatus>,
         payment_method_data: Option<Encryption>,
+        last_modified_by: Option<String>,
+    },
+    PopulateId {
+        id: String,
         last_modified_by: Option<String>,
     },
 }
@@ -441,7 +447,12 @@ impl PaymentMethodUpdateInternal {
 
 #[cfg(feature = "v1")]
 #[derive(Clone, Debug, AsChangeset, router_derive::DebugAsDisplay, Serialize, Deserialize)]
+// Diesel derive assumes `id` as primary key unless explicitly configured.
+// This changeset must update the nullable `payment_methods.id` column, so we
+// pin the actual primary key to `payment_method_id`.
+// Ref: https://diesel.rs/guides/all-about-updates/
 #[diesel(table_name = payment_methods)]
+#[diesel(primary_key(payment_method_id))]
 pub struct PaymentMethodUpdateInternal {
     metadata: Option<serde_json::Value>,
     payment_method_data: Option<Encryption>,
@@ -462,6 +473,7 @@ pub struct PaymentMethodUpdateInternal {
     last_modified_by: Option<String>,
     customer_details: Option<Encryption>,
     network_tokenization_data: Option<Encryption>,
+    id: Option<String>,
 }
 
 #[cfg(feature = "v1")]
@@ -487,6 +499,7 @@ impl PaymentMethodUpdateInternal {
             last_modified_by,
             customer_details,
             network_tokenization_data,
+            id,
         } = self;
 
         PaymentMethod {
@@ -535,6 +548,7 @@ impl PaymentMethodUpdateInternal {
             customer_details: customer_details.or(source.customer_details),
             network_tokenization_data: network_tokenization_data
                 .or(source.network_tokenization_data),
+            id: id.or(source.id),
         }
     }
 }
@@ -567,6 +581,7 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
                 last_modified_by,
                 customer_details: None,
                 network_tokenization_data: None,
+                id: None,
             },
             PaymentMethodUpdate::PaymentMethodDataUpdate {
                 payment_method_data,
@@ -591,6 +606,7 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
                 last_modified_by,
                 customer_details: None,
                 network_tokenization_data: None,
+                id: None,
             },
             PaymentMethodUpdate::LastUsedUpdate { last_used_at } => Self {
                 metadata: None,
@@ -612,6 +628,7 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
                 last_modified_by: None,
                 customer_details: None,
                 network_tokenization_data: None,
+                id: None,
             },
             PaymentMethodUpdate::UpdatePaymentMethodDataAndLastUsed {
                 payment_method_data,
@@ -638,6 +655,7 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
                 last_modified_by,
                 customer_details: None,
                 network_tokenization_data: None,
+                id: None,
             },
             PaymentMethodUpdate::NetworkTransactionIdAndStatusUpdate {
                 network_transaction_id,
@@ -663,6 +681,7 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
                 last_modified_by,
                 customer_details: None,
                 network_tokenization_data: None,
+                id: None,
             },
             PaymentMethodUpdate::StatusUpdate {
                 status,
@@ -687,6 +706,7 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
                 last_modified_by,
                 customer_details: None,
                 network_tokenization_data: None,
+                id: None,
             },
             PaymentMethodUpdate::AdditionalDataUpdate {
                 payment_method_data,
@@ -724,6 +744,7 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
                 last_modified_by,
                 customer_details: None,
                 network_tokenization_data,
+                id: None,
             },
             PaymentMethodUpdate::ConnectorMandateDetailsUpdate {
                 connector_mandate_details,
@@ -748,6 +769,7 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
                 last_modified_by,
                 customer_details: None,
                 network_tokenization_data: None,
+                id: None,
             },
             PaymentMethodUpdate::NetworkTokenDataUpdate {
                 network_token_requestor_reference_id,
@@ -775,6 +797,7 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
                 last_modified_by,
                 customer_details: None,
                 network_tokenization_data,
+                id: None,
             },
             PaymentMethodUpdate::ConnectorNetworkTransactionIdAndMandateDetailsUpdate {
                 connector_mandate_details,
@@ -801,6 +824,7 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
                 last_modified_by,
                 customer_details: None,
                 network_tokenization_data: None,
+                id: None,
             },
             PaymentMethodUpdate::PaymentMethodBatchUpdate {
                 connector_mandate_details,
@@ -829,6 +853,32 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
                 last_modified_by,
                 customer_details: None,
                 network_tokenization_data: None,
+                id: None,
+            },
+            PaymentMethodUpdate::PopulateId {
+                id,
+                last_modified_by,
+            } => Self {
+                metadata: None,
+                payment_method_data: None,
+                last_used_at: None,
+                network_transaction_id: None,
+                status: None,
+                locker_id: None,
+                network_token_requestor_reference_id: None,
+                payment_method: None,
+                connector_mandate_details: None,
+                updated_by: None,
+                payment_method_issuer: None,
+                payment_method_type: None,
+                last_modified: common_utils::date_time::now(),
+                network_token_locker_id: None,
+                network_token_payment_method_data: None,
+                scheme: None,
+                last_modified_by,
+                customer_details: None,
+                network_tokenization_data: None,
+                id: Some(id),
             },
         }
     }
@@ -1081,6 +1131,7 @@ impl From<&PaymentMethodNew> for PaymentMethod {
             customer_details: payment_method_new.customer_details.clone(),
             locker_fingerprint_id: payment_method_new.locker_fingerprint_id.clone(),
             network_tokenization_data: payment_method_new.network_tokenization_data.clone(),
+            id: payment_method_new.id.clone(),
         }
     }
 }
@@ -1131,7 +1182,6 @@ impl From<&PaymentMethodNew> for PaymentMethod {
     }
 }
 
-#[cfg(feature = "v1")]
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct PaymentsMandateReferenceRecord {
     pub connector_mandate_id: String,
@@ -1157,14 +1207,12 @@ pub struct ConnectorTokenReferenceRecord {
     pub connector_customer_id: Option<String>,
 }
 
-#[cfg(feature = "v1")]
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, diesel::AsExpression)]
 #[diesel(sql_type = diesel::sql_types::Jsonb)]
 pub struct PaymentsMandateReference(
     pub HashMap<common_utils::id_type::MerchantConnectorAccountId, PaymentsMandateReferenceRecord>,
 );
 
-#[cfg(feature = "v1")]
 impl std::ops::Deref for PaymentsMandateReference {
     type Target =
         HashMap<common_utils::id_type::MerchantConnectorAccountId, PaymentsMandateReferenceRecord>;
@@ -1174,7 +1222,6 @@ impl std::ops::Deref for PaymentsMandateReference {
     }
 }
 
-#[cfg(feature = "v1")]
 impl std::ops::DerefMut for PaymentsMandateReference {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.0
@@ -1278,6 +1325,79 @@ impl CommonMandateReference {
     }
 
     #[cfg(feature = "v2")]
+    fn map_legacy_to_token_reference(
+        payments_mandate_reference: PaymentsMandateReference,
+    ) -> PaymentsTokenReference {
+        let mapped_records = payments_mandate_reference
+            .0
+            .into_iter()
+            .map(|(mca_id, record)| {
+                let token_status = match record.connector_mandate_status {
+                    Some(common_enums::ConnectorMandateStatus::Active) => {
+                        common_enums::ConnectorTokenStatus::Active
+                    }
+                    Some(common_enums::ConnectorMandateStatus::Inactive) => {
+                        common_enums::ConnectorTokenStatus::Inactive
+                    }
+                    None => common_enums::ConnectorTokenStatus::Inactive,
+                };
+
+                let token_record = ConnectorTokenReferenceRecord {
+                    connector_token: record.connector_mandate_id,
+                    payment_method_subtype: record.payment_method_type,
+                    original_payment_authorized_amount: record
+                        .original_payment_authorized_amount
+                        .map(common_utils::types::MinorUnit::new),
+                    original_payment_authorized_currency: record
+                        .original_payment_authorized_currency,
+                    metadata: record.mandate_metadata,
+                    connector_token_status: token_status,
+                    connector_token_request_reference_id: record
+                        .connector_mandate_request_reference_id,
+                    connector_customer_id: record.connector_customer_id,
+                };
+
+                (mca_id, token_record)
+            })
+            .collect();
+
+        PaymentsTokenReference(mapped_records)
+    }
+
+    #[cfg(feature = "v2")]
+    fn parse_payments_reference_with_legacy_fallback(
+        payments_json: serde_json::Value,
+    ) -> CustomResult<PaymentsTokenReference, ParsingError> {
+        match serde_json::from_value::<PaymentsTokenReference>(payments_json.clone()) {
+            Ok(token_reference) => Ok(token_reference),
+            Err(token_err) => {
+                router_env::logger::warn!(
+                    "Failed to parse connector_mandate_details as PaymentsTokenReference: {}. Falling back to PaymentsMandateReference parser",
+                    token_err
+                );
+
+                let legacy_reference =
+                    serde_json::from_value::<PaymentsMandateReference>(payments_json)
+                        .inspect_err(|legacy_err| {
+                            router_env::logger::error!(
+                        "Failed to parse connector_mandate_details as PaymentsMandateReference: {}",
+                        legacy_err
+                    );
+                        })
+                        .change_context(ParsingError::StructParseFailure(
+                            "Failed to parse payments data",
+                        ))?;
+
+                router_env::logger::info!(
+                    "Parsed connector_mandate_details using legacy mandate shape fallback"
+                );
+
+                Ok(Self::map_legacy_to_token_reference(legacy_reference))
+            }
+        }
+    }
+
+    #[cfg(feature = "v2")]
     /// Insert a new payment token reference for the given connector_id
     pub fn insert_payment_token_reference_record(
         &mut self,
@@ -1378,14 +1498,8 @@ where
             .map(|obj| {
                 obj.remove("payouts");
 
-                serde_json::from_value::<PaymentsTokenReference>(serde_json::Value::Object(
+                Self::parse_payments_reference_with_legacy_fallback(serde_json::Value::Object(
                     obj.clone(),
-                ))
-                .inspect_err(|err| {
-                    router_env::logger::error!("Failed to parse payments data: {}", err);
-                })
-                .change_context(ParsingError::StructParseFailure(
-                    "Failed to parse payments data",
                 ))
             })
             .transpose()?;
