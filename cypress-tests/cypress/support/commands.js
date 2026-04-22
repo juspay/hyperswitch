@@ -1971,10 +1971,14 @@ Cypress.Commands.add(
           );
           cy.log(clientSecret);
           for (const key in resData.body) {
-            if (typeof resData.body[key] === "object" && resData.body[key] !== null) {
-              expect(response.body[key], `Expected ${key} to deep equal`).to.deep.eq(
-                resData.body[key]
-              );
+            if (
+              typeof resData.body[key] === "object" &&
+              resData.body[key] !== null
+            ) {
+              expect(
+                response.body[key],
+                `Expected ${key} to deep equal`
+              ).to.deep.eq(resData.body[key]);
             } else {
               expect(resData.body[key]).to.equal(
                 response.body[key],
@@ -4911,7 +4915,6 @@ Cypress.Commands.add("retrievePayoutCallTest", (globalState) => {
   });
 });
 
-
 // User API calls
 // Below 3 commands should be called in sequence to login a user
 Cypress.Commands.add("userLogin", (globalState) => {
@@ -6534,5 +6537,3 @@ Cypress.Commands.add("blocklistToggle", (status, globalState) => {
     });
   });
 });
-
-
