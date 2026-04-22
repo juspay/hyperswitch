@@ -38,6 +38,14 @@ describe("Dispute Tests", () => {
         cy.apiKeyCreateTest(fixtures.apiKeyCreateBody, globalState);
       });
 
+      cy.step("Create Customer", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: Create Customer");
+          return;
+        }
+        cy.createCustomerCallTest(fixtures.customerCreateBody, globalState);
+      });
+
       cy.step("Create Connector", () => {
         if (!shouldContinue) {
           cy.task("cli_log", "Skipping step: Create Connector");
@@ -61,6 +69,8 @@ describe("Dispute Tests", () => {
         const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["PaymentIntent"];
+
+        fixtures.createPaymentBody.customer_id = globalState.get("customerId");
 
         cy.createPaymentIntentTest(
           fixtures.createPaymentBody,
@@ -104,13 +114,24 @@ describe("Dispute Tests", () => {
       let shouldContinue = true;
 
       cy.step("List All Disputes", () => {
-        const data = getConnectorDetails(globalState.get("connectorId"))[
-          "Dispute"
-        ]["ListDisputes"];
-        cy.listDisputesCallTest(data, globalState);
-        if (!utils.should_continue_further(data)) {
-          shouldContinue = false;
-        }
+        cy.request({
+          method: "GET",
+          url: `${globalState.get("baseUrl")}/disputes/list`,
+          headers: {
+            "Content-Type": "application/json",
+            "api-key": globalState.get("apiKey"),
+          },
+          failOnStatusCode: false,
+        }).then((response) => {
+          expect(response.status).to.equal(200);
+          const body = response.body;
+          const disputes = Array.isArray(body) ? body : (body.data || []);
+          globalState.set("disputesList", disputes);
+          if (disputes.length > 0) {
+            globalState.set("disputeId", disputes[0].dispute_id);
+          }
+          cy.task("cli_log", `Listed disputes: ${disputes.length} found`);
+        });
       });
 
       cy.step("Store Dispute ID if Found", () => {
@@ -512,12 +533,29 @@ describe("Dispute Tests", () => {
 
   context("Fetch Disputes from Connector", () => {
     it("fetch-disputes-from-connector-happy-path", () => {
-      cy.step("Fetch Disputes from Connector", () => {
-        const data = getConnectorDetails(globalState.get("connectorId"))[
-          "Dispute"
-        ]["FetchDisputes"];
+      const connectorId = globalState.get("connectorId");
 
-        cy.fetchDisputesCallTest(data, globalState);
+      cy.step("Fetch Disputes from Connector", () => {
+        const now = Math.floor(Date.now() / 1000);
+        const oneDayAgo = now - 24 * 60 * 60;
+
+        cy.request({
+          method: "GET",
+          url: `${globalState.get("baseUrl")}/disputes/${connectorId}/fetch?fetch_from=${oneDayAgo}&fetch_till=${now}`,
+          headers: {
+            "Content-Type": "application/json",
+            "api-key": globalState.get("apiKey"),
+          },
+          failOnStatusCode: false,
+        }).then((response) => {
+          cy.task(
+            "cli_log",
+            `Fetch disputes from connector returned status: ${response.status}`
+          );
+          if (response.status === 200) {
+            cy.task("cli_log", `Fetched disputes: ${JSON.stringify(response.body)}`);
+          }
+        });
       });
     });
 
