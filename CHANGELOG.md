@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.04.20.0-hotfix1
+
+### Features
+
+- **router:** Improve blocklist error messages with specific reasons ([#11911](https://github.com/juspay/hyperswitch/pull/11911)) ([`813ca3f`](https://github.com/juspay/hyperswitch/commit/813ca3ffbc900559efe3244dd16c726d0209d440))
+
+**Full Changelog:** [`2026.04.20.0...2026.04.20.0-hotfix1`](https://github.com/juspay/hyperswitch/compare/2026.04.20.0...2026.04.20.0-hotfix1)
+
+- - -
+
 ## 2026.04.20.0
 
 ### Features
