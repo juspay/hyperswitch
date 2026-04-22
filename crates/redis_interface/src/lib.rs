@@ -119,35 +119,37 @@ impl SubscriberClient {
         broadcast_capacity: usize,
         connection_manager_config: redis::aio::ConnectionManagerConfig,
     ) -> CustomResult<Self, errors::RedisError> {
-        let (push_sender, _) = tokio::sync::broadcast::channel::<redis::PushInfo>(broadcast_capacity);
+        let (push_sender, _) =
+            tokio::sync::broadcast::channel::<redis::PushInfo>(broadcast_capacity);
 
         let config = connection_manager_config
             .set_push_sender(push_sender.clone())
             .set_automatic_resubscription();
 
-        let connection = redis::aio::ConnectionManager::new_with_config(
-            redis_client.clone(),
-            config,
-        )
-        .await
-        .change_context(errors::RedisError::RedisConnectionError)
-        .attach_printable_lazy(|| {
-            format!(
-                "Failed to create subscriber connection for {}",
-                redis_client.get_connection_info().addr()
-            )
-        })?;
+        let connection =
+            redis::aio::ConnectionManager::new_with_config(redis_client.clone(), config)
+                .await
+                .change_context(errors::RedisError::RedisConnectionError)
+                .attach_printable_lazy(|| {
+                    format!(
+                        "Failed to create subscriber connection for {}",
+                        redis_client.get_connection_info().addr()
+                    )
+                })?;
 
         let (broadcast_sender, _) = tokio::sync::broadcast::channel(broadcast_capacity);
         let (command_sender, command_receiver) = tokio::sync::mpsc::channel(64);
 
         let push_receiver = push_sender.subscribe();
 
-        let backend = SubscriberBackend::Standalone {
-            connection,
-        };
+        let backend = SubscriberBackend::Standalone { connection };
 
-        tokio::spawn(Self::run(backend, push_receiver, broadcast_sender.clone(), command_receiver));
+        tokio::spawn(Self::run(
+            backend,
+            push_receiver,
+            broadcast_sender.clone(),
+            command_receiver,
+        ));
 
         Ok(Self {
             command_sender,
@@ -162,7 +164,8 @@ impl SubscriberClient {
         broadcast_capacity: usize,
         conf: &RedisSettings,
     ) -> CustomResult<Self, errors::RedisError> {
-        let (push_sender, _) = tokio::sync::broadcast::channel::<redis::PushInfo>(broadcast_capacity);
+        let (push_sender, _) =
+            tokio::sync::broadcast::channel::<redis::PushInfo>(broadcast_capacity);
 
         let mut cluster_builder = redis::cluster::ClusterClient::builder(nodes.clone())
             .use_protocol(redis::ProtocolVersion::RESP3)
@@ -199,11 +202,14 @@ impl SubscriberClient {
 
         let push_receiver = push_sender.subscribe();
 
-        let backend = SubscriberBackend::Cluster {
-            connection,
-        };
+        let backend = SubscriberBackend::Cluster { connection };
 
-        tokio::spawn(Self::run(backend, push_receiver, broadcast_sender.clone(), command_receiver));
+        tokio::spawn(Self::run(
+            backend,
+            push_receiver,
+            broadcast_sender.clone(),
+            command_receiver,
+        ));
 
         Ok(Self {
             command_sender,
@@ -471,8 +477,7 @@ impl RedisConnectionPool {
                         conf.default_command_timeout.max(1),
                     ));
 
-                publisher_builder =
-                    publisher_builder.use_protocol(redis::ProtocolVersion::RESP3);
+                publisher_builder = publisher_builder.use_protocol(redis::ProtocolVersion::RESP3);
 
                 let publisher_conn = publisher_builder
                     .build()
@@ -537,27 +542,23 @@ impl RedisConnectionPool {
                     .set_min_delay(reconnection_min_delay);
 
                 if conf.default_command_timeout > 0 {
-                    pool_config = pool_config.set_response_timeout(
-                        Some(std::time::Duration::from_secs(conf.default_command_timeout)),
-                    );
+                    pool_config = pool_config.set_response_timeout(Some(
+                        std::time::Duration::from_secs(conf.default_command_timeout),
+                    ));
                 }
 
                 if conf.max_in_flight_commands > 0 {
                     let pipeline_buffer_size =
                         usize::try_from(conf.max_in_flight_commands).unwrap_or_default();
-                    pool_config =
-                        pool_config.set_pipeline_buffer_size(pipeline_buffer_size);
+                    pool_config = pool_config.set_pipeline_buffer_size(pipeline_buffer_size);
                 }
 
-                let conn = redis::aio::ConnectionManager::new_with_config(
-                    client,
-                    pool_config,
-                )
-                .await
-                .change_context(errors::RedisError::RedisConnectionError)
-                .attach_printable_lazy(|| {
-                    format!("Failed to connect to Redis at {}:{}", conf.host, conf.port)
-                })?;
+                let conn = redis::aio::ConnectionManager::new_with_config(client, pool_config)
+                    .await
+                    .change_context(errors::RedisError::RedisConnectionError)
+                    .attach_printable_lazy(|| {
+                        format!("Failed to connect to Redis at {}:{}", conf.host, conf.port)
+                    })?;
 
                 let pool = RedisConn::Standalone(conn);
 
@@ -707,8 +708,7 @@ impl RedisConnectionPool {
     }
 
     fn build_subscriber_config(conf: &RedisSettings) -> redis::aio::ConnectionManagerConfig {
-        let reconnection_retries =
-            usize::try_from(conf.reconnect_max_attempts).unwrap_or_default();
+        let reconnection_retries = usize::try_from(conf.reconnect_max_attempts).unwrap_or_default();
         let reconnection_min_delay =
             std::time::Duration::from_millis(u64::from(conf.reconnect_delay));
 
@@ -717,9 +717,9 @@ impl RedisConnectionPool {
             .set_min_delay(reconnection_min_delay);
 
         if conf.default_command_timeout > 0 {
-            config = config.set_response_timeout(
-                Some(std::time::Duration::from_secs(conf.default_command_timeout)),
-            );
+            config = config.set_response_timeout(Some(std::time::Duration::from_secs(
+                conf.default_command_timeout,
+            )));
         }
 
         config
