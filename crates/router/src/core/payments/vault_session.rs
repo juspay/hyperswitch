@@ -17,10 +17,10 @@ use hyperswitch_interfaces::api::Connector as ConnectorTrait;
 use hyperswitch_interfaces::connector_integration_v2::{ConnectorIntegrationV2, ConnectorV2};
 use router_env::env::Env;
 
-#[cfg(feature = "v2")]
-use crate::core::payments::customers;
 #[cfg(feature = "v1")]
 use crate::core::payments::call_create_connector_customer_if_required;
+#[cfg(feature = "v2")]
+use crate::core::payments::customers;
 use crate::{
     core::{
         errors::{self, RouterResult},
