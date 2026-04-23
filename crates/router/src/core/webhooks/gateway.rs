@@ -119,10 +119,10 @@ pub struct WebhookGatewayContext<'a> {
 // ---------------------------------------------------------------------------
 
 /// Single-method gateway for incoming webhook processing. Implementations are
-/// stateless: one instance per request, `run` is called once.
+/// stateless: one instance per request, `execute` is called once.
 #[async_trait]
 pub trait IncomingWebhookGateway: Send + Sync {
-    async fn run(
+    async fn execute(
         &self,
         request: &IncomingWebhookRequestDetails<'_>,
         ctx: &WebhookGatewayContext<'_>,
@@ -169,7 +169,7 @@ pub struct DirectIncomingWebhookGateway;
 
 #[async_trait]
 impl IncomingWebhookGateway for DirectIncomingWebhookGateway {
-    async fn run(
+    async fn execute(
         &self,
         request: &IncomingWebhookRequestDetails<'_>,
         ctx: &WebhookGatewayContext<'_>,
@@ -238,7 +238,7 @@ impl UcsIncomingWebhookGateway {
 
 #[async_trait]
 impl IncomingWebhookGateway for UcsIncomingWebhookGateway {
-    async fn run(
+    async fn execute(
         &self,
         request: &IncomingWebhookRequestDetails<'_>,
         ctx: &WebhookGatewayContext<'_>,
@@ -346,14 +346,14 @@ pub async fn execute_incoming_webhook_gateway(
     execution_path: ExecutionPath,
 ) -> RouterResult<WebhookGatewayOutcome> {
     match execution_path {
-        ExecutionPath::Direct => DirectIncomingWebhookGateway.run(request, ctx).await,
+        ExecutionPath::Direct => DirectIncomingWebhookGateway.execute(request, ctx).await,
         ExecutionPath::UnifiedConnectorService => {
             UcsIncomingWebhookGateway::new(ExecutionMode::Primary)
-                .run(request, ctx)
+                .execute(request, ctx)
                 .await
         }
         ExecutionPath::ShadowUnifiedConnectorService => {
-            let direct_outcome = DirectIncomingWebhookGateway.run(request, ctx).await?;
+            let direct_outcome = DirectIncomingWebhookGateway.execute(request, ctx).await?;
             spawn_shadow_ucs_run(ctx, request, &direct_outcome);
             Ok(direct_outcome)
         }
@@ -388,7 +388,7 @@ fn spawn_shadow_ucs_run(
                 merchant_connector_account: mca_owned.as_ref(),
             };
             match UcsIncomingWebhookGateway::new(ExecutionMode::Shadow)
-                .run(&request_ref, &inner_ctx)
+                .execute(&request_ref, &inner_ctx)
                 .await
             {
                 Ok(shadow_outcome) => {
@@ -497,31 +497,19 @@ async fn report_shadow_diff(
     use hyperswitch_interfaces::{
         api_client::ApiClientWrapper, helpers::GetComparisonServiceConfig,
     };
-    let Some(config) = state.get_comparison_service_config() else {
-        return;
-    };
-
-    let hyperswitch_data = Secret::new(
-        serde_json::to_value(primary).unwrap_or(serde_json::Value::Null),
-    );
-    let ucs_data = Secret::new(
-        serde_json::to_value(shadow).unwrap_or(serde_json::Value::Null),
-    );
-    let comparison = hyperswitch_interfaces::helpers::ComparisonData {
-        hyperswitch_data,
-        unified_connector_service_data: ucs_data,
-    };
-    if let Err(error) = hyperswitch_interfaces::helpers::send_comparison_data(
-        state,
-        comparison,
-        config,
-        connector_name.to_string(),
-        Some("webhook".to_string()),
-        state.get_request_id_str(),
-    )
-    .await
-    {
-        logger::debug!(?error, "Failed to send webhook shadow comparison");
+    match state.get_comparison_service_config() {
+        Some(config) => {
+            let _ = hyperswitch_interfaces::helpers::serialize_webhook_outcome_and_send_to_comparison_service(
+                state,
+                primary,
+                shadow,
+                config,
+                connector_name.to_string(),
+                state.get_request_id_str(),
+            )
+            .await;
+        }
+        None => {}
     }
 }
 
@@ -533,22 +521,22 @@ async fn resolve_mca(
     ctx: &WebhookGatewayContext<'_>,
     reference: Option<&ObjectReferenceId>,
 ) -> RouterResult<domain::MerchantConnectorAccount> {
-    if let Some(mca) = ctx.merchant_connector_account {
-        return Ok(mca.clone());
+    match (ctx.merchant_connector_account, reference) {
+        (Some(mca), _) => Ok(mca.clone()),
+        (None, Some(reference)) => Box::pin(helper_utils::get_mca_from_object_reference_id(
+            ctx.state,
+            reference.clone(),
+            ctx.platform,
+            ctx.connector_name,
+        ))
+        .await,
+        (None, None) => Err(error_stack::report!(
+            errors::ApiErrorResponse::WebhookResourceNotFound
+        )
+        .attach_printable(
+            "Webhook URL did not include a merchant-connector id and the event carries no resource reference",
+        )),
     }
-    let reference = reference.ok_or_else(|| {
-        error_stack::report!(errors::ApiErrorResponse::WebhookResourceNotFound)
-            .attach_printable(
-                "Webhook URL did not include a merchant-connector id and the event carries no resource reference",
-            )
-    })?;
-    Box::pin(helper_utils::get_mca_from_object_reference_id(
-        ctx.state,
-        reference.clone(),
-        ctx.platform,
-        ctx.connector_name,
-    ))
-    .await
 }
 
 async fn build_webhook_context(
@@ -556,24 +544,21 @@ async fn build_webhook_context(
     platform: &domain::Platform,
     reference: Option<&ObjectReferenceId>,
 ) -> RouterResult<Option<WebhookContext>> {
-    let Some(reference) = reference else {
-        return Ok(None);
-    };
-    if !matches!(reference, ObjectReferenceId::PaymentId(_)) {
-        return Ok(None);
-    }
-    match get_payment_attempt_from_object_reference_id(
-        state,
-        reference.clone(),
-        platform.get_processor(),
-    )
-    .await
-    {
-        Ok(payment_attempt) => {
-            let data = WebhookResourceData::Payment { payment_attempt };
-            Ok(Some(WebhookContext::from(&data)))
-        }
-        Err(_) => Ok(None),
+    match reference {
+        Some(reference @ ObjectReferenceId::PaymentId(_)) => Ok(
+            get_payment_attempt_from_object_reference_id(
+                state,
+                reference.clone(),
+                platform.get_processor(),
+            )
+            .await
+            .ok()
+            .map(|payment_attempt| {
+                let data = WebhookResourceData::Payment { payment_attempt };
+                WebhookContext::from(&data)
+            }),
+        ),
+        _ => Ok(None),
     }
 }
 

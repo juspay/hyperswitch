@@ -90,6 +90,50 @@ where
     Ok(())
 }
 
+/// Serialize primary and shadow webhook outcomes and dispatch them to the
+/// comparison service. Parallel to `serialize_router_data_and_send_to_comparison_service`
+/// for webhook flows, which do not carry a `RouterData`.
+pub async fn serialize_webhook_outcome_and_send_to_comparison_service<P, S>(
+    state: &dyn api_client::ApiClientWrapper,
+    primary: &P,
+    shadow: &S,
+    comparison_service_config: types::ComparisonServiceConfig,
+    connector_name: String,
+    request_id: Option<String>,
+) -> common_utils_errors::CustomResult<(), errors::HttpClientError>
+where
+    P: serde::Serialize,
+    S: serde::Serialize,
+{
+    let [hyperswitch_data, unified_connector_service_data] = [
+        (serde_json::to_value(primary), "hyperswitch"),
+        (serde_json::to_value(shadow), "ucs"),
+    ]
+    .map(|(value, source)| {
+        hyperswitch_masking::Secret::new(value.unwrap_or_else(|e| {
+            serde_json::json!({ "error": e.to_string(), "source": source })
+        }))
+    });
+
+    let comparison_data = ComparisonData {
+        hyperswitch_data,
+        unified_connector_service_data,
+    };
+    let _ = send_comparison_data(
+        state,
+        comparison_data,
+        comparison_service_config,
+        connector_name,
+        Some("webhook".to_string()),
+        request_id,
+    )
+    .await
+    .map_err(|e| {
+        logger::debug!("Failed to send webhook comparison data: {:?}", e);
+    });
+    Ok(())
+}
+
 /// Sends router data comparison to external service
 pub async fn send_comparison_data(
     state: &dyn api_client::ApiClientWrapper,
