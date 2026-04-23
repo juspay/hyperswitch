@@ -2552,9 +2552,49 @@ export const connectorDetails = {
         status: 200,
       },
     },
+    ListDisputesWithConnectorFilter: {
+      Response: {
+        status: 200,
+      },
+    },
+    ListDisputesWithTimeRange: {
+      Response: {
+        status: 200,
+      },
+    },
+    ListDisputesWithInvalidStatusFilter: {
+      Response: {
+        status: 400,
+      },
+    },
+    ListDisputesWithInvalidStageFilter: {
+      Response: {
+        status: 400,
+      },
+    },
+    ListDisputesWithLimit: {
+      Response: {
+        status: 200,
+      },
+    },
+    ListDisputesWithLargeTimeRange: {
+      Response: {
+        status: 200,
+      },
+    },
     RetrieveDispute: {
       Response: {
         status: 200,
+      },
+    },
+    RetrieveNonExistentDispute: {
+      Response: {
+        status: 404,
+        body: {
+          error: {
+            code: "HE_04",
+          },
+        },
       },
     },
     AcceptDispute: {
@@ -2562,9 +2602,34 @@ export const connectorDetails = {
         status: 200,
       },
     },
+    AcceptNonExistentDispute: {
+      Response: {
+        status: 404,
+        body: {
+          error: {
+            code: "HE_04",
+          },
+        },
+      },
+    },
     SubmitEvidence: {
       Response: {
         status: 200,
+      },
+    },
+    SubmitEvidenceNonExistentDispute: {
+      Response: {
+        status: 404,
+        body: {
+          error: {
+            code: "HE_04",
+          },
+        },
+      },
+    },
+    SubmitEvidenceEmptyBody: {
+      Response: {
+        status: 400,
       },
     },
     RetrieveEvidence: {
@@ -2572,9 +2637,30 @@ export const connectorDetails = {
         status: 200,
       },
     },
-    FetchDisputes: {
+    AttachEvidenceFileMissingType: {
       Response: {
-        status: 200,
+        status: 400,
+        body: {
+          error: {
+            code: "IR_04",
+          },
+        },
+      },
+    },
+    FetchDisputes: {
+      Response: {},
+    },
+    FetchDisputesWithTimeRange: {
+      Response: {},
+    },
+    FetchDisputesMissingParams: {
+      Response: {
+        status: 400,
+      },
+    },
+    FetchDisputesInvalidConnector: {
+      Response: {
+        status: 400,
       },
     },
   },
