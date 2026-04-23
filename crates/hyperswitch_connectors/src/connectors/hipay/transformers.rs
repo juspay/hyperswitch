@@ -339,6 +339,10 @@ pub struct HipayPaymentsResponse {
     order: PaymentOrder,
     forward_url: String,
     transaction_reference: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    authorized_amount: Option<StringMajorUnit>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    currency: Option<String>,
 }
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PaymentOrder {
@@ -350,6 +354,10 @@ pub struct HipayMaintenanceResponse<S> {
     status: S,
     message: String,
     transaction_reference: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    amount: Option<StringMajorUnit>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    currency: Option<String>,
 }
 impl TryFrom<PaymentsResponseRouterData<HipayPaymentsResponse>> for PaymentsAuthorizeRouterData {
     type Error = error_stack::Report<errors::ConnectorError>;
@@ -566,6 +574,10 @@ impl From<HipayPaymentStatus> for common_enums::AttemptStatus {
 pub struct RefundResponse {
     id: u64,
     status: u16,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    amount: Option<StringMajorUnit>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    currency: Option<String>,
 }
 
 impl TryFrom<RefundsResponseRouterData<Execute, HipayMaintenanceResponse<RefundStatus>>>
@@ -666,8 +678,18 @@ pub struct Reason {
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum HipaySyncResponse {
-    Response { status: i32, reason: Reason },
-    Error { message: String, code: u32 },
+    Response {
+        status: i32,
+        reason: Reason,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        amount: Option<StringMajorUnit>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        currency: Option<String>,
+    },
+    Error {
+        message: String,
+        code: u32,
+    },
 }
 fn get_sync_status(state: i32) -> enums::AttemptStatus {
     match state {
@@ -734,7 +756,12 @@ impl TryFrom<PaymentsSyncResponseRouterData<HipaySyncResponse>> for PaymentsSync
                     ..item.data
                 })
             }
-            HipaySyncResponse::Response { status, reason } => {
+            HipaySyncResponse::Response {
+                status,
+                reason,
+                amount: _,
+                currency: _,
+            } => {
                 let status = get_sync_status(status);
                 let response = if status == enums::AttemptStatus::Failure {
                     let error_code = reason

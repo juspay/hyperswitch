@@ -122,6 +122,8 @@ pub struct CheckbookPaymentsResponse {
     pub description: Option<String>,
     pub name: Option<String>,
     pub recipient: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub currency: Option<String>,
 }
 
 impl<F, T> TryFrom<ResponseRouterData<F, CheckbookPaymentsResponse, T, PaymentsResponseData>>
