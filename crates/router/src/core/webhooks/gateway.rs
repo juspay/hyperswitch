@@ -88,6 +88,7 @@ pub enum WebhookGatewayOutcome {
         // from `content` because downstream processing needs unmasked bytes.
         masked_log_payload: serde_json::Value,
         merchant_connector_account: domain::MerchantConnectorAccount,
+        decoded_body: Option<Vec<u8>>,
     },
 }
 
@@ -250,6 +251,7 @@ impl IncomingWebhookGateway for DirectIncomingWebhookGateway {
                     content: WebhookContent::Direct(bytes),
                     masked_log_payload,
                     merchant_connector_account: mca,
+                    decoded_body: Some(decoded_body),
                 }
             }
         };
@@ -336,6 +338,8 @@ impl IncomingWebhookGateway for UcsIncomingWebhookGateway {
                     "Failed to resolve webhook secrets from merchant connector account",
                 )?;
 
+                let event_context = build_event_context(ctx, reference.as_ref()).await;
+
                 let handle_response = client
                     .incoming_webhook_handle_event(
                         payments_grpc::EventServiceHandleRequest {
@@ -343,7 +347,7 @@ impl IncomingWebhookGateway for UcsIncomingWebhookGateway {
                             request_details: Some(request_proto),
                             webhook_secrets,
                             access_token: None,
-                            event_context: None,
+                            event_context,
                         },
                         build_ucs_auth_metadata(ctx, Some(&mca))?,
                         build_ucs_headers(ctx, Some(&mca), self.execution_mode),
@@ -378,6 +382,7 @@ impl IncomingWebhookGateway for UcsIncomingWebhookGateway {
                     content: WebhookContent::UnifiedConnectorService(bytes),
                     masked_log_payload,
                     merchant_connector_account: mca,
+                    decoded_body: None,
                 }
             }
         };
@@ -840,4 +845,39 @@ fn event_reference_to_object_ref(
     };
 
     Ok(out)
+}
+
+async fn build_event_context(
+    ctx: &WebhookGatewayContext<'_>,
+    reference: Option<&ObjectReferenceId>,
+) -> Option<payments_grpc::EventContext> {
+    use crate::core::unified_connector_service::transformers::ForeignTryFrom as _;
+
+    let payment_attempt = match reference {
+        Some(reference @ ObjectReferenceId::PaymentId(_)) => {
+            get_payment_attempt_from_object_reference_id(
+                ctx.state,
+                reference.clone(),
+                ctx.platform.get_processor(),
+            )
+            .await
+            .ok()?
+        }
+        _ => return None,
+    };
+
+    let capture_method = payment_attempt
+        .capture_method
+        .and_then(|cm| payments_grpc::CaptureMethod::foreign_try_from(cm).ok())
+        .map(|cm| cm as i32);
+
+    Some(payments_grpc::EventContext {
+        event_context: Some(
+            payments_grpc::event_context::EventContext::Payment(
+                payments_grpc::PaymentEventContext {
+                    capture_method,
+                },
+            ),
+        ),
+    })
 }

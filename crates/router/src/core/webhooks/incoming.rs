@@ -35,6 +35,7 @@ use crate::{
     consts,
     core::{
         api_locking,
+        configs::dimension_state,
         errors::{self, CustomResult, RouterResponse, StorageErrorExt},
         metrics, payment_methods,
         payment_methods::cards,
@@ -223,6 +224,10 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
             platform.get_processor().get_account().get_id().clone()
         )),
     );
+    let dimensions = dimension_state::Dimensions::new()
+        .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
+        .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id())
+        .with_organization_id(platform.get_processor().get_account().get_org_id().clone());
     let request_details = IncomingWebhookRequestDetails {
         method: req.method().clone(),
         uri: req.uri().clone(),
@@ -237,11 +242,13 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
     // If No, then it will return Direct
     // Direct Signifies its not a authentication connector
     let three_ds_execution_path =
-        fetch_three_ds_execution_path(&platform, connector_name_or_mca_id, &state).await?;
+        fetch_three_ds_execution_path(&platform, connector_name_or_mca_id, &state, &dimensions)
+            .await?;
 
     // Each branch produces the connector used for the ack, the webhook effect
-    // for the response tracker, and the serialized body for api-event logging.
-    let (connector, webhook_effect, serialized_body, merchant_connector_account) =
+    // for the response tracker, the serialized body for api-event logging, and
+    // the decoded body (Direct path only) for get_webhook_api_response.
+    let (connector, webhook_effect, serialized_body, merchant_connector_account, decoded_body) =
         match three_ds_execution_path {
             ThreeDsProcessingMode::UnifiedAuthenticationService(ref mca_data) => {
                 let connector_name = mca_data.connector_name.clone();
@@ -349,6 +356,7 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
                             webhook_effect,
                             serialized,
                             mca_data.merchant_connector_account.clone(),
+                            None::<Vec<u8>>,
                         )
                     }
                     Err(error) => {
@@ -404,7 +412,7 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
                         ));
                     }
                 }
-                let (webhook_effect, serialized_body) = match outcome {
+                let (webhook_effect, serialized_body, gateway_decoded_body) = match outcome {
                     Ok(super::gateway::WebhookGatewayOutcome::Skipped { event_type, .. }) => {
                         logger::info!(?event_type, "Webhook filtered before business logic");
                         metrics::WEBHOOK_INCOMING_FILTERED_COUNT.add(
@@ -414,7 +422,7 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
                                 platform.get_processor().get_account().get_id().clone()
                             )),
                         );
-                        (WebhookResponseTracker::NoEffect, serde_json::Value::Null)
+                        (WebhookResponseTracker::NoEffect, serde_json::Value::Null, None)
                     }
                     Ok(super::gateway::WebhookGatewayOutcome::Processed {
                         reference,
@@ -423,6 +431,7 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
                         content,
                         masked_log_payload,
                         merchant_connector_account: processed_mca,
+                        decoded_body: gateway_decoded_body,
                     }) => {
                         let effect = match reference {
                             Some(reference) => {
@@ -465,7 +474,7 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
                                 WebhookResponseTracker::NoEffect
                             }
                         };
-                        (effect, masked_log_payload)
+                        (effect, masked_log_payload, gateway_decoded_body)
                     }
                     Err(error) => {
                         return handle_incoming_webhook_error(
@@ -483,13 +492,31 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
                     webhook_effect,
                     serialized_body,
                     mca_data.merchant_connector_account.clone(),
+                    gateway_decoded_body,
                 )
             }
         };
 
+    let final_request_details = match decoded_body.as_ref() {
+        Some(decoded_body) => IncomingWebhookRequestDetails {
+            method: request_details.method.clone(),
+            uri: request_details.uri.clone(),
+            headers: request_details.headers,
+            query_params: request_details.query_params.clone(),
+            body: decoded_body,
+        },
+        None => IncomingWebhookRequestDetails {
+            method: request_details.method.clone(),
+            uri: request_details.uri.clone(),
+            headers: request_details.headers,
+            query_params: request_details.query_params.clone(),
+            body: request_details.body,
+        },
+    };
+
     let response = connector
         .get_webhook_api_response(
-            &request_details,
+            &final_request_details,
             None,
             merchant_connector_account.map(|mca| mca.connector_account_details),
         )
@@ -503,6 +530,7 @@ async fn fetch_three_ds_execution_path(
     platform: &domain::Platform,
     connector_name_or_mca_id: &str,
     state: &SessionState,
+    _dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndOrgId,
 ) -> errors::RouterResult<ThreeDsProcessingMode> {
     let (merchant_connector_account, connector, connector_name) =
         fetch_optional_mca_and_connector(state, platform, connector_name_or_mca_id).await?;
