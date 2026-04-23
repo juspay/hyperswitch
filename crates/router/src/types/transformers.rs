@@ -200,7 +200,8 @@ impl ForeignTryFrom<storage_enums::AttemptStatus> for storage_enums::CaptureStat
             | storage_enums::AttemptStatus::ConfirmationAwaited
             | storage_enums::AttemptStatus::DeviceDataCollectionPending
             | storage_enums::AttemptStatus::PartiallyAuthorized
-            | storage_enums::AttemptStatus::PartialChargedAndChargeable | storage_enums::AttemptStatus::Expired => {
+            | storage_enums::AttemptStatus::PartialChargedAndChargeable | storage_enums::AttemptStatus::Expired
+            | storage_enums::AttemptStatus::CaptureReview => {
                 Err(errors::ApiErrorResponse::PreconditionFailed {
                     message: "AttemptStatus must be one of these for multiple partial captures [Charged, PartialCharged, Pending, CaptureInitiated, Failure, CaptureFailed]".into(),
                 }.into())

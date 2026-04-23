@@ -255,6 +255,14 @@ where
                     Ok(self.status)
                 }
             }
+            enums::AttemptStatus::CaptureFailed => {
+                // If the intent has already been marked succesful but we receive CaptureFailed for the payment attempt (via webhook) mark it as Review
+                if payment_data.payment_intent.status == enums::IntentStatus::Succeeded {
+                    Ok(enums::AttemptStatus::CaptureReview)
+                } else {
+                    Ok(self.status)
+                }
+            }
             _ => Ok(self.status),
         }
     }
@@ -2325,7 +2333,8 @@ impl FrmTransactionRouterDataRequest for fraud_check::FrmTransactionRouterData {
             | storage_enums::AttemptStatus::PaymentMethodAwaited
             | storage_enums::AttemptStatus::ConfirmationAwaited
             | storage_enums::AttemptStatus::DeviceDataCollectionPending
-            | storage_enums::AttemptStatus::IntegrityFailure => None,
+            | storage_enums::AttemptStatus::IntegrityFailure
+            | storage_enums::AttemptStatus::CaptureReview => None,
         }
     }
 }
@@ -2359,7 +2368,8 @@ pub fn is_payment_failure(status: enums::AttemptStatus) -> bool {
         | common_enums::AttemptStatus::ConfirmationAwaited
         | common_enums::AttemptStatus::DeviceDataCollectionPending
         | common_enums::AttemptStatus::IntegrityFailure
-        | common_enums::AttemptStatus::PartiallyAuthorized => false,
+        | common_enums::AttemptStatus::PartiallyAuthorized
+        | common_enums::AttemptStatus::CaptureReview => false,
     }
 }
 

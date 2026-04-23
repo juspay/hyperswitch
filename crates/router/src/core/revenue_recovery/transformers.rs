@@ -26,7 +26,8 @@ impl ForeignFrom<IntentStatus> for RevenueRecoveryPaymentIntentStatus {
             | IntentStatus::RequiresCapture
             | IntentStatus::PartiallyAuthorizedAndRequiresCapture
             | IntentStatus::Conflicted
-            | IntentStatus::Expired => Self::InvalidStatus(status.to_string()),
+            | IntentStatus::Expired
+            | IntentStatus::Review => Self::InvalidStatus(status.to_string()),
         }
     }
 }

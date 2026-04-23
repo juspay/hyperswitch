@@ -1200,7 +1200,8 @@ impl PaymentIntent {
             | common_enums::IntentStatus::PartiallyCapturedAndCapturable
             | common_enums::IntentStatus::PartiallyAuthorizedAndRequiresCapture
             | common_enums::IntentStatus::PartiallyCapturedAndProcessing
-            | common_enums::IntentStatus::Conflicted => false,
+            | common_enums::IntentStatus::Conflicted
+            | common_enums::IntentStatus::Review => false,
         }
     }
 }

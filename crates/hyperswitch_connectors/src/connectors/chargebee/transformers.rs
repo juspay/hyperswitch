@@ -926,7 +926,8 @@ impl TryFrom<enums::AttemptStatus> for ChargebeeRecordStatus {
             | enums::AttemptStatus::ConfirmationAwaited
             | enums::AttemptStatus::DeviceDataCollectionPending
             | enums::AttemptStatus::IntegrityFailure
-            | enums::AttemptStatus::Expired => Err(errors::ConnectorError::NotSupported {
+            | enums::AttemptStatus::Expired
+            | enums::AttemptStatus::CaptureReview => Err(errors::ConnectorError::NotSupported {
                 message: "Record back flow is only supported for terminal status".to_string(),
                 connector: "chargebee",
             }

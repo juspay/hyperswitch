@@ -4048,7 +4048,8 @@ impl ValidateStatusForOperation for &PaymentRedirectSync {
             | common_enums::IntentStatus::PartiallyCapturedAndProcessing
             | common_enums::IntentStatus::RequiresConfirmation
             | common_enums::IntentStatus::PartiallyCapturedAndCapturable
-            | common_enums::IntentStatus::Expired => {
+            | common_enums::IntentStatus::Expired
+            | common_enums::IntentStatus::Review => {
                 Err(errors::ApiErrorResponse::PaymentUnexpectedState {
                     current_flow: format!("{self:?}"),
                     field_name: "status".to_string(),
@@ -8919,6 +8920,7 @@ where
                         | storage_enums::IntentStatus::RequiresMerchantAction
                         | storage_enums::IntentStatus::RequiresCapture
                         | storage_enums::IntentStatus::PartiallyCapturedAndCapturable
+                        | storage_enums::IntentStatus::Succeeded
                 ) && payment_data.get_force_sync().unwrap_or(false)
         }
         "PaymentCancel" => matches!(

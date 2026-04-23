@@ -3848,8 +3848,7 @@ pub(crate) fn validate_payment_method_fields_present(
 pub fn check_force_psync_precondition(status: storage_enums::AttemptStatus) -> bool {
     !matches!(
         status,
-        storage_enums::AttemptStatus::Charged
-            | storage_enums::AttemptStatus::AutoRefunded
+        storage_enums::AttemptStatus::AutoRefunded
             | storage_enums::AttemptStatus::Voided
             | storage_enums::AttemptStatus::CodInitiated
             | storage_enums::AttemptStatus::Started
@@ -5200,7 +5199,8 @@ pub fn get_attempt_type(
                     | enums::AttemptStatus::DeviceDataCollectionPending
                     | enums::AttemptStatus::IntegrityFailure
                     | enums::AttemptStatus::Expired
-                    | enums::AttemptStatus::PartiallyAuthorized => {
+                    | enums::AttemptStatus::PartiallyAuthorized
+                    | enums::AttemptStatus::CaptureReview => {
                         metrics::MANUAL_RETRY_VALIDATION_FAILED.add(
                             1,
                             router_env::metric_attributes!((
@@ -5260,7 +5260,8 @@ pub fn get_attempt_type(
         | enums::IntentStatus::Succeeded
         | enums::IntentStatus::Conflicted
         | enums::IntentStatus::Expired
-        | enums::IntentStatus::PartiallyAuthorizedAndRequiresCapture => {
+        | enums::IntentStatus::PartiallyAuthorizedAndRequiresCapture
+        | enums::IntentStatus::Review => {
             Err(report!(errors::ApiErrorResponse::PreconditionFailed {
                 message: format!(
                     "You cannot {action} this payment because it has status {}",
@@ -5549,7 +5550,8 @@ pub fn is_manual_retry_allowed(
             | enums::AttemptStatus::DeviceDataCollectionPending
             | enums::AttemptStatus::IntegrityFailure
             | enums::AttemptStatus::Expired
-            | enums::AttemptStatus::PartiallyAuthorized => {
+            | enums::AttemptStatus::PartiallyAuthorized
+            | enums::AttemptStatus::CaptureReview => {
                 logger::error!("Payment Attempt should not be in this state because Attempt to Intent status mapping doesn't allow it");
                 None
             }
@@ -5572,7 +5574,8 @@ pub fn is_manual_retry_allowed(
         | enums::IntentStatus::Succeeded
         | enums::IntentStatus::Conflicted
         | enums::IntentStatus::Expired
-        | enums::IntentStatus::PartiallyAuthorizedAndRequiresCapture => Some(false),
+        | enums::IntentStatus::PartiallyAuthorizedAndRequiresCapture
+        | enums::IntentStatus::Review => Some(false),
 
         enums::IntentStatus::RequiresCustomerAction
         | enums::IntentStatus::RequiresMerchantAction
