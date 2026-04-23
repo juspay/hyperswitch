@@ -337,7 +337,7 @@ mod tests {
 
         // Test vault metadata extraction directly on ConnectionConfig
         let mut connection_config = ConnectionConfig::new(
-            "https://api.example.com/v1/payments".to_string(),
+            Url::parse("https://api.example.com/v1/payments").unwrap(),
             HttpMethod::POST,
         );
         connection_config.headers = headers;

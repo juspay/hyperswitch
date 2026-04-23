@@ -102,14 +102,14 @@ pub mod models {
     #[derive(Clone, Debug, Deserialize, Serialize)]
     pub struct ConnectionConfig {
         /// Complete URL endpoint for the connector (e.g., "https://api.stripe.com/v1/payment_intents")
-        pub endpoint: String,
+        pub endpoint: url::Url,
         /// HTTP method to use for the request
         pub http_method: HttpMethod,
         /// HTTP headers to include in the request
         pub headers: HashMap<String, Secret<String>>,
 
         /// Optional vault endpoint to use for token retrieval (overrides default vault endpoint if provided)
-        pub vault_endpoint: Option<String>,
+        pub vault_endpoint: Option<url::Url>,
 
         /// Optional vault connector type to use for token retrieval (overrides default vault connector if provided)
         pub vault_connector_id: Option<VaultConnectors>,
@@ -168,9 +168,9 @@ pub mod models {
         /// HS Vault will resolve these with actual card data before forwarding.
         pub request_body: serde_json::Value,
         /// The connector's actual endpoint URL (e.g. "https://api.sandbox.checkout.com/payments")
-        pub destination_url: String,
+        pub destination_url: url::Url,
         /// The connector's headers (Content-Type, Authorization, etc.)
-        pub headers: HashMap<String, String>,
+        pub headers: HashMap<String, Secret<String>>,
         /// The single token reference extracted from specific_token_data.card_number.
         /// For HyperswitchVault, all fields share the same token value.
         pub token: String,
@@ -210,10 +210,10 @@ pub mod models {
                 .unwrap_or_else(|_| serde_json::Value::String(processed_payload.to_string()));
 
             // Convert connector headers from Secret<String> → plain String for the vault request
-            let headers: HashMap<String, String> = connection_config
+            let headers: HashMap<String, Secret<String>> = connection_config
                 .headers
                 .iter()
-                .map(|(k, v)| (k.clone(), v.clone().expose().clone()))
+                .map(|(k, v)| (k.clone(), v.clone()))
                 .collect();
 
             let method = connection_config.http_method.as_metric_str().to_string();
@@ -320,7 +320,7 @@ pub mod models {
         /// Creates a new InjectorRequest
         #[allow(clippy::too_many_arguments)]
         pub fn new(
-            endpoint: String,
+            endpoint: url::Url,
             http_method: HttpMethod,
             template: String,
             token_data: TokenData,
@@ -352,7 +352,7 @@ pub mod models {
 
     impl ConnectionConfig {
         /// Creates a new ConnectionConfig from basic parameters
-        pub fn new(endpoint: String, http_method: HttpMethod) -> Self {
+        pub fn new(endpoint: url::Url, http_method: HttpMethod) -> Self {
             Self {
                 endpoint,
                 http_method,
@@ -377,10 +377,7 @@ pub mod models {
         /// Returns `"unknown"` when the host cannot be determined, or `"invalid_url"` when
         /// the endpoint cannot be parsed as a URL at all.
         pub fn endpoint_host(&self) -> String {
-            self.endpoint
-                .parse::<url::Url>()
-                .map(|u| u.host_str().unwrap_or("unknown").to_string())
-                .unwrap_or_else(|_| "invalid_url".to_string())
+            self.endpoint.host_str().unwrap_or("unknown").to_string()
         }
 
         /// Returns the metric-string for the vault connector, falling back to `"None"`.

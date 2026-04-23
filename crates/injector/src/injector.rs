@@ -110,7 +110,7 @@ pub mod core {
             let certificate_list = create_certificate(encoded_certificate)?;
             let client_builder = certificate_list
                 .into_iter()
-                .fold(client_builder, |cb, cert| cb.add_root_certificate(cert));
+                .fold(client_builder, |client, cert| client.add_root_certificate(cert));
             return client_builder
                 .identity(identity)
                 .use_rustls_tls()
@@ -153,7 +153,7 @@ pub mod core {
     /// Returns `(proxy_url, ca_cert)` — both `None` when the header is absent or extraction fails.
     fn extract_vault_metadata(
         headers: &HashMap<String, hyperswitch_masking::Secret<String>>,
-        endpoint: &str,
+        endpoint: url::Url,
         http_method: injector_types::HttpMethod,
     ) -> (
         Option<hyperswitch_masking::Secret<String>>,
@@ -163,7 +163,7 @@ pub mod core {
             return (None, None);
         }
         let mut temp_config =
-            injector_types::ConnectionConfig::new(endpoint.to_string(), http_method);
+            injector_types::ConnectionConfig::new(endpoint, http_method);
         if temp_config.extract_and_apply_vault_metadata_with_fallback(headers) {
             (temp_config.proxy_url, temp_config.ca_cert)
         } else {
@@ -488,10 +488,11 @@ pub mod core {
                 Some(injector_types::VaultConnectorType::Transformation),
                 Some(injector_types::VaultConnectors::HyperswitchVault),
             ) => Box::new(HyperswitchVaultStrategy),
+            (Some(injector_types::VaultConnectorType::Proxy), _) => Box::new(ProxyStrategy),
             (Some(injector_types::VaultConnectorType::Transformation), _) => {
                 Box::new(FallbackTransformationStrategy)
             }
-            _ => Box::new(ProxyStrategy),
+            _ => Box::new(ProxyStrategy), //by default, the token replacement is done in the forward proxy (e.g. VGS), so ProxyStrategy is the safe default
         }
     }
 
@@ -501,9 +502,14 @@ pub mod core {
 
     #[derive(Debug)]
     struct TokenReference {
+        /// The field name to be replaced (without the {{$}} wrapper)
         pub field: String,
     }
 
+    /// Parses a single token reference from a string using nom parser combinators
+    ///
+    /// Expects tokens in the format `{{$field_name}}` where field_name contains
+    /// only alphanumeric characters and underscores.
     fn parse_token(input: &str) -> IResult<&str, TokenReference> {
         let (input, field) = delimited(
             tag("{{"),
@@ -527,6 +533,10 @@ pub mod core {
         ))
     }
 
+    /// Finds all token references in a string using nom parser
+    ///
+    /// Scans through the entire input string and extracts all valid token references.
+    /// Returns a vector of TokenReference structs containing the field names.
     fn find_all_tokens(input: &str) -> Vec<TokenReference> {
         let mut tokens = Vec::new();
         let mut current_input = input;
@@ -545,6 +555,10 @@ pub mod core {
         tokens
     }
 
+    /// Recursively searches for a field in vault data JSON structure
+    ///
+    /// Performs a depth-first search through the JSON object hierarchy to find
+    /// a field with the specified name. Returns the first matching value found.
     fn find_field_recursively_in_vault_data(
         obj: &serde_json::Map<String, Value>,
         field_name: &str,
@@ -767,14 +781,7 @@ pub mod core {
                 "Making HTTP request to connector"
             );
 
-            let url = reqwest::Url::parse(&config.endpoint).map_err(|e| {
-                logger::error!("Failed to parse endpoint URL: {}", e);
-                error_stack::Report::new(InjectorError::InvalidTemplate(format!(
-                    "Invalid endpoint URL: {e}"
-                )))
-            })?;
-
-            logger::debug!("Constructed URL: {}", url);
+            logger::debug!("Constructed URL: {}", config.endpoint);
 
             let headers: Vec<(String, hyperswitch_masking::Maskable<String>)> = config
                 .headers
@@ -793,7 +800,7 @@ pub mod core {
             // Extract vault metadata (proxy URL + CA cert) from headers when present.
             // This is specific to the proxy path (e.g. VGS).
             let (vault_proxy_url, vault_ca_cert) =
-                extract_vault_metadata(&config.headers, &config.endpoint, config.http_method);
+                extract_vault_metadata(&config.headers, config.endpoint.clone(), config.http_method);
 
             // Vault-derived CA cert takes priority; fall back to config's own ca_cert
             let effective_ca_cert = vault_ca_cert.or_else(|| config.ca_cert.clone());
@@ -809,7 +816,7 @@ pub mod core {
 
             let request_builder = RequestBuilder::new()
                 .method(method)
-                .url(url.as_str())
+                .url(config.endpoint.as_str())
                 .headers(headers)
                 .set_body(Self::build_request_content(payload, *content_type));
 
@@ -883,13 +890,6 @@ pub mod core {
                 "Sending request to HyperswitchVault proxy"
             );
 
-            let vault_url = reqwest::Url::parse(vault_endpoint).map_err(|e| {
-                logger::error!("Failed to parse vault endpoint URL: {}", e);
-                error_stack::Report::new(InjectorError::InvalidTemplate(format!(
-                    "Invalid vault endpoint URL: {e}"
-                )))
-            })?;
-
             let vault_headers: Vec<(String, hyperswitch_masking::Maskable<String>)> = vec![
                 (
                     "Content-Type".to_string(),
@@ -913,13 +913,13 @@ pub mod core {
 
             let request_builder = RequestBuilder::new()
                 .method(Method::Post)
-                .url(vault_url.as_str())
+                .url(vault_endpoint.as_str())
                 .headers(vault_headers)
                 .set_body(RequestContent::Json(Box::new(vault_proxy_request)));
 
             let http_request = request_builder.build();
 
-            let vault_endpoint_host = vault_url.host_str().unwrap_or("unknown").to_string();
+            let vault_endpoint_host = vault_endpoint.host_str().unwrap_or("unknown").to_string();
             metrics::INJECTOR_OUTGOING_CALLS_COUNT.add(
                 1,
                 router_env::metric_attributes!(
@@ -1004,7 +1004,7 @@ mod tests {
                 specific_token_data,
             },
             connection_config: ConnectionConfig {
-                endpoint: "https://api.stripe.com/v1/payment_intents".to_string(),
+                endpoint: url::Url::parse("https://api.stripe.com/v1/payment_intents").unwrap(),
                 http_method: HttpMethod::POST,
                 headers,
                 proxy_url: None,
@@ -1080,7 +1080,7 @@ mod tests {
                 specific_token_data,
             },
             connection_config: ConnectionConfig {
-                endpoint: "https://httpbin.org/post".to_string(),
+                endpoint: url::Url::parse("https://httpbin.org/post").unwrap(),
                 http_method: HttpMethod::POST,
                 headers,
                 proxy_url: None,
