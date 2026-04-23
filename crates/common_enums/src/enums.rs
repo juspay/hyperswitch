@@ -11318,10 +11318,18 @@ impl PostCaptureVoidStatus {
 }
 
 #[derive(
-    Clone, Copy, Debug, Eq, PartialEq, serde::Serialize, strum::Display, serde::Deserialize, ToSchema,
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    PartialEq,
+    serde::Serialize,
+    strum::Display,
+    serde::Deserialize,
+    ToSchema,
 )]
 #[serde(rename_all = "snake_case")]
 pub enum VaultEnv {
     Sandbox,
-    Live
+    Live,
 }

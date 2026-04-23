@@ -17,10 +17,10 @@ use hyperswitch_interfaces::api::Connector as ConnectorTrait;
 use hyperswitch_interfaces::connector_integration_v2::{ConnectorIntegrationV2, ConnectorV2};
 use router_env::env::Env;
 
-#[cfg(feature = "v2")]
-use crate::core::payments::customers;
 #[cfg(feature = "v1")]
 use crate::core::payments::call_create_connector_customer_if_required;
+#[cfg(feature = "v2")]
+use crate::core::payments::customers;
 use crate::{
     core::{
         errors::{self, RouterResult},
@@ -414,10 +414,9 @@ pub async fn generate_vault_session_details_v1(
     connector_customer_id: Option<String>,
 ) -> RouterResult<Option<api::VaultSessionDetails>> {
     let connector_name_str = vault_mca.get_connector_name_as_string();
-    let connector = api_enums::VaultConnectors::from_connector_name(&connector_name_str)
-        .map_err(|error| {
-            report!(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable(error)
+    let connector =
+        api_enums::VaultConnectors::from_connector_name(&connector_name_str).map_err(|error| {
+            report!(errors::ApiErrorResponse::InternalServerError).attach_printable(error)
         })?;
 
     let connector_auth_type: router_types::ConnectorAuthType = vault_mca
@@ -432,7 +431,9 @@ pub async fn generate_vault_session_details_v1(
             router_types::ConnectorAuthType::SignatureKey { api_secret, .. },
         ) => {
             let sdk_env = match state.conf.env {
-                Env::Sandbox | Env::Development | Env::Integ => common_enums::enums::VaultEnv::Sandbox.to_string(),
+                Env::Sandbox | Env::Development | Env::Integ => {
+                    common_enums::enums::VaultEnv::Sandbox.to_string()
+                }
                 Env::Production => common_enums::enums::VaultEnv::Live.to_string(),
             };
             Ok(Some(api::VaultSessionDetails::Vgs(

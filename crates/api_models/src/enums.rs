@@ -243,8 +243,7 @@ impl TryFrom<String> for VaultConnectors {
     type Error = String;
     fn try_from(value: String) -> Result<Self, Self::Error> {
         use std::str::FromStr;
-        Self::from_str(&value)
-            .map_err(|_| format!("'{value}' is not a valid vault connector name"))
+        Self::from_str(&value).map_err(|_| format!("'{value}' is not a valid vault connector name"))
     }
 }
 
