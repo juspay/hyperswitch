@@ -7,7 +7,6 @@ pub mod helpers;
 pub mod operations;
 pub mod session_token;
 
-pub mod client_session;
 #[cfg(feature = "retry")]
 pub mod retry;
 pub mod routing;
@@ -8482,7 +8481,6 @@ where
     pub is_manual_retry_enabled: Option<bool>,
     pub is_l2_l3_enabled: bool,
     pub external_authentication_data: Option<api_models::payments::ExternalThreeDsData>,
-    pub client_session_id: Option<id_type::ClientSessionId>,
 }
 
 #[cfg(feature = "v1")]
@@ -12032,7 +12030,7 @@ pub trait OperationSessionGetters<F> {
     fn get_is_manual_retry_enabled(&self) -> Option<bool>;
 
     #[cfg(feature = "v1")]
-    fn get_client_session_id(&self) -> Option<id_type::ClientSessionId>;
+    fn get_installment_details(&self) -> Option<&common_types::payments::InstallmentData>;
 }
 
 pub trait OperationSessionSetters<F> {
@@ -12276,9 +12274,8 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentData<F> {
         self.is_manual_retry_enabled
     }
 
-    #[cfg(feature = "v1")]
-    fn get_client_session_id(&self) -> Option<id_type::ClientSessionId> {
-        self.client_session_id.clone()
+    fn get_installment_details(&self) -> Option<&common_types::payments::InstallmentData> {
+        self.payment_attempt.installment_data.as_ref()
     }
 
     // #[cfg(feature = "v2")]

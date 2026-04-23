@@ -23,10 +23,7 @@ use crate::{
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
         mandate::helpers as m_helpers,
         payment_methods::cards::create_encrypted_data,
-        payments::{
-            self, client_session::ClientSessionManager, helpers, operations, CustomerDetails,
-            PaymentAddress, PaymentData,
-        },
+        payments::{self, helpers, operations, CustomerDetails, PaymentAddress, PaymentData},
         utils as core_utils,
     },
     events::audit_events::{AuditEvent, AuditEventType},
@@ -568,7 +565,6 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             is_manual_retry_enabled: None,
             is_l2_l3_enabled: business_profile.is_l2_l3_enabled,
             external_authentication_data: None,
-            client_session_id: None,
         };
 
         let get_trackers_response = operations::GetTrackerResponse {
@@ -1083,51 +1079,6 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
-
-        let processor_merchant_id = processor.get_account().get_id().clone();
-        let payment_id = payment_data.payment_intent.payment_id.clone();
-
-        // Check if payment session validation is enabled
-        let session_validation_enabled = crate::core::configs::get_config_bool(
-            state,
-            crate::consts::superposition::CLIENT_SESSION_VALIDATION_ENABLED,
-            &processor
-                .get_account()
-                .get_id()
-                .get_client_session_validation_enabled_key(),
-            Some(external_services::superposition::ConfigContext::new().with(
-                "merchant_id",
-                processor.get_account().get_id().get_string_repr(),
-            )),
-            true, // Client Session Validation is enabled by default
-        )
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to fetch client_session_validation_enabled config")?;
-
-        // Recreate session only if validation is enabled
-        if session_validation_enabled {
-            let (new_client_session_id, invalidation_report) =
-                ClientSessionManager::recreate_session(
-                    state,
-                    &processor_merchant_id,
-                    &payment_id,
-                    payment_data.payment_intent.session_expiry,
-                )
-                .await
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Failed to refresh client session during payment update")?;
-
-            services::logger::debug!(
-                payment_id = %payment_id.get_string_repr(),
-                session_existed = invalidation_report.session_existed,
-                "Client session recreated during update"
-            );
-
-            // Update payment_data with new session_id
-            payment_data.client_session_id = Some(new_client_session_id);
-        }
-
         let amount = payment_data.amount;
         req_state
             .event_context
