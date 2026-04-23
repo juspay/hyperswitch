@@ -1,7 +1,7 @@
 application_source = "main"
 
 [log.file]
-enabled = false
+enabled = true
 
 [log.console]
 enabled = true
