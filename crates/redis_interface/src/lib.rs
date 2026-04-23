@@ -25,6 +25,7 @@ use std::sync::{atomic, Arc};
 use common_utils::errors::CustomResult;
 use error_stack::ResultExt;
 use redis::{AsyncCommands, IntoConnectionInfo};
+use tracing::Instrument;
 
 pub use self::types::*;
 
@@ -84,6 +85,8 @@ enum SubscriberBackend {
         connection: redis::aio::ConnectionManager,
     },
     Cluster {
+        // Mutex required because ClusterConnection::subscribe/unsubscribe
+        // needs &mut self, unlike ConnectionManager which can be cloned
         connection: tokio::sync::Mutex<redis::cluster_async::ClusterConnection>,
     },
 }
@@ -108,7 +111,10 @@ impl SubscriberClient {
         let (broadcast_sender, _) =
             tokio::sync::broadcast::channel(conf.broadcast_channel_capacity);
 
-        tokio::spawn(Self::run(push_sender.subscribe(), broadcast_sender.clone()));
+        tokio::spawn(
+            Self::run(push_sender.subscribe(), broadcast_sender.clone())
+                .in_current_span(),
+        );
 
         Ok(Self {
             connection,
@@ -207,10 +213,11 @@ impl SubscriberClient {
         let reconnection_retries =
             usize::try_from(conf.reconnect_max_attempts).unwrap_or_else(|_| {
                 tracing::warn!(
-                    "reconnect_max_attempts ({}) exceeds usize, using default (5)",
-                    conf.reconnect_max_attempts
+                    "reconnect_max_attempts ({}) exceeds usize, using default ({})",
+                    conf.reconnect_max_attempts,
+                    constant::DEFAULT_RECONNECT_MAX_ATTEMPTS
                 );
-                5
+                constant::DEFAULT_RECONNECT_MAX_ATTEMPTS
             });
 
         let mut config = redis::aio::ConnectionManagerConfig::new()
@@ -300,7 +307,10 @@ impl SubscriberClient {
             .map(|value| match value {
                 Value::BulkString(bytes) => String::from_utf8_lossy(bytes).into_owned(),
                 Value::SimpleString(s) => s.clone(),
-                _ => String::new(),
+                other => {
+                    tracing::debug!(?other, "Unexpected Value variant in push message channel name");
+                    String::new()
+                }
             })
             .unwrap_or_default();
 
@@ -320,22 +330,16 @@ impl SubscriberClient {
 
 // ─── Publisher client ────────────────────────────────────────────────────────
 
-/// A simple wrapper around a connection used for publishing.
-pub struct RedisClient {
+/// A wrapper around a connection used for publishing messages.
+pub struct PublisherClient {
     inner: RedisConn,
 }
 
-impl RedisClient {
-    pub async fn new(client: &redis::Client) -> CustomResult<Self, errors::RedisError> {
-        let conn = redis::aio::ConnectionManager::new(client.clone())
-            .await
-            .change_context(errors::RedisError::RedisConnectionError)?;
-        Ok(Self {
-            inner: RedisConn::Standalone(conn),
-        })
+impl PublisherClient {
+    pub(crate) fn new(connection: RedisConn) -> Self {
+        Self { inner: connection }
     }
 
-    /// Publish a message to a channel
     pub async fn publish(
         &self,
         channel: &str,
@@ -355,7 +359,7 @@ pub struct RedisConnectionPool {
     pub key_prefix: String,
     pub config: Arc<RedisConfig>,
     pub subscriber: Arc<SubscriberClient>,
-    pub publisher: Arc<RedisClient>,
+    pub publisher: Arc<PublisherClient>,
     pub is_redis_available: Arc<atomic::AtomicBool>,
 }
 
@@ -445,9 +449,7 @@ impl RedisConnectionPool {
                         )
                     })?;
 
-                let publisher = Arc::new(RedisClient {
-                    inner: RedisConn::Cluster(publisher_conn),
-                });
+                let publisher = Arc::new(PublisherClient::new(RedisConn::Cluster(publisher_conn)));
 
                 let subscriber = Arc::new(SubscriberClient::new(conf).await?);
 
@@ -539,7 +541,17 @@ impl RedisConnectionPool {
                     })?;
 
                 let subscriber = Arc::new(SubscriberClient::new(conf).await?);
-                let publisher = Arc::new(RedisClient::new(&base_client).await?);
+
+                let publisher_conn = redis::aio::ConnectionManager::new(base_client)
+                    .await
+                    .change_context(errors::RedisError::RedisConnectionError)
+                    .attach_printable_lazy(|| {
+                        format!(
+                            "Failed to create publisher connection for {}:{}",
+                            conf.host, conf.port
+                        )
+                    })?;
+                let publisher = Arc::new(PublisherClient::new(RedisConn::Standalone(publisher_conn)));
 
                 (pool, subscriber, publisher)
             }

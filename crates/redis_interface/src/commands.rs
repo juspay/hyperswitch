@@ -16,7 +16,6 @@ use redis::{
     streams::{StreamReadOptions, StreamTrimOptions, StreamTrimmingMode},
     AsyncCommands, ExistenceCheck, FromRedisValue, SetExpiry, SetOptions, ToSingleRedisArg,
 };
-use router_env::tracing;
 use tracing::instrument;
 
 use crate::{
@@ -2252,7 +2251,7 @@ mod tests {
                 // Give the background task a moment to process the subscription
                 tokio::time::sleep(std::time::Duration::from_millis(100)).await;
 
-                // Act — publish a message. `publisher` is an Arc<RedisClient> field.
+                // Act — publish a message. `publisher` is an Arc<PublisherClient> field.
                 pool.publisher
                     .publish(
                         channel,

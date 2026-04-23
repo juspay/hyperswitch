@@ -12,3 +12,6 @@ pub const REDIS_ARG_NX: &str = "NX";
 pub const REDIS_ARG_MATCH: &str = "MATCH";
 pub const REDIS_ARG_COUNT: &str = "COUNT";
 pub const REDIS_ARG_TYPE: &str = "TYPE";
+
+/// Default reconnect max attempts, matching RedisSettings::default().reconnect_max_attempts
+pub const DEFAULT_RECONNECT_MAX_ATTEMPTS: usize = 5;

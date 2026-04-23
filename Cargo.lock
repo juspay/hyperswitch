@@ -7636,7 +7636,6 @@ dependencies = [
  "error-stack 0.4.1",
  "futures 0.3.31",
  "redis",
- "router_env",
  "serde",
  "thiserror 1.0.69",
  "tokio 1.48.0",
