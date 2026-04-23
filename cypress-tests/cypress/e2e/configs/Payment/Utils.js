@@ -450,7 +450,7 @@ export const CONNECTOR_LISTS = {
 
   // Inclusion lists (only run for these connectors)
   INCLUDE: {
-    MANDATES_USING_NTID_PROXY: ["cybersource", "checkout"],
+    MANDATES_USING_NTID_PROXY: ["cybersource","checkout","adyen","archipel","novalnet","stripe","worldpay","worldpayvantiv","nuvei"],
     INCREMENTAL_AUTH: [
       "archipel",
       // "cybersource",    // issues with MULTIPLE_CONNECTORS handling

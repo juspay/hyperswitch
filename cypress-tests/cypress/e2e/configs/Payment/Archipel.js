@@ -401,6 +401,15 @@ export const connectorDetails = {
         },
       },
     },
+    MITAutoCapture: {
+      Request: {},
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    },
     MandateSingleUseNo3DSAutoCapture: {
       Response: {
         status: 200,
