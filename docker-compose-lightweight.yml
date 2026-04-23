@@ -1,0 +1,194 @@
+# Lightweight Hyperswitch with Observability Stack
+# Contains: Server, DB, Redis, and logging/monitoring services
+# No Control Center, No Scheduler, No Web SDK
+#
+# Usage:
+#   With remote images:
+#     docker compose -f docker-compose-lightweight.yml up -d
+#
+#   With local custom images:
+#     export CUSTOM_VERSION=my-tag
+#     docker compose -f docker-compose-lightweight.yml -f docker-compose.custom-images.yml up -d
+
+volumes:
+  pg_data:
+  loki_data:
+  grafana_data:
+  prometheus_data:
+
+networks:
+  router_net:
+
+services:
+  ### Dependencies
+  pg:
+    image: docker.io/postgres:15-alpine
+    ports:
+      - "5432:5432"
+    networks:
+      - router_net
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    environment:
+      - POSTGRES_USER=db_user
+      - POSTGRES_PASSWORD=db_pass
+      - POSTGRES_DB=hyperswitch_db
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -d $${POSTGRES_DB} -U $${POSTGRES_USER}"]
+      interval: 5s
+      retries: 3
+      start_period: 5s
+      timeout: 5s
+    restart: unless-stopped
+
+  redis-standalone:
+    image: docker.io/redis:7-alpine
+    networks:
+      - router_net
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli ping | grep '^PONG$'"]
+      interval: 5s
+      retries: 3
+      start_period: 5s
+      timeout: 5s
+    restart: unless-stopped
+
+  migration_runner:
+    image: docker.io/debian:trixie-slim
+    pull_policy: always
+    command: >
+      bash -c "
+      apt-get update && apt-get install -y curl xz-utils &&
+      curl --proto '=https' --tlsv1.2 -LsSf https://github.com/diesel-rs/diesel/releases/download/v2.3.5/diesel_cli-installer.sh | bash &&
+      if ! command -v just >/dev/null 2>&1; then
+        curl --proto '=https' --tlsv1.2 -sSf https://just.systems/install.sh | bash -s -- --to /usr/local/bin
+      fi &&
+      export PATH=\"$${PATH}:$${HOME}/.cargo/bin\" &&
+      just migrate"
+    working_dir: /app
+    networks:
+      - router_net
+    volumes:
+      - ./:/app
+    environment:
+      - DATABASE_URL=postgresql://db_user:db_pass@pg:5432/hyperswitch_db
+
+  ### Main Application
+  hyperswitch-server:
+    image: ${IMAGE_REGISTRY:-docker.juspay.io/juspaydotin}/hyperswitch-router:${CUSTOM_VERSION:-standalone}
+    pull_policy: always
+    command: /local/bin/router -f /local/config/docker_compose.toml
+    ports:
+      - "8080:8080"
+    networks:
+      - router_net
+    volumes:
+      - ./config:/local/config
+      - ./files:/local/bin/files
+      - ./logs:/local/logs
+    depends_on:
+      pg:
+        condition: service_healthy
+      redis-standalone:
+        condition: service_healthy
+      migration_runner:
+        condition: service_completed_successfully
+    labels:
+      logs: "promtail"
+    healthcheck:
+      test: curl --fail http://localhost:8080/health || exit 1
+      interval: 5s
+      retries: 3
+      start_period: 10s
+      timeout: 5s
+    restart: unless-stopped
+
+  ### Observability Stack
+  promtail:
+    image: docker.io/grafana/promtail:2.9.0
+    volumes:
+      - ./logs:/var/log/router
+      - ./config:/etc/promtail
+      - /var/run/docker.sock:/var/run/docker.sock
+    command: -config.file=/etc/promtail/promtail.yaml
+    networks:
+      - router_net
+    depends_on:
+      - loki
+    restart: unless-stopped
+
+  loki:
+    image: docker.io/grafana/loki:2.9.0
+    ports:
+      - "3100:3100"
+    command: -config.file=/etc/loki/loki.yaml
+    networks:
+      - router_net
+    volumes:
+      - ./config:/etc/loki
+      - loki_data:/loki
+    restart: unless-stopped
+
+  grafana:
+    image: docker.io/grafana/grafana:10.2.0
+    ports:
+      - "3000:3000"
+    networks:
+      - router_net
+    environment:
+      - GF_AUTH_ANONYMOUS_ORG_ROLE=Admin
+      - GF_AUTH_ANONYMOUS_ENABLED=true
+      - GF_AUTH_BASIC_ENABLED=false
+      - GF_INSTALL_PLUGINS=grafana-lokiexplore-app
+    volumes:
+      - ./config/grafana.ini:/etc/grafana/grafana.ini
+      - ./config/grafana-datasource.yaml:/etc/grafana/provisioning/datasources/datasource.yml
+      - grafana_data:/var/lib/grafana
+    depends_on:
+      - loki
+      - prometheus
+      - tempo
+    restart: unless-stopped
+
+  prometheus:
+    image: docker.io/prom/prometheus:v2.47.0
+    ports:
+      - "9090:9090"
+    networks:
+      - router_net
+    volumes:
+      - ./config/prometheus.yaml:/etc/prometheus/prometheus.yml
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--web.enable-lifecycle'
+    restart: unless-stopped
+
+  tempo:
+    image: docker.io/grafana/tempo:2.3.0
+    ports:
+      - "3200:3200"
+      - "4317:4317"
+    command: -config.file=/etc/tempo.yaml
+    volumes:
+      - ./config/tempo.yaml:/etc/tempo.yaml
+    networks:
+      - router_net
+    restart: unless-stopped
+
+  otel-collector:
+    image: docker.io/otel/opentelemetry-collector-contrib:0.88.0
+    command: --config=/etc/otel-collector.yaml
+    networks:
+      - router_net
+    volumes:
+      - ./config/otel-collector.yaml:/etc/otel-collector.yaml
+    depends_on:
+      - tempo
+      - prometheus
+    restart: unless-stopped

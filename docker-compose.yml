@@ -327,6 +327,20 @@ services:
     volumes:
       - ./config:/etc/loki
 
+  promtail:
+    image: docker.io/grafana/promtail:latest
+    volumes:
+      - ./logs:/var/log/router
+      - ./config:/etc/promtail
+      - /var/run/docker.sock:/var/run/docker.sock
+    command: -config.file=/etc/promtail/promtail.yaml
+    profiles:
+      - monitoring
+    networks:
+      - router_net
+    depends_on:
+      - loki
+
   otel-collector:
     image: docker.io/otel/opentelemetry-collector-contrib:latest
     command: --config=/etc/otel-collector.yaml
