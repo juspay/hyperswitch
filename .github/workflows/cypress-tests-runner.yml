@@ -241,7 +241,7 @@ jobs:
         ports:
           - 8081:8080
         options: >-
-          --health-cmd "wget --no-proxy -qO- http://localhost:8080/health || exit 1"
+          --health-cmd "http_proxy= HTTP_PROXY= https_proxy= HTTPS_PROXY= wget -qO- http://localhost:8080/health || exit 1"
           --health-interval 10s
           --health-timeout 5s
           --health-retries 30
@@ -570,7 +570,7 @@ jobs:
         ports:
           - 8081:8080
         options: >-
-          --health-cmd "wget --no-proxy -qO- http://localhost:8080/health || exit 1"
+          --health-cmd "http_proxy= HTTP_PROXY= https_proxy= HTTPS_PROXY= wget -qO- http://localhost:8080/health || exit 1"
           --health-interval 10s
           --health-timeout 5s
           --health-retries 30
@@ -770,7 +770,7 @@ jobs:
         ports:
           - 8081:8080
         options: >-
-          --health-cmd "wget --no-proxy -qO- http://localhost:8080/health || exit 1"
+          --health-cmd "http_proxy= HTTP_PROXY= https_proxy= HTTPS_PROXY= wget -qO- http://localhost:8080/health || exit 1"
           --health-interval 10s
           --health-timeout 5s
           --health-retries 30
@@ -1003,7 +1003,7 @@ jobs:
         ports:
           - 8081:8080
         options: >-
-          --health-cmd "wget --no-proxy -qO- http://localhost:8080/health || exit 1"
+          --health-cmd "http_proxy= HTTP_PROXY= https_proxy= HTTPS_PROXY= wget -qO- http://localhost:8080/health || exit 1"
           --health-interval 10s
           --health-timeout 5s
           --health-retries 30
