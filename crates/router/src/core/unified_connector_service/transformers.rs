@@ -38,10 +38,7 @@ use hyperswitch_domain_models::{
 };
 pub use hyperswitch_interfaces::{
     helpers::ForeignTryFrom,
-    unified_connector_service::{
-        transformers::convert_connector_service_status_code, WebhookTransformData,
-        WebhookTransformationStatus,
-    },
+    unified_connector_service::transformers::convert_connector_service_status_code,
 };
 use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 use router_env::tracing;
@@ -49,7 +46,7 @@ use time::{Duration, OffsetDateTime};
 use unified_connector_service_cards::{CardNumber, NetworkToken};
 use unified_connector_service_client::payments::{
     self as payments_grpc, client_authentication_token_data, ConnectorState,
-    EventServiceHandleRequest, EventServiceHandleResponse,
+    EventServiceHandleRequest,
 };
 
 use crate::{
@@ -5659,25 +5656,6 @@ impl
             query_params: Some(request_details.query_params.clone()),
         })
     }
-}
-
-/// Transform UCS webhook response into webhook event data
-pub fn transform_ucs_webhook_response(
-    response: EventServiceHandleResponse,
-) -> Result<WebhookTransformData, error_stack::Report<errors::ApiErrorResponse>> {
-    let event_type =
-        api_models::webhooks::IncomingWebhookEvent::from_ucs_event_type(response.event_type);
-
-    // EventStatus / IncompleteTransformation were removed upstream: HandleEvent always
-    // returns a complete unified response now. Kept the field on WebhookTransformData for
-    // callers that haven't migrated off it yet; the Complete variant is always set.
-    Ok(WebhookTransformData {
-        event_type,
-        source_verified: response.source_verified,
-        webhook_content: response.event_content,
-        response_ref_id: response.merchant_event_id,
-        webhook_transformation_status: WebhookTransformationStatus::Complete,
-    })
 }
 
 /// Build UCS webhook transform request from webhook components

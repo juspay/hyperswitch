@@ -9,7 +9,7 @@ mod outgoing;
 #[cfg(feature = "v2")]
 mod outgoing_v2;
 #[cfg(feature = "v1")]
-pub mod pipeline;
+pub mod gateway;
 #[cfg(all(feature = "revenue_recovery", feature = "v2"))]
 pub mod recovery_incoming;
 pub mod types;

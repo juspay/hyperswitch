@@ -199,26 +199,6 @@ pub enum UnifiedConnectorServiceError {
     PayoutEnrollDisburseAccountFailure,
 }
 
-/// UCS Webhook transformation status
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-pub enum WebhookTransformationStatus {
-    /// Transformation completed successfully, no further action needed
-    Complete,
-    /// Transformation incomplete, requires second call for final status
-    Incomplete,
-}
-
-#[allow(missing_docs)]
-/// Webhook transform data structure containing UCS response information
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-pub struct WebhookTransformData {
-    pub event_type: api_models::webhooks::IncomingWebhookEvent,
-    pub source_verified: bool,
-    pub webhook_content: Option<payments_grpc::EventContent>,
-    pub response_ref_id: Option<String>,
-    pub webhook_transformation_status: WebhookTransformationStatus,
-}
-
 impl ForeignTryFrom<(payments_grpc::PaymentServiceGetResponse, AttemptStatus)>
     for Result<(PaymentsResponseData, AttemptStatus), ErrorResponse>
 {
