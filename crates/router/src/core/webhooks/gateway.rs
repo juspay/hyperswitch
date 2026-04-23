@@ -1,9 +1,9 @@
 //! Gateway abstraction for incoming webhook processing.
 //!
 //! Mirrors the payment gateway pattern in `hyperswitch_interfaces::api::gateway`:
-//! a single `run` method satisfied by every implementation, with the dispatcher
-//! selecting between Direct (HS connector trait) and UCS (gRPC) paths per
-//! request. Each implementation is stateless and self-contained.
+//! a single `execute` method satisfied by every implementation, with the
+//! dispatcher selecting between Direct (HS connector trait) and UCS (gRPC)
+//! paths per request. Each implementation is stateless and self-contained.
 
 use api_models::webhooks::{IncomingWebhookEvent, ObjectReferenceId};
 use async_trait::async_trait;
@@ -14,7 +14,7 @@ use external_services::grpc_client::LineageIds;
 use hyperswitch_interfaces::webhooks::{
     IncomingWebhookRequestDetails, WebhookContext, WebhookResourceData,
 };
-use hyperswitch_masking::Secret;
+use hyperswitch_masking::{ErasedMaskSerialize, Secret};
 use router_env::{logger, tracing::Instrument};
 use time::OffsetDateTime;
 use unified_connector_service_client::payments as payments_grpc;
@@ -50,20 +50,22 @@ use crate::{
 #[derive(Debug, Clone)]
 #[non_exhaustive]
 pub enum WebhookContent {
-    Raw(Vec<u8>),
-    UnifiedBytes(Vec<u8>),
+    // connector-native bytes
+    Direct(Vec<u8>),
+    // UCS unified EventContent bytes
+    UnifiedConnectorService(Vec<u8>),
 }
 
 impl WebhookContent {
     pub fn bytes(&self) -> &[u8] {
         match self {
-            Self::Raw(b) | Self::UnifiedBytes(b) => b,
+            Self::Direct(b) | Self::UnifiedConnectorService(b) => b,
         }
     }
 
     pub fn into_bytes(self) -> Vec<u8> {
         match self {
-            Self::Raw(b) | Self::UnifiedBytes(b) => b,
+            Self::Direct(b) | Self::UnifiedConnectorService(b) => b,
         }
     }
 }
@@ -80,6 +82,9 @@ pub enum WebhookGatewayOutcome {
         event_type: IncomingWebhookEvent,
         source_verified: bool,
         content: WebhookContent,
+        // Masked view of the resource object for API-event logs. Separate
+        // from `content` because downstream processing needs unmasked bytes.
+        masked_log_payload: serde_json::Value,
         merchant_connector_account: domain::MerchantConnectorAccount,
     },
 }
@@ -177,6 +182,29 @@ impl IncomingWebhookGateway for DirectIncomingWebhookGateway {
         let reference = ctx.connector.get_webhook_object_reference_id(request).ok();
 
         let mca = resolve_mca(ctx, reference.as_ref()).await?;
+
+        // Decode before extracting event/resource — connectors may transform
+        // the raw body (e.g. signed or encoded payloads).
+        let decoded_body = ctx
+            .connector
+            .decode_webhook_body(
+                request,
+                ctx.platform.get_processor().get_account().get_id(),
+                mca.connector_webhook_details.clone(),
+                ctx.connector_name,
+            )
+            .await
+            .switch()
+            .attach_printable("Failed to decode incoming webhook body")?;
+
+        let decoded_request = IncomingWebhookRequestDetails {
+            method: request.method.clone(),
+            uri: request.uri.clone(),
+            headers: request.headers,
+            query_params: request.query_params.clone(),
+            body: &decoded_body,
+        };
+
         let webhook_context = build_webhook_context(ctx.state, ctx.platform, reference.as_ref())
             .await
             .ok()
@@ -184,7 +212,7 @@ impl IncomingWebhookGateway for DirectIncomingWebhookGateway {
 
         let event_type = ctx
             .connector
-            .get_webhook_event_type(request, webhook_context.as_ref())
+            .get_webhook_event_type(&decoded_request, webhook_context.as_ref())
             .switch()
             .attach_printable("Failed to classify webhook event type")?;
 
@@ -194,21 +222,29 @@ impl IncomingWebhookGateway for DirectIncomingWebhookGateway {
                 event_type,
             },
             FilterDecision::Proceed => {
-                let source_verified = verify_direct_source(ctx, request, &mca).await?;
+                let source_verified = verify_direct_source(ctx, &decoded_request, &mca).await?;
                 let resource_object = ctx
                     .connector
-                    .get_webhook_resource_object(request)
+                    .get_webhook_resource_object(&decoded_request)
                     .switch()
                     .attach_printable("Failed to extract webhook resource object")?;
                 let bytes = serde_json::to_vec(&resource_object)
                     .change_context(errors::ApiErrorResponse::InternalServerError)
                     .attach_printable("Failed to encode webhook resource object")?;
+                // Log-only view; failure here must not fail the webhook.
+                let masked_log_payload = resource_object
+                    .masked_serialize()
+                    .unwrap_or_else(|error| {
+                        logger::warn!(?error, "Failed to mask-serialize webhook resource object for logging");
+                        serde_json::Value::Null
+                    });
 
                 WebhookGatewayOutcome::Processed {
                     reference,
                     event_type,
                     source_verified,
-                    content: WebhookContent::Raw(bytes),
+                    content: WebhookContent::Direct(bytes),
+                    masked_log_payload,
                     merchant_connector_account: mca,
                 }
             }
@@ -311,18 +347,27 @@ impl IncomingWebhookGateway for UcsIncomingWebhookGateway {
                     .attach_printable("UCS HandleEvent call failed")?
                     .into_inner();
 
-                let bytes = match handle_response.event_content.as_ref() {
-                    Some(content) => serde_json::to_vec(content)
-                        .change_context(errors::ApiErrorResponse::InternalServerError)
-                        .attach_printable("Failed to encode unified event content")?,
-                    None => Vec::new(),
+                let (bytes, masked_log_payload) = match handle_response.event_content.as_ref() {
+                    Some(content) => {
+                        let bytes = serde_json::to_vec(content)
+                            .change_context(errors::ApiErrorResponse::InternalServerError)
+                            .attach_printable("Failed to encode unified event content")?;
+                        // Log-only view; failure here must not fail the webhook.
+                        let masked = content.masked_serialize().unwrap_or_else(|error| {
+                            logger::warn!(?error, "Failed to mask-serialize unified event content for logging");
+                            serde_json::Value::Null
+                        });
+                        (bytes, masked)
+                    }
+                    None => (Vec::new(), serde_json::Value::Null),
                 };
 
                 WebhookGatewayOutcome::Processed {
                     reference,
                     event_type,
                     source_verified: handle_response.source_verified,
-                    content: WebhookContent::UnifiedBytes(bytes),
+                    content: WebhookContent::UnifiedConnectorService(bytes),
+                    masked_log_payload,
                     merchant_connector_account: mca,
                 }
             }
@@ -468,8 +513,8 @@ impl From<&WebhookGatewayOutcome> for OutcomeSnapshot {
                 event_type: *event_type,
                 source_verified: Some(*source_verified),
                 content_kind: Some(match content {
-                    WebhookContent::Raw(_) => "raw",
-                    WebhookContent::UnifiedBytes(_) => "unified",
+                    WebhookContent::Direct(_) => "direct",
+                    WebhookContent::UnifiedConnectorService(_) => "unified_connector_service",
                 }),
                 reference: reference.clone(),
             },
@@ -497,19 +542,16 @@ async fn report_shadow_diff(
     use hyperswitch_interfaces::{
         api_client::ApiClientWrapper, helpers::GetComparisonServiceConfig,
     };
-    match state.get_comparison_service_config() {
-        Some(config) => {
-            let _ = hyperswitch_interfaces::helpers::serialize_webhook_outcome_and_send_to_comparison_service(
-                state,
-                primary,
-                shadow,
-                config,
-                connector_name.to_string(),
-                state.get_request_id_str(),
-            )
-            .await;
-        }
-        None => {}
+    if let Some(config) = state.get_comparison_service_config() {
+        hyperswitch_interfaces::helpers::serialize_webhook_outcome_and_send_to_comparison_service(
+            state,
+            primary,
+            shadow,
+            config,
+            connector_name.to_string(),
+            state.get_request_id_str(),
+        )
+        .await;
     }
 }
 

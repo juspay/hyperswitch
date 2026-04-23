@@ -92,7 +92,8 @@ where
 
 /// Serialize primary and shadow webhook outcomes and dispatch them to the
 /// comparison service. Parallel to `serialize_router_data_and_send_to_comparison_service`
-/// for webhook flows, which do not carry a `RouterData`.
+/// for webhook flows, which do not carry a `RouterData`. Errors are logged
+/// and swallowed — comparison is observability, not part of the request path.
 pub async fn serialize_webhook_outcome_and_send_to_comparison_service<P, S>(
     state: &dyn api_client::ApiClientWrapper,
     primary: &P,
@@ -100,26 +101,20 @@ pub async fn serialize_webhook_outcome_and_send_to_comparison_service<P, S>(
     comparison_service_config: types::ComparisonServiceConfig,
     connector_name: String,
     request_id: Option<String>,
-) -> common_utils_errors::CustomResult<(), errors::HttpClientError>
-where
+) where
     P: serde::Serialize,
     S: serde::Serialize,
 {
-    let [hyperswitch_data, unified_connector_service_data] = [
-        (serde_json::to_value(primary), "hyperswitch"),
-        (serde_json::to_value(shadow), "ucs"),
-    ]
-    .map(|(value, source)| {
+    let to_masked = |value: Result<serde_json::Value, serde_json::Error>, source: &str| {
         hyperswitch_masking::Secret::new(value.unwrap_or_else(|e| {
             serde_json::json!({ "error": e.to_string(), "source": source })
         }))
-    });
-
-    let comparison_data = ComparisonData {
-        hyperswitch_data,
-        unified_connector_service_data,
     };
-    let _ = send_comparison_data(
+    let comparison_data = ComparisonData {
+        hyperswitch_data: to_masked(serde_json::to_value(primary), "hyperswitch"),
+        unified_connector_service_data: to_masked(serde_json::to_value(shadow), "ucs"),
+    };
+    if let Err(error) = send_comparison_data(
         state,
         comparison_data,
         comparison_service_config,
@@ -128,10 +123,9 @@ where
         request_id,
     )
     .await
-    .map_err(|e| {
-        logger::debug!("Failed to send webhook comparison data: {:?}", e);
-    });
-    Ok(())
+    {
+        logger::debug!(?error, "Failed to send webhook comparison data");
+    }
 }
 
 /// Sends router data comparison to external service
