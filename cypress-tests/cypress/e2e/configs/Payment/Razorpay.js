@@ -1,9 +1,11 @@
+import { getCustomExchange } from "./Modifiers";
+
 const billingAddress = {
   address: {
     line1: "1467",
     line2: "Harrison Street",
     line3: "Harrison Street",
-    city: "San Fransico",
+    city: "San Francisco",
     state: "California",
     zip: "94122",
     country: "IN",
@@ -17,11 +19,17 @@ export const connectorDetails = {
     PaymentIntent: {
       Request: {
         currency: "INR",
+        amount: 6000,
+        authentication_type: "no_three_ds",
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
       },
       Response: {
         status: 200,
         body: {
           status: "requires_payment_method",
+          amount: 6000,
+          currency: "INR",
         },
       },
     },
@@ -32,7 +40,7 @@ export const connectorDetails = {
         payment_method_data: {
           upi: {
             upi_collect: {
-              vpa_id: "successtest@iata",
+              vpa_id: "successtest@razorpay",
             },
           },
         },
