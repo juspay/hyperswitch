@@ -26,6 +26,7 @@ export const connectorDetails = {
     No3DSAutoCapture: getCustomExchange({
       Configs: {
         ASSERT_BILLING_NOT_NULL: false,
+        TRIGGER_SKIP: true, // Auth credentials missing from creds.json
       },
       Request: {
         payment_method: "card",
@@ -46,6 +47,7 @@ export const connectorDetails = {
     No3DSManualCapture: getCustomExchange({
       Configs: {
         ASSERT_BILLING_NOT_NULL: false,
+        TRIGGER_SKIP: true, // Auth credentials missing from creds.json
       },
       Request: {
         payment_method: "card",
@@ -64,6 +66,9 @@ export const connectorDetails = {
       },
     }),
     Capture: getCustomExchange({
+      Configs: {
+        TRIGGER_SKIP: true, // Auth credentials missing from creds.json
+      },
       Request: {
         amount_to_capture: 6000,
       },
@@ -75,6 +80,9 @@ export const connectorDetails = {
       },
     }),
     PartialCapture: getCustomExchange({
+      Configs: {
+        TRIGGER_SKIP: true, // Auth credentials missing from creds.json
+      },
       Request: {
         amount_to_capture: 2000,
       },
@@ -86,6 +94,9 @@ export const connectorDetails = {
       },
     }),
     Refund: getCustomExchange({
+      Configs: {
+        TRIGGER_SKIP: true, // Auth credentials missing from creds.json
+      },
       Request: {
         amount: 6000,
       },
@@ -97,6 +108,9 @@ export const connectorDetails = {
       },
     }),
     PartialRefund: getCustomExchange({
+      Configs: {
+        TRIGGER_SKIP: true, // Auth credentials missing from creds.json
+      },
       Request: {
         amount: 2000,
       },
@@ -108,6 +122,9 @@ export const connectorDetails = {
       },
     }),
     manualPaymentRefund: getCustomExchange({
+      Configs: {
+        TRIGGER_SKIP: true, // Auth credentials missing from creds.json
+      },
       Request: {
         amount: 6000,
       },
@@ -119,6 +136,9 @@ export const connectorDetails = {
       },
     }),
     manualPaymentPartialRefund: getCustomExchange({
+      Configs: {
+        TRIGGER_SKIP: true, // Auth credentials missing from creds.json
+      },
       Request: {
         amount: 2000,
       },
@@ -130,6 +150,9 @@ export const connectorDetails = {
       },
     }),
     SyncRefund: getCustomExchange({
+      Configs: {
+        TRIGGER_SKIP: true, // Auth credentials missing from creds.json
+      },
       Response: {
         status: 200,
         body: {
