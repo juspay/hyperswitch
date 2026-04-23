@@ -815,7 +815,10 @@ describe("Razorpay UPI - Refund flow", () => {
 
       cy.step("Partial Refund Payment - 1st Attempt", () => {
         if (!shouldContinue) {
-          cy.task("cli_log", "Skipping step: Partial Refund Payment - 1st Attempt");
+          cy.task(
+            "cli_log",
+            "Skipping step: Partial Refund Payment - 1st Attempt"
+          );
           return;
         }
         const partialRefundData = getConnectorDetails(
@@ -823,9 +826,14 @@ describe("Razorpay UPI - Refund flow", () => {
         )["upi_pm"]["PartialRefund"];
         const newPartialRefundData = {
           ...partialRefundData,
-          Response: partialRefundData.ResponseCustom || partialRefundData.Response,
+          Response:
+            partialRefundData.ResponseCustom || partialRefundData.Response,
         };
-        cy.refundCallTest(fixtures.refundBody, newPartialRefundData, globalState);
+        cy.refundCallTest(
+          fixtures.refundBody,
+          newPartialRefundData,
+          globalState
+        );
         if (!utils.should_continue_further(partialRefundData)) {
           shouldContinue = false;
         }
@@ -844,9 +852,14 @@ describe("Razorpay UPI - Refund flow", () => {
         )["upi_pm"]["PartialRefund"];
         const newPartialRefundData = {
           ...partialRefundData,
-          Response: partialRefundData.ResponseCustom || partialRefundData.Response,
+          Response:
+            partialRefundData.ResponseCustom || partialRefundData.Response,
         };
-        cy.refundCallTest(fixtures.refundBody, newPartialRefundData, globalState);
+        cy.refundCallTest(
+          fixtures.refundBody,
+          newPartialRefundData,
+          globalState
+        );
         if (!utils.should_continue_further(partialRefundData)) {
           shouldContinue = false;
         }
@@ -974,7 +987,7 @@ describe("Razorpay UPI - Refund flow", () => {
           ...syncRefundData,
           Response: syncRefundData.ResponseCustom || syncRefundData.Response,
         };
-      cy.syncRefundCallTest(newSyncRefundData, globalState);
+        cy.syncRefundCallTest(newSyncRefundData, globalState);
       });
     });
   });
