@@ -121,8 +121,8 @@ services:
 
   loki:
     image: docker.io/grafana/loki:2.9.0
-    ports:
-      - "3100:3100"
+    # ports:
+    #   - "3100:3100"
     command: -config.file=/etc/loki/loki.yaml
     networks:
       - router_net
