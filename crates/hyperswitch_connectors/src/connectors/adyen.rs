@@ -2138,6 +2138,9 @@ impl IncomingWebhook for Adyen {
         &self,
         _request: &IncomingWebhookRequestDetails<'_>,
         _error_kind: Option<IncomingWebhookFlowError>,
+        _connector_authentication_type: Option<
+            common_utils::crypto::Encryptable<Secret<serde_json::Value>>,
+        >,
     ) -> CustomResult<ApplicationResponse<serde_json::Value>, errors::ConnectorError> {
         Ok(ApplicationResponse::TextPlain("[accepted]".to_string()))
     }
