@@ -730,7 +730,7 @@ pub(super) async fn verify_webhook_source_via_connector(
         )
         .await
         .or_else(|error| match error.current_context() {
-            crate::errors::ConnectorError::WebhookSourceVerificationFailed => {
+            errors::ConnectorError::WebhookSourceVerificationFailed => {
                 logger::error!(?error, "Source Verification Failed");
                 Ok(false)
             }
@@ -925,8 +925,6 @@ async fn build_event_context(
     ctx: &WebhookGatewayContext<'_>,
     reference: Option<&ObjectReferenceId>,
 ) -> Option<payments_grpc::EventContext> {
-    use crate::core::unified_connector_service::transformers::ForeignTryFrom as _;
-
     let payment_attempt = match reference {
         Some(reference @ ObjectReferenceId::PaymentId(_)) => {
             get_payment_attempt_from_object_reference_id(
