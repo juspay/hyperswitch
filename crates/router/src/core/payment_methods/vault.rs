@@ -17,6 +17,8 @@ use hyperswitch_domain_models::{
     router_data_v2::flow_common_types::VaultConnectorFlowData, types::VaultRouterData,
 };
 use hyperswitch_masking::PeekInterface;
+#[cfg(feature = "v2")]
+use payment_methods::controller::DeleteCardResp;
 use router_env::{instrument, tracing};
 use scheduler::{types::process_data, utils as process_tracker_utils};
 
@@ -43,7 +45,7 @@ use crate::{
 use crate::{
     core::{
         errors::StorageErrorExt,
-        payment_methods::{cards as pm_cards, utils},
+        payment_methods::{cards as pm_cards, utils, LockerType},
         payments::{self as payments_core, helpers as payment_helpers},
         utils::create_encrypted_data,
     },
@@ -1925,6 +1927,114 @@ pub async fn retrieve_payment_method_from_vault_internal(
     platform: &domain::Platform,
     vault_id: &domain::VaultId,
     customer_id: &id_type::GlobalCustomerId,
+    payment_method_type: Option<enums::PaymentMethod>,
+) -> CustomResult<pm_types::VaultRetrieveResponse, errors::VaultError> {
+    let locker_type = LockerType::from_state(state);
+
+    match locker_type {
+        LockerType::Generic => {
+            retrieve_payment_method_from_generic_vault(state, vault_id, customer_id).await
+        }
+        LockerType::Legacy => {
+            retrieve_payment_method_from_legacy_locker(
+                state,
+                platform,
+                vault_id,
+                customer_id,
+                payment_method_type,
+            )
+            .await
+        }
+    }
+}
+
+#[cfg(feature = "v2")]
+pub async fn retrieve_payment_method_from_legacy_locker(
+    state: &routes::SessionState,
+    platform: &domain::Platform,
+    vault_id: &domain::VaultId,
+    customer_id: &id_type::GlobalCustomerId,
+    payment_method_type: Option<enums::PaymentMethod>,
+) -> CustomResult<pm_types::VaultRetrieveResponse, errors::VaultError> {
+    let cust_id = id_type::CustomerId::try_from(std::borrow::Cow::from(
+        customer_id.get_string_repr().to_owned(),
+    ))
+    .change_context(errors::VaultError::FetchCardFailed)
+    .attach_printable("Failed to convert to CustomerId")?;
+
+    let merchant_id = platform.get_provider().get_account().get_id();
+
+    let payload = pm_transforms::CardReqBody {
+        merchant_id: merchant_id.clone(),
+        merchant_customer_id: cust_id,
+        card_reference: vault_id.get_string_repr().to_owned(),
+    };
+
+    let get_card_resp: pm_transforms::RetrieveCardResp = pm_transforms::call_vault_api(
+        state,
+        state.conf.jwekey.get_inner(),
+        &state.conf.locker,
+        &payload,
+        consts::LOCKER_RETRIEVE_CARD_PATH,
+        state.tenant.tenant_id.clone(),
+        state.request_id.clone(),
+    )
+    .await
+    .change_context(errors::VaultError::FetchCardFailed)
+    .attach_printable("Failed to fetch card from legacy locker")?;
+
+    let resp_payload = get_card_resp
+        .payload
+        .ok_or(errors::VaultError::FetchCardFailed)
+        .attach_printable("Empty payload in retrieve card response")?;
+
+    let vaulting_data = match (payment_method_type, resp_payload.card) {
+        (Some(enums::PaymentMethod::Card), Some(card)) => {
+            domain::PaymentMethodVaultingData::Card(api_models::payment_methods::CardDetail {
+                card_number: card.card_number,
+                card_exp_month: card.card_exp_month,
+                card_exp_year: card.card_exp_year,
+                card_holder_name: card.name_on_card,
+                card_cvc: None,
+                card_network: card.card_brand.and_then(|brand| brand.parse().ok()),
+                nick_name: card.nick_name.map(hyperswitch_masking::Secret::new),
+                card_issuing_country: None,
+                card_issuer: None,
+                card_type: None,
+            })
+        }
+        (Some(enums::PaymentMethod::NetworkToken), Some(card)) => {
+            domain::PaymentMethodVaultingData::NetworkToken(domain::NetworkTokenDetails {
+                network_token: card.card_number.into(), // CardNumber → NetworkToken
+                network_token_exp_month: card.card_exp_month,
+                network_token_exp_year: card.card_exp_year,
+                cryptogram: None,
+                card_issuer: None,
+                card_network: card.card_brand.and_then(|brand| brand.parse().ok()),
+                card_type: None,
+                card_issuing_country: None,
+                card_holder_name: card.name_on_card,
+                nick_name: card.nick_name.map(hyperswitch_masking::Secret::new),
+                par: None,
+            })
+        }
+        (_, _) => {
+            logger::warn!("Payment method not supported for retrieve from legacy locker");
+            return Err(error_stack::report!(errors::VaultError::FetchCardFailed)
+                .attach_printable("Payment method not supported for retrieve from legacy locker"));
+        }
+    };
+
+    Ok(pm_types::VaultRetrieveResponse {
+        data: vaulting_data,
+    })
+}
+
+#[cfg(feature = "v2")]
+pub async fn retrieve_payment_method_from_generic_vault(
+    state: &routes::SessionState,
+    vault_id: &domain::VaultId,
+    customer_id: &id_type::GlobalCustomerId,
 ) -> CustomResult<pm_types::VaultRetrieveResponse, errors::VaultError> {
     let payload = pm_types::VaultRetrieveRequest {
         entity_id: customer_id.to_owned(),
@@ -2412,10 +2522,17 @@ pub async fn retrieve_payment_method_from_vault(
                 .customer_id
                 .clone()
                 .get_required_value("GlobalCustomerId")?;
-            retrieve_payment_method_from_vault_internal(state, platform, &vault_id, &customer_id)
-                .await
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Failed to retrieve payment method from vault")
+
+            retrieve_payment_method_from_vault_internal(
+                state,
+                platform,
+                &vault_id,
+                &customer_id,
+                pm.payment_method_type,
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to retrieve payment method from vault")
         }
     }
 }
@@ -2424,6 +2541,72 @@ pub async fn retrieve_payment_method_from_vault(
 pub async fn delete_payment_method_data_from_vault_internal(
     state: &routes::SessionState,
     platform: &domain::Platform,
+    vault_id: domain::VaultId,
+    customer_id: &id_type::GlobalCustomerId,
+) -> CustomResult<pm_types::VaultDeleteResponse, errors::VaultError> {
+    let locker_type = LockerType::from_state(state);
+
+    match locker_type {
+        LockerType::Generic => {
+            delete_payment_method_data_from_generic_vault(state, vault_id, customer_id).await
+        }
+        LockerType::Legacy => {
+            delete_payment_method_data_from_legacy_locker(
+                state,
+                platform,
+                vault_id.clone(),
+                customer_id,
+            )
+            .await?;
+
+            Ok(pm_types::VaultDeleteResponse {
+                vault_id,
+                entity_id: customer_id.to_owned(),
+            })
+        }
+    }
+}
+
+#[cfg(feature = "v2")]
+pub async fn delete_payment_method_data_from_legacy_locker(
+    state: &routes::SessionState,
+    platform: &domain::Platform,
+    vault_id: domain::VaultId,
+    customer_id: &id_type::GlobalCustomerId,
+) -> CustomResult<DeleteCardResp, errors::VaultError> {
+    let cust_id = id_type::CustomerId::try_from(std::borrow::Cow::from(
+        customer_id.get_string_repr().to_owned(),
+    ))
+    .change_context(errors::VaultError::FetchCardFailed)
+    .attach_printable("Failed to convert to CustomerId")?;
+
+    let merchant_id = platform.get_provider().get_account().get_id();
+
+    let payload = pm_transforms::CardReqBody {
+        merchant_id: merchant_id.clone(),
+        merchant_customer_id: cust_id,
+        card_reference: vault_id.get_string_repr().to_owned(),
+    };
+
+    let legacy_locker_res: DeleteCardResp = pm_transforms::call_vault_api(
+        state,
+        state.conf.jwekey.get_inner(),
+        &state.conf.locker,
+        &payload,
+        consts::LOCKER_DELETE_CARD_PATH,
+        state.tenant.tenant_id.clone(),
+        state.request_id.clone(),
+    )
+    .await
+    .change_context(errors::VaultError::DeleteCardFailed)
+    .attach_printable("Failed to delete card from legacy locker")?;
+
+    Ok(legacy_locker_res)
+}
+
+#[cfg(feature = "v2")]
+pub async fn delete_payment_method_data_from_generic_vault(
+    state: &routes::SessionState,
     vault_id: domain::VaultId,
     customer_id: &id_type::GlobalCustomerId,
 ) -> CustomResult<pm_types::VaultDeleteResponse, errors::VaultError> {
