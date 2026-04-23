@@ -68,15 +68,15 @@ pub struct PaymentMethod {
     pub customer_details: Option<Encryption>,
     pub locker_fingerprint_id: Option<String>,
     pub network_tokenization_data: Option<Encryption>,
+    // Compatibility-only field: backfilled by modular-compat PT to align with v2 identifier semantics.
+    // Do not use this column in v1 business logic.
+    pub id: Option<String>,
     // Compatibility-only field: backfilled by modular-compat PT for v2 interoperability.
     // Do not use this column in v1 business logic.
     pub payment_method_type_v2: Option<storage_enums::PaymentMethod>,
     // Compatibility-only field: backfilled by modular-compat PT for v2 interoperability.
     // Do not use this column in v1 business logic.
     pub payment_method_subtype: Option<storage_enums::PaymentMethodType>,
-    // Compatibility-only field: backfilled by modular-compat PT to align with v2 identifier semantics.
-    // Do not use this column in v1 business logic.
-    pub id: Option<String>,
 }
 
 #[cfg(feature = "v2")]
