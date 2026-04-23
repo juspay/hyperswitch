@@ -601,7 +601,8 @@ pub async fn generate_payment_fingerprint(
     processor_merchant_id: common_utils::id_type::MerchantId,
     payment_method_data: Option<domain::PaymentMethodData>,
 ) -> CustomResult<Option<String>, errors::ApiErrorResponse> {
-    let merchant_fingerprint_secret = get_merchant_fingerprint_secret(state, &processor_merchant_id).await?;
+    let merchant_fingerprint_secret =
+        get_merchant_fingerprint_secret(state, &processor_merchant_id).await?;
 
     Ok(
         if let Some(domain::PaymentMethodData::Card(card)) = payment_method_data.as_ref() {
