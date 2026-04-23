@@ -426,14 +426,13 @@ impl IncomingWebhookGateway for UcsIncomingWebhookGateway {
                     .change_context(errors::ApiErrorResponse::InternalServerError)
                     .attach_printable("Failed to encode unified event content")?;
                 // Log-only view; failure here must not fail the webhook.
-                let masked_log_payload =
-                    event_content.masked_serialize().unwrap_or_else(|error| {
-                        logger::warn!(
-                            ?error,
-                            "Failed to mask-serialize unified event content for logging"
-                        );
-                        serde_json::Value::Null
-                    });
+                let masked_log_payload = event_content.masked_serialize().unwrap_or_else(|error| {
+                    logger::warn!(
+                        ?error,
+                        "Failed to mask-serialize unified event content for logging"
+                    );
+                    serde_json::Value::Null
+                });
 
                 // Use UCS's suggested ack when present; otherwise default to
                 // `StatusOk` (200 empty body). Mirrors the HS connector-trait

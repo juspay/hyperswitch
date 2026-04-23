@@ -328,7 +328,11 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
                     platform.get_processor().get_account().get_id().clone()
                 )),
             );
-            (ack_response, WebhookResponseTracker::NoEffect, serde_json::Value::Null)
+            (
+                ack_response,
+                WebhookResponseTracker::NoEffect,
+                serde_json::Value::Null,
+            )
         }
         Ok(super::gateway::WebhookOutcome::Processed {
             reference,
