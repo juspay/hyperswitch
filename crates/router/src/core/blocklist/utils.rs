@@ -33,7 +33,10 @@ pub async fn delete_entry_from_blocklist(
 
         api_blocklist::DeleteFromBlocklistRequest::Fingerprint(fingerprint_id) => state
             .store
-            .delete_blocklist_entry_by_processor_merchant_id_fingerprint_id(processor_merchant_id, &fingerprint_id)
+            .delete_blocklist_entry_by_processor_merchant_id_fingerprint_id(
+                processor_merchant_id,
+                &fingerprint_id,
+            )
             .await
             .to_not_found_response(errors::ApiErrorResponse::GenericNotFoundError {
                 message: "no blocklist record for the given fingerprint id was found".to_string(),
@@ -107,7 +110,10 @@ pub async fn list_blocklist_entries_for_merchant(
 
     let total_count = state
         .store
-        .get_blocklist_entries_count_by_processor_merchant_id_data_kind(processor_merchant_id, query.data_kind)
+        .get_blocklist_entries_count_by_processor_merchant_id_data_kind(
+            processor_merchant_id,
+            query.data_kind,
+        )
         .await
         .to_not_found_response(errors::ApiErrorResponse::GenericNotFoundError {
             message: "no blocklist records found".to_string(),
@@ -180,7 +186,10 @@ pub async fn insert_entry_into_blocklist(
         api_blocklist::AddToBlocklistRequest::Fingerprint(fingerprint_id) => {
             let blocklist_entry_result = state
                 .store
-                .find_blocklist_entry_by_processor_merchant_id_fingerprint_id(platform_merchant_id, fingerprint_id)
+                .find_blocklist_entry_by_processor_merchant_id_fingerprint_id(
+                    platform_merchant_id,
+                    fingerprint_id,
+                )
                 .await;
 
             match blocklist_entry_result {
@@ -210,7 +219,10 @@ pub async fn insert_entry_into_blocklist(
                     metadata: None,
                     created_at: common_utils::date_time::now(),
                     processor_merchant_id: Some(platform_merchant_id.to_owned()),
-                    created_by: platform.get_initiator().and_then(|initiator| initiator.to_created_by()).map(|created_by| created_by.to_string()),
+                    created_by: platform
+                        .get_initiator()
+                        .and_then(|initiator| initiator.to_created_by())
+                        .map(|created_by| created_by.to_string()),
                 })
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -293,7 +305,10 @@ async fn duplicate_check_insert_bin(
             metadata: None,
             created_at: common_utils::date_time::now(),
             processor_merchant_id: Some(platform_merchant_id.to_owned()),
-            created_by: platform.get_initiator().and_then(|initiator| initiator.to_created_by()).map(|created_by| created_by.to_string()),
+            created_by: platform
+                .get_initiator()
+                .and_then(|initiator| initiator.to_created_by())
+                .map(|created_by| created_by.to_string()),
         })
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -322,7 +337,8 @@ pub async fn should_payment_be_blocked(
 ) -> CustomResult<bool, errors::ApiErrorResponse> {
     let db = &state.store;
     let processor_merchant_id = processor.get_account().get_id();
-    let merchant_fingerprint_secret = get_merchant_fingerprint_secret(state, processor_merchant_id).await?;
+    let merchant_fingerprint_secret =
+        get_merchant_fingerprint_secret(state, processor_merchant_id).await?;
 
     // Hashed Fingerprint to check whether or not this payment should be blocked.
     let card_number_fingerprint =
@@ -370,10 +386,12 @@ pub async fn should_payment_be_blocked(
     //validating the payment method.
     let mut blocklist_futures = Vec::new();
     if let Some(card_number_fingerprint) = card_number_fingerprint.as_ref() {
-        blocklist_futures.push(db.find_blocklist_entry_by_processor_merchant_id_fingerprint_id(
-            processor_merchant_id,
-            card_number_fingerprint,
-        ));
+        blocklist_futures.push(
+            db.find_blocklist_entry_by_processor_merchant_id_fingerprint_id(
+                processor_merchant_id,
+                card_number_fingerprint,
+            ),
+        );
     }
 
     if let Some(card_bin_fingerprint) = card_bin_fingerprint.as_ref() {
@@ -386,10 +404,12 @@ pub async fn should_payment_be_blocked(
     }
 
     if let Some(extended_card_bin_fingerprint) = extended_card_bin_fingerprint.as_ref() {
-        blocklist_futures.push(db.find_blocklist_entry_by_processor_merchant_id_fingerprint_id(
-            processor_merchant_id,
-            extended_card_bin_fingerprint,
-        ));
+        blocklist_futures.push(
+            db.find_blocklist_entry_by_processor_merchant_id_fingerprint_id(
+                processor_merchant_id,
+                extended_card_bin_fingerprint,
+            ),
+        );
     }
 
     let blocklist_lookups = futures::future::join_all(blocklist_futures).await;

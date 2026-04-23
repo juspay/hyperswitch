@@ -76,7 +76,11 @@ pub async fn remove_entry_from_blocklist(
         &req,
         json_payload.into_inner(),
         |state, auth: auth::AuthenticationData, body, _| {
-            blocklist::remove_entry_from_blocklist(state, auth.platform.get_processor().clone(), body)
+            blocklist::remove_entry_from_blocklist(
+                state,
+                auth.platform.get_processor().clone(),
+                body,
+            )
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {

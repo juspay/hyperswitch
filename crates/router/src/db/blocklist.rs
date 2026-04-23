@@ -258,7 +258,10 @@ impl BlocklistInterface for KafkaStore {
         fingerprint_id: &str,
     ) -> CustomResult<storage::Blocklist, errors::StorageError> {
         self.diesel_store
-            .find_blocklist_entry_by_processor_merchant_id_fingerprint_id(processor_merchant_id, fingerprint_id)
+            .find_blocklist_entry_by_processor_merchant_id_fingerprint_id(
+                processor_merchant_id,
+                fingerprint_id,
+            )
             .await
     }
 
@@ -269,7 +272,10 @@ impl BlocklistInterface for KafkaStore {
         fingerprint_id: &str,
     ) -> CustomResult<storage::Blocklist, errors::StorageError> {
         self.diesel_store
-            .delete_blocklist_entry_by_processor_merchant_id_fingerprint_id(processor_merchant_id, fingerprint_id)
+            .delete_blocklist_entry_by_processor_merchant_id_fingerprint_id(
+                processor_merchant_id,
+                fingerprint_id,
+            )
             .await
     }
 
@@ -282,7 +288,12 @@ impl BlocklistInterface for KafkaStore {
         offset: i64,
     ) -> CustomResult<Vec<storage::Blocklist>, errors::StorageError> {
         self.diesel_store
-            .list_blocklist_entries_by_processor_merchant_id_data_kind(processor_merchant_id, data_kind, limit, offset)
+            .list_blocklist_entries_by_processor_merchant_id_data_kind(
+                processor_merchant_id,
+                data_kind,
+                limit,
+                offset,
+            )
             .await
     }
 
@@ -293,7 +304,10 @@ impl BlocklistInterface for KafkaStore {
         data_kind: common_enums::BlocklistDataKind,
     ) -> CustomResult<usize, errors::StorageError> {
         self.diesel_store
-            .get_blocklist_entries_count_by_processor_merchant_id_data_kind(processor_merchant_id, data_kind)
+            .get_blocklist_entries_count_by_processor_merchant_id_data_kind(
+                processor_merchant_id,
+                data_kind,
+            )
             .await
     }
 

@@ -16,8 +16,8 @@ pub async fn add_entry_to_blocklist(
     body: api_blocklist::AddToBlocklistRequest,
 ) -> RouterResponse<api_blocklist::AddToBlocklistResponse> {
     utils::insert_entry_into_blocklist(&state, &platform, body)
-    .await
-    .map(services::ApplicationResponse::Json)
+        .await
+        .map(services::ApplicationResponse::Json)
 }
 
 pub async fn remove_entry_from_blocklist(
@@ -25,13 +25,9 @@ pub async fn remove_entry_from_blocklist(
     processor: domain::Processor,
     body: api_blocklist::DeleteFromBlocklistRequest,
 ) -> RouterResponse<api_blocklist::DeleteFromBlocklistResponse> {
-    utils::delete_entry_from_blocklist(
-        &state,
-        processor.get_account().get_id(),
-        body,
-    )
-    .await
-    .map(services::ApplicationResponse::Json)
+    utils::delete_entry_from_blocklist(&state, processor.get_account().get_id(), body)
+        .await
+        .map(services::ApplicationResponse::Json)
 }
 
 pub async fn list_blocklist_entries(
@@ -39,13 +35,9 @@ pub async fn list_blocklist_entries(
     processor: domain::Processor,
     query: api_blocklist::ListBlocklistQuery,
 ) -> RouterResponse<api_blocklist::ListBlocklistResponse> {
-    utils::list_blocklist_entries_for_merchant(
-        &state,
-        processor.get_account().get_id(),
-        query,
-    )
-    .await
-    .map(services::ApplicationResponse::Json)
+    utils::list_blocklist_entries_for_merchant(&state, processor.get_account().get_id(), query)
+        .await
+        .map(services::ApplicationResponse::Json)
 }
 
 pub async fn toggle_blocklist_guard(
@@ -53,11 +45,7 @@ pub async fn toggle_blocklist_guard(
     processor: domain::Processor,
     query: api_blocklist::ToggleBlocklistQuery,
 ) -> RouterResponse<api_blocklist::ToggleBlocklistResponse> {
-    utils::toggle_blocklist_guard_for_merchant(
-        &state,
-        processor.get_account().get_id(),
-        query,
-    )
-    .await
-    .map(services::ApplicationResponse::Json)
+    utils::toggle_blocklist_guard_for_merchant(&state, processor.get_account().get_id(), query)
+        .await
+        .map(services::ApplicationResponse::Json)
 }
