@@ -20,6 +20,8 @@ set -Eeuo pipefail
 #   -h, --help      Show this help message and exit
 #   -r, --registry  Specify image registry (default: localhost)
 #   -f, --features  Extra Cargo features to enable during build
+#   -b, --binaries  Comma-separated list of binaries to build (router,producer,consumer,drainer)
+#                   Default: all binaries
 #
 # EXAMPLES:
 #   # Build with interactive prompt for version tag
@@ -33,6 +35,9 @@ set -Eeuo pipefail
 #
 #   # Build with extra features
 #   ./build-local-images.sh --features "aws_kms" v1.0.0-aws
+#
+#   # Build only specific binaries
+#   ./build-local-images.sh --binaries "router,producer" v1.0.0-api
 #
 # ENVIRONMENT VARIABLES:
 #   IMAGE_REGISTRY      Docker registry prefix (default: localhost)
@@ -94,6 +99,12 @@ echo_error() {
     printf "${RED}[ERROR]${NC} %s\n" "$1"
 }
 
+# Default: build all binaries
+BUILD_ROUTER=true
+BUILD_PRODUCER=true
+BUILD_CONSUMER=true
+BUILD_DRAINER=true
+
 # Parse arguments
 while [[ $# -gt 0 ]]; do
     case $1 in
@@ -106,6 +117,28 @@ while [[ $# -gt 0 ]]; do
             ;;
         -f|--features)
             EXTRA_FEATURES="$2"
+            shift 2
+            ;;
+        -b|--binaries)
+            # Parse comma-separated list and disable all by default
+            BUILD_ROUTER=false
+            BUILD_PRODUCER=false
+            BUILD_CONSUMER=false
+            BUILD_DRAINER=false
+            IFS=',' read -ra BINARY_LIST <<< "$2"
+            for binary in "${BINARY_LIST[@]}"; do
+                case "$binary" in
+                    router) BUILD_ROUTER=true ;;
+                    producer) BUILD_PRODUCER=true ;;
+                    consumer) BUILD_CONSUMER=true ;;
+                    drainer) BUILD_DRAINER=true ;;
+                    *)
+                        echo_error "Unknown binary: $binary"
+                        echo_info "Valid binaries: router, producer, consumer, drainer"
+                        exit 1
+                        ;;
+                esac
+            done
             shift 2
             ;;
         -*)
@@ -201,21 +234,36 @@ build_image() {
 # Record start time
 START_TIME=$(date +%s)
 
+# Track which images were actually built
+BUILT_IMAGES=()
+
 # Build Router image (main application)
-build_image "router" "${ROUTER_IMAGE}"
+if [ "$BUILD_ROUTER" = true ]; then
+    build_image "router" "${ROUTER_IMAGE}"
+    BUILT_IMAGES+=("Router:    ${ROUTER_IMAGE}")
+fi
 
 # Build Producer image (scheduler producer)
-build_image "scheduler" "${PRODUCER_IMAGE}" "producer"
+if [ "$BUILD_PRODUCER" = true ]; then
+    build_image "scheduler" "${PRODUCER_IMAGE}" "producer"
+    BUILT_IMAGES+=("Producer:  ${PRODUCER_IMAGE}")
+fi
 
 # Build Consumer image (scheduler consumer)
-build_image "scheduler" "${CONSUMER_IMAGE}" "consumer"
+if [ "$BUILD_CONSUMER" = true ]; then
+    build_image "scheduler" "${CONSUMER_IMAGE}" "consumer"
+    BUILT_IMAGES+=("Consumer:  ${CONSUMER_IMAGE}")
+fi
 
 # Build Drainer image
-echo_info "Checking if drainer binary exists in codebase..."
-if grep -q "\[\[bin\]\]" Cargo.toml 2>/dev/null && grep -q "name = \"drainer\"" Cargo.toml 2>/dev/null; then
-    build_image "drainer" "${DRAINER_IMAGE}"
-else
-    echo_warning "Drainer binary not found in Cargo.toml, skipping drainer image build."
+if [ "$BUILD_DRAINER" = true ]; then
+    echo_info "Checking if drainer binary exists in codebase..."
+    if grep -q "\[\[bin\]\]" Cargo.toml 2>/dev/null && grep -q "name = \"drainer\"" Cargo.toml 2>/dev/null; then
+        build_image "drainer" "${DRAINER_IMAGE}"
+        BUILT_IMAGES+=("Drainer:   ${DRAINER_IMAGE}")
+    else
+        echo_warning "Drainer binary not found in Cargo.toml, skipping drainer image build."
+    fi
 fi
 
 # Calculate build time
@@ -232,10 +280,9 @@ echo ""
 echo_info "Build duration: ${MINUTES}m ${SECONDS}s"
 echo ""
 echo_info "Built images:"
-echo "  • Router:    ${ROUTER_IMAGE}"
-echo "  • Producer:  ${PRODUCER_IMAGE}"
-echo "  • Consumer:  ${CONSUMER_IMAGE}"
-echo "  • Drainer:   ${DRAINER_IMAGE}"
+for img in "${BUILT_IMAGES[@]}"; do
+    echo "  • $img"
+done
 echo ""
 echo_info "To use these images in docker-compose, run:"
 echo "  docker compose -f docker-compose.yml -f docker-compose.custom-images.yml up -d"
@@ -249,31 +296,44 @@ echo ""
 
 # Save the version tag to a file for reference
 echo "${VERSION_TAG}" > .custom-version
-echo "${ROUTER_IMAGE}" > .router-image
-echo "${PRODUCER_IMAGE}" > .producer-image
-echo "${CONSUMER_IMAGE}" > .consumer-image
-echo "${DRAINER_IMAGE}" > .drainer-image
+[ "$BUILD_ROUTER" = true ] && echo "${ROUTER_IMAGE}" > .router-image
+[ "$BUILD_PRODUCER" = true ] && echo "${PRODUCER_IMAGE}" > .producer-image
+[ "$BUILD_CONSUMER" = true ] && echo "${CONSUMER_IMAGE}" > .consumer-image
+[ "$BUILD_DRAINER" = true ] && echo "${DRAINER_IMAGE}" > .drainer-image
 
-# Generate docker-compose override file
+# Generate docker-compose override file dynamically
 cat > docker-compose.custom-images.yml << EOF
 # Auto-generated docker-compose override for custom local images
 # Version: ${VERSION_TAG}
 # Generated: $(date)
+# Binaries built: $(echo "${BUILT_IMAGES[@]}" | sed 's/.*://g')
 #
 # Use this file with: docker compose -f docker-compose.yml -f docker-compose.custom-images.yml up -d
 
 services:
+EOF
+
+[ "$BUILD_ROUTER" = true ] && cat >> docker-compose.custom-images.yml << EOF
   hyperswitch-server:
     image: ${ROUTER_IMAGE}
     pull_policy: never
+EOF
+
+[ "$BUILD_PRODUCER" = true ] && cat >> docker-compose.custom-images.yml << EOF
 
   hyperswitch-producer:
     image: ${PRODUCER_IMAGE}
     pull_policy: never
+EOF
+
+[ "$BUILD_CONSUMER" = true ] && cat >> docker-compose.custom-images.yml << EOF
 
   hyperswitch-consumer:
     image: ${CONSUMER_IMAGE}
     pull_policy: never
+EOF
+
+[ "$BUILD_DRAINER" = true ] && cat >> docker-compose.custom-images.yml << EOF
 
   hyperswitch-drainer:
     image: ${DRAINER_IMAGE}
