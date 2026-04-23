@@ -729,7 +729,12 @@ describe("Platform - Card Refund flow test", () => {
           const captureData = getConnectorDetails(globalState.get("connectorId"))[
             "card_pm"
           ]["Capture"];
-          cy.captureCallTest(fixtures.captureBody, captureData, globalState);
+          cy.captureCallTest(
+            fixtures.captureBody,
+            captureData,
+            globalState,
+            globalState.get("connectedMerchantId1")
+          );
           if (!utils.should_continue_further(captureData)) {
             shouldContinue = false;
           }
