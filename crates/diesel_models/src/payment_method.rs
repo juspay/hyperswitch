@@ -68,6 +68,14 @@ pub struct PaymentMethod {
     pub customer_details: Option<Encryption>,
     pub locker_fingerprint_id: Option<String>,
     pub network_tokenization_data: Option<Encryption>,
+    // Compatibility-only field: backfilled by modular-compat PT for v2 interoperability.
+    // Do not use this column in v1 business logic.
+    pub payment_method_type_v2: Option<storage_enums::PaymentMethod>,
+    // Compatibility-only field: backfilled by modular-compat PT for v2 interoperability.
+    // Do not use this column in v1 business logic.
+    pub payment_method_subtype: Option<storage_enums::PaymentMethodType>,
+    // Compatibility-only field: backfilled by modular-compat PT to align with v2 identifier semantics.
+    // Do not use this column in v1 business logic.
     pub id: Option<String>,
 }
 
@@ -294,8 +302,12 @@ pub enum PaymentMethodUpdate {
         payment_method_data: Option<Encryption>,
         last_modified_by: Option<String>,
     },
-    PopulateId {
+    // Compatibility-only update used by modular-compat PT.
+    // Do not use this for normal v1 payment method updates.
+    PopulateModularCompatFields {
         id: String,
+        payment_method_type_v2: Option<storage_enums::PaymentMethod>,
+        payment_method_subtype: Option<storage_enums::PaymentMethodType>,
         last_modified_by: Option<String>,
     },
 }
@@ -473,6 +485,8 @@ pub struct PaymentMethodUpdateInternal {
     last_modified_by: Option<String>,
     customer_details: Option<Encryption>,
     network_tokenization_data: Option<Encryption>,
+    payment_method_type_v2: Option<storage_enums::PaymentMethod>,
+    payment_method_subtype: Option<storage_enums::PaymentMethodType>,
     id: Option<String>,
 }
 
@@ -499,6 +513,8 @@ impl PaymentMethodUpdateInternal {
             last_modified_by,
             customer_details,
             network_tokenization_data,
+            payment_method_type_v2,
+            payment_method_subtype,
             id,
         } = self;
 
@@ -548,6 +564,8 @@ impl PaymentMethodUpdateInternal {
             customer_details: customer_details.or(source.customer_details),
             network_tokenization_data: network_tokenization_data
                 .or(source.network_tokenization_data),
+            payment_method_type_v2: payment_method_type_v2.or(source.payment_method_type_v2),
+            payment_method_subtype: payment_method_subtype.or(source.payment_method_subtype),
             id: id.or(source.id),
         }
     }
@@ -582,6 +600,8 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
                 customer_details: None,
                 network_tokenization_data: None,
                 id: None,
+                payment_method_type_v2: None,
+                payment_method_subtype: None,
             },
             PaymentMethodUpdate::PaymentMethodDataUpdate {
                 payment_method_data,
@@ -607,6 +627,8 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
                 customer_details: None,
                 network_tokenization_data: None,
                 id: None,
+                payment_method_type_v2: None,
+                payment_method_subtype: None,
             },
             PaymentMethodUpdate::LastUsedUpdate { last_used_at } => Self {
                 metadata: None,
@@ -629,6 +651,8 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
                 customer_details: None,
                 network_tokenization_data: None,
                 id: None,
+                payment_method_type_v2: None,
+                payment_method_subtype: None,
             },
             PaymentMethodUpdate::UpdatePaymentMethodDataAndLastUsed {
                 payment_method_data,
@@ -656,6 +680,8 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
                 customer_details: None,
                 network_tokenization_data: None,
                 id: None,
+                payment_method_type_v2: None,
+                payment_method_subtype: None,
             },
             PaymentMethodUpdate::NetworkTransactionIdAndStatusUpdate {
                 network_transaction_id,
@@ -682,6 +708,8 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
                 customer_details: None,
                 network_tokenization_data: None,
                 id: None,
+                payment_method_type_v2: None,
+                payment_method_subtype: None,
             },
             PaymentMethodUpdate::StatusUpdate {
                 status,
@@ -707,6 +735,8 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
                 customer_details: None,
                 network_tokenization_data: None,
                 id: None,
+                payment_method_type_v2: None,
+                payment_method_subtype: None,
             },
             PaymentMethodUpdate::AdditionalDataUpdate {
                 payment_method_data,
@@ -745,6 +775,8 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
                 customer_details: None,
                 network_tokenization_data,
                 id: None,
+                payment_method_type_v2: None,
+                payment_method_subtype: None,
             },
             PaymentMethodUpdate::ConnectorMandateDetailsUpdate {
                 connector_mandate_details,
@@ -770,6 +802,8 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
                 customer_details: None,
                 network_tokenization_data: None,
                 id: None,
+                payment_method_type_v2: None,
+                payment_method_subtype: None,
             },
             PaymentMethodUpdate::NetworkTokenDataUpdate {
                 network_token_requestor_reference_id,
@@ -798,6 +832,8 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
                 customer_details: None,
                 network_tokenization_data,
                 id: None,
+                payment_method_type_v2: None,
+                payment_method_subtype: None,
             },
             PaymentMethodUpdate::ConnectorNetworkTransactionIdAndMandateDetailsUpdate {
                 connector_mandate_details,
@@ -825,6 +861,8 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
                 customer_details: None,
                 network_tokenization_data: None,
                 id: None,
+                payment_method_type_v2: None,
+                payment_method_subtype: None,
             },
             PaymentMethodUpdate::PaymentMethodBatchUpdate {
                 connector_mandate_details,
@@ -854,9 +892,13 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
                 customer_details: None,
                 network_tokenization_data: None,
                 id: None,
+                payment_method_type_v2: None,
+                payment_method_subtype: None,
             },
-            PaymentMethodUpdate::PopulateId {
+            PaymentMethodUpdate::PopulateModularCompatFields {
                 id,
+                payment_method_type_v2,
+                payment_method_subtype,
                 last_modified_by,
             } => Self {
                 metadata: None,
@@ -878,6 +920,8 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
                 last_modified_by,
                 customer_details: None,
                 network_tokenization_data: None,
+                payment_method_type_v2,
+                payment_method_subtype,
                 id: Some(id),
             },
         }
@@ -1131,6 +1175,8 @@ impl From<&PaymentMethodNew> for PaymentMethod {
             customer_details: payment_method_new.customer_details.clone(),
             locker_fingerprint_id: payment_method_new.locker_fingerprint_id.clone(),
             network_tokenization_data: payment_method_new.network_tokenization_data.clone(),
+            payment_method_type_v2: None,
+            payment_method_subtype: None,
             id: payment_method_new.id.clone(),
         }
     }

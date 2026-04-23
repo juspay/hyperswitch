@@ -58,9 +58,11 @@ impl ProcessTrackerWorkflow<SessionState> for PaymentMethodModularCompatWorkflow
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to fetch payment method for modular compatibility PT")?;
 
-        // Step 2: Populate v1 `payment_methods.id` from `payment_method_id` for modular compatibility.
-        let pm_id_update = storage::PaymentMethodUpdate::PopulateId {
+        // Step 2: Populate v1 compat fields used by PM modular service.
+        let pm_id_update = storage::PaymentMethodUpdate::PopulateModularCompatFields {
             id: tracking_data.payment_method_id.clone(),
+            payment_method_type_v2: payment_method.payment_method,
+            payment_method_subtype: payment_method.payment_method_type,
             last_modified_by: tracking_data.last_modified_by.clone(),
         };
 
