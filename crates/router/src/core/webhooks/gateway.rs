@@ -609,25 +609,63 @@ async fn verify_direct_source(
     request: &IncomingWebhookRequestDetails<'_>,
     mca: &domain::MerchantConnectorAccount,
 ) -> RouterResult<bool> {
-    ctx.connector
-        .clone()
-        .verify_webhook_source(
-            request,
-            ctx.platform.get_processor().get_account().get_id(),
-            mca.connector_webhook_details.clone(),
-            mca.connector_account_details.clone(),
+    use std::str::FromStr;
+
+    let connector_enum = api_models::enums::Connector::from_str(ctx.connector_name)
+        .change_context(errors::ApiErrorResponse::InvalidDataValue {
+            field_name: "connector",
+        })
+        .attach_printable_lazy(|| {
+            format!("unable to parse connector name {:?}", ctx.connector_name)
+        })?;
+
+    let requires_external_source_verification = ctx
+        .state
+        .conf
+        .webhook_source_verification_call
+        .connectors_with_webhook_source_verification_call
+        .contains(&connector_enum);
+
+    if requires_external_source_verification {
+        webhook_utils::verify_webhook_source_verification_call(
+            ctx.connector.clone(),
+            ctx.state,
+            ctx.platform,
+            mca.clone(),
             ctx.connector_name,
+            request,
         )
         .await
         .or_else(|error| match error.current_context() {
-            hyperswitch_interfaces::errors::ConnectorError::WebhookSourceVerificationFailed => {
-                logger::warn!(?error, "Webhook source verification returned failure");
+            crate::errors::ConnectorError::WebhookSourceVerificationFailed => {
+                logger::error!(?error, "Source Verification Failed");
                 Ok(false)
             }
             _ => Err(error),
         })
         .switch()
-        .attach_printable("Webhook source verification errored")
+        .attach_printable("There was an issue in incoming webhook source verification")
+    } else {
+        ctx.connector
+            .clone()
+            .verify_webhook_source(
+                request,
+                ctx.platform.get_processor().get_account().get_id(),
+                mca.connector_webhook_details.clone(),
+                mca.connector_account_details.clone(),
+                ctx.connector_name,
+            )
+            .await
+            .or_else(|error| match error.current_context() {
+                hyperswitch_interfaces::errors::ConnectorError::WebhookSourceVerificationFailed => {
+                    logger::error!(?error, "Source Verification Failed");
+                    Ok(false)
+                }
+                _ => Err(error),
+            })
+            .switch()
+            .attach_printable("There was an issue in incoming webhook source verification")
+    }
 }
 
 fn request_details_to_grpc(

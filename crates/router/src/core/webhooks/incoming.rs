@@ -266,11 +266,87 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
                                 serde_json::Value::default(),
                             ));
                         }
+
+                        let flow_type: api::WebhookFlow = event_type.into();
+                        let is_event_supported = !matches!(
+                            event_type,
+                            webhooks::IncomingWebhookEvent::EventNotSupported
+                        );
+                        let is_event_enabled = !super::utils::is_webhook_event_disabled(
+                            &*state.store,
+                            connector_name.as_str(),
+                            platform.get_processor().get_account().get_id(),
+                            &event_type,
+                        )
+                        .await;
+                        let process_further = is_event_supported
+                            && is_event_enabled
+                            && !matches!(flow_type, api::WebhookFlow::ReturnResponse);
+
                         let serialized = serde_json::from_slice::<serde_json::Value>(&body)
                             .unwrap_or(serde_json::Value::Null);
+
+                        let webhook_effect = if process_further {
+                            let object_reference_id = uas_connector
+                                .get_webhook_object_reference_id(&request_details)
+                                .switch()
+                                .attach_printable("Could not find object reference id in UAS webhook body")?;
+
+                            let mca = mca_data
+                                .merchant_connector_account
+                                .clone()
+                                .ok_or_else(|| {
+                                    error_stack::report!(
+                                        errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
+                                            id: connector_name.clone(),
+                                        }
+                                    )
+                                })?;
+
+                            match Box::pin(process_webhook_business_logic(
+                                &state,
+                                req_state,
+                                &platform,
+                                &uas_connector,
+                                &connector_name,
+                                event_type,
+                                false, // UAS path does not perform source verification
+                                super::gateway::WebhookContent::Direct(body),
+                                &request_details,
+                                is_relay_webhook,
+                                object_reference_id,
+                                mca,
+                            ))
+                            .await
+                            {
+                                Ok(effect) => effect,
+                                Err(error) => {
+                                    match handle_incoming_webhook_error(
+                                        error,
+                                        &uas_connector,
+                                        connector_name.as_str(),
+                                        &request_details,
+                                        platform.get_processor().get_account().get_id(),
+                                    ) {
+                                        Ok((_, tracker, _)) => tracker,
+                                        Err(e) => return Err(e),
+                                    }
+                                }
+                            }
+                        } else {
+                            metrics::WEBHOOK_INCOMING_FILTERED_COUNT.add(
+                                1,
+                                router_env::metric_attributes!((
+                                    MERCHANT_ID,
+                                    platform.get_processor().get_account().get_id().clone()
+                                )),
+                            );
+                            WebhookResponseTracker::NoEffect
+                        };
+
                         (
                             uas_connector,
-                            WebhookResponseTracker::NoEffect,
+                            webhook_effect,
                             serialized,
                             mca_data.merchant_connector_account.clone(),
                         )
@@ -319,17 +395,6 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
                 )
                 .await;
 
-                let outcome = outcome.and_then(|outcome| {
-                    if outcome.event_type() == webhooks::IncomingWebhookEvent::SetupWebhook {
-                        Err(error_stack::report!(errors::ApiErrorResponse::NotImplemented {
-                            message: errors::NotImplementedMessage::Default,
-                        })
-                        .attach_printable("SetupWebhook handled via early return"))
-                    } else {
-                        Ok(outcome)
-                    }
-                });
-                // Handle SetupWebhook uniformly regardless of filter outcome.
                 if let Ok(ref o) = outcome {
                     if o.event_type() == webhooks::IncomingWebhookEvent::SetupWebhook {
                         return Ok((
@@ -2267,7 +2332,7 @@ async fn disputes_incoming_webhook_flow(
             .switch()?;
 
         let option_dispute = db
-            .find_by_processor_merchant_id_payment_id_connector_dispute_id(
+            .find_by_merchant_id_payment_id_connector_dispute_id(
                 platform.get_processor().get_account().get_id(),
                 &payment_attempt.payment_id,
                 &dispute_details.connector_dispute_id,
