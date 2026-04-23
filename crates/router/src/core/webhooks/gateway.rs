@@ -28,7 +28,9 @@ use crate::{
             build_unified_connector_service_auth_metadata,
             build_webhook_secrets_from_merchant_connector_account,
         },
-        webhooks::{incoming::get_payment_attempt_from_object_reference_id, utils as webhook_utils},
+        webhooks::{
+            incoming::get_payment_attempt_from_object_reference_id, utils as webhook_utils,
+        },
     },
     routes::SessionState,
     services::connector_integration_interface::ConnectorEnum,
@@ -232,10 +234,12 @@ impl IncomingWebhookGateway for DirectIncomingWebhookGateway {
                     .change_context(errors::ApiErrorResponse::InternalServerError)
                     .attach_printable("Failed to encode webhook resource object")?;
                 // Log-only view; failure here must not fail the webhook.
-                let masked_log_payload = resource_object
-                    .masked_serialize()
-                    .unwrap_or_else(|error| {
-                        logger::warn!(?error, "Failed to mask-serialize webhook resource object for logging");
+                let masked_log_payload =
+                    resource_object.masked_serialize().unwrap_or_else(|error| {
+                        logger::warn!(
+                            ?error,
+                            "Failed to mask-serialize webhook resource object for logging"
+                        );
                         serde_json::Value::Null
                     });
 
@@ -328,7 +332,9 @@ impl IncomingWebhookGateway for UcsIncomingWebhookGateway {
                     &MerchantConnectorAccountType::DbVal(Box::new(mca.clone())),
                 )
                 .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Failed to resolve webhook secrets from merchant connector account")?;
+                .attach_printable(
+                    "Failed to resolve webhook secrets from merchant connector account",
+                )?;
 
                 let handle_response = client
                     .incoming_webhook_handle_event(
@@ -354,7 +360,10 @@ impl IncomingWebhookGateway for UcsIncomingWebhookGateway {
                             .attach_printable("Failed to encode unified event content")?;
                         // Log-only view; failure here must not fail the webhook.
                         let masked = content.masked_serialize().unwrap_or_else(|error| {
-                            logger::warn!(?error, "Failed to mask-serialize unified event content for logging");
+                            logger::warn!(
+                                ?error,
+                                "Failed to mask-serialize unified event content for logging"
+                            );
                             serde_json::Value::Null
                         });
                         (bytes, masked)
@@ -438,8 +447,13 @@ fn spawn_shadow_ucs_run(
             {
                 Ok(shadow_outcome) => {
                     let shadow_snapshot = OutcomeSnapshot::from(&shadow_outcome);
-                    report_shadow_diff(&state, &connector_name, &primary_snapshot, &shadow_snapshot)
-                        .await;
+                    report_shadow_diff(
+                        &state,
+                        &connector_name,
+                        &primary_snapshot,
+                        &shadow_snapshot,
+                    )
+                    .await;
                 }
                 Err(error) => logger::warn!(?error, "UCS shadow webhook run failed"),
             }
@@ -587,8 +601,8 @@ async fn build_webhook_context(
     reference: Option<&ObjectReferenceId>,
 ) -> RouterResult<Option<WebhookContext>> {
     match reference {
-        Some(reference @ ObjectReferenceId::PaymentId(_)) => Ok(
-            get_payment_attempt_from_object_reference_id(
+        Some(reference @ ObjectReferenceId::PaymentId(_)) => {
+            Ok(get_payment_attempt_from_object_reference_id(
                 state,
                 reference.clone(),
                 platform.get_processor(),
@@ -598,8 +612,8 @@ async fn build_webhook_context(
             .map(|payment_attempt| {
                 let data = WebhookResourceData::Payment { payment_attempt };
                 WebhookContext::from(&data)
-            }),
-        ),
+            }))
+        }
         _ => Ok(None),
     }
 }
@@ -727,12 +741,7 @@ fn build_ucs_headers(
     mca: Option<&domain::MerchantConnectorAccount>,
     mode: ExecutionMode,
 ) -> external_services::grpc_client::GrpcHeadersUcs {
-    let merchant_id = ctx
-        .platform
-        .get_processor()
-        .get_account()
-        .get_id()
-        .clone();
+    let merchant_id = ctx.platform.get_processor().get_account().get_id().clone();
     let profile_id = mca
         .map(|m| m.profile_id.clone())
         .unwrap_or_else(|| consts::PROFILE_ID_UNAVAILABLE.clone());
@@ -761,8 +770,7 @@ fn build_merchant_event_id(ctx: &WebhookGatewayContext<'_>) -> String {
 fn event_reference_to_object_ref(
     reference: &payments_grpc::EventReference,
 ) -> RouterResult<Option<ObjectReferenceId>> {
-    use api_models::payments as api_payments;
-    use api_models::webhooks as api_webhooks;
+    use api_models::{payments as api_payments, webhooks as api_webhooks};
     use payments_grpc::event_reference::Resource;
 
     let Some(resource) = reference.resource.as_ref() else {
@@ -809,7 +817,9 @@ fn event_reference_to_object_ref(
                 ))
             }),
         Resource::Mandate(mandate) => mandate.connector_mandate_id.as_ref().map(|id| {
-            ObjectReferenceId::MandateId(api_webhooks::MandateIdType::ConnectorMandateId(id.clone()))
+            ObjectReferenceId::MandateId(api_webhooks::MandateIdType::ConnectorMandateId(
+                id.clone(),
+            ))
         }),
         #[cfg(feature = "payouts")]
         Resource::Payout(payout) => {

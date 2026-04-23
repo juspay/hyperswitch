@@ -290,12 +290,12 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
                             let object_reference_id = uas_connector
                                 .get_webhook_object_reference_id(&request_details)
                                 .switch()
-                                .attach_printable("Could not find object reference id in UAS webhook body")?;
+                                .attach_printable(
+                                    "Could not find object reference id in UAS webhook body",
+                                )?;
 
-                            let mca = mca_data
-                                .merchant_connector_account
-                                .clone()
-                                .ok_or_else(|| {
+                            let mca =
+                                mca_data.merchant_connector_account.clone().ok_or_else(|| {
                                     error_stack::report!(
                                         errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
                                             id: connector_name.clone(),

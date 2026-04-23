@@ -26,7 +26,11 @@ use crate::{
     errors::RouterResult,
     routes::app::SessionStateInfo,
     services::{self, connector_integration_interface::ConnectorEnum, logger},
-    types::{self, api::{self, ConnectorData, GetToken}, domain, PaymentAddress},
+    types::{
+        self,
+        api::{self, ConnectorData, GetToken},
+        domain, PaymentAddress,
+    },
     SessionState,
 };
 
