@@ -11,7 +11,7 @@
 #     docker compose -f docker-compose-lightweight.yml -f docker-compose.custom-images.yml up -d
 
 volumes:
-  pg_data:
+  pg_data_lightweight:
   loki_data:
   grafana_data:
   prometheus_data:
@@ -141,7 +141,6 @@ services:
       - GF_AUTH_ANONYMOUS_ORG_ROLE=Admin
       - GF_AUTH_ANONYMOUS_ENABLED=true
       - GF_AUTH_BASIC_ENABLED=false
-      - GF_INSTALL_PLUGINS=grafana-lokiexplore-app
     volumes:
       - ./config/grafana.ini:/etc/grafana/grafana.ini
       - ./config/grafana-datasource.yaml:/etc/grafana/provisioning/datasources/datasource.yml
