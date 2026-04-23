@@ -650,17 +650,331 @@ describe("Card - Refund flow - No 3DS", () => {
           globalState.get("connectorId")
         )["card_pm"]["SyncRefund"];
         cy.syncRefundCallTest(syncRefundData, globalState);
-        if (!utils.should_continue_further(syncRefundData)) {
+      });
+    });
+  });
+});
+
+describe("Razorpay UPI - Refund flow", () => {
+  before("seed global state", () => {
+    cy.task("getGlobalState").then((state) => {
+      globalState = new State(state);
+    });
+  });
+
+  afterEach("flush global state", () => {
+    cy.task("setGlobalState", globalState.data);
+  });
+
+  context("Razorpay UPI - Full Refund flow test", () => {
+    it("Create Payment Intent -> Confirm Payment Intent -> Retrieve Payment after Confirmation -> Refund Payment -> Sync Refund Payment", () => {
+      let shouldContinue = true;
+
+      cy.step("Create Payment Intent", () => {
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "upi_pm"
+        ]["PaymentIntent"];
+        cy.createPaymentIntentTest(
+          fixtures.createPaymentBody,
+          data,
+          "no_three_ds",
+          "automatic",
+          globalState
+        );
+        if (!utils.should_continue_further(data)) {
           shouldContinue = false;
         }
       });
 
-      cy.step("List Refunds", () => {
+      cy.step("Confirm Payment Intent", () => {
         if (!shouldContinue) {
-          cy.task("cli_log", "Skipping step: List Refunds");
+          cy.task("cli_log", "Skipping step: Confirm Payment Intent");
           return;
         }
-        cy.listRefundCallTest(fixtures.listRefundCall, globalState);
+        const confirmData = getConnectorDetails(globalState.get("connectorId"))[
+          "upi_pm"
+        ]["UpiCollect"];
+        cy.confirmCallTest(
+          fixtures.confirmBody,
+          confirmData,
+          true,
+          globalState
+        );
+        if (!utils.should_continue_further(confirmData)) {
+          shouldContinue = false;
+        }
+      });
+
+      cy.step("Retrieve Payment after Confirmation", () => {
+        if (!shouldContinue) {
+          cy.task(
+            "cli_log",
+            "Skipping step: Retrieve Payment after Confirmation"
+          );
+          return;
+        }
+        const confirmData = getConnectorDetails(globalState.get("connectorId"))[
+          "upi_pm"
+        ]["UpiCollect"];
+        cy.retrievePaymentCallTest({ globalState, data: confirmData });
+        if (!utils.should_continue_further(confirmData)) {
+          shouldContinue = false;
+        }
+      });
+
+      cy.step("Refund Payment", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: Refund Payment");
+          return;
+        }
+        const refundData = getConnectorDetails(globalState.get("connectorId"))[
+          "upi_pm"
+        ]["Refund"];
+        const newRefundData = {
+          ...refundData,
+          Response: refundData.ResponseCustom || refundData.Response,
+        };
+        cy.refundCallTest(fixtures.refundBody, newRefundData, globalState);
+        if (!utils.should_continue_further(refundData)) {
+          shouldContinue = false;
+        }
+      });
+
+      cy.step("Sync Refund Payment", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: Sync Refund Payment");
+          return;
+        }
+        const syncRefundData = getConnectorDetails(
+          globalState.get("connectorId")
+        )["upi_pm"]["SyncRefund"];
+        const newSyncRefundData = {
+          ...syncRefundData,
+          Response: syncRefundData.ResponseCustom || syncRefundData.Response,
+        };
+        cy.syncRefundCallTest(newSyncRefundData, globalState);
+      });
+    });
+  });
+
+  context("Razorpay UPI - Partial Refund flow test", () => {
+    it("Create Payment Intent -> Confirm Payment Intent -> Retrieve Payment after Confirmation -> Partial Refund Payment -> Partial Refund Payment - 2nd Attempt -> Sync Refund Payment", () => {
+      let shouldContinue = true;
+
+      cy.step("Create Payment Intent", () => {
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "upi_pm"
+        ]["PaymentIntent"];
+        cy.createPaymentIntentTest(
+          fixtures.createPaymentBody,
+          data,
+          "no_three_ds",
+          "automatic",
+          globalState
+        );
+        if (!utils.should_continue_further(data)) {
+          shouldContinue = false;
+        }
+      });
+
+      cy.step("Confirm Payment Intent", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: Confirm Payment Intent");
+          return;
+        }
+        const confirmData = getConnectorDetails(globalState.get("connectorId"))[
+          "upi_pm"
+        ]["UpiCollect"];
+        cy.confirmCallTest(
+          fixtures.confirmBody,
+          confirmData,
+          true,
+          globalState
+        );
+        if (!utils.should_continue_further(confirmData)) {
+          shouldContinue = false;
+        }
+      });
+
+      cy.step("Retrieve Payment after Confirmation", () => {
+        if (!shouldContinue) {
+          cy.task(
+            "cli_log",
+            "Skipping step: Retrieve Payment after Confirmation"
+          );
+          return;
+        }
+        const confirmData = getConnectorDetails(globalState.get("connectorId"))[
+          "upi_pm"
+        ]["UpiCollect"];
+        cy.retrievePaymentCallTest({ globalState, data: confirmData });
+        if (!utils.should_continue_further(confirmData)) {
+          shouldContinue = false;
+        }
+      });
+
+      cy.step("Partial Refund Payment - 1st Attempt", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: Partial Refund Payment - 1st Attempt");
+          return;
+        }
+        const partialRefundData = getConnectorDetails(
+          globalState.get("connectorId")
+        )["upi_pm"]["PartialRefund"];
+        const newPartialRefundData = {
+          ...partialRefundData,
+          Response: partialRefundData.ResponseCustom || partialRefundData.Response,
+        };
+        cy.refundCallTest(fixtures.refundBody, newPartialRefundData, globalState);
+        if (!utils.should_continue_further(partialRefundData)) {
+          shouldContinue = false;
+        }
+      });
+
+      cy.step("Partial Refund Payment - 2nd Attempt", () => {
+        if (!shouldContinue) {
+          cy.task(
+            "cli_log",
+            "Skipping step: Partial Refund Payment - 2nd Attempt"
+          );
+          return;
+        }
+        const partialRefundData = getConnectorDetails(
+          globalState.get("connectorId")
+        )["upi_pm"]["PartialRefund"];
+        const newPartialRefundData = {
+          ...partialRefundData,
+          Response: partialRefundData.ResponseCustom || partialRefundData.Response,
+        };
+        cy.refundCallTest(fixtures.refundBody, newPartialRefundData, globalState);
+        if (!utils.should_continue_further(partialRefundData)) {
+          shouldContinue = false;
+        }
+      });
+
+      cy.step("Sync Refund Payment", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: Sync Refund Payment");
+          return;
+        }
+        const syncRefundData = getConnectorDetails(
+          globalState.get("connectorId")
+        )["upi_pm"]["SyncRefund"];
+        const newSyncRefundData = {
+          ...syncRefundData,
+          Response: syncRefundData.ResponseCustom || syncRefundData.Response,
+        };
+        cy.syncRefundCallTest(newSyncRefundData, globalState);
+      });
+    });
+  });
+
+  context("Razorpay UPI - Refund Idempotency test", () => {
+    it("Create Payment Intent -> Confirm Payment Intent -> Retrieve Payment after Confirmation -> Refund Payment -> Duplicate Refund (Idempotency) -> Sync Refund Payment", () => {
+      let shouldContinue = true;
+
+      cy.step("Create Payment Intent", () => {
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "upi_pm"
+        ]["PaymentIntent"];
+        cy.createPaymentIntentTest(
+          fixtures.createPaymentBody,
+          data,
+          "no_three_ds",
+          "automatic",
+          globalState
+        );
+        if (!utils.should_continue_further(data)) {
+          shouldContinue = false;
+        }
+      });
+
+      cy.step("Confirm Payment Intent", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: Confirm Payment Intent");
+          return;
+        }
+        const confirmData = getConnectorDetails(globalState.get("connectorId"))[
+          "upi_pm"
+        ]["UpiCollect"];
+        cy.confirmCallTest(
+          fixtures.confirmBody,
+          confirmData,
+          true,
+          globalState
+        );
+        if (!utils.should_continue_further(confirmData)) {
+          shouldContinue = false;
+        }
+      });
+
+      cy.step("Retrieve Payment after Confirmation", () => {
+        if (!shouldContinue) {
+          cy.task(
+            "cli_log",
+            "Skipping step: Retrieve Payment after Confirmation"
+          );
+          return;
+        }
+        const confirmData = getConnectorDetails(globalState.get("connectorId"))[
+          "upi_pm"
+        ]["UpiCollect"];
+        cy.retrievePaymentCallTest({ globalState, data: confirmData });
+        if (!utils.should_continue_further(confirmData)) {
+          shouldContinue = false;
+        }
+      });
+
+      cy.step("Refund Payment", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: Refund Payment");
+          return;
+        }
+        const refundData = getConnectorDetails(globalState.get("connectorId"))[
+          "upi_pm"
+        ]["Refund"];
+        const newRefundData = {
+          ...refundData,
+          Response: refundData.ResponseCustom || refundData.Response,
+        };
+        cy.refundCallTest(fixtures.refundBody, newRefundData, globalState);
+        if (!utils.should_continue_further(refundData)) {
+          shouldContinue = false;
+        }
+      });
+
+      cy.step("Duplicate Refund (Idempotency)", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: Duplicate Refund (Idempotency)");
+          return;
+        }
+        // Re-use same idempotency key to test idempotency
+        const refundData = getConnectorDetails(globalState.get("connectorId"))[
+          "upi_pm"
+        ]["Refund"];
+        const newRefundData = {
+          ...refundData,
+          Response: refundData.ResponseCustom || refundData.Response,
+        };
+        cy.refundCallTest(fixtures.refundBody, newRefundData, globalState);
+        if (!utils.should_continue_further(refundData)) {
+          shouldContinue = false;
+        }
+      });
+
+      cy.step("Sync Refund Payment", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: Sync Refund Payment");
+          return;
+        }
+        const syncRefundData = getConnectorDetails(
+          globalState.get("connectorId")
+        )["upi_pm"]["SyncRefund"];
+        const newSyncRefundData = {
+          ...syncRefundData,
+          Response: syncRefundData.ResponseCustom || syncRefundData.Response,
+        };
+      cy.syncRefundCallTest(newSyncRefundData, globalState);
       });
     });
   });
