@@ -4,6 +4,44 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.04.23.0
+
+### Features
+
+- **core:** Allow JWT authentication for Payments Void flow ([#11899](https://github.com/juspay/hyperswitch/pull/11899)) ([`24c4610`](https://github.com/juspay/hyperswitch/commit/24c4610c45d4d89b5b53ca4267dbb5f8935fde70))
+
+### Testing
+
+- **cypress:**
+  - Add bank debit sepa for novalnet ([#11909](https://github.com/juspay/hyperswitch/pull/11909)) ([`42f0a2d`](https://github.com/juspay/hyperswitch/commit/42f0a2d34e330e319c4e44edb2cff2a047174f3e))
+  - Add support ali_pay_hk for adyen connector ([#11903](https://github.com/juspay/hyperswitch/pull/11903)) ([`761f0af`](https://github.com/juspay/hyperswitch/commit/761f0af985d07ce947efba997bef8775d44bab6a))
+
+### Documentation
+
+- **README:** Revise cloud deployment details ([#11891](https://github.com/juspay/hyperswitch/pull/11891)) ([`b224091`](https://github.com/juspay/hyperswitch/commit/b2240919f46cfc7b5b81771507e74e9ddaf91769))
+
+**Full Changelog:** [`2026.04.22.0...2026.04.23.0`](https://github.com/juspay/hyperswitch/compare/2026.04.22.0...2026.04.23.0)
+
+- - -
+
+## 2026.04.22.0
+
+### Features
+
+- **router:** Improve blocklist error messages with specific reasons ([#11870](https://github.com/juspay/hyperswitch/pull/11870)) ([`1e72e69`](https://github.com/juspay/hyperswitch/commit/1e72e698830e93edaa656d148cd545d52d02b973))
+
+### Testing
+
+- **cypress:**
+  - External 3DS for stripe ([#11884](https://github.com/juspay/hyperswitch/pull/11884)) ([`19f166a`](https://github.com/juspay/hyperswitch/commit/19f166adab0d30a3476377a69b49954e590ae804))
+  - Mit_category in MIT payments for checkout connector ([#11878](https://github.com/juspay/hyperswitch/pull/11878)) ([`66fbb15`](https://github.com/juspay/hyperswitch/commit/66fbb15f05819d1fe454f74c9d4a52c869d9b728))
+  - Platform Refund for stripe ([#11876](https://github.com/juspay/hyperswitch/pull/11876)) ([`b02ee62`](https://github.com/juspay/hyperswitch/commit/b02ee626206d09071a67be4c857d89789d287803))
+  - Add billing descriptor coverage for checkout ([#11897](https://github.com/juspay/hyperswitch/pull/11897)) ([`39aa4ab`](https://github.com/juspay/hyperswitch/commit/39aa4abf99afc6913af51d4887fd1c1d352192e5))
+
+**Full Changelog:** [`2026.04.21.0...2026.04.22.0`](https://github.com/juspay/hyperswitch/compare/2026.04.21.0...2026.04.22.0)
+
+- - -
+
 ## 2026.04.21.0
 
 ### Features
