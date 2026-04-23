@@ -9645,6 +9645,7 @@ pub enum PermissionScope {
 #[serde(rename_all = "snake_case")]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub enum BankNames {
+    Absa,
     AmericanExpress,
     AffinBank,
     AgroBank,
