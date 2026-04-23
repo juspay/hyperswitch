@@ -23,8 +23,8 @@ services:
   ### Dependencies
   pg:
     image: docker.io/postgres:15-alpine
-    ports:
-      - "5432:5432"
+    # ports:
+    #   - "5432:5432"
     networks:
       - router_net
     volumes:
@@ -45,8 +45,8 @@ services:
     image: docker.io/redis:7-alpine
     networks:
       - router_net
-    ports:
-      - "6379:6379"
+    # ports:
+    #   - "6379:6379"
     healthcheck:
       test: ["CMD-SHELL", "redis-cli ping | grep '^PONG$'"]
       interval: 5s
