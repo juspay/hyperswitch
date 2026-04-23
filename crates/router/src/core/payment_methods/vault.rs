@@ -1918,41 +1918,6 @@ pub async fn add_payment_method_to_vault(
     Ok(stored_pm_resp)
 }
 
-#[cfg(feature = "v1")]
-#[instrument(skip_all)]
-pub async fn add_payment_method_to_vault(
-    state: &routes::SessionState,
-    pmd: &hyperswitch_domain_models::vault::PaymentMethodVaultingData,
-    existing_vault_id: Option<domain::VaultId>,
-    entity_id: hyperswitch_domain_models::vault::V1VaultEntityId,
-    write_mode: Option<pm_types::WriteMode>,
-) -> CustomResult<pm_types::InternalAddVaultResponse, errors::VaultError> {
-    let payload = pm_types::AddVaultRequest {
-        entity_id,
-        vault_id: existing_vault_id
-            .unwrap_or(domain::VaultId::generate(uuid::Uuid::now_v7().to_string())),
-        data: pmd,
-        ttl: state.conf.locker.ttl_for_storage_in_secs,
-    }
-    .encode_to_vec()
-    .change_context(errors::VaultError::RequestEncodingFailed)
-    .attach_printable("Failed to encode AddVaultRequest")?;
-
-    let query_params = write_mode.map(pm_types::VaultQueryParam::from);
-
-    let resp = call_to_vault::<pm_types::AddVault>(state, payload, query_params)
-        .await
-        .change_context(errors::VaultError::VaultAPIError)
-        .attach_printable("Call to vault failed")?;
-
-    let stored_pm_resp: pm_types::InternalAddVaultResponse = resp
-        .parse_struct("InternalAddVaultResponse")
-        .change_context(errors::VaultError::ResponseDeserializationFailed)
-        .attach_printable("Failed to parse data into InternalAddVaultResponse")?;
-
-    Ok(stored_pm_resp)
-}
-
 #[cfg(feature = "v2")]
 #[instrument(skip_all)]
 pub async fn retrieve_payment_method_from_vault_internal(

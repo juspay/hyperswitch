@@ -1,6 +1,6 @@
 use std::str::FromStr;
 
-use common_utils::ext_traits::{BytesExt, Encode, OptionExt, StringExt, ValueExt};
+use common_utils::ext_traits::{Encode, OptionExt, StringExt, ValueExt};
 use error_stack::ResultExt;
 use scheduler::{
     consumer::types::process_data, utils as pt_utils, workflows::ProcessTrackerWorkflow,
