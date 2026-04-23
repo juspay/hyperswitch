@@ -1391,9 +1391,16 @@ async fn payment_method_resolver(
                     })?;
 
                     logger::debug!("Payment method not found, falling back to creation");
+
+                    let locker_resolver = LockerTypeResolver {
+                        locker_type: LockerType::Generic,
+                        card_reference: None,
+                    };
+
                     Ok(PaymentMethodResolver(PaymentMethodResolution::Create {
                         fingerprint_id: Some(fingerprint_id),
                         payment_method_data,
+                        locker_resolver,
                     }))
                 }
             }
@@ -1454,9 +1461,15 @@ async fn resolve_legacy_locker_payment_method(
             })?;
 
             logger::debug!("Payment method not found with locker id, falling back to creation");
+
+            let locker_resolver = LockerTypeResolver {
+                locker_type: LockerType::Legacy,
+                card_reference: Some(legacy_locker_res.card_reference),
+            };
             Ok(PaymentMethodResolver(PaymentMethodResolution::Create {
                 fingerprint_id: None,
                 payment_method_data: payment_method_data.clone(),
+                locker_resolver,
             }))
         }
     }
@@ -1524,6 +1537,7 @@ pub enum PaymentMethodResolution {
     Create {
         fingerprint_id: Option<String>,
         payment_method_data: domain::PaymentMethodVaultingData,
+        locker_resolver: LockerTypeResolver,
     },
 }
 
@@ -1533,6 +1547,10 @@ pub enum LockerType {
     Legacy,
 }
 
+pub struct LockerTypeResolver {
+    pub locker_type: LockerType,
+    pub card_reference: Option<String>,
+}
 impl LockerType {
     pub fn from_state(state: &SessionState) -> Self {
         if state.conf.locker.use_legacy_locker {
@@ -1725,6 +1743,7 @@ impl PaymentMethodResolver {
             PaymentMethodResolution::Create {
                 fingerprint_id,
                 payment_method_data,
+                locker_resolver,
             } => {
                 let payment_method = create_payment_method_for_intent(
                     state,
@@ -1749,6 +1768,7 @@ impl PaymentMethodResolver {
                     payment_method_data,
                     fingerprint_id,
                     billing_address,
+                    locker_resolver,
                 ))
                 .await
             }
@@ -1772,6 +1792,7 @@ async fn execute_payment_method_create(
     payment_method_billing_address: Option<
         Encryptable<hyperswitch_domain_models::address::Address>,
     >,
+    locker_resolver: LockerTypeResolver,
 ) -> RouterResult<(api::PaymentMethodResponse, domain::PaymentMethod)> {
     match &req.payment_method_data {
         api::PaymentMethodCreateData::Card(card_data) => {
@@ -1786,17 +1807,33 @@ async fn execute_payment_method_create(
     }
     let db = &*state.store;
 
-    let vaulting_result = vault_payment_method(
-        state,
-        &payment_method_data,
-        platform,
-        profile,
-        None,
-        fingerprint_id_from_vault,
-        customer_id,
-        Some(pm_types::WriteMode::Insert), // Insert mode for new payment methods
-    )
-    .await;
+    let vaulting_result = match locker_resolver.locker_type {
+        LockerType::Generic => {
+            vault_payment_method(
+                state,
+                &payment_method_data,
+                platform,
+                profile,
+                None,
+                fingerprint_id_from_vault,
+                customer_id,
+                Some(pm_types::WriteMode::Insert), // Insert mode for new payment methods
+            )
+            .await
+        }
+        LockerType::Legacy => {
+            let add_vault_response = pm_types::AddVaultResponse {
+                entity_id: Some(customer_id.clone()),
+                vault_id: domain::VaultId::generate(
+                    locker_resolver
+                        .card_reference
+                        .get_required_value("card_reference")?,
+                ),
+                fingerprint_id: None,
+            };
+            Ok((add_vault_response, None))
+        }
+    };
 
     let network_tokenization_resp = network_tokenize_and_vault_the_pmd(
         state,
@@ -3596,40 +3633,19 @@ pub async fn vault_payment_method_internal(
     customer_id: &id_type::GlobalCustomerId,
     write_mode: Option<pm_types::WriteMode>,
 ) -> RouterResult<pm_types::AddVaultResponse> {
-    let locker_type = LockerType::from_state(state);
+    let db = &*state.store;
 
-    let mut resp_from_vault = match locker_type {
-        LockerType::Generic => vault::add_payment_method_to_vault(
-            state,
-            platform,
-            pmd,
-            existing_vault_id,
-            customer_id,
-            write_mode,
-        )
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to add payment method in vault")?,
-
-        LockerType::Legacy => {
-            let legacy_locker_res = add_payment_method_to_legacy_locker(
-                state,
-                platform,
-                pmd,
-                existing_vault_id,
-                customer_id,
-            )
-            .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to add payment method in vault")?;
-
-            pm_types::AddVaultResponse {
-                entity_id: Some(customer_id.clone()),
-                vault_id: domain::VaultId::generate(legacy_locker_res.card_reference),
-                fingerprint_id: None,
-            }
-        }
-    };
+    let mut resp_from_vault = vault::add_payment_method_to_vault(
+        state,
+        platform,
+        pmd,
+        existing_vault_id,
+        customer_id,
+        write_mode,
+    )
+    .await
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("Failed to add payment method in vault")?;
 
     // add fingerprint_id to the response
     resp_from_vault.fingerprint_id = fingerprint_id_from_vault;
