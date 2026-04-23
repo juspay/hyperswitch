@@ -110,7 +110,9 @@ pub mod core {
             let certificate_list = create_certificate(encoded_certificate)?;
             let client_builder = certificate_list
                 .into_iter()
-                .fold(client_builder, |client, cert| client.add_root_certificate(cert));
+                .fold(client_builder, |client, cert| {
+                    client.add_root_certificate(cert)
+                });
             return client_builder
                 .identity(identity)
                 .use_rustls_tls()
@@ -162,8 +164,7 @@ pub mod core {
         if !headers.contains_key(crate::consts::EXTERNAL_VAULT_METADATA_HEADER) {
             return (None, None);
         }
-        let mut temp_config =
-            injector_types::ConnectionConfig::new(endpoint, http_method);
+        let mut temp_config = injector_types::ConnectionConfig::new(endpoint, http_method);
         if temp_config.extract_and_apply_vault_metadata_with_fallback(headers) {
             (temp_config.proxy_url, temp_config.ca_cert)
         } else {
@@ -799,8 +800,11 @@ pub mod core {
 
             // Extract vault metadata (proxy URL + CA cert) from headers when present.
             // This is specific to the proxy path (e.g. VGS).
-            let (vault_proxy_url, vault_ca_cert) =
-                extract_vault_metadata(&config.headers, config.endpoint.clone(), config.http_method);
+            let (vault_proxy_url, vault_ca_cert) = extract_vault_metadata(
+                &config.headers,
+                config.endpoint.clone(),
+                config.http_method,
+            );
 
             // Vault-derived CA cert takes priority; fall back to config's own ca_cert
             let effective_ca_cert = vault_ca_cert.or_else(|| config.ca_cert.clone());
