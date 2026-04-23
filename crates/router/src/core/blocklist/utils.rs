@@ -234,9 +234,9 @@ pub async fn insert_entry_into_blocklist(
 
 pub async fn get_merchant_fingerprint_secret(
     state: &SessionState,
-    merchant_id: &common_utils::id_type::MerchantId,
+    processor_merchant_id: &common_utils::id_type::MerchantId,
 ) -> RouterResult<String> {
-    let key = merchant_id.get_merchant_fingerprint_secret_key();
+    let key = processor_merchant_id.get_merchant_fingerprint_secret_key();
     let config_fetch_result = state.store.find_config_by_key(&key).await;
 
     match config_fetch_result {
@@ -509,7 +509,7 @@ where
     } else {
         payment_data.payment_attempt.fingerprint_id = generate_payment_fingerprint(
             state,
-            payment_data.payment_attempt.merchant_id.clone(),
+            payment_data.payment_attempt.processor_merchant_id.clone(),
             payment_data.payment_method_data.clone(),
         )
         .await?;
@@ -598,10 +598,10 @@ pub async fn should_payment_be_blocked_by_profile_config(
 
 pub async fn generate_payment_fingerprint(
     state: &SessionState,
-    merchant_id: common_utils::id_type::MerchantId,
+    processor_merchant_id: common_utils::id_type::MerchantId,
     payment_method_data: Option<domain::PaymentMethodData>,
 ) -> CustomResult<Option<String>, errors::ApiErrorResponse> {
-    let merchant_fingerprint_secret = get_merchant_fingerprint_secret(state, &merchant_id).await?;
+    let merchant_fingerprint_secret = get_merchant_fingerprint_secret(state, &processor_merchant_id).await?;
 
     Ok(
         if let Some(domain::PaymentMethodData::Card(card)) = payment_method_data.as_ref() {
