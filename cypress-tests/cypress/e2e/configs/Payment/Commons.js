@@ -1,13 +1,56 @@
 // This file is the default. To override, add to connector.js
 import { getCurrency, getCustomExchange } from "./Modifiers";
 
-export const blockedPaymentErrorBody = {
+export const blockedPaymentErrorBodyForIssuingCountry = {
   status: 200,
   expectBlockedPayment: true,
   body: {
     error: {
       type: "blocked",
-      message: "This payment method is blocked",
+      message:
+        "Cards issued in your region aren't supported for this transaction, please try a different card",
+      code: "HE_03",
+      reason: "Blocked",
+    },
+  },
+};
+
+export const blockedPaymentErrorBodyForDebitCard = {
+  status: 200,
+  expectBlockedPayment: true,
+  body: {
+    error: {
+      type: "blocked",
+      message:
+        "Debit cards are not accepted for this transaction, please try a different card",
+      code: "HE_03",
+      reason: "Blocked",
+    },
+  },
+};
+
+export const blockedPaymentErrorBodyForCardSubtype = {
+  status: 200,
+  expectBlockedPayment: true,
+  body: {
+    error: {
+      type: "blocked",
+      message:
+        "This card is not accepted for this transaction, please try a different card",
+      code: "HE_03",
+      reason: "Blocked",
+    },
+  },
+};
+
+export const blockedPaymentErrorBodyForBinUnavailable = {
+  status: 200,
+  expectBlockedPayment: true,
+  body: {
+    error: {
+      type: "blocked",
+      message:
+        "We're unable to accept this card, please try another card or a different payment method",
       code: "HE_03",
       reason: "Blocked",
     },
@@ -281,6 +324,18 @@ export const payment_methods_enabled = [
     ],
   },
   {
+    payment_method: "bank_debit",
+    payment_method_types: [
+      {
+        payment_method_type: "sepa",
+        minimum_amount: 1,
+        maximum_amount: 68607706,
+        recurring_enabled: true,
+        installment_payment_enabled: true,
+      },
+    ],
+  },
+  {
     payment_method: "bank_transfer",
     payment_method_types: [
       {
@@ -440,6 +495,14 @@ export const payment_methods_enabled = [
       },
       {
         payment_method_type: "skrill",
+        payment_experience: "redirect_to_url",
+        minimum_amount: 1,
+        maximum_amount: 68607706,
+        recurring_enabled: false,
+        installment_payment_enabled: false,
+      },
+      {
+        payment_method_type: "ali_pay_hk",
         payment_experience: "redirect_to_url",
         minimum_amount: 1,
         maximum_amount: 68607706,
@@ -824,6 +887,105 @@ export const connectorDetails = {
       },
     }),
   },
+  bank_debit_pm: {
+    PaymentIntent: (paymentMethodType) => {
+      const currencyMap = { Sepa: "EUR", Ach: "USD", Becs: "AUD", Bacs: "GBP" };
+      return getCustomExchange({
+        Request: {
+          currency: currencyMap[paymentMethodType] || "USD",
+        },
+        Response: {
+          status: 200,
+          body: {
+            status: "requires_payment_method",
+          },
+        },
+      });
+    },
+    SepaDebit: getCustomExchange({
+      Request: {
+        payment_method: "bank_debit",
+        payment_method_type: "sepa",
+        payment_method_data: {
+          bank_debit: {
+            sepa_bank_debit: {
+              iban: "DE89370400440532013000",
+              bank_account_holder_name: "Test Account",
+            },
+          },
+        },
+        billing: {
+          address: {
+            country: "DE",
+          },
+          email: "test@example.com",
+        },
+      },
+    }),
+    Ach: getCustomExchange({
+      Request: {
+        payment_method: "bank_debit",
+        payment_method_type: "ach",
+        payment_method_data: {
+          bank_debit: {
+            ach_bank_debit: {
+              account_number: "000123456789",
+              routing_number: "110000000",
+              bank_account_holder_name: "Test Account",
+            },
+          },
+        },
+        billing: {
+          address: {
+            country: "US",
+          },
+          email: "test@example.com",
+        },
+      },
+    }),
+    Becs: getCustomExchange({
+      Request: {
+        payment_method: "bank_debit",
+        payment_method_type: "becs",
+        payment_method_data: {
+          bank_debit: {
+            becs_bank_debit: {
+              account_number: "000123456",
+              bsb_number: "000000",
+              bank_account_holder_name: "Test Account",
+            },
+          },
+        },
+        billing: {
+          address: {
+            country: "AU",
+          },
+          email: "test@example.com",
+        },
+      },
+    }),
+    Bacs: getCustomExchange({
+      Request: {
+        payment_method: "bank_debit",
+        payment_method_type: "bacs",
+        payment_method_data: {
+          bank_debit: {
+            bacs_bank_debit: {
+              account_number: "00012345",
+              sort_code: "108800",
+              bank_account_holder_name: "Test Account",
+            },
+          },
+        },
+        billing: {
+          address: {
+            country: "GB",
+          },
+          email: "test@example.com",
+        },
+      },
+    }),
+  },
   wallet_pm: {
     PaymentIntent: (paymentMethodType) =>
       getCustomExchange({
@@ -853,6 +1015,27 @@ export const connectorDetails = {
             country: "AT",
           },
         },
+      },
+    }),
+    AliPayHk: getCustomExchange({
+      Request: {
+        payment_method: "wallet",
+        payment_method_type: "ali_pay_hk",
+        payment_method_data: {
+          wallet: {
+            ali_pay_hk_redirect: {},
+          },
+        },
+        billing: {
+          ...standardBillingAddress,
+          address: {
+            ...standardBillingAddress.address,
+            country: "HK",
+          },
+        },
+      },
+      Configs: {
+        TRIGGER_SKIP: true,
       },
     }),
   },
@@ -2065,6 +2248,28 @@ export const connectorDetails = {
         },
       },
     }),
+    external_three_ds: getCustomExchange({
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        authentication_type: "three_ds",
+        request_external_three_ds_authentication: true,
+        three_ds_data: {
+          authentication_cryptogram: {
+            cavv: {
+              authentication_cryptogram: "3q2+78r+ur7erb7vyv66vv////8=",
+            },
+          },
+          ds_trans_id: "c4e59ceb-a382-4d6a-bc87-385d591fa09d",
+          version: "2.1.0",
+          eci: "05",
+          transaction_status: "Y",
+          exemption_indicator: "low_value",
+        },
+      },
+    }),
   },
   upi_pm: {
     PaymentIntent: getCustomExchange({
@@ -2317,7 +2522,8 @@ export const connectorDetails = {
           sdk_next_action: {
             next_action: {
               deny: {
-                message: "Card number is blocklisted",
+                message:
+                  "We're unable to accept this card, please try another card or a different payment method",
               },
             },
           },
@@ -2372,7 +2578,7 @@ export const connectorDetails = {
           },
         },
       },
-      Response: blockedPaymentErrorBody,
+      Response: blockedPaymentErrorBodyForIssuingCountry,
     }),
     BlockCardType: getCustomExchange({
       Request: {
@@ -2388,7 +2594,7 @@ export const connectorDetails = {
           },
         },
       },
-      Response: blockedPaymentErrorBody,
+      Response: blockedPaymentErrorBodyForDebitCard,
     }),
     BlockCardSubtype: getCustomExchange({
       Request: {
@@ -2404,7 +2610,7 @@ export const connectorDetails = {
           },
         },
       },
-      Response: blockedPaymentErrorBody,
+      Response: blockedPaymentErrorBodyForCardSubtype,
     }),
     BlockIfBinInfoUnavailable: getCustomExchange({
       Request: {
@@ -2420,7 +2626,7 @@ export const connectorDetails = {
           },
         },
       },
-      Response: blockedPaymentErrorBody,
+      Response: blockedPaymentErrorBodyForBinUnavailable,
     }),
   },
 };

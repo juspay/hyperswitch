@@ -675,6 +675,31 @@ pub enum BlocklistDataKind {
     ExtendedCardBin,
 }
 
+/// Reasons for blocking a payment method.
+#[derive(Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum BlockReason {
+    BlockedBin,
+    BlockedCardType(CardType),
+    BlockedCardSubtype,
+    BlockedIssuerCountry,
+    BlockedIssuer,
+}
+
+impl BlockReason {
+    pub fn error_message(&self) -> String {
+        match self {
+            Self::BlockedBin => "We're unable to accept this card, please try another card or a different payment method".to_string(),
+            Self::BlockedCardType(card_type) => {
+                format!("{} cards are not accepted for this transaction, please try a different card", card_type.title_case())
+            }
+            Self::BlockedCardSubtype => "This card is not accepted for this transaction, please try a different card".to_string(),
+            Self::BlockedIssuerCountry => "Cards issued in your region aren't supported for this transaction, please try a different card".to_string(),
+            Self::BlockedIssuer => "We can't process payments from this bank, please try another card or a different payment method".to_string(),
+        }
+    }
+}
+
 /// Specifies how the payment is captured.
 /// - `automatic`: Funds are captured immediately after successful authorization. This is the default behavior if the field is omitted.
 /// - `manual`: Funds are authorized but not captured. A separate request to the `/payments/{payment_id}/capture` endpoint is required to capture the funds.
@@ -3204,6 +3229,15 @@ pub enum PanOrToken {
 pub enum CardType {
     Credit,
     Debit,
+}
+
+impl CardType {
+    pub fn title_case(&self) -> &'static str {
+        match self {
+            Self::Credit => "Credit",
+            Self::Debit => "Debit",
+        }
+    }
 }
 
 // TODO: This enum will be updated with all card subtype values
@@ -9521,10 +9555,6 @@ pub enum PermissionGroup {
     UsersManage,
     AccountView,
     AccountManage,
-    ReconReportsView,
-    ReconReportsManage,
-    ReconOpsView,
-    ReconOpsManage,
     InternalManage,
     ThemeView,
     ThemeManage,
@@ -9547,8 +9577,6 @@ pub enum ParentGroup {
     Workflows,
     Analytics,
     Users,
-    ReconOps,
-    ReconReports,
     Account,
     Internal,
     Theme,
@@ -9577,13 +9605,6 @@ pub enum Resource {
     WebhookEvent,
     Payout,
     Report,
-    ReconToken,
-    ReconFiles,
-    ReconAndSettlementAnalytics,
-    ReconUpload,
-    ReconReports,
-    RunRecon,
-    ReconConfig,
     RevenueRecovery,
     Subscription,
     InternalConnector,
