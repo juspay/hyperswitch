@@ -21,6 +21,7 @@ env:
   OPTIONAL_PAYMENTS_CONNECTORS_BATCH_1: "worldpay braintree cryptopay paypal worldpayxml volt"
   OPTIONAL_PAYMENTS_CONNECTORS_BATCH_2: "gigadat zift redsys novalnet noon"
   ALPHA_PAYMENTS_CONNECTORS: "celero silverflow"
+  PLATFORM_CONNECTORS: "stripe cybersource"
   RUST_BACKTRACE: short
   RUSTUP_MAX_RETRIES: 10
   RUN_TESTS: ${{ ((github.event_name == 'pull_request') && (github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name)) || (github.event_name == 'merge_group')}}
@@ -175,6 +176,14 @@ jobs:
                   "parallel": 6,
                   "report_artifact_name": "cypress-mandatory-test-results-batch-2",
                   "server_logs_artifact": "mandatory-server-logs-batch-2"
+                },
+                {
+                  "name": "platform",
+                  "connectors": "",
+                  "platform_connectors": "'"${PLATFORM_CONNECTORS}"'",
+                  "parallel": 2,
+                  "report_artifact_name": "cypress-mandatory-test-results-platform",
+                  "server_logs_artifact": "mandatory-server-logs-platform"
                 }
               ]
             }'
@@ -365,12 +374,13 @@ jobs:
           CYPRESS_BASEURL: "http://localhost:8080"
           ROUTER__SERVER__WORKERS: 4
           PAYMENTS_CONNECTORS: "${{ matrix.batch.connectors }}"
+          PLATFORM_CONNECTORS: "${{ matrix.batch.platform_connectors }}"
         shell: bash -leuo pipefail {0}
         run: |
           scripts/execute_cypress.sh --parallel ${{ matrix.batch.parallel }}
 
           kill "${{ env.PID }}"
- 
+
       - name: Upload server logs on failure
         if: env.RUN_TESTS == 'true' && failure()
         uses: actions/upload-artifact@v7
