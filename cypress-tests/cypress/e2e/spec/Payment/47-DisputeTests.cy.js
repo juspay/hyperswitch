@@ -1,7 +1,6 @@
 import * as fixtures from "../../../fixtures/imports";
 import State from "../../../utils/State";
-import getConnectorDetails, * as utils from "../../configs/Payment/Utils";
-import { payment_methods_enabled } from "../../configs/Payment/Commons";
+import getConnectorDetails from "../../configs/Payment/Utils";
 
 let globalState;
 
@@ -20,93 +19,6 @@ describe("Dispute Tests", () => {
 
   after("flush global state", () => {
     cy.task("setGlobalState", globalState.data);
-  });
-
-  context("Setup - Create Merchant and Connector", () => {
-    it("merchant-create-call-test", () => {
-      const shouldContinue = true;
-
-      cy.step("Create Merchant", () => {
-        cy.merchantCreateCallTest(fixtures.merchantCreateBody, globalState);
-      });
-
-      cy.step("Create API Key", () => {
-        if (!shouldContinue) {
-          cy.task("cli_log", "Skipping step: Create API Key");
-          return;
-        }
-        cy.apiKeyCreateTest(fixtures.apiKeyCreateBody, globalState);
-      });
-
-      cy.step("Create Customer", () => {
-        if (!shouldContinue) {
-          cy.task("cli_log", "Skipping step: Create Customer");
-          return;
-        }
-        cy.createCustomerCallTest(fixtures.customerCreateBody, globalState);
-      });
-
-      cy.step("Create Connector", () => {
-        if (!shouldContinue) {
-          cy.task("cli_log", "Skipping step: Create Connector");
-          return;
-        }
-        cy.createConnectorCallTest(
-          "payment_processor",
-          fixtures.createConnectorBody,
-          payment_methods_enabled,
-          globalState
-        );
-      });
-    });
-  });
-
-  context("Create Payment to Generate Dispute", () => {
-    it("create-and-confirm-payment-for-dispute", () => {
-      let shouldContinue = true;
-
-      cy.step("Create Payment Intent", () => {
-        const data = getConnectorDetails(globalState.get("connectorId"))[
-          "card_pm"
-        ]["PaymentIntent"];
-
-        fixtures.createPaymentBody.customer_id = globalState.get("customerId");
-
-        cy.createPaymentIntentTest(
-          fixtures.createPaymentBody,
-          data,
-          "no_three_ds",
-          "automatic",
-          globalState
-        );
-        if (!utils.should_continue_further(data)) {
-          shouldContinue = false;
-        }
-      });
-
-      cy.step("Payment Methods Call", () => {
-        if (!shouldContinue) {
-          cy.task("cli_log", "Skipping step: Payment Methods Call");
-          return;
-        }
-        cy.paymentMethodsCallTest(globalState);
-      });
-
-      cy.step("Confirm Payment Intent", () => {
-        if (!shouldContinue) {
-          cy.task("cli_log", "Skipping step: Confirm Payment Intent");
-          return;
-        }
-        const data = getConnectorDetails(globalState.get("connectorId"))[
-          "card_pm"
-        ]["No3DSAutoCapture"];
-
-        cy.confirmCallTest(fixtures.confirmBody, data, true, globalState);
-        if (!utils.should_continue_further(data)) {
-          shouldContinue = false;
-        }
-      });
-    });
   });
 
   context("List Disputes - Happy Path", () => {
