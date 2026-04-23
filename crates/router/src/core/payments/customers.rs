@@ -58,8 +58,6 @@ pub async fn create_connector_customer<F: Clone, T: Clone>(
     .await
     .to_payment_failed_response()?;
 
-    // logger::info!(connector_customer_raw_response=?resp.connector_http_response);
-
     metrics::CONNECTOR_CUSTOMER_CREATE.add(
         1,
         router_env::metric_attributes!(("connector", connector.connector_name.to_string())),

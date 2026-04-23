@@ -5984,8 +5984,8 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsSessionD
             order_details,
             email: additional_data
                 .customer_data
-                .clone()
-                .and_then(|cust| cust.email),
+                .as_ref()
+                .and_then(|cust| cust.email.clone()),
             surcharge_details: payment_data.surcharge_details,
             apple_pay_recurring_details,
             customer_name: additional_data.customer_data.and_then(|cust| cust.name),
