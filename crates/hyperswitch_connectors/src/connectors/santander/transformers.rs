@@ -2141,12 +2141,23 @@ impl
             RetryPolicy::NaoPermite
         };
 
-        let customer_name = item
-            .get_optional_billing_full_name()
-            .or(item.request.customer_name.clone())
-            .ok_or(errors::ConnectorError::MissingRequiredField {
-                field_name: "customer_name",
-            })?;
+        let billing_full_name = item.get_optional_billing_full_name();
+        let request_customer_name = item.request.customer_name.clone();
+        let customer_name = billing_full_name.clone().or(request_customer_name.clone()).ok_or(
+            errors::ConnectorError::MissingRequiredField {
+                field_name: match (
+                    billing_full_name.is_none(),
+                    request_customer_name.is_none(),
+                ) {
+                    (true, false) => "billing.address.first_name or billing.address.last_name",
+                    (false, true) => "customer.name",
+                    (true, true) => {
+                        "billing.address.first_name or billing.address.last_name or customer.name"
+                    }
+                    (false, false) => "customer.name or billing.address.first_name or billing.address.last_name",
+                },
+            },
+        )?;
 
         let (cpf, cnpj) = item
             .customer_document_details
