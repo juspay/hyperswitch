@@ -561,9 +561,7 @@ pub async fn add_payment_method_modular_compat_task(
         application_source,
     )
     .change_context(errors::ApiErrorResponse::InternalServerError)
-    .attach_printable(
-        "Failed to construct PAYMENT_METHOD_MODULAR_COMPAT process tracker task",
-    )?;
+    .attach_printable("Failed to construct PAYMENT_METHOD_MODULAR_COMPAT process tracker task")?;
 
     db.insert_process(process_tracker_entry)
         .await

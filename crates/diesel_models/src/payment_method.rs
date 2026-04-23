@@ -1252,6 +1252,46 @@ impl std::ops::DerefMut for PaymentsTokenReference {
     }
 }
 
+#[cfg(feature = "v2")]
+impl From<PaymentsMandateReference> for PaymentsTokenReference {
+    fn from(payments_mandate_reference: PaymentsMandateReference) -> Self {
+        let mapped_records = payments_mandate_reference
+            .0
+            .into_iter()
+            .map(|(mca_id, record)| {
+                let token_status = match record.connector_mandate_status {
+                    Some(common_enums::ConnectorMandateStatus::Active) => {
+                        common_enums::ConnectorTokenStatus::Active
+                    }
+                    Some(common_enums::ConnectorMandateStatus::Inactive) => {
+                        common_enums::ConnectorTokenStatus::Inactive
+                    }
+                    None => common_enums::ConnectorTokenStatus::Inactive,
+                };
+
+                let token_record = ConnectorTokenReferenceRecord {
+                    connector_token: record.connector_mandate_id,
+                    payment_method_subtype: record.payment_method_type,
+                    original_payment_authorized_amount: record
+                        .original_payment_authorized_amount
+                        .map(common_utils::types::MinorUnit::new),
+                    original_payment_authorized_currency: record
+                        .original_payment_authorized_currency,
+                    metadata: record.mandate_metadata,
+                    connector_token_status: token_status,
+                    connector_token_request_reference_id: record
+                        .connector_mandate_request_reference_id,
+                    connector_customer_id: record.connector_customer_id,
+                };
+
+                (mca_id, token_record)
+            })
+            .collect();
+
+        Self(mapped_records)
+    }
+}
+
 #[cfg(feature = "v1")]
 common_utils::impl_to_sql_from_sql_json!(PaymentsMandateReference);
 
@@ -1325,46 +1365,6 @@ impl CommonMandateReference {
     }
 
     #[cfg(feature = "v2")]
-    fn map_legacy_to_token_reference(
-        payments_mandate_reference: PaymentsMandateReference,
-    ) -> PaymentsTokenReference {
-        let mapped_records = payments_mandate_reference
-            .0
-            .into_iter()
-            .map(|(mca_id, record)| {
-                let token_status = match record.connector_mandate_status {
-                    Some(common_enums::ConnectorMandateStatus::Active) => {
-                        common_enums::ConnectorTokenStatus::Active
-                    }
-                    Some(common_enums::ConnectorMandateStatus::Inactive) => {
-                        common_enums::ConnectorTokenStatus::Inactive
-                    }
-                    None => common_enums::ConnectorTokenStatus::Inactive,
-                };
-
-                let token_record = ConnectorTokenReferenceRecord {
-                    connector_token: record.connector_mandate_id,
-                    payment_method_subtype: record.payment_method_type,
-                    original_payment_authorized_amount: record
-                        .original_payment_authorized_amount
-                        .map(common_utils::types::MinorUnit::new),
-                    original_payment_authorized_currency: record
-                        .original_payment_authorized_currency,
-                    metadata: record.mandate_metadata,
-                    connector_token_status: token_status,
-                    connector_token_request_reference_id: record
-                        .connector_mandate_request_reference_id,
-                    connector_customer_id: record.connector_customer_id,
-                };
-
-                (mca_id, token_record)
-            })
-            .collect();
-
-        PaymentsTokenReference(mapped_records)
-    }
-
-    #[cfg(feature = "v2")]
     fn parse_payments_reference_with_legacy_fallback(
         payments_json: serde_json::Value,
     ) -> CustomResult<PaymentsTokenReference, ParsingError> {
@@ -1392,7 +1392,7 @@ impl CommonMandateReference {
                     "Parsed connector_mandate_details using legacy mandate shape fallback"
                 );
 
-                Ok(Self::map_legacy_to_token_reference(legacy_reference))
+                Ok(PaymentsTokenReference::from(legacy_reference))
             }
         }
     }

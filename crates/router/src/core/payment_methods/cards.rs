@@ -222,7 +222,9 @@ impl PaymentMethodsController for PmCards<'_> {
         )
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to add payment method modular compatibility task in process tracker")?;
+        .attach_printable(
+            "Failed to add payment method modular compatibility task in process tracker",
+        )?;
 
         if customer.default_payment_method_id.is_none() && req.payment_method.is_some() {
             let _ = self
