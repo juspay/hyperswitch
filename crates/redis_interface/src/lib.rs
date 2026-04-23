@@ -112,8 +112,7 @@ impl SubscriberClient {
             tokio::sync::broadcast::channel(conf.broadcast_channel_capacity);
 
         tokio::spawn(
-            Self::run(push_sender.subscribe(), broadcast_sender.clone())
-                .in_current_span(),
+            Self::run(push_sender.subscribe(), broadcast_sender.clone()).in_current_span(),
         );
 
         Ok(Self {
@@ -308,7 +307,10 @@ impl SubscriberClient {
                 Value::BulkString(bytes) => String::from_utf8_lossy(bytes).into_owned(),
                 Value::SimpleString(s) => s.clone(),
                 other => {
-                    tracing::debug!(?other, "Unexpected Value variant in push message channel name");
+                    tracing::debug!(
+                        ?other,
+                        "Unexpected Value variant in push message channel name"
+                    );
                     String::new()
                 }
             })
@@ -551,7 +553,8 @@ impl RedisConnectionPool {
                             conf.host, conf.port
                         )
                     })?;
-                let publisher = Arc::new(PublisherClient::new(RedisConn::Standalone(publisher_conn)));
+                let publisher =
+                    Arc::new(PublisherClient::new(RedisConn::Standalone(publisher_conn)));
 
                 (pool, subscriber, publisher)
             }
