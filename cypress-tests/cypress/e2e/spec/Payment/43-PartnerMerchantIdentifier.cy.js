@@ -238,10 +238,7 @@ describe("Partner Merchant Identifier Tests", () => {
 
     it("Verify empty partner_merchant_identifier_details returns nulls", () => {
       if (!shouldContinue) {
-        cy.task(
-          "cli_log",
-          "Skipping step: Verify empty PMI returns nulls"
-        );
+        cy.task("cli_log", "Skipping step: Verify empty PMI returns nulls");
         return;
       }
 
