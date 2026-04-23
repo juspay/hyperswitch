@@ -113,7 +113,7 @@ pub async fn construct_webhook_router_data(
         connector_wallets_details: None,
         amount_captured: None,
         minor_amount_captured: None,
-        request: types::VerifyWebhookSourceRequestData {
+        request: VerifyWebhookSourceRequestData {
             webhook_headers: request_details.headers.clone(),
             webhook_body: request_details.body.to_vec().clone(),
             merchant_secret: connector_wh_secrets.to_owned(),
@@ -173,14 +173,14 @@ pub(super) async fn verify_webhook_source_verification_call(
     merchant_connector_account: domain::MerchantConnectorAccount,
     connector_name: &str,
     request_details: &api::IncomingWebhookRequestDetails<'_>,
-) -> CustomResult<bool, crate::errors::ConnectorError> {
+) -> CustomResult<bool, errors::ConnectorError> {
     let connector_data = ConnectorData::get_connector_by_name(
         &state.conf.connectors,
         connector_name,
         GetToken::Connector,
         None,
     )
-    .change_context(crate::errors::ConnectorError::WebhookSourceVerificationFailed)
+    .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)
     .attach_printable("invalid connector name received in payment attempt")?;
     let connector_integration: services::BoxedWebhookSourceVerificationConnectorIntegrationInterface<
         hyperswitch_domain_models::router_flow_types::VerifyWebhookSource,
@@ -194,7 +194,7 @@ pub(super) async fn verify_webhook_source_verification_call(
             merchant_connector_account.connector_webhook_details.clone(),
         )
         .await
-        .change_context(crate::errors::ConnectorError::WebhookSourceVerificationFailed)?;
+        .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
 
     let router_data = construct_webhook_router_data(
         state,
@@ -205,7 +205,7 @@ pub(super) async fn verify_webhook_source_verification_call(
         request_details,
     )
     .await
-    .change_context(crate::errors::ConnectorError::WebhookSourceVerificationFailed)
+    .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)
     .attach_printable("Failed while constructing webhook router data")?;
 
     let response = services::execute_connector_processing_step(
