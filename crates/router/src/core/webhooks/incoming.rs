@@ -245,289 +245,142 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
         fetch_three_ds_execution_path(&platform, connector_name_or_mca_id, &state, &dimensions)
             .await?;
 
-    // Each branch produces the connector used for the ack, the webhook effect
-    // for the response tracker, the serialized body for api-event logging, and
-    // the decoded body (Direct path only) for get_webhook_api_response.
-    let (connector, webhook_effect, serialized_body, merchant_connector_account, decoded_body) =
-        match three_ds_execution_path {
-            ThreeDsProcessingMode::UnifiedAuthenticationService(ref mca_data) => {
-                let connector_name = mca_data.connector_name.clone();
-                let (uas_connector, _) =
-                    get_connector_by_connector_name(&state, UNIFIED_AUTHENTICATION_SERVICE, None)?;
+    // Each arm resolves its path (UAS vs Direct/UCS) and returns a
+    // `WebhookOutcome` plus the connector/name used for acks, errors, and
+    // logging. Downstream filter interception and business-logic dispatch are
+    // identical for both and run once after the match.
+    let (connector, connector_name, outcome) = match three_ds_execution_path {
+        ThreeDsProcessingMode::UnifiedAuthenticationService(ref mca_data) => {
+            let connector_name = mca_data.connector_name.clone();
+            let (uas_connector, _) =
+                get_connector_by_connector_name(&state, UNIFIED_AUTHENTICATION_SERVICE, None)?;
 
-                let uas_result = Box::pin(process_uas_incoming_webhook(
+            let outcome = Box::pin(process_uas_incoming_webhook(
+                &state,
+                &platform,
+                &request_details,
+                connector_name.clone(),
+                uas_connector.clone(),
+            ))
+            .await;
+
+            (uas_connector, connector_name, outcome)
+        }
+        ThreeDsProcessingMode::Direct(ref mca_data) => {
+            let connector = mca_data.connector.clone();
+            let connector_name = mca_data.connector_name.clone();
+            let mca_ref = mca_data.merchant_connector_account.as_ref();
+
+            let execution_path =
+                unified_connector_service::should_call_unified_connector_service_for_webhooks(
                     &state,
-                    &request_details,
-                    connector_name.clone(),
-                    uas_connector.clone(),
-                    platform.clone(),
-                ))
-                .await;
-
-                match uas_result {
-                    Ok((event_type, body)) => {
-                        if event_type == webhooks::IncomingWebhookEvent::SetupWebhook {
-                            return Ok((
-                                services::ApplicationResponse::StatusOk,
-                                WebhookResponseTracker::NoEffect,
-                                serde_json::Value::default(),
-                            ));
-                        }
-
-                        let flow_type: api::WebhookFlow = event_type.into();
-                        let is_event_supported = !matches!(
-                            event_type,
-                            webhooks::IncomingWebhookEvent::EventNotSupported
-                        );
-                        let is_event_enabled = !super::utils::is_webhook_event_disabled(
-                            &*state.store,
-                            connector_name.as_str(),
-                            platform.get_processor().get_account().get_id(),
-                            &event_type,
-                        )
-                        .await;
-                        let process_further = is_event_supported
-                            && is_event_enabled
-                            && !matches!(flow_type, api::WebhookFlow::ReturnResponse);
-
-                        let serialized = serde_json::from_slice::<serde_json::Value>(&body)
-                            .unwrap_or(serde_json::Value::Null);
-
-                        let webhook_effect = if process_further {
-                            let object_reference_id = uas_connector
-                                .get_webhook_object_reference_id(&request_details)
-                                .switch()
-                                .attach_printable(
-                                    "Could not find object reference id in UAS webhook body",
-                                )?;
-
-                            let mca =
-                                mca_data.merchant_connector_account.clone().ok_or_else(|| {
-                                    error_stack::report!(
-                                        errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
-                                            id: connector_name.clone(),
-                                        }
-                                    )
-                                })?;
-
-                            match Box::pin(process_webhook_business_logic(
-                                &state,
-                                req_state,
-                                &platform,
-                                &uas_connector,
-                                &connector_name,
-                                event_type,
-                                false, // UAS path does not perform source verification
-                                super::gateway::WebhookContent::Direct(body),
-                                &request_details,
-                                is_relay_webhook,
-                                object_reference_id,
-                                mca,
-                            ))
-                            .await
-                            {
-                                Ok(effect) => effect,
-                                Err(error) => {
-                                    match handle_incoming_webhook_error(
-                                        error,
-                                        &uas_connector,
-                                        connector_name.as_str(),
-                                        &request_details,
-                                        platform.get_processor().get_account().get_id(),
-                                    ) {
-                                        Ok((_, tracker, _)) => tracker,
-                                        Err(e) => return Err(e),
-                                    }
-                                }
-                            }
-                        } else {
-                            metrics::WEBHOOK_INCOMING_FILTERED_COUNT.add(
-                                1,
-                                router_env::metric_attributes!((
-                                    MERCHANT_ID,
-                                    platform.get_processor().get_account().get_id().clone()
-                                )),
-                            );
-                            WebhookResponseTracker::NoEffect
-                        };
-
-                        (
-                            uas_connector,
-                            webhook_effect,
-                            serialized,
-                            mca_data.merchant_connector_account.clone(),
-                            None::<Vec<u8>>,
-                        )
-                    }
-                    Err(error) => {
-                        return handle_incoming_webhook_error(
-                            error,
-                            &uas_connector,
-                            &connector_name,
-                            &request_details,
-                            platform.get_processor().get_account().get_id(),
-                        );
-                    }
-                }
-            }
-            ThreeDsProcessingMode::Direct(ref mca_data) => {
-                let connector = mca_data.connector.clone();
-                let connector_name = mca_data.connector_name.clone();
-                let mca_ref = mca_data.merchant_connector_account.as_ref();
-
-                let execution_path =
-                    unified_connector_service::should_call_unified_connector_service_for_webhooks(
-                        &state,
-                        platform.get_processor(),
-                        &mca_data.connector_name,
-                        mca_ref.map(|mca| &mca.merchant_connector_id),
-                    )
-                    .await?;
-                logger::info!(
-                    connector = %connector_name,
-                    ?execution_path,
-                    "Selected webhook execution path"
-                );
-
-                let ctx = super::gateway::WebhookGatewayContext {
-                    state: &state,
-                    platform: &platform,
-                    connector: &connector,
-                    connector_name: connector_name.as_str(),
-                    merchant_connector_account: mca_ref,
-                };
-                let outcome = super::gateway::execute_incoming_webhook_gateway(
-                    &ctx,
-                    &request_details,
-                    execution_path,
+                    platform.get_processor(),
+                    &connector_name,
+                    mca_ref.map(|mca| &mca.merchant_connector_id),
                 )
-                .await;
+                .await?;
+            logger::info!(
+                connector = %connector_name,
+                ?execution_path,
+                "Selected webhook execution path"
+            );
 
-                if let Ok(ref o) = outcome {
-                    if o.event_type() == webhooks::IncomingWebhookEvent::SetupWebhook {
-                        return Ok((
-                            services::ApplicationResponse::StatusOk,
-                            WebhookResponseTracker::NoEffect,
-                            serde_json::Value::default(),
-                        ));
-                    }
-                }
-                let (webhook_effect, serialized_body, gateway_decoded_body) = match outcome {
-                    Ok(super::gateway::WebhookGatewayOutcome::Skipped { event_type, .. }) => {
-                        logger::info!(?event_type, "Webhook filtered before business logic");
-                        metrics::WEBHOOK_INCOMING_FILTERED_COUNT.add(
-                            1,
-                            router_env::metric_attributes!((
-                                MERCHANT_ID,
-                                platform.get_processor().get_account().get_id().clone()
-                            )),
-                        );
-                        (
-                            WebhookResponseTracker::NoEffect,
-                            serde_json::Value::Null,
-                            None,
-                        )
-                    }
-                    Ok(super::gateway::WebhookGatewayOutcome::Processed {
-                        reference,
-                        event_type,
-                        source_verified,
-                        content,
-                        masked_log_payload,
-                        merchant_connector_account: processed_mca,
-                        decoded_body: gateway_decoded_body,
-                    }) => {
-                        let effect = match reference {
-                            Some(reference) => {
-                                match Box::pin(process_webhook_business_logic(
-                                    &state,
-                                    req_state,
-                                    &platform,
-                                    &connector,
-                                    &connector_name,
-                                    event_type,
-                                    source_verified,
-                                    content,
-                                    &request_details,
-                                    is_relay_webhook,
-                                    reference,
-                                    processed_mca,
-                                ))
-                                .await
-                                {
-                                    Ok(effect) => effect,
-                                    Err(error) => {
-                                        match handle_incoming_webhook_error(
-                                            error,
-                                            &connector,
-                                            connector_name.as_str(),
-                                            &request_details,
-                                            platform.get_processor().get_account().get_id(),
-                                        ) {
-                                            Ok((_, tracker, _)) => tracker,
-                                            Err(e) => return Err(e),
-                                        }
-                                    }
-                                }
-                            }
-                            None => {
-                                logger::info!(
-                                    ?event_type,
-                                    "Processed webhook without a resource reference; skipping business logic"
-                                );
-                                WebhookResponseTracker::NoEffect
-                            }
-                        };
-                        (effect, masked_log_payload, gateway_decoded_body)
-                    }
-                    Err(error) => {
-                        return handle_incoming_webhook_error(
-                            error,
-                            &connector,
-                            connector_name.as_str(),
-                            &request_details,
-                            platform.get_processor().get_account().get_id(),
-                        );
-                    }
-                };
+            let ctx = super::gateway::WebhookGatewayContext {
+                state: &state,
+                platform: &platform,
+                connector: &connector,
+                connector_name: connector_name.as_str(),
+                merchant_connector_account: mca_ref,
+            };
+            let outcome = super::gateway::execute_incoming_webhook_gateway(
+                &ctx,
+                &request_details,
+                execution_path,
+            )
+            .await;
 
-                (
-                    connector,
-                    webhook_effect,
-                    serialized_body,
-                    mca_data.merchant_connector_account.clone(),
-                    gateway_decoded_body,
-                )
-            }
-        };
-
-    let final_request_details = match decoded_body.as_ref() {
-        Some(decoded_body) => IncomingWebhookRequestDetails {
-            method: request_details.method.clone(),
-            uri: request_details.uri.clone(),
-            headers: request_details.headers,
-            query_params: request_details.query_params.clone(),
-            body: decoded_body,
-        },
-        None => IncomingWebhookRequestDetails {
-            method: request_details.method.clone(),
-            uri: request_details.uri.clone(),
-            headers: request_details.headers,
-            query_params: request_details.query_params.clone(),
-            body: request_details.body,
-        },
+            (connector, connector_name, outcome)
+        }
     };
 
-    let response = connector
-        .get_webhook_api_response(
-            &final_request_details,
-            None,
-            merchant_connector_account.map(|mca| mca.connector_account_details),
-        )
-        .switch()
-        .attach_printable("Could not get incoming webhook api response from connector")?;
+    if matches!(
+        &outcome,
+        Ok(outcome) if outcome.event_type() == webhooks::IncomingWebhookEvent::SetupWebhook
+    ) {
+        return Ok((
+            services::ApplicationResponse::StatusOk,
+            WebhookResponseTracker::NoEffect,
+            serde_json::Value::default(),
+        ));
+    }
 
-    Ok((response, webhook_effect, serialized_body))
+    let (ack_response, webhook_effect, serialized_body) = match outcome {
+        Ok(super::gateway::WebhookOutcome::Skipped {
+            event_type,
+            ack_response,
+            ..
+        }) => {
+            logger::info!(?event_type, "Webhook filtered before business logic");
+            metrics::WEBHOOK_INCOMING_FILTERED_COUNT.add(
+                1,
+                router_env::metric_attributes!((
+                    MERCHANT_ID,
+                    platform.get_processor().get_account().get_id().clone()
+                )),
+            );
+            (ack_response, WebhookResponseTracker::NoEffect, serde_json::Value::Null)
+        }
+        Ok(super::gateway::WebhookOutcome::Processed {
+            reference,
+            event_type,
+            source_verified,
+            content,
+            masked_log_payload,
+            merchant_connector_account: processed_mca,
+            ack_response,
+        }) => {
+            let effect = match Box::pin(process_webhook_business_logic(
+                &state,
+                req_state,
+                &platform,
+                &connector,
+                &connector_name,
+                event_type,
+                source_verified,
+                content,
+                &request_details,
+                is_relay_webhook,
+                reference,
+                processed_mca,
+            ))
+            .await
+            {
+                Ok(effect) => effect,
+                Err(error) => match handle_incoming_webhook_error(
+                    error,
+                    &connector,
+                    connector_name.as_str(),
+                    &request_details,
+                    platform.get_processor().get_account().get_id(),
+                ) {
+                    Ok((_, tracker, _)) => tracker,
+                    Err(e) => return Err(e),
+                },
+            };
+            (ack_response, effect, masked_log_payload)
+        }
+        Err(error) => {
+            return handle_incoming_webhook_error(
+                error,
+                &connector,
+                connector_name.as_str(),
+                &request_details,
+                platform.get_processor().get_account().get_id(),
+            );
+        }
+    };
+
+    Ok((ack_response, webhook_effect, serialized_body))
 }
 
 async fn fetch_three_ds_execution_path(
@@ -2364,7 +2217,7 @@ async fn disputes_incoming_webhook_flow(
             .switch()?;
 
         let option_dispute = db
-            .find_by_merchant_id_payment_id_connector_dispute_id(
+            .find_by_processor_merchant_id_payment_id_connector_dispute_id(
                 platform.get_processor().get_account().get_id(),
                 &payment_attempt.payment_id,
                 &dispute_details.connector_dispute_id,
@@ -2882,19 +2735,28 @@ fn insert_mandate_details(
     Ok(connector_mandate_details)
 }
 
-/// Runs the Unified Authentication Service path. UAS is a separate external
-/// service — not a connector — so it does not go through the webhook gateway.
-/// This function performs the UAS gRPC call, classifies the returned event
-/// type, and returns the response body bytes. Webhook business logic is
-/// intentionally not run for UAS: HS only acknowledges the webhook.
+/// Runs the Unified Authentication Service path and produces the same
+/// `WebhookOutcome` shape the Direct and UCS gateway implementations
+/// return, so `incoming_webhooks_core` has a single `Skipped`/`Processed`
+/// call site for all three paths. UAS is not a connector and doesn't fit the
+/// `IncomingWebhookGateway` trait (it runs an external auth-service call and
+/// uses the UAS connector for parsing/verification while the ack goes back
+/// through the merchant's connector), so it stays as a plain function.
+///
+/// Flow: UAS gRPC call → event classification on the inbound request →
+/// filter on event type → reference fetch on the UAS response body → MCA
+/// resolution via `get_mca_from_object_reference_id` → source verification
+/// on the UAS connector → resource-object extraction.
 #[cfg(feature = "v1")]
 pub async fn process_uas_incoming_webhook<'a>(
     state: &'a SessionState,
-    incoming_webhook_request: &IncomingWebhookRequestDetails<'a>,
+    platform: &'a domain::Platform,
+    request_details: &'a IncomingWebhookRequestDetails<'a>,
     connector_name: String,
-    connector_integration: ConnectorEnum,
-    platform: domain::Platform,
-) -> errors::RouterResult<(webhooks::IncomingWebhookEvent, Vec<u8>)> {
+    uas_connector: ConnectorEnum,
+) -> errors::RouterResult<super::gateway::WebhookOutcome> {
+    use hyperswitch_masking::ErasedMaskSerialize;
+
     let routing_region = uas_utils::fetch_routing_region_for_uas(
         state,
         platform.get_processor().get_account().get_id().clone(),
@@ -2906,7 +2768,7 @@ pub async fn process_uas_incoming_webhook<'a>(
     )
     .await?;
     let webhook_data =
-        uas_utils::get_webhook_request_data_for_uas(incoming_webhook_request, Some(routing_region));
+        uas_utils::get_webhook_request_data_for_uas(request_details, Some(routing_region));
 
     let webhook_router_data: hyperswitch_domain_models::types::UasProcessWebhookRouterData =
         uas_utils::construct_uas_webhook_router_data(
@@ -2914,7 +2776,7 @@ pub async fn process_uas_incoming_webhook<'a>(
             connector_name.to_string(),
             webhook_data,
             None,
-        )?; // check of paymentId is present
+        )?;
 
     let response = Box::pin(uas_utils::do_auth_connector_call(
         state,
@@ -2953,18 +2815,103 @@ pub async fn process_uas_incoming_webhook<'a>(
         }
     }?;
 
-    let event_type = connector_integration
-        .get_webhook_event_type(incoming_webhook_request, None)
+    // Event type is classified from the inbound request: the UAS connector's
+    // parser inspects request headers/body to identify the event kind, before
+    // the response body from the gRPC call is consumed for downstream steps.
+    let event_type = uas_connector
+        .get_webhook_event_type(request_details, None)
         .switch()
-        .attach_printable("Could not get webhook event")?;
+        .attach_printable("Could not get uas webhook event type")?;
 
-    let decoded_body = response_body
+    let body = response_body
         .to_bytes()
         .inspect_err(|err| {
             router_env::logger::error!("error converting uas webhook response to bytes: {}", err);
         })
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("error converting uas webhook response to bytes")?;
+    let body_bytes = body.to_vec();
 
-    Ok((event_type, decoded_body.to_vec()))
+    let ctx = super::gateway::WebhookGatewayContext {
+        state,
+        platform,
+        connector: &uas_connector,
+        connector_name: connector_name.as_str(),
+        merchant_connector_account: None,
+    };
+
+    // Reference fetch, MCA resolution, source verification, and resource-object
+    // extraction all run against the UAS response body: the inbound request is
+    // just the trigger, and the substantive payload — what identifies the
+    // payment, what the connector integration expects to parse — lives in the
+    // response returned by the UAS gRPC call.
+    let uas_request = IncomingWebhookRequestDetails {
+        method: request_details.method.clone(),
+        uri: request_details.uri.clone(),
+        headers: request_details.headers,
+        query_params: request_details.query_params.clone(),
+        body: &body_bytes,
+    };
+
+    if matches!(
+        super::gateway::FilterDecision::evaluate(event_type, &ctx).await,
+        super::gateway::FilterDecision::Skip
+    ) {
+        let ack_response = uas_connector
+            .get_webhook_api_response(&uas_request, None, None)
+            .switch()
+            .attach_printable("Failed to build UAS webhook ack")?;
+        return Ok(super::gateway::WebhookOutcome::Skipped {
+            reference: None,
+            event_type,
+            ack_response,
+        });
+    }
+
+    let reference = uas_connector
+        .get_webhook_object_reference_id(&uas_request)
+        .switch()
+        .attach_printable("Could not find object reference id in UAS webhook body")?;
+
+    let mca = Box::pin(helper_utils::get_mca_from_object_reference_id(
+        state,
+        reference.clone(),
+        platform,
+        connector_name.as_str(),
+    ))
+    .await?;
+
+    let source_verified =
+        super::gateway::verify_webhook_source_via_connector(&ctx, &uas_request, &mca).await?;
+
+    let resource_object = uas_connector
+        .get_webhook_resource_object(&uas_request)
+        .switch()
+        .attach_printable("Failed to extract UAS webhook resource object")?;
+    let masked_log_payload = resource_object.masked_serialize().unwrap_or_else(|error| {
+        router_env::logger::warn!(
+            ?error,
+            "Failed to mask-serialize UAS webhook resource object for logging"
+        );
+        serde_json::Value::Null
+    });
+
+    let ack_response = uas_connector
+        .get_webhook_api_response(
+            &uas_request,
+            None,
+            Some(mca.connector_account_details.clone()),
+        )
+        .switch()
+        .attach_printable("Failed to build UAS webhook ack")?;
+
+    Ok(super::gateway::WebhookOutcome::Processed {
+        reference,
+        event_type,
+        source_verified,
+        content: super::gateway::WebhookContent::Direct(body_bytes),
+        masked_log_payload,
+        merchant_connector_account: mca,
+        ack_response,
+    })
 }

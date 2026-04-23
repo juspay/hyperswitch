@@ -33,7 +33,7 @@ use crate::{
         },
     },
     routes::SessionState,
-    services::connector_integration_interface::ConnectorEnum,
+    services::{self, connector_integration_interface::ConnectorEnum},
     types::{api::IncomingWebhook, domain, transformers::ForeignTryFrom},
     utils as helper_utils,
 };
@@ -44,11 +44,11 @@ use crate::{
 
 /// Payload shape returned by a successful webhook processing run.
 ///
-/// `Raw` carries masked JSON bytes of the connector's native webhook body;
-/// downstream PSync invokes the connector's response parser on these bytes.
-/// `UnifiedBytes` carries JSON bytes of a UCS-unified `EventContent`;
-/// downstream PSync consumes the unified response directly without a
-/// connector round-trip.
+/// `Direct` carries JSON bytes of the connector's native webhook resource
+/// object; downstream PSync invokes the connector's response parser on these
+/// bytes. `UnifiedConnectorService` carries JSON bytes of a UCS-unified
+/// `EventContent`; downstream PSync consumes the unified response directly
+/// without a connector round-trip.
 #[derive(Debug, Clone)]
 #[non_exhaustive]
 pub enum WebhookContent {
@@ -72,15 +72,28 @@ impl WebhookContent {
     }
 }
 
-/// Outcome of a single gateway run. Either the event was filtered out before
-/// credentialed processing, or it was processed to completion.
-pub enum WebhookGatewayOutcome {
+/// Outcome of a single inbound-webhook processing run. Returned by the Direct
+/// and UCS gateway implementations and by the UAS path (which is not a
+/// gateway). Either the event was filtered out before credentialed
+/// processing, or processing ran to completion.
+///
+/// Each producer builds its own `ack_response` — the HTTP body sent back to
+/// the calling connector. Outer code treats it as opaque.
+pub enum WebhookOutcome {
     Skipped {
+        /// Best-effort reference. May be absent when the filter rejects the
+        /// event before (or without) a reference fetch — kept for observability
+        /// only, since business logic doesn't run.
         reference: Option<ObjectReferenceId>,
         event_type: IncomingWebhookEvent,
+        ack_response: services::ApplicationResponse<serde_json::Value>,
     },
     Processed {
-        reference: Option<ObjectReferenceId>,
+        /// Mandatory for a processed webhook: every downstream business-logic
+        /// branch (payment sync, refund, payout, mandate, dispute, relay) keys
+        /// off this to look up the target resource. Gateway impls must error
+        /// out rather than return `Processed` without one.
+        reference: ObjectReferenceId,
         event_type: IncomingWebhookEvent,
         source_verified: bool,
         content: WebhookContent,
@@ -88,11 +101,11 @@ pub enum WebhookGatewayOutcome {
         // from `content` because downstream processing needs unmasked bytes.
         masked_log_payload: serde_json::Value,
         merchant_connector_account: domain::MerchantConnectorAccount,
-        decoded_body: Option<Vec<u8>>,
+        ack_response: services::ApplicationResponse<serde_json::Value>,
     },
 }
 
-impl WebhookGatewayOutcome {
+impl WebhookOutcome {
     pub fn event_type(&self) -> IncomingWebhookEvent {
         match self {
             Self::Skipped { event_type, .. } | Self::Processed { event_type, .. } => *event_type,
@@ -101,9 +114,8 @@ impl WebhookGatewayOutcome {
 
     pub fn reference(&self) -> Option<&ObjectReferenceId> {
         match self {
-            Self::Skipped { reference, .. } | Self::Processed { reference, .. } => {
-                reference.as_ref()
-            }
+            Self::Skipped { reference, .. } => reference.as_ref(),
+            Self::Processed { reference, .. } => Some(reference),
         }
     }
 }
@@ -134,7 +146,7 @@ pub trait IncomingWebhookGateway: Send + Sync {
         &self,
         request: &IncomingWebhookRequestDetails<'_>,
         ctx: &WebhookGatewayContext<'_>,
-    ) -> RouterResult<WebhookGatewayOutcome>;
+    ) -> RouterResult<WebhookOutcome>;
 }
 
 /// Result of the "should downstream business logic run" filter.
@@ -181,7 +193,7 @@ impl IncomingWebhookGateway for DirectIncomingWebhookGateway {
         &self,
         request: &IncomingWebhookRequestDetails<'_>,
         ctx: &WebhookGatewayContext<'_>,
-    ) -> RouterResult<WebhookGatewayOutcome> {
+    ) -> RouterResult<WebhookOutcome> {
         let reference = ctx.connector.get_webhook_object_reference_id(request).ok();
 
         let mca = resolve_mca(ctx, reference.as_ref()).await?;
@@ -219,13 +231,39 @@ impl IncomingWebhookGateway for DirectIncomingWebhookGateway {
             .switch()
             .attach_printable("Failed to classify webhook event type")?;
 
+        let ack_response = ctx
+            .connector
+            .get_webhook_api_response(
+                &decoded_request,
+                None,
+                Some(mca.connector_account_details.clone()),
+            )
+            .switch()
+            .attach_printable("Failed to build webhook ack via connector")?;
+
         let outcome = match FilterDecision::evaluate(event_type, ctx).await {
-            FilterDecision::Skip => WebhookGatewayOutcome::Skipped {
+            FilterDecision::Skip => WebhookOutcome::Skipped {
                 reference,
                 event_type,
+                ack_response,
             },
             FilterDecision::Proceed => {
-                let source_verified = verify_direct_source(ctx, &decoded_request, &mca).await?;
+                // Reference is required for business logic. The initial fetch
+                // used the raw request; retry with the decoded body before
+                // giving up — some connectors only expose identifiers after
+                // decoding (e.g. signed envelopes).
+                let reference = match reference {
+                    Some(reference) => reference,
+                    None => ctx
+                        .connector
+                        .get_webhook_object_reference_id(&decoded_request)
+                        .switch()
+                        .attach_printable(
+                            "Could not find object reference id in incoming webhook body",
+                        )?,
+                };
+                let source_verified =
+                    verify_webhook_source_via_connector(ctx, &decoded_request, &mca).await?;
                 let resource_object = ctx
                     .connector
                     .get_webhook_resource_object(&decoded_request)
@@ -244,14 +282,14 @@ impl IncomingWebhookGateway for DirectIncomingWebhookGateway {
                         serde_json::Value::Null
                     });
 
-                WebhookGatewayOutcome::Processed {
+                WebhookOutcome::Processed {
                     reference,
                     event_type,
                     source_verified,
                     content: WebhookContent::Direct(bytes),
                     masked_log_payload,
                     merchant_connector_account: mca,
-                    decoded_body: Some(decoded_body),
+                    ack_response,
                 }
             }
         };
@@ -284,7 +322,7 @@ impl IncomingWebhookGateway for UcsIncomingWebhookGateway {
         &self,
         request: &IncomingWebhookRequestDetails<'_>,
         ctx: &WebhookGatewayContext<'_>,
-    ) -> RouterResult<WebhookGatewayOutcome> {
+    ) -> RouterResult<WebhookOutcome> {
         let client = ctx
             .state
             .grpc_client
@@ -324,12 +362,28 @@ impl IncomingWebhookGateway for UcsIncomingWebhookGateway {
             .unwrap_or(IncomingWebhookEvent::EventNotSupported);
 
         let outcome = match FilterDecision::evaluate(event_type, ctx).await {
-            FilterDecision::Skip => WebhookGatewayOutcome::Skipped {
-                reference,
-                event_type,
-            },
+            FilterDecision::Skip => {
+                // HandleEvent isn't invoked for filtered events, so UCS has
+                // no ack suggestion. Default to `StatusOk` — same as the HS
+                // trait's default for an uncustomized `get_webhook_api_response`.
+                WebhookOutcome::Skipped {
+                    reference,
+                    event_type,
+                    ack_response: services::ApplicationResponse::StatusOk,
+                }
+            }
             FilterDecision::Proceed => {
-                let mca = resolve_mca(ctx, reference.as_ref()).await?;
+                // A ParseEvent result that proceeds past the filter must carry
+                // a reference — downstream business logic needs it to look up
+                // the target resource. No reference + Proceed is a UCS server
+                // inconsistency, not a normal outcome.
+                let reference = reference.ok_or_else(|| {
+                    error_stack::report!(errors::ApiErrorResponse::WebhookResourceNotFound)
+                        .attach_printable(
+                            "UCS ParseEvent produced no object reference for a non-filtered event",
+                        )
+                })?;
+                let mca = resolve_mca(ctx, Some(&reference)).await?;
                 let webhook_secrets = build_webhook_secrets_from_merchant_connector_account(
                     &MerchantConnectorAccountType::DbVal(Box::new(mca.clone())),
                 )
@@ -338,7 +392,7 @@ impl IncomingWebhookGateway for UcsIncomingWebhookGateway {
                     "Failed to resolve webhook secrets from merchant connector account",
                 )?;
 
-                let event_context = build_event_context(ctx, reference.as_ref()).await;
+                let event_context = build_event_context(ctx, Some(&reference)).await;
 
                 let handle_response = client
                     .incoming_webhook_handle_event(
@@ -357,32 +411,47 @@ impl IncomingWebhookGateway for UcsIncomingWebhookGateway {
                     .attach_printable("UCS HandleEvent call failed")?
                     .into_inner();
 
-                let (bytes, masked_log_payload) = match handle_response.event_content.as_ref() {
-                    Some(content) => {
-                        let bytes = serde_json::to_vec(content)
-                            .change_context(errors::ApiErrorResponse::InternalServerError)
-                            .attach_printable("Failed to encode unified event content")?;
-                        // Log-only view; failure here must not fail the webhook.
-                        let masked = content.masked_serialize().unwrap_or_else(|error| {
-                            logger::warn!(
-                                ?error,
-                                "Failed to mask-serialize unified event content for logging"
-                            );
-                            serde_json::Value::Null
-                        });
-                        (bytes, masked)
-                    }
-                    None => (Vec::new(), serde_json::Value::Null),
-                };
+                // `event_content` is required by the proto for a non-filtered
+                // event — the downstream PSync gateway will try to deserialize
+                // these bytes as `EventContent`. Erroring here surfaces the UCS
+                // inconsistency at the right layer rather than letting empty
+                // bytes blow up deep in the payment pipeline.
+                let event_content = handle_response.event_content.ok_or_else(|| {
+                    error_stack::report!(errors::ApiErrorResponse::WebhookProcessingFailure)
+                        .attach_printable(
+                            "UCS HandleEvent returned no event_content for a non-filtered event",
+                        )
+                })?;
+                let bytes = serde_json::to_vec(&event_content)
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Failed to encode unified event content")?;
+                // Log-only view; failure here must not fail the webhook.
+                let masked_log_payload =
+                    event_content.masked_serialize().unwrap_or_else(|error| {
+                        logger::warn!(
+                            ?error,
+                            "Failed to mask-serialize unified event content for logging"
+                        );
+                        serde_json::Value::Null
+                    });
 
-                WebhookGatewayOutcome::Processed {
+                // Use UCS's suggested ack when present; otherwise default to
+                // `StatusOk` (200 empty body). Mirrors the HS connector-trait
+                // default for `get_webhook_api_response` — "no customization →
+                // 200 OK." No cross-path fallback to HS code.
+                let ack_response = handle_response
+                    .event_ack_response
+                    .map(ucs_ack_to_application_response)
+                    .unwrap_or(services::ApplicationResponse::StatusOk);
+
+                WebhookOutcome::Processed {
                     reference,
                     event_type,
                     source_verified: handle_response.source_verified,
                     content: WebhookContent::UnifiedConnectorService(bytes),
                     masked_log_payload,
                     merchant_connector_account: mca,
-                    decoded_body: None,
+                    ack_response,
                 }
             }
         };
@@ -403,7 +472,7 @@ pub async fn execute_incoming_webhook_gateway(
     ctx: &WebhookGatewayContext<'_>,
     request: &IncomingWebhookRequestDetails<'_>,
     execution_path: ExecutionPath,
-) -> RouterResult<WebhookGatewayOutcome> {
+) -> RouterResult<WebhookOutcome> {
     match execution_path {
         ExecutionPath::Direct => DirectIncomingWebhookGateway.execute(request, ctx).await,
         ExecutionPath::UnifiedConnectorService => {
@@ -426,7 +495,7 @@ pub async fn execute_incoming_webhook_gateway(
 fn spawn_shadow_ucs_run(
     ctx: &WebhookGatewayContext<'_>,
     request: &IncomingWebhookRequestDetails<'_>,
-    primary: &WebhookGatewayOutcome,
+    primary: &WebhookOutcome,
 ) {
     let state = ctx.state.clone();
     let platform = ctx.platform.clone();
@@ -434,7 +503,7 @@ fn spawn_shadow_ucs_run(
     let connector_name = ctx.connector_name.to_owned();
     let mca_owned = ctx.merchant_connector_account.cloned();
     let request_owned = OwnedRequestDetails::from(request);
-    let primary_snapshot = OutcomeSnapshot::from(primary);
+    let primary_snapshot = WebhookShadowSnapshot::from(primary);
 
     tokio::spawn(
         async move {
@@ -451,7 +520,7 @@ fn spawn_shadow_ucs_run(
                 .await
             {
                 Ok(shadow_outcome) => {
-                    let shadow_snapshot = OutcomeSnapshot::from(&shadow_outcome);
+                    let shadow_snapshot = WebhookShadowSnapshot::from(&shadow_outcome);
                     report_shadow_diff(
                         &state,
                         &connector_name,
@@ -500,7 +569,7 @@ impl OwnedRequestDetails {
 }
 
 #[derive(serde::Serialize)]
-struct OutcomeSnapshot {
+struct WebhookShadowSnapshot {
     variant: &'static str,
     event_type: IncomingWebhookEvent,
     source_verified: Option<bool>,
@@ -508,12 +577,13 @@ struct OutcomeSnapshot {
     reference: Option<ObjectReferenceId>,
 }
 
-impl From<&WebhookGatewayOutcome> for OutcomeSnapshot {
-    fn from(outcome: &WebhookGatewayOutcome) -> Self {
+impl From<&WebhookOutcome> for WebhookShadowSnapshot {
+    fn from(outcome: &WebhookOutcome) -> Self {
         match outcome {
-            WebhookGatewayOutcome::Skipped {
+            WebhookOutcome::Skipped {
                 event_type,
                 reference,
+                ..
             } => Self {
                 variant: "skipped",
                 event_type: *event_type,
@@ -521,7 +591,7 @@ impl From<&WebhookGatewayOutcome> for OutcomeSnapshot {
                 content_kind: None,
                 reference: reference.clone(),
             },
-            WebhookGatewayOutcome::Processed {
+            WebhookOutcome::Processed {
                 event_type,
                 source_verified,
                 content,
@@ -535,7 +605,7 @@ impl From<&WebhookGatewayOutcome> for OutcomeSnapshot {
                     WebhookContent::Direct(_) => "direct",
                     WebhookContent::UnifiedConnectorService(_) => "unified_connector_service",
                 }),
-                reference: reference.clone(),
+                reference: Some(reference.clone()),
             },
         }
     }
@@ -546,8 +616,8 @@ impl From<&WebhookGatewayOutcome> for OutcomeSnapshot {
 async fn report_shadow_diff(
     state: &SessionState,
     connector_name: &str,
-    primary: &OutcomeSnapshot,
-    shadow: &OutcomeSnapshot,
+    primary: &WebhookShadowSnapshot,
+    shadow: &WebhookShadowSnapshot,
 ) {
     logger::info!(
         primary_event_type = ?primary.event_type,
@@ -623,7 +693,12 @@ async fn build_webhook_context(
     }
 }
 
-async fn verify_direct_source(
+/// Runs the non-UCS source verification chain: either an outbound HTTP callback
+/// to the connector's verification endpoint (for connectors listed in
+/// `webhook_source_verification_call`) or an in-process `verify_webhook_source`
+/// against the connector integration. Used by both the Direct gateway path and
+/// the UAS path — UCS returns its own `source_verified` flag from `HandleEvent`.
+pub(super) async fn verify_webhook_source_via_connector(
     ctx: &WebhookGatewayContext<'_>,
     request: &IncomingWebhookRequestDetails<'_>,
     mca: &domain::MerchantConnectorAccount,
@@ -876,4 +951,42 @@ async fn build_event_context(
             payments_grpc::PaymentEventContext { capture_method },
         )),
     })
+}
+
+/// Converts UCS's suggested ack into the `ApplicationResponse` shape the
+/// outer webhook handler already uses. Best-effort: JSON body maps to
+/// `Json` (or `JsonWithHeaders` when headers are present), non-JSON UTF-8
+/// maps to `TextPlain`, empty body to `StatusOk`, binary to `FileData`.
+/// Status code is not first-class in `ApplicationResponse`; only the 200
+/// paths are represented faithfully.
+fn ucs_ack_to_application_response(
+    ack: payments_grpc::EventAckResponse,
+) -> services::ApplicationResponse<serde_json::Value> {
+    let payments_grpc::EventAckResponse {
+        status_code: _,
+        headers,
+        body,
+    } = ack;
+
+    if body.is_empty() {
+        return services::ApplicationResponse::StatusOk;
+    }
+
+    let masked_headers: Vec<(String, hyperswitch_masking::Maskable<String>)> = headers
+        .into_iter()
+        .map(|(k, v)| (k, hyperswitch_masking::Maskable::new_normal(v)))
+        .collect();
+
+    if let Ok(value) = serde_json::from_slice::<serde_json::Value>(&body) {
+        return if masked_headers.is_empty() {
+            services::ApplicationResponse::Json(value)
+        } else {
+            services::ApplicationResponse::JsonWithHeaders((value, masked_headers))
+        };
+    }
+
+    match String::from_utf8(body.clone()) {
+        Ok(text) => services::ApplicationResponse::TextPlain(text),
+        Err(_) => services::ApplicationResponse::FileData((body, mime::APPLICATION_OCTET_STREAM)),
+    }
 }
