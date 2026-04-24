@@ -478,21 +478,22 @@ pub mod core {
         }
     }
 
-    /// Returns the [`VaultConnectorStrategy`] appropriate for the given request.
-    fn strategy_for(request: &InjectorRequest) -> Box<dyn VaultConnectorStrategy> {
-        match (
-            &request.connection_config.vault_connector_type,
-            &request.connection_config.vault_connector_id,
-        ) {
-            (
-                Some(injector_types::VaultConnectorType::Transformation),
-                Some(injector_types::VaultConnectors::HyperswitchVault),
-            ) => Box::new(HyperswitchVaultStrategy),
-            (Some(injector_types::VaultConnectorType::Proxy), _) => Box::new(ProxyStrategy),
-            (Some(injector_types::VaultConnectorType::Transformation), _) => {
-                Box::new(FallbackTransformationStrategy)
+    impl From<&InjectorRequest> for Box<dyn VaultConnectorStrategy> {
+        fn from(request: &InjectorRequest) -> Self {
+            match (
+                &request.connection_config.vault_connector_type,
+                &request.connection_config.vault_connector_id,
+            ) {
+                (
+                    Some(injector_types::VaultConnectorType::Transformation),
+                    Some(injector_types::VaultConnectors::HyperswitchVault),
+                ) => Box::new(HyperswitchVaultStrategy),
+                (Some(injector_types::VaultConnectorType::Proxy), _) => Box::new(ProxyStrategy),
+                (Some(injector_types::VaultConnectorType::Transformation), _) => {
+                    Box::new(FallbackTransformationStrategy)
+                }
+                _ => Box::new(ProxyStrategy), //by default, the token replacement is done in the forward proxy (e.g. VGS), so ProxyStrategy is the safe default
             }
-            _ => Box::new(ProxyStrategy), //by default, the token replacement is done in the forward proxy (e.g. VGS), so ProxyStrategy is the safe default
         }
     }
 
@@ -651,7 +652,7 @@ pub mod core {
                 "Processing token injection request"
             );
 
-            let strategy = strategy_for(&request);
+            let strategy = Box::<dyn VaultConnectorStrategy>::from(&request);
 
             // Step 1: process the template
             let processed_payload = strategy.process_payload(
