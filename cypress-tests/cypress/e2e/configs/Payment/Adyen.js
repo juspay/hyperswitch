@@ -1011,6 +1011,9 @@ export const connectorDetails = {
       },
     },
     ConfirmCIT: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
       Request: {
         payment_method: "bank_redirect",
         payment_method_type: "ideal",
