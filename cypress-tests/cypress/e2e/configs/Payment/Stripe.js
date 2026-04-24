@@ -547,16 +547,22 @@ export const connectorDetails = {
         },
       },
     },
-    MITAutoCapture: getCustomExchange({
+    MITAutoCapture: {
       Configs: {
-        CONNECTOR_CREDENTIAL: {
-          specName: ["connectorAgnosticNTID"],
-          value: "connector_2",
+        TRIGGER_SKIP: true,
+      },
+      Request: {},
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
         },
       },
-      ...commonConnectorDetails.card_pm.MITAutoCapture,
-    }),
+    },
     MITManualCapture: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
       Request: {},
       Response: {
         status: 200,

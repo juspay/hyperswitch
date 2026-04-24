@@ -231,6 +231,9 @@ export const connectorDetails = {
       },
     },
     MITAutoCapture: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
       Request: {},
       Response: {
         status: 200,
@@ -240,6 +243,9 @@ export const connectorDetails = {
       },
     },
     MITManualCapture: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
       Request: {},
       Response: {
         status: 200,

@@ -500,9 +500,10 @@ export const connectorDetails = {
       },
     },
     MITAutoCapture: {
-      Request: {
-        amount_to_capture: 6000,
+      Configs: {
+        TRIGGER_SKIP: true,
       },
+      Request: {},
       Response: {
         status: 200,
         body: {
