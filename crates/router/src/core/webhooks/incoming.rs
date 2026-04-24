@@ -355,7 +355,7 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
                 &request_details,
                 is_relay_webhook,
                 reference,
-                processed_mca,
+                *processed_mca,
             ))
             .await
             {
@@ -2915,7 +2915,7 @@ pub async fn process_uas_incoming_webhook<'a>(
         source_verified,
         content: super::gateway::WebhookContent::Direct(body_bytes),
         masked_log_payload,
-        merchant_connector_account: mca,
+        merchant_connector_account: Box::new(mca),
         ack_response,
     })
 }

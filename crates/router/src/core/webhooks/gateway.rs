@@ -100,7 +100,7 @@ pub enum WebhookOutcome {
         // Masked view of the resource object for API-event logs. Separate
         // from `content` because downstream processing needs unmasked bytes.
         masked_log_payload: serde_json::Value,
-        merchant_connector_account: domain::MerchantConnectorAccount,
+        merchant_connector_account: Box<domain::MerchantConnectorAccount>,
         ack_response: services::ApplicationResponse<serde_json::Value>,
     },
 }
@@ -288,7 +288,7 @@ impl IncomingWebhookGateway for DirectIncomingWebhookGateway {
                     source_verified,
                     content: WebhookContent::Direct(bytes),
                     masked_log_payload,
-                    merchant_connector_account: mca,
+                    merchant_connector_account: Box::new(mca),
                     ack_response,
                 }
             }
@@ -449,7 +449,7 @@ impl IncomingWebhookGateway for UcsIncomingWebhookGateway {
                     source_verified: handle_response.source_verified,
                     content: WebhookContent::UnifiedConnectorService(bytes),
                     masked_log_payload,
-                    merchant_connector_account: mca,
+                    merchant_connector_account: Box::new(mca),
                     ack_response,
                 }
             }
@@ -941,7 +941,7 @@ async fn build_event_context(
     let capture_method = payment_attempt
         .capture_method
         .and_then(|cm| payments_grpc::CaptureMethod::foreign_try_from(cm).ok())
-        .map(|cm| cm as i32);
+        .map(i32::from);
 
     Some(payments_grpc::EventContext {
         event_context: Some(payments_grpc::event_context::EventContext::Payment(
