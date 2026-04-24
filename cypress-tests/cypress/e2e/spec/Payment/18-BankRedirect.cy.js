@@ -720,11 +720,7 @@ describe("Bank Redirect tests", () => {
         const partialRefundData = getConnectorDetails(
           globalState.get("connectorId")
         )["bank_redirect_pm"]["PartialRefund"];
-        cy.refundCallTest(
-          fixtures.refundBody,
-          partialRefundData,
-          globalState
-        );
+        cy.refundCallTest(fixtures.refundBody, partialRefundData, globalState);
         if (!utils.should_continue_further(partialRefundData)) {
           shouldContinue = false;
         }
@@ -928,11 +924,7 @@ describe("Bank Redirect tests", () => {
         const partialRefundData = getConnectorDetails(
           globalState.get("connectorId")
         )["bank_redirect_pm"]["PartialRefund"];
-        cy.refundCallTest(
-          fixtures.refundBody,
-          partialRefundData,
-          globalState
-        );
+        cy.refundCallTest(fixtures.refundBody, partialRefundData, globalState);
         if (!utils.should_continue_further(partialRefundData)) {
           shouldContinue = false;
         }
