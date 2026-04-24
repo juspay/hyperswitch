@@ -42,9 +42,8 @@ use crate::{
     },
     unimplemented_payment_method,
     utils::{
-        self, CardData, PaymentsAuthorizeRequestData,
-        PaymentsCaptureRequestData, PaymentsSyncRequestData, RouterData as OtherRouterData,
-        WalletData as OtherWalletData,
+        self, CardData, PaymentsAuthorizeRequestData, PaymentsCaptureRequestData,
+        PaymentsSyncRequestData, RouterData as OtherRouterData, WalletData as OtherWalletData,
     },
 };
 
@@ -839,27 +838,24 @@ impl TryFrom<&CheckoutRouterData<&PaymentsAuthorizeRouterData>> for PaymentsRequ
             PaymentMethodData::NetworkToken(token_data) => {
                 let token_type = match token_data.card_network {
                     Some(enums::CardNetwork::Visa) => Ok("vts".to_string()),
-                    Some(enums::CardNetwork::Mastercard) => {
-                        Ok("mdes".to_string())
-                    }
+                    Some(enums::CardNetwork::Mastercard) => Ok("mdes".to_string()),
                     _ => Err(errors::ConnectorError::NotImplemented(
                         "Network token for this card network".to_string(),
                     )),
                 }?;
 
-                let payment_source =
-                    PaymentSource::NetworkToken(Box::new(NetworkTokenSource {
-                        source_type: "network_token".to_string(),
-                        token: cards::CardNumber::from(token_data.token_number),
-                        expiry_month: token_data.token_exp_month,
-                        expiry_year: token_data.token_exp_year,
-                        token_type,
-                        cryptogram: token_data.token_cryptogram,
-                        eci: token_data.eci,
-                        stored: None,
-                        store_for_future_use,
-                        billing_address: billing_details,
-                    }));
+                let payment_source = PaymentSource::NetworkToken(Box::new(NetworkTokenSource {
+                    source_type: "network_token".to_string(),
+                    token: cards::CardNumber::from(token_data.token_number),
+                    expiry_month: token_data.token_exp_month,
+                    expiry_year: token_data.token_exp_year,
+                    token_type,
+                    cryptogram: token_data.token_cryptogram,
+                    eci: token_data.eci,
+                    stored: None,
+                    store_for_future_use,
+                    billing_address: billing_details,
+                }));
 
                 Ok((
                     payment_source,
