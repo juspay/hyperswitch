@@ -1,9 +1,11 @@
 import { connectorDetails as CommonConnectorDetails } from "./Commons.js";
 import { connectorDetails as noonConnectorDetails } from "./Noon.js";
+import { connectorDetails as nordeaConnectorDetails } from "./Nordea.js";
 
 const connectorDetails = {
   commons: CommonConnectorDetails,
   noon: noonConnectorDetails,
+  nordea: nordeaConnectorDetails,
 };
 
 export default function getConnectorDetails(connectorId) {
