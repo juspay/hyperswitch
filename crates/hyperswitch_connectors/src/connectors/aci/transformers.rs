@@ -41,7 +41,7 @@ use hyperswitch_domain_models::{
     },
 };
 use hyperswitch_interfaces::errors;
-use hyperswitch_masking::{ExposeInterface, Secret};
+use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 use url::Url;
 
@@ -995,7 +995,9 @@ pub struct CardDetails {
 #[serde(rename_all = "UPPERCASE")]
 pub enum InstructionMode {
     Initial,
-    Subsequent,
+    /// ACI API uses REPEATED on the wire (confirmed by live rejection when
+    /// sending SUBSEQUENT despite some local reference docs listing it).
+    Repeated,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -1472,11 +1474,21 @@ fn get_common_payment_fields(
     custom_parameters.insert("orchestrator", "hyperswitch");
     custom_parameters.insert("paymentId", &item.router_data.payment_id);
 
-    // testMode: EXTERNAL forwards to processor's test system; absent on live transactions.
+    // testMode routing — opt-in via connector metadata `test_mode: "EXTERNAL"` or "INTERNAL".
+    // EXTERNAL routes to the acquirer's test system and requires entity-side configuration;
+    // sending it to a plain test entity causes ACI to reject with 900.100.100. Defaulting to
+    // None lets ACI use its own default (INTERNAL) for test entities.
     let test_mode = item
         .router_data
-        .test_mode
-        .and_then(|t| t.then_some(AciTestMode::External));
+        .connector_meta_data
+        .as_ref()
+        .and_then(|meta| meta.peek().get("test_mode"))
+        .and_then(|v| v.as_str())
+        .and_then(|s| match s.to_uppercase().as_str() {
+            "EXTERNAL" => Some(AciTestMode::External),
+            "INTERNAL" => Some(AciTestMode::Internal),
+            _ => None,
+        });
 
     (customer_browser_info, customer_data, billing_address, external_three_ds, merchant_transaction_id, custom_parameters, test_mode)
 }
@@ -1557,7 +1569,7 @@ fn get_instruction_details(
             .and_then(|meta| meta.peek()["agreementId"].as_str().map(|s| s.to_string()));
 
         return Some(Instruction {
-            mode: InstructionMode::Subsequent,
+            mode: InstructionMode::Repeated,
             transaction_type,
             source: InstructionSource::MerchantInitiatedTransaction,
             initial_transaction_id,
@@ -1795,6 +1807,11 @@ pub struct AciResponseResultDetails {
     pub acquirer_response: Option<String>,
     #[serde(rename = "AuthCode")]
     pub auth_code: Option<String>,
+    /// Alternate authorisation code field returned by some acquirers and
+    /// in ACI sandbox test mode. When `AuthCode` is absent, `ApprovalCode`
+    /// holds the same value.
+    #[serde(rename = "ApprovalCode")]
+    pub approval_code: Option<String>,
     #[serde(rename = "MerchantAdviceCode")]
     pub merchant_advice_code: Option<String>,
 }
@@ -1893,7 +1910,9 @@ fn parse_connector_tx_ids(details: &AciResponseResultDetails) -> AciParsedConnec
         rrn: get(&t2, 2),
         citi: get(&t3, 4),
         stan: get(&t3, 0).or_else(|| get(&t2, 1)),
-        auth_code: details.auth_code.clone(),
+        // Prefer canonical AuthCode; fall back to ApprovalCode used by
+        // some acquirers and the ACI sandbox's test-mode responses.
+        auth_code: details.auth_code.clone().or_else(|| details.approval_code.clone()),
         original_transaction_id: get(&t1, 5),
     }
 }

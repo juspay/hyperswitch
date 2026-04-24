@@ -802,7 +802,7 @@ impl ConnectorIntegration<PreAuthentication, PreAuthNRequestData, Authentication
         &self,
         req: &PreAuthNRouterData,
         _connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError> {
         let mut header = vec![(
             headers::CONTENT_TYPE.to_string(),
             self.common_get_content_type().to_string().into(),
@@ -918,7 +918,7 @@ impl
         &self,
         req: &ConnectorPostAuthenticationRouterData,
         _connectors: &Connectors,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError> {
         self.get_auth_header(&req.connector_auth_type)
     }
 

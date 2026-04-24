@@ -30,7 +30,7 @@ const singleUseMandateData = {
   mandate_type: {
     single_use: {
       amount: 8000,
-      currency: "EUR",
+      currency: "ZAR",
     },
   },
 };
@@ -40,7 +40,7 @@ const multiUseMandateData = {
   mandate_type: {
     multi_use: {
       amount: 8000,
-      currency: "EUR",
+      currency: "ZAR",
     },
   },
 };
@@ -67,7 +67,7 @@ export const connectorDetails = {
   card_pm: {
     PaymentIntent: {
       Request: {
-        currency: "EUR",
+        currency: "ZAR",
         customer_acceptance: null,
         setup_future_usage: "on_session",
       },
@@ -83,7 +83,7 @@ export const connectorDetails = {
       Request: {
         amount: 6000,
         authentication_type: "no_three_ds",
-        currency: "EUR",
+        currency: "ZAR",
         customer_acceptance: null,
         setup_future_usage: "off_session",
       },
@@ -100,7 +100,7 @@ export const connectorDetails = {
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
-        currency: "EUR",
+        currency: "ZAR",
         customer_acceptance: null,
         setup_future_usage: "on_session",
       },
@@ -111,6 +111,14 @@ export const connectorDetails = {
           payment_method: "card",
           attempt_count: 1,
         },
+        // Verify ACI mapping populates the hyperswitch response fields:
+        // - auth_code: from resultDetails.AuthCode
+        // - payment_checks: from parsed ConnectorTxID (STAN, originalTransactionId, acquirerResponse)
+        assertNotNull: [
+          "connector_transaction_id",
+          "payment_method_data.card.auth_code",
+          "payment_method_data.card.payment_checks",
+        ],
       },
     },
     No3DSManualCapture: {
@@ -119,7 +127,7 @@ export const connectorDetails = {
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
-        currency: "EUR",
+        currency: "ZAR",
         customer_acceptance: null,
         setup_future_usage: "on_session",
       },
@@ -130,6 +138,11 @@ export const connectorDetails = {
           payment_method: "card",
           attempt_count: 1,
         },
+        assertNotNull: [
+          "connector_transaction_id",
+          "payment_method_data.card.auth_code",
+          "payment_method_data.card.payment_checks",
+        ],
       },
     },
     "3DSAutoCapture": {
@@ -138,7 +151,7 @@ export const connectorDetails = {
         payment_method_data: {
           card: successfulThreeDSTestCardDetails,
         },
-        currency: "EUR",
+        currency: "ZAR",
         customer_acceptance: null,
         setup_future_usage: "on_session",
       },
@@ -155,7 +168,7 @@ export const connectorDetails = {
         payment_method_data: {
           card: successfulThreeDSTestCardDetails,
         },
-        currency: "EUR",
+        currency: "ZAR",
         customer_acceptance: null,
         setup_future_usage: "on_session",
       },
@@ -168,7 +181,7 @@ export const connectorDetails = {
     },
     PaymentIntentWithShippingCost: {
       Request: {
-        currency: "EUR",
+        currency: "ZAR",
         shipping_cost: 50,
         amount: 6000,
       },
@@ -185,7 +198,7 @@ export const connectorDetails = {
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
-        currency: "EUR",
+        currency: "ZAR",
         customer_acceptance: null,
         setup_future_usage: "on_session",
       },
@@ -208,6 +221,10 @@ export const connectorDetails = {
         body: {
           status: "succeeded",
         },
+        // ACI refund response populates connector_refund_id from the new
+        // AciRefundResponse.id — verifies response mapping survived the
+        // references[] enrichment.
+        assertNotNull: ["connector_refund_id"],
       },
     },
     PartialRefund: {
@@ -219,6 +236,7 @@ export const connectorDetails = {
         body: {
           status: "succeeded",
         },
+        assertNotNull: ["connector_refund_id"],
       },
     },
     SyncRefund: {
@@ -282,7 +300,7 @@ export const connectorDetails = {
         payment_method_data: {
           card: successfulThreeDSTestCardDetails,
         },
-        currency: "EUR",
+        currency: "ZAR",
         mandate_data: singleUseMandateData,
       },
       Response: {
@@ -301,7 +319,7 @@ export const connectorDetails = {
         payment_method_data: {
           card: successfulThreeDSTestCardDetails,
         },
-        currency: "EUR",
+        currency: "ZAR",
         mandate_data: singleUseMandateData,
       },
       Response: {
@@ -317,7 +335,7 @@ export const connectorDetails = {
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
-        currency: "EUR",
+        currency: "ZAR",
         mandate_data: singleUseMandateData,
       },
       Response: {
@@ -333,7 +351,7 @@ export const connectorDetails = {
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
-        currency: "EUR",
+        currency: "ZAR",
         mandate_data: singleUseMandateData,
       },
       Response: {
@@ -349,7 +367,7 @@ export const connectorDetails = {
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
-        currency: "EUR",
+        currency: "ZAR",
         mandate_data: multiUseMandateData,
       },
       Response: {
@@ -357,6 +375,14 @@ export const connectorDetails = {
         body: {
           status: "succeeded",
         },
+        // Mandate CIT must return mandate_id + connector_mandate_id (ACI
+        // registrationId). `network_transaction_id` (CITI) is acquirer-
+        // specific (Nedbank pipe format), so not asserted here.
+        assertNotNull: [
+          "mandate_id",
+          "connector_mandate_id",
+          "payment_method_data.card.auth_code",
+        ],
       },
     },
     MandateMultiUseNo3DSManualCapture: {
@@ -365,7 +391,7 @@ export const connectorDetails = {
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
-        currency: "EUR",
+        currency: "ZAR",
         mandate_data: multiUseMandateData,
       },
       Response: {
@@ -384,7 +410,7 @@ export const connectorDetails = {
         payment_method_data: {
           card: successfulThreeDSTestCardDetails,
         },
-        currency: "EUR",
+        currency: "ZAR",
         mandate_data: multiUseMandateData,
       },
       Response: {
@@ -403,7 +429,7 @@ export const connectorDetails = {
         payment_method_data: {
           card: successfulThreeDSTestCardDetails,
         },
-        currency: "EUR",
+        currency: "ZAR",
         mandate_data: multiUseMandateData,
       },
       Response: {
@@ -419,7 +445,7 @@ export const connectorDetails = {
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
-        currency: "EUR",
+        currency: "ZAR",
         mandate_data: singleUseMandateData,
       },
       Response: {
@@ -433,7 +459,7 @@ export const connectorDetails = {
       Request: {
         amount: 0,
         setup_future_usage: "off_session",
-        currency: "EUR",
+        currency: "ZAR",
       },
       Response: {
         status: 200,
@@ -467,7 +493,7 @@ export const connectorDetails = {
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
-        currency: "EUR",
+        currency: "ZAR",
         setup_future_usage: "on_session",
         customer_acceptance: customerAcceptance,
       },
@@ -484,7 +510,7 @@ export const connectorDetails = {
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
-        currency: "EUR",
+        currency: "ZAR",
         setup_future_usage: "on_session",
         customer_acceptance: customerAcceptance,
       },
@@ -510,6 +536,15 @@ export const connectorDetails = {
         body: {
           status: "succeeded",
         },
+        // Off-session CIT proves `auth_code` surfacing in the save-card path.
+        // `connector_mandate_id` is verified by the MandateMultiUse specs
+        // (asserting it here would fail because this config is also reused
+        // on retrieves after the subsequent token-based MIT, where the
+        // response doesn't echo a new mandate id).
+        assertNotNull: [
+          "connector_transaction_id",
+          "payment_method_data.card.auth_code",
+        ],
       },
     },
     SaveCardUseNo3DSManualCaptureOffSession: {
@@ -565,7 +600,7 @@ export const connectorDetails = {
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
-        currency: "EUR",
+        currency: "ZAR",
         mandate_data: null,
         customer_acceptance: customerAcceptance,
       },
@@ -574,6 +609,14 @@ export const connectorDetails = {
         body: {
           status: "succeeded",
         },
+        // MIT roundtrip: if the subsequent payment succeeds with this
+        // stored payment_method_id, the standingInstruction.initialTransactionId
+        // (CITI) and agreementId (when Mastercard) were correctly replayed
+        // from mandate_metadata.
+        assertNotNull: [
+          "connector_transaction_id",
+          "payment_method_data.card.auth_code",
+        ],
       },
     },
     PaymentMethodIdMandateNo3DSManualCapture: {
@@ -582,7 +625,7 @@ export const connectorDetails = {
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
-        currency: "EUR",
+        currency: "ZAR",
         mandate_data: null,
         customer_acceptance: customerAcceptance,
       },
@@ -599,7 +642,7 @@ export const connectorDetails = {
         payment_method_data: {
           card: successfulThreeDSTestCardDetails,
         },
-        currency: "EUR",
+        currency: "ZAR",
         mandate_data: null,
         authentication_type: "three_ds",
         customer_acceptance: customerAcceptance,
@@ -617,7 +660,7 @@ export const connectorDetails = {
         payment_method_data: {
           card: successfulThreeDSTestCardDetails,
         },
-        currency: "EUR",
+        currency: "ZAR",
         mandate_data: null,
         authentication_type: "three_ds",
         customer_acceptance: customerAcceptance,
@@ -631,7 +674,7 @@ export const connectorDetails = {
     },
     MITManualCapture: {
       Request: {
-        currency: "EUR",
+        currency: "ZAR",
       },
       Response: {
         status: 200,
@@ -642,7 +685,7 @@ export const connectorDetails = {
     },
     MITAutoCapture: {
       Request: {
-        currency: "EUR",
+        currency: "ZAR",
       },
       Response: {
         status: 200,
@@ -674,12 +717,47 @@ export const connectorDetails = {
         },
       },
     },
+    // External 3DS passthrough — merchant has already completed 3DS and is
+    // forwarding the results (eci/cavv/dsTransactionId) for ACI to pass to
+    // the acquirer. Skipped in CI because the CAVV must come from a real
+    // authentication run; included here to document the expected payload
+    // shape and ACI response behaviour.
+    ExternalThreeDsPassthroughAutoCapture: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "ZAR",
+        authentication_type: "no_three_ds",
+        three_ds_data: {
+          eci: "05",
+          authentication_cryptogram: {
+            cavv: {
+              authentication_cryptogram: "AAABCSIIAAAAAAAAAAAAAAAAAAo=",
+            },
+          },
+          ds_trans_id: "a8e95050-e7a1-4e67-a25a-example00001",
+          version: "2.1.0",
+          transaction_status: "Y",
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    },
   },
   wallet_pm: {
     // Verify ACI returns apple_pay and google_pay session tokens
     SessionToken: {
       Request: {
-        currency: "EUR",
+        currency: "ZAR",
       },
       Response: {
         status: 200,
@@ -702,7 +780,7 @@ export const connectorDetails = {
         payment_method_data: {
           wallet: { apple_pay_redirect: {} },
         },
-        currency: "EUR",
+        currency: "ZAR",
       },
       Response: {
         status: 200,
@@ -721,7 +799,7 @@ export const connectorDetails = {
         payment_method_data: {
           wallet: { google_pay_redirect: {} },
         },
-        currency: "EUR",
+        currency: "ZAR",
       },
       Response: {
         status: 200,
@@ -740,7 +818,7 @@ export const connectorDetails = {
         payment_method_data: {
           wallet: { samsung_pay: { token: "test_token" } },
         },
-        currency: "EUR",
+        currency: "ZAR",
       },
       Response: {
         status: 200,
