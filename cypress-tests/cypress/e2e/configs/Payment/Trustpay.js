@@ -826,6 +826,44 @@ export const connectorDetails = {
       commonConnectorDetails.bank_transfer_pm.InstantBankTransferPoland
     ),
   },
+  order_create_pm: {
+    ApplePayOrderCreate: {
+      Request: {
+        payment_method: "wallet",
+        payment_method_type: "apple_pay",
+        payment_method_data: {
+          wallet: {
+            apple_pay: {},
+          },
+        },
+        currency: "USD",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+    },
+    GooglePayOrderCreate: {
+      Request: {
+        payment_method: "wallet",
+        payment_method_type: "google_pay",
+        payment_method_data: {
+          wallet: {
+            google_pay: {},
+          },
+        },
+        currency: "USD",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+    },
+  },
   webhook: {
     TransactionIdConfig: {
       path: "PaymentInformation.References.MerchantReference",
