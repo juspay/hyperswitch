@@ -256,7 +256,7 @@ function createUcsConfigs(globalState, flow, type) {
 }
 
 Cypress.Commands.add("deleteBusinessProfileTest", (globalState) => {
-  const apiKey = globalState.get("apiKey");
+  const adminApiKey = globalState.get("adminApiKey");
   const baseUrl = globalState.get("baseUrl");
   const profileId = globalState.get("profileId");
   const merchantId = globalState.get("merchantId");
@@ -273,7 +273,7 @@ Cypress.Commands.add("deleteBusinessProfileTest", (globalState) => {
     headers: {
       Accept: "application/json",
       "Content-Type": "application/json",
-      "api-key": apiKey,
+      "api-key": adminApiKey,
     },
     failOnStatusCode: false,
   }).then((response) => {
