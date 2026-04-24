@@ -3597,7 +3597,7 @@ checksum = "28dd6caf6059519a65843af8fe2a3ae298b14b80179855aeb4adc2c1934ee619"
 [[package]]
 name = "fred"
 version = "8.0.6"
-source = "git+https://github.com/hrithikesh026/fred.rs?branch=fred-8-tokio-mutex#877c9550d6d68543f9d7f0fd5850292f516821c4"
+source = "git+https://github.com/hrithikesh026/fred.rs?branch=fred-8-tokio-mutex#35a3ff8b25536c2db8c8fd7d77ea7be950946e88"
 dependencies = [
  "arc-swap",
  "async-trait",
