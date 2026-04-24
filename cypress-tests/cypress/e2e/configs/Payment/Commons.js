@@ -1038,6 +1038,24 @@ export const connectorDetails = {
         TRIGGER_SKIP: true,
       },
     }),
+    CreateOrderWallet: getCustomExchange({
+      Request: {
+        payment_method: "wallet",
+        payment_method_data: {
+          wallet: {
+            apple_pay: {
+              token: "PLACEHOLDER_APPLE_PAY_TOKEN",
+            },
+          },
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "processing",
+        },
+      },
+    }),
   },
   real_time_payment_pm: {
     PaymentIntent: getCustomExchange({
