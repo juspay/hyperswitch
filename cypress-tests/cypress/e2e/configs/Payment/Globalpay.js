@@ -916,6 +916,49 @@ export const connectorDetails = {
         },
       },
     },
+    // Manual CIT/MIT flow for iDEAL mandates - redirect cannot be completed in headless
+    ConfirmCITManual: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+      Request: {
+        payment_method: "bank_redirect",
+        payment_method_type: "ideal",
+        payment_method_data: {
+          bank_redirect: {
+            ideal: {
+              bank_name: "ing",
+            },
+          },
+        },
+        billing: billingAddressEurope,
+        mandate_data: singleUseMandateData,
+        setup_future_usage: "off_session",
+        currency: "EUR",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+    },
+    ConfirmMITManual: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+      Request: {
+        payment_method: "bank_redirect",
+        payment_method_type: "ideal",
+        currency: "EUR",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+    },
   },
   pm_list: {
     PmListResponse: {

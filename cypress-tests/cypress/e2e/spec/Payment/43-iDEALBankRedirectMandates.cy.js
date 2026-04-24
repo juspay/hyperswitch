@@ -156,7 +156,7 @@ describe("iDEAL Bank Redirect - Mandates using Payment Method Id flow test", () 
           }
           const data = getConnectorDetails(globalState.get("connectorId"))[
             "bank_redirect_pm"
-          ]["ConfirmCIT"];
+          ]["ConfirmCITManual"];
 
           cy.citForMandatesCallTest(
             fixtures.citConfirmBody,
@@ -180,7 +180,7 @@ describe("iDEAL Bank Redirect - Mandates using Payment Method Id flow test", () 
           }
           const data = getConnectorDetails(globalState.get("connectorId"))[
             "bank_redirect_pm"
-          ]["ConfirmCIT"];
+          ]["ConfirmCITManual"];
 
           cy.captureCallTest(fixtures.captureBody, data, 8000, globalState);
         });
@@ -192,7 +192,7 @@ describe("iDEAL Bank Redirect - Mandates using Payment Method Id flow test", () 
           }
           const data = getConnectorDetails(globalState.get("connectorId"))[
             "bank_redirect_pm"
-          ]["ConfirmCIT"];
+          ]["ConfirmCITManual"];
 
           cy.retrievePaymentCallTest({ globalState, data });
 
@@ -208,7 +208,7 @@ describe("iDEAL Bank Redirect - Mandates using Payment Method Id flow test", () 
           }
           const data = getConnectorDetails(globalState.get("connectorId"))[
             "bank_redirect_pm"
-          ]["ConfirmMIT"];
+          ]["ConfirmMITManual"];
 
           cy.mitUsingPMId(
             fixtures.pmIdConfirmBody,
@@ -231,7 +231,7 @@ describe("iDEAL Bank Redirect - Mandates using Payment Method Id flow test", () 
           }
           const data = getConnectorDetails(globalState.get("connectorId"))[
             "bank_redirect_pm"
-          ]["ConfirmMIT"];
+          ]["ConfirmMITManual"];
 
           cy.retrievePaymentCallTest({ globalState, data });
         });
