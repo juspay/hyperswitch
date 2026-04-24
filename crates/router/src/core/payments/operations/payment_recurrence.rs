@@ -319,13 +319,17 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                 .0
                 .payment_method_billing_address
                 .clone()
-                .map(|decrypted_data| decrypted_data.into_inner().expose())
-                .and_then(|decrypted_value| {
-                    decrypted_value
-                        .parse_value::<hyperswitch_domain_models::address::Address>(
-                            "payment method billing address",
-                        )
-                        .ok()
+                .and_then(|decrypted_data| {
+                    let exposed = decrypted_data.into_inner().expose();
+                    match exposed.parse_value::<
+                        hyperswitch_domain_models::address::Address,
+                    >("payment method billing address") {
+                        Ok(address) => Some(address),
+                        Err(err) => {
+                            router_env::logger::error!(error = ?err, "Failed to parse payment method billing address");
+                            None
+                        }
+                    }
                 })
         });
 
