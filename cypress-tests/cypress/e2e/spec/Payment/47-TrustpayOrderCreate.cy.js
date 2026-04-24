@@ -57,12 +57,7 @@ describe("Trustpay - Order Create Flow Tests", () => {
         "order_create_pm"
       ]["ApplePayOrderCreate"];
 
-      cy.confirmCallTest(
-        fixtures.confirmBody,
-        data,
-        true,
-        globalState
-      );
+      cy.confirmCallTest(fixtures.confirmBody, data, true, globalState);
 
       if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
@@ -132,12 +127,7 @@ describe("Trustpay - Order Create Flow Tests", () => {
         "order_create_pm"
       ]["GooglePayOrderCreate"];
 
-      cy.confirmCallTest(
-        fixtures.confirmBody,
-        data,
-        true,
-        globalState
-      );
+      cy.confirmCallTest(fixtures.confirmBody, data, true, globalState);
 
       if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
