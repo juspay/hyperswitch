@@ -79,21 +79,24 @@ describe("Partner Merchant Identifier Tests", () => {
         }
       });
 
-      cy.step("Retrieve Payment to verify persisted Partner Merchant Identifier", () => {
-        if (!shouldContinue) {
-          cy.task(
-            "cli_log",
-            "Skipping step: Retrieve Payment to verify persisted PMI"
-          );
-          return;
+      cy.step(
+        "Retrieve Payment to verify persisted Partner Merchant Identifier",
+        () => {
+          if (!shouldContinue) {
+            cy.task(
+              "cli_log",
+              "Skipping step: Retrieve Payment to verify persisted PMI"
+            );
+            return;
+          }
+
+          const data = getConnectorDetails(globalState.get("connectorId"))[
+            "card_pm"
+          ]["PartnerMerchantIdentifier"];
+
+          cy.retrievePaymentCallTest({ globalState, data });
         }
-
-        const data = getConnectorDetails(globalState.get("connectorId"))[
-          "card_pm"
-        ]["PartnerMerchantIdentifier"];
-
-        cy.retrievePaymentCallTest({ globalState, data });
-      });
+      );
     });
   });
 
@@ -101,44 +104,47 @@ describe("Partner Merchant Identifier Tests", () => {
     it("Create Payment Intent -> Confirm Payment -> Retrieve Payment (without PMI)", () => {
       let shouldContinue = true;
 
-      cy.step("Create Payment Intent without Partner Merchant Identifier", () => {
-        const baseData = getConnectorDetails(globalState.get("connectorId"))[
-          "card_pm"
-        ]["PaymentIntent"];
+      cy.step(
+        "Create Payment Intent without Partner Merchant Identifier",
+        () => {
+          const baseData = getConnectorDetails(globalState.get("connectorId"))[
+            "card_pm"
+          ]["PaymentIntent"];
 
-        const data = {
-          ...baseData,
-          Request: {
-            ...baseData.Request,
-            billing: {
-              address: {
-                line1: "1467",
-                line2: "Harrison Street",
-                line3: "Harrison Street",
-                city: "San Francisco",
-                state: "California",
-                zip: "94122",
-                country: "US",
-                first_name: "joseph",
-                last_name: "Doe",
+          const data = {
+            ...baseData,
+            Request: {
+              ...baseData.Request,
+              billing: {
+                address: {
+                  line1: "1467",
+                  line2: "Harrison Street",
+                  line3: "Harrison Street",
+                  city: "San Francisco",
+                  state: "California",
+                  zip: "94122",
+                  country: "US",
+                  first_name: "joseph",
+                  last_name: "Doe",
+                },
               },
             },
-          },
-        };
+          };
 
-        const requestBody = { ...fixtures.createPaymentBody };
-        cy.createPaymentIntentTest(
-          requestBody,
-          data,
-          "no_three_ds",
-          "automatic",
-          globalState
-        );
+          const requestBody = { ...fixtures.createPaymentBody };
+          cy.createPaymentIntentTest(
+            requestBody,
+            data,
+            "no_three_ds",
+            "automatic",
+            globalState
+          );
 
-        if (!utils.should_continue_further(data)) {
-          shouldContinue = false;
+          if (!utils.should_continue_further(data)) {
+            shouldContinue = false;
+          }
         }
-      });
+      );
 
       cy.step("Confirm Payment without Partner Merchant Identifier", () => {
         if (!shouldContinue) {
@@ -153,41 +159,44 @@ describe("Partner Merchant Identifier Tests", () => {
         cy.confirmCallTest(fixtures.confirmBody, data, true, globalState);
       });
 
-      cy.step("Retrieve Payment to verify no Partner Merchant Identifier present", () => {
-        if (!shouldContinue) {
-          cy.task(
-            "cli_log",
-            "Skipping step: Retrieve Payment to verify no PMI present"
-          );
-          return;
-        }
+      cy.step(
+        "Retrieve Payment to verify no Partner Merchant Identifier present",
+        () => {
+          if (!shouldContinue) {
+            cy.task(
+              "cli_log",
+              "Skipping step: Retrieve Payment to verify no PMI present"
+            );
+            return;
+          }
 
-        const baseData = getConnectorDetails(globalState.get("connectorId"))[
-          "card_pm"
-        ]["PaymentIntent"];
+          const baseData = getConnectorDetails(globalState.get("connectorId"))[
+            "card_pm"
+          ]["PaymentIntent"];
 
-        const data = {
-          ...baseData,
-          Request: {
-            ...baseData.Request,
-            billing: {
-              address: {
-                line1: "1467",
-                line2: "Harrison Street",
-                line3: "Harrison Street",
-                city: "San Francisco",
-                state: "California",
-                zip: "94122",
-                country: "US",
-                first_name: "joseph",
-                last_name: "Doe",
+          const data = {
+            ...baseData,
+            Request: {
+              ...baseData.Request,
+              billing: {
+                address: {
+                  line1: "1467",
+                  line2: "Harrison Street",
+                  line3: "Harrison Street",
+                  city: "San Francisco",
+                  state: "California",
+                  zip: "94122",
+                  country: "US",
+                  first_name: "joseph",
+                  last_name: "Doe",
+                },
               },
             },
-          },
-        };
+          };
 
-        cy.retrievePaymentCallTest({ globalState, data });
-      });
+          cy.retrievePaymentCallTest({ globalState, data });
+        }
+      );
     });
   });
 
@@ -195,81 +204,87 @@ describe("Partner Merchant Identifier Tests", () => {
     it("Create Payment Intent -> Confirm Payment -> Retrieve Payment (with empty PMI)", () => {
       let shouldContinue = true;
 
-      cy.step("Create Payment Intent with empty partner merchant identifier details", () => {
-        const data = getConnectorDetails(globalState.get("connectorId"))[
-          "card_pm"
-        ]["PartnerMerchantIdentifier"];
+      cy.step(
+        "Create Payment Intent with empty partner merchant identifier details",
+        () => {
+          const data = getConnectorDetails(globalState.get("connectorId"))[
+            "card_pm"
+          ]["PartnerMerchantIdentifier"];
 
-        const modifiedData = {
-          ...data,
-          Request: {
-            ...data.Request,
-            partner_merchant_identifier_details: {},
-          },
-          Response: {
-            status: 200,
-            body: {
-              status: "requires_payment_method",
+          const modifiedData = {
+            ...data,
+            Request: {
+              ...data.Request,
+              partner_merchant_identifier_details: {},
             },
-          },
-        };
+            Response: {
+              status: 200,
+              body: {
+                status: "requires_payment_method",
+              },
+            },
+          };
 
-        const requestBody = { ...fixtures.createPaymentBody };
-        cy.createPaymentIntentTest(
-          requestBody,
-          modifiedData,
-          "no_three_ds",
-          "automatic",
-          globalState
-        );
-
-        if (!utils.should_continue_further(modifiedData)) {
-          shouldContinue = false;
-        }
-      });
-
-      cy.step("Confirm Payment with empty partner merchant identifier details", () => {
-        if (!shouldContinue) {
-          cy.task("cli_log", "Skipping step: Confirm Payment with empty PMI");
-          return;
-        }
-
-        const data = getConnectorDetails(globalState.get("connectorId"))[
-          "card_pm"
-        ]["PartnerMerchantIdentifierConfirm"];
-
-        cy.confirmCallTest(fixtures.confirmBody, data, true, globalState);
-      });
-
-      cy.step("Verify empty partner_merchant_identifier_details returns nulls", () => {
-        if (!shouldContinue) {
-          cy.task(
-            "cli_log",
-            "Skipping step: Verify empty PMI returns nulls"
+          const requestBody = { ...fixtures.createPaymentBody };
+          cy.createPaymentIntentTest(
+            requestBody,
+            modifiedData,
+            "no_three_ds",
+            "automatic",
+            globalState
           );
-          return;
+
+          if (!utils.should_continue_further(modifiedData)) {
+            shouldContinue = false;
+          }
         }
+      );
 
-        const data = getConnectorDetails(globalState.get("connectorId"))[
-          "card_pm"
-        ]["PartnerMerchantIdentifier"];
+      cy.step(
+        "Confirm Payment with empty partner merchant identifier details",
+        () => {
+          if (!shouldContinue) {
+            cy.task("cli_log", "Skipping step: Confirm Payment with empty PMI");
+            return;
+          }
 
-        const modifiedData = {
-          ...data,
-          Request: {
-            ...data.Request,
-            partner_merchant_identifier_details: {},
-          },
-          Response: {
-            status: 200,
-            body: {
-              status: "requires_payment_method",
+          const data = getConnectorDetails(globalState.get("connectorId"))[
+            "card_pm"
+          ]["PartnerMerchantIdentifierConfirm"];
+
+          cy.confirmCallTest(fixtures.confirmBody, data, true, globalState);
+        }
+      );
+
+      cy.step(
+        "Verify empty partner_merchant_identifier_details returns nulls",
+        () => {
+          if (!shouldContinue) {
+            cy.task("cli_log", "Skipping step: Verify empty PMI returns nulls");
+            return;
+          }
+
+          const data = getConnectorDetails(globalState.get("connectorId"))[
+            "card_pm"
+          ]["PartnerMerchantIdentifier"];
+
+          const modifiedData = {
+            ...data,
+            Request: {
+              ...data.Request,
+              partner_merchant_identifier_details: {},
             },
-          },
-        };
+            Response: {
+              status: 200,
+              body: {
+                status: "requires_payment_method",
+              },
+            },
+          };
 
-        cy.retrievePaymentCallTest({ globalState, data: modifiedData });
-      });
+          cy.retrievePaymentCallTest({ globalState, data: modifiedData });
+        }
+      );
     });
   });
 });
