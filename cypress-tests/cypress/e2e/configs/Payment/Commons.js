@@ -2628,5 +2628,14 @@ export const connectorDetails = {
       },
       Response: blockedPaymentErrorBodyForBinUnavailable,
     }),
+    MITWithLimitedCardData: getCustomExchange({
+      Request: {},
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    }),
   },
 };
