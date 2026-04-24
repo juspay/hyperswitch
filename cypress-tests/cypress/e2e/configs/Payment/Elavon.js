@@ -8,25 +8,6 @@ const successfulNo3DSCardDetails = {
   card_cvc: "123",
 };
 
-const singleUseMandateData = {
-  customer_acceptance: customerAcceptance,
-  mandate_type: {
-    single_use: {
-      amount: 6000,
-      currency: "USD",
-    },
-  },
-};
-
-const multiUseMandateData = {
-  customer_acceptance: customerAcceptance,
-  mandate_type: {
-    multi_use: {
-      amount: 6000,
-      currency: "USD",
-    },
-  },
-};
 export const connectorDetails = {
   card_pm: {
     PaymentIntent: {

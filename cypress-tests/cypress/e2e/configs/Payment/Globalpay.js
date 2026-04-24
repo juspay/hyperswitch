@@ -21,31 +21,8 @@ const successfulThreeDSTestCardDetails = {
 const failedNo3DSCardDetails = {
   ...successfulNo3DSCardDetails,
   card_number: "4242420000000091", // Generic decline card
-};
+ };
 
-// Single-use mandate data structure
-const singleUseMandateData = {
-  customer_acceptance: customerAcceptance,
-  mandate_type: {
-    single_use: {
-      amount: 8000,
-      currency: "EUR",
-    },
-  },
-};
-
-// Multi-use mandate data structure
-const multiUseMandateData = {
-  customer_acceptance: customerAcceptance,
-  mandate_type: {
-    multi_use: {
-      amount: 8000,
-      currency: "EUR",
-    },
-  },
-};
-
-// Payment method data for non-3DS card transactions
 const payment_method_data_no3ds = {
   card: {
     last4: "1111",

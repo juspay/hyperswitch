@@ -39,26 +39,6 @@ const failedNo3DSCardDetails = {
   card_cvc: "123",
 };
 
-const singleUseMandateData = {
-  customer_acceptance: customerAcceptance,
-  mandate_type: {
-    single_use: {
-      amount: 8000,
-      currency: "USD",
-    },
-  },
-};
-
-const multiUseMandateData = {
-  customer_acceptance: customerAcceptance,
-  mandate_type: {
-    multi_use: {
-      amount: 8000,
-      currency: "USD",
-    },
-  },
-};
-
 const payment_method_data_3ds = {
   card: {
     last4: "3155",
