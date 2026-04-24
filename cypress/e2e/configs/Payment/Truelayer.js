@@ -3,7 +3,7 @@ import { getCustomExchange } from "./Modifiers";
 
 export const connectorDetails = {
   bank_redirect_pm: {
-    PaymentIntent: (_paymentMethodType) =>
+    PaymentIntent: (paymentMethodType) =>
       getCustomExchange({
         Request: {
           currency: "GBP",
