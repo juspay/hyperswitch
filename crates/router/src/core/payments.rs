@@ -16,7 +16,6 @@ pub mod session_operation;
 pub mod tokenization;
 pub mod transformers;
 pub mod types;
-#[cfg(feature = "v2")]
 pub mod vault_session;
 #[cfg(feature = "olap")]
 use std::collections::HashMap;
@@ -1384,6 +1383,19 @@ where
                             &connectors,
                         )
                         .await?;
+
+                    vault_session::populate_vault_session_details(
+                        state,
+                        req_state.clone(),
+                        &customer,
+                        platform,
+                        &operation,
+                        &business_profile,
+                        &mut payment_data,
+                        header_payload.clone(),
+                    )
+                    .await?;
+
                     Box::pin(call_multiple_connectors_service(
                         state,
                         platform.get_processor(),
@@ -7448,7 +7460,8 @@ where
     dyn api::Connector:
         services::api::ConnectorIntegration<F, Req, router_types::PaymentsResponseData>,
 {
-    let connector_name = payment_data.get_payment_attempt().connector.clone();
+    let connector_name = merchant_connector_account.get_connector_name();
+
     match connector_name {
         Some(connector_name) => {
             let connector = api::ConnectorData::get_connector_by_name(
@@ -8722,6 +8735,7 @@ where
     pub card_testing_guard_data:
         Option<hyperswitch_domain_models::card_testing_guard_data::CardTestingGuardData>,
     pub vault_operation: Option<domain_payments::VaultOperation>,
+    pub vault_session_details: Option<api::VaultSessionDetails>,
     pub threeds_method_comp_ind: Option<api_models::payments::ThreeDsCompletionIndicator>,
     pub whole_connector_response: Option<Secret<String>>,
     pub is_manual_retry_enabled: Option<bool>,
@@ -12271,7 +12285,6 @@ pub trait OperationSessionGetters<F> {
         &self,
     ) -> Option<HashMap<enums::PaymentMethodType, domain::PreRoutingConnectorChoice>>;
 
-    #[cfg(feature = "v2")]
     fn get_optional_external_vault_session_details(&self) -> Option<api::VaultSessionDetails>;
     #[cfg(feature = "v1")]
     fn get_click_to_pay_service_details(&self) -> Option<&api_models::payments::CtpServiceDetails>;
@@ -12355,7 +12368,6 @@ pub trait OperationSessionSetters<F> {
 
     fn set_connector_response_reference_id(&mut self, reference_id: Option<String>);
 
-    #[cfg(feature = "v2")]
     fn set_vault_session_details(
         &mut self,
         external_vault_session_details: Option<api::VaultSessionDetails>,
@@ -12540,6 +12552,10 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentData<F> {
         self.client_session_id.clone()
     }
 
+    fn get_optional_external_vault_session_details(&self) -> Option<api::VaultSessionDetails> {
+        self.vault_session_details.clone()
+    }
+
     // #[cfg(feature = "v2")]
     // fn get_capture_method(&self) -> Option<enums::CaptureMethod> {
     //     Some(self.payment_intent.capture_method)
@@ -12713,6 +12729,13 @@ impl<F: Clone> OperationSessionSetters<F> for PaymentData<F> {
 
     fn set_vault_operation(&mut self, vault_operation: domain_payments::VaultOperation) {
         self.vault_operation = Some(vault_operation);
+    }
+
+    fn set_vault_session_details(
+        &mut self,
+        vault_session_details: Option<api::VaultSessionDetails>,
+    ) {
+        self.vault_session_details = vault_session_details;
     }
 
     fn set_routing_approach_in_attempt(
