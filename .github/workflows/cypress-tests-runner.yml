@@ -16,10 +16,10 @@ concurrency:
 env:
   CARGO_INCREMENTAL: 0
   CARGO_NET_RETRY: 10
-  MANDATORY_PAYMENTS_CONNECTORS_BATCH_1: "cybersource stripe authorizedotnet cashtocode loonio checkout"
+  MANDATORY_PAYMENTS_CONNECTORS_BATCH_1: "cybersource stripe authorizedotnet cashtocode loonio zift"
   MANDATORY_PAYMENTS_CONNECTORS_BATCH_2: "adyen nexixpay nmi fiuu finix airwallex"
   OPTIONAL_PAYMENTS_CONNECTORS_BATCH_1: "worldpay braintree cryptopay paypal worldpayxml volt"
-  OPTIONAL_PAYMENTS_CONNECTORS_BATCH_2: "gigadat zift redsys novalnet noon"
+  OPTIONAL_PAYMENTS_CONNECTORS_BATCH_2: "gigadat checkout redsys novalnet noon"
   ALPHA_PAYMENTS_CONNECTORS: "celero silverflow"
   PLATFORM_CONNECTORS: "stripe cybersource"
   RUST_BACKTRACE: short
