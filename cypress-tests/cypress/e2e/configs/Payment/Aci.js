@@ -714,6 +714,60 @@ export const connectorDetails = {
         },
       },
     },
+    PaymentIntentOffSession: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+      Request: {
+        currency: "EUR",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+        },
+      },
+    },
+    ConfirmCIT: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+      Request: {
+        payment_method: "bank_redirect",
+        payment_method_type: "ideal",
+        payment_method_data: {
+          bank_redirect: {
+            ideal: {
+              bank_name: "ing",
+            },
+          },
+        },
+        billing: billingAddress,
+        mandate_data: null,
+        setup_future_usage: "off_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+    },
+    ConfirmMIT: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+      Request: {
+        payment_method: "bank_redirect",
+        payment_method_type: "ideal",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+    },
     Przelewy24: {
       Request: {
         payment_method: "bank_redirect",

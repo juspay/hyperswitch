@@ -866,6 +866,63 @@ export const connectorDetails = {
         },
       },
     }),
+    PaymentIntentOffSession: getCustomExchange({
+      Request: {
+        currency: "EUR",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+        },
+      },
+    }),
+    ConfirmCIT: getCustomExchange({
+      Request: {
+        payment_method: "bank_redirect",
+        payment_method_type: "ideal",
+        payment_method_data: {
+          bank_redirect: {
+            ideal: {
+              bank_name: "ing",
+            },
+          },
+        },
+        billing: {
+          address: {
+            line1: "1467",
+            line2: "Harrison Street",
+            line3: "Harrison Street",
+            city: "San Fransico",
+            state: "California",
+            zip: "94122",
+            country: "NL",
+            first_name: "john",
+            last_name: "doe",
+          },
+        },
+        mandate_data: null,
+        setup_future_usage: "off_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+    }),
+    ConfirmMIT: getCustomExchange({
+      Request: {
+        payment_method: "bank_redirect",
+        payment_method_type: "ideal",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+    }),
     Interac: getCustomExchange({
       Request: {
         payment_method: "bank_redirect",
