@@ -929,6 +929,9 @@ export const connectorDetails = {
       },
     },
     ConfirmMIT: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
       Request: {
         payment_method: "bank_redirect",
         payment_method_type: "ideal",
