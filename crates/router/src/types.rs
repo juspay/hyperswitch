@@ -705,6 +705,8 @@ impl Capturable for PaymentsExtendAuthorizationData {
     }
 }
 
+impl Capturable for ExternalVaultProxyPaymentsData {}
+
 pub struct AddAccessTokenResult {
     pub access_token_result: Result<Option<AccessToken>, ErrorResponse>,
     pub connector_supports_access_token: bool,

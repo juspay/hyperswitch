@@ -716,6 +716,13 @@ impl Authenticate for api_models::payments::ProxyPaymentsRequest {}
 impl Authenticate for api_models::payments::ExternalVaultProxyPaymentsRequest {}
 
 #[cfg(feature = "v1")]
+impl Authenticate for api_models::payments::ExternalVaultProxyConfirmRequest {
+    fn should_return_raw_response(&self) -> Option<bool> {
+        self.return_raw_connector_response
+    }
+}
+
+#[cfg(feature = "v1")]
 impl Authenticate for api_models::payments::PaymentsRequest {
     fn get_client_secret(&self) -> Option<&String> {
         self.client_secret.as_ref()

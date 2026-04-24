@@ -201,6 +201,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsCancelPo
             is_l2_l3_enabled: false,
             external_authentication_data: None,
             client_session_id: None,
+            external_vault_pmd: None,
         };
 
         let get_trackers_response = operations::GetTrackerResponse {
