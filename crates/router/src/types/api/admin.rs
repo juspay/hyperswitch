@@ -258,7 +258,20 @@ impl ForeignTryFrom<domain::Profile> for ProfileResponse {
             is_debit_routing_enabled: Some(item.is_debit_routing_enabled),
             merchant_business_country: item.merchant_business_country,
             is_pre_network_tokenization_enabled: item.is_pre_network_tokenization_enabled,
-            acquirer_configs: ProfileAcquirerConfigs {
+            acquirer_configs: item.acquirer_config_map.clone().map(|config_map_val| {
+                let mut configs = Vec::new();
+                let default_config_id = config_map_val.default_acquirer_config;
+                for (acquirer_id, config_list) in config_map_val.configs {
+                    let is_default = default_config_id == Some(acquirer_id.clone());
+                    for config in config_list {
+                        configs.push(api_models::profile_acquirer::ProfileAcquirerResponse::from(
+                            (acquirer_id.clone(), &profile_id, Some(&config), is_default),
+                        ));
+                    }
+                }
+                configs
+            }),
+            acquirer_config_bucket: ProfileAcquirerConfigs {
                 acquirer_config_map: item.acquirer_config_map.clone(),
                 profile_id: profile_id.clone(),
             }

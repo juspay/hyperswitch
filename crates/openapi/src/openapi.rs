@@ -993,6 +993,8 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::profile_acquirer::ProfileAcquirerCreate,
         api_models::profile_acquirer::ProfileAcquirerUpdate,
         api_models::profile_acquirer::ProfileAcquirerResponse,
+        api_models::profile_acquirer::ProfileAcquirerConfigsResponse,
+        api_models::profile_acquirer::AcquirerBucketConfigResponse,
         euclid::frontend::dir::enums::CustomerDevicePlatform,
         euclid::frontend::dir::enums::CustomerDeviceType,
         euclid::frontend::dir::enums::CustomerDeviceDisplaySize,

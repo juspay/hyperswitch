@@ -8696,6 +8696,56 @@
           }
         }
       },
+      "AcquirerBucketConfigResponse": {
+        "type": "object",
+        "required": [
+          "network"
+        ],
+        "properties": {
+          "acquirer_assigned_merchant_id": {
+            "type": "string",
+            "description": "The merchant id assigned by the acquirer",
+            "example": "M123456789",
+            "nullable": true
+          },
+          "acquirer_merchant_name": {
+            "type": "string",
+            "description": "Merchant name",
+            "example": "NewAge Retailer",
+            "nullable": true
+          },
+          "network": {
+            "type": "string",
+            "description": "Network provider",
+            "example": "VISA"
+          },
+          "acquirer_bin": {
+            "type": "string",
+            "description": "Acquirer bin",
+            "example": "456789",
+            "nullable": true
+          },
+          "acquirer_ica": {
+            "type": "string",
+            "description": "Acquirer ica provided by acquirer",
+            "example": "401288",
+            "nullable": true
+          },
+          "acquirer_fraud_rate": {
+            "type": "number",
+            "format": "double",
+            "description": "Fraud rate for the particular acquirer configuration",
+            "example": 0.01,
+            "nullable": true
+          },
+          "acquirer_country_code": {
+            "type": "string",
+            "description": "Acquirer country code",
+            "example": "US",
+            "nullable": true
+          }
+        }
+      },
       "AcquirerConfig": {
         "type": "object",
         "description": "Acquirer configuration",
@@ -36337,6 +36387,30 @@
           "accommodation"
         ]
       },
+      "ProfileAcquirerConfigsResponse": {
+        "type": "object",
+        "required": [
+          "configs"
+        ],
+        "properties": {
+          "default_acquirer_config": {
+            "type": "string",
+            "description": "The default bucket for acquirer configurations",
+            "example": "pro_acq_LCRdERuylQvNQ4qh3QE0",
+            "nullable": true
+          },
+          "configs": {
+            "type": "object",
+            "description": "Flattened map of acquirer configuration buckets",
+            "additionalProperties": {
+              "type": "array",
+              "items": {
+                "$ref": "#/components/schemas/AcquirerBucketConfigResponse"
+              }
+            }
+          }
+        }
+      },
       "ProfileAcquirerCreate": {
         "type": "object",
         "required": [
@@ -37123,8 +37197,19 @@
             "example": false
           },
           "acquirer_configs": {
-            "type": "object",
-            "description": "Acquirer configs",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProfileAcquirerResponse"
+            },
+            "description": "Acquirer configs (maintained as flattened array for backward compatibility)",
+            "nullable": true
+          },
+          "acquirer_config_bucket": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ProfileAcquirerConfigsResponse"
+              }
+            ],
             "nullable": true
           },
           "is_iframe_redirection_enabled": {

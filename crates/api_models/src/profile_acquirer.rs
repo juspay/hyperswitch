@@ -96,6 +96,7 @@ impl common_utils::events::ApiEventMetric for AcquirerBucketConfigResponse {}
 #[derive(Clone, Debug, serde::Serialize, utoipa::ToSchema)]
 pub struct ProfileAcquirerConfigsResponse {
     /// The default bucket for acquirer configurations
+    #[schema(value_type= Option<String>,example = "pro_acq_LCRdERuylQvNQ4qh3QE0")]
     pub default_acquirer_config: Option<common_utils::id_type::ProfileAcquirerId>,
     /// Flattened map of acquirer configuration buckets
     pub configs: std::collections::HashMap<

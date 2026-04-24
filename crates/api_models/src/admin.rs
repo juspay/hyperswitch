@@ -22,7 +22,7 @@ use super::payments::AddressDetails;
 use crate::routing;
 use crate::{
     consts::{MAX_ORDER_FULFILLMENT_EXPIRY, MIN_ORDER_FULFILLMENT_EXPIRY},
-    enums as api_enums, payment_methods,
+    enums as api_enums, payment_methods, profile_acquirer,
 };
 
 #[derive(Clone, Debug, Deserialize, ToSchema, Serialize)]
@@ -2689,9 +2689,13 @@ pub struct ProfileResponse {
     #[schema(default = false, example = false)]
     pub is_pre_network_tokenization_enabled: bool,
 
-    /// Acquirer configs
-    #[schema(value_type = Option<Object>)]
-    pub acquirer_configs: Option<crate::profile_acquirer::ProfileAcquirerConfigsResponse>,
+    /// Acquirer configs (maintained as flattened array for backward compatibility)
+    #[schema(value_type = Option<Vec<ProfileAcquirerResponse>>)]
+    pub acquirer_configs: Option<Vec<profile_acquirer::ProfileAcquirerResponse>>,
+
+    /// Acquirer config buckets: map of acquirer profile configurations
+    #[schema(value_type = Option<ProfileAcquirerConfigsResponse>)]
+    pub acquirer_config_bucket: Option<profile_acquirer::ProfileAcquirerConfigsResponse>,
 
     /// Indicates if the redirection has to open in the iframe
     #[schema(example = false)]
