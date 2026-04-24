@@ -244,7 +244,7 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "requires_customer_action",
+          status: "requires_capture",
           setup_future_usage: "on_session",
           payment_method_data: payment_method_data_3ds,
         },
@@ -819,6 +819,23 @@ export const connectorDetails = {
         },
       },
     },
+    CompleteAuthorize: {
+      Request: {
+        redirect_response: {
+          payload: {
+            PaRes: "sample_pares_value",
+            MD: "sample_md_value",
+          },
+        },
+        threeds_method_comp_ind: "Y",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_capture",
+        },
+      },
+    },
     ManualRetryPaymentDisabled: {
       Request: {
         payment_method: "card",
@@ -1090,6 +1107,89 @@ export const connectorDetails = {
           status: "requires_customer_action",
         },
       },
+    },
+    BancontactCard: {
+      Request: {
+        payment_method: "bank_redirect",
+        payment_method_type: "bancontact_card",
+        payment_method_data: {
+          bank_redirect: {
+            bancontact_card: {
+              card_number: "4874970686672022",
+              card_exp_month: "12",
+              card_exp_year: "26",
+              card_holder_name: "Test Customer",
+            },
+          },
+        },
+        billing: {
+          address: {
+            first_name: "Test",
+            last_name: "Customer",
+          },
+          email: "test@example.com",
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+    },
+    BancontactCardPMIDMandateAutoCapture: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+      Request: {
+        payment_method: "bank_redirect",
+        payment_method_type: "bancontact_card",
+        payment_method_data: {
+          bank_redirect: {
+            bancontact_card: {
+              card_number: "4874970686672022",
+              card_exp_month: "12",
+              card_exp_year: "26",
+              card_holder_name: "Test Customer",
+            },
+          },
+        },
+        mandate_data: null,
+        customer_acceptance: customerAcceptance,
+      },
+    },
+    BancontactCardPMIDMandateManualCapture: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+      Request: {
+        payment_method: "bank_redirect",
+        payment_method_type: "bancontact_card",
+        payment_method_data: {
+          bank_redirect: {
+            bancontact_card: {
+              card_number: "4874970686672022",
+              card_exp_month: "12",
+              card_exp_year: "26",
+              card_holder_name: "Test Customer",
+            },
+          },
+        },
+        mandate_data: null,
+        customer_acceptance: customerAcceptance,
+      },
+    },
+    BancontactCardPMIDMITAutoCapture: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+      Request: {},
+    },
+    BancontactCardPMIDMITManualCapture: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+      Request: {},
     },
   },
   pm_list: {
