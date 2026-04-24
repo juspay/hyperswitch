@@ -141,6 +141,45 @@ export const connectorDetails = {
         },
       },
     },
+    PostAuthPaymentIntent: {
+      Request: {
+        currency: "USD",
+        authentication_type: "three_ds",
+        capture_method: "automatic",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+        },
+      },
+    },
+    PostAuthConfirm: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulThreeDSTestCardDetails,
+        },
+        currency: "USD",
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+    },
+    PostAuthCompleteAuthorize: {
+      Request: {},
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    },
     No3DSManualCapture: {
       Request: {
         payment_method: "card",

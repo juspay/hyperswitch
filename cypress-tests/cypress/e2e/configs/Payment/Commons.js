@@ -1136,6 +1136,45 @@ export const connectorDetails = {
         setup_future_usage: "on_session",
       },
     }),
+    PostAuthPaymentIntent: getCustomExchange({
+      Request: {
+        currency: "USD",
+        authentication_type: "three_ds",
+        capture_method: "automatic",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+        },
+      },
+    }),
+    PostAuthConfirm: getCustomExchange({
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulThreeDSTestCardDetails,
+        },
+        currency: "USD",
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+    }),
+    PostAuthCompleteAuthorize: getCustomExchange({
+      Request: {},
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    }),
     SessionToken: {
       Response: {
         status: 200,

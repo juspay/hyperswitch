@@ -226,9 +226,57 @@ function createUcsConfigs(globalState, flow, type) {
                     return cy.task(
                       "cli_log",
                       `Failed configs: ${JSON.stringify(failedConfigs)}`
-                    );
-                  }
-                });
+        );
+      }
+    });
+  });
+});
+
+Cypress.Commands.add(
+  "completeAuthorizeCallTest",
+  (requestBody, data, globalState) => {
+    const {
+      Configs: configs = {},
+      Request: reqData,
+      Response: resData,
+    } = data || {};
+
+    const configInfo = execConfig(validateConfig(configs));
+    const paymentId = globalState.get("paymentID");
+    const profileId = globalState.get(`${configInfo.profilePrefix}Id`);
+
+    requestBody.profile_id = profileId;
+
+    for (const key in reqData) {
+      requestBody[key] = reqData[key];
+    }
+
+    cy.request({
+      method: "POST",
+      url: `${globalState.get("baseUrl")}/payments/${paymentId}/complete_authorize`,
+      headers: {
+        "Content-Type": "application/json",
+        "api-key": globalState.get("apiKey"),
+      },
+      failOnStatusCode: false,
+      body: requestBody,
+    }).then((response) => {
+      logRequestId(response.headers["x-request-id"]);
+      storeRequestId(response.headers["x-request-id"], globalState);
+      cy.wrap(response).then(() => {
+        expect(response.headers["content-type"]).to.include("application/json");
+        if (response.body.capture_method !== undefined) {
+          expect(response.body.payment_id).to.equal(paymentId);
+          for (const key in resData.body) {
+            expect(resData.body[key]).to.equal(response.body[key]);
+          }
+        } else {
+          defaultErrorHandler(response, resData);
+        }
+      });
+    });
+  }
+);
             }
 
             const currentFlow = flows[index];
