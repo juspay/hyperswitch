@@ -906,9 +906,6 @@ export const connectorDetails = {
       },
     },
     ConfirmMIT: {
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
       Request: {
         payment_method: "bank_redirect",
         payment_method_type: "ideal",
@@ -921,7 +918,6 @@ export const connectorDetails = {
         },
       },
     },
-    // Manual CIT/MIT flow for iDEAL mandates - redirect cannot be completed in headless
     ConfirmCITManual: {
       Configs: {
         TRIGGER_SKIP: true,
@@ -949,9 +945,6 @@ export const connectorDetails = {
       },
     },
     ConfirmMITManual: {
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
       Request: {
         payment_method: "bank_redirect",
         payment_method_type: "ideal",
@@ -961,6 +954,17 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "requires_customer_action",
+        },
+      },
+    },
+    Capture: {
+      Request: {
+        amount_to_capture: 10000,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
         },
       },
     },

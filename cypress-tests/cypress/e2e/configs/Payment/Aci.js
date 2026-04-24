@@ -729,9 +729,6 @@ export const connectorDetails = {
       },
     },
     ConfirmCIT: {
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
       Request: {
         payment_method: "bank_redirect",
         payment_method_type: "ideal",
@@ -743,7 +740,6 @@ export const connectorDetails = {
           },
         },
         billing: billingAddress,
-        mandate_data: null,
         setup_future_usage: "off_session",
         currency: "EUR",
       },
@@ -755,9 +751,6 @@ export const connectorDetails = {
       },
     },
     ConfirmMIT: {
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
       Request: {
         payment_method: "bank_redirect",
         payment_method_type: "ideal",
@@ -767,6 +760,53 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "requires_customer_action",
+        },
+      },
+    },
+    ConfirmCITManual: {
+      Request: {
+        payment_method: "bank_redirect",
+        payment_method_type: "ideal",
+        payment_method_data: {
+          bank_redirect: {
+            ideal: {
+              bank_name: "ing",
+            },
+          },
+        },
+        billing: billingAddress,
+        setup_future_usage: "off_session",
+        capture_method: "manual",
+        currency: "EUR",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+    },
+    ConfirmMITManual: {
+      Request: {
+        payment_method: "bank_redirect",
+        payment_method_type: "ideal",
+        currency: "EUR",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+    },
+    Capture: {
+      Request: {
+        amount_to_capture: 10000,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
         },
       },
     },
