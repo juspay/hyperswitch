@@ -935,6 +935,7 @@ export const connectorDetails = {
         billing: billingAddressEurope,
         mandate_data: singleUseMandateData,
         setup_future_usage: "off_session",
+        capture_method: "manual",
         currency: "EUR",
       },
       Response: {
