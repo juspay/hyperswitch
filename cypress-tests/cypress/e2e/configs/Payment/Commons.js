@@ -903,6 +903,7 @@ export const connectorDetails = {
         },
         mandate_data: null,
         setup_future_usage: "off_session",
+        currency: "EUR",
       },
       Response: {
         status: 200,
@@ -915,6 +916,7 @@ export const connectorDetails = {
       Request: {
         payment_method: "bank_redirect",
         payment_method_type: "ideal",
+        currency: "EUR",
       },
       Response: {
         status: 200,
