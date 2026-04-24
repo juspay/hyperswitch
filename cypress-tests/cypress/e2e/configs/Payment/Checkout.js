@@ -720,10 +720,10 @@ export const connectorDetails = {
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
-        metadata: {
-          order_tax_amount: 500,
-          shipping_cost: 100,
-          order_po_number: "PO-12345",
+        order_tax_amount: 500,
+        shipping_cost: 100,
+        order_details: {
+          po_number: "PO-12345",
         },
         customer_acceptance: null,
         setup_future_usage: "on_session",

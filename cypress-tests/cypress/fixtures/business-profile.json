@@ -1,4 +1,6 @@
 {
+  "_comment": "Business profile fixture. Note: is_l2_l3_enabled enables Level 2/Level 3 data processing for enhanced transaction reporting. This is required for L2/L3 payment tests.",
+
   "bpCreate": {
     "profile_name": "default"
   },

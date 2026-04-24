@@ -15,7 +15,7 @@ describe("L2/L3 Data Processing Tests", () => {
     cy.task("setGlobalState", globalState.data);
   });
 
-  context("L2/L3 Data - Create + Confirm Flow", () => {
+  context("L2/L3 Data - Intent+Confirm Flow", () => {
     it("Update Business Profile (L2/L3 enabled) -> Create Payment Intent -> Payment Methods Call -> Confirm Payment with L2/L3 -> Retrieve Payment", () => {
       let shouldContinue = true;
 
@@ -87,11 +87,24 @@ describe("L2/L3 Data Processing Tests", () => {
     });
   });
 
-  context("L2/L3 Data - Create+Confirm Flow", () => {
-    it("Create and Confirm Payment with L2/L3 -> Retrieve Payment", () => {
+  context("L2/L3 Data - Negative Test (Feature Disabled)", () => {
+    it("Attempt L2/L3 payment WITHOUT is_l2_l3_enabled -> Should process without L2/L3 data", () => {
       let shouldContinue = true;
 
-      cy.step("Create and Confirm Payment", () => {
+      cy.step("Update Business Profile (L2/L3 disabled)", () => {
+        // Create a profile update payload with L2/L3 disabled
+        const bpDisabled = {
+          is_connector_agnostic_mit_enabled: true,
+          collect_shipping_details_from_wallet_connector: true,
+          collect_billing_details_from_wallet_connector: true,
+          always_collect_billing_details_from_wallet_connector: true,
+          always_collect_shipping_details_from_wallet_connector: true,
+          is_l2_l3_enabled: false,
+        };
+        cy.businessProfileUpdate(bpDisabled, globalState);
+      });
+
+      cy.step("Create and Confirm Payment with L2/L3 fields", () => {
         const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["L2L3Data"];
@@ -109,7 +122,7 @@ describe("L2/L3 Data Processing Tests", () => {
         }
       });
 
-      cy.step("Retrieve Payment", () => {
+      cy.step("Retrieve Payment and verify", () => {
         if (!shouldContinue) {
           cy.task("cli_log", "Skipping step: Retrieve Payment");
           return;

@@ -1,6 +1,15 @@
 // This file is the default. To override, add to connector.js
 import { getCurrency, getCustomExchange } from "./Modifiers";
 
+// L2/L3 Data Processing Constants
+// Used by connectors supporting Level 2/Level 3 enhanced transaction data
+export const L2L3_CONSTANTS = {
+  AMOUNT: 6000,
+  TAX_AMOUNT: 500,
+  SHIPPING_COST: 100,
+  PO_NUMBER: "PO-12345",
+};
+
 export const blockedPaymentErrorBodyForIssuingCountry = {
   status: 200,
   expectBlockedPayment: true,
