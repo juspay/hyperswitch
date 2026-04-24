@@ -16,22 +16,34 @@ schema = { type = "string" }
 description = "Organization identifier"
 change_reason = "Initial setup"
 
-[dimensions.merchant_id]
+[dimensions.provider_merchant_id]
 position = 2
 schema = { type = "string" }
-description = "Merchant identifier"
+description = "Provider merchant identifier (hyperswitch merchant id)"
+change_reason = "Initial setup"
+
+[dimensions.processor_merchant_id]
+position = 3
+schema = { type = "string" }
+description = "Processor merchant identifier (connector-side merchant id)"
 change_reason = "Initial setup"
 
 [dimensions.profile_id]
-position = 3
+position = 4
 schema = { type = "string" }
 description = "Business profile identifier"
 change_reason = "Initial setup"
 
 [dimensions.connector]
-position = 4
+position = 5
 schema = { type = "string" }
 description = "Payment connector identifier (e.g. stripe, adyen)"
+change_reason = "Initial setup"
+
+[dimensions.payout_retry_type]
+position = 6
+schema = { type = "string" }
+description = "Type of payout retry (single_connector or multi_connector)"
 change_reason = "Initial setup"
 
 [default-configs.requires_cvv]
@@ -59,5 +71,65 @@ frequencies = [[300, 5]]
 value = true
 schema = { type = "boolean" }
 description = "Whether client session validation is enabled for payments"
+change_reason = "Initial setup"
+
+[default-configs.should_call_gsm]
+value = false
+schema = { type = "boolean" }
+description = "Whether to call GSM (Global Status Mapping) for auto-retries on payment failure"
+change_reason = "Initial setup"
+
+[default-configs.should_perform_eligibility]
+value = false
+schema = { type = "boolean" }
+description = "Whether the SDK should perform an eligibility check before confirming payment"
+change_reason = "Initial setup"
+
+[default-configs.should_enable_mit_with_limited_card_data]
+value = false
+schema = { type = "boolean" }
+description = "Whether to allow merchant-initiated transactions (MIT) with limited card data"
+change_reason = "Initial setup"
+
+[default-configs.should_store_eligibility_check_data_for_authentication]
+value = false
+schema = { type = "boolean" }
+description = "Whether to store eligibility check data during authentication"
+change_reason = "Initial setup"
+
+[default-configs.enable_extended_card_bin]
+value = false
+schema = { type = "boolean" }
+description = "Whether to use extended card BIN (8-digit) for payment method data"
+change_reason = "Initial setup"
+
+[default-configs.max_auto_payout_retries]
+value = 0
+schema = { type = "integer", minimum = 0, maximum = 4294967295 }
+description = "Maximum auto payout retries, differentiated by payout_retry_type dimension (single_connector or multi_connector)"
+change_reason = "Initial setup"
+
+[default-configs.gsm_payout_call]
+value = false
+schema = { type = "boolean" }
+description = "Whether to call GSM for payout retries"
+change_reason = "Initial setup"
+
+[default-configs.should_disable_vault_tokenization]
+value = false
+schema = { type = "boolean" }
+description = "Whether to disable vault tokenization for a merchant"
+change_reason = "Initial setup"
+
+[default-configs.should_call_pm_modular_service]
+value = false
+schema = { type = "boolean" }
+description = "Whether to call the PM modular service for an organization"
+change_reason = "Initial setup"
+
+[default-configs.should_return_raw_payment_method_details]
+value = false
+schema = { type = "boolean" }
+description = "Whether to return raw payment method details (v2 only)"
 change_reason = "Initial setup"
 

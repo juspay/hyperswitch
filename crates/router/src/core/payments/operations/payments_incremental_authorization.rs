@@ -1,6 +1,9 @@
 use std::marker::PhantomData;
 
-use api_models::{enums::FrmSuggestion, payments::PaymentsIncrementalAuthorizationRequest};
+use api_models::{
+    enums::FrmSuggestion,
+    payments::{MandateTransactionType, PaymentsIncrementalAuthorizationRequest},
+};
 use async_trait::async_trait;
 use common_utils::errors::CustomResult;
 use diesel_models::authorization::AuthorizationNew;
@@ -10,7 +13,7 @@ use router_env::{instrument, tracing};
 use super::{BoxedOperation, Domain, GetTracker, Operation, UpdateTracker, ValidateRequest};
 use crate::{
     core::{
-        configs::dimension_state::DimensionsWithMerchantIdAndProfileId,
+        configs::dimension_state,
         errors::{self, RouterResult, StorageErrorExt},
         payments::{
             self, helpers, operations, CustomerDetails, IncrementalAuthorizationDetails,
@@ -51,6 +54,7 @@ impl<F: Send + Clone + Sync>
         #[cfg(feature = "pm_modular")] _payment_method_wrapper: Option<
             operations::PaymentMethodWithRawData,
         >,
+        _dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
     ) -> RouterResult<
         operations::GetTrackerResponse<
             'a,
@@ -213,6 +217,7 @@ impl<F: Clone + Sync>
         mut payment_data: payments::PaymentData<F>,
         _frm_suggestion: Option<FrmSuggestion>,
         _header_payload: hyperswitch_domain_models::payments::HeaderPayload,
+        _dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
     ) -> RouterResult<(
         PaymentIncrementalAuthorizationOperation<'b, F>,
         payments::PaymentData<F>,
@@ -330,7 +335,8 @@ impl<F: Clone + Send + Sync>
         request: Option<CustomerDetails>,
         provider: &domain::Provider,
         _initiator: Option<&domain::Initiator>,
-        _dimensions: DimensionsWithMerchantIdAndProfileId,
+        _dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
+        _mandate_type: Option<MandateTransactionType>,
     ) -> CustomResult<
         (
             BoxedOperation<

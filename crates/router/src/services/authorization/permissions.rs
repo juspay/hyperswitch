@@ -71,34 +71,6 @@ generate_permissions! {
             scopes: [Read, Write],
             entities: [Profile, Merchant]
         },
-        ReconToken: {
-            scopes: [Read],
-            entities: [Merchant]
-        },
-        ReconFiles: {
-            scopes: [Read, Write],
-            entities: [Merchant]
-        },
-        ReconAndSettlementAnalytics: {
-            scopes: [Read],
-            entities: [Merchant]
-        },
-        ReconUpload: {
-            scopes: [Read, Write],
-            entities: [Merchant]
-        },
-        ReconReports: {
-            scopes: [Read, Write],
-            entities: [Merchant]
-        },
-        RunRecon: {
-            scopes: [Read, Write],
-            entities: [Merchant]
-        },
-        ReconConfig: {
-            scopes: [Read, Write],
-            entities: [Merchant]
-        },
         RevenueRecovery: {
             scopes: [Read],
             entities: [Profile]
@@ -110,7 +82,31 @@ generate_permissions! {
         Theme: {
             scopes: [Read,Write],
             entities: [Organization]
-        }
+        },
+        ReconIngestion: {
+            scopes: [Read, Write],
+            entities: [Profile]
+        },
+        ReconTransformation: {
+            scopes: [Read, Write],
+            entities: [Profile]
+        },
+        ReconException: {
+            scopes: [Read, Write],
+            entities: [Profile]
+        },
+        ReconStagingEntry: {
+            scopes: [Read, Write],
+            entities: [Profile]
+        },
+        ReconTransaction: {
+            scopes: [Read, Write],
+            entities: [Profile]
+        },
+        ReconRule: {
+            scopes: [Read, Write],
+            entities: [Profile]
+        },
     ]
 }
 
@@ -135,19 +131,18 @@ pub fn get_resource_name(resource: Resource, entity_type: EntityType) -> Option<
         (Resource::Report, _) => Some("Operation Reports"),
         (Resource::User, _) => Some("Users"),
         (Resource::WebhookEvent, _) => Some("Webhook Events"),
-        (Resource::ReconUpload, _) => Some("Reconciliation File Upload"),
-        (Resource::RunRecon, _) => Some("Run Reconciliation Process"),
-        (Resource::ReconConfig, _) => Some("Reconciliation Configurations"),
-        (Resource::ReconToken, _) => Some("Generate & Verify Reconciliation Token"),
-        (Resource::ReconFiles, _) => Some("Reconciliation Process Manager"),
-        (Resource::ReconReports, _) => Some("Reconciliation Reports"),
-        (Resource::ReconAndSettlementAnalytics, _) => Some("Reconciliation Analytics"),
         (Resource::Account, EntityType::Profile) => Some("Business Profile Account"),
         (Resource::Account, EntityType::Merchant) => Some("Merchant Account"),
         (Resource::Account, EntityType::Organization) => Some("Organization Account"),
         (Resource::Account, EntityType::Tenant) => Some("Tenant Account"),
         (Resource::Theme, _) => Some("Themes"),
         (Resource::InternalConnector, _) => None,
+        (Resource::ReconIngestion, _) => Some("Recon Ingestion Configs"),
+        (Resource::ReconTransformation, _) => Some("Recon Transformation Configs"),
+        (Resource::ReconException, _) => Some("Recon Exception Management"),
+        (Resource::ReconStagingEntry, _) => Some("Recon Staging Entries"),
+        (Resource::ReconTransaction, _) => Some("Recon Transactions"),
+        (Resource::ReconRule, _) => Some("Recon Rules"),
     }
 }
 

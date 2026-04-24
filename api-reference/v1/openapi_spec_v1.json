@@ -9,7 +9,7 @@
     "contact": {
       "name": "Hyperswitch Support",
       "url": "https://hyperswitch.io",
-      "email": "hyperswitch@juspay.in"
+      "email": "support.global@juspay.io"
     },
     "license": {
       "name": "Apache-2.0"
@@ -8546,12 +8546,6 @@
             "description": "Partially masked routing number for ach bank debit payment",
             "example": "110***000"
           },
-          "card_holder_name": {
-            "type": "string",
-            "description": "Card holder's name",
-            "example": "John Doe",
-            "nullable": true
-          },
           "bank_account_holder_name": {
             "type": "string",
             "description": "Bank account's owner name",
@@ -11455,7 +11449,6 @@
                 "required": [
                   "account_number",
                   "routing_number",
-                  "card_holder_name",
                   "bank_account_holder_name",
                   "bank_name",
                   "bank_type",
@@ -11479,10 +11472,6 @@
                     "type": "string",
                     "description": "Routing number for ach bank debit payment",
                     "example": "110000000"
-                  },
-                  "card_holder_name": {
-                    "type": "string",
-                    "example": "John Test"
                   },
                   "bank_account_holder_name": {
                     "type": "string",
@@ -15870,6 +15859,7 @@
           "hyperswitch_vault",
           "inespay",
           "iatapay",
+          "imerchantsolutions",
           "itaubank",
           "jpmorgan",
           "juspaythreedsserver",
@@ -20718,6 +20708,24 @@
             "enum": [
               "order_details_product_name"
             ]
+          },
+          {
+            "type": "string",
+            "enum": [
+              "user_branch_code"
+            ]
+          },
+          {
+            "type": "string",
+            "enum": [
+              "user_bank_identifier"
+            ]
+          },
+          {
+            "type": "string",
+            "enum": [
+              "user_pix_account_number"
+            ]
           }
         ],
         "description": "Possible field type of required fields in payment_method_data"
@@ -21382,6 +21390,11 @@
           "assurance_details_required": {
             "type": "boolean",
             "description": "Whether assurance details are required",
+            "nullable": true
+          },
+          "allow_credit_cards": {
+            "type": "boolean",
+            "description": "Set to false if you don't want to allow credit cards",
             "nullable": true
           }
         }
@@ -27793,6 +27806,14 @@
               }
             ],
             "nullable": true
+          },
+          "wallet": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/WalletBlockingConfig"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -28530,18 +28551,16 @@
       },
       "PaymentMethodDataWalletInfo": {
         "type": "object",
-        "required": [
-          "last4",
-          "card_network"
-        ],
         "properties": {
           "last4": {
             "type": "string",
-            "description": "Last 4 digits of the card number"
+            "description": "Last 4 digits of the card number",
+            "nullable": true
           },
           "card_network": {
             "type": "string",
-            "description": "The information of the payment method"
+            "description": "The information of the payment method",
+            "nullable": true
           },
           "type": {
             "type": "string",
@@ -28564,6 +28583,12 @@
             "type": "string",
             "description": "Unique authorisation code for the payment",
             "example": "003225",
+            "nullable": true
+          },
+          "email": {
+            "type": "string",
+            "description": "Email address associated with the wallet (e.g. PayPal email)",
+            "example": "johntest@test.com",
             "nullable": true
           }
         }
@@ -29009,7 +29034,8 @@
           "inactive",
           "processing",
           "awaiting_data",
-          "new"
+          "new",
+          "redacted"
         ]
       },
       "PaymentMethodTokenizationDetails": {
@@ -35384,27 +35410,74 @@
         }
       },
       "PaypalAdditionalData": {
-        "type": "object",
-        "description": "Masked payout method details for paypal wallet payout method",
-        "properties": {
-          "email": {
-            "type": "string",
+        "oneOf": [
+          {
+            "type": "object",
             "description": "Email linked with paypal account",
-            "example": "john.doe@example.com",
-            "nullable": true
+            "required": [
+              "email",
+              "field_type"
+            ],
+            "properties": {
+              "email": {
+                "type": "string",
+                "description": "Email linked with paypal account",
+                "example": "john.doe@example.com"
+              },
+              "field_type": {
+                "type": "string",
+                "enum": [
+                  "email"
+                ]
+              }
+            }
           },
-          "telephone_number": {
-            "type": "string",
-            "description": "mobile number linked to paypal account",
-            "example": "******* 3349",
-            "nullable": true
-          },
-          "paypal_id": {
-            "type": "string",
+          {
+            "type": "object",
             "description": "id of the paypal account",
-            "example": "G83K ***** HCQ2",
-            "nullable": true
+            "required": [
+              "paypal_id",
+              "field_type"
+            ],
+            "properties": {
+              "paypal_id": {
+                "type": "string",
+                "description": "id of the paypal account",
+                "example": "G83K*****HCQ2"
+              },
+              "field_type": {
+                "type": "string",
+                "enum": [
+                  "paypal_id"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "mobile number linked to paypal account",
+            "required": [
+              "field_type"
+            ],
+            "properties": {
+              "telephone_number": {
+                "type": "string",
+                "description": "mobile number linked to paypal account",
+                "example": "G83K ***** HCQ2",
+                "nullable": true
+              },
+              "field_type": {
+                "type": "string",
+                "enum": [
+                  "telephone_number"
+                ]
+              }
+            }
           }
+        ],
+        "description": "Masked payout method details for paypal wallet payout method",
+        "discriminator": {
+          "propertyName": "field_type"
         }
       },
       "PaypalFlow": {
@@ -38683,6 +38756,7 @@
           "helcim",
           "hyperpg",
           "iatapay",
+          "imerchantsolutions",
           "inespay",
           "itaubank",
           "jpmorgan",
@@ -40435,6 +40509,12 @@
           "transfer_account_id": {
             "type": "string",
             "description": "Identifier for the reseller's account where the funds were transferred"
+          },
+          "on_behalf_of": {
+            "type": "string",
+            "description": "The Stripe account ID that these funds are intended for",
+            "example": "acct_1234567890",
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -40467,6 +40547,12 @@
           "transfer_account_id": {
             "type": "string",
             "description": "Identifier for the reseller's account where the funds were transferred"
+          },
+          "on_behalf_of": {
+            "type": "string",
+            "description": "The Stripe account ID that these funds are intended for",
+            "example": "acct_1234567890",
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -42258,31 +42344,29 @@
       "WalletAdditionalData": {
         "oneOf": [
           {
+            "$ref": "#/components/schemas/ApplePayDecryptAdditionalData"
+          },
+          {
             "$ref": "#/components/schemas/PaypalAdditionalData"
           },
           {
             "$ref": "#/components/schemas/VenmoAdditionalData"
-          },
-          {
-            "$ref": "#/components/schemas/ApplePayDecryptAdditionalData"
           }
         ],
         "description": "Masked payout method details for wallet payout method"
       },
       "WalletAdditionalDataForCard": {
         "type": "object",
-        "required": [
-          "last4",
-          "card_network"
-        ],
         "properties": {
           "last4": {
             "type": "string",
-            "description": "Last 4 digits of the card number"
+            "description": "Last 4 digits of the card number",
+            "nullable": true
           },
           "card_network": {
             "type": "string",
-            "description": "The information of the payment method"
+            "description": "The information of the payment method",
+            "nullable": true
           },
           "type": {
             "type": "string",
@@ -42305,6 +42389,26 @@
             "type": "string",
             "description": "Unique authorisation code generated for the payment",
             "example": "009825",
+            "nullable": true
+          },
+          "email": {
+            "type": "string",
+            "description": "Email address associated with the wallet (e.g. PayPal email)",
+            "example": "johntest@test.com",
+            "nullable": true
+          }
+        }
+      },
+      "WalletBlockingConfig": {
+        "type": "object",
+        "description": "Wallet-specific blocking configuration for Apple Pay and Google Pay",
+        "properties": {
+          "card_types": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CardType"
+            },
+            "description": "Set of card types to block for wallet payments (e.g., [\"Credit\", \"Debit\"])",
             "nullable": true
           }
         }
