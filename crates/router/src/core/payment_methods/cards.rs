@@ -213,18 +213,44 @@ impl PaymentMethodsController for PmCards<'_> {
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to add payment method in db")?;
 
-        super::add_payment_method_modular_forward_compat_task(
-            &*self.state.store,
-            &response,
-            merchant_id,
-            self.state.conf.application_source,
-            initiator,
-        )
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable(
-            "Failed to add payment method modular compatibility task in process tracker",
-        )?;
+        let should_schedule_modular_forward_compat =
+            payment_method_utils::get_should_schedule_modular_forward_compat(
+                self.state,
+                &dimension_state::Dimensions::new()
+                    .with_provider_merchant_id(self.provider.get_provider_merchant_id()),
+                Some(customer_id),
+            )
+            .await;
+
+        if should_schedule_modular_forward_compat {
+            let res = super::add_payment_method_modular_forward_compat_task(
+                &*self.state.store,
+                &response,
+                merchant_id,
+                self.state.conf.application_source,
+                initiator,
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable(
+                "Failed to add payment method modular compatibility task in process tracker",
+            );
+
+            if let Err(err) = res {
+                logger::error!(
+                    ?err,
+                    payment_method_id=%response.payment_method_id,
+                    merchant_id=%merchant_id.get_string_repr(),
+                    "Failed to schedule modular forward compatibility PT; continuing payment method create flow"
+                );
+            }
+        } else {
+            logger::debug!(
+                payment_method_id=%response.payment_method_id,
+                merchant_id=%merchant_id.get_string_repr(),
+                "Skipping modular forward compatibility PT scheduling by config"
+            );
+        }
 
         if customer.default_payment_method_id.is_none() && req.payment_method.is_some() {
             let _ = self

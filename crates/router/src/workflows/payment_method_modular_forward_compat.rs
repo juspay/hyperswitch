@@ -92,7 +92,6 @@ impl ProcessTrackerWorkflow<SessionState> for PaymentMethodModularForwardCompatW
             );
             "COMPLETED_BY_PT"
         } else {
-            // Step 4: Fetch card payload from legacy locker using locker_id fallback to payment_method_id.
             let customer_id = payment_method
                 .customer_id
                 .clone()
@@ -102,75 +101,80 @@ impl ProcessTrackerWorkflow<SessionState> for PaymentMethodModularForwardCompatW
                     "customer_id not found for card payment method in compatibility PT",
                 )?;
 
-            let card_reference = payment_method
-                .locker_id
-                .clone()
-                .unwrap_or(payment_method.payment_method_id.clone());
-
-            let locker_card =
-                cards::get_card_from_vault(state, &customer_id, &merchant_id, &card_reference)
-                    .await
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable(
-                        "Failed to retrieve card from legacy locker in compatibility PT",
-                    )?;
-
             let card_network = payment_method
                 .scheme
                 .as_ref()
                 .and_then(|scheme| common_enums::CardNetwork::from_str(scheme).ok());
 
-            let card_detail = api_models::payment_methods::CardDetail::from((
-                locker_card.get_card(),
-                card_network.clone(),
-            ));
-            let pmd =
-                hyperswitch_domain_models::vault::PaymentMethodVaultingData::Card(card_detail);
+            // Step 4: Fetch card payload from legacy locker only when locker_id is present.
+            if let Some(card_reference) = payment_method.locker_id.clone() {
+                let locker_card =
+                    cards::get_card_from_vault(state, &customer_id, &merchant_id, &card_reference)
+                        .await
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable(
+                            "Failed to retrieve card from legacy locker in compatibility PT",
+                        )?;
 
-            // Step 5: Upsert the card into generic locker via direct AddVault call.
-            let entity_id = hyperswitch_domain_models::vault::V1VaultEntityId::new(
-                key_store.merchant_id.clone(),
-                customer_id.clone(),
-            );
+                let card_detail = api_models::payment_methods::CardDetail::from((
+                    locker_card.get_card(),
+                    card_network.clone(),
+                ));
+                let pmd =
+                    hyperswitch_domain_models::vault::PaymentMethodVaultingData::Card(card_detail);
 
-            let payload = pm_types::AddVaultRequest {
-                entity_id,
-                vault_id: crate::types::domain::VaultId::generate(card_reference),
-                data: &pmd,
-                ttl: state.conf.locker.ttl_for_storage_in_secs,
+                // Step 5: Upsert the card into generic locker via direct AddVault call.
+                let entity_id = hyperswitch_domain_models::vault::V1VaultEntityId::new(
+                    key_store.merchant_id.clone(),
+                    customer_id.clone(),
+                );
+
+                let payload = pm_types::AddVaultRequest {
+                    entity_id,
+                    vault_id: crate::types::domain::VaultId::generate(card_reference),
+                    data: &pmd,
+                    ttl: state.conf.locker.ttl_for_storage_in_secs,
+                }
+                .encode_to_vec()
+                .change_context(errors::VaultError::RequestEncodingFailed)
+                .attach_printable("Failed to encode AddVaultRequest")
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable(
+                    "Failed to add payment method in generic locker in compatibility PT",
+                )?;
+
+                let query_params =
+                    Some(pm_types::VaultQueryParam::from(pm_types::WriteMode::Upsert));
+
+                let resp = vault::call_to_vault::<pm_types::AddVault>(state, payload, query_params)
+                    .await
+                    .change_context(errors::VaultError::VaultAPIError)
+                    .attach_printable("Call to vault failed")
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable(
+                        "Failed to add payment method in generic locker in compatibility PT",
+                    )?;
+
+                let _stored_pm_resp: pm_types::InternalAddVaultResponse = resp
+                    .parse_struct("InternalAddVaultResponse")
+                    .change_context(errors::VaultError::ResponseDeserializationFailed)
+                    .attach_printable("Failed to parse data into InternalAddVaultResponse")
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable(
+                        "Failed to add payment method in generic locker in compatibility PT",
+                    )?;
+                logger::info!(
+                    process_id=%process.id,
+                    payment_method_id=%payment_method.payment_method_id,
+                    "Upserted card into generic locker in modular compatibility PT"
+                );
+            } else {
+                logger::info!(
+                    process_id=%process.id,
+                    payment_method_id=%payment_method.payment_method_id,
+                    "Skipping card migration in modular compatibility PT as locker_id is absent"
+                );
             }
-            .encode_to_vec()
-            .change_context(errors::VaultError::RequestEncodingFailed)
-            .attach_printable("Failed to encode AddVaultRequest")
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable(
-                "Failed to add payment method in generic locker in compatibility PT",
-            )?;
-
-            let query_params = Some(pm_types::VaultQueryParam::from(pm_types::WriteMode::Upsert));
-
-            let resp = vault::call_to_vault::<pm_types::AddVault>(state, payload, query_params)
-                .await
-                .change_context(errors::VaultError::VaultAPIError)
-                .attach_printable("Call to vault failed")
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable(
-                    "Failed to add payment method in generic locker in compatibility PT",
-                )?;
-
-            let _stored_pm_resp: pm_types::InternalAddVaultResponse = resp
-                .parse_struct("InternalAddVaultResponse")
-                .change_context(errors::VaultError::ResponseDeserializationFailed)
-                .attach_printable("Failed to parse data into InternalAddVaultResponse")
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable(
-                    "Failed to add payment method in generic locker in compatibility PT",
-                )?;
-            crate::logger::info!(
-                process_id=%process.id,
-                payment_method_id=%payment_method.payment_method_id,
-                "Upserted card into generic locker in modular compatibility PT"
-            );
 
             // Step 6: Migrate network token to generic locker when an NT locker id is present.
             if let Some(network_token_locker_id) = payment_method.network_token_locker_id.clone() {
