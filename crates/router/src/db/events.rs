@@ -1407,6 +1407,9 @@ mod tests {
             network_tokenization_credentials: None,
             payment_method_blocking: None,
             default_fallback_routing: None,
+            version: common_types::consts::API_VERSION,
+            three_ds_decision_rule_algorithm: None,
+            acquirer_config_map: None,
         });
 
         let business_profile = state
