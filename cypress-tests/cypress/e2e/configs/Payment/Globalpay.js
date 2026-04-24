@@ -1,4 +1,9 @@
-import { cardRequiredField, customerAcceptance, singleUseMandateData, multiUseMandateData } from "./Commons";
+import {
+  cardRequiredField,
+  customerAcceptance,
+  singleUseMandateData,
+  multiUseMandateData,
+} from "./Commons";
 import { getCustomExchange } from "./Modifiers";
 
 // Test card details for successful non-3DS transactions
@@ -21,7 +26,7 @@ const successfulThreeDSTestCardDetails = {
 const failedNo3DSCardDetails = {
   ...successfulNo3DSCardDetails,
   card_number: "4242420000000091", // Generic decline card
- };
+};
 
 const payment_method_data_no3ds = {
   card: {

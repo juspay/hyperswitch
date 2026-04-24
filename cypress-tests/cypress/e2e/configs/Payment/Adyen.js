@@ -1,4 +1,8 @@
-import { customerAcceptance, multiUseMandateData, singleUseMandateData } from "./Commons";
+import {
+  customerAcceptance,
+  multiUseMandateData,
+  singleUseMandateData,
+} from "./Commons";
 import { getCurrency, getCustomExchange } from "./Modifiers";
 
 const successfulNo3DSCardDetails = {
