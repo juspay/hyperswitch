@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.04.24.0
+
+### Features
+
+- **reports:** Programmatic Report Delivery via Webhook ([#11518](https://github.com/juspay/hyperswitch/pull/11518)) ([`843d9ce`](https://github.com/juspay/hyperswitch/commit/843d9ce8669f8f97ccb66d8d970bc726f5de44b1))
+
+**Full Changelog:** [`2026.04.23.0...2026.04.24.0`](https://github.com/juspay/hyperswitch/compare/2026.04.23.0...2026.04.24.0)
+
+- - -
+
 ## 2026.04.23.0
 
 ### Features
