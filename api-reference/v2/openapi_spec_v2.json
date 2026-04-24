@@ -6,7 +6,7 @@
     "contact": {
       "name": "Hyperswitch Support",
       "url": "https://hyperswitch.io",
-      "email": "hyperswitch@juspay.in"
+      "email": "support.global@juspay.io"
     },
     "license": {
       "name": "Apache-2.0"
@@ -5217,12 +5217,6 @@
             "description": "Partially masked routing number for ach bank debit payment",
             "example": "110***000"
           },
-          "card_holder_name": {
-            "type": "string",
-            "description": "Card holder's name",
-            "example": "John Doe",
-            "nullable": true
-          },
           "bank_account_holder_name": {
             "type": "string",
             "description": "Bank account's owner name",
@@ -7159,7 +7153,6 @@
                 "required": [
                   "account_number",
                   "routing_number",
-                  "card_holder_name",
                   "bank_account_holder_name",
                   "bank_name",
                   "bank_type",
@@ -7183,10 +7176,6 @@
                     "type": "string",
                     "description": "Routing number for ach bank debit payment",
                     "example": "110000000"
-                  },
-                  "card_holder_name": {
-                    "type": "string",
-                    "example": "John Test"
                   },
                   "bank_account_holder_name": {
                     "type": "string",
@@ -7355,6 +7344,128 @@
                     "type": "string",
                     "description": "holder name for bank debit",
                     "example": "A. Schneider"
+                  }
+                }
+              }
+            }
+          }
+        ]
+      },
+      "BankDebitDetail": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "ach"
+            ],
+            "properties": {
+              "ach": {
+                "type": "object",
+                "required": [
+                  "account_number",
+                  "routing_number"
+                ],
+                "properties": {
+                  "account_number": {
+                    "type": "string"
+                  },
+                  "routing_number": {
+                    "type": "string"
+                  },
+                  "bank_account_holder_name": {
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "bank_type": {
+                    "allOf": [
+                      {
+                        "$ref": "#/components/schemas/BankType"
+                      }
+                    ],
+                    "nullable": true
+                  },
+                  "bank_holder_type": {
+                    "allOf": [
+                      {
+                        "$ref": "#/components/schemas/BankHolderType"
+                      }
+                    ],
+                    "nullable": true
+                  },
+                  "bank_name": {
+                    "allOf": [
+                      {
+                        "$ref": "#/components/schemas/BankNames"
+                      }
+                    ],
+                    "nullable": true
+                  }
+                }
+              }
+            }
+          }
+        ]
+      },
+      "BankDebitDetailUpdate": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "ach"
+            ],
+            "properties": {
+              "ach": {
+                "type": "object",
+                "properties": {
+                  "bank_account_holder_name": {
+                    "type": "string",
+                    "nullable": true
+                  }
+                }
+              }
+            }
+          }
+        ]
+      },
+      "BankDebitDetailsPaymentMethod": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "ach_bank_debit"
+            ],
+            "properties": {
+              "ach_bank_debit": {
+                "type": "object",
+                "required": [
+                  "account_number_last4_digits",
+                  "routing_number_last4_digits",
+                  "bank_name",
+                  "bank_type",
+                  "bank_holder_type"
+                ],
+                "properties": {
+                  "account_number_last4_digits": {
+                    "type": "string"
+                  },
+                  "routing_number_last4_digits": {
+                    "type": "string"
+                  },
+                  "bank_account_holder_name": {
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "bank_name": {
+                    "type": "string",
+                    "example": "ach"
+                  },
+                  "bank_type": {
+                    "type": "string",
+                    "example": "checking"
+                  },
+                  "bank_holder_type": {
+                    "type": "string",
+                    "example": "personal"
                   }
                 }
               }
@@ -10876,6 +10987,7 @@
           "hyperswitch_vault",
           "inespay",
           "iatapay",
+          "imerchantsolutions",
           "itaubank",
           "jpmorgan",
           "juspaythreedsserver",
@@ -14519,6 +14631,24 @@
             "type": "string",
             "enum": [
               "order_details_product_name"
+            ]
+          },
+          {
+            "type": "string",
+            "enum": [
+              "user_branch_code"
+            ]
+          },
+          {
+            "type": "string",
+            "enum": [
+              "user_bank_identifier"
+            ]
+          },
+          {
+            "type": "string",
+            "enum": [
+              "user_pix_account_number"
             ]
           }
         ],
@@ -21135,6 +21265,28 @@
                 "$ref": "#/components/schemas/ProxyCardDetails"
               }
             }
+          },
+          {
+            "type": "object",
+            "required": [
+              "bank_debit"
+            ],
+            "properties": {
+              "bank_debit": {
+                "$ref": "#/components/schemas/BankDebitDetail"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "wallet"
+            ],
+            "properties": {
+              "wallet": {
+                "$ref": "#/components/schemas/WalletPaymentMethodData"
+              }
+            }
           }
         ]
       },
@@ -21601,6 +21753,50 @@
           }
         ]
       },
+      "PaymentMethodDataWalletInfo": {
+        "type": "object",
+        "properties": {
+          "last4": {
+            "type": "string",
+            "description": "Last 4 digits of the card number",
+            "nullable": true
+          },
+          "card_network": {
+            "type": "string",
+            "description": "The information of the payment method",
+            "nullable": true
+          },
+          "type": {
+            "type": "string",
+            "description": "The type of payment method",
+            "nullable": true
+          },
+          "card_exp_month": {
+            "type": "string",
+            "description": "The card's expiry month",
+            "example": "10",
+            "nullable": true
+          },
+          "card_exp_year": {
+            "type": "string",
+            "description": "The card's expiry year",
+            "example": "25",
+            "nullable": true
+          },
+          "auth_code": {
+            "type": "string",
+            "description": "Unique authorisation code for the payment",
+            "example": "003225",
+            "nullable": true
+          },
+          "email": {
+            "type": "string",
+            "description": "Email address associated with the wallet (e.g. PayPal email)",
+            "example": "johntest@test.com",
+            "nullable": true
+          }
+        }
+      },
       "PaymentMethodDeleteResponse": {
         "type": "object",
         "required": [
@@ -21734,11 +21930,33 @@
           {
             "type": "object",
             "required": [
+              "bank_debit"
+            ],
+            "properties": {
+              "bank_debit": {
+                "$ref": "#/components/schemas/BankDebitDetailsPaymentMethod"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
               "bank"
             ],
             "properties": {
               "bank": {
                 "$ref": "#/components/schemas/Bank"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "wallet"
+            ],
+            "properties": {
+              "wallet": {
+                "$ref": "#/components/schemas/WalletPaymentMethodData"
               }
             }
           }
@@ -21920,6 +22138,28 @@
             "properties": {
               "card": {
                 "$ref": "#/components/schemas/CardDetailFromLocker"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "bank_debit"
+            ],
+            "properties": {
+              "bank_debit": {
+                "$ref": "#/components/schemas/BankDebitDetailsPaymentMethod"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "wallet"
+            ],
+            "properties": {
+              "wallet": {
+                "$ref": "#/components/schemas/WalletPaymentMethodData"
               }
             }
           }
@@ -22313,7 +22553,8 @@
           "inactive",
           "processing",
           "awaiting_data",
-          "new"
+          "new",
+          "redacted"
         ]
       },
       "PaymentMethodSubtypeSpecificData": {
@@ -22515,6 +22756,17 @@
             "properties": {
               "card": {
                 "$ref": "#/components/schemas/CardDetailUpdate"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "bank_debit"
+            ],
+            "properties": {
+              "bank_debit": {
+                "$ref": "#/components/schemas/BankDebitDetailUpdate"
               }
             }
           }
@@ -25613,27 +25865,74 @@
         }
       },
       "PaypalAdditionalData": {
-        "type": "object",
-        "description": "Masked payout method details for paypal wallet payout method",
-        "properties": {
-          "email": {
-            "type": "string",
+        "oneOf": [
+          {
+            "type": "object",
             "description": "Email linked with paypal account",
-            "example": "john.doe@example.com",
-            "nullable": true
+            "required": [
+              "email",
+              "field_type"
+            ],
+            "properties": {
+              "email": {
+                "type": "string",
+                "description": "Email linked with paypal account",
+                "example": "john.doe@example.com"
+              },
+              "field_type": {
+                "type": "string",
+                "enum": [
+                  "email"
+                ]
+              }
+            }
           },
-          "telephone_number": {
-            "type": "string",
-            "description": "mobile number linked to paypal account",
-            "example": "******* 3349",
-            "nullable": true
-          },
-          "paypal_id": {
-            "type": "string",
+          {
+            "type": "object",
             "description": "id of the paypal account",
-            "example": "G83K ***** HCQ2",
-            "nullable": true
+            "required": [
+              "paypal_id",
+              "field_type"
+            ],
+            "properties": {
+              "paypal_id": {
+                "type": "string",
+                "description": "id of the paypal account",
+                "example": "G83K*****HCQ2"
+              },
+              "field_type": {
+                "type": "string",
+                "enum": [
+                  "paypal_id"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "description": "mobile number linked to paypal account",
+            "required": [
+              "field_type"
+            ],
+            "properties": {
+              "telephone_number": {
+                "type": "string",
+                "description": "mobile number linked to paypal account",
+                "example": "G83K ***** HCQ2",
+                "nullable": true
+              },
+              "field_type": {
+                "type": "string",
+                "enum": [
+                  "telephone_number"
+                ]
+              }
+            }
           }
+        ],
+        "description": "Masked payout method details for paypal wallet payout method",
+        "discriminator": {
+          "propertyName": "field_type"
         }
       },
       "PaypalFlow": {
@@ -27160,6 +27459,17 @@
                 "$ref": "#/components/schemas/RawCardWithNTDetails"
               }
             }
+          },
+          {
+            "type": "object",
+            "required": [
+              "bank_debit"
+            ],
+            "properties": {
+              "bank_debit": {
+                "$ref": "#/components/schemas/BankDebitDetail"
+              }
+            }
           }
         ]
       },
@@ -28401,6 +28711,7 @@
           "helcim",
           "hyperpg",
           "iatapay",
+          "imerchantsolutions",
           "inespay",
           "itaubank",
           "jpmorgan",
@@ -30118,6 +30429,12 @@
           "transfer_account_id": {
             "type": "string",
             "description": "Identifier for the reseller's account where the funds were transferred"
+          },
+          "on_behalf_of": {
+            "type": "string",
+            "description": "The Stripe account ID that these funds are intended for",
+            "example": "acct_1234567890",
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -30150,6 +30467,12 @@
           "transfer_account_id": {
             "type": "string",
             "description": "Identifier for the reseller's account where the funds were transferred"
+          },
+          "on_behalf_of": {
+            "type": "string",
+            "description": "The Stripe account ID that these funds are intended for",
+            "example": "acct_1234567890",
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -30693,7 +31016,8 @@
         "enum": [
           "tokenization_id",
           "payment_method_id",
-          "volatile_payment_method_id"
+          "volatile_payment_method_id",
+          "payment_method_token"
         ]
       },
       "Tokenization": {
@@ -31649,31 +31973,29 @@
       "WalletAdditionalData": {
         "oneOf": [
           {
+            "$ref": "#/components/schemas/ApplePayDecryptAdditionalData"
+          },
+          {
             "$ref": "#/components/schemas/PaypalAdditionalData"
           },
           {
             "$ref": "#/components/schemas/VenmoAdditionalData"
-          },
-          {
-            "$ref": "#/components/schemas/ApplePayDecryptAdditionalData"
           }
         ],
         "description": "Masked payout method details for wallet payout method"
       },
       "WalletAdditionalDataForCard": {
         "type": "object",
-        "required": [
-          "last4",
-          "card_network"
-        ],
         "properties": {
           "last4": {
             "type": "string",
-            "description": "Last 4 digits of the card number"
+            "description": "Last 4 digits of the card number",
+            "nullable": true
           },
           "card_network": {
             "type": "string",
-            "description": "The information of the payment method"
+            "description": "The information of the payment method",
+            "nullable": true
           },
           "type": {
             "type": "string",
@@ -31696,6 +32018,12 @@
             "type": "string",
             "description": "Unique authorisation code generated for the payment",
             "example": "009825",
+            "nullable": true
+          },
+          "email": {
+            "type": "string",
+            "description": "Email address associated with the wallet (e.g. PayPal email)",
+            "example": "johntest@test.com",
             "nullable": true
           }
         }
@@ -32111,6 +32439,43 @@
             "properties": {
               "we_chat_pay_redirect": {
                 "$ref": "#/components/schemas/WeChatPayRedirection"
+              }
+            }
+          }
+        ]
+      },
+      "WalletPaymentMethodData": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "apple_pay"
+            ],
+            "properties": {
+              "apple_pay": {
+                "$ref": "#/components/schemas/PaymentMethodDataWalletInfo"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "google_pay"
+            ],
+            "properties": {
+              "google_pay": {
+                "$ref": "#/components/schemas/PaymentMethodDataWalletInfo"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "pay_pal"
+            ],
+            "properties": {
+              "pay_pal": {
+                "$ref": "#/components/schemas/PaypalRedirection"
               }
             }
           }

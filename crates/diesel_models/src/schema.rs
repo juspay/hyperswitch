@@ -1670,6 +1670,8 @@ diesel::table! {
         profile_id -> Nullable<Varchar>,
         #[max_length = 64]
         tenant_id -> Varchar,
+        #[max_length = 64]
+        merchant_product_type -> Nullable<Varchar>,
     }
 }
 

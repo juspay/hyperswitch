@@ -7,7 +7,7 @@ use api_models::{
     payments::RedirectionResponse,
     user::{self as user_api, InviteMultipleUserResponse, NameIdUnit},
 };
-use common_enums::{connector_enums, EntityType, UserAuthType};
+use common_enums::{connector_enums, EntityType, MerchantProductType, UserAuthType};
 use common_utils::{
     fp_utils, type_name,
     types::{keymanager::Identifier, user::LineageContext},
@@ -24,12 +24,14 @@ use error_stack::{report, ResultExt};
 use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 use router_env::{env, logger};
 use storage_impl::errors::StorageError;
+#[cfg(feature = "v1")]
+use subscriptions::RouterResponse;
 #[cfg(not(feature = "email"))]
 use user_api::dashboard_metadata::SetMetaDataRequest;
 
-#[cfg(feature = "v1")]
-use super::admin;
 use super::errors::{StorageErrorExt, UserErrors, UserResponse, UserResult};
+#[cfg(feature = "v1")]
+use super::{admin, errors::ApiErrorResponse};
 use crate::{
     consts,
     core::encryption::send_request_to_key_service_for_user,
@@ -38,7 +40,11 @@ use crate::{
         user_role::ListUserRolesByUserIdPayload,
     },
     routes::{app::ReqState, SessionState},
-    services::{authentication as auth, authorization::roles, openidconnect, ApplicationResponse},
+    services::{
+        authentication::{self as auth, blacklist::BlackList},
+        authorization::{self, permissions::Permission, roles},
+        openidconnect, ApplicationResponse,
+    },
     types::{domain, transformers::ForeignInto},
     utils::{
         self,
@@ -730,6 +736,42 @@ async fn handle_invitation(
     if !req_role_info.is_invitable() {
         Err(report!(UserErrors::InvalidRoleId))
             .attach_printable(format!("role_id = {} is not invitable", request.role_id))?;
+    }
+
+    if let Some(role_product_type_filter) = req_role_info.get_product_type_filter() {
+        match req_role_info.get_entity_type() {
+            EntityType::Tenant | EntityType::Organization => {}
+            EntityType::Merchant | EntityType::Profile => {
+                let merchant_key_store = state
+                    .store
+                    .get_merchant_key_store_by_merchant_id(
+                        &user_from_token.merchant_id,
+                        &state.store.get_master_key().to_vec().into(),
+                    )
+                    .await
+                    .change_context(UserErrors::InternalServerError)
+                    .attach_printable("Failed to retrieve merchant key store by merchant_id")?;
+
+                let merchant_account = state
+                    .store
+                    .find_merchant_account_by_merchant_id(
+                        &user_from_token.merchant_id,
+                        &merchant_key_store,
+                    )
+                    .await
+                    .to_not_found_response(UserErrors::MerchantIdNotFound)?;
+
+                let merchant_product_type = merchant_account
+                    .product_type
+                    .unwrap_or(MerchantProductType::Orchestration);
+                if role_product_type_filter != merchant_product_type {
+                    Err(report!(UserErrors::InvalidRoleId)).attach_printable(format!(
+                        "role_id = {} is not for product_type = {}",
+                        request.role_id, merchant_product_type
+                    ))?;
+                }
+            }
+        }
     }
 
     let invitee_email = domain::UserEmail::from_pii_email(request.email.clone())?;
@@ -4135,4 +4177,29 @@ pub async fn list_members_for_entity(
             users: users_minimal_details,
         },
     ))
+}
+
+#[cfg(feature = "v1")]
+pub async fn authorize_token(
+    state: SessionState,
+    payload: user_api::AuthorizeTokenRequest,
+) -> RouterResponse<()> {
+    let permission: Permission =
+        payload
+            .permission
+            .parse()
+            .map_err(|_| ApiErrorResponse::InvalidRequestData {
+                message: "Invalid permission".to_string(),
+            })?;
+
+    let token = auth::decode_jwt::<auth::AuthToken>(&payload.token.expose(), &state).await?;
+
+    if token.check_in_blacklist(&state).await? {
+        return Err(ApiErrorResponse::InvalidJwtToken.into());
+    }
+
+    let role_info = authorization::get_role_info(&state, &token).await?;
+    authorization::check_permission(permission, &role_info)?;
+
+    Ok(ApplicationResponse::StatusOk)
 }
