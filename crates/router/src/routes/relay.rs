@@ -24,7 +24,7 @@ pub async fn relay(
         |state, auth: auth::AuthenticationData, req, _| {
             relay::relay_flow_decider(
                 state,
-                auth.platform,
+                auth.platform.get_processor().clone(),
                 #[cfg(feature = "v1")]
                 auth.profile.map(|profile| profile.get_id().clone()),
                 #[cfg(feature = "v2")]
@@ -33,7 +33,7 @@ pub async fn relay(
             )
         },
         &auth::HeaderAuth(auth::ApiKeyAuth {
-            allow_connected_scope_operation: false,
+            allow_connected_scope_operation: true,
             allow_platform_self_operation: false,
         }),
         api_locking::LockAction::NotApplicable,
@@ -62,7 +62,7 @@ pub async fn relay_retrieve(
         |state, auth: auth::AuthenticationData, req, _| {
             relay::relay_retrieve(
                 state,
-                auth.platform,
+                auth.platform.get_processor().clone(),
                 #[cfg(feature = "v1")]
                 auth.profile.map(|profile| profile.get_id().clone()),
                 #[cfg(feature = "v2")]
@@ -71,7 +71,7 @@ pub async fn relay_retrieve(
             )
         },
         &auth::HeaderAuth(auth::ApiKeyAuth {
-            allow_connected_scope_operation: false,
+            allow_connected_scope_operation: true,
             allow_platform_self_operation: false,
         }),
         api_locking::LockAction::NotApplicable,
