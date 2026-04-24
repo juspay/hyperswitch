@@ -2743,10 +2743,7 @@ where
 
     crate::routes::metrics::CONNECTOR_CALL_COUNT.add(
         1,
-        router_env::metric_attributes!(
-            ("connector", connector_name.clone()),
-            ("flow", flow),
-        ),
+        router_env::metric_attributes!(("connector", connector_name.clone()), ("flow", flow),),
     );
 
     let start_time = Instant::now();

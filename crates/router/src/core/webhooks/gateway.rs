@@ -26,8 +26,7 @@ use crate::{
         payments::helpers::MerchantConnectorAccountType,
         unified_connector_service::{
             self, build_unified_connector_service_auth_metadata,
-            build_webhook_secrets_from_merchant_connector_account,
-            transformers::HandleEventInputs,
+            build_webhook_secrets_from_merchant_connector_account, transformers::HandleEventInputs,
         },
         webhooks::{
             incoming::get_payment_attempt_from_object_reference_id, utils as webhook_utils,
@@ -414,16 +413,15 @@ impl IncomingWebhookGateway for UcsIncomingWebhookGateway {
 
                 let event_context = build_event_context(ctx, Some(&reference)).await;
 
-                let handle_request = payments_grpc::EventServiceHandleRequest::foreign_try_from(
-                    HandleEventInputs {
+                let handle_request =
+                    payments_grpc::EventServiceHandleRequest::foreign_try_from(HandleEventInputs {
                         request_details: request,
                         webhook_secrets,
                         event_context,
                         merchant_event_id: merchant_event_id.clone(),
-                    },
-                )
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Failed to build UCS EventServiceHandleRequest")?;
+                    })
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Failed to build UCS EventServiceHandleRequest")?;
                 let handle_auth = build_ucs_auth_metadata(ctx, Some(&mca))?;
                 let handle_headers =
                     build_ucs_headers_builder(ctx, Some(&mca), self.execution_mode);

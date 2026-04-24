@@ -5668,9 +5668,10 @@ impl
     fn foreign_try_from(
         request_details: &hyperswitch_interfaces::webhooks::IncomingWebhookRequestDetails<'_>,
     ) -> Result<Self, Self::Error> {
-        let request_details_grpc = <payments_grpc::RequestDetails as transformers::ForeignTryFrom<
-            _,
-        >>::foreign_try_from(request_details)?;
+        let request_details_grpc =
+            <payments_grpc::RequestDetails as transformers::ForeignTryFrom<_>>::foreign_try_from(
+                request_details,
+            )?;
         Ok(Self {
             request_details: Some(request_details_grpc),
         })
@@ -5691,9 +5692,10 @@ impl<'a> transformers::ForeignTryFrom<HandleEventInputs<'a>> for EventServiceHan
     type Error = error_stack::Report<UnifiedConnectorServiceError>;
 
     fn foreign_try_from(inputs: HandleEventInputs<'a>) -> Result<Self, Self::Error> {
-        let request_details_grpc = <payments_grpc::RequestDetails as transformers::ForeignTryFrom<
-            _,
-        >>::foreign_try_from(inputs.request_details)?;
+        let request_details_grpc =
+            <payments_grpc::RequestDetails as transformers::ForeignTryFrom<_>>::foreign_try_from(
+                inputs.request_details,
+            )?;
         Ok(Self {
             merchant_event_id: Some(inputs.merchant_event_id),
             request_details: Some(request_details_grpc),
