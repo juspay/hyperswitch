@@ -2743,6 +2743,65 @@ pub async fn payments_submit_eligibility(
 }
 
 #[cfg(feature = "v1")]
+#[instrument(skip_all, fields(flow = ?Flow::PaymentsConfirm, payment_id))]
+pub async fn payments_confirm_external_vault_proxy(
+    state: web::Data<app::AppState>,
+    req: actix_web::HttpRequest,
+    json_payload: web::Json<payment_types::ExternalVaultProxyConfirmRequest>,
+    path: web::Path<common_utils::id_type::PaymentId>,
+) -> impl Responder {
+    let flow = Flow::PaymentsConfirm;
+    let payment_id = path.into_inner();
+    tracing::Span::current().record("payment_id", payment_id.get_string_repr());
+
+    let mut payload = json_payload.into_inner();
+    payload.payment_id = Some(payment_id);
+
+    let header_payload = match HeaderPayload::foreign_try_from(req.headers()) {
+        Ok(headers) => headers,
+        Err(err) => {
+            return api::log_and_return_error_response(err);
+        }
+    };
+
+    let locking_action = payload.get_locking_input(flow.clone());
+
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        payload,
+        |state, auth: auth::AuthenticationData, req, req_state| {
+            payments::external_vault_proxy_for_payments_core::<
+                api_types::ExternalVaultProxy,
+                payment_types::PaymentsResponse,
+                _,
+                _,
+                _,
+                payments::PaymentData<api_types::ExternalVaultProxy>,
+            >(
+                state,
+                req_state,
+                auth.platform,
+                auth.profile.map(|profile| profile.get_id().clone()),
+                payments::PaymentExternalVaultProxyConfirm,
+                req,
+                api::AuthFlow::Merchant,
+                payments::CallConnectorAction::Trigger,
+                header_payload.clone(),
+                None,
+            )
+        },
+        &auth::HeaderAuth(auth::ApiKeyAuth {
+            allow_connected_scope_operation: true,
+            allow_platform_self_operation: false,
+        }),
+        locking_action,
+    ))
+    .await
+}
+
+#[cfg(feature = "v1")]
 pub fn get_or_generate_payment_id(
     payload: &mut payment_types::PaymentsRequest,
 ) -> errors::RouterResult<()> {
@@ -2807,6 +2866,26 @@ impl GetLockingInput for payment_types::PaymentsRequest {
                 }
             }
             _ => api_locking::LockAction::NotApplicable,
+        }
+    }
+}
+
+#[cfg(feature = "v1")]
+impl GetLockingInput for payment_types::ExternalVaultProxyConfirmRequest {
+    fn get_locking_input<F>(&self, flow: F) -> api_locking::LockAction
+    where
+        F: types::FlowMetric,
+        lock_utils::ApiIdentifier: From<F>,
+    {
+        match self.payment_id {
+            Some(ref id) => api_locking::LockAction::Hold {
+                input: api_locking::LockingInput {
+                    unique_locking_key: id.get_string_repr().to_owned(),
+                    api_identifier: lock_utils::ApiIdentifier::from(flow),
+                    override_lock_retries: None,
+                },
+            },
+            None => api_locking::LockAction::NotApplicable,
         }
     }
 }

@@ -8119,6 +8119,50 @@ pub struct ExternalVaultProxyPaymentsRequest {
     pub return_raw_connector_response: Option<bool>,
 }
 
+/// Request for external vault proxy confirm (v1)
+/// The request type is similar to a regular confirm request, but the payment method data
+/// should contain vault-specific data (e.g., vault_data_card or vault_token).
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize, ToSchema)]
+#[cfg(feature = "v1")]
+pub struct ExternalVaultProxyConfirmRequest {
+    /// The payment ID for this confirm operation (populated from the URL path)
+    #[serde(skip_deserializing)]
+    pub payment_id: Option<id_type::PaymentId>,
+
+    /// The URL to which you want the user to be redirected after the completion of the payment operation
+    /// If this url is not passed, the url configured in the business profile will be used
+    #[schema(value_type = Option<String>, example = "https://hyperswitch.io")]
+    pub return_url: Option<common_utils::types::Url>,
+
+    /// The vault payment instrument data to be used for the payment (e.g., vault_data_card or vault_token)
+    pub payment_method_data: ProxyPaymentMethodDataRequest,
+
+    /// The payment method type to be used for the payment. This should match with the `payment_method_data` provided
+    #[schema(value_type = PaymentMethod, example = "card")]
+    pub payment_method_type: api_enums::PaymentMethod,
+
+    /// The payment method subtype to be used for the payment. This should match with the `payment_method_data` provided
+    #[schema(value_type = PaymentMethodType, example = "credit")]
+    pub payment_method_subtype: api_enums::PaymentMethodType,
+
+    /// The shipping address for the payment. This will override the shipping address provided in the create intent request
+    pub shipping: Option<Address>,
+
+    /// This "CustomerAcceptance" object is passed during Payments-Confirm request, it enlists the type, time, and mode of acceptance properties related to an acceptance done by the customer.
+    #[schema(value_type = Option<CustomerAcceptance>)]
+    pub customer_acceptance: Option<common_payments_types::CustomerAcceptance>,
+
+    /// Additional details required by 3DS 2.0
+    #[schema(value_type = Option<BrowserInformation>)]
+    pub browser_info: Option<BrowserInformation>,
+
+    #[schema(example = "187282ab-40ef-47a9-9206-5099ba31e432")]
+    pub payment_token: Option<String>,
+
+    /// If true, returns stringified connector raw response body
+    pub return_raw_connector_response: Option<bool>,
+}
+
 // This struct contains the union of fields in `PaymentsCreateIntentRequest` and
 // `PaymentsConfirmIntentRequest`
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize, ToSchema)]

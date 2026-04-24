@@ -31,16 +31,16 @@ use crate::{
         CustomerPaymentMethodUpdateResponse, PaymentMethodListRequest, PaymentMethodListResponse,
     },
     payments::{
-        ExtendedCardInfoResponse, PaymentIdType, PaymentListFilterConstraints,
-        PaymentListResponseV2, PaymentsApproveRequest, PaymentsCancelPostCaptureRequest,
-        PaymentsCancelRequest, PaymentsCaptureRequest, PaymentsCompleteAuthorizeRequest,
-        PaymentsDynamicTaxCalculationRequest, PaymentsDynamicTaxCalculationResponse,
-        PaymentsExtendAuthorizationRequest, PaymentsExternalAuthenticationRequest,
-        PaymentsExternalAuthenticationResponse, PaymentsIncrementalAuthorizationRequest,
-        PaymentsManualUpdateRequest, PaymentsManualUpdateResponse,
-        PaymentsPostSessionTokensRequest, PaymentsPostSessionTokensResponse, PaymentsRejectRequest,
-        PaymentsRetrieveRequest, PaymentsStartRequest, PaymentsUpdateMetadataRequest,
-        PaymentsUpdateMetadataResponse,
+        ExtendedCardInfoResponse, ExternalVaultProxyConfirmRequest, PaymentIdType,
+        PaymentListFilterConstraints, PaymentListResponseV2, PaymentsApproveRequest,
+        PaymentsCancelPostCaptureRequest, PaymentsCancelRequest, PaymentsCaptureRequest,
+        PaymentsCompleteAuthorizeRequest, PaymentsDynamicTaxCalculationRequest,
+        PaymentsDynamicTaxCalculationResponse, PaymentsExtendAuthorizationRequest,
+        PaymentsExternalAuthenticationRequest, PaymentsExternalAuthenticationResponse,
+        PaymentsIncrementalAuthorizationRequest, PaymentsManualUpdateRequest,
+        PaymentsManualUpdateResponse, PaymentsPostSessionTokensRequest,
+        PaymentsPostSessionTokensResponse, PaymentsRejectRequest, PaymentsRetrieveRequest,
+        PaymentsStartRequest, PaymentsUpdateMetadataRequest, PaymentsUpdateMetadataResponse,
     },
 };
 
@@ -612,5 +612,16 @@ impl ApiEventMetric for payment_methods::PaymentMethodGetTokenDetailsResponse {
             payment_method_type: None,
             payment_method_subtype: None,
         })
+    }
+}
+
+#[cfg(feature = "v1")]
+impl ApiEventMetric for ExternalVaultProxyConfirmRequest {
+    fn get_api_event_type(&self) -> Option<ApiEventsType> {
+        self.payment_id
+            .as_ref()
+            .map(|id| ApiEventsType::Payment {
+                payment_id: id.clone(),
+            })
     }
 }

@@ -35,6 +35,47 @@ use crate::{
     utils::OptionExt,
 };
 
+#[cfg(feature = "v1")]
+#[async_trait]
+impl
+    ConstructFlowSpecificData<
+        api::ExternalVaultProxy,
+        types::ExternalVaultProxyPaymentsData,
+        types::PaymentsResponseData,
+    > for PaymentData<api::ExternalVaultProxy>
+{
+    async fn construct_router_data<'a>(
+        &self,
+        state: &SessionState,
+        connector_id: &str,
+        processor: &domain::Processor,
+        merchant_connector_account: &helpers::MerchantConnectorAccountType,
+        merchant_recipient_data: Option<types::MerchantRecipientData>,
+        header_payload: Option<domain_payments::HeaderPayload>,
+        _payment_method: Option<common_enums::enums::PaymentMethod>,
+        _payment_method_type: Option<common_enums::enums::PaymentMethodType>,
+    ) -> RouterResult<
+        types::RouterData<
+            api::ExternalVaultProxy,
+            types::ExternalVaultProxyPaymentsData,
+            types::PaymentsResponseData,
+        >,
+    > {
+        Box::pin(
+            transformers::construct_external_vault_proxy_payment_router_data_v1(
+                state,
+                self.clone(),
+                connector_id,
+                processor,
+                merchant_connector_account,
+                merchant_recipient_data,
+                header_payload,
+            ),
+        )
+        .await
+    }
+}
+
 #[cfg(feature = "v2")]
 #[async_trait]
 impl
