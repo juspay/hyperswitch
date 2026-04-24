@@ -56,6 +56,12 @@ describe("iDEAL Bank Redirect - Mandates using Payment Method Id flow test", () 
             "bank_redirect_pm"
           ]["ConfirmCIT"];
 
+          if (!utils.should_continue_further(data)) {
+            cy.task("cli_log", "Skipping step: Confirm iDEAL CIT (TRIGGER_SKIP)");
+            shouldContinue = false;
+            return;
+          }
+
           cy.citForMandatesCallTest(
             fixtures.citConfirmBody,
             data,
@@ -170,6 +176,12 @@ describe("iDEAL Bank Redirect - Mandates using Payment Method Id flow test", () 
           const data = getConnectorDetails(globalState.get("connectorId"))[
             "bank_redirect_pm"
           ]["ConfirmCITManual"];
+
+          if (!data || !utils.should_continue_further(data)) {
+            cy.task("cli_log", "Skipping step: Confirm iDEAL CIT (TRIGGER_SKIP or no config)");
+            shouldContinue = false;
+            return;
+          }
 
           cy.citForMandatesCallTest(
             fixtures.citConfirmBody,
