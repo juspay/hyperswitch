@@ -313,16 +313,9 @@ where
                     ))
                     .await?
                 };
-                let network_token_locker_id = match network_token_resp {
-                    Some(ref token_resp) => {
-                        if network_token_requestor_ref_id.is_some() {
-                            Some(token_resp.payment_method_id.clone())
-                        } else {
-                            None
-                        }
-                    }
-                    None => None,
-                };
+                let network_token_locker_id = network_token_resp
+                    .as_ref()
+                    .map(|token_resp| token_resp.payment_method_id.clone());
 
                 let optional_pm_details = match (resp.card.as_ref(), payment_method_data) {
                     (Some(card), _) => Some(domain::PaymentMethodsData::Card(
@@ -343,6 +336,24 @@ where
                     (_, domain::PaymentMethodData::BankDebit(bank_debit_data)) => bank_debit_data
                         .get_bank_debit_details()
                         .map(domain::PaymentMethodsData::BankDebit),
+                    (_, domain::PaymentMethodData::NetworkToken(nt_data)) => {
+                        Some(domain::PaymentMethodsData::NetworkToken(
+                            domain::NetworkTokenDetailsPaymentMethod {
+                                last4_digits: Some(nt_data.token_number.get_last4()),
+                                network_token_expiry_month: Some(nt_data.token_exp_month.clone()),
+                                network_token_expiry_year: Some(nt_data.token_exp_year.clone()),
+                                card_network: nt_data.card_network.clone(),
+                                card_type: nt_data.card_type.clone(),
+                                issuer_country: None, // v1 NetworkTokenData has Option<String>, but this field expects Option<CountryAlpha2>
+                                card_issuer: nt_data.card_issuer.clone(),
+                                nick_name: nt_data.nick_name.clone(),
+                                card_holder_name: None,
+                                card_isin: None,
+                                saved_to_locker: true,
+                                par: nt_data.par.clone(),
+                            },
+                        ))
+                    }
                     _ => None,
                 };
 
@@ -2059,6 +2070,48 @@ pub async fn save_card_and_network_token_in_locker(
                             (res, dc, network_token_requestor_ref_id),
                             network_token_resp,
                         ))
+                    }
+                    domain::PaymentMethodData::NetworkToken(nt_data) => {
+                        let network_token_card_detail = api::CardDetail {
+                            card_number: nt_data.token_number.clone().into(),
+                            card_exp_month: nt_data.token_exp_month.clone(),
+                            card_exp_year: nt_data.token_exp_year.clone(),
+                            card_cvc: None,
+                            card_holder_name: None,
+                            nick_name: nt_data.nick_name.clone(),
+                            card_issuing_country: nt_data.card_issuing_country.clone(),
+                            card_issuing_country_code: None,
+                            card_network: nt_data.card_network.clone(),
+                            card_issuer: nt_data.card_issuer.clone(),
+                            card_type: nt_data.card_type.clone(),
+                        };
+
+                        let dummy_card = domain::Card {
+                            card_number: nt_data.token_number.clone().into(),
+                            card_exp_month: nt_data.token_exp_month.clone(),
+                            card_exp_year: nt_data.token_exp_year.clone(),
+                            card_cvc: Secret::new("000".to_string()),
+                            card_issuer: nt_data.card_issuer.clone(),
+                            card_network: nt_data.card_network.clone(),
+                            card_type: nt_data.card_type.clone(),
+                            card_issuing_country: nt_data.card_issuing_country.clone(),
+                            card_issuing_country_code: None,
+                            bank_code: nt_data.bank_code.clone(),
+                            nick_name: nt_data.nick_name.clone(),
+                            card_holder_name: None,
+                            co_badged_card_data: None,
+                        };
+
+                        let (network_token_resp, _dc, _) = Box::pin(save_network_token_in_locker(
+                            state,
+                            platform,
+                            &dummy_card,
+                            Some(network_token_card_detail),
+                            payment_method_create_request.clone(),
+                        ))
+                        .await?;
+
+                        Ok(((res, dc, None), network_token_resp))
                     }
                     _ => Ok(((res, dc, None), None)), //network_token_resp is None in case of other payment methods
                 }
