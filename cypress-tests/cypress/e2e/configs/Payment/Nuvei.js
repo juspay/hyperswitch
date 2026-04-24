@@ -717,6 +717,22 @@ export const connectorDetails = {
         },
       },
     },
+    PreProcessing3DSManualCapture: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulThreeDSCardDetails,
+        },
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+    },
     No3DSFailPayment: {
       Request: {
         payment_method: "card",
@@ -732,6 +748,72 @@ export const connectorDetails = {
           status: "failed",
           error_code: "-1",
           error_message: "Decline",
+        },
+      },
+    },
+    PreProcessingNo3DSAutoCapture: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        amount: 11500,
+        currency: "USD",
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+          payment_method: "card",
+          attempt_count: 1,
+        },
+      },
+    },
+    PreProcessingNo3DSManualCapture: {
+      Configs: {
+        DELAY: {
+          STATUS: true,
+          TIMEOUT: 5000,
+        },
+      },
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        billing: billingAddress,
+        amount: 11500,
+        currency: "USD",
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_capture",
+          payment_method: "card",
+          attempt_count: 1,
+        },
+      },
+    },
+    PreProcessing3DSAutoCapture: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulThreeDSCardDetails,
+        },
+        amount: 11500,
+        currency: "USD",
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+          setup_future_usage: "on_session",
         },
       },
     },

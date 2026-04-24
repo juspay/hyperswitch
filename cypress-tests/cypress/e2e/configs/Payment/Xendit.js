@@ -587,5 +587,94 @@ export const connectorDetails = {
         },
       },
     },
+    PreProcessing3DSManualCapture: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+    },
+    PreProcessingNo3DSAutoCapture: {
+      Configs: {
+        DELAY: {
+          STATUS: true,
+          TIMEOUT: 3000,
+        },
+      },
+      Request: {
+        payment_method: "card",
+        amount: 6000000,
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+          billing: billingDetails,
+        },
+        currency: "IDR",
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "processing",
+        },
+      },
+    },
+    PreProcessingNo3DSManualCapture: {
+      Configs: {
+        DELAY: {
+          STATUS: true,
+          TIMEOUT: 3000,
+        },
+      },
+      Request: {
+        payment_method: "card",
+        amount: 6000000,
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+          billing: billingDetails,
+        },
+        currency: "IDR",
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "processing",
+        },
+      },
+    },
+    PreProcessing3DSAutoCapture: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+          billing: billingDetails,
+        },
+        currency: "IDR",
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+          setup_future_usage: "on_session",
+          payment_method_data: paymentMethodData3ds,
+        },
+      },
+    },
   },
 };

@@ -533,6 +533,20 @@ export const CONNECTOR_LISTS = {
     ],
     EXTERNAL_THREE_DS: ["stripe"],
     BANK_DEBIT: ["novalnet"],
+    PRE_PROCESSING_FLOW: [
+      "nmi",
+      "cybersource",
+      "adyen",
+      "nuvei",
+      "shift4",
+      "redsys",
+      "trustpay",
+      "xendit",
+      "barclaycard",
+      "nexixpay",
+      "paysafe",
+      "paypal",
+    ],
     // Add more inclusion lists
   },
 };

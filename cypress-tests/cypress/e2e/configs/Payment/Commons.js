@@ -1067,6 +1067,51 @@ export const connectorDetails = {
       },
     }),
   },
+  pre_processing_pm: {
+    PaymentIntent: getCustomExchange({
+      Request: {
+        currency: "USD",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+        },
+      },
+    }),
+    No3DSAutoCapture: getCustomExchange({
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "USD",
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+        billing: standardBillingAddress,
+      },
+    }),
+    No3DSManualCapture: getCustomExchange({
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "USD",
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+        billing: standardBillingAddress,
+      },
+    }),
+    Capture: getCustomExchange({
+      Request: {
+        amount_to_capture: 6000,
+      },
+    }),
+    pre_processing: getCustomExchange({
+      Request: {},
+    }),
+  },
   card_pm: {
     PaymentIntent: getCustomExchange({
       Request: {
@@ -2268,6 +2313,39 @@ export const connectorDetails = {
           transaction_status: "Y",
           exemption_indicator: "low_value",
         },
+      },
+    }),
+    PreProcessingNo3DSAutoCapture: getCustomExchange({
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "USD",
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+    }),
+    PreProcessingNo3DSManualCapture: getCustomExchange({
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "USD",
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+    }),
+    PreProcessing3DSAutoCapture: getCustomExchange({
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulThreeDSTestCardDetails,
+        },
+        currency: "USD",
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
       },
     }),
   },
