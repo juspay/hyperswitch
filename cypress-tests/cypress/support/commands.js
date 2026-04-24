@@ -3658,7 +3658,11 @@ Cypress.Commands.add(
           }
 
           if (response.body.capture_method === "automatic") {
-            expect(response.body).to.have.property("mandate_id");
+            // Only expect mandate_id if mandate_data was provided (not null)
+            // For bank_redirect flows like iDEAL, mandate_data is null and payment_method_id is returned
+            if (requestBody.mandate_data !== null) {
+              expect(response.body).to.have.property("mandate_id");
+            }
             if (response.body.authentication_type === "three_ds") {
               let nextActionUrl = null;
               if (response.body.next_action.type === "invoke_ddc") {
