@@ -27,6 +27,8 @@ pub struct FraudCheck {
     pub modified_at: PrimitiveDateTime,
     pub last_step: FraudCheckLastStep,
     pub payment_capture_method: Option<storage_enums::CaptureMethod>, // In postFrm, we are updating capture method from automatic to manual. To store the merchant actual capture method, we are storing the actual capture method in payment_capture_method. It will be useful while approving the FRM decision.
+    pub processor_merchant_id: Option<common_utils::id_type::MerchantId>,
+    pub created_by: Option<String>,
 }
 
 #[derive(router_derive::Setter, Clone, Debug, Insertable, router_derive::DebugAsDisplay)]
@@ -49,6 +51,8 @@ pub struct FraudCheckNew {
     pub modified_at: PrimitiveDateTime,
     pub last_step: FraudCheckLastStep,
     pub payment_capture_method: Option<storage_enums::CaptureMethod>,
+    pub processor_merchant_id: Option<common_utils::id_type::MerchantId>,
+    pub created_by: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

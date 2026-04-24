@@ -37,6 +37,8 @@ use super::jwt;
 use crate::configs::Settings;
 #[cfg(feature = "olap")]
 use crate::consts;
+#[cfg(feature = "v1")]
+use crate::core::configs::dimension_state;
 #[cfg(feature = "olap")]
 use crate::core::errors::UserResult;
 #[cfg(all(feature = "partial-auth", feature = "v1"))]
@@ -47,11 +49,16 @@ use crate::{
     core::{
         api_keys,
         errors::{self, utils::StorageErrorExt, RouterResult},
+        metrics::{
+            SDK_AUTH_INVALID_SESSION_TOTAL, SDK_AUTH_LEGACY_FLOW_TOTAL,
+            SDK_AUTH_SESSION_VALIDATED_TOTAL,
+        },
+        payments::client_session::ClientSessionManager,
     },
     headers,
     routes::app::SessionStateInfo,
     services::api,
-    types::{domain, storage},
+    types::domain,
     utils::OptionExt,
 };
 
@@ -127,22 +134,8 @@ pub struct AuthenticationDataWithMultipleProfiles {
 }
 
 #[derive(Clone, Debug)]
-pub struct AuthenticationDataWithUser {
-    pub merchant_account: domain::MerchantAccount,
-    pub key_store: domain::MerchantKeyStore,
-    pub user: storage::User,
-    pub profile_id: id_type::ProfileId,
-}
-
-#[derive(Clone, Debug)]
 pub struct AuthenticationDataWithOrg {
     pub organization_id: id_type::OrganizationId,
-}
-
-#[derive(Clone)]
-pub struct UserFromTokenWithRoleInfo {
-    pub user: UserFromToken,
-    pub role_info: authorization::roles::RoleInfo,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize)]
@@ -3429,6 +3422,83 @@ where
         )
         .await?;
 
+        // Taking processor_merchant_id for client session validation as we have a unique constraint on (processor_merchant_id, payment_id)
+        let processor_merchant_id = platform.get_processor().get_account().get_id();
+
+        // Check if client session validation is enabled
+        let dimensions = dimension_state::Dimensions::new()
+            .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id())
+            .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id());
+
+        let session_validation_enabled = dimensions
+            .get_client_session_validation_enabled(
+                state.store().as_ref(),
+                state.superposition_service().as_ref(),
+                None,
+            )
+            .await;
+
+        // Validate session_id if present and validation is enabled
+        if session_validation_enabled {
+            match sdk_auth.client_session_id {
+                Some(client_session_id) => {
+                    let payment_id =
+                        crate::core::payments::helpers::get_payment_id_from_client_secret(
+                            &client_secret,
+                        )?;
+
+                    let payment_id = id_type::PaymentId::wrap(payment_id)
+                        .change_context(errors::ApiErrorResponse::Unauthorized)
+                        .attach_printable("Invalid payment_id in client_secret")?;
+
+                    // Validate session
+                    ClientSessionManager::validate_session(
+                        state,
+                        processor_merchant_id,
+                        &payment_id,
+                        &client_session_id,
+                    )
+                    .await
+                    .change_context(errors::ApiErrorResponse::Unauthorized)
+                    .attach_printable("Failed to validate client session")?
+                    .then_some(())
+                    .ok_or_else(|| {
+                        SDK_AUTH_INVALID_SESSION_TOTAL.add(
+                            1,
+                            &[router_env::opentelemetry::KeyValue::new(
+                                "merchant_id",
+                                processor_merchant_id.get_string_repr().to_string(),
+                            )],
+                        );
+                        report!(errors::ApiErrorResponse::Unauthorized)
+                            .attach_printable("Invalid Session ID")
+                    })?;
+
+                    SDK_AUTH_SESSION_VALIDATED_TOTAL.add(
+                        1,
+                        &[router_env::opentelemetry::KeyValue::new(
+                            "merchant_id",
+                            processor_merchant_id.get_string_repr().to_string(),
+                        )],
+                    );
+                }
+                None => {
+                    // Legacy flow - no session_id provided
+                    SDK_AUTH_LEGACY_FLOW_TOTAL.add(
+                        1,
+                        &[router_env::opentelemetry::KeyValue::new(
+                            "merchant_id",
+                            processor_merchant_id.get_string_repr().to_string(),
+                        )],
+                    );
+
+                    logger::info!("SDK auth without session_id - legacy flow");
+                }
+            }
+        } else {
+            logger::info!("Client session validation is disabled");
+        }
+
         let profile = state
             .store()
             .find_business_profile_by_merchant_id_profile_id(
@@ -6064,71 +6134,6 @@ where
     default_auth
 }
 
-#[cfg(feature = "recon")]
-#[async_trait]
-impl<A> AuthenticateAndFetch<AuthenticationDataWithUser, A> for JWTAuth
-where
-    A: SessionStateInfo + Sync,
-{
-    async fn authenticate_and_fetch(
-        &self,
-        request_headers: &HeaderMap,
-        state: &A,
-    ) -> RouterResult<(AuthenticationDataWithUser, AuthenticationType)> {
-        let payload = parse_jwt_payload::<A, AuthToken>(request_headers, state).await?;
-        if payload.check_in_blacklist(state).await? {
-            return Err(errors::ApiErrorResponse::InvalidJwtToken.into());
-        }
-        authorization::check_tenant(
-            payload.tenant_id.clone(),
-            &state.session_state().tenant.tenant_id,
-        )?;
-        let role_info = authorization::get_role_info(state, &payload).await?;
-        authorization::check_permission(self.permission, &role_info)?;
-
-        let key_store = state
-            .store()
-            .get_merchant_key_store_by_merchant_id(
-                &payload.merchant_id,
-                &state.store().get_master_key().to_vec().into(),
-            )
-            .await
-            .to_not_found_response(errors::ApiErrorResponse::InvalidJwtToken)
-            .attach_printable("Failed to fetch merchant key store for the merchant id")?;
-
-        let merchant = state
-            .store()
-            .find_merchant_account_by_merchant_id(&payload.merchant_id, &key_store)
-            .await
-            .to_not_found_response(errors::ApiErrorResponse::InvalidJwtToken)
-            .attach_printable("Failed to fetch merchant account for the merchant id")?;
-
-        let user_id = payload.user_id;
-
-        let user = state
-            .session_state()
-            .global_store
-            .find_active_user_by_user_id(&user_id)
-            .await
-            .to_not_found_response(errors::ApiErrorResponse::InvalidJwtToken)
-            .attach_printable("Failed to fetch user for the user id")?;
-
-        let auth = AuthenticationDataWithUser {
-            merchant_account: merchant,
-            key_store,
-            profile_id: payload.profile_id.clone(),
-            user,
-        };
-
-        let auth_type = AuthenticationType::MerchantJwt {
-            merchant_id: auth.merchant_account.get_id().clone(),
-            user_id: Some(user_id),
-        };
-
-        Ok((auth, auth_type))
-    }
-}
-
 /// Validates whether the merchant account type is authorized to access the resource
 ///
 /// # Access Control Logic:
@@ -6480,93 +6485,6 @@ fn throw_error_if_platform_merchant_authentication_required(
         })
 }
 
-#[cfg(feature = "recon")]
-#[async_trait]
-impl<A> AuthenticateAndFetch<UserFromTokenWithRoleInfo, A> for JWTAuth
-where
-    A: SessionStateInfo + Sync,
-{
-    async fn authenticate_and_fetch(
-        &self,
-        request_headers: &HeaderMap,
-        state: &A,
-    ) -> RouterResult<(UserFromTokenWithRoleInfo, AuthenticationType)> {
-        let payload = parse_jwt_payload::<A, AuthToken>(request_headers, state).await?;
-        if payload.check_in_blacklist(state).await? {
-            return Err(errors::ApiErrorResponse::InvalidJwtToken.into());
-        }
-        authorization::check_tenant(
-            payload.tenant_id.clone(),
-            &state.session_state().tenant.tenant_id,
-        )?;
-        let role_info = authorization::get_role_info(state, &payload).await?;
-        authorization::check_permission(self.permission, &role_info)?;
-
-        let user = UserFromToken {
-            user_id: payload.user_id.clone(),
-            merchant_id: payload.merchant_id.clone(),
-            org_id: payload.org_id,
-            role_id: payload.role_id,
-            profile_id: payload.profile_id,
-            tenant_id: payload.tenant_id,
-        };
-
-        Ok((
-            UserFromTokenWithRoleInfo { user, role_info },
-            AuthenticationType::MerchantJwt {
-                merchant_id: payload.merchant_id,
-                user_id: Some(payload.user_id),
-            },
-        ))
-    }
-}
-
-#[cfg(feature = "recon")]
-#[derive(serde::Serialize, serde::Deserialize)]
-pub struct ReconToken {
-    pub user_id: String,
-    pub merchant_id: id_type::MerchantId,
-    pub role_id: String,
-    pub exp: u64,
-    pub org_id: id_type::OrganizationId,
-    pub profile_id: id_type::ProfileId,
-    pub tenant_id: Option<id_type::TenantId>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub acl: Option<String>,
-}
-
-#[cfg(all(feature = "olap", feature = "recon"))]
-impl ReconToken {
-    pub async fn new_token(
-        user_id: String,
-        merchant_id: id_type::MerchantId,
-        settings: &Settings,
-        org_id: id_type::OrganizationId,
-        profile_id: id_type::ProfileId,
-        tenant_id: Option<id_type::TenantId>,
-        role_info: authorization::roles::RoleInfo,
-    ) -> UserResult<String> {
-        let exp_duration = std::time::Duration::from_secs(consts::JWT_TOKEN_TIME_IN_SECS);
-        let exp = jwt::generate_exp(exp_duration)?.as_secs();
-        let acl = role_info.get_recon_acl();
-        let optional_acl_str = serde_json::to_string(&acl)
-            .inspect_err(|err| logger::error!("Failed to serialize acl to string: {}", err))
-            .change_context(errors::UserErrors::InternalServerError)
-            .attach_printable("Failed to serialize acl to string. Using empty ACL")
-            .ok();
-        let token_payload = Self {
-            user_id,
-            merchant_id,
-            role_id: role_info.get_role_id().to_string(),
-            exp,
-            org_id,
-            profile_id,
-            tenant_id,
-            acl: optional_acl_str,
-        };
-        jwt::generate_jwt(&token_payload, settings).await
-    }
-}
 #[derive(serde::Serialize, serde::Deserialize)]
 pub struct ExternalToken {
     pub user_id: String,

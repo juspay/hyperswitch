@@ -9,6 +9,7 @@ use router_env::{instrument, tracing};
 use super::{BoxedOperation, Domain, GetTracker, Operation, UpdateTracker, ValidateRequest};
 use crate::{
     core::{
+        configs::dimension_state,
         errors::{self, RouterResult, StorageErrorExt},
         payments::{helpers, operations, PaymentData},
     },
@@ -42,7 +43,10 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsCaptureR
         platform: &domain::Platform,
         _auth_flow: services::AuthFlow,
         _header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
-        _payment_method_wrapper: Option<operations::PaymentMethodWithRawData>,
+        #[cfg(feature = "pm_modular")] _payment_method_wrapper: Option<
+            operations::PaymentMethodWithRawData,
+        >,
+        _dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
     ) -> RouterResult<
         operations::GetTrackerResponse<'a, F, api::PaymentsCaptureRequest, PaymentData<F>>,
     > {
@@ -202,6 +206,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsCaptureR
             is_manual_retry_enabled: None,
             is_l2_l3_enabled: false,
             external_authentication_data: None,
+            client_session_id: None,
         };
 
         let get_trackers_response = operations::GetTrackerResponse {
@@ -229,6 +234,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsCaptureReque
         mut payment_data: PaymentData<F>,
         frm_suggestion: Option<FrmSuggestion>,
         _header_payload: hyperswitch_domain_models::payments::HeaderPayload,
+        _dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
     ) -> RouterResult<(PaymentApproveOperation<'b, F>, PaymentData<F>)>
     where
         F: 'b + Send,

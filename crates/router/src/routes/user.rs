@@ -1214,3 +1214,49 @@ pub async fn list_users_internal(
     ))
     .await
 }
+
+#[cfg(feature = "v1")]
+pub async fn list_members_for_entity(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+    query: web::Query<user_api::ListMembersQueryParam>,
+) -> HttpResponse {
+    let flow = Flow::ListMembersForEntity;
+    let access_level = query.into_inner().access_level;
+
+    Box::pin(api::server_wrap(
+        flow,
+        state,
+        &req,
+        (),
+        |state, auth: auth::AuthenticationData, _, _| {
+            user_core::list_members_for_entity(state, auth, access_level)
+        },
+        &auth::InternalMerchantIdProfileIdAuth(auth::JWTAuth {
+            permission: Permission::OrganizationAccountRead,
+            allow_connected: true,
+            allow_platform: true,
+        }),
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}
+
+#[cfg(feature = "v1")]
+pub async fn authorize_token(
+    state: web::Data<AppState>,
+    http_req: HttpRequest,
+    json_payload: web::Json<user_api::AuthorizeTokenRequest>,
+) -> HttpResponse {
+    let flow = Flow::AuthorizeUserToken;
+    Box::pin(api::server_wrap(
+        flow,
+        state.clone(),
+        &http_req,
+        json_payload.into_inner(),
+        |state, _: (), payload, _| user_core::authorize_token(state, payload),
+        &auth::InternalMerchantIdProfileIdAuth(auth::NoAuth),
+        api_locking::LockAction::NotApplicable,
+    ))
+    .await
+}

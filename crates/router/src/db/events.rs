@@ -1318,6 +1318,7 @@ mod tests {
             merchant_account_type: common_enums::MerchantAccountType::Standard,
             product_type: None,
             version: common_enums::ApiVersion::V1,
+            network_tokenization_credentials: None,
         });
         let merchant_account = state
             .store
@@ -1403,6 +1404,9 @@ mod tests {
             external_vault_details: domain::ExternalVaultDetails::Skip,
             billing_processor_id: None,
             is_l2_l3_enabled: false,
+            network_tokenization_credentials: None,
+            payment_method_blocking: None,
+            default_fallback_routing: None,
         });
 
         let business_profile = state

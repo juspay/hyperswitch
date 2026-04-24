@@ -26,6 +26,10 @@ const CONSTANTS = {
   ],
 };
 
+function normalizeConnectorForRedirect(connectorId) {
+  return connectorId === "stripeconnect" ? "stripe" : connectorId;
+}
+
 export function handleRedirection(
   redirectionType,
   urls,
@@ -33,12 +37,14 @@ export function handleRedirection(
   paymentMethodType,
   handlerMetadata
 ) {
+  const resolvedConnectorId = normalizeConnectorForRedirect(connectorId);
+
   switch (redirectionType) {
     case "bank_redirect":
       bankRedirectRedirection(
         urls.redirectionUrl,
         urls.expectedUrl,
-        connectorId,
+        resolvedConnectorId,
         paymentMethodType
       );
       break;
@@ -46,19 +52,23 @@ export function handleRedirection(
       bankTransferRedirection(
         urls.redirectionUrl,
         urls.expectedUrl,
-        connectorId,
+        resolvedConnectorId,
         paymentMethodType,
         handlerMetadata.nextActionType
       );
       break;
     case "three_ds":
-      threeDsRedirection(urls.redirectionUrl, urls.expectedUrl, connectorId);
+      threeDsRedirection(
+        urls.redirectionUrl,
+        urls.expectedUrl,
+        resolvedConnectorId
+      );
       break;
     case "upi":
       upiRedirection(
         urls.redirectionUrl,
         urls.expectedUrl,
-        connectorId,
+        resolvedConnectorId,
         paymentMethodType
       );
       break;
@@ -66,7 +76,7 @@ export function handleRedirection(
       rewardRedirection(
         urls.redirectionUrl,
         urls.expectedUrl,
-        connectorId,
+        resolvedConnectorId,
         paymentMethodType
       );
       break;
@@ -74,7 +84,7 @@ export function handleRedirection(
       cryptoRedirection(
         urls.redirectionUrl,
         urls.expectedUrl,
-        connectorId,
+        resolvedConnectorId,
         paymentMethodType
       );
       break;
@@ -139,6 +149,7 @@ function bankTransferRedirection(
   paymentMethodType,
   nextActionType
 ) {
+  connectorId = normalizeConnectorForRedirect(connectorId);
   let verifyUrl = true; // Default to true, can be set to false based on conditions
   switch (nextActionType) {
     case "bank_transfer_steps_and_charges_details":
@@ -252,6 +263,7 @@ function bankRedirectRedirection(
   connectorId,
   paymentMethodType
 ) {
+  connectorId = normalizeConnectorForRedirect(connectorId);
   let verifyUrl = false;
 
   cy.visit(redirectionUrl.href);
@@ -386,6 +398,11 @@ function bankRedirectRedirection(
           case "adyen":
             switch (paymentMethodType) {
               case "eps":
+                cy.get("h1").should("contain.text", "Acquirer Simulator");
+                cy.get('[value="authorised"]').click();
+                verifyUrl = true;
+                break;
+              case "ali_pay_hk":
                 cy.get("h1").should("contain.text", "Acquirer Simulator");
                 cy.get('[value="authorised"]').click();
                 verifyUrl = true;
