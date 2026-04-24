@@ -1,0 +1,23 @@
+introduced_in_tag,bucket,connector,pm,pmt,feature
+2026.03.17.0,1,fiservcommercehub,,,Refund
+2026.03.17.0,2,fiservcommercehub,Card,Credit,Payment
+2026.03.17.0,2,fiservcommercehub,Card,Debit,Payment
+2026.03.23.0,1,santander,,,Connector Intent Metadata
+2026.03.24.0,3,,,,business_profile.payment_method_blocking
+2026.03.26.0,3,,,,business_profile.network_tokenization_credentials
+2026.03.26.0,3,,,,merchant_account.network_tokenization_credentials
+2026.04.01.0,2,revolv3,Card,Debit,Mandate
+2026.04.01.0,2,revolv3,Card,Debit,Payment
+2026.04.03.0,1,santander,,,Push Notification Flow
+2026.04.03.0,1,santander,,,QR Code Generation Flow
+2026.04.03.0,2,santander,BankTransfer,PixAutomaticoPush,Mandate
+2026.04.03.0,2,santander,BankTransfer,PixAutomaticoPush,Payment
+2026.04.03.0,2,santander,BankTransfer,PixAutomaticoQr,Mandate
+2026.04.03.0,2,santander,BankTransfer,PixAutomaticoQr,Payment
+2026.04.07.0,1,worldpayxml,,,Pre-Authentication Flow
+2026.04.10.0,2,truelayer,BankRedirect,OpenBanking,Payment
+2026.04.14.0,1,trustly,,,Refund
+2026.04.14.0,2,trustly,BankRedirect,Trustly,Payment
+2026.04.20.0,1,imerchantsolutions,,,Refund
+2026.04.20.0,2,imerchantsolutions,Card,Credit,Payment
+2026.04.20.0,2,imerchantsolutions,Card,Debit,Payment

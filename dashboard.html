@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Hyperswitch Feature &amp; Cypress Coverage</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.js"></script>
+<style>
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    margin: 0; padding: 24px;
+    background: #0f1115; color: #e6e6e6;
+  }
+  h1 { margin: 0 0 8px; font-size: 22px; }
+  .sub { color: #888; margin-bottom: 24px; font-size: 13px; }
+  .legend-key {
+    background: #1a1d24; border: 1px solid #2a2e38; border-radius: 8px;
+    padding: 12px 16px; margin-bottom: 20px; font-size: 12px; color: #aaa;
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 8px 24px;
+  }
+  .legend-key .row { display: flex; align-items: flex-start; gap: 8px; }
+  .legend-key .swatch {
+    width: 10px; height: 10px; border-radius: 2px; margin-top: 4px; flex-shrink: 0;
+  }
+  .legend-key strong { color: #e6e6e6; font-weight: 500; }
+  .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+           gap: 12px; margin-bottom: 24px; }
+  .card {
+    background: #1a1d24; border-radius: 8px; padding: 16px;
+    border: 1px solid #2a2e38;
+  }
+  .card .label { font-size: 11px; color: #888; text-transform: uppercase;
+                 letter-spacing: 0.5px; }
+  .card .value { font-size: 26px; font-weight: 600; margin-top: 4px; }
+  .card .delta { font-size: 11px; color: #8ac; margin-top: 4px; line-height: 1.5; }
+  .chart-box {
+    background: #1a1d24; border-radius: 8px; padding: 16px 20px;
+    margin-bottom: 20px; border: 1px solid #2a2e38;
+  }
+  .chart-box h2 { margin: 0 0 6px; font-size: 15px; font-weight: 500; }
+  .chart-box .hint { font-size: 12px; color: #888; margin-bottom: 12px; line-height: 1.5; }
+  canvas { max-height: 360px; }
+  footer { color: #666; font-size: 11px; margin-top: 32px; text-align: center; }
+</style>
+</head>
+<body>
+
+<h1>Hyperswitch Feature &amp; Cypress Coverage</h1>
+<div class="sub">From <code>features.db</code> · 2025.10.27.0 → 2026.04.23.0 · 137 tags scanned</div>
+
+<div class="legend-key">
+  <div class="row"><span class="swatch" style="background:#5cc8ff"></span>
+    <div><strong>Connector Flows</strong> — per-connector flow capabilities (Refund, Incremental Auth, 3DS, Dispute Defend, etc.). Detected from connector Rust code.</div>
+  </div>
+  <div class="row"><span class="swatch" style="background:#9d7cff"></span>
+    <div><strong>Connector × Payment Method</strong> — supported (connector, payment method, payment method type) combinations. Detected from each connector's <code>SUPPORTED_PAYMENT_METHODS</code> static.</div>
+  </div>
+  <div class="row"><span class="swatch" style="background:#ffa56c"></span>
+    <div><strong>Core / Schema</strong> — platform-wide features. Detected as new fields in <code>business_profile</code> / <code>merchant_account</code> Diesel structs.</div>
+  </div>
+  <div class="row"><span class="swatch" style="background:#6bda8f"></span>
+    <div><strong>Cypress Tests</strong> — features with cypress coverage (Connector Flows + Connector × PM only; Core/Schema cypress coverage is not tracked).</div>
+  </div>
+</div>
+
+<div class="cards">
+  <div class="card">
+    <div class="label">Total Features (latest tag)</div>
+    <div class="value">953</div>
+    <div class="delta">
+      Connector Flows: 197<br>
+      Connector × PM: 676<br>
+      Core / Schema: 80
+    </div>
+  </div>
+  <div class="card">
+    <div class="label">Features With Cypress Tests</div>
+    <div class="value">385</div>
+    <div class="delta">44.1% of Connector Flows + Connector×PM features</div>
+  </div>
+  <div class="card">
+    <div class="label">Features Introduced (period)</div>
+    <div class="value">102</div>
+    <div class="delta">
+      Connector Flows: 40<br>
+      Connector × PM: 59<br>
+      Core / Schema: 3
+    </div>
+  </div>
+  <div class="card">
+    <div class="label">Cypress Tests Introduced (period)</div>
+    <div class="value">58</div>
+    <div class="delta">58.6% ratio to new features — higher is better</div>
+  </div>
+  <div class="card">
+    <div class="label">Latest Tag Contribution</div>
+    <div class="value">+24 cypress</div>
+    <div class="delta">
+      Tag: <strong>2026.04.23.0</strong><br>
+      Features added: 0<br>
+      Coverage: 41.4% → 44.1% (+2.7 pp)
+    </div>
+  </div>
+</div>
+
+<div class="chart-box">
+  <h2>New Features vs. New Cypress Tests — Per Week</h2>
+  <div class="hint">
+    Stacked bars: new features landing each ISO week (by category).
+    Green line: new cypress tests landing the same week.
+    When the green line sits <strong>above</strong> the bars, cypress is keeping pace.
+    <strong>Below</strong> the bars means tests are lagging feature additions.
+  </div>
+  <canvas id="weekly_chart"></canvas>
+</div>
+
+<div class="chart-box">
+  <h2>New Features vs. New Cypress Tests — Per Month</h2>
+  <div class="hint">Monthly roll-up of the same comparison — useful for smoothing out week-to-week noise.</div>
+  <canvas id="monthly_chart"></canvas>
+</div>
+
+<div class="chart-box">
+  <h2>Feature Introduction Over Time</h2>
+  <div class="hint">Cumulative count of features known to the parser at each daily tag, stacked by category. Lines trending up = features getting added; flat = quiet period.</div>
+  <canvas id="features_chart"></canvas>
+</div>
+
+<div class="chart-box">
+  <h2>Cypress Test Introduction Over Time</h2>
+  <div class="hint">Cumulative count of features that have cypress coverage at each daily tag. Only Connector Flows and Connector × PM are tracked (Core/Schema cypress coverage not detected dynamically).</div>
+  <canvas id="cypress_chart"></canvas>
+</div>
+
+<div class="chart-box">
+  <h2>Cypress Coverage Ratio Over Time</h2>
+  <div class="hint">% of Connector Flow + Connector × PM features that have cypress tests. Moving up = tests catching up to features. Moving down = features outpacing tests.</div>
+  <canvas id="ratio_chart"></canvas>
+</div>
+
+<footer>Generated by scripts/build_dashboard.py · data lives in features.db</footer>
+
+<script>
+const series = [{"tag": "2025.10.27.0", "b1": 160, "b2": 618, "b3": 77, "b1_covered": 67, "b2_covered": 260}, {"tag": "2025.10.28.0", "b1": 160, "b2": 618, "b3": 77, "b1_covered": 67, "b2_covered": 260}, {"tag": "2025.10.29.0", "b1": 160, "b2": 618, "b3": 77, "b1_covered": 67, "b2_covered": 260}, {"tag": "2025.10.30.0", "b1": 160, "b2": 618, "b3": 77, "b1_covered": 67, "b2_covered": 260}, {"tag": "2025.10.31.0", "b1": 160, "b2": 618, "b3": 77, "b1_covered": 67, "b2_covered": 260}, {"tag": "2025.10.31.1", "b1": 160, "b2": 618, "b3": 77, "b1_covered": 67, "b2_covered": 260}, {"tag": "2025.10.31.2", "b1": 160, "b2": 618, "b3": 77, "b1_covered": 67, "b2_covered": 260}, {"tag": "2025.11.04.0", "b1": 161, "b2": 619, "b3": 77, "b1_covered": 67, "b2_covered": 260}, {"tag": "2025.11.04.1", "b1": 161, "b2": 619, "b3": 77, "b1_covered": 67, "b2_covered": 260}, {"tag": "2025.11.05.0", "b1": 161, "b2": 619, "b3": 77, "b1_covered": 67, "b2_covered": 260}, {"tag": "2025.11.06.0", "b1": 161, "b2": 621, "b3": 77, "b1_covered": 67, "b2_covered": 262}, {"tag": "2025.11.07.0", "b1": 161, "b2": 621, "b3": 77, "b1_covered": 67, "b2_covered": 262}, {"tag": "2025.11.10.0", "b1": 167, "b2": 621, "b3": 77, "b1_covered": 67, "b2_covered": 262}, {"tag": "2025.11.11.0", "b1": 168, "b2": 625, "b3": 77, "b1_covered": 67, "b2_covered": 262}, {"tag": "2025.11.11.1", "b1": 168, "b2": 625, "b3": 77, "b1_covered": 67, "b2_covered": 262}, {"tag": "2025.11.12.0", "b1": 168, "b2": 625, "b3": 77, "b1_covered": 67, "b2_covered": 262}, {"tag": "2025.11.13.0", "b1": 168, "b2": 625, "b3": 77, "b1_covered": 67, "b2_covered": 262}, {"tag": "2025.11.13.1", "b1": 168, "b2": 625, "b3": 77, "b1_covered": 67, "b2_covered": 262}, {"tag": "2025.11.13.2", "b1": 168, "b2": 626, "b3": 77, "b1_covered": 67, "b2_covered": 262}, {"tag": "2025.11.14.0", "b1": 168, "b2": 626, "b3": 77, "b1_covered": 67, "b2_covered": 262}, {"tag": "2025.11.17.0", "b1": 168, "b2": 628, "b3": 77, "b1_covered": 67, "b2_covered": 262}, {"tag": "2025.11.17.1", "b1": 168, "b2": 628, "b3": 77, "b1_covered": 67, "b2_covered": 262}, {"tag": "2025.11.18.0", "b1": 168, "b2": 628, "b3": 77, "b1_covered": 67, "b2_covered": 262}, {"tag": "2025.11.19.0", "b1": 168, "b2": 628, "b3": 77, "b1_covered": 67, "b2_covered": 262}, {"tag": "2025.11.20.0", "b1": 168, "b2": 628, "b3": 77, "b1_covered": 67, "b2_covered": 262}, {"tag": "2025.11.21.0", "b1": 167, "b2": 628, "b3": 77, "b1_covered": 67, "b2_covered": 262}, {"tag": "2025.11.21.1", "b1": 167, "b2": 628, "b3": 77, "b1_covered": 67, "b2_covered": 262}, {"tag": "2025.11.24.0", "b1": 168, "b2": 630, "b3": 77, "b1_covered": 67, "b2_covered": 264}, {"tag": "2025.11.25.0", "b1": 168, "b2": 628, "b3": 77, "b1_covered": 67, "b2_covered": 262}, {"tag": "2025.11.26.0", "b1": 167, "b2": 629, "b3": 77, "b1_covered": 67, "b2_covered": 262}, {"tag": "2025.11.27.0", "b1": 167, "b2": 629, "b3": 77, "b1_covered": 67, "b2_covered": 262}, {"tag": "2025.11.28.0", "b1": 167, "b2": 629, "b3": 77, "b1_covered": 67, "b2_covered": 262}, {"tag": "2025.12.01.0", "b1": 167, "b2": 629, "b3": 77, "b1_covered": 67, "b2_covered": 262}, {"tag": "2025.12.02.0", "b1": 167, "b2": 629, "b3": 77, "b1_covered": 67, "b2_covered": 262}, {"tag": "2025.12.03.0", "b1": 167, "b2": 633, "b3": 77, "b1_covered": 68, "b2_covered": 266}, {"tag": "2025.12.04.0", "b1": 167, "b2": 634, "b3": 77, "b1_covered": 68, "b2_covered": 266}, {"tag": "2025.12.05.0", "b1": 167, "b2": 635, "b3": 77, "b1_covered": 68, "b2_covered": 266}, {"tag": "2025.12.08.0", "b1": 167, "b2": 637, "b3": 77, "b1_covered": 68, "b2_covered": 268}, {"tag": "2025.12.09.0", "b1": 167, "b2": 637, "b3": 77, "b1_covered": 68, "b2_covered": 268}, {"tag": "2025.12.10.0", "b1": 167, "b2": 638, "b3": 77, "b1_covered": 67, "b2_covered": 264}, {"tag": "2025.12.11.0", "b1": 167, "b2": 639, "b3": 77, "b1_covered": 67, "b2_covered": 264}, {"tag": "2025.12.12.0", "b1": 167, "b2": 639, "b3": 77, "b1_covered": 67, "b2_covered": 264}, {"tag": "2025.12.15.0", "b1": 167, "b2": 639, "b3": 77, "b1_covered": 68, "b2_covered": 268}, {"tag": "2025.12.16.0", "b1": 167, "b2": 639, "b3": 77, "b1_covered": 68, "b2_covered": 268}, {"tag": "2025.12.17.0", "b1": 169, "b2": 639, "b3": 77, "b1_covered": 68, "b2_covered": 268}, {"tag": "2025.12.18.0", "b1": 169, "b2": 642, "b3": 77, "b1_covered": 68, "b2_covered": 268}, {"tag": "2025.12.19.0", "b1": 169, "b2": 642, "b3": 77, "b1_covered": 68, "b2_covered": 268}, {"tag": "2025.12.22.0", "b1": 169, "b2": 642, "b3": 77, "b1_covered": 68, "b2_covered": 269}, {"tag": "2025.12.23.0", "b1": 174, "b2": 643, "b3": 77, "b1_covered": 68, "b2_covered": 271}, {"tag": "2025.12.24.0", "b1": 175, "b2": 643, "b3": 77, "b1_covered": 68, "b2_covered": 271}, {"tag": "2025.12.25.0", "b1": 176, "b2": 643, "b3": 77, "b1_covered": 68, "b2_covered": 271}, {"tag": "2025.12.30.0", "b1": 176, "b2": 643, "b3": 77, "b1_covered": 68, "b2_covered": 271}, {"tag": "2025.12.31.0", "b1": 177, "b2": 643, "b3": 77, "b1_covered": 69, "b2_covered": 275}, {"tag": "2026.01.01.0", "b1": 177, "b2": 643, "b3": 77, "b1_covered": 69, "b2_covered": 275}, {"tag": "2026.01.05.0", "b1": 177, "b2": 643, "b3": 77, "b1_covered": 69, "b2_covered": 275}, {"tag": "2026.01.05.1", "b1": 177, "b2": 644, "b3": 77, "b1_covered": 69, "b2_covered": 276}, {"tag": "2026.01.07.0", "b1": 180, "b2": 644, "b3": 77, "b1_covered": 69, "b2_covered": 276}, {"tag": "2026.01.08.0", "b1": 181, "b2": 648, "b3": 77, "b1_covered": 69, "b2_covered": 276}, {"tag": "2026.01.09.0", "b1": 181, "b2": 648, "b3": 77, "b1_covered": 69, "b2_covered": 278}, {"tag": "2026.01.12.0", "b1": 182, "b2": 649, "b3": 77, "b1_covered": 69, "b2_covered": 279}, {"tag": "2026.01.12.1", "b1": 182, "b2": 649, "b3": 77, "b1_covered": 69, "b2_covered": 279}, {"tag": "2026.01.13.0", "b1": 182, "b2": 649, "b3": 77, "b1_covered": 69, "b2_covered": 285}, {"tag": "2026.01.14.0", "b1": 183, "b2": 651, "b3": 77, "b1_covered": 69, "b2_covered": 285}, {"tag": "2026.01.14.1", "b1": 183, "b2": 651, "b3": 77, "b1_covered": 69, "b2_covered": 285}, {"tag": "2026.01.15.0", "b1": 183, "b2": 651, "b3": 77, "b1_covered": 69, "b2_covered": 285}, {"tag": "2026.01.16.0", "b1": 183, "b2": 651, "b3": 77, "b1_covered": 69, "b2_covered": 285}, {"tag": "2026.01.19.0", "b1": 184, "b2": 651, "b3": 77, "b1_covered": 69, "b2_covered": 285}, {"tag": "2026.01.20.0", "b1": 184, "b2": 651, "b3": 77, "b1_covered": 69, "b2_covered": 287}, {"tag": "2026.01.21.0", "b1": 184, "b2": 651, "b3": 77, "b1_covered": 69, "b2_covered": 287}, {"tag": "2026.01.21.1", "b1": 184, "b2": 651, "b3": 77, "b1_covered": 69, "b2_covered": 287}, {"tag": "2026.01.22.0", "b1": 184, "b2": 651, "b3": 77, "b1_covered": 69, "b2_covered": 287}, {"tag": "2026.01.23.0", "b1": 184, "b2": 651, "b3": 77, "b1_covered": 69, "b2_covered": 287}, {"tag": "2026.01.26.0", "b1": 184, "b2": 651, "b3": 77, "b1_covered": 69, "b2_covered": 287}, {"tag": "2026.01.27.0", "b1": 184, "b2": 651, "b3": 77, "b1_covered": 69, "b2_covered": 287}, {"tag": "2026.01.28.0", "b1": 184, "b2": 651, "b3": 77, "b1_covered": 69, "b2_covered": 287}, {"tag": "2026.01.28.1", "b1": 184, "b2": 651, "b3": 77, "b1_covered": 69, "b2_covered": 287}, {"tag": "2026.01.29.0", "b1": 184, "b2": 651, "b3": 77, "b1_covered": 69, "b2_covered": 287}, {"tag": "2026.01.30.0", "b1": 184, "b2": 651, "b3": 77, "b1_covered": 69, "b2_covered": 287}, {"tag": "2026.02.02.0", "b1": 185, "b2": 651, "b3": 77, "b1_covered": 69, "b2_covered": 287}, {"tag": "2026.02.03.0", "b1": 185, "b2": 651, "b3": 77, "b1_covered": 69, "b2_covered": 287}, {"tag": "2026.02.04.0", "b1": 186, "b2": 656, "b3": 77, "b1_covered": 69, "b2_covered": 287}, {"tag": "2026.02.04.1", "b1": 186, "b2": 657, "b3": 77, "b1_covered": 69, "b2_covered": 287}, {"tag": "2026.02.05.0", "b1": 186, "b2": 657, "b3": 77, "b1_covered": 69, "b2_covered": 287}, {"tag": "2026.02.05.1", "b1": 186, "b2": 657, "b3": 77, "b1_covered": 69, "b2_covered": 287}, {"tag": "2026.02.06.0", "b1": 186, "b2": 657, "b3": 77, "b1_covered": 69, "b2_covered": 287}, {"tag": "2026.02.09.0", "b1": 186, "b2": 657, "b3": 77, "b1_covered": 69, "b2_covered": 287}, {"tag": "2026.02.10.0", "b1": 186, "b2": 659, "b3": 77, "b1_covered": 69, "b2_covered": 287}, {"tag": "2026.02.11.0", "b1": 186, "b2": 659, "b3": 77, "b1_covered": 69, "b2_covered": 287}, {"tag": "2026.02.12.0", "b1": 186, "b2": 659, "b3": 77, "b1_covered": 69, "b2_covered": 287}, {"tag": "2026.02.13.0", "b1": 187, "b2": 659, "b3": 77, "b1_covered": 69, "b2_covered": 287}, {"tag": "2026.02.16.0", "b1": 187, "b2": 659, "b3": 77, "b1_covered": 69, "b2_covered": 287}, {"tag": "2026.02.16.1", "b1": 187, "b2": 659, "b3": 77, "b1_covered": 69, "b2_covered": 287}, {"tag": "2026.02.17.0", "b1": 187, "b2": 659, "b3": 77, "b1_covered": 69, "b2_covered": 287}, {"tag": "2026.02.18.0", "b1": 187, "b2": 659, "b3": 77, "b1_covered": 69, "b2_covered": 287}, {"tag": "2026.02.19.0", "b1": 187, "b2": 659, "b3": 77, "b1_covered": 69, "b2_covered": 288}, {"tag": "2026.02.20.0", "b1": 187, "b2": 659, "b3": 77, "b1_covered": 69, "b2_covered": 288}, {"tag": "2026.02.23.0", "b1": 187, "b2": 659, "b3": 77, "b1_covered": 69, "b2_covered": 288}, {"tag": "2026.02.24.0", "b1": 187, "b2": 659, "b3": 77, "b1_covered": 69, "b2_covered": 288}, {"tag": "2026.02.25.0", "b1": 187, "b2": 659, "b3": 77, "b1_covered": 69, "b2_covered": 288}, {"tag": "2026.02.26.0", "b1": 187, "b2": 661, "b3": 77, "b1_covered": 69, "b2_covered": 290}, {"tag": "2026.02.27.0", "b1": 187, "b2": 661, "b3": 77, "b1_covered": 69, "b2_covered": 290}, {"tag": "2026.03.02.0", "b1": 188, "b2": 663, "b3": 77, "b1_covered": 69, "b2_covered": 290}, {"tag": "2026.03.03.0", "b1": 188, "b2": 663, "b3": 77, "b1_covered": 69, "b2_covered": 290}, {"tag": "2026.03.04.0", "b1": 189, "b2": 664, "b3": 77, "b1_covered": 69, "b2_covered": 290}, {"tag": "2026.03.06.0", "b1": 190, "b2": 665, "b3": 77, "b1_covered": 69, "b2_covered": 291}, {"tag": "2026.03.09.0", "b1": 190, "b2": 665, "b3": 77, "b1_covered": 69, "b2_covered": 291}, {"tag": "2026.03.10.0", "b1": 190, "b2": 665, "b3": 77, "b1_covered": 69, "b2_covered": 291}, {"tag": "2026.03.11.0", "b1": 190, "b2": 665, "b3": 77, "b1_covered": 70, "b2_covered": 291}, {"tag": "2026.03.12.0", "b1": 190, "b2": 665, "b3": 77, "b1_covered": 70, "b2_covered": 291}, {"tag": "2026.03.13.0", "b1": 190, "b2": 665, "b3": 77, "b1_covered": 70, "b2_covered": 291}, {"tag": "2026.03.16.0", "b1": 190, "b2": 665, "b3": 77, "b1_covered": 70, "b2_covered": 291}, {"tag": "2026.03.17.0", "b1": 191, "b2": 667, "b3": 77, "b1_covered": 70, "b2_covered": 291}, {"tag": "2026.03.18.0", "b1": 191, "b2": 667, "b3": 77, "b1_covered": 70, "b2_covered": 291}, {"tag": "2026.03.19.0", "b1": 191, "b2": 667, "b3": 77, "b1_covered": 70, "b2_covered": 291}, {"tag": "2026.03.23.0", "b1": 192, "b2": 667, "b3": 77, "b1_covered": 70, "b2_covered": 291}, {"tag": "2026.03.24.0", "b1": 192, "b2": 667, "b3": 78, "b1_covered": 70, "b2_covered": 291}, {"tag": "2026.03.25.0", "b1": 192, "b2": 667, "b3": 78, "b1_covered": 70, "b2_covered": 291}, {"tag": "2026.03.26.0", "b1": 192, "b2": 667, "b3": 80, "b1_covered": 70, "b2_covered": 291}, {"tag": "2026.03.27.0", "b1": 192, "b2": 667, "b3": 80, "b1_covered": 70, "b2_covered": 291}, {"tag": "2026.03.30.0", "b1": 192, "b2": 667, "b3": 80, "b1_covered": 70, "b2_covered": 291}, {"tag": "2026.04.01.0", "b1": 192, "b2": 669, "b3": 80, "b1_covered": 70, "b2_covered": 291}, {"tag": "2026.04.02.0", "b1": 192, "b2": 669, "b3": 80, "b1_covered": 70, "b2_covered": 291}, {"tag": "2026.04.03.0", "b1": 194, "b2": 673, "b3": 80, "b1_covered": 70, "b2_covered": 291}, {"tag": "2026.04.06.0", "b1": 194, "b2": 673, "b3": 80, "b1_covered": 70, "b2_covered": 291}, {"tag": "2026.04.07.0", "b1": 195, "b2": 673, "b3": 80, "b1_covered": 70, "b2_covered": 291}, {"tag": "2026.04.08.0", "b1": 195, "b2": 673, "b3": 80, "b1_covered": 70, "b2_covered": 291}, {"tag": "2026.04.09.0", "b1": 195, "b2": 673, "b3": 80, "b1_covered": 70, "b2_covered": 291}, {"tag": "2026.04.10.0", "b1": 195, "b2": 673, "b3": 80, "b1_covered": 70, "b2_covered": 291}, {"tag": "2026.04.13.0", "b1": 195, "b2": 673, "b3": 80, "b1_covered": 70, "b2_covered": 291}, {"tag": "2026.04.14.0", "b1": 196, "b2": 674, "b3": 80, "b1_covered": 70, "b2_covered": 291}, {"tag": "2026.04.15.0", "b1": 196, "b2": 674, "b3": 80, "b1_covered": 70, "b2_covered": 291}, {"tag": "2026.04.16.0", "b1": 196, "b2": 674, "b3": 80, "b1_covered": 70, "b2_covered": 291}, {"tag": "2026.04.17.0", "b1": 196, "b2": 674, "b3": 80, "b1_covered": 70, "b2_covered": 291}, {"tag": "2026.04.20.0", "b1": 197, "b2": 676, "b3": 80, "b1_covered": 70, "b2_covered": 291}, {"tag": "2026.04.21.0", "b1": 197, "b2": 676, "b3": 80, "b1_covered": 70, "b2_covered": 291}, {"tag": "2026.04.22.0", "b1": 197, "b2": 676, "b3": 80, "b1_covered": 70, "b2_covered": 291}, {"tag": "2026.04.23.0", "b1": 197, "b2": 676, "b3": 80, "b1_covered": 70, "b2_covered": 315}];
+const monthly = [{"month": "2025.10", "b1": 1, "b2": 0, "b3": 0, "cypress": 0}, {"month": "2025.11", "b1": 9, "b2": 11, "b3": 0, "cypress": 2}, {"month": "2025.12", "b1": 10, "b2": 14, "b3": 0, "cypress": 15}, {"month": "2026.01", "b1": 7, "b2": 8, "b3": 0, "cypress": 12}, {"month": "2026.02", "b1": 3, "b2": 10, "b3": 0, "cypress": 3}, {"month": "2026.03", "b1": 5, "b2": 6, "b3": 3, "cypress": 2}, {"month": "2026.04", "b1": 5, "b2": 10, "b3": 0, "cypress": 24}];
+const weekly = [{"week": "2025-W44", "b1": 1, "b2": 0, "b3": 0, "cypress": 0}, {"week": "2025-W45", "b1": 1, "b2": 3, "b3": 0, "cypress": 2}, {"week": "2025-W46", "b1": 7, "b2": 5, "b3": 0, "cypress": 0}, {"week": "2025-W47", "b1": 0, "b2": 2, "b3": 0, "cypress": 0}, {"week": "2025-W48", "b1": 1, "b2": 1, "b3": 0, "cypress": 0}, {"week": "2025-W49", "b1": 0, "b2": 6, "b3": 0, "cypress": 0}, {"week": "2025-W50", "b1": 0, "b2": 4, "b3": 0, "cypress": 2}, {"week": "2025-W51", "b1": 2, "b2": 3, "b3": 0, "cypress": 5}, {"week": "2025-W52", "b1": 7, "b2": 1, "b3": 0, "cypress": 3}, {"week": "2026-W01", "b1": 1, "b2": 0, "b3": 0, "cypress": 5}, {"week": "2026-W02", "b1": 4, "b2": 5, "b3": 0, "cypress": 3}, {"week": "2026-W03", "b1": 2, "b2": 3, "b3": 0, "cypress": 7}, {"week": "2026-W04", "b1": 1, "b2": 0, "b3": 0, "cypress": 2}, {"week": "2026-W06", "b1": 2, "b2": 6, "b3": 0, "cypress": 0}, {"week": "2026-W07", "b1": 1, "b2": 2, "b3": 0, "cypress": 0}, {"week": "2026-W08", "b1": 0, "b2": 0, "b3": 0, "cypress": 1}, {"week": "2026-W09", "b1": 0, "b2": 2, "b3": 0, "cypress": 2}, {"week": "2026-W10", "b1": 3, "b2": 4, "b3": 0, "cypress": 1}, {"week": "2026-W11", "b1": 0, "b2": 0, "b3": 0, "cypress": 1}, {"week": "2026-W12", "b1": 1, "b2": 2, "b3": 0, "cypress": 0}, {"week": "2026-W13", "b1": 1, "b2": 0, "b3": 3, "cypress": 0}, {"week": "2026-W14", "b1": 2, "b2": 6, "b3": 0, "cypress": 0}, {"week": "2026-W15", "b1": 1, "b2": 1, "b3": 0, "cypress": 0}, {"week": "2026-W16", "b1": 1, "b2": 1, "b3": 0, "cypress": 0}, {"week": "2026-W17", "b1": 1, "b2": 2, "b3": 0, "cypress": 24}];
+
+const labels = series.map(s => s.tag);
+
+Chart.defaults.color = '#aaa';
+Chart.defaults.borderColor = '#2a2e38';
+Chart.defaults.font.family = '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
+
+function line(ctx, datasets, opts) {
+  opts = opts || {};
+  return new Chart(ctx, {
+    type: 'line',
+    data: { labels: labels, datasets: datasets },
+    options: {
+      responsive: true,
+      interaction: { mode: 'index', intersect: false },
+      scales: {
+        x: { ticks: { maxTicksLimit: 12, autoSkip: true } },
+        y: Object.assign({ beginAtZero: true }, opts.y || {})
+      },
+      plugins: {
+        legend: { labels: { boxWidth: 12 } },
+        tooltip: { backgroundColor: '#1a1d24', borderColor: '#444', borderWidth: 1 }
+      },
+      elements: { point: { radius: 0, hoverRadius: 4 } }
+    }
+  });
+}
+
+line(document.getElementById('features_chart'), [
+  { label: 'Connector Flows',         data: series.map(s => s.b1),
+    borderColor: '#5cc8ff', backgroundColor: 'rgba(92,200,255,0.15)', fill: true, tension: 0.2 },
+  { label: 'Connector × Payment Method', data: series.map(s => s.b2),
+    borderColor: '#9d7cff', backgroundColor: 'rgba(157,124,255,0.15)', fill: true, tension: 0.2 },
+  { label: 'Core / Schema',           data: series.map(s => s.b3),
+    borderColor: '#ffa56c', backgroundColor: 'rgba(255,165,108,0.15)', fill: true, tension: 0.2 }
+], { y: { stacked: true } });
+
+line(document.getElementById('cypress_chart'), [
+  { label: 'Connector Flows — with cypress',         data: series.map(s => s.b1_covered),
+    borderColor: '#5cc8ff', backgroundColor: 'rgba(92,200,255,0.15)', fill: true, tension: 0.2 },
+  { label: 'Connector × Payment Method — with cypress', data: series.map(s => s.b2_covered),
+    borderColor: '#9d7cff', backgroundColor: 'rgba(157,124,255,0.15)', fill: true, tension: 0.2 }
+], { y: { stacked: true } });
+
+const ratio = series.map(s => {
+  const total = s.b1 + s.b2;
+  return total === 0 ? 0 : Math.round(((s.b1_covered + s.b2_covered) / total) * 1000) / 10;
+});
+line(document.getElementById('ratio_chart'), [
+  { label: 'Cypress coverage %', data: ratio,
+    borderColor: '#6bda8f', backgroundColor: 'rgba(107,218,143,0.15)', fill: true, tension: 0.2 }
+], { y: { min: 0, max: 100, ticks: { callback: v => v + '%' } } });
+
+function periodChart(ctx, data, labelKey) {
+  return new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: data.map(d => d[labelKey]),
+      datasets: [
+        { label: 'New Connector Flows',            data: data.map(d => d.b1),
+          backgroundColor: '#5cc8ff', stack: 'features' },
+        { label: 'New Connector × Payment Method', data: data.map(d => d.b2),
+          backgroundColor: '#9d7cff', stack: 'features' },
+        { label: 'New Core / Schema',              data: data.map(d => d.b3),
+          backgroundColor: '#ffa56c', stack: 'features' },
+        { label: 'New Cypress tests',              data: data.map(d => d.cypress),
+          backgroundColor: '#6bda8f', stack: 'cypress', type: 'line',
+          borderColor: '#6bda8f', tension: 0.2, fill: false, pointRadius: 3, borderWidth: 2 }
+      ]
+    },
+    options: {
+      responsive: true,
+      interaction: { mode: 'index', intersect: false },
+      scales: {
+        x: { stacked: true, ticks: { maxTicksLimit: 20, autoSkip: true } },
+        y: { stacked: true, beginAtZero: true, title: { display: true, text: 'Count' } }
+      },
+      plugins: {
+        legend: { labels: { boxWidth: 12 } },
+        tooltip: { backgroundColor: '#1a1d24', borderColor: '#444', borderWidth: 1 }
+      }
+    }
+  });
+}
+
+periodChart(document.getElementById('weekly_chart'), weekly, 'week');
+periodChart(document.getElementById('monthly_chart'), monthly, 'month');
+</script>
+</body>
+</html>

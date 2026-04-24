@@ -1,0 +1,100 @@
+feature,description,hs_endpoint,source,cypress_test_status,notes,prod_used,latest_prod_timestamp
+Routing Algorithm,Payment routing rules and algorithm,POST /routing + GET /routing/{id},business_profile.rs:routing_algorithm,covered,Cypress specs: PriorityRouting VolumeBasedRouting RuleBasedRouting,yes,2026-04-21 03:03:53.877723142
+Dynamic Routing,AI/ML-based dynamic routing algorithm,POST /routing (dynamic type),business_profile.rs:dynamic_routing_algorithm,not_covered,,yes,2026-04-03 14:18:30.564611
+FRM Routing Algorithm,Fraud risk management routing rules,POST /accounts/{merchant_id} (frm_routing_algorithm field),business_profile.rs:frm_routing_algorithm,not_covered,,no,
+Payout Routing Algorithm,Payout routing rules,POST /routing (payout type),business_profile.rs:payout_routing_algorithm,not_covered,,yes,2026-04-20 14:31:05.204551
+Default Fallback Routing,Fallback routing when primary routing fails,POST /business_profile (default_fallback_routing),business_profile.rs:default_fallback_routing,not_covered,,yes,2026-04-14 13:37:10.684702
+3DS Decision Rule Algorithm,Rules engine for 3DS authentication decisions,POST /routing (3ds decision type),business_profile.rs:three_ds_decision_rule_algorithm,not_covered,,yes,2026-04-20 14:31:05.204551
+External 3DS Authentication,External 3DS authentication service integration,POST /payments (request_external_three_ds_authentication),business_profile.rs:authentication_connector_details,not_covered,,yes,2026-04-21 03:04:10.439
+Authentication Service Eligibility,Eligibility for authentication service,POST /payments (read during 3DS auth eligibility check),configs table:authentication_service_eligible,not_covered,,yes,
+Eligibility Check,Perform payment eligibility checks,POST /payments/eligibility,configs table:should_perform_eligibility,covered,Cypress spec 35-PaymentsEligibilityAPI,yes,
+Eligibility Data Storage For Auth,Store eligibility check data for authentication,POST /payments (read during UAS 3DS flow),configs table:should_store_eligibility_check_data_for_authentication,not_covered,,yes,
+3DS Routing Region UAS,3DS routing region for Unified Authentication Service,POST /payments (read during UAS 3DS routing),configs table:threeds_routing_region_uas,not_covered,,no,
+PM Modular Service,Payment method modular service toggle,POST /payments/confirm + GET /payment_methods,configs table:should_call_pm_modular_service,not_covered,,no,
+Payment Link,Generate hosted payment link for a payment,POST /payments (payment_link=true) + GET /payment_link/{id},business_profile.rs:payment_link_config,not_covered,,yes,2026-04-21 03:03:48
+Payout Link,Generate hosted payout link,POST /payouts (payout_link config),business_profile.rs:payout_link_config,not_covered,,no,
+PM Collect Link,Payment method collection link,GET /pm_collect/{id},merchant_account.rs:pm_collect_link_config,not_covered,,no,
+Customer Management,Customer CRUD operations,POST/GET/PUT/DELETE /customers,api_models/customers.rs,covered,Cypress spec 02-CustomerCreate 27-DeletedCustomerPsyncFlow 34-CustomerListTests,yes,2026-04-21 02:16:35.400
+Blocklist,Block specific cards/fingerprints/card BINs,POST/GET/DELETE /blocklist,configs table:guard_blocklist_for,covered,Cypress spec 35-PaymentsEligibilityAPI,yes,2026-04-21 02:17:05.869
+PM Filters CGraph,Payment method filter configuration graph,GET /payment_methods (pm_filters_cgraph applied),configs table:pm_filters_cgraph,covered,Cypress spec 24/PaymentMethodList tests,no,
+Conditional Routing DSL,Conditional payment routing domain-specific language,POST /routing (conditional config),configs table:dsl,not_covered,,no,
+Surcharge DSL,Surcharge decision logic rules,POST /routing (surcharge config),configs table:surcharge_dsl,not_covered,,no,
+Auto Retries,Automatic payment retry on failure,POST /payments (internal retry on failure),business_profile.rs:is_auto_retries_enabled,covered,Cypress spec 42-AutoRetries,yes,2026-04-21 02:15:23.471
+Clear PAN Retries,Retry with clear PAN instead of network token,POST /payments (internal retry strategy),business_profile.rs:is_clear_pan_retries_enabled,not_covered,,no,
+Manual Retry,Manual payment retry by merchant,POST /payments/{id}/retry,business_profile.rs:is_manual_retry_enabled,covered,Cypress spec 33-ManualRetry,yes,2026-04-07 11:26:59.665649
+Requires CVV,CVV requirement for saved card payments,POST /payments (card_cvc required/optional),configs table:requires_cvv,not_covered,,no,
+Implicit Customer Update,Implicit customer record update behavior,POST /payments (internal customer update),configs table:implicit_customer_update,not_covered,,no,
+Client Session Validation,Client session token validation,POST /payments (client_secret validation),superposition:client_session_validation_enabled,not_covered,,unknown,
+Payment Update Via Client Auth,Allow payment updates via client authentication,PUT /payments/{id} (client auth),configs table:payment_update_enabled_for_client_auth,not_covered,,no,
+Raw PM Details Return,Return raw payment method details in response,GET /payment_methods (response format),configs table:should_return_raw_payment_method_details,not_covered,,no,
+MIT With Limited Card Data,Enable MIT with limited card data,POST /payments (MIT with limited data),configs table:should_enable_mit_with_limited_card_data,not_covered,,no,
+Extended Card BIN,Extended card BIN lookup (8-digit),POST /payments (extended BIN in response),configs table:enable_extended_card_bin,not_covered,,no,
+Extended Card Info,Extended card information display,POST /payments (extended info in response),business_profile.rs:is_extended_card_info_enabled,not_covered,,no,
+Connector Agnostic MIT,Connector-agnostic merchant-initiated transactions,POST /payments (MIT across connectors),business_profile.rs:is_connector_agnostic_mit_enabled,covered,Cypress spec 25-ConnectorAgnosticNTID,yes,2026-04-15 13:24:38.664824
+Use Billing As PM Billing,Use payment billing address as payment method billing,POST /payments (internal address mapping),business_profile.rs:use_billing_as_payment_method_billing,not_covered,,yes,2026-04-20 16:20:26.268823
+Tax Connector,External tax calculation connector,POST /payments (internal tax calc),business_profile.rs:is_tax_connector_enabled,not_covered,,no,
+Iframe Redirection,Enable iframe-based redirection for hosted flows,POST /payments (is_iframe_redirection_enabled),business_profile.rs:is_iframe_redirection_enabled,not_covered,,no,
+External Vault,External vault for payment method tokenization,POST /payments (external vault flow),business_profile.rs:is_external_vault_enabled,covered,Cypress spec 40-ExternalVault,yes,2026-04-20 19:48:19.365
+CVV Collection During Payment,Collect CVV during payment for saved cards,POST /payments (CVV collection behavior),business_profile.rs:should_collect_cvv_during_payment,not_covered,,unknown,
+Split Transactions Enabled,Enable split transaction feature,POST /business_profile (split_txns_enabled),business_profile.rs:split_txns_enabled,not_covered,,no,
+Webhook Config Disabled Events,Disable specific webhook events per connector,POST /business_profile (webhook config),configs table:whconf_disabled_events,not_covered,,no,
+Outgoing Webhook Custom Headers,Custom HTTP headers for outgoing webhooks,POST /business_profile (custom headers),business_profile.rs:outgoing_webhook_custom_http_headers,not_covered,,yes,2026-04-08 12:50:48.513319
+Webhook Details,Webhook URL and event configuration,POST /business_profile (webhook_details),business_profile.rs:webhook_details,covered,Cypress specs 44-PaymentWebhook 45-RefundWebhook,yes,2026-04-21 03:04:04.509
+Card Testing Guard,Anti-card-testing fraud detection,POST /payments (internal fraud guard),business_profile.rs:card_testing_guard_config,not_covered,,yes,2026-04-20 16:20:26.268823
+Payment Response Hash,Sign payment response for integrity verification,POST /payments (hash in response),business_profile.rs:enable_payment_response_hash,not_covered,,yes,2026-04-20 16:20:26.268823
+Redirect Method,POST vs GET for merchant redirect,POST /payments (redirect behavior),business_profile.rs:redirect_to_merchant_with_http_post,not_covered,,yes,2025-12-23 14:27:02.327358
+Session Expiry,Client secret / session expiry time,POST /payments (session timeout),business_profile.rs:session_expiry,not_covered,,yes,2026-04-20 16:20:26.268823
+Reconciliation,Payment reconciliation feature,Recon API endpoints,business_profile.rs:is_recon_enabled,not_covered,,yes,2026-04-21 00:52:21.106
+Sub-Merchants,Sub-merchant management feature,POST /merchant_account (sub_merchants_enabled),merchant_account.rs:sub_merchants_enabled,not_covered,,no,
+Platform Account,Platform/marketplace account type,POST /organization + POST /merchant_account,merchant_account.rs:is_platform_account,covered,Cypress Platform/ test suite,no,
+Product Type,Merchant product type (Payments/Payouts),POST /merchant_account (product_type),merchant_account.rs:product_type,not_covered,,yes,2026-04-20 16:20:26.589598
+Merchant Category Code,Merchant category code (MCC),POST /business_profile (merchant_category_code),business_profile.rs:merchant_category_code,not_covered,,yes,2026-04-10 09:06:25.836586
+Merchant Country Code,Numeric merchant country code,POST /business_profile (merchant_country_code),business_profile.rs:merchant_country_code,not_covered,,yes,2026-04-10 09:06:25.836586
+Dispute Polling Interval,Polling interval for dispute sync,POST /business_profile (dispute_polling_interval),business_profile.rs:dispute_polling_interval,not_covered,,no,
+Routing Result Source,Which routing engine to use,POST /payments (read during routing selection),configs table:routing_result_source,not_covered,,no,
+Poll Config,Payment status polling configuration,GET /payments/{id} (read during redirect payment polling),configs table:poll_config,not_covered,,yes,
+Forex/Currency Conversion,Currency conversion for payments,GET /forex/rates,settings.rs:forex_api,not_covered,,unknown,
+Relay Operations,Relay API for direct connector operations,POST /relay (capture/refund/void/incremental_auth),api_models/relay.rs,not_covered,,no,
+Subscription Management,Subscription CRUD and lifecycle management,POST/GET/PUT /subscriptions,api_models/subscription.rs,not_covered,,no,
+Dispute Management,Dispute accept/defend/submit evidence,POST /disputes/{id}/accept + POST /disputes/{id}/evidence,api_models/disputes.rs,not_covered,,no,
+FRM (Fraud Risk Management),Fraud check flows,POST /payments (internal FRM check),merchant_connector_account.rs:frm_configs,not_covered,,no,
+Network Tokenization Credentials,Credentials for network tokenization,POST /business_profile (network_tokenization_credentials),business_profile.rs:network_tokenization_credentials,not_covered,,no,
+OIDC Authentication,OpenID Connect authentication for users,POST /oidc/token,api_models/oidc.rs,not_covered,,yes,2026-04-21 00:33:10.324
+Card Issuer Management,Card issuer CRUD operations,POST/GET/PUT /card_issuers,api_models/card_issuer.rs,not_covered,,yes,2026-04-15 12:08:10.867
+Payment Method Operations,Payment method CRUD and listing,GET /payment_methods + POST /payment_methods,api_models/payment_methods.rs,covered,Cypress spec 24-PaymentMethods,yes,2026-04-21 02:17:13.706
+Organization Management,Organization CRUD operations,POST/GET/PUT /organization,api_models/organization.rs,covered,Cypress spec 00-CoreFlows,yes,2026-04-21 01:47:56.521
+Merchant Account Management,Merchant account CRUD operations,POST/GET/PUT /accounts,api_models/admin.rs,covered,Cypress spec 00-CoreFlows 01-AccountCreate,yes,2026-04-21 01:47:56.250
+Business Profile Management,Business profile CRUD operations,POST/GET/PUT /business_profile,api_models/admin.rs,covered,Cypress spec 28-BusinessProfileConfigs,yes,2026-04-21 01:47:56.568
+MCA Management,Merchant connector account CRUD operations,POST/GET/PUT /account/{id}/connectors,api_models/admin.rs,covered,Cypress spec 03-ConnectorCreate,yes,2026-04-21 02:17:32.282
+Browser Info Collection,Browser information for 3DS and fraud detection,POST /payments (browser_info in body),router_request_types.rs:browser_info,covered,Sent in all 3DS payment tests,yes,2026-04-21 03:04:03
+Order Details,Order line item details,POST /payments (order_details in body),api_models/payments.rs:order_details,not_covered,,unknown,
+Customer Acceptance,Customer acceptance for mandates/T&C,POST /payments (customer_acceptance in body),api_models/payments.rs:customer_acceptance,covered,Tested in all mandate flows,no,
+Off Session Payments,Off-session (merchant-initiated) payment indicator,POST /payments (off_session=true),api_models/payments.rs:off_session,covered,Tested in MIT mandate flows,yes,2026-04-21 03:02:29
+Feature Metadata,Generic feature metadata on payments,POST /payments (feature_metadata in body),api_models/payments.rs:feature_metadata,not_covered,,unknown,
+Connector Metadata,Connector-specific metadata from merchant,POST /payments (connector_metadata in body),api_models/payments.rs:connector_metadata,not_covered,,yes,2026-04-21 03:03:55
+Multiple Capture,Multiple partial captures on a single authorization,POST /payments/{id}/capture (multiple times),router_request_types.rs:multiple_capture_data,not_covered,,no,
+Payout Type,Type of payout (card/bank/wallet),POST /payouts (payout_type in body),api_models/payouts.rs:payout_type,covered,Cypress payout specs,yes,2026-04-21 01:25:42
+Payout Priority,Payout send priority,POST /payouts (priority in body),api_models/payouts.rs:priority,not_covered,,unknown,
+Payout Auto Fulfill,Auto-fulfill payout without review,POST /payouts (auto_fulfill=true),api_models/payouts.rs:auto_fulfill,covered,Cypress payout spec 00003,yes,2026-04-21 01:25:42
+Payout Entity Type,Payout entity type classification,POST /payouts (entity_type in body),api_models/payouts.rs:entity_type,not_covered,,unknown,
+Payout Recurring,Recurring payout indicator,POST /payouts (recurring in body),api_models/payouts.rs:recurring,not_covered,,no,
+Refund Type,Refund type (instant/scheduled),POST /refunds (refund_type in body),api_models/refunds.rs:refund_type,not_covered,,unknown,
+Mandate Management,Mandate CRUD and revocation,GET /mandates/{id} + POST /mandates/{id}/revoke,api_models/mandates.rs,covered,Cypress spec 13-ListAndRevokeMandate,yes,2026-04-21 02:50:00
+Payment Manual Update,Manual payment status update by admin,PUT /payments/{id}/manual-update,api_models/payments.rs,not_covered,,unknown,
+Refund Manual Update,Manual refund status update by admin,PUT /refunds/{id}/manual-update,api_models/refunds.rs,not_covered,,unknown,
+Credentials Identifier Mapping,MCA credentials identifier mapping,POST /payments (read during MCA credential lookup),configs table:mcd_{merchant_id},not_covered,,yes,
+Routing Evaluate,Evaluate routing rules without creating payment,POST /routing/evaluate,api_models/routing.rs,not_covered,,yes,2026-04-20 14:24:54.604
+SDK Client Token Generation,Generate SDK session/client tokens for frontend,POST /payments/session_tokens,hyperswitch_interfaces/api.rs,covered,Cypress spec 26-SessionCall,yes,2026-04-21 02:17:05.481
+Gateway Status Map (GSM),Map connector error codes to retry actions,POST /payments (read during auto-retry flow),configs table:should_call_gsm,not_covered,,yes,2026-04-20 07:42:47.078
+Vault Tokenization Disable,Disable vault tokenization for modular auth,POST /payments (read during UAS modular auth flow),configs table:should_disable_vault_tokenization,not_covered,,no,
+Delayed Session Response,Delayed session response handling,POST /payments/session_tokens (internal delay),settings.rs:delayed_session_response,not_covered,,unknown,
+Connector API Version Override,Override API version for a connector,POST /payments (read when building connector request),configs table:connector_api_version,not_covered,,yes,
+Acquirer Config Map,Acquirer-specific configurations,POST /business_profile (acquirer_config_map),business_profile.rs:acquirer_config_map,not_covered,,no,
+Payout Tracker Mapping,Retry schedule mapping for payouts,superposition config,superposition:payout_tracker_mapping,not_covered,,unknown,
+Process Tracker Mapping,Retry schedule for sync operations,GET /payments/{id} (read by payment_sync background workflow),configs table:pt_mapping,not_covered,,yes,
+Connector Onboarding Config,Connector-specific onboarding configuration,POST /account/{merchant_id}/connectors (read during connector onboarding),configs table:onboarding_{connector},not_covered,,no,
+Dynamic Fields,SDK dynamic fields configuration,GET /payment_methods (dynamic_fields),superposition:dynamic_fields,covered,Cypress spec 43-DynamicFields,unknown,
+Save Card Flow,Save card on-session and off-session,POST /payments (setup_future_usage=on/off_session),api_models/payments.rs:setup_future_usage,covered,Cypress spec 14-SaveCardFlow,yes,2026-04-21 03:04:13
+Payment Sync,Sync payment status with connector,GET /payments/{id} (force_sync=true),api_models/payments.rs,covered,Cypress spec 08-SyncPayment,yes,2026-04-21 02:17:38.892
+Void/Cancel Payment,Cancel/void an authorized payment,POST /payments/{id}/cancel,api_models/payments.rs,covered,Cypress spec 07-VoidPayment,yes,2026-04-21 02:11:10.516
+Health Check,System health check endpoint,GET /health,misc,covered,Cypress spec Misc/00000-HealthCheck,yes,2026-04-21 02:17:40.471

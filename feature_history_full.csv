@@ -1,0 +1,987 @@
+introduced_in_tag,bucket,connector,pm,pmt,feature
+2024.06.25.1,3,,,,merchant_account.pm_collect_link_config
+2024.09.20.0,3,,,,business_profile.always_collect_billing_details_from_wallet_connector
+2024.09.20.0,3,,,,business_profile.always_collect_shipping_details_from_wallet_connector
+2024.09.20.0,3,,,,business_profile.applepay_verified_domains
+2024.09.20.0,3,,,,business_profile.authentication_connector_details
+2024.09.20.0,3,,,,business_profile.collect_billing_details_from_wallet_connector
+2024.09.20.0,3,,,,business_profile.collect_shipping_details_from_wallet_connector
+2024.09.20.0,3,,,,business_profile.default_fallback_routing
+2024.09.20.0,3,,,,business_profile.dynamic_routing_algorithm
+2024.09.20.0,3,,,,business_profile.enable_payment_response_hash
+2024.09.20.0,3,,,,business_profile.extended_card_info_config
+2024.09.20.0,3,,,,business_profile.frm_routing_algorithm
+2024.09.20.0,3,,,,business_profile.frm_routing_algorithm_id
+2024.09.20.0,3,,,,business_profile.intent_fulfillment_time
+2024.09.20.0,3,,,,business_profile.is_connector_agnostic_mit_enabled
+2024.09.20.0,3,,,,business_profile.is_extended_card_info_enabled
+2024.09.20.0,3,,,,business_profile.is_network_tokenization_enabled
+2024.09.20.0,3,,,,business_profile.is_recon_enabled
+2024.09.20.0,3,,,,business_profile.is_tax_connector_enabled
+2024.09.20.0,3,,,,business_profile.order_fulfillment_time
+2024.09.20.0,3,,,,business_profile.order_fulfillment_time_origin
+2024.09.20.0,3,,,,business_profile.outgoing_webhook_custom_http_headers
+2024.09.20.0,3,,,,business_profile.payment_link_config
+2024.09.20.0,3,,,,business_profile.payout_link_config
+2024.09.20.0,3,,,,business_profile.payout_routing_algorithm
+2024.09.20.0,3,,,,business_profile.redirect_to_merchant_with_http_post
+2024.09.20.0,3,,,,business_profile.return_url
+2024.09.20.0,3,,,,business_profile.routing_algorithm
+2024.09.20.0,3,,,,business_profile.session_expiry
+2024.09.20.0,3,,,,business_profile.tax_connector_id
+2024.09.20.0,3,,,,business_profile.use_billing_as_payment_method_billing
+2024.09.20.0,3,,,,business_profile.webhook_details
+2024.09.30.0,3,,,,business_profile.is_auto_retries_enabled
+2024.09.30.0,3,,,,business_profile.max_auto_retries_enabled
+2024.11.11.0,3,,,,business_profile.should_collect_cvv_during_payment
+2024.12.06.0,3,,,,business_profile.is_click_to_pay_enabled
+2024.12.13.0,3,,,,business_profile.authentication_product_ids
+2024.12.24.0,3,,,,merchant_account.is_platform_account
+2025.01.27.0,1,airwallex,,,Preprocessing Flow
+2025.01.27.0,1,bambora,,,Refund
+2025.01.27.0,1,bankofamerica,,,Network Transaction ID
+2025.01.27.0,1,bluesnap,,,Network Transaction ID
+2025.01.27.0,1,cybersource,,,Incremental Authorization
+2025.01.27.0,1,cybersource,,,Network Transaction ID
+2025.01.27.0,1,cybersource,,,Preprocessing Flow
+2025.01.27.0,1,cybersource,,,Step Up Authentication
+2025.01.27.0,1,deutschebank,,,Refund
+2025.01.27.0,1,digitalvirgo,,,Surcharge
+2025.01.27.0,1,dlocal,,,Installments
+2025.01.27.0,1,fiuu,,,Network Transaction ID
+2025.01.27.0,1,gocardless,,,Preprocessing Flow
+2025.01.27.0,1,nexixpay,,,Preprocessing Flow
+2025.01.27.0,1,novalnet,,,Network Transaction ID
+2025.01.27.0,1,shift4,,,Preprocessing Flow
+2025.01.27.0,1,wellsfargo,,,Incremental Authorization
+2025.01.27.0,1,wellsfargo,,,Network Transaction ID
+2025.01.27.0,1,worldpay,,,Network Transaction ID
+2025.01.27.0,2,bambora,Card,Credit,Payment
+2025.01.27.0,2,bankofamerica,Wallet,ApplePay,Payment (Decrypt Flow)
+2025.01.27.0,2,bankofamerica,Wallet,Paze,Payment (Decrypt Flow)
+2025.01.27.0,2,cybersource,Wallet,ApplePay,Payment (Decrypt Flow)
+2025.01.27.0,2,cybersource,Wallet,Paze,Payment (Decrypt Flow)
+2025.01.27.0,2,deutschebank,BankDebit,Sepa,Mandate
+2025.01.27.0,2,deutschebank,BankDebit,Sepa,Payment
+2025.01.27.0,2,deutschebank,Card,Credit,Payment
+2025.01.27.0,2,fiuu,Wallet,ApplePay,Payment (Decrypt Flow)
+2025.01.27.0,2,fiuu,Wallet,Paze,Payment (Decrypt Flow)
+2025.01.27.0,2,gocardless,Wallet,ApplePay,Payment (Decrypt Flow)
+2025.01.27.0,2,gocardless,Wallet,Paze,Payment (Decrypt Flow)
+2025.01.27.0,2,mollie,Wallet,ApplePay,Payment (Decrypt Flow)
+2025.01.27.0,2,mollie,Wallet,Paze,Payment (Decrypt Flow)
+2025.01.27.0,2,square,Wallet,ApplePay,Payment (Decrypt Flow)
+2025.01.27.0,2,square,Wallet,Paze,Payment (Decrypt Flow)
+2025.01.27.0,2,stax,Wallet,ApplePay,Payment (Decrypt Flow)
+2025.01.27.0,2,stax,Wallet,Paze,Payment (Decrypt Flow)
+2025.01.27.0,2,wellsfargo,Wallet,ApplePay,Payment (Decrypt Flow)
+2025.01.27.0,2,wellsfargo,Wallet,Paze,Payment (Decrypt Flow)
+2025.01.27.0,2,zsl,BankTransfer,LocalBankTransfer,Payment
+2025.02.06.0,2,bankofamerica,Wallet,GooglePay,Payment (Decrypt Flow)
+2025.02.06.0,2,cybersource,Wallet,GooglePay,Payment (Decrypt Flow)
+2025.02.06.0,2,deutschebank,Card,Debit,Payment
+2025.02.06.0,2,fiuu,Wallet,GooglePay,Payment (Decrypt Flow)
+2025.02.06.0,2,gocardless,Wallet,GooglePay,Payment (Decrypt Flow)
+2025.02.06.0,2,mollie,Wallet,GooglePay,Payment (Decrypt Flow)
+2025.02.06.0,2,square,Wallet,GooglePay,Payment (Decrypt Flow)
+2025.02.06.0,2,stax,Wallet,GooglePay,Payment (Decrypt Flow)
+2025.02.06.0,2,wellsfargo,Wallet,GooglePay,Payment (Decrypt Flow)
+2025.02.06.0,3,,,,business_profile.three_ds_decision_manager_config
+2025.02.10.0,1,globalpay,,,Surcharge
+2025.02.10.0,1,nuvei,,,Installments
+2025.02.10.0,1,nuvei,,,Preprocessing Flow
+2025.02.10.0,2,braintree,Wallet,ApplePay,Payment (Decrypt Flow)
+2025.02.10.0,2,braintree,Wallet,GooglePay,Payment (Decrypt Flow)
+2025.02.10.0,2,braintree,Wallet,Paze,Payment (Decrypt Flow)
+2025.02.19.0,3,,,,business_profile.always_request_extended_authorization
+2025.02.21.0,1,unified_authentication_service,,,Network Transaction ID
+2025.02.21.0,1,xendit,,,Preprocessing Flow
+2025.02.21.0,1,xendit,,,Split Payments
+2025.02.21.0,1,xendit,,,Split Refunds
+2025.02.26.0,1,bitpay,,,Refund
+2025.02.26.0,1,digitalvirgo,,,Refund
+2025.02.26.0,1,dlocal,,,Refund
+2025.02.26.0,1,helcim,,,Refund
+2025.02.26.0,1,mollie,,,Refund
+2025.02.26.0,1,paybox,,,Refund
+2025.02.26.0,1,payu,,,Refund
+2025.02.26.0,1,razorpay,,,Refund
+2025.02.26.0,1,volt,,,Refund
+2025.02.26.0,2,bitpay,Crypto,CryptoCurrency,Payment
+2025.02.26.0,2,digitalvirgo,MobilePayment,DirectCarrierBilling,Payment
+2025.02.26.0,2,dlocal,Card,Credit,Payment
+2025.02.26.0,2,dlocal,Card,Debit,Payment
+2025.02.26.0,2,helcim,Card,Credit,Mandate
+2025.02.26.0,2,helcim,Card,Credit,Payment
+2025.02.26.0,2,helcim,Card,Debit,Mandate
+2025.02.26.0,2,helcim,Card,Debit,Payment
+2025.02.26.0,2,jpmorgan,Card,Credit,Payment
+2025.02.26.0,2,jpmorgan,Card,Debit,Payment
+2025.02.26.0,2,mifinity,Wallet,Mifinity,Payment
+2025.02.26.0,2,mollie,BankDebit,Sepa,Payment
+2025.02.26.0,2,mollie,BankRedirect,BancontactCard,Payment
+2025.02.26.0,2,mollie,BankRedirect,Eps,Payment
+2025.02.26.0,2,mollie,BankRedirect,Giropay,Payment
+2025.02.26.0,2,mollie,BankRedirect,Ideal,Payment
+2025.02.26.0,2,mollie,BankRedirect,Przelewy24,Payment
+2025.02.26.0,2,mollie,BankRedirect,Sofort,Payment
+2025.02.26.0,2,mollie,Card,Credit,Payment
+2025.02.26.0,2,mollie,Card,Debit,Payment
+2025.02.26.0,2,mollie,Wallet,ApplePay,Payment
+2025.02.26.0,2,mollie,Wallet,Paypal,Payment
+2025.02.26.0,2,paybox,Card,Credit,Mandate
+2025.02.26.0,2,paybox,Card,Credit,Payment
+2025.02.26.0,2,paybox,Card,Debit,Mandate
+2025.02.26.0,2,paybox,Card,Debit,Payment
+2025.02.26.0,2,payu,Card,Credit,Payment
+2025.02.26.0,2,payu,Card,Debit,Payment
+2025.02.26.0,2,payu,Wallet,ApplePay,Payment
+2025.02.26.0,2,payu,Wallet,GooglePay,Payment
+2025.02.26.0,2,razorpay,Upi,UpiCollect,Payment
+2025.02.26.0,2,volt,BankRedirect,OpenBankingUk,Payment
+2025.02.26.0,3,,,,business_profile.card_testing_guard_config
+2025.02.26.0,3,,,,business_profile.card_testing_secret_key
+2025.02.28.0,3,,,,merchant_account.product_type
+2025.03.04.0,1,iatapay,,,Refund
+2025.03.04.0,1,nexixpay,,,Refund
+2025.03.04.0,1,square,,,Refund
+2025.03.04.0,2,coinbase,Crypto,CryptoCurrency,Payment
+2025.03.04.0,2,iatapay,BankRedirect,Ideal,Payment
+2025.03.04.0,2,iatapay,BankRedirect,LocalBankRedirect,Payment
+2025.03.04.0,2,iatapay,RealTimePayment,DuitNow,Payment
+2025.03.04.0,2,iatapay,RealTimePayment,Fps,Payment
+2025.03.04.0,2,iatapay,RealTimePayment,PromptPay,Payment
+2025.03.04.0,2,iatapay,RealTimePayment,VietQr,Payment
+2025.03.04.0,2,iatapay,Upi,UpiCollect,Payment
+2025.03.04.0,2,iatapay,Upi,UpiIntent,Payment
+2025.03.04.0,2,nexixpay,Card,Credit,Mandate
+2025.03.04.0,2,nexixpay,Card,Credit,Payment
+2025.03.04.0,2,nexixpay,Card,Debit,Mandate
+2025.03.04.0,2,nexixpay,Card,Debit,Payment
+2025.03.04.0,2,square,Card,Credit,Payment
+2025.03.04.0,2,square,Card,Debit,Payment
+2025.03.04.0,3,,,,business_profile.is_clear_pan_retries_enabled
+2025.03.05.0,1,checkout,,,Dispute Accept
+2025.03.05.0,1,checkout,,,Dispute Defend
+2025.03.05.0,1,payme,,,Preprocessing Flow
+2025.03.05.0,1,trustpay,,,Preprocessing Flow
+2025.03.05.0,2,checkout,Wallet,ApplePay,Payment (Decrypt Flow)
+2025.03.05.0,2,checkout,Wallet,GooglePay,Payment (Decrypt Flow)
+2025.03.05.0,2,checkout,Wallet,Paze,Payment (Decrypt Flow)
+2025.03.05.0,2,payme,Wallet,ApplePay,Payment (Decrypt Flow)
+2025.03.05.0,2,payme,Wallet,GooglePay,Payment (Decrypt Flow)
+2025.03.05.0,2,payme,Wallet,Paze,Payment (Decrypt Flow)
+2025.03.07.0,3,,,,business_profile.force_3ds_challenge
+2025.03.12.0,1,bamboraapac,,,Refund
+2025.03.12.0,1,billwerk,,,Refund
+2025.03.12.0,1,fiservemea,,,Refund
+2025.03.12.0,1,gocardless,,,Refund
+2025.03.12.0,1,powertranz,,,Refund
+2025.03.12.0,1,rapyd,,,Refund
+2025.03.12.0,1,shift4,,,Refund
+2025.03.12.0,1,tsys,,,Refund
+2025.03.12.0,1,worldline,,,Refund
+2025.03.12.0,2,bamboraapac,Card,Credit,Mandate
+2025.03.12.0,2,bamboraapac,Card,Credit,Payment
+2025.03.12.0,2,bamboraapac,Card,Debit,Mandate
+2025.03.12.0,2,bamboraapac,Card,Debit,Payment
+2025.03.12.0,2,billwerk,Card,Credit,Payment
+2025.03.12.0,2,billwerk,Card,Debit,Payment
+2025.03.12.0,2,fiservemea,Card,Credit,Payment
+2025.03.12.0,2,fiservemea,Card,Debit,Payment
+2025.03.12.0,2,gocardless,BankDebit,Ach,Mandate
+2025.03.12.0,2,gocardless,BankDebit,Ach,Payment
+2025.03.12.0,2,gocardless,BankDebit,Becs,Mandate
+2025.03.12.0,2,gocardless,BankDebit,Becs,Payment
+2025.03.12.0,2,gocardless,BankDebit,Sepa,Mandate
+2025.03.12.0,2,gocardless,BankDebit,Sepa,Payment
+2025.03.12.0,2,powertranz,Card,Credit,Payment
+2025.03.12.0,2,powertranz,Card,Debit,Payment
+2025.03.12.0,2,rapyd,Card,Credit,Payment
+2025.03.12.0,2,rapyd,Card,Debit,Payment
+2025.03.12.0,2,rapyd,Wallet,ApplePay,Payment
+2025.03.12.0,2,rapyd,Wallet,GooglePay,Payment
+2025.03.12.0,2,shift4,BankRedirect,Eps,Payment
+2025.03.12.0,2,shift4,BankRedirect,Giropay,Payment
+2025.03.12.0,2,shift4,BankRedirect,Ideal,Payment
+2025.03.12.0,2,shift4,BankRedirect,Sofort,Payment
+2025.03.12.0,2,shift4,Card,Credit,Payment
+2025.03.12.0,2,shift4,Card,Debit,Payment
+2025.03.12.0,2,tsys,Card,Credit,Payment
+2025.03.12.0,2,tsys,Card,Debit,Payment
+2025.03.12.0,2,worldline,BankRedirect,Giropay,Payment
+2025.03.12.0,2,worldline,BankRedirect,Ideal,Payment
+2025.03.12.0,2,worldline,Card,Credit,Payment
+2025.03.12.0,2,worldline,Card,Debit,Payment
+2025.03.14.0,1,adyen,,,Dispute Accept
+2025.03.14.0,1,adyen,,,Dispute Defend
+2025.03.14.0,1,adyen,,,Network Transaction ID
+2025.03.14.0,1,adyen,,,Preprocessing Flow
+2025.03.14.0,1,adyen,,,Split Payments
+2025.03.14.0,1,adyen,,,Split Refunds
+2025.03.14.0,1,adyen,,,Surcharge
+2025.03.14.0,1,paypal,,,Preprocessing Flow
+2025.03.14.0,2,adyen,Wallet,Paze,Payment (Decrypt Flow)
+2025.03.14.0,2,hipay,Wallet,ApplePay,Payment (Decrypt Flow)
+2025.03.14.0,2,hipay,Wallet,GooglePay,Payment (Decrypt Flow)
+2025.03.14.0,2,hipay,Wallet,Paze,Payment (Decrypt Flow)
+2025.03.24.0,1,redsys,,,Preprocessing Flow
+2025.03.24.0,1,redsys,,,Refund
+2025.03.24.0,2,redsys,Card,Credit,Payment
+2025.03.24.0,2,redsys,Card,Debit,Payment
+2025.03.27.0,3,,,,business_profile.is_debit_routing_enabled
+2025.03.27.0,3,,,,business_profile.merchant_business_country
+2025.04.09.0,1,airwallex,,,Refund
+2025.04.09.0,1,elavon,,,Refund
+2025.04.09.0,1,novalnet,,,Refund
+2025.04.09.0,1,xendit,,,Refund
+2025.04.09.0,2,airwallex,Card,Credit,Payment
+2025.04.09.0,2,airwallex,Card,Debit,Payment
+2025.04.09.0,2,airwallex,Wallet,GooglePay,Payment
+2025.04.09.0,2,elavon,Card,Credit,Mandate
+2025.04.09.0,2,elavon,Card,Credit,Payment
+2025.04.09.0,2,elavon,Card,Debit,Mandate
+2025.04.09.0,2,elavon,Card,Debit,Payment
+2025.04.09.0,2,novalnet,Card,Credit,Mandate
+2025.04.09.0,2,novalnet,Card,Credit,Payment
+2025.04.09.0,2,novalnet,Card,Debit,Mandate
+2025.04.09.0,2,novalnet,Card,Debit,Payment
+2025.04.09.0,2,novalnet,Wallet,ApplePay,Mandate
+2025.04.09.0,2,novalnet,Wallet,ApplePay,Payment
+2025.04.09.0,2,novalnet,Wallet,GooglePay,Mandate
+2025.04.09.0,2,novalnet,Wallet,GooglePay,Payment
+2025.04.09.0,2,novalnet,Wallet,Paypal,Mandate
+2025.04.09.0,2,novalnet,Wallet,Paypal,Payment
+2025.04.09.0,2,xendit,Card,Credit,Mandate
+2025.04.09.0,2,xendit,Card,Credit,Payment
+2025.04.09.0,2,xendit,Card,Debit,Mandate
+2025.04.09.0,2,xendit,Card,Debit,Payment
+2025.04.24.0,1,facilitapay,,,Refund
+2025.04.24.0,2,facilitapay,BankTransfer,Pix,Payment
+2025.04.25.0,1,adyen,,,Connector Testing Data
+2025.04.25.0,1,nmi,,,Preprocessing Flow
+2025.04.25.0,3,,,,business_profile.revenue_recovery_retry_algorithm_data
+2025.04.25.0,3,,,,business_profile.revenue_recovery_retry_algorithm_type
+2025.04.28.0,1,getnet,,,Refund
+2025.04.28.0,1,hipay,,,Refund
+2025.04.28.0,1,klarna,,,Refund
+2025.04.28.0,1,moneris,,,Refund
+2025.04.28.0,2,getnet,Card,Credit,Payment
+2025.04.28.0,2,hipay,Card,Credit,Payment
+2025.04.28.0,2,hipay,Card,Debit,Payment
+2025.04.28.0,2,klarna,PayLater,Klarna,Payment
+2025.04.28.0,2,moneris,Card,Credit,Mandate
+2025.04.28.0,2,moneris,Card,Credit,Payment
+2025.04.28.0,2,moneris,Card,Debit,Mandate
+2025.04.28.0,2,moneris,Card,Debit,Payment
+2025.04.28.0,2,opennode,Crypto,CryptoCurrency,Payment
+2025.05.01.0,1,multisafepay,,,Refund
+2025.05.01.0,1,wellsfargo,,,Refund
+2025.05.01.0,1,worldpay,,,Refund
+2025.05.01.0,2,cashtocode,Reward,ClassicReward,Payment
+2025.05.01.0,2,cashtocode,Reward,Evoucher,Payment
+2025.05.01.0,2,multisafepay,BankRedirect,Giropay,Payment
+2025.05.01.0,2,multisafepay,BankRedirect,Ideal,Payment
+2025.05.01.0,2,multisafepay,Card,Credit,Mandate
+2025.05.01.0,2,multisafepay,Card,Credit,Payment
+2025.05.01.0,2,multisafepay,Card,Debit,Mandate
+2025.05.01.0,2,multisafepay,Card,Debit,Payment
+2025.05.01.0,2,multisafepay,PayLater,Klarna,Payment
+2025.05.01.0,2,multisafepay,Wallet,GooglePay,Mandate
+2025.05.01.0,2,multisafepay,Wallet,GooglePay,Payment
+2025.05.01.0,2,multisafepay,Wallet,Paypal,Payment
+2025.05.01.0,2,wellsfargo,BankDebit,Ach,Payment
+2025.05.01.0,2,wellsfargo,Card,Credit,Mandate
+2025.05.01.0,2,wellsfargo,Card,Credit,Payment
+2025.05.01.0,2,wellsfargo,Card,Debit,Mandate
+2025.05.01.0,2,wellsfargo,Card,Debit,Payment
+2025.05.01.0,2,wellsfargo,Wallet,ApplePay,Mandate
+2025.05.01.0,2,wellsfargo,Wallet,ApplePay,Payment
+2025.05.01.0,2,wellsfargo,Wallet,GooglePay,Mandate
+2025.05.01.0,2,wellsfargo,Wallet,GooglePay,Payment
+2025.05.01.0,2,worldpay,Card,Credit,Mandate
+2025.05.01.0,2,worldpay,Card,Credit,Payment
+2025.05.01.0,2,worldpay,Card,Debit,Mandate
+2025.05.01.0,2,worldpay,Card,Debit,Payment
+2025.05.01.0,2,worldpay,Wallet,ApplePay,Payment
+2025.05.01.0,2,worldpay,Wallet,GooglePay,Payment
+2025.05.07.0,1,bluesnap,,,Refund
+2025.05.07.0,1,fiserv,,,Refund
+2025.05.07.0,1,globalpay,,,Refund
+2025.05.07.0,1,globepay,,,Refund
+2025.05.07.0,1,inespay,,,Refund
+2025.05.07.0,1,itaubank,,,Refund
+2025.05.07.0,1,nexinets,,,Refund
+2025.05.07.0,1,nuvei,,,Refund
+2025.05.07.0,1,prophetpay,,,Refund
+2025.05.07.0,1,stax,,,Refund
+2025.05.07.0,1,zen,,,Refund
+2025.05.07.0,2,bluesnap,Card,Credit,Payment
+2025.05.07.0,2,bluesnap,Wallet,ApplePay,Payment
+2025.05.07.0,2,bluesnap,Wallet,GooglePay,Payment
+2025.05.07.0,2,fiserv,Card,Credit,Payment
+2025.05.07.0,2,fiserv,Card,Debit,Payment
+2025.05.07.0,2,globalpay,BankRedirect,Eps,Mandate
+2025.05.07.0,2,globalpay,BankRedirect,Eps,Payment
+2025.05.07.0,2,globalpay,BankRedirect,Giropay,Mandate
+2025.05.07.0,2,globalpay,BankRedirect,Giropay,Payment
+2025.05.07.0,2,globalpay,BankRedirect,Ideal,Mandate
+2025.05.07.0,2,globalpay,BankRedirect,Ideal,Payment
+2025.05.07.0,2,globalpay,BankRedirect,Sofort,Mandate
+2025.05.07.0,2,globalpay,BankRedirect,Sofort,Payment
+2025.05.07.0,2,globalpay,Card,Credit,Mandate
+2025.05.07.0,2,globalpay,Card,Credit,Payment
+2025.05.07.0,2,globalpay,Card,Debit,Mandate
+2025.05.07.0,2,globalpay,Card,Debit,Payment
+2025.05.07.0,2,globalpay,Wallet,GooglePay,Mandate
+2025.05.07.0,2,globalpay,Wallet,GooglePay,Payment
+2025.05.07.0,2,globalpay,Wallet,Paypal,Mandate
+2025.05.07.0,2,globalpay,Wallet,Paypal,Payment
+2025.05.07.0,2,globepay,Wallet,AliPay,Payment
+2025.05.07.0,2,globepay,Wallet,WeChatPay,Payment
+2025.05.07.0,2,inespay,BankDebit,Sepa,Payment
+2025.05.07.0,2,itaubank,BankTransfer,Pix,Payment
+2025.05.07.0,2,nexinets,BankRedirect,Eps,Payment
+2025.05.07.0,2,nexinets,BankRedirect,Giropay,Payment
+2025.05.07.0,2,nexinets,BankRedirect,Ideal,Payment
+2025.05.07.0,2,nexinets,BankRedirect,Sofort,Payment
+2025.05.07.0,2,nexinets,Card,Credit,Mandate
+2025.05.07.0,2,nexinets,Card,Credit,Payment
+2025.05.07.0,2,nexinets,Card,Debit,Mandate
+2025.05.07.0,2,nexinets,Card,Debit,Payment
+2025.05.07.0,2,nexinets,Wallet,ApplePay,Payment
+2025.05.07.0,2,nexinets,Wallet,Paypal,Payment
+2025.05.07.0,2,nuvei,BankRedirect,Eps,Payment
+2025.05.07.0,2,nuvei,BankRedirect,Giropay,Payment
+2025.05.07.0,2,nuvei,BankRedirect,Ideal,Payment
+2025.05.07.0,2,nuvei,BankRedirect,Sofort,Payment
+2025.05.07.0,2,nuvei,Card,Credit,Mandate
+2025.05.07.0,2,nuvei,Card,Credit,Payment
+2025.05.07.0,2,nuvei,Card,Debit,Mandate
+2025.05.07.0,2,nuvei,Card,Debit,Payment
+2025.05.07.0,2,nuvei,PayLater,AfterpayClearpay,Payment
+2025.05.07.0,2,nuvei,PayLater,Klarna,Payment
+2025.05.07.0,2,nuvei,Wallet,ApplePay,Payment
+2025.05.07.0,2,nuvei,Wallet,GooglePay,Payment
+2025.05.07.0,2,nuvei,Wallet,Paypal,Payment
+2025.05.07.0,2,prophetpay,CardRedirect,CardRedirect,Payment
+2025.05.07.0,2,stax,BankDebit,Ach,Payment
+2025.05.07.0,2,stax,Card,Credit,Payment
+2025.05.07.0,2,stax,Card,Debit,Payment
+2025.05.07.0,2,zen,BankTransfer,Multibanco,Payment
+2025.05.07.0,2,zen,BankTransfer,Pix,Payment
+2025.05.07.0,2,zen,BankTransfer,Pse,Payment
+2025.05.07.0,2,zen,Card,Credit,Payment
+2025.05.07.0,2,zen,Card,Debit,Payment
+2025.05.07.0,2,zen,Voucher,Boleto,Payment
+2025.05.07.0,2,zen,Voucher,Efecty,Payment
+2025.05.07.0,2,zen,Voucher,PagoEfectivo,Payment
+2025.05.07.0,2,zen,Voucher,RedCompra,Payment
+2025.05.07.0,2,zen,Voucher,RedPagos,Payment
+2025.05.07.0,2,zen,Wallet,ApplePay,Payment
+2025.05.07.0,2,zen,Wallet,GooglePay,Payment
+2025.05.09.0,1,paypal,,,Refund
+2025.05.09.0,1,trustpay,,,Refund
+2025.05.09.0,2,paypal,BankRedirect,Eps,Payment
+2025.05.09.0,2,paypal,BankRedirect,Giropay,Payment
+2025.05.09.0,2,paypal,BankRedirect,Ideal,Payment
+2025.05.09.0,2,paypal,BankRedirect,Sofort,Payment
+2025.05.09.0,2,paypal,Card,Credit,Mandate
+2025.05.09.0,2,paypal,Card,Credit,Payment
+2025.05.09.0,2,paypal,Card,Debit,Mandate
+2025.05.09.0,2,paypal,Card,Debit,Payment
+2025.05.09.0,2,paypal,Wallet,Paypal,Mandate
+2025.05.09.0,2,paypal,Wallet,Paypal,Payment
+2025.05.09.0,2,trustpay,BankRedirect,Blik,Payment
+2025.05.09.0,2,trustpay,BankRedirect,Eps,Payment
+2025.05.09.0,2,trustpay,BankRedirect,Giropay,Payment
+2025.05.09.0,2,trustpay,BankRedirect,Ideal,Payment
+2025.05.09.0,2,trustpay,BankRedirect,Sofort,Payment
+2025.05.09.0,2,trustpay,BankTransfer,InstantBankTransfer,Payment
+2025.05.09.0,2,trustpay,BankTransfer,SepaBankTransfer,Payment
+2025.05.09.0,2,trustpay,Card,Credit,Payment
+2025.05.09.0,2,trustpay,Card,Debit,Payment
+2025.05.13.0,1,aci,,,Refund
+2025.05.13.0,1,adyen,,,Refund
+2025.05.13.0,1,authorizedotnet,,,Refund
+2025.05.13.0,1,braintree,,,Refund
+2025.05.13.0,1,checkout,,,Refund
+2025.05.13.0,1,fiuu,,,Refund
+2025.05.13.0,1,forte,,,Refund
+2025.05.13.0,1,placetopay,,,Refund
+2025.05.13.0,2,aci,BankRedirect,Eft,Payment
+2025.05.13.0,2,aci,BankRedirect,Eps,Payment
+2025.05.13.0,2,aci,BankRedirect,Giropay,Payment
+2025.05.13.0,2,aci,BankRedirect,Ideal,Payment
+2025.05.13.0,2,aci,BankRedirect,Interac,Payment
+2025.05.13.0,2,aci,BankRedirect,Przelewy24,Payment
+2025.05.13.0,2,aci,BankRedirect,Sofort,Payment
+2025.05.13.0,2,aci,BankRedirect,Trustly,Payment
+2025.05.13.0,2,aci,Card,Credit,Mandate
+2025.05.13.0,2,aci,Card,Credit,Payment
+2025.05.13.0,2,aci,Card,Debit,Mandate
+2025.05.13.0,2,aci,Card,Debit,Payment
+2025.05.13.0,2,aci,PayLater,Klarna,Payment
+2025.05.13.0,2,aci,Wallet,AliPay,Payment
+2025.05.13.0,2,aci,Wallet,MbWay,Payment
+2025.05.13.0,2,adyen,BankDebit,Ach,Mandate
+2025.05.13.0,2,adyen,BankDebit,Ach,Payment
+2025.05.13.0,2,adyen,BankDebit,Bacs,Mandate
+2025.05.13.0,2,adyen,BankDebit,Bacs,Payment
+2025.05.13.0,2,adyen,BankDebit,Sepa,Mandate
+2025.05.13.0,2,adyen,BankDebit,Sepa,Payment
+2025.05.13.0,2,adyen,BankRedirect,BancontactCard,Mandate
+2025.05.13.0,2,adyen,BankRedirect,BancontactCard,Payment
+2025.05.13.0,2,adyen,BankRedirect,Bizum,Payment
+2025.05.13.0,2,adyen,BankRedirect,Blik,Payment
+2025.05.13.0,2,adyen,BankRedirect,Eps,Payment
+2025.05.13.0,2,adyen,BankRedirect,Ideal,Mandate
+2025.05.13.0,2,adyen,BankRedirect,Ideal,Payment
+2025.05.13.0,2,adyen,BankRedirect,OnlineBankingCzechRepublic,Payment
+2025.05.13.0,2,adyen,BankRedirect,OnlineBankingFinland,Payment
+2025.05.13.0,2,adyen,BankRedirect,OnlineBankingFpx,Payment
+2025.05.13.0,2,adyen,BankRedirect,OnlineBankingPoland,Payment
+2025.05.13.0,2,adyen,BankRedirect,OnlineBankingSlovakia,Payment
+2025.05.13.0,2,adyen,BankRedirect,OnlineBankingThailand,Payment
+2025.05.13.0,2,adyen,BankRedirect,OpenBankingUk,Mandate
+2025.05.13.0,2,adyen,BankRedirect,OpenBankingUk,Payment
+2025.05.13.0,2,adyen,BankRedirect,Trustly,Mandate
+2025.05.13.0,2,adyen,BankRedirect,Trustly,Payment
+2025.05.13.0,2,adyen,BankTransfer,BcaBankTransfer,Payment
+2025.05.13.0,2,adyen,BankTransfer,BniVa,Payment
+2025.05.13.0,2,adyen,BankTransfer,BriVa,Payment
+2025.05.13.0,2,adyen,BankTransfer,CimbVa,Payment
+2025.05.13.0,2,adyen,BankTransfer,DanamonVa,Payment
+2025.05.13.0,2,adyen,BankTransfer,MandiriVa,Payment
+2025.05.13.0,2,adyen,BankTransfer,PermataBankTransfer,Payment
+2025.05.13.0,2,adyen,BankTransfer,Pix,Payment
+2025.05.13.0,2,adyen,Card,Credit,Mandate
+2025.05.13.0,2,adyen,Card,Credit,Payment
+2025.05.13.0,2,adyen,Card,Debit,Mandate
+2025.05.13.0,2,adyen,Card,Debit,Payment
+2025.05.13.0,2,adyen,CardRedirect,Benefit,Payment
+2025.05.13.0,2,adyen,CardRedirect,Knet,Payment
+2025.05.13.0,2,adyen,CardRedirect,MomoAtm,Payment
+2025.05.13.0,2,adyen,GiftCard,Givex,Payment
+2025.05.13.0,2,adyen,GiftCard,PaySafeCard,Payment
+2025.05.13.0,2,adyen,PayLater,Affirm,Payment
+2025.05.13.0,2,adyen,PayLater,AfterpayClearpay,Payment
+2025.05.13.0,2,adyen,PayLater,Alma,Payment
+2025.05.13.0,2,adyen,PayLater,Atome,Payment
+2025.05.13.0,2,adyen,PayLater,Klarna,Mandate
+2025.05.13.0,2,adyen,PayLater,Klarna,Payment
+2025.05.13.0,2,adyen,PayLater,PayBright,Payment
+2025.05.13.0,2,adyen,PayLater,Walley,Payment
+2025.05.13.0,2,adyen,Voucher,Alfamart,Payment
+2025.05.13.0,2,adyen,Voucher,Boleto,Payment
+2025.05.13.0,2,adyen,Voucher,FamilyMart,Payment
+2025.05.13.0,2,adyen,Voucher,Indomaret,Payment
+2025.05.13.0,2,adyen,Voucher,Lawson,Payment
+2025.05.13.0,2,adyen,Voucher,MiniStop,Payment
+2025.05.13.0,2,adyen,Voucher,Oxxo,Payment
+2025.05.13.0,2,adyen,Voucher,PayEasy,Payment
+2025.05.13.0,2,adyen,Voucher,Seicomart,Payment
+2025.05.13.0,2,adyen,Voucher,SevenEleven,Payment
+2025.05.13.0,2,adyen,Wallet,AliPay,Payment
+2025.05.13.0,2,adyen,Wallet,AliPayHk,Payment
+2025.05.13.0,2,adyen,Wallet,ApplePay,Mandate
+2025.05.13.0,2,adyen,Wallet,ApplePay,Payment
+2025.05.13.0,2,adyen,Wallet,Dana,Mandate
+2025.05.13.0,2,adyen,Wallet,Dana,Payment
+2025.05.13.0,2,adyen,Wallet,Gcash,Mandate
+2025.05.13.0,2,adyen,Wallet,Gcash,Payment
+2025.05.13.0,2,adyen,Wallet,GoPay,Mandate
+2025.05.13.0,2,adyen,Wallet,GoPay,Payment
+2025.05.13.0,2,adyen,Wallet,GooglePay,Mandate
+2025.05.13.0,2,adyen,Wallet,GooglePay,Payment
+2025.05.13.0,2,adyen,Wallet,KakaoPay,Mandate
+2025.05.13.0,2,adyen,Wallet,KakaoPay,Payment
+2025.05.13.0,2,adyen,Wallet,MbWay,Payment
+2025.05.13.0,2,adyen,Wallet,MobilePay,Payment
+2025.05.13.0,2,adyen,Wallet,Momo,Mandate
+2025.05.13.0,2,adyen,Wallet,Momo,Payment
+2025.05.13.0,2,adyen,Wallet,Paypal,Mandate
+2025.05.13.0,2,adyen,Wallet,Paypal,Payment
+2025.05.13.0,2,adyen,Wallet,Paze,Payment
+2025.05.13.0,2,adyen,Wallet,SamsungPay,Payment
+2025.05.13.0,2,adyen,Wallet,Swish,Payment
+2025.05.13.0,2,adyen,Wallet,TouchNGo,Payment
+2025.05.13.0,2,adyen,Wallet,Twint,Mandate
+2025.05.13.0,2,adyen,Wallet,Twint,Payment
+2025.05.13.0,2,adyen,Wallet,Vipps,Mandate
+2025.05.13.0,2,adyen,Wallet,Vipps,Payment
+2025.05.13.0,2,adyen,Wallet,WeChatPay,Payment
+2025.05.13.0,2,authorizedotnet,Card,Credit,Mandate
+2025.05.13.0,2,authorizedotnet,Card,Credit,Payment
+2025.05.13.0,2,authorizedotnet,Card,Debit,Mandate
+2025.05.13.0,2,authorizedotnet,Card,Debit,Payment
+2025.05.13.0,2,authorizedotnet,Wallet,ApplePay,Mandate
+2025.05.13.0,2,authorizedotnet,Wallet,ApplePay,Payment
+2025.05.13.0,2,authorizedotnet,Wallet,GooglePay,Mandate
+2025.05.13.0,2,authorizedotnet,Wallet,GooglePay,Payment
+2025.05.13.0,2,braintree,Card,Credit,Mandate
+2025.05.13.0,2,braintree,Card,Credit,Payment
+2025.05.13.0,2,braintree,Card,Debit,Mandate
+2025.05.13.0,2,braintree,Card,Debit,Payment
+2025.05.13.0,2,checkout,Card,Credit,Payment
+2025.05.13.0,2,checkout,Card,Debit,Payment
+2025.05.13.0,2,checkout,Wallet,ApplePay,Payment
+2025.05.13.0,2,checkout,Wallet,GooglePay,Payment
+2025.05.13.0,2,fiuu,BankRedirect,OnlineBankingFpx,Payment
+2025.05.13.0,2,fiuu,Card,Credit,Mandate
+2025.05.13.0,2,fiuu,Card,Credit,Payment
+2025.05.13.0,2,fiuu,Card,Debit,Mandate
+2025.05.13.0,2,fiuu,Card,Debit,Payment
+2025.05.13.0,2,fiuu,RealTimePayment,DuitNow,Payment
+2025.05.13.0,2,fiuu,Wallet,ApplePay,Payment
+2025.05.13.0,2,fiuu,Wallet,GooglePay,Payment
+2025.05.13.0,2,forte,Card,Credit,Payment
+2025.05.13.0,2,forte,Card,Debit,Payment
+2025.05.13.0,2,placetopay,Card,Credit,Payment
+2025.05.13.0,2,placetopay,Card,Debit,Payment
+2025.05.13.0,3,,,,business_profile.external_vault_connector_details
+2025.05.13.0,3,,,,business_profile.is_external_vault_enabled
+2025.05.13.0,3,,,,merchant_account.merchant_account_type
+2025.05.16.0,1,coingate,,,Refund
+2025.05.16.0,1,paystack,,,Refund
+2025.05.16.0,2,coingate,Crypto,CryptoCurrency,Payment
+2025.05.16.0,2,paystack,BankRedirect,Eft,Payment
+2025.05.16.0,3,,,,business_profile.is_iframe_redirection_enabled
+2025.05.19.0,1,archipel,,,Incremental Authorization
+2025.05.19.0,1,archipel,,,Network Transaction ID
+2025.05.19.0,1,stripe,,,Network Transaction ID
+2025.05.19.0,1,stripe,,,Split Payments
+2025.05.19.0,1,stripe,,,Split Refunds
+2025.05.19.0,2,archipel,Wallet,ApplePay,Payment (Decrypt Flow)
+2025.05.19.0,2,stripe,Wallet,ApplePay,Payment (Decrypt Flow)
+2025.05.19.0,2,stripe,Wallet,GooglePay,Payment (Decrypt Flow)
+2025.05.19.0,2,stripe,Wallet,Paze,Payment (Decrypt Flow)
+2025.05.20.0,3,,,,business_profile.is_pre_network_tokenization_enabled
+2025.05.22.0,2,authorizedotnet,Wallet,Paypal,Payment
+2025.05.26.0,3,,,,business_profile.three_ds_decision_rule_algorithm
+2025.05.28.0,1,barclaycard,,,Network Transaction ID
+2025.05.28.0,1,barclaycard,,,Refund
+2025.05.28.0,1,worldpayxml,,,Refund
+2025.05.28.0,2,barclaycard,Card,Credit,Payment
+2025.05.28.0,2,barclaycard,Card,Debit,Payment
+2025.05.28.0,2,worldpayxml,Card,Credit,Payment
+2025.05.28.0,2,worldpayxml,Card,Debit,Payment
+2025.06.05.0,1,worldpayvantiv,,,Network Transaction ID
+2025.06.05.0,1,worldpayvantiv,,,Refund
+2025.06.05.0,2,worldpayvantiv,Card,Credit,Payment
+2025.06.05.0,2,worldpayvantiv,Card,Debit,Payment
+2025.06.10.0,2,tokenio,OpenBanking,OpenBankingPIS,Payment
+2025.06.12.0,1,razorpay,,,Order Create Flow
+2025.06.12.0,3,,,,business_profile.acquirer_config_map
+2025.06.13.0,3,,,,business_profile.merchant_category_code
+2025.07.02.0,1,santander,,,Refund
+2025.07.02.0,2,santander,BankTransfer,Pix,Payment
+2025.07.02.0,2,worldpayvantiv,Card,Credit,Mandate
+2025.07.02.0,2,worldpayvantiv,Card,Debit,Mandate
+2025.07.03.0,2,multisafepay,BankRedirect,Trustly,Payment
+2025.07.03.0,2,multisafepay,Wallet,AliPay,Payment
+2025.07.03.0,2,multisafepay,Wallet,WeChatPay,Payment
+2025.07.04.0,2,shift4,BankRedirect,Blik,Payment
+2025.07.04.0,2,shift4,BankRedirect,Trustly,Mandate
+2025.07.04.0,2,shift4,BankRedirect,Trustly,Payment
+2025.07.04.0,2,shift4,Crypto,CryptoCurrency,Payment
+2025.07.04.0,2,shift4,PayLater,Klarna,Payment
+2025.07.04.0,2,shift4,Voucher,Boleto,Payment
+2025.07.04.0,2,shift4,Wallet,AliPay,Payment
+2025.07.04.0,2,shift4,Wallet,WeChatPay,Payment
+2025.07.07.0,1,payload,,,Refund
+2025.07.07.0,2,payload,Card,Credit,Payment
+2025.07.07.0,2,payload,Card,Debit,Payment
+2025.07.09.0,1,authipay,,,Refund
+2025.07.09.0,2,authipay,Card,Credit,Payment
+2025.07.09.0,2,authipay,Card,Debit,Payment
+2025.07.14.0,2,airwallex,BankRedirect,Blik,Payment
+2025.07.14.0,2,airwallex,BankRedirect,Trustly,Payment
+2025.07.14.0,2,airwallex,PayLater,Atome,Payment
+2025.07.14.0,2,airwallex,PayLater,Klarna,Payment
+2025.07.14.0,2,airwallex,Wallet,Paypal,Payment
+2025.07.15.0,1,paypal,,,Incremental Authorization
+2025.07.15.0,2,multisafepay,BankRedirect,Eps,Payment
+2025.07.15.0,2,multisafepay,BankRedirect,Sofort,Payment
+2025.07.15.0,2,multisafepay,Wallet,MbWay,Payment
+2025.07.15.0,3,,,,business_profile.merchant_country_code
+2025.07.16.0,2,adyen,Wallet,ApplePay,Payment (Decrypt Flow)
+2025.07.16.0,2,shift4,Wallet,Paysera,Payment
+2025.07.16.0,2,shift4,Wallet,Skrill,Payment
+2025.07.25.0,1,breadpay,,,Refund
+2025.07.25.0,1,jpmorgan,,,Refund
+2025.07.25.0,1,silverflow,,,Refund
+2025.07.25.0,2,airwallex,BankRedirect,Ideal,Payment
+2025.07.25.0,2,airwallex,BankTransfer,IndonesianBankTransfer,Payment
+2025.07.25.0,2,airwallex,Wallet,Skrill,Payment
+2025.07.25.0,2,breadpay,PayLater,Breadpay,Payment
+2025.07.25.0,2,silverflow,Card,Credit,Payment
+2025.07.25.0,2,silverflow,Card,Debit,Payment
+2025.07.30.0,2,fiserv,Wallet,GooglePay,Payment
+2025.07.31.0,2,flexiti,PayLater,Klarna,Payment
+2025.08.01.0,2,payload,Card,Credit,Mandate
+2025.08.01.0,2,payload,Card,Debit,Mandate
+2025.08.04.0,2,bluecode,Wallet,Bluecode,Payment
+2025.08.05.0,2,paytm,Upi,UpiCollect,Payment
+2025.08.05.0,2,paytm,Upi,UpiIntent,Payment
+2025.08.05.0,2,phonepe,Upi,UpiCollect,Payment
+2025.08.05.0,2,phonepe,Upi,UpiIntent,Payment
+2025.08.06.0,1,worldpayvantiv,,,L2/L3 Data Processing
+2025.08.06.0,2,worldpayvantiv,Wallet,ApplePay,Mandate
+2025.08.06.0,2,worldpayvantiv,Wallet,ApplePay,Payment
+2025.08.06.0,2,worldpayvantiv,Wallet,ApplePay,Payment (Decrypt Flow)
+2025.08.07.0,1,worldpayvantiv,,,Dispute Accept
+2025.08.07.0,1,worldpayvantiv,,,Partial Authorization
+2025.08.07.0,2,barclaycard,Wallet,GooglePay,Payment
+2025.08.07.0,3,,,,business_profile.dispute_polling_interval
+2025.08.08.1,2,fiserv,Wallet,Paypal,Payment
+2025.08.08.1,2,worldpayvantiv,Wallet,GooglePay,Mandate
+2025.08.08.1,2,worldpayvantiv,Wallet,GooglePay,Payment
+2025.08.08.1,2,worldpayvantiv,Wallet,GooglePay,Payment (Decrypt Flow)
+2025.08.11.0,2,checkbook,BankTransfer,Ach,Payment
+2025.08.12.0,1,nordea,,,Preprocessing Flow
+2025.08.13.0,1,stripe,,,Incremental Authorization
+2025.08.13.0,2,fiserv,Wallet,ApplePay,Payment
+2025.08.13.0,2,fiserv,Wallet,ApplePay,Payment (Decrypt Flow)
+2025.08.21.0,1,celero,,,Refund
+2025.08.21.0,1,celero,,,Surcharge
+2025.08.21.0,1,dwolla,,,Refund
+2025.08.21.0,2,celero,Card,Credit,Payment
+2025.08.21.0,2,celero,Card,Debit,Payment
+2025.08.21.0,2,dwolla,BankDebit,Ach,Payment
+2025.08.22.0,1,barclaycard,,,Preprocessing Flow
+2025.08.22.0,1,barclaycard,,,Step Up Authentication
+2025.08.22.0,1,stripe,,,Refund
+2025.08.22.0,2,stripe,BankDebit,Ach,Mandate
+2025.08.22.0,2,stripe,BankDebit,Ach,Payment
+2025.08.22.0,2,stripe,BankDebit,Bacs,Mandate
+2025.08.22.0,2,stripe,BankDebit,Bacs,Payment
+2025.08.22.0,2,stripe,BankDebit,Becs,Mandate
+2025.08.22.0,2,stripe,BankDebit,Becs,Payment
+2025.08.22.0,2,stripe,BankDebit,Sepa,Mandate
+2025.08.22.0,2,stripe,BankDebit,Sepa,Payment
+2025.08.22.0,2,stripe,BankRedirect,BancontactCard,Mandate
+2025.08.22.0,2,stripe,BankRedirect,BancontactCard,Payment
+2025.08.22.0,2,stripe,BankRedirect,Blik,Payment
+2025.08.22.0,2,stripe,BankRedirect,Eps,Payment
+2025.08.22.0,2,stripe,BankRedirect,Giropay,Payment
+2025.08.22.0,2,stripe,BankRedirect,Ideal,Mandate
+2025.08.22.0,2,stripe,BankRedirect,Ideal,Payment
+2025.08.22.0,2,stripe,BankRedirect,OnlineBankingFpx,Payment
+2025.08.22.0,2,stripe,BankRedirect,Przelewy24,Payment
+2025.08.22.0,2,stripe,BankRedirect,Sofort,Mandate
+2025.08.22.0,2,stripe,BankRedirect,Sofort,Payment
+2025.08.22.0,2,stripe,BankTransfer,Ach,Payment
+2025.08.22.0,2,stripe,BankTransfer,Bacs,Payment
+2025.08.22.0,2,stripe,BankTransfer,Multibanco,Payment
+2025.08.22.0,2,stripe,BankTransfer,SepaBankTransfer,Payment
+2025.08.22.0,2,stripe,Card,Credit,Mandate
+2025.08.22.0,2,stripe,Card,Credit,Payment
+2025.08.22.0,2,stripe,Card,Debit,Mandate
+2025.08.22.0,2,stripe,Card,Debit,Payment
+2025.08.22.0,2,stripe,PayLater,Affirm,Payment
+2025.08.22.0,2,stripe,PayLater,AfterpayClearpay,Payment
+2025.08.22.0,2,stripe,PayLater,Klarna,Payment
+2025.08.22.0,2,stripe,Wallet,AliPay,Payment
+2025.08.22.0,2,stripe,Wallet,AmazonPay,Mandate
+2025.08.22.0,2,stripe,Wallet,AmazonPay,Payment
+2025.08.22.0,2,stripe,Wallet,ApplePay,Mandate
+2025.08.22.0,2,stripe,Wallet,ApplePay,Payment
+2025.08.22.0,2,stripe,Wallet,Cashapp,Mandate
+2025.08.22.0,2,stripe,Wallet,Cashapp,Payment
+2025.08.22.0,2,stripe,Wallet,GooglePay,Mandate
+2025.08.22.0,2,stripe,Wallet,GooglePay,Payment
+2025.08.22.0,2,stripe,Wallet,RevolutPay,Mandate
+2025.08.22.0,2,stripe,Wallet,RevolutPay,Payment
+2025.08.22.0,2,stripe,Wallet,WeChatPay,Payment
+2025.08.25.0,1,affirm,,,Refund
+2025.08.25.0,1,blackhawknetwork,,,Preprocessing Flow
+2025.08.25.0,1,nuvei,,,Partial Authorization
+2025.08.25.0,2,affirm,PayLater,Affirm,Payment
+2025.08.25.0,2,blackhawknetwork,GiftCard,BhnCardNetwork,Payment
+2025.08.29.0,2,worldpayvantiv,Card,Card,Mandate
+2025.08.29.0,2,worldpayvantiv,Card,Card,Payment
+2025.09.01.0,1,amazonpay,,,Refund
+2025.09.01.0,1,nuvei,,,Network Transaction ID
+2025.09.01.0,2,amazonpay,Wallet,AmazonPay,Payment
+2025.09.01.0,2,nuvei,Wallet,ApplePay,Mandate
+2025.09.01.0,2,nuvei,Wallet,GooglePay,Mandate
+2025.09.02.0,1,archipel,,,Refund
+2025.09.02.0,1,bankofamerica,,,Refund
+2025.09.02.0,1,boku,,,Refund
+2025.09.02.0,1,cybersource,,,Refund
+2025.09.02.0,1,datatrans,,,Refund
+2025.09.02.0,1,nmi,,,Refund
+2025.09.02.0,1,noon,,,Refund
+2025.09.02.0,1,payeezy,,,Refund
+2025.09.02.0,1,payme,,,Refund
+2025.09.02.0,1,paypal,,,Refund
+2025.09.02.0,1,trustpay,,,Refund
+2025.09.02.0,2,archipel,Card,Credit,Mandate
+2025.09.02.0,2,archipel,Card,Credit,Payment
+2025.09.02.0,2,archipel,Card,Debit,Mandate
+2025.09.02.0,2,archipel,Card,Debit,Payment
+2025.09.02.0,2,archipel,Wallet,ApplePay,Payment
+2025.09.02.0,2,bankofamerica,Card,Credit,Mandate
+2025.09.02.0,2,bankofamerica,Card,Credit,Payment
+2025.09.02.0,2,bankofamerica,Card,Debit,Mandate
+2025.09.02.0,2,bankofamerica,Card,Debit,Payment
+2025.09.02.0,2,bankofamerica,Wallet,ApplePay,Mandate
+2025.09.02.0,2,bankofamerica,Wallet,ApplePay,Payment
+2025.09.02.0,2,bankofamerica,Wallet,GooglePay,Mandate
+2025.09.02.0,2,bankofamerica,Wallet,GooglePay,Payment
+2025.09.02.0,2,bankofamerica,Wallet,SamsungPay,Payment
+2025.09.02.0,2,boku,Wallet,Dana,Payment
+2025.09.02.0,2,boku,Wallet,Gcash,Payment
+2025.09.02.0,2,boku,Wallet,GoPay,Payment
+2025.09.02.0,2,boku,Wallet,KakaoPay,Payment
+2025.09.02.0,2,boku,Wallet,Momo,Payment
+2025.09.02.0,2,cryptopay,Crypto,CryptoCurrency,Payment
+2025.09.02.0,2,cybersource,Card,Credit,Mandate
+2025.09.02.0,2,cybersource,Card,Credit,Payment
+2025.09.02.0,2,cybersource,Card,Debit,Mandate
+2025.09.02.0,2,cybersource,Card,Debit,Payment
+2025.09.02.0,2,cybersource,Wallet,ApplePay,Mandate
+2025.09.02.0,2,cybersource,Wallet,ApplePay,Payment
+2025.09.02.0,2,cybersource,Wallet,GooglePay,Mandate
+2025.09.02.0,2,cybersource,Wallet,GooglePay,Payment
+2025.09.02.0,2,cybersource,Wallet,Paze,Mandate
+2025.09.02.0,2,cybersource,Wallet,Paze,Payment
+2025.09.02.0,2,cybersource,Wallet,SamsungPay,Mandate
+2025.09.02.0,2,cybersource,Wallet,SamsungPay,Payment
+2025.09.02.0,2,datatrans,Card,Credit,Mandate
+2025.09.02.0,2,datatrans,Card,Credit,Payment
+2025.09.02.0,2,datatrans,Card,Debit,Mandate
+2025.09.02.0,2,datatrans,Card,Debit,Payment
+2025.09.02.0,2,nmi,Card,Credit,Mandate
+2025.09.02.0,2,nmi,Card,Credit,Payment
+2025.09.02.0,2,nmi,Card,Debit,Mandate
+2025.09.02.0,2,nmi,Card,Debit,Payment
+2025.09.02.0,2,nmi,Wallet,ApplePay,Payment
+2025.09.02.0,2,nmi,Wallet,GooglePay,Payment
+2025.09.02.0,2,noon,Card,Credit,Mandate
+2025.09.02.0,2,noon,Card,Credit,Payment
+2025.09.02.0,2,noon,Card,Debit,Mandate
+2025.09.02.0,2,noon,Card,Debit,Payment
+2025.09.02.0,2,noon,Wallet,ApplePay,Mandate
+2025.09.02.0,2,noon,Wallet,ApplePay,Payment
+2025.09.02.0,2,noon,Wallet,GooglePay,Mandate
+2025.09.02.0,2,noon,Wallet,GooglePay,Payment
+2025.09.02.0,2,noon,Wallet,Paypal,Payment
+2025.09.02.0,2,payeezy,Card,Credit,Mandate
+2025.09.02.0,2,payeezy,Card,Credit,Payment
+2025.09.02.0,2,payme,Card,Credit,Mandate
+2025.09.02.0,2,payme,Card,Credit,Payment
+2025.09.02.0,2,payme,Card,Debit,Mandate
+2025.09.02.0,2,payme,Card,Debit,Payment
+2025.09.02.0,2,payme,Wallet,ApplePay,Mandate
+2025.09.02.0,2,payme,Wallet,ApplePay,Payment
+2025.09.02.0,2,paypal,BankRedirect,Eps,Payment
+2025.09.02.0,2,paypal,BankRedirect,Giropay,Payment
+2025.09.02.0,2,paypal,BankRedirect,Ideal,Payment
+2025.09.02.0,2,paypal,BankRedirect,Sofort,Payment
+2025.09.02.0,2,paypal,Card,Credit,Mandate
+2025.09.02.0,2,paypal,Card,Credit,Payment
+2025.09.02.0,2,paypal,Card,Debit,Mandate
+2025.09.02.0,2,paypal,Card,Debit,Payment
+2025.09.02.0,2,paypal,Wallet,Paypal,Mandate
+2025.09.02.0,2,paypal,Wallet,Paypal,Payment
+2025.09.02.0,2,plaid,OpenBanking,OpenBankingPIS,Payment
+2025.09.02.0,2,trustpay,BankRedirect,Blik,Payment
+2025.09.02.0,2,trustpay,BankRedirect,Eps,Payment
+2025.09.02.0,2,trustpay,BankRedirect,Giropay,Payment
+2025.09.02.0,2,trustpay,BankRedirect,Ideal,Payment
+2025.09.02.0,2,trustpay,BankRedirect,Sofort,Payment
+2025.09.02.0,2,trustpay,BankTransfer,InstantBankTransfer,Payment
+2025.09.02.0,2,trustpay,BankTransfer,InstantBankTransferFinland,Payment
+2025.09.02.0,2,trustpay,BankTransfer,InstantBankTransferPoland,Payment
+2025.09.02.0,2,trustpay,BankTransfer,SepaBankTransfer,Payment
+2025.09.02.0,2,trustpay,Card,Credit,Payment
+2025.09.02.0,2,trustpay,Card,Debit,Payment
+2025.09.02.0,2,trustpay,Wallet,ApplePay,Payment
+2025.09.02.0,2,trustpay,Wallet,GooglePay,Payment
+2025.09.02.0,3,,,,business_profile.split_txns_enabled
+2025.09.04.0,2,santander,Voucher,Boleto,Payment
+2025.09.09.0,1,paysafe,,,Preprocessing Flow
+2025.09.09.0,1,paysafe,,,Refund
+2025.09.09.0,2,paysafe,Card,Credit,Payment
+2025.09.09.0,2,paysafe,Card,Debit,Payment
+2025.09.09.0,3,,,,business_profile.is_manual_retry_enabled
+2025.09.10.0,1,adyen,,,Overcapture
+2025.09.10.0,1,nuvei,,,L2/L3 Data Processing
+2025.09.10.0,1,stripe,,,Overcapture
+2025.09.10.0,2,barclaycard,Wallet,ApplePay,Payment
+2025.09.10.0,2,barclaycard,Wallet,ApplePay,Payment (Decrypt Flow)
+2025.09.10.0,2,barclaycard,Wallet,GooglePay,Payment (Decrypt Flow)
+2025.09.10.0,2,barclaycard,Wallet,Paze,Payment (Decrypt Flow)
+2025.09.10.0,3,,,,business_profile.always_enable_overcapture
+2025.09.11.0,2,checkout,Card,Credit,Mandate
+2025.09.11.0,2,checkout,Card,Debit,Mandate
+2025.09.12.0,1,checkout,,,Partner Merchant Identifier
+2025.09.12.0,1,cybersource,,,Authentication Flow
+2025.09.12.0,1,cybersource,,,Post-Authentication Flow
+2025.09.12.0,1,cybersource,,,Pre-Authentication Flow
+2025.09.12.0,1,paysafe,,,Authentication Flow
+2025.09.12.0,1,paysafe,,,Post-Authentication Flow
+2025.09.12.0,1,paysafe,,,Pre-Authentication Flow
+2025.09.12.0,1,peachpayments,,,Authentication Flow
+2025.09.12.0,1,peachpayments,,,Post-Authentication Flow
+2025.09.12.0,1,peachpayments,,,Pre-Authentication Flow
+2025.09.15.0,2,peachpayments,Card,Credit,Payment
+2025.09.15.0,2,peachpayments,Card,Debit,Payment
+2025.09.18.0,1,adyen,,,Balance Check Flow
+2025.09.19.0,1,trustpayments,,,Refund
+2025.09.19.0,2,paysafe,BankRedirect,Interac,Payment
+2025.09.19.0,2,paysafe,GiftCard,PaySafeCard,Payment
+2025.09.19.0,2,paysafe,Wallet,Skrill,Payment
+2025.09.19.0,2,trustpayments,Card,Credit,Payment
+2025.09.19.0,2,trustpayments,Card,Debit,Payment
+2025.09.22.0,1,checkout,,,L2/L3 Data Processing
+2025.09.22.0,2,nuvei,Wallet,ApplePay,Payment (Decrypt Flow)
+2025.09.22.0,2,nuvei,Wallet,GooglePay,Payment (Decrypt Flow)
+2025.09.24.0,3,,,,business_profile.billing_processor_id
+2025.09.24.1,1,checkout,,,Network Transaction ID
+2025.09.25.0,2,paysafe,Wallet,ApplePay,Payment
+2025.09.25.0,2,paysafe,Wallet,ApplePay,Payment (Decrypt Flow)
+2025.09.25.1,1,gigadat,,,Refund
+2025.09.25.1,2,gigadat,BankRedirect,Interac,Payment
+2025.10.01.0,1,loonio,,,Refund
+2025.10.01.0,2,loonio,BankRedirect,Interac,Payment
+2025.10.01.1,1,checkout,,,Partial Authorization
+2025.10.01.1,1,tesouro,,,Refund
+2025.10.01.1,2,tesouro,Card,Credit,Payment
+2025.10.01.1,2,tesouro,Card,Debit,Payment
+2025.10.08.0,2,braintree,Wallet,ApplePay,Payment
+2025.10.08.0,2,braintree,Wallet,GooglePay,Payment
+2025.10.08.0,2,calida,Wallet,Bluecode,Payment
+2025.10.08.0,2,tesouro,Wallet,ApplePay,Payment
+2025.10.08.0,2,tesouro,Wallet,ApplePay,Payment (Decrypt Flow)
+2025.10.08.0,2,tesouro,Wallet,GooglePay,Payment
+2025.10.08.0,2,tesouro,Wallet,GooglePay,Payment (Decrypt Flow)
+2025.10.10.0,1,finix,,,Refund
+2025.10.10.0,2,braintree,Wallet,Paypal,Payment
+2025.10.10.0,2,finix,Card,Credit,Payment
+2025.10.10.0,2,finix,Card,Debit,Payment
+2025.10.10.0,2,finix,Wallet,ApplePay,Payment (Decrypt Flow)
+2025.10.10.0,2,finix,Wallet,GooglePay,Payment (Decrypt Flow)
+2025.10.10.0,2,finix,Wallet,Paze,Payment (Decrypt Flow)
+2025.10.10.0,2,paysafe,Card,Credit,Mandate
+2025.10.10.0,2,paysafe,Card,Debit,Mandate
+2025.10.13.0,2,finix,Wallet,GooglePay,Payment
+2025.10.17.0,2,finix,Wallet,ApplePay,Payment
+2025.10.17.0,2,novalnet,BankDebit,Sepa,Mandate
+2025.10.17.0,2,novalnet,BankDebit,Sepa,Payment
+2025.10.17.0,2,novalnet,BankDebit,SepaGuarenteedDebit,Mandate
+2025.10.17.0,2,novalnet,BankDebit,SepaGuarenteedDebit,Payment
+2025.10.17.0,3,,,,business_profile.is_l2_l3_enabled
+2025.10.20.0,1,adyen,,,Extended Authorization
+2025.10.20.0,1,paypal,,,Extended Authorization
+2025.10.20.0,1,peachpayments,,,Refund
+2025.10.23.0,2,finix,Card,Credit,Mandate
+2025.10.23.0,2,finix,Card,Debit,Mandate
+2025.10.23.0,2,finix,Wallet,ApplePay,Mandate
+2025.10.23.0,2,finix,Wallet,GooglePay,Mandate
+2025.10.28.0,1,airwallex,,,Order Create Flow
+2025.11.04.0,1,payjustnow,,,Refund
+2025.11.04.0,2,payjustnow,PayLater,Payjustnow,Payment
+2025.11.06.0,2,tesouro,Card,Credit,Mandate
+2025.11.06.0,2,tesouro,Card,Debit,Mandate
+2025.11.10.0,1,adyen,,,Billing Descriptor
+2025.11.10.0,1,checkout,,,Billing Descriptor
+2025.11.10.0,1,nuvei,,,Billing Descriptor
+2025.11.10.0,1,santander,,,Billing Descriptor
+2025.11.10.0,1,stripe,,,Billing Descriptor
+2025.11.10.0,1,trustpay,,,Billing Descriptor
+2025.11.11.0,1,zift,,,Refund
+2025.11.11.0,2,zift,Card,Credit,Mandate
+2025.11.11.0,2,zift,Card,Credit,Payment
+2025.11.11.0,2,zift,Card,Debit,Mandate
+2025.11.11.0,2,zift,Card,Debit,Payment
+2025.11.13.2,2,nmi,Wallet,ApplePay,Mandate
+2025.11.17.0,2,tesouro,Wallet,ApplePay,Mandate
+2025.11.17.0,2,tesouro,Wallet,GooglePay,Mandate
+2025.11.24.0,1,adyen,,,Partner Merchant Identifier
+2025.11.24.0,2,airwallex,Card,Credit,Mandate
+2025.11.24.0,2,airwallex,Card,Debit,Mandate
+2025.11.26.0,2,braintree,Wallet,ApplePay,Mandate
+2025.12.03.0,2,mollie,Card,Credit,Mandate
+2025.12.03.0,2,mollie,Card,Debit,Mandate
+2025.12.03.0,2,payload,BankDebit,Ach,Mandate
+2025.12.03.0,2,payload,BankDebit,Ach,Payment
+2025.12.04.0,2,dlocal,Voucher,Oxxo,Payment
+2025.12.05.0,2,worldpayxml,Wallet,GooglePay,Payment
+2025.12.08.0,2,airwallex,Card,Credit,Mandate
+2025.12.08.0,2,airwallex,Card,Debit,Mandate
+2025.12.10.0,2,volt,BankRedirect,OpenBanking,Payment
+2025.12.11.0,2,worldpayxml,Wallet,ApplePay,Payment
+2025.12.17.0,1,nmi,,,Pre-Authentication Flow
+2025.12.17.0,1,paypal,,,Post-Authentication Flow
+2025.12.18.0,2,nmi,Wallet,ApplePay,Payment (Decrypt Flow)
+2025.12.18.0,2,nmi,Wallet,GooglePay,Payment (Decrypt Flow)
+2025.12.18.0,2,nmi,Wallet,Paze,Payment (Decrypt Flow)
+2025.12.23.0,1,nordea,,,Order Create Flow
+2025.12.23.0,1,nuvei,,,Pre-Authentication Flow
+2025.12.23.0,1,payjustnowinstore,,,Refund
+2025.12.23.0,1,payme,,,Order Create Flow
+2025.12.23.0,1,redsys,,,Pre-Authentication Flow
+2025.12.23.0,2,payjustnowinstore,PayLater,Payjustnow,Payment
+2025.12.24.0,1,nexixpay,,,Post-Authentication Flow
+2025.12.25.0,1,finix,,,Billing Descriptor
+2025.12.31.0,1,trustpay,,,Order Create Flow
+2026.01.05.1,2,adyen,Wallet,GooglePay,Payment (Decrypt Flow)
+2026.01.07.0,1,barclaycard,,,Authentication Flow
+2026.01.07.0,1,barclaycard,,,Post-Authentication Flow
+2026.01.07.0,1,barclaycard,,,Pre-Authentication Flow
+2026.01.08.0,1,worldpaymodular,,,Refund
+2026.01.08.0,2,worldpaymodular,Wallet,ApplePay,Mandate
+2026.01.08.0,2,worldpaymodular,Wallet,ApplePay,Payment
+2026.01.08.0,2,worldpaymodular,Wallet,GooglePay,Mandate
+2026.01.08.0,2,worldpaymodular,Wallet,GooglePay,Payment
+2026.01.12.0,1,shift4,,,Pre-Authentication Flow
+2026.01.12.0,2,peachpayments,NetworkToken,NetworkToken,Payment
+2026.01.14.0,1,blackhawknetwork,,,Balance Check Flow
+2026.01.14.0,2,xendit,RealTimePayment,Qris,Mandate
+2026.01.14.0,2,xendit,RealTimePayment,Qris,Payment
+2026.01.19.0,1,xendit,,,Settlement Split Call
+2026.02.02.0,1,redsys,,,Authentication Flow
+2026.02.04.0,1,hyperpg,,,Refund
+2026.02.04.0,2,hyperpg,Card,Credit,Mandate
+2026.02.04.0,2,hyperpg,Card,Credit,Payment
+2026.02.04.0,2,hyperpg,Card,Debit,Mandate
+2026.02.04.0,2,hyperpg,Card,Debit,Payment
+2026.02.04.0,2,nmi,Wallet,GooglePay,Mandate
+2026.02.04.1,2,mollie,PayLater,Klarna,Payment
+2026.02.10.0,2,worldpayxml,Wallet,ApplePay,Mandate
+2026.02.10.0,2,worldpayxml,Wallet,GooglePay,Mandate
+2026.02.13.0,1,nexixpay,,,Pre-Authentication Flow
+2026.02.26.0,2,checkout,NetworkToken,NetworkToken,Payment
+2026.02.26.0,2,nuvei,NetworkToken,NetworkToken,Payment
+2026.03.02.0,1,revolv3,,,Refund
+2026.03.02.0,2,revolv3,Card,Credit,Mandate
+2026.03.02.0,2,revolv3,Card,Credit,Payment
+2026.03.04.0,1,truelayer,,,Refund
+2026.03.04.0,2,truelayer,BankRedirect,OpenBankingUk,Payment
+2026.03.06.0,1,adyen,,,Installments
+2026.03.06.0,2,trustpay,NetworkToken,NetworkToken,Payment
+2026.03.17.0,1,fiservcommercehub,,,Refund
+2026.03.17.0,2,fiservcommercehub,Card,Credit,Payment
+2026.03.17.0,2,fiservcommercehub,Card,Debit,Payment
+2026.03.23.0,1,santander,,,Connector Intent Metadata
+2026.03.24.0,3,,,,business_profile.payment_method_blocking
+2026.03.26.0,3,,,,business_profile.network_tokenization_credentials
+2026.03.26.0,3,,,,merchant_account.network_tokenization_credentials
+2026.04.01.0,2,revolv3,Card,Debit,Mandate
+2026.04.01.0,2,revolv3,Card,Debit,Payment
+2026.04.03.0,1,santander,,,Push Notification Flow
+2026.04.03.0,1,santander,,,QR Code Generation Flow
+2026.04.03.0,2,santander,BankTransfer,PixAutomaticoPush,Mandate
+2026.04.03.0,2,santander,BankTransfer,PixAutomaticoPush,Payment
+2026.04.03.0,2,santander,BankTransfer,PixAutomaticoQr,Mandate
+2026.04.03.0,2,santander,BankTransfer,PixAutomaticoQr,Payment
+2026.04.07.0,1,worldpayxml,,,Pre-Authentication Flow
+2026.04.10.0,2,truelayer,BankRedirect,OpenBanking,Payment
+2026.04.14.0,1,trustly,,,Refund
+2026.04.14.0,2,trustly,BankRedirect,Trustly,Payment
+2026.04.20.0,1,imerchantsolutions,,,Refund
+2026.04.20.0,2,imerchantsolutions,Card,Credit,Payment
+2026.04.20.0,2,imerchantsolutions,Card,Debit,Payment

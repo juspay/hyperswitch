@@ -1,0 +1,5 @@
+bucket,description,total_rows,cypress_covered,cypress_not_covered,cypress_no_config,cypress_coverage_pct,prod_used_yes,prod_used_no,prod_used_unknown,prod_usage_pct
+Bucket 1,"Connector × Feature (payload-level, PM-agnostic)",196,70,81,45,36%,23,137,36,14%
+Bucket 2,Connector × PM × PMT × Feature,674,291,282,101,43%,88,526,60,14%
+Bucket 3,Core features (connector-agnostic),99,28,71,0,28%,51,35,13,59%
+TOTAL,All buckets combined,969,389,434,146,40%,162,698,109,19%
