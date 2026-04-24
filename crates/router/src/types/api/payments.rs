@@ -20,7 +20,7 @@ pub use api_models::{
         MandateAmountData, MandateData, MandateTransactionType, MandateType,
         MandateValidationFields, NextActionType, OpenBankingSessionToken, PayLaterData,
         PaymentIdType, PaymentListConstraints, PaymentListFilters, PaymentListFiltersV2,
-        PaymentMethodData, PaymentMethodDataRequest, PaymentMethodDataResponse, PaymentOp,
+        PaymentMethodData, PaymentMethodDataRequest, ProxyPaymentMethodDataRequest, ProxyPaymentMethodData, PaymentMethodDataResponse, PaymentOp,
         PaymentsAggregateResponse, PaymentsApproveRequest, PaymentsCancelPostCaptureRequest,
         PaymentsCancelRequest, PaymentsCaptureRequest, PaymentsCompleteAuthorizeRequest,
         PaymentsDynamicTaxCalculationRequest, PaymentsDynamicTaxCalculationResponse,

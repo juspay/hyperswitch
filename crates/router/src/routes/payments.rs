@@ -2389,6 +2389,101 @@ where
             | api_models::enums::PaymentType::RecurringMandate
             | api_models::enums::PaymentType::NewMandate
             | api_models::enums::PaymentType::Installment => {
+                // Check if payment method data is VaultDataCard — route to external vault proxy flow
+                let is_vault_data_card = req
+                    .payment_method_data
+                    .as_ref()
+                    .and_then(|pmd| pmd.payment_method_data.as_ref())
+                    .map(|data| {
+                        matches!(data, api_models::payments::PaymentMethodData::VaultDataCard(_))
+                    })
+                    .unwrap_or(false);
+
+                if is_vault_data_card {
+                    let vault_card_data = req
+                        .payment_method_data
+                        .as_ref()
+                        .and_then(|pmd| pmd.payment_method_data.as_ref())
+                        .and_then(|data| match data {
+                            api_models::payments::PaymentMethodData::VaultDataCard(card) => {
+                                Some(card.clone())
+                            }
+                            _ => None,
+                        })
+                        .ok_or_else(|| {
+                            report!(errors::ApiErrorResponse::InvalidRequestData {
+                                message: "Missing vault card data".to_string(),
+                            })
+                        })?;
+
+                    let proxy_pmd = payment_types::ProxyPaymentMethodDataRequest {
+                        payment_method_data: Some(
+                            payment_types::ProxyPaymentMethodData::VaultDataCard(vault_card_data),
+                        ),
+                        billing: req
+                            .payment_method_data
+                            .as_ref()
+                            .and_then(|pmd| pmd.billing.clone()),
+                    };
+
+                    let browser_info = req
+                        .browser_info
+                        .as_ref()
+                        .and_then(|v| serde_json::from_value(v.clone()).ok());
+
+                    let payment_method_type = req
+                        .payment_method
+                        .ok_or_else(|| {
+                            report!(errors::ApiErrorResponse::InvalidRequestData {
+                                message: "payment_method is required for VaultDataCard"
+                                    .to_string(),
+                            })
+                        })?;
+
+                    let payment_method_subtype = req
+                        .payment_method_type
+                        .ok_or_else(|| {
+                            report!(errors::ApiErrorResponse::InvalidRequestData {
+                                message: "payment_method_type is required for VaultDataCard"
+                                    .to_string(),
+                            })
+                        })?;
+
+                    let vault_req = payment_types::ExternalVaultProxyConfirmRequest {
+                        payment_id: req.payment_id.as_ref().and_then(|p| p.get_payment_intent_id().ok()),
+                        return_url: req.return_url.clone().map(common_utils::types::Url::wrap),
+                        payment_method_data: proxy_pmd,
+                        payment_method_type,
+                        payment_method_subtype,
+                        shipping: req.shipping.clone(),
+                        customer_acceptance: req.customer_acceptance.clone(),
+                        browser_info,
+                        payment_token: req.payment_token.clone(),
+                        return_raw_connector_response: None,
+                    };
+
+                    return payments::external_vault_proxy_for_payments_core::<
+                        api_types::ExternalVaultProxy,
+                        payment_types::PaymentsResponse,
+                        _,
+                        _,
+                        _,
+                        payments::PaymentData<api_types::ExternalVaultProxy>,
+                    >(
+                        state,
+                        req_state,
+                        platform,
+                        profile_id,
+                        payments::PaymentExternalVaultProxyConfirm,
+                        vault_req,
+                        auth_flow,
+                        payments::CallConnectorAction::Trigger,
+                        header_payload,
+                        None,
+                    )
+                    .await;
+                }
+
                 let (payment_data, _req, connector_http_status_code, external_latency) =
                     Box::pin(payments::payments_operation_core::<
                         api_types::Authorize,

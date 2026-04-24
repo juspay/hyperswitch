@@ -972,10 +972,6 @@ impl Payments {
                     web::resource("/{payment_id}/confirm").route(web::post().to(payments::payments_confirm)),
                 )
                 .service(
-                    web::resource("/{payment_id}/confirm/external-vault-proxy")
-                        .route(web::post().to(payments::payments_confirm_external_vault_proxy)),
-                )
-                .service(
                     web::resource("/{payment_id}/cancel").route(web::post().to(payments::payments_cancel)),
                 )
                 .service(

@@ -3291,6 +3291,7 @@ mod payment_method_data_serde {
                     | PaymentMethodData::Voucher(_)
                     | PaymentMethodData::Card(_)
                     | PaymentMethodData::NetworkToken(_)
+                    | PaymentMethodData::VaultDataCard(_)
                     | PaymentMethodData::MandatePayment
                     | PaymentMethodData::OpenBanking(_)
                     | PaymentMethodData::Wallet(_) => {
@@ -3628,6 +3629,10 @@ pub enum PaymentMethodData {
     MobilePayment(MobilePaymentData),
     #[schema(title = "NetworkToken")]
     NetworkToken(NetworkTokenData),
+    /// Vault card data used for external vault proxy payments.
+    /// When this variant is used, the payment will be routed through the external vault proxy flow.
+    #[schema(title = "VaultDataCard")]
+    VaultDataCard(Box<ProxyCardData>),
 }
 
 pub trait GetAddressFromPaymentMethodData {
@@ -3654,7 +3659,8 @@ impl GetAddressFromPaymentMethodData for PaymentMethodData {
             | Self::OpenBanking(_)
             | Self::MandatePayment
             | Self::MobilePayment(_)
-            | Self::NetworkToken(_) => None,
+            | Self::NetworkToken(_)
+            | Self::VaultDataCard(_) => None,
         }
     }
 }
@@ -3679,6 +3685,7 @@ impl PaymentMethodData {
             Self::MobilePayment(_) => Some(api_enums::PaymentMethod::MobilePayment),
             Self::NetworkToken(_) => Some(api_enums::PaymentMethod::NetworkToken),
             Self::CardToken(_) | Self::MandatePayment => None,
+            Self::VaultDataCard(_) => Some(api_enums::PaymentMethod::Card),
         }
     }
 }
