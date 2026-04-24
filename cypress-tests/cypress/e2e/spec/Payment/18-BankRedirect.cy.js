@@ -534,4 +534,420 @@ describe("Bank Redirect tests", () => {
       });
     });
   });
+
+  context("Trustly Full Refund flow test", () => {
+    it("Create Payment Intent -> List Merchant Payment Methods -> Confirm Payment -> Handle Bank Redirect Redirection -> Retrieve Payment -> Refund Payment -> Sync Refund", () => {
+      let shouldContinue = true;
+
+      cy.step("Create Payment Intent", () => {
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "bank_redirect_pm"
+        ]["PaymentIntent"]("Trustly");
+        cy.createPaymentIntentTest(
+          fixtures.createPaymentBody,
+          data,
+          "three_ds",
+          "automatic",
+          globalState
+        );
+        if (!utils.should_continue_further(data)) {
+          shouldContinue = false;
+        }
+      });
+
+      cy.step("List Merchant Payment Methods", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: List Merchant Payment Methods");
+          return;
+        }
+        cy.paymentMethodsCallTest(globalState);
+      });
+
+      cy.step("Confirm Payment", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: Confirm Payment");
+          return;
+        }
+        const confirmData = getConnectorDetails(globalState.get("connectorId"))[
+          "bank_redirect_pm"
+        ]["Trustly"];
+        cy.confirmBankRedirectCallTest(
+          fixtures.confirmBody,
+          confirmData,
+          true,
+          globalState
+        );
+        if (!utils.should_continue_further(confirmData)) {
+          shouldContinue = false;
+        }
+      });
+
+      cy.step("Handle Bank Redirect Redirection", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: Handle Bank Redirect Redirection");
+          return;
+        }
+        const expected_redirection = fixtures.confirmBody["return_url"];
+        const payment_method_type = globalState.get("paymentMethodType");
+        cy.handleBankRedirectRedirection(
+          globalState,
+          payment_method_type,
+          expected_redirection
+        );
+      });
+
+      cy.step("Retrieve Payment", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: Retrieve Payment");
+          return;
+        }
+        const confirmData = getConnectorDetails(globalState.get("connectorId"))[
+          "bank_redirect_pm"
+        ]["Trustly"];
+        cy.retrievePaymentCallTest({ globalState, data: confirmData });
+        if (!utils.should_continue_further(confirmData)) {
+          shouldContinue = false;
+        }
+      });
+
+      cy.step("Refund Payment", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: Refund Payment");
+          return;
+        }
+        const refundData = getConnectorDetails(globalState.get("connectorId"))[
+          "bank_redirect_pm"
+        ]["Refund"];
+        cy.refundCallTest(fixtures.refundBody, refundData, globalState);
+        if (!utils.should_continue_further(refundData)) {
+          shouldContinue = false;
+        }
+      });
+
+      cy.step("Sync Refund", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: Sync Refund");
+          return;
+        }
+        const syncRefundData = getConnectorDetails(
+          globalState.get("connectorId")
+        )["bank_redirect_pm"]["SyncRefund"];
+        cy.syncRefundCallTest(syncRefundData, globalState);
+      });
+    });
+  });
+
+  context("Trustly Partial Refund flow test", () => {
+    it("Create Payment Intent -> List Merchant Payment Methods -> Confirm Payment -> Handle Bank Redirect Redirection -> Retrieve Payment -> Partial Refund Payment -> Sync Refund", () => {
+      let shouldContinue = true;
+
+      cy.step("Create Payment Intent", () => {
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "bank_redirect_pm"
+        ]["PaymentIntent"]("Trustly");
+        cy.createPaymentIntentTest(
+          fixtures.createPaymentBody,
+          data,
+          "three_ds",
+          "automatic",
+          globalState
+        );
+        if (!utils.should_continue_further(data)) {
+          shouldContinue = false;
+        }
+      });
+
+      cy.step("List Merchant Payment Methods", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: List Merchant Payment Methods");
+          return;
+        }
+        cy.paymentMethodsCallTest(globalState);
+      });
+
+      cy.step("Confirm Payment", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: Confirm Payment");
+          return;
+        }
+        const confirmData = getConnectorDetails(globalState.get("connectorId"))[
+          "bank_redirect_pm"
+        ]["Trustly"];
+        cy.confirmBankRedirectCallTest(
+          fixtures.confirmBody,
+          confirmData,
+          true,
+          globalState
+        );
+        if (!utils.should_continue_further(confirmData)) {
+          shouldContinue = false;
+        }
+      });
+
+      cy.step("Handle Bank Redirect Redirection", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: Handle Bank Redirect Redirection");
+          return;
+        }
+        const expected_redirection = fixtures.confirmBody["return_url"];
+        const payment_method_type = globalState.get("paymentMethodType");
+        cy.handleBankRedirectRedirection(
+          globalState,
+          payment_method_type,
+          expected_redirection
+        );
+      });
+
+      cy.step("Retrieve Payment", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: Retrieve Payment");
+          return;
+        }
+        const confirmData = getConnectorDetails(globalState.get("connectorId"))[
+          "bank_redirect_pm"
+        ]["Trustly"];
+        cy.retrievePaymentCallTest({ globalState, data: confirmData });
+        if (!utils.should_continue_further(confirmData)) {
+          shouldContinue = false;
+        }
+      });
+
+      cy.step("Partial Refund Payment", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: Partial Refund Payment");
+          return;
+        }
+        const partialRefundData = getConnectorDetails(
+          globalState.get("connectorId")
+        )["bank_redirect_pm"]["PartialRefund"];
+        cy.refundCallTest(
+          fixtures.refundBody,
+          partialRefundData,
+          globalState
+        );
+        if (!utils.should_continue_further(partialRefundData)) {
+          shouldContinue = false;
+        }
+      });
+
+      cy.step("Sync Refund", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: Sync Refund");
+          return;
+        }
+        const syncRefundData = getConnectorDetails(
+          globalState.get("connectorId")
+        )["bank_redirect_pm"]["SyncRefund"];
+        cy.syncRefundCallTest(syncRefundData, globalState);
+      });
+    });
+  });
+
+  context("TrueLayer OpenBankingUk Full Refund flow test", () => {
+    it("Create Payment Intent -> List Merchant Payment Methods -> Confirm Payment -> Handle Bank Redirect Redirection -> Retrieve Payment -> Refund Payment -> Sync Refund", () => {
+      let shouldContinue = true;
+
+      cy.step("Create Payment Intent", () => {
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "bank_redirect_pm"
+        ]["PaymentIntent"]("OpenBankingUk");
+        cy.createPaymentIntentTest(
+          fixtures.createPaymentBody,
+          data,
+          "three_ds",
+          "automatic",
+          globalState
+        );
+        if (!utils.should_continue_further(data)) {
+          shouldContinue = false;
+        }
+      });
+
+      cy.step("List Merchant Payment Methods", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: List Merchant Payment Methods");
+          return;
+        }
+        cy.paymentMethodsCallTest(globalState);
+      });
+
+      cy.step("Confirm Payment", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: Confirm Payment");
+          return;
+        }
+        const confirmData = getConnectorDetails(globalState.get("connectorId"))[
+          "bank_redirect_pm"
+        ]["OpenBankingUk"];
+        cy.confirmBankRedirectCallTest(
+          fixtures.confirmBody,
+          confirmData,
+          true,
+          globalState
+        );
+        if (!utils.should_continue_further(confirmData)) {
+          shouldContinue = false;
+        }
+      });
+
+      cy.step("Handle Bank Redirect Redirection", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: Handle Bank Redirect Redirection");
+          return;
+        }
+        const expected_redirection = fixtures.confirmBody["return_url"];
+        const payment_method_type = globalState.get("paymentMethodType");
+        cy.handleBankRedirectRedirection(
+          globalState,
+          payment_method_type,
+          expected_redirection
+        );
+      });
+
+      cy.step("Retrieve Payment", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: Retrieve Payment");
+          return;
+        }
+        const confirmData = getConnectorDetails(globalState.get("connectorId"))[
+          "bank_redirect_pm"
+        ]["OpenBankingUk"];
+        cy.retrievePaymentCallTest({ globalState, data: confirmData });
+        if (!utils.should_continue_further(confirmData)) {
+          shouldContinue = false;
+        }
+      });
+
+      cy.step("Refund Payment", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: Refund Payment");
+          return;
+        }
+        const refundData = getConnectorDetails(globalState.get("connectorId"))[
+          "bank_redirect_pm"
+        ]["Refund"];
+        cy.refundCallTest(fixtures.refundBody, refundData, globalState);
+        if (!utils.should_continue_further(refundData)) {
+          shouldContinue = false;
+        }
+      });
+
+      cy.step("Sync Refund", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: Sync Refund");
+          return;
+        }
+        const syncRefundData = getConnectorDetails(
+          globalState.get("connectorId")
+        )["bank_redirect_pm"]["SyncRefund"];
+        cy.syncRefundCallTest(syncRefundData, globalState);
+      });
+    });
+  });
+
+  context("TrueLayer OpenBankingUk Partial Refund flow test", () => {
+    it("Create Payment Intent -> List Merchant Payment Methods -> Confirm Payment -> Handle Bank Redirect Redirection -> Retrieve Payment -> Partial Refund Payment -> Sync Refund", () => {
+      let shouldContinue = true;
+
+      cy.step("Create Payment Intent", () => {
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "bank_redirect_pm"
+        ]["PaymentIntent"]("OpenBankingUk");
+        cy.createPaymentIntentTest(
+          fixtures.createPaymentBody,
+          data,
+          "three_ds",
+          "automatic",
+          globalState
+        );
+        if (!utils.should_continue_further(data)) {
+          shouldContinue = false;
+        }
+      });
+
+      cy.step("List Merchant Payment Methods", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: List Merchant Payment Methods");
+          return;
+        }
+        cy.paymentMethodsCallTest(globalState);
+      });
+
+      cy.step("Confirm Payment", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: Confirm Payment");
+          return;
+        }
+        const confirmData = getConnectorDetails(globalState.get("connectorId"))[
+          "bank_redirect_pm"
+        ]["OpenBankingUk"];
+        cy.confirmBankRedirectCallTest(
+          fixtures.confirmBody,
+          confirmData,
+          true,
+          globalState
+        );
+        if (!utils.should_continue_further(confirmData)) {
+          shouldContinue = false;
+        }
+      });
+
+      cy.step("Handle Bank Redirect Redirection", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: Handle Bank Redirect Redirection");
+          return;
+        }
+        const expected_redirection = fixtures.confirmBody["return_url"];
+        const payment_method_type = globalState.get("paymentMethodType");
+        cy.handleBankRedirectRedirection(
+          globalState,
+          payment_method_type,
+          expected_redirection
+        );
+      });
+
+      cy.step("Retrieve Payment", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: Retrieve Payment");
+          return;
+        }
+        const confirmData = getConnectorDetails(globalState.get("connectorId"))[
+          "bank_redirect_pm"
+        ]["OpenBankingUk"];
+        cy.retrievePaymentCallTest({ globalState, data: confirmData });
+        if (!utils.should_continue_further(confirmData)) {
+          shouldContinue = false;
+        }
+      });
+
+      cy.step("Partial Refund Payment", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: Partial Refund Payment");
+          return;
+        }
+        const partialRefundData = getConnectorDetails(
+          globalState.get("connectorId")
+        )["bank_redirect_pm"]["PartialRefund"];
+        cy.refundCallTest(
+          fixtures.refundBody,
+          partialRefundData,
+          globalState
+        );
+        if (!utils.should_continue_further(partialRefundData)) {
+          shouldContinue = false;
+        }
+      });
+
+      cy.step("Sync Refund", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: Sync Refund");
+          return;
+        }
+        const syncRefundData = getConnectorDetails(
+          globalState.get("connectorId")
+        )["bank_redirect_pm"]["SyncRefund"];
+        cy.syncRefundCallTest(syncRefundData, globalState);
+      });
+    });
+  });
 });
