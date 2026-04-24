@@ -16,6 +16,8 @@ use std::borrow::Cow;
 use std::collections::HashSet;
 #[cfg(feature = "v2")]
 use std::str::FromStr;
+#[cfg(feature = "v2")]
+use std::sync::Arc;
 
 #[cfg(feature = "v2")]
 pub use api_models::enums as api_enums;
@@ -23,6 +25,8 @@ pub use api_models::enums::Connector;
 use api_models::payment_methods;
 #[cfg(feature = "payouts")]
 pub use api_models::{enums::PayoutConnectors, payouts as payout_types};
+#[cfg(feature = "v2")]
+use async_trait::async_trait;
 #[cfg(feature = "v1")]
 use common_utils::{consts::DEFAULT_LOCALE, ext_traits::OptionExt};
 #[cfg(feature = "v2")]
@@ -30,7 +34,7 @@ use common_utils::{
     crypto::{EncodeMessage, Encryptable, GcmAes256},
     encryption::Encryption,
     errors::CustomResult,
-    ext_traits::{AsyncExt, BytesExt, ValueExt},
+    ext_traits::{AsyncExt, BytesExt, StringExt, ValueExt},
     fp_utils::when,
     generate_id, types as util_types,
 };
@@ -1329,150 +1333,10 @@ async fn payment_method_resolver(
     req: &api::PaymentMethodCreate,
     payment_method_data: domain::PaymentMethodVaultingData,
 ) -> RouterResult<PaymentMethodResolver> {
-    let db = &*state.store;
-
-    let locker_type = LockerType::from_state(state);
-
-    match locker_type {
-        LockerType::Generic => {
-            let fingerprint_id = vault::get_fingerprint_id_for_payment_method(
-                state,
-                &payment_method_data,
-                customer_id.get_string_repr().to_owned(),
-            )
-            .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to get fingerprint_id from vault using generic strategy")?;
-
-            match db
-                .find_payment_method_by_fingerprint_id(
-                    platform.get_provider().get_key_store(),
-                    &fingerprint_id,
-                )
-                .await
-            {
-                Ok(existing_pm) => match existing_pm.status {
-                    enums::PaymentMethodStatus::New | enums::PaymentMethodStatus::Inactive => {
-                        logger::info!(
-                        "Payment method is duplicated with update-eligible status, updating existing payment method"
-                    );
-                        let payment_method_id = existing_pm.id.clone();
-                        Ok(PaymentMethodResolver(PaymentMethodResolution::Update {
-                            fingerprint_id: Some(fingerprint_id),
-                            payment_method_id,
-                            payment_method: Box::new(existing_pm),
-                            source_payment_method_data: payment_method_data,
-                        }))
-                    }
-                    enums::PaymentMethodStatus::Active => {
-                        logger::info!(
-                            "Payment method is duplicated, returning existing payment method"
-                        );
-                        Ok(PaymentMethodResolver(PaymentMethodResolution::Get(
-                            Box::new(existing_pm),
-                        )))
-                    }
-                    enums::PaymentMethodStatus::AwaitingData
-                    | enums::PaymentMethodStatus::Processing
-                    | enums::PaymentMethodStatus::Redacted => {
-                        // no payment method entry will be found with finger print id and awaiting data or processing state
-                        logger::info!("Payment method is in awaiting data or processing state, no existing payment method entry found with fingerprint id");
-                        Err(report!(errors::ApiErrorResponse::InternalServerError)
-                            .attach_printable(
-                                "Payment method is in invalid state, expected New or Inactive",
-                            ))
-                    }
-                },
-                Err(err) => {
-                    when(!err.current_context().is_db_not_found(), || {
-                        Err(err)
-                            .change_context(errors::ApiErrorResponse::InternalServerError)
-                            .attach_printable("Failed to find payment method by fingerprint id")
-                    })?;
-
-                    logger::debug!("Payment method not found, falling back to creation");
-
-                    let locker_resolver = LockerTypeResolver {
-                        locker_type: LockerType::Generic,
-                        card_reference: None,
-                    };
-
-                    Ok(PaymentMethodResolver(PaymentMethodResolution::Create {
-                        fingerprint_id: Some(fingerprint_id),
-                        payment_method_data,
-                        locker_resolver,
-                    }))
-                }
-            }
-        }
-        LockerType::Legacy => {
-            resolve_legacy_locker_payment_method(state, platform, customer_id, &payment_method_data)
-                .await
-        }
-    }
-}
-
-#[cfg(feature = "v2")]
-async fn resolve_legacy_locker_payment_method(
-    state: &SessionState,
-    platform: &domain::Platform,
-    customer_id: &id_type::GlobalCustomerId,
-    payment_method_data: &domain::PaymentMethodVaultingData,
-) -> RouterResult<PaymentMethodResolver> {
-    let db = &*state.store;
-
-    // Legacy locker does not use fingerprint for deduplication.
-    // Dedup is handled by V1 locker's DataDuplicationCheck in the add response.
-    let legacy_locker_res = add_payment_method_to_legacy_locker(
-        state,
-        platform,
-        payment_method_data,
-        None,
-        customer_id,
-    )
-    .await
-    .change_context(errors::ApiErrorResponse::InternalServerError)
-    .attach_printable("Failed to add payment method to legacy locker")?;
-
-    let pm_result = db
-        .find_payment_method_by_locker_id(
-            platform.get_provider().get_key_store(),
-            &legacy_locker_res.card_reference,
-            platform.get_processor().get_account().storage_scheme,
-        )
-        .await;
-
-    match pm_result {
-        Ok(existing_pm) => {
-            let payment_method_id = existing_pm.id.clone();
-
-            resolve_based_on_duplication_status(
-                existing_pm,
-                payment_method_id,
-                legacy_locker_res.duplication_check,
-                payment_method_data,
-            )
-        }
-        Err(err) => {
-            when(!err.current_context().is_db_not_found(), || {
-                Err(err)
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("Failed to find payment method by locker id")
-            })?;
-
-            logger::debug!("Payment method not found with locker id, falling back to creation");
-
-            let locker_resolver = LockerTypeResolver {
-                locker_type: LockerType::Legacy,
-                card_reference: Some(legacy_locker_res.card_reference),
-            };
-            Ok(PaymentMethodResolver(PaymentMethodResolution::Create {
-                fingerprint_id: None,
-                payment_method_data: payment_method_data.clone(),
-                locker_resolver,
-            }))
-        }
-    }
+    let locker = LockerType::from_locker_config(&state.conf.locker);
+    locker
+        .resolve_payment_method(state, platform, customer_id, req, payment_method_data)
+        .await
 }
 
 #[cfg(feature = "v2")]
@@ -1541,22 +1405,444 @@ pub enum PaymentMethodResolution {
     },
 }
 
+#[cfg(feature = "v2")]
 #[derive(Debug, Clone, Copy)]
 pub enum LockerType {
     Generic,
     Legacy,
 }
-
+#[cfg(feature = "v2")]
 pub struct LockerTypeResolver {
     pub locker_type: LockerType,
     pub card_reference: Option<String>,
 }
+
+/// Trait defining locker operations for different locker implementations
+#[cfg(feature = "v2")]
+#[allow(clippy::too_many_arguments)]
+#[async_trait]
+pub trait LockerOperations: Send + Sync {
+    /// Retrieves a payment method from the locker
+    async fn retrieve_payment_method_from_locker(
+        &self,
+        state: &SessionState,
+        platform: &domain::Platform,
+        vault_id: &domain::VaultId,
+        customer_id: &id_type::GlobalCustomerId,
+        payment_method_type: Option<enums::PaymentMethod>,
+    ) -> CustomResult<pm_types::VaultRetrieveResponse, errors::VaultError>;
+
+    /// Deletes a payment method from the locker
+    async fn delete_payment_method_from_locker(
+        &self,
+        state: &SessionState,
+        platform: &domain::Platform,
+        vault_id: domain::VaultId,
+        customer_id: &id_type::GlobalCustomerId,
+    ) -> CustomResult<pm_types::VaultDeleteResponse, errors::VaultError>;
+
+    /// Resolves payment method by checking for duplicates and determining the action to take
+    async fn resolve_payment_method(
+        &self,
+        state: &SessionState,
+        platform: &domain::Platform,
+        customer_id: &id_type::GlobalCustomerId,
+        req: &api::PaymentMethodCreate,
+        payment_method_data: domain::PaymentMethodVaultingData,
+    ) -> RouterResult<PaymentMethodResolver>;
+
+    /// Vaults a new payment method to the locker
+    /// For Generic: calls vault_payment_method
+    /// For Legacy: constructs AddVaultResponse from card_reference
+    async fn vault_new_payment_method(
+        &self,
+        state: &SessionState,
+        platform: &domain::Platform,
+        profile: &domain::Profile,
+        payment_method_data: &domain::PaymentMethodVaultingData,
+        fingerprint_id_from_vault: Option<String>,
+        customer_id: &id_type::GlobalCustomerId,
+        card_reference: Option<String>,
+    ) -> RouterResult<(
+        pm_types::AddVaultResponse,
+        Option<id_type::MerchantConnectorAccountId>,
+    )>;
+}
+
+/// Generic locker implementation using the new vault system
+#[cfg(feature = "v2")]
+pub struct GenericLocker;
+
+/// Legacy locker implementation using the V1 locker system
+#[cfg(feature = "v2")]
+pub struct LegacyLocker;
+
+#[cfg(feature = "v2")]
+#[async_trait]
+impl LockerOperations for GenericLocker {
+    async fn retrieve_payment_method_from_locker(
+        &self,
+        state: &SessionState,
+        _platform: &domain::Platform,
+        vault_id: &domain::VaultId,
+        customer_id: &id_type::GlobalCustomerId,
+        _payment_method_type: Option<enums::PaymentMethod>,
+    ) -> CustomResult<pm_types::VaultRetrieveResponse, errors::VaultError> {
+        let payload = pm_types::VaultRetrieveRequest {
+            entity_id: customer_id.to_owned(),
+            vault_id: vault_id.to_owned(),
+        }
+        .encode_to_vec()
+        .change_context(errors::VaultError::RequestEncodingFailed)
+        .attach_printable("Failed to encode VaultRetrieveRequest")?;
+
+        let resp = vault::call_to_vault::<pm_types::VaultRetrieve>(state, payload, None)
+            .await
+            .change_context(errors::VaultError::VaultAPIError)
+            .attach_printable("Call to vault failed")?;
+
+        let stored_pm_resp: pm_types::VaultRetrieveResponse = resp
+            .parse_struct("VaultRetrieveResponse")
+            .change_context(errors::VaultError::ResponseDeserializationFailed)
+            .attach_printable("Failed to parse data into VaultRetrieveResponse")?;
+
+        Ok(stored_pm_resp)
+    }
+
+    async fn delete_payment_method_from_locker(
+        &self,
+        state: &SessionState,
+        _platform: &domain::Platform,
+        vault_id: domain::VaultId,
+        customer_id: &id_type::GlobalCustomerId,
+    ) -> CustomResult<pm_types::VaultDeleteResponse, errors::VaultError> {
+        let payload = pm_types::VaultDeleteRequest {
+            entity_id: customer_id.to_owned(),
+            vault_id,
+        }
+        .encode_to_vec()
+        .change_context(errors::VaultError::RequestEncodingFailed)
+        .attach_printable("Failed to encode VaultDeleteRequest")?;
+
+        let resp = vault::call_to_vault::<pm_types::VaultDelete>(state, payload, None)
+            .await
+            .change_context(errors::VaultError::VaultAPIError)
+            .attach_printable("Call to vault failed")?;
+
+        let stored_pm_resp: pm_types::VaultDeleteResponse = resp
+            .parse_struct("VaultDeleteResponse")
+            .change_context(errors::VaultError::ResponseDeserializationFailed)
+            .attach_printable("Failed to parse data into VaultDeleteResponse")?;
+
+        Ok(stored_pm_resp)
+    }
+
+    async fn resolve_payment_method(
+        &self,
+        state: &SessionState,
+        platform: &domain::Platform,
+        customer_id: &id_type::GlobalCustomerId,
+        _req: &api::PaymentMethodCreate,
+        payment_method_data: domain::PaymentMethodVaultingData,
+    ) -> RouterResult<PaymentMethodResolver> {
+        let db = &*state.store;
+
+        let fingerprint_id = vault::get_fingerprint_id_for_payment_method(
+            state,
+            &payment_method_data,
+            customer_id.get_string_repr().to_owned(),
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to get fingerprint_id from vault using generic strategy")?;
+
+        match db
+            .find_payment_method_by_fingerprint_id(
+                platform.get_provider().get_key_store(),
+                &fingerprint_id,
+            )
+            .await
+        {
+            Ok(existing_pm) => match existing_pm.status {
+                enums::PaymentMethodStatus::New | enums::PaymentMethodStatus::Inactive => {
+                    logger::info!(
+                        "Payment method is duplicated with update-eligible status, updating existing payment method"
+                    );
+                    let payment_method_id = existing_pm.id.clone();
+                    Ok(PaymentMethodResolver(PaymentMethodResolution::Update {
+                        fingerprint_id: Some(fingerprint_id),
+                        payment_method_id,
+                        payment_method: Box::new(existing_pm),
+                        source_payment_method_data: payment_method_data,
+                    }))
+                }
+                enums::PaymentMethodStatus::Active => {
+                    logger::info!(
+                        "Payment method is duplicated, returning existing payment method"
+                    );
+                    Ok(PaymentMethodResolver(PaymentMethodResolution::Get(
+                        Box::new(existing_pm),
+                    )))
+                }
+                enums::PaymentMethodStatus::AwaitingData
+                | enums::PaymentMethodStatus::Processing
+                | enums::PaymentMethodStatus::Redacted => {
+                    logger::info!(
+                        "Payment method is in awaiting data or processing state, no existing payment method entry found with fingerprint id"
+                    );
+                    Err(
+                        report!(errors::ApiErrorResponse::InternalServerError).attach_printable(
+                            "Payment method is in invalid state, expected New or Inactive",
+                        ),
+                    )
+                }
+            },
+            Err(err) => {
+                when(!err.current_context().is_db_not_found(), || {
+                    Err(err)
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable("Failed to find payment method by fingerprint id")
+                })?;
+
+                logger::debug!("Payment method not found, falling back to creation");
+
+                let locker_resolver = LockerTypeResolver {
+                    locker_type: LockerType::Generic,
+                    card_reference: None,
+                };
+
+                Ok(PaymentMethodResolver(PaymentMethodResolution::Create {
+                    fingerprint_id: Some(fingerprint_id),
+                    payment_method_data,
+                    locker_resolver,
+                }))
+            }
+        }
+    }
+
+    async fn vault_new_payment_method(
+        &self,
+        state: &SessionState,
+        platform: &domain::Platform,
+        profile: &domain::Profile,
+        payment_method_data: &domain::PaymentMethodVaultingData,
+        fingerprint_id_from_vault: Option<String>,
+        customer_id: &id_type::GlobalCustomerId,
+        _card_reference: Option<String>,
+    ) -> RouterResult<(
+        pm_types::AddVaultResponse,
+        Option<id_type::MerchantConnectorAccountId>,
+    )> {
+        vault_payment_method(
+            state,
+            payment_method_data,
+            platform,
+            profile,
+            None,
+            fingerprint_id_from_vault,
+            customer_id,
+            Some(pm_types::WriteMode::Insert), // Insert mode for new payment methods
+        )
+        .await
+    }
+}
+
+#[cfg(feature = "v2")]
+#[async_trait]
+impl LockerOperations for LegacyLocker {
+    async fn retrieve_payment_method_from_locker(
+        &self,
+        state: &SessionState,
+        platform: &domain::Platform,
+        vault_id: &domain::VaultId,
+        customer_id: &id_type::GlobalCustomerId,
+        payment_method_type: Option<enums::PaymentMethod>,
+    ) -> CustomResult<pm_types::VaultRetrieveResponse, errors::VaultError> {
+        let cust_id =
+            id_type::CustomerId::try_from(Cow::from(customer_id.get_string_repr().to_owned()))
+                .change_context(errors::VaultError::FetchCardFailed)
+                .attach_printable("Failed to convert to CustomerId")?;
+
+        let merchant_id = platform.get_provider().get_account().get_id();
+
+        let payload = pm_transforms::CardReqBody {
+            merchant_id: merchant_id.clone(),
+            merchant_customer_id: cust_id,
+            card_reference: vault_id.get_string_repr().to_owned(),
+        };
+
+        let get_card_resp: pm_transforms::RetrieveCardResp = pm_transforms::call_vault_api(
+            state,
+            state.conf.jwekey.get_inner(),
+            &state.conf.locker,
+            &payload,
+            consts::LOCKER_RETRIEVE_CARD_PATH,
+            state.tenant.tenant_id.clone(),
+            state.request_id.clone(),
+        )
+        .await
+        .change_context(errors::VaultError::FetchCardFailed)
+        .attach_printable("Failed to fetch card from legacy locker")?;
+
+        let resp_payload = get_card_resp
+            .payload
+            .ok_or(errors::VaultError::FetchCardFailed)
+            .attach_printable("Empty payload in retrieve card response")?;
+
+        let vaulting_data = match (payment_method_type, resp_payload.card) {
+            (Some(enums::PaymentMethod::Card), Some(card)) => card.into(),
+            (Some(enums::PaymentMethod::NetworkToken), Some(card)) => {
+                domain::PaymentMethodVaultingData::NetworkToken(card.into())
+            }
+            (_, _) => {
+                logger::warn!("Payment method not supported for retrieve from legacy locker");
+                return Err(error_stack::report!(errors::VaultError::FetchCardFailed)
+                    .attach_printable(
+                        "Payment method not supported for retrieve from legacy locker",
+                    ));
+            }
+        };
+
+        Ok(pm_types::VaultRetrieveResponse {
+            data: vaulting_data,
+        })
+    }
+
+    async fn delete_payment_method_from_locker(
+        &self,
+        state: &SessionState,
+        platform: &domain::Platform,
+        vault_id: domain::VaultId,
+        customer_id: &id_type::GlobalCustomerId,
+    ) -> CustomResult<pm_types::VaultDeleteResponse, errors::VaultError> {
+        let cust_id =
+            id_type::CustomerId::try_from(Cow::from(customer_id.get_string_repr().to_owned()))
+                .change_context(errors::VaultError::FetchCardFailed)
+                .attach_printable("Failed to convert to CustomerId")?;
+
+        let merchant_id = platform.get_provider().get_account().get_id();
+
+        let payload = pm_transforms::CardReqBody {
+            merchant_id: merchant_id.clone(),
+            merchant_customer_id: cust_id,
+            card_reference: vault_id.get_string_repr().to_owned(),
+        };
+
+        let legacy_locker_res: pm_transforms::DeleteCardResp = pm_transforms::call_vault_api(
+            state,
+            state.conf.jwekey.get_inner(),
+            &state.conf.locker,
+            &payload,
+            consts::LOCKER_DELETE_CARD_PATH,
+            state.tenant.tenant_id.clone(),
+            state.request_id.clone(),
+        )
+        .await
+        .change_context(errors::VaultError::DeleteCardFailed)
+        .attach_printable("Failed to delete card from legacy locker")?;
+
+        Ok(pm_types::VaultDeleteResponse {
+            vault_id,
+            entity_id: customer_id.to_owned(),
+        })
+    }
+
+    async fn resolve_payment_method(
+        &self,
+        state: &SessionState,
+        platform: &domain::Platform,
+        customer_id: &id_type::GlobalCustomerId,
+        _req: &api::PaymentMethodCreate,
+        payment_method_data: domain::PaymentMethodVaultingData,
+    ) -> RouterResult<PaymentMethodResolver> {
+        let db = &*state.store;
+
+        // Legacy locker does not use fingerprint for deduplication.
+        // Dedup is handled by V1 locker's DataDuplicationCheck in the add response.
+        let legacy_locker_res = add_payment_method_to_legacy_locker(
+            state,
+            platform,
+            &payment_method_data,
+            None,
+            customer_id,
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to add payment method to legacy locker")?;
+
+        let pm_result = db
+            .find_payment_method_by_locker_id(
+                platform.get_provider().get_key_store(),
+                &legacy_locker_res.card_reference,
+                platform.get_processor().get_account().storage_scheme,
+            )
+            .await;
+
+        match pm_result {
+            Ok(existing_pm) => {
+                let payment_method_id = existing_pm.id.clone();
+
+                resolve_based_on_duplication_status(
+                    existing_pm,
+                    payment_method_id,
+                    legacy_locker_res.duplication_check,
+                    &payment_method_data,
+                )
+            }
+            Err(err) => {
+                when(!err.current_context().is_db_not_found(), || {
+                    Err(err)
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable("Failed to find payment method by locker id")
+                })?;
+
+                logger::debug!("Payment method not found with locker id, falling back to creation");
+
+                let locker_resolver = LockerTypeResolver {
+                    locker_type: LockerType::Legacy,
+                    card_reference: Some(legacy_locker_res.card_reference),
+                };
+                Ok(PaymentMethodResolver(PaymentMethodResolution::Create {
+                    fingerprint_id: None,
+                    payment_method_data: payment_method_data.clone(),
+                    locker_resolver,
+                }))
+            }
+        }
+    }
+
+    async fn vault_new_payment_method(
+        &self,
+        _state: &SessionState,
+        _platform: &domain::Platform,
+        _profile: &domain::Profile,
+        _payment_method_data: &domain::PaymentMethodVaultingData,
+        _fingerprint_id_from_vault: Option<String>,
+        customer_id: &id_type::GlobalCustomerId,
+        card_reference: Option<String>,
+    ) -> RouterResult<(
+        pm_types::AddVaultResponse,
+        Option<id_type::MerchantConnectorAccountId>,
+    )> {
+        let card_reference = card_reference
+            .get_required_value("card_reference")
+            .attach_printable("Card Reference not found")?;
+
+        let add_vault_response = pm_types::AddVaultResponse {
+            entity_id: Some(customer_id.clone()),
+            vault_id: domain::VaultId::generate(card_reference),
+            fingerprint_id: None,
+        };
+        Ok((add_vault_response, None))
+    }
+}
+#[cfg(feature = "v2")]
 impl LockerType {
-    pub fn from_state(state: &SessionState) -> Self {
-        if state.conf.locker.use_legacy_locker {
-            Self::Legacy
+    pub fn from_locker_config(locker_config: &settings::Locker) -> Arc<dyn LockerOperations> {
+        if locker_config.use_legacy_locker {
+            Arc::new(LegacyLocker)
         } else {
-            Self::Generic
+            Arc::new(GenericLocker)
         }
     }
 }
@@ -1807,33 +2093,19 @@ async fn execute_payment_method_create(
     }
     let db = &*state.store;
 
-    let vaulting_result = match locker_resolver.locker_type {
-        LockerType::Generic => {
-            vault_payment_method(
-                state,
-                &payment_method_data,
-                platform,
-                profile,
-                None,
-                fingerprint_id_from_vault,
-                customer_id,
-                Some(pm_types::WriteMode::Insert), // Insert mode for new payment methods
-            )
-            .await
-        }
-        LockerType::Legacy => {
-            let add_vault_response = pm_types::AddVaultResponse {
-                entity_id: Some(customer_id.clone()),
-                vault_id: domain::VaultId::generate(
-                    locker_resolver
-                        .card_reference
-                        .get_required_value("card_reference")?,
-                ),
-                fingerprint_id: None,
-            };
-            Ok((add_vault_response, None))
-        }
-    };
+    let locker = LockerType::from_locker_config(&state.conf.locker);
+
+    let vaulting_result = locker
+        .vault_new_payment_method(
+            state,
+            platform,
+            profile,
+            &payment_method_data,
+            fingerprint_id_from_vault,
+            customer_id,
+            locker_resolver.card_reference.clone(),
+        )
+        .await;
 
     let network_tokenization_resp = network_tokenize_and_vault_the_pmd(
         state,
@@ -4380,12 +4652,16 @@ pub async fn retrieve_payment_method(
     .await
     .change_context(errors::ApiErrorResponse::PaymentMethodNotFound)
     .attach_printable("Failed to fetch payment method by storage")?;
-    //This needs to be handled for redacted case as well
+
     when(
-        payment_method.status == common_enums::PaymentMethodStatus::Inactive,
+        matches!(
+            payment_method.status,
+            common_enums::PaymentMethodStatus::Inactive
+                | common_enums::PaymentMethodStatus::Redacted
+        ),
         || {
             Err(report!(errors::ApiErrorResponse::PaymentMethodNotFound)
-                .attach_printable("Payment method is inactive"))
+                .attach_printable("Payment method is inactive or redacted"))
         },
     )?;
 
@@ -6396,17 +6672,12 @@ impl<'a> pm_types::PaymentMethodUpdateHandler<'a> {
                 field_name: "payment_method_data",
             })?;
 
-        let locker_type = LockerType::from_state(self.state);
-
-        match locker_type {
-            LockerType::Legacy => {
-                self.perform_vaulting_operations_for_legacy_locker(&vault_request_data)
-                    .await
-            }
-            LockerType::Generic => {
-                self.perform_vaulting_operations_for_generic_locker(&vault_request_data)
-                    .await
-            }
+        if self.state.conf.locker.use_legacy_locker {
+            self.perform_vaulting_operations_for_legacy_locker(&vault_request_data)
+                .await
+        } else {
+            self.perform_vaulting_operations_for_generic_locker(&vault_request_data)
+                .await
         }
     }
 
@@ -6445,15 +6716,18 @@ impl<'a> pm_types::PaymentMethodUpdateHandler<'a> {
             }
             Some(pm_transforms::DataDuplicationCheck::MetaDataChanged) => {
                 // delete existing record and add newone with updated metadata but same vault_id
-                vault::delete_payment_method_data_from_legacy_locker(
-                    self.state,
-                    self.platform,
-                    domain::VaultId::generate(legacy_locker_res.card_reference.clone()),
-                    &customer_id,
-                )
-                .await
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Failed to delete payment method from legacy locker")?;
+
+                let locker = LockerType::from_locker_config(&self.state.conf.locker);
+                locker
+                    .delete_payment_method_from_locker(
+                        self.state,
+                        self.platform,
+                        domain::VaultId::generate(legacy_locker_res.card_reference.clone()),
+                        &customer_id,
+                    )
+                    .await
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Failed to delete payment method from legacy locker")?;
 
                 let legacy_locker_res = add_payment_method_to_legacy_locker(
                     self.state,

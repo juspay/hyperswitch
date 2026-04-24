@@ -79,6 +79,7 @@ redirect_uri = ""  # Redirect URI registered for the OIDC client
 host = ""
 mock_locker = true
 locker_enabled = true
+use_legacy_locker = false
 ttl_for_storage_in_secs = 220752000
 
 [jwekey]
