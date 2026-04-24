@@ -377,12 +377,10 @@ impl SuperpositionClient {
             .send()
             .await;
 
-        response.map_err(|e| {
-            report!(SuperpositionError::ClientError(format!(
-                "Failed to set {} config: {e:?}",
-                T::SUPERPOSITION_KEY
-            )))
-        })?;
+        response.change_context(SuperpositionError::ClientError(format!(
+            "Failed to set {} config",
+            T::SUPERPOSITION_KEY
+        )))?;
 
         router_env::logger::info!("Set {} config successfully", T::SUPERPOSITION_KEY);
 

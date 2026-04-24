@@ -228,14 +228,11 @@ pub async fn get_merchant_fingerprint_secret(
         )
         .await;
 
-    // If we got a non-empty secret, return it
-    if !secret.is_empty() {
-        return Ok(secret);
+    match secret.is_empty() {
+        false => Ok(secret),
+        true => Err(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("fingerprint_secret not found in Superposition for merchant"),
     }
-
-    // If secret is empty (not found in Superposition), return error
-    Err(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("fingerprint_secret not found in Superposition for merchant")
 }
 
 async fn duplicate_check_insert_bin(
