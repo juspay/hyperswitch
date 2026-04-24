@@ -110,9 +110,9 @@ pub struct PaymentMethod {
     pub customer_details: Option<Encryption>,
     pub locker_fingerprint_id: Option<String>,
     pub network_tokenization_data: Option<Encryption>,
+    pub id: common_utils::id_type::GlobalPaymentMethodId,
     pub payment_method_type_v2: Option<storage_enums::PaymentMethod>,
     pub payment_method_subtype: Option<storage_enums::PaymentMethodType>,
-    pub id: common_utils::id_type::GlobalPaymentMethodId,
     pub external_vault_token_data: Option<Encryption>,
 }
 

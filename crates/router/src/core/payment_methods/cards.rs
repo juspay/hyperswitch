@@ -213,7 +213,7 @@ impl PaymentMethodsController for PmCards<'_> {
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to add payment method in db")?;
 
-        super::add_payment_method_modular_compat_task(
+        super::add_payment_method_modular_forward_compat_task(
             &*self.state.store,
             &response,
             merchant_id,
