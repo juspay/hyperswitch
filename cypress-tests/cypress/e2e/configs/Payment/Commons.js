@@ -1104,7 +1104,7 @@ export const connectorDetails = {
         ],
       },
     }),
-     AutoCapture: getCustomExchange({
+    AutoCapture: getCustomExchange({
       Request: {
         currency: "EUR",
         capture_method: "automatic",
