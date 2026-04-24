@@ -25,8 +25,9 @@ use crate::{
         errors::{self, RouterResult},
         payments::helpers::MerchantConnectorAccountType,
         unified_connector_service::{
-            build_unified_connector_service_auth_metadata,
+            self, build_unified_connector_service_auth_metadata,
             build_webhook_secrets_from_merchant_connector_account,
+            transformers::HandleEventInputs,
         },
         webhooks::{
             incoming::get_payment_attempt_from_object_reference_id, utils as webhook_utils,
@@ -331,26 +332,45 @@ impl IncomingWebhookGateway for UcsIncomingWebhookGateway {
             .ok_or_else(|| {
                 error_stack::report!(errors::ApiErrorResponse::WebhookProcessingFailure)
                     .attach_printable("UCS client is not configured")
-            })?;
+            })?
+            .clone();
 
-        let request_proto = request_details_to_grpc(request)?;
+        let connector_name = ctx.connector_name.to_string();
+        let merchant_id = ctx.platform.get_processor().get_account().get_id().clone();
+        // Stable id for this webhook invocation: shared by the ParseEvent and
+        // HandleEvent connector-log entries and used verbatim as HandleEvent's
+        // `merchant_event_id`.
+        let merchant_event_id = build_merchant_event_id(ctx);
 
         // ParseEvent is pre-credential: the UCS server only needs the connector
         // name to dispatch to the right plugin, and the plugin parses webhook
         // bytes locally without calling the upstream connector. Credentials are
         // required only for HandleEvent.
-        let parse_response = client
-            .incoming_webhook_parse_event(
-                payments_grpc::EventServiceParseRequest {
-                    request_details: Some(request_proto.clone()),
-                },
-                build_ucs_auth_metadata(ctx, None)?,
-                build_ucs_headers(ctx, None, self.execution_mode),
-            )
-            .await
-            .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)
-            .attach_printable("UCS ParseEvent call failed")?
-            .into_inner();
+        let parse_request = payments_grpc::EventServiceParseRequest::foreign_try_from(request)
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to build UCS EventServiceParseRequest")?;
+        let parse_auth = build_ucs_auth_metadata(ctx, None)?;
+        let parse_headers = build_ucs_headers_builder(ctx, None, self.execution_mode);
+        let parse_client = client.clone();
+        let parse_response = unified_connector_service::ucs_webhook_logging_wrapper(
+            ctx.state,
+            connector_name.clone(),
+            "EventServiceParseEvent",
+            merchant_id.clone(),
+            merchant_event_id.clone(),
+            parse_request,
+            parse_headers,
+            self.execution_mode,
+            |request, headers| async move {
+                parse_client
+                    .incoming_webhook_parse_event(request, parse_auth, headers)
+                    .await
+                    .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)
+                    .attach_printable("UCS ParseEvent call failed")
+                    .map(|response| response.into_inner())
+            },
+        )
+        .await?;
 
         let reference = match parse_response.reference.as_ref() {
             Some(r) => event_reference_to_object_ref(r)?,
@@ -394,22 +414,39 @@ impl IncomingWebhookGateway for UcsIncomingWebhookGateway {
 
                 let event_context = build_event_context(ctx, Some(&reference)).await;
 
-                let handle_response = client
-                    .incoming_webhook_handle_event(
-                        payments_grpc::EventServiceHandleRequest {
-                            merchant_event_id: Some(build_merchant_event_id(ctx)),
-                            request_details: Some(request_proto),
-                            webhook_secrets,
-                            access_token: None,
-                            event_context,
-                        },
-                        build_ucs_auth_metadata(ctx, Some(&mca))?,
-                        build_ucs_headers(ctx, Some(&mca), self.execution_mode),
-                    )
-                    .await
-                    .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)
-                    .attach_printable("UCS HandleEvent call failed")?
-                    .into_inner();
+                let handle_request = payments_grpc::EventServiceHandleRequest::foreign_try_from(
+                    HandleEventInputs {
+                        request_details: request,
+                        webhook_secrets,
+                        event_context,
+                        merchant_event_id: merchant_event_id.clone(),
+                    },
+                )
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to build UCS EventServiceHandleRequest")?;
+                let handle_auth = build_ucs_auth_metadata(ctx, Some(&mca))?;
+                let handle_headers =
+                    build_ucs_headers_builder(ctx, Some(&mca), self.execution_mode);
+                let handle_client = client.clone();
+                let handle_response = unified_connector_service::ucs_webhook_logging_wrapper(
+                    ctx.state,
+                    connector_name.clone(),
+                    "EventServiceHandleEvent",
+                    merchant_id.clone(),
+                    merchant_event_id.clone(),
+                    handle_request,
+                    handle_headers,
+                    self.execution_mode,
+                    |request, headers| async move {
+                        handle_client
+                            .incoming_webhook_handle_event(request, handle_auth, headers)
+                            .await
+                            .change_context(errors::ApiErrorResponse::WebhookProcessingFailure)
+                            .attach_printable("UCS HandleEvent call failed")
+                            .map(|response| response.into_inner())
+                    },
+                )
+                .await?;
 
                 // `event_content` is required by the proto for a non-filtered
                 // event — the downstream PSync gateway will try to deserialize
@@ -761,16 +798,6 @@ pub(super) async fn verify_webhook_source_via_connector(
     }
 }
 
-fn request_details_to_grpc(
-    request: &IncomingWebhookRequestDetails<'_>,
-) -> RouterResult<payments_grpc::RequestDetails> {
-    <payments_grpc::RequestDetails as ForeignTryFrom<&IncomingWebhookRequestDetails<'_>>>::foreign_try_from(
-        request,
-    )
-    .change_context(errors::ApiErrorResponse::InternalServerError)
-    .attach_printable("Failed to translate webhook request details to gRPC format")
-}
-
 /// Builds the gRPC auth envelope. With an MCA, credentials come from connector
 /// account details. Without one (ParseEvent runs pre-MCA), only the routing
 /// fields (`connector_name`, `auth_type`, `merchant_id`) are set; credential
@@ -813,13 +840,14 @@ fn build_ucs_auth_metadata(
     }
 }
 
-/// Builds gRPC headers. `profile_id` comes from the MCA when available; a
-/// placeholder stands in when the MCA is not yet resolved.
-fn build_ucs_headers(
+/// Builds the UCS gRPC headers builder. `profile_id` comes from the MCA when
+/// available; a placeholder stands in when the MCA is not yet resolved. The
+/// caller (`ucs_webhook_logging_wrapper`) finalises the builder via `.build()`.
+fn build_ucs_headers_builder(
     ctx: &WebhookGatewayContext<'_>,
     mca: Option<&domain::MerchantConnectorAccount>,
     mode: ExecutionMode,
-) -> external_services::grpc_client::GrpcHeadersUcs {
+) -> external_services::grpc_client::GrpcHeadersUcsBuilderFinal {
     let merchant_id = ctx.platform.get_processor().get_account().get_id().clone();
     let profile_id = mca
         .map(|m| m.profile_id.clone())
@@ -830,7 +858,6 @@ fn build_ucs_headers(
         .external_vault_proxy_metadata(None)
         .merchant_reference_id(None)
         .resource_id(None)
-        .build()
 }
 
 fn build_merchant_event_id(ctx: &WebhookGatewayContext<'_>) -> String {

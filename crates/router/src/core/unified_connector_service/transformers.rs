@@ -46,11 +46,11 @@ use time::{Duration, OffsetDateTime};
 use unified_connector_service_cards::{CardNumber, NetworkToken};
 use unified_connector_service_client::payments::{
     self as payments_grpc, client_authentication_token_data, ConnectorState,
-    EventServiceHandleRequest,
+    EventServiceHandleRequest, EventServiceParseRequest,
 };
 
 use crate::{
-    core::{errors, mandate::MandateBehaviour, unified_connector_service},
+    core::{mandate::MandateBehaviour, unified_connector_service},
     types::{
         api,
         transformers::{self, ForeignFrom},
@@ -5658,33 +5658,50 @@ impl
     }
 }
 
-/// Build UCS webhook transform request from webhook components
-pub fn build_webhook_transform_request(
-    _webhook_body: &[u8],
-    request_details: &hyperswitch_interfaces::webhooks::IncomingWebhookRequestDetails<'_>,
-    webhook_secrets: Option<payments_grpc::WebhookSecrets>,
-    merchant_id: &str,
-    connector_id: &str,
-) -> Result<EventServiceHandleRequest, error_stack::Report<errors::ApiErrorResponse>> {
-    let request_details_grpc =
-        <payments_grpc::RequestDetails as transformers::ForeignTryFrom<_>>::foreign_try_from(
-            request_details,
-        )
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to transform webhook request details to gRPC format")?;
+impl
+    transformers::ForeignTryFrom<
+        &hyperswitch_interfaces::webhooks::IncomingWebhookRequestDetails<'_>,
+    > for EventServiceParseRequest
+{
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
 
-    Ok(EventServiceHandleRequest {
-        merchant_event_id: Some(format!(
-            "{}_{}_{}",
-            merchant_id,
-            connector_id,
-            OffsetDateTime::now_utc().unix_timestamp()
-        )),
-        request_details: Some(request_details_grpc),
-        webhook_secrets,
-        access_token: None,
-        event_context: None,
-    })
+    fn foreign_try_from(
+        request_details: &hyperswitch_interfaces::webhooks::IncomingWebhookRequestDetails<'_>,
+    ) -> Result<Self, Self::Error> {
+        let request_details_grpc = <payments_grpc::RequestDetails as transformers::ForeignTryFrom<
+            _,
+        >>::foreign_try_from(request_details)?;
+        Ok(Self {
+            request_details: Some(request_details_grpc),
+        })
+    }
+}
+
+/// Inputs for building an `EventServiceHandleRequest`: the raw request plus the
+/// post-ParseEvent context (webhook secrets resolved from the MCA, optional
+/// event context, and the stable merchant event id).
+pub struct HandleEventInputs<'a> {
+    pub request_details: &'a hyperswitch_interfaces::webhooks::IncomingWebhookRequestDetails<'a>,
+    pub webhook_secrets: Option<payments_grpc::WebhookSecrets>,
+    pub event_context: Option<payments_grpc::EventContext>,
+    pub merchant_event_id: String,
+}
+
+impl<'a> transformers::ForeignTryFrom<HandleEventInputs<'a>> for EventServiceHandleRequest {
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+
+    fn foreign_try_from(inputs: HandleEventInputs<'a>) -> Result<Self, Self::Error> {
+        let request_details_grpc = <payments_grpc::RequestDetails as transformers::ForeignTryFrom<
+            _,
+        >>::foreign_try_from(inputs.request_details)?;
+        Ok(Self {
+            merchant_event_id: Some(inputs.merchant_event_id),
+            request_details: Some(request_details_grpc),
+            webhook_secrets: inputs.webhook_secrets,
+            access_token: None,
+            event_context: inputs.event_context,
+        })
+    }
 }
 
 // ============================================================================
