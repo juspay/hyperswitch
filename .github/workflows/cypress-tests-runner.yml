@@ -240,12 +240,6 @@ jobs:
           REDIS_URL: redis://redis:6379
         ports:
           - 8081:8080
-        options: >-
-          --health-cmd "http_proxy= HTTP_PROXY= https_proxy= HTTPS_PROXY= wget -qO- http://localhost:8080/health || exit 1"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 30
-          --health-start-period 60s
 
     steps:
       - name: Skip tests for PRs from forks
@@ -364,6 +358,8 @@ jobs:
           SEED_FILE: "./config/superposition_seed.toml"
           WORKSPACE_ID: "dev"
           ORG_ID: "localorg"
+          NO_PROXY: "localhost,127.0.0.1"
+          no_proxy: "localhost,127.0.0.1"
         run: bash scripts/seed_superposition.sh
 
       - name: Setup Local Server
@@ -374,6 +370,8 @@ jobs:
           ROUTER__APPLEPAY_DECRYPT_KEYS__APPLE_PAY_MERCHANT_CERT: ${{ secrets.APPLE_PAY_MERCHANT_CERTIFICATE }}
           ROUTER__APPLEPAY_DECRYPT_KEYS__APPLE_PAY_MERCHANT_CERT_KEY: ${{ secrets.APPLE_PAY_MERCHANT_CERTIFICATE_KEY }}
           SERVER_LOG_PATH: ${{ github.workspace }}/server-logs.txt
+          NO_PROXY: "localhost,127.0.0.1"
+          no_proxy: "localhost,127.0.0.1"
         run: |
           # Start the server in the background
 
@@ -569,12 +567,6 @@ jobs:
           REDIS_URL: redis://redis:6379
         ports:
           - 8081:8080
-        options: >-
-          --health-cmd "http_proxy= HTTP_PROXY= https_proxy= HTTPS_PROXY= wget -qO- http://localhost:8080/health || exit 1"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 30
-          --health-start-period 60s
 
     steps:
       - name: Checkout repository
@@ -672,6 +664,8 @@ jobs:
           SEED_FILE: "./config/superposition_seed.toml"
           WORKSPACE_ID: "dev"
           ORG_ID: "localorg"
+          NO_PROXY: "localhost,127.0.0.1"
+          no_proxy: "localhost,127.0.0.1"
         run: bash scripts/seed_superposition.sh
 
       - name: Setup Local Server
@@ -680,6 +674,8 @@ jobs:
           ROUTER__APPLEPAY_DECRYPT_KEYS__APPLE_PAY_PPC_KEY: ${{ secrets.APPLE_PAY_PAYMENT_PROCESSING_CERTIFICATE_KEY }}
           ROUTER__APPLEPAY_DECRYPT_KEYS__APPLE_PAY_MERCHANT_CERT: ${{ secrets.APPLE_PAY_MERCHANT_CERTIFICATE }}
           ROUTER__APPLEPAY_DECRYPT_KEYS__APPLE_PAY_MERCHANT_CERT_KEY: ${{ secrets.APPLE_PAY_MERCHANT_CERTIFICATE_KEY }}
+          NO_PROXY: "localhost,127.0.0.1"
+          no_proxy: "localhost,127.0.0.1"
         run: |
           touch "${{ env.SERVER_LOG_PATH }}"
           # Start the server in the background
@@ -769,12 +765,6 @@ jobs:
           REDIS_URL: redis://redis:6379
         ports:
           - 8081:8080
-        options: >-
-          --health-cmd "http_proxy= HTTP_PROXY= https_proxy= HTTPS_PROXY= wget -qO- http://localhost:8080/health || exit 1"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 30
-          --health-start-period 60s
 
     steps:
       - name: Skip tests for PRs from forks
@@ -875,6 +865,8 @@ jobs:
           SEED_FILE: "./config/superposition_seed.toml"
           WORKSPACE_ID: "dev"
           ORG_ID: "localorg"
+          NO_PROXY: "localhost,127.0.0.1"
+          no_proxy: "localhost,127.0.0.1"
         run: bash scripts/seed_superposition.sh
 
       - name: Start mock servers for alpha connectors
@@ -909,6 +901,8 @@ jobs:
           ROUTER__APPLEPAY_DECRYPT_KEYS__APPLE_PAY_PPC_KEY: ${{ secrets.APPLE_PAY_PAYMENT_PROCESSING_CERTIFICATE_KEY }}
           ROUTER__APPLEPAY_DECRYPT_KEYS__APPLE_PAY_MERCHANT_CERT: ${{ secrets.APPLE_PAY_MERCHANT_CERTIFICATE }}
           ROUTER__APPLEPAY_DECRYPT_KEYS__APPLE_PAY_MERCHANT_CERT_KEY: ${{ secrets.APPLE_PAY_MERCHANT_CERTIFICATE_KEY }}
+          NO_PROXY: "localhost,127.0.0.1"
+          no_proxy: "localhost,127.0.0.1"
         run: |
           # Set base URLs for alpha connectors to point to mock servers
           for connector in ${{ env.ALPHA_PAYMENTS_CONNECTORS }}; do
@@ -1002,12 +996,6 @@ jobs:
           REDIS_URL: redis://redis:6379
         ports:
           - 8081:8080
-        options: >-
-          --health-cmd "http_proxy= HTTP_PROXY= https_proxy= HTTPS_PROXY= wget -qO- http://localhost:8080/health || exit 1"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 30
-          --health-start-period 60s
 
     steps:
       - name: Skip tests for PRs from forks
@@ -1133,6 +1121,8 @@ jobs:
           SEED_FILE: "./config/superposition_seed.toml"
           WORKSPACE_ID: "dev"
           ORG_ID: "localorg"
+          NO_PROXY: "localhost,127.0.0.1"
+          no_proxy: "localhost,127.0.0.1"
         run: bash scripts/seed_superposition.sh
 
       - name: Build project
@@ -1145,6 +1135,8 @@ jobs:
         if: ${{ env.RUN_TESTS == 'true' }}
         env:
           LLVM_PROFILE_FILE: "coverage.profraw"
+          NO_PROXY: "localhost,127.0.0.1"
+          no_proxy: "localhost,127.0.0.1"
         run: |
           # Start the server in the background
           target/debug/router &
