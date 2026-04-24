@@ -279,34 +279,22 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                 }
             });
 
-        let m_merchant_id = processor_merchant_id.clone();
-        let m_payment_intent_shipping_address_id = payment_intent.shipping_address_id.clone();
-        let m_payment_intent_payment_id = payment_intent.payment_id.clone();
-        let m_key_store = platform.get_processor().get_key_store().clone();
-        let session_state = state.clone();
-
         let shipping_address = helpers::get_address_by_id(
-            &session_state,
-            m_payment_intent_shipping_address_id,
-            &m_key_store,
-            &m_payment_intent_payment_id,
-            &m_merchant_id,
+            state,
+            payment_intent.shipping_address_id.clone(),
+            &platform.get_processor().get_key_store().clone(),
+            &payment_intent.payment_id.clone(),
+            &processor_merchant_id.clone(),
             m_storage_scheme,
         )
         .await?;
 
-        let session_state = state.clone();
-        let m_payment_intent_billing_address_id = payment_intent.billing_address_id.clone();
-        let m_key_store = platform.get_processor().get_key_store().clone();
-        let m_payment_intent_payment_id = payment_intent.payment_id.clone();
-        let m_merchant_id = processor_merchant_id.clone();
-
         let billing_address = helpers::get_address_by_id(
-            &session_state,
-            m_payment_intent_billing_address_id,
-            &m_key_store,
-            &m_payment_intent_payment_id,
-            &m_merchant_id,
+            state,
+            payment_intent.billing_address_id.clone(),
+            &platform.get_processor().get_key_store().clone(),
+            &payment_intent.payment_id.clone(),
+            &processor_merchant_id.clone(),
             m_storage_scheme,
         )
         .await?;
