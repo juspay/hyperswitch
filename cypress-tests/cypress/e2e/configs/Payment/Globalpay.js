@@ -885,6 +885,61 @@ export const connectorDetails = {
       },
     },
   },
+  bank_redirect_pm: {
+    PaymentIntentOffSession: {
+      Request: {
+        currency: "EUR",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+        },
+      },
+    },
+    ConfirmCIT: {
+      Request: {
+        payment_method: "bank_redirect",
+        payment_method_type: "ideal",
+        payment_method_data: {
+          bank_redirect: {
+            ideal: {
+              bank_name: "ing",
+            },
+          },
+        },
+        billing: billingAddressEurope,
+        mandate_data: null,
+        customer_acceptance: {
+          acceptance_type: "online",
+          accepted_at: "2024-01-01T00:00:00Z",
+          online: {
+            ip_address: "127.0.0.1",
+            user_agent: "Mozilla/5.0",
+          },
+        },
+        setup_future_usage: "off_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+    },
+    ConfirmMIT: {
+      Request: {
+        payment_method: "bank_redirect",
+        payment_method_type: "ideal",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+    },
+  },
   pm_list: {
     PmListResponse: {
       PmListNull: {
