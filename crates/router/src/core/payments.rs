@@ -5001,6 +5001,43 @@ where
         }
     }
 
+    // Try to fetch Alt-ID for guest checkout if applicable (no saved card, card_reference)
+    // This is for one-time card payments where we need a network token
+    if let (Some(domain::PaymentMethodData::Card(card)), Some(currency), Some(connector_str)) = (
+        payment_data.get_payment_method_data(),
+        payment_data.get_payment_intent().currency,
+        payment_data.get_payment_attempt().connector.as_ref(),
+    ) {
+        if let Ok(connector_enum) = enums::Connector::from_str(connector_str.as_str()) {
+            match network_tokenization::try_get_altid_for_guest_checkout(
+                state,
+                card,
+                business_profile,
+                payment_data.get_payment_intent().amount,
+                &currency,
+                None,
+                connector_enum,
+            )
+            .await
+            {
+                Ok(Some(network_token_data)) => {
+                    logger::info!("Using Alt-ID for guest checkout payment");
+                    payment_data.set_payment_method_data(Some(
+                        domain::PaymentMethodData::NetworkToken(network_token_data),
+                    ));
+                }
+                Ok(None) => {
+                    logger::debug!("Alt-ID not available or not eligible, using raw card");
+                }
+                Err(err) => {
+                    return Err(err)
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable("Failed to fetch Alt-ID for guest checkout");
+                }
+            }
+        }
+    }
+
     if payment_data
         .get_payment_attempt()
         .merchant_connector_id

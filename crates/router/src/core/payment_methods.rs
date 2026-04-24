@@ -11,12 +11,16 @@ pub mod transformers;
 pub mod utils;
 mod validator;
 pub mod vault;
+use std::borrow::Cow;
 #[cfg(feature = "v1")]
 use std::collections::HashSet;
-use std::{borrow::Cow, str::FromStr};
+#[cfg(feature = "v2")]
+use std::str::FromStr;
 
+#[cfg(feature = "v2")]
+pub use api_models::enums as api_enums;
+pub use api_models::enums::Connector;
 use api_models::payment_methods;
-pub use api_models::{enums as api_enums, enums::Connector};
 #[cfg(feature = "payouts")]
 pub use api_models::{enums::PayoutConnectors, payouts as payout_types};
 #[cfg(feature = "v1")]
@@ -111,43 +115,8 @@ pub async fn retrieve_payment_method_core(
     business_profile: Option<&domain::Profile>,
 ) -> RouterResult<(Option<domain::PaymentMethodData>, Option<String>)> {
     match pm_data {
-        pm_opt @ Some(pm @ domain::PaymentMethodData::Card(card)) => {
-            // Try to fetch Alt-ID for guest checkout if applicable
-            #[cfg(feature = "v1")]
-            if let (Some(profile), Some(currency), Some(connector_str)) = (
-                business_profile,
-                payment_intent.currency.as_ref(),
-                payment_attempt.connector.as_ref(),
-            ) {
-                // Parse connector string to enum
-                if let Ok(connector) = Connector::from_str(connector_str.as_str()) {
-                    if let Some(network_token_data) =
-                        network_tokenization::try_get_altid_for_guest_checkout(
-                            state,
-                            card,
-                            profile,
-                            payment_intent.amount,
-                            currency,
-                            // TODO: RuPay is not currently supported
-                            // This will be updated once connector support for RuPay auth_ref_number is added
-                            None,
-                            connector,
-                        )
-                        .await
-                        .change_context(errors::ApiErrorResponse::InternalServerError)
-                        .attach_printable("Failed to fetch Alt-ID for guest checkout")?
-                    {
-                        // Alt-ID successfully fetched, return NetworkTokenData instead of raw card
-                        logger::info!("Using Alt-ID for guest checkout payment");
-                        return Ok((
-                            Some(domain::PaymentMethodData::NetworkToken(network_token_data)),
-                            None,
-                        ));
-                    }
-                }
-            }
-
-            // Fallback: store raw card in vault and return
+        pm_opt @ Some(pm @ domain::PaymentMethodData::Card(_)) => {
+            // Store raw card in vault and return
             let payment_token = payment_helpers::store_payment_method_data_in_vault(
                 state,
                 payment_attempt,
