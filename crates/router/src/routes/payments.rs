@@ -1690,10 +1690,18 @@ pub async fn payments_cancel(
                 HeaderPayload::default(),
             )
         },
-        &auth::HeaderAuth(auth::ApiKeyAuth {
-            allow_connected_scope_operation: true,
-            allow_platform_self_operation: false,
-        }),
+        auth::auth_type(
+            &auth::HeaderAuth(auth::ApiKeyAuth {
+                allow_connected_scope_operation: true,
+                allow_platform_self_operation: false,
+            }),
+            &auth::JWTAuth {
+                permission: Permission::ProfilePaymentWrite,
+                allow_connected: true,
+                allow_platform: false,
+            },
+            req.headers(),
+        ),
         locking_action,
     ))
     .await
