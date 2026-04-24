@@ -2,6 +2,8 @@ import {
   cardRequiredField,
   connectorDetails as commonConnectorDetails,
   customerAcceptance,
+  singleUseMandateData,
+  multiUseMandateData,
 } from "./Commons";
 import { getCustomExchange } from "./Modifiers";
 
@@ -1125,20 +1127,13 @@ export const connectorDetails = {
             first_name: "joseph",
             last_name: "Doe",
           },
+          email: "guest@example.com",
           phone: {
             number: "9123456789",
             country_code: "+31",
           },
         },
-        mandate_data: null,
-        customer_acceptance: {
-          acceptance_type: "online",
-          accepted_at: "2024-01-01T00:00:00Z",
-          online: {
-            ip_address: "127.0.0.1",
-            user_agent: "Mozilla/5.0",
-          },
-        },
+        mandate_data: singleUseMandateData,
         setup_future_usage: "off_session",
         currency: "EUR",
       },

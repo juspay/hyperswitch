@@ -1,4 +1,4 @@
-import { cardRequiredField, customerAcceptance } from "./Commons";
+import { cardRequiredField, customerAcceptance, singleUseMandateData, multiUseMandateData } from "./Commons";
 import { getCustomExchange } from "./Modifiers";
 
 // Test card details for successful non-3DS transactions
@@ -909,15 +909,7 @@ export const connectorDetails = {
           },
         },
         billing: billingAddressEurope,
-        mandate_data: null,
-        customer_acceptance: {
-          acceptance_type: "online",
-          accepted_at: "2024-01-01T00:00:00Z",
-          online: {
-            ip_address: "127.0.0.1",
-            user_agent: "Mozilla/5.0",
-          },
-        },
+        mandate_data: singleUseMandateData,
         setup_future_usage: "off_session",
         currency: "EUR",
       },

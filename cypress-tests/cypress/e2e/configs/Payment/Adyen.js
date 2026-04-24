@@ -1,4 +1,4 @@
-import { customerAcceptance, multiUseMandateData } from "./Commons";
+import { customerAcceptance, multiUseMandateData, singleUseMandateData } from "./Commons";
 import { getCurrency, getCustomExchange } from "./Modifiers";
 
 const successfulNo3DSCardDetails = {
@@ -1038,15 +1038,7 @@ export const connectorDetails = {
             country_code: "+31",
           },
         },
-        mandate_data: null,
-        customer_acceptance: {
-          acceptance_type: "online",
-          accepted_at: "2024-01-01T00:00:00Z",
-          online: {
-            ip_address: "127.0.0.1",
-            user_agent: "Mozilla/5.0",
-          },
-        },
+        mandate_data: singleUseMandateData,
         setup_future_usage: "off_session",
         currency: "EUR",
       },

@@ -901,7 +901,7 @@ export const connectorDetails = {
             last_name: "doe",
           },
         },
-        mandate_data: null,
+        mandate_data: singleUseMandateData,
         setup_future_usage: "off_session",
         currency: "EUR",
       },
