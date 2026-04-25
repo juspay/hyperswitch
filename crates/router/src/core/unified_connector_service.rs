@@ -1435,6 +1435,84 @@ pub fn build_unified_connector_service_payment_method(
                         })),
                     })
                 }
+                hyperswitch_domain_models::payment_method_data::WalletData::AliPayHkRedirect(
+                    _,
+                ) => Ok(payments_grpc::PaymentMethod {
+                    payment_method: Some(PaymentMethod::AliPayHk(
+                        payments_grpc::AliPayHkWallet {}
+                    )),
+                }),
+                hyperswitch_domain_models::payment_method_data::WalletData::DanaRedirect {} => Ok(payments_grpc::PaymentMethod {
+                    payment_method: Some(PaymentMethod::DanaRedirect(
+                        payments_grpc::DanaRedirectWallet {}
+                    )),
+                }),
+                hyperswitch_domain_models::payment_method_data::WalletData::GcashRedirect(
+                    _,
+                ) => Ok(payments_grpc::PaymentMethod {
+                    payment_method: Some(PaymentMethod::GcashRedirect(
+                        payments_grpc::GcashRedirectWallet {}
+                    )),
+                }),
+                hyperswitch_domain_models::payment_method_data::WalletData::GoPayRedirect(
+                    _,
+                ) => Ok(payments_grpc::PaymentMethod {
+                    payment_method: Some(PaymentMethod::GoPayRedirect(
+                        payments_grpc::GoPayRedirectWallet {}
+                    )),
+                }),
+                hyperswitch_domain_models::payment_method_data::WalletData::KakaoPayRedirect(
+                    _,
+                ) => Ok(payments_grpc::PaymentMethod {
+                    payment_method: Some(PaymentMethod::KakaoPayRedirect(
+                        payments_grpc::KakaoPayRedirectWallet {}
+                    )),
+                }),
+                hyperswitch_domain_models::payment_method_data::WalletData::MbWayRedirect(
+                    _,
+                ) => Ok(payments_grpc::PaymentMethod {
+                    payment_method: Some(PaymentMethod::MbWayRedirect(
+                        payments_grpc::MbWayRedirectWallet {}
+                    )),
+                }),
+                hyperswitch_domain_models::payment_method_data::WalletData::MomoRedirect(
+                    _,
+                ) => Ok(payments_grpc::PaymentMethod {
+                    payment_method: Some(PaymentMethod::MomoRedirect(
+                        payments_grpc::MomoRedirectWallet {}
+                    )),
+                }),
+                hyperswitch_domain_models::payment_method_data::WalletData::TouchNGoRedirect(
+                    _,
+                ) => Ok(payments_grpc::PaymentMethod {
+                    payment_method: Some(PaymentMethod::TouchNGoRedirect(
+                        payments_grpc::TouchNGoRedirectWallet {}
+                    )),
+                }),
+                hyperswitch_domain_models::payment_method_data::WalletData::TwintRedirect {} => Ok(payments_grpc::PaymentMethod {
+                    payment_method: Some(PaymentMethod::TwintRedirect(
+                        payments_grpc::TwintRedirectWallet {}
+                    )),
+                }),
+                hyperswitch_domain_models::payment_method_data::WalletData::VippsRedirect {} => Ok(payments_grpc::PaymentMethod {
+                    payment_method: Some(PaymentMethod::VippsRedirect(
+                        payments_grpc::VippsRedirectWallet {}
+                    )),
+                }),
+                hyperswitch_domain_models::payment_method_data::WalletData::WeChatPayRedirect(
+                    _,
+                ) => Ok(payments_grpc::PaymentMethod {
+                    payment_method: Some(PaymentMethod::WeChatPayRedirect(
+                        payments_grpc::WeChatPayRedirectWallet {}
+                    )),
+                }),
+                hyperswitch_domain_models::payment_method_data::WalletData::SwishQr(
+                    _,
+                ) => Ok(payments_grpc::PaymentMethod {
+                    payment_method: Some(PaymentMethod::SwishQr(
+                        payments_grpc::SwishQrWallet {}
+                    )),
+                }),
                 _ => Err(UnifiedConnectorServiceError::NotImplemented(format!(
                     "Unimplemented payment method subtype: {payment_method_type:?}"
                 ))
