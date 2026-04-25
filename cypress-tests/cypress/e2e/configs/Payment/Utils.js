@@ -541,6 +541,7 @@ export const CONNECTOR_LISTS = {
     ],
     EXTERNAL_THREE_DS: ["stripe"],
     BANK_DEBIT: ["novalnet"],
+    SURCHARGE: ["celero"],
     // Add more inclusion lists
   },
 };

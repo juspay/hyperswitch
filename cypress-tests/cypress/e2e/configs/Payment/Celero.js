@@ -1052,6 +1052,56 @@ export const connectorDetails = {
         },
       },
     }),
+
+    // Surcharge flow
+    PaymentWithSurcharge: {
+      Request: {
+        currency: "USD",
+        surcharge_details: {
+          surcharge_amount: 100,
+          tax_on_surcharge: 50,
+        },
+        customer_acceptance: null,
+        setup_future_usage: null,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+          surcharge_details: {
+            surcharge_amount: 100,
+            tax_on_surcharge: 50,
+          },
+          amount: 6000,
+        },
+      },
+    },
+
+    ConfirmPaymentWithSurcharge: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        billing: billingAddress,
+        customer_acceptance: null,
+        setup_future_usage: null,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+          payment_method: "card",
+          surcharge_details: {
+            surcharge_amount: 100,
+            tax_on_surcharge: 50,
+          },
+          amount: 6000,
+          amount_received: 6150,
+          net_amount: 6150,
+        },
+      },
+    },
   },
   pm_list: {
     PmListResponse: {
