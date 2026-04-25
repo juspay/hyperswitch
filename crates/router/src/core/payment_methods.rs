@@ -6852,7 +6852,7 @@ impl<'a> pm_types::PaymentMethodUpdateHandler<'a> {
             .validate_locker_operations_for_update(
                 self.state,
                 self.platform,
-                &self.profile,
+                self.profile,
                 &self.payment_method,
                 &vault_request_data,
                 is_metadata_changed_for_same_fingerprint,
