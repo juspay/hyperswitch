@@ -770,6 +770,41 @@ impl UnifiedConnectorServiceClient {
             })
     }
 
+    /// Phase 1 of the two-phase UCS webhook API.
+    ///
+    /// Parses the raw inbound webhook payload to extract a typed `EventReference` and the
+    /// `WebhookEventType`, without requiring credentials or making any outbound connector
+    /// call. The caller uses the returned reference to resolve the merchant-connector
+    /// account (and thus the webhook secret) before invoking `incoming_webhook_handle_event`.
+    pub async fn incoming_webhook_parse_event(
+        &self,
+        incoming_webhook_parse_event_request: payments_grpc::EventServiceParseRequest,
+        connector_auth_metadata: ConnectorAuthMetadata,
+        grpc_headers: GrpcHeadersUcs,
+    ) -> UnifiedConnectorServiceResult<tonic::Response<payments_grpc::EventServiceParseResponse>>
+    {
+        let mut request = tonic::Request::new(incoming_webhook_parse_event_request);
+
+        let connector_name = connector_auth_metadata.connector_name.clone();
+        let metadata =
+            build_unified_connector_service_grpc_headers(connector_auth_metadata, grpc_headers)?;
+        *request.metadata_mut() = metadata;
+
+        self.event_service_client
+            .clone()
+            .parse_event(request)
+            .await
+            .change_context(UnifiedConnectorServiceError::IncomingWebhookParseEventFailure)
+            .inspect_err(|error| {
+                logger::error!(
+                    grpc_error=?error,
+                    method="incoming_webhook_parse_event",
+                    connector_name=?connector_name,
+                    "UCS incoming webhook parse event gRPC call failed"
+                )
+            })
+    }
+
     /// Performs Payment Refund
     pub async fn payment_refund(
         &self,
