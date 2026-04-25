@@ -259,11 +259,13 @@ export const connectorDetails = {
     Refund: {
       Request: {
         amount: 6000,
+        surcharge: 0,
       },
       Response: {
         status: 200,
         body: {
           status: "succeeded",
+          surcharge: 0,
         },
       },
     },
@@ -272,11 +274,13 @@ export const connectorDetails = {
     PartialRefund: {
       Request: {
         amount: 2000,
+        surcharge: 0,
       },
       Response: {
         status: 200,
         body: {
           status: "succeeded",
+          surcharge: 0,
         },
       },
     },
@@ -287,6 +291,7 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "succeeded",
+          surcharge: 0,
         },
       },
     },
@@ -295,11 +300,13 @@ export const connectorDetails = {
     manualPaymentRefund: {
       Request: {
         amount: 6000,
+        surcharge: 0,
       },
       Response: {
         status: 200,
         body: {
           status: "succeeded",
+          surcharge: 0,
         },
       },
     },
@@ -308,11 +315,13 @@ export const connectorDetails = {
     manualPaymentPartialRefund: {
       Request: {
         amount: 3000,
+        surcharge: 0,
       },
       Response: {
         status: 200,
         body: {
           status: "succeeded",
+          surcharge: 0,
         },
       },
     },
