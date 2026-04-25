@@ -1067,7 +1067,7 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "requires_confirmation",
+          status: "requires_payment_method",
           surcharge_details: {
             surcharge_amount: 100,
             tax_on_surcharge: 50,
