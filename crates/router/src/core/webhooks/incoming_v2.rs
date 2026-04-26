@@ -147,6 +147,7 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
     let mut request_details = IncomingWebhookRequestDetails {
         method: req.method().clone(),
         uri: req.uri().clone(),
+        url: req.url().to_string(),
         headers: req.headers(),
         query_params: req.query_string().to_string(),
         body: &body,

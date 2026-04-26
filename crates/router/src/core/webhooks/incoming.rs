@@ -156,6 +156,7 @@ pub async fn network_token_incoming_webhooks_wrapper<W: types::OutgoingWebhookTy
     let request_details: IncomingWebhookRequestDetails<'_> = IncomingWebhookRequestDetails {
         method: req.method().clone(),
         uri: req.uri().clone(),
+        url: req.full_url().to_string(),
         headers: req.headers(),
         query_params: req.query_string().to_string(),
         body: &body,
@@ -236,6 +237,7 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
     let request_details = IncomingWebhookRequestDetails {
         method: req.method().clone(),
         uri: req.uri().clone(),
+        url: req.full_url().to_string(),
         headers: req.headers(),
         query_params: req.query_string().to_string(),
         body: &body,
@@ -403,6 +405,7 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
         Some(decoded_body) => &IncomingWebhookRequestDetails {
             method: request_details.method.clone(),
             uri: request_details.uri.clone(),
+            url: request_details.url.to_string(),
             headers: request_details.headers,
             query_params: request_details.query_params.clone(),
             body: decoded_body,
@@ -745,6 +748,7 @@ async fn process_non_ucs_webhook<'a>(
     let updated_request_details = IncomingWebhookRequestDetails {
         method: request_details.method.clone(),
         uri: request_details.uri.clone(),
+        url: request_details.url.to_string(),
         headers: request_details.headers,
         query_params: request_details.query_params.clone(),
         body: &decoded_body,

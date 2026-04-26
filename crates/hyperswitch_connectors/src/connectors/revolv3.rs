@@ -1,7 +1,8 @@
 pub mod transformers;
 use std::sync::LazyLock;
 
-use common_utils::errors::CustomResult;
+use common_utils::{errors::CustomResult, ext_traits::ByteSliceExt};
+use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse},
     router_flow_types::{
@@ -106,9 +107,31 @@ impl
 impl webhooks::IncomingWebhook for Revolv3 {
     fn get_webhook_object_reference_id(
         &self,
-        _request: &webhooks::IncomingWebhookRequestDetails<'_>,
+        request: &webhooks::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api_models::webhooks::ObjectReferenceId, errors::ConnectorError> {
-        Err((errors::ConnectorError::WebhooksNotImplemented).into())
+        let webhook_data: transformers::Revolv3WebhookBody = request
+            .body
+            .parse_struct("Revolv3WebhookBody")
+            .change_context(errors::ConnectorError::WebhookResourceObjectNotFound)
+            .attach_printable_lazy(|| "Failed to parse Revolv3 payment webhook body structure")?;
+
+        let webhook_body: transformers::Revolv3InvoiceWebhookBody =
+            serde_json::from_str(&webhook_data.body)
+                .change_context(errors::ConnectorError::WebhookEventTypeNotFound)
+                .attach_printable_lazy(|| {
+                    "Failed to parse invoice data from Revolv3 webhook body"
+                })?;
+
+        let invoice_id = webhook_body.invoice.invoice_id;
+        if webhook_body.invoice.invoice_status.is_refund_event() {
+            Ok(api_models::webhooks::ObjectReferenceId::RefundId(
+                api_models::webhooks::RefundIdType::ConnectorRefundId(invoice_id.to_string()),
+            ))
+        } else {
+            Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
+                api_models::payments::PaymentIdType::ConnectorTransactionId(invoice_id.to_string()),
+            ))
+        }
     }
 
     fn get_webhook_event_type(

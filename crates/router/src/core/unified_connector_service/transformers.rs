@@ -5651,6 +5651,7 @@ impl
         Ok(Self {
             method: 1, // POST method for webhooks
             uri: Some(request_details.uri.to_string()),
+            url: Some(request_details.url.to_string()),
             body: request_details.body.to_vec(),
             headers: headers_map,
             query_params: Some(request_details.query_params.clone()),
