@@ -1058,6 +1058,48 @@ pub(crate) async fn get_payment_method_create_request(
                     Ok(payment_method_request)
                 }
 
+                domain::PaymentMethodData::NetworkToken(nt_data) => {
+                    let card_detail = payment_methods::CardDetail {
+                        card_number: nt_data.token_number.clone().into(),
+                        card_exp_month: nt_data.token_exp_month.clone(),
+                        card_exp_year: nt_data.token_exp_year.clone(),
+                        card_cvc: None,
+                        card_holder_name: None,
+                        nick_name: nt_data.nick_name.clone(),
+                        card_issuing_country: nt_data.card_issuing_country.clone(),
+                        card_issuing_country_code: None,
+                        card_network: nt_data.card_network.clone(),
+                        card_issuer: nt_data.card_issuer.clone(),
+                        card_type: nt_data.card_type.clone(),
+                    };
+                    let payment_method_request = payment_methods::PaymentMethodCreate {
+                        payment_method: Some(payment_method),
+                        payment_method_type,
+                        payment_method_issuer: None,
+                        payment_method_issuer_code: None,
+                        #[cfg(feature = "payouts")]
+                        bank_transfer: None,
+                        #[cfg(feature = "payouts")]
+                        bank_transfer_data: None,
+                        #[cfg(feature = "payouts")]
+                        wallet: None,
+                        card: Some(card_detail),
+                        metadata: None,
+                        customer_id: customer_id.clone(),
+                        card_network: nt_data
+                            .card_network
+                            .clone()
+                            .as_ref()
+                            .map(|card_network| card_network.to_string()),
+                        client_secret: None,
+                        payment_method_data: None,
+                        billing: None,
+                        connector_mandate_details: None,
+                        network_transaction_id: None,
+                    };
+                    Ok(payment_method_request)
+                }
+
                 _ => {
                     let payment_method_request = payment_methods::PaymentMethodCreate {
                         payment_method: Some(payment_method),

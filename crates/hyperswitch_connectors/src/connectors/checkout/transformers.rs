@@ -261,6 +261,7 @@ pub enum PaymentSource {
     MandatePayment(MandateSource),
     GooglePayPredecrypt(Box<GooglePayPredecrypt>),
     DecryptedWalletToken(DecryptedWalletToken),
+    NetworkToken(Box<NetworkTokenSource>),
 }
 
 #[derive(Debug, Serialize)]
@@ -271,6 +272,22 @@ pub struct DecryptedWalletToken {
     token_type: String,
     expiry_month: Secret<String>,
     expiry_year: Secret<String>,
+    pub billing_address: Option<CheckoutAddress>,
+}
+
+#[skip_serializing_none]
+#[derive(Debug, Serialize)]
+pub struct NetworkTokenSource {
+    #[serde(rename = "type")]
+    pub source_type: String,
+    pub token: cards::CardNumber,
+    pub expiry_month: Secret<String>,
+    pub expiry_year: Secret<String>,
+    pub token_type: String,
+    pub cryptogram: Option<Secret<String>>,
+    pub eci: Option<String>,
+    pub stored: Option<bool>,
+    pub store_for_future_use: Option<bool>,
     pub billing_address: Option<CheckoutAddress>,
 }
 
@@ -815,6 +832,36 @@ impl TryFrom<&CheckoutRouterData<&PaymentsAuthorizeRouterData>> for PaymentsRequ
                     previous_id,
                     Some(true),
                     p_type,
+                    store_for_future_use,
+                ))
+            }
+            PaymentMethodData::NetworkToken(token_data) => {
+                let token_type = match token_data.card_network {
+                    Some(enums::CardNetwork::Visa) => Ok("vts".to_string()),
+                    Some(enums::CardNetwork::Mastercard) => Ok("mdes".to_string()),
+                    _ => Err(errors::ConnectorError::NotImplemented(
+                        "Network token for this card network".to_string(),
+                    )),
+                }?;
+
+                let payment_source = PaymentSource::NetworkToken(Box::new(NetworkTokenSource {
+                    source_type: "network_token".to_string(),
+                    token: cards::CardNumber::from(token_data.token_number),
+                    expiry_month: token_data.token_exp_month,
+                    expiry_year: token_data.token_exp_year,
+                    token_type,
+                    cryptogram: token_data.token_cryptogram,
+                    eci: token_data.eci,
+                    stored: None,
+                    store_for_future_use,
+                    billing_address: billing_details,
+                }));
+
+                Ok((
+                    payment_source,
+                    None,
+                    None,
+                    payment_type,
                     store_for_future_use,
                 ))
             }
