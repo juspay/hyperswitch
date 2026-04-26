@@ -105,6 +105,8 @@ use crate::{
 
 const PAYMENT_METHOD_STATUS_UPDATE_TASK: &str = "PAYMENT_METHOD_STATUS_UPDATE";
 const PAYMENT_METHOD_STATUS_TAG: &str = "PAYMENT_METHOD_STATUS";
+const PAYMENT_METHOD_MODULAR_FORWARD_COMPAT_TASK: &str = "PAYMENT_METHOD_MODULAR_FORWARD_COMPAT";
+const PAYMENT_METHOD_MODULAR_FORWARD_COMPAT_TAG: &str = "PAYMENT_METHOD_MODULAR_FORWARD_COMPAT";
 #[cfg(feature = "v2")]
 const PAYMENT_METHOD_REDACTED_FINGERPRINT_ID: &str = "FINGERPRINT_ID_REDACTED";
 
@@ -516,6 +518,60 @@ pub async fn add_payment_method_status_update_task(
             format!(
                 "Failed while inserting PAYMENT_METHOD_STATUS_UPDATE reminder to process_tracker for payment_method_id: {}",
                 payment_method.get_id().clone()
+            )
+        })?;
+
+    Ok(())
+}
+
+#[cfg(feature = "v1")]
+pub async fn add_payment_method_modular_forward_compat_task(
+    db: &dyn StorageInterface,
+    payment_method: &domain::PaymentMethod,
+    merchant_id: &id_type::MerchantId,
+    application_source: common_enums::ApplicationSource,
+    initiator: Option<&hyperswitch_domain_models::platform::Initiator>,
+) -> Result<(), ProcessTrackerError> {
+    let tracking_data = storage::PaymentMethodModularCompatTrackingData {
+        payment_method_id: payment_method.payment_method_id.clone(),
+        merchant_id: merchant_id.to_owned(),
+        last_modified_by: initiator
+            .and_then(|initiator| initiator.to_created_by())
+            .map(|last_modified_by| last_modified_by.to_string()),
+    };
+
+    let runner = storage::ProcessTrackerRunner::PaymentMethodModularForwardCompatWorkflow;
+    let task = PAYMENT_METHOD_MODULAR_FORWARD_COMPAT_TASK;
+    let tag = [PAYMENT_METHOD_MODULAR_FORWARD_COMPAT_TAG];
+    let process_tracker_id = generate_task_id_for_payment_method_status_update_workflow(
+        payment_method.payment_method_id.as_str(),
+        runner,
+        task,
+    );
+
+    let process_tracker_entry = storage::ProcessTrackerNew::new(
+        process_tracker_id,
+        task,
+        runner,
+        tag,
+        tracking_data,
+        None,
+        common_utils::date_time::now(),
+        common_types::consts::API_VERSION,
+        application_source,
+    )
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable(
+        "Failed to construct PAYMENT_METHOD_MODULAR_FORWARD_COMPAT process tracker task",
+    )?;
+
+    db.insert_process(process_tracker_entry)
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable_lazy(|| {
+            format!(
+                "Failed while inserting PAYMENT_METHOD_MODULAR_FORWARD_COMPAT task to process_tracker for payment_method_id: {}",
+                payment_method.payment_method_id
             )
         })?;
 
@@ -4258,11 +4314,9 @@ pub async fn fetch_payment_method_by_storage(
                 }
                 Some(_) => Err(report!(errors::ApiErrorResponse::PaymentMethodNotFound)
                     .attach_printable("Unexpected token data variant for payment method fetch")),
-                None => id_type::GlobalPaymentMethodId::generate_from_string(
+                None => Ok(id_type::GlobalPaymentMethodId::new_unchecked(
                     pm_incoming.payment_method_id.clone(),
-                )
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Unable to generate GlobalPaymentMethodId"),
+                )),
             }?;
 
             fetch_payment_method_with_fallback(state, provider, &pm_id, storage_type)
@@ -4710,9 +4764,7 @@ pub async fn delete_payment_method(
     platform: domain::Platform,
     profile: domain::Profile,
 ) -> RouterResponse<api::PaymentMethodDeleteResponse> {
-    let pm_id = id_type::GlobalPaymentMethodId::generate_from_string(pm_id.payment_method_id)
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Unable to generate GlobalPaymentMethodId")?;
+    let pm_id = id_type::GlobalPaymentMethodId::new_unchecked(pm_id.payment_method_id);
     let response = Box::pin(delete_payment_method_core(
         &state, pm_id, &platform, &profile,
     ))
