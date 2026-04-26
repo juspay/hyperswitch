@@ -1053,13 +1053,13 @@ export const connectorDetails = {
       },
     }),
 
-    // Surcharge flow
+    // Surcharge flow - updated values from API_TRACE
     PaymentWithSurcharge: {
       Request: {
         currency: "USD",
         surcharge_details: {
-          surcharge_amount: 100,
-          tax_on_surcharge: 50,
+          surcharge_amount: 50,
+          tax_amount: 10,
         },
         customer_acceptance: null,
         setup_future_usage: null,
@@ -1067,12 +1067,13 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "requires_payment_method",
+          status: "requires_confirmation",
           surcharge_details: {
-            surcharge_amount: 100,
-            tax_on_surcharge: 50,
+            surcharge_amount: 50,
+            tax_amount: 10,
           },
-          amount: 6000,
+          amount: 1000,
+          net_amount: 1060,
         },
       },
     },
@@ -1093,12 +1094,12 @@ export const connectorDetails = {
           status: "succeeded",
           payment_method: "card",
           surcharge_details: {
-            surcharge_amount: 100,
-            tax_on_surcharge: 50,
+            surcharge_amount: 50,
+            tax_amount: 10,
           },
-          amount: 6000,
-          amount_received: 6150,
-          net_amount: 6150,
+          amount: 1000,
+          amount_received: 1060,
+          net_amount: 1060,
         },
       },
     },
