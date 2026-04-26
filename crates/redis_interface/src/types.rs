@@ -6,6 +6,17 @@ use fred::types::RedisValue as FredRedisValue;
 
 use crate::{errors, RedisConnectionPool};
 
+/// Strategy for handling Redis command timeouts
+#[derive(Debug, serde::Deserialize, Clone, Copy, Default, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum TimeoutStrategy {
+    /// Fred library handles the timeout internally (default)
+    #[default]
+    Library,
+    /// Application wraps calls with tokio::time::timeout
+    Application,
+}
+
 pub struct RedisValue {
     inner: FredRedisValue,
 }
@@ -69,9 +80,28 @@ pub struct RedisSettings {
     pub unresponsive_timeout: u64,
     pub unresponsive_check_interval: u64,
     pub broadcast_channel_capacity: usize,
+    /// Strategy for handling command timeouts
+    #[serde(default)]
+    pub timeout_strategy: TimeoutStrategy,
 }
 
 impl RedisSettings {
+    pub fn get_fred_command_timeout_duration(&self) -> std::time::Duration {
+        match self.timeout_strategy {
+            TimeoutStrategy::Library => {
+                std::time::Duration::from_secs(self.default_command_timeout)
+            }
+            TimeoutStrategy::Application => std::time::Duration::from_secs(0),
+        }
+    }
+    pub fn get_application_command_timeout_duration(&self) -> Option<std::time::Duration> {
+        match self.timeout_strategy {
+            TimeoutStrategy::Application => {
+                Some(std::time::Duration::from_secs(self.default_command_timeout))
+            }
+            TimeoutStrategy::Library => None,
+        }
+    }
     /// Validates the Redis configuration provided.
     pub fn validate(&self) -> CustomResult<(), errors::RedisError> {
         use common_utils::{ext_traits::ConfigExt, fp_utils::when};
@@ -117,6 +147,7 @@ impl Default for RedisSettings {
             auto_pipeline: true,
             disable_auto_backpressure: false,
             max_in_flight_commands: 5000,
+            timeout_strategy: TimeoutStrategy::default(),
             default_command_timeout: 30,
             max_feed_count: 200,
             unresponsive_timeout: 10,

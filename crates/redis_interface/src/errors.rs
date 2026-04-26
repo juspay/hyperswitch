@@ -76,4 +76,6 @@ pub enum RedisError {
     PopListElementsFailed,
     #[error("Failed to increment hash field in Redis")]
     IncrementHashFieldFailed,
+    #[error("Redis command timed out")]
+    CommandTimeout,
 }

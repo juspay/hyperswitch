@@ -137,7 +137,7 @@ hyperswitch_masking = "0.0.1"
 pm_auth = { version = "0.1.0", path = "../pm_auth", package = "pm_auth" }
 redis_interface = { version = "0.1.0", path = "../redis_interface" }
 router_derive = { version = "0.1.0", path = "../router_derive" }
-router_env = { version = "0.1.0", path = "../router_env", features = ["log_extra_implicit_fields", "log_custom_entries_to_extra"] }
+router_env = { version = "0.1.0", path = "../router_env", features = ["log_extra_implicit_fields", "log_custom_entries_to_extra", "tokio-console"] }
 scheduler = { version = "0.1.0", path = "../scheduler", default-features = false }
 storage_impl = { version = "0.1.0", path = "../storage_impl", default-features = false }
 payment_link = { version = "0.1.0", path = "../payment_link", default-features = false }
