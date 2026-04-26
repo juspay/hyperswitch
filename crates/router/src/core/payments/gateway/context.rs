@@ -106,9 +106,34 @@ impl GatewayContext for RouterGatewayContext {
         self.execution_path
     }
 
-    /// Get the execution mode (Primary, Shadow, etc.)
     fn execution_mode(&self) -> ExecutionMode {
         self.execution_mode
+    }
+
+    #[cfg(feature = "v1")]
+    fn connector_config_header(&self) -> Option<String> {
+        use common_utils::ext_traits::ValueExt;
+        use hyperswitch_domain_models::router_data::ConnectorAuthType;
+        use hyperswitch_masking::ExposeInterface;
+
+        let connector_name = self.merchant_connector_account.get_connector_name()?;
+        let auth_type: ConnectorAuthType = self
+            .merchant_connector_account
+            .get_connector_account_details()
+            .parse_value("ConnectorAuthType")
+            .ok()?;
+        let metadata = self.merchant_connector_account.get_metadata();
+        let metadata_value = metadata
+            .as_ref()
+            .and_then(|m| serde_json::to_value(m.clone().expose()).ok());
+
+        crate::core::unified_connector_service::connector_config::build_connector_config_header(
+            &connector_name,
+            &auth_type,
+            metadata_value.as_ref(),
+        )
+        .ok()
+        .flatten()
     }
 }
 impl RouterGatewayContext {

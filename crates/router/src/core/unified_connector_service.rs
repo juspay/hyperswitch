@@ -2895,6 +2895,8 @@ where
 pub struct ComparisonData {
     pub hyperswitch_data: Secret<serde_json::Value>,
     pub unified_connector_service_data: Secret<serde_json::Value>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub connector_config_header: Option<serde_json::Value>,
 }
 
 /// Generic function to serialize router data and send comparison to external service
@@ -2904,6 +2906,32 @@ pub async fn serialize_router_data_and_send_to_comparison_service<F, RouterDReq,
     state: &SessionState,
     hyperswitch_router_data: RouterData<F, RouterDReq, RouterDResp>,
     unified_connector_service_router_data: RouterData<F, RouterDReq, RouterDResp>,
+) -> RouterResult<()>
+where
+    F: Send + Clone + Sync + 'static,
+    RouterDReq: Send + Sync + Clone + 'static + serde::Serialize,
+    RouterDResp: Send + Sync + Clone + 'static + serde::Serialize,
+{
+    serialize_router_data_with_config_and_send_to_comparison_service(
+        state,
+        hyperswitch_router_data,
+        unified_connector_service_router_data,
+        None,
+    )
+    .await
+}
+
+/// Serialize router data with an optional connector config snapshot and send to comparison service
+#[cfg(feature = "v1")]
+pub async fn serialize_router_data_with_config_and_send_to_comparison_service<
+    F,
+    RouterDReq,
+    RouterDResp,
+>(
+    state: &SessionState,
+    hyperswitch_router_data: RouterData<F, RouterDReq, RouterDResp>,
+    unified_connector_service_router_data: RouterData<F, RouterDReq, RouterDResp>,
+    connector_config_header: Option<serde_json::Value>,
 ) -> RouterResult<()>
 where
     F: Send + Clone + Sync + 'static,
@@ -2933,6 +2961,7 @@ where
     let comparison_data = ComparisonData {
         hyperswitch_data,
         unified_connector_service_data,
+        connector_config_header,
     };
     let _ = send_comparison_data(state, comparison_data, connector_name, sub_flow_name)
         .await
@@ -3183,4 +3212,35 @@ pub async fn call_unified_connector_service_for_refund_sync(
     ))
     .await
     .map(|(router_data, _flow_response)| router_data)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use hyperswitch_masking::Secret;
+
+    #[test]
+    fn comparison_data_serializes_connector_config_header_when_present() {
+        let config = serde_json::json!({"config": {"api_version": "2023-10-16"}});
+        let data = ComparisonData {
+            hyperswitch_data: Secret::new(serde_json::json!({"key": "hs"})),
+            unified_connector_service_data: Secret::new(serde_json::json!({"key": "ucs"})),
+            connector_config_header: Some(config.clone()),
+        };
+
+        let serialized = serde_json::to_value(&data).expect("serialization must succeed");
+        assert_eq!(serialized["connector_config_header"], config);
+    }
+
+    #[test]
+    fn comparison_data_omits_connector_config_header_when_none() {
+        let data = ComparisonData {
+            hyperswitch_data: Secret::new(serde_json::json!({"key": "hs"})),
+            unified_connector_service_data: Secret::new(serde_json::json!({"key": "ucs"})),
+            connector_config_header: None,
+        };
+
+        let serialized = serde_json::to_value(&data).expect("serialization must succeed");
+        assert!(serialized.get("connector_config_header").is_none());
+    }
 }

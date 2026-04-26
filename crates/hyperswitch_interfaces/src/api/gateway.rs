@@ -32,6 +32,11 @@ pub trait GatewayContext: Clone + Send + Sync {
 
     /// Get the execution mode (Primary, Shadow, etc.)
     fn execution_mode(&self) -> ExecutionMode;
+
+    /// Get the connector config header for the comparison envelope, if available
+    fn connector_config_header(&self) -> Option<String> {
+        None
+    }
 }
 
 /// Trait to extract RouterData from various output types
@@ -406,6 +411,7 @@ where
             let context_clone = context;
             tokio::spawn(
                 async move {
+                    let connector_config_header = context_clone.connector_config_header();
                     let gateway: Box<
                         dyn PaymentGateway<State, ConnectorData, F, Req, Resp, Context, FlowOutput>,
                     > = F::get_gateway(ExecutionPath::ShadowUnifiedConnectorService);
@@ -421,21 +427,20 @@ where
                         )
                         .await
                         .attach_printable("Gateway execution failed");
-                    // Send comparison data asynchronously
                     match ucs_shadow_result {
                         Ok(ucs_router_data) => {
-                            // Send comparison data asynchronously
                             if let Some(comparison_service_config) =
                                 state_clone.get_comparison_service_config()
                             {
                                 let request_id = state_clone.get_request_id_str();
                                 let _ =
-                                    helpers::serialize_router_data_and_send_to_comparison_service(
+                                    helpers::serialize_router_data_with_config_and_send_to_comparison_service(
                                         &state_clone,
                                         direct_router_data_clone.get_router_data().clone(),
                                         ucs_router_data.get_router_data().clone(),
                                         comparison_service_config,
                                         request_id,
+                                        connector_config_header,
                                     )
                                     .await;
                             };
@@ -540,6 +545,7 @@ where
             let context_clone = context;
             tokio::spawn(
                 async move {
+                    let connector_config_header = context_clone.connector_config_header();
                     let gateway: Box<
                         dyn PayoutGateway<State, ConnectorData, F, Req, Resp, Context, FlowOutput>,
                     > = F::get_payout_gateway(ExecutionPath::ShadowUnifiedConnectorService);
@@ -555,21 +561,20 @@ where
                         )
                         .await
                         .attach_printable("Gateway execution failed");
-                    // Send comparison data asynchronously
                     match ucs_shadow_result {
                         Ok(ucs_router_data) => {
-                            // Send comparison data asynchronously
                             if let Some(comparison_service_config) =
                                 state_clone.get_comparison_service_config()
                             {
                                 let request_id = state_clone.get_request_id_str();
                                 let _ =
-                                    helpers::serialize_router_data_and_send_to_comparison_service(
+                                    helpers::serialize_router_data_with_config_and_send_to_comparison_service(
                                         &state_clone,
                                         direct_router_data_clone.get_router_data().clone(),
                                         ucs_router_data.get_router_data().clone(),
                                         comparison_service_config,
                                         request_id,
+                                        connector_config_header,
                                     )
                                     .await;
                             };
