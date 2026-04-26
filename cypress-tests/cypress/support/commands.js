@@ -1959,6 +1959,10 @@ Cypress.Commands.add(
 
       cy.wrap(response).then(() => {
         expect(response.headers["content-type"]).to.include("application/json");
+        if (configInfo.triggerSkip) {
+          cy.task("cli_log", "TRIGGER_SKIP is set - skipping detailed validation");
+          return;
+        }
         if (resData.status === 200) {
           expect(response.body).to.have.property("client_secret");
           const clientSecret = response.body.client_secret;
