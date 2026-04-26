@@ -10697,6 +10697,7 @@ pub enum ProcessTrackerRunner {
     OutgoingWebhookRetryWorkflow,
     AttachPayoutAccountWorkflow,
     PaymentMethodStatusUpdateWorkflow,
+    PaymentMethodModularForwardCompatWorkflow,
     PassiveRecoveryWorkflow,
     ProcessDisputeWorkflow,
     DisputeListWorkflow,
@@ -11315,4 +11316,21 @@ impl PostCaptureVoidStatus {
             Self::Pending | Self::Succeeded => false,
         }
     }
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    PartialEq,
+    serde::Serialize,
+    strum::Display,
+    serde::Deserialize,
+    ToSchema,
+)]
+#[serde(rename_all = "snake_case")]
+pub enum VaultEnv {
+    Sandbox,
+    Live,
 }

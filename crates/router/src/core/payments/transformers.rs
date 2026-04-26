@@ -2783,6 +2783,7 @@ where
                     .clone()
                     .get_required_value("client_secret")?
                     .into(),
+                vault_details: payment_data.get_optional_external_vault_session_details(),
             },
             vec![],
         )))
@@ -6226,10 +6227,13 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsSessionD
                 },
             ),
             order_details,
-            email: additional_data.customer_data.and_then(|cust| cust.email),
+            email: additional_data
+                .customer_data
+                .as_ref()
+                .and_then(|cust| cust.email.clone()),
             surcharge_details: payment_data.surcharge_details,
             apple_pay_recurring_details,
-            customer_name: None,
+            customer_name: additional_data.customer_data.and_then(|cust| cust.name),
             order_tax_amount,
             shipping_cost,
             metadata,
