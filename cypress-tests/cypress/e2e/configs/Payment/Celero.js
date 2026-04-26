@@ -264,7 +264,7 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "succeeded",
+          status: "success",
           surcharge: 0,
         },
       },
@@ -279,7 +279,7 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "succeeded",
+          status: "success",
           surcharge: 0,
         },
       },
@@ -290,7 +290,7 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "succeeded",
+          status: "success",
           surcharge: 0,
         },
       },
@@ -305,7 +305,7 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "succeeded",
+          status: "success",
           surcharge: 0,
         },
       },
@@ -320,7 +320,7 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "succeeded",
+          status: "success",
           surcharge: 0,
         },
       },
