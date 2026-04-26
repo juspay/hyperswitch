@@ -2604,6 +2604,18 @@ Cypress.Commands.add(
                     ) {
                       expect(response.body).to.have.property("next_action").to
                         .be.null;
+                    } else if (
+                      response.body.next_action?.type ===
+                      "third_party_sdk_session_token"
+                    ) {
+                      // Trustpay Order Create flow returns a third party SDK session token
+                      expect(response.body)
+                        .to.have.property("next_action")
+                        .to.have.property("type")
+                        .to.equal("third_party_sdk_session_token");
+                      expect(response.body.next_action).to.have.property(
+                        "session_token"
+                      ).to.not.be.null;
                     } else {
                       expect(response.body)
                         .to.have.property("next_action")

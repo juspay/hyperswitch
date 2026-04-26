@@ -1,6 +1,7 @@
 import {
   connectorDetails as commonConnectorDetails,
   customerAcceptance,
+  standardBillingAddress,
 } from "./Commons";
 import { getCustomExchange } from "./Modifiers";
 
@@ -827,13 +828,28 @@ export const connectorDetails = {
     ),
   },
   order_create_pm: {
+    PaymentIntent: getCustomExchange({
+      Request: {
+        currency: "USD",
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+        },
+      },
+    }),
     ApplePayOrderCreate: {
       Request: {
         payment_method: "wallet",
         payment_method_type: "apple_pay",
+        authentication_type: "three_ds",
+        billing: standardBillingAddress,
         payment_method_data: {
           wallet: {
-            apple_pay: {},
+            apple_pay_third_party_sdk: {},
           },
         },
         currency: "USD",
@@ -849,9 +865,11 @@ export const connectorDetails = {
       Request: {
         payment_method: "wallet",
         payment_method_type: "google_pay",
+        authentication_type: "three_ds",
+        billing: standardBillingAddress,
         payment_method_data: {
           wallet: {
-            google_pay: {},
+            google_pay_third_party_sdk: {},
           },
         },
         currency: "USD",

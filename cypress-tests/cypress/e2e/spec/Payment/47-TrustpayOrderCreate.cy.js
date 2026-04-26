@@ -27,12 +27,12 @@ describe("Trustpay - Order Create Flow Tests", () => {
     it("Create Payment Intent with Order Create for Apple Pay", () => {
       const data = getConnectorDetails(globalState.get("connectorId"))[
         "order_create_pm"
-      ]["ApplePayOrderCreate"];
+      ]["PaymentIntent"];
 
       cy.createPaymentIntentTest(
         fixtures.createPaymentBody,
         data,
-        "no_three_ds",
+        "three_ds",
         "automatic",
         globalState
       );
@@ -57,7 +57,7 @@ describe("Trustpay - Order Create Flow Tests", () => {
         "order_create_pm"
       ]["ApplePayOrderCreate"];
 
-      cy.confirmCallTest(fixtures.confirmBody, data, true, globalState);
+      cy.confirmBankRedirectCallTest(fixtures.confirmBody, data, true, globalState);
 
       if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
@@ -97,12 +97,12 @@ describe("Trustpay - Order Create Flow Tests", () => {
     it("Create Payment Intent with Order Create for Google Pay", () => {
       const data = getConnectorDetails(globalState.get("connectorId"))[
         "order_create_pm"
-      ]["GooglePayOrderCreate"];
+      ]["PaymentIntent"];
 
       cy.createPaymentIntentTest(
         fixtures.createPaymentBody,
         data,
-        "no_three_ds",
+        "three_ds",
         "automatic",
         globalState
       );
@@ -127,7 +127,7 @@ describe("Trustpay - Order Create Flow Tests", () => {
         "order_create_pm"
       ]["GooglePayOrderCreate"];
 
-      cy.confirmCallTest(fixtures.confirmBody, data, true, globalState);
+      cy.confirmBankRedirectCallTest(fixtures.confirmBody, data, true, globalState);
 
       if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
