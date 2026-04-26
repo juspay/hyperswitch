@@ -183,6 +183,8 @@ impl LockAction {
                     .iter()
                     .map(|input| RedisKey::from(input.get_redis_locking_key(&merchant_id).as_str()))
                     .collect::<Vec<_>>();
+                // NOTE: Same non-atomic GET-then-DELETE concern as the Hold variant
+                // above — see comment there for details and the Lua script alternative.
                 let request_id = state.get_request_id();
                 let values = redis_conn
                     .get_multiple_keys::<String>(&redis_locking_keys)
@@ -232,6 +234,15 @@ impl LockAction {
 
                 let redis_locking_key = input.get_redis_locking_key(&merchant_id);
 
+                // NOTE: This GET-compare-DELETE sequence is not atomic. Between the GET
+                // and DELETE another request could acquire the same lock key, and our
+                // DELETE would then remove *their* lock. In practice the risk is low
+                // because (a) the TTL is generous, and (b) only the same merchant +
+                // resource path would collide, but the correct fix is a Lua script:
+                //   if redis.call("GET", KEYS[1]) == ARGV[1] then
+                //       return redis.call("DEL", KEYS[1])
+                //   else return 0 end
+                // The redis_interface already exposes evaluate_redis_script() for this.
                 match redis_conn
                     .get_key::<Option<String>>(&redis_locking_key.as_str().into())
                     .await

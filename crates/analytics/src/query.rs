@@ -553,16 +553,18 @@ pub enum FilterTypes {
 }
 
 pub fn filter_type_to_sql(l: &str, op: FilterTypes, r: &str) -> String {
+    // Escape single quotes to prevent SQL injection through analytics filter values.
+    let r_escaped = r.replace('\'', "''");
     match op {
-        FilterTypes::EqualBool => format!("{l} = {r}"),
-        FilterTypes::Equal => format!("{l} = '{r}'"),
-        FilterTypes::NotEqual => format!("{l} != '{r}'"),
-        FilterTypes::In => format!("{l} IN ({r})"),
-        FilterTypes::Gte => format!("{l} >= '{r}'"),
-        FilterTypes::Gt => format!("{l} > {r}"),
-        FilterTypes::Lte => format!("{l} <= '{r}'"),
-        FilterTypes::Like => format!("{l} LIKE '%{r}%'"),
-        FilterTypes::NotLike => format!("{l} NOT LIKE '%{r}%'"),
+        FilterTypes::EqualBool => format!("{l} = {r_escaped}"),
+        FilterTypes::Equal => format!("{l} = '{r_escaped}'"),
+        FilterTypes::NotEqual => format!("{l} != '{r_escaped}'"),
+        FilterTypes::In => format!("{l} IN ({r_escaped})"),
+        FilterTypes::Gte => format!("{l} >= '{r_escaped}'"),
+        FilterTypes::Gt => format!("{l} > {r_escaped}"),
+        FilterTypes::Lte => format!("{l} <= '{r_escaped}'"),
+        FilterTypes::Like => format!("{l} LIKE '%{r_escaped}%'"),
+        FilterTypes::NotLike => format!("{l} NOT LIKE '%{r_escaped}%'"),
         FilterTypes::IsNotNull => format!("{l} IS NOT NULL"),
     }
 }
