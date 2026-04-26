@@ -123,6 +123,7 @@ pub struct DigitalvirgoPaymentsResponse {
     state: DigitalvirgoPaymentStatus,
     transaction_id: String,
     consent: Option<DigitalvirgoConsentStatus>,
+    amount: Option<FloatMajorUnit>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -205,6 +206,7 @@ impl From<DigitalvirgoPaymentSyncStatus> for common_enums::AttemptStatus {
 pub struct DigitalvirgoPaymentSyncResponse {
     payment_status: DigitalvirgoPaymentSyncStatus,
     transaction_id: String,
+    amount: Option<FloatMajorUnit>,
 }
 
 impl<F, T> TryFrom<ResponseRouterData<F, DigitalvirgoPaymentSyncResponse, T, PaymentsResponseData>>
