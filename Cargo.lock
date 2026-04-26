@@ -6537,7 +6537,7 @@ dependencies = [
  "api_models",
  "common_utils",
  "error-stack 0.4.1",
- "getrandom 0.2.16",
+ "getrandom 0.3.3",
  "router_env",
  "serde",
  "serde_json",
