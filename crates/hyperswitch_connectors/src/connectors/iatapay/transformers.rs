@@ -508,8 +508,8 @@ pub struct RefundResponse {
     iata_refund_id: String,
     status: RefundStatus,
     merchant_refund_id: String,
-    amount: FloatMajorUnit,
-    currency: String,
+    pub amount: FloatMajorUnit,
+    pub currency: String,
     bank_transfer_description: Option<String>,
     failure_code: Option<String>,
     failure_details: Option<String>,
@@ -712,4 +712,103 @@ pub enum IatapayRefundWebhookStatus {
     Locked,
     #[serde(other)]
     Unknown,
+}
+
+#[cfg(test)]
+mod tests {
+    use common_utils::types::FloatMajorUnitForConnector;
+    use hyperswitch_interfaces::types::AmountConvertor;
+
+    use super::*;
+
+    #[test]
+    fn test_payment_response_deserialization_and_field_access() {
+        let json = serde_json::json!({
+            "status": "AUTHORIZED",
+            "iataPaymentId": "PAY-123",
+            "merchantPaymentId": "order-456",
+            "amount": 100.50,
+            "currency": "USD",
+            "merchantId": "merchant-789"
+        });
+
+        let response: IatapayPaymentsResponse =
+            serde_json::from_value(json).expect("Failed to deserialize IatapayPaymentsResponse");
+
+        // Verify amount and currency fields are accessible (used by integrity check)
+        let converter = FloatMajorUnitForConnector;
+        let minor_amount = converter
+            .convert_back(response.amount, enums::Currency::USD)
+            .expect("Failed to convert amount");
+        assert_eq!(minor_amount.get_amount_as_i64(), 10050);
+        assert_eq!(response.currency, "USD");
+    }
+
+    #[test]
+    fn test_refund_response_deserialization_and_pub_field_access() {
+        let json = serde_json::json!({
+            "iataRefundId": "REF-123",
+            "status": "SETTLED",
+            "merchantRefundId": "refund-456",
+            "amount": 25.00,
+            "currency": "EUR"
+        });
+
+        let response: RefundResponse =
+            serde_json::from_value(json).expect("Failed to deserialize RefundResponse");
+
+        // Verify pub fields are accessible (used by integrity check in iatapay.rs)
+        let converter = FloatMajorUnitForConnector;
+        let minor_amount = converter
+            .convert_back(response.amount, enums::Currency::EUR)
+            .expect("Failed to convert amount");
+        assert_eq!(minor_amount.get_amount_as_i64(), 2500);
+        assert_eq!(response.currency, "EUR");
+    }
+
+    #[test]
+    fn test_integrity_object_creation_from_payment_response() {
+        let json = serde_json::json!({
+            "status": "AUTHORIZED",
+            "iataPaymentId": "PAY-123",
+            "amount": 150.75,
+            "currency": "GBP"
+        });
+
+        let response: IatapayPaymentsResponse =
+            serde_json::from_value(json).expect("Failed to deserialize");
+
+        let integrity_object = crate::utils::get_authorise_integrity_object(
+            &FloatMajorUnitForConnector,
+            response.amount,
+            response.currency.clone(),
+        )
+        .expect("Failed to create integrity object");
+
+        assert_eq!(integrity_object.amount.get_amount_as_i64(), 15075);
+        assert_eq!(integrity_object.currency, enums::Currency::GBP);
+    }
+
+    #[test]
+    fn test_integrity_object_creation_from_refund_response() {
+        let json = serde_json::json!({
+            "iataRefundId": "REF-789",
+            "status": "SETTLED",
+            "merchantRefundId": "refund-101",
+            "amount": 50.00,
+            "currency": "USD"
+        });
+
+        let response: RefundResponse = serde_json::from_value(json).expect("Failed to deserialize");
+
+        let integrity_object = crate::utils::get_refund_integrity_object(
+            &FloatMajorUnitForConnector,
+            response.amount,
+            response.currency.clone(),
+        )
+        .expect("Failed to create integrity object");
+
+        assert_eq!(integrity_object.refund_amount.get_amount_as_i64(), 5000);
+        assert_eq!(integrity_object.currency, enums::Currency::USD);
+    }
 }
