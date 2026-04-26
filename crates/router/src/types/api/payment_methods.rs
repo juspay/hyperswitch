@@ -171,6 +171,27 @@ impl PaymentMethodSessionExt for api_models::payment_methods::PaymentMethodSessi
             },
         )?;
 
+        if let Some(payment_method_data) = self.payment_method_data.payment_method_data.as_ref() {
+            let is_supported_payment_method_data = matches!(
+                (self.payment_method_type, payment_method_data),
+                (
+                    api_models::enums::PaymentMethod::Card,
+                    api_models::payments::PaymentMethodData::Card(_),
+                ) | (
+                    api_models::enums::PaymentMethod::BankDebit,
+                    api_models::payments::PaymentMethodData::BankDebit(_),
+                )
+            );
+
+            utils::when(!is_supported_payment_method_data, || {
+                Err(report!(errors::ApiErrorResponse::UnprocessableEntity {
+                    message: "payment method type is not supported in payment method session"
+                        .to_string()
+                })
+                .attach_printable("Unsupported payment method session payment method data"))
+            })?;
+        }
+
         utils::when(
             self.payment_method_type == api_models::enums::PaymentMethod::BankDebit
                 && self.payment_method_subtype.is_none(),
