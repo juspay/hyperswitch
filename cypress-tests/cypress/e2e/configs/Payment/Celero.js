@@ -211,15 +211,16 @@ export const connectorDetails = {
     // Capture operation
     Capture: {
       Request: {
-        amount_to_capture: 6000,
+        amount_to_capture: 1060,
       },
       Response: {
         status: 200,
         body: {
           status: "succeeded",
-          amount: 6000,
+          amount: 1000,
+          net_amount: 1060,
           amount_capturable: 0,
-          amount_received: 6000,
+          amount_received: 1060,
         },
       },
     },
@@ -258,7 +259,7 @@ export const connectorDetails = {
     // Full refund
     Refund: {
       Request: {
-        amount: 6000,
+        amount: 1060,
       },
       Response: {
         status: 200,
@@ -271,7 +272,7 @@ export const connectorDetails = {
     // Partial refund
     PartialRefund: {
       Request: {
-        amount: 2000,
+        amount: 530,
       },
       Response: {
         status: 200,
@@ -1080,6 +1081,10 @@ export const connectorDetails = {
 
     ConfirmPaymentWithSurcharge: {
       Request: {
+        surcharge_details: {
+          surcharge_amount: 50,
+          tax_amount: 10,
+        },
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,

@@ -112,7 +112,7 @@ describe("Card - Surcharge Flow Tests", () => {
           return;
         }
         const captureData = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["Capture"];
-        cy.captureCallTest(captureData, globalState);
+        cy.captureCallTest(fixtures.captureBody, captureData, globalState);
         if (!utils.should_continue_further(captureData)) {
           shouldContinue = false;
         }
@@ -147,7 +147,7 @@ describe("Card - Surcharge Flow Tests", () => {
           return;
         }
         const data = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["ConfirmPaymentWithSurcharge"];
-        cy.createConfirmPaymentTest(fixtures.createConfirmPaymentBody, data, globalState);
+        cy.createConfirmPaymentTest(fixtures.createConfirmPaymentBody, data, "no_three_ds", "automatic", globalState);
         if (!utils.should_continue_further(data)) {
           shouldContinue = false;
         }
