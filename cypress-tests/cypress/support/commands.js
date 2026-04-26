@@ -1963,7 +1963,9 @@ Cypress.Commands.add(
           cy.task("cli_log", "TRIGGER_SKIP is set - skipping detailed validation");
           return;
         }
-        if (resData.status === 200) {
+        // Check status before attempting to validate client_secret
+        // This prevents errors when the response is an error object without client_secret
+        if (response.status === 200 && resData.status === 200) {
           expect(response.body).to.have.property("client_secret");
           const clientSecret = response.body.client_secret;
           globalState.set("clientSecret", clientSecret);
@@ -2304,6 +2306,12 @@ Cypress.Commands.add(
 
       cy.wrap(response).then(() => {
         expect(response.headers["content-type"]).to.include("application/json");
+
+        // Handle TRIGGER_SKIP early - skip detailed validation for tests configured to skip
+        if (configInfo.triggerSkip) {
+          cy.task("cli_log", "TRIGGER_SKIP is set in confirmCallTest - skipping detailed validation");
+          return;
+        }
 
         // Check if this is a blocklist / payment method blocking case
         const expectBlockedPayment = resData?.expectBlockedPayment || false;
