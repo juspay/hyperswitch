@@ -304,3 +304,9 @@ pub enum HealthCheckUnifiedConnectorServiceError {
     #[error("Failed to establish Unified Connector Service connection")]
     FailedToCallUnifiedConnectorService,
 }
+
+#[derive(Debug, Clone, thiserror::Error)]
+pub enum HealthCheckUnifiedAuthenticationServiceError {
+    #[error("Failed to establish Unified Authentication Service connection")]
+    FailedToCallUnifiedAuthenticationService,
+}
