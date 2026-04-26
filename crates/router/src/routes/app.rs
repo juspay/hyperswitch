@@ -397,7 +397,7 @@ impl AsRef<Self> for AppState {
 pub async fn create_email_client(
     settings: &settings::Settings<RawSecret>,
 ) -> Box<dyn EmailService> {
-    match &settings.email.client_config {
+    let client: Box<dyn EmailService> = match &settings.email.client_config {
         EmailClientConfigs::Ses { aws_ses } => Box::new(
             AwsSes::create(
                 &settings.email,
@@ -410,7 +410,8 @@ pub async fn create_email_client(
             Box::new(SmtpServer::create(&settings.email, smtp.clone()).await)
         }
         EmailClientConfigs::NoEmailClient => Box::new(NoEmailClient::create().await),
-    }
+    };
+    client
 }
 
 impl AppState {
@@ -570,7 +571,7 @@ impl AppState {
             infra_values: Self::process_env_mappings(conf.infra_values.clone()),
             use_legacy_key_store_decryption: km_conf.use_legacy_key_store_decryption,
         };
-        match storage_impl {
+        let store: Box<dyn CommonStorageInterface> = match storage_impl {
             StorageImpl::Postgresql | StorageImpl::PostgresqlTest => match event_handler {
                 EventsHandler::Kafka(kafka_client) => Box::new(
                     KafkaStore::new(
@@ -609,7 +610,8 @@ impl AppState {
                     .await
                     .expect("Failed to create mock store"),
             ),
-        }
+        };
+        store
     }
 
     pub async fn new(
@@ -3341,5 +3343,25 @@ impl SdkConfig {
                 web::resource("{profile_id}/{platform}/{sdk_config.json}")
                     .route(web::get().to(super::superposition_sdk_config::get_sdk_config)),
             )
+    }
+}
+
+#[cfg(feature = "v2")]
+pub struct RecoveryReports;
+
+// Add implementation:
+#[cfg(all(feature = "olap", feature = "v2"))]
+impl RecoveryReports {
+    pub fn server(state: AppState) -> Scope {
+        web::scope("/v2/recovery/reports")
+            .app_data(web::Data::new(state))
+            .service(web::resource("/upload").route(web::post().to(
+                super::revenue_recovery_reports::upload_revenue_recovery_report_stream_handler,
+            )))
+            .service(web::resource("/{file_id}/status").route(
+                web::get().to(
+                    super::revenue_recovery_reports::get_revenue_recovery_report_status_handler,
+                ),
+            ))
     }
 }

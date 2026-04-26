@@ -713,6 +713,8 @@ pub enum Flow {
     TokenizationDelete,
     /// Payment method data backfill flow
     RecoveryDataBackfill,
+    /// Merchant payment report upload
+    RevenueRecoveryReportUpload,
     /// Revenue recovery Redis operations flow
     RevenueRecoveryRedis,
     /// Payment Method balance check flow

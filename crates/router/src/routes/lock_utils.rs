@@ -381,7 +381,9 @@ impl From<Flow> for ApiIdentifier {
             | Flow::TokenizationDelete
             | Flow::NetworkTokenEligibilityCheck => Self::GenericTokenization,
 
-            Flow::RecoveryDataBackfill | Flow::RevenueRecoveryRedis => Self::RecoveryRecovery,
+            Flow::RecoveryDataBackfill
+            | Flow::RevenueRecoveryRedis
+            | Flow::RevenueRecoveryReportUpload => Self::RecoveryRecovery,
             Flow::GetSuperpositionSdkConfig => Self::Superposition,
             Flow::MerchantConnectorWebhookRegister | Flow::MerchantConnectorWebhookList => {
                 Self::MerchantConnectorWebhookManagement

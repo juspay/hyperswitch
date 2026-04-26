@@ -41,12 +41,22 @@ impl FileStorageConfig {
 
     /// Retrieves the appropriate file storage client based on the file storage configuration.
     pub async fn get_file_storage_client(&self) -> Arc<dyn FileStorageInterface> {
-        match self {
+        let client: Arc<dyn FileStorageInterface> = match self {
             #[cfg(feature = "aws_s3")]
             Self::AwsS3 { aws_s3 } => Arc::new(aws_s3::AwsFileStorageClient::new(aws_s3).await),
             Self::FileSystem => Arc::new(file_system::FileSystem),
-        }
+        };
+        client
     }
+}
+
+/// Part entry for S3 multipart upload completion.
+#[derive(Debug, Clone)]
+pub struct CompletedPart {
+    /// One-based part number for multipart upload completion.
+    pub part_number: i32,
+    /// ETag returned by storage backend for this uploaded part.
+    pub e_tag: String,
 }
 
 /// Trait for file storage operations
@@ -64,6 +74,30 @@ pub trait FileStorageInterface: dyn_clone::DynClone + Sync + Send {
 
     /// Retrieves a file from the selected storage scheme.
     async fn retrieve_file(&self, file_key: &str) -> CustomResult<Vec<u8>, FileStorageError>;
+
+    /// Starts a multipart upload and returns the upload identifier.
+    async fn initiate_multipart_upload(
+        &self,
+        file_key: &str,
+        content_type: &str,
+    ) -> CustomResult<String, FileStorageError>;
+
+    /// Uploads one part and returns the part ETag.
+    async fn upload_part(
+        &self,
+        file_key: &str,
+        upload_id: &str,
+        part_number: i32,
+        body: Vec<u8>,
+    ) -> CustomResult<String, FileStorageError>;
+
+    /// Completes multipart upload with all uploaded part metadata.
+    async fn complete_multipart_upload(
+        &self,
+        file_key: &str,
+        upload_id: &str,
+        parts: Vec<CompletedPart>,
+    ) -> CustomResult<(), FileStorageError>;
 }
 
 dyn_clone::clone_trait_object!(FileStorageInterface);

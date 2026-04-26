@@ -100,6 +100,36 @@ impl FileStorageInterface for FileSystem {
             .await
             .change_context(FileStorageError::RetrieveFailed)?)
     }
+
+    /// Multipart uploads are not supported by local file system backend.
+    async fn initiate_multipart_upload(
+        &self,
+        _file_key: &str,
+        _content_type: &str,
+    ) -> CustomResult<String, FileStorageError> {
+        Err(FileStorageError::UploadFailed.into())
+    }
+
+    /// Multipart uploads are not supported by local file system backend.
+    async fn upload_part(
+        &self,
+        _file_key: &str,
+        _upload_id: &str,
+        _part_number: i32,
+        _body: Vec<u8>,
+    ) -> CustomResult<String, FileStorageError> {
+        Err(FileStorageError::UploadFailed.into())
+    }
+
+    /// Multipart uploads are not supported by local file system backend.
+    async fn complete_multipart_upload(
+        &self,
+        _file_key: &str,
+        _upload_id: &str,
+        _parts: Vec<crate::file_storage::CompletedPart>,
+    ) -> CustomResult<(), FileStorageError> {
+        Err(FileStorageError::UploadFailed.into())
+    }
 }
 
 /// Represents an error that can occur during local file system storage operations.

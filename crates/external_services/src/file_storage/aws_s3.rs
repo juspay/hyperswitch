@@ -1,16 +1,20 @@
 use aws_config::meta::region::RegionProviderChain;
 use aws_sdk_s3::{
     operation::{
-        delete_object::DeleteObjectError, get_object::GetObjectError, put_object::PutObjectError,
+        complete_multipart_upload::CompleteMultipartUploadError,
+        create_multipart_upload::CreateMultipartUploadError, delete_object::DeleteObjectError,
+        get_object::GetObjectError, put_object::PutObjectError, upload_part::UploadPartError,
     },
+    primitives::ByteStream,
+    types::{CompletedMultipartUpload, CompletedPart as SdkCompletedPart},
     Client,
 };
 use aws_sdk_sts::config::Region;
 use common_utils::{errors::CustomResult, ext_traits::ConfigExt};
-use error_stack::ResultExt;
+use error_stack::{Report, ResultExt};
 
 use super::InvalidFileStorageConfig;
-use crate::file_storage::{FileStorageError, FileStorageInterface};
+use crate::file_storage::{CompletedPart, FileStorageError, FileStorageInterface};
 
 /// Configuration for AWS S3 file storage.
 #[derive(Debug, serde::Deserialize, Clone, Default)]
@@ -104,6 +108,87 @@ impl AwsFileStorageClient {
             .map_err(AwsS3StorageError::UnknownError)?
             .to_vec())
     }
+
+    async fn initiate_multipart_upload(
+        &self,
+        file_key: &str,
+        content_type: &str,
+    ) -> CustomResult<String, AwsS3StorageError> {
+        let response = self
+            .inner_client
+            .create_multipart_upload()
+            .bucket(&self.bucket_name)
+            .key(file_key)
+            .content_type(content_type)
+            .send()
+            .await
+            .map_err(AwsS3StorageError::CreateMultipartUploadFailure)?;
+
+        response
+            .upload_id()
+            .ok_or(AwsS3StorageError::MissingUploadId)
+            .map_err(Report::from)
+            .map(|id| id.to_string())
+    }
+
+    async fn upload_part(
+        &self,
+        file_key: &str,
+        upload_id: &str,
+        part_number: i32,
+        body: Vec<u8>,
+    ) -> CustomResult<String, AwsS3StorageError> {
+        let response = self
+            .inner_client
+            .upload_part()
+            .bucket(&self.bucket_name)
+            .key(file_key)
+            .upload_id(upload_id)
+            .part_number(part_number)
+            .body(ByteStream::from(body))
+            .send()
+            .await
+            .map_err(AwsS3StorageError::UploadPartFailure)?;
+
+        response
+            .e_tag()
+            .ok_or(AwsS3StorageError::MissingETag)
+            .map_err(Report::from)
+            .map(|etag| etag.to_string())
+    }
+
+    async fn complete_multipart_upload(
+        &self,
+        file_key: &str,
+        upload_id: &str,
+        parts: Vec<CompletedPart>,
+    ) -> CustomResult<(), AwsS3StorageError> {
+        let completed_parts: Vec<SdkCompletedPart> = parts
+            .into_iter()
+            .map(|part| {
+                SdkCompletedPart::builder()
+                    .part_number(part.part_number)
+                    .e_tag(&part.e_tag)
+                    .build()
+            })
+            .collect();
+
+        let completed_multipart = CompletedMultipartUpload::builder()
+            .set_parts(Some(completed_parts))
+            .build();
+
+        self.inner_client
+            .complete_multipart_upload()
+            .bucket(&self.bucket_name)
+            .key(file_key)
+            .upload_id(upload_id)
+            .multipart_upload(completed_multipart)
+            .send()
+            .await
+            .map_err(AwsS3StorageError::CompleteMultipartUploadFailure)?;
+
+        Ok(())
+    }
 }
 
 #[async_trait::async_trait]
@@ -135,6 +220,39 @@ impl FileStorageInterface for AwsFileStorageClient {
             .await
             .change_context(FileStorageError::RetrieveFailed)?)
     }
+
+    async fn initiate_multipart_upload(
+        &self,
+        file_key: &str,
+        content_type: &str,
+    ) -> CustomResult<String, FileStorageError> {
+        self.initiate_multipart_upload(file_key, content_type)
+            .await
+            .change_context(FileStorageError::UploadFailed)
+    }
+
+    async fn upload_part(
+        &self,
+        file_key: &str,
+        upload_id: &str,
+        part_number: i32,
+        body: Vec<u8>,
+    ) -> CustomResult<String, FileStorageError> {
+        self.upload_part(file_key, upload_id, part_number, body)
+            .await
+            .change_context(FileStorageError::UploadFailed)
+    }
+
+    async fn complete_multipart_upload(
+        &self,
+        file_key: &str,
+        upload_id: &str,
+        parts: Vec<CompletedPart>,
+    ) -> CustomResult<(), FileStorageError> {
+        self.complete_multipart_upload(file_key, upload_id, parts)
+            .await
+            .change_context(FileStorageError::UploadFailed)
+    }
 }
 
 /// Enum representing errors that can occur during AWS S3 file storage operations.
@@ -155,4 +273,19 @@ enum AwsS3StorageError {
     /// Unknown error occurred.
     #[error("Unknown error occurred: {0:?}")]
     UnknownError(aws_sdk_s3::primitives::ByteStreamError),
+
+    #[error("Create multipart upload failed: {0:?}")]
+    CreateMultipartUploadFailure(aws_sdk_s3::error::SdkError<CreateMultipartUploadError>),
+
+    #[error("Upload ID missing")]
+    MissingUploadId,
+
+    #[error("Upload part failed: {0:?}")]
+    UploadPartFailure(aws_sdk_s3::error::SdkError<UploadPartError>),
+
+    #[error("ETag missing")]
+    MissingETag,
+
+    #[error("Complete multipart upload failed: {0:?}")]
+    CompleteMultipartUploadFailure(aws_sdk_s3::error::SdkError<CompleteMultipartUploadError>),
 }
