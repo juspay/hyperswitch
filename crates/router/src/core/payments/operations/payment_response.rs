@@ -2127,6 +2127,26 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                             .await
                             .or(Some(unified_message));
 
+                        // Translate user_guidance_message using standardised_code as the lookup key
+                        // in unified_translations table: (standardised_code, user_guidance_message, locale) -> translation
+                        let translated_user_guidance_message =
+                            match (&gsm_standardised_code, &gsm_user_guidance_message) {
+                                (Some(code), Some(guidance_msg)) => locale
+                                    .as_ref()
+                                    .async_and_then(|locale_str| async {
+                                        payments_helpers::get_unified_translation(
+                                            state,
+                                            code.to_string(),
+                                            guidance_msg.to_owned(),
+                                            locale_str.to_owned(),
+                                        )
+                                        .await
+                                    })
+                                    .await
+                                    .or(gsm_user_guidance_message.clone()),
+                                _ => gsm_user_guidance_message.clone(),
+                            };
+
                         let status = match err.attempt_status {
                             // Use the status sent by connector in error_response if it's present
                             Some(status) => status,
@@ -2179,7 +2199,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                                 unified_message: Some(unified_translated_message),
                                 standardised_code: Some(gsm_standardised_code),
                                 description: Some(gsm_description),
-                                user_guidance_message: Some(gsm_user_guidance_message),
+                                user_guidance_message: Some(translated_user_guidance_message),
                                 connector_transaction_id: err.connector_transaction_id.clone(),
                                 payment_method_data: additional_payment_method_data,
                                 encrypted_payment_method_data,
