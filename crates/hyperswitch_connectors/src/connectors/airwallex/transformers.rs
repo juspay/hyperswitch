@@ -492,6 +492,35 @@ pub enum AirwallexPaymentOptions {
 #[derive(Debug, Serialize)]
 pub struct AirwallexCardPaymentOptions {
     auto_capture: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    three_ds_action: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    external_three_ds: Option<AirwallexExternalThreeDsData>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct AirwallexExternalThreeDsData {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub eci: Option<String>,
+    pub authentication_value: Secret<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub ds_transaction_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub three_ds_server_transaction_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub version: Option<String>,
+}
+
+fn get_airwallex_external_three_ds_data(
+    auth_data: &hyperswitch_domain_models::router_request_types::AuthenticationData,
+) -> AirwallexExternalThreeDsData {
+    AirwallexExternalThreeDsData {
+        eci: auth_data.eci.clone(),
+        authentication_value: auth_data.cavv.clone(),
+        ds_transaction_id: auth_data.ds_trans_id.clone(),
+        three_ds_server_transaction_id: auth_data.ds_trans_id.clone(),
+        version: auth_data.message_version.as_ref().map(|v| v.to_string()),
+    }
 }
 
 #[derive(Debug, Serialize)]
@@ -510,6 +539,13 @@ impl TryFrom<&AirwallexRouterData<&types::PaymentsAuthorizeRouterData>>
         let request = &item.router_data.request;
         let payment_method = match request.payment_method_data.clone() {
             PaymentMethodData::Card(ccard) => {
+                let external_three_ds = request
+                    .authentication_data
+                    .as_ref()
+                    .map(get_airwallex_external_three_ds_data);
+                let three_ds_action = external_three_ds
+                    .as_ref()
+                    .map(|_| "EXTERNAL_3DS".to_string());
                 payment_method_options =
                     Some(AirwallexPaymentOptions::Card(AirwallexCardPaymentOptions {
                         auto_capture: matches!(
@@ -518,6 +554,8 @@ impl TryFrom<&AirwallexRouterData<&types::PaymentsAuthorizeRouterData>>
                                 | Some(enums::CaptureMethod::SequentialAutomatic)
                                 | None
                         ),
+                        three_ds_action,
+                        external_three_ds,
                     }));
                 Ok(AirwallexPaymentMethod::Card(AirwallexCard {
                     card: AirwallexCardDetails {
@@ -592,10 +630,10 @@ impl TryFrom<&AirwallexRouterData<&types::PaymentsAuthorizeRouterData>>
             | PaymentMethodData::NetworkToken(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
             | PaymentMethodData::CardWithOptionalCVC(_)
-            | PaymentMethodData::CardWithNetworkTokenDetails(_)
             | PaymentMethodData::CardWithLimitedDetails(_)
             | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
-            | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
+            | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_)
+            | PaymentMethodData::CardWithNetworkTokenDetails(_) => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("airwallex"),
                 ))
