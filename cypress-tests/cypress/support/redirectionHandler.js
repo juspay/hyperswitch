@@ -386,6 +386,40 @@ function bankRedirectRedirection(
       }
     );
     verifyUrl = false;
+  } else if (connectorId === "trustpay" && paymentMethodType === "ideal") {
+    // TrustPay iDEAL: aapi.finby.eu JS auto-redirects to pay.ideal.nl with no user interaction.
+    // Cypress does not support nested cy.origin, so we handle origins sequentially.
+    // ref: https://github.com/cypress-io/cypress/issues/20718
+    const trustpayIdealOrigin2 = "https://pay.ideal.nl";
+
+    // aapi.finby.eu redirects automatically — just wait for pay.ideal.nl to load
+    cy.log(`Waiting for redirection to ${trustpayIdealOrigin2}`);
+    cy.location("origin", { timeout: CONSTANTS.TIMEOUT }).should(
+      "eq",
+      trustpayIdealOrigin2
+    );
+
+    cy.origin(
+      trustpayIdealOrigin2,
+      { args: { constants: CONSTANTS } },
+      ({ constants }) => {
+        cy.log("Executing on TrustPay iDEAL Origin (pay.ideal.nl)");
+        cy.wait(constants.TIMEOUT / 10); // 2 seconds for page load
+        cy.get("button[data-testid=payment-action-button]", {
+          timeout: constants.TIMEOUT,
+        })
+          .should("be.visible")
+          .click();
+        cy.wait(constants.TIMEOUT / 10); // 2 seconds for bank list to render
+        cy.get('button[id="bank-item-INGBNL2A"]', {
+          timeout: constants.TIMEOUT,
+        })
+          .should("be.visible")
+          .click();
+      }
+    );
+
+    verifyUrl = false;
   } else {
     handleFlow(
       redirectionUrl,
@@ -485,12 +519,6 @@ function bankRedirectRedirection(
                   "Allgemeine Sparkasse Oberösterreich Bank AG (ASPKAT2LXXX / 20320)"
                 );
                 cy.get("#selectionSubmit").click();
-                break;
-              case "ideal":
-                cy.contains("button", "Select your bank").click();
-                cy.get(
-                  'button[data-testid="bank-item"][id="bank-item-INGBNL2A"]'
-                ).click();
                 break;
               case "giropay":
                 cy.get("._transactionId__header__iXVd_").should(
@@ -1366,15 +1394,15 @@ function threeDsRedirection(redirectionUrl, expectedUrl, connectorId) {
           break;
 
         case "trustpay":
-          cy.get('form[name="challengeForm"]', {
+          cy.get('form[name="simulationForm"]', {
             timeout: constants.WAIT_TIME,
           })
             .should("exist")
             .then(() => {
-              cy.get("#outcomeSelect")
-                .select("Approve")
-                .should("have.value", "Y");
-              cy.get('button[type="submit"]').click();
+              cy.get("#challengeResult")
+                .select("Successful")
+                .should("have.value", "Success");
+              cy.get('input[type="submit"]').click();
             });
           break;
 
