@@ -12,7 +12,7 @@ pub mod types;
 pub use types::{Category, Flow, Level, Tag};
 
 mod setup;
-pub use setup::{setup, TelemetryGuard};
+pub use setup::{setup, setup_panic_handler, TelemetryGuard};
 
 pub mod formatter;
 pub use formatter::FormattingLayer;

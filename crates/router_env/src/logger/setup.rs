@@ -119,6 +119,27 @@ pub fn setup(
     })
 }
 
+/// Sets up a global panic handler that logs panic details using the configured logger.
+/// This should be called after `setup()` to ensure the logger is initialized.
+pub fn setup_panic_handler() {
+    std::panic::set_hook(Box::new(|info| {
+        let location = info
+            .location()
+            .map(|l| format!("{}:{}", l.file(), l.line()))
+            .unwrap_or_else(|| "unknown location".to_string());
+
+        let message = info
+            .payload()
+            .downcast_ref::<&str>()
+            .copied()
+            .or_else(|| info.payload().downcast_ref::<String>().map(String::as_str))
+            .unwrap_or("<unknown panic message>");
+
+        tracing::error!("PANIC occurred at {}: {}", location, message);
+        tracing::error!("Panic hook info: {:?}", info);
+    }));
+}
+
 fn get_opentelemetry_exporter_config(
     config: &config::LogTelemetry,
 ) -> opentelemetry_otlp::ExportConfig {

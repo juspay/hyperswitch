@@ -50,6 +50,7 @@ fn main() -> ApplicationResult<()> {
             ["UNRESOLVED_ENV_VAR", "actix_server"],
         )
         .change_context(ApplicationError::ConfigurationError)?;
+        router_env::setup_panic_handler();
         logger::info!("Application started [{:?}] [{:?}]", conf.server, conf.log);
         metrics::bg_metrics_collector::spawn_metrics_collector(
             conf.log.telemetry.bg_metrics_collection_interval_in_secs,
