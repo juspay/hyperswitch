@@ -26,9 +26,9 @@ use hyperswitch_domain_models::{
         VerifyWebhookSource,
     },
     router_request_types::{
-        CompleteAuthorizeData, PaymentsAuthorizeData, PaymentsIncrementalAuthorizationData,
-        PaymentsPostSessionTokensData, PaymentsSyncData, ResponseId,
-        VerifyWebhookSourceRequestData,
+        AuthenticationData, CompleteAuthorizeData, PaymentsAuthorizeData,
+        PaymentsIncrementalAuthorizationData, PaymentsPostSessionTokensData, PaymentsSyncData,
+        ResponseId, VerifyWebhookSourceRequestData,
     },
     router_response_types::{
         MandateReference, PaymentsResponseData, RedirectForm, RefundsResponseData,
@@ -442,6 +442,7 @@ pub struct ShippingName {
     full_name: Option<Secret<String>>,
 }
 
+#[serde_with::skip_serializing_none]
 #[derive(Debug, Serialize)]
 pub struct CardRequestStruct {
     billing_address: Option<Address>,
@@ -450,6 +451,7 @@ pub struct CardRequestStruct {
     number: Option<cards::CardNumber>,
     security_code: Option<Secret<String>>,
     attributes: Option<CardRequestAttributes>,
+    authentication_result: Option<PaypalExternalAuthenticationResult>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -478,6 +480,76 @@ pub struct ThreeDsMethod {
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum ThreeDsType {
     ScaAlways,
+}
+
+#[serde_with::skip_serializing_none]
+#[derive(Debug, Serialize)]
+pub struct PaypalExternalAuthenticationResult {
+    pub liability_shift: PaypalExternalLiabilityShift,
+    pub three_d_secure: PaypalExternalThreeDsData,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "UPPERCASE")]
+pub enum PaypalExternalLiabilityShift {
+    Possible,
+    No,
+    Unknown,
+}
+
+#[serde_with::skip_serializing_none]
+#[derive(Debug, Serialize)]
+pub struct PaypalExternalThreeDsData {
+    pub authentication_status: Option<String>,
+    pub enrollment_status: Option<String>,
+    pub eci: Option<String>,
+    pub cavv: Option<Secret<String>>,
+    pub ds_transaction_id: Option<String>,
+    pub acs_transaction_id: Option<String>,
+    pub three_ds_server_transaction_id: Option<String>,
+}
+
+fn build_paypal_external_authentication(
+    auth_data: &AuthenticationData,
+) -> PaypalExternalAuthenticationResult {
+    let authentication_status = auth_data
+        .transaction_status
+        .as_ref()
+        .map(paypal_map_transaction_status);
+
+    let liability_shift = match authentication_status.as_deref() {
+        Some("Y") | Some("A") => PaypalExternalLiabilityShift::Possible,
+        Some("N") | Some("R") => PaypalExternalLiabilityShift::No,
+        _ => PaypalExternalLiabilityShift::Unknown,
+    };
+
+    PaypalExternalAuthenticationResult {
+        liability_shift,
+        three_d_secure: PaypalExternalThreeDsData {
+            authentication_status,
+            enrollment_status: Some("Y".to_string()),
+            eci: auth_data.eci.clone(),
+            cavv: Some(auth_data.cavv.clone()),
+            ds_transaction_id: auth_data.ds_trans_id.clone(),
+            acs_transaction_id: auth_data.acs_trans_id.clone(),
+            three_ds_server_transaction_id: auth_data.threeds_server_transaction_id.clone(),
+        },
+    }
+}
+
+fn paypal_map_transaction_status(status: &common_enums::TransactionStatus) -> String {
+    match status {
+        common_enums::TransactionStatus::Success => "Y".to_string(),
+        common_enums::TransactionStatus::Failure => "N".to_string(),
+        common_enums::TransactionStatus::VerificationNotPerformed => "U".to_string(),
+        common_enums::TransactionStatus::NotVerified => "A".to_string(),
+        common_enums::TransactionStatus::Rejected => "R".to_string(),
+        common_enums::TransactionStatus::ChallengeRequired => "C".to_string(),
+        common_enums::TransactionStatus::ChallengeRequiredDecoupledAuthentication => {
+            "D".to_string()
+        }
+        common_enums::TransactionStatus::InformationOnly => "I".to_string(),
+    }
 }
 
 #[derive(Debug, Serialize)]
@@ -559,11 +631,10 @@ pub struct PaypalVault {
 }
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct PaypalVaultResponse {
-    id: Option<String>,
+    id: String,
     status: String,
-    customer: Option<CustomerId>,
+    customer: CustomerId,
 }
-
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct CustomerId {
     id: String,
@@ -716,9 +787,9 @@ impl TryFrom<&SetupMandateRouterData> for PaypalZeroMandateRequest {
             | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
             | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_)
             | PaymentMethodData::CardWithOptionalCVC(_)
-            | PaymentMethodData::CardWithNetworkTokenDetails(_)
             | PaymentMethodData::CardWithLimitedDetails(_)
             | PaymentMethodData::NetworkToken(_)
+            | PaymentMethodData::CardWithNetworkTokenDetails(_)
             | PaymentMethodData::OpenBanking(_)
             | PaymentMethodData::MobilePayment(_) => Err(errors::ConnectorError::NotImplemented(
                 utils::get_unimplemented_payment_method_error_message("Paypal"),
@@ -994,11 +1065,22 @@ impl TryFrom<&PaypalRouterData<&PaymentsAuthorizeRouterData>> for PaypalPayments
                 let card = item.router_data.request.get_card()?;
                 let expiry = Some(card.get_expiry_date_as_yyyymm("-"));
 
+                let external_authentication_result = item
+                    .router_data
+                    .request
+                    .authentication_data
+                    .as_ref()
+                    .map(build_paypal_external_authentication);
+
                 let verification = match item.router_data.auth_type {
-                    enums::AuthenticationType::ThreeDs => Some(ThreeDsMethod {
-                        method: ThreeDsType::ScaAlways,
-                    }),
-                    enums::AuthenticationType::NoThreeDs => None,
+                    enums::AuthenticationType::ThreeDs
+                        if external_authentication_result.is_none() =>
+                    {
+                        Some(ThreeDsMethod {
+                            method: ThreeDsType::ScaAlways,
+                        })
+                    }
+                    _ => None,
                 };
 
                 let payment_source = Some(PaymentSourceItem::Card(CardRequest::CardRequestStruct(
@@ -1024,6 +1106,7 @@ impl TryFrom<&PaypalRouterData<&PaymentsAuthorizeRouterData>> for PaypalPayments
                             },
                             verification,
                         }),
+                        authentication_result: external_authentication_result,
                     },
                 )));
 
@@ -2445,10 +2528,10 @@ where
                     connector_mandate_id: match item.response.payment_source.clone() {
                         Some(paypal_source) => match paypal_source {
                             PaymentSourceItemResponse::Paypal(paypal_source) => {
-                                paypal_source.attributes.and_then(|attr| attr.vault.id)
+                                paypal_source.attributes.map(|attr| attr.vault.id)
                             }
                             PaymentSourceItemResponse::Card(card) => {
-                                card.attributes.and_then(|attr| attr.vault.id)
+                                card.attributes.map(|attr| attr.vault.id)
                             }
                             PaymentSourceItemResponse::Eps(_)
                             | PaymentSourceItemResponse::Ideal(_) => None,
@@ -2463,9 +2546,9 @@ where
                         .clone()
                     {
                         Some(paypal_source) => match paypal_source {
-                            PaymentSourceItemResponse::Paypal(paypal_source) => paypal_source
-                                .attributes
-                                .and_then(|attr| attr.vault.customer.map(|cus| cus.id)),
+                            PaymentSourceItemResponse::Paypal(paypal_source) => {
+                                paypal_source.attributes.map(|attr| attr.vault.customer.id)
+                            }
                             PaymentSourceItemResponse::Card(_)
                             | PaymentSourceItemResponse::Eps(_)
                             | PaymentSourceItemResponse::Ideal(_) => None,
