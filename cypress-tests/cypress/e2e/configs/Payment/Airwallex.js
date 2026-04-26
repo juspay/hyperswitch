@@ -807,6 +807,162 @@ export const connectorDetails = {
         },
       },
     },
+    PaymentIntentWithOrderDetails: {
+      Request: {
+        currency: "USD",
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+        connector_metadata: {
+          order_details: {
+            items: [
+              {
+                product_name: "Test Product",
+                quantity: 1,
+                amount: 6000,
+              },
+            ],
+          },
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+          setup_future_usage: "on_session",
+        },
+      },
+    },
+    PaymentConfirmWithOrderDetails: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "USD",
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+        connector_metadata: {
+          order_details: {
+            items: [
+              {
+                product_name: "Test Product",
+                quantity: 1,
+                amount: 6000,
+              },
+            ],
+          },
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+          payment_method: "card",
+          attempt_count: 1,
+          payment_method_data: payment_method_data_no3ds,
+        },
+      },
+    },
+    PaymentIntentWithInvalidOrderDetails: {
+      Request: {
+        currency: "USD",
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+        connector_metadata: {
+          order_details: {
+            items: [],
+          },
+        },
+      },
+      Response: {
+        status: 400,
+        body: {
+          error: {
+            type: "invalid_request",
+            code: "IR_16",
+            message: "Invalid order details provided",
+          },
+        },
+      },
+    },
+    PaymentIntentWithLargeAmountOrderDetails: {
+      Request: {
+        currency: "USD",
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+        amount: 999999,
+        connector_metadata: {
+          order_details: {
+            items: [
+              {
+                product_name: "Large Amount Product",
+                quantity: 1,
+                amount: 999999,
+              },
+            ],
+          },
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+          setup_future_usage: "on_session",
+        },
+      },
+    },
+    PaymentIntentWithSpecialCharsOrderDetails: {
+      Request: {
+        currency: "USD",
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+        connector_metadata: {
+          order_details: {
+            items: [
+              {
+                product_name: "Product with Special Chars: ñ & é <script>",
+                quantity: 1,
+                amount: 6000,
+              },
+            ],
+          },
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+          setup_future_usage: "on_session",
+        },
+      },
+    },
+    PaymentIntentWithOrderDetailsAndShipping: {
+      Request: {
+        currency: "USD",
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+        shipping_cost: 500,
+        connector_metadata: {
+          order_details: {
+            items: [
+              {
+                product_name: "Product with Shipping",
+                quantity: 1,
+                amount: 6000,
+              },
+            ],
+          },
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+          setup_future_usage: "on_session",
+          shipping_cost: 500,
+        },
+      },
+    },
     ManualRetryPaymentDisabled: {
       Request: {
         payment_method: "card",
