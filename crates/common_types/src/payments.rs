@@ -636,6 +636,18 @@ pub struct GPayPredecryptData {
     #[schema(value_type = String, example = "07")]
     #[smithy(value_type = "Option<String>")]
     pub eci_indicator: Option<String>,
+
+    /// Unique identifier for the decrypted Google Pay message, used for replay detection
+    #[schema(value_type = Option<String>)]
+    #[smithy(value_type = "Option<String>")]
+    #[serde(default)]
+    pub message_id: Option<String>,
+
+    /// Expiration timestamp (epoch milliseconds) for the decrypted Google Pay message
+    #[schema(value_type = Option<String>)]
+    #[smithy(value_type = "Option<String>")]
+    #[serde(default)]
+    pub message_expiration: Option<String>,
 }
 impl GpayTokenizationData {
     /// Get the encrypted Google Pay payment data, returning an error if it does not exist
