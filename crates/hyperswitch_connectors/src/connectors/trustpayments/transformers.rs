@@ -3,7 +3,10 @@ use common_utils::types::StringMinorUnit;
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     payment_method_data::PaymentMethodData,
-    router_data::{ConnectorAuthType, RouterData},
+    router_data::{
+        AdditionalPaymentMethodConnectorResponse, ConnectorAuthType, ConnectorResponseData,
+        RouterData,
+    },
     router_flow_types::refunds::{Execute, RSync},
     router_request_types::ResponseId,
     router_response_types::{PaymentsResponseData, RefundsResponseData},
@@ -466,6 +469,10 @@ pub struct TrustpaymentsPaymentResponseData {
     pub settlestatus: Option<TrustpaymentsSettleStatus>,
     pub requesttypedescription: String,
     pub securityresponsesecuritycode: Option<String>,
+    #[serde(rename = "securityresponseaddress")]
+    pub security_response_address: Option<String>,
+    #[serde(rename = "securityresponsepostcode")]
+    pub security_response_postcode: Option<String>,
 }
 
 impl TrustpaymentsPaymentResponseData {
@@ -607,6 +614,28 @@ impl
             });
         }
 
+        let connector_response_data = if response_data.security_response_address.is_some()
+            || response_data.securityresponsesecuritycode.is_some()
+        {
+            let payment_checks = serde_json::json!({
+                "address_verification": response_data.security_response_address,
+                "security_code_verification": response_data.securityresponsesecuritycode,
+                "avs_result": response_data.security_response_address,
+                "card_validation_result": response_data.securityresponsesecuritycode,
+            });
+            Some(ConnectorResponseData::with_additional_payment_method_data(
+                AdditionalPaymentMethodConnectorResponse::Card {
+                    authentication_data: None,
+                    payment_checks: Some(payment_checks),
+                    card_network: None,
+                    domestic_network: None,
+                    auth_code: response_data.authcode.clone(),
+                },
+            ))
+        } else {
+            None
+        };
+
         Ok(Self {
             status,
             response: Ok(PaymentsResponseData::TransactionResponse {
@@ -620,6 +649,7 @@ impl
                 authentication_data: None,
                 charges: None,
             }),
+            connector_response: connector_response_data,
             ..item.data
         })
     }
