@@ -1178,6 +1178,34 @@ function threeDsRedirection(redirectionUrl, expectedUrl, connectorId) {
     return;
   }
 
+  // Special handling for Rapyd 3DS simulator
+  if (connectorId === "rapyd") {
+    cy.log("Starting Rapyd 3DS authentication flow");
+
+    cy.visit(redirectionUrl.href, { failOnStatusCode: false });
+
+    // Wait for the 3DS simulator page to load and enter OTP
+    cy.get('input[type="text"]', {
+      timeout: CONSTANTS.TIMEOUT,
+    })
+      .should("be.visible")
+      .clear()
+      .type("123456");
+
+    // Click the Continue button (blue button)
+    cy.contains("button", "Continue", { timeout: CONSTANTS.TIMEOUT })
+      .should("be.visible")
+      .click();
+
+    cy.log("Submitted 3DS authentication, waiting for redirect...");
+
+    // Wait for redirect back to expected URL
+    cy.url({ timeout: CONSTANTS.TIMEOUT }).should("include", expectedUrl);
+
+    verifyReturnUrl(redirectionUrl, expectedUrl, true);
+    return;
+  }
+
   // For all other connectors, use the standard flow
   waitForRedirect(redirectionUrl.href);
 
