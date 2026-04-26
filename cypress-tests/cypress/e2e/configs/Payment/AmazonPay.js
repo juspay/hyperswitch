@@ -5,13 +5,6 @@ const successfulRefundResponse = {
   },
 };
 
-const pendingRefundResponse = {
-  status: 200,
-  body: {
-    status: "pending",
-  },
-};
-
 export const connectorDetails = {
   amazonpay_wallet: {
     PaymentIntent: {
