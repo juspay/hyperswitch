@@ -14,12 +14,17 @@ use hyperswitch_domain_models::{
         AdditionalPaymentMethodConnectorResponse, ConnectorAuthType, ConnectorResponseData,
         ErrorResponse, PaymentMethodToken, RouterData,
     },
-    router_flow_types::refunds::{Execute, RSync},
+    router_flow_types::{
+        refunds::{Execute, RSync},
+        SetupMandate,
+    },
     router_request_types::{
         authentication::MessageExtensionAttribute, CompleteAuthorizeData, ResponseId,
-        UcsAuthenticationData,
+        SetupMandateRequestData, UcsAuthenticationData,
     },
-    router_response_types::{PaymentsResponseData, RedirectForm, RefundsResponseData},
+    router_response_types::{
+        MandateReference, PaymentsResponseData, RedirectForm, RefundsResponseData,
+    },
     types::{
         PaymentsAuthenticateRouterData, PaymentsAuthorizeRouterData, PaymentsCancelRouterData,
         PaymentsCaptureRouterData, PaymentsCompleteAuthorizeRouterData,
@@ -226,6 +231,29 @@ pub enum PaymentInformation {
     GooglePay(Box<GooglePayPaymentInformation>),
     ApplePay(Box<ApplePayPaymentInformation>),
     ApplePayToken(Box<ApplePayTokenPaymentInformation>),
+    MandatePayment(Box<MandatePaymentInformation>),
+}
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MandatePaymentInformation {
+    payment_instrument: BarclaycardPaymentInstrument,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    tokenized_card: Option<MandatePaymentTokenizedCard>,
+    card: Option<MandateCard>,
+}
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MandatePaymentTokenizedCard {
+    transaction_type: TransactionType,
+}
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MandateCard {
+    type_selection_indicator: Option<String>,
+}
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct BarclaycardPaymentInstrument {
+    id: Secret<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -798,6 +826,70 @@ pub struct ClientAuthSetupInfoResponse {
 pub enum BarclaycardAuthSetupResponse {
     ClientAuthSetupInfo(Box<ClientAuthSetupInfoResponse>),
     ErrorInformation(Box<BarclaycardErrorInformationResponse>),
+}
+
+impl TryFrom<(&BarclaycardRouterData<&PaymentsAuthorizeRouterData>, String)>
+    for BarclaycardPaymentsRequest
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        (item, connector_mandate_id): (
+            &BarclaycardRouterData<&PaymentsAuthorizeRouterData>,
+            String,
+        ),
+    ) -> Result<Self, Self::Error> {
+        let processing_information = ProcessingInformation::try_from((item, None, None))?;
+        let payment_instrument = BarclaycardPaymentInstrument {
+            id: connector_mandate_id.into(),
+        };
+        let mandate_card_information = match item.router_data.request.payment_method_type {
+            Some(enums::PaymentMethodType::Credit) | Some(enums::PaymentMethodType::Debit) => {
+                Some(MandateCard {
+                    type_selection_indicator: Some("1".to_owned()),
+                })
+            }
+            _ => None,
+        };
+        let email = item
+            .router_data
+            .get_billing_email()
+            .ok()
+            .or(item.router_data.request.email.clone())
+            .ok_or(errors::ConnectorError::MissingRequiredField {
+                field_name: "email",
+            })?;
+        let bill_to = build_bill_to(item.router_data.get_billing_address()?, email)?;
+
+        let amount_details = Amount {
+            total_amount: item.amount.clone(),
+            currency: item.router_data.request.currency,
+        };
+        let order_information = OrderInformationWithBill {
+            amount_details,
+            bill_to: Some(bill_to),
+        };
+        let payment_information =
+            PaymentInformation::MandatePayment(Box::new(MandatePaymentInformation {
+                payment_instrument,
+                tokenized_card: None,
+                card: mandate_card_information,
+            }));
+        let client_reference_information = ClientReferenceInformation::from(item);
+        let merchant_defined_information = item
+            .router_data
+            .request
+            .metadata
+            .clone()
+            .map(convert_metadata_to_merchant_defined_info);
+        Ok(Self {
+            processing_information,
+            payment_information,
+            order_information,
+            client_reference_information,
+            merchant_defined_information,
+            consumer_authentication_information: None,
+        })
+    }
 }
 
 impl TryFrom<&BarclaycardRouterData<&PaymentsAuthenticateRouterData>>
@@ -1802,6 +1894,7 @@ impl TryFrom<&BarclaycardRouterData<&PaymentsAuthorizeRouterData>> for Barclayca
                     client_reference_information,
                 })
             }
+
             PaymentMethodData::Wallet(_)
             | PaymentMethodData::CardRedirect(_)
             | PaymentMethodData::PayLater(_)
@@ -2161,13 +2254,13 @@ impl TryFrom<&BarclaycardRouterData<&PaymentsAuthorizeRouterData>> for Barclayca
                             PaymentMethodToken::Token(_) => Err(unimplemented_payment_method!(
                                 "Apple Pay",
                                 "Manual",
-                                "Cybersource"
+                                "Barclaycard"
                             ))?,
                             PaymentMethodToken::PazeDecrypt(_) => {
-                                Err(unimplemented_payment_method!("Paze", "Cybersource"))?
+                                Err(unimplemented_payment_method!("Paze", "Barclaycard"))?
                             }
                             PaymentMethodToken::GooglePayDecrypt(_) => {
-                                Err(unimplemented_payment_method!("Google Pay", "Cybersource"))?
+                                Err(unimplemented_payment_method!("Google Pay", "Barclaycard"))?
                             }
                         },
                         None => {
@@ -2283,8 +2376,17 @@ impl TryFrom<&BarclaycardRouterData<&PaymentsAuthorizeRouterData>> for Barclayca
                 )
                 .into()),
             },
-            PaymentMethodData::MandatePayment
-            | PaymentMethodData::CardRedirect(_)
+
+            PaymentMethodData::MandatePayment => {
+                let connector_mandate_id = item.router_data.request.connector_mandate_id().ok_or(
+                    errors::ConnectorError::MissingRequiredField {
+                        field_name: "connector_mandate_id",
+                    },
+                )?;
+                Self::try_from((item, connector_mandate_id))
+            }
+
+            PaymentMethodData::CardRedirect(_)
             | PaymentMethodData::PayLater(_)
             | PaymentMethodData::BankRedirect(_)
             | PaymentMethodData::BankDebit(_)
@@ -2601,7 +2703,17 @@ pub enum BarclaycardPaymentsResponse {
     ClientReferenceInformation(Box<BarclaycardClientReferenceResponse>),
     ErrorInformation(Box<BarclaycardErrorInformationResponse>),
 }
-
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BarclaycardCustomerResponse {
+    id: Option<String>,
+}
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BarclaycardTokenInformation {
+    payment_instrument: Option<BarclaycardPaymentInstrument>,
+    customer: Option<BarclaycardCustomerResponse>,
+}
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct BarclaycardClientReferenceResponse {
@@ -2615,6 +2727,7 @@ pub struct BarclaycardClientReferenceResponse {
     risk_information: Option<ClientRiskInformation>,
     error_information: Option<BarclaycardErrorInformation>,
     issuer_information: Option<IssuerInformation>,
+    token_information: Option<BarclaycardTokenInformation>,
     sender_information: Option<SenderInformation>,
     payment_account_information: Option<PaymentAccountInformation>,
     reconciliation_id: Option<String>,
@@ -2829,25 +2942,42 @@ fn get_payment_response(
     let error_response = get_error_response_if_failure((info_response, status, http_code));
     match error_response {
         Some(error) => Err(Box::new(error)),
-        None => Ok(PaymentsResponseData::TransactionResponse {
-            resource_id: ResponseId::ConnectorTransactionId(info_response.id.clone()),
-            redirection_data: Box::new(None),
-            mandate_reference: Box::new(None),
-            connector_metadata: None,
-            network_txn_id: None,
-            connector_response_reference_id: Some(
+        None => {
+            let mandate_reference =
                 info_response
-                    .client_reference_information
-                    .code
+                    .token_information
                     .clone()
-                    .unwrap_or(info_response.id.clone()),
-            ),
-            incremental_authorization_allowed: None,
-            authentication_data: None,
-            charges: None,
-        }),
+                    .map(|token_info| MandateReference {
+                        connector_mandate_id: token_info
+                            .payment_instrument
+                            .map(|payment_instrument| payment_instrument.id.expose()),
+                        payment_method_id: None,
+                        mandate_metadata: None,
+                        connector_mandate_request_reference_id: None,
+                    });
+
+            Ok(PaymentsResponseData::TransactionResponse {
+                resource_id: ResponseId::ConnectorTransactionId(info_response.id.clone()),
+                redirection_data: Box::new(None),
+                mandate_reference: Box::new(mandate_reference),
+                connector_metadata: None,
+                network_txn_id: None,
+                connector_response_reference_id: Some(
+                    info_response
+                        .client_reference_information
+                        .code
+                        .clone()
+                        .unwrap_or(info_response.id.clone()),
+                ),
+                incremental_authorization_allowed: None,
+                authentication_data: None,
+                charges: None,
+            })
+        }
     }
 }
+
+// zero dollar response
 
 impl TryFrom<PaymentsResponseRouterData<BarclaycardPaymentsResponse>>
     for PaymentsAuthorizeRouterData
