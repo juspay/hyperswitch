@@ -916,6 +916,17 @@ pub fn get_split_refunds(
                         Ok(None)
                     }
                 }
+                // If charges data is unavailable, pass through merchant-provided split refund data without validation
+                (
+                    _,
+                    Some(common_types::refunds::SplitRefund::XenditSplitRefund(
+                        split_refund_request,
+                    )),
+                ) => Ok(Some(
+                    router_request_types::SplitRefundsRequest::XenditSplitRefund(
+                        split_refund_request.clone(),
+                    ),
+                )),
                 _ => Ok(None),
             }
         }
@@ -1021,6 +1032,96 @@ mod tests {
             Object::new("p5"),
         ];
         assert_eq!(filtered_list, expected_result);
+    }
+
+    #[test]
+    fn test_get_split_refunds_xendit_passthrough_with_for_user_id() {
+        let input = refunds_transformers::SplitRefundInput {
+            split_payment_request: Some(
+                common_types::payments::SplitPaymentsRequest::XenditSplitPayment(
+                    common_types::payments::XenditSplitRequest::SingleSplit(
+                        common_types::domain::XenditSplitSubMerchantData {
+                            for_user_id: "test_uid".to_string(),
+                        },
+                    ),
+                ),
+            ),
+            payment_charges: None,
+            refund_request: Some(common_types::refunds::SplitRefund::XenditSplitRefund(
+                common_types::domain::XenditSplitSubMerchantData {
+                    for_user_id: "test_uid".to_string(),
+                },
+            )),
+            charge_id: None,
+        };
+
+        let result = get_split_refunds(input).unwrap();
+        assert!(matches!(
+            result,
+            Some(router_request_types::SplitRefundsRequest::XenditSplitRefund(
+                common_types::domain::XenditSplitSubMerchantData { for_user_id }
+            )) if for_user_id == "test_uid"
+        ));
+    }
+
+    #[test]
+    fn test_get_split_refunds_xendit_none_refund_request() {
+        let input = refunds_transformers::SplitRefundInput {
+            split_payment_request: Some(
+                common_types::payments::SplitPaymentsRequest::XenditSplitPayment(
+                    common_types::payments::XenditSplitRequest::SingleSplit(
+                        common_types::domain::XenditSplitSubMerchantData {
+                            for_user_id: "test_uid".to_string(),
+                        },
+                    ),
+                ),
+            ),
+            payment_charges: None,
+            refund_request: None,
+            charge_id: None,
+        };
+
+        let result = get_split_refunds(input).unwrap();
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_get_split_refunds_xendit_validated_arm_with_charges() {
+        let input = refunds_transformers::SplitRefundInput {
+            split_payment_request: Some(
+                common_types::payments::SplitPaymentsRequest::XenditSplitPayment(
+                    common_types::payments::XenditSplitRequest::SingleSplit(
+                        common_types::domain::XenditSplitSubMerchantData {
+                            for_user_id: "test_uid".to_string(),
+                        },
+                    ),
+                ),
+            ),
+            payment_charges: Some(
+                common_types::payments::ConnectorChargeResponseData::XenditSplitPayment(
+                    common_types::payments::XenditChargeResponseData::SingleSplit(
+                        common_types::domain::XenditSplitSubMerchantData {
+                            for_user_id: "test_uid".to_string(),
+                        },
+                    ),
+                ),
+            ),
+            refund_request: Some(common_types::refunds::SplitRefund::XenditSplitRefund(
+                common_types::domain::XenditSplitSubMerchantData {
+                    for_user_id: "test_uid".to_string(),
+                },
+            )),
+            charge_id: None,
+        };
+
+        // Goes through the validator arm (charges present + refund_request present)
+        let result = get_split_refunds(input).unwrap();
+        assert!(matches!(
+            result,
+            Some(router_request_types::SplitRefundsRequest::XenditSplitRefund(
+                common_types::domain::XenditSplitSubMerchantData { for_user_id }
+            )) if for_user_id == "test_uid"
+        ));
     }
 }
 
