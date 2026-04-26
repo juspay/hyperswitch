@@ -1069,10 +1069,6 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "requires_confirmation",
-          surcharge_details: {
-            surcharge_amount: 50,
-            tax_amount: 10,
-          },
           amount: 1000,
           net_amount: 1060,
         },
@@ -1081,6 +1077,7 @@ export const connectorDetails = {
 
     ConfirmPaymentWithSurcharge: {
       Request: {
+        currency: "USD",
         surcharge_details: {
           surcharge_amount: 50,
           tax_amount: 10,
@@ -1098,10 +1095,6 @@ export const connectorDetails = {
         body: {
           status: "succeeded",
           payment_method: "card",
-          surcharge_details: {
-            surcharge_amount: 50,
-            tax_amount: 10,
-          },
           amount: 1000,
           amount_received: 1060,
           net_amount: 1060,
