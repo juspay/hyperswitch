@@ -847,6 +847,7 @@ pub struct PaymentsPreAuthenticateData {
     // New amount for amount frame work
     pub minor_amount: MinorUnit,
     pub webhook_url: Option<String>,
+    pub session_token: Option<String>,
 }
 
 impl TryFrom<PaymentsAuthorizeData> for PaymentsPreAuthenticateData {
@@ -868,6 +869,7 @@ impl TryFrom<PaymentsAuthorizeData> for PaymentsPreAuthenticateData {
             browser_info: data.browser_info,
             enrolled_for_3ds: data.enrolled_for_3ds,
             webhook_url: data.webhook_url,
+            session_token: data.session_token,
         })
     }
 }
@@ -891,6 +893,7 @@ impl TryFrom<SetupMandateRequestData> for PaymentsPreAuthenticateData {
             browser_info: data.browser_info,
             enrolled_for_3ds: data.enrolled_for_3ds,
             webhook_url: data.webhook_url,
+            session_token: None,
         })
     }
 }
