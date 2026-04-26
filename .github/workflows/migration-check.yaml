@@ -64,6 +64,10 @@ jobs:
           tool: just
           checksum: true
 
+      - name: Verify migration recipe wiring
+        shell: bash
+        run: ./scripts/check_just_migration_recipes.sh
+
       - name: Create database
         shell: bash
         run: just resurrect hyperswitch_db
