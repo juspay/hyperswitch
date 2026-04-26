@@ -963,11 +963,12 @@ export const connectorDetails = {
         currency: "USD",
         customer_acceptance: null,
         setup_future_usage: "on_session",
+        amount: 9999900,
         order_details: [{
           product_type: "physical",
           product_name: "Shipped Product",
           quantity: 1,
-          amount: 6000,
+          amount: 9999900,
         }],
         shipping: {
           address: {
