@@ -2011,16 +2011,12 @@ Cypress.Commands.add(
             "setup_future_usage"
           ).to.equal(response.body.setup_future_usage);
           // If 'shipping_cost' is not included in the request, the 'amount' in 'createPaymentBody' should match the 'amount_capturable' in the response.
-          if (typeof createPaymentBody?.shipping_cost === "undefined") {
-            expect(createPaymentBody.amount, "amount_capturable").to.equal(
-              response.body.amount_capturable
-            );
-          } else {
-            expect(
-              createPaymentBody.amount + createPaymentBody.shipping_cost,
-              "amount_capturable"
-            ).to.equal(response.body.amount_capturable);
-          }
+          // When surcharge_details exists, amount_capturable = amount + surcharge_amount + tax_amount + shipping_cost
+          const surchargeAmount = createPaymentBody?.surcharge_details?.surcharge_amount || 0;
+          const taxAmount = createPaymentBody?.surcharge_details?.tax_amount || 0;
+          const shippingCost = createPaymentBody?.shipping_cost || 0;
+          const expectedAmountCapturable = createPaymentBody.amount + surchargeAmount + taxAmount + shippingCost;
+          expect(expectedAmountCapturable, "amount_capturable").to.equal(response.body.amount_capturable);
           expect(response.body.amount_received, "amount_received").to.be.oneOf([
             0,
             null,

@@ -1075,7 +1075,10 @@ export const connectorDetails = {
       },
     },
 
-    ConfirmPaymentWithSurcharge: {
+    ConfirmPaymentWithSurcharge: getCustomExchange({
+      Configs: {
+        TRIGGER_SKIP: true, // Celero doesn't support surcharge for Create-and-Confirm
+      },
       Request: {
         currency: "USD",
         surcharge_details: {
@@ -1100,7 +1103,7 @@ export const connectorDetails = {
           net_amount: 1060,
         },
       },
-    },
+    }),
   },
   pm_list: {
     PmListResponse: {
