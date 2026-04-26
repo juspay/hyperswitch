@@ -312,7 +312,7 @@ describe("Card - Surcharge Flow Tests", () => {
           return;
         }
         const partialRefundData = getConnectorDetails(globalState.get("connectorId"))["card_pm"]["PartialRefund"];
-        cy.refundCallTest(fixtures.partiallyRefundBody, partialRefundData, globalState);
+        cy.refundCallTest(fixtures.refundBody, partialRefundData, globalState);
         if (!utils.should_continue_further(partialRefundData)) {
           shouldContinue = false;
         }
