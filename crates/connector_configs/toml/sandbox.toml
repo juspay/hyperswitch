@@ -5822,6 +5822,12 @@ label = "Merchant Configuration ID"
 placeholder = "Enter Merchant Configuration ID"
 required = false
 type = "Text"
+[netcetera.metadata.pull_mechanism_for_external_3ds_enabled]
+name="pull_mechanism_for_external_3ds_enabled"
+label="Pull Mechanism Enabled"
+placeholder="Enter Pull Mechanism Enabled"
+required=false
+type="Toggle"
 
 [cardinal]
 [cardinal.connector_auth.SignatureKey]
