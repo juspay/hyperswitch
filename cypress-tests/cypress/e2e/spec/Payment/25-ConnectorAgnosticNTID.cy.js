@@ -5,6 +5,7 @@ import getConnectorDetails, * as utils from "../../configs/Payment/Utils";
 
 let globalState;
 let connector;
+let isNtidExcluded = false;
 
 /*
 Flow:
@@ -59,29 +60,14 @@ Flow:
 
 describe("Connector Agnostic Tests", () => {
   before(function () {
-    // Changed to regular function instead of arrow function
-    let skip = false;
-
-    cy.task("getGlobalState")
-      .then((state) => {
-        globalState = new State(state);
-        connector = globalState.get("connectorId");
-
-        // Skip running test against a connector that is added in the exclude list
-        if (
-          utils.shouldExcludeConnector(
-            connector,
-            utils.CONNECTOR_LISTS.EXCLUDE.CONNECTOR_AGNOSTIC_NTID
-          )
-        ) {
-          skip = true;
-        }
-      })
-      .then(() => {
-        if (skip) {
-          this.skip();
-        }
-      });
+    cy.task("getGlobalState").then((state) => {
+      globalState = new State(state);
+      connector = globalState.get("connectorId");
+      isNtidExcluded = utils.shouldExcludeConnector(
+        connector,
+        utils.CONNECTOR_LISTS.EXCLUDE.CONNECTOR_AGNOSTIC_NTID
+      );
+    });
   });
 
   after("flush global state", () => {
@@ -142,9 +128,11 @@ describe("Connector Agnostic Tests", () => {
         ]["SaveCardUseNo3DSAutoCaptureOffSession"];
 
         cy.confirmCallTest(fixtures.confirmBody, data, true, globalState);
+        cy.assertNetworkTransactionId(!isNtidExcluded, globalState);
 
         if (shouldContinue)
           shouldContinue = utils.should_continue_further(data);
+        if (isNtidExcluded) shouldContinue = false;
       });
 
       it("List Payment Method for Customer using Client Secret", () => {
@@ -330,9 +318,11 @@ describe("Connector Agnostic Tests", () => {
         ]["SaveCardUseNo3DSAutoCaptureOffSession"];
 
         cy.confirmCallTest(fixtures.confirmBody, data, true, globalState);
+        cy.assertNetworkTransactionId(!isNtidExcluded, globalState);
 
         if (shouldContinue)
           shouldContinue = utils.should_continue_further(data);
+        if (isNtidExcluded) shouldContinue = false;
       });
 
       it("List Payment Method for Customer using Client Secret", () => {
@@ -506,9 +496,11 @@ describe("Connector Agnostic Tests", () => {
         ]["SaveCardUseNo3DSAutoCaptureOffSession"];
 
         cy.confirmCallTest(fixtures.confirmBody, data, true, globalState);
+        cy.assertNetworkTransactionId(!isNtidExcluded, globalState);
 
         if (shouldContinue)
           shouldContinue = utils.should_continue_further(data);
+        if (isNtidExcluded) shouldContinue = false;
       });
 
       it("List Payment Method for Customer using Client Secret", () => {
@@ -681,8 +673,11 @@ describe("Connector Agnostic Tests", () => {
       ]["SaveCardUseNo3DSAutoCaptureOffSession"];
 
       cy.confirmCallTest(fixtures.confirmBody, data, true, globalState);
+      cy.assertNetworkTransactionId(!isNtidExcluded, globalState);
 
-      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
+      if (shouldContinue)
+        shouldContinue = utils.should_continue_further(data);
+      if (isNtidExcluded) shouldContinue = false;
     });
 
     it("List Payment Method for Customer using Client Secret", () => {

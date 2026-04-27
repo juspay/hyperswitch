@@ -2328,6 +2328,10 @@ Cypress.Commands.add(
             "connectorTransactionID",
             response.body.connector_transaction_id
           );
+          globalState.set(
+            "networkTransactionId",
+            response.body.network_transaction_id
+          );
           globalState.set("paymentIntentStatus", response.body.status);
           // Compare connector with backend connector name (handles stripeconnect -> stripe mapping)
           const expectedConnector = getOriginalConnectorName(
@@ -2453,6 +2457,19 @@ Cypress.Commands.add(
         }
       });
     });
+  }
+);
+
+Cypress.Commands.add(
+  "assertNetworkTransactionId",
+  (expectedPresent, globalState) => {
+    const ntid = globalState.get("networkTransactionId");
+    if (expectedPresent) {
+      expect(ntid, "network_transaction_id").to.exist;
+      expect(ntid, "network_transaction_id").to.not.be.empty;
+    } else {
+      expect(ntid, "network_transaction_id").to.not.exist;
+    }
   }
 );
 
@@ -3365,6 +3382,11 @@ Cypress.Commands.add(
 
             // Whenever, CIT Confirmations gets a payment status of `processing`, it does not yield the `payment_method_id` and hence the `paymentMethodId` in the `globalState` gets the value of `null`. And hence while confirming MIT, it yields an `error.message` of `"Json deserialize error: invalid type: null, expected a string at line 1 column 182"` which is basically because of the `null` value in `recurring_details.data` with `recurring_details.type` as `payment_method_id`. However, we get the `payment_method_id` while PSync, so we can assign it to the `globalState` here.
             globalState.set("paymentMethodId", response.body.payment_method_id);
+
+            globalState.set(
+              "networkTransactionId",
+              response.body.network_transaction_id
+            );
 
             const allowedActiveStatuses = [
               "succeeded",
