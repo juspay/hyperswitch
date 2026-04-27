@@ -140,25 +140,9 @@ Hyperswitch offers a fully hosted sandbox environment that requires no setup. Yo
 
 <h3><strong>Cloud Deployment</strong></h3>
 
-You can deploy to AWS, GCP, or Azure using Helm or CDK scripts. Fastest path:
+You can deploy to AWS, GCP, or Azure using Helm Charts.
 
-Click to deploy via AWS:
-
-   <a href="https://console.aws.amazon.com/cloudformation/home?region=us-east-1#/stacks/new?stackName=HyperswitchBootstarp&templateURL=https://hyperswitch-synth.s3.eu-central-1.amazonaws.com/hs-starter-config.yaml">
-     <img src="https://github.com/juspay/hyperswitch/blob/main/docs/imgs/aws_button.png?raw=true" height="35">
-   </a>
-
-<details>
-  <summary><strong>Cloud Deployment Instructions</strong></summary>
-
-  1. Click the AWS deployment button above to launch the stack.  
-  2. Follow the guided steps in the AWS Console (approx. 30–45 mins).  
-
-  ✅ This setup provisions Hyperswitch on your cloud account using CloudFormation.  
-
-  📘 For full instructions and Helm-based deployments, check out the  
-  <a href="https://docs.hyperswitch.io/hyperswitch-open-source/deploy-on-kubernetes-using-helm">Cloud Install Guide</a>.
-</details>
+<a href="https://docs.hyperswitch.io/hyperswitch-open-source/deploy-on-kubernetes-using-helm">Cloud Deployment Instructions</a>.
 
 
 <a href="#architectural-overview">
@@ -217,13 +201,3 @@ Check the [CHANGELOG.md](./CHANGELOG.md) file for details.
 </a>
 
 This product is licensed under the [Apache 2.0 License](LICENSE).
-
-<a href="#team-behind-hyperswitch">
-  <h2 id="team-behind-hyperswitch">Team behind Hyperswitch</h2>
-</a>
-
-The core team of 150+ engineers building Hyperswitch. Keep up the great work! 🥂
-
-<a href="https://github.com/juspay/hyperswitch/graphs/contributors">
-  <img src="https://contributors-img.web.app/image?repo=juspay/hyperswitch" alt="Contributors"/>
-</a>
