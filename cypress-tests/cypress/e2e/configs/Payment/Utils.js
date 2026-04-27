@@ -58,6 +58,7 @@ import { connectorDetails as payuConnectorDetails } from "./Payu.js";
 import { connectorDetails as peachpaymentsConnectorDetails } from "./Peachpayments.js";
 import { connectorDetails as powertranzConnectorDetails } from "./PowerTranz.js";
 import { connectorDetails as redsysConnectorDetails } from "./Redsys.js";
+import { connectorDetails as santanderConnectorDetails } from "./Santander.js";
 import { connectorDetails as shift4ConnectorDetails } from "./Shift4.js";
 import { connectorDetails as silverflowConnectorDetails } from "./Silverflow.js";
 import { connectorDetails as squareConnectorDetails } from "./Square.js";
@@ -65,6 +66,8 @@ import { connectorDetails as staxConnectorDetails } from "./Stax.js";
 import { connectorDetails as stripeConnectorDetails } from "./Stripe.js";
 import { connectorDetails as stripeconnectConnectorDetails } from "./StripeConnect.js";
 import { connectorDetails as tesouroConnectorDetails } from "./Tesouro.js";
+import { connectorDetails as truelayerConnectorDetails } from "./Truelayer.js";
+import { connectorDetails as trustlyConnectorDetails } from "./Trustly.js";
 import { connectorDetails as trustpayConnectorDetails } from "./Trustpay.js";
 import { connectorDetails as trustpaymentsConnectorDetails } from "./TrustPayments.js";
 import { connectorDetails as tsysConnectorDetails } from "./Tsys.js";
@@ -131,14 +134,17 @@ const connectorDetails = {
   peachpayments: peachpaymentsConnectorDetails,
   powertranz: powertranzConnectorDetails,
   redsys: redsysConnectorDetails,
+  santander: santanderConnectorDetails,
   shift4: shift4ConnectorDetails,
   silverflow: silverflowConnectorDetails,
   square: squareConnectorDetails,
   stax: staxConnectorDetails,
   stripe: stripeConnectorDetails,
   stripeconnect: stripeconnectConnectorDetails,
-  trustpay: trustpayConnectorDetails,
   tesouro: tesouroConnectorDetails,
+  truelayer: truelayerConnectorDetails,
+  trustly: trustlyConnectorDetails,
+  trustpay: trustpayConnectorDetails,
   trustpayments: trustpaymentsConnectorDetails,
   tsys: tsysConnectorDetails,
   volt: voltConnectorDetails,
