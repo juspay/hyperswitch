@@ -32,8 +32,7 @@ describe("Authentication Service Eligibility", () => {
 
       it("should confirm 3DS payment with org and merchant both enabled", () => {
         const data =
-          connectorDetails.auth_service_eligibility
-            .OrgEnabledMerchantEnabled;
+          connectorDetails.auth_service_eligibility.OrgEnabledMerchantEnabled;
         cy.createConfirmPaymentTest(
           fixtures.createConfirmPaymentBody,
           data,
@@ -79,8 +78,7 @@ describe("Authentication Service Eligibility", () => {
 
       it("should confirm 3DS payment with org overriding merchant", () => {
         const data =
-          connectorDetails.auth_service_eligibility
-            .OrgEnabledMerchantDisabled;
+          connectorDetails.auth_service_eligibility.OrgEnabledMerchantDisabled;
         cy.createConfirmPaymentTest(
           fixtures.createConfirmPaymentBody,
           data,
@@ -126,8 +124,7 @@ describe("Authentication Service Eligibility", () => {
 
       it("should confirm payment with no_three_ds when org overrides merchant", () => {
         const data =
-          connectorDetails.auth_service_eligibility
-            .OrgDisabledMerchantEnabled;
+          connectorDetails.auth_service_eligibility.OrgDisabledMerchantEnabled;
         cy.createConfirmPaymentTest(
           fixtures.createConfirmPaymentBody,
           data,
@@ -156,52 +153,48 @@ describe("Authentication Service Eligibility", () => {
     }
   );
 
-  context(
-    "Org disabled, Merchant disabled - both deny (3DS disabled)",
-    () => {
-      it("should set org config to false", () => {
-        const orgId = globalState.get("organizationId");
-        const key = `authentication_service_eligible_${orgId}`;
-        cy.setConfigs(globalState, key, "false", "CREATE");
-      });
+  context("Org disabled, Merchant disabled - both deny (3DS disabled)", () => {
+    it("should set org config to false", () => {
+      const orgId = globalState.get("organizationId");
+      const key = `authentication_service_eligible_${orgId}`;
+      cy.setConfigs(globalState, key, "false", "CREATE");
+    });
 
-      it("should set merchant config to false", () => {
-        const merchantId = globalState.get("merchantId");
-        const key = `authentication_service_eligible_${merchantId}`;
-        cy.setConfigs(globalState, key, "false", "CREATE");
-      });
+    it("should set merchant config to false", () => {
+      const merchantId = globalState.get("merchantId");
+      const key = `authentication_service_eligible_${merchantId}`;
+      cy.setConfigs(globalState, key, "false", "CREATE");
+    });
 
-      it("should confirm payment with no_three_ds when both configs disabled", () => {
-        const data =
-          connectorDetails.auth_service_eligibility
-            .OrgDisabledMerchantDisabled;
-        cy.createConfirmPaymentTest(
-          fixtures.createConfirmPaymentBody,
-          data,
-          "no_three_ds",
-          "automatic",
-          globalState
-        );
-      });
+    it("should confirm payment with no_three_ds when both configs disabled", () => {
+      const data =
+        connectorDetails.auth_service_eligibility.OrgDisabledMerchantDisabled;
+      cy.createConfirmPaymentTest(
+        fixtures.createConfirmPaymentBody,
+        data,
+        "no_three_ds",
+        "automatic",
+        globalState
+      );
+    });
 
-      after("cleanup org and merchant configs", () => {
-        const orgId = globalState.get("organizationId");
-        const merchantId = globalState.get("merchantId");
-        cy.setConfigs(
-          globalState,
-          `authentication_service_eligible_${orgId}`,
-          "false",
-          "DELETE"
-        );
-        cy.setConfigs(
-          globalState,
-          `authentication_service_eligible_${merchantId}`,
-          "false",
-          "DELETE"
-        );
-      });
-    }
-  );
+    after("cleanup org and merchant configs", () => {
+      const orgId = globalState.get("organizationId");
+      const merchantId = globalState.get("merchantId");
+      cy.setConfigs(
+        globalState,
+        `authentication_service_eligible_${orgId}`,
+        "false",
+        "DELETE"
+      );
+      cy.setConfigs(
+        globalState,
+        `authentication_service_eligible_${merchantId}`,
+        "false",
+        "DELETE"
+      );
+    });
+  });
 
   context(
     "No org config, Merchant enabled - merchant fallback (3DS enabled)",
@@ -271,8 +264,7 @@ describe("Authentication Service Eligibility", () => {
 
   context("No config at all - default behavior", () => {
     it("should confirm 3DS payment with default behavior (no config set)", () => {
-      const data =
-        connectorDetails.auth_service_eligibility.NoConfigDefault;
+      const data = connectorDetails.auth_service_eligibility.NoConfigDefault;
       cy.createConfirmPaymentTest(
         fixtures.createConfirmPaymentBody,
         data,
