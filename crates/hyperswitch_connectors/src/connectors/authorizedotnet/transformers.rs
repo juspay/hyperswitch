@@ -1990,7 +1990,7 @@ impl From<SyncStatus> for enums::AttemptStatus {
             SyncStatus::CouldNotVoid => Self::VoidFailed,
             SyncStatus::GeneralError => Self::Failure,
             SyncStatus::RefundSettledSuccessfully | SyncStatus::RefundPendingSettlement => {
-                Self::Pending
+                Self::Charged
             }
             SyncStatus::FDSPendingReview | SyncStatus::FDSAuthorizedPendingReview => {
                 Self::Unresolved
