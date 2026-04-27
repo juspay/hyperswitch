@@ -67,9 +67,9 @@ describe("Card Redirect tests", () => {
           cy.task("cli_log", "Skipping step: Retrieve Payment");
           return;
         }
-        const retrieveData = getConnectorDetails(globalState.get("connectorId"))[
-          "card_redirect_pm"
-        ]["Benefit"];
+        const retrieveData = getConnectorDetails(
+          globalState.get("connectorId")
+        )["card_redirect_pm"]["Benefit"];
         cy.retrievePaymentCallTest({ globalState, data: retrieveData });
       });
     });
@@ -127,9 +127,9 @@ describe("Card Redirect tests", () => {
           cy.task("cli_log", "Skipping step: Retrieve Payment");
           return;
         }
-        const retrieveData = getConnectorDetails(globalState.get("connectorId"))[
-          "card_redirect_pm"
-        ]["Knet"];
+        const retrieveData = getConnectorDetails(
+          globalState.get("connectorId")
+        )["card_redirect_pm"]["Knet"];
         cy.retrievePaymentCallTest({ globalState, data: retrieveData });
       });
     });
