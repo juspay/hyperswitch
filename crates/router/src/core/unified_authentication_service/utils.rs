@@ -1,4 +1,4 @@
-use std::{marker::PhantomData, str::FromStr};
+use std::marker::PhantomData;
 
 #[cfg(feature = "v1")]
 use api_models::payments::BrowserInformation;
@@ -30,6 +30,7 @@ use super::types::{
 use crate::{
     consts::DEFAULT_SESSION_EXPIRY,
     core::{
+        configs::dimension_state,
         errors::{
             utils::{ConnectorErrorExt, StorageErrorExt},
             RouterResult,
@@ -707,28 +708,13 @@ pub fn construct_uas_webhook_router_data<F: Clone, Req, Res>(
 
 pub async fn fetch_routing_region_for_uas(
     state: &SessionState,
-    merchant_id: common_utils::id_type::MerchantId,
-    organization_id: common_utils::id_type::OrganizationId,
-) -> RouterResult<RoutingRegion> {
-    let merchant_path =
-        fetch_region(state, &merchant_id.get_threeds_routing_region_uas_key()).await;
-
-    Ok(merchant_path
-        .async_unwrap_or_else(|| async {
-            fetch_region(state, &organization_id.get_threeds_routing_region_uas_key())
-                .await
-                .unwrap_or(RoutingRegion::Region1)
-        })
-        .await)
-}
-
-async fn fetch_region(state: &SessionState, key: &str) -> Option<RoutingRegion> {
-    let db = &*state.store;
-    db.find_config_by_key(key)
+    dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndOrgId,
+) -> RoutingRegion {
+    dimensions
+        .get_threeds_routing_region_uas(
+            state.store.as_ref(),
+            state.superposition_service.as_ref(),
+            None,
+        )
         .await
-        .inspect_err(|err| {
-            router_env::logger::error!("Failed to fetch region for key as {err}");
-        })
-        .ok()
-        .map(|conf| RoutingRegion::from_str(&conf.config).unwrap_or(RoutingRegion::Region1))
 }

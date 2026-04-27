@@ -389,6 +389,12 @@ pub mod superposition {
     pub const PAYOUT_TRACKER_MAPPING: &str = "payout_tracker_mapping";
     /// client session validation enabled configuration key
     pub const CLIENT_SESSION_VALIDATION_ENABLED: &str = "client_session_validation_enabled";
+    /// routing result source configuration key (selects between Hyperswitch and Decision Engine)
+    pub const ROUTING_RESULT_SOURCE: &str = "routing_result_source";
+    /// 3DS routing region configuration key for UAS
+    pub const THREEDS_ROUTING_REGION_UAS: &str = "threeds_routing_region_uas";
+    /// disabled webhook events configuration key per merchant and connector
+    pub const INCOMING_WEBHOOK_DISABLED_EVENTS: &str = "incoming_webhook_disabled_events";
 }
 
 #[cfg(test)]

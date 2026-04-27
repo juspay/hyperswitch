@@ -14,11 +14,11 @@ use router_env::tracing;
 use super::MERCHANT_ID;
 use crate::{
     core::{
+        configs::dimension_state,
         errors::{self},
         metrics,
         payments::helpers,
     },
-    db::{get_and_deserialize_key, StorageInterface},
     errors::RouterResult,
     routes::app::SessionStateInfo,
     services::logger,
@@ -32,41 +32,24 @@ const IRRELEVANT_CONNECTOR_REQUEST_REFERENCE_ID_IN_SOURCE_VERIFICATION_FLOW: &st
     "irrelevant_connector_request_reference_id_in_source_verification_flow";
 
 /// Check whether the merchant has configured to disable the webhook `event` for the `connector`
-/// First check for the key "whconf_{merchant_id}_{connector_id}" in redis,
-/// if not found, fetch from configs table in database
+/// Uses superposition with dimensions [merchant_id, connector, incoming_webhook_events]
 pub async fn is_webhook_event_disabled(
-    db: &dyn StorageInterface,
-    connector_id: &str,
-    merchant_id: &common_utils::id_type::MerchantId,
+    state: &SessionState,
+    connector: common_enums::connector_enums::Connector,
+    dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
     event: &api::IncomingWebhookEvent,
 ) -> bool {
-    let redis_key = merchant_id.get_webhook_config_disabled_events_key(connector_id);
-    let merchant_webhook_disable_config_result: CustomResult<
-        api::MerchantWebhookConfig,
-        redis_interface::errors::RedisError,
-    > = get_and_deserialize_key(db, &redis_key, "MerchantWebhookConfig").await;
+    let dimensions = dimensions
+        .with_connector(connector)
+        .with_incoming_webhook_event(*event);
 
-    match merchant_webhook_disable_config_result {
-        Ok(merchant_webhook_config) => merchant_webhook_config.contains(event),
-        Err(..) => {
-            //if failed to fetch from redis. fetch from db and populate redis
-            db.find_config_by_key(&redis_key)
-                .await
-                .map(|config| {
-                    match serde_json::from_str::<api::MerchantWebhookConfig>(&config.config) {
-                        Ok(set) => set.contains(event),
-                        Err(err) => {
-                            logger::warn!(?err, "error while parsing merchant webhook config");
-                            false
-                        }
-                    }
-                })
-                .unwrap_or_else(|err| {
-                    logger::warn!(?err, "error while fetching merchant webhook config");
-                    false
-                })
-        }
-    }
+    dimensions
+        .get_incoming_webhook_disabled_events(
+            state.store.as_ref(),
+            state.superposition_service.as_ref(),
+            None,
+        )
+        .await
 }
 
 pub async fn construct_webhook_router_data(

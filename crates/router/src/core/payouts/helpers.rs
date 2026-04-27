@@ -965,6 +965,7 @@ pub(super) async fn get_or_create_customer_details(
 pub async fn decide_payout_connector(
     state: &SessionState,
     processor: &domain::Processor,
+    dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
     request_straight_through: Option<api::routing::StraightThroughAlgorithm>,
     routing_data: &mut storage::RoutingData,
     payout_data: &mut PayoutData,
@@ -1099,6 +1100,7 @@ pub async fn decide_payout_connector(
     route_connector_v1_for_payouts(
         state,
         processor,
+        dimensions,
         &payout_data.business_profile,
         payout_data,
         routing_data,

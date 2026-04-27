@@ -417,10 +417,15 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
         webhook_processing_result.event_type,
         webhooks::IncomingWebhookEvent::EventNotSupported
     );
+    let connector_enum = Connector::from_str(connector_name.as_str())
+        .change_context(errors::ApiErrorResponse::InvalidDataValue {
+            field_name: "connector",
+        })
+        .attach_printable_lazy(|| format!("unable to parse connector name {connector_name:?}"))?;
     let is_webhook_event_enabled = !utils::is_webhook_event_disabled(
-        &*state.clone().store,
-        connector_name.as_str(),
-        platform.get_processor().get_account().get_id(),
+        &state,
+        connector_enum,
+        &dimensions.without_organization_id(),
         &webhook_processing_result.event_type,
     )
     .await;
@@ -3467,16 +3472,17 @@ pub async fn process_uas_incoming_webhook<'a>(
     connector_integration: ConnectorEnum,
     platform: domain::Platform,
 ) -> errors::RouterResult<WebhookProcessingResult<'a>> {
-    let routing_region = uas_utils::fetch_routing_region_for_uas(
-        state,
-        platform.get_processor().get_account().get_id().clone(),
-        platform
-            .get_processor()
-            .get_account()
-            .organization_id
-            .clone(),
-    )
-    .await?;
+    let dimensions = dimension_state::Dimensions::new()
+        .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
+        .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id())
+        .with_organization_id(
+            platform
+                .get_processor()
+                .get_account()
+                .organization_id
+                .clone(),
+        );
+    let routing_region = uas_utils::fetch_routing_region_for_uas(state, &dimensions).await;
     let webhook_data =
         uas_utils::get_webhook_request_data_for_uas(incoming_webhook_request, Some(routing_region));
 

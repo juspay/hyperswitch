@@ -20,6 +20,7 @@ use crate::core::webhooks::recovery_incoming;
 use crate::{
     core::{
         api_locking,
+        configs::dimension_state,
         errors::{self, ConnectorErrorExt, CustomResult, RouterResponse, StorageErrorExt},
         metrics,
         payments::{
@@ -61,6 +62,10 @@ pub async fn incoming_webhooks_wrapper<W: types::OutgoingWebhookType>(
     body: actix_web::web::Bytes,
     is_relay_webhook: bool,
 ) -> RouterResponse<serde_json::Value> {
+    let dimensions = dimension_state::Dimensions::new()
+        .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id())
+        .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id());
+
     let start_instant = Instant::now();
     let (application_response, webhooks_response_tracker, serialized_req) =
         Box::pin(incoming_webhooks_core::<W>(
@@ -144,6 +149,10 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
             platform.get_processor().get_account().get_id().clone()
         )),
     );
+    let dimensions = dimension_state::Dimensions::new()
+        .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id())
+        .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id());
+
     let mut request_details = IncomingWebhookRequestDetails {
         method: req.method().clone(),
         uri: req.uri().clone(),
@@ -155,12 +164,13 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
     // Fetch the merchant connector account to get the webhooks source secret
     // `webhooks source secret` is a secret shared between the merchant and connector
     // This is used for source verification and webhooks integrity
-    let (merchant_connector_account, connector, connector_name) = fetch_mca_and_connector(
-        &state,
-        connector_id,
-        platform.get_processor().get_key_store(),
-    )
-    .await?;
+    let (merchant_connector_account, connector, connector_enum, connector_name) =
+        fetch_mca_and_connector(
+            &state,
+            connector_id,
+            platform.get_processor().get_key_store(),
+        )
+        .await?;
 
     let decoded_body = connector
         .decode_webhook_body(
@@ -239,13 +249,8 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
         event_type,
         webhooks::IncomingWebhookEvent::EventNotSupported
     );
-    let is_webhook_event_enabled = !utils::is_webhook_event_disabled(
-        &*state.clone().store,
-        connector_name.as_str(),
-        platform.get_processor().get_account().get_id(),
-        &event_type,
-    )
-    .await;
+    let is_webhook_event_enabled =
+        !utils::is_webhook_event_disabled(&state, connector_enum, &dimensions, &event_type).await;
 
     //process webhook further only if webhook event is enabled and is not event_not_supported
     let process_webhook_further = is_webhook_event_enabled && is_webhook_event_supported;
@@ -262,13 +267,6 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
             .get_webhook_object_reference_id(&request_details)
             .switch()
             .attach_printable("Could not find object reference id in incoming webhook body")?;
-        let connector_enum = api_models::enums::Connector::from_str(&connector_name)
-            .change_context(errors::ApiErrorResponse::InvalidDataValue {
-                field_name: "connector",
-            })
-            .attach_printable_lazy(|| {
-                format!("unable to parse connector name {connector_name:?}")
-            })?;
         let connectors_with_source_verification_call = &state.conf.webhook_source_verification_call;
 
         let source_verified = if connectors_with_source_verification_call
@@ -809,8 +807,15 @@ async fn fetch_mca_and_connector(
     state: &SessionState,
     connector_id: &common_utils::id_type::MerchantConnectorAccountId,
     key_store: &domain::MerchantKeyStore,
-) -> CustomResult<(domain::MerchantConnectorAccount, ConnectorEnum, String), errors::ApiErrorResponse>
-{
+) -> CustomResult<
+    (
+        domain::MerchantConnectorAccount,
+        ConnectorEnum,
+        common_enums::connector_enums::Connector,
+        String,
+    ),
+    errors::ApiErrorResponse,
+> {
     let db = &state.store;
     let mca = db
         .find_merchant_connector_account_by_id(connector_id, key_store)
@@ -820,11 +825,9 @@ async fn fetch_mca_and_connector(
         })
         .attach_printable("error while fetching merchant_connector_account from connector_id")?;
 
-    let (connector, connector_name) = get_connector_by_connector_name(
-        state,
-        &mca.connector_name.to_string(),
-        Some(mca.get_id()),
-    )?;
+    let connector_enum = mca.connector_name;
+    let (connector, connector_name) =
+        get_connector_by_connector_name(state, &connector_enum.to_string(), Some(mca.get_id()))?;
 
-    Ok((mca, connector, connector_name))
+    Ok((mca, connector, connector_enum, connector_name))
 }

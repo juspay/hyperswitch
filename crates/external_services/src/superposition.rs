@@ -323,7 +323,7 @@ pub trait Config {
     /// Fetch config value from Superposition.
     fn fetch(
         superposition_client: &SuperpositionClient,
-        context: Option<ConfigContext>,
+        context: Option<&ConfigContext>,
         targeting_key: Option<&Self::TargetingKey>,
     ) -> impl std::future::Future<Output = CustomResult<Self::Output, SuperpositionError>> + Send
     where
@@ -334,7 +334,7 @@ pub trait Config {
             match superposition_client
                 .get_config_value::<Self::Output>(
                     Self::SUPERPOSITION_KEY,
-                    context.as_ref(),
+                    context,
                     targeting_key_str.as_ref(),
                 )
                 .await
