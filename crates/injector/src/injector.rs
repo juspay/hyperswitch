@@ -818,7 +818,7 @@ pub mod core {
                 insecure = config.insecure.unwrap_or(false),
                 cert_format = ?config.cert_format,
                 "Certificate configuration applied"
-            );/crates/injector/src/injector.rs:905:22
+            );
             let request_builder = RequestBuilder::new()
                 .method(method)
                 .url(config.endpoint.as_str())
