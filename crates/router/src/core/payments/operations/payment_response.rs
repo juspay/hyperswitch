@@ -2024,10 +2024,12 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
 
     // TODO: refactor of gsm_error_category with respective feature flag
     #[allow(unused_variables)]
-    let (capture_update, mut payment_attempt_update, gsm_error_category) = match router_data
-        .response
-        .clone()
-    {
+    let (
+        capture_update,
+        mut payment_attempt_update,
+        gsm_error_category,
+        updated_attempt_status_opt,
+    ) = match router_data.response.clone() {
         Err(err) => {
             let auth_update = if Some(router_data.auth_type)
                 != payment_data.payment_attempt.authentication_type
@@ -2036,7 +2038,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
             } else {
                 None
             };
-            let (capture_update, attempt_update, gsm_error_category) =
+            let (capture_update, attempt_update, gsm_error_category, updated_attempt_status_opt) =
                 match payment_data.multiple_capture_data {
                     Some(multiple_capture_data) => {
                         let capture_update = storage::CaptureUpdate::ErrorUpdate {
@@ -2061,10 +2063,12 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                                 }
                             }),
                             None,
+                            None,
                         )
                     }
                     None => {
                         let sub_flow = core_utils::get_flow_name::<F>()?;
+                        let attempt_status = payment_data.payment_attempt.status;
 
                         let card_network = payment_data.payment_attempt.extract_card_network();
 
@@ -2156,6 +2160,13 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                                 }
                             }
                         };
+                        if status != attempt_status {
+                            logger::debug!(
+                                "Attempt status changed from {:?} to {:?} in error handling",
+                                attempt_status,
+                                status
+                            );
+                        }
                         (
                             None,
                             Some(storage::PaymentAttemptUpdate::ErrorUpdate {
@@ -2195,16 +2206,23 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                                 card_network: payment_data.payment_attempt.extract_card_network(),
                             }),
                             option_gsm.and_then(|option_gsm| option_gsm.error_category),
+                            Some(status),
                         )
                     }
                 };
-            (capture_update, attempt_update, gsm_error_category)
+            (
+                capture_update,
+                attempt_update,
+                gsm_error_category,
+                updated_attempt_status_opt,
+            )
         }
 
         Ok(payments_response) => {
             // match on connector integrity check
             match router_data.integrity_check.clone() {
                 Err(err) => {
+                    let attempt_status = payment_data.payment_attempt.status;
                     let auth_update = if Some(router_data.auth_type)
                         != payment_data.payment_attempt.authentication_type
                     {
@@ -2214,6 +2232,13 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                     };
                     let field_name = err.field_names;
                     let connector_transaction_id = err.connector_transaction_id;
+                    if attempt_status != enums::AttemptStatus::IntegrityFailure {
+                        logger::debug!(
+                            "Attempt status changed from {:?} to {:?} due to integrity failure",
+                            attempt_status,
+                            enums::AttemptStatus::IntegrityFailure
+                        );
+                    }
                     (
                         None,
                         Some(storage::PaymentAttemptUpdate::ErrorUpdate {
@@ -2244,6 +2269,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                             card_network: payment_data.payment_attempt.extract_card_network(),
                         }),
                         None,
+                        Some(enums::AttemptStatus::IntegrityFailure),
                     )
                 }
                 Ok(()) => {
@@ -2277,6 +2303,13 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                                 .map(MinorUnit::get_amount_as_i64),
                         )?,
                     };
+                    if updated_attempt_status != connector_status {
+                        logger::debug!(
+                            "Attempt status changed from {:?} to {:?}",
+                            connector_status,
+                            updated_attempt_status
+                        );
+                    }
                     match payments_response {
                         types::PaymentsResponseData::PreProcessingResponse {
                             pre_processing_id,
@@ -2311,7 +2344,12 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                                     updated_by: processor.get_account().storage_scheme.to_string(),
                                 };
 
-                            (None, Some(payment_attempt_update), None)
+                            (
+                                None,
+                                Some(payment_attempt_update),
+                                None,
+                                Some(updated_attempt_status),
+                            )
                         }
                         types::PaymentsResponseData::TransactionResponse {
                             resource_id,
@@ -2533,7 +2571,12 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                                 ),
                             };
 
-                            (capture_updates, payment_attempt_update, None)
+                            (
+                                capture_updates,
+                                payment_attempt_update,
+                                None,
+                                Some(updated_attempt_status),
+                            )
                         }
                         types::PaymentsResponseData::TransactionUnresolvedResponse {
                             resource_id,
@@ -2562,29 +2605,32 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                                     updated_by: processor.get_account().storage_scheme.to_string(),
                                 }),
                                 None,
+                                Some(updated_attempt_status),
                             )
                         }
-                        types::PaymentsResponseData::SessionResponse { .. } => (None, None, None),
+                        types::PaymentsResponseData::SessionResponse { .. } => {
+                            (None, None, None, None)
+                        }
                         types::PaymentsResponseData::SessionTokenResponse { .. } => {
-                            (None, None, None)
+                            (None, None, None, None)
                         }
                         types::PaymentsResponseData::TokenizationResponse { .. } => {
-                            (None, None, None)
+                            (None, None, None, None)
                         }
                         types::PaymentsResponseData::ConnectorCustomerResponse(..) => {
-                            (None, None, None)
+                            (None, None, None, None)
                         }
                         types::PaymentsResponseData::ThreeDSEnrollmentResponse { .. } => {
-                            (None, None, None)
+                            (None, None, None, None)
                         }
                         types::PaymentsResponseData::PostProcessingResponse { .. } => {
-                            (None, None, None)
+                            (None, None, None, None)
                         }
                         types::PaymentsResponseData::IncrementalAuthorizationResponse {
                             ..
-                        } => (None, None, None),
+                        } => (None, None, None, None),
                         types::PaymentsResponseData::PaymentResourceUpdateResponse { .. } => {
-                            (None, None, None)
+                            (None, None, None, None)
                         }
                         types::PaymentsResponseData::MultipleCaptureResponse {
                             capture_sync_response_list,
@@ -2598,9 +2644,10 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                                     Some((multiple_capture_data, capture_update_list)),
                                     None,
                                     None,
+                                    None,
                                 )
                             }
-                            None => (None, None, None),
+                            None => (None, None, None, None),
                         },
                         types::PaymentsResponseData::PaymentsCreateOrderResponse { .. } => (
                             None,
@@ -2609,9 +2656,10 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
                                 updated_by: processor.get_account().storage_scheme.to_string(),
                             }),
                             None,
+                            Some(updated_attempt_status),
                         ),
                         types::PaymentsResponseData::PostCaptureVoidResponse { .. } => {
-                            (None, None, None)
+                            (None, None, None, None)
                         }
                     }
                 }
@@ -2745,6 +2793,7 @@ async fn payment_response_update_tracker<F: Clone, T: types::Capturable>(
         &router_data,
         processor,
         amount_captured,
+        updated_attempt_status_opt,
     );
 
     let m_db = state.clone().store;
@@ -2909,12 +2958,16 @@ fn get_payment_intent_update_data<F: Clone, T: types::Capturable>(
     router_data: &types::RouterData<F, T, types::PaymentsResponseData>,
     processor: &domain::Processor,
     amount_captured: Option<MinorUnit>,
+    updated_attempt_status: Option<enums::AttemptStatus>,
 ) -> storage::PaymentIntentUpdate {
+    // TODO: The impact of allowing updated status from `get_attempt_status_for_db_update` in other cases needs to be evaluated
+    let status = match updated_attempt_status {
+        Some(enums::AttemptStatus::CaptureReview) => enums::AttemptStatus::CaptureReview,
+        _ => payment_data.payment_attempt.status,
+    };
     match &router_data.response {
         Err(_) => storage::PaymentIntentUpdate::PGStatusUpdate {
-            status: api_models::enums::IntentStatus::foreign_from(
-                payment_data.payment_attempt.status,
-            ),
+            status: api_models::enums::IntentStatus::foreign_from(status),
             updated_by: processor.get_account().storage_scheme.to_string(),
             incremental_authorization_allowed: Some(false),
             feature_metadata: payment_data
@@ -2947,9 +3000,7 @@ fn get_payment_intent_update_data<F: Clone, T: types::Capturable>(
             }
         }
         Ok(_) => storage::PaymentIntentUpdate::ResponseUpdate {
-            status: api_models::enums::IntentStatus::foreign_from(
-                payment_data.payment_attempt.status,
-            ),
+            status: api_models::enums::IntentStatus::foreign_from(status),
             amount_captured,
             updated_by: processor.get_account().storage_scheme.to_string(),
             fingerprint_id: payment_data.payment_attempt.fingerprint_id.clone(),
@@ -3294,7 +3345,8 @@ impl<F: Clone> PostUpdateTracker<F, PaymentConfirmData<F>, types::PaymentsAuthor
                 | common_enums::AttemptStatus::Unresolved
                 | common_enums::AttemptStatus::Pending
                 | common_enums::AttemptStatus::Failure
-                | common_enums::AttemptStatus::Expired => (),
+                | common_enums::AttemptStatus::Expired
+                | common_enums::AttemptStatus::CaptureReview => (),
 
                 common_enums::AttemptStatus::Started
                 | common_enums::AttemptStatus::AuthenticationPending

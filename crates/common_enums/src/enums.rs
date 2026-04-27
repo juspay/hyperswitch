@@ -172,6 +172,7 @@ pub enum AttemptStatus {
     DeviceDataCollectionPending,
     IntegrityFailure,
     Expired,
+    CaptureReview,
 }
 
 impl AttemptStatus {
@@ -204,7 +205,8 @@ impl AttemptStatus {
             | Self::ConfirmationAwaited
             | Self::DeviceDataCollectionPending
             | Self::IntegrityFailure
-            | Self::VoidedPostCharge => false,
+            | Self::VoidedPostCharge
+            | Self::CaptureReview => false,
         }
     }
 
@@ -237,7 +239,8 @@ impl AttemptStatus {
             | Self::PaymentMethodAwaited
             | Self::ConfirmationAwaited
             | Self::DeviceDataCollectionPending
-            | Self::IntegrityFailure => false,
+            | Self::IntegrityFailure
+            | Self::CaptureReview => false,
         }
     }
 
@@ -274,7 +277,8 @@ impl AttemptStatus {
             | Self::ConfirmationAwaited
             | Self::DeviceDataCollectionPending
             | Self::IntegrityFailure
-            | Self::Expired => false,
+            | Self::Expired
+            | Self::CaptureReview => false,
         }
     }
 }
@@ -1984,6 +1988,11 @@ pub enum IntentStatus {
     Conflicted,
     /// The payment expired before it could be captured.
     Expired,
+    /// The payment has been marked for manual review due to anomalous response from the connector.
+    /// This can occur when a capture fails after the payment was initially marked as successful
+    /// (e.g., Adyen CAPTURE_FAILED webhook after successful CAPTURE).
+    /// The merchant can explicitly resolve this status via the API or a webhook from the connector can update the status
+    Review,
 }
 
 impl IntentStatus {
@@ -2005,7 +2014,8 @@ impl IntentStatus {
             | Self::PartiallyCapturedAndCapturable
             | Self::PartiallyAuthorizedAndRequiresCapture
             | Self::Conflicted
-            | Self::PartiallyCapturedAndProcessing => false,
+            | Self::PartiallyCapturedAndProcessing
+            | Self::Review => false,
         }
     }
 
@@ -2021,7 +2031,7 @@ impl IntentStatus {
             | Self::Cancelled
             | Self::CancelledPostCapture
             |  Self::PartiallyCaptured
-            |  Self::RequiresCapture | Self::Conflicted | Self::Expired=> false,
+            |  Self::RequiresCapture | Self::Conflicted | Self::Expired | Self::Review => false,
             Self::Processing
             | Self::RequiresCustomerAction
             | Self::RequiresMerchantAction
@@ -2225,7 +2235,8 @@ impl From<AttemptStatus> for PaymentMethodStatus {
             | AttemptStatus::ConfirmationAwaited
             | AttemptStatus::DeviceDataCollectionPending
             | AttemptStatus::IntegrityFailure
-            | AttemptStatus::Expired => Self::Inactive,
+            | AttemptStatus::Expired
+            | AttemptStatus::CaptureReview => Self::Inactive,
             AttemptStatus::Charged | AttemptStatus::Authorized => Self::Active,
         }
     }
@@ -3031,7 +3042,8 @@ impl RelayStatus {
             | AttemptStatus::Authorizing
             | AttemptStatus::CaptureInitiated
             | AttemptStatus::AuthenticationPending
-            | AttemptStatus::Started => Self::Pending,
+            | AttemptStatus::Started
+            | AttemptStatus::CaptureReview => Self::Pending,
             AttemptStatus::Voided | AttemptStatus::VoidedPostCharge => Self::Success,
         }
     }
@@ -10176,7 +10188,8 @@ impl From<AttemptStatus> for RelayStatus {
             | AttemptStatus::Authorizing
             | AttemptStatus::CaptureInitiated
             | AttemptStatus::AuthenticationPending
-            | AttemptStatus::Started => Self::Pending,
+            | AttemptStatus::Started
+            | AttemptStatus::CaptureReview => Self::Pending,
             AttemptStatus::Charged
             | AttemptStatus::PartialCharged
             | AttemptStatus::PartialChargedAndChargeable => Self::Success,
@@ -10904,7 +10917,8 @@ impl From<IntentStatus> for InvoiceStatus {
             | IntentStatus::Processing
             | IntentStatus::RequiresCustomerAction
             | IntentStatus::RequiresConfirmation
-            | IntentStatus::RequiresPaymentMethod => Self::PaymentPending,
+            | IntentStatus::RequiresPaymentMethod
+            | IntentStatus::Review => Self::PaymentPending,
             IntentStatus::RequiresMerchantAction => Self::ManualReview,
             IntentStatus::Cancelled | IntentStatus::CancelledPostCapture => Self::PaymentCanceled,
             IntentStatus::Expired => Self::PaymentPendingTimeout,

@@ -45,7 +45,7 @@ impl ValidateStatusForOperation for PaymentSessionIntent {
             | common_enums::IntentStatus::RequiresConfirmation
             | common_enums::IntentStatus::PartiallyCapturedAndCapturable
             | common_enums::IntentStatus::Succeeded
-            | common_enums::IntentStatus::Failed | common_enums::IntentStatus::Conflicted | common_enums::IntentStatus::Expired => {
+            | common_enums::IntentStatus::Failed | common_enums::IntentStatus::Conflicted | common_enums::IntentStatus::Expired | common_enums::IntentStatus::Review=> {
                 Err(errors::ApiErrorResponse::PreconditionFailed {
                     message: format!(
                         "You cannot create session token for this payment because it has status {intent_status}. Expected status is requires_payment_method.",
