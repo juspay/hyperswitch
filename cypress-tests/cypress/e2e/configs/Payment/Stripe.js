@@ -1092,6 +1092,159 @@ export const connectorDetails = {
       },
     },
   },
+  card_redirect_pm: {
+    PaymentIntent: (paymentMethodType) => {
+      const currencyMap = {
+        Benefit: "USD",
+        Knet: "KWD",
+        MomoAtm: "USD",
+      };
+      return {
+        Request: {
+          currency: currencyMap[paymentMethodType] || "USD",
+          return_url: "https://example.com/payment_return",
+          billing: {
+            first_name: "Test",
+            last_name: "Customer",
+            email: "test@example.com",
+            phone: {
+              number: "1234567890",
+              cc: "+1",
+            },
+            address: {
+              line1: "123 Test St",
+              city: "San Francisco",
+              state: "California",
+              zip: "94122",
+              country: "US",
+            },
+          },
+        },
+        Response: {
+          status: 200,
+          body: {
+            status: "requires_payment_method",
+          },
+        },
+      };
+    },
+    Benefit: getCustomExchange({
+      Request: {
+        payment_method: "card_redirect",
+        payment_method_type: "benefit",
+        payment_method_data: {
+          card_redirect: {
+            benefit: {},
+          },
+        },
+        billing: {
+          address: {
+            line1: "123 Test St",
+            city: "San Francisco",
+            state: "California",
+            zip: "94122",
+            country: "US",
+            first_name: "Test",
+            last_name: "Customer",
+          },
+          phone: {
+            number: "1234567890",
+            country_code: "+1",
+          },
+          email: "test@example.com",
+        },
+        currency: "USD",
+      },
+      Response: {
+        status: 400,
+        body: {
+          error: {
+            type: "invalid_request",
+            code: "IR_39",
+            message:
+              "No eligible connector was found for the current payment method configuration",
+          },
+        },
+      },
+    }),
+    Knet: getCustomExchange({
+      Request: {
+        payment_method: "card_redirect",
+        payment_method_type: "knet",
+        payment_method_data: {
+          card_redirect: {
+            knet: {},
+          },
+        },
+        billing: {
+          address: {
+            line1: "123 Test St",
+            city: "Kuwait City",
+            zip: "10001",
+            country: "KW",
+            first_name: "Test",
+            last_name: "Customer",
+          },
+          phone: {
+            number: "1234567890",
+            country_code: "+965",
+          },
+          email: "test@example.com",
+        },
+        currency: "KWD",
+      },
+      Response: {
+        status: 400,
+        body: {
+          error: {
+            type: "invalid_request",
+            code: "IR_39",
+            message:
+              "No eligible connector was found for the current payment method configuration",
+          },
+        },
+      },
+    }),
+    MomoAtm: getCustomExchange({
+      Request: {
+        payment_method: "card_redirect",
+        payment_method_type: "momo_atm",
+        payment_method_data: {
+          card_redirect: {
+            momo_atm: {},
+          },
+        },
+        billing: {
+          address: {
+            line1: "123 Test St",
+            city: "San Francisco",
+            state: "California",
+            zip: "94122",
+            country: "VN",
+            first_name: "Test",
+            last_name: "Customer",
+          },
+          phone: {
+            number: "1234567890",
+            country_code: "+84",
+          },
+          email: "test@example.com",
+        },
+        currency: "VND",
+      },
+      Response: {
+        status: 400,
+        body: {
+          error: {
+            type: "invalid_request",
+            code: "IR_39",
+            message:
+              "No eligible connector was found for the current payment method configuration",
+          },
+        },
+      },
+    }),
+  },
   pm_list: {
     PmListResponse: {
       PmListNull: {
