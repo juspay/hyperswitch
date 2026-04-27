@@ -2104,8 +2104,13 @@ impl ConnectorSpecifications for Santander {
         current_flow: Option<CurrentFlowInfo>,
     ) -> bool {
         match current_flow {
-            // Journey 1/2/3/4 CIT
-            Some(CurrentFlowInfo::SetupMandate { .. }) => true,
+            // Journey 2/3/4 CIT
+            Some(CurrentFlowInfo::SetupMandate { request_data, .. }) => {
+                match request_data.payment_method_type {
+                    Some(enums::PaymentMethodType::PixAutomaticoQr) => true,
+                    _ => false,
+                }
+            }
             Some(CurrentFlowInfo::CompleteAuthorize { .. })
             | Some(CurrentFlowInfo::Authorize { .. })
             | Some(CurrentFlowInfo::Psync { .. })
