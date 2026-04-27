@@ -39,7 +39,7 @@ pub async fn create_profile_acquirer(
 
     let incoming_acquirer_config = common_types::domain::AcquirerConfig {
         acquirer_assigned_merchant_id: Some(request.acquirer_assigned_merchant_id.clone()),
-        acquirer_merchant_name: Some(request.acquirer_merchant_name.clone()),
+        merchant_name: Some(request.merchant_name.clone()),
         network: request.network.clone(),
         acquirer_bin: Some(request.acquirer_bin.clone()),
         acquirer_ica: request.acquirer_ica.clone(),
@@ -252,7 +252,7 @@ fn upsert_acquirer_config_in_bucket(
         .unwrap_or(common_types::domain::AcquirerConfig {
             network: target_network,
             acquirer_assigned_merchant_id: None,
-            acquirer_merchant_name: None,
+            merchant_name: None,
             acquirer_bin: None,
             acquirer_ica: None,
             acquirer_fraud_rate: None,
@@ -264,10 +264,7 @@ fn upsert_acquirer_config_in_bucket(
             .acquirer_assigned_merchant_id
             .clone()
             .or(base.acquirer_assigned_merchant_id),
-        acquirer_merchant_name: request
-            .acquirer_merchant_name
-            .clone()
-            .or(base.acquirer_merchant_name),
+        merchant_name: request.merchant_name.clone().or(base.merchant_name),
         acquirer_bin: request.acquirer_bin.clone().or(base.acquirer_bin),
         acquirer_ica: request.acquirer_ica.clone().or(base.acquirer_ica),
         acquirer_fraud_rate: request.acquirer_fraud_rate.or(base.acquirer_fraud_rate),

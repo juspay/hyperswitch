@@ -8708,7 +8708,7 @@
             "example": "M123456789",
             "nullable": true
           },
-          "acquirer_merchant_name": {
+          "merchant_name": {
             "type": "string",
             "description": "Merchant name",
             "example": "NewAge Retailer",
@@ -8759,7 +8759,7 @@
             "example": "M123456789",
             "nullable": true
           },
-          "acquirer_merchant_name": {
+          "merchant_name": {
             "type": "string",
             "description": "merchant name",
             "example": "NewAge Retailer",
@@ -8816,7 +8816,7 @@
             "$ref": "#/components/schemas/AcquirerConfig"
           },
           "description": "Flattened map of acquirer profiles keyed by configuration id",
-          "example": "{\n        \"profile_acquirer_id\": \"profile_acquirer_id\",\n        \"acquirer_config\": {\n            \"acquirer_assigned_merchant_id\": \"M123456789\",\n            \"acquirer_merchant_name\": \"NewAge Retailer\",\n            \"network\": \"VISA\",\n            \"acquirer_bin\": \"456789\",\n            \"acquirer_ica\": \"401288\",\n            \"acquirer_fraud_rate\": 0.01,\n            \"acquirer_country_code\": \"US\"\n    }"
+          "example": "{\n        \"profile_acquirer_id\": \"profile_acquirer_id\",\n        \"acquirer_config\": {\n            \"acquirer_assigned_merchant_id\": \"M123456789\",\n            \"merchant_name\": \"NewAge Retailer\",\n            \"network\": \"VISA\",\n            \"acquirer_bin\": \"456789\",\n            \"acquirer_ica\": \"401288\",\n            \"acquirer_fraud_rate\": 0.01,\n            \"acquirer_country_code\": \"US\"\n    }"
         }
       },
       "AcquirerData": {
@@ -36415,7 +36415,7 @@
         "type": "object",
         "required": [
           "acquirer_assigned_merchant_id",
-          "acquirer_merchant_name",
+          "merchant_name",
           "network",
           "acquirer_bin",
           "profile_id"
@@ -36426,7 +36426,7 @@
             "description": "The merchant id assigned by the acquirer",
             "example": "M123456789"
           },
-          "acquirer_merchant_name": {
+          "merchant_name": {
             "type": "string",
             "description": "merchant name",
             "example": "NewAge Retailer"
@@ -36495,7 +36495,7 @@
             "example": "M123456789",
             "nullable": true
           },
-          "acquirer_merchant_name": {
+          "merchant_name": {
             "type": "string",
             "description": "Merchant name",
             "example": "NewAge Retailer",
@@ -36551,7 +36551,7 @@
             "example": "M987654321",
             "nullable": true
           },
-          "acquirer_merchant_name": {
+          "merchant_name": {
             "type": "string",
             "example": "Updated Retailer Name",
             "nullable": true
@@ -37201,7 +37201,8 @@
             "items": {
               "$ref": "#/components/schemas/ProfileAcquirerResponse"
             },
-            "description": "Acquirer configs (maintained as flattened array for backward compatibility)",
+            "description": "Acquirer configs (Deprecated - use `acquirer_config_bucket` instead)",
+            "deprecated": true,
             "nullable": true
           },
           "acquirer_config_bucket": {

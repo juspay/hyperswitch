@@ -2689,8 +2689,8 @@ pub struct ProfileResponse {
     #[schema(default = false, example = false)]
     pub is_pre_network_tokenization_enabled: bool,
 
-    /// Acquirer configs (maintained as flattened array for backward compatibility)
-    #[schema(value_type = Option<Vec<ProfileAcquirerResponse>>)]
+    /// Acquirer configs (Deprecated - use `acquirer_config_bucket` instead)
+    #[schema(value_type = Option<Vec<ProfileAcquirerResponse>>, deprecated)]
     pub acquirer_configs: Option<Vec<profile_acquirer::ProfileAcquirerResponse>>,
 
     /// Acquirer config buckets: map of acquirer profile configurations

@@ -8,7 +8,7 @@ pub struct ProfileAcquirerCreate {
     pub acquirer_assigned_merchant_id: String,
     /// merchant name
     #[schema(value_type= String,example = "NewAge Retailer")]
-    pub acquirer_merchant_name: String,
+    pub merchant_name: String,
     /// Network provider
     #[schema(value_type= String,example = "VISA")]
     pub network: common_enums::enums::CardNetwork,
@@ -41,7 +41,7 @@ pub struct ProfileAcquirerResponse {
     pub acquirer_assigned_merchant_id: Option<String>,
     /// Merchant name
     #[schema(value_type= Option<String>,example = "NewAge Retailer")]
-    pub acquirer_merchant_name: Option<String>,
+    pub merchant_name: Option<String>,
     /// Network provider
     #[schema(value_type= Option<String>,example = "VISA")]
     pub network: Option<common_enums::enums::CardNetwork>,
@@ -71,7 +71,7 @@ pub struct AcquirerBucketConfigResponse {
     pub acquirer_assigned_merchant_id: Option<String>,
     /// Merchant name
     #[schema(value_type= Option<String>,example = "NewAge Retailer")]
-    pub acquirer_merchant_name: Option<String>,
+    pub merchant_name: Option<String>,
     /// Network provider
     #[schema(value_type= String,example = "VISA")]
     pub network: common_enums::enums::CardNetwork,
@@ -126,7 +126,7 @@ impl
             profile_id: profile_id.clone(),
             acquirer_assigned_merchant_id: acquirer_config
                 .and_then(|c| c.acquirer_assigned_merchant_id.clone()),
-            acquirer_merchant_name: acquirer_config.and_then(|c| c.acquirer_merchant_name.clone()),
+            merchant_name: acquirer_config.and_then(|c| c.merchant_name.clone()),
             network: acquirer_config.map(|c| c.network.clone()),
             acquirer_bin: acquirer_config.and_then(|c| c.acquirer_bin.clone()),
             acquirer_ica: acquirer_config.and_then(|c| c.acquirer_ica.clone()),
@@ -141,7 +141,7 @@ impl From<&common_types::domain::AcquirerConfig> for AcquirerBucketConfigRespons
     fn from(acquirer_config: &common_types::domain::AcquirerConfig) -> Self {
         Self {
             acquirer_assigned_merchant_id: acquirer_config.acquirer_assigned_merchant_id.clone(),
-            acquirer_merchant_name: acquirer_config.acquirer_merchant_name.clone(),
+            merchant_name: acquirer_config.merchant_name.clone(),
             network: acquirer_config.network.clone(),
             acquirer_bin: acquirer_config.acquirer_bin.clone(),
             acquirer_ica: acquirer_config.acquirer_ica.clone(),
@@ -157,7 +157,7 @@ pub struct ProfileAcquirerUpdate {
     #[schema(value_type = Option<String>, example = "M987654321")]
     pub acquirer_assigned_merchant_id: Option<String>,
     #[schema(value_type = Option<String>, example = "Updated Retailer Name")]
-    pub acquirer_merchant_name: Option<String>,
+    pub merchant_name: Option<String>,
     /// The card network this configuration entry targets — optional if updating just the default.
     #[schema(value_type = Option<String>, example = "MASTERCARD")]
     pub network: Option<common_enums::enums::CardNetwork>,

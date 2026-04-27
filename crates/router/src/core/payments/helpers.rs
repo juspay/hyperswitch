@@ -8488,32 +8488,28 @@ pub async fn get_payment_external_authentication_flow_during_confirm<F: Clone>(
                 connector_data.merchant_connector_id.as_ref(),
             )
             .await?;
+
             let profile_acquirer_id = payment_data.payment_intent.profile_acquirer_id.as_ref();
             let acquirer_details = match payment_connector_mca
                 .get_metadata()
                 .as_ref()
                 .and_then(|metadata| {
-                    let metadata_val = metadata.peek();
-                    metadata_val
-                        .get("acquirer_details")
-                        .cloned()
-                        .or_else(|| metadata_val.get("acquirer_bin").map(|_| metadata_val.clone()))
-                        .and_then(|val| {
-                            val.parse_value::<authentication::types::AcquirerDetails>(
-                                "AcquirerDetails",
-                            )
-                            .change_context(errors::ApiErrorResponse::PreconditionFailed {
-                                message: "acquirer_bin and acquirer_merchant_id not found in Payment Connector's Metadata"
-                                    .to_string(),
-                            })
-                            .inspect_err(|err| {
-                                logger::error!(
-                                    "Failed to parse acquirer details from Payment Connector's Metadata: {:?}",
-                                    err
-                                );
-                            })
-                            .ok()
-                        })
+                    metadata
+                    .peek()
+                    .clone()
+                    .parse_value::<authentication::types::AcquirerDetails>("AcquirerDetails")
+                    .change_context(errors::ApiErrorResponse::PreconditionFailed {
+                        message:
+                            "acquirer_bin and acquirer_merchant_id not found in Payment Connector's Metadata"
+                                .to_string(),
+                    })
+                    .inspect_err(|err| {
+                        logger::error!(
+                            "Failed to parse acquirer details from Payment Connector's Metadata: {:?}",
+                            err
+                        );
+                    })
+                    .ok()
                 }) {
                 Some(details) => Some(details),
                 None => {

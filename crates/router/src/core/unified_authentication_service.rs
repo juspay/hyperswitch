@@ -1121,7 +1121,7 @@ pub async fn authentication_eligibility_core(
         .ok_or(ApiErrorResponse::InternalServerError)
         .attach_printable("no amount found in authentication table")?;
 
-    let (acquirer_bin, acquirer_merchant_id, acquirer_country_code, acquirer_merchant_name) =
+    let (acquirer_bin, acquirer_merchant_id, acquirer_country_code, merchant_name) =
         if authentication.acquirer_bin.is_none() || authentication.acquirer_merchant_id.is_none() {
             // Determine the card network for bucket resolution.
             let mut card_network = match &payment_method_data {
@@ -1218,7 +1218,7 @@ pub async fn authentication_eligibility_core(
                 acquirer_details.acquirer_bin.clone(),
                 acquirer_details.acquirer_assigned_merchant_id.clone(),
                 acquirer_details.acquirer_country_code.clone(),
-                acquirer_details.acquirer_merchant_name.clone(),
+                acquirer_details.merchant_name.clone(),
             )
         } else {
             (
@@ -1251,7 +1251,7 @@ pub async fn authentication_eligibility_core(
 
     let merchant_details = Some(hyperswitch_domain_models::router_request_types::unified_authentication_service::MerchantDetails {
         merchant_id: Some(authentication.merchant_id.get_string_repr().to_string()),
-        merchant_name: acquirer_merchant_name.or(metadata.clone().and_then(|metadata| metadata.merchant_name)),
+        merchant_name: merchant_name.or(metadata.clone().and_then(|metadata| metadata.merchant_name)),
         merchant_category_code: merchant_category_code.clone(),
         endpoint_prefix: metadata.clone().and_then(|metadata| metadata.endpoint_prefix),
         three_ds_requestor_url: business_profile.authentication_connector_details.as_ref().map(|details| details.three_ds_requestor_url.clone()),

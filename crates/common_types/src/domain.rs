@@ -105,7 +105,7 @@ pub struct AcquirerConfig {
     pub acquirer_assigned_merchant_id: Option<String>,
     /// merchant name
     #[schema(value_type= Option<String>,example = "NewAge Retailer")]
-    pub acquirer_merchant_name: Option<String>,
+    pub merchant_name: Option<String>,
     /// Network provider
     #[schema(value_type= String,example = "VISA")]
     pub network: common_enums::CardNetwork,
@@ -136,7 +136,7 @@ pub struct AcquirerConfigMap {
         "profile_acquirer_id": "profile_acquirer_id",
         "acquirer_config": {
             "acquirer_assigned_merchant_id": "M123456789",
-            "acquirer_merchant_name": "NewAge Retailer",
+            "merchant_name": "NewAge Retailer",
             "network": "VISA",
             "acquirer_bin": "456789",
             "acquirer_ica": "401288",
