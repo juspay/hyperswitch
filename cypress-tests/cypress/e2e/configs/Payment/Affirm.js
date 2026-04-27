@@ -1,7 +1,3 @@
-import {
-  connectorDetails as commonConnectorDetails,
-} from "./Commons";
-
 export const connectorDetails = {
   card_pm: {
     PaymentIntent: {
