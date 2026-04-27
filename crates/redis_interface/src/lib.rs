@@ -11,16 +11,28 @@
 //! }
 //! ```
 
+#[cfg(all(feature = "redis-rs", feature = "fred-rs"))]
+compile_error!(
+    "Features `redis-rs` and `fred-rs` are mutually exclusive. \
+     Enable exactly one: --features redis-rs (default) or --features fred-rs"
+);
+
+#[cfg(not(any(feature = "redis-rs", feature = "fred-rs")))]
+compile_error!(
+    "Exactly one of `redis-rs` or `fred-rs` must be enabled. \
+     Neither is currently active."
+);
+
 pub mod errors;
 pub mod types;
 pub mod constant;
 
-#[cfg(all(feature = "redis-rs", not(feature = "fred-rs")))]
+#[cfg(feature = "redis-rs")]
 mod backends {
     pub mod redis_rs;
 }
 
-#[cfg(all(feature = "fred-rs", not(feature = "redis-rs")))]
+#[cfg(feature = "fred-rs")]
 mod backends {
     pub mod fred;
 }

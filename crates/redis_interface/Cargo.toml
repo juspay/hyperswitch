@@ -8,9 +8,8 @@ readme = "README.md"
 license.workspace = true
 
 [features]
-default = ["redis-rs"]
+default = []
 redis-rs = ["dep:redis"]
-fred-rs  = ["dep:fred"]
 multitenancy_fallback = []
 
 [dependencies]

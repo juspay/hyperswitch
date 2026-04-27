@@ -25,6 +25,7 @@ clippy *FLAGS:
             [ ( .workspace_members | sort ) as $package_ids # Store workspace crate package IDs in `package_ids` array
             | .packages[] | select( IN(.id; $package_ids[]) ) | .features | keys[] ] | unique # Select all unique features from all workspace crates
             | del( .[] | select( any( . ; test("(([a-z_]+)_)?v2") ) ) ) # Exclude some features from features list
+            | del( .[] | select( . == "fred-rs" ) ) # Exclude fred-rs since it is mutually exclusive with redis-rs
             | join(",") # Construct a comma-separated string of features for passing to `cargo`
     ')"
 
@@ -40,7 +41,7 @@ clippy_v2 *FLAGS:
         jq -r '
             [ ( .workspace_members | sort ) as $package_ids # Store workspace crate package IDs in `package_ids` array
             | .packages[] | select( IN(.id; $package_ids[]) ) | .features | keys[] ] | unique # Select all unique features from all workspace crates
-            | del( .[] | select( . == ("default", "v1") ) ) # Exclude some features from features list
+            | del( .[] | select( . == ("default", "v1", "fred-rs") ) ) # Exclude some features from features list
             | join(",") # Construct a comma-separated string of features for passing to `cargo`
     ')"
 
@@ -56,7 +57,7 @@ check_v2 *FLAGS:
         jq -r '
             [ ( .workspace_members | sort ) as $package_ids # Store workspace crate package IDs in `package_ids` array
             | .packages[] | select( IN(.id; $package_ids[]) ) | .features | keys[] ] | unique # Select all unique features from all workspace crates
-            | del( .[] | select( . == ("default", "v1") ) ) # Exclude some features from features list
+            | del( .[] | select( . == ("default", "v1", "fred-rs") ) ) # Exclude some features from features list
             | join(",") # Construct a comma-separated string of features for passing to `cargo`
     ')"
 
@@ -104,6 +105,7 @@ check *FLAGS:
             [ ( .workspace_members | sort ) as $package_ids # Store workspace crate package IDs in `package_ids` array
             | .packages[] | select( IN(.id; $package_ids[]) ) | .features | keys[] ] | unique # Select all unique features from all workspace crates
             | del( .[] | select( any( . ; test("(([a-z_]+)_)?v2") ) ) ) # Exclude some features from features list
+            | del( .[] | select( . == "fred-rs" ) ) # Exclude fred-rs since it is mutually exclusive with redis-rs
             | join(",") # Construct a comma-separated string of features for passing to `cargo`
     ')"
 
