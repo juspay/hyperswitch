@@ -328,6 +328,24 @@ impl DatabaseBackedConfig for ShouldCallPmModularService {
 }
 
 config! {
+    superposition_key = SHOULD_SCHEDULE_MODULAR_FORWARD_COMPAT,
+    output = bool,
+    default = false,
+    requires = dimension_state::DimensionsWithProviderMerchantId,
+    targeting_key = id_type::CustomerId
+}
+
+impl DatabaseBackedConfig for ShouldScheduleModularForwardCompat {
+    const KEY: &'static str = "should_schedule_modular_forward_compat";
+
+    fn db_key(dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
+        dimensions
+            .get_provider_merchant_id()
+            .map(|id| format!("{}_{}", Self::KEY, id.get_string_repr()))
+    }
+}
+
+config! {
     superposition_key = PAYOUT_TRACKER_MAPPING,
     output = RetryMapping,
     default = RetryMapping::default(),
