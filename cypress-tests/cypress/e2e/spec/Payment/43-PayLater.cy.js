@@ -4,7 +4,7 @@ import getConnectorDetails, * as utils from "../../configs/Payment/Utils";
 
 let globalState;
 
-const KLARNA_REDIRECT_CONNECTORS = [];
+const KLARNA_REDIRECT_CONNECTORS = ["aci"];
 
 describe("PayLater tests", () => {
   afterEach("flush global state", () => {

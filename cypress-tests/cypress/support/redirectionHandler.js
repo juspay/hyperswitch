@@ -422,6 +422,11 @@ function bankRedirectRedirection(
                   .should("be.visible")
                   .click();
                 break;
+              case "klarna":
+                cy.get('input[type="submit"][value="Confirm Transaction"]')
+                  .should("be.visible")
+                  .click();
+                break;
               default:
                 throw new Error(
                   `Unsupported ACI payment method type in handleFlow: ${paymentMethodType}`
