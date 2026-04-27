@@ -1,4 +1,5 @@
 use api_models::superposition_sdk_config::SuperPositionConfigResponse;
+use common_enums::ConnectorType;
 use error_stack::ResultExt;
 use serde_json::Map;
 
@@ -25,6 +26,27 @@ pub async fn get_superposition_sdk_config(
     //     .change_context(errors::ApiErrorResponse::InternalServerError)
     //     .attach_printable("Failed to resolve superposition sdk config")?;
     let merchant_account = platform.get_processor().get_account();
+    let key_store = platform.get_processor().get_key_store();
+
+    // Fetch enabled connector accounts for the profile
+    let enabled_connectors = state
+        .store
+        .list_enabled_connector_accounts_by_profile_id(
+            &profile_id,
+            key_store,
+            ConnectorType::PaymentProcessor,
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to fetch enabled connector accounts")?;
+
+    // Extract unique connector names from enabled connectors
+    let active_connectors: Vec<String> = enabled_connectors
+        .into_iter()
+        .map(|mca| mca.get_connector_name_as_string())
+        .collect::<std::collections::HashSet<_>>()
+        .into_iter()
+        .collect();
 
     let mut dimension_filter = Map::new();
     dimension_filter.insert(
@@ -38,6 +60,15 @@ pub async fn get_superposition_sdk_config(
     dimension_filter.insert(
         "organization_id".to_string(),
         serde_json::Value::String(merchant_account.get_org_id().get_string_repr().to_string()),
+    );
+    dimension_filter.insert(
+        "connector".to_string(),
+        serde_json::Value::Array(
+            active_connectors
+                .into_iter()
+                .map(serde_json::Value::String)
+                .collect(),
+        ),
     );
 
     let cached_configs = state
