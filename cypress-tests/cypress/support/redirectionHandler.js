@@ -473,7 +473,7 @@ function bankRedirectRedirection(
               const klarnaOrigin = "https://payment.klarna.com";
               cy.origin(
                 klarnaOrigin,
-                { args: { constants: CONSTANTS } },
+                { args: { constants } },
                 ({ constants }) => {
                   cy.log(
                     "Executing on Klarna sandbox:",
