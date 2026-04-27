@@ -1146,9 +1146,6 @@ export const connectorDetails = {
       };
     },
     Benefit: getCustomExchange({
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
       Request: {
         payment_method: "card_redirect",
         payment_method_type: "benefit",
@@ -1175,11 +1172,19 @@ export const connectorDetails = {
         },
         currency: "USD",
       },
+      Response: {
+        status: 400,
+        body: {
+          error: {
+            type: "invalid_request",
+            code: "IR_39",
+            message:
+              "No eligible connector was found for the current payment method configuration",
+          },
+        },
+      },
     }),
     Knet: getCustomExchange({
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
       Request: {
         payment_method: "card_redirect",
         payment_method_type: "knet",
@@ -1204,6 +1209,17 @@ export const connectorDetails = {
           email: "test@example.com",
         },
         currency: "KWD",
+      },
+      Response: {
+        status: 400,
+        body: {
+          error: {
+            type: "invalid_request",
+            code: "IR_39",
+            message:
+              "No eligible connector was found for the current payment method configuration",
+          },
+        },
       },
     }),
     MomoAtm: getCustomExchange({
