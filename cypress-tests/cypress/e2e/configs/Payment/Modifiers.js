@@ -132,6 +132,11 @@ const CURRENCY_MAP = {
   OnlineBankingFpx: "MYR", // Malaysian payment methods
   Interac: "CAD", // Canadian payment method
   AliPayHk: "HKD", // Hong Kong payment method
+
+  // Card redirect payment methods
+  Benefit: "USD",
+  Knet: "KWD",
+  MomoAtm: "USD",
 };
 
 export const getCurrency = (paymentMethodType) => {

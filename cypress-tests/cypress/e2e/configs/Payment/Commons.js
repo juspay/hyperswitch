@@ -2563,6 +2563,86 @@ export const connectorDetails = {
       },
     },
   }),
+  card_redirect_pm: {
+    PaymentIntent: (paymentMethodType) =>
+      getCustomExchange({
+        Request: {
+          currency: getCurrency(paymentMethodType),
+        },
+        Response: {
+          status: 200,
+          body: {
+            status: "requires_payment_method",
+          },
+        },
+      }),
+    Benefit: getCustomExchange({
+      Request: {
+        payment_method: "card_redirect",
+        payment_method_type: "benefit",
+        payment_method_data: {
+          card_redirect: {
+            benefit: {},
+          },
+        },
+        billing: {
+          address: {
+            line1: "123 Test St",
+            city: "San Francisco",
+            state: "California",
+            zip: "94122",
+            country: "US",
+            first_name: "Test",
+            last_name: "Customer",
+          },
+          phone: {
+            number: "1234567890",
+            country_code: "+1",
+          },
+          email: "test@example.com",
+        },
+        currency: "USD",
+      },
+    }),
+    Knet: getCustomExchange({
+      Request: {
+        payment_method: "card_redirect",
+        payment_method_type: "knet",
+        payment_method_data: {
+          card_redirect: {
+            knet: {},
+          },
+        },
+        billing: {
+          address: {
+            line1: "123 Test St",
+            city: "Kuwait City",
+            zip: "10001",
+            country: "KW",
+            first_name: "Test",
+            last_name: "Customer",
+          },
+          phone: {
+            number: "1234567890",
+            country_code: "+965",
+          },
+          email: "test@example.com",
+        },
+        currency: "KWD",
+      },
+    }),
+    MomoAtm: getCustomExchange({
+      Request: {
+        payment_method: "card_redirect",
+        payment_method_type: "momo_atm",
+        payment_method_data: {
+          card_redirect: {
+            momo_atm: {},
+          },
+        },
+      },
+    }),
+  },
   payment_method_blocking_pm: {
     BlockIssuingCountry: getCustomExchange({
       Request: {
