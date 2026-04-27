@@ -252,6 +252,7 @@ Never share your secret api keys. Keep them guarded and secure.
         // Routes for card issuers
         routes::card_issuer::add_card_issuer,
         routes::card_issuer::update_card_issuer,
+        routes::card_issuer::delete_card_issuer,
         routes::card_issuer::list_card_issuers,
     ),
     components(schemas(
@@ -503,6 +504,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::card_issuer::CardIssuerRequest,
         api_models::card_issuer::CardIssuerResponse,
         api_models::card_issuer::CardIssuerUpdateRequest,
+        api_models::card_issuer::CardIssuerDeleteResponse,
         api_models::card_issuer::CardIssuerListQuery,
         api_models::card_issuer::CardIssuerListResponse,
         api_models::gsm::GsmCreateRequest,

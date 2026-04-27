@@ -8372,6 +8372,45 @@
             "admin_api_key": []
           }
         ]
+      },
+      "delete": {
+        "tags": [
+          "Card Issuer"
+        ],
+        "summary": "Card Issuer - Delete",
+        "description": "Deletes an existing card issuer entry",
+        "operationId": "Delete Card Issuer",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The unique identifier for the card issuer",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Card issuer deleted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CardIssuerDeleteResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Card issuer not found"
+          }
+        },
+        "security": [
+          {
+            "admin_api_key": []
+          }
+        ]
       }
     }
   },
@@ -14555,6 +14594,22 @@
           "saved_card",
           "click_to_pay"
         ]
+      },
+      "CardIssuerDeleteResponse": {
+        "type": "object",
+        "required": [
+          "id",
+          "deleted"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "deleted": {
+            "type": "boolean",
+            "example": true
+          }
+        }
       },
       "CardIssuerListQuery": {
         "type": "object",

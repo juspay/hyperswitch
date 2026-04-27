@@ -58,6 +58,27 @@ pub async fn update_card_issuer(
 }
 
 #[instrument(skip_all)]
+pub async fn delete_card_issuer(
+    state: SessionState,
+    id: id_type::CardIssuerId,
+) -> RouterResponse<api_types::CardIssuerDeleteResponse> {
+    let is_deleted = state
+        .store
+        .delete_card_issuer(id.clone())
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::GenericNotFoundError {
+            message: format!("Card issuer with id {} not found", id.get_string_repr()),
+        })?;
+
+    Ok(ApplicationResponse::Json(
+        api_types::CardIssuerDeleteResponse {
+            id,
+            deleted: is_deleted,
+        },
+    ))
+}
+
+#[instrument(skip_all)]
 pub async fn list_card_issuers(
     state: SessionState,
     query: api_types::CardIssuerListQuery,

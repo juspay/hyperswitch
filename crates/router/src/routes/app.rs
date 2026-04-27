@@ -1868,7 +1868,11 @@ impl CardIssuers {
                     .route(web::post().to(card_issuer::add_card_issuer))
                     .route(web::get().to(card_issuer::list_card_issuers)),
             )
-            .service(web::resource("/{id}").route(web::put().to(card_issuer::update_card_issuer)))
+            .service(
+                web::resource("/{id}")
+                    .route(web::put().to(card_issuer::update_card_issuer))
+                    .route(web::delete().to(card_issuer::delete_card_issuer)),
+            )
     }
 }
 
