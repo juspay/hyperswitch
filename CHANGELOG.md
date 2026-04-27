@@ -4,6 +4,60 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.04.27.0
+
+### Features
+
+- **payment-links:** Add test mode for PL previews ([#11724](https://github.com/juspay/hyperswitch/pull/11724)) ([`b8ccce4`](https://github.com/juspay/hyperswitch/commit/b8ccce4660ebb03aa4472ec239564729d20157d9))
+- **payment-methods:** Add forward compatibility for PM modular service ([#11942](https://github.com/juspay/hyperswitch/pull/11942)) ([`2b441d1`](https://github.com/juspay/hyperswitch/commit/2b441d15cd152a4fd5154b2fdf95ecee82e74fb9))
+- **router:** Add external vault sdk token support in sessions flow ([#11781](https://github.com/juspay/hyperswitch/pull/11781)) ([`5e1bb1c`](https://github.com/juspay/hyperswitch/commit/5e1bb1c6814c4c1885f7de38ec3cfd895d7b8554))
+
+### Bug Fixes
+
+- **injector:** Fix injector core flow ([#11784](https://github.com/juspay/hyperswitch/pull/11784)) ([`7683595`](https://github.com/juspay/hyperswitch/commit/7683595ef9888d69b336aea42a14e4f81d4178b6))
+
+### Testing
+
+- **cypress:** Add billing descriptor tests for Stripe, Nuvei, TrustPay, Finix ([#11921](https://github.com/juspay/hyperswitch/pull/11921)) ([`4e716d9`](https://github.com/juspay/hyperswitch/commit/4e716d99d52805ea3fdd8ff8242774a4e09736af))
+
+### Miscellaneous Tasks
+
+- Remove pm_modular feature flag ([#11868](https://github.com/juspay/hyperswitch/pull/11868)) ([`8510de7`](https://github.com/juspay/hyperswitch/commit/8510de7bdc922e606c376ee66957d6ddde421f88))
+
+**Full Changelog:** [`2026.04.24.0...2026.04.27.0`](https://github.com/juspay/hyperswitch/compare/2026.04.24.0...2026.04.27.0)
+
+- - -
+
+## 2026.04.24.0
+
+### Features
+
+- **reports:** Programmatic Report Delivery via Webhook ([#11518](https://github.com/juspay/hyperswitch/pull/11518)) ([`843d9ce`](https://github.com/juspay/hyperswitch/commit/843d9ce8669f8f97ccb66d8d970bc726f5de44b1))
+
+**Full Changelog:** [`2026.04.23.0...2026.04.24.0`](https://github.com/juspay/hyperswitch/compare/2026.04.23.0...2026.04.24.0)
+
+- - -
+
+## 2026.04.23.0
+
+### Features
+
+- **core:** Allow JWT authentication for Payments Void flow ([#11899](https://github.com/juspay/hyperswitch/pull/11899)) ([`24c4610`](https://github.com/juspay/hyperswitch/commit/24c4610c45d4d89b5b53ca4267dbb5f8935fde70))
+
+### Testing
+
+- **cypress:**
+  - Add bank debit sepa for novalnet ([#11909](https://github.com/juspay/hyperswitch/pull/11909)) ([`42f0a2d`](https://github.com/juspay/hyperswitch/commit/42f0a2d34e330e319c4e44edb2cff2a047174f3e))
+  - Add support ali_pay_hk for adyen connector ([#11903](https://github.com/juspay/hyperswitch/pull/11903)) ([`761f0af`](https://github.com/juspay/hyperswitch/commit/761f0af985d07ce947efba997bef8775d44bab6a))
+
+### Documentation
+
+- **README:** Revise cloud deployment details ([#11891](https://github.com/juspay/hyperswitch/pull/11891)) ([`b224091`](https://github.com/juspay/hyperswitch/commit/b2240919f46cfc7b5b81771507e74e9ddaf91769))
+
+**Full Changelog:** [`2026.04.22.0...2026.04.23.0`](https://github.com/juspay/hyperswitch/compare/2026.04.22.0...2026.04.23.0)
+
+- - -
+
 ## 2026.04.22.0
 
 ### Features
