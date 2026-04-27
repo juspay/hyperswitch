@@ -818,8 +818,7 @@ pub mod core {
                 insecure = config.insecure.unwrap_or(false),
                 cert_format = ?config.cert_format,
                 "Certificate configuration applied"
-            );
-/injector/src/injector.rs:903:41
+            );/crates/injector/src/injector.rs:905:22
             let request_builder = RequestBuilder::new()
                 .method(method)
                 .url(config.endpoint.as_str())
@@ -901,7 +900,7 @@ pub mod core {
                 let headers_peeked: std::collections::HashMap<&String, &str> = vault_proxy_request
                     .headers
                     .iter()
-                    .map(|(k, v)| (k, v.peek()))
+                    .map(|(k, v)| (k, v.peek().as_str()))
                     .collect();
                 logger::info!(
                     request_body = %vault_proxy_request.request_body,
