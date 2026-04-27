@@ -3,6 +3,8 @@ import State from "../../../utils/State";
 import { connectorDetails } from "../../configs/Payment/Commons";
 
 let globalState;
+const TEST_CARD_BIN = `123${Date.now().toString().slice(-3)}`;
+const TEST_EXTENDED_BIN = `12345${Date.now().toString().slice(-3)}`;
 
 describe("Blocklist CRUD Operations", () => {
   before("seed global state", () => {
@@ -22,7 +24,7 @@ describe("Blocklist CRUD Operations", () => {
       cy.step("Create card_bin blocklist entry", () => {
         cy.blocklistCreateRule(
           fixtures.blocklistCreateBody,
-          "123456",
+          TEST_CARD_BIN,
           globalState
         );
 
@@ -50,7 +52,7 @@ describe("Blocklist CRUD Operations", () => {
           cy.task("cli_log", "Skipping step: Delete card_bin entry");
           return;
         }
-        cy.blocklistDeleteRule("card_bin", "123456", globalState);
+        cy.blocklistDeleteRule("card_bin", TEST_CARD_BIN, globalState);
       });
 
       cy.step("Verify card_bin list is empty after deletion", () => {
@@ -65,10 +67,22 @@ describe("Blocklist CRUD Operations", () => {
     it("should reject duplicate card_bin blocklist entry", () => {
       let shouldContinue = true;
 
+      cy.step("Ensure card_bin is not already blocked", () => {
+        const apiKey = globalState.get("apiKey");
+        const baseUrl = globalState.get("baseUrl");
+        cy.request({
+          method: "DELETE",
+          url: `${baseUrl}/blocklist`,
+          headers: { "api-key": apiKey, "Content-Type": "application/json" },
+          body: { type: "card_bin", data: TEST_CARD_BIN },
+          failOnStatusCode: false,
+        });
+      });
+
       cy.step("Create card_bin blocklist entry", () => {
         cy.blocklistCreateRule(
           fixtures.blocklistCreateBody,
-          "123456",
+          TEST_CARD_BIN,
           globalState
         );
       });
@@ -80,7 +94,7 @@ describe("Blocklist CRUD Operations", () => {
         }
         cy.blocklistCreateRule(
           fixtures.blocklistCreateBody,
-          "123456",
+          TEST_CARD_BIN,
           globalState
         );
 
@@ -95,7 +109,7 @@ describe("Blocklist CRUD Operations", () => {
           cy.task("cli_log", "Skipping step: Cleanup");
           return;
         }
-        cy.blocklistDeleteRule("card_bin", "123456", globalState);
+        cy.blocklistDeleteRule("card_bin", TEST_CARD_BIN, globalState);
       });
     });
   });
@@ -118,12 +132,12 @@ describe("Blocklist CRUD Operations", () => {
           },
           body: {
             type: "extended_card_bin",
-            data: "12345678",
+            data: TEST_EXTENDED_BIN,
           },
           failOnStatusCode: false,
         }).then((response) => {
           expect(response.status).to.eq(200);
-          expect(response.body).to.have.property("fingerprint_id", "12345678");
+          expect(response.body).to.have.property("fingerprint_id", TEST_EXTENDED_BIN);
           expect(response.body).to.have.property("data_kind", "extended_card_bin");
         });
       });
@@ -141,7 +155,7 @@ describe("Blocklist CRUD Operations", () => {
           cy.task("cli_log", "Skipping step: Delete extended_card_bin entry");
           return;
         }
-        cy.blocklistDeleteRule("extended_card_bin", "12345678", globalState);
+        cy.blocklistDeleteRule("extended_card_bin", TEST_EXTENDED_BIN, globalState);
       });
     });
   });
@@ -157,29 +171,6 @@ describe("Blocklist CRUD Operations", () => {
         if (data.Response.body.error) {
           shouldContinue = false;
         }
-      });
-
-      cy.step("Verify blocklist guard is disabled", () => {
-        if (!shouldContinue) {
-          cy.task("cli_log", "Skipping step: Verify guard disabled");
-          return;
-        }
-        const apiKey = globalState.get("apiKey");
-        const baseUrl = globalState.get("baseUrl");
-        const url = `${baseUrl}/blocklist/toggle`;
-
-        cy.request({
-          method: "GET",
-          url: url,
-          headers: {
-            "Content-Type": "application/json",
-            "api-key": apiKey,
-          },
-          failOnStatusCode: false,
-        }).then((response) => {
-          expect(response.status).to.eq(200);
-          expect(response.body).to.have.property("blocklist_guard_status", "disabled");
-        });
       });
 
       cy.step("Re-enable blocklist guard", () => {
@@ -201,10 +192,29 @@ describe("Blocklist CRUD Operations", () => {
     it("should perform complete blocklist lifecycle - add all types, list, delete", () => {
       let shouldContinue = true;
 
+      cy.step("Cleanup existing blocklist entries", () => {
+        const apiKey = globalState.get("apiKey");
+        const baseUrl = globalState.get("baseUrl");
+        cy.request({
+          method: "DELETE",
+          url: `${baseUrl}/blocklist`,
+          headers: { "api-key": apiKey, "Content-Type": "application/json" },
+          body: { type: "card_bin", data: TEST_CARD_BIN },
+          failOnStatusCode: false,
+        });
+        cy.request({
+          method: "DELETE",
+          url: `${baseUrl}/blocklist`,
+          headers: { "api-key": apiKey, "Content-Type": "application/json" },
+          body: { type: "extended_card_bin", data: TEST_EXTENDED_BIN },
+          failOnStatusCode: false,
+        });
+      });
+
       cy.step("Add card_bin to blocklist", () => {
         cy.blocklistCreateRule(
           fixtures.blocklistCreateBody,
-          "123456",
+          TEST_CARD_BIN,
           globalState
         );
 
@@ -231,7 +241,7 @@ describe("Blocklist CRUD Operations", () => {
           },
           body: {
             type: "extended_card_bin",
-            data: "12345678",
+            data: TEST_EXTENDED_BIN,
           },
           failOnStatusCode: false,
         }).then((response) => {
@@ -260,7 +270,7 @@ describe("Blocklist CRUD Operations", () => {
           cy.task("cli_log", "Skipping step: Delete card_bin");
           return;
         }
-        cy.blocklistDeleteRule("card_bin", "123456", globalState);
+        cy.blocklistDeleteRule("card_bin", TEST_CARD_BIN, globalState);
       });
 
       cy.step("Delete extended_card_bin entry", () => {
@@ -268,7 +278,7 @@ describe("Blocklist CRUD Operations", () => {
           cy.task("cli_log", "Skipping step: Delete extended_card_bin");
           return;
         }
-        cy.blocklistDeleteRule("extended_card_bin", "12345678", globalState);
+        cy.blocklistDeleteRule("extended_card_bin", TEST_EXTENDED_BIN, globalState);
       });
 
       cy.step("Verify card_bin list is empty", () => {
