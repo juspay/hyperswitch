@@ -4,6 +4,22 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.02.02.0-hotfix16_1
+
+### Features
+
+- **blocking:** Add profile-based payment method blocking with CardSubtype variants ([#11796](https://github.com/juspay/hyperswitch/pull/11796)) ([#11915](https://github.com/juspay/hyperswitch/pull/11915)) ([`445f2b8`](https://github.com/juspay/hyperswitch/commit/445f2b8c8fbcccd58e14c49260beaa51185c67a9))
+- **connector:** [Stripe] Googlepay Predecrypted flow stripe ([#11919](https://github.com/juspay/hyperswitch/pull/11919)) ([`8c40006`](https://github.com/juspay/hyperswitch/commit/8c400064e05abc1c6b778f18f912a31b2d949e9f))
+
+### Bug Fixes
+
+- Add `client_secret` validation in session and eligibility authentication apis ([#11085](https://github.com/juspay/hyperswitch/pull/11085)) ([`50c3f77`](https://github.com/juspay/hyperswitch/commit/50c3f771c36fa270414d81b6d42fb980d2f1d976))
+
+**Full Changelog:** [`2026.02.02.0-hotfix16...2026.02.02.0-hotfix16_1`](https://github.com/juspay/hyperswitch/compare/2026.02.02.0-hotfix16...2026.02.02.0-hotfix16_1)
+
+- - -
+
+
 ## 2026.02.02.0-hotfix16
 
 ### Features
