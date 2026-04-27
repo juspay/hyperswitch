@@ -83,7 +83,7 @@ pub struct Profile {
     pub is_iframe_redirection_enabled: Option<bool>,
     pub is_pre_network_tokenization_enabled: bool,
     pub three_ds_decision_rule_algorithm: Option<serde_json::Value>,
-    pub acquirer_config_map: Option<common_types::domain::AcquirerConfigMap>,
+    pub acquirer_config_map: Option<common_types::domain::AcquirerConfigBucket>,
     pub merchant_category_code: Option<api_enums::MerchantCategoryCode>,
     pub merchant_country_code: Option<common_types::payments::MerchantCountryCode>,
     pub dispute_polling_interval: Option<primitive_wrappers::DisputePollingIntervalInHours>,
@@ -426,8 +426,8 @@ pub enum ProfileUpdate {
     CardTestingSecretKeyUpdate {
         card_testing_secret_key: OptionalEncryptableName,
     },
-    AcquirerConfigMapUpdate {
-        acquirer_config_map: Option<common_types::domain::AcquirerConfigMap>,
+    AcquirerConfigBucketUpdate {
+        acquirer_config_map: Option<common_types::domain::AcquirerConfigBucket>,
     },
     DefaultRoutingFallbackUpdate {
         default_fallback_routing: Option<pii::SecretSerdeValue>,
@@ -943,7 +943,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 payment_method_blocking: None,
                 default_fallback_routing: None,
             },
-            ProfileUpdate::AcquirerConfigMapUpdate {
+            ProfileUpdate::AcquirerConfigBucketUpdate {
                 acquirer_config_map,
             } => Self {
                 profile_name: None,

@@ -126,7 +126,7 @@ pub struct AcquirerConfig {
 #[derive(Serialize, Deserialize, Debug, Clone, FromSqlRow, AsExpression, ToSchema)]
 #[diesel(sql_type = Jsonb)]
 /// Acquirer config buckets: each ProfileAcquirerId maps to an array of per-network configs
-pub struct AcquirerConfigMap {
+pub struct AcquirerConfigBucket {
     /// The default acquirer config id
     #[schema(value_type= String,example = "pro_acq_LCRdERuylQvNQ4qh3QE0")]
     pub default_acquirer_config: Option<common_utils::id_type::ProfileAcquirerId>,
@@ -146,7 +146,7 @@ pub struct AcquirerConfigMap {
     pub configs: HashMap<common_utils::id_type::ProfileAcquirerId, Vec<AcquirerConfig>>,
 }
 
-impl_to_sql_from_sql_json!(AcquirerConfigMap);
+impl_to_sql_from_sql_json!(AcquirerConfigBucket);
 
 /// Merchant connector details
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]

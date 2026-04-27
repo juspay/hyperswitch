@@ -8797,7 +8797,7 @@
           }
         }
       },
-      "AcquirerConfigMap": {
+      "AcquirerConfigBucket": {
         "type": "object",
         "description": "Acquirer config buckets: each ProfileAcquirerId maps to an array of per-network configs",
         "required": [

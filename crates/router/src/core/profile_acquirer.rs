@@ -49,7 +49,7 @@ pub async fn create_profile_acquirer(
 
     // Initialize the new bucket as a Vec containing its first AcquirerConfig entry.
     let configs_map = business_profile.acquirer_config_map.get_or_insert_with(|| {
-        common_types::domain::AcquirerConfigMap {
+        common_types::domain::AcquirerConfigBucket {
             default_acquirer_config: None,
             configs: std::collections::HashMap::new(),
         }
@@ -64,7 +64,7 @@ pub async fn create_profile_acquirer(
         configs_map.default_acquirer_config = Some(profile_acquirer_id.clone());
     }
 
-    let profile_update = domain::ProfileUpdate::AcquirerConfigMapUpdate {
+    let profile_update = domain::ProfileUpdate::AcquirerConfigBucketUpdate {
         acquirer_config_map: business_profile.acquirer_config_map.clone(),
     };
     let updated_business_profile = db
@@ -176,7 +176,7 @@ pub async fn update_profile_acquirer_config(
 
     let updated_map_for_db_update = business_profile.acquirer_config_map.clone();
 
-    let profile_update = domain::ProfileUpdate::AcquirerConfigMapUpdate {
+    let profile_update = domain::ProfileUpdate::AcquirerConfigBucketUpdate {
         acquirer_config_map: updated_map_for_db_update,
     };
 
@@ -211,7 +211,7 @@ pub async fn update_profile_acquirer_config(
 /// Updates the `default_acquirer_config` pointer on the map and returns whether a change was made.
 #[cfg(all(feature = "olap", feature = "v1"))]
 fn apply_default_bucket_change(
-    config_map: &mut common_types::domain::AcquirerConfigMap,
+    config_map: &mut common_types::domain::AcquirerConfigBucket,
     profile_acquirer_id: &common_utils::id_type::ProfileAcquirerId,
     current_default_id: &Option<common_utils::id_type::ProfileAcquirerId>,
     is_default_request: Option<bool>,
@@ -233,7 +233,7 @@ fn apply_default_bucket_change(
 /// and writes it into the correct slot of the given bucket.
 #[cfg(all(feature = "olap", feature = "v1"))]
 fn upsert_acquirer_config_in_bucket(
-    config_map: &mut common_types::domain::AcquirerConfigMap,
+    config_map: &mut common_types::domain::AcquirerConfigBucket,
     profile_acquirer_id: &common_utils::id_type::ProfileAcquirerId,
     target_network: common_enums::enums::CardNetwork,
     request: &profile_acquirer::ProfileAcquirerUpdate,

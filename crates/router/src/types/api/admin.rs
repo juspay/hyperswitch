@@ -39,7 +39,7 @@ use crate::{
 
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct ProfileAcquirerConfigs {
-    pub acquirer_config_map: Option<common_types::domain::AcquirerConfigMap>,
+    pub acquirer_config_map: Option<common_types::domain::AcquirerConfigBucket>,
     pub profile_id: common_utils::id_type::ProfileId,
 }
 
