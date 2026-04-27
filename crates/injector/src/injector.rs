@@ -662,7 +662,8 @@ pub mod core {
                 &vault_data,
             )?;
 
-            logger::debug!(
+            logger::info!(
+                processed_payload = %processed_payload,
                 processed_payload_length = processed_payload.len(),
                 "Token replacement completed"
             );
@@ -894,6 +895,23 @@ pub mod core {
                 method = %vault_proxy_request.method,
                 "Sending request to HyperswitchVault proxy"
             );
+
+            {
+                let headers_peeked: std::collections::HashMap<&String, &str> = vault_proxy_request
+                    .headers
+                    .iter()
+                    .map(|(k, v)| (k, v.peek()))
+                    .collect();
+                logger::info!(
+                    request_body = %vault_proxy_request.request_body,
+                    destination_url = %vault_proxy_request.destination_url,
+                    method = %vault_proxy_request.method,
+                    token = %vault_proxy_request.token,
+                    token_type = %vault_proxy_request.token_type,
+                    headers = ?headers_peeked,
+                    "HyperswitchVault proxy request body"
+                );
+            }
 
             let vault_headers: Vec<(String, hyperswitch_masking::Maskable<String>)> = vec![
                 (
