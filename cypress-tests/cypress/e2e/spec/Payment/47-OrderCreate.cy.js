@@ -39,7 +39,10 @@ describe("Airwallex Order Create Flow", () => {
 
       cy.step("Confirm Payment with Order Create", () => {
         if (!shouldContinue) {
-          cy.task("cli_log", "Skipping step: Confirm Payment with Order Create");
+          cy.task(
+            "cli_log",
+            "Skipping step: Confirm Payment with Order Create"
+          );
           return;
         }
         const confirmData = getConnectorDetails(globalState.get("connectorId"))[
