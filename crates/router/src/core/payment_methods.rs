@@ -3204,7 +3204,7 @@ pub async fn create_payment_method_for_confirm(
                 connector_mandate_details: None,
                 customer_acceptance: None,
                 client_secret: None,
-                status,
+                status: enums::PaymentMethodStatus::New,
                 network_transaction_id: None,
                 created_at: current_time,
                 last_modified: current_time,
@@ -4221,8 +4221,7 @@ pub async fn retrieve_payment_method(
     let raw_payment_method_data = raw_payment_method_fetch_access
         .get_raw_payment_method_data(&state, &platform, &profile, &payment_method, storage_type)
         .await
-        .attach_printable("Failed to get raw payment method data")?
-        .and_then(|data| data.convert_to_raw_payment_method_data());
+        .attach_printable("Failed to get raw payment method data")?;
 
     let raw_network_token_details = raw_payment_method_fetch_access
         .get_raw_network_token_data(&state, &platform, &profile, &payment_method, storage_type)
@@ -4468,11 +4467,29 @@ impl RawPaymentMethodFetchAccess {
         profile: &domain::Profile,
         payment_method: &domain::PaymentMethod,
         storage_type: common_enums::StorageType,
-    ) -> RouterResult<Option<hyperswitch_domain_models::vault::PaymentMethodVaultingData>> {
+    ) -> RouterResult<Option<payment_methods::RawPaymentMethodData>> {
         match self {
             Self::Denied => {
                 logger::debug!("Raw payment method fetch access denied");
-                Ok(None)
+                // When access is denied, check if the payment method has external vault token data.
+                // If present, return it as a ProxyCard so non-PCI-compliant merchants can still
+                // receive a tokenized card reference in the retrieve response.
+                let proxy_card_data = payment_method
+                    .external_vault_token_data
+                    .clone()
+                    .map(|enc| enc.into_inner());
+                match proxy_card_data {
+                    Some(external_vault_token_data) => Ok(Some(
+                        payment_methods::RawPaymentMethodData::ProxyCard(
+                            payment_methods::RawProxyCardDataResponse {
+                                card_number: external_vault_token_data.tokenized_card_number,
+                                card_exp_year: None,
+                                card_exp_month: None,
+                            },
+                        ),
+                    )),
+                    None => Ok(None),
+                }
             }
 
             Self::Allowed => {
@@ -4495,14 +4512,15 @@ impl RawPaymentMethodFetchAccess {
                     .attach_printable("Failed to retrieve payment method from vault")?
                     .data;
 
-                    let data = vault_data
+                    let payment_method_vault_data = vault_data
                         .populated_payment_methods_data_and_get_payment_method_vaulting_data(
                             payment_method.payment_method_data.as_ref(),
                         )
                         .attach_printable(
                             "Failed to get card details for payment method vaulting data",
-                        )?;
-                    Ok(Some(data))
+                        )?
+                        .convert_to_raw_payment_method_data();
+                    Ok(payment_method_vault_data)
                 }
             }
         }

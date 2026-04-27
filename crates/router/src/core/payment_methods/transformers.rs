@@ -1692,6 +1692,12 @@ impl
                     ))),
                 }
             }
+            payment_methods::types::RawPaymentMethodData::ProxyCard(_proxy_card_data) => {
+                // ProxyCard is not applicable for v1 flows
+                // This variant exists in v2 retrieve responses for external vault token data
+                Err(error_stack::report!(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("ProxyCard raw payment method data is not supported in v1 flows"))
+            }
         }
     }
 }
@@ -1942,6 +1948,7 @@ pub async fn create_payment_method_in_modular_service(
         ),
         storage_type: Some(common_enums::StorageType::Persistent),
         modular_service_prefix: state.conf.micro_services.payment_methods_prefix.0.clone(),
+        proxy_card_data: None,
     };
 
     //Create modular service call
@@ -1954,6 +1961,46 @@ pub async fn create_payment_method_in_modular_service(
     .await?;
 
     //Convert PMResponse to PaymentMethodWithRawData
+    let payment_method_with_raw_data = DomainPaymentMethodWrapper::try_from(pm_response)?;
+
+    Ok(payment_method_with_raw_data.0)
+}
+
+#[cfg(feature = "v1")]
+pub async fn create_proxy_card_payment_method_in_modular_service(
+    state: &routes::SessionState,
+    provider_merchant_id: &id_type::MerchantId,
+    processor_merchant_id: &id_type::MerchantId,
+    profile_id: &id_type::ProfileId,
+    payment_method: common_enums::PaymentMethod,
+    payment_method_type: Option<common_enums::PaymentMethodType>,
+    vault_card: hyperswitch_domain_models::payment_method_data::ExternalVaultCard,
+    billing_address: Option<hyperswitch_domain_models::address::Address>,
+    customer_id: id_type::CustomerId,
+) -> CustomResult<domain::PaymentMethod, errors::ApiErrorResponse> {
+    // Use a placeholder PaymentMethodData::MandatePayment since proxy_card_data overrides it
+    let payment_method_request = CreatePaymentMethodV1Request {
+        merchant_id: provider_merchant_id.clone(),
+        payment_method,
+        payment_method_type,
+        metadata: None,
+        customer_id,
+        payment_method_data: domain::PaymentMethodData::MandatePayment,
+        billing: billing_address,
+        network_tokenization: None,
+        storage_type: Some(common_enums::StorageType::Persistent),
+        modular_service_prefix: state.conf.micro_services.payment_methods_prefix.0.clone(),
+        proxy_card_data: Some(vault_card),
+    };
+
+    let pm_response = create_pm_modular_service_call(
+        state,
+        processor_merchant_id,
+        profile_id,
+        payment_method_request,
+    )
+    .await?;
+
     let payment_method_with_raw_data = DomainPaymentMethodWrapper::try_from(pm_response)?;
 
     Ok(payment_method_with_raw_data.0)

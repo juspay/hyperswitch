@@ -1928,7 +1928,7 @@ where
                 .to_post_update_tracker()?
                 .update_tracker(
                     state,
-                    platformmak.get_processor(),
+                    platform.get_processor(),
                     platform.get_initiator(),
                     payment_data,
                     router_data,
@@ -2710,6 +2710,11 @@ where
     // #[cfg(feature = "pm_modular")]
     let feature_config = core_utils::get_feature_config(state, &platform, &dimensions).await;
 
+    let payment_method_info = operation
+        .to_domain()?
+        .fetch_payment_method(state, &req, &platform, &feature_config)
+        .await?;
+
     let operations::GetTrackerResponse {
         operation,
         customer_details,
@@ -2725,7 +2730,7 @@ where
             &platform,
             auth_flow,
             &header_payload,
-            None,
+            payment_method_info,
             &dimensions,
         )
         .await?;
@@ -2787,6 +2792,18 @@ where
         .await
         .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)
         .attach_printable("Failed while fetching/creating customer")?;
+
+    operation
+        .to_domain()?
+        .create_payment_method(
+            state,
+            &req,
+            &platform,
+            &mut payment_data,
+            &business_profile,
+            &feature_config,
+        )
+        .await?;
 
     // Fetch the payment MCA
     let merchant_connector_account = construct_profile_id_and_get_mca(

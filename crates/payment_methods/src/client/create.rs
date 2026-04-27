@@ -30,6 +30,8 @@ pub struct CreatePaymentMethodV1Request {
     pub network_tokenization: Option<common_types::payment_methods::NetworkTokenization>,
     pub storage_type: Option<common_enums::StorageType>,
     pub modular_service_prefix: String,
+    /// When set, overrides `payment_method_data` and creates a ProxyCard payment method.
+    pub proxy_card_data: Option<hyperswitch_domain_models::payment_method_data::ExternalVaultCard>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -67,14 +69,31 @@ pub enum WalletPaymentMethodData {
     ApplePay(Box<api_models::payment_methods::PaymentMethodDataWalletInfo>),
     GooglePay(Box<api_models::payment_methods::PaymentMethodDataWalletInfo>),
     PayPal(Box<payments::PaypalRedirection>),
-}
+} 
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum PaymentMethodCreateData {
     Card(CardDetail),
+    ProxyCard(ProxyCardDetail),
     BankDebit(BankDebitDetail),
     Wallet(WalletPaymentMethodData),
+}
+
+/// Tokenized card data for external vault proxy PM creation
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ProxyCardDetail {
+    pub card_number: hyperswitch_masking::Secret<String>,
+    pub card_exp_month: hyperswitch_masking::Secret<String>,
+    pub card_exp_year: hyperswitch_masking::Secret<String>,
+    pub bin_number: Option<String>,
+    pub last_four: Option<String>,
+    pub card_issuer: Option<String>,
+    pub card_network: Option<common_enums::CardNetwork>,
+    pub card_type: Option<common_enums::CardType>,
+    pub card_issuing_country: Option<String>,
+    pub nick_name: Option<hyperswitch_masking::Secret<String>>,
+    pub card_holder_name: Option<hyperswitch_masking::Secret<String>>,
 }
 
 #[derive(Clone, Debug, Deserialize)]
@@ -241,12 +260,38 @@ impl TryFrom<PaymentMethodData> for PaymentMethodCreateData {
     }
 }
 
+impl
+    From<hyperswitch_domain_models::payment_method_data::ExternalVaultCard>
+    for PaymentMethodCreateData
+{
+    fn from(
+        vault_card: hyperswitch_domain_models::payment_method_data::ExternalVaultCard,
+    ) -> Self {
+        Self::ProxyCard(ProxyCardDetail {
+            card_number: vault_card.card_number,
+            card_exp_month: vault_card.card_exp_month,
+            card_exp_year: vault_card.card_exp_year,
+            bin_number: vault_card.bin_number,
+            last_four: vault_card.last_four,
+            card_issuer: vault_card.card_issuer,
+            card_network: vault_card.card_network,
+            card_type: None,
+            card_issuing_country: vault_card.card_issuing_country,
+            nick_name: vault_card.nick_name,
+            card_holder_name: vault_card.card_holder_name,
+        })
+    }
+}
+
 impl TryFrom<&CreatePaymentMethodV1Request> for ModularPMCreateRequest {
     type Error = MicroserviceClientError;
 
     fn try_from(request: &CreatePaymentMethodV1Request) -> Result<Self, Self::Error> {
-        let payment_method_data =
-            PaymentMethodCreateData::try_from(request.payment_method_data.clone())?;
+        let payment_method_data = if let Some(proxy_card) = request.proxy_card_data.clone() {
+            PaymentMethodCreateData::from(proxy_card)
+        } else {
+            PaymentMethodCreateData::try_from(request.payment_method_data.clone())?
+        };
         Ok(Self {
             payment_method_type: request.payment_method,
             payment_method_subtype: request.payment_method_type,

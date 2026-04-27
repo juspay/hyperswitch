@@ -2,6 +2,7 @@ use std::marker::PhantomData;
 
 use api_models::{enums::FrmSuggestion, payments::ExternalVaultProxyConfirmRequest};
 use async_trait::async_trait;
+use common_enums;
 use error_stack::ResultExt;
 use router_env::{instrument, tracing};
 
@@ -11,10 +12,12 @@ use crate::{
     core::{
         configs::dimension_state,
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
+        payment_methods::{self, transformers as pm_transformers},
         payments::{
             helpers, operations,
-            CustomerDetails, PaymentAddress, PaymentData,
+            CustomerDetails, OperationSessionSetters, PaymentAddress, PaymentData,
         },
+        utils as core_utils,
     },
     routes::{app::ReqState, SessionState},
     services,
@@ -101,6 +104,278 @@ impl<F: Send + Clone + Sync>
     GetTracker<F, PaymentData<F>, ExternalVaultProxyConfirmRequest>
     for PaymentExternalVaultProxyConfirm
 {
+    #[instrument(skip_all)]
+    async fn get_trackers<'a>(
+        &'a self,
+        state: &'a SessionState,
+        payment_id: &api::PaymentIdType,
+        request: &ExternalVaultProxyConfirmRequest,
+        platform: &domain::Platform,
+        _auth_flow: services::AuthFlow,
+        _header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
+        payment_method_wrapper: Option<PaymentMethodWithRawData>,
+        _dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
+    ) -> RouterResult<
+        operations::GetTrackerResponse<'a, F, ExternalVaultProxyConfirmRequest, PaymentData<F>>,
+    > {
+        let db = &*state.store;
+        let processor_merchant_id = platform.get_processor().get_account().get_id();
+        let storage_scheme = platform.get_processor().get_account().storage_scheme;
+
+        let payment_id = payment_id
+            .get_payment_intent_id()
+            .change_context(errors::ApiErrorResponse::PaymentNotFound)?;
+
+        let payment_intent = db
+            .find_payment_intent_by_payment_id_processor_merchant_id(
+                &payment_id,
+                processor_merchant_id,
+                platform.get_processor().get_key_store(),
+                storage_scheme,
+            )
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+
+        helpers::validate_payment_status_against_not_allowed_statuses(
+            payment_intent.status,
+            &[
+                storage_enums::IntentStatus::Cancelled,
+                storage_enums::IntentStatus::Succeeded,
+                storage_enums::IntentStatus::Processing,
+                storage_enums::IntentStatus::RequiresCapture,
+                storage_enums::IntentStatus::RequiresMerchantAction,
+                storage_enums::IntentStatus::RequiresCustomerAction,
+            ],
+            "external_vault_proxy_confirm",
+        )?;
+
+        let mut payment_attempt = db
+            .find_payment_attempt_by_payment_id_processor_merchant_id_attempt_id(
+                &payment_intent.payment_id,
+                processor_merchant_id,
+                payment_intent.active_attempt.get_id().as_str(),
+                storage_scheme,
+                platform.get_processor().get_key_store(),
+            )
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+
+        let currency = payment_attempt.currency.get_required_value("currency")?;
+        let amount = payment_attempt.get_total_amount().into();
+
+        let shipping_address = helpers::get_address_by_id(
+            state,
+            payment_intent.shipping_address_id.clone(),
+            platform.get_processor().get_key_store(),
+            &payment_intent.payment_id,
+            processor_merchant_id,
+            storage_scheme,
+        )
+        .await?;
+
+        let billing_address = helpers::get_address_by_id(
+            state,
+            payment_intent.billing_address_id.clone(),
+            platform.get_processor().get_key_store(),
+            &payment_intent.payment_id,
+            processor_merchant_id,
+            storage_scheme,
+        )
+        .await?;
+
+        let payment_method_billing = helpers::get_address_by_id(
+            state,
+            payment_attempt.payment_method_billing_address_id.clone(),
+            platform.get_processor().get_key_store(),
+            &payment_intent.payment_id,
+            processor_merchant_id,
+            storage_scheme,
+        )
+        .await?;
+
+        let profile_id = payment_intent
+            .profile_id
+            .as_ref()
+            .get_required_value("profile_id")
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("'profile_id' not set in payment intent")?;
+
+        let business_profile = db
+            .find_business_profile_by_profile_id(
+                platform.get_processor().get_key_store(),
+                profile_id,
+            )
+            .await
+            .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {
+                id: profile_id.get_string_repr().to_owned(),
+            })?;
+
+        let customer_details = CustomerDetails {
+            customer_id: payment_intent.customer_id.clone(),
+            ..CustomerDetails::default()
+        };
+
+        // If payment_method_wrapper was already fetched (from fetch_payment_method), use it.
+        // Otherwise, if payment_token is present and no wrapper yet, fetch from modular service now.
+        let payment_method_wrapper = if payment_method_wrapper.is_none() {
+            if let Some(payment_token) = &request.payment_token {
+                router_env::logger::info!(
+                    "Fetching payment method from modular service for external vault proxy (token: {})",
+                    payment_token
+                );
+                match pm_transformers::fetch_payment_method_from_modular_service(
+                    state,
+                    platform,
+                    profile_id,
+                    payment_token,
+                    None,
+                )
+                .await
+                {
+                    Ok(pm_info) => {
+                        router_env::logger::info!("Payment method fetched from modular service for external vault proxy");
+                        Some(pm_info)
+                    }
+                    Err(err) => {
+                        router_env::logger::error!(
+                            error=?err,
+                            "Failed to fetch payment method from modular service for external vault proxy"
+                        );
+                        None
+                    }
+                }
+            } else {
+                None
+            }
+        } else {
+            payment_method_wrapper
+        };
+
+        // Derive external_vault_pmd:
+        // 1. If we have a ProxyCard from the modular service retrieve, use it as ExternalVaultCard.
+        // 2. Otherwise, parse from the request's payment_method_data (VaultDataCard flow).
+        let external_vault_pmd = if let Some(ref wrapper) = payment_method_wrapper {
+            // Check if raw data is a ProxyCard (vault token reference from modular service)
+            let from_proxy_card = wrapper.raw_payment_method_data.as_ref().and_then(|raw| {
+                match raw {
+                    hyperswitch_domain_models::payment_method_data::PaymentMethodData::CardWithOptionalCVC(card) => {
+                        // Build ExternalVaultCard from the retrieved card data
+                        Some(hyperswitch_domain_models::payment_method_data::ExternalVaultPaymentMethodData::Card(
+                            Box::new(hyperswitch_domain_models::payment_method_data::ExternalVaultCard {
+                                card_number: hyperswitch_masking::Secret::new(card.card_number.get_card_no()),
+                                card_exp_month: card.card_exp_month.clone(),
+                                card_exp_year: card.card_exp_year.clone(),
+                                card_cvc: card.card_cvc.clone().unwrap_or_default(),
+                                bin_number: None,
+                                last_four: None,
+                                card_issuer: card.card_issuer.clone(),
+                                card_network: card.card_network.clone(),
+                                card_type: card.card_type.clone(),
+                                card_issuing_country: card.card_issuing_country.clone(),
+                                bank_code: card.bank_code.clone(),
+                                nick_name: card.nick_name.clone(),
+                                card_holder_name: card.card_holder_name.clone(),
+                                co_badged_card_data: card.co_badged_card_data.clone(),
+                            }),
+                        ))
+                    }
+                    _ => None,
+                }
+            });
+            from_proxy_card.or_else(|| {
+                request
+                    .payment_method_data
+                    .payment_method_data
+                    .clone()
+                    .map(hyperswitch_domain_models::payment_method_data::ExternalVaultPaymentMethodData::from)
+            })
+        } else {
+            // No wrapper: parse from request
+            request
+                .payment_method_data
+                .payment_method_data
+                .clone()
+                .map(hyperswitch_domain_models::payment_method_data::ExternalVaultPaymentMethodData::from)
+        };
+
+        // Set payment_method and payment_method_type on the attempt so the routing
+        // engine can match connectors (they may not be set on the attempt yet when
+        // payment was created without a payment method).
+        payment_attempt.payment_method = Some(request.payment_method_type);
+        payment_attempt.payment_method_type = Some(request.payment_method_subtype);
+
+        let payment_method_info = payment_method_wrapper.map(|w| w.payment_method.0);
+
+        let payment_data = PaymentData {
+            flow: PhantomData,
+            payment_intent,
+            currency,
+            amount,
+            mandate_id: None,
+            mandate_connector: None,
+            setup_mandate: None,
+            customer_acceptance: request.customer_acceptance.clone(),
+            token: request.payment_token.clone(),
+            address: PaymentAddress::new(
+                shipping_address.as_ref().map(From::from),
+                billing_address.as_ref().map(From::from),
+                payment_method_billing.as_ref().map(From::from),
+                business_profile.use_billing_as_payment_method_billing,
+            ),
+            token_data: None,
+            confirm: Some(true),
+            payment_attempt,
+            payment_method_data: None,
+            payment_method_token: None,
+            payment_method_info,
+            force_sync: None,
+            all_keys_required: None,
+            refunds: vec![],
+            disputes: vec![],
+            attempts: None,
+            sessions_token: vec![],
+            card_cvc: None,
+            creds_identifier: None,
+            pm_token: None,
+            connector_customer_id: None,
+            recurring_mandate_payment_data: None,
+            multiple_capture_data: None,
+            redirect_response: None,
+            surcharge_details: None,
+            frm_message: None,
+            payment_link_data: None,
+            incremental_authorization_details: None,
+            authorizations: vec![],
+            authentication: None,
+            recurring_details: None,
+            poll_config: None,
+            tax_data: None,
+            session_id: None,
+            service_details: None,
+            card_testing_guard_data: None,
+            vault_operation: None,
+            threeds_method_comp_ind: None,
+            whole_connector_response: None,
+            is_manual_retry_enabled: business_profile.is_manual_retry_enabled,
+            is_l2_l3_enabled: business_profile.is_l2_l3_enabled,
+            external_authentication_data: None,
+            vault_session_details: None,
+            external_vault_pmd,
+            client_session_id: None,
+        };
+
+        let get_trackers_response = operations::GetTrackerResponse {
+            operation: Box::new(*self),
+            customer_details: Some(customer_details),
+            payment_data,
+            business_profile,
+            mandate_type: None,
+        };
+
+        Ok(get_trackers_response)
+    }
+
+    #[cfg(feature = "v2")]
     #[instrument(skip_all)]
     async fn get_trackers<'a>(
         &'a self,
@@ -449,6 +724,117 @@ impl<F: Clone + Send + Sync>
     Domain<F, ExternalVaultProxyConfirmRequest, PaymentData<F>>
     for PaymentExternalVaultProxyConfirm
 {
+    #[cfg(feature = "v1")]
+    #[instrument(skip_all)]
+    async fn fetch_payment_method(
+        &self,
+        state: &SessionState,
+        req: &ExternalVaultProxyConfirmRequest,
+        platform: &domain::Platform,
+        feature_config: &core_utils::FeatureConfig,
+    ) -> RouterResult<Option<PaymentMethodWithRawData>> {
+        if !feature_config.is_payment_method_modular_allowed {
+            router_env::logger::info!("Organization is not eligible for PM Modular Service, skipping fetch payment method for external vault proxy.");
+            return Ok(None);
+        }
+        let Some(payment_token) = &req.payment_token else {
+            return Ok(None);
+        };
+        // Try to get profile_id from the platform (best-effort; may not be available yet)
+        let profile_id = platform
+            .get_processor()
+            .get_account()
+            .get_default_profile()
+            .clone();
+        let Some(profile_id) = profile_id else {
+            // profile_id will be resolved in get_trackers; fetch will happen there instead
+            router_env::logger::info!("profile_id not available before get_trackers; PM fetch deferred to get_trackers for external vault proxy.");
+            return Ok(None);
+        };
+        router_env::logger::info!(
+            "Fetching payment method from modular service (token: {}) for external vault proxy.",
+            payment_token
+        );
+        match pm_transformers::fetch_payment_method_from_modular_service(
+            state,
+            platform,
+            &profile_id,
+            payment_token,
+            None,
+        )
+        .await
+        {
+            Ok(pm_info) => Ok(Some(pm_info)),
+            Err(err) => {
+                router_env::logger::error!(error=?err, "Failed to fetch PM from modular service for external vault proxy (pre get_trackers); will retry in get_trackers.");
+                Ok(None)
+            }
+        }
+    }
+
+    #[cfg(feature = "v1")]
+    #[instrument(skip_all)]
+    async fn create_payment_method(
+        &self,
+        state: &SessionState,
+        _req: &ExternalVaultProxyConfirmRequest,
+        platform: &domain::Platform,
+        payment_data: &mut PaymentData<F>,
+        business_profile: &domain::Profile,
+        feature_config: &core_utils::FeatureConfig,
+    ) -> RouterResult<()> {
+        if !feature_config.is_payment_method_modular_allowed {
+            return Ok(());
+        }
+        // Only create if customer has given acceptance
+        if payment_data.customer_acceptance.is_none() {
+            return Ok(());
+        }
+        // Only create for ExternalVaultCard (proxy card flow)
+        let vault_card = match payment_data.external_vault_pmd.clone() {
+            Some(
+                hyperswitch_domain_models::payment_method_data::ExternalVaultPaymentMethodData::Card(
+                    card,
+                ),
+            ) => *card,
+            _ => return Ok(()),
+        };
+        let customer_id = payment_data
+            .payment_intent
+            .customer_id
+            .clone()
+            .get_required_value("customer_id")?;
+        let payment_method = payment_data
+            .payment_attempt
+            .payment_method
+            .unwrap_or(common_enums::PaymentMethod::Card);
+        let payment_method_type = payment_data.payment_attempt.payment_method_type;
+
+        match pm_transformers::create_proxy_card_payment_method_in_modular_service(
+            state,
+            platform.get_provider().get_account().get_id(),
+            platform.get_processor().get_account().get_id(),
+            business_profile.get_id(),
+            payment_method,
+            payment_method_type,
+            vault_card,
+            payment_data.address.get_payment_method_billing().cloned(),
+            customer_id,
+        )
+        .await
+        {
+            Ok(pm_info) => {
+                router_env::logger::info!("Proxy card payment method created in modular service successfully");
+                payment_data.set_payment_method_id_in_attempt(Some(pm_info.get_id().clone()));
+                payment_data.set_payment_method_info(Some(pm_info));
+            }
+            Err(err) => {
+                router_env::logger::error!(error=?err, "Failed to create proxy card PM in modular service for external vault proxy");
+            }
+        }
+        Ok(())
+    }
+
     #[instrument(skip_all)]
     async fn get_or_create_customer_details<'a>(
         &'a self,

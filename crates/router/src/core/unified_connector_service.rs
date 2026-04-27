@@ -1882,7 +1882,7 @@ pub fn build_unified_connector_service_external_vault_proxy_metadata_v1(
         }
         api_enums::VaultConnectors::HyperswitchVault => {
             let base = &connectors.hyperswitch_vault.base_url;
-            let vault_endpoint_url = format!("{}/v2/proxy", base)
+            let vault_endpoint_url = format!("{}/proxy", base)
                 .parse::<url::Url>()
                 .map(common_utils::types::Url::wrap)
                 .change_context(UnifiedConnectorServiceError::ParsingFailed)
@@ -1929,6 +1929,8 @@ pub fn build_unified_connector_service_external_vault_proxy_metadata_v1(
             )
         ))?,
     };
+
+    logger::info!(external_vault_proxy_config = ?external_vault_proxy_config, "Built ExternalVaultProxyConfig (v1)");
 
     let external_vault_config_bytes = serde_json::to_vec(&external_vault_proxy_config)
         .change_context(UnifiedConnectorServiceError::ParsingFailed)
@@ -1978,7 +1980,7 @@ pub fn build_unified_connector_service_external_vault_proxy_metadata(
         }
         api_enums::VaultConnectors::HyperswitchVault => {
             let base = &connectors.hyperswitch_vault.base_url;
-            let vault_endpoint_url = format!("{}/v2/proxy", base)
+            let vault_endpoint_url = format!("{}/proxy", base)
                 .parse::<url::Url>()
                 .map(common_utils::types::Url::wrap)
                 .change_context(UnifiedConnectorServiceError::ParsingFailed)
@@ -2024,6 +2026,8 @@ pub fn build_unified_connector_service_external_vault_proxy_metadata(
             )
         ))?,
     };
+
+    logger::info!(external_vault_proxy_config = ?external_vault_proxy_config, "Built ExternalVaultProxyConfig (v2)");
 
     let external_vault_config_bytes = serde_json::to_vec(&external_vault_proxy_config)
         .change_context(UnifiedConnectorServiceError::ParsingFailed)
