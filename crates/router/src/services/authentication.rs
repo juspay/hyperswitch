@@ -6429,7 +6429,7 @@ where
 }
 
 /// Fetches the platform merchant account and key store
-async fn get_platform_account_and_key_store<A>(
+pub(crate) async fn get_platform_account_and_key_store<A>(
     state: &A,
     merchant_account: &domain::MerchantAccount,
 ) -> RouterResult<(domain::MerchantAccount, domain::MerchantKeyStore)>

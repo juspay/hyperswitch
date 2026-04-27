@@ -2821,7 +2821,13 @@ pub async fn trigger_webhook_and_handle_response(
     payout_data: &PayoutData,
 ) -> RouterResponse<payouts::PayoutCreateResponse> {
     let response = response_handler(state, platform, payout_data).await?;
-    utils::trigger_payouts_webhook(state, platform, &response).await?;
+    utils::trigger_payouts_webhook(
+        state,
+        platform,
+        &response,
+        payout_data.payouts.created_by.as_ref(),
+    )
+    .await?;
     Ok(services::ApplicationResponse::Json(response))
 }
 

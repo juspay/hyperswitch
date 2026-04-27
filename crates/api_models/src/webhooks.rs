@@ -434,7 +434,7 @@ pub struct PayoutWebhookUpdate {
 
 #[derive(Debug, Serialize, ToSchema)]
 pub struct OutgoingWebhook {
-    /// The merchant id of the merchant
+    /// The provider merchant id (platform/business owner)
     #[schema(value_type = String)]
     pub merchant_id: common_utils::id_type::MerchantId,
 
@@ -451,6 +451,10 @@ pub struct OutgoingWebhook {
     /// The time at which webhook was sent
     #[serde(default, with = "custom_serde::iso8601")]
     pub timestamp: PrimitiveDateTime,
+
+    /// The merchant id of the merchant account whose connector credentials are used for payment processing
+    #[schema(value_type = Option<String>)]
+    pub processor_merchant_id: Option<common_utils::id_type::MerchantId>,
 }
 
 #[derive(Debug, Clone, Serialize, ToSchema)]

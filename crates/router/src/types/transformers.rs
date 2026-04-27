@@ -2073,6 +2073,7 @@ impl TryFrom<domain::Event> for api_models::webhook_events::EventListItemRespons
             event_class: item.event_class,
             is_delivery_successful: item.is_overall_delivery_successful,
             initial_attempt_id,
+            processor_merchant_id: item.processor_merchant_id,
             created: item.created_at,
         })
     }

@@ -6,6 +6,7 @@ use common_utils::{
     crypto::{self, GenerateDigest},
     errors::CustomResult,
     ext_traits::ValueExt,
+    fp_utils,
 };
 use error_stack::{Report, ResultExt};
 use redis_interface as redis;
@@ -222,6 +223,149 @@ pub fn is_outgoing_webhook_disabled(
         return true;
     }
     false
+}
+
+/// Context resolved for outgoing webhook delivery, containing the recipient's
+/// merchant account, keystore, and business profile.
+pub(crate) struct WebhookRecipientContext {
+    /// The webhook recipient's merchant account.
+    pub merchant_account: domain::MerchantAccount,
+    /// The webhook recipient's keystore (used for encryption/decryption).
+    pub key_store: domain::MerchantKeyStore,
+    /// The business profile from which the webhook URL and config are read.
+    pub profile: domain::Profile,
+}
+
+/// Resolves the webhook recipient from the `created_by` field on the resource.
+///
+/// Used in the incoming webhook flow where the Platform struct has no initiator populated.
+/// Falls back to processor/connected merchant when `created_by` is absent.
+///
+/// Only `CreatedBy::Api` is considered for platform initiation — `EmbeddedToken`
+/// and `Jwt` variants do not carry platform context.
+pub(crate) async fn resolve_webhook_recipient_from_created_by(
+    state: &SessionState,
+    platform: &domain::Platform,
+    profile: &domain::Profile,
+    created_by: Option<&common_utils::types::CreatedBy>,
+) -> CustomResult<WebhookRecipientContext, errors::ApiErrorResponse> {
+    let provider_merchant_id = platform.get_provider().get_account().get_id();
+    let processor_merchant_id = platform.get_processor().get_account().get_id();
+
+    let is_platform_initiated = if provider_merchant_id == processor_merchant_id {
+        // Standard merchant setup — provider and processor are the same entity.
+        false
+    } else {
+        // Platform setup — check if the creator is the provider (platform merchant).
+        created_by
+            .map(|created_by| created_by.is_provider_initiated(provider_merchant_id))
+            .unwrap_or_default()
+    };
+
+    logger::debug!(
+        ?created_by,
+        provider_merchant_id=?provider_merchant_id,
+        processor_merchant_id=?processor_merchant_id,
+        is_platform_initiated,
+        "Resolving webhook recipient context from created_by field"
+    );
+    resolve_webhook_recipient_inner(state, platform, profile, is_platform_initiated).await
+}
+
+/// Shared resolution logic: fetch the correct account, keystore, and profile
+/// based on whether the operation was platform-initiated.
+async fn resolve_webhook_recipient_inner(
+    state: &SessionState,
+    platform: &domain::Platform,
+    profile: &domain::Profile,
+    is_platform_initiated: bool,
+) -> CustomResult<WebhookRecipientContext, errors::ApiErrorResponse> {
+    let (merchant_account, key_store, profile) = if is_platform_initiated {
+        let provider = platform.get_provider();
+        let provider_profile = get_default_profile_for_platform_merchant(state, provider).await?;
+
+        (
+            provider.get_account().clone(),
+            provider.get_key_store().clone(),
+            provider_profile,
+        )
+    } else {
+        let processor = platform.get_processor();
+
+        (
+            processor.get_account().clone(),
+            processor.get_key_store().clone(),
+            profile.clone(),
+        )
+    };
+
+    Ok(WebhookRecipientContext {
+        merchant_account,
+        key_store,
+        profile,
+    })
+}
+
+/// Fetches the default business profile for a platform merchant.
+///
+/// Platform merchants are restricted to a single profile. This function must
+/// only be called when the provider is confirmed to be a platform merchant.
+///
+/// In V1, this uses the `default_profile` field on the merchant account.
+/// In V2, this lists all profiles and returns the single configured profile.
+#[cfg(feature = "v1")]
+async fn get_default_profile_for_platform_merchant(
+    state: &SessionState,
+    provider: &domain::Provider,
+) -> CustomResult<domain::Profile, errors::ApiErrorResponse> {
+    // Validate that merchant account type is platform
+    fp_utils::when(!provider.get_account().is_platform_account(), || {
+        Err(error_stack::report!(
+            errors::ApiErrorResponse::InternalServerError
+        ))
+        .attach_printable("Expected provider merchant to be a platform account")
+    })?;
+
+    let profile_id = provider
+        .get_account()
+        .default_profile
+        .as_ref()
+        .ok_or(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Platform merchant does not have a default profile configured")?;
+
+    state
+        .store
+        .find_business_profile_by_profile_id(provider.get_key_store(), profile_id)
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to fetch platform merchant's default business profile")
+}
+
+#[cfg(feature = "v2")]
+async fn get_default_profile_for_platform_merchant(
+    state: &SessionState,
+    provider: &domain::Provider,
+) -> CustomResult<domain::Profile, errors::ApiErrorResponse> {
+    // Validate that merchant account type is platform
+    fp_utils::when(!provider.get_account().is_platform_account(), || {
+        Err(error_stack::report!(
+            errors::ApiErrorResponse::InternalServerError
+        ))
+        .attach_printable("Expected provider merchant to be a platform account")
+    })?;
+
+    let profiles = state
+        .store
+        .list_profile_by_merchant_id(provider.get_key_store(), provider.get_account().get_id())
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to list business profiles for platform merchant")?;
+
+    profiles
+        .into_iter()
+        .next()
+        .ok_or(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Platform merchant has no business profiles configured")
 }
 
 const WEBHOOK_LOCK_PREFIX: &str = "WEBHOOK_LOCK";

@@ -445,7 +445,7 @@ async fn payments_incoming_webhook_flow(
         payments::CallConnectorAction::Trigger
     };
     let key_manager_state = &(&state).into();
-    let payments_response = match webhook_details.object_reference_id {
+    let (payments_response, created_by) = match webhook_details.object_reference_id {
         webhooks::ObjectReferenceId::PaymentId(id) => {
             let get_trackers_response = get_trackers_response_for_payment_get_operation(
                 state.store.as_ref(),
@@ -507,6 +507,8 @@ async fn payments_incoming_webhook_flow(
             ))
             .await?;
 
+            let created_by = payment_data.payment_attempt.created_by.clone();
+
             let response = payment_data.generate_response(
                 &state,
                 connector_http_status_code,
@@ -525,7 +527,7 @@ async fn payments_incoming_webhook_flow(
                 .await?;
 
             match response {
-                Ok(value) => value,
+                Ok(value) => (value, created_by),
                 Err(err)
                     if matches!(
                         err.current_context(),
@@ -547,7 +549,7 @@ async fn payments_incoming_webhook_flow(
                     );
                     return Ok(WebhookResponseTracker::NoEffect);
                 }
-                error @ Err(_) => error?,
+                Err(error) => Err(error)?,
             }
         }
         _ => Err(errors::ApiErrorResponse::WebhookProcessingFailure).attach_printable(
@@ -566,17 +568,23 @@ async fn payments_incoming_webhook_flow(
             // If event is NOT an UnsupportedEvent, trigger Outgoing Webhook
             if let Some(outgoing_event_type) = event_type {
                 let primary_object_created_at = payments_response.created;
-                // TODO: trigger an outgoing webhook to merchant
+                let webhook_recipient = utils::resolve_webhook_recipient_from_created_by(
+                    &state,
+                    &platform,
+                    &profile,
+                    created_by.as_ref(),
+                )
+                .await?;
                 Box::pin(create_event_and_trigger_outgoing_webhook(
                     state,
-                    profile,
-                    platform.get_processor().get_key_store(),
+                    platform,
                     outgoing_event_type,
                     enums::EventClass::Payments,
                     payment_id.get_string_repr().to_owned(),
                     enums::EventObjectType::PaymentDetails,
                     api::OutgoingWebhookContent::PaymentDetails(Box::new(payments_response)),
                     primary_object_created_at,
+                    webhook_recipient,
                 ))
                 .await?;
             };

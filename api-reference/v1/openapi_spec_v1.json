@@ -19853,6 +19853,12 @@
             "example": "evt_018e31720d1b7a2b82677d3032cab959",
             "maxLength": 64
           },
+          "processor_merchant_id": {
+            "type": "string",
+            "description": "The identifier for the Processor Merchant Account.",
+            "nullable": true,
+            "maxLength": 64
+          },
           "created": {
             "type": "string",
             "format": "date-time",
@@ -26161,7 +26167,7 @@
         "properties": {
           "merchant_id": {
             "type": "string",
-            "description": "The merchant id of the merchant"
+            "description": "The provider merchant id (platform/business owner)"
           },
           "event_id": {
             "type": "string",
@@ -26177,6 +26183,11 @@
             "type": "string",
             "format": "date-time",
             "description": "The time at which webhook was sent"
+          },
+          "processor_merchant_id": {
+            "type": "string",
+            "description": "The merchant id of the merchant account whose connector credentials are used for payment processing",
+            "nullable": true
           }
         }
       },
