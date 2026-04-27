@@ -932,7 +932,7 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "requires_confirmation",
+          status: "requires_payment_method",
         },
       },
     },
