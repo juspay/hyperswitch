@@ -545,7 +545,7 @@ export const CONNECTOR_LISTS = {
     BANK_DEBIT: ["novalnet"],
     PARTNER_MERCHANT_IDENTIFIER: ["adyen", "checkout"],
     GIFT_CARD: ["adyen"],
-    PAY_LATER: ["klarna", "adyen", "aci"],
+    PAY_LATER: ["klarna", "adyen", "aci", "stripe"],
     // Add more inclusion lists
   },
 };
