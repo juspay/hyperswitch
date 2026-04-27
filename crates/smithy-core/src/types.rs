@@ -1,4 +1,5 @@
 // crates/smithy-core/types.rs
+use api_models::customers::{CustomerUpdateRequest, CustomerResponse};
 
 use std::collections::HashMap;
 
@@ -141,10 +142,136 @@ pub enum SmithyConstraint {
     EnumValue(String),
 }
 
+
+#[derive(SmithyModel)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+pub struct CustomerUpdateRequest {
+    /// The customer's name
+    #[smithy(max_length = 255, value_type = String, example = "Jon Test")]
+    pub name: Option<Secret<String>>,
+    /// The customer's email address
+    #[smithy(value_type = String, max_length = 255, example = "JonTest@test.com")]
+    pub email: Option<pii::Email>,
+    /// The customer's phone number
+    #[smithy(value_type = Option<String>, max_length = 255, example = "9123456789")]
+    pub phone: Option<Secret<String>>,
+    /// An arbitrary string that you can attach to a customer object.
+    #[smithy(max_length = 255, example = "First Customer", value_type = Option<String>)]
+    pub description: Option<Description>,
+    /// The country code for the customer phone number
+    #[smithy(max_length = 255, example = "+65")]
+    pub phone_country_code: Option<String>,
+    /// The default billing address for the customer
+    #[smithy(value_type = Option<AddressDetails>)]
+    pub default_billing_address: Option<payments::AddressDetails>,
+    /// The default shipping address for the customer
+    #[smithy(value_type = Option<AddressDetails>)]
+    pub default_shipping_address: Option<payments::AddressDetails>,
+    /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500
+    /// characters long. Metadata is useful for storing additional, structured information on an
+    /// object.
+    #[smithy(value_type = Option<Object>,example = json!({ "city": "NY", "unit": "245" }))]
+    pub metadata: Option<pii::SecretSerdeValue>,
+    /// The unique identifier of the payment method
+    #[smithy(value_type = Option<String>, example = "12345_pm_01926c58bc6e77c09e809964e72af8c8")]
+    pub default_payment_method_id: Option<id_type::GlobalPaymentMethodId>,
+    /// The customer's tax registration number.
+    #[smithy(max_length = 255, value_type = Option<String>, example = "123456789")]
+    pub tax_registration_id: Option<Secret<String>>,
+}
+
+#[derive(SmithyModel)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+pub struct CustomerResponse {
+    /// Unique identifier for the customer
+    #[smithy(
+        min_length = 32,
+        max_length = 64,
+        example = "12345_cus_01926c58bc6e77c09e809964e72af8c8",
+        value_type = String
+    )]
+    pub id: id_type::GlobalCustomerId,
+    /// The identifier for the customer object
+    #[smithy(value_type = String, max_length = 64, min_length = 1, example = "cus_y3oqhf46pyzuxjbcn2giaqnb44")]
+    pub merchant_reference_id: Option<id_type::CustomerId>,
+    /// Connector specific customer reference ids
+    #[smithy(value_type = Option<Object>, example = json!({"mca_hwySG2NtpzX0qr7toOy8": "cus_Rnm2pDKGyQi506"}))]
+    pub connector_customer_ids: Option<common_types::customers::ConnectorCustomerMap>,
+    /// The customer's name
+    #[smithy(max_length = 255, value_type = Option<String>, example = "Jon Test")]
+    pub name: crypto::OptionalEncryptableName,
+    /// The customer's email address
+    #[smithy(value_type = Option<String> ,max_length = 255, example = "JonTest@test.com")]
+    pub email: crypto::OptionalEncryptableEmail,
+    /// The customer's phone number
+    #[smithy(value_type = Option<String>,max_length = 255, example = "9123456789")]
+    pub phone: crypto::OptionalEncryptablePhone,
+    /// The country code for the customer phone number
+    #[smithy(max_length = 255, example = "+65")]
+    pub phone_country_code: Option<String>,
+    /// An arbitrary string that you can attach to a customer object.
+    #[smithy(max_length = 255, example = "First Customer", value_type = Option<String>)]
+    pub description: Option<Description>,
+    /// The default billing address for the customer
+    #[schema(value_type = Option<AddressDetails>)]
+    pub default_billing_address: Option<payments::AddressDetails>,
+    /// The default shipping address for the customer
+    #[smithy(value_type = Option<AddressDetails>)]
+    pub default_shipping_address: Option<payments::AddressDetails>,
+    ///  A timestamp (ISO 8601 code) that determines when the customer was created
+    #[smithy(value_type = PrimitiveDateTime,example = "2023-01-18T11:04:09.922Z")]
+    #[serde(with = "custom_serde::iso8601")]
+    pub created_at: time::PrimitiveDateTime,
+    /// You can specify up to 50 keys, with key names up to 40 characters long and values up to 500
+    /// characters long. Metadata is useful for storing additional, structured information on an
+    /// object.
+    #[smithy(value_type = Option<Object>,example = json!({ "city": "NY", "unit": "245" }))]
+    pub metadata: Option<pii::SecretSerdeValue>,
+    /// The identifier for the default payment method.
+    #[smithy(value_type = Option<String>, max_length = 64, example = "12345_pm_01926c58bc6e77c09e809964e72af8c8")]
+    pub default_payment_method_id: Option<id_type::GlobalPaymentMethodId>,
+    /// The customer's tax registration number.
+    #[smithy(max_length = 255, value_type = Option<String>, example = "123456789")]
+    pub tax_registration_id: crypto::OptionalEncryptableSecretString,
+}
+
+#[derive(SmithyModel)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+pub struct AddressDetails {
+    #[smithy(value_type = "Option<String>", length = "1..=50")]
+    pub city: Option<String>,
+    
+    #[smithy(value_type = "Option<String>")]
+    pub country: Option<String>,  // This could be enum `CountryAlpha2`
+    
+    #[smithy(value_type = "Option<String>", length = "1..=200")]
+    pub line1: Option<String>,
+    
+    #[smithy(value_type = "Option<String>", length = "1..=50")]
+    pub line2: Option<String>,
+    
+    #[smithy(value_type = "Option<String>", length = "1..=50")]
+    pub line3: Option<String>,
+    
+    #[smithy(value_type = "Option<String>", length = "1..=50")]
+    pub zip: Option<String>,
+    
+    #[smithy(value_type = "Option<String>")]
+    pub state: Option<String>,
+    
+    #[smithy(value_type = "Option<String>", length = "1..=255")]
+    pub first_name: Option<String>,
+    
+    #[smithy(value_type = "Option<String>", length = "1..=255")]
+    pub last_name: Option<String>,
+    
+    #[smithy(value_type = "Option<String>", length = "1..=50")]
+    pub origin_zip: Option<String>,
+}
+
 pub trait SmithyModelGenerator {
     fn generate_smithy_model() -> SmithyModel;
 }
-
 // Helper functions moved from the proc-macro crate to be accessible by it.
 
 pub fn resolve_type_and_generate_shapes(
