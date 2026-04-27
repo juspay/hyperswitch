@@ -5,12 +5,13 @@ on:
     types:
       - checks_requested
   pull_request:
+    types: [opened, synchronize, reopened, labeled]
 
 permissions:
   contents: read
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: ${{ github.workflow }}-${{ github.ref }}-${{ (github.event.action == 'labeled' && github.event.label.name != 'S-test-ready') && github.run_id || 'shared' }}
   cancel-in-progress: true
 
 env:
@@ -435,12 +436,13 @@ jobs:
             exit 0
           else
             echo "Mandatory tests failed."
-            if [ "${{ github.event_name }}" != "merge_group" ]; then
+            if [ "${{ github.event_name }}" == "pull_request" ]; then
               echo "Removing 'S-test-ready' label from the PR."
               gh pr edit ${{ github.event.pull_request.number }} --remove-label "S-test-ready" --repo ${{ github.repository }}
             fi
             exit 1
           fi
+
 
 
   prepare-optional-matrix:
@@ -691,7 +693,7 @@ jobs:
     name: Run optional Cypress tests for alpha connectors
     needs: build-hyperswitch
     if: |
-      github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'S-test-ready')
+      (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'S-test-ready'))
     runs-on: hyperswitch-runners
     env:
       # Use `sccache` for caching compilation artifacts
@@ -897,7 +899,8 @@ jobs:
 
   runner_v2:
     name: Run Cypress tests on v2 and generate coverage report
-    if: github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'S-test-ready')
+    if: |
+      (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'S-test-ready'))
     runs-on: hyperswitch-runners
     permissions:
       pull-requests: write
