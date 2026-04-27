@@ -477,17 +477,16 @@ function bankRedirectRedirection(
                   cy.get("#onContinue").click();
                 }
                 if (
-                  $body.find(
-                    'button[data-testid="select-payment-category"]'
-                  ).length > 0
+                  $body.find('button[data-testid="select-payment-category"]')
+                    .length > 0
                 ) {
                   cy.get('button[data-testid="select-payment-category"]')
                     .first()
                     .click();
                 }
                 if (
-                  $body.find("#payment-methods-selector-pay-over-time")
-                    .length > 0
+                  $body.find("#payment-methods-selector-pay-over-time").length >
+                  0
                 ) {
                   cy.get("#payment-methods-selector-pay-over-time").click();
                 }
