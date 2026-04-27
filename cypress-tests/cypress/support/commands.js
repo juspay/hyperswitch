@@ -2334,7 +2334,10 @@ Cypress.Commands.add(
           );
           const ntid = response.body.network_transaction_id;
           if (ntid !== undefined && ntid !== null) {
-            expect(ntid, "network_transaction_id should not be empty when present").to.not.be.empty;
+            expect(
+              ntid,
+              "network_transaction_id should not be empty when present"
+            ).to.not.be.empty;
           }
           globalState.set("paymentIntentStatus", response.body.status);
           // Compare connector with backend connector name (handles stripeconnect -> stripe mapping)
