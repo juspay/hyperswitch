@@ -5,8 +5,8 @@ use hyperswitch_domain_models::{
         payments::{
             Approve, Authorize, AuthorizeSessionToken, CalculateTax, Capture, CompleteAuthorize,
             CreateConnectorCustomer, ExtendAuthorization, GenerateQr, IncrementalAuthorization,
-            PSync, PaymentMethodToken, PostCaptureVoid, PostProcessing, PostSessionTokens,
-            PreProcessing, PushNotification, Reject, SdkSessionUpdate, Session,
+            PSync, PaymentMethodToken, PostCaptureVoid, PostCaptureVoidSync, PostProcessing,
+            PostSessionTokens, PreProcessing, PushNotification, Reject, SdkSessionUpdate, Session,
             SettlementSplitCreate, SetupMandate, UpdateMetadata, Void,
         },
         Authenticate, CreateOrder, ExternalVaultProxy, GiftCardBalanceCheck, PostAuthenticate,
@@ -17,12 +17,13 @@ use hyperswitch_domain_models::{
         CreateOrderRequestData, ExternalVaultProxyPaymentsData, GenerateQrRequestData,
         GiftCardBalanceCheckRequestData, PaymentMethodTokenizationData, PaymentsApproveData,
         PaymentsAuthenticateData, PaymentsAuthorizeData, PaymentsCancelData,
-        PaymentsCancelPostCaptureData, PaymentsCaptureData, PaymentsExtendAuthorizationData,
-        PaymentsIncrementalAuthorizationData, PaymentsPostAuthenticateData,
-        PaymentsPostProcessingData, PaymentsPostSessionTokensData, PaymentsPreAuthenticateData,
-        PaymentsPreProcessingData, PaymentsRejectData, PaymentsSessionData, PaymentsSyncData,
-        PaymentsTaxCalculationData, PaymentsUpdateMetadataData, PushNotificationRequestData,
-        SdkPaymentsSessionUpdateData, SettlementSplitRequestData, SetupMandateRequestData,
+        PaymentsCancelPostCaptureData, PaymentsCancelPostCaptureSyncData, PaymentsCaptureData,
+        PaymentsExtendAuthorizationData, PaymentsIncrementalAuthorizationData,
+        PaymentsPostAuthenticateData, PaymentsPostProcessingData, PaymentsPostSessionTokensData,
+        PaymentsPreAuthenticateData, PaymentsPreProcessingData, PaymentsRejectData,
+        PaymentsSessionData, PaymentsSyncData, PaymentsTaxCalculationData,
+        PaymentsUpdateMetadataData, PushNotificationRequestData, SdkPaymentsSessionUpdateData,
+        SettlementSplitRequestData, SetupMandateRequestData,
     },
     router_response_types::{
         GiftCardBalanceCheckResponseData, PaymentsResponseData, TaxCalculationResponseData,
@@ -46,6 +47,7 @@ pub trait Payment:
     + PaymentCapture
     + PaymentVoid
     + PaymentPostCaptureVoid
+    + PaymentPostCaptureVoidSync
     + PaymentApprove
     + PaymentReject
     + MandateSetup
@@ -106,6 +108,16 @@ pub trait PaymentVoid:
 /// trait PaymentPostCaptureVoid
 pub trait PaymentPostCaptureVoid:
     api::ConnectorIntegration<PostCaptureVoid, PaymentsCancelPostCaptureData, PaymentsResponseData>
+{
+}
+
+/// trait PaymentPostCaptureVoidSync
+pub trait PaymentPostCaptureVoidSync:
+    api::ConnectorIntegration<
+    PostCaptureVoidSync,
+    PaymentsCancelPostCaptureSyncData,
+    PaymentsResponseData,
+>
 {
 }
 

@@ -846,6 +846,25 @@ pub fn payments_cancel() {}
 )]
 pub fn payments_cancel_post_capture() {}
 
+/// Payments - Cancel Post Capture Retrieve
+///
+/// Retrieves a canceled Payment post capture
+#[utoipa::path(
+    get,
+    path = "/payments/{payment_id}/cancel_post_capture",
+    params(
+        ("payment_id" = String, Path, description = "The identifier for payment")
+    ),
+    responses(
+        (status = 200, description = "Payment canceled post capture", body = PaymentsResponse),
+        (status = 400, description = "Missing mandatory fields", body = GenericErrorResponseOpenApi)
+    ),
+    tag = "Payments",
+    operation_id = "Cancel a Payment Post Capture Retrieve",
+    security(("api_key" = []))
+)]
+pub fn payments_cancel_post_capture_retrieve() {}
+
 /// Payments - List
 ///
 /// To list the *payments*

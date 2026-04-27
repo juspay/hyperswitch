@@ -29,12 +29,13 @@ use hyperswitch_domain_models::{
     },
     router_flow_types::{
         refunds::{Execute, RSync},
-        Authorize, Capture, CompleteAuthorize, PSync, PostCaptureVoid, SetupMandate, Void,
+        Authorize, Capture, CompleteAuthorize, PSync, PostCaptureVoid, PostCaptureVoidSync,
+        SetupMandate, Void,
     },
     router_request_types::{
         authentication::MessageExtensionAttribute, AuthenticationData, BrowserInformation,
-        CompleteAuthorizeData, PaymentsAuthorizeData, PaymentsCancelPostCaptureData, ResponseId,
-        SetupMandateRequestData,
+        CompleteAuthorizeData, PaymentsAuthorizeData, PaymentsCancelPostCaptureData,
+        PaymentsCancelPostCaptureSyncData, ResponseId, SetupMandateRequestData,
     },
     router_response_types::{
         MandateReference, PaymentsResponseData, RedirectForm, RefundsResponseData,
@@ -1487,6 +1488,43 @@ impl TryFrom<&types::PaymentsSyncRouterData> for NuveiPaymentSyncRequest {
     }
 }
 
+impl TryFrom<&types::PaymentsCancelPostCaptureSyncRouterData> for NuveiPaymentSyncRequest {
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        value: &types::PaymentsCancelPostCaptureSyncRouterData,
+    ) -> Result<Self, Self::Error> {
+        let connector_meta: NuveiAuthType = NuveiAuthType::try_from(&value.connector_auth_type)?;
+        let merchant_id = connector_meta.merchant_id.clone();
+        let merchant_site_id = connector_meta.merchant_site_id.clone();
+        let merchant_secret = connector_meta.merchant_secret.clone();
+        let time_stamp =
+            date_time::format_date(date_time::now(), date_time::DateFormat::YYYYMMDDHHmmss)
+                .change_context(errors::ConnectorError::RequestEncodingFailed)?;
+        let client_unique_id = value.connector_request_reference_id.clone();
+        let transaction_id = value
+            .request
+            .connector_post_capture_void_transaction_id
+            .clone();
+        let checksum = Secret::new(encode_payload(&[
+            merchant_id.peek(),
+            merchant_site_id.peek(),
+            &transaction_id,
+            &client_unique_id,
+            &time_stamp,
+            merchant_secret.peek(),
+        ])?);
+
+        Ok(Self {
+            merchant_id,
+            merchant_site_id,
+            client_unique_id,
+            time_stamp,
+            checksum,
+            transaction_id,
+        })
+    }
+}
+
 #[derive(Debug, Serialize, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct NuveiVoidRequest {
@@ -2620,6 +2658,75 @@ where
             amount_captured,
             minor_amount_capturable,
             connector_response: connector_response_data,
+            ..item.data
+        })
+    }
+}
+
+impl
+    TryFrom<
+        ResponseRouterData<
+            PostCaptureVoidSync,
+            NuveiTransactionSyncResponse,
+            PaymentsCancelPostCaptureSyncData,
+            PaymentsResponseData,
+        >,
+    > for RouterData<PostCaptureVoidSync, PaymentsCancelPostCaptureSyncData, PaymentsResponseData>
+{
+    type Error = error_stack::Report<errors::ConnectorError>;
+    fn try_from(
+        item: ResponseRouterData<
+            PostCaptureVoidSync,
+            NuveiTransactionSyncResponse,
+            PaymentsCancelPostCaptureSyncData,
+            PaymentsResponseData,
+        >,
+    ) -> Result<Self, Self::Error> {
+        let post_capture_void_status = match item
+            .response
+            .transaction_details
+            .as_ref()
+            .and_then(|transaction_response| transaction_response.transaction_status.clone())
+        {
+            Some(NuveiTransactionStatus::Approved) => {
+                common_enums::PostCaptureVoidStatus::Succeeded
+            }
+            Some(NuveiTransactionStatus::Declined) | Some(NuveiTransactionStatus::Error) => {
+                common_enums::PostCaptureVoidStatus::Failed
+            }
+            Some(NuveiTransactionStatus::Processing) | Some(NuveiTransactionStatus::Pending) => {
+                common_enums::PostCaptureVoidStatus::Pending
+            }
+            Some(NuveiTransactionStatus::Redirect) => Err(
+                errors::ConnectorError::UnexpectedResponseError(bytes::Bytes::from(
+                    "Redirect status is not expected in post capture void flow".to_owned(),
+                )),
+            )?,
+
+            None => match item.response.status {
+                NuveiPaymentStatus::Error | NuveiPaymentStatus::Failed => {
+                    common_enums::PostCaptureVoidStatus::Failed
+                }
+                NuveiPaymentStatus::Processing => common_enums::PostCaptureVoidStatus::Pending,
+                NuveiPaymentStatus::Success => common_enums::PostCaptureVoidStatus::Succeeded,
+            },
+        };
+
+        let description = post_capture_void_status
+            .is_post_capture_void_failure()
+            .then_some(item.response.reason.clone())
+            .flatten();
+
+        Ok(Self {
+            response: Ok(PaymentsResponseData::PostCaptureVoidResponse {
+                post_capture_void_status,
+                connector_reference_id: item
+                    .response
+                    .transaction_details
+                    .as_ref()
+                    .and_then(|transaction_details| transaction_details.transaction_id.clone()),
+                description,
+            }),
             ..item.data
         })
     }

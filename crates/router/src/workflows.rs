@@ -6,6 +6,7 @@ pub mod outgoing_webhook_retry;
 pub mod payment_method_modular_forward_compat;
 pub mod payment_method_status_update;
 pub mod payment_sync;
+pub mod post_capture_void_sync;
 
 pub mod refund_router;
 

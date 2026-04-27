@@ -254,6 +254,22 @@ impl PaymentIntent {
         }
     }
 
+    #[cfg(feature = "v1")]
+    pub fn is_post_capture_void_pending(&self) -> bool {
+        self.state_metadata
+            .as_ref()
+            .map(|state_metadata| state_metadata.is_post_capture_void_pending())
+            .unwrap_or(false)
+    }
+
+    #[cfg(feature = "v1")]
+    pub fn is_post_capture_void_applied(&self) -> bool {
+        self.state_metadata
+            .as_ref()
+            .map(|state_metadata| state_metadata.is_post_capture_void_successful())
+            .unwrap_or(false)
+    }
+
     #[cfg(feature = "v2")]
     /// This is the url to which the customer will be redirected to, after completing the redirection flow
     pub fn create_finish_redirection_url(
