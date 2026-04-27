@@ -2351,6 +2351,7 @@ pub struct ProfileCreate {
     pub billing_processor_id: Option<id_type::MerchantConnectorAccountId>,
 
     /// The surcharge connector ID for calculating external surcharge
+    #[schema(value_type = Option<String>)]
     pub surcharge_connector_id: Option<id_type::MerchantConnectorAccountId>,
 
     /// Flag to enable Level 2 and Level 3 processing data for card transactions
@@ -2526,6 +2527,7 @@ pub struct ProfileCreate {
     pub billing_processor_id: Option<id_type::MerchantConnectorAccountId>,
 
     /// The surcharge connector ID for calculating external surcharge
+    #[schema(value_type = Option<String>)]
     pub surcharge_connector_id: Option<id_type::MerchantConnectorAccountId>,
 
     /// Flag to enable Level 2 and Level 3 processing data for card transactions
@@ -2737,6 +2739,7 @@ pub struct ProfileResponse {
     pub billing_processor_id: Option<id_type::MerchantConnectorAccountId>,
 
     /// The surcharge connector ID for calculating external surcharge
+    #[schema(value_type = Option<String>)]
     pub surcharge_connector_id: Option<id_type::MerchantConnectorAccountId>,
 
     /// Flag to enable Level 2 and Level 3 processing data for card transactions
@@ -2925,6 +2928,7 @@ pub struct ProfileResponse {
     pub billing_processor_id: Option<id_type::MerchantConnectorAccountId>,
 
     /// The surcharge connector ID for calculating external surcharge
+    #[schema(value_type = Option<String>)]
     pub surcharge_connector_id: Option<id_type::MerchantConnectorAccountId>,
 
     /// Flag to enable Level 2 and Level 3 processing data for card transactions

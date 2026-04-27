@@ -26890,11 +26890,8 @@
             "nullable": true
           },
           "surcharge_connector_id": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/id_type.MerchantConnectorAccountId"
-              }
-            ],
+            "type": "string",
+            "description": "The surcharge connector ID for calculating external surcharge",
             "nullable": true
           },
           "is_l2_l3_enabled": {
@@ -27214,11 +27211,8 @@
             "nullable": true
           },
           "surcharge_connector_id": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/id_type.MerchantConnectorAccountId"
-              }
-            ],
+            "type": "string",
+            "description": "The surcharge connector ID for calculating external surcharge",
             "nullable": true
           },
           "is_l2_l3_enabled": {

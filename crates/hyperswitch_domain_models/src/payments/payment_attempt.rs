@@ -3179,6 +3179,7 @@ impl behaviour::Conversion for PaymentAttempt {
             error_details: self.error_details.map(Into::into),
             retry_type: self.retry_type,
             installment_data: self.installment_data,
+            external_surcharge_details: self.external_surcharge_details,
         })
     }
 }
