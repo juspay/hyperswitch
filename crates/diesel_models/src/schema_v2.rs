@@ -291,14 +291,14 @@ diesel::table! {
         always_enable_overcapture -> Nullable<Bool>,
         #[max_length = 64]
         billing_processor_id -> Nullable<Varchar>,
-        #[max_length = 64]
-        surcharge_connector_id -> Nullable<Varchar>,
         is_external_vault_enabled -> Nullable<Bool>,
         external_vault_connector_details -> Nullable<Jsonb>,
         is_l2_l3_enabled -> Nullable<Bool>,
         network_tokenization_credentials -> Nullable<Bytea>,
         payment_method_blocking -> Nullable<Jsonb>,
         default_fallback_routing -> Nullable<Jsonb>,
+        #[max_length = 64]
+        surcharge_connector_id -> Nullable<Varchar>,
         #[max_length = 64]
         routing_algorithm_id -> Nullable<Varchar>,
         order_fulfillment_time -> Nullable<Int8>,
