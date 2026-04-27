@@ -1,5 +1,5 @@
 import { customerAcceptance, multiUseMandateData } from "./Commons";
-import { getCustomExchange } from "./Modifiers";
+import { getCurrency, getCustomExchange } from "./Modifiers";
 
 const successfulNo3DSCardDetails = {
   card_number: "4111111111111111",
@@ -854,6 +854,70 @@ export const connectorDetails = {
         },
       },
     },
+    PartnerMerchantIdentifier: {
+      Request: {
+        currency: "USD",
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+        billing: {
+          address: {
+            line1: "1467",
+            line2: "Harrison Street",
+            line3: "Harrison Street",
+            city: "San Francisco",
+            state: "California",
+            zip: "94122",
+            country: "US",
+            first_name: "joseph",
+            last_name: "Doe",
+          },
+        },
+        partner_merchant_identifier_details: {
+          partner_details: {
+            name: "TestPartner",
+            version: "1.0.0",
+            integrator: "TestIntegrator123",
+          },
+          merchant_details: {
+            name: "TestMerchantApp",
+            version: "2.0.0",
+          },
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+          partner_merchant_identifier_details: {
+            partner_details: {
+              name: "TestPartner",
+              version: "1.0.0",
+              integrator: "TestIntegrator123",
+            },
+            merchant_details: {
+              name: "TestMerchantApp",
+              version: "2.0.0",
+            },
+          },
+        },
+      },
+    },
+    PartnerMerchantIdentifierConfirm: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    },
   },
   bank_transfer_pm: {
     Pix: {
@@ -1060,6 +1124,55 @@ export const connectorDetails = {
       },
     },
   },
+  wallet_pm: {
+    PaymentIntent: (paymentMethodType) =>
+      getCustomExchange({
+        Request: {
+          currency: getCurrency(paymentMethodType),
+        },
+        Response: {
+          status: 200,
+          body: {
+            status: "requires_payment_method",
+          },
+        },
+      }),
+    AliPayHk: getCustomExchange({
+      Request: {
+        payment_method: "wallet",
+        payment_method_type: "ali_pay_hk",
+        payment_method_data: {
+          wallet: {
+            ali_pay_hk_redirect: {},
+          },
+        },
+        billing: {
+          address: {
+            line1: "1467",
+            line2: "Harrison Street",
+            line3: "Harrison Street",
+            city: "Hong Kong",
+            state: "HK",
+            zip: "999077",
+            country: "HK",
+            first_name: "joseph",
+            last_name: "Doe",
+          },
+          phone: {
+            number: "9123456789",
+            country_code: "+852",
+          },
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+    }),
+  },
+
   pm_list: {
     PmListResponse: {
       PmListNull: {

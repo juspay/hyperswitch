@@ -22071,6 +22071,33 @@
           "revenue_growth_management_platform"
         ]
       },
+      "HyperswitchVaultSessionDetails": {
+        "type": "object",
+        "required": [
+          "payment_method_session_id",
+          "client_secret",
+          "publishable_key",
+          "profile_id"
+        ],
+        "properties": {
+          "payment_method_session_id": {
+            "type": "string",
+            "description": "Session ID for Hyperswitch Vault"
+          },
+          "client_secret": {
+            "type": "string",
+            "description": "Client secret for Hyperswitch Vault"
+          },
+          "publishable_key": {
+            "type": "string",
+            "description": "Publishable key for Hyperswitch Vault"
+          },
+          "profile_id": {
+            "type": "string",
+            "description": "Profile ID for Hyperswitch Vault"
+          }
+        }
+      },
       "IfStatement": {
         "type": "object",
         "description": "Represents an IF statement with conditions and optional nested IF statements\n\n```text\npayment.method = card {\npayment.method.cardtype = (credit, debit) {\npayment.method.network = (amex, rupay, diners)\n}\n}\n```",
@@ -31488,7 +31515,7 @@
         "required": [
           "client_secret",
           "payment_method_type",
-          "payment_method_data"
+          "payment_token"
         ],
         "properties": {
           "client_secret": {
@@ -31508,7 +31535,12 @@
             "nullable": true
           },
           "payment_method_data": {
-            "$ref": "#/components/schemas/EligibilityPaymentMethodDataRequest"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/EligibilityPaymentMethodDataRequest"
+              }
+            ],
+            "nullable": true
           },
           "browser_info": {
             "allOf": [
@@ -31517,6 +31549,11 @@
               }
             ],
             "nullable": true
+          },
+          "payment_token": {
+            "type": "string",
+            "description": "The payment token to look up the saved payment method\nWhen provided, the system will fetch the payment method data from the locker/vault",
+            "example": "token_abc123xyz"
           }
         }
       },
@@ -33204,6 +33241,14 @@
               "$ref": "#/components/schemas/SessionToken"
             },
             "description": "The list of session token object"
+          },
+          "vault_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/VaultSessionDetails"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -42121,6 +42166,32 @@
           "hyperswitch_sdk"
         ]
       },
+      "VaultSessionDetails": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "vgs"
+            ],
+            "properties": {
+              "vgs": {
+                "$ref": "#/components/schemas/VgsSessionDetails"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "hyperswitch_vault"
+            ],
+            "properties": {
+              "hyperswitch_vault": {
+                "$ref": "#/components/schemas/HyperswitchVaultSessionDetails"
+              }
+            }
+          }
+        ]
+      },
       "VaultTokenField": {
         "type": "object",
         "properties": {
@@ -42170,6 +42241,23 @@
             "description": "mobile number linked to venmo account",
             "example": "******* 3349",
             "nullable": true
+          }
+        }
+      },
+      "VgsSessionDetails": {
+        "type": "object",
+        "required": [
+          "external_vault_id",
+          "sdk_env"
+        ],
+        "properties": {
+          "external_vault_id": {
+            "type": "string",
+            "description": "The identifier of the external vault"
+          },
+          "sdk_env": {
+            "type": "string",
+            "description": "The environment for the external vault initiation"
           }
         }
       },
