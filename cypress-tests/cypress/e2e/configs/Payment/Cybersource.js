@@ -1333,7 +1333,7 @@ export const connectorDetails = {
     },
   },
   card_redirect_pm: {
-    PaymentIntent: (_paymentMethodType) =>
+    PaymentIntent: () =>
       getCustomExchange({
         Request: {
           currency: "USD",
