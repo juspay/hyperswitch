@@ -484,13 +484,24 @@ function bankRedirectRedirection(
                     if ($body.find("#onContinue").length > 0) {
                       cy.get("#onContinue").click();
                     }
-                    if ($body.find('button[data-testid="select-payment-category"]').length > 0) {
-                      cy.get('button[data-testid="select-payment-category"]').first().click();
+                    if (
+                      $body.find(
+                        'button[data-testid="select-payment-category"]'
+                      ).length > 0
+                    ) {
+                      cy.get('button[data-testid="select-payment-category"]')
+                        .first()
+                        .click();
                     }
-                    if ($body.find("#payment-methods-selector-pay-over-time").length > 0) {
+                    if (
+                      $body.find("#payment-methods-selector-pay-over-time")
+                        .length > 0
+                    ) {
                       cy.get("#payment-methods-selector-pay-over-time").click();
                     }
-                    cy.get('button[type="submit"], button[id*="continue"], button[data-testid*="continue"]')
+                    cy.get(
+                      'button[type="submit"], button[id*="continue"], button[data-testid*="continue"]'
+                    )
                       .first()
                       .should("be.visible")
                       .click({ force: true });
@@ -498,7 +509,9 @@ function bankRedirectRedirection(
                     cy.get("body").then(($body2) => {
                       if ($body2.find('input[id="otp_field"]').length > 0) {
                         cy.get('input[id="otp_field"]').type("123456");
-                        cy.get('button[type="submit"], button[id*="confirm"], button[data-testid*="confirm"]')
+                        cy.get(
+                          'button[type="submit"], button[id*="confirm"], button[data-testid*="confirm"]'
+                        )
                           .first()
                           .click({ force: true });
                       }
