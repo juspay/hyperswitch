@@ -7,7 +7,7 @@ use actix_web::{web, Responder};
 use error_stack::report;
 use hyperswitch_domain_models::{ext_traits::OptionExt, payments::HeaderPayload};
 #[cfg(feature = "v1")]
-use hyperswitch_interfaces::api::ConnectorValidation;
+use hyperswitch_interfaces::api::ConnectorSpecifications;
 use hyperswitch_masking::{PeekInterface, Secret};
 use router_env::{env, instrument, logger, tracing, types, Flow};
 
@@ -21,7 +21,7 @@ use crate::routes::payments::payments::operations::payment_recurrence::PaymentRe
 use crate::{
     self as app,
     core::{
-        configs::dimension_state::Dimensions,
+        configs::dimension_state,
         errors::{self, http_not_implemented},
         payments::{self, transformers::ToResponse, OperationSessionGetters, PaymentRedirectFlow},
     },
@@ -1679,10 +1679,18 @@ pub async fn payments_cancel(
                 HeaderPayload::default(),
             )
         },
-        &auth::HeaderAuth(auth::ApiKeyAuth {
-            allow_connected_scope_operation: true,
-            allow_platform_self_operation: false,
-        }),
+        auth::auth_type(
+            &auth::HeaderAuth(auth::ApiKeyAuth {
+                allow_connected_scope_operation: true,
+                allow_platform_self_operation: false,
+            }),
+            &auth::JWTAuth {
+                permission: Permission::ProfilePaymentWrite,
+                allow_connected: true,
+                allow_platform: false,
+            },
+            req.headers(),
+        ),
         locking_action,
     ))
     .await
@@ -2415,7 +2423,7 @@ where
                 .flat_map(|c| c.foreign_try_into())
                 .collect()
         });
-        let dimensions = Dimensions::new()
+        let dimensions = dimension_state::Dimensions::new()
             .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
             .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id());
         match req.payment_type.unwrap_or_default() {
@@ -2442,7 +2450,7 @@ where
                         auth_flow,
                         eligible_routable_connectors.clone(),
                         header_payload.clone(),
-                        dimensions.clone(),
+                        &dimensions,
                     ))
                     .await?;
 
@@ -2457,7 +2465,9 @@ where
                     )?;
                     let should_continue_further = connector_data
                         .connector
-                        .should_continue_further(&payment_data.payment_intent.clone())
+                        .is_payment_recurrence_operation_needed(
+                            &payment_data.payment_intent.clone(),
+                        )
                         .unwrap_or(false);
                     if should_continue_further {
                         logger::info!(
@@ -2484,7 +2494,7 @@ where
                                 auth_flow,
                                 eligible_routable_connectors,
                                 header_payload.clone(),
-                                dimensions,
+                                &dimensions,
                             ))
                             .await?;
                         let total_ext_latency = match (external_latency, ext_latency) {

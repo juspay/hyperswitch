@@ -39,11 +39,6 @@ pub struct AchBankDebitAdditionalData {
     #[smithy(value_type = "String")]
     pub routing_number: MaskedRoutingNumber,
 
-    /// Card holder's name
-    #[schema(value_type = Option<String>, example = "John Doe")]
-    #[smithy(value_type = "Option<String>")]
-    pub card_holder_name: Option<Secret<String>>,
-
     /// Bank account's owner name
     #[schema(value_type = Option<String>, example = "John Doe")]
     #[smithy(value_type = "Option<String>")]
@@ -410,11 +405,11 @@ pub struct UpiCollectAdditionalData {
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub struct WalletAdditionalDataForCard {
     /// Last 4 digits of the card number
-    #[smithy(value_type = "String")]
-    pub last4: String,
+    #[smithy(value_type = "Option<String>")]
+    pub last4: Option<String>,
     /// The information of the payment method
-    #[smithy(value_type = "String")]
-    pub card_network: String,
+    #[smithy(value_type = "Option<String>")]
+    pub card_network: Option<String>,
     /// The type of payment method
     #[serde(rename = "type")]
     #[smithy(value_type = "Option<String>")]
@@ -428,4 +423,7 @@ pub struct WalletAdditionalDataForCard {
     /// Unique authorisation code generated for the payment
     #[schema(value_type = Option<String>, example = "009825")]
     pub auth_code: Option<String>,
+    /// Email address associated with the wallet (e.g. PayPal email)
+    #[schema(value_type = Option<String>, example = "johntest@test.com")]
+    pub email: Option<common_utils::pii::Email>,
 }

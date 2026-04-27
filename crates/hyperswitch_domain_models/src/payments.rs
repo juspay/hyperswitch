@@ -458,6 +458,17 @@ impl PaymentIntent {
             .transpose()
     }
 
+    pub fn get_intent_customer_details(
+        &self,
+    ) -> CustomResult<Option<CustomerData>, common_utils::errors::ParsingError> {
+        self.customer_details
+            .as_ref()
+            .map(|details| {
+                let decrypted_value = details.clone().into_inner().expose();
+                ValueExt::parse_value::<CustomerData>(decrypted_value, "CustomerData")
+            })
+            .transpose()
+    }
     #[cfg(feature = "v1")]
     pub fn get_optional_feature_metadata(
         &self,
