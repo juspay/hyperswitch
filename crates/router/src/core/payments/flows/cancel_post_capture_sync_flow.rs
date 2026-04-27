@@ -6,7 +6,7 @@ use crate::{
         errors::{ConnectorErrorExt, RouterResult},
         payments::{self, access_token, helpers, transformers, PaymentData},
     },
-        routes::SessionState,
+    routes::SessionState,
     services,
     types::{self, api, domain},
 };
