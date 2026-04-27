@@ -1928,7 +1928,7 @@ where
                 .to_post_update_tracker()?
                 .update_tracker(
                     state,
-                    platform.get_processor(),
+                    platformmak.get_processor(),
                     platform.get_initiator(),
                     payment_data,
                     router_data,
@@ -2707,7 +2707,7 @@ where
 
     tracing::Span::current().record("payment_id", format!("{}", validate_result.payment_id));
 
-    #[cfg(feature = "pm_modular")]
+    // #[cfg(feature = "pm_modular")]
     let feature_config = core_utils::get_feature_config(state, &platform, &dimensions).await;
 
     let operations::GetTrackerResponse {
@@ -2725,7 +2725,6 @@ where
             &platform,
             auth_flow,
             &header_payload,
-            #[cfg(feature = "pm_modular")]
             None,
             &dimensions,
         )
@@ -2789,8 +2788,27 @@ where
         .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)
         .attach_printable("Failed while fetching/creating customer")?;
 
-    // Fetch the external vault MCA from business_profile, analogous to how v2 does it in
-    // call_connector_service_prerequisites_for_external_vault_proxy.
+    // Fetch the payment MCA
+    let merchant_connector_account = construct_profile_id_and_get_mca(
+        state,
+        platform.get_processor(),
+        &payment_data,
+        &connector.connector_name.to_string(),
+        connector.merchant_connector_id.as_ref(),
+        false,
+    )
+    .await?;
+
+    if payment_data
+        .get_payment_attempt()
+        .merchant_connector_id
+        .is_none()
+    {
+        payment_data
+            .set_merchant_connector_id_in_attempt(merchant_connector_account.get_mca_id());
+    }
+
+    // Fetch the external vault MCA from business_profile
     let external_vault_mca_id = match &business_profile.external_vault_details {
         hyperswitch_domain_models::business_profile::ExternalVaultDetails::ExternalVaultEnabled(
             details,
@@ -2824,22 +2842,150 @@ where
     )
     .await?;
 
-    let (router_data, mca) = external_vault_proxy_for_call_connector_service(
+    let merchant_recipient_data = None;
+    let mut router_data = payment_data
+        .construct_router_data(
+            state,
+            connector.connector.id(),
+            platform.get_processor(),
+            &merchant_connector_account,
+            merchant_recipient_data,
+            Some(header_payload.clone()),
+            payment_data.get_payment_attempt().payment_method,
+            payment_data.get_payment_attempt().payment_method_type,
+        )
+        .await?;
+
+    let previous_gateway = extract_gateway_system_from_payment_intent(&payment_data);
+
+    let (execution_path, updated_state) = should_call_unified_connector_service(
         state,
-        req_state.clone(),
-        &platform,
-        connector.clone(),
-        &operation,
-        &mut payment_data,
+        platform.get_processor(),
+        &router_data,
+        previous_gateway,
         call_connector_action.clone(),
-        &validate_result,
-        schedule_time,
-        header_payload.clone(),
-        &business_profile,
-        return_raw_connector_response,
-        external_vault_merchant_connector_account,
+        None,
+        common_enums::TransactionType::Payment,
     )
     .await?;
+
+    let lineage_ids = grpc_client::LineageIds::new(
+        business_profile.merchant_id.clone(),
+        business_profile.get_id().clone(),
+    );
+
+    let execution_mode = match execution_path {
+        ExecutionPath::UnifiedConnectorService => ExecutionMode::Primary,
+        ExecutionPath::ShadowUnifiedConnectorService => ExecutionMode::Shadow,
+        ExecutionPath::Direct => ExecutionMode::NotApplicable,
+    };
+
+    update_gateway_system_in_feature_metadata(&mut payment_data, match execution_path {
+        ExecutionPath::UnifiedConnectorService => GatewaySystem::UnifiedConnectorService,
+        ExecutionPath::ShadowUnifiedConnectorService | ExecutionPath::Direct => GatewaySystem::Direct,
+    })?;
+
+    // Update trackers before calling connector
+    (_, payment_data) = operation
+        .to_update_tracker()?
+        .update_trackers(
+            &updated_state,
+            req_state.clone(),
+            platform.get_processor(),
+            payment_data.clone(),
+            None,
+            header_payload.clone(),
+            &dimensions.without_profile_id(),
+        )
+        .await?;
+
+    let router_data = match execution_path {
+        ExecutionPath::UnifiedConnectorService => {
+            router_data
+                .call_unified_connector_service_with_external_vault_proxy_v1(
+                    &updated_state,
+                    &header_payload,
+                    lineage_ids,
+                    &merchant_connector_account,
+                    &external_vault_merchant_connector_account,
+                    platform.get_processor(),
+                    execution_mode,
+                )
+                .await?;
+            router_data
+        }
+        ExecutionPath::Direct | ExecutionPath::ShadowUnifiedConnectorService => {
+            // Fallback: direct connector call via decide_flows
+            let add_access_token_result = router_data
+                .add_access_token(
+                    &updated_state,
+                    &connector,
+                    platform.get_processor(),
+                    payment_data.get_creds_identifier(),
+                    &gateway_context::RouterGatewayContext {
+                        creds_identifier: payment_data
+                            .get_creds_identifier()
+                            .map(|id| id.to_string()),
+                        processor: platform.get_processor().clone(),
+                        header_payload: header_payload.clone(),
+                        lineage_ids: lineage_ids.clone(),
+                        merchant_connector_account: merchant_connector_account.clone(),
+                        execution_path,
+                        execution_mode,
+                    },
+                )
+                .await?;
+
+            let should_continue_further =
+                access_token::update_router_data_with_access_token_result(
+                    &add_access_token_result,
+                    &mut router_data,
+                    &call_connector_action,
+                );
+
+            let gateway_ctx = gateway_context::RouterGatewayContext {
+                creds_identifier: payment_data
+                    .get_creds_identifier()
+                    .map(|id| id.to_string()),
+                processor: platform.get_processor().clone(),
+                header_payload: header_payload.clone(),
+                lineage_ids,
+                merchant_connector_account: merchant_connector_account.clone(),
+                execution_path,
+                execution_mode,
+            };
+
+            let (connector_request, should_continue) = if should_continue_further {
+                router_data
+                    .build_flow_specific_connector_request(
+                        &updated_state,
+                        &connector,
+                        call_connector_action.clone(),
+                    )
+                    .await?
+            } else {
+                (None, false)
+            };
+
+            if should_continue {
+                router_data.status = payment_data.get_payment_attempt().status;
+                router_data
+                    .decide_flows(
+                        &updated_state,
+                        &connector,
+                        call_connector_action,
+                        connector_request,
+                        &business_profile,
+                        header_payload.clone(),
+                        return_raw_connector_response,
+                        gateway_ctx,
+                    )
+                    .await?
+            } else {
+                router_data
+            }
+        }
+    };
 
     let op_ref = &operation;
     let should_trigger_post_processing_flows = is_operation_confirm(&operation);
@@ -2881,7 +3027,6 @@ where
             platform.get_initiator(),
             &payment_data,
             &router_data_for_pm_mandate,
-            #[cfg(feature = "pm_modular")]
             &feature_config,
         )
         .await?;
@@ -2890,7 +3035,7 @@ where
         complete_postprocessing_steps_if_required(
             state,
             platform.get_processor(),
-            &mca,
+            &merchant_connector_account,
             &connector,
             &mut payment_data,
             op_ref,
@@ -10638,6 +10783,43 @@ pub fn get_proxy_connector_filters(
     }
 }
 
+async fn get_eligible_connector_for_vault_card_proxy<
+    T: core_routing::GetRoutableConnectorsForChoice,
+    F,
+    D,
+>(
+    state: &SessionState,
+    key_store: &domain::MerchantKeyStore,
+    payment_data: &mut D,
+    connector_choice: T,
+    business_profile: &domain::Profile,
+) -> RouterResult<api::ConnectorData>
+where
+    F: Send + Clone,
+    D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
+{
+    // Vault-card proxy flow: no recurring/NTI details, skip the MIT-specific proxy filter
+    // and use standard routing eligibility analysis.
+    let eligible_connector_data_list = connector_choice
+        .get_routable_connectors(state, business_profile, payment_data)
+        .await?
+        .construct_dsl_and_perform_eligibility_analysis(
+            state,
+            key_store,
+            payment_data,
+            business_profile,
+        )
+        .await
+        .attach_printable("Failed to fetch eligible connector data for vault card proxy")?;
+
+    let eligible_connector_data = eligible_connector_data_list
+        .first()
+        .ok_or(errors::ApiErrorResponse::IncorrectPaymentMethodConfiguration)
+        .attach_printable("No eligible connector found for the vault card proxy flow")?;
+
+    Ok(eligible_connector_data.clone())
+}
+
 pub async fn set_eligible_connector_for_proxy_in_payment_data<F, D>(
     state: &SessionState,
     business_profile: &domain::Profile,
@@ -10649,26 +10831,52 @@ where
     F: Send + Clone,
     D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
 {
+    // If there are no recurring details this is a direct vault-card proxy payment
+    // (not an MIT flow), so skip the NTI/recurring-based connector filter.
+    let is_vault_card_flow = payment_data.get_recurring_details().is_none();
+
     let eligible_connector_data = match connector_choice {
         api::ConnectorChoice::StraightThrough(straight_through) => {
-            get_eligible_connector_for_proxy(
-                state,
-                key_store,
-                payment_data,
-                core_routing::StraightThroughAlgorithmTypeSingle(straight_through),
-                business_profile,
-            )
-            .await?
+            if is_vault_card_flow {
+                get_eligible_connector_for_vault_card_proxy(
+                    state,
+                    key_store,
+                    payment_data,
+                    core_routing::StraightThroughAlgorithmTypeSingle(straight_through),
+                    business_profile,
+                )
+                .await?
+            } else {
+                get_eligible_connector_for_proxy(
+                    state,
+                    key_store,
+                    payment_data,
+                    core_routing::StraightThroughAlgorithmTypeSingle(straight_through),
+                    business_profile,
+                )
+                .await?
+            }
         }
         api::ConnectorChoice::Decide => {
-            get_eligible_connector_for_proxy(
-                state,
-                key_store,
-                payment_data,
-                core_routing::DecideConnector,
-                business_profile,
-            )
-            .await?
+            if is_vault_card_flow {
+                get_eligible_connector_for_vault_card_proxy(
+                    state,
+                    key_store,
+                    payment_data,
+                    core_routing::DecideConnector,
+                    business_profile,
+                )
+                .await?
+            } else {
+                get_eligible_connector_for_proxy(
+                    state,
+                    key_store,
+                    payment_data,
+                    core_routing::DecideConnector,
+                    business_profile,
+                )
+                .await?
+            }
         }
         api::ConnectorChoice::SessionMultiple(_) => {
             Err(errors::ApiErrorResponse::InternalServerError).attach_printable(

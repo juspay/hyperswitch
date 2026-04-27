@@ -361,7 +361,6 @@ pub struct RevenueRecoveryMetadata {
     pub mca_reference: AccountReferenceMap,
 }
 
-#[cfg(feature = "v2")]
 #[derive(Debug, Clone, serde::Deserialize)]
 pub struct ExternalVaultConnectorMetadata {
     pub proxy_url: common_utils::types::Url,

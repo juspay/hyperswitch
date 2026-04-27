@@ -719,7 +719,7 @@ impl
             merchant_transaction_id,
             encoded_data: router_data.request.encoded_data.clone(),
             capture_method: capture_method.map(|capture_method| capture_method.into()),
-            handle_response,
+            // handle_response,
             setup_future_usage: setup_future_usage.map(|s| s.into()),
             connector_order_reference_id,
             amount: Some(payments_grpc::Money {
@@ -5665,21 +5665,21 @@ pub fn transform_ucs_webhook_response(
     let event_type =
         api_models::webhooks::IncomingWebhookEvent::from_ucs_event_type(response.event_type);
 
-    let webhook_transformation_status = if matches!(
-        response.event_status(),
-        payments_grpc::EventStatus::Incomplete
-    ) {
-        WebhookTransformationStatus::Incomplete
-    } else {
-        WebhookTransformationStatus::Complete
-    };
+    // let webhook_transformation_status = if matches!(
+    //     response.event_status(),
+    //     payments_grpc::EventStatus::Incomplete
+    // ) {
+    //     WebhookTransformationStatus::Incomplete
+    // } else {
+        // WebhookTransformationStatus::Complete
+    // };
 
     Ok(WebhookTransformData {
         event_type,
         source_verified: response.source_verified,
         webhook_content: response.event_content,
         response_ref_id: response.merchant_event_id,
-        webhook_transformation_status,
+        webhook_transformation_status: WebhookTransformationStatus::Complete,
     })
 }
 
@@ -5707,7 +5707,9 @@ pub fn build_webhook_transform_request(
         )),
         request_details: Some(request_details_grpc),
         webhook_secrets,
-        state: None,
+        access_token: None,
+        event_context: None,
+        // state: None,
     })
 }
 
@@ -5829,6 +5831,7 @@ impl transformers::ForeignTryFrom<&RouterData<RSync, RefundsData, RefundsRespons
             .map(|payment_method_type| payment_method_type.into());
 
         Ok(Self {
+            connector_refund_id: "".to_string(), // Placeholder, as UCS requires either refund_id or connector_refund_id. We will use merchant_refund_id for lookup and pass an empty string for connector_refund_id.
             merchant_refund_id: Some(router_data.connector_request_reference_id.clone()),
             connector_transaction_id: router_data.request.connector_transaction_id.clone(),
             refund_id: router_data.request.connector_refund_id.clone().ok_or(

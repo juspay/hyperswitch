@@ -1,13 +1,11 @@
 use std::{borrow::Cow, str::FromStr, time::Instant};
 
 use api_models::admin;
-#[cfg(feature = "v2")]
 use base64::Engine;
 use common_enums::{
     connector_enums::Connector, AttemptStatus, CallConnectorAction, ConnectorIntegrationType,
     ExecutionMode, ExecutionPath, GatewaySystem, PaymentMethodType, UcsAvailability,
 };
-#[cfg(feature = "v2")]
 use common_utils::consts::BASE64_ENGINE;
 use common_utils::{
     consts::{X_CONNECTOR_NAME, X_FLOW_NAME, X_SUB_FLOW_NAME},
@@ -28,9 +26,8 @@ use external_services::{
 };
 use hyperswitch_connectors::utils::CardData;
 #[cfg(feature = "v2")]
-use hyperswitch_domain_models::merchant_connector_account::{
-    ExternalVaultConnectorMetadata, MerchantConnectorAccountTypeDetails,
-};
+use hyperswitch_domain_models::merchant_connector_account::MerchantConnectorAccountTypeDetails;
+use hyperswitch_domain_models::merchant_connector_account::ExternalVaultConnectorMetadata;
 use hyperswitch_domain_models::{
     platform::Processor,
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse, PaymentMethodToken, RouterData},
@@ -46,7 +43,6 @@ use unified_connector_service_client::payments::{
     CryptoCurrency, EVoucher, OpenBanking, PaymentServiceAuthorizeResponse, ProxyCardDetails,
 };
 
-#[cfg(feature = "v2")]
 use crate::types::api::enums as api_enums;
 use crate::{
     consts,
@@ -1840,6 +1836,105 @@ pub fn parse_merchant_payout_reference_id(id: &str) -> Option<id_type::PayoutRef
             )
         })
         .ok()
+}
+
+#[cfg(feature = "v1")]
+pub fn build_unified_connector_service_external_vault_proxy_metadata_v1(
+    external_vault_merchant_connector_account: MerchantConnectorAccountType,
+    connectors: &hyperswitch_domain_models::connector_endpoints::Connectors,
+) -> CustomResult<String, UnifiedConnectorServiceError> {
+    let connector_name = external_vault_merchant_connector_account
+        .get_connector_name()
+        .ok_or(UnifiedConnectorServiceError::InvalidConnectorName)
+        .attach_printable("Connector name not found in MerchantConnectorAccountType")?;
+
+    let external_vault_connector =
+        api_enums::VaultConnectors::try_from(connector_name.clone()).map_err(|err| {
+            error_stack::report!(UnifiedConnectorServiceError::InvalidConnectorName)
+                .attach_printable(format!("Failed to parse Vault connector: {err}"))
+        })?;
+
+    let external_vault_proxy_config = match external_vault_connector {
+        api_enums::VaultConnectors::Vgs => {
+            let external_vault_metadata = external_vault_merchant_connector_account
+                .get_metadata()
+                .ok_or(UnifiedConnectorServiceError::ParsingFailed)
+                .attach_printable("Metadata is required for VGS vault connector")?;
+
+            let external_vault_metadata_parsed: ExternalVaultConnectorMetadata =
+                external_vault_metadata
+                    .expose()
+                    .parse_value("ExternalVaultConnectorMetadata")
+                    .change_context(UnifiedConnectorServiceError::ParsingFailed)
+                    .attach_printable("Failed to parse external vault connector metadata")?;
+
+            external_services::grpc_client::unified_connector_service::ExternalVaultProxyConfig {
+                vault_connector_type:
+                    external_services::grpc_client::unified_connector_service::VaultConnectorType::Proxy,
+                vault_connector_id: Some("vgs".to_string()),
+                metadata: external_services::grpc_client::unified_connector_service::ExternalVaultProxyMetadata::VgsMetadata(
+                    external_services::grpc_client::unified_connector_service::VgsMetadata {
+                        proxy_url: external_vault_metadata_parsed.proxy_url,
+                        certificate: external_vault_metadata_parsed.certificate,
+                    },
+                ),
+            }
+        }
+        api_enums::VaultConnectors::HyperswitchVault => {
+            let base = &connectors.hyperswitch_vault.base_url;
+            let vault_endpoint_url = format!("{}/v2/proxy", base)
+                .parse::<url::Url>()
+                .map(common_utils::types::Url::wrap)
+                .change_context(UnifiedConnectorServiceError::ParsingFailed)
+                .attach_printable("Failed to parse hyperswitch_vault endpoint URL")?;
+
+            let auth_type: ConnectorAuthType = external_vault_merchant_connector_account
+                .get_connector_account_details()
+                .parse_value("ConnectorAuthType")
+                .change_context(UnifiedConnectorServiceError::FailedToObtainAuthType)
+                .attach_printable("Failed to obtain ConnectorAuthType for HyperswitchVault")?;
+
+            let (api_key, profile_id) = match &auth_type {
+                ConnectorAuthType::SignatureKey {
+                    api_key,
+                    api_secret,
+                    ..
+                } => (api_key.clone(), api_secret.clone()),
+                _ => {
+                    return Err(error_stack::report!(
+                        UnifiedConnectorServiceError::FailedToObtainAuthType
+                    )
+                    .attach_printable("HyperswitchVault requires SignatureKey auth type"))
+                }
+            };
+
+            external_services::grpc_client::unified_connector_service::ExternalVaultProxyConfig {
+                vault_connector_type:
+                    external_services::grpc_client::unified_connector_service::VaultConnectorType::Transformation,
+                vault_connector_id: Some("hyperswitch_vault".to_string()),
+                metadata: external_services::grpc_client::unified_connector_service::ExternalVaultProxyMetadata::HyperswitchVaultMetadata(
+                    external_services::grpc_client::unified_connector_service::HyperswitchVaultMetadata {
+                        vault_endpoint: vault_endpoint_url,
+                        vault_auth_data: external_services::grpc_client::unified_connector_service::VaultConnectorAuth {
+                            api_key,
+                            profile_id,
+                        },
+                    },
+                ),
+            }
+        }
+        api_enums::VaultConnectors::Tokenex => Err(error_stack::report!(
+            UnifiedConnectorServiceError::NotImplemented(
+                "External vault proxy metadata is not supported for Tokenex".to_string(),
+            )
+        ))?,
+    };
+
+    let external_vault_config_bytes = serde_json::to_vec(&external_vault_proxy_config)
+        .change_context(UnifiedConnectorServiceError::ParsingFailed)
+        .attach_printable("Failed to serialize ExternalVaultProxyConfig to bytes")?;
+
+    Ok(BASE64_ENGINE.encode(&external_vault_config_bytes))
 }
 
 #[cfg(feature = "v2")]

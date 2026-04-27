@@ -818,16 +818,16 @@ fn get_ucs_webhook_resource_object(
     event_content: &payments_grpc::EventContent,
 ) -> errors::RouterResult<Box<dyn hyperswitch_masking::ErasedMaskSerialize>> {
     let resource_object = match &event_content.content {
-        Some(payments_grpc::event_content::Content::IncompleteTransformation(
-            incomplete_transformation_response,
-        )) => {
-            // Deserialize resource object
-            serde_json::from_slice::<serde_json::Value>(
-                &incomplete_transformation_response.resource_object,
-            )
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable("Failed to deserialize resource object from UCS webhook response")?
-        }
+        // Some(payments_grpc::event_content::Content::IncompleteTransformation(
+        //     incomplete_transformation_response,
+        // )) => {
+        //     // Deserialize resource object
+        //     serde_json::from_slice::<serde_json::Value>(
+        //         &incomplete_transformation_response.resource_object,
+        //     )
+        //     .change_context(errors::ApiErrorResponse::InternalServerError)
+        //     .attach_printable("Failed to deserialize resource object from UCS webhook response")?
+        // }
         _ => {
             // Convert UCS webhook content to appropriate format
             serde_json::to_value(event_content)

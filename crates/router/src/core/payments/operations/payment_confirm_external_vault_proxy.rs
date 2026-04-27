@@ -6,7 +6,6 @@ use error_stack::ResultExt;
 use router_env::{instrument, tracing};
 
 use super::{BoxedOperation, Domain, GetTracker, Operation, UpdateTracker, ValidateRequest};
-#[cfg(feature = "pm_modular")]
 use crate::core::payments::operations::PaymentMethodWithRawData;
 use crate::{
     core::{
@@ -111,7 +110,7 @@ impl<F: Send + Clone + Sync>
         platform: &domain::Platform,
         _auth_flow: services::AuthFlow,
         _header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
-        #[cfg(feature = "pm_modular")] _payment_method_wrapper: Option<PaymentMethodWithRawData>,
+        _payment_method_wrapper: Option<PaymentMethodWithRawData>,
         _dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
     ) -> RouterResult<
         operations::GetTrackerResponse<'a, F, ExternalVaultProxyConfirmRequest, PaymentData<F>>,
@@ -147,7 +146,7 @@ impl<F: Send + Clone + Sync>
             "external_vault_proxy_confirm",
         )?;
 
-        let payment_attempt = db
+        let mut payment_attempt = db
             .find_payment_attempt_by_payment_id_processor_merchant_id_attempt_id(
                 &payment_intent.payment_id,
                 processor_merchant_id,
@@ -222,6 +221,12 @@ impl<F: Send + Clone + Sync>
                 hyperswitch_domain_models::payment_method_data::ExternalVaultPaymentMethodData::from,
             );
 
+        // Set payment_method and payment_method_type on the attempt so the routing
+        // engine can match connectors (they may not be set on the attempt yet when
+        // payment was created without a payment method).
+        payment_attempt.payment_method = Some(request.payment_method_type);
+        payment_attempt.payment_method_type = Some(request.payment_method_subtype);
+
         let payment_data = PaymentData {
             flow: PhantomData,
             payment_intent,
@@ -275,6 +280,7 @@ impl<F: Send + Clone + Sync>
             is_manual_retry_enabled: business_profile.is_manual_retry_enabled,
             is_l2_l3_enabled: business_profile.is_l2_l3_enabled,
             external_authentication_data: None,
+            vault_session_details: None,
             external_vault_pmd,
             client_session_id: None,
         };
@@ -473,7 +479,7 @@ impl<F: Clone + Send + Sync>
     async fn make_pm_data<'a>(
         &'a self,
         _state: &'a SessionState,
-        payment_data: &mut PaymentData<F>,
+        _payment_data: &mut PaymentData<F>,
         _storage_scheme: storage_enums::MerchantStorageScheme,
         _platform: &domain::Platform,
         _business_profile: &domain::Profile,
