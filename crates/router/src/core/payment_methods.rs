@@ -1333,7 +1333,7 @@ async fn payment_method_resolver(
     req: &api::PaymentMethodCreate,
     payment_method_data: domain::PaymentMethodVaultingData,
 ) -> RouterResult<PaymentMethodResolver> {
-    let locker = LockerType::from_locker_config(&state.conf.locker);
+    let locker = LockerType::from_micro_services_config(&state.conf.micro_services);
     locker
         .resolve_payment_method(state, platform, customer_id, req, payment_method_data)
         .await
@@ -2009,8 +2009,10 @@ impl LockerOperations for LegacyLocker {
 }
 #[cfg(feature = "v2")]
 impl LockerType {
-    pub fn from_locker_config(locker_config: &settings::Locker) -> Arc<dyn LockerOperations> {
-        if locker_config.use_legacy_locker {
+    pub fn from_micro_services_config(
+        micro_services_config: &settings::MicroServicesConfig,
+    ) -> Arc<dyn LockerOperations> {
+        if micro_services_config.use_legacy_locker {
             Arc::new(LegacyLocker)
         } else {
             Arc::new(GenericLocker)
@@ -2264,7 +2266,7 @@ async fn execute_payment_method_create(
     }
     let db = &*state.store;
 
-    let locker = LockerType::from_locker_config(&state.conf.locker);
+    let locker = LockerType::from_micro_services_config(&state.conf.micro_services);
 
     let vaulting_result = locker
         .vault_new_payment_method(
@@ -6846,7 +6848,7 @@ impl<'a> pm_types::PaymentMethodUpdateHandler<'a> {
         let is_metadata_changed_for_same_fingerprint =
             self.is_pm_metadata_changed_for_same_fingerprint(&vault_request_data);
 
-        let locker = LockerType::from_locker_config(&self.state.conf.locker);
+        let locker = LockerType::from_micro_services_config(&self.state.conf.micro_services);
 
         locker
             .validate_locker_operations_for_update(

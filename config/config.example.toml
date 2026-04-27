@@ -154,7 +154,6 @@ host = ""                           # Locker host
 mock_locker = true                  # Emulate a locker locally using Postgres
 locker_signing_key_id = "1"         # Key_id to sign basilisk hs locker
 locker_enabled = true               # Boolean to enable or disable saving cards in locker
-use_legacy_locker = false            # Boolean to enable legacy locker
 ttl_for_storage_in_secs = 220752000 # Time to live for storage entries in locker
 
 [delayed_session_response]
@@ -1420,3 +1419,4 @@ backup_file_path = "./config/superposition_seed.toml" # Path to a local file for
 # Base URLs for modular microservices
 # (e.g., payment-methods, customers, routing, etc.)
 payment_methods_base_url = "http://localhost:8082"
+use_legacy_locker = false           # Boolean to enable legacy locker

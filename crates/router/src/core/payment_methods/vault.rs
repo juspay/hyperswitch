@@ -1929,7 +1929,7 @@ pub async fn retrieve_payment_method_from_vault_internal(
     customer_id: &id_type::GlobalCustomerId,
     payment_method_type: Option<enums::PaymentMethod>,
 ) -> CustomResult<pm_types::VaultRetrieveResponse, errors::VaultError> {
-    let locker = LockerType::from_locker_config(&state.conf.locker);
+    let locker = LockerType::from_micro_services_config(&state.conf.micro_services);
     locker
         .retrieve_payment_method_from_locker(
             state,
@@ -2428,7 +2428,7 @@ pub async fn delete_payment_method_data_from_vault_internal(
     vault_id: domain::VaultId,
     customer_id: &id_type::GlobalCustomerId,
 ) -> CustomResult<pm_types::VaultDeleteResponse, errors::VaultError> {
-    let locker = LockerType::from_locker_config(&state.conf.locker);
+    let locker = LockerType::from_micro_services_config(&state.conf.micro_services);
     locker
         .delete_payment_method_from_locker(state, platform, vault_id, customer_id)
         .await
