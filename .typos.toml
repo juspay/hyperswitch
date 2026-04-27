@@ -11,6 +11,7 @@ sepa_guarenteed_bank_debit = "sepa_guarenteed_bank_debit"
 SepaGuarenteedDebit = "SepaGuarenteedDebit"
 SepaGuarenteedBankDebit = "SepaGuarenteedBankDebit"
 ThreedsInvokeAndCompleteAutorize = "ThreedsInvokeAndCompleteAutorize"
+finix = "finix" # Finix connector name
 
 whe = "whe" # this is a prefix identifier webhook endpoint id
 SiSaKet = "SiSaKet" # thailand state abbreviation
@@ -118,6 +119,7 @@ requestor = "requestor" #Used in external 3ds flows
 substituters = "substituters" # Present in `flake.nix`
 unsuccess = "unsuccess" # Used in cryptopay request
 automatico = "automatico" # Pix Automático (Portuguese for Automatic) - payment method name
+finix = "finix" # Finix connector name
 
 [files]
 extend-exclude = [
