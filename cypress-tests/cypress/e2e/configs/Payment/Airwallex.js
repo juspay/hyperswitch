@@ -274,6 +274,209 @@ export const connectorDetails = {
         },
       },
     },
+    InvalidCardNumber: {
+      Request: {
+        currency: "USD",
+        payment_method: "card",
+        payment_method_type: "debit",
+        setup_future_usage: "on_session",
+        payment_method_data: {
+          card: {
+            card_number: "123456",
+            card_exp_month: "10",
+            card_exp_year: "30",
+            card_holder_name: "joseph Doe",
+            card_cvc: "123",
+          },
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "failed",
+          error_code: "validation_error",
+          error_message: "invalid pan",
+          unified_code: "UE_9000",
+          unified_message: "Something went wrong",
+        },
+      },
+    },
+    InvalidExpiryMonth: {
+      Request: {
+        currency: "USD",
+        payment_method: "card",
+        payment_method_type: "debit",
+        setup_future_usage: "on_session",
+        payment_method_data: {
+          card: {
+            card_number: "4111111111111111",
+            card_exp_month: "00",
+            card_exp_year: "2023",
+            card_holder_name: "joseph Doe",
+            card_cvc: "123",
+          },
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "failed",
+          error_code: "validation_error",
+          error_message: "invalid pan",
+          unified_code: "UE_9000",
+          unified_message: "Something went wrong",
+        },
+      },
+    },
+    InvalidExpiryYear: {
+      Request: {
+        currency: "USD",
+        payment_method: "card",
+        payment_method_type: "debit",
+        setup_future_usage: "on_session",
+        payment_method_data: {
+          card: {
+            card_number: "4111111111111111",
+            card_exp_month: "01",
+            card_exp_year: "2023",
+            card_holder_name: "joseph Doe",
+            card_cvc: "123",
+          },
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "failed",
+          error_code: "validation_error",
+          error_message: "invalid pan",
+          unified_code: "UE_9000",
+          unified_message: "Something went wrong",
+        },
+      },
+    },
+    InvalidCardCvv: {
+      Request: {
+        currency: "USD",
+        payment_method: "card",
+        payment_method_type: "debit",
+        setup_future_usage: "on_session",
+        payment_method_data: {
+          card: {
+            card_number: "4111111111111111",
+            card_exp_month: "01",
+            card_exp_year: "30",
+            card_holder_name: "joseph Doe",
+            card_cvc: "123456",
+          },
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "failed",
+          error_code: "validation_error",
+          error_message: "invalid pan",
+          unified_code: "UE_9000",
+          unified_message: "Something went wrong",
+        },
+      },
+    },
+    InvalidCurrency: {
+      Request: {
+        currency: "INVALID",
+        payment_method: "card",
+        payment_method_type: "debit",
+        setup_future_usage: "on_session",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+      },
+      Response: {
+        status: 400,
+        body: {
+          error: {
+            type: "invalid_request",
+            message: "Invalid currency",
+            code: "IR_16",
+          },
+        },
+      },
+    },
+    InvalidCaptureMethod: {
+      Request: {
+        currency: "USD",
+        capture_method: "invalid_capture",
+        payment_method: "card",
+        payment_method_type: "debit",
+        setup_future_usage: "on_session",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+      },
+      Response: {
+        status: 400,
+        body: {
+          error: {
+            type: "invalid_request",
+            message: "Invalid capture_method",
+            code: "IR_16",
+          },
+        },
+      },
+    },
+    InvalidPaymentMethod: {
+      Request: {
+        currency: "USD",
+        payment_method: "invalid_payment_method",
+        payment_method_type: "debit",
+        setup_future_usage: "on_session",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+      },
+      Response: {
+        status: 400,
+        body: {
+          error: {
+            type: "invalid_request",
+            message: "Invalid payment_method",
+            code: "IR_16",
+          },
+        },
+      },
+    },
+    InvalidAmountToCapture: {
+      Request: {
+        amount_to_capture: 10000,
+      },
+      Response: {
+        status: 400,
+        body: {
+          error: {
+            type: "invalid_request",
+            message: "amount_to_capture is greater than amount",
+            code: "IR_16",
+          },
+        },
+      },
+    },
+    MissingRequiredParam: {
+      Request: {
+        currency: "USD",
+        payment_method: "card",
+      },
+      Response: {
+        status: 400,
+        body: {
+          error: {
+            type: "invalid_request",
+            message: "payment_method_data is required for payment_method card",
+            code: "IR_16",
+          },
+        },
+      },
+    },
     Capture: {
       Request: {
         amount_to_capture: 6000,
@@ -846,6 +1049,304 @@ export const connectorDetails = {
         },
       },
     },
+    PaymentIntentWithOrderDetails: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+      Request: {
+        currency: "USD",
+        amount: 6000,
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+        order_details: {
+          product_name: "Test Product",
+          quantity: 1,
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+          amount: 6000,
+        },
+      },
+    },
+    PaymentConfirmWithOrderDetails: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+          amount: 6000,
+          amount_received: 6000,
+        },
+      },
+    },
+    PaymentIntentWithInvalidOrderDetails: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+      Request: {
+        currency: "USD",
+        amount: 6000,
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+        order_details: {
+          product_name: "",
+          quantity: -1,
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+        },
+      },
+    },
+    PaymentIntentWithLargeAmountOrderDetails: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+      Request: {
+        currency: "USD",
+        amount: 9999900,
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+        order_details: {
+          product_name: "Premium Product",
+          quantity: 999,
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+          amount: 9999900,
+        },
+      },
+    },
+    PaymentConfirmWithLargeAmountOrderDetails: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+          amount: 9999900,
+          amount_received: 9999900,
+        },
+      },
+    },
+    PaymentIntentWithSpecialCharsOrderDetails: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+      Request: {
+        currency: "USD",
+        amount: 9999900,
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+        order_details: {
+          product_name: "Test Product !@#$%^&*()",
+          quantity: 1,
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+          amount: 9999900,
+        },
+      },
+    },
+    PaymentConfirmWithSpecialCharsOrderDetails: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+          amount: 9999900,
+          amount_received: 9999900,
+        },
+      },
+    },
+    PaymentIntentWithOrderDetailsAndShipping: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+      Request: {
+        currency: "USD",
+        amount: 9999900,
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+        order_details: {
+          product_name: "Product with Shipping",
+          quantity: 1,
+        },
+        shipping_cost: 500,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+          amount: 9999900,
+          shipping_cost: 500,
+        },
+      },
+    },
+    PaymentConfirmWithOrderDetailsAndShipping: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+          amount: 9999900,
+          amount_received: 10004900,
+          shipping_cost: 500,
+        },
+      },
+    },
+    PaymentIntentWithMinimalOrderDetails: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+      Request: {
+        currency: "USD",
+        amount: 6000,
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+        order_details: {},
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+          amount: 6000,
+        },
+      },
+    },
+    PaymentConfirmWithMinimalOrderDetails: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+          amount: 6000,
+          amount_received: 6000,
+        },
+      },
+    },
+    PaymentIntentWithOrderDetailsManual: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+      Request: {
+        currency: "USD",
+        amount: 6000,
+        capture_method: "manual",
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+        order_details: {
+          product_name: "Manual Capture Product",
+          quantity: 1,
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+          amount: 6000,
+          capture_method: "manual",
+        },
+      },
+    },
+    PaymentConfirmWithOrderDetailsManual: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_capture",
+          amount: 6000,
+          payment_method: "card",
+        },
+      },
+    },
+    CaptureWithOrderDetails: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+      Request: {
+        amount_to_capture: 6000,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+          amount: 6000,
+          amount_capturable: 0,
+          amount_received: 6000,
+        },
+      },
+    },
   },
   bank_redirect_pm: {
     Trustly: {
@@ -906,6 +1407,298 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "requires_customer_action",
+        },
+      },
+    },
+    PaymentIntentWithOrderDetails: {
+      Request: {
+        currency: "USD",
+        amount: 6000,
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+        order_details: {
+          product_name: "Test Product",
+          quantity: 1,
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+          amount: 6000,
+        },
+      },
+    },
+    PaymentConfirmWithOrderDetails: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+          amount: 6000,
+          amount_received: 6000,
+        },
+      },
+    },
+    PaymentIntentWithInvalidOrderDetails: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+      Request: {
+        currency: "USD",
+        amount: 6000,
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+        order_details: {
+          product_name: "",
+          quantity: -1,
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+        },
+      },
+    },
+    PaymentIntentWithLargeAmountOrderDetails: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+      Request: {
+        currency: "USD",
+        amount: 9999900,
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+        order_details: {
+          product_name: "Premium Product",
+          quantity: 999,
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+          amount: 9999900,
+        },
+      },
+    },
+    PaymentConfirmWithLargeAmountOrderDetails: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+          amount: 9999900,
+          amount_received: 9999900,
+        },
+      },
+    },
+    PaymentIntentWithSpecialCharsOrderDetails: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+      Request: {
+        currency: "USD",
+        amount: 9999900,
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+        order_details: {
+          product_name: "Test Product !@#$%^&*()",
+          quantity: 1,
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+          amount: 9999900,
+        },
+      },
+    },
+    PaymentConfirmWithSpecialCharsOrderDetails: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+          amount: 9999900,
+          amount_received: 9999900,
+        },
+      },
+    },
+    PaymentIntentWithOrderDetailsAndShipping: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+      Request: {
+        currency: "USD",
+        amount: 9999900,
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+        order_details: {
+          product_name: "Product with Shipping",
+          quantity: 1,
+        },
+        shipping_cost: 500,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+          amount: 9999900,
+          shipping_cost: 500,
+        },
+      },
+    },
+    PaymentConfirmWithOrderDetailsAndShipping: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+          amount: 9999900,
+          amount_received: 10004900,
+          shipping_cost: 500,
+        },
+      },
+    },
+    PaymentIntentWithMinimalOrderDetails: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+      Request: {
+        currency: "USD",
+        amount: 6000,
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+        order_details: {},
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+          amount: 6000,
+        },
+      },
+    },
+    PaymentConfirmWithMinimalOrderDetails: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+          amount: 6000,
+          amount_received: 6000,
+        },
+      },
+    },
+    PaymentIntentWithOrderDetailsManual: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+      Request: {
+        currency: "USD",
+        amount: 6000,
+        capture_method: "manual",
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+        order_details: {
+          product_name: "Manual Capture Product",
+          quantity: 1,
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+          amount: 6000,
+          capture_method: "manual",
+        },
+      },
+    },
+    PaymentConfirmWithOrderDetailsManual: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_capture",
+          amount: 6000,
+          payment_method: "card",
+        },
+      },
+    },
+    CaptureWithOrderDetails: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+      Request: {
+        amount_to_capture: 6000,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+          amount: 6000,
+          amount_capturable: 0,
+          amount_received: 6000,
         },
       },
     },
