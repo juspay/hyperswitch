@@ -830,6 +830,8 @@ pub struct PaymentAttempt {
     pub network_transaction_id: Option<String>,
     /// stores the authorized amount in case of partial authorization
     pub authorized_amount: Option<MinorUnit>,
+    /// External surcharge details from InterPayments
+    pub external_surcharge_details: Option<common_types::payments::ExternalSurchargeDetails>,
 }
 
 impl PaymentAttempt {
@@ -1426,6 +1428,8 @@ pub struct PaymentAttempt {
     pub retry_type: Option<storage_enums::RetryType>,
     /// Installment data selected by the customer (number of installments and billing frequency)
     pub installment_data: Option<common_types::payments::InstallmentData>,
+    /// External surcharge details from InterPayments (stored as JSONB)
+    pub external_surcharge_details: Option<common_types::payments::ExternalSurchargeDetails>,
 }
 
 #[cfg(feature = "v1")]
@@ -2936,6 +2940,7 @@ impl behaviour::Conversion for PaymentAttempt {
             authorized_amount: self.authorized_amount,
             encrypted_payment_method_data: self.encrypted_payment_method_data.map(Encryption::from),
             retry_type: self.retry_type,
+            external_surcharge_details: self.external_surcharge_details,
         })
     }
 
@@ -3069,6 +3074,7 @@ impl behaviour::Conversion for PaymentAttempt {
                 error_details: storage_model.error_details.map(Into::into),
                 retry_type: storage_model.retry_type,
                 installment_data: storage_model.installment_data,
+                external_surcharge_details: storage_model.external_surcharge_details,
             })
         }
         .await
@@ -3353,6 +3359,7 @@ impl behaviour::Conversion for PaymentAttempt {
             error_details: None,
             retry_type: None,
             installment_data: None,
+            external_surcharge_details: None,
         })
     }
 

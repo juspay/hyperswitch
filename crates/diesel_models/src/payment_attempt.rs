@@ -297,6 +297,8 @@ pub struct PaymentAttempt {
     /// Indicates the type of retry for this payment attempt (None for initial attempt)
     pub retry_type: Option<storage_enums::RetryType>,
     pub installment_data: Option<common_types::payments::InstallmentData>,
+    /// External surcharge details from InterPayments (stored as JSONB)
+    pub external_surcharge_details: Option<common_types::payments::ExternalSurchargeDetails>,
 }
 
 #[cfg(feature = "v1")]

@@ -867,6 +867,7 @@ pub fn make_new_auto_retry_payment_attempt(
         error_details: Default::default(),
         retry_type: Some(storage_enums::RetryType::AutoRetry),
         installment_data: Default::default(),
+        external_surcharge_details: Default::default(),
     }
 }
 

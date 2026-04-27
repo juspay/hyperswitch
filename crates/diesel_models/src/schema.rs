@@ -296,6 +296,8 @@ diesel::table! {
         always_enable_overcapture -> Nullable<Bool>,
         #[max_length = 64]
         billing_processor_id -> Nullable<Varchar>,
+        #[max_length = 64]
+        surcharge_connector_id -> Nullable<Varchar>,
         is_external_vault_enabled -> Nullable<Bool>,
         external_vault_connector_details -> Nullable<Jsonb>,
         is_l2_l3_enabled -> Nullable<Bool>,
@@ -1174,6 +1176,7 @@ diesel::table! {
         #[max_length = 64]
         retry_type -> Nullable<Varchar>,
         installment_data -> Nullable<Jsonb>,
+        external_surcharge_details -> Nullable<Jsonb>,
     }
 }
 
