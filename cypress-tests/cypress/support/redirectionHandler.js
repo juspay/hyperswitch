@@ -470,55 +470,45 @@ function bankRedirectRedirection(
               });
               verifyUrl = true;
             } else if (paymentMethodType === "klarna") {
-              const klarnaOrigin = "https://payment.klarna.com";
-              cy.origin(
-                klarnaOrigin,
-                { args: { constants } },
-                ({ constants }) => {
-                  cy.log(
-                    "Executing on Klarna sandbox:",
-                    cy.state("window").location.origin
-                  );
-                  cy.wait(constants.TIMEOUT / 6);
-                  cy.get("body").then(($body) => {
-                    if ($body.find("#onContinue").length > 0) {
-                      cy.get("#onContinue").click();
-                    }
-                    if (
-                      $body.find(
-                        'button[data-testid="select-payment-category"]'
-                      ).length > 0
-                    ) {
-                      cy.get('button[data-testid="select-payment-category"]')
-                        .first()
-                        .click();
-                    }
-                    if (
-                      $body.find("#payment-methods-selector-pay-over-time")
-                        .length > 0
-                    ) {
-                      cy.get("#payment-methods-selector-pay-over-time").click();
-                    }
+              cy.log("Executing on Klarna sandbox");
+              cy.wait(constants.TIMEOUT / 6);
+              cy.get("body").then(($body) => {
+                if ($body.find("#onContinue").length > 0) {
+                  cy.get("#onContinue").click();
+                }
+                if (
+                  $body.find(
+                    'button[data-testid="select-payment-category"]'
+                  ).length > 0
+                ) {
+                  cy.get('button[data-testid="select-payment-category"]')
+                    .first()
+                    .click();
+                }
+                if (
+                  $body.find("#payment-methods-selector-pay-over-time")
+                    .length > 0
+                ) {
+                  cy.get("#payment-methods-selector-pay-over-time").click();
+                }
+                cy.get(
+                  'button[type="submit"], button[id*="continue"], button[data-testid*="continue"]'
+                )
+                  .first()
+                  .should("be.visible")
+                  .click({ force: true });
+                cy.wait(constants.TIMEOUT / 10);
+                cy.get("body").then(($body2) => {
+                  if ($body2.find('input[id="otp_field"]').length > 0) {
+                    cy.get('input[id="otp_field"]').type("123456");
                     cy.get(
-                      'button[type="submit"], button[id*="continue"], button[data-testid*="continue"]'
+                      'button[type="submit"], button[id*="confirm"], button[data-testid*="confirm"]'
                     )
                       .first()
-                      .should("be.visible")
                       .click({ force: true });
-                    cy.wait(constants.TIMEOUT / 10);
-                    cy.get("body").then(($body2) => {
-                      if ($body2.find('input[id="otp_field"]').length > 0) {
-                        cy.get('input[id="otp_field"]').type("123456");
-                        cy.get(
-                          'button[type="submit"], button[id*="confirm"], button[data-testid*="confirm"]'
-                        )
-                          .first()
-                          .click({ force: true });
-                      }
-                    });
-                  });
-                }
-              );
+                  }
+                });
+              });
               verifyUrl = true;
             } else {
               throw new Error(
