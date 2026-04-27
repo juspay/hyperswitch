@@ -2000,14 +2000,9 @@ Cypress.Commands.add(
           expect(createPaymentBody.email, "customer.email").to.equal(
             response.body.customer.email
           );
-          // customer.id can be undefined when customer object doesn't exist
-          if (response.body.customer && response.body.customer.id) {
-            expect(createPaymentBody.customer_id, "customer.id").to.equal(
-              response.body.customer.id
-            );
-          } else {
-            expect(response.body.customer.id, "customer.id").to.be.undefined;
-          }
+          expect(createPaymentBody.customer_id, "customer.id").to.equal(
+            response.body.customer.id
+          );
           expect(createPaymentBody.metadata, "metadata").to.deep.equal(
             response.body.metadata
           );
