@@ -107,6 +107,9 @@ export const connectorDetails = {
     MITAutoCapture: {
       Configs: {
         TRIGGER_SKIP: true,
+        },
+        Request: {
+          currency: "USD",
       },
       Request: {},
       Response: {
@@ -119,6 +122,9 @@ export const connectorDetails = {
     MITManualCapture: {
       Configs: {
         TRIGGER_SKIP: true,
+        },
+        Request: {
+          currency: "USD",
       },
       Request: {},
       Response: {
@@ -131,6 +137,9 @@ export const connectorDetails = {
     "3DSManualCapture": {
       Configs: {
         TRIGGER_SKIP: true,
+        },
+        Request: {
+          currency: "USD",
       },
       Request: {
         payment_method: "card",
@@ -151,6 +160,9 @@ export const connectorDetails = {
     "3DSAutoCapture": {
       Configs: {
         TRIGGER_SKIP: true,
+        },
+        Request: {
+          currency: "USD",
       },
       Request: {
         payment_method: "card",
@@ -203,6 +215,9 @@ export const connectorDetails = {
     Capture: {
       Configs: {
         TRIGGER_SKIP: true,
+        },
+        Request: {
+          currency: "USD",
       },
       Request: {
         amount_to_capture: 6000,
@@ -220,6 +235,9 @@ export const connectorDetails = {
     PartialCapture: {
       Configs: {
         TRIGGER_SKIP: true,
+        },
+        Request: {
+          currency: "USD",
       },
       Request: {
         amount_to_capture: 2000,
@@ -246,6 +264,9 @@ export const connectorDetails = {
     Refund: {
       Configs: {
         TRIGGER_SKIP: true,
+        },
+        Request: {
+          currency: "USD",
       },
       Request: {
         amount: 6000,
@@ -260,6 +281,9 @@ export const connectorDetails = {
     PartialRefund: {
       Configs: {
         TRIGGER_SKIP: true,
+        },
+        Request: {
+          currency: "USD",
       },
       Request: {
         amount: 2000,
@@ -282,6 +306,9 @@ export const connectorDetails = {
     MandateMultiUse3DSAutoCapture: {
       Configs: {
         TRIGGER_SKIP: true,
+        },
+        Request: {
+          currency: "USD",
       },
       Request: {
         payment_method: "card",
@@ -302,6 +329,9 @@ export const connectorDetails = {
     MandateMultiUse3DSManualCapture: {
       Configs: {
         TRIGGER_SKIP: true,
+        },
+        Request: {
+          currency: "USD",
       },
       Request: {
         payment_method: "card",
@@ -416,6 +446,9 @@ export const connectorDetails = {
     manualPaymentRefund: {
       Configs: {
         TRIGGER_SKIP: true,
+        },
+        Request: {
+          currency: "USD",
       },
       Request: {
         amount: 6000,
@@ -477,6 +510,9 @@ export const connectorDetails = {
     PaymentMethodIdMandateNo3DSAutoCapture: {
       Configs: {
         TRIGGER_SKIP: true,
+        },
+        Request: {
+          currency: "USD",
       },
       Request: {
         payment_method: "card",
@@ -498,6 +534,9 @@ export const connectorDetails = {
     PaymentMethodIdMandateNo3DSManualCapture: {
       Configs: {
         TRIGGER_SKIP: true,
+        },
+        Request: {
+          currency: "USD",
       },
       Request: {
         payment_method: "card",
@@ -519,6 +558,9 @@ export const connectorDetails = {
     PaymentMethodIdMandate3DSAutoCapture: {
       Configs: {
         TRIGGER_SKIP: true,
+        },
+        Request: {
+          currency: "USD",
       },
       Request: {
         payment_method: "card",
@@ -541,6 +583,9 @@ export const connectorDetails = {
     PaymentMethodIdMandate3DSManualCapture: {
       Configs: {
         TRIGGER_SKIP: true,
+        },
+        Request: {
+          currency: "USD",
       },
       Request: {
         payment_method: "card",
@@ -563,6 +608,9 @@ export const connectorDetails = {
     SaveCardUseNo3DSAutoCapture: {
       Configs: {
         TRIGGER_SKIP: true,
+        },
+        Request: {
+          currency: "USD",
       },
       Request: {
         payment_method: "card",
@@ -585,6 +633,9 @@ export const connectorDetails = {
     SaveCardUseNo3DSAutoCaptureOffSession: {
       Configs: {
         TRIGGER_SKIP: true,
+        },
+        Request: {
+          currency: "USD",
       },
       Request: {
         payment_method: "card",
@@ -607,6 +658,9 @@ export const connectorDetails = {
     SaveCardUse3DSAutoCaptureOffSession: {
       Configs: {
         TRIGGER_SKIP: true,
+        },
+        Request: {
+          currency: "USD",
       },
       Request: {
         payment_method: "card",
@@ -629,6 +683,9 @@ export const connectorDetails = {
     SaveCardUseNo3DSManualCaptureOffSession: {
       Configs: {
         TRIGGER_SKIP: true,
+        },
+        Request: {
+          currency: "USD",
       },
       Request: {
         payment_method: "card",
@@ -654,6 +711,9 @@ export const connectorDetails = {
       getCustomExchange({
         Configs: {
           TRIGGER_SKIP: true,
+        },
+        Request: {
+          currency: "USD",
         },
       }),
   },

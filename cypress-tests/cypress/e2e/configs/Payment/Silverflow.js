@@ -1087,6 +1087,9 @@ export const connectorDetails = {
         Configs: {
           TRIGGER_SKIP: true,
         },
+        Request: {
+          currency: "USD",
+        },
       }),
   },
 };
