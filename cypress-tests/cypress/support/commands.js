@@ -5437,6 +5437,38 @@ Cypress.Commands.add(
   }
 );
 
+Cypress.Commands.add("blocklistListRules", (dataKind, globalState) => {
+  const apiKey = globalState.get("apiKey");
+  const baseUrl = globalState.get("baseUrl");
+  const url = `${baseUrl}/blocklist?data_kind=${dataKind}`;
+
+  cy.request({
+    method: "GET",
+    url: url,
+    headers: {
+      "Content-Type": "application/json",
+      "api-key": apiKey,
+    },
+    failOnStatusCode: false,
+  }).then((response) => {
+    logRequestId(response.headers["x-request-id"]);
+
+    cy.wrap(response).then(() => {
+      if (response.status === 200) {
+        expect(response.body).to.have.property("count");
+        expect(response.body).to.have.property("total_count");
+        expect(response.body).to.have.property("data");
+        expect(response.body.data).to.be.an("array");
+        globalState.set("blocklistListResponse", response.body);
+      } else {
+        throw new Error(
+          `Blocklist list rules failed with status: ${response.status} and message: ${response.body?.error?.message}`
+        );
+      }
+    });
+  });
+});
+
 Cypress.Commands.add("blocklistDeleteRule", (type, data, globalState) => {
   const apiKey = globalState.get("apiKey");
   const baseUrl = globalState.get("baseUrl");

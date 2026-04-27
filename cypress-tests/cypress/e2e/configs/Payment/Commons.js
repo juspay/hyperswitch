@@ -2701,6 +2701,150 @@ export const connectorDetails = {
       },
     },
   },
+  Blocklist: {
+    CreateCardBin: getCustomExchange({
+      Request: {
+        type: "card_bin",
+        data: "123456",
+      },
+      Response: {
+        status: 200,
+        body: {
+          fingerprint_id: "123456",
+          data_kind: "card_bin",
+        },
+      },
+    }),
+    CreateFingerprint: getCustomExchange({
+      Request: {
+        type: "fingerprint",
+        data: "test_finger_print_123",
+      },
+      Response: {
+        status: 200,
+        body: {
+          fingerprint_id: "test_finger_print_123",
+          data_kind: "payment_method",
+        },
+      },
+    }),
+    CreateExtendedCardBin: getCustomExchange({
+      Request: {
+        type: "extended_card_bin",
+        data: "12345678",
+      },
+      Response: {
+        status: 200,
+        body: {
+          fingerprint_id: "12345678",
+          data_kind: "extended_card_bin",
+        },
+      },
+    }),
+    CreateDuplicate: getCustomExchange({
+      Request: {
+        type: "card_bin",
+        data: "123456",
+      },
+      Response: {
+        status: 400,
+        body: {
+          error: {
+            type: "invalid_request",
+            message: "provided bin is already blocked",
+            code: "IR_16",
+          },
+        },
+      },
+    }),
+    ListCardBin: getCustomExchange({
+      Request: {},
+      Response: {
+        status: 200,
+        body: {
+          count: 1,
+          total_count: 1,
+        },
+      },
+    }),
+    ListFingerprint: getCustomExchange({
+      Request: {},
+      Response: {
+        status: 200,
+        body: {
+          count: 1,
+          total_count: 1,
+        },
+      },
+    }),
+    ListExtendedCardBin: getCustomExchange({
+      Request: {},
+      Response: {
+        status: 200,
+        body: {
+          count: 1,
+          total_count: 1,
+        },
+      },
+    }),
+    DeleteCardBin: getCustomExchange({
+      Request: {
+        type: "card_bin",
+        data: "123456",
+      },
+      Response: {
+        status: 200,
+        body: {
+          fingerprint_id: "123456",
+          data_kind: "card_bin",
+        },
+      },
+    }),
+    DeleteFingerprint: getCustomExchange({
+      Request: {
+        type: "fingerprint",
+        data: "test_finger_print_123",
+      },
+      Response: {
+        status: 200,
+        body: {
+          fingerprint_id: "test_finger_print_123",
+          data_kind: "payment_method",
+        },
+      },
+    }),
+    DeleteExtendedCardBin: getCustomExchange({
+      Request: {
+        type: "extended_card_bin",
+        data: "12345678",
+      },
+      Response: {
+        status: 200,
+        body: {
+          fingerprint_id: "12345678",
+          data_kind: "extended_card_bin",
+        },
+      },
+    }),
+    ToggleEnable: getCustomExchange({
+      Request: {},
+      Response: {
+        status: 200,
+        body: {
+          blocklist_guard_status: "enabled",
+        },
+      },
+    }),
+    ToggleDisable: getCustomExchange({
+      Request: {},
+      Response: {
+        status: 200,
+        body: {
+          blocklist_guard_status: "disabled",
+        },
+      },
+    }),
+  },
   mandate_id_too_long: getCustomExchange({
     Request: {
       mandate_id: "mnd_" + "a".repeat(63),
