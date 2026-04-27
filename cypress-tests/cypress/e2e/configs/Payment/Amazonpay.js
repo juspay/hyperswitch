@@ -17,10 +17,12 @@ export const connectorDetails = {
         payment_method_type: "amazon_pay",
         payment_method_data: {
           wallet: {
-            amazon_pay_redirect: {},
+            amazon_pay: {
+              checkout_session_id: "amz-checkout-session-test-001",
+            },
           },
         },
-        billing: {
+        shipping: {
           address: {
             line1: "1467",
             line2: "Harrison Street",
