@@ -131,7 +131,7 @@ describe("Authentication Service Eligibility", () => {
         cy.createConfirmPaymentTest(
           fixtures.createConfirmPaymentBody,
           data,
-          "three_ds",
+          "no_three_ds",
           "automatic",
           globalState
         );
@@ -178,7 +178,7 @@ describe("Authentication Service Eligibility", () => {
         cy.createConfirmPaymentTest(
           fixtures.createConfirmPaymentBody,
           data,
-          "three_ds",
+          "no_three_ds",
           "automatic",
           globalState
         );
@@ -251,7 +251,7 @@ describe("Authentication Service Eligibility", () => {
         cy.createConfirmPaymentTest(
           fixtures.createConfirmPaymentBody,
           data,
-          "three_ds",
+          "no_three_ds",
           "automatic",
           globalState
         );
