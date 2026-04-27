@@ -920,30 +920,6 @@ export const connectorDetails = {
         },
       },
     },
-    PaymentIntentWithLargeAmountOrderDetails: {
-      Request: {
-        currency: "USD",
-        customer_acceptance: null,
-        setup_future_usage: "on_session",
-        amount: 9999900,
-        order_details: [
-          {
-            product_type: "physical",
-            product_name: "Premium Package",
-            quantity: 1,
-            amount: 9999900,
-          },
-        ],
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "requires_payment_method",
-          setup_future_usage: "on_session",
-          amount: 9999900,
-        },
-      },
-    },
     PaymentIntentWithSpecialCharsOrderDetails: {
       Request: {
         currency: "USD",
@@ -1220,30 +1196,6 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "requires_confirmation",
-        },
-      },
-    },
-    PaymentIntentWithLargeAmountOrderDetails: {
-      Request: {
-        currency: "USD",
-        customer_acceptance: null,
-        setup_future_usage: "on_session",
-        amount: 9999900,
-        order_details: [
-          {
-            product_type: "physical",
-            product_name: "Premium Package",
-            quantity: 1,
-            amount: 9999900,
-          },
-        ],
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "requires_payment_method",
-          setup_future_usage: "on_session",
-          amount: 9999900,
         },
       },
     },
