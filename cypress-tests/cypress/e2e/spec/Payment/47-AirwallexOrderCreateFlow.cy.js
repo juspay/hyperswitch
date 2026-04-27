@@ -16,14 +16,18 @@ describe("Airwallex - Order Create Flow", () => {
   });
 
   context("Order Create with Valid Order Details", () => {
-    it("should create payment intent with valid order details", () => {
+    it("should create payment intent with valid order details", function () {
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "card_pm"
+      ]["PaymentIntentWithOrderDetails"];
+
+      if (data?.Configs?.TRIGGER_SKIP) {
+        this.skip();
+      }
+
       let shouldContinue = true;
 
       cy.step("Create Payment Intent with Order Details", () => {
-        const data = getConnectorDetails(globalState.get("connectorId"))[
-          "card_pm"
-        ]["PaymentIntentWithOrderDetails"];
-
         cy.createPaymentIntentTest(
           fixtures.createPaymentBody,
           data,
@@ -61,14 +65,18 @@ describe("Airwallex - Order Create Flow", () => {
   });
 
   context("Order Create with Invalid Order Details", () => {
-    it("should handle invalid order details gracefully", () => {
+    it("should handle invalid order details gracefully", function () {
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "card_pm"
+      ]["PaymentIntentWithInvalidOrderDetails"];
+
+      if (data?.Configs?.TRIGGER_SKIP) {
+        this.skip();
+      }
+
       let shouldContinue = true;
 
       cy.step("Create Payment Intent with Invalid Order Details", () => {
-        const data = getConnectorDetails(globalState.get("connectorId"))[
-          "card_pm"
-        ]["PaymentIntentWithInvalidOrderDetails"];
-
         cy.createPaymentIntentTest(
           fixtures.createPaymentBody,
           data,
@@ -85,14 +93,18 @@ describe("Airwallex - Order Create Flow", () => {
   });
 
   context("Order Create with Large Amount Order Details", () => {
-    it("should create payment intent with large amount in order details", () => {
+    it("should create payment intent with large amount in order details", function () {
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "card_pm"
+      ]["PaymentIntentWithLargeAmountOrderDetails"];
+
+      if (data?.Configs?.TRIGGER_SKIP) {
+        this.skip();
+      }
+
       let shouldContinue = true;
 
       cy.step("Create Payment Intent with Large Amount Order Details", () => {
-        const data = getConnectorDetails(globalState.get("connectorId"))[
-          "card_pm"
-        ]["PaymentIntentWithLargeAmountOrderDetails"];
-
         cy.createPaymentIntentTest(
           fixtures.createPaymentBody,
           data,
@@ -130,14 +142,18 @@ describe("Airwallex - Order Create Flow", () => {
   });
 
   context("Order Create with Special Characters in Order Details", () => {
-    it("should create payment intent with special characters in order details", () => {
+    it("should create payment intent with special characters in order details", function () {
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "card_pm"
+      ]["PaymentIntentWithSpecialCharsOrderDetails"];
+
+      if (data?.Configs?.TRIGGER_SKIP) {
+        this.skip();
+      }
+
       let shouldContinue = true;
 
       cy.step("Create Payment Intent with Special Characters in Order Details", () => {
-        const data = getConnectorDetails(globalState.get("connectorId"))[
-          "card_pm"
-        ]["PaymentIntentWithSpecialCharsOrderDetails"];
-
         cy.createPaymentIntentTest(
           fixtures.createPaymentBody,
           data,
@@ -175,14 +191,18 @@ describe("Airwallex - Order Create Flow", () => {
   });
 
   context("Order Create with Order Details and Shipping", () => {
-    it("should create payment intent with order details and shipping cost", () => {
+    it("should create payment intent with order details and shipping cost", function () {
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "card_pm"
+      ]["PaymentIntentWithOrderDetailsAndShipping"];
+
+      if (data?.Configs?.TRIGGER_SKIP) {
+        this.skip();
+      }
+
       let shouldContinue = true;
 
       cy.step("Create Payment Intent with Order Details and Shipping", () => {
-        const data = getConnectorDetails(globalState.get("connectorId"))[
-          "card_pm"
-        ]["PaymentIntentWithOrderDetailsAndShipping"];
-
         cy.createPaymentIntentTest(
           fixtures.createPaymentBody,
           data,
@@ -220,14 +240,18 @@ describe("Airwallex - Order Create Flow", () => {
   });
 
   context("Order Create with Minimal Order Details", () => {
-    it("should create payment intent with minimal order details", () => {
+    it("should create payment intent with minimal order details", function () {
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "card_pm"
+      ]["PaymentIntentWithMinimalOrderDetails"];
+
+      if (data?.Configs?.TRIGGER_SKIP) {
+        this.skip();
+      }
+
       let shouldContinue = true;
 
       cy.step("Create Payment Intent with Minimal Order Details", () => {
-        const data = getConnectorDetails(globalState.get("connectorId"))[
-          "card_pm"
-        ]["PaymentIntentWithMinimalOrderDetails"];
-
         cy.createPaymentIntentTest(
           fixtures.createPaymentBody,
           data,
@@ -265,14 +289,18 @@ describe("Airwallex - Order Create Flow", () => {
   });
 
   context("Order Create with Order Details - Manual Capture", () => {
-    it("should create payment intent with order details and manual capture", () => {
+    it("should create payment intent with order details and manual capture", function () {
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "card_pm"
+      ]["PaymentIntentWithOrderDetailsManual"];
+
+      if (data?.Configs?.TRIGGER_SKIP) {
+        this.skip();
+      }
+
       let shouldContinue = true;
 
       cy.step("Create Payment Intent with Order Details - Manual", () => {
-        const data = getConnectorDetails(globalState.get("connectorId"))[
-          "card_pm"
-        ]["PaymentIntentWithOrderDetailsManual"];
-
         cy.createPaymentIntentTest(
           fixtures.createPaymentBody,
           data,
