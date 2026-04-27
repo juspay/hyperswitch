@@ -224,18 +224,16 @@ pub async fn get_batches(
 
     metrics::BATCHES_CONSUMED.add(1, &[]);
 
-    // Convert StreamReadReply to the expected format
+    // StreamReadResult: stream key → Vec<(entry_id, HashMap<String, String>)>
     let (batches, entry_ids): (Vec<Vec<ProcessTrackerBatch>>, Vec<Vec<String>>) = response
-        .keys
-        .into_iter()
-        .map(|stream_key| {
-            stream_key.ids.into_iter().try_fold(
+        .into_values()
+        .map(|entries| {
+            entries.into_iter().try_fold(
                 (Vec::new(), Vec::new()),
-                |(mut batches, mut entry_ids), id| {
-                    // Redis entry ID
-                    entry_ids.push(id.id);
-                    // Convert redis::Value map to HashMap<String, Option<String>>
-                    let fields = redis_interface::stream_fields_to_option_strings(id.map);
+                |(mut batches, mut entry_ids), (entry_id, fields)| {
+                    entry_ids.push(entry_id);
+                    let fields: std::collections::HashMap<String, Option<String>> =
+                        fields.into_iter().map(|(k, v)| (k, Some(v))).collect();
                     batches.push(ProcessTrackerBatch::from_redis_stream_entry(fields)?);
                     Ok((batches, entry_ids))
                 },

@@ -202,16 +202,10 @@ impl HealthCheckInterface for Store {
             .change_context(HealthCheckRedisError::StreamReadFailed)?;
         logger::debug!("Stream read succeeded");
 
-        let (_, id_to_trim) = output
-            .keys
-            .iter()
-            .find(|key| key.key == redis_conn.add_prefix(TEST_STREAM_NAME))
-            .and_then(|stream_key| {
-                stream_key
-                    .ids
-                    .last()
-                    .map(|last_entry| (&stream_key.ids, last_entry.id.clone()))
-            })
+        let id_to_trim = output
+            .get(&redis_conn.add_prefix(TEST_STREAM_NAME))
+            .and_then(|entries| entries.last())
+            .map(|(entry_id, _fields)| entry_id.clone())
             .ok_or(error_stack::report!(
                 HealthCheckRedisError::StreamReadFailed
             ))?;

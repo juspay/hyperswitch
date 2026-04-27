@@ -19,7 +19,7 @@ use redis::{
 use tracing::instrument;
 
 use crate::{
-    constant::{
+    constant::redis_rs_commands::{
         REDIS_ARG_COUNT, REDIS_ARG_EX, REDIS_ARG_MATCH, REDIS_ARG_NX, REDIS_ARG_TYPE,
         REDIS_COMMAND_GET, REDIS_COMMAND_HSCAN, REDIS_COMMAND_SCAN, REDIS_COMMAND_SET,
     },
@@ -27,7 +27,7 @@ use crate::{
     types::{
         redis_value_to_option_string, DelReply, HsetnxReply, MsetnxReply, RedisEntryId, RedisKey,
         SaddReply, SetGetReply, SetnxReply, StreamCapKind, StreamCapTrim, StreamEntries,
-        StreamReadResult, Value,
+        StreamReadResult,
     },
 };
 
@@ -651,7 +651,7 @@ impl super::RedisConnectionPool {
             }
 
             // HSCAN returns: [cursor, [field1, value1, field2, value2, ...]]
-            let reply: (u64, Vec<Value>) = command
+            let reply: (u64, Vec<redis::Value>) = command
                 .query_async(&mut conn)
                 .await
                 .change_context(errors::RedisError::GetHashFieldFailed)?;
@@ -937,14 +937,15 @@ impl super::RedisConnectionPool {
     }
 
     /// Read entries from one or more streams using XREAD.
-    /// Returns a StreamReadReply - use `into_stream_iter()` for easy iteration.
+    /// Returns a [`StreamReadResult`] (stream key → list of `(entry_id, fields)`),
+    /// so callers never need to parse backend-specific reply types.
     #[instrument(level = "DEBUG", skip(self))]
     pub async fn stream_read_entries(
         &self,
         streams: &[RedisKey],
         ids: &[String],
         read_count: Option<u64>,
-    ) -> CustomResult<redis::streams::StreamReadReply, errors::RedisError> {
+    ) -> CustomResult<StreamReadResult, errors::RedisError> {
         let mut conn = self.pool.clone();
         let stream_keys: Vec<String> = streams
             .iter()
@@ -956,7 +957,8 @@ impl super::RedisConnectionPool {
         let options = StreamReadOptions::default()
             .count(usize::try_from(count).change_context(errors::RedisError::StreamReadFailed)?);
 
-        conn.xread_options(&stream_keys, ids, &options)
+        let reply: redis::streams::StreamReadReply = conn
+            .xread_options(&stream_keys, ids, &options)
             .await
             .map_err(|err| {
                 let kind = err.kind();
@@ -966,21 +968,9 @@ impl super::RedisConnectionPool {
                     }
                     _ => report!(err).change_context(errors::RedisError::StreamReadFailed),
                 }
-            })
-    }
+            })?;
 
-    /// Read stream entries and return them as a [`StreamReadResult`]
-    /// (stream key → list of `(entry_id, fields)`), so callers don't
-    /// have to manually parse `StreamReadReply` every time.
-    pub async fn stream_read_grouped(
-        &self,
-        streams: &[RedisKey],
-        ids: &[String],
-        read_count: Option<u64>,
-    ) -> CustomResult<StreamReadResult, errors::RedisError> {
-        let reply = self.stream_read_entries(streams, ids, read_count).await?;
-
-        let result: StreamReadResult = reply
+        Ok(reply
             .keys
             .into_iter()
             .map(|stream_key| {
@@ -1001,14 +991,13 @@ impl super::RedisConnectionPool {
                     .collect();
                 (stream_key.key, entries)
             })
-            .collect();
-
-        Ok(result)
+            .collect())
     }
 
     /// Read stream entries and return them grouped by stream key with optional field values.
     /// Read entries from streams with options (XREAD / XREADGROUP)
-    /// Returns a StreamReadReply - use `into_stream_iter()` for easy iteration.
+    /// Returns a [`StreamReadResult`] (stream key → list of `(entry_id, fields)`),
+    /// so callers never need to parse backend-specific reply types.
     #[instrument(level = "DEBUG", skip(self))]
     pub async fn stream_read_with_options(
         &self,
@@ -1017,7 +1006,7 @@ impl super::RedisConnectionPool {
         count: Option<u64>,
         block: Option<u64>,
         group: Option<(&str, &str)>,
-    ) -> CustomResult<redis::streams::StreamReadReply, errors::RedisError> {
+    ) -> CustomResult<StreamReadResult, errors::RedisError> {
         let mut conn = self.pool.clone();
         let stream_keys: Vec<String> = streams
             .iter()
@@ -1040,7 +1029,8 @@ impl super::RedisConnectionPool {
             options = options.group(group_name, consumer_name);
         }
 
-        conn.xread_options(&stream_keys, ids, &options)
+        let reply: redis::streams::StreamReadReply = conn
+            .xread_options(&stream_keys, ids, &options)
             .await
             .map_err(|err| {
                 let kind = err.kind();
@@ -1050,7 +1040,30 @@ impl super::RedisConnectionPool {
                     }
                     _ => report!(err).change_context(errors::RedisError::StreamReadFailed),
                 }
+            })?;
+
+        Ok(reply
+            .keys
+            .into_iter()
+            .map(|stream_key| {
+                let entries: StreamEntries = stream_key
+                    .ids
+                    .into_iter()
+                    .map(|id| {
+                        let fields: std::collections::HashMap<String, String> = id
+                            .map
+                            .into_iter()
+                            .filter_map(|(field_name, redis_value)| {
+                                redis_value_to_option_string(&redis_value)
+                                    .map(|field_value| (field_name, field_value))
+                            })
+                            .collect();
+                        (id.id, fields)
+                    })
+                    .collect();
+                (stream_key.key, entries)
             })
+            .collect())
     }
 
     // ─── List Commands ───────────────────────────────────────────────────────
@@ -1290,7 +1303,7 @@ impl super::RedisConnectionPool {
         // Execute the transaction.
         // Redis MULTI/EXEC guarantees results are returned in the same order
         // as the commands were queued: [SET result, GET result].
-        let results: Vec<Value> = pipe
+        let results: Vec<redis::Value> = pipe
             .query_async(&mut conn)
             .await
             .change_context(errors::RedisError::SetFailed)
@@ -2179,16 +2192,15 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_stream_read_grouped() {
+    async fn test_stream_read_entries_xread() {
         let is_success = tokio::task::spawn_blocking(move || {
             futures::executor::block_on(async {
-                // Arrange
                 let pool = RedisConnectionPool::new(&RedisSettings::default())
                     .await
                     .expect("failed to create redis connection pool");
                 let unique_id = unique_test_id();
                 let stream: crate::types::RedisKey =
-                    format!("test_stream_read_grouped_{}", unique_id).into();
+                    format!("test_stream_read_entries_{}", unique_id).into();
 
                 // Append two entries
                 let fields1: Vec<(&str, &str)> = vec![("field1", "value1")];
@@ -2202,7 +2214,7 @@ mod tests {
 
                 // Act — read from the beginning
                 let result = pool
-                    .stream_read_grouped(
+                    .stream_read_entries(
                         std::slice::from_ref(&stream),
                         &["0-0".to_string()],
                         Some(10),
@@ -2213,7 +2225,7 @@ mod tests {
                 match result {
                     Ok(grouped) => {
                         let stream_key =
-                            pool.add_prefix(&format!("test_stream_read_grouped_{}", unique_id));
+                            pool.add_prefix(&format!("test_stream_read_entries_{}", unique_id));
                         let entries = grouped.get(&stream_key);
                         entries.is_some() && entries.unwrap().len() == 2
                     }
@@ -2418,13 +2430,13 @@ mod tests {
                 // Assert — should get one entry
                 match result {
                     Ok(reply) => {
-                        reply.keys.len() == 1
-                            && reply.keys.first().is_some_and(|key| key.ids.len() == 1)
+                        reply.len() == 1
+                            && reply.values().next().is_some_and(|entries| entries.len() == 1)
                             && reply
-                                .keys
-                                .first()
-                                .and_then(|key| key.ids.first())
-                                .is_some_and(|id| id.map.contains_key("task"))
+                                .values()
+                                .next()
+                                .and_then(|entries| entries.first())
+                                .is_some_and(|(_, fields)| fields.contains_key("task"))
                     }
                     Err(_) => false,
                 }
@@ -2462,7 +2474,7 @@ mod tests {
 
                 // Read to get entry IDs
                 let read_result = pool
-                    .stream_read_grouped(
+                    .stream_read_entries(
                         std::slice::from_ref(&stream),
                         &["0-0".to_string()],
                         Some(10),
@@ -2666,7 +2678,7 @@ mod tests {
 
                 // Read to get the entry ID
                 let read_result = pool
-                    .stream_read_grouped(
+                    .stream_read_entries(
                         std::slice::from_ref(&stream),
                         &["0-0".to_string()],
                         Some(1),
@@ -3458,15 +3470,15 @@ mod tests {
 
                 let entry_id = match read_result {
                     Ok(reply)
-                        if !reply.keys.is_empty()
-                            && reply.keys.first().is_some_and(|key| !key.ids.is_empty()) =>
+                        if !reply.is_empty()
+                            && reply.values().next().is_some_and(|entries| !entries.is_empty()) =>
                     {
                         reply
-                            .keys
-                            .first()
-                            .and_then(|key| key.ids.first())
+                            .values()
+                            .next()
+                            .and_then(|entries| entries.first())
                             .expect("checked non-empty")
-                            .id
+                            .0
                             .clone()
                     }
                     _ => return false,
@@ -3562,11 +3574,11 @@ mod tests {
                     )
                     .await;
 
-                // Assert — should get StreamReadReply with one entry
+                // Assert — should get StreamReadResult with one entry
                 match result {
                     Ok(reply) => {
-                        reply.keys.len() == 1
-                            && reply.keys.first().is_some_and(|key| !key.ids.is_empty())
+                        reply.len() == 1
+                            && reply.values().next().is_some_and(|entries| !entries.is_empty())
                     }
                     Err(_) => false,
                 }
@@ -3735,8 +3747,8 @@ mod tests {
                 ) {
                     (Ok(()), Ok(len), Ok(()), Ok(reply), Ok(_)) => {
                         len >= 1
-                            && reply.keys.len() == 1
-                            && reply.keys.first().is_some_and(|key| !key.ids.is_empty())
+                            && reply.len() == 1
+                            && reply.values().next().is_some_and(|entries| !entries.is_empty())
                     }
                     _ => false,
                 }

@@ -12,6 +12,8 @@ release = ["vergen", "external_services/aws_kms"]
 vergen = ["router_env/vergen"]
 v1 = ["diesel_models/v1", "hyperswitch_interfaces/v1", "common_utils/v1"]
 v2 = ["diesel_models/v2", "hyperswitch_interfaces/v2", "common_utils/v2"] 
+redis-rs = ["redis_interface/redis-rs"]
+fred-rs  = ["redis_interface/fred-rs"]
 
 [dependencies]
 actix-web = "4.11.0"

@@ -2353,6 +2353,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "cookie-factory"
+version = "0.3.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9885fa71e26b8ab7855e2ec7cae6e9b380edff76cd052e07c683a0319d51b3a2"
+dependencies = [
+ "futures 0.3.31",
+]
+
+[[package]]
 name = "core-foundation"
 version = "0.9.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3514,6 +3523,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "float-cmp"
+version = "0.9.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "98de4bbd547a563b716d8dfa9aad1cb19bfab00f4fa09a6a4ed21dbcf44ce9c4"
+dependencies = [
+ "num-traits",
+]
+
+[[package]]
 name = "flume"
 version = "0.11.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3575,6 +3593,34 @@ name = "fragile"
 version = "2.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "28dd6caf6059519a65843af8fe2a3ae298b14b80179855aeb4adc2c1934ee619"
+
+[[package]]
+name = "fred"
+version = "8.0.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4b8e3a1339ed45ad8fde94530c4bdcbd5f371a3c6bd3bf57682923792830aa37"
+dependencies = [
+ "arc-swap",
+ "async-trait",
+ "bytes 1.10.1",
+ "bytes-utils",
+ "crossbeam-queue 0.3.12",
+ "float-cmp",
+ "futures 0.3.31",
+ "log 0.4.27",
+ "parking_lot 0.12.3",
+ "rand 0.8.5",
+ "redis-protocol",
+ "semver 1.0.26",
+ "socket2 0.5.10",
+ "tokio 1.48.0",
+ "tokio-stream",
+ "tokio-util",
+ "tracing",
+ "tracing-futures",
+ "url 2.5.4",
+ "urlencoding",
+]
 
 [[package]]
 name = "fs-err"
@@ -7629,11 +7675,26 @@ dependencies = [
 ]
 
 [[package]]
+name = "redis-protocol"
+version = "4.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9c31deddf734dc0a39d3112e73490e88b61a05e83e074d211f348404cee4d2c6"
+dependencies = [
+ "bytes 1.10.1",
+ "bytes-utils",
+ "cookie-factory",
+ "crc16",
+ "log 0.4.27",
+ "nom 7.1.3",
+]
+
+[[package]]
 name = "redis_interface"
 version = "0.1.0"
 dependencies = [
  "common_utils",
  "error-stack 0.4.1",
+ "fred",
  "futures 0.3.31",
  "redis",
  "serde",
