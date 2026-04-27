@@ -1960,7 +1960,10 @@ Cypress.Commands.add(
       cy.wrap(response).then(() => {
         expect(response.headers["content-type"]).to.include("application/json");
         if (configInfo.triggerSkip) {
-          cy.task("cli_log", "TRIGGER_SKIP is set - skipping detailed validation");
+          cy.task(
+            "cli_log",
+            "TRIGGER_SKIP is set - skipping detailed validation"
+          );
           return;
         }
         // Check status before attempting to validate client_secret
@@ -2309,7 +2312,10 @@ Cypress.Commands.add(
 
         // Handle TRIGGER_SKIP early - skip detailed validation for tests configured to skip
         if (configInfo.triggerSkip) {
-          cy.task("cli_log", "TRIGGER_SKIP is set in confirmCallTest - skipping detailed validation");
+          cy.task(
+            "cli_log",
+            "TRIGGER_SKIP is set in confirmCallTest - skipping detailed validation"
+          );
           return;
         }
 

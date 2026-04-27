@@ -851,12 +851,14 @@ export const connectorDetails = {
         currency: "USD",
         customer_acceptance: null,
         setup_future_usage: "on_session",
-        order_details: [{
-          product_type: "physical",
-          product_name: "Test Product",
-          quantity: 1,
-          amount: 6000,
-        }],
+        order_details: [
+          {
+            product_type: "physical",
+            product_name: "Test Product",
+            quantity: 1,
+            amount: 6000,
+          },
+        ],
       },
       Response: {
         status: 200,
@@ -876,12 +878,14 @@ export const connectorDetails = {
         currency: "USD",
         customer_acceptance: null,
         setup_future_usage: "on_session",
-        order_details: [{
-          product_type: "physical",
-          product_name: "Test Product",
-          quantity: 1,
-          amount: 6000,
-        }],
+        order_details: [
+          {
+            product_type: "physical",
+            product_name: "Test Product",
+            quantity: 1,
+            amount: 6000,
+          },
+        ],
       },
       Response: {
         status: 200,
@@ -902,10 +906,12 @@ export const connectorDetails = {
         currency: "USD",
         customer_acceptance: null,
         setup_future_usage: "on_session",
-        order_details: [{
-          product_type: "physical",
-          product_name: "Test Product",
-        }],
+        order_details: [
+          {
+            product_type: "physical",
+            product_name: "Test Product",
+          },
+        ],
       },
       Response: {
         status: 200,
@@ -920,12 +926,14 @@ export const connectorDetails = {
         customer_acceptance: null,
         setup_future_usage: "on_session",
         amount: 9999900,
-        order_details: [{
-          product_type: "physical",
-          product_name: "Premium Package",
-          quantity: 1,
-          amount: 9999900,
-        }],
+        order_details: [
+          {
+            product_type: "physical",
+            product_name: "Premium Package",
+            quantity: 1,
+            amount: 9999900,
+          },
+        ],
       },
       Response: {
         status: 200,
@@ -942,12 +950,14 @@ export const connectorDetails = {
         customer_acceptance: null,
         setup_future_usage: "on_session",
         amount: 9999900,
-        order_details: [{
-          product_type: "physical",
-          product_name: "Product with Special Chars: Ñoño & Cía®™",
-          quantity: 2,
-          amount: 9999900,
-        }],
+        order_details: [
+          {
+            product_type: "physical",
+            product_name: "Product with Special Chars: Ñoño & Cía®™",
+            quantity: 2,
+            amount: 9999900,
+          },
+        ],
       },
       Response: {
         status: 200,
@@ -964,12 +974,14 @@ export const connectorDetails = {
         customer_acceptance: null,
         setup_future_usage: "on_session",
         amount: 9999900,
-        order_details: [{
-          product_type: "physical",
-          product_name: "Shipped Product",
-          quantity: 1,
-          amount: 9999900,
-        }],
+        order_details: [
+          {
+            product_type: "physical",
+            product_name: "Shipped Product",
+            quantity: 1,
+            amount: 9999900,
+          },
+        ],
         shipping: {
           address: {
             line1: "123 Test Street",
@@ -1003,12 +1015,14 @@ export const connectorDetails = {
         currency: "USD",
         customer_acceptance: null,
         setup_future_usage: "on_session",
-        order_details: [{
-          product_type: "physical",
-          product_name: "Test Product",
-          quantity: 1,
-          amount: 6000,
-        }],
+        order_details: [
+          {
+            product_type: "physical",
+            product_name: "Test Product",
+            quantity: 1,
+            amount: 6000,
+          },
+        ],
       },
       Response: {
         status: 200,
@@ -1031,12 +1045,14 @@ export const connectorDetails = {
         customer_acceptance: null,
         setup_future_usage: "on_session",
         amount: 9999900,
-        order_details: [{
-          product_type: "physical",
-          product_name: "Premium Package",
-          quantity: 1,
-          amount: 9999900,
-        }],
+        order_details: [
+          {
+            product_type: "physical",
+            product_name: "Premium Package",
+            quantity: 1,
+            amount: 9999900,
+          },
+        ],
       },
       Response: {
         status: 200,
@@ -1138,12 +1154,14 @@ export const connectorDetails = {
         currency: "USD",
         customer_acceptance: null,
         setup_future_usage: "on_session",
-        order_details: [{
-          product_type: "physical",
-          product_name: "Test Product",
-          quantity: 1,
-          amount: 6000,
-        }],
+        order_details: [
+          {
+            product_type: "physical",
+            product_name: "Test Product",
+            quantity: 1,
+            amount: 6000,
+          },
+        ],
       },
       Response: {
         status: 200,
@@ -1163,12 +1181,14 @@ export const connectorDetails = {
         currency: "USD",
         customer_acceptance: null,
         setup_future_usage: "on_session",
-        order_details: [{
-          product_type: "physical",
-          product_name: "Test Product",
-          quantity: 1,
-          amount: 6000,
-        }],
+        order_details: [
+          {
+            product_type: "physical",
+            product_name: "Test Product",
+            quantity: 1,
+            amount: 6000,
+          },
+        ],
       },
       Response: {
         status: 200,
@@ -1189,10 +1209,12 @@ export const connectorDetails = {
         currency: "USD",
         customer_acceptance: null,
         setup_future_usage: "on_session",
-        order_details: [{
-          product_type: "physical",
-          product_name: "Test Product",
-        }],
+        order_details: [
+          {
+            product_type: "physical",
+            product_name: "Test Product",
+          },
+        ],
       },
       Response: {
         status: 200,
@@ -1207,12 +1229,14 @@ export const connectorDetails = {
         customer_acceptance: null,
         setup_future_usage: "on_session",
         amount: 9999900,
-        order_details: [{
-          product_type: "physical",
-          product_name: "Premium Package",
-          quantity: 1,
-          amount: 9999900,
-        }],
+        order_details: [
+          {
+            product_type: "physical",
+            product_name: "Premium Package",
+            quantity: 1,
+            amount: 9999900,
+          },
+        ],
       },
       Response: {
         status: 200,
@@ -1229,12 +1253,14 @@ export const connectorDetails = {
         customer_acceptance: null,
         setup_future_usage: "on_session",
         amount: 9999900,
-        order_details: [{
-          product_type: "physical",
-          product_name: "Product with Special Chars: Ñoño & Cía®™",
-          quantity: 2,
-          amount: 9999900,
-        }],
+        order_details: [
+          {
+            product_type: "physical",
+            product_name: "Product with Special Chars: Ñoño & Cía®™",
+            quantity: 2,
+            amount: 9999900,
+          },
+        ],
       },
       Response: {
         status: 200,
@@ -1251,12 +1277,14 @@ export const connectorDetails = {
         customer_acceptance: null,
         setup_future_usage: "on_session",
         amount: 9999900,
-        order_details: [{
-          product_type: "physical",
-          product_name: "Shipped Product",
-          quantity: 1,
-          amount: 9999900,
-        }],
+        order_details: [
+          {
+            product_type: "physical",
+            product_name: "Shipped Product",
+            quantity: 1,
+            amount: 9999900,
+          },
+        ],
         shipping: {
           address: {
             line1: "123 Test Street",
@@ -1297,37 +1325,41 @@ export const connectorDetails = {
 
 // Order Details Test Data
 const orderDetails = {
-  order_details: [{
-    product_name: "Premium Subscription",
-    product_description: "Monthly premium subscription",
-    product_sku: "SUB-001",
-    unit_amount: 2999,
-    quantity: 1,
-  },
-  {
-    product_name: "Add-on Feature Pack",
-    product_description: "Extended feature pack",
-    product_sku: "ADD-002",
-    unit_amount: 999,
-    quantity: 2,
-  }],
+  order_details: [
+    {
+      product_name: "Premium Subscription",
+      product_description: "Monthly premium subscription",
+      product_sku: "SUB-001",
+      unit_amount: 2999,
+      quantity: 1,
+    },
+    {
+      product_name: "Add-on Feature Pack",
+      product_description: "Extended feature pack",
+      product_sku: "ADD-002",
+      unit_amount: 999,
+      quantity: 2,
+    },
+  ],
 };
 
 const largeAmountOrderDetails = {
-  order_details: [{
-    product_name: "Enterprise License",
-    product_description: "Annual enterprise license",
-    product_sku: "ENT-001",
-    unit_amount: 10000000,
-    quantity: 1,
-  },
-  {
-    product_name: "Premium Support Package",
-    product_description: "24/7 premium support",
-    product_sku: "SUP-002",
-    unit_amount: 500000,
-    quantity: 10,
-  }],
+  order_details: [
+    {
+      product_name: "Enterprise License",
+      product_description: "Annual enterprise license",
+      product_sku: "ENT-001",
+      unit_amount: 10000000,
+      quantity: 1,
+    },
+    {
+      product_name: "Premium Support Package",
+      product_description: "24/7 premium support",
+      product_sku: "SUP-002",
+      unit_amount: 500000,
+      quantity: 10,
+    },
+  ],
 };
 
 // Add order_details test configurations to connectorDetails
