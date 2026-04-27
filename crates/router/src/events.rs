@@ -19,6 +19,7 @@ pub mod api_logs;
 pub mod audit_events;
 pub mod connector_api_logs;
 pub mod event_logger;
+pub mod external_service_call;
 pub mod outgoing_webhook_logs;
 pub mod routing_api_logs;
 #[derive(Debug, Serialize, Clone, Copy)]
@@ -39,12 +40,21 @@ pub enum EventType {
     Authentication,
     RoutingApiLogs,
     RevenueRecovery,
+    ExternalServiceCall,
+}
+
+#[derive(Debug, Default, Deserialize, Clone)]
+pub struct EventsConfig {
+    #[serde(flatten)]
+    pub source: EventsSource,
+    #[serde(default)]
+    pub emit_external_service_call_events: bool,
 }
 
 #[derive(Debug, Default, Deserialize, Clone)]
 #[serde(tag = "source")]
 #[serde(rename_all = "lowercase")]
-pub enum EventsConfig {
+pub enum EventsSource {
     Kafka {
         kafka: Box<KafkaSettings>,
     },
@@ -71,22 +81,31 @@ impl events_interfaces::EventHandlerInterface for EventsHandler {
     }
 }
 
+impl common_utils::external_service::ExternalServiceEventEmitter for EventsHandler {
+    fn emit_external_service_call(
+        &self,
+        event: common_utils::external_service::ExternalServiceCall,
+    ) {
+        self.log_event(&external_service_call::KafkaExternalServiceCall { event: &event });
+    }
+}
+
 impl EventsConfig {
     pub async fn get_event_handler(&self) -> StorageResult<EventsHandler> {
-        Ok(match self {
-            Self::Kafka { kafka } => EventsHandler::Kafka(
+        Ok(match &self.source {
+            EventsSource::Kafka { kafka } => EventsHandler::Kafka(
                 KafkaProducer::create(kafka)
                     .await
                     .change_context(StorageError::InitializationError)?,
             ),
-            Self::Logs => EventsHandler::Logs(event_logger::EventLogger::default()),
+            EventsSource::Logs => EventsHandler::Logs(event_logger::EventLogger::default()),
         })
     }
 
     pub fn validate(&self) -> Result<(), ApplicationError> {
-        match self {
-            Self::Kafka { kafka } => kafka.validate(),
-            Self::Logs => Ok(()),
+        match &self.source {
+            EventsSource::Kafka { kafka } => kafka.validate(),
+            EventsSource::Logs => Ok(()),
         }
     }
 }

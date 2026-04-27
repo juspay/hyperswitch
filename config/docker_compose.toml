@@ -1169,6 +1169,7 @@ consolidated_events_topic = "hyperswitch-consolidated-events"
 authentication_analytics_topic = "hyperswitch-authentication-events"
 routing_logs_topic = "hyperswitch-routing-api-events"
 revenue_recovery_topic = "hyperswitch-revenue-recovery-events"
+external_service_call_topic = "hyperswitch-external-service-call-events"
 
 [analytics]
 source = "sqlx"
@@ -1205,6 +1206,7 @@ enabled = true
 
 [events]
 source = "logs"
+emit_external_service_call_events = false
 
 [file_storage]
 file_storage_backend = "file_system"
