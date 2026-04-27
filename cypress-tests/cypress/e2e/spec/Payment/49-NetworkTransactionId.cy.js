@@ -79,21 +79,24 @@ describe("Network Transaction ID in CIT flows", () => {
         cy.assertNetworkTransactionId(true, globalState);
       });
 
-      cy.step("Retrieve Payment and assert network_transaction_id persists", () => {
-        if (!shouldContinue) {
-          cy.task(
-            "cli_log",
-            "Skipping step: Retrieve Payment and assert network_transaction_id persists"
-          );
-          return;
-        }
-        const data = getConnectorDetails(globalState.get("connectorId"))[
-          "card_pm"
-        ]["NetworkTransactionId"];
+      cy.step(
+        "Retrieve Payment and assert network_transaction_id persists",
+        () => {
+          if (!shouldContinue) {
+            cy.task(
+              "cli_log",
+              "Skipping step: Retrieve Payment and assert network_transaction_id persists"
+            );
+            return;
+          }
+          const data = getConnectorDetails(globalState.get("connectorId"))[
+            "card_pm"
+          ]["NetworkTransactionId"];
 
-        cy.retrievePaymentCallTest({ globalState, data });
-        cy.assertNetworkTransactionId(true, globalState);
-      });
+          cy.retrievePaymentCallTest({ globalState, data });
+          cy.assertNetworkTransactionId(true, globalState);
+        }
+      );
     });
   });
 
@@ -162,20 +165,23 @@ describe("Network Transaction ID in CIT flows", () => {
         }
       });
 
-      cy.step("Retrieve Payment and assert network_transaction_id persists", () => {
-        if (!shouldContinue) {
-          cy.task(
-            "cli_log",
-            "Skipping step: Retrieve Payment and assert network_transaction_id persists"
-          );
-          return;
+      cy.step(
+        "Retrieve Payment and assert network_transaction_id persists",
+        () => {
+          if (!shouldContinue) {
+            cy.task(
+              "cli_log",
+              "Skipping step: Retrieve Payment and assert network_transaction_id persists"
+            );
+            return;
+          }
+          const data = getConnectorDetails(globalState.get("connectorId"))[
+            "card_pm"
+          ]["No3DSManualCapture"];
+          cy.retrievePaymentCallTest({ globalState, data });
+          cy.assertNetworkTransactionId(true, globalState);
         }
-        const data = getConnectorDetails(globalState.get("connectorId"))[
-          "card_pm"
-        ]["No3DSManualCapture"];
-        cy.retrievePaymentCallTest({ globalState, data });
-        cy.assertNetworkTransactionId(true, globalState);
-      });
+      );
     });
   });
 });

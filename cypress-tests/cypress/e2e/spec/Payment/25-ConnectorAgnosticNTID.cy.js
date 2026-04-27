@@ -675,8 +675,7 @@ describe("Connector Agnostic Tests", () => {
       cy.confirmCallTest(fixtures.confirmBody, data, true, globalState);
       cy.assertNetworkTransactionId(!isNtidExcluded, globalState);
 
-      if (shouldContinue)
-        shouldContinue = utils.should_continue_further(data);
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
       if (isNtidExcluded) shouldContinue = false;
     });
 
