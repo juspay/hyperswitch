@@ -1,6 +1,11 @@
 pub mod dimension_config;
 pub mod dimension_state;
 use common_utils::errors::CustomResult;
+pub use dimension_config::{
+    EnableExtendedCardBin, ImplicitCustomerUpdate, RequiresCvv, ShouldCallGsm,
+    ShouldEnableMitWithLimitedCardData, ShouldPerformEligibility,
+    ShouldStoreEligibilityCheckDataForAuthentication,
+};
 use error_stack::ResultExt;
 use external_services::superposition::{self, ConfigContext};
 
@@ -99,6 +104,18 @@ impl ConfigType for i64 {
     }
 }
 
+impl ConfigType for u32 {
+    fn from_config_str(config_str: &str) -> CustomResult<Self, errors::StorageError> {
+        config_str
+            .parse::<Self>()
+            .change_context(errors::StorageError::DeserializationFailed)
+    }
+
+    fn to_config_string(&self) -> CustomResult<String, errors::StorageError> {
+        Ok(self.to_string())
+    }
+}
+
 impl ConfigType for f64 {
     fn from_config_str(config_str: &str) -> CustomResult<Self, errors::StorageError> {
         config_str
@@ -178,8 +195,16 @@ where
 
     let superposition_result = C::fetch(superposition_client, context, targeting_key).await;
 
-    match superposition_result {
-        Ok(value) => value,
+    let resolved_value = match superposition_result {
+        Ok(value) => {
+            router_env::logger::info!(
+                config_key = %config_type,
+                source = "superposition",
+                value = %value.to_config_string().unwrap_or_default(),
+                "Config resolved from superposition"
+            );
+            value
+        }
         Err(_) => match db_key {
             Some(db_key) => {
                 router_env::logger::info!(
@@ -199,6 +224,13 @@ where
                     .and_then(|config| C::Output::from_config_str(&config.config).ok())
                 {
                     Some(value) => {
+                        router_env::logger::info!(
+                            config_key = %config_type,
+                            db_key = %db_key,
+                            source = "database",
+                            value = %value.to_config_string().unwrap_or_default(),
+                            "Config resolved from database"
+                        );
                         metrics::CONFIG_DATABASE_FETCH.add(
                             1,
                             router_env::metric_attributes!(("config_type", config_type)),
@@ -230,7 +262,8 @@ where
                 default_value
             }
         },
-    }
+    };
+    resolved_value
 }
 
 /// Fetch object-type config with JSON-to-Type conversion.

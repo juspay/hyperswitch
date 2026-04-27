@@ -675,6 +675,31 @@ pub enum BlocklistDataKind {
     ExtendedCardBin,
 }
 
+/// Reasons for blocking a payment method.
+#[derive(Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum BlockReason {
+    BlockedBin,
+    BlockedCardType(CardType),
+    BlockedCardSubtype,
+    BlockedIssuerCountry,
+    BlockedIssuer,
+}
+
+impl BlockReason {
+    pub fn error_message(&self) -> String {
+        match self {
+            Self::BlockedBin => "We're unable to accept this card, please try another card or a different payment method".to_string(),
+            Self::BlockedCardType(card_type) => {
+                format!("{} cards are not accepted for this transaction, please try a different card", card_type.title_case())
+            }
+            Self::BlockedCardSubtype => "This card is not accepted for this transaction, please try a different card".to_string(),
+            Self::BlockedIssuerCountry => "Cards issued in your region aren't supported for this transaction, please try a different card".to_string(),
+            Self::BlockedIssuer => "We can't process payments from this bank, please try another card or a different payment method".to_string(),
+        }
+    }
+}
+
 /// Specifies how the payment is captured.
 /// - `automatic`: Funds are captured immediately after successful authorization. This is the default behavior if the field is omitted.
 /// - `manual`: Funds are authorized but not captured. A separate request to the `/payments/{payment_id}/capture` endpoint is required to capture the funds.
@@ -2168,6 +2193,8 @@ pub enum PaymentMethodStatus {
     AwaitingData,
     /// Indicates that the payment method is in new state
     New,
+    /// Indicates that the payment method has been redacted/deleted and cannot be used or recovered
+    Redacted,
 }
 
 impl From<AttemptStatus> for PaymentMethodStatus {
@@ -2200,6 +2227,19 @@ impl From<AttemptStatus> for PaymentMethodStatus {
             | AttemptStatus::IntegrityFailure
             | AttemptStatus::Expired => Self::Inactive,
             AttemptStatus::Charged | AttemptStatus::Authorized => Self::Active,
+        }
+    }
+}
+
+impl PaymentMethodStatus {
+    /// Checks if transitioning from `self` to `target` status is valid.
+    /// This defines the allowed status transitions for payment method updates.
+    pub fn can_transition_to(self, target: Self) -> bool {
+        match self {
+            Self::Processing | Self::AwaitingData | Self::Redacted => false,
+            Self::Active => false,
+            Self::Inactive => target == Self::Active || target == Self::New,
+            Self::New => target == Self::Active || target == Self::Inactive,
         }
     }
 }
@@ -3189,6 +3229,15 @@ pub enum PanOrToken {
 pub enum CardType {
     Credit,
     Debit,
+}
+
+impl CardType {
+    pub fn title_case(&self) -> &'static str {
+        match self {
+            Self::Credit => "Credit",
+            Self::Debit => "Debit",
+        }
+    }
 }
 
 // TODO: This enum will be updated with all card subtype values
@@ -9506,13 +9555,17 @@ pub enum PermissionGroup {
     UsersManage,
     AccountView,
     AccountManage,
-    ReconReportsView,
-    ReconReportsManage,
-    ReconOpsView,
-    ReconOpsManage,
     InternalManage,
     ThemeView,
     ThemeManage,
+    ReconSourcesView,
+    ReconSourcesManage,
+    ReconExceptionsView,
+    ReconExceptionsManage,
+    ReconTransactionsView,
+    ReconTransactionsManage,
+    ReconRulesView,
+    ReconRulesManage,
 }
 
 #[derive(
@@ -9524,11 +9577,13 @@ pub enum ParentGroup {
     Workflows,
     Analytics,
     Users,
-    ReconOps,
-    ReconReports,
     Account,
     Internal,
     Theme,
+    ReconSources,
+    ReconExceptions,
+    ReconTransactions,
+    ReconRules,
 }
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Hash, serde::Serialize, serde::Deserialize)]
@@ -9550,17 +9605,16 @@ pub enum Resource {
     WebhookEvent,
     Payout,
     Report,
-    ReconToken,
-    ReconFiles,
-    ReconAndSettlementAnalytics,
-    ReconUpload,
-    ReconReports,
-    RunRecon,
-    ReconConfig,
     RevenueRecovery,
     Subscription,
     InternalConnector,
     Theme,
+    ReconIngestion,
+    ReconTransformation,
+    ReconException,
+    ReconStagingEntry,
+    ReconTransaction,
+    ReconRule,
 }
 
 #[derive(
@@ -9913,8 +9967,9 @@ pub enum EntityType {
     Profile = 0,
 }
 
-#[derive(Clone, Debug, serde::Serialize)]
+#[derive(Clone, Debug, serde::Serialize, strum::Display)]
 #[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
 pub enum PayoutRetryType {
     SingleConnector,
     MultiConnector,
@@ -10466,7 +10521,7 @@ pub enum TokenizationType {
 }
 
 /// The network tokenization toggle, whether to enable or skip the network tokenization
-#[derive(Debug, Clone, serde::Deserialize, serde::Serialize, ToSchema)]
+#[derive(Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema)]
 pub enum NetworkTokenizationToggle {
     /// Enable network tokenization for the payment method
     Enable,
@@ -10642,6 +10697,7 @@ pub enum ProcessTrackerRunner {
     OutgoingWebhookRetryWorkflow,
     AttachPayoutAccountWorkflow,
     PaymentMethodStatusUpdateWorkflow,
+    PaymentMethodModularForwardCompatWorkflow,
     PassiveRecoveryWorkflow,
     ProcessDisputeWorkflow,
     DisputeListWorkflow,
@@ -11038,6 +11094,15 @@ pub enum AcknowledgementStatus {
     Failed,
 }
 
+impl From<AcknowledgementStatus> for PaymentMethodStatus {
+    fn from(ack: AcknowledgementStatus) -> Self {
+        match ack {
+            AcknowledgementStatus::Authenticated => Self::Active,
+            AcknowledgementStatus::Failed => Self::Inactive,
+        }
+    }
+}
+
 /// Represents the type of retry for a payment attempt
 #[derive(
     Clone,
@@ -11251,4 +11316,21 @@ impl PostCaptureVoidStatus {
             Self::Pending | Self::Succeeded => false,
         }
     }
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    PartialEq,
+    serde::Serialize,
+    strum::Display,
+    serde::Deserialize,
+    ToSchema,
+)]
+#[serde(rename_all = "snake_case")]
+pub enum VaultEnv {
+    Sandbox,
+    Live,
 }
