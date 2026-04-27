@@ -128,7 +128,15 @@ describe("Connector Agnostic Tests", () => {
         ]["SaveCardUseNo3DSAutoCaptureOffSession"];
 
         cy.confirmCallTest(fixtures.confirmBody, data, true, globalState);
-        cy.assertNetworkTransactionId(!isNtidExcluded, globalState);
+        cy.then(() => {
+          const ntid = globalState.get("networkTransactionId");
+          if (!isNtidExcluded) {
+            expect(ntid, "network_transaction_id").to.exist;
+            expect(ntid, "network_transaction_id").to.not.be.empty;
+          } else {
+            expect(ntid, "network_transaction_id").to.not.exist;
+          }
+        });
 
         if (shouldContinue)
           shouldContinue = utils.should_continue_further(data);
@@ -318,7 +326,15 @@ describe("Connector Agnostic Tests", () => {
         ]["SaveCardUseNo3DSAutoCaptureOffSession"];
 
         cy.confirmCallTest(fixtures.confirmBody, data, true, globalState);
-        cy.assertNetworkTransactionId(!isNtidExcluded, globalState);
+        cy.then(() => {
+          const ntid = globalState.get("networkTransactionId");
+          if (!isNtidExcluded) {
+            expect(ntid, "network_transaction_id").to.exist;
+            expect(ntid, "network_transaction_id").to.not.be.empty;
+          } else {
+            expect(ntid, "network_transaction_id").to.not.exist;
+          }
+        });
 
         if (shouldContinue)
           shouldContinue = utils.should_continue_further(data);
@@ -496,7 +512,15 @@ describe("Connector Agnostic Tests", () => {
         ]["SaveCardUseNo3DSAutoCaptureOffSession"];
 
         cy.confirmCallTest(fixtures.confirmBody, data, true, globalState);
-        cy.assertNetworkTransactionId(!isNtidExcluded, globalState);
+        cy.then(() => {
+          const ntid = globalState.get("networkTransactionId");
+          if (!isNtidExcluded) {
+            expect(ntid, "network_transaction_id").to.exist;
+            expect(ntid, "network_transaction_id").to.not.be.empty;
+          } else {
+            expect(ntid, "network_transaction_id").to.not.exist;
+          }
+        });
 
         if (shouldContinue)
           shouldContinue = utils.should_continue_further(data);
@@ -673,7 +697,15 @@ describe("Connector Agnostic Tests", () => {
       ]["SaveCardUseNo3DSAutoCaptureOffSession"];
 
       cy.confirmCallTest(fixtures.confirmBody, data, true, globalState);
-      cy.assertNetworkTransactionId(!isNtidExcluded, globalState);
+      cy.then(() => {
+        const ntid = globalState.get("networkTransactionId");
+        if (!isNtidExcluded) {
+          expect(ntid, "network_transaction_id").to.exist;
+          expect(ntid, "network_transaction_id").to.not.be.empty;
+        } else {
+          expect(ntid, "network_transaction_id").to.not.exist;
+        }
+      });
 
       if (shouldContinue) shouldContinue = utils.should_continue_further(data);
       if (isNtidExcluded) shouldContinue = false;

@@ -2332,6 +2332,10 @@ Cypress.Commands.add(
             "networkTransactionId",
             response.body.network_transaction_id
           );
+          const ntid = response.body.network_transaction_id;
+          if (ntid !== undefined && ntid !== null) {
+            expect(ntid, "network_transaction_id should not be empty when present").to.not.be.empty;
+          }
           globalState.set("paymentIntentStatus", response.body.status);
           // Compare connector with backend connector name (handles stripeconnect -> stripe mapping)
           const expectedConnector = getOriginalConnectorName(
@@ -2457,19 +2461,6 @@ Cypress.Commands.add(
         }
       });
     });
-  }
-);
-
-Cypress.Commands.add(
-  "assertNetworkTransactionId",
-  (expectedPresent, globalState) => {
-    const ntid = globalState.get("networkTransactionId");
-    if (expectedPresent) {
-      expect(ntid, "network_transaction_id").to.exist;
-      expect(ntid, "network_transaction_id").to.not.be.empty;
-    } else {
-      expect(ntid, "network_transaction_id").to.not.exist;
-    }
   }
 );
 

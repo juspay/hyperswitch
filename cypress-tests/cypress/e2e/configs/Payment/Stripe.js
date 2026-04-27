@@ -337,23 +337,6 @@ export const connectorDetails = {
         },
       },
     },
-    NetworkTransactionId: {
-      Request: {
-        payment_method: "card",
-        payment_method_data: {
-          card: successfulNo3DSCardDetails,
-        },
-        customer_acceptance: customerAcceptance,
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "succeeded",
-          payment_method: "card",
-          payment_method_data: payment_method_data_no3ds,
-        },
-      },
-    },
     Void: {
       Request: {},
       Response: {
