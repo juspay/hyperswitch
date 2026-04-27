@@ -543,7 +543,7 @@ export const CONNECTOR_LISTS = {
     ],
     EXTERNAL_THREE_DS: ["stripe"],
     BANK_DEBIT: ["novalnet"],
-    PAY_LATER: ["klarna", "adyen", "aci"],
+    PAY_LATER: ["klarna", "adyen", "aci", "stripe"],
     PARTNER_MERCHANT_IDENTIFIER: ["adyen", "checkout"],
     // Add more inclusion lists
   },

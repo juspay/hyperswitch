@@ -1124,6 +1124,118 @@ export const connectorDetails = {
       },
     },
   },
+  pay_later_pm: {
+    AutoCapture: getCustomExchange({
+      Request: {
+        currency: "EUR",
+        capture_method: "automatic",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+        },
+      },
+    }),
+    ManualCapture: getCustomExchange({
+      Request: {
+        currency: "EUR",
+        capture_method: "manual",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+        },
+      },
+    }),
+    Klarna: getCustomExchange({
+      Request: {
+        payment_method: "pay_later",
+        payment_method_type: "klarna",
+        payment_experience: "redirect_to_url",
+        payment_method_data: {
+          pay_later: {
+            klarna_redirect: {
+              billing_email: "customer@email.de",
+              billing_country: "DE",
+            },
+          },
+        },
+        billing: {
+          email: "customer@email.de",
+          address: {
+            line1: "Neue Schönhauser Str. 2",
+            city: "Berlin",
+            zip: "10178",
+            country: "DE",
+            first_name: "Mock",
+            last_name: "Mock",
+          },
+        },
+        order_details: [
+          {
+            product_name: "Test Product",
+            quantity: 1,
+            amount: 6000,
+          },
+        ],
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+    }),
+    Capture: getCustomExchange({
+      Request: {
+        amount_to_capture: 6000,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    }),
+    Refund: getCustomExchange({
+      Request: {
+        amount: 6000,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+      ResponseCustom: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    }),
+    PartialRefund: getCustomExchange({
+      Request: {
+        amount: 2000,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    }),
+    SyncRefund: getCustomExchange({
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    }),
+  },
   pm_list: {
     PmListResponse: {
       PmListNull: {
