@@ -12,6 +12,7 @@ const connectorName = normalize(globalState.get("connectorId"));
 function normalize(input) {
   const exceptions = {
     adyen: "Adyen",
+    amazonpay: "Amazon Pay",
     archipel: "Archipel",
     bankofamerica: "Bank of America",
     cybersource: "Cybersource",

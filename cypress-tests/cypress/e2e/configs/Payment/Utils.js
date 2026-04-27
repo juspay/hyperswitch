@@ -2,6 +2,7 @@ import { execConfig, validateConfig } from "../../../utils/featureFlags.js";
 
 import { updateDefaultStatusCode } from "./Modifiers.js";
 
+import { connectorDetails as amazonpayConnectorDetails } from "./Amazonpay.js";
 import { connectorDetails as aciConnectorDetails } from "./Aci.js";
 import { connectorDetails as adyenConnectorDetails } from "./Adyen.js";
 import { connectorDetails as airwallexConnectorDetails } from "./Airwallex.js";
@@ -76,6 +77,7 @@ import { connectorDetails as worldpayxmlConnectorDetails } from "./Worldpayxml.j
 import { connectorDetails as xenditConnectorDetails } from "./Xendit.js";
 import { connectorDetails as ziftConnectorDetails } from "./Zift.js";
 const connectorDetails = {
+  amazonpay: amazonpayConnectorDetails,
   aci: aciConnectorDetails,
   adyen: adyenConnectorDetails,
   airwallex: airwallexConnectorDetails,
