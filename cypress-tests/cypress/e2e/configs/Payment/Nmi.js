@@ -1,4 +1,3 @@
-
 import { getCustomExchange } from "./Modifiers";
 const successfulNo3DSCardDetails = {
   card_number: "4532111111111112",
@@ -695,5 +694,4 @@ export const connectorDetails = {
         },
       }),
   },
-
 };

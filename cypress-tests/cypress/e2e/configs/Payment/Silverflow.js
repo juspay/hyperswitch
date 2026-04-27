@@ -1089,5 +1089,4 @@ export const connectorDetails = {
         },
       }),
   },
-
 };

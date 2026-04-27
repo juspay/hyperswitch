@@ -853,5 +853,4 @@ export const connectorDetails = {
         },
       }),
   },
-
 };
