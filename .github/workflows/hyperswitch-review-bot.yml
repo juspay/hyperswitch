@@ -25,13 +25,9 @@ env:
   SKILL_NAME: hyperswitch-reviewer
   SOURCE_REPO: juspay/hyperswitch
   AGENT_FILE: /home/phoenix/.config/opencode/agents/hyperswitch-reviewer.md
-  # Optional: set to enforce agent file integrity.
-  # Generate with: sha256sum /home/phoenix/.config/opencode/agents/hyperswitch-reviewer.md
   AGENT_FILE_SHA256: ""
   OPENCODE_SKILLS_DIR: /home/phoenix/.config/opencode/skills
   SPECS_REPO_LOCAL: /home/phoenix/repos/hyperswitch-specs
-  # Optional: set to pin the specs repo to a known-good commit. Update intentionally when advancing.
-  # Find current value with: git -C /home/phoenix/repos/hyperswitch-specs rev-parse HEAD
   SPECS_REPO_PINNED_SHA: ""
   TEAM_REVIEWER_SKILLS: >-
     hyperswitch-baseline-reviewer
@@ -43,8 +39,6 @@ env:
     hyperswitch-dashboard-reviewer
 jobs:
   agent:
-    # TODO: once the hyperswitch-actions-runner is registered, add its label
-    # here (e.g. [self-hosted, hyperswitch]) to pin the job to it.
     runs-on: self-hosted
     timeout-minutes: 45
     if: |
