@@ -4,6 +4,17 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.02.02.0-hotfix16_2
+
+### Bug Fixes
+
+- Update base images in Dockerfile to use public ECR repositories ([`5868ad7`](https://github.com/juspay/hyperswitch/commit/5868ad7f3993c52a0ffea172fd4d9ba3b8657ae6))
+
+**Full Changelog:** [`2026.02.02.0-hotfix16_1...2026.02.02.0-hotfix16_2`](https://github.com/juspay/hyperswitch/compare/2026.02.02.0-hotfix16_1...2026.02.02.0-hotfix16_2)
+
+- - -
+
+
 ## 2026.02.02.0-hotfix16_1
 
 ### Features
