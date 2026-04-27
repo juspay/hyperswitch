@@ -516,6 +516,8 @@ pub enum ConnectorSpecificConfig {
         certificates: Option<Secret<String>>,
         private_key: Option<Secret<String>>,
     },
+    /// Imerchantsolutions connector configuration
+    Imerchantsolutions { api_key: Secret<String> },
 }
 
 impl ForeignTryFrom<(Connector, &ConnectorAuthType, Option<&serde_json::Value>)>
@@ -1414,6 +1416,14 @@ impl ForeignTryFrom<(Connector, &ConnectorAuthType, Option<&serde_json::Value>)>
                 }),
                 _ => Err(err("Itaubank requires BodyKey auth type")),
             },
+
+            Connector::Imerchantsolutions => match auth {
+                ConnectorAuthType::HeaderKey { api_key } => Ok(Self::Imerchantsolutions {
+                    api_key: api_key.clone(),
+                }),
+                _ => Err(err("Imerchantsolutions requires HeaderKey auth type")),
+            },
+
             // --- Unsupported connectors ---
             _ => Err(
                 error_stack::report!(errors::ApiErrorResponse::InternalServerError)

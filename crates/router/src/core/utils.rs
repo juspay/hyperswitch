@@ -54,6 +54,7 @@ use crate::{
     configs::Settings,
     consts,
     core::{
+        configs::dimension_state,
         errors::{self, RouterResult, StorageErrorExt},
         payments::PaymentData,
     },
@@ -67,20 +68,30 @@ use crate::{
     utils::{generate_id, OptionExt, ValueExt},
 };
 
-#[cfg(all(feature = "v1", feature = "pm_modular"))]
 #[derive(Debug, Clone, Default)]
 pub struct FeatureConfig {
     pub is_payment_method_modular_allowed: bool,
 }
 
-#[cfg(all(feature = "v1", feature = "pm_modular"))]
 pub async fn get_feature_config(
     state: &SessionState,
     platform: &domain::Platform,
+    dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
 ) -> FeatureConfig {
+    let dimensions = dimensions
+        .with_organization_id(
+            platform
+                .get_processor()
+                .get_account()
+                .organization_id
+                .clone(),
+        )
+        .without_provider_merchant_id()
+        .without_processor_merchant_id();
+
     let is_payment_method_modular_allowed = crate::core::payment_methods::utils::get_organization_eligibility_config_for_pm_modular_service(
-        state.store.as_ref(),
-        &platform.get_processor().get_account().organization_id,
+        state,
+        &dimensions,
     )
     .await;
     FeatureConfig {
@@ -96,19 +107,18 @@ pub async fn validate_legacy_endpoint_access<E>(
 where
     E: From<errors::ApiErrorResponse> + error_stack::Context,
 {
-    #[cfg(feature = "pm_modular")]
-    {
-        let feature_config = get_feature_config(state, platform).await;
-        common_utils::fp_utils::when(feature_config.is_payment_method_modular_allowed, || {
-            Err(error_stack::report!(E::from(
-                errors::ApiErrorResponse::AccessForbidden {
-                    resource: "Deprecated route".to_string(),
-                },
-            )))
-        })?;
-    }
-    #[cfg(not(feature = "pm_modular"))]
-    let _ = (state, platform);
+    let dimensions = dimension_state::Dimensions::new()
+        .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
+        .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id());
+
+    let feature_config = get_feature_config(state, platform, &dimensions).await;
+    common_utils::fp_utils::when(feature_config.is_payment_method_modular_allowed, || {
+        Err(error_stack::report!(E::from(
+            errors::ApiErrorResponse::AccessForbidden {
+                resource: "Deprecated route".to_string(),
+            },
+        )))
+    })?;
     Ok(())
 }
 

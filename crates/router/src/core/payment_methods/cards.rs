@@ -213,6 +213,45 @@ impl PaymentMethodsController for PmCards<'_> {
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to add payment method in db")?;
 
+        let should_schedule_modular_forward_compat =
+            payment_method_utils::get_should_schedule_modular_forward_compat(
+                self.state,
+                &dimension_state::Dimensions::new()
+                    .with_provider_merchant_id(self.provider.get_provider_merchant_id()),
+                Some(customer_id),
+            )
+            .await;
+
+        if should_schedule_modular_forward_compat {
+            let res = super::add_payment_method_modular_forward_compat_task(
+                &*self.state.store,
+                &response,
+                merchant_id,
+                self.state.conf.application_source,
+                initiator,
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable(
+                "Failed to add payment method modular compatibility task in process tracker",
+            );
+
+            if let Err(err) = res {
+                logger::error!(
+                    ?err,
+                    payment_method_id=%response.payment_method_id,
+                    merchant_id=%merchant_id.get_string_repr(),
+                    "Failed to schedule modular forward compatibility PT; continuing payment method create flow"
+                );
+            }
+        } else {
+            logger::debug!(
+                payment_method_id=%response.payment_method_id,
+                merchant_id=%merchant_id.get_string_repr(),
+                "Skipping modular forward compatibility PT scheduling by config"
+            );
+        }
+
         if customer.default_payment_method_id.is_none() && req.payment_method.is_some() {
             let _ = self
                 .set_default_payment_method(
@@ -760,7 +799,7 @@ impl PaymentMethodsController for PmCards<'_> {
         .change_context(errors::VaultError::RequestEncodingFailed)
         .attach_printable("Failed to encode VaultFingerprintRequest")?;
 
-        let resp = vault::call_to_vault::<pm_types::GetVaultFingerprint>(self.state, payload)
+        let resp = vault::call_to_vault::<pm_types::GetVaultFingerprint>(self.state, payload, None)
             .await
             .change_context(errors::VaultError::VaultAPIError)
             .attach_printable("Call to vault failed")?;
@@ -815,10 +854,13 @@ impl PaymentMethodsController for PmCards<'_> {
             .change_context(errors::VaultError::RequestEncodingFailed)
             .attach_printable("Failed to encode AddVaultRequest")?;
 
-            let resp = vault::call_to_vault::<pm_types::AddVault>(self.state, payload)
-                .await
-                .change_context(errors::VaultError::VaultAPIError)
-                .attach_printable("Call to vault failed")?;
+            let query_params = Some(pm_types::VaultQueryParam::from(pm_types::WriteMode::Insert));
+
+            let resp =
+                vault::call_to_vault::<pm_types::AddVault>(self.state, payload, query_params)
+                    .await
+                    .change_context(errors::VaultError::VaultAPIError)
+                    .attach_printable("Call to vault failed")?;
 
             let stored_pm_resp: pm_types::InternalAddVaultResponse = resp
                 .parse_struct("InternalAddVaultResponse")
@@ -3073,9 +3115,6 @@ pub async fn list_payment_methods(
 ) -> errors::RouterResponse<api::PaymentMethodListResponse> {
     let db = &*state.store;
     let pm_config_mapping = &state.conf.pm_filters;
-    let dimensions = dimension_state::Dimensions::new()
-        .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
-        .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id());
     let payment_intent = if let Some(cs) = &req.client_secret {
         if cs.starts_with("pm_") {
             validate_payment_method_and_client_secret(cs, db, &platform).await?;
@@ -3214,6 +3253,11 @@ pub async fn list_payment_methods(
                 (profile_id, profile)
             }
         };
+
+    let dimensions = dimension_state::Dimensions::new()
+        .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
+        .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id())
+        .with_profile_id(profile_id.clone());
 
     // filter out payment connectors based on profile_id
     let filtered_mcas = all_mcas
@@ -5459,7 +5503,7 @@ pub async fn get_bank_debit_from_hs_locker(
         .attach_printable("Failed to encode VaultRetrieveRequest")
         .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
-    let resp = vault::call_to_vault::<pm_types::VaultRetrieve>(state, payload)
+    let resp = vault::call_to_vault::<pm_types::VaultRetrieve>(state, payload, None)
         .await
         .change_context(errors::VaultError::VaultAPIError)
         .attach_printable("Call to vault failed")

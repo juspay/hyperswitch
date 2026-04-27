@@ -220,7 +220,9 @@ pub enum BillingConnectors {
     DummyBillingConnector,
 }
 
-#[derive(Clone, Copy, Debug, serde::Serialize, strum::EnumString, Eq, PartialEq)]
+#[derive(
+    Clone, Copy, Debug, serde::Serialize, serde::Deserialize, strum::EnumString, Eq, PartialEq,
+)]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 pub enum VaultConnectors {
@@ -236,6 +238,25 @@ impl From<VaultConnectors> for Connector {
             VaultConnectors::HyperswitchVault => Self::HyperswitchVault,
             VaultConnectors::Tokenex => Self::Tokenex,
         }
+    }
+}
+
+impl TryFrom<String> for VaultConnectors {
+    type Error = String;
+    fn try_from(value: String) -> Result<Self, Self::Error> {
+        use std::str::FromStr;
+        Self::from_str(&value).map_err(|_| format!("'{value}' is not a valid vault connector name"))
+    }
+}
+
+impl VaultConnectors {
+    /// Parse a `VaultConnectors` from a connector name string, going through
+    /// the `Connector` enum to validate it is a known connector first.
+    pub fn from_connector_name(connector_name: &str) -> Result<Self, String> {
+        use std::str::FromStr;
+        let connector_enum = Connector::from_str(connector_name)
+            .map_err(|_| format!("Failed to parse connector name to enum: {connector_name}"))?;
+        Self::try_from(connector_enum)
     }
 }
 
