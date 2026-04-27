@@ -29,11 +29,6 @@ env:
   # Generate with: sha256sum /home/phoenix/.config/opencode/agents/hyperswitch-reviewer.md
   AGENT_FILE_SHA256: ""
   OPENCODE_SKILLS_DIR: /home/phoenix/.config/opencode/skills
-  # Persistent clone of the specs repo on the runner. Accessed over SSH using
-  # the runner's machine-level key — this is why we DON'T use actions/checkout
-  # for it: juspay/hyperswitch-specs is private, and the default GITHUB_TOKEN
-  # (scoped to juspay/hyperswitch) cannot read it. review-updater also needs
-  # this path to exist persistently to push branches to the specs repo.
   SPECS_REPO_LOCAL: /home/phoenix/repos/hyperswitch-specs
   # Optional: set to pin the specs repo to a known-good commit. Update intentionally when advancing.
   # Find current value with: git -C /home/phoenix/repos/hyperswitch-specs rev-parse HEAD
@@ -46,10 +41,6 @@ env:
     hyperswitch-routing-reviewer
     hyperswitch-analytics-reviewer
     hyperswitch-dashboard-reviewer
-  # Orchestrator helper skills (codeowners-router, pr-trigger-classifier,
-  # review-commenter, review-updater) are NOT synced here — they must be
-  # pre-seeded on the runner at $OPENCODE_SKILLS_DIR.
-
 jobs:
   agent:
     # TODO: once the hyperswitch-actions-runner is registered, add its label
