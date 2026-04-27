@@ -184,7 +184,7 @@ pub struct PixBankTransferAdditionalData {
     #[schema(value_type = String, example = "a1f4102e ****** 6fa48899c1d1")]
     pub pix_key: Option<MaskedBankAccount>,
 
-    /// Partially masked string formated QR code for pix payout
+    /// Partially masked string formatted QR code for pix payout
     #[schema(value_type = String, example = "0002**************************************************I63041D3D")]
     pub pix_emv: Option<MaskedBankAccount>,
 
