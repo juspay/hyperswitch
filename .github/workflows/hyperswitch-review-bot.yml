@@ -137,13 +137,28 @@ jobs:
             echo "         Recommend setting it to '$CURRENT_SHA' to enforce integrity."
           fi
 
+      - name: Resolve PR head SHA
+        id: pr_sha
+        env:
+          PR_NUMBER: ${{ steps.context.outputs.pr_number }}
+        run: |
+          set -euo pipefail
+          HEAD_SHA=$(gh api "repos/$SOURCE_REPO/pulls/$PR_NUMBER" --jq '.head.sha')
+          if ! [[ "$HEAD_SHA" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "ERROR: HEAD SHA '$HEAD_SHA' is not a valid git SHA"
+            exit 1
+          fi
+          echo "head_sha=$HEAD_SHA" >> "$GITHUB_OUTPUT"
+          echo "PR #$PR_NUMBER head: $HEAD_SHA"
+
       - name: Checkout PR branch
         uses: actions/checkout@v4
         with:
           repository: ${{ env.SOURCE_REPO }}
-          ref: refs/pull/${{ steps.context.outputs.pr_number }}/head
+          ref: ${{ steps.pr_sha.outputs.head_sha }}
           path: hyperswitch
           fetch-depth: 50
+          persist-credentials: false
 
       - name: Sync team reviewer skills
         run: |
