@@ -1567,7 +1567,14 @@ pub enum TokenSource {
 
 /// External surcharge details from InterPayments (stored as JSONB)
 #[derive(
-    Clone, Debug, serde::Deserialize, Eq, PartialEq, serde::Serialize, diesel::AsExpression,
+    Clone,
+    Debug,
+    serde::Deserialize,
+    Eq,
+    ToSchema,
+    PartialEq,
+    serde::Serialize,
+    diesel::AsExpression,
 )]
 #[diesel(sql_type = Jsonb)]
 pub struct ExternalSurchargeDetails {

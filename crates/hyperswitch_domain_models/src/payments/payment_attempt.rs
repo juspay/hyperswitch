@@ -997,6 +997,7 @@ impl PaymentAttempt {
             connector_request_reference_id: None,
             network_transaction_id: None,
             authorized_amount: None,
+            external_surcharge_details: None,
         })
     }
 
@@ -1089,6 +1090,7 @@ impl PaymentAttempt {
             connector_request_reference_id: None,
             network_transaction_id: None,
             authorized_amount: None,
+            external_surcharge_details: None,
         })
     }
 
@@ -1188,6 +1190,7 @@ impl PaymentAttempt {
             connector_request_reference_id: None,
             network_transaction_id: None,
             authorized_amount: None,
+            external_surcharge_details: None,
         })
     }
 
@@ -1312,6 +1315,7 @@ impl PaymentAttempt {
             connector_request_reference_id,
             network_transaction_id: None,
             authorized_amount: None,
+            external_surcharge_details: None,
         })
     }
 
@@ -3250,6 +3254,7 @@ impl behaviour::Conversion for PaymentAttempt {
             connector_request_reference_id,
             network_transaction_id,
             authorized_amount,
+            external_surcharge_details,
         } = self;
 
         let AttemptAmountDetails {
@@ -3473,6 +3478,7 @@ impl behaviour::Conversion for PaymentAttempt {
                 payment_method_subtype: storage_model.payment_method_subtype,
                 authentication_applied: storage_model.authentication_applied,
                 external_reference_id: storage_model.external_reference_id,
+                external_surcharge_details: storage_model.external_surcharge_details,
                 connector: storage_model.connector,
                 payment_method_billing_address,
                 connector_token_details: storage_model.connector_token_details,
@@ -3549,6 +3555,7 @@ impl behaviour::Conversion for PaymentAttempt {
             connector_request_reference_id,
             network_transaction_id,
             authorized_amount,
+            external_surcharge_details: _,
         } = self;
 
         let card_network = payment_method_data
@@ -3642,6 +3649,7 @@ impl behaviour::Conversion for PaymentAttempt {
                 .and_then(|details| details.network_error_message.clone()),
             processor_merchant_id: Some(processor_merchant_id),
             created_by: created_by.map(|created_by| created_by.to_string()),
+            external_surcharge_details: None,
             connector_request_reference_id,
             network_details: None,
             tokenization: None,

@@ -165,6 +165,7 @@ pub struct PaymentAttempt {
     pub error_details: Option<ErrorDetails>,
     pub retry_type: Option<storage_enums::RetryType>,
     pub installment_data: Option<common_types::payments::InstallmentData>,
+    pub external_surcharge_details: Option<common_types::payments::ExternalSurchargeDetails>,
     #[diesel(deserialize_as = RequiredFromNullable<storage_enums::PaymentMethod>)]
     pub payment_method_type_v2: storage_enums::PaymentMethod,
     pub connector_payment_id: Option<ConnectorTransactionId>,
@@ -452,6 +453,7 @@ pub struct PaymentAttemptNew {
     pub encrypted_payment_method_data: Option<common_utils::encryption::Encryption>,
     pub error_details: Option<ErrorDetails>,
     pub retry_type: Option<storage_enums::RetryType>,
+    pub external_surcharge_details: Option<common_types::payments::ExternalSurchargeDetails>,
 }
 
 #[cfg(feature = "v1")]
@@ -546,6 +548,7 @@ pub struct PaymentAttemptNew {
     /// Indicates the type of retry for this payment attempt (None for initial attempt)
     pub retry_type: Option<storage_enums::RetryType>,
     pub installment_data: Option<common_types::payments::InstallmentData>,
+    pub external_surcharge_details: Option<common_types::payments::ExternalSurchargeDetails>,
 }
 
 #[cfg(feature = "v1")]
@@ -1130,6 +1133,7 @@ impl PaymentAttemptUpdateInternal {
             routing_result: source.routing_result,
             authentication_applied: source.authentication_applied,
             external_reference_id: source.external_reference_id,
+            external_surcharge_details: source.external_surcharge_details,
             tax_on_surcharge: source.tax_on_surcharge,
             payment_method_billing_address: source.payment_method_billing_address,
             redirection_data: redirection_data.or(source.redirection_data),
