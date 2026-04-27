@@ -819,7 +819,7 @@ pub mod core {
                 cert_format = ?config.cert_format,
                 "Certificate configuration applied"
             );
-
+/injector/src/injector.rs:903:41
             let request_builder = RequestBuilder::new()
                 .method(method)
                 .url(config.endpoint.as_str())
@@ -860,6 +860,7 @@ pub mod core {
             request: &InjectorRequest,
             processed_payload: &str,
         ) -> error_stack::Result<InjectorResponse, InjectorError> {
+             use hyperswitch_masking::PeekInterface;
             let vault_endpoint = request
                 .connection_config
                 .vault_endpoint
