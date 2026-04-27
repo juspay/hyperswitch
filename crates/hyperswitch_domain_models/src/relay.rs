@@ -5,7 +5,7 @@ use common_utils::{
     ext_traits::ValueExt,
     id_type::{self, GenerateId},
     pii,
-    types::{keymanager, MinorUnit},
+    types::{keymanager, CreatedBy, MinorUnit},
 };
 use diesel_models::relay::RelayUpdateInternal;
 use error_stack::ResultExt;
@@ -35,6 +35,8 @@ pub struct Relay {
     #[serde(with = "common_utils::custom_serde::iso8601")]
     pub modified_at: PrimitiveDateTime,
     pub response_data: Option<pii::SecretSerdeValue>,
+    pub processor_merchant_id: Option<id_type::MerchantId>,
+    pub created_by: Option<CreatedBy>,
 }
 
 impl Relay {
@@ -42,6 +44,8 @@ impl Relay {
         relay_request: &api_models::relay::RelayRequest,
         merchant_id: &id_type::MerchantId,
         profile_id: &id_type::ProfileId,
+        processor_merchant_id: Option<id_type::MerchantId>,
+        created_by: Option<CreatedBy>,
     ) -> Self {
         let relay_id = id_type::RelayId::generate();
         Self {
@@ -59,6 +63,8 @@ impl Relay {
             created_at: common_utils::date_time::now(),
             modified_at: common_utils::date_time::now(),
             response_data: None,
+            processor_merchant_id,
+            created_by,
         }
     }
 }
@@ -604,6 +610,8 @@ impl super::behaviour::Conversion for Relay {
             created_at: self.created_at,
             modified_at: self.modified_at,
             response_data: self.response_data,
+            processor_merchant_id: self.processor_merchant_id,
+            created_by: self.created_by.map(|created_by| created_by.to_string()),
         })
     }
 
@@ -628,6 +636,10 @@ impl super::behaviour::Conversion for Relay {
             created_at: item.created_at,
             modified_at: item.modified_at,
             response_data: item.response_data,
+            processor_merchant_id: item.processor_merchant_id,
+            created_by: item
+                .created_by
+                .and_then(|created_by| created_by.parse::<CreatedBy>().ok()),
         })
     }
 
@@ -655,6 +667,8 @@ impl super::behaviour::Conversion for Relay {
             created_at: self.created_at,
             modified_at: self.modified_at,
             response_data: self.response_data,
+            processor_merchant_id: self.processor_merchant_id,
+            created_by: self.created_by.map(|created_by| created_by.to_string()),
         })
     }
 }

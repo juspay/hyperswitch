@@ -2075,7 +2075,7 @@ async fn relay_refunds_incoming_webhook_flow(
         };
         let relay_force_sync_response = Box::pin(relay::relay_retrieve(
             state,
-            platform.get_processor().clone(),
+            platform,
             Some(business_profile.get_id().clone()),
             relay_retrieve_request,
         ))

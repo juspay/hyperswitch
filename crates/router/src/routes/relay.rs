@@ -24,7 +24,7 @@ pub async fn relay(
         |state, auth: auth::AuthenticationData, req, _| {
             relay::relay_flow_decider(
                 state,
-                auth.platform.get_processor().clone(),
+                auth.platform,
                 #[cfg(feature = "v1")]
                 auth.profile.map(|profile| profile.get_id().clone()),
                 #[cfg(feature = "v2")]
@@ -62,7 +62,7 @@ pub async fn relay_retrieve(
         |state, auth: auth::AuthenticationData, req, _| {
             relay::relay_retrieve(
                 state,
-                auth.platform.get_processor().clone(),
+                auth.platform,
                 #[cfg(feature = "v1")]
                 auth.profile.map(|profile| profile.get_id().clone()),
                 #[cfg(feature = "v2")]

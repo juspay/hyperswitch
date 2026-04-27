@@ -24,7 +24,11 @@ pub async fn create_profile_acquirer(
         &req,
         payload,
         |state: super::SessionState, auth_data: auth::AuthenticationData, req, _| {
-            crate::core::profile_acquirer::create_profile_acquirer(state, req, auth_data.platform.get_processor().clone())
+            crate::core::profile_acquirer::create_profile_acquirer(
+                state,
+                req,
+                auth_data.platform.get_processor().clone(),
+            )
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {

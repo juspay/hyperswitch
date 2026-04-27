@@ -97,6 +97,8 @@ pub trait RelayInterface {
         relay_request: RelayRequestInner<Self>,
         merchant_id: &id_type::MerchantId,
         profile_id: &id_type::ProfileId,
+        processor_merchant_id: Option<id_type::MerchantId>,
+        created_by: Option<common_utils::types::CreatedBy>,
     ) -> relay::Relay;
 
     async fn process_relay(
@@ -145,6 +147,8 @@ impl RelayInterface for RelayRefund {
         relay_request: RelayRequestInner<Self>,
         merchant_id: &id_type::MerchantId,
         profile_id: &id_type::ProfileId,
+        processor_merchant_id: Option<id_type::MerchantId>,
+        created_by: Option<common_utils::types::CreatedBy>,
     ) -> relay::Relay {
         let relay_id = id_type::RelayId::generate();
         let relay_refund: relay::RelayRefundData = relay_request.data.into();
@@ -163,6 +167,8 @@ impl RelayInterface for RelayRefund {
             created_at: common_utils::date_time::now(),
             modified_at: common_utils::date_time::now(),
             response_data: None,
+            processor_merchant_id,
+            created_by,
         }
     }
 
@@ -272,6 +278,8 @@ impl RelayInterface for RelayCapture {
         relay_request: RelayRequestInner<Self>,
         merchant_id: &id_type::MerchantId,
         profile_id: &id_type::ProfileId,
+        processor_merchant_id: Option<id_type::MerchantId>,
+        created_by: Option<common_utils::types::CreatedBy>,
     ) -> relay::Relay {
         let relay_id = id_type::RelayId::generate();
         let relay_capture: relay::RelayCaptureData = relay_request.data.into();
@@ -290,6 +298,8 @@ impl RelayInterface for RelayCapture {
             created_at: common_utils::date_time::now(),
             modified_at: common_utils::date_time::now(),
             response_data: None,
+            processor_merchant_id,
+            created_by,
         }
     }
 
@@ -402,6 +412,8 @@ impl RelayInterface for RelayIncrementalAuthorization {
         relay_request: RelayRequestInner<Self>,
         merchant_id: &id_type::MerchantId,
         profile_id: &id_type::ProfileId,
+        processor_merchant_id: Option<id_type::MerchantId>,
+        created_by: Option<common_utils::types::CreatedBy>,
     ) -> relay::Relay {
         let relay_id = id_type::RelayId::generate();
         let relay_incremental_authorization: relay::RelayIncrementalAuthorizationData =
@@ -423,6 +435,8 @@ impl RelayInterface for RelayIncrementalAuthorization {
             created_at: common_utils::date_time::now(),
             modified_at: common_utils::date_time::now(),
             response_data: None,
+            processor_merchant_id,
+            created_by,
         }
     }
 
@@ -533,6 +547,8 @@ impl RelayInterface for RelayVoid {
         relay_request: RelayRequestInner<Self>,
         merchant_id: &id_type::MerchantId,
         profile_id: &id_type::ProfileId,
+        processor_merchant_id: Option<id_type::MerchantId>,
+        created_by: Option<common_utils::types::CreatedBy>,
     ) -> relay::Relay {
         let relay_id = id_type::RelayId::generate();
         let relay_void: relay::RelayVoidData = relay_request.data.into();
@@ -551,6 +567,8 @@ impl RelayInterface for RelayVoid {
             created_at: common_utils::date_time::now(),
             modified_at: common_utils::date_time::now(),
             response_data: None,
+            processor_merchant_id,
+            created_by,
         }
     }
 
@@ -635,7 +653,7 @@ impl RelayInterface for RelayVoid {
 
 pub async fn relay_flow_decider(
     state: SessionState,
-    processor: domain::Processor,
+    platform: domain::Platform,
     profile_id_optional: Option<id_type::ProfileId>,
     request: relay_api_models::RelayRequest,
 ) -> RouterResponse<relay_api_models::RelayResponse> {
@@ -643,19 +661,19 @@ pub async fn relay_flow_decider(
         common_enums::RelayType::Refund => {
             let relay_refund_request =
                 RelayRequestInner::<RelayRefund>::from_relay_request(request)?;
-            relay(state, processor, profile_id_optional, relay_refund_request).await
+            relay(state, platform, profile_id_optional, relay_refund_request).await
         }
         common_enums::RelayType::Capture => {
             let relay_capture_request =
                 RelayRequestInner::<RelayCapture>::from_relay_request(request)?;
-            relay(state, processor, profile_id_optional, relay_capture_request).await
+            relay(state, platform, profile_id_optional, relay_capture_request).await
         }
         common_enums::RelayType::IncrementalAuthorization => {
             let relay_incremental_auth_request =
                 RelayRequestInner::<RelayIncrementalAuthorization>::from_relay_request(request)?;
             relay(
                 state,
-                processor,
+                platform,
                 profile_id_optional,
                 relay_incremental_auth_request,
             )
@@ -664,27 +682,32 @@ pub async fn relay_flow_decider(
         common_enums::RelayType::Void => {
             let relay_capture_request =
                 RelayRequestInner::<RelayVoid>::from_relay_request(request)?;
-            relay(state, processor, profile_id_optional, relay_capture_request).await
+            relay(state, platform, profile_id_optional, relay_capture_request).await
         }
     }
 }
 
 pub async fn relay<T: RelayInterface>(
     state: SessionState,
-    processor: domain::Processor,
+    platform: domain::Platform,
     profile_id_optional: Option<id_type::ProfileId>,
     req: RelayRequestInner<T>,
 ) -> RouterResponse<relay_api_models::RelayResponse> {
     let db = state.store.as_ref();
-    let merchant_id = processor.get_account().get_id();
+    let merchant_id = platform.get_provider().get_account().get_id();
+    let processor_merchant_id = platform.get_processor().get_account().get_id();
     let connector_id = &req.connector_id;
+
+    let created_by = platform
+        .get_initiator()
+        .and_then(|initiator| initiator.to_created_by());
 
     let profile_id_from_auth_layer = profile_id_optional.get_required_value("ProfileId")?;
 
     let profile = db
         .find_business_profile_by_merchant_id_profile_id(
-            processor.get_key_store(),
-            merchant_id,
+            platform.get_processor().get_key_store(),
+            processor_merchant_id,
             &profile_id_from_auth_layer,
         )
         .await
@@ -695,9 +718,9 @@ pub async fn relay<T: RelayInterface>(
     #[cfg(feature = "v1")]
     let connector_account = db
         .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
-            merchant_id,
+            processor_merchant_id,
             connector_id,
-            processor.get_key_store(),
+            platform.get_processor().get_key_store(),
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
@@ -708,7 +731,7 @@ pub async fn relay<T: RelayInterface>(
     let connector_account = db
         .find_merchant_connector_account_by_id(
             connector_id,
-            processor.get_key_store(),
+            platform.get_processor().get_key_store(),
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
@@ -717,22 +740,32 @@ pub async fn relay<T: RelayInterface>(
 
     T::validate_relay_request(&req.data)?;
 
-    let relay_domain = T::get_domain_models(req, merchant_id, profile.get_id());
+    let relay_domain = T::get_domain_models(
+        req,
+        merchant_id,
+        profile.get_id(),
+        Some(processor_merchant_id.clone()),
+        created_by,
+    );
 
     let relay_record = db
-        .insert_relay(processor.get_key_store(), relay_domain)
+        .insert_relay(platform.get_processor().get_key_store(), relay_domain)
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to insert a relay record in db")?;
 
-    let relay_response =
-        T::process_relay(&state, processor.clone(), connector_account, &relay_record)
-            .await
-            .attach_printable("Failed to process relay")?;
+    let relay_response = T::process_relay(
+        &state,
+        platform.get_processor().clone(),
+        connector_account,
+        &relay_record,
+    )
+    .await
+    .attach_printable("Failed to process relay")?;
 
     let relay_update_record = db
         .update_relay(
-            processor.get_key_store(),
+            platform.get_processor().get_key_store(),
             relay_record,
             relay_response,
         )
@@ -749,18 +782,18 @@ pub async fn relay<T: RelayInterface>(
 
 pub async fn relay_retrieve(
     state: SessionState,
-    processor: domain::Processor,
+    platform: domain::Platform,
     profile_id_optional: Option<id_type::ProfileId>,
     req: relay_api_models::RelayRetrieveRequest,
 ) -> RouterResponse<relay_api_models::RelayResponse> {
     let db = state.store.as_ref();
-    let merchant_id = processor.get_account().get_id();
+    let merchant_id = platform.get_processor().get_account().get_id();
     let relay_id = &req.id;
 
     let profile_id_from_auth_layer = profile_id_optional.get_required_value("ProfileId")?;
 
     db.find_business_profile_by_merchant_id_profile_id(
-        processor.get_key_store(),
+        platform.get_processor().get_key_store(),
         merchant_id,
         &profile_id_from_auth_layer,
     )
@@ -770,7 +803,7 @@ pub async fn relay_retrieve(
     })?;
 
     let relay_record_result = db
-        .find_relay_by_id(processor.get_key_store(), relay_id)
+        .find_relay_by_id(platform.get_processor().get_key_store(), relay_id)
         .await;
 
     let relay_record = match relay_record_result {
@@ -793,7 +826,7 @@ pub async fn relay_retrieve(
         .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
             merchant_id,
             &relay_record.connector_id,
-            processor.get_key_store(),
+            platform.get_processor().get_key_store(),
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
@@ -804,7 +837,7 @@ pub async fn relay_retrieve(
     let connector_account = db
         .find_merchant_connector_account_by_id(
             &relay_record.connector_id,
-            processor.get_key_store(),
+            platform.get_processor().get_key_store(),
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
@@ -816,14 +849,14 @@ pub async fn relay_retrieve(
             if should_call_connector_for_relay_refund_status(&relay_record, req.force_sync) {
                 let relay_response = sync_relay_refund_with_gateway(
                     &state,
-                    &processor,
+                    platform.get_processor(),
                     &relay_record,
                     connector_account,
                 )
                 .await?;
 
                 db.update_relay(
-                    processor.get_key_store(),
+                    platform.get_processor().get_key_store(),
                     relay_record,
                     relay_response,
                 )
@@ -838,14 +871,14 @@ pub async fn relay_retrieve(
             if should_call_connector_for_relay_capture_status(&relay_record, req.force_sync) {
                 let relay_response = Box::pin(sync_relay_capture_with_gateway(
                     &state,
-                    &processor,
+                    platform.get_processor(),
                     &relay_record,
                     connector_account,
                 ))
                 .await?;
 
                 db.update_relay(
-                    processor.get_key_store(),
+                    platform.get_processor().get_key_store(),
                     relay_record,
                     relay_response,
                 )
