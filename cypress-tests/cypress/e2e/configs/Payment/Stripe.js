@@ -1127,7 +1127,7 @@ export const connectorDetails = {
   pay_later_pm: {
     AutoCapture: getCustomExchange({
       Request: {
-        currency: "EUR",
+        currency: "USD",
         capture_method: "automatic",
       },
       Response: {
@@ -1139,7 +1139,7 @@ export const connectorDetails = {
     }),
     ManualCapture: getCustomExchange({
       Request: {
-        currency: "EUR",
+        currency: "USD",
         capture_method: "manual",
       },
       Response: {
@@ -1157,18 +1157,19 @@ export const connectorDetails = {
         payment_method_data: {
           pay_later: {
             klarna_redirect: {
-              billing_email: "customer@email.de",
-              billing_country: "DE",
+              billing_email: "customer@email.com",
+              billing_country: "US",
             },
           },
         },
         billing: {
-          email: "customer@email.de",
+          email: "customer@email.com",
           address: {
-            line1: "Neue Schönhauser Str. 2",
-            city: "Berlin",
-            zip: "10178",
-            country: "DE",
+            line1: "1467 Harrison Street",
+            city: "San Francisco",
+            state: "California",
+            zip: "94122",
+            country: "US",
             first_name: "Mock",
             last_name: "Mock",
           },
