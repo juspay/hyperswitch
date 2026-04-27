@@ -1332,4 +1332,13 @@ export const connectorDetails = {
       },
     },
   },
+  card_redirect_pm: {
+    PaymentIntent: () =>
+      getCustomExchange({
+        Configs: {
+          TRIGGER_SKIP: true,
+        },
+      }),
+  },
+
 };

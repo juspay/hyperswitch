@@ -1,4 +1,5 @@
 import { generateRandomEmail } from "../../../utils/RequestBodyUtils";
+import { getCustomExchange } from "./Modifiers";
 import {
   customerAcceptance,
   multiUseMandateData,
@@ -844,4 +845,13 @@ export const connectorDetails = {
       type: "string",
     },
   },
+  card_redirect_pm: {
+    PaymentIntent: () =>
+      getCustomExchange({
+        Configs: {
+          TRIGGER_SKIP: true,
+        },
+      }),
+  },
+
 };

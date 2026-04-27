@@ -1,3 +1,5 @@
+
+import { getCustomExchange } from "./Modifiers";
 const successfulNo3DSCardDetails = {
   card_number: "4111111111111111",
   card_exp_month: "08",
@@ -648,4 +650,13 @@ export const connectorDetails = {
       },
     },
   },
+  card_redirect_pm: {
+    PaymentIntent: () =>
+      getCustomExchange({
+        Configs: {
+          TRIGGER_SKIP: true,
+        },
+      }),
+  },
+
 };

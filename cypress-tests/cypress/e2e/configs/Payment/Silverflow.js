@@ -1081,4 +1081,13 @@ export const connectorDetails = {
       pmListDynamicFieldWithEmail: requiredFields,
     },
   },
+  card_redirect_pm: {
+    PaymentIntent: () =>
+      getCustomExchange({
+        Configs: {
+          TRIGGER_SKIP: true,
+        },
+      }),
+  },
+
 };
