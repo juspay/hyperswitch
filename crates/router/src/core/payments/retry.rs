@@ -9,12 +9,10 @@ use router_env::{
     tracing::{self, instrument},
 };
 
-#[cfg(feature = "pm_modular")]
-use crate::core::utils as core_utils;
 use crate::{
     consts,
     core::{
-        configs,
+        configs::dimension_state,
         errors::{self, RouterResult, StorageErrorExt},
         payments::{
             self, complete_connector_service,
@@ -22,6 +20,7 @@ use crate::{
             helpers as payments_helpers, operations,
         },
         routing::helpers as routing_helpers,
+        utils as core_utils,
     },
     db::StorageInterface,
     routes::{
@@ -50,7 +49,8 @@ pub async fn do_gsm_actions<'a, F, ApiRequest, FData, D>(
     schedule_time: Option<time::PrimitiveDateTime>,
     frm_suggestion: Option<storage_enums::FrmSuggestion>,
     business_profile: &domain::Profile,
-    #[cfg(feature = "pm_modular")] feature_config: &core_utils::FeatureConfig,
+    feature_config: &core_utils::FeatureConfig,
+    _dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
 ) -> RouterResult<types::RouterData<F, FData, types::PaymentsResponseData>>
 where
     F: Clone + Send + Sync + std::fmt::Debug + 'static,
@@ -120,7 +120,6 @@ where
             false, //should_retry_with_pan is not applicable for step-up
             None,
             initial_gsm.clone(),
-            #[cfg(feature = "pm_modular")]
             feature_config,
         ))
         .await?;
@@ -228,7 +227,6 @@ where
                         should_retry_with_pan,
                         routing_decision,
                         gsm.clone(),
-                        #[cfg(feature = "pm_modular")]
                         feature_config,
                     ))
                     .await?;
@@ -378,7 +376,7 @@ pub async fn do_retry<'a, F, ApiRequest, FData, D>(
     should_retry_with_pan: bool,
     routing_decision: Option<routing_helpers::RoutingDecisionData>,
     initial_gsm: Option<hyperswitch_domain_models::gsm::GatewayStatusMap>,
-    #[cfg(feature = "pm_modular")] feature_config: &core_utils::FeatureConfig,
+    feature_config: &core_utils::FeatureConfig,
 ) -> RouterResult<types::RouterData<F, FData, types::PaymentsResponseData>>
 where
     F: Clone + Send + Sync + std::fmt::Debug + 'static,
@@ -393,7 +391,7 @@ where
     types::RouterData<F, FData, types::PaymentsResponseData>: Feature<F, FData>,
     dyn api::Connector: services::api::ConnectorIntegration<F, FData, types::PaymentsResponseData>,
 {
-    let dimensions = configs::dimension_state::Dimensions::new()
+    let dimensions = dimension_state::Dimensions::new()
         .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
         .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id());
 
@@ -422,7 +420,6 @@ where
             business_profile,
             should_retry_with_pan,
             routing_decision,
-            #[cfg(feature = "pm_modular")]
             feature_config,
         )
         .await?;
@@ -880,32 +877,20 @@ pub fn make_new_payment_attempt(
     todo!()
 }
 
-pub async fn get_merchant_config_for_gsm(
-    db: &dyn StorageInterface,
-    merchant_id: &common_utils::id_type::MerchantId,
-) -> bool {
-    let config = db
-        .find_config_by_key_unwrap_or(
-            &merchant_id.get_should_call_gsm_key(),
-            Some("false".to_string()),
-        )
-        .await;
-    match config {
-        Ok(conf) => conf.config == "true",
-        Err(error) => {
-            logger::error!(?error);
-            false
-        }
-    }
-}
-
 #[cfg(feature = "v1")]
 pub async fn config_should_call_gsm(
-    db: &dyn StorageInterface,
-    merchant_id: &common_utils::id_type::MerchantId,
+    state: &app::SessionState,
+    dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
     profile: &domain::Profile,
+    customer_id: Option<&common_utils::id_type::CustomerId>,
 ) -> bool {
-    let merchant_config_gsm = get_merchant_config_for_gsm(db, merchant_id).await;
+    let merchant_config_gsm = dimensions
+        .get_should_call_gsm(
+            state.store.as_ref(),
+            state.superposition_service.as_ref(),
+            customer_id,
+        )
+        .await;
     let profile_config_gsm = profile.is_auto_retries_enabled;
     merchant_config_gsm || profile_config_gsm
 }

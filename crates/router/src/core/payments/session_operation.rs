@@ -22,7 +22,7 @@ use router_env::{env::Env, instrument, tracing};
 
 use crate::{
     core::{
-        configs::dimension_state::{Dimensions, DimensionsWithProcessorAndProviderMerchantId},
+        configs::dimension_state,
         errors::{self, utils::StorageErrorExt, RouterResult},
         payments::{
             self as payments_core, call_multiple_connectors_service,
@@ -74,6 +74,11 @@ where
     dyn api::Connector:
         services::api::ConnectorIntegration<F, FData, router_types::PaymentsResponseData>,
 {
+    let dimensions = dimension_state::Dimensions::new()
+        .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id())
+        .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
+        .with_profile_id(profile.get_id().clone());
+
     let (payment_data, _req, customer, connector_http_status_code, external_latency) =
         payments_session_operation_core::<_, _, _, _, _>(
             &state,
@@ -85,6 +90,7 @@ where
             payment_id,
             call_connector_action,
             header_payload.clone(),
+            &dimensions,
         )
         .await?;
 
@@ -113,6 +119,7 @@ pub async fn payments_session_operation_core<F, Req, Op, FData, D>(
     payment_id: id_type::GlobalPaymentId,
     _call_connector_action: CallConnectorAction,
     header_payload: HeaderPayload,
+    dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
 ) -> RouterResult<(D, Req, Option<domain::Customer>, Option<u16>, Option<u128>)>
 where
     F: Send + Clone + Sync,
@@ -130,10 +137,6 @@ where
     FData: Send + Sync + Clone,
 {
     let operation: BoxedOperation<'_, F, Req, D> = Box::new(operation);
-
-    let dimensions = Dimensions::new()
-        .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
-        .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id());
 
     let _validate_result = operation
         .to_validate_request()?
@@ -196,7 +199,7 @@ where
                     payment_data.clone(),
                     None,
                     header_payload.clone(),
-                    &dimensions,
+                    &dimensions.without_profile_id(),
                 )
                 .await?;
             // todo: call surcharge manager for session token call.

@@ -118,7 +118,7 @@ pub struct PaymentMethod {
     pub payment_method_type: Option<storage_enums::PaymentMethod>,
     pub payment_method_subtype: Option<storage_enums::PaymentMethodType>,
     #[encrypt(ty = Value)]
-    pub payment_method_data: Option<Encryptable<PaymentMethodsData>>,
+    pub payment_method_data: Option<Encryptable<domain_payment_method_data::PaymentMethodsData>>,
     pub locker_id: Option<VaultId>,
     pub last_used_at: PrimitiveDateTime,
     pub connector_mandate_details: Option<CommonMandateReference>,
@@ -369,7 +369,14 @@ impl PaymentMethodUpdate {
             Some(payment_methods::PaymentMethodUpdateData::Card(card_update)) => {
                 card_update.card_holder_name.is_some() || card_update.nick_name.is_some()
             }
-            _ => false,
+            Some(payment_methods::PaymentMethodUpdateData::BankDebit(bank_debit_update)) => {
+                match bank_debit_update {
+                    payment_methods::BankDebitDetailUpdate::Ach {
+                        bank_account_holder_name,
+                    } => bank_account_holder_name.is_some(),
+                }
+            }
+            None => false,
         }
     }
 
@@ -404,7 +411,20 @@ impl
                     card_cvc: card_data.card_cvc.clone(),
                 }),
             ),
-            payment_methods::PaymentMethodCreateData::ProxyCard(_) => None,
+            payment_methods::PaymentMethodCreateData::BankDebit(
+                payment_methods::BankDebitDetail::Ach {
+                    bank_account_holder_name,
+                    bank_type,
+                    bank_holder_type,
+                    ..
+                },
+            ) => Some(payment_methods::PaymentMethodUpdateData::BankDebit(
+                payment_methods::BankDebitDetailUpdate::Ach {
+                    bank_account_holder_name: bank_account_holder_name.clone(),
+                },
+            )),
+            payment_methods::PaymentMethodCreateData::ProxyCard(_)
+            | payment_methods::PaymentMethodCreateData::Wallet(_) => None,
         };
 
         Self {
@@ -475,6 +495,9 @@ impl super::behaviour::Conversion for PaymentMethod {
             customer_details: self.customer_details.map(|val| val.into()),
             locker_fingerprint_id: self.locker_fingerprint_id,
             network_tokenization_data: self.network_tokenization_data.map(|val| val.into()),
+            payment_method_type_v2: None,
+            payment_method_subtype: None,
+            id: None,
         })
     }
 
@@ -690,6 +713,7 @@ impl super::behaviour::Conversion for PaymentMethod {
             customer_details: self.customer_details.map(|val| val.into()),
             locker_fingerprint_id: self.locker_fingerprint_id,
             network_tokenization_data: self.network_tokenization_data.map(|val| val.into()),
+            id: None,
         })
     }
 }

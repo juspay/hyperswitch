@@ -1325,11 +1325,11 @@ diesel::table! {
         locker_fingerprint_id -> Nullable<Varchar>,
         network_tokenization_data -> Nullable<Bytea>,
         #[max_length = 64]
+        id -> Varchar,
+        #[max_length = 64]
         payment_method_type_v2 -> Nullable<Varchar>,
         #[max_length = 64]
         payment_method_subtype -> Nullable<Varchar>,
-        #[max_length = 64]
-        id -> Varchar,
         external_vault_token_data -> Nullable<Bytea>,
     }
 }
@@ -1601,6 +1601,8 @@ diesel::table! {
         profile_id -> Nullable<Varchar>,
         #[max_length = 64]
         tenant_id -> Varchar,
+        #[max_length = 64]
+        merchant_product_type -> Nullable<Varchar>,
     }
 }
 

@@ -508,3 +508,9 @@ pub struct GetUserInternalDetailsResponse {
 pub struct ListUsersInternalResponse {
     pub users: Vec<GetUserInternalDetailsResponse>,
 }
+
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct AuthorizeTokenRequest {
+    pub token: Secret<String>,
+    pub permission: String,
+}
