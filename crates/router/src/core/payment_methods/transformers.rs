@@ -15,6 +15,8 @@ use common_utils::{
     request::RequestContent,
 };
 use error_stack::ResultExt;
+#[cfg(feature = "v1")]
+use hyperswitch_domain_models::payment_methods::PaymentMethodWithRawData;
 #[cfg(feature = "v2")]
 use hyperswitch_domain_models::{payment_method_data, sdk_auth::SdkAuthorization};
 #[cfg(feature = "v1")]
@@ -47,6 +49,25 @@ use crate::{
     types::{api, domain},
     utils::OptionExt,
 };
+#[cfg(feature = "v1")]
+impl
+    crate::types::transformers::ForeignFrom<(
+        &crate::core::utils::FeatureConfig,
+        Option<&domain::PaymentMethod>,
+    )> for bool
+{
+    fn foreign_from(
+        (feature_config, payment_method): (
+            &crate::core::utils::FeatureConfig,
+            Option<&domain::PaymentMethod>,
+        ),
+    ) -> Self {
+        feature_config.is_payment_method_modular_allowed
+            || payment_method.is_some_and(|payment_method| {
+                payment_method.version == common_enums::ApiVersion::V2
+            })
+    }
+}
 #[cfg(feature = "v2")]
 use crate::{
     consts,
@@ -1317,13 +1338,6 @@ pub struct DomainPaymentMethodWrapper(pub domain::PaymentMethod);
 #[cfg(feature = "v1")]
 pub struct DomainPaymentMethodDataWrapper(pub domain::PaymentMethodData);
 
-#[derive(Clone, Debug)]
-#[cfg(feature = "v1")]
-pub struct PaymentMethodWithRawData {
-    pub payment_method: DomainPaymentMethodWrapper,
-    pub raw_payment_method_data: Option<domain::PaymentMethodData>,
-}
-
 #[cfg(feature = "v1")]
 impl DomainPaymentMethodWrapper {
     pub async fn transform_pm_mod_retrieve_response(
@@ -1858,7 +1872,7 @@ pub async fn fetch_payment_method_from_modular_service(
         .attach_printable("Failed to convert raw payment method data")?;
 
     let pm_wrapper = PaymentMethodWithRawData {
-        payment_method,
+        payment_method: payment_method.0,
         raw_payment_method_data: raw_payment_method_data.map(|wrapper| wrapper.0),
     };
     Ok(pm_wrapper)

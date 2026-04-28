@@ -124,6 +124,14 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         .change_context(errors::ApiErrorResponse::MandateValidationFailed {
             reason: "Expected one out of recurring_details and mandate_data but got both".into(),
         })?;
+        let profile_id = payment_intent
+            .profile_id
+            .clone()
+            .get_required_value("profile_id")
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("'profile_id' not set in payment intent")?;
+        let modular_fetch_context =
+            helpers::build_modular_fetch_context(state, platform, &profile_id);
 
         let m_helpers::MandateGenericData {
             token,
@@ -142,18 +150,21 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             payment_intent.customer_id.as_ref(),
             None,
             dimensions,
+            &modular_fetch_context,
         ))
         .await?;
         let customer_acceptance: Option<CustomerAcceptance> =
             request.customer_acceptance.clone().or(payment_method_info
                 .clone()
                 .map(|pm| {
-                    pm.customer_acceptance
+                    pm.payment_method
+                        .customer_acceptance
                         .parse_value::<CustomerAcceptance>("CustomerAcceptance")
                 })
                 .transpose()
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Failed to deserialize to CustomerAcceptance")?);
+        let payment_method_info = payment_method_info.map(|pm_wrapper| pm_wrapper.payment_method);
         let token = token.or_else(|| payment_attempt.payment_token.clone());
 
         if let Some(payment_method) = payment_method {

@@ -5,6 +5,7 @@ use async_trait::async_trait;
 use common_utils::ext_traits::{AsyncExt, ValueExt};
 use error_stack::{report, ResultExt};
 use futures::FutureExt;
+use hyperswitch_domain_models::payment_methods::PaymentMethodWithRawData;
 use hyperswitch_masking::ExposeInterface;
 use router_derive::PaymentOperation;
 use router_env::{instrument, tracing};
@@ -18,7 +19,6 @@ use crate::{
         configs::dimension_state,
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
         mandate::helpers as m_helpers,
-        payment_methods::transformers as pm_transformers,
         payments::{helpers, operations, CustomerDetails, PaymentAddress, PaymentData},
     },
     routes::{app::ReqState, SessionState},
@@ -51,7 +51,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         platform: &domain::Platform,
         _auth_flow: services::AuthFlow,
         _header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
-        payment_method_with_raw_data: Option<pm_transformers::PaymentMethodWithRawData>,
+        payment_method_with_raw_data: Option<PaymentMethodWithRawData>,
         dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
     ) -> RouterResult<operations::GetTrackerResponse<'a, F, api::PaymentsRequest, PaymentData<F>>>
     {
@@ -191,6 +191,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         let m_mandate_type = mandate_type;
         let m_platform = platform.clone();
         let m_request = request.clone();
+        let m_profile_id = profile_id.clone();
 
         let payment_intent_customer_id = payment_intent.customer_id.clone();
 
@@ -198,6 +199,8 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         let mandate_dimensions = dimensions.clone();
         let mandate_details_fut = tokio::spawn(
             async move {
+                let modular_fetch_context =
+                    helpers::build_modular_fetch_context(&m_state, &m_platform, &m_profile_id);
                 Box::pin(helpers::get_token_pm_type_mandate_details(
                     &m_state,
                     &m_request,
@@ -205,8 +208,9 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                     &m_platform,
                     None,
                     payment_intent_customer_id.as_ref(),
-                    m_pm_wrapper.map(|pm| pm.payment_method.0),
+                    m_pm_wrapper,
                     &mandate_dimensions,
+                    &modular_fetch_context,
                 ))
                 .await
             }

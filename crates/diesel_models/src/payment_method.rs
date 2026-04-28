@@ -1410,6 +1410,95 @@ impl CommonMandateReference {
         Ok(payments)
     }
 
+    #[cfg(feature = "v1")]
+    fn parse_payments_reference_with_token_fallback(
+        payments_json: serde_json::Value,
+    ) -> CustomResult<PaymentsMandateReference, ParsingError> {
+        #[derive(Debug, Clone, serde::Deserialize)]
+        struct ConnectorTokenReferenceRecord {
+            connector_token: String,
+            payment_method_subtype: Option<common_enums::PaymentMethodType>,
+            original_payment_authorized_amount: Option<common_utils::types::MinorUnit>,
+            original_payment_authorized_currency: Option<common_enums::Currency>,
+            metadata: Option<pii::SecretSerdeValue>,
+            connector_token_status: common_enums::ConnectorTokenStatus,
+            connector_token_request_reference_id: Option<String>,
+            connector_customer_id: Option<String>,
+        }
+
+        #[derive(Debug, Clone, serde::Deserialize)]
+        struct PaymentsTokenReference(
+            HashMap<
+                common_utils::id_type::MerchantConnectorAccountId,
+                ConnectorTokenReferenceRecord,
+            >,
+        );
+
+        match serde_json::from_value::<PaymentsMandateReference>(payments_json.clone()) {
+            Ok(mandate_reference) => Ok(mandate_reference),
+            Err(mandate_err) => {
+                router_env::logger::warn!(
+                    "Failed to parse connector_mandate_details as PaymentsMandateReference: {}. Falling back to PaymentsTokenReference parser",
+                    mandate_err
+                );
+
+                let token_reference =
+                    serde_json::from_value::<PaymentsTokenReference>(payments_json)
+                        .inspect_err(|token_err| {
+                            router_env::logger::error!(
+                        "Failed to parse connector_mandate_details as PaymentsTokenReference: {}",
+                        token_err
+                    );
+                        })
+                        .change_context(ParsingError::StructParseFailure(
+                            "Failed to parse payments data",
+                        ))?;
+
+                let mandate_reference = PaymentsMandateReference(
+                    token_reference
+                        .0
+                        .into_iter()
+                        .map(|(mca_id, token_record)| {
+                            let connector_mandate_status = match token_record.connector_token_status
+                            {
+                                common_enums::ConnectorTokenStatus::Active => {
+                                    common_enums::ConnectorMandateStatus::Active
+                                }
+                                common_enums::ConnectorTokenStatus::Inactive => {
+                                    common_enums::ConnectorMandateStatus::Inactive
+                                }
+                            };
+
+                            (
+                                mca_id,
+                                PaymentsMandateReferenceRecord {
+                                    connector_mandate_id: token_record.connector_token,
+                                    payment_method_type: token_record.payment_method_subtype,
+                                    original_payment_authorized_amount: token_record
+                                        .original_payment_authorized_amount
+                                        .map(|amount| amount.get_amount_as_i64()),
+                                    original_payment_authorized_currency: token_record
+                                        .original_payment_authorized_currency,
+                                    mandate_metadata: token_record.metadata,
+                                    connector_mandate_status: Some(connector_mandate_status),
+                                    connector_mandate_request_reference_id: token_record
+                                        .connector_token_request_reference_id,
+                                    connector_customer_id: token_record.connector_customer_id,
+                                },
+                            )
+                        })
+                        .collect(),
+                );
+
+                router_env::logger::info!(
+                    "Parsed connector_mandate_details using token shape fallback"
+                );
+
+                Ok(mandate_reference)
+            }
+        }
+    }
+
     #[cfg(feature = "v2")]
     fn parse_payments_reference_with_legacy_fallback(
         payments_json: serde_json::Value,
@@ -1495,14 +1584,8 @@ where
             .map(|obj| {
                 obj.remove("payouts");
 
-                serde_json::from_value::<PaymentsMandateReference>(serde_json::Value::Object(
+                Self::parse_payments_reference_with_token_fallback(serde_json::Value::Object(
                     obj.clone(),
-                ))
-                .inspect_err(|err| {
-                    router_env::logger::error!("Failed to parse payments data: {}", err);
-                })
-                .change_context(ParsingError::StructParseFailure(
-                    "Failed to parse payments data",
                 ))
             })
             .transpose()?;

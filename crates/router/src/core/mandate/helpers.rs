@@ -94,5 +94,9 @@ pub struct MandateGenericData {
     pub recurring_mandate_payment_data:
         Option<hyperswitch_domain_models::router_data::RecurringMandatePaymentData>,
     pub mandate_connector: Option<payments::MandateConnectorDetails>,
+    #[cfg(feature = "v1")]
+    pub payment_method_info:
+        Option<hyperswitch_domain_models::payment_methods::PaymentMethodWithRawData>,
+    #[cfg(feature = "v2")]
     pub payment_method_info: Option<domain::PaymentMethod>,
 }

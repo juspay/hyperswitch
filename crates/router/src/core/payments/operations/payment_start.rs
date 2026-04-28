@@ -20,6 +20,7 @@ use crate::{
         api::{self, PaymentIdTypeExt},
         domain,
         storage::{self, enums as storage_enums},
+        transformers::ForeignFrom,
     },
     utils::OptionExt,
 };
@@ -131,13 +132,12 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsStartReq
         // In case of modular payment method flow payment token in the request will belong to payment method modular service
         // hence populating token data is not required
         let token_data = {
-            let is_payment_method_modular_allowed =
-                utils::get_feature_config(state, platform, dimensions)
-                    .await
-                    .is_payment_method_modular_allowed;
+            let feature_config = utils::get_feature_config(state, platform, dimensions).await;
+            let should_use_modular_payment_method_flow =
+                bool::foreign_from((&feature_config, None));
             match (
                 payment_attempt.payment_token.clone(),
-                is_payment_method_modular_allowed,
+                should_use_modular_payment_method_flow,
             ) {
                 (Some(token), false) => Some(
                     helpers::retrieve_payment_token_data(

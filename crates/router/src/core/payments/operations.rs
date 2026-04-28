@@ -70,6 +70,8 @@ use api_models::enums::FrmSuggestion;
 use api_models::routing::RoutableConnectorChoice;
 use async_trait::async_trait;
 use error_stack::{report, ResultExt};
+#[cfg(feature = "v1")]
+use hyperswitch_domain_models::payment_methods::PaymentMethodWithRawData;
 use router_env::{instrument, tracing};
 
 #[cfg(feature = "v2")]
@@ -99,8 +101,6 @@ pub use self::{
     payment_session_intent::PaymentSessionIntent,
 };
 use super::{helpers, CustomerDetails, OperationSessionGetters, OperationSessionSetters};
-#[cfg(feature = "v1")]
-use crate::core::payment_methods::transformers::PaymentMethodWithRawData;
 #[cfg(feature = "v2")]
 use crate::core::payments;
 use crate::{
