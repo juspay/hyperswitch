@@ -475,22 +475,21 @@ function bankRedirectRedirection(
               });
               verifyUrl = true;
             } else if (paymentMethodType === "klarna") {
-              cy.log("Executing on Klarna sandbox");
+              cy.log("Executing on Klarna sandbox — Step 1: Enter phone number");
               cy.wait(constants.TIMEOUT / 6);
               cy.get("body").then(($body) => {
-                if (
-                  $body.find(
-                    'input[id*="phone"], input[type="tel"], input[name="phone"]'
-                  ).length > 0
-                ) {
+                const phoneInput = $body.find('input[id="phone"]').length > 0
+                  ? 'input[id="phone"]'
+                  : $body.find('input[type="tel"]').length > 0
+                  ? 'input[type="tel"]'
+                  : $body.find('input[id*="phone"]').length > 0
+                  ? 'input[id*="phone"]'
+                  : null;
+                if (phoneInput) {
+                  cy.get(phoneInput).first().clear().type("9123456789");
+                  cy.wait(constants.TIMEOUT / 10);
                   cy.get(
-                    'input[id*="phone"], input[type="tel"], input[name="phone"]'
-                  )
-                    .first()
-                    .clear()
-                    .type("9123456789");
-                  cy.get(
-                    'button[type="submit"], button[id*="continue"], button[data-testid*="continue"]'
+                    'button[type="submit"], button[id*="continue"], button[data-testid*="continue"], button[class*="continue"]'
                   )
                     .first()
                     .should("be.visible")
@@ -498,6 +497,21 @@ function bankRedirectRedirection(
                   cy.wait(constants.TIMEOUT / 6);
                 }
               });
+              cy.log("Klarna sandbox — Step 2: Handle OTP");
+              cy.get("body").then(($body) => {
+                if ($body.find('input[id="otp_field"]').length > 0) {
+                  cy.get('input[id="otp_field"]').clear().type("123456");
+                  cy.wait(constants.TIMEOUT / 10);
+                  cy.get(
+                    'button[type="submit"], button[id*="confirm"], button[data-testid*="confirm"]'
+                  )
+                    .first()
+                    .should("be.visible")
+                    .click({ force: true });
+                  cy.wait(constants.TIMEOUT / 6);
+                }
+              });
+              cy.log("Klarna sandbox — Step 3: Select payment method");
               cy.get("body").then(($body) => {
                 if ($body.find("#onContinue").length > 0) {
                   cy.get("#onContinue").click();
@@ -516,21 +530,27 @@ function bankRedirectRedirection(
                 ) {
                   cy.get("#payment-methods-selector-pay-over-time").click();
                 }
+                cy.wait(constants.TIMEOUT / 10);
                 cy.get(
                   'button[type="submit"], button[id*="continue"], button[data-testid*="continue"]'
                 )
                   .first()
                   .should("be.visible")
                   .click({ force: true });
-                cy.wait(constants.TIMEOUT / 10);
+                cy.wait(constants.TIMEOUT / 6);
               });
-              cy.get("body").then(($body2) => {
-                if ($body2.find('input[id="otp_field"]').length > 0) {
-                  cy.get('input[id="otp_field"]').type("123456");
+              cy.log("Klarna sandbox — Step 4: Final confirmation");
+              cy.get("body").then(($body) => {
+                if (
+                  $body.find(
+                    'button[type="submit"], button[id*="confirm"], button[data-testid*="confirm"]'
+                  ).length > 0
+                ) {
                   cy.get(
                     'button[type="submit"], button[id*="confirm"], button[data-testid*="confirm"]'
                   )
                     .first()
+                    .should("be.visible")
                     .click({ force: true });
                 }
               });
