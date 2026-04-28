@@ -7764,7 +7764,6 @@ macro_rules! default_imp_for_connector_authentication {
 
 default_imp_for_connector_authentication!(
     connectors::Vgs,
-    connectors::Aci,
     connectors::Adyen,
     connectors::Adyenplatform,
     connectors::Affirm,
