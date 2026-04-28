@@ -442,6 +442,7 @@ impl PaymentMethodUpdateInternal {
             payment_method_type_v2: payment_method_type_v2.or(source.payment_method_type_v2),
             payment_method_subtype: payment_method_subtype.or(source.payment_method_subtype),
             id: source.id,
+            payment_method_id: source.payment_method_id,
             version: source.version,
             network_token_requestor_reference_id: network_token_requestor_reference_id
                 .or(source.network_token_requestor_reference_id),

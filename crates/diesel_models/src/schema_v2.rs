@@ -1327,6 +1327,8 @@ diesel::table! {
         #[max_length = 64]
         id -> Varchar,
         #[max_length = 64]
+        payment_method_id -> Nullable<Varchar>,
+        #[max_length = 64]
         payment_method_type_v2 -> Nullable<Varchar>,
         #[max_length = 64]
         payment_method_subtype -> Nullable<Varchar>,
