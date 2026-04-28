@@ -36,6 +36,32 @@ export const connectorDetails = {
           status: "succeeded",
           payment_method: "card",
           attempt_count: 1,
+          amount: 6000,
+          amount_received: 6000,
+          amount_capturable: 0,
+        },
+      },
+    },
+    PartialCapture: {
+      Request: {
+        amount_to_capture: 2000,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "partially_captured",
+          amount: 6000,
+          amount_capturable: 0,
+          amount_received: 2000,
+        },
+      },
+    },
+    Void: {
+      Request: {},
+      Response: {
+        status: 200,
+        body: {
+          status: "cancelled",
         },
       },
     },
