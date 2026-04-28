@@ -56,6 +56,7 @@ default_command_timeout = 30
 unresponsive_timeout = 10
 unresponsive_check_interval = 2
 max_feed_count = 200
+max_failure_threshold = 5
 
 [trace_header]
 header_name = "x-request-id"

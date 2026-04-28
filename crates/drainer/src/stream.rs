@@ -1,12 +1,10 @@
-use std::collections::HashMap;
-
 use redis_interface as redis;
 use router_env::{logger, tracing};
 
 use crate::{errors, metrics, Store};
 
-pub type StreamEntries = Vec<(String, HashMap<String, String>)>;
-pub type StreamReadResult = HashMap<String, StreamEntries>;
+pub type StreamEntries = redis::StreamEntries;
+pub type StreamReadResult = redis::StreamReadResult;
 
 impl Store {
     #[inline(always)]
@@ -59,10 +57,10 @@ impl Store {
         max_read_count: u64,
     ) -> errors::DrainerResult<StreamReadResult> {
         // "0-0" id gives first entry
-        let stream_id = "0-0";
+        let stream_id = "0-0".to_string();
         let (output, execution_time) = common_utils::date_time::time_it(|| async {
             self.redis_conn
-                .stream_read_entries(stream_name, stream_id, Some(max_read_count))
+                .stream_read_grouped(&[stream_name.into()], &[stream_id], Some(max_read_count))
                 .await
                 .map_err(errors::DrainerError::from)
         })
@@ -87,14 +85,14 @@ impl Store {
             common_utils::date_time::time_it::<errors::DrainerResult<_>, _, _>(|| async {
                 let trim_result = self
                     .redis_conn
-                    .stream_trim_entries(&stream_name.into(), (trim_kind, trim_type, trim_id))
+                    .stream_trim_entries(&stream_name.into(), trim_kind, trim_type, trim_id)
                     .await
                     .map_err(errors::DrainerError::from)?;
 
                 // Since xtrim deletes entries below given id excluding the given id.
                 // Hence, deleting the minimum entry id
                 self.redis_conn
-                    .stream_delete_entries(&stream_name.into(), minimum_entry_id)
+                    .stream_delete_entries(&stream_name.into(), &[minimum_entry_id.to_string()])
                     .await
                     .map_err(errors::DrainerError::from)?;
 
@@ -119,7 +117,7 @@ impl Store {
         let (_trim_result, execution_time) =
             common_utils::date_time::time_it::<errors::DrainerResult<_>, _, _>(|| async {
                 self.redis_conn
-                    .stream_delete_entries(&stream_name.into(), entry_id)
+                    .stream_delete_entries(&stream_name.into(), &[entry_id.to_string()])
                     .await
                     .map_err(errors::DrainerError::from)?;
                 Ok(())

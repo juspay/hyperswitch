@@ -489,9 +489,18 @@ dependencies = [
 
 [[package]]
 name = "arc-swap"
-version = "1.7.1"
+version = "1.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "69f7f8c3906b62b754cd5326047894316021dcfe5a194c8ea52bdd94934a3457"
+checksum = "a07d1f37ff60921c83bdfc7407723bdefe89b44b98a9b772f225c8f9d67141a6"
+dependencies = [
+ "rustversion",
+]
+
+[[package]]
+name = "arcstr"
+version = "1.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "03918c3dbd7701a85c6b9887732e2921175f26c350b4563841d0958c21d57e6d"
 
 [[package]]
 name = "argon2"
@@ -1394,6 +1403,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "backon"
+version = "1.6.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cffb0e931875b666fc4fcb20fee52e9bbd1ef836fd9e9e04ec21555f9f85f7ef"
+dependencies = [
+ "fastrand",
+]
+
+[[package]]
 name = "base16ct"
 version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2100,6 +2118,20 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5b63caa9aa9397e2d9480a9b13673856c78d8ac123288526c37d7839f2a86990"
 
 [[package]]
+name = "combine"
+version = "4.6.7"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ba5a308b75df32fe02788e748662718f03fde005016435c444eea572398219fd"
+dependencies = [
+ "bytes 1.10.1",
+ "futures-core",
+ "memchr",
+ "pin-project-lite",
+ "tokio 1.48.0",
+ "tokio-util",
+]
+
+[[package]]
 name = "common_enums"
 version = "0.1.0"
 dependencies = [
@@ -2318,15 +2350,6 @@ checksum = "4ddef33a339a91ea89fb53151bd0a4689cfce27055c291dfa69945475d22c747"
 dependencies = [
  "time 0.3.41",
  "version_check 0.9.5",
-]
-
-[[package]]
-name = "cookie-factory"
-version = "0.3.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9885fa71e26b8ab7855e2ec7cae6e9b380edff76cd052e07c683a0319d51b3a2"
-dependencies = [
- "futures 0.3.31",
 ]
 
 [[package]]
@@ -3491,15 +3514,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "float-cmp"
-version = "0.9.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "98de4bbd547a563b716d8dfa9aad1cb19bfab00f4fa09a6a4ed21dbcf44ce9c4"
-dependencies = [
- "num-traits",
-]
-
-[[package]]
 name = "flume"
 version = "0.11.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3561,34 +3575,6 @@ name = "fragile"
 version = "2.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "28dd6caf6059519a65843af8fe2a3ae298b14b80179855aeb4adc2c1934ee619"
-
-[[package]]
-name = "fred"
-version = "8.0.6"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4b8e3a1339ed45ad8fde94530c4bdcbd5f371a3c6bd3bf57682923792830aa37"
-dependencies = [
- "arc-swap",
- "async-trait",
- "bytes 1.10.1",
- "bytes-utils",
- "crossbeam-queue 0.3.12",
- "float-cmp",
- "futures 0.3.31",
- "log 0.4.27",
- "parking_lot 0.12.3",
- "rand 0.8.5",
- "redis-protocol",
- "semver 1.0.26",
- "socket2 0.5.10",
- "tokio 1.48.0",
- "tokio-stream",
- "tokio-util",
- "tracing",
- "tracing-futures",
- "url 2.5.4",
- "urlencoding",
-]
 
 [[package]]
 name = "fs-err"
@@ -7612,17 +7598,34 @@ dependencies = [
 ]
 
 [[package]]
-name = "redis-protocol"
-version = "4.1.0"
+name = "redis"
+version = "1.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9c31deddf734dc0a39d3112e73490e88b61a05e83e074d211f348404cee4d2c6"
+checksum = "f44e94c96d8870a387d88ce3de3fdd608cbfc0705f03cb343cdde91509d3e49a"
 dependencies = [
+ "arc-swap",
+ "arcstr",
+ "async-lock",
+ "backon",
  "bytes 1.10.1",
- "bytes-utils",
- "cookie-factory",
+ "cfg-if 1.0.0",
+ "combine",
  "crc16",
+ "futures-channel",
+ "futures-util",
+ "itoa",
  "log 0.4.27",
- "nom 7.1.3",
+ "num-bigint",
+ "percent-encoding 2.3.1",
+ "pin-project-lite",
+ "rand 0.9.2",
+ "ryu",
+ "sha1_smol",
+ "socket2 0.6.1",
+ "tokio 1.48.0",
+ "tokio-util",
+ "url 2.5.4",
+ "xxhash-rust",
 ]
 
 [[package]]
@@ -7631,8 +7634,8 @@ version = "0.1.0"
 dependencies = [
  "common_utils",
  "error-stack 0.4.1",
- "fred",
  "futures 0.3.31",
+ "redis",
  "serde",
  "thiserror 1.0.69",
  "tokio 1.48.0",
@@ -8885,6 +8888,12 @@ dependencies = [
  "cpufeatures",
  "digest",
 ]
+
+[[package]]
+name = "sha1_smol"
+version = "1.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bbfa15b3dddfee50a0fff136974b3e1bde555604ba463834a7eb7deb6417705d"
 
 [[package]]
 name = "sha2"
@@ -12315,6 +12324,12 @@ name = "xmlparser"
 version = "0.13.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "66fee0b777b0f5ac1c69bb06d361268faafa61cd4682ae064a171c16c433e9e4"
+
+[[package]]
+name = "xxhash-rust"
+version = "0.8.15"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "fdd20c5420375476fbd4394763288da7eb0cc0b8c11deed431a91562af7335d3"
 
 [[package]]
 name = "yaml-rust2"
