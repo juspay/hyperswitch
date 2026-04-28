@@ -20,7 +20,7 @@ export const connectorDetails = {
         payment_method_type: "affirm_redirect",
         payment_method_data: {
           pay_later: {
-            affirm: {},
+            affirm_redirect: {},
           },
         },
         currency: "USD",
