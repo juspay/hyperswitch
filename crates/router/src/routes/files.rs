@@ -47,15 +47,15 @@ pub async fn files_create(
         &req,
         create_file_request,
         |state, auth: auth::AuthenticationData, req, _| {
-            files_create_core(state, auth.platform.get_processor().clone(), req)
+            files_create_core(state, auth.platform.clone(), req)
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
-                allow_connected_scope_operation: false,
+                allow_connected_scope_operation: true,
                 allow_platform_self_operation: false,
             }),
             &auth::DashboardNoPermissionAuth {
-                allow_connected: false,
+                allow_connected: true,
                 allow_platform: false,
             },
             req.headers(),
@@ -103,11 +103,11 @@ pub async fn files_delete(
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
-                allow_connected_scope_operation: false,
+                allow_connected_scope_operation: true,
                 allow_platform_self_operation: false,
             }),
             &auth::DashboardNoPermissionAuth {
-                allow_connected: false,
+                allow_connected: true,
                 allow_platform: false,
             },
             req.headers(),
@@ -157,11 +157,11 @@ pub async fn files_retrieve(
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
-                allow_connected_scope_operation: false,
+                allow_connected_scope_operation: true,
                 allow_platform_self_operation: false,
             }),
             &auth::DashboardNoPermissionAuth {
-                allow_connected: false,
+                allow_connected: true,
                 allow_platform: false,
             },
             req.headers(),
