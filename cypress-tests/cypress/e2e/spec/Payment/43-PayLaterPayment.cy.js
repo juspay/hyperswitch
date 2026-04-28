@@ -196,11 +196,7 @@ describe("Pay Later - Affirm Payment Flow", () => {
         const partialRefundData = getConnectorDetails(
           globalState.get("connectorId")
         )["pay_later_pm"]["PartialRefund"];
-        cy.refundCallTest(
-          fixtures.refundBody,
-          partialRefundData,
-          globalState
-        );
+        cy.refundCallTest(fixtures.refundBody, partialRefundData, globalState);
         if (!utils.should_continue_further(partialRefundData)) {
           shouldContinue = false;
         }
