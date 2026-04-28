@@ -27,8 +27,6 @@ pub mod gsm;
 pub mod health;
 pub mod hypersense;
 pub mod lock_utils;
-#[cfg(feature = "v1")]
-pub mod locker_migration;
 pub mod mandates;
 pub mod metrics;
 pub mod oidc;

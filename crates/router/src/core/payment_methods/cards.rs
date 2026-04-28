@@ -3117,7 +3117,7 @@ pub async fn list_payment_methods(
     let pm_config_mapping = &state.conf.pm_filters;
     let payment_intent = if let Some(cs) = &req.client_secret {
         if cs.starts_with("pm_") {
-            validate_payment_method_and_client_secret(cs, db, &platform).await?;
+            validate_payment_method_and_client_secret(cs, db, platform.get_provider()).await?;
             None
         } else {
             helpers::verify_payment_intent_time_and_client_secret(
@@ -4196,7 +4196,7 @@ fn should_collect_shipping_or_billing_details_from_wallet_connector(
 async fn validate_payment_method_and_client_secret(
     cs: &String,
     db: &dyn db::StorageInterface,
-    platform: &domain::Platform,
+    provider: &domain::Provider,
 ) -> Result<(), error_stack::Report<errors::ApiErrorResponse>> {
     let pm_vec = cs.split("_secret").collect::<Vec<&str>>();
     let pm_id = pm_vec
@@ -4207,9 +4207,9 @@ async fn validate_payment_method_and_client_secret(
 
     let payment_method = db
         .find_payment_method(
-            platform.get_provider().get_key_store(),
+            provider.get_key_store(),
             pm_id,
-            platform.get_provider().get_account().storage_scheme,
+            provider.get_account().storage_scheme,
         )
         .await
         .change_context(errors::ApiErrorResponse::PaymentMethodNotFound)

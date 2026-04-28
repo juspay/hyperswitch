@@ -55,7 +55,7 @@ use crate::{
 #[cfg(feature = "v1")]
 pub async fn save_network_token_details_in_nt_mapper(
     state: &SessionState,
-    platform: &domain::Platform,
+    processor: &domain::Processor,
     customer_id: &id_type::CustomerId,
     payment_method_id: String,
     network_token_requestor_ref_id: String,
@@ -64,7 +64,7 @@ pub async fn save_network_token_details_in_nt_mapper(
 
     //Insert the network token reference ID along with merchant id, customer id in CallbackMapper table for its respective webooks
     let callback_mapper_data = CallbackMapperData::NetworkTokenWebhook {
-        merchant_id: platform.get_processor().get_account().get_id().clone(),
+        merchant_id: processor.get_account().get_id().clone(),
         customer_id: customer_id.to_owned(),
         payment_method_id: payment_method_id.clone(),
     };
@@ -103,7 +103,7 @@ async fn save_in_locker(
 
             Box::pin(save_in_locker_external(
                 state,
-                platform,
+                platform.get_processor(),
                 payment_method_request,
                 card_detail,
                 external_vault_details,
@@ -112,7 +112,13 @@ async fn save_in_locker(
         }
         domain::ExternalVaultDetails::Skip => {
             // Use internal vault (locker)
-            save_in_locker_internal(state, platform, payment_method_request, card_detail).await
+            save_in_locker_internal(
+                state,
+                platform.get_provider(),
+                payment_method_request,
+                card_detail,
+            )
+            .await
         }
     }
 }
@@ -289,7 +295,7 @@ where
                     network_token_resp,
                 ) = if !state.conf.locker.locker_enabled {
                     let (res, dc) = skip_saving_card_in_locker(
-                        platform,
+                        platform.get_provider(),
                         payment_method_create_request.to_owned(),
                     )
                     .await?;
@@ -514,7 +520,7 @@ where
                                         //Insert the network token reference ID along with merchant id, customer id in CallbackMapper table for its respective webooks
                                         save_network_token_details_in_nt_mapper(
                                             state,
-                                            platform,
+                                            platform.get_processor(),
                                             &customer_id,
                                             resp.payment_method_id.clone(),
                                             nt_ref_id,
@@ -659,7 +665,7 @@ where
                                                  //Insert the network token reference ID along with merchant id, customer id in CallbackMapper table for its respective webooks
                                                 save_network_token_details_in_nt_mapper(
                                                     state,
-                                                    platform,
+                                                    platform.get_processor(),
                                                     &customer_id,
                                                     resp.payment_method_id.clone(),
                                                     nt_ref_id.clone(),
@@ -939,7 +945,7 @@ where
                                     //Insert the network token reference ID along with merchant id, customer id in CallbackMapper table for its respective webooks
                                     save_network_token_details_in_nt_mapper(
                                         state,
-                                        platform,
+                                        platform.get_processor(),
                                         &customer_id,
                                         resp.payment_method_id.clone(),
                                         network_token_requestor_ref_id,
@@ -1123,7 +1129,7 @@ pub async fn pre_payment_tokenization(
 
 #[cfg(feature = "v1")]
 async fn skip_saving_card_in_locker(
-    platform: &domain::Platform,
+    provider: &domain::Provider,
     payment_method_request: api::PaymentMethodCreate,
 ) -> RouterResult<(
     domain::PaymentMethodResponse,
@@ -1167,7 +1173,7 @@ async fn skip_saving_card_in_locker(
                 saved_to_locker: false,
             };
             let pm_resp = domain::PaymentMethodResponse {
-                merchant_id: platform.get_provider().get_account().get_id().to_owned(),
+                merchant_id: provider.get_account().get_id().to_owned(),
                 customer_id: Some(customer_id),
                 payment_method_id,
                 payment_method: payment_method_request.payment_method,
@@ -1190,7 +1196,7 @@ async fn skip_saving_card_in_locker(
         None => {
             let pm_id = common_utils::generate_id(consts::ID_LENGTH, "pm");
             let payment_method_response = domain::PaymentMethodResponse {
-                merchant_id: platform.get_provider().get_account().get_id().to_owned(),
+                merchant_id: provider.get_account().get_id().to_owned(),
                 customer_id: Some(customer_id),
                 payment_method_id: pm_id,
                 payment_method: payment_method_request.payment_method,
@@ -1226,7 +1232,7 @@ async fn skip_saving_card_in_locker(
 #[cfg(feature = "v1")]
 pub async fn save_in_locker_internal(
     state: &SessionState,
-    platform: &domain::Platform,
+    provider: &domain::Provider,
     payment_method_request: api::PaymentMethodCreate,
     card_detail: Option<api::CardDetail>,
 ) -> RouterResult<(
@@ -1243,16 +1249,17 @@ pub async fn save_in_locker_internal(
         card_detail,
         payment_method_request.payment_method_data.clone(),
     ) {
-        (_, Some(card), _) | (Some(card), _, _) => Box::pin(
-            PmCards {
-                state,
-                provider: platform.get_provider(),
-            }
-            .add_card_to_locker(payment_method_request, &card, &customer_id, None),
-        )
-        .await
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Add Card Failed"),
+        (_, Some(card), _) | (Some(card), _, _) => {
+            Box::pin(PmCards { state, provider }.add_card_to_locker(
+                payment_method_request,
+                &card,
+                &customer_id,
+                None,
+            ))
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Add Card Failed")
+        }
 
         (
             None,
@@ -1260,18 +1267,12 @@ pub async fn save_in_locker_internal(
             Some(api_models::payment_methods::PaymentMethodCreateData::BankDebit(
                 bank_debit_create_data,
             )),
-        ) => Box::pin(
-            PmCards {
-                state,
-                provider: platform.get_provider(),
-            }
-            .add_bank_debit_to_locker(
-                payment_method_request,
-                bank_debit_create_data,
-                platform.get_provider().get_key_store(),
-                &customer_id,
-            ),
-        )
+        ) => Box::pin(PmCards { state, provider }.add_bank_debit_to_locker(
+            payment_method_request,
+            bank_debit_create_data,
+            provider.get_key_store(),
+            &customer_id,
+        ))
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Add Bank Debit Failed"),
@@ -1279,7 +1280,7 @@ pub async fn save_in_locker_internal(
         _ => {
             let pm_id = common_utils::generate_id(consts::ID_LENGTH, "pm");
             let payment_method_response = domain::PaymentMethodResponse {
-                merchant_id: platform.get_provider().get_account().get_id().clone(),
+                merchant_id: provider.get_account().get_id().clone(),
                 customer_id: Some(customer_id),
                 payment_method_id: pm_id,
                 payment_method: payment_method_request.payment_method,
@@ -1304,7 +1305,7 @@ pub async fn save_in_locker_internal(
 #[cfg(feature = "v1")]
 pub async fn save_in_locker_external(
     state: &SessionState,
-    platform: &domain::Platform,
+    processor: &domain::Processor,
     payment_method_request: api::PaymentMethodCreate,
     card_detail: Option<api::CardDetail>,
     external_vault_connector_details: &ExternalVaultConnectorDetails,
@@ -1330,9 +1331,9 @@ pub async fn save_in_locker_external(
         let merchant_connector_account_details = state
             .store
             .find_by_merchant_connector_account_merchant_id_merchant_connector_id(
-                platform.get_processor().get_account().get_id(),
+                processor.get_account().get_id(),
                 &external_vault_mca_id,
-                platform.get_processor().get_key_store(),
+                processor.get_key_store(),
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
@@ -1343,7 +1344,7 @@ pub async fn save_in_locker_external(
         let vault_response = Box::pin(vault_payment_method_external_v1(
             state,
             &payment_method_custom_vaulting_data,
-            platform.get_processor().get_account(),
+            processor.get_account(),
             merchant_connector_account_details,
             None,
         ))
@@ -1353,7 +1354,7 @@ pub async fn save_in_locker_external(
         let card_detail = CardDetailFromLocker::from(card);
 
         let pm_resp = domain::PaymentMethodResponse {
-            merchant_id: platform.get_processor().get_account().get_id().to_owned(),
+            merchant_id: processor.get_account().get_id().to_owned(),
             customer_id: Some(customer_id),
             payment_method_id,
             payment_method: payment_method_request.payment_method,
@@ -1376,7 +1377,7 @@ pub async fn save_in_locker_external(
         //Similar implementation is done for save in locker internal
         let pm_id = common_utils::generate_id(consts::ID_LENGTH, "pm");
         let payment_method_response = domain::PaymentMethodResponse {
-            merchant_id: platform.get_processor().get_account().get_id().to_owned(),
+            merchant_id: processor.get_account().get_id().to_owned(),
             customer_id: Some(customer_id),
             payment_method_id: pm_id,
             payment_method: payment_method_request.payment_method,
@@ -1426,7 +1427,7 @@ pub async fn save_network_token_in_locker(
 #[cfg(feature = "v1")]
 pub async fn save_network_token_in_locker(
     state: &SessionState,
-    platform: &domain::Platform,
+    provider: &domain::Provider,
     card_data: &payment_method_data::Card,
     network_token_data: Option<api::CardDetail>,
     payment_method_request: api::PaymentMethodCreate,
@@ -1446,18 +1447,12 @@ pub async fn save_network_token_in_locker(
 
     match network_token_data {
         Some(nt_data) => {
-            let (res, dc) = Box::pin(
-                PmCards {
-                    state,
-                    provider: platform.get_provider(),
-                }
-                .add_card_to_locker(
-                    payment_method_request,
-                    &nt_data,
-                    &customer_id,
-                    None,
-                ),
-            )
+            let (res, dc) = Box::pin(PmCards { state, provider }.add_card_to_locker(
+                payment_method_request,
+                &nt_data,
+                &customer_id,
+                None,
+            ))
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Add Network Token Failed")?;
@@ -1496,18 +1491,12 @@ pub async fn save_network_token_in_locker(
                             card_type: None,
                         };
 
-                        let (res, dc) = Box::pin(
-                            PmCards {
-                                state,
-                                provider: platform.get_provider(),
-                            }
-                            .add_card_to_locker(
-                                payment_method_request,
-                                &network_token_data,
-                                &customer_id,
-                                None,
-                            ),
-                        )
+                        let (res, dc) = Box::pin(PmCards { state, provider }.add_card_to_locker(
+                            payment_method_request,
+                            &network_token_data,
+                            &customer_id,
+                            None,
+                        ))
                         .await
                         .change_context(errors::ApiErrorResponse::InternalServerError)
                         .attach_printable("Add Network Token Failed")?;
@@ -1970,7 +1959,7 @@ pub async fn save_card_and_network_token_in_locker(
             if payment_method_status == common_enums::PaymentMethodStatus::Active {
                 let (res, dc) = Box::pin(save_in_locker_internal(
                     state,
-                    platform,
+                    platform.get_provider(),
                     payment_method_create_request.to_owned(),
                     Some(card_data),
                 ))
@@ -1980,7 +1969,7 @@ pub async fn save_card_and_network_token_in_locker(
 
                 let (network_token_resp, _dc, _) = Box::pin(save_network_token_in_locker(
                     state,
-                    platform,
+                    platform.get_provider(),
                     &save_card_and_network_token_data.card_data,
                     Some(network_token_data),
                     payment_method_create_request.clone(),
@@ -2015,7 +2004,7 @@ pub async fn save_card_and_network_token_in_locker(
                 }
                 let (res, dc) = Box::pin(save_in_locker_internal(
                     state,
-                    platform,
+                    platform.get_provider(),
                     payment_method_create_request.to_owned(),
                     Some(card_data),
                 ))
@@ -2048,7 +2037,7 @@ pub async fn save_card_and_network_token_in_locker(
                             network_token_requestor_ref_id,
                         ) = Box::pin(save_network_token_in_locker(
                             state,
-                            platform,
+                            platform.get_provider(),
                             card,
                             None,
                             payment_method_create_request.clone(),
@@ -2108,7 +2097,7 @@ async fn generate_network_token_and_update_payment_method(
             let (network_token_resp, _dc, network_token_requestor_ref_id) =
                 Box::pin(save_network_token_in_locker(
                     state,
-                    platform,
+                    platform.get_provider(),
                     card_data,
                     None,
                     payment_method_create_request.clone(),
@@ -2174,7 +2163,7 @@ async fn generate_network_token_and_update_payment_method(
                 {
                     save_network_token_details_in_nt_mapper(
                         state,
-                        platform,
+                        platform.get_processor(),
                         &cust_id,
                         pm_info.payment_method_id.clone(),
                         nt_ref_id,

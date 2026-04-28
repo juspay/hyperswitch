@@ -30,8 +30,6 @@ pub mod files;
 pub mod fraud_check;
 pub mod gsm;
 pub mod health_check;
-#[cfg(feature = "v1")]
-pub mod locker_migration;
 pub mod mandate;
 pub mod merchant_connector_webhook_management;
 pub mod metrics;
