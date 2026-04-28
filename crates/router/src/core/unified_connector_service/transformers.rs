@@ -6991,7 +6991,7 @@ impl transformers::ForeignTryFrom<&api_models::payouts::PixBankTransfer>
             bank_account_number: item.bank_account_number.clone(),
             pix_key: item.pix_key.clone(),
             tax_id: item.tax_id.clone(),
-            // pix_emv: item.pix_emv.clone(), to be added in future when UCS supports it
+            // TODO: pix_emv: item.pix_emv.clone(), to be added in future when UCS supports it
         })
     }
 }
