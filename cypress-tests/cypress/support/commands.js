@@ -5119,6 +5119,7 @@ Cypress.Commands.add("activateRoutingConfig", (data, globalState) => {
       "api-key": globalState.get("apiKey"),
       "Content-Type": "application/json",
     },
+    body: {},
     failOnStatusCode: false,
   }).then((response) => {
     logRequestId(response.headers["x-request-id"]);
