@@ -559,7 +559,7 @@ export const payment_methods_enabled = [
     payment_method_types: [
       {
         payment_method_type: "benefit",
-        payment_experience: null,
+        payment_experience: "redirect_to_url",
         card_networks: null,
         accepted_currencies: null,
         accepted_countries: null,
@@ -570,7 +570,7 @@ export const payment_methods_enabled = [
       },
       {
         payment_method_type: "knet",
-        payment_experience: null,
+        payment_experience: "redirect_to_url",
         card_networks: null,
         accepted_currencies: null,
         accepted_countries: null,
@@ -581,7 +581,7 @@ export const payment_methods_enabled = [
       },
       {
         payment_method_type: "momo_atm",
-        payment_experience: null,
+        payment_experience: "redirect_to_url",
         card_networks: null,
         accepted_currencies: null,
         accepted_countries: null,
