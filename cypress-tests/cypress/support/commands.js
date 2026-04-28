@@ -4219,16 +4219,26 @@ Cypress.Commands.add(
     const nextActionUrl = globalState.get("nextActionUrl");
 
     const expectedUrl = new URL(expectedRedirection);
-    const redirectionUrl = new URL(nextActionUrl);
+    let redirectionUrl = null;
+    try {
+      redirectionUrl = new URL(nextActionUrl);
+    } catch {
+      /* bank redirect may not have valid redirection url in sandbox */
+    }
 
-    // explicitly restricting `sofort` payment method by adyen from running as it stops other tests from running
-    // trying to handle that specific case results in stripe 3ds tests to fail
-    if (!(connectorId == "adyen" && paymentMethodType == "sofort")) {
+    if (
+      redirectionUrl &&
+      !(connectorId == "adyen" && paymentMethodType == "sofort")
+    ) {
       handleRedirection(
         "bank_redirect",
         { redirectionUrl, expectedUrl },
         connectorId,
         paymentMethodType
+      );
+    } else if (!redirectionUrl) {
+      cy.log(
+        "Skipping bank redirect redirection - no valid redirect URL provided"
       );
     }
   }

@@ -538,17 +538,24 @@ describe("Bank Redirect tests", () => {
   context("Trustly Full Refund flow test", () => {
     before(function () {
       let skip = false;
-      cy.task("getGlobalState").then((state) => {
-        const globalState = new State(state);
-        const connector = globalState.get("connectorId");
-        if (utils.shouldIncludeConnector(connector, utils.CONNECTOR_LISTS.INCLUDE.TRUSTLY_REFUND)) {
-          skip = true;
-        }
-      }).then(() => {
-        if (skip) {
-          this.skip();
-        }
-      });
+      cy.task("getGlobalState")
+        .then((state) => {
+          const globalState = new State(state);
+          const connector = globalState.get("connectorId");
+          if (
+            utils.shouldIncludeConnector(
+              connector,
+              utils.CONNECTOR_LISTS.INCLUDE.TRUSTLY_REFUND
+            )
+          ) {
+            skip = true;
+          }
+        })
+        .then(() => {
+          if (skip) {
+            this.skip();
+          }
+        });
     });
 
     it("Create Payment Intent -> List Merchant Payment Methods -> Confirm Payment -> Handle Bank Redirect Redirection -> Retrieve Payment -> Refund Payment -> Sync Refund", () => {
@@ -653,6 +660,28 @@ describe("Bank Redirect tests", () => {
   });
 
   context("Trustly Partial Refund flow test", () => {
+    before(function () {
+      let skip = false;
+      cy.task("getGlobalState")
+        .then((state) => {
+          const globalState = new State(state);
+          const connector = globalState.get("connectorId");
+          if (
+            utils.shouldIncludeConnector(
+              connector,
+              utils.CONNECTOR_LISTS.INCLUDE.TRUSTLY_REFUND
+            )
+          ) {
+            skip = true;
+          }
+        })
+        .then(() => {
+          if (skip) {
+            this.skip();
+          }
+        });
+    });
+
     it("Create Payment Intent -> List Merchant Payment Methods -> Confirm Payment -> Handle Bank Redirect Redirection -> Retrieve Payment -> Partial Refund Payment -> Sync Refund", () => {
       let shouldContinue = true;
 
@@ -757,17 +786,24 @@ describe("Bank Redirect tests", () => {
   context("TrueLayer OpenBankingUk Full Refund flow test", () => {
     before(function () {
       let skip = false;
-      cy.task("getGlobalState").then((state) => {
-        const globalState = new State(state);
-        const connector = globalState.get("connectorId");
-        if (utils.shouldIncludeConnector(connector, utils.CONNECTOR_LISTS.INCLUDE.TRUELAYER_REFUND)) {
-          skip = true;
-        }
-      }).then(() => {
-        if (skip) {
-          this.skip();
-        }
-      });
+      cy.task("getGlobalState")
+        .then((state) => {
+          const globalState = new State(state);
+          const connector = globalState.get("connectorId");
+          if (
+            utils.shouldIncludeConnector(
+              connector,
+              utils.CONNECTOR_LISTS.INCLUDE.TRUELAYER_REFUND
+            )
+          ) {
+            skip = true;
+          }
+        })
+        .then(() => {
+          if (skip) {
+            this.skip();
+          }
+        });
     });
 
     it("Create Payment Intent -> List Merchant Payment Methods -> Confirm Payment -> Handle Bank Redirect Redirection -> Retrieve Payment -> Refund Payment -> Sync Refund", () => {
