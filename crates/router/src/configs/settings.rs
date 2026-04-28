@@ -1060,7 +1060,7 @@ pub struct NetworkTokenizationSupportedConnectors {
 #[derive(Debug, Deserialize, Clone)]
 pub struct MerchantAdviceCodeConfig {
     pub recommended_action: common_enums::RecommendedAction,
-    pub description: Option<String>,
+    pub description: String,
 }
 
 /// Domain type for merchant advice code mappings

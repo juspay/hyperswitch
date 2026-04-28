@@ -83,7 +83,8 @@ use crate::core::{
 };
 use crate::{
     configs::settings::{
-        ConnectorRequestReferenceIdConfig, MerchantAdviceCodeLookupConfig, TempLockerEnableConfig,
+        ConnectorRequestReferenceIdConfig, MerchantAdviceCodeConfig,
+        MerchantAdviceCodeLookupConfig, TempLockerEnableConfig,
     },
     connector,
     consts::{self, BASE64_ENGINE},
@@ -9138,32 +9139,34 @@ where
     }
 }
 
-/// Lookup recommended action from merchant advice codes configuration.
-pub fn get_merchant_advice_code_recommended_action(
+/// Lookup merchant advice code configuration for MIT transactions.
+pub fn get_merchant_advice_code_config(
     config: &MerchantAdviceCodeLookupConfig,
     off_session: Option<bool>,
-    network: Option<&common_enums::CardNetwork>,
-    advice_code: Option<&str>,
-) -> Option<common_enums::RecommendedAction> {
+    network: Option<common_enums::CardNetwork>,
+    advice_code: Option<String>,
+) -> Option<&MerchantAdviceCodeConfig> {
     match (off_session, network, advice_code) {
-        (Some(true), Some(network), Some(advice_code)) => config
-            .get_config(network, advice_code)
-            .map(|config| config.recommended_action)
-            .or_else(|| {
-                metrics::MERCHANT_ADVICE_CODE_CONFIG_MISS.add(
-                    1,
-                    router_env::metric_attributes!(
-                        ("network", network.to_string()),
-                        ("advice_code", advice_code.to_owned()),
-                    ),
-                );
-                logger::warn!(
-                    network = %network,
-                    advice_code = %advice_code,
-                    "No merchant advice code config found"
-                );
-                None
-            }),
+        (Some(true), Some(network), Some(advice_code)) => {
+            match config.get_config(&network, &advice_code) {
+                Some(config) => Some(config),
+                None => {
+                    metrics::MERCHANT_ADVICE_CODE_CONFIG_MISS.add(
+                        1,
+                        router_env::metric_attributes!(
+                            ("network", network.to_string()),
+                            ("advice_code", advice_code.clone()),
+                        ),
+                    );
+                    logger::warn!(
+                        network = %network,
+                        advice_code = %advice_code,
+                        "No merchant advice code config found"
+                    );
+                    None
+                }
+            }
+        }
         _ => None,
     }
 }
