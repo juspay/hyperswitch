@@ -1,21 +1,5 @@
 import { getCustomExchange } from "./Modifiers";
 
-const successfulNo3DSCardDetails = {
-  card_number: "4111111111111111",
-  card_exp_month: "08",
-  card_exp_year: "30",
-  card_holder_name: "joseph Doe",
-  card_cvc: "999",
-};
-
-const successfulThreeDSTestCardDetails = {
-  card_number: "4000000000001091",
-  card_exp_month: "08",
-  card_exp_year: "30",
-  card_holder_name: "joseph Doe",
-  card_cvc: "999",
-};
-
 const billingAddress = {
   address: {
     line1: "1467",
@@ -34,94 +18,13 @@ const billingAddress = {
   },
 };
 
-export const connectorDetails = {
-  card_pm: {
-    PaymentIntent: getCustomExchange({
-      Request: {
-        payment_method: "card",
-        payment_method_data: {
-          card: successfulNo3DSCardDetails,
-        },
-        currency: "USD",
-        customer_acceptance: null,
-        setup_future_usage: "on_session",
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "requires_confirmation",
-        },
-      },
-    }),
-    No3DSAutoCapture: getCustomExchange({
-      Request: {
-        payment_method: "card",
-        payment_method_data: {
-          card: successfulNo3DSCardDetails,
-        },
-        currency: "USD",
-        customer_acceptance: null,
-        setup_future_usage: "on_session",
-      },
-      Response: {
-        status: 400,
-        body: {
-          error: {
-            type: "api",
-            message: "Error processing payment",
-            code: "IR_00",
-          },
-        },
-      },
-    }),
-    "3DSAutoCapture": getCustomExchange({
-      Request: {
-        payment_method: "card",
-        payment_method_data: {
-          card: successfulThreeDSTestCardDetails,
-        },
-        currency: "USD",
-        customer_acceptance: null,
-        setup_future_usage: "on_session",
-      },
-      Response: {
-        status: 400,
-        body: {
-          error: {
-            type: "api",
-            message: "Error processing payment",
-            code: "IR_00",
-          },
-        },
-      },
-    }),
-    Refund: getCustomExchange({
-      Request: {},
-      Response: {
-        status: 400,
-        body: {
-          error: {
-            type: "api",
-            message: "Refund not supported",
-            code: "IR_00",
-          },
-        },
-      },
-    }),
-    SyncRefund: getCustomExchange({
-      Request: {},
-      Response: {
-        status: 400,
-        body: {
-          error: {
-            type: "api",
-            message: "Refund not supported",
-            code: "IR_00",
-          },
-        },
-      },
-    }),
+const connectorIntentMetadata = {
+  santander: {
+    max_mandate_amount: 10000,
   },
+};
+
+export const connectorDetails = {
   bank_transfer_pm: {
     Pix: getCustomExchange({
       Request: {
@@ -175,6 +78,7 @@ export const connectorDetails = {
           },
         },
         billing: billingAddress,
+        connector_intent_metadata: connectorIntentMetadata,
       },
       Response: {
         status: 200,
@@ -199,6 +103,7 @@ export const connectorDetails = {
           },
         },
         billing: billingAddress,
+        connector_intent_metadata: connectorIntentMetadata,
       },
       Response: {
         status: 200,
@@ -222,6 +127,7 @@ export const connectorDetails = {
           },
         },
         billing: billingAddress,
+        connector_intent_metadata: connectorIntentMetadata,
       },
       Response: {
         status: 200,
