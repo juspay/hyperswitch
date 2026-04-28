@@ -3339,7 +3339,7 @@ impl GetPaymentMethodType for BankDebitData {
     fn get_payment_method_type(&self) -> api_enums::PaymentMethodType {
         match self {
             Self::AchBankDebit { .. } => api_enums::PaymentMethodType::Ach,
-            Self::EftDebitOrder { .. } => api_enums::PaymentMethodType::Eft,
+            Self::EftDebitOrder { .. } => api_enums::PaymentMethodType::EftDebitOrder,
             Self::SepaBankDebit { .. } => api_enums::PaymentMethodType::Sepa,
             Self::SepaGuarenteedBankDebit { .. } => {
                 api_enums::PaymentMethodType::SepaGuarenteedDebit

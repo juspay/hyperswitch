@@ -3846,7 +3846,7 @@ impl GetPaymentMethodType for BankDebitData {
             Self::SepaBankDebit { .. } => api_enums::PaymentMethodType::Sepa,
             Self::BecsBankDebit { .. } => api_enums::PaymentMethodType::Becs,
             Self::BacsBankDebit { .. } => api_enums::PaymentMethodType::Bacs,
-            Self::EftDebitOrder { .. } => api_enums::PaymentMethodType::Eft,
+            Self::EftDebitOrder { .. } => api_enums::PaymentMethodType::EftDebitOrder,
             Self::SepaGuarenteedBankDebit { .. } => {
                 api_enums::PaymentMethodType::SepaGuarenteedDebit
             }
