@@ -523,6 +523,7 @@ Cypress.Commands.add(
   (merchantCreateBody, globalState, options = {}) => {
     const {
       expectedMerchantAccountType = null,
+      expectedProductType = null,
       merchantIdStateKey = "merchantId",
       profileIdStateKey = "profileId",
       publishableKeyStateKey = "publishableKey",
@@ -549,6 +550,13 @@ Cypress.Commands.add(
           expect(response.body).to.have.property(
             "merchant_account_type",
             expectedMerchantAccountType
+          );
+        }
+
+        if (expectedProductType) {
+          expect(response.body).to.have.property(
+            "product_type",
+            expectedProductType
           );
         }
 
