@@ -589,6 +589,20 @@ export const connectorDetails = {
         },
       },
     },
+    // Worldpayvantiv does not support L2/L3 data processing in test environment
+    // Requires special credential configuration that is not available in sandbox
+    L2L3Data: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+      Request: {},
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    },
     PaymentIntentOffSession: {
       Configs: {
         TRIGGER_SKIP: true,
