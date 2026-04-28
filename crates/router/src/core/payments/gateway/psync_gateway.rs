@@ -115,7 +115,7 @@ where
 
                 Ok(router_data.clone())
             }
-            CallConnectorAction::UCSHandleResponse(_) | CallConnectorAction::Trigger => {
+            CallConnectorAction::Trigger => {
                 let connector_name = router_data.connector.clone();
                 let connector_enum =
                     common_enums::connector_enums::Connector::from_str(&connector_name)

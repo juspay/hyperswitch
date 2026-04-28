@@ -32,7 +32,7 @@ thiserror = "1.0.69"
 time = "0.3.41"
 tonic = "0.14"
 url = { version = "2.5.4", features = ["serde"] }
-unified-connector-service-client = { git = "https://github.com/juspay/connector-service", rev = "2dcbcf76ff0411d8718172ab9e30c5be9688349e", package = "rust-grpc-client" }
+unified-connector-service-client = { git = "https://github.com/juspay/connector-service", rev = "59d3a57e08727945362d916585a90935a375ef3b", package = "rust-grpc-client" }
 tokio = { version = "1.45.1", features = ["macros", "rt-multi-thread"] }
 
 # First party crates

@@ -38,10 +38,7 @@ use hyperswitch_domain_models::{
 };
 pub use hyperswitch_interfaces::{
     helpers::ForeignTryFrom,
-    unified_connector_service::{
-        transformers::convert_connector_service_status_code, WebhookTransformData,
-        WebhookTransformationStatus,
-    },
+    unified_connector_service::transformers::convert_connector_service_status_code,
 };
 use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 use router_env::tracing;
@@ -49,11 +46,11 @@ use time::{Duration, OffsetDateTime};
 use unified_connector_service_cards::{CardNumber, NetworkToken};
 use unified_connector_service_client::payments::{
     self as payments_grpc, client_authentication_token_data, ConnectorState,
-    EventServiceHandleRequest, EventServiceHandleResponse,
+    EventServiceHandleRequest, EventServiceParseRequest,
 };
 
 use crate::{
-    core::{errors, mandate::MandateBehaviour, unified_connector_service},
+    core::{mandate::MandateBehaviour, unified_connector_service},
     types::{
         api,
         transformers::{self, ForeignFrom},
@@ -682,10 +679,13 @@ impl
 
         let currency = payments_grpc::Currency::foreign_try_from(router_data.request.currency)?;
 
-        let handle_response = match call_connector_action {
-            common_enums::CallConnectorAction::UCSHandleResponse(res) => Some(res),
+        // `handle_response` was removed from PaymentServiceGetRequest upstream along with
+        // the incomplete-transformation webhook flow. Validate the CallConnectorAction
+        // variant is still something PSync-over-UCS supports, then drop the value on the
+        // floor — the proto no longer carries it.
+        match call_connector_action {
             common_enums::CallConnectorAction::Trigger
-            | common_enums::CallConnectorAction::HandleResponseWithoutBuildRequest => None,
+            | common_enums::CallConnectorAction::HandleResponseWithoutBuildRequest => {}
             common_enums::CallConnectorAction::HandleResponse(_)
             | common_enums::CallConnectorAction::UCSConsumeResponse(_)
             | common_enums::CallConnectorAction::Avoid
@@ -719,7 +719,6 @@ impl
             merchant_transaction_id,
             encoded_data: router_data.request.encoded_data.clone(),
             capture_method: capture_method.map(|capture_method| capture_method.into()),
-            handle_response,
             setup_future_usage: setup_future_usage.map(|s| s.into()),
             connector_order_reference_id,
             amount: Some(payments_grpc::Money {
@@ -5658,57 +5657,52 @@ impl
     }
 }
 
-/// Transform UCS webhook response into webhook event data
-pub fn transform_ucs_webhook_response(
-    response: EventServiceHandleResponse,
-) -> Result<WebhookTransformData, error_stack::Report<errors::ApiErrorResponse>> {
-    let event_type =
-        api_models::webhooks::IncomingWebhookEvent::from_ucs_event_type(response.event_type);
+impl
+    transformers::ForeignTryFrom<
+        &hyperswitch_interfaces::webhooks::IncomingWebhookRequestDetails<'_>,
+    > for EventServiceParseRequest
+{
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
 
-    let webhook_transformation_status = if matches!(
-        response.event_status(),
-        payments_grpc::EventStatus::Incomplete
-    ) {
-        WebhookTransformationStatus::Incomplete
-    } else {
-        WebhookTransformationStatus::Complete
-    };
-
-    Ok(WebhookTransformData {
-        event_type,
-        source_verified: response.source_verified,
-        webhook_content: response.event_content,
-        response_ref_id: response.merchant_event_id,
-        webhook_transformation_status,
-    })
+    fn foreign_try_from(
+        request_details: &hyperswitch_interfaces::webhooks::IncomingWebhookRequestDetails<'_>,
+    ) -> Result<Self, Self::Error> {
+        let request_details_grpc =
+            <payments_grpc::RequestDetails as transformers::ForeignTryFrom<_>>::foreign_try_from(
+                request_details,
+            )?;
+        Ok(Self {
+            request_details: Some(request_details_grpc),
+        })
+    }
 }
 
-/// Build UCS webhook transform request from webhook components
-pub fn build_webhook_transform_request(
-    _webhook_body: &[u8],
-    request_details: &hyperswitch_interfaces::webhooks::IncomingWebhookRequestDetails<'_>,
-    webhook_secrets: Option<payments_grpc::WebhookSecrets>,
-    merchant_id: &str,
-    connector_id: &str,
-) -> Result<EventServiceHandleRequest, error_stack::Report<errors::ApiErrorResponse>> {
-    let request_details_grpc =
-        <payments_grpc::RequestDetails as transformers::ForeignTryFrom<_>>::foreign_try_from(
-            request_details,
-        )
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to transform webhook request details to gRPC format")?;
+/// Inputs for building an `EventServiceHandleRequest`: the raw request plus the
+/// post-ParseEvent context (webhook secrets resolved from the MCA, optional
+/// event context, and the stable merchant event id).
+pub struct HandleEventInputs<'a> {
+    pub request_details: &'a hyperswitch_interfaces::webhooks::IncomingWebhookRequestDetails<'a>,
+    pub webhook_secrets: Option<payments_grpc::WebhookSecrets>,
+    pub event_context: Option<payments_grpc::EventContext>,
+    pub merchant_event_id: String,
+}
 
-    Ok(EventServiceHandleRequest {
-        merchant_event_id: Some(format!(
-            "{}_{}_{}",
-            merchant_id,
-            connector_id,
-            OffsetDateTime::now_utc().unix_timestamp()
-        )),
-        request_details: Some(request_details_grpc),
-        webhook_secrets,
-        state: None,
-    })
+impl<'a> transformers::ForeignTryFrom<HandleEventInputs<'a>> for EventServiceHandleRequest {
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+
+    fn foreign_try_from(inputs: HandleEventInputs<'a>) -> Result<Self, Self::Error> {
+        let request_details_grpc =
+            <payments_grpc::RequestDetails as transformers::ForeignTryFrom<_>>::foreign_try_from(
+                inputs.request_details,
+            )?;
+        Ok(Self {
+            merchant_event_id: Some(inputs.merchant_event_id),
+            request_details: Some(request_details_grpc),
+            webhook_secrets: inputs.webhook_secrets,
+            access_token: None,
+            event_context: inputs.event_context,
+        })
+    }
 }
 
 // ============================================================================

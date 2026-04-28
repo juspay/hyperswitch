@@ -8,6 +8,11 @@ use common_utils::{
     ext_traits::ValueExt,
 };
 use error_stack::{Report, ResultExt};
+use hyperswitch_domain_models::{
+    router_request_types::VerifyWebhookSourceRequestData,
+    router_response_types::{VerifyWebhookSourceResponseData, VerifyWebhookStatus},
+};
+use hyperswitch_interfaces::webhooks::IncomingWebhook;
 use redis_interface as redis;
 use router_env::tracing;
 
@@ -16,13 +21,17 @@ use crate::{
     core::{
         errors::{self},
         metrics,
-        payments::helpers,
+        payments::{self, helpers},
     },
     db::{get_and_deserialize_key, StorageInterface},
     errors::RouterResult,
     routes::app::SessionStateInfo,
-    services::logger,
-    types::{self, api, domain, PaymentAddress},
+    services::{self, connector_integration_interface::ConnectorEnum, logger},
+    types::{
+        self,
+        api::{self, ConnectorData, GetToken},
+        domain, PaymentAddress,
+    },
     SessionState,
 };
 
@@ -104,7 +113,7 @@ pub async fn construct_webhook_router_data(
         connector_wallets_details: None,
         amount_captured: None,
         minor_amount_captured: None,
-        request: types::VerifyWebhookSourceRequestData {
+        request: VerifyWebhookSourceRequestData {
             webhook_headers: request_details.headers.clone(),
             webhook_body: request_details.body.to_vec().clone(),
             merchant_secret: connector_wh_secrets.to_owned(),
@@ -151,6 +160,75 @@ pub async fn construct_webhook_router_data(
         feature_data: None,
     };
     Ok(router_data)
+}
+
+/// Makes an outbound HTTP call to the connector's source-verification endpoint.
+/// Used when the connector requires a callback-style verification rather than a
+/// local HMAC check. Only called for connectors listed in
+/// `webhook_source_verification_call.connectors_with_webhook_source_verification_call`.
+pub(super) async fn verify_webhook_source_verification_call(
+    connector: ConnectorEnum,
+    state: &SessionState,
+    platform: &domain::Platform,
+    merchant_connector_account: domain::MerchantConnectorAccount,
+    connector_name: &str,
+    request_details: &api::IncomingWebhookRequestDetails<'_>,
+) -> CustomResult<bool, errors::ConnectorError> {
+    let connector_data = ConnectorData::get_connector_by_name(
+        &state.conf.connectors,
+        connector_name,
+        GetToken::Connector,
+        None,
+    )
+    .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)
+    .attach_printable("invalid connector name received in payment attempt")?;
+    let connector_integration: services::BoxedWebhookSourceVerificationConnectorIntegrationInterface<
+        hyperswitch_domain_models::router_flow_types::VerifyWebhookSource,
+        VerifyWebhookSourceRequestData,
+        VerifyWebhookSourceResponseData,
+    > = connector_data.connector.get_connector_integration();
+    let connector_webhook_secrets = connector
+        .get_webhook_source_verification_merchant_secret(
+            platform.get_processor().get_account().get_id(),
+            connector_name,
+            merchant_connector_account.connector_webhook_details.clone(),
+        )
+        .await
+        .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)?;
+
+    let router_data = construct_webhook_router_data(
+        state,
+        connector_name,
+        merchant_connector_account,
+        platform,
+        &connector_webhook_secrets,
+        request_details,
+    )
+    .await
+    .change_context(errors::ConnectorError::WebhookSourceVerificationFailed)
+    .attach_printable("Failed while constructing webhook router data")?;
+
+    let response = services::execute_connector_processing_step(
+        state,
+        connector_integration,
+        &router_data,
+        payments::CallConnectorAction::Trigger,
+        None,
+        None,
+    )
+    .await?;
+
+    let verification_result = response
+        .response
+        .map(|response| response.verify_webhook_status);
+    match verification_result {
+        Ok(VerifyWebhookStatus::SourceVerified) => Ok(true),
+        Ok(VerifyWebhookStatus::SourceNotVerified) => Ok(false),
+        Err(err) => {
+            tracing::error!(?err, "Webhook source verification failed");
+            Ok(false)
+        }
+    }
 }
 
 #[inline]
