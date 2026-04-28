@@ -1089,7 +1089,6 @@ pub trait PaymentMethodInterface {
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<PaymentMethod, Self::Error>;
 
-    #[cfg(feature = "v1")]
     async fn find_payment_method_by_locker_id(
         &self,
         key_store: &MerchantKeyStore,

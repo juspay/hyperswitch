@@ -34,13 +34,15 @@ pub use hyperswitch_interfaces::{
     types::{ComparisonServiceConfig, Proxy},
 };
 use hyperswitch_masking::{Maskable, Secret};
-pub use payment_methods::configs::settings::{
-    BankRedirectConfig, BanksVector, ConnectorBankNames, ConnectorFields, EligiblePaymentMethods,
-    InstallmentConfig, Installments, Mandates, PaymentMethodAuth, PaymentMethodType,
-    RequiredFieldFinal, RequiredFields, SupportedConnectorsForMandate,
-    SupportedPaymentMethodTypesForMandate, SupportedPaymentMethodsForMandate, ZeroMandates,
+pub use payment_methods::configs::{
+    settings::{
+        BankRedirectConfig, BanksVector, ConnectorBankNames, ConnectorFields,
+        EligiblePaymentMethods, InstallmentConfig, Installments, Mandates, PaymentMethodAuth,
+        PaymentMethodType, RequiredFieldFinal, RequiredFields, SupportedConnectorsForMandate,
+        SupportedPaymentMethodTypesForMandate, SupportedPaymentMethodsForMandate, ZeroMandates,
+    },
+    MicroServicesConfig,
 };
-use payment_methods::configs::MicroServicesConfig;
 use rand::seq::IteratorRandom;
 use redis_interface::RedisSettings;
 pub use router_env::config::{Log, LogConsole, LogFile, LogTelemetry};
