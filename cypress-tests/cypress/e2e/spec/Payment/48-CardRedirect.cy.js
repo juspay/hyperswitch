@@ -1,14 +1,38 @@
 import * as fixtures from "../../../fixtures/imports";
 import State from "../../../utils/State";
-import getConnectorDetails, * as utils from "../../configs/Payment/Utils";
+import getConnectorDetails, {
+  CONNECTOR_LISTS,
+  shouldIncludeConnector,
+} from "../../configs/Payment/Utils";
+import * as utils from "../../configs/Payment/Utils";
 
 let globalState;
+let connector;
 
 describe("Card Redirect tests", () => {
-  before("seed global state", () => {
-    cy.task("getGlobalState").then((state) => {
-      globalState = new State(state);
-    });
+  before("seed global state", function () {
+    let skip = false;
+
+    cy.task("getGlobalState")
+      .then((state) => {
+        globalState = new State(state);
+        connector = globalState.get("connectorId");
+
+        if (
+          shouldIncludeConnector(
+            connector,
+            CONNECTOR_LISTS.INCLUDE.CARD_REDIRECT
+          )
+        ) {
+          skip = true;
+          return;
+        }
+      })
+      .then(() => {
+        if (skip) {
+          this.skip();
+        }
+      });
   });
 
   after("flush global state", () => {
