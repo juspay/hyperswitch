@@ -26,8 +26,10 @@ import { connectorDetails as cybersourceConnectorDetails } from "./Cybersource.j
 import { connectorDetails as datatransConnectorDetails } from "./Datatrans.js";
 import { connectorDetails as deutschebankConnectorDetails } from "./Deutschebank.js";
 import { connectorDetails as dlocalConnectorDetails } from "./Dlocal.js";
+import { connectorDetails as dwollaConnectorDetails } from "./Dwolla.js";
 import { connectorDetails as elavonConnectorDetails } from "./Elavon.js";
 import { connectorDetails as facilitapayConnectorDetails } from "./Facilitapay.js";
+import { connectorDetails as fiservcommercehubConnectorDetails } from "./Fiservcommercehub.js";
 import { connectorDetails as finixConnectorDetails } from "./Finix.js";
 import { connectorDetails as fiservConnectorDetails } from "./Fiserv.js";
 import { connectorDetails as fiservemeaConnectorDetails } from "./Fiservemea.js";
@@ -98,11 +100,13 @@ const connectorDetails = {
   cryptopay: cryptopayConnectorDetails,
   cybersource: cybersourceConnectorDetails,
   dlocal: dlocalConnectorDetails,
+  dwolla: dwollaConnectorDetails,
   datatrans: datatransConnectorDetails,
   deutschebank: deutschebankConnectorDetails,
   elavon: elavonConnectorDetails,
   facilitapay: facilitapayConnectorDetails,
   fiserv: fiservConnectorDetails,
+  fiservcommercehub: fiservcommercehubConnectorDetails,
   fiservemea: fiservemeaConnectorDetails,
   fiuu: fiuuConnectorDetails,
   finix: finixConnectorDetails,
