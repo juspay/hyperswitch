@@ -478,6 +478,26 @@ function bankRedirectRedirection(
               cy.log("Executing on Klarna sandbox");
               cy.wait(constants.TIMEOUT / 6);
               cy.get("body").then(($body) => {
+                if (
+                  $body.find('input[id*="phone"], input[type="tel"], input[name="phone"]')
+                    .length > 0
+                ) {
+                  cy.get(
+                    'input[id*="phone"], input[type="tel"], input[name="phone"]'
+                  )
+                    .first()
+                    .clear()
+                    .type("9123456789");
+                  cy.get(
+                    'button[type="submit"], button[id*="continue"], button[data-testid*="continue"]'
+                  )
+                    .first()
+                    .should("be.visible")
+                    .click({ force: true });
+                  cy.wait(constants.TIMEOUT / 6);
+                }
+              });
+              cy.get("body").then(($body) => {
                 if ($body.find("#onContinue").length > 0) {
                   cy.get("#onContinue").click();
                 }
@@ -502,16 +522,16 @@ function bankRedirectRedirection(
                   .should("be.visible")
                   .click({ force: true });
                 cy.wait(constants.TIMEOUT / 10);
-                cy.get("body").then(($body2) => {
-                  if ($body2.find('input[id="otp_field"]').length > 0) {
-                    cy.get('input[id="otp_field"]').type("123456");
-                    cy.get(
-                      'button[type="submit"], button[id*="confirm"], button[data-testid*="confirm"]'
-                    )
-                      .first()
-                      .click({ force: true });
-                  }
-                });
+              });
+              cy.get("body").then(($body2) => {
+                if ($body2.find('input[id="otp_field"]').length > 0) {
+                  cy.get('input[id="otp_field"]').type("123456");
+                  cy.get(
+                    'button[type="submit"], button[id*="confirm"], button[data-testid*="confirm"]'
+                  )
+                    .first()
+                    .click({ force: true });
+                }
               });
               verifyUrl = true;
             } else {
