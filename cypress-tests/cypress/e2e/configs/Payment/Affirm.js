@@ -45,13 +45,9 @@ export const connectorDetails = {
         },
       },
       Response: {
-        status: 400,
+        status: 200,
         body: {
-          error: {
-            type: "invalid_request",
-            message: "Connector not found",
-            code: "IR_16",
-          },
+          status: "requires_customer_action",
         },
       },
     },
