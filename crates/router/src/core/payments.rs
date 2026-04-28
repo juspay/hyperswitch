@@ -133,7 +133,9 @@ use crate::{
     core::{
         configs::dimension_state,
         errors::{self, CustomResult, RouterResponse, RouterResult},
-        payment_methods::{cards, network_tokenization},
+        payment_methods::{
+            cards, network_tokenization, transformers as pm_transformers, utils as pm_utils,
+        },
         payments::helpers::{
             get_applepay_metadata, is_applepay_predecrypted_flow_supported,
             is_googlepay_predecrypted_flow_supported,
@@ -8663,21 +8665,11 @@ impl PaymentEligibilityData {
         platform: &domain::Platform,
         payments_eligibility_request: &api_models::payments::PaymentsEligibilityRequest,
     ) -> CustomResult<Self, errors::ApiErrorResponse> {
-        let payment_method_data = payments_eligibility_request
-            .payment_method_data
-            .payment_method_data
-            .clone()
-            .map(domain::EligibilityPaymentMethodData::from);
-        let browser_info = payments_eligibility_request
-            .browser_info
-            .clone()
-            .map(|browser_info| {
-                serde_json::to_value(browser_info)
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("Unable to encode payout method data")
-            })
-            .transpose()?
-            .map(pii::SecretSerdeValue::new);
+        payments_eligibility_request
+            .validate_payment_method_input()
+            .change_context(errors::ApiErrorResponse::MissingRequiredField {
+                field_name: "Either payment_token or payment_method_data",
+            })?;
         let payment_intent = state
             .store
             .find_payment_intent_by_payment_id_processor_merchant_id(
@@ -8688,11 +8680,177 @@ impl PaymentEligibilityData {
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+
+        let payment_method_data = match &payments_eligibility_request.payment_token {
+            Some(payment_token) => {
+                let profile_id = payment_intent
+                    .profile_id
+                    .as_ref()
+                    .ok_or(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("profile_id not found in payment intent")?;
+
+                Self::resolve_payment_token_to_method_data(
+                    state,
+                    platform,
+                    payment_token,
+                    payments_eligibility_request.payment_method_type,
+                    profile_id,
+                )
+                .await
+                .attach_printable("Failed to resolve payment token to payment method data")?
+            }
+            None => payments_eligibility_request
+                .payment_method_data
+                .as_ref()
+                .and_then(|pmd| pmd.payment_method_data.clone())
+                .map(domain::EligibilityPaymentMethodData::from),
+        };
+
+        let browser_info = payments_eligibility_request
+            .browser_info
+            .clone()
+            .map(|browser_info| {
+                serde_json::to_value(browser_info)
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Unable to encode browser info")
+            })
+            .transpose()?
+            .map(pii::SecretSerdeValue::new);
+
         Ok(Self {
             payment_method_data,
             browser_info,
             payment_intent,
         })
+    }
+
+    /// Resolves a `payment_token` to raw card data for blocklist checks.
+    /// Uses modular PM service if enabled for the org, otherwise falls back to locker.
+    async fn resolve_payment_token_to_method_data(
+        state: &SessionState,
+        platform: &domain::Platform,
+        payment_token: &Secret<String>,
+        payment_method_type: common_enums::PaymentMethod,
+        profile_id: &id_type::ProfileId,
+    ) -> CustomResult<Option<domain::EligibilityPaymentMethodData>, errors::ApiErrorResponse> {
+        let pm_modular_dimensions = dimension_state::Dimensions::new().with_organization_id(
+            platform
+                .get_processor()
+                .get_account()
+                .organization_id
+                .clone(),
+        );
+
+        let is_modular_flow = pm_utils::get_organization_eligibility_config_for_pm_modular_service(
+            state,
+            &pm_modular_dimensions,
+        )
+        .await;
+
+        if is_modular_flow {
+            // Modular path: payment_token IS the payment_method_id in the modular service.
+            logger::info!("Resolving payment token via PM Modular Service for eligibility check");
+            let pm_response = pm_transformers::fetch_payment_method_from_modular_service(
+                state,
+                platform,
+                profile_id,
+                payment_token.clone().expose().as_str(),
+                None, // CVC token data is not passed in create api
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::PaymentMethodNotFound)
+            .attach_printable("Failed to fetch payment method from modular service")?;
+
+            Ok(pm_response
+                .raw_payment_method_data
+                .map(domain::EligibilityPaymentMethodData::from))
+        } else {
+            // Legacy path: resolve via Redis token → DB → locker.
+            Self::resolve_payment_token_via_db(state, platform, payment_token, payment_method_type)
+                .await
+        }
+    }
+
+    /// Legacy token resolution: Redis → DB → locker.
+    async fn resolve_payment_token_via_db(
+        state: &SessionState,
+        platform: &domain::Platform,
+        payment_token: &Secret<String>,
+        payment_method_type: common_enums::PaymentMethod,
+    ) -> CustomResult<Option<domain::EligibilityPaymentMethodData>, errors::ApiErrorResponse> {
+        let token_data = helpers::retrieve_payment_token_data(
+            state,
+            payment_token.clone().expose(),
+            Some(payment_method_type),
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::UnprocessableEntity {
+            message: "Invalid or expired payment token".to_string(),
+        })
+        .attach_printable("Failed to retrieve payment token data from storage")?;
+
+        let payment_method_record = helpers::retrieve_payment_method_from_db_with_token_data(
+            state,
+            platform.get_provider().get_key_store(),
+            &token_data,
+            platform.get_processor().get_account().storage_scheme,
+        )
+        .await
+        .attach_printable("Failed to retrieve payment method from DB")?;
+
+        let payment_method_data = match &token_data {
+            storage::PaymentTokenData::PermanentCard(card_token) => {
+                // Read full card data from the locker using the DB record.
+                let pm_record = payment_method_record
+                    .get_required_value("PaymentMethod")
+                    .change_context(errors::ApiErrorResponse::PaymentMethodNotFound)
+                    .attach_printable(
+                        "PaymentMethod DB record required for permanent card token",
+                    )?;
+
+                let customer_id = pm_record
+                    .customer_id
+                    .clone()
+                    .get_required_value("customer_id")
+                    .change_context(errors::ApiErrorResponse::InternalServerError)?;
+
+                let locker_id = card_token
+                    .locker_id
+                    .as_ref()
+                    .ok_or(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Missing locker_id in PermanentCard token data")?;
+                let card = Box::pin(helpers::fetch_card_details_from_locker(
+                    state,
+                    &customer_id,
+                    platform,
+                    locker_id,
+                    None, // no CardToken CVC for eligibility
+                    None, // no co-badged data needed
+                    pm_record,
+                ))
+                .await
+                .change_context(errors::ApiErrorResponse::PaymentMethodNotFound)
+                .attach_printable("Failed to retrieve card from locker")?;
+
+                Some(domain::EligibilityPaymentMethodData::from(
+                    domain::PaymentMethodData::Card(card),
+                ))
+            }
+            // Wallet and other token types: no raw card data available via this path.
+            #[cfg(feature = "v1")]
+            storage::PaymentTokenData::Temporary(_)
+            | storage::PaymentTokenData::TemporaryGeneric(_)
+            | storage::PaymentTokenData::Permanent(_)
+            | storage::PaymentTokenData::AuthBankDebit(_)
+            | storage::PaymentTokenData::WalletToken(_)
+            | storage::PaymentTokenData::BankDebit(_) => None,
+            #[cfg(feature = "v2")]
+            storage::PaymentTokenData::TemporaryGeneric(_)
+            | storage::PaymentTokenData::AuthBankDebit(_)
+            | storage::PaymentTokenData::BankDebit(_) => None,
+        };
+
+        Ok(payment_method_data)
     }
 }
 
@@ -12047,8 +12205,10 @@ pub async fn payments_submit_eligibility(
     req: api_models::payments::PaymentsEligibilityRequest,
     payment_id: id_type::PaymentId,
 ) -> RouterResponse<api_models::payments::PaymentsEligibilityResponse> {
-    let payment_eligibility_data =
-        PaymentEligibilityData::from_request(&state, &platform, &req).await?;
+    let payment_eligibility_data = Box::pin(PaymentEligibilityData::from_request(
+        &state, &platform, &req,
+    ))
+    .await?;
     let profile_id = payment_eligibility_data
         .payment_intent
         .profile_id
