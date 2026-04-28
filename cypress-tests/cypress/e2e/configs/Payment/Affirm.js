@@ -50,7 +50,7 @@ export const connectorDetails = {
         payment_experience: "redirect_to_url",
         payment_method_data: {
           pay_later: {
-            affirm_redirect: {
+            affirm: {
               billing_name: "John Doe",
               billing_email: "john.doe@example.com",
             },
