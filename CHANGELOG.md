@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.02.02.0-hotfix16-3
+
+### Bug Fixes
+
+- **connector:** [Nmi] add first name and last name for payments ([#12003](https://github.com/juspay/hyperswitch/pull/12003)) ([`9dee065`](https://github.com/juspay/hyperswitch/commit/9dee0652b28ab6b3b7cf02d61cc70289a85d5906))
+
+**Full Changelog:** [`2026.02.02.0-hotfix16_2...2026.02.02.0-hotfix16-3`](https://github.com/juspay/hyperswitch/compare/2026.02.02.0-hotfix16_2...2026.02.02.0-hotfix16-3)
+
+- - -
+
 ## 2026.02.02.0-hotfix16_2
 
 ### Bug Fixes
