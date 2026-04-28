@@ -8513,22 +8513,13 @@ pub async fn get_payment_external_authentication_flow_during_confirm<F: Clone>(
                 }) {
                 Some(details) => Some(details),
                 None => {
-                    let network = match card.card_network.as_ref() {
-                        Some(network) => network.clone(),
-                        None => state
-                            .store
-                            .get_card_info(&card.card_number.get_card_isin())
-                            .await
-                            .change_context(errors::ApiErrorResponse::InternalServerError)
-                            .attach_printable("Failed to fetch card info from DB")?
-                            .ok_or(errors::ApiErrorResponse::PreconditionFailed {
-                                message: "Card info not found in DB".to_string(),
-                            })?
-                            .card_network
-                            .ok_or(errors::ApiErrorResponse::PreconditionFailed {
-                                message: "Card network not found in card info".to_string(),
-                            })?,
-                    };
+                    let network = card
+                        .card_network
+                        .as_ref()
+                        .cloned()
+                        .ok_or(errors::ApiErrorResponse::PreconditionFailed {
+                            message: "Card network not found".to_string(),
+                        })?;
 
                     let resolved = match profile_acquirer_id {
                         Some(id) => business_profile
