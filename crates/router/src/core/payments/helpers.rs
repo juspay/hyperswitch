@@ -7643,32 +7643,47 @@ pub fn add_connector_response_to_additional_payment_data(
         },
         #[cfg(feature = "v2")]
         (
-            api_models::payments::AdditionalPaymentData::Upi {
-                details: Some(details),
-            },
+            api_models::payments::AdditionalPaymentData::Upi { details },
             AdditionalPaymentMethodConnectorResponse::Upi {
                 upi_mode: Some(upi_mode),
             },
         ) => {
+            // Forward the connector-detected UPI sub-mode (UpiCc / UpiCl / UpiAccount /
+            // UpiCcCl / UpiPpi / UpiVoucher) into payment_method_data.upi.*.upi_source on
+            // the outbound API response.
+            //
+            // Two non-obvious behaviours we explicitly handle:
+            //   * Existing `details` (vpa_id / app_name) must be preserved when rebuilding —
+            //     the previous version matched with `_` and zeroed those fields.
+            //   * `details: None` is possible on recovery paths where the merchant-supplied
+            //     UPI sub-type didn't make it back into the parsed AdditionalPaymentData.
+            //     Default to UpiIntent in that case so the source still reaches the caller;
+            //     dropping it silently caused UPI_CL (and other modes) to disappear.
             let upi_source = Some(UpiSource::from(upi_mode));
             let updated_details = match details {
-                UpiAdditionalData::UpiCollect(_) => UpiAdditionalData::UpiCollect(Box::new(
-                    api_models::payments::additional_info::UpiCollectAdditionalData {
-                        vpa_id: None,
-                        upi_source,
-                    },
-                )),
-                UpiAdditionalData::UpiIntent(_) => {
+                Some(UpiAdditionalData::UpiCollect(existing)) => {
+                    UpiAdditionalData::UpiCollect(Box::new(
+                        api_models::payments::additional_info::UpiCollectAdditionalData {
+                            vpa_id: existing.vpa_id.clone(),
+                            upi_source,
+                        },
+                    ))
+                }
+                Some(UpiAdditionalData::UpiIntent(existing)) => {
                     UpiAdditionalData::UpiIntent(Box::new(api_models::payments::UpiIntentData {
                         upi_source,
-                        app_name: None,
+                        app_name: existing.app_name.clone(),
                     }))
                 }
-                UpiAdditionalData::UpiQr(_) => {
+                Some(UpiAdditionalData::UpiQr(_)) => {
                     UpiAdditionalData::UpiQr(Box::new(api_models::payments::UpiQrData {
                         upi_source,
                     }))
                 }
+                None => UpiAdditionalData::UpiIntent(Box::new(api_models::payments::UpiIntentData {
+                    upi_source,
+                    app_name: None,
+                })),
             };
             api_models::payments::AdditionalPaymentData::Upi {
                 details: Some(updated_details),
