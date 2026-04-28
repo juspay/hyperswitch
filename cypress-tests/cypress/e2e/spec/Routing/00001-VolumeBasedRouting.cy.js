@@ -5,10 +5,13 @@ import * as utils from "../../configs/Routing/Utils";
 let globalState;
 
 describe("Volume Based Routing Test", () => {
-  // Restore the session if it exists
-  beforeEach(() => {
+  let shouldContinue = true;
+
+  beforeEach(function () {
+    if (!shouldContinue) {
+      this.skip();
+    }
     cy.session("login", () => {
-      // Make sure we have credentials
       if (!globalState.get("email") || !globalState.get("password")) {
         throw new Error("Missing login credentials in global state");
       }
@@ -17,7 +20,6 @@ describe("Volume Based Routing Test", () => {
         .then(() => cy.terminate2Fa(globalState))
         .then(() => cy.userInfo(globalState))
         .then(() => {
-          // Verify we have all necessary tokens and IDs
           const requiredKeys = [
             "userInfoToken",
             "merchantId",
@@ -49,7 +51,7 @@ describe("Volume Based Routing Test", () => {
     });
   });
 
-  context("Volume based routing with 100% of stripe", () => {
+  context("Volume based routing with 100% of Stripe", () => {
     before("seed global state", () => {
       cy.task("getGlobalState").then((state) => {
         globalState = new State(state);
@@ -83,7 +85,6 @@ describe("Volume Based Routing Test", () => {
           split: 100,
         },
       ];
-
       cy.addRoutingConfig(
         fixtures.routingConfigBody,
         data,
@@ -91,24 +92,24 @@ describe("Volume Based Routing Test", () => {
         routing_data,
         globalState
       );
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
 
     it("retrieve-routing-call-test", () => {
       const data = utils.getConnectorDetails("common")["volumeBasedRouting"];
-
       cy.retrieveRoutingConfig(data, globalState);
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
 
     it("activate-routing-call-test", () => {
       const data = utils.getConnectorDetails("common")["volumeBasedRouting"];
-
       cy.activateRoutingConfig(data, globalState);
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
 
     it("payment-routing-test", () => {
       const data =
         utils.getConnectorDetails("stripe")["card_pm"]["No3DSAutoCapture"];
-
       cy.createConfirmPaymentTest(
         fixtures.createConfirmPaymentBody,
         data,
@@ -116,6 +117,7 @@ describe("Volume Based Routing Test", () => {
         "automatic",
         globalState
       );
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
 
     it("retrieve-payment-call-test", () => {
@@ -127,7 +129,6 @@ describe("Volume Based Routing Test", () => {
         utils.getConnectorDetails("stripe")["bank_redirect_pm"][
           "PaymentIntent"
         ];
-
       cy.createPaymentIntentTest(
         fixtures.createPaymentBody,
         data,
@@ -135,6 +136,7 @@ describe("Volume Based Routing Test", () => {
         "automatic",
         globalState
       );
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
 
     it("payment_methods-call-test", () => {
@@ -144,17 +146,16 @@ describe("Volume Based Routing Test", () => {
     it("Confirm bank redirect", () => {
       const data =
         utils.getConnectorDetails("stripe")["bank_redirect_pm"]["eps"];
-
       cy.confirmBankRedirectCallTest(
         fixtures.confirmBody,
         data,
         true,
         globalState
       );
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
 
     it("Handle bank redirect redirection", () => {
-      // return_url is a static url (https://example.com) taken from confirm-body fixture and is not updated
       const expected_redirection = fixtures.confirmBody["return_url"];
       const payment_method_type = globalState.get("paymentMethodType");
       cy.handleBankRedirectRedirection(
@@ -165,7 +166,7 @@ describe("Volume Based Routing Test", () => {
     });
   });
 
-  context("Volume based routing with 100% of adyen", () => {
+  context("Volume based routing with 100% of Adyen", () => {
     before("seed global state", () => {
       cy.task("getGlobalState").then((state) => {
         globalState = new State(state);
@@ -175,6 +176,7 @@ describe("Volume Based Routing Test", () => {
     after("flush global state", () => {
       cy.task("setGlobalState", globalState.data);
     });
+
     it("list-mca-by-mid", () => {
       cy.ListMcaByMid(globalState);
     });
@@ -198,7 +200,6 @@ describe("Volume Based Routing Test", () => {
           split: 100,
         },
       ];
-
       cy.addRoutingConfig(
         fixtures.routingConfigBody,
         data,
@@ -206,24 +207,24 @@ describe("Volume Based Routing Test", () => {
         routing_data,
         globalState
       );
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
 
     it("retrieve-routing-call-test", () => {
       const data = utils.getConnectorDetails("common")["volumeBasedRouting"];
-
       cy.retrieveRoutingConfig(data, globalState);
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
 
     it("activate-routing-call-test", () => {
       const data = utils.getConnectorDetails("common")["volumeBasedRouting"];
-
       cy.activateRoutingConfig(data, globalState);
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
 
     it("payment-routing-test-for-card", () => {
       const data =
         utils.getConnectorDetails("adyen")["card_pm"]["No3DSAutoCapture"];
-
       cy.createConfirmPaymentTest(
         fixtures.createConfirmPaymentBody,
         data,
@@ -231,6 +232,7 @@ describe("Volume Based Routing Test", () => {
         "automatic",
         globalState
       );
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
 
     it("retrieve-payment-call-test", () => {
@@ -240,7 +242,6 @@ describe("Volume Based Routing Test", () => {
     it("create-payment-call-test-for-eps", () => {
       const data =
         utils.getConnectorDetails("adyen")["bank_redirect_pm"]["PaymentIntent"];
-
       cy.createPaymentIntentTest(
         fixtures.createPaymentBody,
         data,
@@ -248,6 +249,7 @@ describe("Volume Based Routing Test", () => {
         "automatic",
         globalState
       );
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
 
     it("payment_methods-call-test", () => {
@@ -257,17 +259,16 @@ describe("Volume Based Routing Test", () => {
     it("Confirm bank redirect", () => {
       const data =
         utils.getConnectorDetails("adyen")["bank_redirect_pm"]["eps"];
-
       cy.confirmBankRedirectCallTest(
         fixtures.confirmBody,
         data,
         true,
         globalState
       );
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
 
     it("Handle bank redirect redirection", () => {
-      // return_url is a static url (https://example.com) taken from confirm-body fixture and is not updated
       const expected_redirection = fixtures.confirmBody["return_url"];
       const payment_method_type = globalState.get("paymentMethodType");
       cy.handleBankRedirectRedirection(
@@ -277,4 +278,92 @@ describe("Volume Based Routing Test", () => {
       );
     });
   });
+
+  context(
+    "Volume based routing with 50/50 split between Stripe and Adyen",
+    () => {
+      before("seed global state", () => {
+        cy.task("getGlobalState").then((state) => {
+          globalState = new State(state);
+        });
+      });
+
+      after("flush global state", () => {
+        cy.task("setGlobalState", globalState.data);
+      });
+
+      it("list-mca-by-mid", () => {
+        cy.ListMcaByMid(globalState);
+      });
+
+      it("api-key-create-call-test", () => {
+        cy.apiKeyCreateTest(fixtures.apiKeyCreateBody, globalState);
+      });
+
+      it("customer-create-call-test", () => {
+        cy.createCustomerCallTest(fixtures.customerCreateBody, globalState);
+      });
+
+      it("add-routing-config", () => {
+        const data = utils.getConnectorDetails("common")["volumeBasedRouting"];
+        const routing_data = [
+          {
+            connector: {
+              connector: "stripe",
+              merchant_connector_id: globalState.get("stripeMcaId"),
+            },
+            split: 50,
+          },
+          {
+            connector: {
+              connector: "adyen",
+              merchant_connector_id: globalState.get("adyenMcaId"),
+            },
+            split: 50,
+          },
+        ];
+        cy.addRoutingConfig(
+          fixtures.routingConfigBody,
+          data,
+          "volume_split",
+          routing_data,
+          globalState
+        );
+        if (shouldContinue)
+          shouldContinue = utils.should_continue_further(data);
+      });
+
+      it("retrieve-routing-call-test", () => {
+        const data = utils.getConnectorDetails("common")["volumeBasedRouting"];
+        cy.retrieveRoutingConfig(data, globalState);
+        if (shouldContinue)
+          shouldContinue = utils.should_continue_further(data);
+      });
+
+      it("activate-routing-call-test", () => {
+        const data = utils.getConnectorDetails("common")["volumeBasedRouting"];
+        cy.activateRoutingConfig(data, globalState);
+        if (shouldContinue)
+          shouldContinue = utils.should_continue_further(data);
+      });
+
+      it("payment-routing-test-first", () => {
+        const data =
+          utils.getConnectorDetails("stripe")["card_pm"]["No3DSAutoCapture"];
+        cy.createConfirmPaymentTest(
+          fixtures.createConfirmPaymentBody,
+          data,
+          "no_three_ds",
+          "automatic",
+          globalState
+        );
+        if (shouldContinue)
+          shouldContinue = utils.should_continue_further(data);
+      });
+
+      it("retrieve-payment-call-test-first", () => {
+        cy.retrievePaymentCallTest({ globalState });
+      });
+    }
+  );
 });

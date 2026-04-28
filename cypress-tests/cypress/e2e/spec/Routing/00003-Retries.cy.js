@@ -40,7 +40,7 @@ describe("Auto Retries & Step Up 3DS", () => {
       });
     });
 
-    afterEach("flush global state", () => {
+    after("flush global state", () => {
       cy.task("setGlobalState", globalState.data);
     });
 
@@ -63,6 +63,15 @@ describe("Auto Retries & Step Up 3DS", () => {
 
   context("Auto Retries", () => {
     context("[Config: enable] Auto retries", () => {
+      before("seed global state", () => {
+        cy.task("getGlobalState").then((state) => {
+          globalState = new State(state);
+        });
+      });
+      after("flush global state", () => {
+        cy.task("setGlobalState", globalState.data);
+      });
+
       it("Enable auto retries", () => {
         const merchantId = globalState.get("merchantId");
         cy.setConfigs(
@@ -82,7 +91,7 @@ describe("Auto Retries & Step Up 3DS", () => {
               });
             });
 
-            afterEach("flush global state", () => {
+            after("flush global state", () => {
               cy.task("setGlobalState", globalState.data);
             });
 
@@ -121,6 +130,14 @@ describe("Auto Retries & Step Up 3DS", () => {
           });
 
           context("Max auto retries = 2", () => {
+            before("seed global state", () => {
+              cy.task("getGlobalState").then((state) => {
+                globalState = new State(state);
+              });
+            });
+            after("flush global state", () => {
+              cy.task("setGlobalState", globalState.data);
+            });
             const maxAutoRetries = 2;
             it("Update max auto retries", () => {
               const merchantId = globalState.get("merchantId");
@@ -133,6 +150,14 @@ describe("Auto Retries & Step Up 3DS", () => {
             });
 
             context("Make payment", () => {
+              before("seed global state", () => {
+                cy.task("getGlobalState").then((state) => {
+                  globalState = new State(state);
+                });
+              });
+              after("flush global state", () => {
+                cy.task("setGlobalState", globalState.data);
+              });
               it("Payment create call", () => {
                 const data =
                   utils.getConnectorDetails("autoretries")["card_pm"][
@@ -174,6 +199,14 @@ describe("Auto Retries & Step Up 3DS", () => {
           });
 
           context("Max auto retries = 1", () => {
+            before("seed global state", () => {
+              cy.task("getGlobalState").then((state) => {
+                globalState = new State(state);
+              });
+            });
+            after("flush global state", () => {
+              cy.task("setGlobalState", globalState.data);
+            });
             const maxAutoRetries = 1;
             it("Update max auto retries", () => {
               const merchantId = globalState.get("merchantId");
@@ -186,6 +219,14 @@ describe("Auto Retries & Step Up 3DS", () => {
             });
 
             context("Make payment", () => {
+              before("seed global state", () => {
+                cy.task("getGlobalState").then((state) => {
+                  globalState = new State(state);
+                });
+              });
+              after("flush global state", () => {
+                cy.task("setGlobalState", globalState.data);
+              });
               it("Payment create call", () => {
                 const data =
                   utils.getConnectorDetails("autoretries")["card_pm"][
@@ -226,6 +267,14 @@ describe("Auto Retries & Step Up 3DS", () => {
             });
           });
           context("Max auto retries = 0", () => {
+            before("seed global state", () => {
+              cy.task("getGlobalState").then((state) => {
+                globalState = new State(state);
+              });
+            });
+            after("flush global state", () => {
+              cy.task("setGlobalState", globalState.data);
+            });
             const maxAutoRetries = 0;
             it("Update max auto retries", () => {
               const merchantId = globalState.get("merchantId");
@@ -238,6 +287,14 @@ describe("Auto Retries & Step Up 3DS", () => {
             });
 
             context("Make payment", () => {
+              before("seed global state", () => {
+                cy.task("getGlobalState").then((state) => {
+                  globalState = new State(state);
+                });
+              });
+              after("flush global state", () => {
+                cy.task("setGlobalState", globalState.data);
+              });
               it("Payment create call", () => {
                 const data =
                   utils.getConnectorDetails("autoretries")["card_pm"][
@@ -287,7 +344,7 @@ describe("Auto Retries & Step Up 3DS", () => {
               });
             });
 
-            afterEach("flush global state", () => {
+            after("flush global state", () => {
               cy.task("setGlobalState", globalState.data);
             });
 
@@ -326,6 +383,14 @@ describe("Auto Retries & Step Up 3DS", () => {
           });
 
           context("Max auto retries = 2", () => {
+            before("seed global state", () => {
+              cy.task("getGlobalState").then((state) => {
+                globalState = new State(state);
+              });
+            });
+            after("flush global state", () => {
+              cy.task("setGlobalState", globalState.data);
+            });
             const maxAutoRetries = 2;
             it("Update max auto retries", () => {
               const merchantId = globalState.get("merchantId");
@@ -338,6 +403,14 @@ describe("Auto Retries & Step Up 3DS", () => {
             });
 
             context("Make payment", () => {
+              before("seed global state", () => {
+                cy.task("getGlobalState").then((state) => {
+                  globalState = new State(state);
+                });
+              });
+              after("flush global state", () => {
+                cy.task("setGlobalState", globalState.data);
+              });
               it("Payment create call", () => {
                 const data =
                   utils.getConnectorDetails("autoretries")["card_pm"][
@@ -379,6 +452,14 @@ describe("Auto Retries & Step Up 3DS", () => {
           });
 
           context("Max auto retries = 1", () => {
+            before("seed global state", () => {
+              cy.task("getGlobalState").then((state) => {
+                globalState = new State(state);
+              });
+            });
+            after("flush global state", () => {
+              cy.task("setGlobalState", globalState.data);
+            });
             const maxAutoRetries = 1;
             it("Update max auto retries", () => {
               const merchantId = globalState.get("merchantId");
@@ -391,6 +472,14 @@ describe("Auto Retries & Step Up 3DS", () => {
             });
 
             context("Make payment", () => {
+              before("seed global state", () => {
+                cy.task("getGlobalState").then((state) => {
+                  globalState = new State(state);
+                });
+              });
+              after("flush global state", () => {
+                cy.task("setGlobalState", globalState.data);
+              });
               it("Payment create call", () => {
                 const data =
                   utils.getConnectorDetails("autoretries")["card_pm"][
@@ -432,6 +521,14 @@ describe("Auto Retries & Step Up 3DS", () => {
           });
 
           context("Max auto retries = 0", () => {
+            before("seed global state", () => {
+              cy.task("getGlobalState").then((state) => {
+                globalState = new State(state);
+              });
+            });
+            after("flush global state", () => {
+              cy.task("setGlobalState", globalState.data);
+            });
             const maxAutoRetries = 0;
             it("Update max auto retries", () => {
               const merchantId = globalState.get("merchantId");
@@ -444,6 +541,14 @@ describe("Auto Retries & Step Up 3DS", () => {
             });
 
             context("Make payment", () => {
+              before("seed global state", () => {
+                cy.task("getGlobalState").then((state) => {
+                  globalState = new State(state);
+                });
+              });
+              after("flush global state", () => {
+                cy.task("setGlobalState", globalState.data);
+              });
               it("Payment create call", () => {
                 const data =
                   utils.getConnectorDetails("autoretries")["card_pm"][
@@ -488,6 +593,15 @@ describe("Auto Retries & Step Up 3DS", () => {
 
       context("Step up 3DS", () => {
         context("[Config: set] GSM", () => {
+          before("seed global state", () => {
+            cy.task("getGlobalState").then((state) => {
+              globalState = new State(state);
+            });
+          });
+          after("flush global state", () => {
+            cy.task("setGlobalState", globalState.data);
+          });
+
           it("[Config: enable] Step up GSM", () => {
             cy.updateGsmConfig(fixtures.gsmBody.gsm_update, globalState, true);
           });
@@ -504,6 +618,14 @@ describe("Auto Retries & Step Up 3DS", () => {
         });
 
         context("Make Payment", () => {
+          before("seed global state", () => {
+            cy.task("getGlobalState").then((state) => {
+              globalState = new State(state);
+            });
+          });
+          after("flush global state", () => {
+            cy.task("setGlobalState", globalState.data);
+          });
           const maxAutoRetries = 1;
           it("Update max auto retries", () => {
             const merchantId = globalState.get("merchantId");
@@ -552,6 +674,15 @@ describe("Auto Retries & Step Up 3DS", () => {
     });
 
     context("[Config: disable] Auto retries", () => {
+      before("seed global state", () => {
+        cy.task("getGlobalState").then((state) => {
+          globalState = new State(state);
+        });
+      });
+      after("flush global state", () => {
+        cy.task("setGlobalState", globalState.data);
+      });
+
       it("[Config: disable] Auto retries", () => {
         const merchantId = globalState.get("merchantId");
         cy.setConfigs(
@@ -568,6 +699,14 @@ describe("Auto Retries & Step Up 3DS", () => {
 
       context("Make payment", () => {
         context("[Failed] Make payment", () => {
+          before("seed global state", () => {
+            cy.task("getGlobalState").then((state) => {
+              globalState = new State(state);
+            });
+          });
+          after("flush global state", () => {
+            cy.task("setGlobalState", globalState.data);
+          });
           it("Payment create call", () => {
             const data =
               utils.getConnectorDetails("autoretries")["card_pm"][
@@ -598,6 +737,14 @@ describe("Auto Retries & Step Up 3DS", () => {
         });
 
         context("[Succeeded] Make payment", () => {
+          before("seed global state", () => {
+            cy.task("getGlobalState").then((state) => {
+              globalState = new State(state);
+            });
+          });
+          after("flush global state", () => {
+            cy.task("setGlobalState", globalState.data);
+          });
           it("Payment create call", () => {
             const data =
               utils.getConnectorDetails("autoretries")["card_pm"][
