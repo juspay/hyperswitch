@@ -306,6 +306,38 @@ export const connectorDetails = {
         },
       },
     },
+    ExtendAuthorizationNo3DSManual: {
+      Request: {
+        extended_authorization_days: 7,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_capture",
+          amount: 6000,
+          amount_capturable: 6000,
+          amount_received: null,
+          extended_authorization_applied: true,
+          extended_authorization_expires_at: null, // Set dynamically by backend
+        },
+      },
+    },
+    ExtendAuthorizationInvalidStatus: {
+      Request: {
+        extended_authorization_days: 7,
+      },
+      Response: {
+        status: 400,
+        body: {
+          error: {
+            type: "invalid_request",
+            message:
+              "Extended authorization cannot be requested for this payment because it has a status of succeeded. The expected state is requires_capture.",
+            code: "IR_14",
+          },
+        },
+      },
+    },
     MandateSingleUse3DSAutoCapture: {
       Request: {
         payment_method: "card",
