@@ -132,7 +132,7 @@ pub struct EftDebitOrderAdditionalData {
     pub account_number: MaskedBankAccount,
 
     /// Partially masked branch code for eft bank debit payment
-    #[schema(value_type = String, example = "110***000")]
+    #[schema(value_type = Option<String>, example = "110***000")]
     #[smithy(value_type = "Option<String>")]
     pub branch_code: Option<MaskedBranchCode>,
 

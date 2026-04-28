@@ -3104,7 +3104,7 @@ pub enum BankDebitData {
         account_number: Secret<String>,
 
         /// Branch code for eft bank debit payment
-        #[schema(value_type = String, example = "110000000")]
+        #[schema(value_type = Option<String>, example = "110000000")]
         #[smithy(value_type = "Option<String>")]
         branch_code: Option<Secret<String>>,
 

@@ -7370,7 +7370,6 @@
                 "type": "object",
                 "required": [
                   "account_number",
-                  "branch_code",
                   "bank_account_holder_name",
                   "bank_name",
                   "bank_type"
@@ -7392,7 +7391,8 @@
                   "branch_code": {
                     "type": "string",
                     "description": "Branch code for eft bank debit payment",
-                    "example": "110000000"
+                    "example": "110000000",
+                    "nullable": true
                   },
                   "bank_account_holder_name": {
                     "type": "string",
@@ -13536,8 +13536,7 @@
       "EftDebitOrderAdditionalData": {
         "type": "object",
         "required": [
-          "account_number",
-          "branch_code"
+          "account_number"
         ],
         "properties": {
           "account_number": {
@@ -13548,7 +13547,8 @@
           "branch_code": {
             "type": "string",
             "description": "Partially masked branch code for eft bank debit payment",
-            "example": "110***000"
+            "example": "110***000",
+            "nullable": true
           },
           "bank_account_holder_name": {
             "type": "string",
