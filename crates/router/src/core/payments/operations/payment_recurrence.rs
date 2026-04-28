@@ -1,6 +1,6 @@
 use std::marker::PhantomData;
 
-use api_models::enums::FrmSuggestion;
+use api_models::{enums::FrmSuggestion, payments::GetAddressFromPaymentMethodData};
 use async_trait::async_trait;
 use common_utils::ext_traits::{AsyncExt, ValueExt};
 use error_stack::{report, ResultExt};
@@ -175,6 +175,28 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             .in_current_span(),
         );
 
+        let session_state = state.clone();
+        let m_payment_intent_billing_address_id = payment_intent.billing_address_id.clone();
+        let m_key_store = platform.get_processor().get_key_store().clone();
+        let m_payment_intent_payment_id = payment_intent.payment_id.clone();
+        let m_merchant_id = processor_merchant_id.clone();
+        let m_storage_scheme = platform.get_processor().get_account().storage_scheme;
+
+        let payment_method_billing_future = tokio::spawn(
+            async move {
+                helpers::get_address_by_id(
+                    &session_state,
+                    m_payment_intent_billing_address_id,
+                    &m_key_store,
+                    &m_payment_intent_payment_id,
+                    &m_merchant_id,
+                    m_storage_scheme,
+                )
+                .await
+            }
+            .in_current_span(),
+        );
+
         let mandate_type = m_helpers::get_mandate_type(
             request.mandate_data.clone(),
             request.off_session,
@@ -213,9 +235,10 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             .in_current_span(),
         );
 
-        let (mandate_details, additional_pm_info) = tokio::try_join!(
+        let (mandate_details, additional_pm_info, payment_method_billing) = tokio::try_join!(
             utils::flatten_join_error(mandate_details_fut),
             utils::flatten_join_error(additional_pm_data_fut),
+            utils::flatten_join_error(payment_method_billing_future),
         )?;
 
         let setup_mandate = mandate_details.mandate_data.map(|mut sm| {
@@ -249,6 +272,64 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                 }
             });
 
+        let shipping_address = helpers::get_address_by_id(
+            state,
+            payment_intent.shipping_address_id.clone(),
+            &platform.get_processor().get_key_store().clone(),
+            &payment_intent.payment_id.clone(),
+            &processor_merchant_id.clone(),
+            m_storage_scheme,
+        )
+        .await?;
+
+        let billing_address = helpers::get_address_by_id(
+            state,
+            payment_intent.billing_address_id.clone(),
+            &platform.get_processor().get_key_store().clone(),
+            &payment_intent.payment_id.clone(),
+            &processor_merchant_id.clone(),
+            m_storage_scheme,
+        )
+        .await?;
+
+        let address = PaymentAddress::new(
+            shipping_address.as_ref().map(From::from),
+            billing_address.as_ref().map(From::from),
+            payment_method_billing.as_ref().map(From::from),
+            business_profile.use_billing_as_payment_method_billing,
+        );
+
+        let payment_method_data_billing = request
+            .payment_method_data
+            .as_ref()
+            .and_then(|pmd| pmd.payment_method_data.as_ref())
+            .and_then(|payment_method_data_billing| {
+                payment_method_data_billing.get_billing_address()
+            })
+            .map(From::from);
+        let pm_pmd_billing = payment_method_with_raw_data.as_ref().and_then(|pm| {
+            pm.payment_method
+                .0
+                .payment_method_billing_address
+                .clone()
+                .and_then(|decrypted_data| {
+                    let exposed = decrypted_data.into_inner().expose();
+                    match exposed.parse_value::<
+                        hyperswitch_domain_models::address::Address,
+                    >("payment method billing address") {
+                        Ok(address) => Some(address),
+                        Err(err) => {
+                            router_env::logger::error!(error = ?err, "Failed to parse payment method billing address");
+                            None
+                        }
+                    }
+                })
+        });
+
+        let pmd_address = payment_method_data_billing.or(pm_pmd_billing);
+
+        let unified_address = address.unify_with_payment_method_data_billing(pmd_address);
+
         let payment_data = PaymentData {
             flow: PhantomData,
             payment_intent,
@@ -260,7 +341,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             setup_mandate,
             customer_acceptance,
             token: None,
-            address: PaymentAddress::new(None, None, None, None),
+            address: unified_address,
             token_data: None,
             confirm: request.confirm,
             payment_method_data,
