@@ -724,11 +724,12 @@ impl super::behaviour::Conversion for PaymentMethod {
     type DstType = diesel_models::payment_method::PaymentMethod;
     type NewDstType = diesel_models::payment_method::PaymentMethodNew;
     async fn convert(self) -> CustomResult<Self::DstType, ValidationError> {
+        let payment_method_id = self.id.get_string_repr().to_owned();
         Ok(Self::DstType {
             customer_id: self.customer_id,
             merchant_id: self.merchant_id,
             id: self.id,
-            payment_method_id: Some(self.id.get_string_repr().to_owned()),
+            payment_method_id: Some(payment_method_id),
             created_at: self.created_at,
             last_modified: self.last_modified,
             payment_method_type_v2: self.payment_method_type,
@@ -910,11 +911,12 @@ impl super::behaviour::Conversion for PaymentMethod {
     }
 
     async fn construct_new(self) -> CustomResult<Self::NewDstType, ValidationError> {
+        let payment_method_id = self.id.get_string_repr().to_owned();
         Ok(Self::NewDstType {
             customer_id: self.customer_id,
             merchant_id: self.merchant_id,
             id: self.id,
-            payment_method_id: Some(self.id.get_string_repr().to_owned()),
+            payment_method_id: Some(payment_method_id),
             created_at: self.created_at,
             last_modified: self.last_modified,
             payment_method_type_v2: self.payment_method_type,
