@@ -10,21 +10,13 @@ use common_enums::{
 #[cfg(feature = "v2")]
 use common_utils::consts::BASE64_ENGINE;
 use common_utils::{
-    consts::{X_CONNECTOR_NAME, X_FLOW_NAME, X_SUB_FLOW_NAME},
-    errors::CustomResult,
-    ext_traits::ValueExt,
-    id_type,
-    request::{Method, RequestBuilder, RequestContent},
-    ucs_types,
+    errors::CustomResult, ext_traits::ValueExt, id_type, request::Method, ucs_types,
 };
 use diesel_models::types::FeatureMetadata;
 use error_stack::ResultExt;
-use external_services::{
-    grpc_client::{
-        unified_connector_service::{ConnectorAuthMetadata, UnifiedConnectorServiceError},
-        LineageIds,
-    },
-    http_client,
+use external_services::grpc_client::{
+    unified_connector_service::{ConnectorAuthMetadata, UnifiedConnectorServiceError},
+    LineageIds,
 };
 use hyperswitch_connectors::utils::CardData;
 #[cfg(feature = "v2")]
@@ -43,7 +35,7 @@ use router_env::{instrument, logger, tracing};
 use unified_connector_service_cards::CardNumber;
 use unified_connector_service_client::payments::{
     self as payments_grpc, payment_method::PaymentMethod, CardDetails, ClassicReward,
-    CryptoCurrency, EVoucher, OpenBanking, PaymentServiceAuthorizeResponse,
+    CryptoCurrency, EVoucher, OpenBanking, PaymentServiceAuthorizeResponse, ProxyCardDetails,
 };
 
 #[cfg(feature = "v2")]
@@ -62,7 +54,6 @@ use crate::{
         utils::get_flow_name,
     },
     events::connector_api_logs::ConnectorEvent,
-    headers::{CONTENT_TYPE, X_REQUEST_ID},
     routes::SessionState,
     types::{
         transformers::{ForeignFrom, ForeignTryFrom},
@@ -1058,7 +1049,11 @@ pub fn build_unified_connector_service_payment_method(
                 provider
             } => {
                 let eft = payments_grpc::Eft {
-                    provider,
+                    account_number: Some(Secret::new(provider)),
+                    branch_code: None,
+                    bank_account_holder_name: None,
+                    bank_name: Default::default(),
+                    bank_type: Default::default(),
                 };
 
                 Ok(payments_grpc::PaymentMethod {
@@ -1668,10 +1663,8 @@ pub fn build_unified_connector_service_payment_method_for_external_proxy(
                 .card_network
                 .clone()
                 .map(payments_grpc::CardNetwork::foreign_from);
-            let card_details = CardDetails {
-                card_number: Some(CardNumber::from_str(external_vault_card.card_number.peek()).change_context(
-                    UnifiedConnectorServiceError::RequestEncodingFailedWithReason("Failed to parse card number".to_string())
-                )?),
+            let card_details = ProxyCardDetails {
+                card_number: Some(external_vault_card.card_number.expose().into()),
                 card_exp_month: Some(external_vault_card.card_exp_month.expose().into()),
                 card_exp_year: Some(external_vault_card.card_exp_year.expose().into()),
                 card_cvc: Some(external_vault_card.card_cvc.expose().into()),
@@ -1843,12 +1836,8 @@ pub fn parse_merchant_payout_reference_id(id: &str) -> Option<id_type::PayoutRef
 #[cfg(feature = "v2")]
 pub fn build_unified_connector_service_external_vault_proxy_metadata(
     external_vault_merchant_connector_account: MerchantConnectorAccountTypeDetails,
+    connectors: &hyperswitch_domain_models::connector_endpoints::Connectors,
 ) -> CustomResult<String, UnifiedConnectorServiceError> {
-    let external_vault_metadata = external_vault_merchant_connector_account
-        .get_metadata()
-        .ok_or(UnifiedConnectorServiceError::ParsingFailed)
-        .attach_printable("Failed to obtain ConnectorMetadata")?;
-
     let connector = external_vault_merchant_connector_account.get_connector_name();
 
     let external_vault_connector =
@@ -1857,37 +1846,86 @@ pub fn build_unified_connector_service_external_vault_proxy_metadata(
                 .attach_printable(format!("Failed to parse Vault connector: {err}"))
         })?;
 
-    let unified_service_vault_metdata = match external_vault_connector {
+    let external_vault_proxy_config = match external_vault_connector {
         api_enums::VaultConnectors::Vgs => {
-            let vgs_metadata: ExternalVaultConnectorMetadata = external_vault_metadata
-                .expose()
-                .parse_value("ExternalVaultConnectorMetadata")
-                .change_context(UnifiedConnectorServiceError::ParsingFailed)
-                .attach_printable("Failed to parse Vgs connector metadata")?;
+            let external_vault_metadata = external_vault_merchant_connector_account
+                .get_metadata()
+                .ok_or(UnifiedConnectorServiceError::ParsingFailed)
+                .attach_printable("Metadata is required for VGS vault connector")?;
 
-            Some(external_services::grpc_client::unified_connector_service::ExternalVaultProxyMetadata::VgsMetadata(
-                external_services::grpc_client::unified_connector_service::VgsMetadata {
-                    proxy_url: vgs_metadata.proxy_url,
-                    certificate: vgs_metadata.certificate,
-                }
-            ))
+            let external_vault_metadata_parsed: ExternalVaultConnectorMetadata =
+                external_vault_metadata
+                    .expose()
+                    .parse_value("ExternalVaultConnectorMetadata")
+                    .change_context(UnifiedConnectorServiceError::ParsingFailed)
+                    .attach_printable("Failed to parse external vault connector metadata")?;
+
+            external_services::grpc_client::unified_connector_service::ExternalVaultProxyConfig {
+                vault_connector_type:
+                    external_services::grpc_client::unified_connector_service::VaultConnectorType::Proxy,
+                vault_connector_id: Some("vgs".to_string()),
+                metadata: external_services::grpc_client::unified_connector_service::ExternalVaultProxyMetadata::VgsMetadata(
+                    external_services::grpc_client::unified_connector_service::VgsMetadata {
+                        proxy_url: external_vault_metadata_parsed.proxy_url,
+                        certificate: external_vault_metadata_parsed.certificate,
+                    },
+                ),
+            }
         }
-        api_enums::VaultConnectors::HyperswitchVault | api_enums::VaultConnectors::Tokenex => None,
+        api_enums::VaultConnectors::HyperswitchVault => {
+            let base = &connectors.hyperswitch_vault.base_url;
+            let vault_endpoint_url = format!("{}/v2/proxy", base)
+                .parse::<url::Url>()
+                .map(common_utils::types::Url::wrap)
+                .change_context(UnifiedConnectorServiceError::ParsingFailed)
+                .attach_printable("Failed to parse hyperswitch_vault endpoint URL")?;
+
+            let auth_type: ConnectorAuthType = external_vault_merchant_connector_account
+                .get_connector_account_details()
+                .change_context(UnifiedConnectorServiceError::FailedToObtainAuthType)
+                .attach_printable("Failed to obtain ConnectorAuthType for HyperswitchVault")?;
+
+            let (api_key, profile_id) = match &auth_type {
+                ConnectorAuthType::SignatureKey {
+                    api_key,
+                    api_secret,
+                    ..
+                } => (api_key.clone(), api_secret.clone()),
+                _ => {
+                    return Err(error_stack::report!(
+                        UnifiedConnectorServiceError::FailedToObtainAuthType
+                    )
+                    .attach_printable("HyperswitchVault requires SignatureKey auth type"))
+                }
+            };
+
+            external_services::grpc_client::unified_connector_service::ExternalVaultProxyConfig {
+                vault_connector_type:
+                    external_services::grpc_client::unified_connector_service::VaultConnectorType::Transformation,
+                vault_connector_id: Some("hyperswitch_vault".to_string()),
+                metadata: external_services::grpc_client::unified_connector_service::ExternalVaultProxyMetadata::HyperswitchVaultMetadata(
+                    external_services::grpc_client::unified_connector_service::HyperswitchVaultMetadata {
+                        vault_endpoint: vault_endpoint_url,
+                        vault_auth_data: external_services::grpc_client::unified_connector_service::VaultConnectorAuth {
+                            api_key,
+                            profile_id,
+                        },
+                    },
+                ),
+            }
+        }
+        api_enums::VaultConnectors::Tokenex => Err(error_stack::report!(
+            UnifiedConnectorServiceError::NotImplemented(
+                "External vault proxy metadata is not supported for Tokenex".to_string(),
+            )
+        ))?,
     };
 
-    match unified_service_vault_metdata {
-        Some(metdata) => {
-            let external_vault_metadata_bytes = serde_json::to_vec(&metdata)
-                .change_context(UnifiedConnectorServiceError::ParsingFailed)
-                .attach_printable("Failed to convert External vault metadata to bytes")?;
+    let external_vault_config_bytes = serde_json::to_vec(&external_vault_proxy_config)
+        .change_context(UnifiedConnectorServiceError::ParsingFailed)
+        .attach_printable("Failed to serialize ExternalVaultProxyConfig to bytes")?;
 
-            Ok(BASE64_ENGINE.encode(&external_vault_metadata_bytes))
-        }
-        None => Err(UnifiedConnectorServiceError::NotImplemented(
-            "External vault proxy metadata is not supported for {connector_name}".to_string(),
-        )
-        .into()),
-    }
+    Ok(BASE64_ENGINE.encode(&external_vault_config_bytes))
 }
 
 pub fn handle_unified_connector_service_response_for_payment_authorize(
@@ -2842,111 +2880,6 @@ where
             Some(router_data.0.external_latency.unwrap_or(0) + external_latency);
         router_data
     })
-}
-
-#[derive(serde::Serialize)]
-pub struct ComparisonData {
-    pub hyperswitch_data: Secret<serde_json::Value>,
-    pub unified_connector_service_data: Secret<serde_json::Value>,
-}
-
-/// Generic function to serialize router data and send comparison to external service
-/// Works for both payments and refunds
-#[cfg(feature = "v1")]
-pub async fn serialize_router_data_and_send_to_comparison_service<F, RouterDReq, RouterDResp>(
-    state: &SessionState,
-    hyperswitch_router_data: RouterData<F, RouterDReq, RouterDResp>,
-    unified_connector_service_router_data: RouterData<F, RouterDReq, RouterDResp>,
-) -> RouterResult<()>
-where
-    F: Send + Clone + Sync + 'static,
-    RouterDReq: Send + Sync + Clone + 'static + serde::Serialize,
-    RouterDResp: Send + Sync + Clone + 'static + serde::Serialize,
-{
-    logger::info!("Simulating UCS call for shadow mode comparison");
-
-    let connector_name = hyperswitch_router_data.connector.clone();
-    let sub_flow_name = get_flow_name::<F>().ok();
-
-    let [hyperswitch_data, unified_connector_service_data] = [
-        (hyperswitch_router_data, "hyperswitch"),
-        (unified_connector_service_router_data, "ucs"),
-    ]
-    .map(|(data, source)| {
-        serde_json::to_value(data)
-            .map(Secret::new)
-            .unwrap_or_else(|e| {
-                Secret::new(serde_json::json!({
-                    "error": e.to_string(),
-                    "source": source
-                }))
-            })
-    });
-
-    let comparison_data = ComparisonData {
-        hyperswitch_data,
-        unified_connector_service_data,
-    };
-    let _ = send_comparison_data(state, comparison_data, connector_name, sub_flow_name)
-        .await
-        .map_err(|e| {
-            logger::debug!("Failed to send comparison data: {:?}", e);
-        });
-    Ok(())
-}
-
-/// Sends router data comparison to external service
-pub async fn send_comparison_data(
-    state: &SessionState,
-    comparison_data: ComparisonData,
-    connector_name: String,
-    sub_flow_name: Option<String>,
-) -> RouterResult<()> {
-    // Check if comparison service is enabled
-    let comparison_config = match state.conf.comparison_service.as_ref() {
-        Some(comparison_config) => comparison_config,
-        None => {
-            tracing::warn!(
-                "Comparison service configuration missing, skipping comparison data send"
-            );
-            return Ok(());
-        }
-    };
-
-    let mut request = RequestBuilder::new()
-        .method(Method::Post)
-        .url(comparison_config.url.get_string_repr())
-        .header(CONTENT_TYPE, "application/json")
-        .header(X_FLOW_NAME, "router-data")
-        .set_body(RequestContent::Json(Box::new(comparison_data)))
-        .build();
-
-    request.add_header(
-        X_CONNECTOR_NAME,
-        hyperswitch_masking::Maskable::Normal(connector_name),
-    );
-
-    if let Some(sub_flow_name) = sub_flow_name.filter(|name| !name.is_empty()) {
-        request.add_header(
-            X_SUB_FLOW_NAME,
-            hyperswitch_masking::Maskable::Normal(sub_flow_name),
-        );
-    }
-
-    if let Some(req_id) = &state.request_id {
-        request.add_header(
-            X_REQUEST_ID,
-            hyperswitch_masking::Maskable::Normal(req_id.to_string()),
-        );
-    }
-
-    let _ = http_client::send_request(&state.conf.proxy, request, comparison_config.timeout_secs)
-        .await
-        .map_err(|e| {
-            tracing::debug!("Error sending comparison data: {:?}", e);
-        });
-
-    Ok(())
 }
 
 // ============================================================================

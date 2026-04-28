@@ -3614,6 +3614,7 @@ impl DashboardMetadataInterface for KafkaStore {
         user_id: Option<String>,
         merchant_id: id_type::MerchantId,
         org_id: id_type::OrganizationId,
+        profile_id: Option<String>,
         data_key: enums::DashboardMetadata,
         dashboard_metadata_update: storage::DashboardMetadataUpdate,
     ) -> CustomResult<storage::DashboardMetadata, errors::StorageError> {
@@ -3622,6 +3623,7 @@ impl DashboardMetadataInterface for KafkaStore {
                 user_id,
                 merchant_id,
                 org_id,
+                profile_id,
                 data_key,
                 dashboard_metadata_update,
             )
@@ -3648,6 +3650,25 @@ impl DashboardMetadataInterface for KafkaStore {
     ) -> CustomResult<Vec<storage::DashboardMetadata>, errors::StorageError> {
         self.diesel_store
             .find_merchant_scoped_dashboard_metadata(merchant_id, org_id, data_keys)
+            .await
+    }
+
+    async fn find_profile_scoped_dashboard_metadata(
+        &self,
+        user_id: &str,
+        merchant_id: &id_type::MerchantId,
+        org_id: &id_type::OrganizationId,
+        profile_id: Option<String>,
+        data_key: enums::DashboardMetadata,
+    ) -> CustomResult<Option<storage::DashboardMetadata>, errors::StorageError> {
+        self.diesel_store
+            .find_profile_scoped_dashboard_metadata(
+                user_id,
+                merchant_id,
+                org_id,
+                profile_id,
+                data_key,
+            )
             .await
     }
 

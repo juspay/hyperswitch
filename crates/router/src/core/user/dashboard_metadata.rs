@@ -119,6 +119,10 @@ fn parse_set_request(data_enum: api::SetMetaDataRequest) -> UserResult<types::Me
             Ok(types::MetaData::OnboardingSurvey(req))
         }
         api::SetMetaDataRequest::ReconStatus(req) => Ok(types::MetaData::ReconStatus(req)),
+        #[cfg(feature = "v1")]
+        api::SetMetaDataRequest::PaymentViews(operation) => {
+            Ok(types::MetaData::PaymentViews(operation))
+        }
     }
 }
 
@@ -148,6 +152,8 @@ fn parse_get_request(data_enum: api::GetMetaDataRequest) -> DBEnum {
         api::GetMetaDataRequest::IsChangePasswordRequired => DBEnum::IsChangePasswordRequired,
         api::GetMetaDataRequest::OnboardingSurvey => DBEnum::OnboardingSurvey,
         api::GetMetaDataRequest::ReconStatus => DBEnum::ReconStatus,
+        #[cfg(feature = "v1")]
+        api::GetMetaDataRequest::PaymentViews => DBEnum::PaymentViews,
     }
 }
 
@@ -234,6 +240,24 @@ fn into_response(
         DBEnum::ReconStatus => {
             let resp = utils::deserialize_to_response(data)?;
             Ok(api::GetMetaDataResponse::ReconStatus(resp))
+        }
+        #[cfg(feature = "v1")]
+        DBEnum::PaymentViews => {
+            let resp: Option<types::PaymentViewsValue> = utils::deserialize_to_response(data)?;
+            Ok(api::GetMetaDataResponse::PaymentViews(resp.map(|d| {
+                d.views
+                    .into_iter()
+                    .map(|v| api::SavedViewResponse {
+                        view_id: v.view_id,
+                        view_name: v.view_name,
+                        data: api::SavedViewFilters::V1(api::SavedViewFiltersV1::PaymentViews(
+                            v.filters,
+                        )),
+                        created_at: v.created_at.to_string(),
+                        updated_at: v.updated_at.to_string(),
+                    })
+                    .collect()
+            })))
         }
     }
 }
@@ -655,6 +679,10 @@ async fn insert_metadata(
             }
             metadata
         }
+        #[cfg(feature = "v1")]
+        types::MetaData::PaymentViews(operation) => {
+            utils::handle_saved_view_operations(state, user, metadata_key, operation).await
+        }
     }
 }
 
@@ -664,7 +692,7 @@ async fn fetch_metadata(
     metadata_keys: Vec<DBEnum>,
 ) -> UserResult<Vec<DashboardMetadata>> {
     let mut dashboard_metadata = Vec::with_capacity(metadata_keys.len());
-    let (merchant_scoped_enums, user_scoped_enums) =
+    let (merchant_scoped_enums, user_scoped_enums, profile_user_scoped_enums) =
         utils::separate_metadata_type_based_on_scope(metadata_keys);
 
     if !merchant_scoped_enums.is_empty() {
@@ -685,6 +713,20 @@ async fn fetch_metadata(
             user.merchant_id.to_owned(),
             user.org_id.to_owned(),
             user_scoped_enums,
+        )
+        .await?;
+        dashboard_metadata.append(&mut res);
+    }
+
+    if !profile_user_scoped_enums.is_empty() {
+        let profile_id = utils::get_profile_id_from_role(state, user).await?;
+        let mut res = utils::get_profile_user_scoped_metadata_from_db(
+            state,
+            user.user_id.to_owned(),
+            user.merchant_id.to_owned(),
+            user.org_id.to_owned(),
+            profile_id,
+            profile_user_scoped_enums,
         )
         .await?;
         dashboard_metadata.append(&mut res);

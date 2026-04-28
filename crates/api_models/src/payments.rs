@@ -9319,21 +9319,24 @@ impl From<AdditionalPaymentData> for PaymentMethodDataResponse {
                 (Some(apple_pay_pm), _, _) => Self::Wallet(Box::new(WalletResponse {
                     details: Some(WalletResponseData::ApplePay(Box::new(
                         WalletAdditionalDataForCard {
-                            last4: apple_pay_pm
-                                .display_name
-                                .clone()
-                                .chars()
-                                .rev()
-                                .take(4)
-                                .collect::<String>()
-                                .chars()
-                                .rev()
-                                .collect::<String>(),
-                            card_network: apple_pay_pm.network.clone(),
+                            last4: Some(
+                                apple_pay_pm
+                                    .display_name
+                                    .clone()
+                                    .chars()
+                                    .rev()
+                                    .take(4)
+                                    .collect::<String>()
+                                    .chars()
+                                    .rev()
+                                    .collect::<String>(),
+                            ),
+                            card_network: Some(apple_pay_pm.network.clone()),
                             card_type: Some(apple_pay_pm.pm_type.clone()),
                             card_exp_month: apple_pay_pm.card_exp_month,
                             card_exp_year: apple_pay_pm.card_exp_year,
                             auth_code: apple_pay_pm.auth_code,
+                            email: None,
                         },
                     ))),
                 })),
@@ -11071,6 +11074,8 @@ pub struct PaymentsSessionResponse {
     pub client_secret: Secret<String, pii::ClientSecret>,
     /// The list of session token object
     pub session_token: Vec<SessionToken>,
+    /// External vault session details
+    pub vault_details: Option<VaultSessionDetails>,
 }
 
 #[cfg(feature = "v2")]
@@ -12408,11 +12413,39 @@ pub struct PaymentsEligibilityRequest {
     #[schema(value_type = Option<PaymentMethodType>)]
     pub payment_method_subtype: Option<api_enums::PaymentMethodType>,
     /// The payment instrument data for eligibility check
-    #[serde(with = "eligibility_payment_method_data_serde")]
-    pub payment_method_data: EligibilityPaymentMethodDataRequest,
+    #[serde(with = "eligibility_payment_method_data_serde", default)]
+    pub payment_method_data: Option<EligibilityPaymentMethodDataRequest>,
     /// The browser information for the payment
     #[schema(value_type = Option<BrowserInformation>)]
     pub browser_info: Option<BrowserInformation>,
+    /// The payment token to look up the saved payment method
+    /// When provided, the system will fetch the payment method data from the locker/vault
+    #[schema(value_type = String, example = "token_abc123xyz")]
+    pub payment_token: Option<Secret<String>>,
+}
+
+#[cfg(feature = "v1")]
+impl PaymentsEligibilityRequest {
+    /// Validates that either payment_token or payment_method_data is provided
+    pub fn validate_payment_method_input(
+        &self,
+    ) -> common_utils::errors::CustomResult<(), ValidationError> {
+        let has_payment_token = self.payment_token.is_some();
+        let has_payment_method_data = self
+            .payment_method_data
+            .as_ref()
+            .and_then(|pmd| pmd.payment_method_data.as_ref())
+            .is_some();
+
+        if !has_payment_token && !has_payment_method_data {
+            return Err(ValidationError::MissingRequiredField {
+                field_name: "Either payment_token or payment_method_data".to_string(),
+            }
+            .into());
+        }
+
+        Ok(())
+    }
 }
 
 /// Card data for eligibility check — only card_number is required, no CVV needed
@@ -12524,18 +12557,17 @@ pub enum EligibilityPaymentMethodData {
     NetworkToken(NetworkTokenData),
 }
 
-/// Custom deserializer for EligibilityPaymentMethodDataRequest.
+/// Custom deserializer for `Option<EligibilityPaymentMethodDataRequest>`.
 /// Required to catch deserialization errors: bare #[serde(flatten)] on
 /// Option<ExternallyTaggedEnum> uses FlatMapDeserializer which swallows all
-/// errors and returns None, hiding malformed card data. This mirrors the
-/// approach used by payment_method_data_serde for PaymentMethodDataRequest.
+/// errors and returns None, hiding malformed card data.
 #[cfg(feature = "v1")]
 mod eligibility_payment_method_data_serde {
     use super::*;
 
     pub fn deserialize<'de, D>(
         deserializer: D,
-    ) -> Result<EligibilityPaymentMethodDataRequest, D::Error>
+    ) -> Result<Option<EligibilityPaymentMethodDataRequest>, D::Error>
     where
         D: Deserializer<'de>,
     {
@@ -12549,9 +12581,14 @@ mod eligibility_payment_method_data_serde {
             payment_method_data: Option<serde_json::Value>,
         }
 
-        let parsed = __Inner::deserialize(deserializer)?;
+        let parsed = Option::<__Inner>::deserialize(deserializer)?;
 
-        let payment_method_data = if let Some(value) = parsed.payment_method_data {
+        let inner = match parsed {
+            None => return Ok(None),
+            Some(inner) => inner,
+        };
+
+        let payment_method_data = if let Some(value) = inner.payment_method_data {
             // Even when no payment method data is sent, flatten produces Some(Object {})
             if let serde_json::Value::Object(ref map) = value {
                 if map.is_empty() {
@@ -12569,10 +12606,15 @@ mod eligibility_payment_method_data_serde {
             None
         };
 
-        Ok(EligibilityPaymentMethodDataRequest {
+        // Return None if both billing and payment_method_data are absent
+        if payment_method_data.is_none() && inner.billing.is_none() {
+            return Ok(None);
+        }
+
+        Ok(Some(EligibilityPaymentMethodDataRequest {
             payment_method_data,
-            billing: parsed.billing,
-        })
+            billing: inner.billing,
+        }))
     }
 }
 
