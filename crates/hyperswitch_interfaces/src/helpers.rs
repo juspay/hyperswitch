@@ -92,10 +92,7 @@ where
     Ok(())
 }
 
-/// Serialize primary and shadow webhook outcomes and dispatch them to the
-/// comparison service. Parallel to `serialize_router_data_and_send_to_comparison_service`
-/// for webhook flows, which do not carry a `RouterData`. Errors are logged
-/// and swallowed — comparison is observability, not part of the request path.
+/// Webhook-flow analogue of `serialize_router_data_and_send_to_comparison_service`.
 pub async fn serialize_webhook_outcome_and_send_to_comparison_service<P, S>(
     state: &dyn api_client::ApiClientWrapper,
     primary: &P,
