@@ -458,6 +458,7 @@ export const CONNECTOR_LISTS = {
       // "stripe",
     ],
     DDC_RACE_CONDITION: ["worldpay"],
+    CONNECTOR_TESTING_DATA: ["adyen"],
     // ucs connectors
     UCS_CONNECTORS: ["authorizedotnet"],
     OVERCAPTURE: ["adyen"],
