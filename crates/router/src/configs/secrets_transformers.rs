@@ -550,8 +550,6 @@ pub(crate) async fn fetch_raw_secrets(
         locker: conf.locker,
         connectors: conf.connectors,
         forex_api,
-        refund: conf.refund,
-        eph_key: conf.eph_key,
         scheduler: conf.scheduler,
         jwekey,
         webhooks: conf.webhooks,
@@ -571,7 +569,6 @@ pub(crate) async fn fetch_raw_secrets(
         mandates: conf.mandates,
         zero_mandates: conf.zero_mandates,
         installments: conf.installments,
-        installment_config: conf.installment_config,
         network_transaction_id_supported_connectors: conf
             .network_transaction_id_supported_connectors,
         card_only_mit_supported_connectors: conf.card_only_mit_supported_connectors,

@@ -65,13 +65,6 @@ data_expiration_delay_in_seconds = 21600
 redis_lock_timeout_in_seconds = 100
 redis_ttl_in_seconds = 172800
 
-[eph_key]
-validity = 1
-
-[refund]
-max_attempts = 10
-max_age = 365
-
 [jwekey]
 vault_encryption_key = ""
 vault_private_key = ""

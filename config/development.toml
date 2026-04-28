@@ -201,19 +201,12 @@ cards = [
     "zsl",
 ]
 
-[refund]
-max_attempts = 10
-max_age = 365
-
 [webhooks]
 outgoing_enabled = true
 redis_lock_expiry_seconds = 180             # 3 * 60 seconds
 
 [merchant_id_auth]
 merchant_id_auth_enabled = false
-
-[eph_key]
-validity = 1
 
 [api_keys]
 hash_key = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
@@ -1224,9 +1217,6 @@ card.debit = { connector_list = "cybersource" }
 [installments.supported_payment_methods]
 card.credit = "adyen"
 card.debit = "adyen"
-
-[installment_config]
-adyen = "BRL,MXN,JPY"
 
 [network_transaction_id_supported_connectors]
 connector_list = "adyen,archipel,checkout,cybersource,novalnet,nuvei,stripe,worldpay,worldpayvantiv,revolv3"

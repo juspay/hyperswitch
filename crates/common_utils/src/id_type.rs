@@ -257,6 +257,12 @@ pub trait TargetingKey {
     fn targeting_key_value(&self) -> &str;
 }
 
+impl TargetingKey for String {
+    fn targeting_key_value(&self) -> &str {
+        self.as_str()
+    }
+}
+
 #[cfg(test)]
 mod alphanumeric_id_tests {
     use super::*;

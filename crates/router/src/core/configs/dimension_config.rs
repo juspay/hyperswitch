@@ -3,7 +3,10 @@ use external_services::superposition;
 use scheduler::consumer::types::process_data::RetryMapping;
 
 use super::{dimension_state, fetch_db_config_for_dimensions, DatabaseBackedConfig};
-use crate::{consts::superposition as superposition_consts, db::StorageInterface, utils::id_type};
+use crate::{
+    configs::settings, consts::superposition as superposition_consts, db::StorageInterface,
+    utils::id_type,
+};
 
 /// Macro to generate config struct and superposition::Config trait implementation.
 /// Note: Manually implement `DatabaseBackedConfig` for the config struct:
@@ -367,6 +370,44 @@ impl DatabaseBackedConfig for ClientSessionValidationEnabled {
     fn db_key(_dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
         None
     }
+}
+
+config! {
+    superposition_key = INSTALLMENT_CONFIG_SUPPORTED,
+    output = bool,
+    default = false,
+    requires = dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndOrgIdAndConnectorAndCurrency,
+    targeting_key = id_type::CustomerId
+}
+
+impl DatabaseBackedConfig for InstallmentConfigSupported {
+    const KEY: &'static str = "installment_config_supported";
+    fn db_key(_dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
+        None
+    }
+}
+
+#[cfg(feature = "v1")]
+type CustomerID = id_type::CustomerId;
+#[cfg(feature = "v2")]
+type CustomerID = id_type::GlobalCustomerId;
+
+config! {
+    superposition_key = REFUND,
+    output = settings::Refund,
+    default = settings::Refund::default(),
+    object = true,
+    requires = dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndOrgId,
+    targeting_key = CustomerID
+}
+
+config! {
+    superposition_key = EPHEMERAL_KEY,
+    output = settings::EphemeralConfig,
+    default = settings::EphemeralConfig::default(),
+    object = true,
+    requires = dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndOrgId,
+    targeting_key = CustomerID
 }
 
 config! {

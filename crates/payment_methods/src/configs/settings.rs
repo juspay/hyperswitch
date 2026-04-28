@@ -110,35 +110,6 @@ pub struct SupportedConnectorsForInstallments(
     #[serde(deserialize_with = "deserialize_hashset")] pub HashSet<enums::Connector>,
 );
 
-#[derive(Debug, Clone, Default)]
-pub struct CurrencyList(pub HashSet<common_enums::enums::Currency>);
-
-impl<'de> Deserialize<'de> for CurrencyList {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        deserialize_hashset(deserializer).map(CurrencyList)
-    }
-}
-
-#[derive(Debug, Deserialize, Clone, Default)]
-#[serde(default)]
-pub struct InstallmentConfig(pub HashMap<enums::Connector, CurrencyList>);
-
-impl InstallmentConfig {
-    pub fn is_connector_currency_supported(
-        &self,
-        connector: &enums::Connector,
-        currency: common_enums::enums::Currency,
-    ) -> bool {
-        self.0
-            .get(connector)
-            .map(|currencies| currencies.0.contains(&currency))
-            .unwrap_or(false)
-    }
-}
-
 #[derive(Debug, Deserialize, Clone)]
 pub struct Mandates {
     pub supported_payment_methods: SupportedPaymentMethodsForMandate,

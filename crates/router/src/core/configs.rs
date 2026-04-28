@@ -1,3 +1,4 @@
+pub mod deployment_defaults;
 pub mod dimension_config;
 pub mod dimension_state;
 use common_utils::errors::CustomResult;
@@ -149,7 +150,7 @@ pub async fn fetch_db_config_for_dimensions<C>(
 ) -> C::Output
 where
     C: DatabaseBackedConfig,
-    C::Output: ConfigType,
+    C::Output: ConfigType + std::fmt::Debug,
     open_feature::Client: superposition::GetValue<C::Output>,
 {
     let db_key = <C as DatabaseBackedConfig>::db_key(dimensions);
@@ -187,7 +188,7 @@ pub async fn fetch_db_config<C>(
 ) -> C::Output
 where
     C: DatabaseBackedConfig,
-    C::Output: ConfigType,
+    C::Output: ConfigType + std::fmt::Debug,
     open_feature::Client: superposition::GetValue<C::Output>,
 {
     let config_type = C::KEY;
