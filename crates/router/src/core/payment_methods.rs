@@ -121,6 +121,7 @@ pub async fn retrieve_payment_method_core(
 ) -> RouterResult<(Option<domain::PaymentMethodData>, Option<String>)> {
     match pm_data {
         pm_opt @ Some(pm @ domain::PaymentMethodData::Card(_)) => {
+            // Store raw card in vault and return
             let payment_token = payment_helpers::store_payment_method_data_in_vault(
                 state,
                 payment_attempt,

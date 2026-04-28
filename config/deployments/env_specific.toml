@@ -370,6 +370,7 @@ delete_token_url= ""          # base url to delete token from token service
 check_token_status_url= ""    # base url to check token status from token service
 webhook_source_verification_key= "" # webhook source verification key to verify the webhook payload from token service
 check_tokenize_eligibility_url="" # base url to check tokenization eligibility from token service
+fetch_alt_id_url= ""           # base url to fetch Alt-ID and cryptogram for guest checkout tokenization
 
 [grpc_client.dynamic_routing_client] # Dynamic Routing Client Configuration
 host = "localhost" # Client Host
