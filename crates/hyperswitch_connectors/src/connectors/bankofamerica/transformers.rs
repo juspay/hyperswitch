@@ -710,16 +710,13 @@ impl From<&SetupMandateRouterData> for ClientReferenceInformation {
 fn convert_metadata_to_merchant_defined_info(metadata: Value) -> Vec<MerchantDefinedInformation> {
     let hashmap: std::collections::BTreeMap<String, Value> =
         serde_json::from_str(&metadata.to_string()).unwrap_or(std::collections::BTreeMap::new());
-    let mut vector = Vec::new();
-    let mut iter = 1;
-    for (key, value) in hashmap {
-        vector.push(MerchantDefinedInformation {
+    (1..)
+        .zip(hashmap)
+        .map(|(iter, (key, value))| MerchantDefinedInformation {
             key: iter,
             value: format!("{key}={value}"),
-        });
-        iter += 1;
-    }
-    vector
+        })
+        .collect()
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
