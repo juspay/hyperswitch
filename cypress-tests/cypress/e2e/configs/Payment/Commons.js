@@ -2583,6 +2583,124 @@ export const connectorDetails = {
       },
     }),
   },
+  Dispute: {
+    ListDisputes: {
+      Response: {
+        status: 200,
+      },
+    },
+    ListDisputesWithConnectorFilter: {
+      Response: {
+        status: 200,
+      },
+    },
+    ListDisputesWithTimeRange: {
+      Response: {
+        status: 200,
+      },
+    },
+    ListDisputesWithInvalidStatusFilter: {
+      Response: {
+        status: 400,
+      },
+    },
+    ListDisputesWithInvalidStageFilter: {
+      Response: {
+        status: 400,
+      },
+    },
+    ListDisputesWithLimit: {
+      Response: {
+        status: 200,
+      },
+    },
+    ListDisputesWithLargeTimeRange: {
+      Response: {
+        status: 200,
+      },
+    },
+    RetrieveDispute: {
+      Response: {
+        status: 200,
+      },
+    },
+    RetrieveNonExistentDispute: {
+      Response: {
+        status: 404,
+        body: {
+          error: {
+            code: "HE_04",
+          },
+        },
+      },
+    },
+    AcceptDispute: {
+      Response: {
+        status: 200,
+      },
+    },
+    AcceptNonExistentDispute: {
+      Response: {
+        status: 404,
+        body: {
+          error: {
+            code: "HE_04",
+          },
+        },
+      },
+    },
+    SubmitEvidence: {
+      Response: {
+        status: 200,
+      },
+    },
+    SubmitEvidenceNonExistentDispute: {
+      Response: {
+        status: 404,
+        body: {
+          error: {
+            code: "HE_04",
+          },
+        },
+      },
+    },
+    SubmitEvidenceEmptyBody: {
+      Response: {
+        status: 400,
+      },
+    },
+    RetrieveEvidence: {
+      Response: {
+        status: 200,
+      },
+    },
+    AttachEvidenceFileMissingType: {
+      Response: {
+        status: 400,
+        body: {
+          error: {
+            code: "IR_04",
+          },
+        },
+      },
+    },
+    FetchDisputes: {
+      Response: {},
+    },
+    FetchDisputesWithTimeRange: {
+      Response: {},
+    },
+    FetchDisputesMissingParams: {
+      Response: {
+        status: 400,
+      },
+    },
+    FetchDisputesInvalidConnector: {
+      Response: {
+        status: 400,
+      },
+    },
+  },
   mandate_id_too_long: getCustomExchange({
     Request: {
       mandate_id: "mnd_" + "a".repeat(63),
