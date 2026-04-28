@@ -904,6 +904,31 @@ impl
                     .collect::<Vec<_>>()
             });
 
+        if let Some(ref info_list) = info_adicionais {
+            for info in info_list {
+                let nome_str: &str = &info.nome.clone().expose();
+                let valor_str: &str = &info.valor;
+                if nome_str.len() > 50 {
+                    return Err(errors::ConnectorError::MaxFieldLengthViolated {
+                        connector: "Santander".to_string(),
+                        field_name: "metadata.key".to_string(),
+                        max_length: 50,
+                        received_length: nome_str.len(),
+                    }
+                    .into());
+                }
+                if valor_str.len() > 150 {
+                    return Err(errors::ConnectorError::MaxFieldLengthViolated {
+                        connector: "Santander".to_string(),
+                        field_name: "metadata.value".to_string(),
+                        max_length: 150,
+                        received_length: valor_str.len(),
+                    }
+                    .into());
+                }
+            }
+        }
+
         let chave = value
             .0
             .router_data
@@ -913,6 +938,26 @@ impl
             .and_then(|data| data.get_pix_key_and_value().1)
             .or(mca_chave);
 
+        let solicitacao_pagador = value
+            .0
+            .router_data
+            .request
+            .billing_descriptor
+            .clone()
+            .and_then(|data| data.statement_descriptor);
+
+        if let Some(ref solicitacao) = solicitacao_pagador {
+            if solicitacao.len() > 140 {
+                return Err(errors::ConnectorError::MaxFieldLengthViolated {
+                    connector: "Santander".to_string(),
+                    field_name: "statement_descriptor".to_string(),
+                    max_length: 140,
+                    received_length: solicitacao.len(),
+                }
+                .into());
+            }
+        }
+
         Ok(Self::PixQR(Box::new(SantanderPixQRPaymentRequest {
             calendario: calendar,
             devedor: debtor,
@@ -920,13 +965,7 @@ impl
                 original: value.0.amount.to_owned(),
             }),
             chave,
-            solicitacao_pagador: value
-                .0
-                .router_data
-                .request
-                .billing_descriptor
-                .clone()
-                .and_then(|data| data.statement_descriptor),
+            solicitacao_pagador,
             info_adicionais,
         })))
     }
@@ -1015,14 +1054,32 @@ impl TryFrom<&SantanderRouterData<&PaymentsAuthorizeRouterData>>
             original: value.amount.to_owned(),
         };
 
-        let info_adicional = value.router_data.description.clone().or_else(|| {
-            value
+        let (info_adicional, info_source) =
+            if let Some(desc) = value.router_data.description.clone() {
+                (Some(desc), "description")
+            } else if let Some(stmt_desc) = value
                 .router_data
                 .request
                 .billing_descriptor
                 .as_ref()
                 .and_then(|bd| bd.statement_descriptor.clone())
-        });
+            {
+                (Some(stmt_desc), "statement_descriptor")
+            } else {
+                (None, "")
+            };
+
+        if let Some(ref info) = info_adicional {
+            if info.len() > 140 {
+                return Err(errors::ConnectorError::MaxFieldLengthViolated {
+                    connector: "Santander".to_string(),
+                    field_name: info_source.to_string(),
+                    max_length: 140,
+                    received_length: info.len(),
+                }
+                .into());
+            }
+        }
 
         let devedor = Some(SantanderDebtor {
             cpf: None,
@@ -2130,10 +2187,11 @@ impl
             }
         };
 
-        let contrato = cit_data
-            .contract_id
-            .clone()
-            .unwrap_or_else(|| item.payment_id.clone());
+        let contrato = item.request.merchant_order_reference_id.clone().ok_or(
+            errors::ConnectorError::MissingRequiredField {
+                field_name: "merchant_order_reference_id",
+            },
+        )?;
 
         let politica_retentativa = if cit_data.retry_policy.unwrap_or(false) {
             RetryPolicy::Permite3r7d
@@ -2169,6 +2227,16 @@ impl
                 .ok_or(errors::ConnectorError::MissingRequiredField {
                     field_name: "description",
                 })?;
+
+        if objeto.len() > 35 {
+            return Err(errors::ConnectorError::MaxFieldLengthViolated {
+                connector: "Santander".to_string(),
+                field_name: "description".to_string(),
+                max_length: 35,
+                received_length: objeto.len(),
+            }
+            .into());
+        }
 
         let loc = item
             .session_token
@@ -2411,14 +2479,16 @@ impl TryFrom<&PaymentsPushNotificationRouterData> for SantanderPixAutomaticSolic
                     .ok_or(errors::ConnectorError::MissingRequiredField {
                         field_name: "payment_method_data.bank_transfer.branch_code",
                     })?
-                    .expose(),
+                    .expose()
+                    .into(),
                 conta: bank_transfer_data
                     .0
                     .clone()
                     .ok_or(errors::ConnectorError::MissingRequiredField {
                         field_name: "payment_method_data.bank_transfer.account_number",
                     })?
-                    .expose(),
+                    .expose()
+                    .into(),
                 cpf,
                 cnpj,
                 ispb_participante: bank_transfer_data
@@ -2427,7 +2497,8 @@ impl TryFrom<&PaymentsPushNotificationRouterData> for SantanderPixAutomaticSolic
                     .ok_or(errors::ConnectorError::MissingRequiredField {
                         field_name: "payment_method_data.bank_transfer.bank_identifier",
                     })?
-                    .expose(),
+                    .expose()
+                    .into(),
             },
         })
     }
