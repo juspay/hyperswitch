@@ -564,7 +564,9 @@ impl<F> TryFrom<&TrustlyRouterData<&PayoutsRouterData<F>>> for RegisterAccountRe
                 BankTransfer::Sepa(_)
                 | BankTransfer::Ach(_)
                 | BankTransfer::Bacs(_)
-                | BankTransfer::Pix(_) => Err(ConnectorError::NotImplemented(
+                | BankTransfer::Pix(_)
+                | BankTransfer::PixKey(_)
+                | BankTransfer::PixEmv(_) => Err(ConnectorError::NotImplemented(
                     get_unimplemented_payment_method_error_message("Trustly"),
                 ))?,
             },
@@ -745,7 +747,9 @@ impl<F> TryFrom<&TrustlyRouterData<&PayoutsRouterData<F>>> for AccountPayoutRequ
                 BankTransfer::Sepa(_)
                 | BankTransfer::Ach(_)
                 | BankTransfer::Bacs(_)
-                | BankTransfer::Pix(_) => Err(ConnectorError::NotImplemented(
+                | BankTransfer::Pix(_)
+                | BankTransfer::PixKey(_)
+                | BankTransfer::PixEmv(_) => Err(ConnectorError::NotImplemented(
                     get_unimplemented_payment_method_error_message("Trustly"),
                 ))?,
             },

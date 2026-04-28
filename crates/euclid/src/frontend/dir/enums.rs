@@ -223,6 +223,8 @@ pub enum BankTransferType {
     MandiriVa,
     PermataBankTransfer,
     Pix,
+    PixKey,
+    PixEmv,
     PixAutomaticoPush,
     PixAutomaticoQr,
     Pse,

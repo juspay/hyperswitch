@@ -5439,7 +5439,9 @@ pub async fn get_bank_from_vault(
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Error storing payout method data in temporary locker")?;
             }
-            let bank_data: api::BankTransferPayout = bank.to_owned().into();
+            let bank_data = api::BankTransferPayout::try_from(bank.to_owned())
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Error converting bank transfer data")?;
             Ok(bank_data)
         }
         api::PayoutMethodData::BankTransfer(bank) => {
