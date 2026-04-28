@@ -49,6 +49,73 @@ const multiUseMandateData = {
 };
 
 export const connectorDetails = {
+  wallet_pm: {
+    PaymentIntent: (walletName) => {
+      const walletConfigs = {
+        ApplePay: {
+          Request: {
+            currency: "USD",
+            amount: 6000,
+          },
+          Response: {
+            status: 200,
+            body: {
+              status: "requires_payment_method",
+            },
+          },
+        },
+        GooglePay: {
+          Request: {
+            currency: "USD",
+            amount: 6000,
+          },
+          Response: {
+            status: 200,
+            body: {
+              status: "requires_payment_method",
+            },
+          },
+        },
+      };
+      return walletConfigs[walletName];
+    },
+    ApplePay: {
+      Request: {
+        payment_method: "wallet",
+        payment_method_type: "apple_pay",
+        payment_method_data: {
+          wallet: {
+            apple_pay: {},
+          },
+        },
+        currency: "USD",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+    },
+    GooglePay: {
+      Request: {
+        payment_method: "wallet",
+        payment_method_type: "google_pay",
+        payment_method_data: {
+          wallet: {
+            google_pay: {},
+          },
+        },
+        currency: "USD",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+    },
+  },
   card_pm: {
     PaymentIntent: getCustomExchange({
       Request: {
@@ -883,6 +950,44 @@ export const connectorDetails = {
       },
       commonConnectorDetails.bank_transfer_pm.InstantBankTransferPoland
     ),
+  },
+  order_create_pm: {
+    ApplePayOrderCreate: {
+      Request: {
+        payment_method: "wallet",
+        payment_method_type: "apple_pay",
+        payment_method_data: {
+          wallet: {
+            apple_pay: {},
+          },
+        },
+        currency: "USD",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+    },
+    GooglePayOrderCreate: {
+      Request: {
+        payment_method: "wallet",
+        payment_method_type: "google_pay",
+        payment_method_data: {
+          wallet: {
+            google_pay: {},
+          },
+        },
+        currency: "USD",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+    },
   },
   webhook: {
     TransactionIdConfig: {
