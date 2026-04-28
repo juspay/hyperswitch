@@ -42,5 +42,9 @@
       "country": "US",
       "business": "default"
     }
-  ]
+  ],
+  "frm_routing_algorithm": {
+    "type": "single",
+    "data": "signifyd"
+  }
 }

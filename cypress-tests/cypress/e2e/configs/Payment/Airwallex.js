@@ -910,6 +910,215 @@ export const connectorDetails = {
       },
     },
   },
+  wallet_pm: {
+    PaymentIntent: {
+      Request: {
+        currency: "USD",
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+          setup_future_usage: "on_session",
+        },
+      },
+    },
+    OrderCreate: {
+      Request: {
+        payment_method: "wallet",
+        payment_method_type: "google_pay",
+        payment_method_data: {
+          wallet: {
+            google_pay: {
+              token: "mock_google_pay_token",
+            },
+          },
+        },
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+          payment_method: "wallet",
+          attempt_count: 1,
+        },
+      },
+    },
+    PaymentIntentWithOrderDetails: {
+      Request: {
+        currency: "USD",
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+        order_details: {
+          amount: 6000,
+          currency: "USD",
+          product_name: "Test Product",
+          quantity: 1,
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+          setup_future_usage: "on_session",
+          order_details: {
+            amount: 6000,
+            currency: "USD",
+            product_name: "Test Product",
+            quantity: 1,
+          },
+        },
+      },
+    },
+    PaymentConfirmWithOrderDetails: {
+      Request: {
+        payment_method: "wallet",
+        payment_method_type: "google_pay",
+        payment_method_data: {
+          wallet: {
+            google_pay: {
+              token: "mock_google_pay_token",
+            },
+          },
+        },
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+          payment_method: "wallet",
+          attempt_count: 1,
+        },
+      },
+    },
+    PaymentIntentWithOrderDetailsAndShipping: {
+      Request: {
+        currency: "USD",
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+        order_details: {
+          amount: 6000,
+          currency: "USD",
+          product_name: "Test Product",
+          quantity: 1,
+        },
+        shipping: {
+          address: {
+            line1: "1467 Harrison Street",
+            city: "San Francisco",
+            state: "CA",
+            zip: "94122",
+            country: "US",
+          },
+          cost: 500,
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+          setup_future_usage: "on_session",
+          order_details: {
+            amount: 6000,
+            currency: "USD",
+            product_name: "Test Product",
+            quantity: 1,
+          },
+          shipping: {
+            address: {
+              line1: "1467 Harrison Street",
+              city: "San Francisco",
+              state: "CA",
+              zip: "94122",
+              country: "US",
+            },
+            cost: 500,
+          },
+        },
+      },
+    },
+    PaymentIntentWithInvalidOrderDetails: {
+      Request: {
+        currency: "USD",
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+        order_details: {
+          amount: -100,
+          currency: "INVALID",
+          product_name: "",
+          quantity: -1,
+        },
+      },
+      Response: {
+        status: 400,
+        body: {
+          error: {
+            type: "invalid_request",
+            message: "Invalid order details",
+            code: "IR_16",
+          },
+        },
+      },
+    },
+    PaymentIntentWithLargeAmountOrderDetails: {
+      Request: {
+        currency: "USD",
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+        order_details: {
+          amount: 99999900,
+          currency: "USD",
+          product_name: "Expensive Product",
+          quantity: 1,
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+          setup_future_usage: "on_session",
+          order_details: {
+            amount: 99999900,
+            currency: "USD",
+            product_name: "Expensive Product",
+            quantity: 1,
+          },
+        },
+      },
+    },
+    PaymentIntentWithSpecialCharsOrderDetails: {
+      Request: {
+        currency: "USD",
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+        order_details: {
+          amount: 6000,
+          currency: "USD",
+          product_name: "Test Product !@#$%^&*()_+-=[]{}|;':\",./<>?",
+          quantity: 1,
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+          setup_future_usage: "on_session",
+          order_details: {
+            amount: 6000,
+            currency: "USD",
+            product_name: "Test Product !@#$%^&*()_+-=[]{}|;':\",./<>?",
+            quantity: 1,
+          },
+        },
+      },
+    },
+  },
   webhook: {
     TransactionIdConfig: {
       path: "sourceId",
