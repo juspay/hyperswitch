@@ -87,6 +87,7 @@ pub struct Profile {
     pub network_tokenization_credentials: Option<Encryption>,
     pub payment_method_blocking: Option<PaymentMethodBlockingConfig>,
     pub default_fallback_routing: Option<pii::SecretSerdeValue>,
+    pub surcharge_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
 }
 
 #[cfg(feature = "v1")]
@@ -153,6 +154,7 @@ pub struct ProfileNew {
     pub network_tokenization_credentials: Option<Encryption>,
     pub payment_method_blocking: Option<PaymentMethodBlockingConfig>,
     pub default_fallback_routing: Option<pii::SecretSerdeValue>,
+    pub surcharge_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
 }
 
 #[cfg(feature = "v1")]
@@ -220,6 +222,7 @@ pub struct ProfileUpdateInternal {
     pub network_tokenization_credentials: Option<Encryption>,
     pub payment_method_blocking: Option<PaymentMethodBlockingConfig>,
     pub default_fallback_routing: Option<pii::SecretSerdeValue>,
+    pub surcharge_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
 }
 
 #[cfg(feature = "v1")]
@@ -281,6 +284,7 @@ impl ProfileUpdateInternal {
             is_external_vault_enabled,
             external_vault_connector_details,
             billing_processor_id,
+            surcharge_connector_id,
             network_tokenization_credentials,
             payment_method_blocking,
             default_fallback_routing,
@@ -379,6 +383,7 @@ impl ProfileUpdateInternal {
             external_vault_connector_details: external_vault_connector_details
                 .or(source.external_vault_connector_details),
             billing_processor_id: billing_processor_id.or(source.billing_processor_id),
+            surcharge_connector_id: surcharge_connector_id.or(source.surcharge_connector_id),
             network_tokenization_credentials: network_tokenization_credentials
                 .or(source.network_tokenization_credentials),
             payment_method_blocking: payment_method_blocking.or(source.payment_method_blocking),
@@ -456,6 +461,7 @@ pub struct Profile {
     pub network_tokenization_credentials: Option<Encryption>,
     pub payment_method_blocking: Option<PaymentMethodBlockingConfig>,
     pub default_fallback_routing: Option<pii::SecretSerdeValue>,
+    pub surcharge_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
     pub routing_algorithm_id: Option<common_utils::id_type::RoutingId>,
     pub order_fulfillment_time: Option<i64>,
     pub order_fulfillment_time_origin: Option<common_enums::OrderFulfillmentTimeOrigin>,
@@ -530,6 +536,7 @@ pub struct ProfileNew {
     pub billing_processor_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
     pub routing_algorithm_id: Option<common_utils::id_type::RoutingId>,
     pub default_fallback_routing: Option<pii::SecretSerdeValue>,
+    pub surcharge_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
     pub order_fulfillment_time: Option<i64>,
     pub order_fulfillment_time_origin: Option<common_enums::OrderFulfillmentTimeOrigin>,
     pub frm_routing_algorithm_id: Option<String>,
@@ -598,6 +605,7 @@ pub struct ProfileUpdateInternal {
     pub frm_routing_algorithm_id: Option<String>,
     pub payout_routing_algorithm_id: Option<common_utils::id_type::RoutingId>,
     pub default_fallback_routing: Option<pii::SecretSerdeValue>,
+    pub surcharge_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
     pub three_ds_decision_manager_config: Option<common_types::payments::DecisionManagerRecord>,
     pub should_collect_cvv_during_payment:
         Option<primitive_wrappers::ShouldCollectCvvDuringPayment>,
@@ -640,6 +648,7 @@ impl ProfileUpdateInternal {
             tax_connector_id,
             is_tax_connector_enabled,
             billing_processor_id,
+            surcharge_connector_id,
             routing_algorithm_id,
             order_fulfillment_time,
             order_fulfillment_time_origin,
@@ -768,6 +777,7 @@ impl ProfileUpdateInternal {
             always_enable_overcapture: None,
             is_l2_l3_enabled: None,
             billing_processor_id: billing_processor_id.or(source.billing_processor_id),
+            surcharge_connector_id: surcharge_connector_id.or(source.surcharge_connector_id),
             network_tokenization_credentials: source.network_tokenization_credentials,
             payment_method_blocking: None,
         }

@@ -1564,3 +1564,26 @@ pub enum TokenSource {
     /// Apple Pay
     ApplePay,
 }
+
+/// External surcharge details from InterPayments (stored as JSONB)
+#[derive(
+    Clone,
+    Debug,
+    serde::Deserialize,
+    Eq,
+    ToSchema,
+    PartialEq,
+    serde::Serialize,
+    diesel::AsExpression,
+)]
+#[diesel(sql_type = Jsonb)]
+pub struct ExternalSurchargeDetails {
+    /// sTxId from InterPayments (the last one received before confirm)
+    pub external_surcharge_id: String,
+    /// Surcharge amount in minor units
+    pub external_surcharge_amount: i64,
+    /// Whether /v1/ch/sale has been successfully called
+    pub sale_notified: bool,
+}
+
+impl_to_sql_from_sql_json!(ExternalSurchargeDetails);

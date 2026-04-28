@@ -318,6 +318,7 @@ Never share your secret api keys. Keep them guarded and secure.
         common_types::connector_webhook_configuration::WebhookConfigType,
         common_types::payments::PaymentIntentStateMetadata,
         common_types::payments::PostCaptureVoidResponse,
+        common_types::payments::ExternalSurchargeDetails,
         api_models::enums::PaymentChannel,
         api_models::three_ds_decision_rule::ThreeDsDecisionRuleExecuteRequest,
         api_models::three_ds_decision_rule::ThreeDsDecisionRuleExecuteResponse,

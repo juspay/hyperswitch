@@ -1641,6 +1641,7 @@ impl PaymentCreate {
                 error_details: None,
                 retry_type: None,
                 installment_data: None,
+                external_surcharge_details: None,
             },
             additional_pm_data,
 
