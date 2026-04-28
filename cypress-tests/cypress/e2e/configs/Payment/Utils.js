@@ -542,6 +542,7 @@ export const CONNECTOR_LISTS = {
     EXTERNAL_THREE_DS: ["stripe"],
     BANK_DEBIT: ["novalnet"],
     PARTNER_MERCHANT_IDENTIFIER: ["adyen", "checkout"],
+    CARD_REDIRECT: ["adyen"],
     // Add more inclusion lists
   },
 };
