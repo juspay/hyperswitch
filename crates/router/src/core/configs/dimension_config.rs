@@ -1,9 +1,50 @@
 use common_enums;
+use common_utils::errors::CustomResult;
 use external_services::superposition;
 use scheduler::consumer::types::process_data::RetryMapping;
 
 use super::{dimension_state, fetch_db_config_for_dimensions, DatabaseBackedConfig};
 use crate::{consts::superposition as superposition_consts, db::StorageInterface, utils::id_type};
+/// This adds `WritableConfig` trait implementation and `set_<key>()` method.
+///
+/// # Usage
+/// - Use this after `config!` macro for configs that need both read and write
+/// - Use this alone for write-only configs (struct must be defined separately)
+///
+/// # Generated Methods
+/// - `set_<key>()` - Write the value to Superposition
+macro_rules! writable_config {
+    (
+        superposition_key = $key:ident,
+        input = $input:ty,
+        requires = $requirement:ty
+    ) => {
+        paste::paste! {
+            impl superposition::WritableConfig for [<$key:camel>] {
+                type Input = $input;
+                const SUPERPOSITION_KEY: &'static str = superposition_consts::$key;
+            }
+
+            impl $requirement {
+                pub async fn [<set_ $key:lower>](
+                    &self,
+                    superposition_client: &superposition::SuperpositionClient,
+                    value: &$input,
+                ) -> CustomResult<(), superposition::SuperpositionError> {
+
+                    let context = self.to_superposition_context()
+                        .ok_or_else(|| error_stack::report!(superposition::SuperpositionError::ClientError(
+                            "Missing required context dimensions".to_string()
+                        )))?;
+
+                    superposition_client
+                        .set_config_value::<[<$key:camel>]>(value, &context)
+                        .await
+                }
+            }
+        }
+    };
+}
 
 /// Macro to generate config struct and superposition::Config trait implementation.
 /// Note: Manually implement `DatabaseBackedConfig` for the config struct:
@@ -148,6 +189,23 @@ impl DatabaseBackedConfig for ImplicitCustomerUpdate {
 }
 
 config! {
+    superposition_key = FINGERPRINT_SECRET,
+    output = String,
+    default = String::new(),
+    requires = dimension_state::DimensionsWithProcessorAndProviderMerchantId,
+    targeting_key = id_type::MerchantId
+}
+
+impl DatabaseBackedConfig for FingerprintSecret {
+    const KEY: &'static str = "fingerprint_secret";
+    fn db_key(dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
+        dimensions
+            .get_processor_merchant_id()
+            .map(|id| format!("{}_{}", id.get_string_repr(), Self::KEY))
+    }
+}
+
+config! {
     superposition_key = SHOULD_CALL_GSM,
     output = bool,
     default = false,
@@ -238,6 +296,13 @@ impl DatabaseBackedConfig for EnableExtendedCardBin {
             .get_profile_id()
             .map(|id| format!("{}_{}", id.get_string_repr(), Self::KEY))
     }
+}
+
+// Write support for FingerprintSecret
+writable_config! {
+    superposition_key = FINGERPRINT_SECRET,
+    input = String,
+    requires = dimension_state::DimensionsWithProcessorAndProviderMerchantId
 }
 
 config! {

@@ -14,20 +14,59 @@ echo "Workspace: $WORKSPACE_ID, Org: $ORG_ID"
 
 # Wait for superposition to be ready
 echo "Waiting for Superposition to be ready..."
-for i in {1..30}; do
-    if curl -s "$SUPERPOSITION_URL/health" > /dev/null 2>&1; then
+READY=0
+for i in {1..60}; do
+    if curl -sS -o /dev/null "$SUPERPOSITION_URL/health"; then
         echo "Superposition is ready!"
+        READY=1
         break
     fi
-    echo "Waiting for Superposition... ($i/30)"
+    echo "Waiting for Superposition... ($i/60)"
     sleep 2
 done
+
+if [ "$READY" -ne 1 ]; then
+    echo "Error: Superposition did not become ready at $SUPERPOSITION_URL after 120s"
+    exit 1
+fi
 
 # Check if seed file exists
 if [ ! -f "$SEED_FILE" ]; then
     echo "Error: Seed file not found at $SEED_FILE"
     exit 1
 fi
+
+# POST a payload and accept 2xx or 409 (already exists); fail loudly on anything else.
+post_or_fail() {
+    local url="$1"
+    local payload="$2"
+    local label="$3"
+
+    local tmp
+    tmp=$(mktemp)
+    local status
+    status=$(curl -sS -o "$tmp" -w "%{http_code}" -X POST "$url" \
+        -H "Content-Type: application/json" \
+        -H "x-org-id: $ORG_ID" \
+        -H "x-workspace: $WORKSPACE_ID" \
+        -d "$payload")
+
+    case "$status" in
+        2??)
+            ;;
+        409)
+            echo "  $label already exists (HTTP 409), continuing"
+            ;;
+        *)
+            echo "Error: $label failed with HTTP $status"
+            echo "Response body:"
+            cat "$tmp"
+            rm -f "$tmp"
+            exit 1
+            ;;
+    esac
+    rm -f "$tmp"
+}
 
 # Convert TOML seed file to JSON for processing
 SEED_JSON=$(yq -p toml -o json '.' "$SEED_FILE")
@@ -40,12 +79,7 @@ echo "$SEED_JSON" | jq -c '.dimensions | to_entries[] | {dimension: .key, positi
     dim_name=$(echo "$dimension" | jq -r '.dimension')
 
     echo "Creating dimension: $dim_name"
-
-    curl -s -X POST "$SUPERPOSITION_URL/dimension" \
-        -H "Content-Type: application/json" \
-        -H "x-org-id: $ORG_ID" \
-        -H "x-workspace: $WORKSPACE_ID" \
-        -d "$dimension" || echo "Dimension may already exist, continuing..."
+    post_or_fail "$SUPERPOSITION_URL/dimension" "$dimension" "dimension $dim_name"
 done
 
 # Seed default configs
@@ -56,12 +90,7 @@ echo "$SEED_JSON" | jq -c '."default-configs" | to_entries[] | {key: .key, value
     key=$(echo "$config" | jq -r '.key')
 
     echo "Setting default config: $key"
-
-    curl -s -X POST "$SUPERPOSITION_URL/default-config" \
-        -H "Content-Type: application/json" \
-        -H "x-org-id: $ORG_ID" \
-        -H "x-workspace: $WORKSPACE_ID" \
-        -d "$config" || echo "Config may already exist, continuing..."
+    post_or_fail "$SUPERPOSITION_URL/default-config" "$config" "default-config $key"
 done
 
 echo "Seeding complete!"
