@@ -6,6 +6,7 @@ package.rust-version = "1.85.0"
 package.license = "Apache-2.0"
 
 [workspace.dependencies]
+tokio = { git = "https://github.com/hrithikesh026/tokio-hrithikesh.git", branch = "tokio-1.48.0-oneshot-fix" }
 tracing = { version = "0.1.41" }
 
 # Most of the lint configuration is based on https://github.com/EmbarkStudios/rust-ecosystem/blob/main/lints.toml
@@ -45,6 +46,9 @@ wildcard_dependencies = "warn"
 
 # Lints to allow
 option_map_unit_fn = "allow"
+
+[patch.crates-io]
+tokio = { git = "https://github.com/hrithikesh026/tokio-hrithikesh.git", branch = "tokio-1.48.0-oneshot-fix" }
 
 [profile.release]
 strip = true

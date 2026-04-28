@@ -60,7 +60,7 @@ vaultrs = { version = "0.7.4", optional = true }
 prost = { version = "0.14", optional = true }
 prost-types = { version = "0.14", optional = true }
 time = { version = "0.3.41", features = ["serde", "serde-well-known", "std"] }
-tokio = "1.48.0"
+tokio = { workspace = true }
 tonic = "0.14"
 tonic-prost = { version = "0.14", optional = true }
 tonic-reflection = "0.14.0"
