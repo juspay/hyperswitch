@@ -270,6 +270,28 @@ export const connectorDetails = {
         },
       },
     },
+    No3DSManualCaptureOvercapture: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "USD",
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+      Response: {
+        status: 400,
+        body: {
+          error: {
+            type: "invalid_request",
+            code: "IR_14",
+            message: "Overcapture is not supported by stripe",
+          },
+          error_code: "payment_intent_invalid_parameter",
+        },
+      },
+    },
     No3DSAutoCapture: {
       Request: {
         payment_method: "card",
@@ -334,6 +356,21 @@ export const connectorDetails = {
           amount: 6000,
           amount_capturable: 0,
           amount_received: 2000,
+        },
+      },
+    },
+    Overcapture: {
+      Request: {
+        amount_to_capture: 7000,
+      },
+      Response: {
+        status: 400,
+        body: {
+          error: {
+            type: "invalid_request",
+            code: "IR_14",
+            message: "Overcapture is not supported by stripe",
+          },
         },
       },
     },
