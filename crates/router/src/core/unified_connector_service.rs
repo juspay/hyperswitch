@@ -1137,17 +1137,26 @@ pub fn build_unified_connector_service_payment_method(
                     payments_grpc::MultibancoBankTransfer {  }
                 )),
             }),
-        hyperswitch_domain_models::payment_method_data::BankTransferData::PixQr {
-                pix_key: _,
-                cpf: _,
-                cnpj: _,
-                source_bank_account_id: _,
-                destination_bank_account_id: _,
-                expiry_date: _,
-            } => Err(UnifiedConnectorServiceError::NotImplemented(
-                "PixQr payment method not yet supported for Unified Connector Service".to_string()
-            )
-            .into()),
+            hyperswitch_domain_models::payment_method_data::BankTransferData::PixQr {
+                pix_key,
+                cpf,
+                cnpj,
+                source_bank_account_id,
+                destination_bank_account_id,
+                expiry_date,
+            } => Ok(payments_grpc::PaymentMethod {
+                payment_method: Some(PaymentMethod::Pix(payments_grpc::PixPayment {
+                    pix_key: pix_key.map(|v| v.expose().into()),
+                    cpf: cpf.map(|v| v.expose().into()),
+                    cnpj: cnpj.map(|v| v.expose().into()),
+                    source_bank_account_id: source_bank_account_id.map(|v| v.expose_inner()),
+                    destination_bank_account_id: destination_bank_account_id.map(|v| v.expose_inner()),
+                    expiry_date: expiry_date.map(|dt| {
+                        dt.format(&time::format_description::well_known::Iso8601::DEFAULT)
+                            .unwrap_or_default()
+                    }),
+                })),
+            }),
             hyperswitch_domain_models::payment_method_data::BankTransferData::PixAutomaticoPush { .. }
             | hyperswitch_domain_models::payment_method_data::BankTransferData::PixAutomaticoQr {} => {
                 Err(UnifiedConnectorServiceError::NotImplemented(format!(
