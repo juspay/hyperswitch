@@ -907,6 +907,46 @@ export const connectorDetails = {
         },
       },
     },
+    three_ds_uas_routing: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulThreeDSTestCardDetails,
+        },
+        authentication_type: "three_ds",
+        routing: {
+          threeds_routing_region: "UAS",
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+          authentication_type: "three_ds",
+        },
+      },
+    },
+    three_ds_uas_routing_manual_capture: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulThreeDSTestCardDetails,
+        },
+        authentication_type: "three_ds",
+        capture_method: "manual",
+        routing: {
+          threeds_routing_region: "UAS",
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+          authentication_type: "three_ds",
+          capture_method: "manual",
+        },
+      },
+    },
     PaymentIntentWithBillingDescriptor: {
       Request: {
         currency: "USD",
