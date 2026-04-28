@@ -8,7 +8,8 @@ readme = "README.md"
 license.workspace = true
 
 [features]
-default = []
+default = ["fred"]
+fred = ["dep:fred"]
 redis-rs = ["dep:redis"]
 multitenancy_fallback = []
 
@@ -21,7 +22,7 @@ tokio = "1.48.0"
 tokio-stream = { version = "0.1.17", features = ["sync"] }
 tracing = { workspace = true }
 
-# Backend deps — exactly one will be compiled depending on the active feature
+# Backend deps — exactly one is active at compile time
 redis = { version = "1.2.0", optional = true, features = [
     "tokio-comp", "cluster-async", "streams", "script", "connection-manager"
 ]}

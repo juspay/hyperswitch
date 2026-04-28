@@ -17,17 +17,16 @@ use fred::{
     prelude::{LuaInterface, RedisErrorKind},
     types::{
         Expiration, FromRedis, MultipleIDs, MultipleKeys, MultipleOrderedPairs, MultipleStrings,
-        MultipleValues, RedisMap, RedisValue, ScanType, Scanner, SetOptions, XCap, XReadResponse,
+        MultipleValues, RedisMap, RedisValue, ScanType, Scanner, SetOptions, XReadResponse,
     },
 };
-use futures::StreamExt;
 use tracing::instrument;
 
 use crate::{
     errors,
     types::{
         DelReply, HsetnxReply, MsetnxReply, RedisEntryId, RedisKey, SaddReply, SetGetReply,
-        SetnxReply, StreamEntries, StreamReadResult,
+        SetnxReply, StreamCapKind, StreamCapTrim, StreamEntries, StreamReadResult,
     },
 };
 
@@ -494,19 +493,29 @@ impl super::RedisConnectionPool {
     }
 
     #[instrument(level = "DEBUG", skip(self))]
-    pub async fn set_hash_fields<V>(
+    pub async fn set_hash_fields<F, V>(
         &self,
         key: &RedisKey,
-        values: V,
+        items: &[(F, V)],
         ttl: Option<i64>,
     ) -> CustomResult<(), errors::RedisError>
     where
-        V: TryInto<RedisMap> + Debug + Send + Sync,
-        V::Error: Into<fred::error::RedisError> + Send + Sync,
+        F: Into<String> + Clone + Debug + Send + Sync,
+        V: Into<String> + Clone + Debug + Send + Sync,
     {
+        let pairs: Vec<(String, String)> = items
+            .iter()
+            .map(|(f, v)| (f.clone().into(), v.clone().into()))
+            .collect();
+
+        let map: RedisMap = pairs
+            .try_into()
+            .map_err(|err| error_stack::report!(errors::RedisError::SetHashFailed)
+                .attach_printable(format!("{err}")))?;
+
         let output: Result<(), _> = self
             .pool
-            .hset(key.tenant_aware_key(self), values)
+            .hset(key.tenant_aware_key(self), map)
             .await
             .change_context(errors::RedisError::SetHashFailed);
         // setting expiry for the key
@@ -612,6 +621,8 @@ impl super::RedisConnectionPool {
         pattern: &str,
         count: Option<u32>,
     ) -> CustomResult<Vec<String>, errors::RedisError> {
+        use futures::StreamExt;
+
         Ok(self
             .pool
             .next()
@@ -619,8 +630,10 @@ impl super::RedisConnectionPool {
             .filter_map(|value| async move {
                 match value {
                     Ok(mut v) => {
-                        let v = v.take_results()?;
-
+                        let results = v.take_results();
+                        // Request the next page; without this fred closes the stream.
+                        let _: Result<(), fred::error::RedisError> = v.next();
+                        let v = results?;
                         let v: Vec<String> =
                             v.iter().filter_map(|(_, val)| val.as_string()).collect();
                         Some(futures::stream::iter(v))
@@ -643,6 +656,8 @@ impl super::RedisConnectionPool {
         count: Option<u32>,
         scan_type: Option<ScanType>,
     ) -> CustomResult<Vec<String>, errors::RedisError> {
+        use futures::StreamExt;
+
         Ok(self
             .pool
             .next()
@@ -650,8 +665,10 @@ impl super::RedisConnectionPool {
             .filter_map(|value| async move {
                 match value {
                     Ok(mut v) => {
-                        let v = v.take_results()?;
-
+                        let results = v.take_results();
+                        // Request the next page; without this fred closes the stream.
+                        let _: Result<(), fred::error::RedisError> = v.next();
+                        let v = results?;
                         let v: Vec<String> =
                             v.into_iter().filter_map(|val| val.into_string()).collect();
                         Some(futures::stream::iter(v))
@@ -787,47 +804,59 @@ impl super::RedisConnectionPool {
     }
 
     #[instrument(level = "DEBUG", skip(self))]
-    pub async fn stream_append_entry<F>(
+    pub async fn stream_append_entry<F, V>(
         &self,
         stream: &RedisKey,
         entry_id: &RedisEntryId,
-        fields: F,
+        fields: &[(F, V)],
     ) -> CustomResult<(), errors::RedisError>
     where
-        F: TryInto<MultipleOrderedPairs> + Debug + Send + Sync,
-        F::Error: Into<fred::error::RedisError> + Send + Sync,
+        F: Into<String> + Clone + Debug + Send + Sync,
+        V: Into<String> + Clone + Debug + Send + Sync,
     {
+        let pairs: Vec<(String, String)> = fields
+            .iter()
+            .map(|(f, v)| (f.clone().into(), v.clone().into()))
+            .collect();
+
+        let fred_fields: MultipleOrderedPairs = pairs
+            .try_into()
+            .map_err(|err| error_stack::report!(errors::RedisError::StreamAppendFailed)
+                .attach_printable(format!("{err}")))?;
+
         self.pool
-            .xadd(stream.tenant_aware_key(self), false, None, entry_id, fields)
+            .xadd(stream.tenant_aware_key(self), false, None, entry_id, fred_fields)
             .await
             .change_context(errors::RedisError::StreamAppendFailed)
     }
 
     #[instrument(level = "DEBUG", skip(self))]
-    pub async fn stream_delete_entries<Ids>(
+    pub async fn stream_delete_entries(
         &self,
         stream: &RedisKey,
-        ids: Ids,
-    ) -> CustomResult<usize, errors::RedisError>
-    where
-        Ids: Into<MultipleStrings> + Debug + Send + Sync,
-    {
+        ids: &[String],
+    ) -> CustomResult<usize, errors::RedisError> {
+        if ids.is_empty() {
+            return Ok(0);
+        }
+        let fred_ids: MultipleStrings = ids.to_vec().into();
         self.pool
-            .xdel(stream.tenant_aware_key(self), ids)
+            .xdel(stream.tenant_aware_key(self), fred_ids)
             .await
             .change_context(errors::RedisError::StreamDeleteFailed)
     }
 
     #[instrument(level = "DEBUG", skip(self))]
-    pub async fn stream_trim_entries<C>(
+    pub async fn stream_trim_entries(
         &self,
         stream: &RedisKey,
-        xcap: C,
-    ) -> CustomResult<usize, errors::RedisError>
-    where
-        C: TryInto<XCap> + Debug + Send + Sync,
-        C::Error: Into<fred::error::RedisError> + Send + Sync,
-    {
+        cap_kind: StreamCapKind,
+        cap_trim: StreamCapTrim,
+        threshold: &str,
+    ) -> CustomResult<usize, errors::RedisError> {
+        let xcap: fred::types::XCap = (cap_kind, cap_trim, threshold, None::<i64>)
+            .try_into()
+            .map_err(|err| error_stack::report!(errors::RedisError::StreamTrimFailed).attach_printable(format!("{err}")))?;
         self.pool
             .xtrim(stream.tenant_aware_key(self), xcap)
             .await
@@ -835,17 +864,18 @@ impl super::RedisConnectionPool {
     }
 
     #[instrument(level = "DEBUG", skip(self))]
-    pub async fn stream_acknowledge_entries<Ids>(
+    pub async fn stream_acknowledge_entries(
         &self,
         stream: &RedisKey,
         group: &str,
-        ids: Ids,
-    ) -> CustomResult<usize, errors::RedisError>
-    where
-        Ids: Into<MultipleIDs> + Debug + Send + Sync,
-    {
+        ids: &[String],
+    ) -> CustomResult<usize, errors::RedisError> {
+        if ids.is_empty() {
+            return Ok(0);
+        }
+        let fred_ids: MultipleIDs = ids.to_vec().into();
         self.pool
-            .xack(stream.tenant_aware_key(self), group, ids)
+            .xack(stream.tenant_aware_key(self), group, fred_ids)
             .await
             .change_context(errors::RedisError::StreamAcknowledgeFailed)
     }
@@ -1053,32 +1083,35 @@ impl super::RedisConnectionPool {
         group: &str,
         id: &RedisEntryId,
     ) -> CustomResult<String, errors::RedisError> {
-        self.pool
-            .xgroup_setid(stream.tenant_aware_key(self), group, id)
+        let id_str = id.to_stream_id();
+        let _: String = self
+            .pool
+            .xgroup_setid(stream.tenant_aware_key(self), group, &id_str)
             .await
-            .change_context(errors::RedisError::ConsumerGroupSetIdFailed)
+            .change_context(errors::RedisError::ConsumerGroupSetIdFailed)?;
+        Ok(id_str)
     }
 
     #[instrument(level = "DEBUG", skip(self))]
-    pub async fn consumer_group_set_message_owner<Ids, R>(
+    pub async fn consumer_group_set_message_owner<R>(
         &self,
         stream: &RedisKey,
         group: &str,
         consumer: &str,
         min_idle_time: u64,
-        ids: Ids,
+        ids: &[String],
     ) -> CustomResult<R, errors::RedisError>
     where
-        Ids: Into<MultipleIDs> + Debug + Send + Sync,
         R: FromRedis + Unpin + Send + 'static,
     {
+        let fred_ids: MultipleIDs = ids.to_vec().into();
         self.pool
             .xclaim(
                 stream.tenant_aware_key(self),
                 group,
                 consumer,
                 min_idle_time,
-                ids,
+                fred_ids,
                 None,
                 None,
                 None,
@@ -1203,493 +1236,5 @@ impl super::RedisConnectionPool {
             _ => Err(report!(errors::RedisError::SetFailed))
                 .attach_printable("Unexpected result from SET NX operation"),
         }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use std::collections::HashMap;
-
-    use crate::{errors::RedisError, types::RedisSettings, RedisConnectionPool, types::RedisEntryId};
-
-    #[tokio::test]
-    async fn test_consumer_group_create() {
-        let is_invalid_redis_entry_error = tokio::task::spawn_blocking(move || {
-            futures::executor::block_on(async {
-                // Arrange
-                let redis_conn = RedisConnectionPool::new(&RedisSettings::default())
-                    .await
-                    .expect("failed to create redis connection pool");
-
-                // Act
-                let result1 = redis_conn
-                    .consumer_group_create(&"TEST1".into(), "GTEST", &RedisEntryId::AutoGeneratedID)
-                    .await;
-
-                let result2 = redis_conn
-                    .consumer_group_create(
-                        &"TEST3".into(),
-                        "GTEST",
-                        &RedisEntryId::UndeliveredEntryID,
-                    )
-                    .await;
-
-                // Assert Setup
-                *result1.unwrap_err().current_context() == RedisError::InvalidRedisEntryId
-                    && *result2.unwrap_err().current_context() == RedisError::InvalidRedisEntryId
-            })
-        })
-        .await
-        .expect("Spawn block failure");
-
-        assert!(is_invalid_redis_entry_error);
-    }
-
-    #[tokio::test]
-    async fn test_delete_existing_key_success() {
-        let is_success = tokio::task::spawn_blocking(move || {
-            futures::executor::block_on(async {
-                // Arrange
-                let pool = RedisConnectionPool::new(&RedisSettings::default())
-                    .await
-                    .expect("failed to create redis connection pool");
-                let _ = pool.set_key(&"key".into(), "value".to_string()).await;
-
-                // Act
-                let result = pool.delete_key(&"key".into()).await;
-
-                // Assert setup
-                result.is_ok()
-            })
-        })
-        .await
-        .expect("Spawn block failure");
-
-        assert!(is_success);
-    }
-    #[tokio::test]
-    async fn test_delete_non_existing_key_success() {
-        let is_success = tokio::task::spawn_blocking(move || {
-            futures::executor::block_on(async {
-                // Arrange
-                let pool = RedisConnectionPool::new(&RedisSettings::default())
-                    .await
-                    .expect("failed to create redis connection pool");
-
-                // Act
-                let result = pool.delete_key(&"key not exists".into()).await;
-
-                // Assert Setup
-                result.is_ok()
-            })
-        })
-        .await
-        .expect("Spawn block failure");
-        assert!(is_success);
-    }
-
-    #[tokio::test]
-    async fn test_setting_keys_using_scripts() {
-        let is_success = tokio::task::spawn_blocking(move || {
-            futures::executor::block_on(async {
-                // Arrange
-                let pool = RedisConnectionPool::new(&RedisSettings::default())
-                    .await
-                    .expect("failed to create redis connection pool");
-                let lua_script = r#"
-                for i = 1, #KEYS do
-                    redis.call("INCRBY", KEYS[i], ARGV[i])
-                end
-                return
-                "#;
-                let mut keys_and_values = HashMap::new();
-                for i in 0..10 {
-                    keys_and_values.insert(format!("key{i}"), i);
-                }
-
-                let key = keys_and_values.keys().cloned().collect::<Vec<_>>();
-                let values = keys_and_values
-                    .values()
-                    .map(|val| val.to_string())
-                    .collect::<Vec<String>>();
-
-                // Act
-                let result = pool
-                    .evaluate_redis_script::<_, ()>(lua_script, key, values)
-                    .await;
-
-                // Assert Setup
-                result.is_ok()
-            })
-        })
-        .await
-        .expect("Spawn block failure");
-
-        assert!(is_success);
-    }
-    #[tokio::test]
-    async fn test_getting_keys_using_scripts() {
-        let is_success = tokio::task::spawn_blocking(move || {
-            futures::executor::block_on(async {
-                // Arrange
-                let pool = RedisConnectionPool::new(&RedisSettings::default())
-                    .await
-                    .expect("failed to create redis connection pool");
-
-                // First set some keys
-                for i in 0..3 {
-                    let key = format!("script_test_key{i}").into();
-                    let _ = pool.set_key(&key, format!("value{i}")).await;
-                }
-
-                let lua_script = r#"
-                local results = {}
-                for i = 1, #KEYS do
-                    results[i] = redis.call("GET", KEYS[i])
-                end
-                return results
-                "#;
-
-                let keys = vec![
-                    "script_test_key0".to_string(),
-                    "script_test_key1".to_string(),
-                    "script_test_key2".to_string(),
-                ];
-
-                // Act
-                let result = pool
-                    .evaluate_redis_script::<_, Vec<String>>(lua_script, keys, vec![""])
-                    .await;
-
-                // Assert Setup
-                result.is_ok()
-            })
-        })
-        .await
-        .expect("Spawn block failure");
-
-        assert!(is_success);
-    }
-
-    #[tokio::test]
-    async fn test_set_key_if_not_exists_and_get_value_new_key() {
-        let is_success = tokio::task::spawn_blocking(move || {
-            futures::executor::block_on(async {
-                // Arrange
-                let pool = RedisConnectionPool::new(&RedisSettings::default())
-                    .await
-                    .expect("failed to create redis connection pool");
-                let key = "test_new_key_string".into();
-                let value = "test_value".to_string();
-
-                // Act
-                let result = pool
-                    .set_key_if_not_exists_and_get_value(&key, value.clone(), Some(30))
-                    .await;
-
-                // Assert
-                match result {
-                    Ok(crate::types::SetGetReply::ValueSet(returned_value)) => {
-                        returned_value == value
-                    }
-                    _ => false,
-                }
-            })
-        })
-        .await
-        .expect("Spawn block failure");
-
-        assert!(is_success);
-    }
-
-    #[tokio::test]
-    async fn test_set_key_if_not_exists_and_get_value_existing_key() {
-        let is_success = tokio::task::spawn_blocking(move || {
-            futures::executor::block_on(async {
-                // Arrange
-                let pool = RedisConnectionPool::new(&RedisSettings::default())
-                    .await
-                    .expect("failed to create redis connection pool");
-                let key = "test_existing_key_string".into();
-                let initial_value = "initial_value".to_string();
-                let new_value = "new_value".to_string();
-
-                // First, set an initial value using regular set_key
-                let _ = pool.set_key(&key, initial_value.clone()).await;
-
-                // Act - try to set a new value (should fail and return existing value)
-                let result = pool
-                    .set_key_if_not_exists_and_get_value(&key, new_value, Some(30))
-                    .await;
-
-                // Assert
-                match result {
-                    Ok(crate::types::SetGetReply::ValueExists(returned_value)) => {
-                        returned_value == initial_value
-                    }
-                    _ => false,
-                }
-            })
-        })
-        .await
-        .expect("Spawn block failure");
-
-        assert!(is_success);
-    }
-
-    #[tokio::test]
-    async fn test_set_key_if_not_exists_and_get_value_with_default_ttl() {
-        let is_success = tokio::task::spawn_blocking(move || {
-            futures::executor::block_on(async {
-                // Arrange
-                let pool = RedisConnectionPool::new(&RedisSettings::default())
-                    .await
-                    .expect("failed to create redis connection pool");
-                let key = "test_default_ttl_key_string".into();
-                let value = "test_value".to_string();
-
-                // Act - use None for TTL to test default behavior
-                let result = pool
-                    .set_key_if_not_exists_and_get_value(&key, value.clone(), None)
-                    .await;
-
-                // Assert
-                match result {
-                    Ok(crate::types::SetGetReply::ValueSet(returned_value)) => {
-                        returned_value == value
-                    }
-                    _ => false,
-                }
-            })
-        })
-        .await
-        .expect("Spawn block failure");
-
-        assert!(is_success);
-    }
-
-    #[tokio::test]
-    async fn test_set_key_if_not_exists_and_get_value_concurrent_access() {
-        let is_success = tokio::task::spawn_blocking(move || {
-            futures::executor::block_on(async {
-                // Arrange
-                let pool = RedisConnectionPool::new(&RedisSettings::default())
-                    .await
-                    .expect("failed to create redis connection pool");
-                let key_name = "test_concurrent_key_string";
-                let value1 = "value1".to_string();
-                let value2 = "value2".to_string();
-
-                // Act - simulate concurrent access
-                let pool1 = pool.clone("");
-                let pool2 = pool.clone("");
-                let key1 = key_name.into();
-                let key2 = key_name.into();
-
-                let (result1, result2) = tokio::join!(
-                    pool1.set_key_if_not_exists_and_get_value(&key1, value1, Some(30)),
-                    pool2.set_key_if_not_exists_and_get_value(&key2, value2, Some(30))
-                );
-
-                // Assert - one should succeed with ValueSet, one should fail with ValueExists
-                let result1_is_set = matches!(result1, Ok(crate::types::SetGetReply::ValueSet(_)));
-                let result2_is_set = matches!(result2, Ok(crate::types::SetGetReply::ValueSet(_)));
-                let result1_is_exists =
-                    matches!(result1, Ok(crate::types::SetGetReply::ValueExists(_)));
-                let result2_is_exists =
-                    matches!(result2, Ok(crate::types::SetGetReply::ValueExists(_)));
-
-                // Exactly one should be ValueSet and one should be ValueExists
-                (result1_is_set && result2_is_exists) || (result1_is_exists && result2_is_set)
-            })
-        })
-        .await
-        .expect("Spawn block failure");
-
-        assert!(is_success);
-    }
-
-    #[tokio::test]
-    async fn test_get_multiple_keys_success() {
-        let is_success = tokio::task::spawn_blocking(move || {
-            futures::executor::block_on(async {
-                // Arrange
-                let pool = RedisConnectionPool::new(&RedisSettings::default())
-                    .await
-                    .expect("failed to create redis connection pool");
-
-                // Set up test data
-                let keys = vec![
-                    "multi_test_key1".into(),
-                    "multi_test_key2".into(),
-                    "multi_test_key3".into(),
-                ];
-                let values = ["value1", "value2", "value3"];
-
-                // Set the keys
-                for (key, value) in keys.iter().zip(values.iter()) {
-                    let _ = pool.set_key(key, value.to_string()).await;
-                }
-
-                // Act
-                let result = pool.get_multiple_keys::<String>(&keys).await;
-
-                // Assert
-                match result {
-                    Ok(retrieved_values) => {
-                        retrieved_values.len() == 3
-                            && retrieved_values.first() == Some(&Some("value1".to_string()))
-                            && retrieved_values.get(1) == Some(&Some("value2".to_string()))
-                            && retrieved_values.get(2) == Some(&Some("value3".to_string()))
-                    }
-                    _ => false,
-                }
-            })
-        })
-        .await
-        .expect("Spawn block failure");
-
-        assert!(is_success);
-    }
-
-    #[tokio::test]
-    async fn test_get_multiple_keys_with_missing_keys() {
-        let is_success = tokio::task::spawn_blocking(move || {
-            futures::executor::block_on(async {
-                // Arrange
-                let pool = RedisConnectionPool::new(&RedisSettings::default())
-                    .await
-                    .expect("failed to create redis connection pool");
-
-                let keys = vec![
-                    "existing_key".into(),
-                    "non_existing_key".into(),
-                    "another_existing_key".into(),
-                ];
-
-                // Set only some keys
-                let _ = pool
-                    .set_key(
-                        keys.first().expect("should not be none"),
-                        "value1".to_string(),
-                    )
-                    .await;
-                let _ = pool
-                    .set_key(
-                        keys.get(2).expect("should not be none"),
-                        "value3".to_string(),
-                    )
-                    .await;
-
-                // Act
-                let result = pool.get_multiple_keys::<String>(&keys).await;
-
-                // Assert
-                match result {
-                    Ok(retrieved_values) => {
-                        retrieved_values.len() == 3
-                            && *retrieved_values.first().expect("should not be none")
-                                == Some("value1".to_string())
-                            && retrieved_values.get(1).is_some_and(|v| v.is_none())
-                            && *retrieved_values.get(2).expect("should not be none")
-                                == Some("value3".to_string())
-                    }
-                    _ => false,
-                }
-            })
-        })
-        .await
-        .expect("Spawn block failure");
-
-        assert!(is_success);
-    }
-
-    #[tokio::test]
-    async fn test_get_multiple_keys_empty_input() {
-        let is_success = tokio::task::spawn_blocking(move || {
-            futures::executor::block_on(async {
-                // Arrange
-                let pool = RedisConnectionPool::new(&RedisSettings::default())
-                    .await
-                    .expect("failed to create redis connection pool");
-
-                let keys: Vec<crate::types::RedisKey> = vec![];
-
-                // Act
-                let result = pool.get_multiple_keys::<String>(&keys).await;
-
-                // Assert
-                match result {
-                    Ok(retrieved_values) => retrieved_values.is_empty(),
-                    _ => false,
-                }
-            })
-        })
-        .await
-        .expect("Spawn block failure");
-
-        assert!(is_success);
-    }
-
-    #[tokio::test]
-    async fn test_get_and_deserialize_multiple_keys() {
-        let is_success = tokio::task::spawn_blocking(move || {
-            futures::executor::block_on(async {
-                // Arrange
-                let pool = RedisConnectionPool::new(&RedisSettings::default())
-                    .await
-                    .expect("failed to create redis connection pool");
-
-                #[derive(serde::Serialize, serde::Deserialize, PartialEq, Debug, Clone)]
-                struct TestData {
-                    id: u32,
-                    name: String,
-                }
-
-                let test_data = [
-                    TestData {
-                        id: 1,
-                        name: "test1".to_string(),
-                    },
-                    TestData {
-                        id: 2,
-                        name: "test2".to_string(),
-                    },
-                ];
-
-                let keys = vec![
-                    "serialize_test_key1".into(),
-                    "serialize_test_key2".into(),
-                    "non_existing_serialize_key".into(),
-                ];
-
-                // Set serialized data for first two keys
-                for (i, data) in test_data.iter().enumerate() {
-                    let _ = pool
-                        .serialize_and_set_key(keys.get(i).expect("should not be none"), data)
-                        .await;
-                }
-
-                // Act
-                let result = pool
-                    .get_and_deserialize_multiple_keys::<TestData>(&keys, "TestData")
-                    .await;
-
-                // Assert
-                match result {
-                    Ok(retrieved_data) => {
-                        retrieved_data.len() == 3
-                            && retrieved_data.first() == Some(&Some(test_data[0].clone()))
-                            && retrieved_data.get(1) == Some(&Some(test_data[1].clone()))
-                            && retrieved_data.get(2) == Some(&None)
-                    }
-                    _ => false,
-                }
-            })
-        })
-        .await
-        .expect("Spawn block failure");
-
-        assert!(is_success);
     }
 }

@@ -125,7 +125,7 @@ impl QueueInterface for Store {
         fields: Vec<(&str, String)>,
     ) -> CustomResult<(), RedisError> {
         self.get_redis_conn()?
-            .stream_append_entry(&stream.into(), entry_id, fields)
+            .stream_append_entry(&stream.into(), entry_id, &fields)
             .await
     }
 

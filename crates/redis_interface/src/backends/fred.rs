@@ -4,6 +4,7 @@
 //! implementations using the `fred` crate.
 
 pub mod commands;
+pub mod types;
 
 use std::sync::{atomic, Arc};
 
@@ -78,11 +79,47 @@ impl SubscriberClient {
             .await
             .change_context(crate::errors::RedisError::RedisConnectionError)?;
         let (broadcast_sender, _) = tokio::sync::broadcast::channel(broadcast_capacity);
+
+        // Auto-spawn the message forwarding task, just like the redis-rs backend.
+        // This reads from fred's internal message broadcast and forwards to our
+        // PubSubMessage broadcast channel, so callers can use `message_rx()`.
+        let fred_rx = client.message_rx();
+        let sender = broadcast_sender.clone();
+        tokio::spawn(async move {
+            Self::forward_messages(fred_rx, sender).await;
+        });
+
         Ok(Self {
             inner: client,
             is_subscriber_handler_spawned: Arc::new(atomic::AtomicBool::new(false)),
             broadcast_sender,
         })
+    }
+
+    /// Background task that reads from fred's internal message stream and
+    /// forwards each message to our broadcast channel.
+    async fn forward_messages(
+        mut fred_rx: tokio::sync::broadcast::Receiver<fred::types::Message>,
+        broadcast_sender: tokio::sync::broadcast::Sender<PubSubMessage>,
+    ) {
+        loop {
+            match fred_rx.recv().await {
+                Ok(msg) => {
+                    let channel = msg.channel.to_string();
+                    let value = RedisValue::from_bytes(
+                        msg.value
+                            .as_bytes()
+                            .map(|b: &[u8]| b.to_vec())
+                            .unwrap_or_default(),
+                    );
+                    let _ = broadcast_sender.send(PubSubMessage { channel, value });
+                }
+                Err(tokio::sync::broadcast::error::RecvError::Closed) => break,
+                Err(tokio::sync::broadcast::error::RecvError::Lagged(n)) => {
+                    tracing::warn!("fred pub/sub receiver lagged, {n} messages dropped");
+                }
+            }
+        }
     }
 
     pub fn message_rx(&self) -> tokio::sync::broadcast::Receiver<PubSubMessage> {
@@ -107,29 +144,6 @@ impl SubscriberClient {
             .unsubscribe(channel)
             .await
             .change_context(crate::errors::RedisError::SubscribeError)
-    }
-
-    pub async fn manage_subscriptions(&self) {
-        let mut rx = self.inner.message_rx();
-        let sender = self.broadcast_sender.clone();
-        loop {
-            match rx.recv().await {
-                Ok(msg) => {
-                    let channel = msg.channel.to_string();
-                    let value = RedisValue::from_bytes(
-                        msg.value
-                            .as_bytes()
-                            .map(|b: &[u8]| b.to_vec())
-                            .unwrap_or_default(),
-                    );
-                    let _ = sender.send(PubSubMessage { channel, value });
-                }
-                Err(tokio::sync::broadcast::error::RecvError::Closed) => break,
-                Err(tokio::sync::broadcast::error::RecvError::Lagged(n)) => {
-                    tracing::warn!("fred pub/sub receiver lagged, {} messages dropped", n);
-                }
-            }
-        }
     }
 }
 

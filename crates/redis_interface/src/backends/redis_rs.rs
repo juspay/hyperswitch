@@ -4,6 +4,7 @@
 //! implementations using the `redis` crate (redis-rs).
 
 pub mod commands;
+pub mod types;
 
 use std::sync::{atomic, Arc};
 
