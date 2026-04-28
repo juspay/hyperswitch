@@ -61,6 +61,7 @@ impl ForeignTryFrom<api_enums::Connector> for euclid::enums::RoutableConnectors 
             api_enums::Connector::Ebanx => Self::Ebanx,
             api_enums::Connector::Elavon => Self::Elavon,
             api_enums::Connector::Envoy => Self::Envoy,
+            api_enums::Connector::Sanlam => Self::Sanlam,
             api_enums::Connector::Facilitapay => Self::Facilitapay,
             api_enums::Connector::Finix => Self::Finix,
             api_enums::Connector::Fiserv => Self::Fiserv,

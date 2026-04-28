@@ -7459,3 +7459,12 @@ payment_method_type = "JCB"
 payment_method_type = "Discover"
 [[imerchantsolutions.debit]]
 payment_method_type = "UnionPay"
+
+[sanlam]
+[sanlam.connector_auth.BodyKey]
+api_key = "API Key"
+key1 = "Merchant Id"
+[[sanlam.bank_debit]]
+payment_method_type = "eft_debit_order"
+[sanlam.connector_webhook_details]
+merchant_secret="Source verification key"

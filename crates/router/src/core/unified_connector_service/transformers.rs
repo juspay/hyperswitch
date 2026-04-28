@@ -2048,8 +2048,8 @@ impl transformers::ForeignTryFrom<&RouterData<Session, PaymentsSessionData, Paym
                 phone_number: None,
                 phone_country_code: None,
             }),
-            metadata: None,
             return_url: None,
+            metadata: None,
         };
 
         Ok(Self {
@@ -3949,6 +3949,7 @@ impl transformers::ForeignTryFrom<common_enums::BankNames> for payments_grpc::Ba
             common_enums::BankNames::Yoursafe => Ok(Self::Yoursafe),
             common_enums::BankNames::N26 => Ok(Self::N26),
             common_enums::BankNames::NationaleNederlanden => Ok(Self::NationaleNederlanden),
+            common_enums::BankNames::Absa => Ok(Self::Absa),
         }
     }
 }

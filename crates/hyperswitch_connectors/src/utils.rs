@@ -6714,6 +6714,7 @@ pub enum PaymentMethodDataType {
     SepaGuarenteedDebit,
     BecsBankDebit,
     BacsBankDebit,
+    EftDebitOrder,
     AchBankTransfer,
     SepaBankTransfer,
     BacsBankTransfer,
@@ -6890,6 +6891,7 @@ impl From<PaymentMethodData> for PaymentMethodDataType {
             },
             PaymentMethodData::BankDebit(bank_debit_data) => match bank_debit_data {
                 payment_method_data::BankDebitData::AchBankDebit { .. } => Self::AchBankDebit,
+                payment_method_data::BankDebitData::EftDebitOrder { .. } => Self::EftDebitOrder,
                 payment_method_data::BankDebitData::SepaBankDebit { .. } => Self::SepaBankDebit,
                 payment_method_data::BankDebitData::SepaGuarenteedBankDebit { .. } => {
                     Self::SepaGuarenteedDebit
