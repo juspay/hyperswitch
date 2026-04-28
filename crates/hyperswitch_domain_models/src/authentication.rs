@@ -543,6 +543,9 @@ pub enum AuthenticationUpdate {
         trans_status: common_enums::TransactionStatus,
         authentication_status: common_enums::AuthenticationStatus,
     },
+    AuthenticationCreateUpdate {
+        connector_authentication_id: String,
+    },
 }
 
 impl From<AuthenticationUpdate> for diesel_models::authentication::AuthenticationUpdate {
@@ -697,6 +700,11 @@ impl From<AuthenticationUpdate> for diesel_models::authentication::Authenticatio
             } => Self::AuthenticationStatusUpdate {
                 trans_status,
                 authentication_status,
+            },
+            AuthenticationUpdate::AuthenticationCreateUpdate {
+                connector_authentication_id,
+            } => Self::AuthenticationCreateUpdate {
+                connector_authentication_id,
             },
         }
     }

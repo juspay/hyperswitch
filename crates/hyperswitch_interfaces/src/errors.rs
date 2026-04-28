@@ -61,6 +61,8 @@ pub enum ConnectorError {
     MissingConnectorMandateID,
     #[error("Missing connector mandate metadata")]
     MissingConnectorMandateMetadata,
+    #[error("Missing connector authentication ID")]
+    MissingConnectorAuthenticationID,
     #[error("Missing connector transaction ID")]
     MissingConnectorTransactionID,
     #[error("Missing connector refund ID")]

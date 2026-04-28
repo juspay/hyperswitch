@@ -9,6 +9,21 @@ use crate::{
     router_request_types::BrowserInformation,
 };
 
+#[derive(Clone, Debug)]
+pub struct ConnectorAuthenticationCreateRequestData {
+    pub amount: Option<i64>,
+    pub currency: Option<common_enums::Currency>,
+    pub return_url: Option<String>,
+    pub authentication_id: Option<common_utils::id_type::AuthenticationId>,
+    pub authentication_connector: Option<common_enums::AuthenticationConnectors>,
+    pub force_3ds_challenge: Option<bool>,
+    pub psd2_sca_exemption_type: Option<common_enums::ScaExemptionType>,
+    pub profile_acquirer_id: Option<common_utils::id_type::ProfileAcquirerId>,
+    pub acquirer_bin: Option<String>,
+    pub acquirer_merchant_id: Option<String>,
+    pub merchant_country_code: Option<String>,
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct ChallengeParams {
     pub acs_url: Option<url::Url>,
@@ -90,6 +105,10 @@ pub struct MessageExtensionAttribute {
 pub struct PreAuthNRequestData {
     // card data
     pub card: Card,
+    pub browser_info: Option<BrowserInformation>,
+    pub email: Option<Email>,
+    pub billing: Option<address::Address>,
+    pub shipping: Option<address::Address>,
 }
 
 #[derive(Clone, Debug)]

@@ -2,8 +2,8 @@
 use hyperswitch_domain_models::router_data_v2::RouterDataV2;
 #[cfg(feature = "payouts")]
 use hyperswitch_domain_models::types::{PayoutsData, PayoutsResponseData};
+pub(crate) use hyperswitch_domain_models::router_data::{AccessToken, RouterData};
 use hyperswitch_domain_models::{
-    router_data::{AccessToken, RouterData},
     router_flow_types::{
         authentication::{
             Authentication, PostAuthentication, PreAuthentication, PreAuthenticationVersionCall,
@@ -135,6 +135,13 @@ pub(crate) type ConnectorPostAuthenticationRouterData = RouterData<
     ConnectorPostAuthenticationRequestData,
     AuthenticationResponseData,
 >;
+
+pub type AuthenticationCreateType = dyn ConnectorIntegration<
+    hyperswitch_domain_models::router_flow_types::authentication::AuthenticationCreate,
+    hyperswitch_domain_models::router_request_types::authentication::ConnectorAuthenticationCreateRequestData,
+    AuthenticationResponseData,
+>;
+
 pub(crate) type ConnectorAuthenticationType = dyn ConnectorIntegration<
     Authentication,
     ConnectorAuthenticationRequestData,

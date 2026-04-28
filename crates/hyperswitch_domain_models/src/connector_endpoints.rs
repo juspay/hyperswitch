@@ -89,6 +89,7 @@ pub struct Connectors {
     pub moneris: ConnectorParams,
     pub mpgs: ConnectorParams,
     pub multisafepay: ConnectorParams,
+    pub modular_authentication: ConnectorParams,
     pub netcetera: ConnectorParams,
     pub nexinets: ConnectorParams,
     pub nexixpay: ConnectorParams,

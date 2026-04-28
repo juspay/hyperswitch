@@ -249,6 +249,9 @@ pub enum AuthenticationUpdate {
         trans_status: common_enums::TransactionStatus,
         authentication_status: common_enums::AuthenticationStatus,
     },
+    AuthenticationCreateUpdate {
+        connector_authentication_id: String,
+    },
 }
 
 impl Default for AuthenticationUpdateInternal {
@@ -703,6 +706,12 @@ impl From<AuthenticationUpdate> for AuthenticationUpdateInternal {
             } => Self {
                 trans_status: Some(trans_status),
                 authentication_status: Some(authentication_status),
+                ..Default::default()
+            },
+            AuthenticationUpdate::AuthenticationCreateUpdate {
+                connector_authentication_id,
+            } => Self {
+                connector_authentication_id: Some(connector_authentication_id),
                 ..Default::default()
             },
         }

@@ -411,6 +411,7 @@ pub trait Domain<F: Clone, R, D>: Send + Sync {
     async fn call_external_three_ds_authentication_if_eligible<'a>(
         &'a self,
         _state: &SessionState,
+        _request: &R,
         _payment_data: &mut D,
         _should_continue_confirm_transaction: &mut bool,
         _connector_call_type: &ConnectorCallType,

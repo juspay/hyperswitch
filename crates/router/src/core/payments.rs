@@ -916,6 +916,7 @@ where
                 .to_domain()?
                 .call_external_three_ds_authentication_if_eligible(
                     state,
+                    &req,
                     &mut payment_data,
                     &mut should_continue_transaction,
                     &connector_details,

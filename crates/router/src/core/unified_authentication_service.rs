@@ -56,7 +56,7 @@ use crate::{
     core::{
         authentication::utils as auth_utils,
         configs::dimension_state,
-        errors::utils::StorageErrorExt,
+        errors::utils::{ConnectorErrorExt, StorageErrorExt},
         metrics, payment_methods,
         payments::{helpers, validate_customer_details_for_click_to_pay},
         unified_authentication_service::types::{
@@ -825,7 +825,7 @@ pub async fn authentication_create_core(
         acquirer_country_code,
         Some(req.amount),
         Some(req.currency),
-        req.return_url,
+        req.return_url.clone(),
         req.profile_acquirer_id.clone(),
         customer_details
             .clone()
@@ -834,6 +834,115 @@ pub async fn authentication_create_core(
         platform.get_initiator(),
     )
     .await?;
+
+    if let Some(connector_name) = req.authentication_connector.clone().map(|c| c.to_string()) {
+        let merchant_connector_account = crate::core::payments::helpers::get_merchant_connector_account(
+            &state.clone(),
+            platform.get_processor(),
+            None,
+            &profile_id,
+            &connector_name,
+            None,
+        )
+        .await
+        .change_context(ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to fetch merchant connector account")?;
+
+        let request_data = hyperswitch_domain_models::router_request_types::authentication::ConnectorAuthenticationCreateRequestData {
+            amount: Some(req.amount.get_amount_as_i64()),
+            currency: Some(req.currency),
+            return_url: req.return_url.clone(),
+            authentication_id: Some(authentication_id.clone()),
+            authentication_connector: req.authentication_connector,
+            force_3ds_challenge: req.force_3ds_challenge,
+            psd2_sca_exemption_type: req.psd2_sca_exemption_type,
+            profile_acquirer_id: req.profile_acquirer_id.clone(),
+            acquirer_bin: req.acquirer_details.as_ref().and_then(|a| a.acquirer_bin.clone()),
+            acquirer_merchant_id: req.acquirer_details.as_ref().and_then(|a| a.acquirer_merchant_id.clone()),
+            merchant_country_code: req.acquirer_details.as_ref().and_then(|a| a.merchant_country_code.clone()),
+        };
+
+        let router_data = utils::construct_uas_router_data::<
+            hyperswitch_domain_models::router_flow_types::authentication::AuthenticationCreate,
+            hyperswitch_domain_models::router_request_types::authentication::ConnectorAuthenticationCreateRequestData,
+            hyperswitch_domain_models::router_response_types::AuthenticationResponseData,
+        >(
+            &state,
+            connector_name.clone(),
+            common_enums::enums::PaymentMethod::default(),
+            merchant_id.clone(),
+            None,
+            request_data,
+            &merchant_connector_account,
+            Some(authentication_id.clone()),
+            None,
+        )?;
+
+        let modular_connector = hyperswitch_connectors::connectors::modular_authentication::ModularAuthentication::new();
+
+        // Build and execute the request directly using ConnectorIntegration trait methods
+        let connectors_config = state.conf.connectors.clone();
+        let connector_request = <hyperswitch_connectors::connectors::modular_authentication::ModularAuthentication
+            as crate::services::ConnectorIntegration<
+            hyperswitch_domain_models::router_flow_types::authentication::AuthenticationCreate,
+            hyperswitch_domain_models::router_request_types::authentication::ConnectorAuthenticationCreateRequestData,
+            hyperswitch_domain_models::router_response_types::AuthenticationResponseData,
+        >>::build_request(&modular_connector, &router_data, &connectors_config)
+        .to_payment_failed_response()?;
+
+        let response_router_data = if let Some(request) = connector_request {
+            let api_result = crate::services::api::call_connector_api(&state, request, "authentication_create").await
+                .change_context(ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to call authentication create connector API")?;
+
+            match api_result {
+                Ok(response) => {
+                    <hyperswitch_connectors::connectors::modular_authentication::ModularAuthentication
+                        as crate::services::ConnectorIntegration<
+                        hyperswitch_domain_models::router_flow_types::authentication::AuthenticationCreate,
+                        hyperswitch_domain_models::router_request_types::authentication::ConnectorAuthenticationCreateRequestData,
+                        hyperswitch_domain_models::router_response_types::AuthenticationResponseData,
+                    >>::handle_response(&modular_connector, &router_data, None, response)
+                    .to_payment_failed_response()?
+                }
+                Err(error_response) => {
+                    let error = <hyperswitch_connectors::connectors::modular_authentication::ModularAuthentication
+                        as crate::services::ConnectorIntegration<
+                        hyperswitch_domain_models::router_flow_types::authentication::AuthenticationCreate,
+                        hyperswitch_domain_models::router_request_types::authentication::ConnectorAuthenticationCreateRequestData,
+                        hyperswitch_domain_models::router_response_types::AuthenticationResponseData,
+                    >>::get_error_response(&modular_connector, error_response, None)
+                    .to_payment_failed_response()?;
+                    let mut data = router_data.clone();
+                    data.response = Err(error);
+                    data
+                }
+            }
+        } else {
+            router_data
+        };
+
+        if let Ok(hyperswitch_domain_models::router_response_types::AuthenticationResponseData::PreAuthNResponse {
+            connector_authentication_id,
+            ..
+        }) = response_router_data.response {
+            let authentication_update = hyperswitch_domain_models::authentication::AuthenticationUpdate::AuthenticationCreateUpdate {
+                connector_authentication_id,
+            };
+
+            state
+                .store
+                .update_authentication_by_merchant_id_authentication_id(
+                    new_authentication.clone(),
+                    authentication_update,
+                    platform.get_processor().get_key_store(),
+                    &key_manager_state,
+                )
+                .await
+                .change_context(ApiErrorResponse::InternalServerError)
+                .attach_printable("Error while updating authentication with connector_authentication_id")?;
+        }
+    }
 
     let acquirer_details = Some(AcquirerDetails {
         acquirer_bin: new_authentication.acquirer_bin.clone(),

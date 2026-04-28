@@ -449,12 +449,12 @@ pub struct MasterCardEligibilityCheckData {
     pub last_used_card_timestamp: Option<String>,
 }
 
-#[derive(Debug, Serialize, ToSchema)]
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
 pub enum EligibilityResponseParams {
     ThreeDsData(ThreeDsData),
 }
 
-#[derive(Debug, Serialize, ToSchema)]
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
 pub struct ThreeDsData {
     /// The unique identifier for this authentication from the 3DS server.
     #[schema(value_type = String)]
@@ -479,7 +479,7 @@ pub struct ThreeDsData {
     pub directory_server_id: Option<String>,
 }
 
-#[derive(Debug, Serialize, ToSchema)]
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
 pub struct NextAction {
     /// The URL for authenticatating the user.
     #[schema(value_type = String)]

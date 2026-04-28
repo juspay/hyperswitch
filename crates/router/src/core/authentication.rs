@@ -227,6 +227,8 @@ pub async fn perform_pre_authentication(
     psd2_sca_exemption_type: Option<common_enums::ScaExemptionType>,
     billing_address: Option<hyperswitch_domain_models::address::Address>,
     shipping_address: Option<hyperswitch_domain_models::address::Address>,
+    browser_info: Option<core_types::BrowserInformation>,
+    email: Option<common_utils::pii::Email>,
     initiator: Option<&domain::Initiator>,
 ) -> CustomResult<
     hyperswitch_domain_models::router_request_types::authentication::AuthenticationStore,
@@ -263,6 +265,10 @@ pub async fn perform_pre_authentication(
                 &three_ds_connector_account,
                 business_profile.merchant_id.clone(),
                 payment_id.clone(),
+                billing_address.clone(),
+                shipping_address.clone(),
+                browser_info.clone(),
+                email.clone(),
             )?;
         let router_data = Box::pin(utils::do_auth_connector_call(
             state,
@@ -275,8 +281,8 @@ pub async fn perform_pre_authentication(
             hyperswitch_domain_models::router_request_types::authentication::AuthenticationInfo {
                 billing_address: billing_address.clone(),
                 shipping_address: shipping_address.clone(),
-                browser_info: None,
-                email: None,
+                browser_info: browser_info.clone(),
+                email: email.clone(),
                 device_details: None,
                 merchant_category_code: None,
                 merchant_country_code: None,
@@ -312,6 +318,10 @@ pub async fn perform_pre_authentication(
             &three_ds_connector_account,
             business_profile.merchant_id.clone(),
             payment_id,
+            billing_address.clone(),
+            shipping_address.clone(),
+            browser_info.clone(),
+            email.clone(),
         )?;
     let router_data = Box::pin(utils::do_auth_connector_call(
         state,
@@ -324,8 +334,8 @@ pub async fn perform_pre_authentication(
         hyperswitch_domain_models::router_request_types::authentication::AuthenticationInfo {
             billing_address,
             shipping_address,
-            browser_info: None,
-            email: None,
+            browser_info,
+            email,
             device_details: None,
             merchant_category_code: None,
             merchant_country_code: None,

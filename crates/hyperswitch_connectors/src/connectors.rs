@@ -71,6 +71,7 @@ pub mod klarna;
 pub mod loonio;
 pub mod mifinity;
 pub mod mollie;
+pub mod modular_authentication;
 pub mod moneris;
 pub mod mpgs;
 pub mod multisafepay;
@@ -166,7 +167,7 @@ pub use self::{
     iatapay::Iatapay, imerchantsolutions::Imerchantsolutions, inespay::Inespay, itaubank::Itaubank,
     jpmorgan::Jpmorgan, juspaythreedsserver::Juspaythreedsserver, katapult::Katapult,
     klarna::Klarna, loonio::Loonio, mifinity::Mifinity, mollie::Mollie, moneris::Moneris,
-    mpgs::Mpgs, multisafepay::Multisafepay, netcetera::Netcetera, nexinets::Nexinets,
+    mpgs::Mpgs, multisafepay::Multisafepay, modular_authentication::ModularAuthentication, netcetera::Netcetera, nexinets::Nexinets,
     nexixpay::Nexixpay, nmi::Nmi, nomupay::Nomupay, noon::Noon, nordea::Nordea, novalnet::Novalnet,
     nuvei::Nuvei, opayo::Opayo, opennode::Opennode, paybox::Paybox, payeezy::Payeezy,
     payjustnow::Payjustnow, payjustnowinstore::Payjustnowinstore, payload::Payload, payme::Payme,

@@ -1,15 +1,26 @@
 use hyperswitch_domain_models::{
     router_flow_types::authentication::{
-        Authentication, PostAuthentication, PreAuthentication, PreAuthenticationVersionCall,
+        Authentication, AuthenticationCreate, PostAuthentication, PreAuthentication,
+        PreAuthenticationVersionCall,
     },
     router_request_types::authentication::{
-        ConnectorAuthenticationRequestData, ConnectorPostAuthenticationRequestData,
-        PreAuthNRequestData,
+        ConnectorAuthenticationCreateRequestData, ConnectorAuthenticationRequestData,
+        ConnectorPostAuthenticationRequestData, PreAuthNRequestData,
     },
     router_response_types::AuthenticationResponseData,
 };
 
 use crate::api::ConnectorIntegration;
+
+/// trait ConnectorAuthenticationCreate
+pub trait ConnectorAuthenticationCreate:
+    ConnectorIntegration<
+    AuthenticationCreate,
+    ConnectorAuthenticationCreateRequestData,
+    AuthenticationResponseData,
+>
+{
+}
 
 /// trait ConnectorAuthentication
 pub trait ConnectorAuthentication:

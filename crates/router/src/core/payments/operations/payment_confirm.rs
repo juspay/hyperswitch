@@ -1482,6 +1482,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
     async fn call_external_three_ds_authentication_if_eligible<'a>(
         &'a self,
         state: &SessionState,
+        request: &api::PaymentsRequest,
         payment_data: &mut PaymentData<F>,
         should_continue_confirm_transaction: &mut bool,
         connector_call_type: &ConnectorCallType,
@@ -1521,6 +1522,12 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                     payment_data.payment_intent.psd2_sca_exemption_type,
                     billing_address,
                     shipping,
+                    request.browser_info.clone().and_then(|info| {
+                        use common_utils::ext_traits::ValueExt;
+                        info.parse_value::<types::BrowserInformation>("BrowserInformation")
+                            .ok()
+                    }),
+                    request.email.clone(),
                     initiator,
                 ))
                 .await?;
