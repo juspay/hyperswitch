@@ -6296,6 +6296,11 @@
           },
           "payment_data": {
             "$ref": "#/components/schemas/ApplePayCryptogramData"
+          },
+          "device_manufacturer_identifier": {
+            "type": "string",
+            "description": "Device manufacturer identifier from the decrypted Apple Pay token",
+            "nullable": true
           }
         }
       },
