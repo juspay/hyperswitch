@@ -2182,6 +2182,39 @@ Cypress.Commands.add("createPaymentMethodTest", (globalState, data) => {
   });
 });
 
+Cypress.Commands.add("retrievePaymentMethodTest", (globalState) => {
+  const apiKey = globalState.get("apiKey");
+  const baseUrl = globalState.get("baseUrl");
+  const paymentMethodId = globalState.get("paymentMethodId");
+  const url = `${baseUrl}/payment_methods/${paymentMethodId}`;
+
+  cy.request({
+    method: "GET",
+    url: url,
+    headers: {
+      Accept: "application/json",
+      "api-key": apiKey,
+    },
+    failOnStatusCode: false,
+  }).then((response) => {
+    logRequestId(response.headers["x-request-id"]);
+
+    cy.wrap(response).then(() => {
+      expect(response.headers["content-type"]).to.include("application/json");
+      if (response.status === 200) {
+        expect(response.body).to.have.property("id", paymentMethodId);
+        expect(response.body).to.have.property("customer_id");
+        expect(response.body).to.have.property("payment_method");
+      } else if (response.status === 404) {
+        expect(response.body.error.code).to.equal("HE_01");
+        expect(response.body.error.message).to.include("Payment method not found");
+      } else {
+        defaultErrorHandler(response);
+      }
+    });
+  });
+});
+
 Cypress.Commands.add("deletePaymentMethodTest", (globalState) => {
   const apiKey = globalState.get("apiKey");
   const baseUrl = globalState.get("baseUrl");
