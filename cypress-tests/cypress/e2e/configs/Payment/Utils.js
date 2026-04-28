@@ -53,6 +53,7 @@ import { connectorDetails as nuveiConnectorDetails } from "./Nuvei.js";
 import { connectorDetails as payboxConnectorDetails } from "./Paybox.js";
 import { connectorDetails as payloadConnectorDetails } from "./Payload.js";
 import { connectorDetails as paypalConnectorDetails } from "./Paypal.js";
+import { connectorDetails as razorpayConnectorDetails } from "./Razorpay.js";
 import { connectorDetails as paysafeConnectorDetails } from "./Paysafe.js";
 import { connectorDetails as payuConnectorDetails } from "./Payu.js";
 import { connectorDetails as peachpaymentsConnectorDetails } from "./Peachpayments.js";
@@ -126,6 +127,7 @@ const connectorDetails = {
   paybox: payboxConnectorDetails,
   payload: payloadConnectorDetails,
   paypal: paypalConnectorDetails,
+  razorpay: razorpayConnectorDetails,
   paysafe: paysafeConnectorDetails,
   payu: payuConnectorDetails,
   peachpayments: peachpaymentsConnectorDetails,
