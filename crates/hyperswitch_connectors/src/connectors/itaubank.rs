@@ -815,7 +815,7 @@ static ITAUBANK_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
 
         itaubank_supported_payment_methods.add(
             enums::PaymentMethod::BankTransfer,
-            enums::PaymentMethodType::Pix,
+            enums::PaymentMethodType::PixQr,
             PaymentMethodDetails {
                 mandates: enums::FeatureStatus::NotSupported,
                 refunds: enums::FeatureStatus::Supported,

@@ -339,7 +339,7 @@ export const payment_methods_enabled = [
     payment_method: "bank_transfer",
     payment_method_types: [
       {
-        payment_method_type: "pix",
+        payment_method_type: "pix_qr",
         minimum_amount: 0,
         maximum_amount: 68607706,
         recurring_enabled: false,
@@ -574,10 +574,10 @@ export const connectorDetails = {
     Pix: getCustomExchange({
       Request: {
         payment_method: "bank_transfer",
-        payment_method_type: "pix",
+        payment_method_type: "pix_qr",
         payment_method_data: {
           bank_transfer: {
-            pix: {},
+            pix_qr: {},
           },
         },
         billing: {

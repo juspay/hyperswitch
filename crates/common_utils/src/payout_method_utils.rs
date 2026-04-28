@@ -355,7 +355,7 @@ impl From<&AdditionalPayoutMethodData> for common_enums::PaymentMethodType {
                 BankAdditionalData::Ach(_) => Self::Ach,
                 BankAdditionalData::Bacs(_) => Self::Bacs,
                 BankAdditionalData::Sepa(_) => Self::SepaBankTransfer,
-                BankAdditionalData::Pix(_) => Self::Pix,
+                BankAdditionalData::Pix(_) => Self::PixQr,
                 BankAdditionalData::Trustly(_) => Self::Trustly,
             },
             AdditionalPayoutMethodData::Wallet(wallet) => match **wallet {

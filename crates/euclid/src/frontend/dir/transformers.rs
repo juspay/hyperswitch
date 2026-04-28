@@ -89,7 +89,7 @@ impl IntoDirValue for (global_enums::PaymentMethodType, global_enums::PaymentMet
             global_enums::PaymentMethodType::Multibanco => {
                 Ok(dirval!(BankTransferType = Multibanco))
             }
-            global_enums::PaymentMethodType::Pix => Ok(dirval!(BankTransferType = Pix)),
+            global_enums::PaymentMethodType::PixQr => Ok(dirval!(BankTransferType = PixQr)),
             global_enums::PaymentMethodType::PixAutomaticoPush => {
                 Ok(dirval!(BankTransferType = PixAutomaticoPush))
             }

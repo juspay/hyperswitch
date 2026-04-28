@@ -543,7 +543,7 @@ impl<F> TryFrom<RawPaymentCounterparty<'_, F>>
                         connector: "Adyenplatform",
                     })?,
                     payouts::BankTransfer::Pix(..) => Err(ConnectorError::NotSupported {
-                        message: "Bank transfer via Pix is not supported".to_string(),
+                        message: "Bank transfer via PixQr is not supported".to_string(),
                         connector: "Adyenplatform",
                     })?,
                     payouts::BankTransfer::Trustly(..) => Err(ConnectorError::NotSupported {

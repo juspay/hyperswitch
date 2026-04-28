@@ -49,10 +49,10 @@ export const connectorDetails = {
     Pix: {
       Request: {
         payment_method: "bank_transfer",
-        payment_method_type: "pix",
+        payment_method_type: "pix_qr",
         payment_method_data: {
           bank_transfer: {
-            pix: {
+            pix_qr: {
               pix_key: "a1f4102e-a446-4a57-bcce-6fa48899c1d1",
               cnpj: "74469027417312",
               cpf: "10599054689",

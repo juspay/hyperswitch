@@ -280,7 +280,7 @@ impl ConnectorValidation for Adyen {
                 | PaymentMethodType::OnlineBankingThailand
                 | PaymentMethodType::Oxxo
                 | PaymentMethodType::PaySafeCard
-                | PaymentMethodType::Pix
+                | PaymentMethodType::PixQr
                 | PaymentMethodType::Swish
                 | PaymentMethodType::TouchNGo
                 | PaymentMethodType::Trustly
@@ -3254,7 +3254,7 @@ static ADYEN_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = Lazy
 
     adyen_supported_payment_methods.add(
         enums::PaymentMethod::BankTransfer,
-        PaymentMethodType::Pix,
+        PaymentMethodType::PixQr,
         PaymentMethodDetails {
             mandates: enums::FeatureStatus::NotSupported,
             refunds: enums::FeatureStatus::Supported,

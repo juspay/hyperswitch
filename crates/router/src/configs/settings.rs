@@ -1642,7 +1642,10 @@ mod hashmap_deserialization_test {
 
         let input_map: HashMap<String, String> = HashMap::from([
             (" bank_transfer ".to_string(), " ach , bacs ".to_string()),
-            ("wallet ".to_string(), " paypal , pix , venmo ".to_string()),
+            (
+                "wallet ".to_string(),
+                " paypal , pix_qr , venmo ".to_string(),
+            ),
         ]);
         let deserializer: MapDeserializer<
             '_,
@@ -1659,7 +1662,7 @@ mod hashmap_deserialization_test {
                 PaymentMethod::Wallet,
                 HashSet::from([
                     PaymentMethodType::Paypal,
-                    PaymentMethodType::Pix,
+                    PaymentMethodType::PixQr,
                     PaymentMethodType::Venmo,
                 ]),
             ),

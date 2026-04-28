@@ -254,7 +254,7 @@ pub struct SantanderPixQRCodeSyncResponse {
     // Additional Info
     pub info_adicionais: Option<Vec<SantanderAdditionalInfo>>,
     pub pix: Option<Vec<SantanderPix>>,
-    // Pix QR Code Data
+    // PixQr QR Code Data
     pub pix_copia_e_cola: Option<String>,
 }
 
@@ -275,7 +275,7 @@ pub struct SantanderPixVoidResponse {
     pub status: SantanderPaymentStatus,
     // Value
     pub valor: ValueResponse,
-    // Pix QR Code Data
+    // PixQr QR Code Data
     pub pix_copia_e_cola: Option<Secret<String>>,
     // Key
     pub chave: Secret<String>,
@@ -289,7 +289,7 @@ pub struct SantanderPixVoidResponse {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum SantanderVoidResponse {
-    Pix(Box<SantanderPixVoidResponse>),
+    PixQr(Box<SantanderPixVoidResponse>),
     Boleto(Box<SantanderBoletoVoidResponse>),
 }
 
@@ -742,7 +742,7 @@ pub enum SanatanderAccessTokenResponse {
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum SanatanderTokenResponse {
-    Pix(SanatanderPixAccessTokenResponse),
+    PixQr(SanatanderPixAccessTokenResponse),
     PixAutomaticoBoleto(SantanderPixAutomaticoOrBoletoAccessTokenResponse),
 }
 
@@ -787,7 +787,7 @@ pub struct QrDataUrlSantander {
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum SantanderUpdateMetadataResponse {
-    Pix(Box<SantanderPixQRCodePaymentsResponse>),
+    PixQr(Box<SantanderPixQRCodePaymentsResponse>),
     Boleto(Box<SantanderUpdateBoletoResponse>),
 }
 

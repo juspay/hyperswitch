@@ -166,7 +166,7 @@ merchant_secret="Source verification key"
 [[adyen.bank_transfer]]
   payment_method_type = "mandiri_va"
 [[adyen.bank_transfer]]
-  payment_method_type = "pix"
+  payment_method_type = "pix_qr"
 [[adyen.wallet]]
   payment_method_type = "apple_pay"
 [[adyen.wallet]]
@@ -2303,7 +2303,7 @@ type = "Text"
 
 [ebanx_payout]
 [[ebanx_payout.bank_transfer]]
-  payment_method_type = "pix"
+  payment_method_type = "pix_qr"
 [ebanx_payout.connector_auth.HeaderKey]
 api_key = "Integration Key"
 
@@ -2807,7 +2807,7 @@ merchant_secret="Source verification key"
 
 [itaubank]
 [[itaubank.bank_transfer]]
-  payment_method_type = "pix"
+  payment_method_type = "pix_qr"
 [itaubank.connector_auth.MultiAuthKey]
 key1="Client Id"
 api_key="Client Secret"
@@ -5448,7 +5448,7 @@ type="Text"
 [[zen.voucher]]
   payment_method_type = "red_pagos"
 [[zen.bank_transfer]]
-  payment_method_type = "pix"
+  payment_method_type = "pix_qr"
 [[zen.bank_transfer]]
   payment_method_type = "pse"
 [[zen.wallet]]
@@ -6720,7 +6720,7 @@ api_secret="Secret Key"
 
 [facilitapay]
 [[facilitapay.bank_transfer]]
-  payment_method_type = "pix"
+  payment_method_type = "pix_qr"
 [facilitapay.connector_auth.BodyKey]
   api_key="Password"
   key1="Username"
@@ -7123,7 +7123,7 @@ options=[]
 
 [santander]
 [[santander.bank_transfer]]
-payment_method_type = "pix"
+payment_method_type = "pix_qr"
 [[santander.bank_transfer]]
 payment_method_type = "pix_automatico_push"
 [[santander.bank_transfer]]
@@ -7134,38 +7134,38 @@ payment_method_type = "boleto"
 certificate="Base64 encoded PEM formatted certificate chain"
 private_key="Base64 encoded PEM formatted private key"
   
-[[santander.metadata.pix]]
+[[santander.metadata.pix_qr]]
 name="client_id"
 label="Client ID"
 placeholder="Enter your Client Id"
 required=true
 type="Text"
-[[santander.metadata.pix]]
+[[santander.metadata.pix_qr]]
 name="client_secret"
 label="Client Secret"
 placeholder="Enter your Client Secret"
 required=true
 type="Text"
-[[santander.metadata.pix]]
+[[santander.metadata.pix_qr]]
 name="pix_key_type"
 label="Chave Key Type"
 placeholder="Enter your Chave/Pix Key Type"
 required=true
 type="Select"
 options=["CPF", "CNPJ", "EMAIL", "CELLULAR", "EVP"]
-[[santander.metadata.pix]]
+[[santander.metadata.pix_qr]]
 name="pix_key_value"
 label="Chave Key"
 placeholder="Enter your Chave/Pix Key"
 required=true
 type="Text"
-[[santander.metadata.pix]]
+[[santander.metadata.pix_qr]]
 name="merchant_city"
 label="Merchant City"
 placeholder="Enter the city the merchant is based in"
 required=true
 type="Text"
-[[santander.metadata.pix]]
+[[santander.metadata.pix_qr]]
 name="merchant_name"
 label="Merchant Name"
 placeholder="Enter the merchant name"

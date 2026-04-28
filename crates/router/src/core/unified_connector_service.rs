@@ -1128,7 +1128,7 @@ pub fn build_unified_connector_service_payment_method(
                     payments_grpc::MultibancoBankTransfer {  }
                 )),
             }),
-            hyperswitch_domain_models::payment_method_data::BankTransferData::Pix {
+            hyperswitch_domain_models::payment_method_data::BankTransferData::PixQr {
                 pix_key,
                 cpf,
                 cnpj,

@@ -1396,14 +1396,14 @@ impl From<&PayoutMethodData> for api_enums::PaymentMethodType {
                 Bank::Ach(_) => Self::Ach,
                 Bank::Bacs(_) => Self::Bacs,
                 Bank::Sepa(_) => Self::SepaBankTransfer,
-                Bank::Pix(_) => Self::Pix,
+                Bank::Pix(_) => Self::PixQr,
                 Bank::Trustly(_) => Self::Trustly,
             },
             PayoutMethodData::BankTransfer(bank_transfer) => match bank_transfer {
                 BankTransfer::Ach(_) => Self::Ach,
                 BankTransfer::Bacs(_) => Self::Bacs,
                 BankTransfer::Sepa(_) => Self::SepaBankTransfer,
-                BankTransfer::Pix(_) => Self::Pix,
+                BankTransfer::Pix(_) => Self::PixQr,
                 BankTransfer::Trustly(_) => Self::Trustly,
             },
             PayoutMethodData::Wallet(wallet) => match wallet {

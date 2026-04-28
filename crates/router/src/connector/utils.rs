@@ -2614,7 +2614,7 @@ pub enum PaymentMethodDataType {
     CimbVaBankTransfer,
     DanamonVaBankTransfer,
     MandiriVaBankTransfer,
-    Pix,
+    PixQr,
     PixAutomaticoPush,
     PixAutomaticoQr,
     Pse,
@@ -2814,7 +2814,7 @@ impl From<domain::payments::PaymentMethodData> for PaymentMethodDataType {
                     domain::payments::BankTransferData::MandiriVaBankTransfer { .. } => {
                         Self::MandiriVaBankTransfer
                     }
-                    domain::payments::BankTransferData::Pix { .. } => Self::Pix,
+                    domain::payments::BankTransferData::PixQr { .. } => Self::PixQr,
                     domain::payments::BankTransferData::PixAutomaticoPush { .. } => Self::PixAutomaticoPush,
                     domain::payments::BankTransferData::PixAutomaticoQr {} => Self::PixAutomaticoQr,
                     domain::payments::BankTransferData::Pse {} => Self::Pse,

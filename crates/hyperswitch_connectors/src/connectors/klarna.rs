@@ -619,7 +619,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
                         | common_enums::PaymentMethodType::PayBright
                         | common_enums::PaymentMethodType::Paypal
                         | common_enums::PaymentMethodType::Paze
-                        | common_enums::PaymentMethodType::Pix
+                        | common_enums::PaymentMethodType::PixQr
                         | common_enums::PaymentMethodType::PixAutomaticoPush
                         | common_enums::PaymentMethodType::PixAutomaticoQr
                         | common_enums::PaymentMethodType::PaySafeCard
@@ -751,7 +751,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
                         | common_enums::PaymentMethodType::PayBright
                         | common_enums::PaymentMethodType::Paypal
                         | common_enums::PaymentMethodType::Paze
-                        | common_enums::PaymentMethodType::Pix
+                        | common_enums::PaymentMethodType::PixQr
                         | common_enums::PaymentMethodType::PixAutomaticoPush
                         | common_enums::PaymentMethodType::PixAutomaticoQr
                         | common_enums::PaymentMethodType::PaySafeCard
@@ -891,7 +891,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
                         | common_enums::PaymentMethodType::PayBright
                         | common_enums::PaymentMethodType::Paypal
                         | common_enums::PaymentMethodType::Paze
-                        | common_enums::PaymentMethodType::Pix
+                        | common_enums::PaymentMethodType::PixQr
                         | common_enums::PaymentMethodType::PixAutomaticoPush
                         | common_enums::PaymentMethodType::PixAutomaticoQr
                         | common_enums::PaymentMethodType::PaySafeCard
@@ -1023,7 +1023,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
                         | common_enums::PaymentMethodType::PayBright
                         | common_enums::PaymentMethodType::Paypal
                         | common_enums::PaymentMethodType::Paze
-                        | common_enums::PaymentMethodType::Pix
+                        | common_enums::PaymentMethodType::PixQr
                         | common_enums::PaymentMethodType::PixAutomaticoPush
                         | common_enums::PaymentMethodType::PixAutomaticoQr
                         | common_enums::PaymentMethodType::PaySafeCard

@@ -167,7 +167,7 @@ pub fn validate_payment_method_type_against_payment_method(
                 | api_enums::PaymentMethodType::SepaBankTransfer
                 | api_enums::PaymentMethodType::Bacs
                 | api_enums::PaymentMethodType::Multibanco
-                | api_enums::PaymentMethodType::Pix
+                | api_enums::PaymentMethodType::PixQr
                 | api_enums::PaymentMethodType::PixAutomaticoPush
                 | api_enums::PaymentMethodType::PixAutomaticoQr
                 | api_enums::PaymentMethodType::Pse

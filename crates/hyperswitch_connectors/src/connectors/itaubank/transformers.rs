@@ -65,7 +65,7 @@ impl TryFrom<&ItaubankRouterData<&types::PaymentsAuthorizeRouterData>> for Itaub
         match item.router_data.request.payment_method_data.clone() {
             PaymentMethodData::BankTransfer(bank_transfer_data) => {
                 match *bank_transfer_data {
-                    BankTransferData::Pix {
+                    BankTransferData::PixQr {
                         pix_key, cpf, cnpj, ..
                     } => {
                         let nome = item.router_data.get_optional_billing_full_name();

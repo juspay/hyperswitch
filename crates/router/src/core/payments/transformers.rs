@@ -4618,7 +4618,8 @@ pub fn bank_transfer_next_steps_check(
     let bank_transfer_next_step = if let Some(diesel_models::enums::PaymentMethod::BankTransfer) =
         payment_attempt.payment_method
     {
-        if payment_attempt.payment_method_type != Some(diesel_models::enums::PaymentMethodType::Pix)
+        if payment_attempt.payment_method_type
+            != Some(diesel_models::enums::PaymentMethodType::PixQr)
             && payment_attempt.payment_method_type
                 != Some(diesel_models::enums::PaymentMethodType::PixAutomaticoQr)
             && payment_attempt.payment_method_type

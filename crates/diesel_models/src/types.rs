@@ -73,7 +73,7 @@ pub struct FeatureMetadata {
     pub payment_revenue_recovery_metadata: Option<PaymentRevenueRecoveryMetadata>,
     /// Additional information related to pix like expiry time etc for QR Code payments
     pub pix_additional_details: Option<PixAdditionalDetails>,
-    /// Extra information like fine percentage, interest percentage etc required for Pix payment method
+    /// Extra information like fine percentage, interest percentage etc required for PixQr payment method
     pub boleto_additional_details: Option<BoletoAdditionalDetails>,
     /// Pix Automatico additional details for Push and QR flows
     pub pix_automatico_additional_details: Option<PixAutomaticoAdditionalDetails>,
@@ -91,7 +91,7 @@ pub struct BoletoAdditionalDetails {
     pub payment_type: Option<common_enums::enums::BoletoPaymentType>,
     // It is a number which shows a contract between merchant and bank
     pub covenant_code: Option<Secret<String>>,
-    /// Pix identification details
+    /// PixQr identification details
     pub pix_key: Option<common_enums::enums::PixKey>,
 }
 
@@ -136,7 +136,7 @@ pub struct FeatureMetadata {
     pub gateway_system: Option<common_enums::GatewaySystem>,
     /// Additional information related to pix like expiry time etc for QR Code payments
     pub pix_additional_details: Option<PixAdditionalDetails>,
-    /// Extra information like fine percentage, interest percentage etc required for Pix payment method
+    /// Extra information like fine percentage, interest percentage etc required for PixQr payment method
     pub boleto_additional_details: Option<BoletoAdditionalDetails>,
     /// Pix Automatico additional details for Push and QR flows
     pub pix_automatico_additional_details: Option<PixAutomaticoAdditionalDetails>,
@@ -156,7 +156,7 @@ pub enum PixAdditionalDetails {
 pub struct ImmediateExpirationTime {
     /// Expiration time in seconds
     pub time: u32,
-    /// Pix identification details
+    /// PixQr identification details
     pub pix_key: Option<common_enums::enums::PixKey>,
 }
 
@@ -168,7 +168,7 @@ pub struct ScheduledExpirationTime {
     pub date: time::PrimitiveDateTime,
     /// Days after expiration date for which the QR code remains valid
     pub validity_after_expiration: Option<u32>,
-    /// Pix identification details
+    /// PixQr identification details
     pub pix_key: Option<common_enums::enums::PixKey>,
 }
 

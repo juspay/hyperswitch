@@ -755,7 +755,7 @@ efecty = { country = "CO", currency = "COP" }
 multibanco = { country = "PT", currency = "EUR" }
 pago_efectivo = { country = "PE", currency = "PEN" }
 pse = { country = "CO", currency = "COP" }
-pix = { country = "BR", currency = "BRL" }
+pix_qr = { country = "BR", currency = "BRL" }
 red_compra = { country = "CL", currency = "CLP" }
 red_pagos = { country = "UY", currency = "UYU" }
 
@@ -790,7 +790,7 @@ we_chat_pay = { country = "GB",currency = "GBP" }
 
 
 [pm_filters.itaubank]
-pix = { country = "BR", currency = "BRL" }
+pix_qr = { country = "BR", currency = "BRL" }
 
 [pm_filters.nexinets]
 credit = { country = "DE",currency = "EUR" }
@@ -851,7 +851,7 @@ credit = { currency = "USD,CAD" }
 direct_carrier_billing = {country = "MA, CM, ZA, EG, SN, DZ, TN, ML, GN, GH, LY, GA, CG, MG, BW, SD, NG, ID, SG, AZ, TR, FR, ES, PL, GB, PT, DE, IT, BE, IE, SK, GR, NL, CH, BR, MX, AR, CL, AE, IQ, KW, BH, SA, QA, PS, JO, OM, RU" , currency = "MAD, XOF, XAF, ZAR, EGP, DZD, TND, GNF, GHS, LYD, XAF, CDF, MGA, BWP, SDG, NGN, IDR, SGD, RUB, AZN, TRY, EUR, PLN, GBP, CHF, BRL, MXN, ARS, CLP, AED, IQD, KWD, BHD, SAR, QAR, ILS, JOD, OMR" }
 
 [pm_filters.facilitapay]
-pix = { country = "BR", currency = "BRL" }
+pix_qr = { country = "BR", currency = "BRL" }
 
 [pm_filters.helcim]
 credit = { country = "US, CA", currency = "USD, CAD" }
@@ -993,7 +993,7 @@ google_pay = { country = "AU,AT,BE,BR,CA,CN,HK,MY,NZ,SG,US", currency = "AUD,EUR
 apple_pay = { country = "AU,NZ,CN,HK,JP,SG,MY,KR,TW,VN,GB,IE,FR,DE,IT,ES,PT,NL,BE,LU,AT,CH,SE,FI,DK,NO,PL,CZ,SK,HU,LT,LV,EE,GR,RO,BG,HR,SI,MT,CY,IS,LI,MC,SM,VA,US,CA,MX,BR,AR,CL,CO,PE,UY,CR,PA,DO,EC,SV,GT,HN,BS,PR,AE,SA,QA,KW,BH,OM,IL,JO,PS,EG,MA,ZA,GE,AM,AZ,MD,ME,MK,AL,BA,RS,UA", currency = "AUD,BRL,CAD,CHF,CZK,DKK,EUR,GBP,HKD,HUF,ILS,JPY,MXN,NOK,NZD,PHP,PLN,SEK,SGD,THB,TWD,USD" }
 
 [pm_filters.santander]
-pix = { country = "BR", currency = "BRL" }
+pix_qr = { country = "BR", currency = "BRL" }
 boleto = { country = "BR", currency = "BRL" }
 pix_automatico_qr = { country = "BR", currency = "BRL" }
 pix_automatico_push = { country = "BR", currency = "BRL" }
@@ -1106,7 +1106,7 @@ merchant_name = "HyperSwitch"
 [generic_link.payment_method_collect.enabled_payment_methods]
 card = "credit,debit"
 bank_transfer = "ach,bacs,sepa"
-wallet = "paypal,pix,venmo"
+wallet = "paypal,pix_qr,venmo"
 
 [generic_link.payout_link]
 sdk_url = "http://localhost:9090/0.16.7/v0/HyperLoader.js"

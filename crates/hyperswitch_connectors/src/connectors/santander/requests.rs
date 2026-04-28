@@ -54,7 +54,7 @@ pub enum SantanderDiscountType {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct SantanderMetadataObject {
-    pub pix: Option<PixMetadataObject>,
+    pub pix_qr: Option<PixMetadataObject>,
     pub boleto: Option<BoletoMetadataObject>,
     pub pix_automatico_push: Option<PixAutomaticoMetadataObject>,
     pub pix_automatico_qr: Option<PixAutomaticoMetadataObject>,
@@ -272,7 +272,7 @@ pub struct SantanderPixQRPaymentRequest {
     // value
     pub valor: Option<SantanderValue>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    // A unique identifier that links a user’s bank account and allows others to send money without needing bank details. Instead of sharing: Bank name/Branch/Account number, one can just share the chave Pix, and the Central Bank of Brazil resolves it to the correct account.
+    // A unique identifier that links a user’s bank account and allows others to send money without needing bank details. Instead of sharing: Bank name/Branch/Account number, one can just share the chave PixQr, and the Central Bank of Brazil resolves it to the correct account.
     pub chave: Option<Secret<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     // request_payer
