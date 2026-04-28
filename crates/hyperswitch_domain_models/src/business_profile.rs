@@ -991,7 +991,8 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 is_iframe_redirection_enabled: None,
                 is_pre_network_tokenization_enabled: None,
                 three_ds_decision_rule_algorithm: None,
-                acquirer_config_map,
+                acquirer_config_map: acquirer_config_map
+                    .map(diesel_models::business_profile::AcquirerConfigBucket::New),
                 merchant_category_code: None,
                 merchant_country_code: None,
                 dispute_polling_interval: None,
@@ -1139,7 +1140,9 @@ impl Conversion for Profile {
             is_iframe_redirection_enabled: self.is_iframe_redirection_enabled,
             is_pre_network_tokenization_enabled: Some(self.is_pre_network_tokenization_enabled),
             three_ds_decision_rule_algorithm: self.three_ds_decision_rule_algorithm,
-            acquirer_config_map: self.acquirer_config_map,
+            acquirer_config_map: self
+                .acquirer_config_map
+                .map(diesel_models::business_profile::AcquirerConfigBucket::New),
             merchant_category_code: self.merchant_category_code,
             merchant_country_code: self.merchant_country_code,
             dispute_polling_interval: self.dispute_polling_interval,
@@ -1290,7 +1293,9 @@ impl Conversion for Profile {
                 .is_pre_network_tokenization_enabled
                 .unwrap_or(false),
             three_ds_decision_rule_algorithm: item.three_ds_decision_rule_algorithm,
-            acquirer_config_map: item.acquirer_config_map,
+            acquirer_config_map: item
+                .acquirer_config_map
+                .map(common_types::domain::AcquirerConfigBucket::from),
             merchant_category_code: item.merchant_category_code,
             merchant_country_code: item.merchant_country_code,
             dispute_polling_interval: item.dispute_polling_interval,
