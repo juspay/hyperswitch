@@ -154,4 +154,96 @@ export const connectorDetails = {
       },
     }),
   },
+  payout_link_pm: {
+    CardAutoFulfill: getCustomExchange({
+      Request: {
+        payout_type: "card",
+        payout_method_data: {
+          card: card_data,
+        },
+        currency: "EUR",
+        payout_link: true,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "pending",
+          payout_type: "card",
+        },
+      },
+    }),
+    CardManualFulfill: getCustomExchange({
+      Request: {
+        payout_type: "card",
+        payout_method_data: {
+          card: card_data,
+        },
+        currency: "EUR",
+        payout_link: true,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "pending",
+          payout_type: "card",
+        },
+      },
+    }),
+    CardFulfill: getCustomExchange({
+      Response: {
+        status: 200,
+        body: {
+          status: "success",
+        },
+      },
+    }),
+    BankTransferAutoFulfill: getCustomExchange({
+      Request: {
+        payout_type: "bank",
+        priority: "regular",
+        payout_method_data: {
+          bank: {
+            iban: "NL57INGB4654188101",
+          },
+        },
+        billing: billing,
+        payout_link: true,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "pending",
+          payout_type: "bank",
+        },
+      },
+    }),
+    BankTransferManualFulfill: getCustomExchange({
+      Request: {
+        payout_type: "bank",
+        priority: "regular",
+        payout_method_data: {
+          bank: {
+            iban: "NL57INGB4654188101",
+          },
+        },
+        billing: billing,
+        payout_link: true,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "pending",
+          payout_type: "bank",
+        },
+      },
+    }),
+    BankTransferFulfill: getCustomExchange({
+      Response: {
+        status: 200,
+        body: {
+          status: "success",
+        },
+      },
+    }),
+  },
 };
