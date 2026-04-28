@@ -10,7 +10,10 @@ use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     address,
     payment_method_data::{PaymentMethodData, WalletData},
-    router_data::{ConnectorAuthType, ErrorResponse, RouterData},
+    router_data::{
+        AdditionalPaymentMethodConnectorResponse, ConnectorAuthType, ConnectorResponseData,
+        ErrorResponse, RouterData,
+    },
     router_flow_types::{Authorize, SetupMandate},
     router_request_types::{
         BrowserInformation, PaymentsAuthorizeData, ResponseId, SetupMandateRequestData,
@@ -701,74 +704,81 @@ impl<F, T>
         ),
     ) -> Result<Self, Self::Error> {
         let (router_data, optional_correlation_id, amount) = item;
-        let (description, redirection_data, mandate_reference, network_txn_id, error) = router_data
-            .response
-            .other_fields
-            .as_ref()
-            .map(|other_fields| match other_fields {
-                WorldpayPaymentResponseFields::AuthorizedResponse(res) => (
-                    res.description.clone(),
-                    None,
-                    res.token.as_ref().map(|mandate_token| MandateReference {
-                        connector_mandate_id: Some(mandate_token.href.clone().expose()),
-                        payment_method_id: Some(mandate_token.token_id.clone()),
-                        mandate_metadata: None,
-                        connector_mandate_request_reference_id: None,
-                    }),
-                    res.scheme_reference.clone(),
-                    None,
-                ),
-                WorldpayPaymentResponseFields::DDCResponse(res) => (
-                    None,
-                    Some(RedirectForm::WorldpayDDCForm {
-                        endpoint: res.device_data_collection.url.clone(),
-                        method: common_utils::request::Method::Post,
-                        collection_id: Some("SessionId".to_string()),
-                        form_fields: HashMap::from([
-                            (
-                                "Bin".to_string(),
-                                res.device_data_collection.bin.clone().expose(),
-                            ),
-                            (
+        let (description, redirection_data, mandate_reference, network_txn_id, error, risk_factors) =
+            router_data
+                .response
+                .other_fields
+                .as_ref()
+                .map(|other_fields| match other_fields {
+                    WorldpayPaymentResponseFields::AuthorizedResponse(res) => (
+                        res.description.clone(),
+                        None,
+                        res.token.as_ref().map(|mandate_token| MandateReference {
+                            connector_mandate_id: Some(mandate_token.href.clone().expose()),
+                            payment_method_id: Some(mandate_token.token_id.clone()),
+                            mandate_metadata: None,
+                            connector_mandate_request_reference_id: None,
+                        }),
+                        res.scheme_reference.clone(),
+                        None,
+                        res.risk_factors.clone(),
+                    ),
+                    WorldpayPaymentResponseFields::DDCResponse(res) => (
+                        None,
+                        Some(RedirectForm::WorldpayDDCForm {
+                            endpoint: res.device_data_collection.url.clone(),
+                            method: common_utils::request::Method::Post,
+                            collection_id: Some("SessionId".to_string()),
+                            form_fields: HashMap::from([
+                                (
+                                    "Bin".to_string(),
+                                    res.device_data_collection.bin.clone().expose(),
+                                ),
+                                (
+                                    "JWT".to_string(),
+                                    res.device_data_collection.jwt.clone().expose(),
+                                ),
+                            ]),
+                        }),
+                        None,
+                        None,
+                        None,
+                        None,
+                    ),
+                    WorldpayPaymentResponseFields::ThreeDsChallenged(res) => (
+                        None,
+                        Some(RedirectForm::Form {
+                            endpoint: res.challenge.url.to_string(),
+                            method: common_utils::request::Method::Post,
+                            form_fields: HashMap::from([(
                                 "JWT".to_string(),
-                                res.device_data_collection.jwt.clone().expose(),
-                            ),
-                        ]),
-                    }),
-                    None,
-                    None,
-                    None,
-                ),
-                WorldpayPaymentResponseFields::ThreeDsChallenged(res) => (
-                    None,
-                    Some(RedirectForm::Form {
-                        endpoint: res.challenge.url.to_string(),
-                        method: common_utils::request::Method::Post,
-                        form_fields: HashMap::from([(
-                            "JWT".to_string(),
-                            res.challenge.jwt.clone().expose(),
-                        )]),
-                    }),
-                    None,
-                    None,
-                    None,
-                ),
-                WorldpayPaymentResponseFields::RefusedResponse(res) => (
-                    None,
-                    None,
-                    None,
-                    None,
-                    Some((
-                        res.refusal_code.clone(),
-                        res.refusal_description.clone(),
-                        res.advice
-                            .as_ref()
-                            .and_then(|advice_code| advice_code.code.clone()),
-                    )),
-                ),
-                WorldpayPaymentResponseFields::FraudHighRisk(_) => (None, None, None, None, None),
-            })
-            .unwrap_or((None, None, None, None, None));
+                                res.challenge.jwt.clone().expose(),
+                            )]),
+                        }),
+                        None,
+                        None,
+                        None,
+                        None,
+                    ),
+                    WorldpayPaymentResponseFields::RefusedResponse(res) => (
+                        None,
+                        None,
+                        None,
+                        None,
+                        Some((
+                            res.refusal_code.clone(),
+                            res.refusal_description.clone(),
+                            res.advice
+                                .as_ref()
+                                .and_then(|advice_code| advice_code.code.clone()),
+                        )),
+                        res.risk_factors.clone(),
+                    ),
+                    WorldpayPaymentResponseFields::FraudHighRisk(_) => {
+                        (None, None, None, None, None, None)
+                    }
+                })
+                .unwrap_or((None, None, None, None, None, None));
         let worldpay_status = router_data.response.outcome.clone();
         let optional_error_message = match worldpay_status {
             PaymentOutcome::ThreeDsAuthenticationFailed => {
@@ -829,10 +839,63 @@ impl<F, T>
                 connector_metadata: None,
             }),
         };
+        // Extract AVS and CVC verification data from risk_factors
+        let connector_response_data = risk_factors.and_then(|factors| {
+            let avs_results: Vec<_> = factors
+                .iter()
+                .filter(|f| matches!(f.risk_type, RiskType::Avs))
+                .map(|f| {
+                    serde_json::json!({
+                        "risk": format!("{:?}", f.risk),
+                        "detail": f.detail.as_ref().map(|d| format!("{:?}", d))
+                    })
+                })
+                .collect();
+            let cvc_results: Vec<_> = factors
+                .iter()
+                .filter(|f| matches!(f.risk_type, RiskType::Cvc))
+                .map(|f| {
+                    serde_json::json!({
+                        "risk": format!("{:?}", f.risk),
+                        "detail": f.detail.as_ref().map(|d| format!("{:?}", d))
+                    })
+                })
+                .collect();
+            let avs_result_value = avs_results
+                .first()
+                .and_then(|v| v.get("risk"))
+                .cloned()
+                .unwrap_or(serde_json::Value::Null);
+            let card_validation_result_value = cvc_results
+                .first()
+                .and_then(|v| v.get("risk"))
+                .cloned()
+                .unwrap_or(serde_json::Value::Null);
+            if avs_results.is_empty() && cvc_results.is_empty() {
+                None
+            } else {
+                let payment_checks = serde_json::json!({
+                    "avs_verification": avs_results,
+                    "cvc_verification": cvc_results,
+                    "avs_result": avs_result_value,
+                    "card_validation_result": card_validation_result_value,
+                });
+                Some(ConnectorResponseData::with_additional_payment_method_data(
+                    AdditionalPaymentMethodConnectorResponse::Card {
+                        authentication_data: None,
+                        payment_checks: Some(payment_checks),
+                        card_network: None,
+                        domestic_network: None,
+                        auth_code: None,
+                    },
+                ))
+            }
+        });
         Ok(Self {
             status,
             description,
             response,
+            connector_response: connector_response_data,
             ..router_data.data
         })
     }
