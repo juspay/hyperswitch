@@ -1123,6 +1123,62 @@ export const connectorDetails = {
         },
       },
     },
+    PaymentIntentWithOrderDetails: {
+      Request: {
+        currency: "USD",
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+        connector_metadata: {
+          order_details: {
+            items: [
+              {
+                product_name: "Test Product",
+                quantity: 1,
+                amount: 6000,
+              },
+            ],
+          },
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+          setup_future_usage: "on_session",
+        },
+      },
+    },
+    PaymentConfirmWithOrderDetails: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "USD",
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+        connector_metadata: {
+          order_details: {
+            items: [
+              {
+                product_name: "Test Product",
+                quantity: 1,
+                amount: 6000,
+              },
+            ],
+          },
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+          payment_method: "card",
+          attempt_count: 1,
+          payment_method_data: payment_method_data_no3ds,
+        },
+      },
+    },
   },
   pm_list: {
     PmListResponse: {

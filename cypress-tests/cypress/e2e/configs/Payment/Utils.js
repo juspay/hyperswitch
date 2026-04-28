@@ -48,6 +48,7 @@ import { connectorDetails as nexinetsConnectorDetails } from "./Nexinets.js";
 import { connectorDetails as nexixpayConnectorDetails } from "./Nexixpay.js";
 import { connectorDetails as nmiConnectorDetails } from "./Nmi.js";
 import { connectorDetails as noonConnectorDetails } from "./Noon.js";
+import { connectorDetails as nordeaConnectorDetails } from "./Nordea.js";
 import { connectorDetails as novalnetConnectorDetails } from "./Novalnet.js";
 import { connectorDetails as nuveiConnectorDetails } from "./Nuvei.js";
 import { connectorDetails as payboxConnectorDetails } from "./Paybox.js";
@@ -121,6 +122,7 @@ const connectorDetails = {
   nexixpay: nexixpayConnectorDetails,
   nmi: nmiConnectorDetails,
   noon: noonConnectorDetails,
+  nordea: nordeaConnectorDetails,
   novalnet: novalnetConnectorDetails,
   nuvei: nuveiConnectorDetails,
   paybox: payboxConnectorDetails,
@@ -540,7 +542,7 @@ export const CONNECTOR_LISTS = {
       "worldpayvantiv",
     ],
     EXTERNAL_THREE_DS: ["stripe"],
-    BANK_DEBIT: ["novalnet"],
+    BANK_DEBIT: ["novalnet", "nordea"],
     PARTNER_MERCHANT_IDENTIFIER: ["adyen", "checkout"],
     // Add more inclusion lists
   },
