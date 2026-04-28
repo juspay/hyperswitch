@@ -2307,6 +2307,43 @@ export const connectorDetails = {
         },
       },
     }),
+    PaymentLink: getCustomExchange({
+      Request: {
+        currency: "USD",
+        payment_link: true,
+        return_url: "https://example.com/return",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+          payment_link: {
+            link: null,
+            secure_link: null,
+            payment_link_id: null,
+          },
+        },
+      },
+    }),
+    PaymentLinkWithMetadata: getCustomExchange({
+      Request: {
+        currency: "USD",
+        payment_link: true,
+        return_url: "https://example.com/return",
+        metadata: { order_id: "12345" },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+          payment_link: {
+            link: null,
+            secure_link: null,
+            payment_link_id: null,
+          },
+        },
+      },
+    }),
   },
   upi_pm: {
     PaymentIntent: getCustomExchange({
@@ -2782,43 +2819,6 @@ export const connectorDetails = {
         },
       },
       Response: blockedPaymentErrorBodyForBinUnavailable,
-    }),
-    PaymentLink: getCustomExchange({
-      Request: {
-        currency: "USD",
-        payment_link: true,
-        return_url: "https://example.com/return",
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "requires_payment_method",
-          payment_link: {
-            link: null,
-            secure_link: null,
-            payment_link_id: null,
-          },
-        },
-      },
-    }),
-    PaymentLinkWithMetadata: getCustomExchange({
-      Request: {
-        currency: "USD",
-        payment_link: true,
-        return_url: "https://example.com/return",
-        metadata: { order_id: "12345" },
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "requires_payment_method",
-          payment_link: {
-            link: null,
-            secure_link: null,
-            payment_link_id: null,
-          },
-        },
-      },
     }),
   },
 };
