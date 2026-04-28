@@ -1,11 +1,11 @@
 use common_utils::{ext_traits::AsyncExt, types::keymanager::KeyManagerState};
 use error_stack::{report, ResultExt};
-use hyperswitch_domain_models::{
-    behaviour::{Conversion, ReverseConversion},
-    merchant_key_store::MerchantKeyStore,
-};
+use hyperswitch_domain_models::merchant_key_store::MerchantKeyStore;
 use router_env::{instrument, tracing};
-use storage_impl::StorageError;
+use storage_impl::{
+    behaviour::{Conversion, ForeignInto, ReverseConversion},
+    StorageError,
+};
 
 use super::{MockDb, Store};
 use crate::{connection, core::errors::CustomResult, types::storage};
@@ -142,7 +142,7 @@ impl AuthenticationInterface for Store {
             &conn,
             previous_state.merchant_id,
             previous_state.authentication_id,
-            authentication_update.into(),
+            authentication_update.foreign_into(),
         )
         .await
         .map_err(|error| report!(StorageError::from(error)))
