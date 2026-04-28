@@ -14,7 +14,7 @@ export const connectorDetails = {
         },
       },
     },
-    No3DSAutoCapture: {
+    AffirmAutoCapture: {
       Request: {
         payment_method: "pay_later",
         payment_method_type: "affirm",
@@ -81,16 +81,6 @@ export const connectorDetails = {
           status: "succeeded",
         },
       },
-    },
-  },
-  webhook: {
-    TransactionIdConfig: {
-      path: "data.object.id",
-      type: "string",
-    },
-    RefundIdConfig: {
-      path: "data.object.id",
-      type: "string",
     },
   },
 };
