@@ -98,7 +98,8 @@ impl RefundDistributionAccumulator for RefundReasonDistributionAccumulator {
         if self.refund_reason_vec.is_empty() {
             None
         } else {
-            self.refund_reason_vec.sort_by(|a, b| b.count.cmp(&a.count));
+            self.refund_reason_vec
+                .sort_by_key(|x| std::cmp::Reverse(x.count));
             let mut res: Vec<ReasonsResult> = Vec::new();
             for val in self.refund_reason_vec.into_iter() {
                 let perc = f64::from(u32::try_from(val.count).ok()?) * 100.0
@@ -140,7 +141,7 @@ impl RefundDistributionAccumulator for RefundErrorMessageDistributionAccumulator
             None
         } else {
             self.refund_error_message_vec
-                .sort_by(|a, b| b.count.cmp(&a.count));
+                .sort_by_key(|x| std::cmp::Reverse(x.count));
             let mut res: Vec<ErrorMessagesResult> = Vec::new();
             for val in self.refund_error_message_vec.into_iter() {
                 let perc = f64::from(u32::try_from(val.count).ok()?) * 100.0
