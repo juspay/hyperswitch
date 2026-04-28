@@ -475,16 +475,19 @@ function bankRedirectRedirection(
               });
               verifyUrl = true;
             } else if (paymentMethodType === "klarna") {
-              cy.log("Executing on Klarna sandbox — Step 1: Enter phone number");
+              cy.log(
+                "Executing on Klarna sandbox — Step 1: Enter phone number"
+              );
               cy.wait(constants.TIMEOUT / 6);
               cy.get("body").then(($body) => {
-                const phoneInput = $body.find('input[id="phone"]').length > 0
-                  ? 'input[id="phone"]'
-                  : $body.find('input[type="tel"]').length > 0
-                  ? 'input[type="tel"]'
-                  : $body.find('input[id*="phone"]').length > 0
-                  ? 'input[id*="phone"]'
-                  : null;
+                const phoneInput =
+                  $body.find('input[id="phone"]').length > 0
+                    ? 'input[id="phone"]'
+                    : $body.find('input[type="tel"]').length > 0
+                      ? 'input[type="tel"]'
+                      : $body.find('input[id*="phone"]').length > 0
+                        ? 'input[id*="phone"]'
+                        : null;
                 if (phoneInput) {
                   cy.get(phoneInput).first().clear().type("9123456789");
                   cy.wait(constants.TIMEOUT / 10);
