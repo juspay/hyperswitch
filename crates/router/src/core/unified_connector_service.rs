@@ -350,7 +350,7 @@ where
         match call_connector_action {
             CallConnectorAction::UCSConsumeResponse(_) => {
                 Err(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("CallConnectorAction UCSConsumeResponse received but UCS is disabled. These actions are only valid in UCS gateway")?
+                    .attach_printable("CallConnectorAction UCSConsumeResponse received but UCS is disabled. This action is only valid in UCS gateway")?
             }
             CallConnectorAction::Avoid
             | CallConnectorAction::Trigger

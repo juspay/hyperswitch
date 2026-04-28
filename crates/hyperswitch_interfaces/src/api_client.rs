@@ -166,7 +166,7 @@ where
         }
         common_enums::CallConnectorAction::UCSConsumeResponse(_) => {
             Err(ConnectorError::ProcessingStepFailed(Some(
-                "CallConnectorAction UCSConsumeResponse used in Direct gateway system flow. These actions are only valid in UCS gateway system"
+                "CallConnectorAction UCSConsumeResponse used in Direct gateway system flow. This action is only valid in UCS gateway system"
                     .to_string()
                     .into(),
             ))

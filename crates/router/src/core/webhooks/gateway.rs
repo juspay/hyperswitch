@@ -122,29 +122,18 @@ impl WebhookOutcome {
     }
 }
 
-/// Runtime dependencies supplied to every gateway run. Owned (not borrowed)
-/// so the dispatcher can hand the same context off to the synchronous primary
-/// run and a `tokio::spawn`-ed shadow run without per-field cloning. Mirrors
-/// `RouterGatewayContext` in the payments path. All inner fields are
-/// `Arc`-wrapped or small, so `clone()` is cheap.
+/// Runtime dependencies supplied to every gateway run. Mirrors
+/// `RouterGatewayContext` from the payments path.
 #[derive(Clone)]
 pub struct WebhookGatewayContext {
     pub state: SessionState,
     pub platform: domain::Platform,
     pub connector: ConnectorEnum,
     pub connector_name: String,
-    /// Pre-resolved merchant-connector-account if the webhook URL carries the
-    /// merchant-connector id. `None` when the URL identifies only the
-    /// connector; the implementation resolves the MCA from the parsed event
-    /// reference in that case.
+    /// Resolved when the URL carries an mca-id; otherwise resolved post-decode
+    /// via the parsed object reference.
     pub merchant_connector_account: Option<domain::MerchantConnectorAccount>,
-    /// Selected execution path for this webhook invocation. The dispatcher
-    /// matches on this rather than carrying it as a separate argument.
     pub execution_path: ExecutionPath,
-    /// Derived from `execution_path`: `UnifiedConnectorService → Primary`,
-    /// `ShadowUnifiedConnectorService → Shadow`, `Direct → NotApplicable`.
-    /// Carried alongside `execution_path` rather than recomputed at every UCS
-    /// gateway entry point.
     pub execution_mode: ExecutionMode,
 }
 
@@ -208,18 +197,14 @@ impl IncomingWebhookGateway for DirectIncomingWebhookGateway {
         request: &IncomingWebhookRequestDetails<'_>,
         ctx: &WebhookGatewayContext,
     ) -> RouterResult<WebhookOutcome> {
-        let reference = ctx.connector.get_webhook_object_reference_id(request).ok();
-
-        let mca = resolve_mca(ctx, reference.as_ref()).await?;
-
-        // Decode before extracting event/resource — connectors may transform
-        // the raw body (e.g. signed or encoded payloads).
         let decoded_body = ctx
             .connector
             .decode_webhook_body(
                 request,
                 ctx.platform.get_processor().get_account().get_id(),
-                mca.connector_webhook_details.clone(),
+                ctx.merchant_connector_account
+                    .as_ref()
+                    .and_then(|mca| mca.connector_webhook_details.clone()),
                 &ctx.connector_name,
             )
             .await
@@ -234,15 +219,12 @@ impl IncomingWebhookGateway for DirectIncomingWebhookGateway {
             body: &decoded_body,
         };
 
-        // Some connectors (signed-body envelopes, encoded payloads) only expose
-        // the object reference after the body is decoded. The pre-decode fetch
-        // above is best-effort; retry against the decoded body so connectors
-        // get a populated `WebhookContext` and `event_type` classification.
-        let reference = reference.or_else(|| {
-            ctx.connector
-                .get_webhook_object_reference_id(&decoded_request)
-                .ok()
-        });
+        let reference = ctx
+            .connector
+            .get_webhook_object_reference_id(&decoded_request)
+            .ok();
+
+        let mca = resolve_mca(ctx, reference.as_ref()).await?;
 
         let webhook_context =
             build_webhook_context(&ctx.state, &ctx.platform, reference.as_ref())
@@ -294,9 +276,6 @@ impl IncomingWebhookGateway for DirectIncomingWebhookGateway {
                 ack_response,
             },
             FilterDecision::Proceed => {
-                // Reference is required for business logic. We've already
-                // retried against the decoded body above, so a `None` here
-                // means the connector genuinely couldn't extract one.
                 let reference = reference.ok_or_else(|| {
                     error_stack::report!(errors::ApiErrorResponse::WebhookResourceNotFound)
                         .attach_printable(
@@ -344,13 +323,9 @@ impl IncomingWebhookGateway for DirectIncomingWebhookGateway {
 // UCS (gRPC two-phase) implementation.
 // ---------------------------------------------------------------------------
 
-/// Processes the webhook through the Unified Connector Service. The first
-/// RPC (`ParseEvent`) extracts the reference and event type without
-/// credentials. When the event passes the filter, the second RPC
-/// (`HandleEvent`) verifies the source and returns a unified response body.
-///
-/// Stateless — `execution_mode` lives on `WebhookGatewayContext` so the
-/// dispatcher can switch primary/shadow without instantiating a new gateway.
+/// Processes the webhook through the Unified Connector Service. Two-phase:
+/// `ParseEvent` extracts reference/event-type pre-credential; `HandleEvent`
+/// verifies the source and returns a unified response body.
 pub struct UcsIncomingWebhookGateway;
 
 #[async_trait]
@@ -551,9 +526,10 @@ pub async fn execute_incoming_webhook_gateway(
             UcsIncomingWebhookGateway.execute(request, ctx).await
         }
         ExecutionPath::ShadowUnifiedConnectorService => {
-            let direct_outcome = DirectIncomingWebhookGateway.execute(request, ctx).await?;
-            spawn_shadow_ucs_run(ctx, request, &direct_outcome);
-            Ok(direct_outcome)
+            let direct_result = DirectIncomingWebhookGateway.execute(request, ctx).await;
+            let primary_snapshot = WebhookShadowSnapshot::from_result(&direct_result);
+            spawn_shadow_ucs_run(ctx, request, primary_snapshot);
+            direct_result
         }
     }
 }
@@ -565,36 +541,31 @@ pub async fn execute_incoming_webhook_gateway(
 fn spawn_shadow_ucs_run(
     ctx: &WebhookGatewayContext,
     request: &IncomingWebhookRequestDetails<'_>,
-    primary: &WebhookOutcome,
+    primary_snapshot: WebhookShadowSnapshot,
 ) {
-    // Owned context — clone is cheap (Arc-wrapped or small fields). Force the
-    // shadow run into UCS+Shadow regardless of how the parent was selected.
     let mut inner_ctx = ctx.clone();
     inner_ctx.execution_path = ExecutionPath::UnifiedConnectorService;
     inner_ctx.execution_mode = ExecutionMode::Shadow;
 
     let request_owned = OwnedRequestDetails::from(request);
-    let primary_snapshot = WebhookShadowSnapshot::from(primary);
 
     tokio::spawn(
         async move {
             let request_ref = request_owned.borrow();
-            match UcsIncomingWebhookGateway
+            let shadow_result = UcsIncomingWebhookGateway
                 .execute(&request_ref, &inner_ctx)
-                .await
-            {
-                Ok(shadow_outcome) => {
-                    let shadow_snapshot = WebhookShadowSnapshot::from(&shadow_outcome);
-                    report_shadow_diff(
-                        &inner_ctx.state,
-                        &inner_ctx.connector_name,
-                        &primary_snapshot,
-                        &shadow_snapshot,
-                    )
-                    .await;
-                }
-                Err(error) => logger::warn!(?error, "UCS shadow webhook run failed"),
+                .await;
+            if let Err(error) = shadow_result.as_ref() {
+                logger::warn!(?error, "UCS shadow webhook run failed");
             }
+            let shadow_snapshot = WebhookShadowSnapshot::from_result(&shadow_result);
+            report_shadow_diff(
+                &inner_ctx.state,
+                &inner_ctx.connector_name,
+                &primary_snapshot,
+                &shadow_snapshot,
+            )
+            .await;
         }
         .in_current_span(),
     );
@@ -635,10 +606,27 @@ impl OwnedRequestDetails {
 #[derive(Debug, serde::Serialize)]
 struct WebhookShadowSnapshot {
     variant: &'static str,
-    event_type: IncomingWebhookEvent,
+    event_type: Option<IncomingWebhookEvent>,
     source_verified: Option<bool>,
     content_kind: Option<&'static str>,
     reference: Option<ObjectReferenceId>,
+    error: Option<String>,
+}
+
+impl WebhookShadowSnapshot {
+    fn from_result(result: &RouterResult<WebhookOutcome>) -> Self {
+        match result {
+            Ok(outcome) => Self::from(outcome),
+            Err(error) => Self {
+                variant: "error",
+                event_type: None,
+                source_verified: None,
+                content_kind: None,
+                reference: None,
+                error: Some(format!("{error:?}")),
+            },
+        }
+    }
 }
 
 impl From<&WebhookOutcome> for WebhookShadowSnapshot {
@@ -650,10 +638,11 @@ impl From<&WebhookOutcome> for WebhookShadowSnapshot {
                 ..
             } => Self {
                 variant: "skipped",
-                event_type: *event_type,
+                event_type: Some(*event_type),
                 source_verified: None,
                 content_kind: None,
                 reference: reference.clone(),
+                error: None,
             },
             WebhookOutcome::Processed {
                 event_type,
@@ -663,13 +652,14 @@ impl From<&WebhookOutcome> for WebhookShadowSnapshot {
                 ..
             } => Self {
                 variant: "processed",
-                event_type: *event_type,
+                event_type: Some(*event_type),
                 source_verified: Some(*source_verified),
                 content_kind: Some(match content {
                     WebhookContent::Direct(_) => "direct",
                     WebhookContent::UnifiedConnectorService(_) => "unified_connector_service",
                 }),
                 reference: Some(reference.clone()),
+                error: None,
             },
         }
     }
@@ -741,10 +731,6 @@ async fn build_webhook_context(
 ) -> RouterResult<Option<WebhookContext>> {
     match reference {
         Some(reference @ ObjectReferenceId::PaymentId(_)) => {
-            // Swallow fetch failures: a missing payment_attempt is not a
-            // webhook-level failure — `get_webhook_event_type` simply runs
-            // without enriched context. Surface the underlying DB error via
-            // `warn!` so silent misses are still observable.
             let payment_attempt = get_payment_attempt_from_object_reference_id(
                 state,
                 reference.clone(),
