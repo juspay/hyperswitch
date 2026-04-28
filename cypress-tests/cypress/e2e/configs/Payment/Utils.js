@@ -49,6 +49,7 @@ import { connectorDetails as nexixpayConnectorDetails } from "./Nexixpay.js";
 import { connectorDetails as nmiConnectorDetails } from "./Nmi.js";
 import { connectorDetails as noonConnectorDetails } from "./Noon.js";
 import { connectorDetails as novalnetConnectorDetails } from "./Novalnet.js";
+import { connectorDetails as nordeaConnectorDetails } from "./Nordea.js";
 import { connectorDetails as nuveiConnectorDetails } from "./Nuvei.js";
 import { connectorDetails as payboxConnectorDetails } from "./Paybox.js";
 import { connectorDetails as payloadConnectorDetails } from "./Payload.js";
@@ -122,6 +123,7 @@ const connectorDetails = {
   nmi: nmiConnectorDetails,
   noon: noonConnectorDetails,
   novalnet: novalnetConnectorDetails,
+  nordea: nordeaConnectorDetails,
   nuvei: nuveiConnectorDetails,
   paybox: payboxConnectorDetails,
   payload: payloadConnectorDetails,
