@@ -1662,7 +1662,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                     acquirer: acquirer_config.as_ref().map(|acquirer| {
                         api_models::three_ds_decision_rule::AcquirerData {
                             country: acquirer_country,
-                            fraud_rate: Some(acquirer.acquirer_fraud_rate),
+                            fraud_rate: acquirer.acquirer_fraud_rate,
                         }
                     }),
                 },
@@ -1924,13 +1924,25 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                     platform.get_initiator(),
                 )
                 .await?;
+            // Resolve acquirer details from the bucket using the card network from payment_method_data.
+            // The bucket is keyed by profile_acquirer_id; within it we match the card's network.
+            let resolved_card_network = payment_data
+                .payment_method_data
+                .as_ref()
+                .and_then(|pmd| match pmd {
+                    domain::PaymentMethodData::Card(card) => card.card_network.clone(),
+                    domain::PaymentMethodData::CardWithOptionalCVC(card) => card.card_network.clone(),
+                    _ => None,
+                });
             let acquirer_configs = authentication
                 .profile_acquirer_id
                 .clone()
-                .and_then(|acquirer_id| {
+                .zip(resolved_card_network)
+                .and_then(|(acquirer_id, network)| {
                     business_profile
                         .acquirer_config_map.as_ref()
-                        .and_then(|acquirer_config_map| acquirer_config_map.0.get(&acquirer_id).cloned())
+                        .and_then(|acquirer_config_map| acquirer_config_map.configs.get(&acquirer_id))
+                        .and_then(|bucket| bucket.iter().find(|cfg| cfg.network == network).cloned())
                 });
             let metadata: Option<ThreeDsMetaData> = three_ds_connector_account
                 .get_metadata()
@@ -1973,7 +1985,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
 
             let merchant_details = Some(unified_authentication_service::MerchantDetails {
                 merchant_id: Some(authentication.merchant_id.get_string_repr().to_string()),
-                merchant_name: acquirer_configs.clone().map(|detail| detail.merchant_name.clone()).or(metadata.clone().and_then(|metadata| metadata.merchant_name)),
+                merchant_name: acquirer_configs.clone().and_then(|detail| detail.merchant_name.clone()).or(metadata.clone().and_then(|metadata| metadata.merchant_name)),
                 merchant_category_code: merchant_category_code.clone(),
                 endpoint_prefix: metadata.clone().and_then(|metadata| metadata.endpoint_prefix),
                 three_ds_requestor_url: business_profile.authentication_connector_details.clone().map(|details| details.three_ds_requestor_url),
@@ -2706,6 +2718,10 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
                         installment_options: payment_data
                             .payment_intent
                             .installment_options
+                            .clone(),
+                        profile_acquirer_id: payment_data
+                            .payment_intent
+                            .profile_acquirer_id
                             .clone(),
                     })),
                     &m_key_store,

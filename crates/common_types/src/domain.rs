@@ -101,31 +101,52 @@ impl_to_sql_from_sql_json!(XenditSplitSubMerchantData);
 #[derive(Clone, Debug, Deserialize, ToSchema, Serialize, PartialEq)]
 pub struct AcquirerConfig {
     /// The merchant id assigned by the acquirer
-    #[schema(value_type= String,example = "M123456789")]
-    pub acquirer_assigned_merchant_id: String,
+    #[schema(value_type= Option<String>,example = "M123456789")]
+    pub acquirer_assigned_merchant_id: Option<String>,
     /// merchant name
-    #[schema(value_type= String,example = "NewAge Retailer")]
-    pub merchant_name: String,
+    #[schema(value_type= Option<String>,example = "NewAge Retailer")]
+    pub merchant_name: Option<String>,
     /// Network provider
     #[schema(value_type= String,example = "VISA")]
     pub network: common_enums::CardNetwork,
     /// Acquirer bin
-    #[schema(value_type= String,example = "456789")]
-    pub acquirer_bin: String,
+    #[schema(value_type= Option<String>,example = "456789")]
+    pub acquirer_bin: Option<String>,
     /// Acquirer ica provided by acquirer
     #[schema(value_type= Option<String>,example = "401288")]
     pub acquirer_ica: Option<String>,
     /// Fraud rate for the particular acquirer configuration
-    #[schema(value_type= String,example = "0.01")]
-    pub acquirer_fraud_rate: f64,
+    #[schema(value_type= Option<f64>,example = 0.01)]
+    pub acquirer_fraud_rate: Option<f64>,
+    /// Acquirer country code
+    #[schema(value_type= Option<String>,example = "US")]
+    pub acquirer_country_code: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, FromSqlRow, AsExpression, ToSchema)]
 #[diesel(sql_type = Jsonb)]
-/// Acquirer configs
-pub struct AcquirerConfigMap(pub HashMap<common_utils::id_type::ProfileAcquirerId, AcquirerConfig>);
+/// Acquirer config buckets: each ProfileAcquirerId maps to an array of per-network configs
+pub struct AcquirerConfigBucket {
+    /// The default acquirer config id
+    #[schema(value_type= String,example = "pro_acq_LCRdERuylQvNQ4qh3QE0")]
+    pub default_acquirer_config: Option<common_utils::id_type::ProfileAcquirerId>,
+    /// Flattened map of acquirer profiles keyed by configuration id
+    #[serde(flatten)]
+    #[schema(value_type= HashMap<String, Vec<AcquirerConfig>>, example = r#"{
+        "profile_acquirer_id": "profile_acquirer_id",
+        "acquirer_config": {
+            "acquirer_assigned_merchant_id": "M123456789",
+            "merchant_name": "NewAge Retailer",
+            "network": "VISA",
+            "acquirer_bin": "456789",
+            "acquirer_ica": "401288",
+            "acquirer_fraud_rate": 0.01,
+            "acquirer_country_code": "US"
+    }"#)]
+    pub configs: HashMap<common_utils::id_type::ProfileAcquirerId, Vec<AcquirerConfig>>,
+}
 
-impl_to_sql_from_sql_json!(AcquirerConfigMap);
+impl_to_sql_from_sql_json!(AcquirerConfigBucket);
 
 /// Merchant connector details
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]

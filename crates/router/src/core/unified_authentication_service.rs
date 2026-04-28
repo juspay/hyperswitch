@@ -741,37 +741,20 @@ pub async fn authentication_create_core(
             .unwrap_or(business_profile.force_3ds_challenge),
     );
 
-    // Priority logic: First check req.acquirer_details, then fallback to profile_acquirer_id lookup
+    // Priority logic: Use acquirer_details from request if explicitly supplied.
+    // If profile_acquirer_id is provided instead, we defer acquirer resolution to
+    // authentication_eligibility_core where the card network becomes available via the card number.
     let (acquirer_bin, acquirer_merchant_id, acquirer_country_code) =
         if let Some(acquirer_details) = &req.acquirer_details {
-            // Priority 1: Use acquirer_details from request if present
             (
                 acquirer_details.acquirer_bin.clone(),
                 acquirer_details.acquirer_merchant_id.clone(),
                 acquirer_details.merchant_country_code.clone(),
             )
         } else {
-            // Priority 2: Fallback to profile_acquirer_id lookup
-            let acquirer_details = req.profile_acquirer_id.clone().and_then(|acquirer_id| {
-                business_profile
-                    .acquirer_config_map
-                    .and_then(|acquirer_config_map| {
-                        acquirer_config_map.0.get(&acquirer_id).cloned()
-                    })
-            });
-
-            acquirer_details
-                .as_ref()
-                .map(|details| {
-                    (
-                        Some(details.acquirer_bin.clone()),
-                        Some(details.acquirer_assigned_merchant_id.clone()),
-                        business_profile
-                            .merchant_country_code
-                            .map(|code| code.get_country_code().to_owned()),
-                    )
-                })
-                .unwrap_or((None, None, None))
+            // profile_acquirer_id path: do NOT resolve here — network is unknown.
+            // The profile_acquirer_id is saved on the Authentication record and resolved later.
+            (None, None, None)
         };
 
     let customer_details = req
@@ -1138,39 +1121,143 @@ pub async fn authentication_eligibility_core(
         .ok_or(ApiErrorResponse::InternalServerError)
         .attach_printable("no amount found in authentication table")?;
 
-    let acquirer_details = authentication
-        .profile_acquirer_id
-        .clone()
-        .and_then(|acquirer_id| {
-            business_profile
-                .acquirer_config_map
-                .and_then(|acquirer_config_map| acquirer_config_map.0.get(&acquirer_id).cloned())
-        });
+    let (acquirer_bin, acquirer_merchant_id, acquirer_country_code, merchant_name) =
+        if authentication.acquirer_bin.is_none() || authentication.acquirer_merchant_id.is_none() {
+            // Determine the card network for bucket resolution.
+            let mut card_network = match &payment_method_data {
+                domain::PaymentMethodData::Card(card) => card.card_network.clone(),
+                domain::PaymentMethodData::CardWithOptionalCVC(card) => card.card_network.clone(),
+                domain::PaymentMethodData::CardWithNetworkTokenDetails(card) => {
+                    card.card_details.card_network.clone()
+                }
+                domain::PaymentMethodData::CardDetailsForNetworkTransactionId(card) => {
+                    card.card_network.clone()
+                }
+                _ => None,
+            };
+
+            if card_network.is_none() {
+                let card_isin = match &payment_method_data {
+                    domain::PaymentMethodData::Card(card) => Some(card.card_number.get_card_isin()),
+                    domain::PaymentMethodData::CardWithOptionalCVC(card) => {
+                        Some(card.card_number.get_card_isin())
+                    }
+                    domain::PaymentMethodData::CardWithNetworkTokenDetails(card) => {
+                        Some(card.card_details.card_number.get_card_isin())
+                    }
+                    domain::PaymentMethodData::CardDetailsForNetworkTransactionId(card) => {
+                        Some(card.card_number.get_card_isin())
+                    }
+                    _ => None,
+                };
+
+                if let Some(isin) = card_isin {
+                    if let Ok(Some(card_info)) = db.get_card_info(&isin).await {
+                        card_network = card_info.card_network;
+                    }
+                }
+            }
+
+            let card_network = card_network
+                .get_required_value("card_network")
+                .change_context(ApiErrorResponse::MissingRequiredField {
+                    field_name: "card_network",
+                })
+                .attach_printable("Card network is mandatory for resolving acquirer details")?;
+
+            // Priority for bucket resolution:
+            // 1. profile_acquirer_id from eligibility request.
+            // 2. profile_acquirer_id from authentication record (DB).
+            // 3. Fallback to default bucket ONLY IF neither of the above are provided.
+            let bucket_id = authentication.profile_acquirer_id.as_ref();
+
+            let acquirer_details = match bucket_id {
+                Some(acquirer_id) => business_profile
+                    .get_acquirer_details_for_profile_acquirer(acquirer_id, card_network.clone())
+                    .ok_or_else(|| {
+                        error_stack::report!(ApiErrorResponse::GenericNotFoundError {
+                            message: format!(
+                                "Configuration for network {} not found for bucket {}",
+                                card_network,
+                                acquirer_id.get_string_repr()
+                            ),
+                        })
+                        .attach_printable(
+                            "The requested profile acquirer bucket does not contain the required card network configuration",
+                        )
+                    })?,
+                None => business_profile
+                    .get_default_acquirer_details_from_network(card_network)
+                    .ok_or_else(|| {
+                        error_stack::report!(ApiErrorResponse::GenericNotFoundError {
+                            message: "Default Profile Acquirer configuration not found".to_string(),
+                        })
+                        .attach_printable(
+                            "No default acquirer configuration was found for the given card network",
+                        )
+                    })?,
+            };
+
+            // If we resolved acquirer details from a bucket, persist them to the authentication record.
+            let key_manager_state_ref = &key_manager_state;
+            db.update_authentication_by_merchant_id_authentication_id(
+                authentication.clone(),
+                hyperswitch_domain_models::authentication::AuthenticationUpdate::AcquirerDetailsUpdate {
+                    acquirer_bin: acquirer_details.acquirer_bin.clone(),
+                    acquirer_merchant_id: acquirer_details.acquirer_assigned_merchant_id.clone(),
+                    acquirer_country_code: acquirer_details.acquirer_country_code.clone(),
+                },
+                platform.get_processor().get_key_store(),
+                key_manager_state_ref,
+            )
+            .await
+            .change_context(ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to persist resolved acquirer details to authentication record")?;
+
+            (
+                acquirer_details.acquirer_bin.clone(),
+                acquirer_details.acquirer_assigned_merchant_id.clone(),
+                acquirer_details.acquirer_country_code.clone(),
+                acquirer_details.merchant_name.clone(),
+            )
+        } else {
+            (
+                authentication.acquirer_bin.clone(),
+                authentication.acquirer_merchant_id.clone(),
+                authentication.acquirer_country_code.clone(),
+                None,
+            )
+        };
 
     let metadata: Option<ThreeDsMetaData> = three_ds_connector_account
         .get_metadata()
         .map(|metadata| {
-            metadata.expose().parse_value("ThreeDsMetaData").inspect_err(|err| {
-            router_env::logger::warn!(parsing_error=?err,"Error while parsing ThreeDsMetaData");
-        })
+            metadata
+                .expose()
+                .parse_value("ThreeDsMetaData")
+                .inspect_err(|err| {
+                    router_env::logger::warn!(parsing_error=?err,"Error while parsing ThreeDsMetaData");
+                })
         })
         .transpose()
         .change_context(ApiErrorResponse::InternalServerError)?;
 
-    let merchant_country_code = authentication.acquirer_country_code.clone();
+    let merchant_country_code = business_profile
+        .merchant_country_code
+        .or(acquirer_country_code.map(common_types::payments::MerchantCountryCode::new));
     let merchant_category_code = business_profile.merchant_category_code.or(metadata
         .clone()
         .and_then(|metadata| metadata.merchant_category_code));
 
     let merchant_details = Some(hyperswitch_domain_models::router_request_types::unified_authentication_service::MerchantDetails {
         merchant_id: Some(authentication.merchant_id.get_string_repr().to_string()),
-        merchant_name: acquirer_details.clone().map(|detail| detail.merchant_name.clone()).or(metadata.clone().and_then(|metadata| metadata.merchant_name)),
+        merchant_name: merchant_name.or(metadata.clone().and_then(|metadata| metadata.merchant_name)),
         merchant_category_code: merchant_category_code.clone(),
         endpoint_prefix: metadata.clone().and_then(|metadata| metadata.endpoint_prefix),
-        three_ds_requestor_url: business_profile.authentication_connector_details.map(|details| details.three_ds_requestor_url),
+        three_ds_requestor_url: business_profile.authentication_connector_details.as_ref().map(|details| details.three_ds_requestor_url.clone()),
         three_ds_requestor_id: metadata.clone().and_then(|metadata| metadata.three_ds_requestor_id),
         three_ds_requestor_name: metadata.clone().and_then(|metadata| metadata.three_ds_requestor_name),
-        merchant_country_code: merchant_country_code.clone().map(common_types::payments::MerchantCountryCode::new),
+        merchant_country_code: merchant_country_code.clone(),
         notification_url,
         webhook_url:None
     });
@@ -1205,8 +1292,10 @@ pub async fn authentication_eligibility_core(
             None,
             merchant_details.as_ref(),
             domain_address.as_ref(),
-            authentication.acquirer_bin.clone(),
-            authentication.acquirer_merchant_id.clone(),
+            // Prefer the freshly-resolved acquirer_bin; fall back to what was already in DB.
+            acquirer_bin.or_else(|| authentication.acquirer_bin.clone()),
+            // Prefer the freshly-resolved acquirer_merchant_id; fall back to DB value.
+            acquirer_merchant_id.or_else(|| authentication.acquirer_merchant_id.clone()),
             Some(routing_region),
         )
         .await?;
@@ -1231,9 +1320,7 @@ pub async fn authentication_eligibility_core(
         req.browser_information.clone(),
         None,
         merchant_category_code,
-        merchant_country_code
-            .clone()
-            .map(common_types::payments::MerchantCountryCode::new),
+        merchant_country_code.clone(),
     ))
     .await?;
 

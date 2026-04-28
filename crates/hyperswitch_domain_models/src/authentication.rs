@@ -543,6 +543,13 @@ pub enum AuthenticationUpdate {
         trans_status: common_enums::TransactionStatus,
         authentication_status: common_enums::AuthenticationStatus,
     },
+    /// Used after bucket-based acquirer resolution in authentication_eligibility_core
+    /// to persist the dynamically resolved acquirer details back to the authentication record.
+    AcquirerDetailsUpdate {
+        acquirer_bin: Option<String>,
+        acquirer_merchant_id: Option<String>,
+        acquirer_country_code: Option<String>,
+    },
 }
 
 impl From<AuthenticationUpdate> for diesel_models::authentication::AuthenticationUpdate {
@@ -697,6 +704,15 @@ impl From<AuthenticationUpdate> for diesel_models::authentication::Authenticatio
             } => Self::AuthenticationStatusUpdate {
                 trans_status,
                 authentication_status,
+            },
+            AuthenticationUpdate::AcquirerDetailsUpdate {
+                acquirer_bin,
+                acquirer_merchant_id,
+                acquirer_country_code,
+            } => Self::AcquirerDetailsUpdate {
+                acquirer_bin,
+                acquirer_merchant_id,
+                acquirer_country_code,
             },
         }
     }

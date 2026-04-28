@@ -25,50 +25,46 @@ pub async fn create_profile_acquirer(
             id: request.profile_id.get_string_repr().to_owned(),
         })?;
 
-    let incoming_acquirer_config = common_types::domain::AcquirerConfig {
-        acquirer_assigned_merchant_id: request.acquirer_assigned_merchant_id.clone(),
-        merchant_name: request.merchant_name.clone(),
-        network: request.network.clone(),
-        acquirer_bin: request.acquirer_bin.clone(),
-        acquirer_ica: request.acquirer_ica.clone(),
-        acquirer_fraud_rate: request.acquirer_fraud_rate,
-    };
-
-    // Check for duplicates before proceeding
-
-    business_profile
+    let has_existing_default = business_profile
         .acquirer_config_map
         .as_ref()
-        .map_or(Ok(()), |configs_wrapper| {
-            match configs_wrapper.0.values().any(|existing_config| existing_config == &incoming_acquirer_config) {
-                true => Err(error_stack::report!(
-                    errors::ApiErrorResponse::GenericDuplicateError {
-                        message: format!(
-                            "Duplicate acquirer configuration found for profile_id: {}. Conflicting configuration: {:?}",
-                            request.profile_id.get_string_repr(),
-                            incoming_acquirer_config
-                        ),
-                    }
-                )),
-                false => Ok(()),
-            }
-        })?;
+        .map(|map| map.default_acquirer_config.is_some())
+        .unwrap_or(false);
 
-    // Get a mutable reference to the HashMap inside AcquirerConfigMap,
-    // initializing if it's None or the inner HashMap is not present.
-    let configs_map = &mut business_profile
-        .acquirer_config_map
-        .get_or_insert_with(|| {
-            common_types::domain::AcquirerConfigMap(std::collections::HashMap::new())
-        })
-        .0;
+    let is_default = if !has_existing_default {
+        true
+    } else {
+        request.is_default.unwrap_or(false)
+    };
 
-    configs_map.insert(
+    let incoming_acquirer_config = common_types::domain::AcquirerConfig {
+        acquirer_assigned_merchant_id: Some(request.acquirer_assigned_merchant_id.clone()),
+        merchant_name: Some(request.merchant_name.clone()),
+        network: request.network.clone(),
+        acquirer_bin: Some(request.acquirer_bin.clone()),
+        acquirer_ica: request.acquirer_ica.clone(),
+        acquirer_fraud_rate: request.acquirer_fraud_rate,
+        acquirer_country_code: request.acquirer_country_code.clone(),
+    };
+
+    // Initialize the new bucket as a Vec containing its first AcquirerConfig entry.
+    let configs_map = business_profile.acquirer_config_map.get_or_insert_with(|| {
+        common_types::domain::AcquirerConfigBucket {
+            default_acquirer_config: None,
+            configs: std::collections::HashMap::new(),
+        }
+    });
+
+    configs_map.configs.insert(
         profile_acquirer_id.clone(),
-        incoming_acquirer_config.clone(),
+        vec![incoming_acquirer_config.clone()],
     );
 
-    let profile_update = domain::ProfileUpdate::AcquirerConfigMapUpdate {
+    if is_default {
+        configs_map.default_acquirer_config = Some(profile_acquirer_id.clone());
+    }
+
+    let profile_update = domain::ProfileUpdate::AcquirerConfigBucketUpdate {
         acquirer_config_map: business_profile.acquirer_config_map.clone(),
     };
     let updated_business_profile = db
@@ -77,17 +73,24 @@ pub async fn create_profile_acquirer(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to update business profile with new acquirer config")?;
 
-    let updated_acquire_details = updated_business_profile
+    // Retrieve the specific entry we just inserted from the updated profile.
+    let updated_acquirer_config = updated_business_profile
         .acquirer_config_map
         .as_ref()
-        .and_then(|acquirer_configs_wrapper| acquirer_configs_wrapper.0.get(&profile_acquirer_id))
+        .and_then(|wrapper| wrapper.configs.get(&profile_acquirer_id))
+        .and_then(|bucket| {
+            bucket
+                .iter()
+                .find(|cfg| cfg.network == incoming_acquirer_config.network)
+        })
         .ok_or(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to get updated acquirer config")?;
 
     let response = profile_acquirer::ProfileAcquirerResponse::from((
         profile_acquirer_id,
         &request.profile_id,
-        updated_acquire_details,
+        Some(updated_acquirer_config),
+        is_default,
     ));
 
     Ok(api::ApplicationResponse::Json(response))
@@ -120,61 +123,60 @@ pub async fn update_profile_acquirer_config(
         })
         .attach_printable("no acquirer config found in business profile")?;
 
-    let mut potential_updated_config = acquirer_config_map
-        .0
-        .get(&profile_acquirer_id)
-        .ok_or_else(|| errors::ApiErrorResponse::ProfileAcquirerNotFound {
-            profile_id: profile_id.get_string_repr().to_owned(),
-            profile_acquirer_id: profile_acquirer_id.get_string_repr().to_owned(),
-        })?
-        .clone();
+    let default_bucket_id = acquirer_config_map.default_acquirer_config.clone();
 
-    // updating value in existing acquirer config
-    request
-        .acquirer_assigned_merchant_id
-        .map(|val| potential_updated_config.acquirer_assigned_merchant_id = val);
-    request
-        .merchant_name
-        .map(|val| potential_updated_config.merchant_name = val);
+    // Verify the target bucket (profile_acquirer_id) exists.
+    if !acquirer_config_map
+        .configs
+        .contains_key(&profile_acquirer_id)
+    {
+        return Err(error_stack::report!(
+            errors::ApiErrorResponse::ProfileAcquirerNotFound {
+                profile_id: profile_id.get_string_repr().to_owned(),
+                profile_acquirer_id: profile_acquirer_id.get_string_repr().to_owned(),
+            }
+        ));
+    }
+
+    // `network` is mandatory on update — find whether a slot for this network already exists in the bucket.
+    let is_default = request
+        .is_default
+        .unwrap_or_else(|| default_bucket_id.as_ref() == Some(&profile_acquirer_id));
+
+    let default_bucket_changed = apply_default_bucket_change(
+        acquirer_config_map,
+        &profile_acquirer_id,
+        &default_bucket_id,
+        request.is_default,
+    );
+
     request
         .network
-        .map(|val| potential_updated_config.network = val);
-    request
-        .acquirer_bin
-        .map(|val| potential_updated_config.acquirer_bin = val);
-    request
-        .acquirer_ica
-        .map(|val| potential_updated_config.acquirer_ica = Some(val.clone()));
-    request
-        .acquirer_fraud_rate
-        .map(|val| potential_updated_config.acquirer_fraud_rate = val);
-
-    // checking for duplicates in the acquirerConfigMap
-    match acquirer_config_map
-        .0
-        .iter()
-        .find(|(_existing_id, existing_config_val_ref)| {
-        **existing_config_val_ref == potential_updated_config
-        }) {
-        Some((conflicting_id_of_found_item, _)) => {
-            Err(error_stack::report!(errors::ApiErrorResponse::GenericDuplicateError {
-            message: format!(
-                "Duplicate acquirer configuration. This configuration already exists for profile_acquirer_id '{}' under profile_id '{}'.",
-                conflicting_id_of_found_item.get_string_repr(),
-                profile_id.get_string_repr()
-            ),
-        }))
-    }
-        None => Ok(()),
-    }?;
-
-    acquirer_config_map
-        .0
-        .insert(profile_acquirer_id.clone(), potential_updated_config);
+        .clone()
+        .map(|target_network| {
+            upsert_acquirer_config_in_bucket(
+                acquirer_config_map,
+                &profile_acquirer_id,
+                target_network,
+                &request,
+                default_bucket_changed,
+            )
+        })
+        .unwrap_or_else(|| {
+            if default_bucket_changed {
+                Ok(())
+            } else {
+                Err(error_stack::report!(
+                    errors::ApiErrorResponse::InvalidRequestData {
+                        message: "A `network` must be provided to update an acquirer configuration, unless you are only changing the `is_default` fallback status of this entire bucket.".to_string(),
+                    }
+                ))
+            }
+        })?;
 
     let updated_map_for_db_update = business_profile.acquirer_config_map.clone();
 
-    let profile_update = domain::ProfileUpdate::AcquirerConfigMapUpdate {
+    let profile_update = domain::ProfileUpdate::AcquirerConfigBucketUpdate {
         acquirer_config_map: updated_map_for_db_update,
     };
 
@@ -184,18 +186,118 @@ pub async fn update_profile_acquirer_config(
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to update business profile with updated acquirer config")?;
 
-    let final_acquirer_details = updated_business_profile
+    let final_acquirer_config = updated_business_profile
         .acquirer_config_map
         .as_ref()
-        .and_then(|configs_wrapper| configs_wrapper.0.get(&profile_acquirer_id))
-        .ok_or(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to get updated acquirer config after DB update")?;
+        .and_then(|wrapper| wrapper.configs.get(&profile_acquirer_id))
+        .and_then(|bucket| {
+            if let Some(nw) = request.network.as_ref() {
+                bucket.iter().find(|cfg| cfg.network == *nw)
+            } else {
+                None // is_default-only update: no specific network was modified
+            }
+        });
 
     let response = profile_acquirer::ProfileAcquirerResponse::from((
         profile_acquirer_id,
         &profile_id,
-        final_acquirer_details,
+        final_acquirer_config,
+        is_default,
     ));
 
     Ok(api::ApplicationResponse::Json(response))
+}
+
+/// Updates the `default_acquirer_config` pointer on the map and returns whether a change was made.
+#[cfg(all(feature = "olap", feature = "v1"))]
+fn apply_default_bucket_change(
+    config_map: &mut common_types::domain::AcquirerConfigBucket,
+    profile_acquirer_id: &common_utils::id_type::ProfileAcquirerId,
+    current_default_id: &Option<common_utils::id_type::ProfileAcquirerId>,
+    is_default_request: Option<bool>,
+) -> bool {
+    match is_default_request {
+        Some(true) if current_default_id.as_ref() != Some(profile_acquirer_id) => {
+            config_map.default_acquirer_config = Some(profile_acquirer_id.clone());
+            true
+        }
+        Some(false) if current_default_id.as_ref() == Some(profile_acquirer_id) => {
+            config_map.default_acquirer_config = None;
+            true
+        }
+        _ => false,
+    }
+}
+
+/// Builds an upserted `AcquirerConfig` from the request, checks for exact duplicates,
+/// and writes it into the correct slot of the given bucket.
+#[cfg(all(feature = "olap", feature = "v1"))]
+fn upsert_acquirer_config_in_bucket(
+    config_map: &mut common_types::domain::AcquirerConfigBucket,
+    profile_acquirer_id: &common_utils::id_type::ProfileAcquirerId,
+    target_network: common_enums::enums::CardNetwork,
+    request: &profile_acquirer::ProfileAcquirerUpdate,
+    default_bucket_changed: bool,
+) -> error_stack::Result<(), errors::ApiErrorResponse> {
+    let bucket = config_map
+        .configs
+        .get_mut(profile_acquirer_id)
+        .ok_or(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("bucket was verified above but vanished")?;
+
+    let existing_pos = bucket.iter().position(|cfg| cfg.network == target_network);
+
+    let base = existing_pos
+        .and_then(|pos| bucket.get(pos).cloned())
+        .unwrap_or(common_types::domain::AcquirerConfig {
+            network: target_network,
+            acquirer_assigned_merchant_id: None,
+            merchant_name: None,
+            acquirer_bin: None,
+            acquirer_ica: None,
+            acquirer_fraud_rate: None,
+            acquirer_country_code: None,
+        });
+
+    let upserted_config = common_types::domain::AcquirerConfig {
+        acquirer_assigned_merchant_id: request
+            .acquirer_assigned_merchant_id
+            .clone()
+            .or(base.acquirer_assigned_merchant_id),
+        merchant_name: request.merchant_name.clone().or(base.merchant_name),
+        acquirer_bin: request.acquirer_bin.clone().or(base.acquirer_bin),
+        acquirer_ica: request.acquirer_ica.clone().or(base.acquirer_ica),
+        acquirer_fraud_rate: request.acquirer_fraud_rate.or(base.acquirer_fraud_rate),
+        acquirer_country_code: request
+            .acquirer_country_code
+            .clone()
+            .or(base.acquirer_country_code),
+        network: base.network,
+    };
+
+    // Duplicate check: reject if content is identical and no default change occurred.
+    if existing_pos.and_then(|pos| bucket.get(pos)) == Some(&upserted_config)
+        && !default_bucket_changed
+    {
+        return Err(error_stack::report!(
+            errors::ApiErrorResponse::GenericDuplicateError {
+                message: format!(
+                    "An identical configuration for network '{}' already exists in bucket '{}'.",
+                    upserted_config.network,
+                    profile_acquirer_id.get_string_repr()
+                ),
+            }
+        ));
+    }
+
+    match existing_pos {
+        Some(pos) => {
+            if let Some(slot) = bucket.get_mut(pos) {
+                *slot = upserted_config;
+            }
+        }
+        None => bucket.push(upserted_config),
+    }
+
+    Ok(())
 }

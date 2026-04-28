@@ -249,6 +249,12 @@ pub enum AuthenticationUpdate {
         trans_status: common_enums::TransactionStatus,
         authentication_status: common_enums::AuthenticationStatus,
     },
+    /// Persists resolved acquirer details after bucket-based network lookup (eligibility_core)
+    AcquirerDetailsUpdate {
+        acquirer_bin: Option<String>,
+        acquirer_merchant_id: Option<String>,
+        acquirer_country_code: Option<String>,
+    },
 }
 
 impl Default for AuthenticationUpdateInternal {
@@ -703,6 +709,16 @@ impl From<AuthenticationUpdate> for AuthenticationUpdateInternal {
             } => Self {
                 trans_status: Some(trans_status),
                 authentication_status: Some(authentication_status),
+                ..Default::default()
+            },
+            AuthenticationUpdate::AcquirerDetailsUpdate {
+                acquirer_bin,
+                acquirer_merchant_id,
+                acquirer_country_code,
+            } => Self {
+                acquirer_bin,
+                acquirer_merchant_id,
+                acquirer_country_code,
                 ..Default::default()
             },
         }

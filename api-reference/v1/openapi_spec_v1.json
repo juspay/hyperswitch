@@ -8696,26 +8696,23 @@
           }
         }
       },
-      "AcquirerConfig": {
+      "AcquirerBucketConfigResponse": {
         "type": "object",
-        "description": "Acquirer configuration",
         "required": [
-          "acquirer_assigned_merchant_id",
-          "merchant_name",
-          "network",
-          "acquirer_bin",
-          "acquirer_fraud_rate"
+          "network"
         ],
         "properties": {
           "acquirer_assigned_merchant_id": {
             "type": "string",
             "description": "The merchant id assigned by the acquirer",
-            "example": "M123456789"
+            "example": "M123456789",
+            "nullable": true
           },
           "merchant_name": {
             "type": "string",
-            "description": "merchant name",
-            "example": "NewAge Retailer"
+            "description": "Merchant name",
+            "example": "NewAge Retailer",
+            "nullable": true
           },
           "network": {
             "type": "string",
@@ -8725,7 +8722,8 @@
           "acquirer_bin": {
             "type": "string",
             "description": "Acquirer bin",
-            "example": "456789"
+            "example": "456789",
+            "nullable": true
           },
           "acquirer_ica": {
             "type": "string",
@@ -8734,17 +8732,91 @@
             "nullable": true
           },
           "acquirer_fraud_rate": {
-            "type": "string",
+            "type": "number",
+            "format": "double",
             "description": "Fraud rate for the particular acquirer configuration",
-            "example": "0.01"
+            "example": 0.01,
+            "nullable": true
+          },
+          "acquirer_country_code": {
+            "type": "string",
+            "description": "Acquirer country code",
+            "example": "US",
+            "nullable": true
           }
         }
       },
-      "AcquirerConfigMap": {
+      "AcquirerConfig": {
         "type": "object",
-        "description": "Acquirer configs",
+        "description": "Acquirer configuration",
+        "required": [
+          "network"
+        ],
+        "properties": {
+          "acquirer_assigned_merchant_id": {
+            "type": "string",
+            "description": "The merchant id assigned by the acquirer",
+            "example": "M123456789",
+            "nullable": true
+          },
+          "merchant_name": {
+            "type": "string",
+            "description": "merchant name",
+            "example": "NewAge Retailer",
+            "nullable": true
+          },
+          "network": {
+            "type": "string",
+            "description": "Network provider",
+            "example": "VISA"
+          },
+          "acquirer_bin": {
+            "type": "string",
+            "description": "Acquirer bin",
+            "example": "456789",
+            "nullable": true
+          },
+          "acquirer_ica": {
+            "type": "string",
+            "description": "Acquirer ica provided by acquirer",
+            "example": "401288",
+            "nullable": true
+          },
+          "acquirer_fraud_rate": {
+            "type": "number",
+            "format": "double",
+            "description": "Fraud rate for the particular acquirer configuration",
+            "example": 0.01,
+            "nullable": true
+          },
+          "acquirer_country_code": {
+            "type": "string",
+            "description": "Acquirer country code",
+            "example": "US",
+            "nullable": true
+          }
+        }
+      },
+      "AcquirerConfigBucket": {
+        "type": "object",
+        "description": "Acquirer config buckets: each ProfileAcquirerId maps to an array of per-network configs",
+        "required": [
+          "default_acquirer_config"
+        ],
+        "properties": {
+          "default_acquirer_config": {
+            "type": "string",
+            "description": "The default acquirer config id",
+            "example": "pro_acq_LCRdERuylQvNQ4qh3QE0"
+          }
+        },
         "additionalProperties": {
-          "$ref": "#/components/schemas/AcquirerConfig"
+          "type": "array",
+          "items": {
+            "$ref": "#/components/schemas/AcquirerConfig"
+          },
+          "description": "Flattened map of acquirer profiles keyed by configuration id",
+          "example": "{\n        \"profile_acquirer_id\": \"profile_acquirer_id\",\n        \"acquirer_config\": {\n            \"acquirer_assigned_merchant_id\": \"M123456789\",\n            \"merchant_name\": \"NewAge Retailer\",\n            \"network\": \"VISA\",\n            \"acquirer_bin\": \"456789\",\n            \"acquirer_ica\": \"401288\",\n            \"acquirer_fraud_rate\": 0.01,\n            \"acquirer_country_code\": \"US\"\n    }"
         }
       },
       "AcquirerData": {
@@ -30134,6 +30206,11 @@
               }
             ],
             "nullable": true
+          },
+          "profile_acquirer_id": {
+            "type": "string",
+            "description": "Identification for the profile acquirer to be used for this payment.",
+            "nullable": true
           }
         }
       },
@@ -30677,6 +30754,11 @@
                 "$ref": "#/components/schemas/InstallmentRequest"
               }
             ],
+            "nullable": true
+          },
+          "profile_acquirer_id": {
+            "type": "string",
+            "description": "Identification for the profile acquirer to be used for this payment.",
             "nullable": true
           }
         }
@@ -32329,6 +32411,11 @@
               }
             ],
             "nullable": true
+          },
+          "profile_acquirer_id": {
+            "type": "string",
+            "description": "Identification for the profile acquirer to be used for this payment.",
+            "nullable": true
           }
         },
         "additionalProperties": false
@@ -33808,6 +33895,11 @@
                 "$ref": "#/components/schemas/InstallmentRequest"
               }
             ],
+            "nullable": true
+          },
+          "profile_acquirer_id": {
+            "type": "string",
+            "description": "Identification for the profile acquirer to be used for this payment.",
             "nullable": true
           }
         }
@@ -36340,6 +36432,30 @@
           "accommodation"
         ]
       },
+      "ProfileAcquirerConfigsResponse": {
+        "type": "object",
+        "required": [
+          "configs"
+        ],
+        "properties": {
+          "default_acquirer_config": {
+            "type": "string",
+            "description": "The default bucket for acquirer configurations",
+            "example": "pro_acq_LCRdERuylQvNQ4qh3QE0",
+            "nullable": true
+          },
+          "configs": {
+            "type": "object",
+            "description": "Flattened map of acquirer configuration buckets",
+            "additionalProperties": {
+              "type": "array",
+              "items": {
+                "$ref": "#/components/schemas/AcquirerBucketConfigResponse"
+              }
+            }
+          }
+        }
+      },
       "ProfileAcquirerCreate": {
         "type": "object",
         "required": [
@@ -36347,7 +36463,6 @@
           "merchant_name",
           "network",
           "acquirer_bin",
-          "acquirer_fraud_rate",
           "profile_id"
         ],
         "properties": {
@@ -36381,25 +36496,37 @@
             "type": "number",
             "format": "double",
             "description": "Fraud rate for the particular acquirer configuration",
-            "example": 0.01
+            "example": 0.01,
+            "nullable": true
+          },
+          "acquirer_country_code": {
+            "type": "string",
+            "description": "Acquirer country code",
+            "example": "US",
+            "nullable": true
           },
           "profile_id": {
             "type": "string",
             "description": "Parent profile id to link the acquirer account with",
             "example": "pro_ky0yNyOXXlA5hF8JzE5q"
+          },
+          "is_default": {
+            "type": "boolean",
+            "description": "Whether this configuration bucket is the default fallback for the profile.",
+            "nullable": true
           }
         }
+      },
+      "ProfileAcquirerId": {
+        "type": "string",
+        "description": "A type for profile_acquirer_id that can be used for profile acquirer ids"
       },
       "ProfileAcquirerResponse": {
         "type": "object",
         "required": [
           "profile_acquirer_id",
-          "acquirer_assigned_merchant_id",
-          "merchant_name",
-          "network",
-          "acquirer_bin",
-          "acquirer_fraud_rate",
-          "profile_id"
+          "profile_id",
+          "is_default"
         ],
         "properties": {
           "profile_acquirer_id": {
@@ -36410,22 +36537,26 @@
           "acquirer_assigned_merchant_id": {
             "type": "string",
             "description": "The merchant id assigned by the acquirer",
-            "example": "M123456789"
+            "example": "M123456789",
+            "nullable": true
           },
           "merchant_name": {
             "type": "string",
             "description": "Merchant name",
-            "example": "NewAge Retailer"
+            "example": "NewAge Retailer",
+            "nullable": true
           },
           "network": {
             "type": "string",
             "description": "Network provider",
-            "example": "VISA"
+            "example": "VISA",
+            "nullable": true
           },
           "acquirer_bin": {
             "type": "string",
             "description": "Acquirer bin",
-            "example": "456789"
+            "example": "456789",
+            "nullable": true
           },
           "acquirer_ica": {
             "type": "string",
@@ -36437,12 +36568,23 @@
             "type": "number",
             "format": "double",
             "description": "Fraud rate for the particular acquirer configuration",
-            "example": 0.01
+            "example": 0.01,
+            "nullable": true
+          },
+          "acquirer_country_code": {
+            "type": "string",
+            "description": "Acquirer country code",
+            "example": "US",
+            "nullable": true
           },
           "profile_id": {
             "type": "string",
             "description": "Parent profile id to link the acquirer account with",
             "example": "pro_ky0yNyOXXlA5hF8JzE5q"
+          },
+          "is_default": {
+            "type": "boolean",
+            "description": "Whether this configuration bucket is the default fallback for the profile."
           }
         }
       },
@@ -36461,6 +36603,7 @@
           },
           "network": {
             "type": "string",
+            "description": "The card network this configuration entry targets — optional if updating just the default.",
             "example": "MASTERCARD",
             "nullable": true
           },
@@ -36478,6 +36621,16 @@
             "type": "number",
             "format": "double",
             "example": "0.02",
+            "nullable": true
+          },
+          "acquirer_country_code": {
+            "type": "string",
+            "example": "US",
+            "nullable": true
+          },
+          "is_default": {
+            "type": "boolean",
+            "description": "Whether this configuration bucket is the default fallback for the profile.",
             "nullable": true
           }
         },
@@ -37093,7 +37246,16 @@
             "items": {
               "$ref": "#/components/schemas/ProfileAcquirerResponse"
             },
-            "description": "Acquirer configs",
+            "description": "Acquirer configs (Deprecated - use `acquirer_config_bucket` instead)",
+            "deprecated": true,
+            "nullable": true
+          },
+          "acquirer_config_bucket": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ProfileAcquirerConfigsResponse"
+              }
+            ],
             "nullable": true
           },
           "is_iframe_redirection_enabled": {

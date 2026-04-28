@@ -74,7 +74,7 @@ pub struct Profile {
     pub is_iframe_redirection_enabled: Option<bool>,
     pub is_pre_network_tokenization_enabled: Option<bool>,
     pub three_ds_decision_rule_algorithm: Option<serde_json::Value>,
-    pub acquirer_config_map: Option<common_types::domain::AcquirerConfigMap>,
+    pub acquirer_config_map: Option<AcquirerConfigBucket>,
     pub merchant_category_code: Option<common_enums::MerchantCategoryCode>,
     pub merchant_country_code: Option<common_types::payments::MerchantCountryCode>,
     pub dispute_polling_interval: Option<primitive_wrappers::DisputePollingIntervalInHours>,
@@ -208,7 +208,7 @@ pub struct ProfileUpdateInternal {
     pub is_iframe_redirection_enabled: Option<bool>,
     pub is_pre_network_tokenization_enabled: Option<bool>,
     pub three_ds_decision_rule_algorithm: Option<serde_json::Value>,
-    pub acquirer_config_map: Option<common_types::domain::AcquirerConfigMap>,
+    pub acquirer_config_map: Option<AcquirerConfigBucket>,
     pub merchant_category_code: Option<common_enums::MerchantCategoryCode>,
     pub merchant_country_code: Option<common_types::payments::MerchantCountryCode>,
     pub dispute_polling_interval: Option<primitive_wrappers::DisputePollingIntervalInHours>,
@@ -443,7 +443,7 @@ pub struct Profile {
     pub id: common_utils::id_type::ProfileId,
     pub is_iframe_redirection_enabled: Option<bool>,
     pub three_ds_decision_rule_algorithm: Option<serde_json::Value>,
-    pub acquirer_config_map: Option<common_types::domain::AcquirerConfigMap>,
+    pub acquirer_config_map: Option<AcquirerConfigBucket>,
     pub merchant_category_code: Option<common_enums::MerchantCategoryCode>,
     pub merchant_country_code: Option<common_types::payments::MerchantCountryCode>,
     pub dispute_polling_interval: Option<primitive_wrappers::DisputePollingIntervalInHours>,
@@ -858,6 +858,35 @@ pub struct WebhookDetails {
 }
 
 common_utils::impl_to_sql_from_sql_json!(WebhookDetails);
+
+#[derive(
+    Clone, Debug, serde::Serialize, serde::Deserialize, diesel::AsExpression, diesel::FromSqlRow,
+)]
+#[diesel(sql_type = diesel::sql_types::Jsonb)]
+#[serde(untagged)]
+pub enum AcquirerConfigBucket {
+    New(common_types::domain::AcquirerConfigBucket),
+    Old(
+        HashMap<
+            common_utils::id_type::ProfileAcquirerId,
+            Vec<common_types::domain::AcquirerConfig>,
+        >,
+    ),
+}
+
+common_utils::impl_to_sql_from_sql_json!(AcquirerConfigBucket);
+
+impl From<AcquirerConfigBucket> for common_types::domain::AcquirerConfigBucket {
+    fn from(item: AcquirerConfigBucket) -> Self {
+        match item {
+            AcquirerConfigBucket::New(new) => new,
+            AcquirerConfigBucket::Old(old) => Self {
+                default_acquirer_config: None,
+                configs: old,
+            },
+        }
+    }
+}
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, diesel::AsExpression)]
 #[diesel(sql_type = diesel::sql_types::Jsonb)]
