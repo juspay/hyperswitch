@@ -29,7 +29,6 @@ env:
   OPENCODE_SKILLS_DIR: /home/phoenix/.config/opencode/skills
   SOURCE_REPO_LOCAL: /home/phoenix/repos/hyperswitch
   SPECS_REPO_LOCAL: /home/phoenix/repos/hyperswitch-specs
-  SPECS_REPO_PINNED_SHA: ""
   TEAM_REVIEWER_SKILLS: >-
     hyperswitch-baseline-reviewer
     hyperswitch-connector-reviewer
@@ -106,22 +105,7 @@ jobs:
           git checkout --quiet main
           git reset --hard origin/main
 
-          CURRENT_SHA=$(git rev-parse HEAD)
-          echo "Specs repo at $CURRENT_SHA on main"
-
-          if [ -n "${SPECS_REPO_PINNED_SHA:-}" ]; then
-            if [ "$CURRENT_SHA" != "$SPECS_REPO_PINNED_SHA" ]; then
-              echo "ERROR: Specs repo SHA mismatch — possible supply-chain tampering."
-              echo "  Expected : $SPECS_REPO_PINNED_SHA"
-              echo "  Got      : $CURRENT_SHA"
-              echo "  If this is intentional, update SPECS_REPO_PINNED_SHA=$CURRENT_SHA in the workflow env."
-              exit 1
-            fi
-            echo "Specs repo SHA verified: $CURRENT_SHA"
-          else
-            echo "WARNING: SPECS_REPO_PINNED_SHA is not set — supply-chain pin disabled."
-            echo "         Recommend setting it to '$CURRENT_SHA' to enforce integrity."
-          fi
+          echo "Specs repo at $(git rev-parse HEAD) on main"
 
       - name: Checkout PR branch
         env:
