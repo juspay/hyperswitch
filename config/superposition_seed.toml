@@ -127,6 +127,12 @@ schema = { type = "boolean" }
 description = "Whether to call the PM modular service for an organization"
 change_reason = "Initial setup"
 
+[default-configs.should_schedule_modular_forward_compat]
+value = false
+schema = { type = "boolean" }
+description = "Whether to schedule PM modular forward compatibility PT for a merchant"
+change_reason = "Initial setup"
+
 [default-configs.should_return_raw_payment_method_details]
 value = false
 schema = { type = "boolean" }
