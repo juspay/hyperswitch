@@ -51,7 +51,7 @@ describe("Pay Later Payment tests", () => {
         const confirmData = getConnectorDetails(globalState.get("connectorId"))[
           "pay_later_pm"
         ]["Affirm"];
-        cy.confirmPayLaterCallTest(
+        cy.confirmCallTest(
           fixtures.confirmBody,
           confirmData,
           true,
@@ -67,7 +67,8 @@ describe("Pay Later Payment tests", () => {
           cy.task("cli_log", "Skipping step: Handle Redirect");
           return;
         }
-        cy.handlePayLaterRedirect(globalState);
+        const expected_redirection = fixtures.confirmBody["return_url"];
+        cy.handleRedirection(globalState, expected_redirection);
       });
 
       cy.step("Capture Payment", () => {
