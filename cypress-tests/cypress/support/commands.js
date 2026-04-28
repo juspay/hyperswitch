@@ -703,6 +703,70 @@ Cypress.Commands.add(
   }
 );
 
+// FRM-specific merchant commands
+Cypress.Commands.add(
+  "merchantRetrieveCallWithId",
+  (merchantId, globalState) => {
+    cy.request({
+      method: "GET",
+      url: `${globalState.get("baseUrl")}/accounts/${merchantId}`,
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json",
+        "api-key": globalState.get("adminApiKey"),
+      },
+      failOnStatusCode: false,
+    }).then((response) => {
+      logRequestId(response.headers["x-request-id"]);
+      return cy.wrap(response);
+    });
+  }
+);
+
+Cypress.Commands.add(
+  "merchantUpdateCallTest",
+  (merchantUpdateBody, globalState, merchantId) => {
+    cy.request({
+      method: "POST",
+      url: `${globalState.get("baseUrl")}/accounts/${merchantId}`,
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json",
+        "api-key": globalState.get("adminApiKey"),
+      },
+      body: merchantUpdateBody,
+      failOnStatusCode: false,
+    }).then((response) => {
+      logRequestId(response.headers["x-request-id"]);
+      return cy.wrap(response);
+    });
+  }
+);
+
+Cypress.Commands.add(
+  "merchantCreateCallTestExpectingPossibleFailure",
+  (merchantCreateBody, globalState, expectedStatuses = [200]) => {
+    const merchantId = RequestBodyUtils.generateRandomString();
+    RequestBodyUtils.setMerchantId(merchantCreateBody, merchantId);
+
+    cy.request({
+      method: "POST",
+      url: `${globalState.get("baseUrl")}/accounts`,
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json",
+        "api-key": globalState.get("adminApiKey"),
+      },
+      body: merchantCreateBody,
+      failOnStatusCode: false,
+    }).then((response) => {
+      logRequestId(response.headers["x-request-id"]);
+      expect(response.status).to.be.oneOf(expectedStatuses);
+      return cy.wrap(response);
+    });
+  }
+);
+
 Cypress.Commands.add(
   "createBusinessProfileTest",
   (

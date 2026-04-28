@@ -27,24 +27,15 @@ describe("FRM Routing Algorithm - Merchant Account Tests", () => {
 
       globalState.set("frmMerchantId", merchantId);
 
-      cy.request({
-        method: "POST",
-        url: `${globalState.get("baseUrl")}/accounts`,
-        headers: {
-          Accept: "application/json",
-          "Content-Type": "application/json",
-          "api-key": globalState.get("adminApiKey"),
-        },
-        body: createBody,
+      cy.merchantCreateCallTest(createBody, globalState, {
+        merchantIdStateKey: "frmMerchantId",
+        profileIdStateKey: "frmProfileId",
+        publishableKeyStateKey: "frmPublishableKey",
       }).then((response) => {
-        expect(response.status).to.equal(200);
-        expect(response.body.merchant_id).to.equal(merchantId);
         expect(response.body).to.have.property("frm_routing_algorithm");
         expect(response.body.frm_routing_algorithm).to.deep.equal(
           fixtures.frmRoutingTestData.valid_single_routing
         );
-        globalState.set("frmProfileId", response.body.default_profile);
-        globalState.set("frmPublishableKey", response.body.publishable_key);
       });
     });
 
@@ -59,18 +50,9 @@ describe("FRM Routing Algorithm - Merchant Account Tests", () => {
 
       globalState.set("frmPriorityMerchantId", merchantId);
 
-      cy.request({
-        method: "POST",
-        url: `${globalState.get("baseUrl")}/accounts`,
-        headers: {
-          Accept: "application/json",
-          "Content-Type": "application/json",
-          "api-key": globalState.get("adminApiKey"),
-        },
-        body: createBody,
+      cy.merchantCreateCallTest(createBody, globalState, {
+        merchantIdStateKey: "frmPriorityMerchantId",
       }).then((response) => {
-        expect(response.status).to.equal(200);
-        expect(response.body.merchant_id).to.equal(merchantId);
         expect(response.body).to.have.property("frm_routing_algorithm");
         expect(response.body.frm_routing_algorithm).to.deep.equal(
           fixtures.frmRoutingTestData.valid_priority_routing
@@ -85,22 +67,15 @@ describe("FRM Routing Algorithm - Merchant Account Tests", () => {
       it("should retrieve merchant account and verify frm_routing_algorithm persists", () => {
         const merchantId = globalState.get("frmMerchantId");
 
-        cy.request({
-          method: "GET",
-          url: `${globalState.get("baseUrl")}/accounts/${merchantId}`,
-          headers: {
-            Accept: "application/json",
-            "Content-Type": "application/json",
-            "api-key": globalState.get("adminApiKey"),
-          },
-        }).then((response) => {
-          expect(response.status).to.equal(200);
-          expect(response.body.merchant_id).to.equal(merchantId);
-          expect(response.body).to.have.property("frm_routing_algorithm");
-          expect(response.body.frm_routing_algorithm).to.deep.equal(
-            fixtures.frmRoutingTestData.valid_single_routing
-          );
-        });
+        cy.merchantRetrieveCallWithId(merchantId, globalState).then(
+          (response) => {
+            expect(response.body.merchant_id).to.equal(merchantId);
+            expect(response.body).to.have.property("frm_routing_algorithm");
+            expect(response.body.frm_routing_algorithm).to.deep.equal(
+              fixtures.frmRoutingTestData.valid_single_routing
+            );
+          }
+        );
       });
     }
   );
@@ -115,22 +90,11 @@ describe("FRM Routing Algorithm - Merchant Account Tests", () => {
 
       globalState.set("frmUpdateMerchantId", merchantId);
 
-      cy.request({
-        method: "POST",
-        url: `${globalState.get("baseUrl")}/accounts`,
-        headers: {
-          Accept: "application/json",
-          "Content-Type": "application/json",
-          "api-key": globalState.get("adminApiKey"),
-        },
-        body: createBody,
+      cy.merchantCreateCallTest(createBody, globalState, {
+        merchantIdStateKey: "frmUpdateMerchantId",
+        profileIdStateKey: "frmUpdateProfileId",
+        publishableKeyStateKey: "frmUpdatePublishableKey",
       }).then((response) => {
-        expect(response.status).to.equal(200);
-        globalState.set("frmUpdateProfileId", response.body.default_profile);
-        globalState.set(
-          "frmUpdatePublishableKey",
-          response.body.publishable_key
-        );
         globalState.set(
           "frmUpdateOrganizationId",
           response.body.organization_id
@@ -147,24 +111,15 @@ describe("FRM Routing Algorithm - Merchant Account Tests", () => {
       updateBody.frm_routing_algorithm =
         fixtures.frmRoutingTestData.valid_single_routing_alt;
 
-      cy.request({
-        method: "POST",
-        url: `${globalState.get("baseUrl")}/accounts/${merchantId}`,
-        headers: {
-          Accept: "application/json",
-          "Content-Type": "application/json",
-          "api-key": globalState.get("adminApiKey"),
-        },
-        body: updateBody,
-        failOnStatusCode: false,
-      }).then((response) => {
-        expect(response.status).to.equal(200);
-        expect(response.body.merchant_id).to.equal(merchantId);
-        expect(response.body).to.have.property("frm_routing_algorithm");
-        expect(response.body.frm_routing_algorithm).to.deep.equal(
-          fixtures.frmRoutingTestData.valid_single_routing_alt
-        );
-      });
+      cy.merchantUpdateCallTest(updateBody, globalState, merchantId).then(
+        (response) => {
+          expect(response.body.merchant_id).to.equal(merchantId);
+          expect(response.body).to.have.property("frm_routing_algorithm");
+          expect(response.body.frm_routing_algorithm).to.deep.equal(
+            fixtures.frmRoutingTestData.valid_single_routing_alt
+          );
+        }
+      );
     });
   });
 
@@ -177,18 +132,7 @@ describe("FRM Routing Algorithm - Merchant Account Tests", () => {
       createBody.merchant_id = merchantId;
       delete createBody.frm_routing_algorithm;
 
-      cy.request({
-        method: "POST",
-        url: `${globalState.get("baseUrl")}/accounts`,
-        headers: {
-          Accept: "application/json",
-          "Content-Type": "application/json",
-          "api-key": globalState.get("adminApiKey"),
-        },
-        body: createBody,
-      }).then((response) => {
-        expect(response.status).to.equal(200);
-        expect(response.body.merchant_id).to.equal(merchantId);
+      cy.merchantCreateCallTest(createBody, globalState).then((response) => {
         expect(
           response.body.frm_routing_algorithm,
           "frm_routing_algorithm should be null when not provided"
@@ -207,25 +151,11 @@ describe("FRM Routing Algorithm - Merchant Account Tests", () => {
       createBody.frm_routing_algorithm =
         fixtures.frmRoutingTestData.invalid_routing_missing_type;
 
-      cy.request({
-        method: "POST",
-        url: `${globalState.get("baseUrl")}/accounts`,
-        headers: {
-          Accept: "application/json",
-          "Content-Type": "application/json",
-          "api-key": globalState.get("adminApiKey"),
-        },
-        body: createBody,
-        failOnStatusCode: false,
-      }).then((response) => {
-        expect(response.status).to.be.oneOf([200, 400, 422]);
-        if (response.status === 200) {
-          expect(response.body.merchant_id).to.equal(merchantId);
-          expect(response.body).to.have.property("frm_routing_algorithm");
-        } else {
-          expect(response.body).to.have.property("error");
-        }
-      });
+      cy.merchantCreateCallTestExpectingPossibleFailure(
+        createBody,
+        globalState,
+        [200, 400, 422]
+      );
     });
 
     it("should handle invalid frm_routing_algorithm with missing data field", () => {
@@ -237,25 +167,11 @@ describe("FRM Routing Algorithm - Merchant Account Tests", () => {
       createBody.frm_routing_algorithm =
         fixtures.frmRoutingTestData.invalid_routing_missing_data;
 
-      cy.request({
-        method: "POST",
-        url: `${globalState.get("baseUrl")}/accounts`,
-        headers: {
-          Accept: "application/json",
-          "Content-Type": "application/json",
-          "api-key": globalState.get("adminApiKey"),
-        },
-        body: createBody,
-        failOnStatusCode: false,
-      }).then((response) => {
-        expect(response.status).to.be.oneOf([200, 400, 422]);
-        if (response.status === 200) {
-          expect(response.body.merchant_id).to.equal(merchantId);
-          expect(response.body).to.have.property("frm_routing_algorithm");
-        } else {
-          expect(response.body).to.have.property("error");
-        }
-      });
+      cy.merchantCreateCallTestExpectingPossibleFailure(
+        createBody,
+        globalState,
+        [200, 400, 422]
+      );
     });
 
     it("should handle invalid frm_routing_algorithm with empty object", () => {
@@ -267,25 +183,11 @@ describe("FRM Routing Algorithm - Merchant Account Tests", () => {
       createBody.frm_routing_algorithm =
         fixtures.frmRoutingTestData.invalid_routing_empty_object;
 
-      cy.request({
-        method: "POST",
-        url: `${globalState.get("baseUrl")}/accounts`,
-        headers: {
-          Accept: "application/json",
-          "Content-Type": "application/json",
-          "api-key": globalState.get("adminApiKey"),
-        },
-        body: createBody,
-        failOnStatusCode: false,
-      }).then((response) => {
-        expect(response.status).to.be.oneOf([200, 400, 422]);
-        if (response.status === 200) {
-          expect(response.body.merchant_id).to.equal(merchantId);
-          expect(response.body).to.have.property("frm_routing_algorithm");
-        } else {
-          expect(response.body).to.have.property("error");
-        }
-      });
+      cy.merchantCreateCallTestExpectingPossibleFailure(
+        createBody,
+        globalState,
+        [200, 400, 422]
+      );
     });
 
     it("should handle invalid frm_routing_algorithm with unknown type", () => {
@@ -297,25 +199,11 @@ describe("FRM Routing Algorithm - Merchant Account Tests", () => {
       createBody.frm_routing_algorithm =
         fixtures.frmRoutingTestData.invalid_routing_unknown_type;
 
-      cy.request({
-        method: "POST",
-        url: `${globalState.get("baseUrl")}/accounts`,
-        headers: {
-          Accept: "application/json",
-          "Content-Type": "application/json",
-          "api-key": globalState.get("adminApiKey"),
-        },
-        body: createBody,
-        failOnStatusCode: false,
-      }).then((response) => {
-        expect(response.status).to.be.oneOf([200, 400, 422]);
-        if (response.status === 200) {
-          expect(response.body.merchant_id).to.equal(merchantId);
-          expect(response.body).to.have.property("frm_routing_algorithm");
-        } else {
-          expect(response.body).to.have.property("error");
-        }
-      });
+      cy.merchantCreateCallTestExpectingPossibleFailure(
+        createBody,
+        globalState,
+        [200, 400, 422]
+      );
     });
   });
 });
