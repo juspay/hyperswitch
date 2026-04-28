@@ -1078,6 +1078,12 @@ pub fn convert_backend_input_to_routing_eval(
             Some(ValueType::EnumVariant(sfu.to_string())),
         );
     }
+    if let Some(transaction_initiator) = input.payment.transaction_initiator {
+        params.insert(
+            "transaction_initiator".to_string(),
+            Some(ValueType::EnumVariant(transaction_initiator.to_string())),
+        );
+    }
 
     // PaymentMethod
     if let Some(pm) = input.payment_method.payment_method {
@@ -1108,6 +1114,22 @@ pub fn convert_backend_input_to_routing_eval(
             "card_network".to_string(),
             Some(ValueType::EnumVariant(network.to_string())),
         );
+    }
+
+    // Issuer
+    if let Some(issuer_data) = input.issuer_data {
+        if let Some(issuer_name) = issuer_data.name {
+            params.insert(
+                "issuer_name".to_string(),
+                Some(ValueType::StrValue(issuer_name)),
+            );
+        }
+        if let Some(issuer_country) = issuer_data.country {
+            params.insert(
+                "issuer_country".to_string(),
+                Some(ValueType::EnumVariant(issuer_country.to_string())),
+            );
+        }
     }
 
     // Mandate
