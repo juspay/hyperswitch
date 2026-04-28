@@ -3108,15 +3108,15 @@ pub enum BankDebitData {
         #[smithy(value_type = "Option<String>")]
         branch_code: Option<Secret<String>>,
 
-        #[schema(value_type = String, example = "John Doe")]
+        #[schema(value_type = Option<String>, example = "John Doe")]
         #[smithy(value_type = "Option<String>")]
         bank_account_holder_name: Option<Secret<String>>,
 
-        #[schema(value_type = String, example = "ACH")]
+        #[schema(value_type = Option<BankNames>, example = "absa")]
         #[smithy(value_type = "Option<BankNames>")]
         bank_name: Option<common_enums::BankNames>,
 
-        #[schema(value_type = String, example = "Checking")]
+        #[schema(value_type = Option<BankType>, example = "savings")]
         #[smithy(value_type = "Option<BankType>")]
         bank_type: Option<common_enums::BankType>,
     },

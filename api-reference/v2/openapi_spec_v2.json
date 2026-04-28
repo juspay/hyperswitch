@@ -7369,10 +7369,7 @@
               "eft_debit_order": {
                 "type": "object",
                 "required": [
-                  "account_number",
-                  "bank_account_holder_name",
-                  "bank_name",
-                  "bank_type"
+                  "account_number"
                 ],
                 "properties": {
                   "billing_details": {
@@ -7396,15 +7393,24 @@
                   },
                   "bank_account_holder_name": {
                     "type": "string",
-                    "example": "John Doe"
+                    "example": "John Doe",
+                    "nullable": true
                   },
                   "bank_name": {
-                    "type": "string",
-                    "example": "ACH"
+                    "allOf": [
+                      {
+                        "$ref": "#/components/schemas/BankNames"
+                      }
+                    ],
+                    "nullable": true
                   },
                   "bank_type": {
-                    "type": "string",
-                    "example": "Checking"
+                    "allOf": [
+                      {
+                        "$ref": "#/components/schemas/BankType"
+                      }
+                    ],
+                    "nullable": true
                   }
                 }
               }
