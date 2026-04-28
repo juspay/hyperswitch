@@ -13,7 +13,6 @@ use common_utils::{
 };
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
-    payment_method_data::PaymentMethodData,
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
     router_flow_types::{
         access_token_auth::AccessTokenAuth,
@@ -59,8 +58,8 @@ use crate::{
     constants::headers,
     types::ResponseRouterData,
     utils::{
-        self, PaymentMethodDataType, PaymentMethodTokenizationRequestData,
-        PaymentsAuthorizeRequestData, PaymentsPreProcessingRequestData, PaymentsSyncRequestData,
+        self, PaymentMethodTokenizationRequestData, PaymentsAuthorizeRequestData,
+        PaymentsPreProcessingRequestData, PaymentsSyncRequestData,
         RefundsRequestData as OtherRefundsRequestData, RouterData as _,
     },
 };
@@ -401,14 +400,6 @@ impl ConnectorValidation for Paysafe {
         _connector_meta_data: Option<common_utils::pii::SecretSerdeValue>,
     ) -> CustomResult<(), errors::ConnectorError> {
         Ok(())
-    }
-    fn validate_mandate_payment(
-        &self,
-        pm_type: Option<enums::PaymentMethodType>,
-        pm_data: PaymentMethodData,
-    ) -> CustomResult<(), errors::ConnectorError> {
-        let mandate_supported_pmd = std::collections::HashSet::from([PaymentMethodDataType::Card]);
-        utils::is_mandate_supported(pm_data, pm_type, mandate_supported_pmd, self.id())
     }
 }
 

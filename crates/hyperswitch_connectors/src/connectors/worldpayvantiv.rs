@@ -12,7 +12,6 @@ use common_utils::{
 };
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::{
-    payment_method_data::PaymentMethodData,
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
     router_flow_types::{
         access_token_auth::AccessTokenAuth,
@@ -187,20 +186,7 @@ impl ConnectorCommon for Worldpayvantiv {
     }
 }
 
-impl ConnectorValidation for Worldpayvantiv {
-    fn validate_mandate_payment(
-        &self,
-        pm_type: Option<api_models::enums::PaymentMethodType>,
-        pm_data: PaymentMethodData,
-    ) -> CustomResult<(), errors::ConnectorError> {
-        let mandate_supported_pmd = std::collections::HashSet::from([
-            connector_utils::PaymentMethodDataType::Card,
-            connector_utils::PaymentMethodDataType::ApplePay,
-            connector_utils::PaymentMethodDataType::GooglePay,
-        ]);
-        connector_utils::is_mandate_supported(pm_data, pm_type, mandate_supported_pmd, self.id())
-    }
-}
+impl ConnectorValidation for Worldpayvantiv {}
 
 impl ConnectorIntegration<Session, PaymentsSessionData, PaymentsResponseData> for Worldpayvantiv {
     //TODO: implement sessions flow

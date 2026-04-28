@@ -99,8 +99,7 @@ use crate::{
     },
     utils::{
         convert_amount, convert_payment_authorize_router_response,
-        convert_setup_mandate_router_data_to_authorize_router_data, is_mandate_supported,
-        ForeignTryFrom, PaymentMethodDataType,
+        convert_setup_mandate_router_data_to_authorize_router_data, ForeignTryFrom,
     },
 };
 const ADYEN_API_VERSION: &str = "v68";
@@ -376,34 +375,6 @@ impl ConnectorValidation for Adyen {
                 }
             },
         }
-    }
-    fn validate_mandate_payment(
-        &self,
-        pm_type: Option<PaymentMethodType>,
-        pm_data: payment_method_data::PaymentMethodData,
-    ) -> CustomResult<(), errors::ConnectorError> {
-        let mandate_supported_pmd = std::collections::HashSet::from([
-            PaymentMethodDataType::Card,
-            PaymentMethodDataType::ApplePay,
-            PaymentMethodDataType::GooglePay,
-            PaymentMethodDataType::PaypalRedirect,
-            PaymentMethodDataType::MomoRedirect,
-            PaymentMethodDataType::KakaoPayRedirect,
-            PaymentMethodDataType::GoPayRedirect,
-            PaymentMethodDataType::GcashRedirect,
-            PaymentMethodDataType::DanaRedirect,
-            PaymentMethodDataType::TwintRedirect,
-            PaymentMethodDataType::VippsRedirect,
-            PaymentMethodDataType::KlarnaRedirect,
-            PaymentMethodDataType::Ideal,
-            PaymentMethodDataType::OpenBankingUk,
-            PaymentMethodDataType::Trustly,
-            PaymentMethodDataType::BancontactCard,
-            PaymentMethodDataType::AchBankDebit,
-            PaymentMethodDataType::SepaBankDebit,
-            PaymentMethodDataType::BecsBankDebit,
-        ]);
-        is_mandate_supported(pm_data, pm_type, mandate_supported_pmd, self.id())
     }
 
     fn validate_psync_reference_id(

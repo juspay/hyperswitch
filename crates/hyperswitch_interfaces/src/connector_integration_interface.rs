@@ -5,7 +5,6 @@ use hyperswitch_domain_models::{
     api::ApplicationResponse,
     connector_endpoints::Connectors,
     errors::api_error_response::ApiErrorResponse,
-    payment_method_data::PaymentMethodData,
     router_data::{ConnectorAuthType, ErrorResponse, RouterData},
     router_data_v2::RouterDataV2,
     router_request_types::CurrentFlowInfo,
@@ -505,17 +504,6 @@ impl ConnectorValidation for ConnectorEnum {
                 payment_method,
                 pmt,
             ),
-        }
-    }
-
-    fn validate_mandate_payment(
-        &self,
-        pm_type: Option<common_enums::PaymentMethodType>,
-        pm_data: PaymentMethodData,
-    ) -> CustomResult<(), errors::ConnectorError> {
-        match self {
-            Self::Old(connector) => connector.validate_mandate_payment(pm_type, pm_data),
-            Self::New(connector) => connector.validate_mandate_payment(pm_type, pm_data),
         }
     }
 

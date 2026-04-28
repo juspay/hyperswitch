@@ -1,9 +1,4 @@
-use std::{
-    collections::{HashMap, HashSet},
-    marker::PhantomData,
-    str::FromStr,
-    sync::LazyLock,
-};
+use std::{collections::HashMap, marker::PhantomData, str::FromStr, sync::LazyLock};
 
 #[cfg(feature = "payouts")]
 use api_models::payouts::PayoutVendorAccountDetails;
@@ -6555,30 +6550,6 @@ mod tests {
     fn test_image_data_source_url() {
         let qr_image_data_source_url = utils::QrImage::new_from_data("Hyperswitch".to_string());
         assert!(qr_image_data_source_url.is_ok());
-    }
-}
-
-pub fn is_mandate_supported(
-    selected_pmd: PaymentMethodData,
-    payment_method_type: Option<enums::PaymentMethodType>,
-    mandate_implemented_pmds: HashSet<PaymentMethodDataType>,
-    connector: &'static str,
-) -> Result<(), Error> {
-    if mandate_implemented_pmds.contains(&PaymentMethodDataType::from(selected_pmd.clone())) {
-        Ok(())
-    } else {
-        match payment_method_type {
-            Some(pm_type) => Err(errors::ConnectorError::NotSupported {
-                message: format!("{pm_type} mandate payment"),
-                connector,
-            }
-            .into()),
-            None => Err(errors::ConnectorError::NotSupported {
-                message: "mandate payment".to_string(),
-                connector,
-            }
-            .into()),
-        }
     }
 }
 

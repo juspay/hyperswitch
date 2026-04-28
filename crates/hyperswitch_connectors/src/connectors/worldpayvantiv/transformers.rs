@@ -250,6 +250,8 @@ pub struct Authorization {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub token: Option<TokenizationData>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub cardholder_authentication: Option<CardholderAuthentication>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub enhanced_data: Option<EnhancedData>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub processing_type: Option<VantivProcessingType>,
@@ -259,8 +261,6 @@ pub struct Authorization {
     pub allow_partial_auth: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub fraud_filter_override: Option<bool>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub cardholder_authentication: Option<CardholderAuthentication>,
 }
 
 #[derive(Debug, Serialize)]

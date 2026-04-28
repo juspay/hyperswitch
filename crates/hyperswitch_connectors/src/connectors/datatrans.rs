@@ -189,23 +189,7 @@ impl ConnectorCommon for Datatrans {
     }
 }
 
-impl ConnectorValidation for Datatrans {
-    fn validate_mandate_payment(
-        &self,
-        _pm_type: Option<PaymentMethodType>,
-        pm_data: PaymentMethodData,
-    ) -> CustomResult<(), errors::ConnectorError> {
-        let connector = self.id();
-        match pm_data {
-            PaymentMethodData::Card(_) => Ok(()),
-            _ => Err(errors::ConnectorError::NotSupported {
-                message: " mandate payment".to_string(),
-                connector,
-            }
-            .into()),
-        }
-    }
-}
+impl ConnectorValidation for Datatrans {}
 
 impl ConnectorIntegration<Session, PaymentsSessionData, PaymentsResponseData> for Datatrans {
     //TODO: implement sessions flow

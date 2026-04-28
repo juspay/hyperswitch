@@ -14,7 +14,6 @@ use common_utils::{
 };
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
-    payment_method_data::PaymentMethodData,
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
     router_flow_types::*,
     router_request_types::*,
@@ -38,7 +37,7 @@ use crate::{
     },
     constants::headers,
     types::ResponseRouterData,
-    utils::{self, get_header_key_value, RefundsRequestData as _},
+    utils::{get_header_key_value, RefundsRequestData as _},
 };
 
 #[derive(Clone)]
@@ -136,19 +135,7 @@ impl ConnectorCommon for Worldpaymodular {
     }
 }
 
-impl ConnectorValidation for Worldpaymodular {
-    fn validate_mandate_payment(
-        &self,
-        pm_type: Option<enums::PaymentMethodType>,
-        pm_data: PaymentMethodData,
-    ) -> CustomResult<(), ConnectorError> {
-        let mandate_supported_pmd = std::collections::HashSet::from([
-            utils::PaymentMethodDataType::GooglePay,
-            utils::PaymentMethodDataType::ApplePay,
-        ]);
-        utils::is_mandate_supported(pm_data, pm_type, mandate_supported_pmd, self.id())
-    }
-}
+impl ConnectorValidation for Worldpaymodular {}
 
 impl Payment for Worldpaymodular {}
 

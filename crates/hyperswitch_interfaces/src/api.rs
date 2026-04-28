@@ -47,7 +47,6 @@ pub use hyperswitch_domain_models::router_request_types::CurrentFlowInfo;
 use hyperswitch_domain_models::{
     connector_endpoints::Connectors,
     errors::api_error_response::ApiErrorResponse,
-    payment_method_data::PaymentMethodData,
     router_data::{
         AccessToken, AccessTokenAuthenticationResponse, ConnectorAuthType, ErrorResponse,
         RouterData,
@@ -870,27 +869,6 @@ pub trait ConnectorValidation: ConnectorCommon + ConnectorSpecifications {
                 connector: self.id(),
             }
             .into())
-        }
-    }
-
-    /// fn validate_mandate_payment
-    fn validate_mandate_payment(
-        &self,
-        pm_type: Option<PaymentMethodType>,
-        _pm_data: PaymentMethodData,
-    ) -> CustomResult<(), errors::ConnectorError> {
-        let connector = self.id();
-        match pm_type {
-            Some(pm_type) => Err(errors::ConnectorError::NotSupported {
-                message: format!("{pm_type} mandate payment"),
-                connector,
-            }
-            .into()),
-            None => Err(errors::ConnectorError::NotSupported {
-                message: " mandate payment".to_string(),
-                connector,
-            }
-            .into()),
         }
     }
 
