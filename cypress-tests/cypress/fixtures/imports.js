@@ -32,7 +32,7 @@ import paymentMethodCreate from "./modularPmService/modular-pm-service-pm-create
 import paymentMethodUpdate from "./modularPmService/modular-pm-service-pm-update.json";
 import paymentMethodSessionCreate from "./modularPmService/modular-pm-service-pms-create.json";
 import paymentMethodSessionUpdate from "./modularPmService/modular-pm-service-update-pms-saved-pm.json";
-import paymentMethodSessionConfirm from "./modularPmService/modular-pm-service-pms-confim.json";
+import paymentMethodSessionConfirm from "./modularPmService/modular-pm-service-pms-confirm.json";
 import modularPmServicePaymentsCall from "./modularPmService/modular-pm-service-payments-call.json";
 export {
   apiKeyCreateBody,
