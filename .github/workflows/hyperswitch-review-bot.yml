@@ -12,20 +12,18 @@ permissions:
   issues: write
 
 concurrency:
-  group: hyperswitch-review-${{ github.event.issue.number || github.event.pull_request.number }}
-  cancel-in-progress: true
+  group: hyperswitch-review-${{ github.event.pull_request.number || github.event.issue.number }}
+  cancel-in-progress: false
 
 defaults:
   run:
     shell: bash
 
 env:
-  # Team configuration — change these to reuse this workflow for another team.
   TEAM_NAME: hyperswitch
   SKILL_NAME: hyperswitch-reviewer
   SOURCE_REPO: juspay/hyperswitch
   AGENT_FILE: /home/phoenix/.config/opencode/agents/hyperswitch-reviewer.md
-  AGENT_FILE_SHA256: ""
   OPENCODE_SKILLS_DIR: /home/phoenix/.config/opencode/skills
   SOURCE_REPO_LOCAL: /home/phoenix/repos/hyperswitch
   SPECS_REPO_LOCAL: /home/phoenix/repos/hyperswitch-specs
@@ -37,6 +35,7 @@ env:
     hyperswitch-routing-reviewer
     hyperswitch-analytics-reviewer
     hyperswitch-dashboard-reviewer
+
 jobs:
   agent:
     runs-on: self-hosted
@@ -61,10 +60,6 @@ jobs:
             echo "ERROR: Could not resolve PR number from event payload"
             exit 1
           fi
-          if ! [[ "$PR_NUMBER" =~ ^[0-9]+$ ]]; then
-            echo "ERROR: PR number '$PR_NUMBER' is not a valid integer"
-            exit 1
-          fi
           echo "pr_number=$PR_NUMBER" >> "$GITHUB_OUTPUT"
           echo "Resolved — PR: #$PR_NUMBER"
 
@@ -73,11 +68,7 @@ jobs:
           EVENT_NAME: ${{ github.event_name }}
           COMMENT_ID: ${{ github.event.comment.id }}
         run: |
-          set -euo pipefail
-          if ! [[ "$COMMENT_ID" =~ ^[0-9]+$ ]]; then
-            echo "WARNING: COMMENT_ID is not a valid integer; skipping reaction"
-            exit 0
-          fi
+          set -uo pipefail
           if [ "$EVENT_NAME" == "pull_request_review_comment" ]; then
             REACTION_ENDPOINT="repos/$SOURCE_REPO/pulls/comments/$COMMENT_ID/reactions"
           else
@@ -86,26 +77,16 @@ jobs:
           gh api "$REACTION_ENDPOINT" --method POST -f content=eyes --silent \
             || echo "Failed to add eye reaction (non-fatal, continuing)"
 
-      - name: Update specs repo (SSH, persistent clone)
+      - name: Sync specs repo
         run: |
           set -euo pipefail
-
           if [ ! -d "$SPECS_REPO_LOCAL/.git" ]; then
-            echo "ERROR: $SPECS_REPO_LOCAL is not a git clone on this runner."
-            echo "       Seed it once with: git clone git@github.com:juspay/hyperswitch-specs.git $SPECS_REPO_LOCAL"
+            echo "ERROR: specs clone missing at $SPECS_REPO_LOCAL"
             exit 1
           fi
-
-          cd "$SPECS_REPO_LOCAL"
-
-          # fetch + hard-reset is robust against: dirty working tree from a
-          # prior aborted run, non-fast-forward main (force-push), and being
-          # left on a non-main branch after an UPDATE-intent session.
-          git fetch origin --prune --quiet
-          git checkout --quiet main
-          git reset --hard origin/main
-
-          echo "Specs repo at $(git rev-parse HEAD) on main"
+          git -C "$SPECS_REPO_LOCAL" fetch --quiet origin main
+          git -C "$SPECS_REPO_LOCAL" checkout --quiet main
+          git -C "$SPECS_REPO_LOCAL" reset --hard origin/main
 
       - name: Checkout PR branch
         env:
@@ -126,10 +107,7 @@ jobs:
       - name: Sync team reviewer skills
         run: |
           set -euo pipefail
-          echo "Syncing team reviewer skills from $SPECS_REPO_LOCAL..."
-
           mkdir -p "$OPENCODE_SKILLS_DIR"
-          chmod 700 "$OPENCODE_SKILLS_DIR"
 
           missing=()
           for skill in $TEAM_REVIEWER_SKILLS; do
@@ -140,8 +118,6 @@ jobs:
               continue
             fi
             mkdir -p "$dst"
-            # rsync --delete prunes stale files left behind by renames/removals
-            # in the specs repo — plain `cp -r` would leak deleted files forever.
             rsync -a --delete "$src/" "$dst/"
             echo "  synced: $skill"
           done
@@ -155,12 +131,9 @@ jobs:
             if [ ! -f "$OPENCODE_SKILLS_DIR/$helper/SKILL.md" ]; then
               echo "ERROR: orchestrator helper skill '$helper' is not installed on this runner."
               echo "       Expected: $OPENCODE_SKILLS_DIR/$helper/SKILL.md"
-              echo "       Seed it from your trusted source before enabling this workflow."
               exit 1
             fi
           done
-
-          echo "All team reviewer skills synced and orchestrator helpers present."
 
       - name: Run OpenCode Review Agent
         timeout-minutes: 40
@@ -173,20 +146,8 @@ jobs:
           COMMENT_BODY=$(jq -r '.comment.body // empty' "$GITHUB_EVENT_PATH")
           IN_REPLY_TO=$(jq -r '.comment.in_reply_to_id // empty' "$GITHUB_EVENT_PATH")
 
-          if [ -n "$IN_REPLY_TO" ] && ! [[ "$IN_REPLY_TO" =~ ^[0-9]+$ ]]; then
-            echo "WARNING: in_reply_to_id '$IN_REPLY_TO' is not a valid integer; clearing"
-            IN_REPLY_TO=""
-          fi
-
-          MAX_COMMENT_LEN=4000
-          if [ "${#COMMENT_BODY}" -gt "$MAX_COMMENT_LEN" ]; then
-            echo "WARNING: Comment body exceeds $MAX_COMMENT_LEN chars; truncating"
-            COMMENT_BODY="${COMMENT_BODY:0:$MAX_COMMENT_LEN}[... truncated by workflow]"
-          fi
-
           SESSION_DIR="/home/phoenix/.opencode-sessions"
           mkdir -p "$SESSION_DIR"
-          chmod 700 "$SESSION_DIR"
           SESSION_FILE="$SESSION_DIR/review-$TEAM_NAME-$PR_NUMBER"
 
           echo "PR number:   $PR_NUMBER"
@@ -198,19 +159,6 @@ jobs:
           if [ ! -f "$AGENT_FILE" ]; then
             echo "ERROR: Agent file not found at $AGENT_FILE"
             exit 1
-          fi
-
-          if [ -n "${AGENT_FILE_SHA256:-}" ]; then
-            ACTUAL_SHA256=$(sha256sum "$AGENT_FILE" | awk '{print $1}')
-            if [ "$ACTUAL_SHA256" != "$AGENT_FILE_SHA256" ]; then
-              echo "ERROR: Agent file SHA256 mismatch — possible tampering on runner."
-              echo "  Expected : $AGENT_FILE_SHA256"
-              echo "  Got      : $ACTUAL_SHA256"
-              exit 1
-            fi
-            echo "Agent file SHA256 verified."
-          else
-            echo "WARNING: AGENT_FILE_SHA256 is not set — agent file integrity check disabled."
           fi
 
           PROMPT="You MUST operate exclusively as the agent defined in:
@@ -246,21 +194,16 @@ jobs:
 
           if [ -f "$SESSION_FILE" ]; then
             SAVED_ID=$(cat "$SESSION_FILE")
-            if ! [[ "$SAVED_ID" =~ ^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$ ]]; then
-              echo "WARNING: Saved session ID '$SAVED_ID' is not a valid UUID; ignoring"
-              rm -f "$SESSION_FILE"
+            echo "Resuming session $SAVED_ID for review #$PR_NUMBER"
+            if opencode run \
+                 --session "$SAVED_ID" \
+                 --dir "$SOURCE_REPO_LOCAL" \
+                 "$PROMPT"; then
+              echo "Resumed session $SAVED_ID successfully"
+              exit 0
             else
-              echo "Resuming session $SAVED_ID for review #$PR_NUMBER"
-              if opencode run \
-                   --session "$SAVED_ID" \
-                   --dir "$SOURCE_REPO_LOCAL" \
-                   "$PROMPT"; then
-                echo "Resumed session $SAVED_ID successfully"
-                exit 0
-              else
-                echo "Session $SAVED_ID failed; falling through to new session"
-                rm -f "$SESSION_FILE"
-              fi
+              echo "Session $SAVED_ID failed; falling through to new session"
+              rm -f "$SESSION_FILE"
             fi
           fi
 
@@ -273,7 +216,7 @@ jobs:
 
           # Dump to a tempfile first: piping opencode directly into jq caused
           # `jq: parse error: Unfinished JSON term at EOF` on truncated output.
-          SESSION_LIST_RAW=$(mktemp -p "$SESSION_DIR")
+          SESSION_LIST_RAW=$(mktemp)
           trap 'rm -f "$SESSION_LIST_RAW"' EXIT
 
           if ! opencode session list --format json >"$SESSION_LIST_RAW" 2>/dev/null; then
@@ -289,20 +232,13 @@ jobs:
             exit 0
           fi
 
-          # -e makes jq exit non-zero when no element matches, which we want to
-          # distinguish from malformed JSON.
           SESSION_ID=$(jq -re --arg title "$UNIQUE_TITLE" \
             'map(select(.title == $title)) | .[0].id // empty' \
             "$SESSION_LIST_RAW" || true)
 
           if [ -n "${SESSION_ID:-}" ]; then
-            if [[ "$SESSION_ID" =~ ^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$ ]]; then
-              echo "$SESSION_ID" > "$SESSION_FILE"
-              chmod 600 "$SESSION_FILE"
-              echo "Saved session $SESSION_ID for review #$PR_NUMBER"
-            else
-              echo "WARNING: Session ID '$SESSION_ID' is not a valid UUID; skipping persistence"
-            fi
+            echo "$SESSION_ID" > "$SESSION_FILE"
+            echo "Saved session $SESSION_ID for review #$PR_NUMBER"
           else
             echo "WARNING: Could not locate session with title '$UNIQUE_TITLE' in session list"
           fi
