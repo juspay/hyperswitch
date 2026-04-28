@@ -86,30 +86,15 @@ describe("FRM Routing Algorithm - Merchant Account Tests", () => {
 
   context("Create merchant account without frm_routing_algorithm", () => {
     it("should create merchant account without frm_routing_algorithm and field should be absent or null", () => {
-      const merchantId = RequestBodyUtils.generateRandomString();
       const createBody = JSON.parse(
         JSON.stringify(fixtures.merchantCreateBody)
       );
-      createBody.merchant_id = merchantId;
-      delete createBody.frm_routing_algorithm;
 
-      cy.request({
-        method: "POST",
-        url: `${globalState.get("baseUrl")}/accounts`,
-        headers: {
-          Accept: "application/json",
-          "Content-Type": "application/json",
-          "api-key": globalState.get("adminApiKey"),
-        },
-        body: createBody,
-      }).then((response) => {
-        expect(response.status).to.equal(200);
-        expect(response.body.merchant_id).to.equal(merchantId);
-        expect(
-          response.body.frm_routing_algorithm,
-          "frm_routing_algorithm should be null when not provided"
-        ).to.be.oneOf([null, undefined]);
-      });
+      cy.merchantCreateWithoutFrmTest(
+        createBody,
+        globalState,
+        { merchantIdStateKey: "frmNoRoutingMerchantId" }
+      );
     });
   });
 

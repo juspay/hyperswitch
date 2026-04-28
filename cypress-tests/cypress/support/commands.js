@@ -719,7 +719,7 @@ Cypress.Commands.add("merchantRetrieveFrmCallTest", (merchantId, expectedFrmConf
 
 Cypress.Commands.add("merchantUpdateWithFrmCallTest", (merchantId, updateBody, frmRoutingConfig, globalState) => {
   updateBody.merchant_id = merchantId;
-  
+
   if (frmRoutingConfig) {
     updateBody.frm_routing_algorithm = frmRoutingConfig;
   }
@@ -740,11 +740,45 @@ Cypress.Commands.add("merchantUpdateWithFrmCallTest", (merchantId, updateBody, f
     cy.wrap(response).then(() => {
       expect(response.status).to.equal(200);
       expect(response.body.merchant_id).to.equal(merchantId);
-      
+
       if (frmRoutingConfig) {
         expect(response.body).to.have.property("frm_routing_algorithm");
         expect(response.body.frm_routing_algorithm).to.deep.equal(frmRoutingConfig);
       }
+    });
+  });
+});
+
+Cypress.Commands.add("merchantCreateWithoutFrmTest", (merchantCreateBody, globalState, options = {}) => {
+  const {
+    merchantIdStateKey = "merchantId",
+  } = options;
+
+  const merchantId = RequestBodyUtils.generateRandomString();
+  RequestBodyUtils.setMerchantId(merchantCreateBody, merchantId);
+  delete merchantCreateBody.frm_routing_algorithm;
+
+  globalState.set(merchantIdStateKey, merchantId);
+
+  cy.request({
+    method: "POST",
+    url: `${globalState.get("baseUrl")}/accounts`,
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json",
+      "api-key": globalState.get("adminApiKey"),
+    },
+    body: merchantCreateBody,
+  }).then((response) => {
+    logRequestId(response.headers["x-request-id"]);
+
+    cy.wrap(response).then(() => {
+      expect(response.status).to.equal(200);
+      expect(response.body.merchant_id).to.equal(merchantId);
+      expect(
+        response.body.frm_routing_algorithm,
+        "frm_routing_algorithm should be null when not provided"
+      ).to.be.oneOf([null, undefined]);
     });
   });
 });
