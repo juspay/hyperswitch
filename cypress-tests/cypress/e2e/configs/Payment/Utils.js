@@ -65,6 +65,8 @@ import { connectorDetails as staxConnectorDetails } from "./Stax.js";
 import { connectorDetails as stripeConnectorDetails } from "./Stripe.js";
 import { connectorDetails as stripeconnectConnectorDetails } from "./StripeConnect.js";
 import { connectorDetails as tesouroConnectorDetails } from "./Tesouro.js";
+import { connectorDetails as truelayerConnectorDetails } from "./Truelayer.js";
+import { connectorDetails as trustlyConnectorDetails } from "./Trustly.js";
 import { connectorDetails as trustpayConnectorDetails } from "./Trustpay.js";
 import { connectorDetails as trustpaymentsConnectorDetails } from "./TrustPayments.js";
 import { connectorDetails as tsysConnectorDetails } from "./Tsys.js";
@@ -137,8 +139,10 @@ const connectorDetails = {
   stax: staxConnectorDetails,
   stripe: stripeConnectorDetails,
   stripeconnect: stripeconnectConnectorDetails,
-  trustpay: trustpayConnectorDetails,
   tesouro: tesouroConnectorDetails,
+  truelayer: truelayerConnectorDetails,
+  trustly: trustlyConnectorDetails,
+  trustpay: trustpayConnectorDetails,
   trustpayments: trustpaymentsConnectorDetails,
   tsys: tsysConnectorDetails,
   volt: voltConnectorDetails,
