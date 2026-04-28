@@ -1,5 +1,5 @@
 use common_enums::enums;
-use common_utils::types::MinorUnit;
+use common_utils::{pii, types::MinorUnit};
 use hyperswitch_domain_models::{
     payment_method_data::PaymentMethodData,
     router_data::{ConnectorAuthType, RouterData},
@@ -224,4 +224,53 @@ pub struct ImerchantsolutionsErrorResponse {
     pub network_advice_code: Option<String>,
     pub network_decline_code: Option<String>,
     pub network_error_message: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct ImerchantsolutionsWebhookData {
+    #[serde(rename = "type")]
+    pub event_type: ImerchantsolutionsWebhookEventType,
+    pub payment_id: String,
+    pub psp_reference: String,
+    pub original_reference: Option<String>,
+    pub reference: Option<String>,
+    pub merchant_reference: Option<String>,
+    pub status: ImerchantsolutionsWebhookStatus,
+    pub reason: Option<String>,
+    pub error: Option<String>,
+    amount: Option<MinorUnit>,
+    refunded_amount: Option<MinorUnit>,
+    total_refunded: Option<MinorUnit>,
+    currency: enums::Currency,
+    processor: Option<String>,
+    card_last4: Option<String>,
+    card_brand: Option<String>,
+    customer_email: Option<pii::Email>,
+    partner_id: Option<Secret<String>>,
+    merchant_id: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub enum ImerchantsolutionsWebhookEventType {
+    #[serde(rename = "payment.completed")]
+    PaymentCompleted,
+    #[serde(rename = "payment.cancelled")]
+    PaymentCancelled,
+    #[serde(rename = "payment.failed")]
+    PaymentFailed,
+    #[serde(rename = "payment.refunded")]
+    PaymentRefunded,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "snake_case")]
+pub enum ImerchantsolutionsWebhookStatus {
+    PartiallyCaptured,
+    Captured,
+    PartiallyRefunded,
+    Refunded,
+    Cancelled,
+    Failed,
+    Refused,
 }
