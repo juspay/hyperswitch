@@ -1,4 +1,3 @@
-import { getCustomExchange } from "./Modifiers";
 const successfulNo3DSCardDetails = {
   card_number: "4532111111111112",
   card_exp_month: "10",
@@ -685,24 +684,5 @@ export const connectorDetails = {
       // NMI webhook handler uses RefundId for lookup, not ConnectorRefundId
       source: "refundId",
     },
-  },
-  card_redirect_pm: {
-    PaymentIntent: () =>
-      getCustomExchange({
-        Request: {
-          currency: "USD",
-        },
-        Response: {
-          status: 400,
-          body: {
-            error: {
-              type: "invalid_request",
-              code: "IR_39",
-              message:
-                "No eligible connector was found for the current payment method configuration",
-            },
-          },
-        },
-      }),
   },
 };

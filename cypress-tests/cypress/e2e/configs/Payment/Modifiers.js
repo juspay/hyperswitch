@@ -133,10 +133,6 @@ const CURRENCY_MAP = {
   Interac: "CAD", // Canadian payment method
   AliPayHk: "HKD", // Hong Kong payment method
 
-  // Card redirect payment methods
-  Benefit: "BHD",
-  Knet: "KWD",
-  MomoAtm: "VND",
 };
 
 export const getCurrency = (paymentMethodType) => {

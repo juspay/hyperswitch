@@ -1,5 +1,4 @@
 import { generateRandomEmail } from "../../../utils/RequestBodyUtils";
-import { getCustomExchange } from "./Modifiers";
 import {
   customerAcceptance,
   multiUseMandateData,
@@ -844,24 +843,5 @@ export const connectorDetails = {
       // Type of payment reference ID
       type: "string",
     },
-  },
-  card_redirect_pm: {
-    PaymentIntent: () =>
-      getCustomExchange({
-        Request: {
-          currency: "USD",
-        },
-        Response: {
-          status: 400,
-          body: {
-            error: {
-              type: "invalid_request",
-              code: "IR_39",
-              message:
-                "No eligible connector was found for the current payment method configuration",
-            },
-          },
-        },
-      }),
   },
 };
