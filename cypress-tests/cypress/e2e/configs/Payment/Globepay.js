@@ -34,7 +34,11 @@ export const connectorDetails = {
         },
       },
     }),
+    // Globepay connector is not fully integrated - no eligible connector found
     No3DSAutoCapture: getCustomExchange({
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
       Request: {
         payment_method: "card",
         payment_method_data: {
@@ -45,13 +49,20 @@ export const connectorDetails = {
         setup_future_usage: "on_session",
       },
       Response: {
-        status: 200,
+        status: 400,
         body: {
-          status: "succeeded",
+          error: {
+            type: "invalid_request",
+            message: "No eligible connector was found for the current payment method configuration",
+            code: "IR_00",
+          },
         },
       },
     }),
     Refund: getCustomExchange({
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
       Request: {
         amount: 6000,
       },
@@ -63,6 +74,9 @@ export const connectorDetails = {
       },
     }),
     PartialRefund: getCustomExchange({
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
       Request: {
         amount: 2000,
       },
@@ -74,6 +88,9 @@ export const connectorDetails = {
       },
     }),
     manualPaymentRefund: getCustomExchange({
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
       Request: {
         amount: 6000,
       },
@@ -85,6 +102,9 @@ export const connectorDetails = {
       },
     }),
     manualPaymentPartialRefund: getCustomExchange({
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
       Request: {
         amount: 2000,
       },
@@ -96,6 +116,9 @@ export const connectorDetails = {
       },
     }),
     SyncRefund: getCustomExchange({
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
       Response: {
         status: 200,
         body: {

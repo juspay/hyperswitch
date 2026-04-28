@@ -19,6 +19,30 @@ const successfulThreeDSTestCardDetails = {
   card_cvc: "999",
 };
 
+// Payment method data with billing address structure
+const paymentMethodDataResponse = {
+  card: {
+    last4: "1111",
+    card_type: "CREDIT",
+    card_network: "Visa",
+    card_issuer: "JPMORGAN CHASE BANK",
+    card_issuing_country: "UNITED STATES OF AMERICA",
+    card_isin: "411111",
+    card_extended_bin: null,
+    card_exp_month: "08",
+    card_exp_year: "30",
+    card_holder_name: "joseph Doe",
+    payment_checks: null,
+    authentication_data: null,
+    auth_code: null,
+  },
+  billing: {
+    address: {
+      country: "US",
+    },
+  },
+};
+
 export const connectorDetails = {
   card_pm: {
     PaymentIntent: getCustomExchange({
@@ -48,6 +72,12 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "succeeded",
+          payment_method_data: paymentMethodDataResponse,
+          billing: {
+            address: {
+              country: "US",
+            },
+          },
         },
       },
     }),
