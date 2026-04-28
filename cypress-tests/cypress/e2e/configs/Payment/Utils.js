@@ -5,6 +5,7 @@ import { updateDefaultStatusCode } from "./Modifiers.js";
 import { connectorDetails as aciConnectorDetails } from "./Aci.js";
 import { connectorDetails as adyenConnectorDetails } from "./Adyen.js";
 import { connectorDetails as airwallexConnectorDetails } from "./Airwallex.js";
+import { connectorDetails as amazonpayConnectorDetails } from "./AmazonPay.js";
 import { connectorDetails as archipelConnectorDetails } from "./Archipel.js";
 import { connectorDetails as authipayConnectorDetails } from "./Authipay.js";
 import { connectorDetails as authorizedotnetConnectorDetails } from "./Authorizedotnet.js";
@@ -79,6 +80,7 @@ const connectorDetails = {
   aci: aciConnectorDetails,
   adyen: adyenConnectorDetails,
   airwallex: airwallexConnectorDetails,
+  amazonpay: amazonpayConnectorDetails,
   archipel: archipelConnectorDetails,
   authipay: authipayConnectorDetails,
   authorizedotnet: authorizedotnetConnectorDetails,
