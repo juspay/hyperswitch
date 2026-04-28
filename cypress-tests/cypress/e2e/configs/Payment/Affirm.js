@@ -70,6 +70,86 @@ export const connectorDetails = {
       },
     },
   },
+  pay_later_pm: {
+    PaymentIntent: {
+      Request: {
+        currency: "USD",
+        amount: 5000,
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+          setup_future_usage: "on_session",
+          amount: 5000,
+        },
+      },
+    },
+    Affirm: {
+      Request: {
+        payment_method: "pay_later",
+        payment_method_type: "affirm",
+        payment_experience: "redirect_to_url",
+        currency: "USD",
+        amount: 5000,
+        payment_method_data: {
+          pay_later: {
+            affirm_redirect: {},
+          },
+        },
+        billing: {
+          address: {
+            line1: "123 Test Street",
+            city: "San Francisco",
+            state: "CA",
+            zip: "94102",
+            country: "US",
+          },
+          email: "test@example.com",
+        },
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+          payment_method: "pay_later",
+          payment_method_type: "affirm",
+          amount: 5000,
+        },
+      },
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+    },
+    AffirmCapture: {
+      Request: {
+        amount_to_capture: 5000,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+          amount_received: 5000,
+        },
+      },
+    },
+    AffirmRefund: {
+      Request: {
+        amount: 5000,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+          amount: 5000,
+        },
+      },
+    },
+  },
   webhook: {
     TransactionIdConfig: {
       path: "data.object.id",
