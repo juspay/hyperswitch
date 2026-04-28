@@ -2860,7 +2860,7 @@ impl From<BankDebitData> for api_models::payments::additional_info::BankDebitAdd
                 bank_name,
                 bank_type,
                 bank_account_holder_name,
-            } => Self::Eft(Box::new(
+            } => Self::EftDebitOrder(Box::new(
                 payment_additional_types::EftDebitOrderAdditionalData {
                     account_number: MaskedBankAccount::from(account_number),
                     branch_code: branch_code.map(MaskedBranchCode::from),
