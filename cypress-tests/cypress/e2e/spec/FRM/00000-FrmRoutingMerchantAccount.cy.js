@@ -79,28 +79,31 @@ describe("FRM Routing Algorithm - Merchant Account Tests", () => {
     });
   });
 
-  context("Retrieve merchant account and verify frm_routing_algorithm persistence", () => {
-    it("should retrieve merchant account and verify frm_routing_algorithm persists", () => {
-      const merchantId = globalState.get("frmMerchantId");
+  context(
+    "Retrieve merchant account and verify frm_routing_algorithm persistence",
+    () => {
+      it("should retrieve merchant account and verify frm_routing_algorithm persists", () => {
+        const merchantId = globalState.get("frmMerchantId");
 
-      cy.request({
-        method: "GET",
-        url: `${globalState.get("baseUrl")}/accounts/${merchantId}`,
-        headers: {
-          Accept: "application/json",
-          "Content-Type": "application/json",
-          "api-key": globalState.get("adminApiKey"),
-        },
-      }).then((response) => {
-        expect(response.status).to.equal(200);
-        expect(response.body.merchant_id).to.equal(merchantId);
-        expect(response.body).to.have.property("frm_routing_algorithm");
-        expect(response.body.frm_routing_algorithm).to.deep.equal(
-          fixtures.frmRoutingTestData.valid_single_routing
-        );
+        cy.request({
+          method: "GET",
+          url: `${globalState.get("baseUrl")}/accounts/${merchantId}`,
+          headers: {
+            Accept: "application/json",
+            "Content-Type": "application/json",
+            "api-key": globalState.get("adminApiKey"),
+          },
+        }).then((response) => {
+          expect(response.status).to.equal(200);
+          expect(response.body.merchant_id).to.equal(merchantId);
+          expect(response.body).to.have.property("frm_routing_algorithm");
+          expect(response.body.frm_routing_algorithm).to.deep.equal(
+            fixtures.frmRoutingTestData.valid_single_routing
+          );
+        });
       });
-    });
-  });
+    }
+  );
 
   context("Update merchant account with frm_routing_algorithm via POST", () => {
     before("create a merchant for update tests", () => {
