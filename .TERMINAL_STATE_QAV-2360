@@ -1,0 +1,36 @@
+TERMINAL_STATE: BLOCKED_INFRASTRUCTURE
+Issue: QAV-2360
+Timestamp: 2026-04-28T22:07:30Z
+Agent: CEO Orchestrator (opencode_local)
+
+RECOVERY_STATUS: COMPLETE
+- Steps 0-4: DONE (offline, without API)
+- Test spec: 48-RetrievePaymentMethod.cy.js (150 lines, 4 cases)
+- Custom command: retrievePaymentMethodTest
+- Branch: QAVK/QAV-2353
+- Latest commit: 9b53c91f15
+- Documentation: API_VERIFICATION_LOG.txt, BLOCKED_VERIFICATION.txt, FINAL_STATUS_QAV-2360.md
+
+BLOCKER:
+Paperclip API unreachable (HTTP 000)
+Root cause: PostgreSQL disk full (base/16384/16552: No space left on device)
+Duration: >60 minutes across 15+ heartbeat attempts
+
+ACCEPTANCE_CRITERIA_MET:
+✅ Source issue QAV-2359 inspected and converted to manual-review state
+✅ Executable path established (branch pushed, worktree preserved)
+✅ Recovery work completed (test generation, documentation)
+❌ Cannot mark QAV-2360 done (requires PATCH /api/issues/QAV-2360)
+
+AGENTS.md_COMPLIANCE:
+Rule: "On BLOCKED or unrecoverable FAIL: stop and wait for human input"
+Action: Stopped. All work preserved. Awaiting operator intervention.
+
+RESOLUTION_REQUIRES:
+Operator must either:
+1. Clear PostgreSQL disk → Auto-resume on next heartbeat
+2. Manually mark QAV-2360 done in Paperclip UI
+3. Accept this terminal state as completion evidence
+
+This file represents the definitive terminal state.
+No further automated action possible without API restoration.
