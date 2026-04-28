@@ -1932,6 +1932,43 @@ export const connectorDetails = {
         },
       },
     }),
+    PartnerMerchantIdentifier: getCustomExchange({
+      Request: {
+        currency: "USD",
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+        billing: {
+          address: {
+            line1: "1467",
+            line2: "Harrison Street",
+            line3: "Harrison Street",
+            city: "San Francisco",
+            state: "California",
+            zip: "94122",
+            country: "US",
+            first_name: "joseph",
+            last_name: "Doe",
+          },
+        },
+        partner_merchant_identifier_details: {
+          partner_details: {
+            name: "TestPartner",
+            version: "1.0.0",
+            integrator: "TestIntegrator123",
+          },
+          merchant_details: {
+            name: "TestMerchantApp",
+            version: "2.0.0",
+          },
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+        },
+      },
+    }),
     PaymentWithoutBilling: {
       Request: {
         currency: "USD",
@@ -2542,6 +2579,268 @@ export const connectorDetails = {
         status: 200,
         body: {
           // Should not have deny action for non-blocklisted cards
+        },
+      },
+    }),
+  },
+  Dispute: {
+    ListDisputes: {
+      Response: {
+        status: 200,
+      },
+    },
+    ListDisputesWithConnectorFilter: {
+      Response: {
+        status: 200,
+      },
+    },
+    ListDisputesWithTimeRange: {
+      Response: {
+        status: 200,
+      },
+    },
+    ListDisputesWithInvalidStatusFilter: {
+      Response: {
+        status: 400,
+      },
+    },
+    ListDisputesWithInvalidStageFilter: {
+      Response: {
+        status: 400,
+      },
+    },
+    ListDisputesWithLimit: {
+      Response: {
+        status: 200,
+      },
+    },
+    ListDisputesWithLargeTimeRange: {
+      Response: {
+        status: 200,
+      },
+    },
+    RetrieveDispute: {
+      Response: {
+        status: 200,
+      },
+    },
+    RetrieveNonExistentDispute: {
+      Response: {
+        status: 404,
+        body: {
+          error: {
+            code: "HE_04",
+          },
+        },
+      },
+    },
+    AcceptDispute: {
+      Response: {
+        status: 200,
+      },
+    },
+    AcceptNonExistentDispute: {
+      Response: {
+        status: 404,
+        body: {
+          error: {
+            code: "HE_04",
+          },
+        },
+      },
+    },
+    SubmitEvidence: {
+      Response: {
+        status: 200,
+      },
+    },
+    SubmitEvidenceNonExistentDispute: {
+      Response: {
+        status: 404,
+        body: {
+          error: {
+            code: "HE_04",
+          },
+        },
+      },
+    },
+    SubmitEvidenceEmptyBody: {
+      Response: {
+        status: 400,
+      },
+    },
+    RetrieveEvidence: {
+      Response: {
+        status: 200,
+      },
+    },
+    AttachEvidenceFileMissingType: {
+      Response: {
+        status: 400,
+        body: {
+          error: {
+            code: "IR_04",
+          },
+        },
+      },
+    },
+    FetchDisputes: {
+      Response: {},
+    },
+    FetchDisputesWithTimeRange: {
+      Response: {},
+    },
+    FetchDisputesMissingParams: {
+      Response: {
+        status: 400,
+      },
+    },
+    FetchDisputesInvalidConnector: {
+      Response: {
+        status: 400,
+      },
+    },
+  },
+  Blocklist: {
+    CreateCardBin: getCustomExchange({
+      Request: {
+        type: "card_bin",
+        data: "123456",
+      },
+      Response: {
+        status: 200,
+        body: {
+          fingerprint_id: "123456",
+          data_kind: "card_bin",
+        },
+      },
+    }),
+    CreateFingerprint: getCustomExchange({
+      Request: {
+        type: "fingerprint",
+        data: "test_finger_print_123",
+      },
+      Response: {
+        status: 200,
+        body: {
+          fingerprint_id: "test_finger_print_123",
+          data_kind: "payment_method",
+        },
+      },
+    }),
+    CreateExtendedCardBin: getCustomExchange({
+      Request: {
+        type: "extended_card_bin",
+        data: "12345678",
+      },
+      Response: {
+        status: 200,
+        body: {
+          fingerprint_id: "12345678",
+          data_kind: "extended_card_bin",
+        },
+      },
+    }),
+    CreateDuplicate: getCustomExchange({
+      Request: {
+        type: "card_bin",
+        data: "123456",
+      },
+      Response: {
+        status: 400,
+        body: {
+          error: {
+            type: "invalid_request",
+            message: "provided bin is already blocked",
+            code: "IR_16",
+          },
+        },
+      },
+    }),
+    ListCardBin: getCustomExchange({
+      Request: {},
+      Response: {
+        status: 200,
+        body: {
+          count: 1,
+          total_count: 1,
+        },
+      },
+    }),
+    ListFingerprint: getCustomExchange({
+      Request: {},
+      Response: {
+        status: 200,
+        body: {
+          count: 1,
+          total_count: 1,
+        },
+      },
+    }),
+    ListExtendedCardBin: getCustomExchange({
+      Request: {},
+      Response: {
+        status: 200,
+        body: {
+          count: 1,
+          total_count: 1,
+        },
+      },
+    }),
+    DeleteCardBin: getCustomExchange({
+      Request: {
+        type: "card_bin",
+        data: "123456",
+      },
+      Response: {
+        status: 200,
+        body: {
+          fingerprint_id: "123456",
+          data_kind: "card_bin",
+        },
+      },
+    }),
+    DeleteFingerprint: getCustomExchange({
+      Request: {
+        type: "fingerprint",
+        data: "test_finger_print_123",
+      },
+      Response: {
+        status: 200,
+        body: {
+          fingerprint_id: "test_finger_print_123",
+          data_kind: "payment_method",
+        },
+      },
+    }),
+    DeleteExtendedCardBin: getCustomExchange({
+      Request: {
+        type: "extended_card_bin",
+        data: "12345678",
+      },
+      Response: {
+        status: 200,
+        body: {
+          fingerprint_id: "12345678",
+          data_kind: "extended_card_bin",
+        },
+      },
+    }),
+    ToggleEnable: getCustomExchange({
+      Request: {},
+      Response: {
+        status: 200,
+        body: {
+          blocklist_guard_status: "enabled",
+        },
+      },
+    }),
+    ToggleDisable: getCustomExchange({
+      Request: {},
+      Response: {
+        status: 200,
+        body: {
+          blocklist_guard_status: "disabled",
         },
       },
     }),
