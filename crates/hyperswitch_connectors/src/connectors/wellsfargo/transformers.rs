@@ -1182,7 +1182,7 @@ impl
             ))),
             BankDebitData::SepaBankDebit { .. }
             | BankDebitData::BacsBankDebit { .. }
-            | BankDebitData::EftBankDebit { .. }
+            | BankDebitData::EftDebitOrder { .. }
             | BankDebitData::BecsBankDebit { .. }
             | BankDebitData::SepaGuarenteedBankDebit { .. } => {
                 Err(errors::ConnectorError::NotImplemented(

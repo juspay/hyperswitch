@@ -33,6 +33,7 @@ fn get_dir_value_payment_method(
         api_enums::PaymentMethodType::Sofort => Ok(dirval!(BankRedirectType = Sofort)),
         api_enums::PaymentMethodType::Eps => Ok(dirval!(BankRedirectType = Eps)),
         api_enums::PaymentMethodType::Eft => Ok(dirval!(BankRedirectType = Eft)),
+        api_enums::PaymentMethodType::EftDebitOrder => Ok(dirval!(BankDebitType = EftDebitOrder)),
         api_enums::PaymentMethodType::Klarna => Ok(dirval!(PayLaterType = Klarna)),
         api_enums::PaymentMethodType::Flexiti => Ok(dirval!(PayLaterType = Flexiti)),
         api_enums::PaymentMethodType::Affirm => Ok(dirval!(PayLaterType = Affirm)),

@@ -1413,9 +1413,9 @@ pub enum BankDebitData {
         sort_code: Secret<String>,
         bank_account_holder_name: Option<Secret<String>>,
     },
-    EftBankDebit {
+    EftDebitOrder {
         account_number: Secret<String>,
-        branch_code: Secret<String>,
+        branch_code: Option<Secret<String>>,
         bank_account_holder_name: Option<Secret<String>>,
         bank_name: Option<common_enums::BankNames>,
         bank_type: Option<common_enums::BankType>,
@@ -1459,7 +1459,7 @@ impl BankDebitData {
             Self::SepaBankDebit { .. }
             | Self::SepaGuarenteedBankDebit { .. }
             | Self::BecsBankDebit { .. }
-            | Self::EftBankDebit { .. }
+            | Self::EftDebitOrder { .. }
             | Self::BacsBankDebit { .. } => None,
         }
     }
@@ -2816,14 +2816,14 @@ impl From<api_models::payments::BankDebitData> for BankDebitData {
                 sort_code,
                 bank_account_holder_name,
             },
-            api_models::payments::BankDebitData::EftBankDebit {
+            api_models::payments::BankDebitData::EftDebitOrder {
                 account_number,
                 branch_code,
                 bank_account_holder_name,
                 bank_name,
                 bank_type,
                 ..
-            } => Self::EftBankDebit {
+            } => Self::EftDebitOrder {
                 account_number,
                 branch_code,
                 bank_account_holder_name,
@@ -2854,16 +2854,16 @@ impl From<BankDebitData> for api_models::payments::additional_info::BankDebitAdd
                     bank_account_holder_name,
                 },
             )),
-            BankDebitData::EftBankDebit {
+            BankDebitData::EftDebitOrder {
                 account_number,
                 branch_code,
                 bank_name,
                 bank_type,
                 bank_account_holder_name,
             } => Self::Eft(Box::new(
-                payment_additional_types::EftBankDebitAdditionalData {
+                payment_additional_types::EftDebitOrderAdditionalData {
                     account_number: MaskedBankAccount::from(account_number),
-                    branch_code: MaskedBranchCode::from(branch_code),
+                    branch_code: branch_code.map(MaskedBranchCode::from),
                     bank_name,
                     bank_type,
                     bank_account_holder_name,
@@ -3339,7 +3339,7 @@ impl GetPaymentMethodType for BankDebitData {
     fn get_payment_method_type(&self) -> api_enums::PaymentMethodType {
         match self {
             Self::AchBankDebit { .. } => api_enums::PaymentMethodType::Ach,
-            Self::EftBankDebit { .. } => api_enums::PaymentMethodType::Eft,
+            Self::EftDebitOrder { .. } => api_enums::PaymentMethodType::Eft,
             Self::SepaBankDebit { .. } => api_enums::PaymentMethodType::Sepa,
             Self::SepaGuarenteedBankDebit { .. } => {
                 api_enums::PaymentMethodType::SepaGuarenteedDebit

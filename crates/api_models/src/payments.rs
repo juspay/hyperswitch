@@ -3093,7 +3093,7 @@ pub enum BankDebitData {
         bank_account_holder_name: Option<Secret<String>>,
     },
     #[smithy(nested_value_type)]
-    EftBankDebit {
+    EftDebitOrder {
         /// Billing details for bank debit
         #[smithy(value_type = "Option<BankDebitBilling>")]
         billing_details: Option<BankDebitBilling>,
@@ -3105,8 +3105,8 @@ pub enum BankDebitData {
 
         /// Branch code for eft bank debit payment
         #[schema(value_type = String, example = "110000000")]
-        #[smithy(value_type = "String")]
-        branch_code: Secret<String>,
+        #[smithy(value_type = "Option<String>")]
+        branch_code: Option<Secret<String>>,
 
         #[schema(value_type = String, example = "John Doe")]
         #[smithy(value_type = "Option<String>")]
@@ -3168,7 +3168,7 @@ impl GetAddressFromPaymentMethodData for BankDebitData {
                 bank_account_holder_name,
                 ..
             }
-            | Self::EftBankDebit {
+            | Self::EftDebitOrder {
                 billing_details,
                 bank_account_holder_name,
                 ..
@@ -3846,7 +3846,7 @@ impl GetPaymentMethodType for BankDebitData {
             Self::SepaBankDebit { .. } => api_enums::PaymentMethodType::Sepa,
             Self::BecsBankDebit { .. } => api_enums::PaymentMethodType::Becs,
             Self::BacsBankDebit { .. } => api_enums::PaymentMethodType::Bacs,
-            Self::EftBankDebit { .. } => api_enums::PaymentMethodType::Eft,
+            Self::EftDebitOrder { .. } => api_enums::PaymentMethodType::Eft,
             Self::SepaGuarenteedBankDebit { .. } => {
                 api_enums::PaymentMethodType::SepaGuarenteedDebit
             }

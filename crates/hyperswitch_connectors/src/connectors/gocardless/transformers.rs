@@ -324,7 +324,7 @@ impl TryFrom<(&BankDebitData, &types::TokenizationRouterData)> for CustomerBankA
             }
             BankDebitData::BacsBankDebit { .. }
             | BankDebitData::SepaGuarenteedBankDebit { .. }
-            | BankDebitData::EftBankDebit { .. } => Err(errors::ConnectorError::NotImplemented(
+            | BankDebitData::EftDebitOrder { .. } => Err(errors::ConnectorError::NotImplemented(
                 utils::get_unimplemented_payment_method_error_message("Gocardless"),
             )
             .into()),
@@ -486,7 +486,7 @@ fn get_ip_if_required(
         BankDebitData::SepaBankDebit { .. }
         | BankDebitData::SepaGuarenteedBankDebit { .. }
         | BankDebitData::BecsBankDebit { .. }
-        | BankDebitData::EftBankDebit { .. }
+        | BankDebitData::EftDebitOrder { .. }
         | BankDebitData::BacsBankDebit { .. } => Ok(None),
     }
 }
@@ -500,7 +500,7 @@ impl TryFrom<&BankDebitData> for GocardlessScheme {
             BankDebitData::BecsBankDebit { .. } => Ok(Self::Becs),
             BankDebitData::BacsBankDebit { .. }
             | BankDebitData::SepaGuarenteedBankDebit { .. }
-            | BankDebitData::EftBankDebit { .. } => Err(errors::ConnectorError::NotImplemented(
+            | BankDebitData::EftDebitOrder { .. } => Err(errors::ConnectorError::NotImplemented(
                 "Setup Mandate flow for selected payment method through Gocardless".to_string(),
             )
             .into()),

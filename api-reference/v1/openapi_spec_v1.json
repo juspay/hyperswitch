@@ -11367,17 +11367,6 @@
           {
             "type": "object",
             "required": [
-              "eft"
-            ],
-            "properties": {
-              "eft": {
-                "$ref": "#/components/schemas/EftBankDebitAdditionalData"
-              }
-            }
-          },
-          {
-            "type": "object",
-            "required": [
               "bacs"
             ],
             "properties": {
@@ -11416,6 +11405,17 @@
             "properties": {
               "sepa_guarenteed_debit": {
                 "$ref": "#/components/schemas/SepaBankDebitAdditionalData"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "eft_debit_order"
+            ],
+            "properties": {
+              "eft_debit_order": {
+                "$ref": "#/components/schemas/EftDebitOrderAdditionalData"
               }
             }
           }
@@ -11659,10 +11659,10 @@
           {
             "type": "object",
             "required": [
-              "eft_bank_debit"
+              "eft_debit_order"
             ],
             "properties": {
-              "eft_bank_debit": {
+              "eft_debit_order": {
                 "type": "object",
                 "required": [
                   "account_number",
@@ -19216,7 +19216,7 @@
           "none"
         ]
       },
-      "EftBankDebitAdditionalData": {
+      "EftDebitOrderAdditionalData": {
         "type": "object",
         "required": [
           "account_number",
@@ -29249,6 +29249,7 @@
           "duit_now",
           "efecty",
           "eft",
+          "eft_debit_order",
           "eps",
           "flexiti",
           "fps",

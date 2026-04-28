@@ -394,7 +394,7 @@ pub enum UpiType {
 #[strum(serialize_all = "snake_case")]
 pub enum BankDebitType {
     Ach,
-    Eft,
+    EftDebitOrder,
     Sepa,
     SepaGuarenteedDebit,
     Bacs,

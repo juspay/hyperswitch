@@ -16,8 +16,6 @@ use crate::{enums as api_enums, payments};
 pub enum BankDebitAdditionalData {
     #[smithy(value_type = "AchBankDebitAdditionalData")]
     Ach(Box<AchBankDebitAdditionalData>),
-    #[smithy(value_type = "EftBankDebitAdditionalData")]
-    Eft(Box<EftBankDebitAdditionalData>),
     #[smithy(value_type = "BacsBankDebitAdditionalData")]
     Bacs(Box<BacsBankDebitAdditionalData>),
     #[smithy(value_type = "BecsBankDebitAdditionalData")]
@@ -25,6 +23,8 @@ pub enum BankDebitAdditionalData {
     #[smithy(value_type = "SepaBankDebitAdditionalData")]
     Sepa(Box<SepaBankDebitAdditionalData>),
     SepaGuarenteedDebit(Box<SepaBankDebitAdditionalData>),
+    #[smithy(value_type = "EftDebitOrderAdditionalData")]
+    EftDebitOrder(Box<EftDebitOrderAdditionalData>),
 }
 
 #[derive(
@@ -125,7 +125,7 @@ pub struct SepaBankDebitAdditionalData {
     Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel,
 )]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
-pub struct EftBankDebitAdditionalData {
+pub struct EftDebitOrderAdditionalData {
     /// Partially masked account number for eft bank debit payment
     #[schema(value_type = String, example = "0001****3456")]
     #[smithy(value_type = "String")]
@@ -133,8 +133,8 @@ pub struct EftBankDebitAdditionalData {
 
     /// Partially masked branch code for eft bank debit payment
     #[schema(value_type = String, example = "110***000")]
-    #[smithy(value_type = "String")]
-    pub branch_code: MaskedBranchCode,
+    #[smithy(value_type = "Option<String>")]
+    pub branch_code: Option<MaskedBranchCode>,
 
     /// Bank account's owner name
     #[schema(value_type = Option<String>, example = "John Doe")]

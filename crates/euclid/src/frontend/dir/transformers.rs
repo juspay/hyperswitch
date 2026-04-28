@@ -214,24 +214,10 @@ impl IntoDirValue for (global_enums::PaymentMethodType, global_enums::PaymentMet
             global_enums::PaymentMethodType::DirectCarrierBilling => {
                 Ok(dirval!(MobilePaymentType = DirectCarrierBilling))
             }
-            global_enums::PaymentMethodType::Eft => match self.1 {
-                global_enums::PaymentMethod::BankDebit => Ok(dirval!(BankDebitType = Eft)),
-                global_enums::PaymentMethod::BankTransfer => Ok(dirval!(BankRedirectType = Eft)),
-                global_enums::PaymentMethod::PayLater
-                | global_enums::PaymentMethod::Card
-                | global_enums::PaymentMethod::CardRedirect
-                | global_enums::PaymentMethod::Wallet
-                | global_enums::PaymentMethod::BankRedirect
-                | global_enums::PaymentMethod::Crypto
-                | global_enums::PaymentMethod::Reward
-                | global_enums::PaymentMethod::RealTimePayment
-                | global_enums::PaymentMethod::Upi
-                | global_enums::PaymentMethod::Voucher
-                | global_enums::PaymentMethod::OpenBanking
-                | global_enums::PaymentMethod::MobilePayment
-                | global_enums::PaymentMethod::GiftCard
-                | global_enums::PaymentMethod::NetworkToken => Err(AnalysisErrorType::NotSupported),
-            },
+            global_enums::PaymentMethodType::Eft => Ok(dirval!(BankRedirectType = Eft)),
+            global_enums::PaymentMethodType::EftDebitOrder => {
+                Ok(dirval!(BankDebitType = EftDebitOrder))
+            }
             global_enums::PaymentMethodType::IndonesianBankTransfer => {
                 Ok(dirval!(BankTransferType = IndonesianBankTransfer))
             }

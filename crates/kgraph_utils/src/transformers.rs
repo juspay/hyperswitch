@@ -141,28 +141,10 @@ impl IntoDirValue for (api_enums::PaymentMethodType, api_enums::PaymentMethod) {
             api_enums::PaymentMethodType::Giropay => Ok(dirval!(BankRedirectType = Giropay)),
             api_enums::PaymentMethodType::Ideal => Ok(dirval!(BankRedirectType = Ideal)),
             api_enums::PaymentMethodType::Sofort => Ok(dirval!(BankRedirectType = Sofort)),
-            api_enums::PaymentMethodType::Eft => match self.1 {
-                api_enums::PaymentMethod::BankDebit => Ok(dirval!(BankDebitType = Eft)),
-                api_enums::PaymentMethod::BankRedirect => Ok(dirval!(BankRedirectType = Eft)),
-                api_enums::PaymentMethod::BankTransfer
-                | api_enums::PaymentMethod::Card
-                | api_enums::PaymentMethod::CardRedirect
-                | api_enums::PaymentMethod::PayLater
-                | api_enums::PaymentMethod::Wallet
-                | api_enums::PaymentMethod::Crypto
-                | api_enums::PaymentMethod::Reward
-                | api_enums::PaymentMethod::RealTimePayment
-                | api_enums::PaymentMethod::Upi
-                | api_enums::PaymentMethod::MobilePayment
-                | api_enums::PaymentMethod::Voucher
-                | api_enums::PaymentMethod::OpenBanking
-                | api_enums::PaymentMethod::GiftCard
-                | api_enums::PaymentMethod::NetworkToken => {
-                    Err(KgraphError::ContextConstructionError(Box::new(
-                        AnalysisErrorType::NotSupported,
-                    )))
-                }
-            },
+            api_enums::PaymentMethodType::Eft => Ok(dirval!(BankRedirectType = Eft)),
+            api_enums::PaymentMethodType::EftDebitOrder => {
+                Ok(dirval!(BankDebitType = EftDebitOrder))
+            }
             api_enums::PaymentMethodType::Eps => Ok(dirval!(BankRedirectType = Eps)),
             api_enums::PaymentMethodType::Klarna => Ok(dirval!(PayLaterType = Klarna)),
             api_enums::PaymentMethodType::Affirm => Ok(dirval!(PayLaterType = Affirm)),

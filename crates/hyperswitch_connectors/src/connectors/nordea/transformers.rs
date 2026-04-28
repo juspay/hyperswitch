@@ -332,7 +332,7 @@ impl TryFrom<&NordeaRouterData<&CreateOrderRouterData>> for NordeaPaymentsReques
                 BankDebitData::AchBankDebit { .. }
                 | BankDebitData::BacsBankDebit { .. }
                 | BankDebitData::BecsBankDebit { .. }
-                | BankDebitData::EftBankDebit { .. }
+                | BankDebitData::EftDebitOrder { .. }
                 | BankDebitData::SepaGuarenteedBankDebit { .. } => {
                     Err(errors::ConnectorError::NotImplemented(
                         get_unimplemented_payment_method_error_message("Nordea"),
@@ -419,7 +419,7 @@ impl TryFrom<&NordeaRouterData<&PaymentsPreProcessingRouterData>> for NordeaPaym
                 BankDebitData::AchBankDebit { .. }
                 | BankDebitData::BacsBankDebit { .. }
                 | BankDebitData::BecsBankDebit { .. }
-                | BankDebitData::EftBankDebit { .. }
+                | BankDebitData::EftDebitOrder { .. }
                 | BankDebitData::SepaGuarenteedBankDebit { .. } => {
                     Err(errors::ConnectorError::NotImplemented(
                         get_unimplemented_payment_method_error_message("Nordea"),

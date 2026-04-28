@@ -586,6 +586,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
                         | common_enums::PaymentMethodType::DirectCarrierBilling
                         | common_enums::PaymentMethodType::Efecty
                         | common_enums::PaymentMethodType::Eft
+                        | common_enums::PaymentMethodType::EftDebitOrder
                         | common_enums::PaymentMethodType::Eps
                         | common_enums::PaymentMethodType::Evoucher
                         | common_enums::PaymentMethodType::Giropay
@@ -838,6 +839,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
                         | common_enums::PaymentMethodType::Bacs
                         | common_enums::PaymentMethodType::BancontactCard
                         | common_enums::PaymentMethodType::Becs
+                        | common_enums::PaymentMethodType::EftDebitOrder
                         | common_enums::PaymentMethodType::Benefit
                         | common_enums::PaymentMethodType::Bizum
                         | common_enums::PaymentMethodType::Blik

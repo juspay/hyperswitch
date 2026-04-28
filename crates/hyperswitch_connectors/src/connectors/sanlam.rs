@@ -413,7 +413,7 @@ static SANLAM_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = Laz
     let mut sanlam_supported_payment_methods = SupportedPaymentMethods::new();
     sanlam_supported_payment_methods.add(
         enums::PaymentMethod::BankDebit,
-        enums::PaymentMethodType::Eft,
+        enums::PaymentMethodType::EftDebitOrder,
         PaymentMethodDetails {
             mandates: common_enums::FeatureStatus::NotSupported,
             refunds: common_enums::FeatureStatus::NotSupported,

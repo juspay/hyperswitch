@@ -1566,7 +1566,7 @@ pub fn build_unified_connector_service_payment_method(
                     payment_method: Some(PaymentMethod::SepaGuaranteedDebit(sepa_guaranteed_debit)),
                 })
             }
-            hyperswitch_domain_models::payment_method_data::BankDebitData::EftBankDebit {
+            hyperswitch_domain_models::payment_method_data::BankDebitData::EftDebitOrder {
                 account_number,
                 branch_code,
                 bank_account_holder_name,
@@ -1582,7 +1582,7 @@ pub fn build_unified_connector_service_payment_method(
 
                 let eft = payments_grpc::Eft {
                     account_number: Some(account_number.expose().into()),
-                    branch_code: Some(branch_code.expose().into()),
+                    branch_code: branch_code.map(|code| code.expose().into()),
                     bank_account_holder_name: bank_account_holder_name
                         .map(|name| name.expose().into()),
                     bank_name: bank_name.map(Into::into).unwrap_or_default(),
