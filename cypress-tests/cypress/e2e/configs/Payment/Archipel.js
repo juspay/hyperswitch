@@ -29,10 +29,10 @@ const billingDetails = {
 const paymentMethodDataNo3DSResponse = {
   card: {
     last4: "7102",
-    card_type: "DEBIT",
-    card_network: "Visa",
-    card_issuer: "MASTERCARD INTERNATIONAL",
-    card_issuing_country: "UNITEDSTATES",
+    card_type: null,
+    card_network: null,
+    card_issuer: null,
+    card_issuing_country: null,
     card_isin: "518557",
     card_extended_bin: null,
     card_exp_month: "01",
@@ -43,6 +43,14 @@ const paymentMethodDataNo3DSResponse = {
     auth_code: null,
   },
   billing: null,
+};
+
+const successfulThreeDSCardDetails = {
+  card_number: "4000000000001091",
+  card_exp_month: "01",
+  card_exp_year: "50",
+  card_holder_name: "Joseph Doe",
+  card_cvc: "123",
 };
 
 export const connectorDetails = {
@@ -450,6 +458,40 @@ export const connectorDetails = {
         body: {
           status: "requires_capture",
           payment_method_data: paymentMethodDataNo3DSResponse,
+        },
+      },
+    },
+    "3DSAutoCapture": {
+      Request: {
+        amount: 6000,
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulThreeDSCardDetails,
+        },
+        currency: "USD",
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+          next_action: {
+            type: "three_ds_invoke",
+            three_ds_data: {
+              poll_config: {
+                poll_id: "{{poll_id}}",
+              },
+            },
+          },
+        },
+      },
+    },
+    PollConfig: {
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
         },
       },
     },

@@ -1,0 +1,33 @@
+TEST_GENERATION_RESULT:
+  SpecFile: cypress-tests/cypress/e2e/spec/Payment/48-PollConfig.cy.js (NEW)
+  NewFile: YES
+  TestCasesAdded:
+    - TestCase: Card - ThreeDS payment with poll config verification
+      Type: happy_path
+      ConfigKey: ThreeDSAutoCapture, PollConfig (card_pm)
+      Connector: archipel
+      CommandsUsed:
+        - createPaymentIntentTest
+        - paymentMethodsCallTest
+        - confirmCallTest
+        - retrievePaymentCallTest
+    - TestCase: Card - NoThreeDS payment without poll config
+      Type: edge_case (verify poll config not present for non-3DS)
+      ConfigKey: No3DSAutoCapture (card_pm)
+      Connector: archipel
+      CommandsUsed:
+        - createPaymentIntentTest
+        - paymentMethodsCallTest
+        - confirmCallTest
+        - retrievePaymentCallTest
+  NewCommandsAddedToCommandsJs: NO
+  ConnectorConfigCreated: YES (updated)
+  ConnectorConfigFiles:
+    - cypress-tests/cypress/e2e/configs/Payment/Archipel.js (added ThreeDSAutoCapture and PollConfig keys)
+  UtilsJsUpdated: YES
+    - Added POLL_CONFIG: ["archipel"] to CONNECTOR_LISTS.INCLUDE
+  ReadyForRunner: YES
+
+Worktree:
+  Path: /Users/sairaj.vadeghar/.paperclip/instances/default/projects/6f7fa2e0-9617-4e07-8892-03e873276ff7/2e3f93bc-a7fe-491f-aa85-29249414a9a4/cypress-tests-SAI-6
+  Branch: QASRV/SAI-6
