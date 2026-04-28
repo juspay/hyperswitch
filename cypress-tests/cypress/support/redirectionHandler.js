@@ -479,8 +479,9 @@ function bankRedirectRedirection(
               cy.wait(constants.TIMEOUT / 6);
               cy.get("body").then(($body) => {
                 if (
-                  $body.find('input[id*="phone"], input[type="tel"], input[name="phone"]')
-                    .length > 0
+                  $body.find(
+                    'input[id*="phone"], input[type="tel"], input[name="phone"]'
+                  ).length > 0
                 ) {
                   cy.get(
                     'input[id*="phone"], input[type="tel"], input[name="phone"]'
