@@ -17,7 +17,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     types::{RefundsResponseRouterData, ResponseRouterData},
-    utils::CardData as _,
+    utils::{CardData as _, RouterData as _},
 };
 
 //TODO: Fill the struct with respective fields
@@ -93,6 +93,13 @@ impl TryFrom<&FiservemeaRouterData<&PaymentsAuthorizeRouterData>> for Fiservemea
     fn try_from(
         item: &FiservemeaRouterData<&PaymentsAuthorizeRouterData>,
     ) -> Result<Self, Self::Error> {
+        if item.router_data.is_three_ds() {
+            Err(errors::ConnectorError::NotSupported {
+                message: "Cards 3DS".to_string(),
+                connector: "Fiservemea",
+            })?
+        }
+
         match item.router_data.request.payment_method_data.clone() {
             PaymentMethodData::Card(req_card) => {
                 let card = FiservemeaPaymentCard {

@@ -7,7 +7,7 @@ use actix_web::{web, Responder};
 use error_stack::report;
 use hyperswitch_domain_models::{ext_traits::OptionExt, payments::HeaderPayload};
 #[cfg(feature = "v1")]
-use hyperswitch_interfaces::api::ConnectorValidation;
+use hyperswitch_interfaces::api::ConnectorSpecifications;
 use hyperswitch_masking::{PeekInterface, Secret};
 use router_env::{env, instrument, logger, tracing, types, Flow};
 
@@ -1690,10 +1690,18 @@ pub async fn payments_cancel(
                 HeaderPayload::default(),
             )
         },
-        &auth::HeaderAuth(auth::ApiKeyAuth {
-            allow_connected_scope_operation: true,
-            allow_platform_self_operation: false,
-        }),
+        auth::auth_type(
+            &auth::HeaderAuth(auth::ApiKeyAuth {
+                allow_connected_scope_operation: true,
+                allow_platform_self_operation: false,
+            }),
+            &auth::JWTAuth {
+                permission: Permission::ProfilePaymentWrite,
+                allow_connected: true,
+                allow_platform: false,
+            },
+            req.headers(),
+        ),
         locking_action,
     ))
     .await
@@ -2415,7 +2423,9 @@ where
                     )?;
                     let should_continue_further = connector_data
                         .connector
-                        .should_continue_further(&payment_data.payment_intent.clone())
+                        .is_payment_recurrence_operation_needed(
+                            &payment_data.payment_intent.clone(),
+                        )
                         .unwrap_or(false);
                     if should_continue_further {
                         logger::info!(

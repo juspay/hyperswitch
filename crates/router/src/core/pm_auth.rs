@@ -863,7 +863,6 @@ pub async fn retrieve_payment_method_from_auth_service(
                 bank_name: None,
                 bank_type,
                 bank_holder_type: None,
-                card_holder_name: None,
                 bank_account_holder_name: None,
             })
         }

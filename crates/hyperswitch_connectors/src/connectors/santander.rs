@@ -42,8 +42,8 @@ use hyperswitch_domain_models::{
 };
 use hyperswitch_interfaces::{
     api::{
-        self, ConnectorAccessTokenSuffix, ConnectorCommon, ConnectorCommonExt,
-        ConnectorIntegration, ConnectorSpecifications, ConnectorValidation, CurrentFlowInfo,
+        self, ConnectorCommon, ConnectorCommonExt, ConnectorIntegration, ConnectorSpecifications,
+        ConnectorValidation, CurrentFlowInfo,
     },
     configs::Connectors,
     consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE},
@@ -633,17 +633,37 @@ impl ConnectorCommon for Santander {
 }
 
 impl ConnectorValidation for Santander {
-    fn should_continue_further(
+    fn get_access_token_key(
         &self,
-        payment_intent: &hyperswitch_domain_models::payments::PaymentIntent,
-    ) -> Option<bool> {
-        #[cfg(feature = "v1")]
-        {
-            Some(payment_intent.setup_future_usage == Some(common_enums::FutureUsage::OffSession))
-        }
-        #[cfg(feature = "v2")]
-        {
-            Some(payment_intent.setup_future_usage == common_enums::FutureUsage::OffSession)
+        merchant_id: &common_utils::id_type::MerchantId,
+        merchant_connector_id_or_connector_name: String,
+        current_flow: Option<CurrentFlowInfo>,
+        payment_method_type: Option<enums::PaymentMethodType>,
+        is_mit_payment: Option<bool>,
+    ) -> CustomResult<String, errors::ConnectorError> {
+        let url_path = transformers::decide_access_token_key_suffix(
+            current_flow.clone(),
+            payment_method_type,
+            is_mit_payment.unwrap_or(false),
+        );
+
+        let suffix = url_path.map(|path| match path {
+            AccessTokenUrlPath::Leg1 => "pix",
+            AccessTokenUrlPath::Leg2 => "pix_automatico",
+            AccessTokenUrlPath::Boleto => "boleto",
+        });
+
+        match suffix {
+            Some(suffix) => Ok(format!(
+                "access_token_{}_{}_{}",
+                merchant_id.get_string_repr(),
+                merchant_connector_id_or_connector_name,
+                suffix,
+            )),
+            None => Ok(common_utils::access_token::get_default_access_token_key(
+                merchant_id,
+                merchant_connector_id_or_connector_name,
+            )),
         }
     }
 }
@@ -2048,6 +2068,20 @@ static SANTANDER_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
 static SANTANDER_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 0] = [];
 
 impl ConnectorSpecifications for Santander {
+    fn is_payment_recurrence_operation_needed(
+        &self,
+        payment_intent: &hyperswitch_domain_models::payments::PaymentIntent,
+    ) -> Option<bool> {
+        #[cfg(feature = "v1")]
+        {
+            Some(payment_intent.setup_future_usage == Some(common_enums::FutureUsage::OffSession))
+        }
+        #[cfg(feature = "v2")]
+        {
+            Some(payment_intent.setup_future_usage == common_enums::FutureUsage::OffSession)
+        }
+    }
+
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
         Some(&SANTANDER_CONNECTOR_INFO)
     }
@@ -2135,41 +2169,6 @@ impl ConnectorSpecifications for Santander {
             CurrentFlowInfo::Authorize { .. }
             | CurrentFlowInfo::CompleteAuthorize { .. }
             | CurrentFlowInfo::Psync { .. } => false,
-        }
-    }
-}
-
-impl ConnectorAccessTokenSuffix for Santander {
-    fn get_access_token_key(
-        &self,
-        router_data: &dyn api::AccessTokenData,
-        merchant_connector_id_or_connector_name: String,
-        current_flow: Option<CurrentFlowInfo>,
-    ) -> CustomResult<String, errors::ConnectorError> {
-        let merchant_id = &router_data.get_merchant_id();
-        let url_path = transformers::decide_access_token_key_suffix(
-            current_flow.clone(),
-            router_data.get_payment_method_type(),
-            router_data.is_mit_payment(),
-        );
-
-        let suffix = url_path.map(|path| match path {
-            AccessTokenUrlPath::Leg1 => "pix",
-            AccessTokenUrlPath::Leg2 => "pix_automatico",
-            AccessTokenUrlPath::Boleto => "boleto",
-        });
-
-        match suffix {
-            Some(suffix) => Ok(format!(
-                "access_token_{}_{}_{}",
-                merchant_id.get_string_repr(),
-                merchant_connector_id_or_connector_name,
-                suffix,
-            )),
-            None => Ok(common_utils::access_token::get_default_access_token_key(
-                merchant_id,
-                merchant_connector_id_or_connector_name,
-            )),
         }
     }
 }

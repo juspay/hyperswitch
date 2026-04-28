@@ -30,8 +30,6 @@ use storage_impl::platform_wrapper;
 use time::PrimitiveDateTime;
 
 use super::{BoxedOperation, Domain, GetTracker, Operation, UpdateTracker, ValidateRequest};
-#[cfg(feature = "pm_modular")]
-use crate::core::payment_methods::transformers as pm_transformers;
 use crate::{
     consts,
     core::{
@@ -39,6 +37,7 @@ use crate::{
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
         mandate::helpers as m_helpers,
         payment_link,
+        payment_methods::transformers as pm_transformers,
         payments::{
             self, client_session::ClientSessionManager, helpers, operations, CustomerDetails,
             OperationSessionGetters, OperationSessionSetters, PaymentAddress, PaymentData,
@@ -81,9 +80,8 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         platform: &domain::Platform,
         _auth_flow: services::AuthFlow,
         header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
-        #[cfg(feature = "pm_modular")] payment_method_with_raw_data: Option<
-            pm_transformers::PaymentMethodWithRawData,
-        >,
+        payment_method_with_raw_data: Option<pm_transformers::PaymentMethodWithRawData>,
+        dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
     ) -> RouterResult<operations::GetTrackerResponse<'a, F, api::PaymentsRequest, PaymentData<F>>>
     {
         let db = &*state.store;
@@ -158,12 +156,9 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             reason: "Expected one out of recurring_details and mandate_data but got both".into(),
         })?;
 
-        #[cfg(feature = "pm_modular")]
         let payment_method_info_from_modular = payment_method_with_raw_data
             .clone()
             .map(|pm| pm.payment_method.0);
-        #[cfg(not(feature = "pm_modular"))]
-        let payment_method_info_from_modular = None;
 
         let m_helpers::MandateGenericData {
             token,
@@ -181,6 +176,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             None,
             None,
             payment_method_info_from_modular,
+            dimensions,
         )
         .await?;
 
@@ -222,7 +218,6 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         )
         .await?;
 
-        #[cfg(feature = "pm_modular")]
         let payment_method_data_billing = request
             .payment_method_data
             .as_ref()
@@ -239,12 +234,6 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                             .ok()
                     })
             }));
-
-        #[cfg(not(feature = "pm_modular"))]
-        let payment_method_data_billing = request
-            .payment_method_data
-            .as_ref()
-            .and_then(|pmd| pmd.billing.clone());
 
         let payment_method_billing_address =
             helpers::create_or_find_address_for_payment_by_request(
@@ -371,6 +360,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             &customer_acceptance,
             payment_method_recurring_details.clone(),
             customer_details.customer_id.as_ref(),
+            dimensions,
         )
         .await?;
 
@@ -554,23 +544,10 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                     request_payment_method_data.payment_method_data.clone()
                 });
 
-        #[cfg(feature = "pm_modular")]
         let payment_method_data = payment_method_with_raw_data
             .clone()
             .and_then(|pm| pm.raw_payment_method_data)
             .or(payment_method_data_from_request.map(Into::into))
-            .or(payment_method_recurring_details.clone())
-            .map(|payment_method_data| {
-                if let Some(additional_pm_data) = additional_payment_data {
-                    payment_method_data.apply_additional_payment_data(additional_pm_data)
-                } else {
-                    payment_method_data
-                }
-            });
-
-        #[cfg(not(feature = "pm_modular"))]
-        let payment_method_data = payment_method_data_from_request
-            .map(Into::into)
             .or(payment_method_recurring_details.clone())
             .map(|payment_method_data| {
                 if let Some(additional_pm_data) = additional_payment_data {
@@ -646,7 +623,6 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                 payment_method_data_billing.get_billing_address()
             })
             .map(From::from);
-        #[cfg(feature = "pm_modular")]
         let pm_pmd_billing = payment_method_with_raw_data.as_ref().and_then(|pm| {
             pm.payment_method
                 .0
@@ -662,10 +638,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                 })
         });
 
-        #[cfg(feature = "pm_modular")]
         let add = payment_method_data_billing.or(pm_pmd_billing);
-        #[cfg(not(feature = "pm_modular"))]
-        let add = payment_method_data_billing;
 
         let unified_address = address.unify_with_payment_method_data_billing(add);
 
@@ -748,6 +721,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             is_l2_l3_enabled: business_profile.is_l2_l3_enabled,
             external_authentication_data: request.three_ds_data.clone(),
             client_session_id,
+            vault_session_details: None,
         };
 
         let get_trackers_response = operations::GetTrackerResponse {
@@ -929,7 +903,6 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
         }
     }
 
-    #[cfg(feature = "pm_modular")]
     #[instrument(skip_all)]
     async fn fetch_payment_method(
         &self,
@@ -1320,7 +1293,6 @@ impl<F: Send + Clone + Sync> ValidateRequest<F, api::PaymentsRequest, PaymentDat
 
 impl PaymentCreate {
     /// Determines the payment method reference for modular payment flows.
-    #[cfg(feature = "pm_modular")]
     fn get_payment_method_reference(self, req: &api::PaymentsRequest) -> Option<&String> {
         match (req.off_session, req.recurring_details.as_ref()) {
             // Payment using off_session MITs using PM ID
@@ -1376,10 +1348,12 @@ impl PaymentCreate {
         customer_acceptance: &Option<common_payments_types::CustomerAcceptance>,
         payment_method_recurring_details: Option<domain::PaymentMethodData>,
         customer_id: Option<&common_utils::id_type::CustomerId>,
+        dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
     ) -> RouterResult<(
         PaymentAttempt,
         Option<api_models::payments::AdditionalPaymentData>,
     )> {
+        let dimensions = dimensions.with_profile_id(profile_id.clone());
         let payment_method_data =
             request
                 .payment_method_data
@@ -1387,10 +1361,6 @@ impl PaymentCreate {
                 .and_then(|payment_method_data_request| {
                     payment_method_data_request.payment_method_data.as_ref()
                 });
-
-        let dimensions = dimension_state::Dimensions::new()
-            .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
-            .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id());
 
         let created_at @ modified_at @ last_synced = common_utils::date_time::now();
         let status = helpers::payment_attempt_status_fsm(payment_method_data, request.confirm);
@@ -1405,8 +1375,7 @@ impl PaymentCreate {
             .map(domain::PaymentMethodData::from)
             .or(payment_method_recurring_details)
             .zip(Some(profile_id.clone())) // since data is consumed by async move, profile_id needs to be send separately
-            .async_map(|(payment_method_data, profile_id)| async move {
-                let dimensions = dimensions.with_profile_id(profile_id);
+            .async_map(|(payment_method_data, _)| async move {
                 helpers::get_additional_payment_data(
                     &payment_method_data,
                     &*state.store,

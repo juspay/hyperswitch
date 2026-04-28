@@ -60,9 +60,8 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         platform: &domain::Platform,
         auth_flow: services::AuthFlow,
         _header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
-        #[cfg(feature = "pm_modular")] _payment_method_wrapper: Option<
-            operations::PaymentMethodWithRawData,
-        >,
+        _payment_method_wrapper: Option<operations::PaymentMethodWithRawData>,
+        dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
     ) -> RouterResult<operations::GetTrackerResponse<'a, F, api::PaymentsRequest, PaymentData<F>>>
     {
         let (mut payment_intent, mut payment_attempt, currency): (_, _, storage_enums::Currency);
@@ -171,6 +170,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             None,
             payment_intent.customer_id.as_ref(),
             None,
+            dimensions,
         ))
         .await?;
         helpers::validate_amount_to_capture_and_capture_method(Some(&payment_attempt), request)?;
@@ -571,6 +571,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             is_l2_l3_enabled: business_profile.is_l2_l3_enabled,
             external_authentication_data: None,
             client_session_id: None,
+            vault_session_details: None,
         };
 
         let get_trackers_response = operations::GetTrackerResponse {
