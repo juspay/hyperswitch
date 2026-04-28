@@ -17,6 +17,10 @@ use diesel_models::{
     user_role as user_storage,
 };
 use error_stack::ResultExt;
+#[cfg(feature = "v1")]
+use hyperswitch_domain_models::payment_methods::{
+    ModularPaymentMethodFetchContext, PaymentMethodWithRawData,
+};
 #[cfg(feature = "payouts")]
 use hyperswitch_domain_models::payouts::{
     payout_attempt::PayoutAttemptInterface, payouts::PayoutsInterface,
@@ -2097,6 +2101,33 @@ impl PaymentMethodInterface for KafkaStore {
         self.diesel_store
             .find_payment_method(key_store, payment_method_id, storage_scheme)
             .await
+    }
+
+    #[cfg(feature = "v1")]
+    async fn find_payment_method_with_modular_fallback(
+        &self,
+        key_store: &domain::MerchantKeyStore,
+        payment_method_id: &str,
+        storage_scheme: MerchantStorageScheme,
+        modular_fetch_context: &ModularPaymentMethodFetchContext<'_>,
+    ) -> CustomResult<PaymentMethodWithRawData, errors::StorageError> {
+        let payment_method = self
+            .diesel_store
+            .find_payment_method(key_store, payment_method_id, storage_scheme)
+            .await?;
+
+        if payment_method.version == common_enums::ApiVersion::V2 {
+            modular_fetch_context
+                .fetch_payment_method(payment_method_id)
+                .await
+                .change_context(errors::StorageError::KVError)
+                .attach_printable("Failed to fetch payment method from modular service")
+        } else {
+            Ok(PaymentMethodWithRawData {
+                payment_method,
+                raw_payment_method_data: None,
+            })
+        }
     }
 
     #[cfg(feature = "v2")]

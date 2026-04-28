@@ -2489,7 +2489,7 @@ where
     D: OperationSessionGetters<F> + Send + Sync,
     Op: Operation<F, R, Data = D> + Send + Sync,
 {
-    if feature_config.is_payment_method_modular_allowed {
+    if bool::foreign_from((feature_config, payment_data.get_payment_method_info())) {
         logger::debug!(
             payment_id = ?payment_data.get_payment_attempt().payment_id,
             "Modular merchant detected; calling update_modular_pm_and_mandate"
@@ -8300,6 +8300,8 @@ where
     D: OperationSessionGetters<F> + OperationSessionSetters<F> + Send + Sync + Clone,
 {
     let connector = payment_data.get_payment_attempt().connector.to_owned();
+    let should_use_modular_pm_path =
+        bool::foreign_from((feature_config, payment_data.get_payment_method_info()));
 
     let is_mandate = payment_data
         .get_mandate_id()
@@ -8315,7 +8317,7 @@ where
 
     let payment_data_and_tokenization_action = match connector {
         Some(_) if is_mandate => {
-            if feature_config.is_payment_method_modular_allowed {
+            if should_use_modular_pm_path {
                 payment_data.set_payment_method_data(None);
             }
             (
@@ -8357,7 +8359,7 @@ where
 
             let connector_tokenization_action = match payment_method_action {
                 TokenizationAction::TokenizeInRouter => {
-                    if !feature_config.is_payment_method_modular_allowed {
+                    if !should_use_modular_pm_path {
                         let (_operation, payment_method_data, pm_id) = operation
                             .to_domain()?
                             .make_pm_data(
@@ -8405,7 +8407,7 @@ where
                 }
                 TokenizationAction::TokenizeInConnector => TokenizationAction::TokenizeInConnector,
                 TokenizationAction::TokenizeInConnectorAndRouter => {
-                    if !feature_config.is_payment_method_modular_allowed {
+                    if !should_use_modular_pm_path {
                         let (_operation, payment_method_data, pm_id) = operation
                             .to_domain()?
                             .make_pm_data(
@@ -8505,9 +8507,11 @@ where
     let is_external_authentication_requested = payment_data
         .get_payment_intent()
         .request_external_three_ds_authentication;
+    let should_use_modular_pm_path =
+        bool::foreign_from((feature_config, payment_data.get_payment_method_info()));
     let payment_data =
         if !is_operation_confirm(operation) || is_external_authentication_requested == Some(true) {
-            if !feature_config.is_payment_method_modular_allowed {
+            if !should_use_modular_pm_path {
                 let (_operation, payment_method_data, pm_id) = operation
                     .to_domain()?
                     .make_pm_data(
@@ -10071,6 +10075,9 @@ where
             }),
     };
 
+    let should_use_modular_pm_path =
+        bool::foreign_from((feature_config, payment_data.get_payment_method_info()));
+
     let decided_connector = decide_connector(
         state.clone(),
         processor,
@@ -10083,7 +10090,7 @@ where
         dimensions,
         fallback_config,
         backend_input,
-        feature_config.is_payment_method_modular_allowed,
+        should_use_modular_pm_path,
     )
     .await?;
 

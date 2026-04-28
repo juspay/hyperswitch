@@ -21,6 +21,7 @@ use error_stack::{self, ResultExt};
 use hyperswitch_domain_models::{
     mandates::MandateDetails,
     payment_method_data::RecurringDetails as domain_recurring_details,
+    payment_methods::PaymentMethodWithRawData,
     payments::{payment_attempt::PaymentAttempt, FromRequestEncryptablePaymentIntent},
 };
 use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
@@ -80,11 +81,12 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         platform: &domain::Platform,
         _auth_flow: services::AuthFlow,
         header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
-        payment_method_with_raw_data: Option<pm_transformers::PaymentMethodWithRawData>,
+        payment_method_with_raw_data: Option<PaymentMethodWithRawData>,
         dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
     ) -> RouterResult<operations::GetTrackerResponse<'a, F, api::PaymentsRequest, PaymentData<F>>>
     {
         let db = &*state.store;
+        let mut payment_method_with_raw_data = payment_method_with_raw_data;
         let money @ (amount, currency) = payments_create_request_validation(request)?;
 
         let payment_id = payment_id
@@ -156,9 +158,9 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             reason: "Expected one out of recurring_details and mandate_data but got both".into(),
         })?;
 
-        let payment_method_info_from_modular = payment_method_with_raw_data
-            .clone()
-            .map(|pm| pm.payment_method.0);
+        let payment_method_info_from_modular = payment_method_with_raw_data.clone();
+        let modular_fetch_context =
+            helpers::build_modular_fetch_context(state, platform, &profile_id);
 
         let m_helpers::MandateGenericData {
             token,
@@ -167,7 +169,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             mandate_data,
             recurring_mandate_payment_data,
             mandate_connector,
-            payment_method_info,
+            mut payment_method_info,
         } = helpers::get_token_pm_type_mandate_details(
             state,
             request,
@@ -177,8 +179,28 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             None,
             payment_method_info_from_modular,
             dimensions,
+            &modular_fetch_context,
         )
         .await?;
+
+        if let Some(token) = token.clone() {
+            let token_data =
+                helpers::retrieve_payment_token_data(state, token, payment_method).await?;
+            let payment_method_with_raw_data_from_token =
+                helpers::retrieve_payment_method_from_db_with_token_data(
+                    state,
+                    platform.get_provider().get_key_store(),
+                    &token_data,
+                    platform.get_provider().get_account().storage_scheme,
+                    &modular_fetch_context,
+                )
+                .await?;
+
+            payment_method_with_raw_data = payment_method_with_raw_data
+                .or_else(|| payment_method_with_raw_data_from_token.clone());
+            payment_method_info = payment_method_info.or(payment_method_with_raw_data_from_token);
+        }
+        let payment_method_info = payment_method_info.map(|pm_wrapper| pm_wrapper.payment_method);
 
         helpers::validate_allowed_payment_method_types_request(
             state,
@@ -224,7 +246,6 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             .and_then(|pmd| pmd.billing.clone())
             .or(payment_method_with_raw_data.as_ref().and_then(|pm| {
                 pm.payment_method
-                    .0
                     .payment_method_billing_address
                     .clone()
                     .map(|decrypted_data| decrypted_data.into_inner().expose())
@@ -625,7 +646,6 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             .map(From::from);
         let pm_pmd_billing = payment_method_with_raw_data.as_ref().and_then(|pm| {
             pm.payment_method
-                .0
                 .payment_method_billing_address
                 .clone()
                 .map(|decrypted_data| decrypted_data.into_inner().expose())
@@ -910,7 +930,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
         req: &api::PaymentsRequest,
         platform: &domain::Platform,
         feature_config: &core_utils::FeatureConfig,
-    ) -> RouterResult<Option<pm_transformers::PaymentMethodWithRawData>> {
+    ) -> RouterResult<Option<PaymentMethodWithRawData>> {
         match feature_config.is_payment_method_modular_allowed {
             true => {
                 logger::info!("Organization is eligible for PM Modular Service, fetching payment method if payment_token is provided.");
@@ -950,7 +970,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                     logger::info!("Payment method fetched from PM Modular Service.");
 
                     utils::when(
-                        pm_info.payment_method.0.customer_id.as_ref() != req.get_customer_id(),
+                        pm_info.payment_method.customer_id.as_ref() != req.get_customer_id(),
                         || {
                             logger::info!("Payment method id does not belong to the customer id provided in the request.");
                             Err(errors::ApiErrorResponse::PaymentMethodNotFound)

@@ -110,7 +110,6 @@ CREATE TYPE "PaymentMethodIssuerCode" AS ENUM (
 );
 
 ALTER TABLE payment_methods
-    ADD COLUMN IF NOT EXISTS payment_method_id VARCHAR(64),
     ADD COLUMN IF NOT EXISTS accepted_currency "Currency" [ ],
     ADD COLUMN IF NOT EXISTS scheme VARCHAR(32),
     ADD COLUMN IF NOT EXISTS token VARCHAR(128),

@@ -746,7 +746,7 @@ impl<F: Send + Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsAuthor
     where
         F: 'b + Clone + Send + Sync,
     {
-        if !feature_config.is_payment_method_modular_allowed {
+        if !bool::foreign_from((feature_config, payment_data.get_payment_method_info())) {
             let _ = update_pm_connector_mandate_details(
                 state,
                 provider,
@@ -1046,7 +1046,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::PaymentsSyncData> for
     where
         F: 'b + Clone + Send + Sync,
     {
-        if !feature_config.is_payment_method_modular_allowed {
+        if !bool::foreign_from((feature_config, payment_data.get_payment_method_info())) {
             let _ = update_pm_connector_mandate_details(
                 state,
                 provider,
@@ -1794,7 +1794,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::SetupMandateRequestDa
     where
         F: 'b + Clone + Send + Sync,
     {
-        if !feature_config.is_payment_method_modular_allowed {
+        if !bool::foreign_from((feature_config, payment_data.get_payment_method_info())) {
             let _ = update_pm_connector_mandate_details(
                 state,
                 provider,
@@ -1929,7 +1929,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentData<F>, types::CompleteAuthorizeData
     where
         F: 'b + Clone + Send + Sync,
     {
-        if !feature_config.is_payment_method_modular_allowed {
+        if !bool::foreign_from((feature_config, payment_data.get_payment_method_info())) {
             let _ = update_pm_connector_mandate_details(
                 state,
                 provider,

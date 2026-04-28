@@ -38,6 +38,8 @@ use diesel_models::enums;
 use error_stack::{report, ResultExt};
 use futures::future::Either;
 #[cfg(feature = "v1")]
+use hyperswitch_domain_models::payment_methods::ModularPaymentMethodFetchContext;
+#[cfg(feature = "v1")]
 use hyperswitch_domain_models::payments::payment_intent::CustomerData;
 pub use hyperswitch_domain_models::{customer, type_encryption::AsyncLift};
 use hyperswitch_domain_models::{
@@ -125,6 +127,41 @@ use crate::{
 use crate::{core::admin as core_admin, headers, types::ConnectorAuthType};
 #[cfg(feature = "v1")]
 use crate::{core::utils::create_encrypted_data, types::storage::CustomerUpdate::Update};
+
+#[cfg(feature = "v1")]
+pub fn build_modular_fetch_context<'a>(
+    state: &'a SessionState,
+    platform: &'a domain::Platform,
+    profile_id: &'a id_type::ProfileId,
+) -> ModularPaymentMethodFetchContext<'a> {
+    ModularPaymentMethodFetchContext {
+        fetcher: Box::new(move |payment_method_id| {
+            let payment_method_id = payment_method_id.to_owned();
+            Box::pin(async move {
+                let mut pm_info =
+                    payment_methods::transformers::fetch_payment_method_from_modular_service(
+                        state,
+                        platform,
+                        profile_id,
+                        &payment_method_id,
+                        None,
+                    )
+                    .await
+                    .map_err(|err| {
+                        logger::error!(?err, "Failed to fetch payment method from modular service");
+                        std::io::Error::other("Failed to fetch payment method from modular service")
+                    })?;
+                pm_info.payment_method.version = common_enums::ApiVersion::V2;
+                Ok(
+                    hyperswitch_domain_models::payment_methods::PaymentMethodWithRawData {
+                        payment_method: pm_info.payment_method,
+                        raw_payment_method_data: pm_info.raw_payment_method_data,
+                    },
+                )
+            })
+        }),
+    }
+}
 
 #[instrument(skip_all)]
 #[allow(clippy::too_many_arguments)]
@@ -464,14 +501,18 @@ pub async fn get_token_pm_type_mandate_details(
     platform: &domain::Platform,
     payment_method_id: Option<String>,
     payment_intent_customer_id: Option<&id_type::CustomerId>,
-    pm_info: Option<domain::PaymentMethod>,
+    pm_info: Option<hyperswitch_domain_models::payment_methods::PaymentMethodWithRawData>,
     dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
+    modular_fetch_context: &ModularPaymentMethodFetchContext<'_>,
 ) -> RouterResult<MandateGenericData> {
     let mandate_data = request.mandate_data.clone().map(MandateData::foreign_from);
-    let is_payment_method_modular_allowed =
-        core_utils::get_feature_config(state, platform, dimensions)
-            .await
-            .is_payment_method_modular_allowed;
+    let feature_config = core_utils::get_feature_config(state, platform, dimensions).await;
+    let is_payment_method_modular_allowed = bool::foreign_from((
+        &feature_config,
+        pm_info
+            .as_ref()
+            .map(|pm_wrapper| &pm_wrapper.payment_method),
+    ));
     let (
         payment_token,
         payment_method,
@@ -564,10 +605,11 @@ pub async fn get_token_pm_type_mandate_details(
                             Some(pm) => pm.clone(),
                             None => state
                                 .store
-                                .find_payment_method(
+                                .find_payment_method_with_modular_fallback(
                                     platform.get_provider().get_key_store(),
                                     payment_method_id,
                                     platform.get_provider().get_account().storage_scheme,
+                                    modular_fetch_context,
                                 )
                                 .await
                                 .to_not_found_response(
@@ -579,9 +621,10 @@ pub async fn get_token_pm_type_mandate_details(
                             .get_required_value("customer_id")?;
 
                         verify_mandate_details_for_recurring_payments(
-                            &payment_method_info.merchant_id,
+                            &payment_method_info.payment_method.merchant_id,
                             platform.get_provider().get_account().get_id(),
                             &payment_method_info
+                                .payment_method
                                 .customer_id
                                 .clone()
                                 .get_required_value("customer_id")?,
@@ -590,8 +633,10 @@ pub async fn get_token_pm_type_mandate_details(
 
                         (
                             None,
-                            payment_method_info.get_payment_method_type(),
-                            payment_method_info.get_payment_method_subtype(),
+                            payment_method_info.payment_method.get_payment_method_type(),
+                            payment_method_info
+                                .payment_method
+                                .get_payment_method_subtype(),
                             None,
                             None,
                             None,
@@ -671,7 +716,13 @@ pub async fn get_token_pm_type_mandate_details(
                                         payment_method.get_payment_method_subtype()
                                             == request.payment_method_type
                                     })
-                                    .cloned()),
+                                    .cloned()
+                                    .map(|payment_method| {
+                                        hyperswitch_domain_models::payment_methods::PaymentMethodWithRawData {
+                                            payment_method,
+                                            raw_payment_method_data: None,
+                                        }
+                                    })),
                                 Err(error) => {
                                     if error.current_context().is_db_not_found() {
                                         Ok(None)
@@ -714,10 +765,11 @@ pub async fn get_token_pm_type_mandate_details(
                                 .async_map(|payment_method_id| async move {
                                     state
                                         .store
-                                        .find_payment_method(
+                                        .find_payment_method_with_modular_fallback(
                                             platform.get_provider().get_key_store(),
                                             &payment_method_id,
                                             platform.get_provider().get_account().storage_scheme,
+                                            modular_fetch_context,
                                         )
                                         .await
                                         .to_not_found_response(
@@ -729,15 +781,15 @@ pub async fn get_token_pm_type_mandate_details(
                         };
 
                         let resolved_payment_method = request.payment_method.or_else(|| {
-                            payment_method_info
-                                .as_ref()
-                                .and_then(|pm_info| pm_info.get_payment_method_type())
+                            payment_method_info.as_ref().and_then(|pm_info| {
+                                pm_info.payment_method.get_payment_method_type()
+                            })
                         });
                         let resolved_payment_method_type =
                             request.payment_method_type.or_else(|| {
-                                payment_method_info
-                                    .as_ref()
-                                    .and_then(|pm_info| pm_info.get_payment_method_subtype())
+                                payment_method_info.as_ref().and_then(|pm_info| {
+                                    pm_info.payment_method.get_payment_method_subtype()
+                                })
                             });
 
                         (
@@ -761,10 +813,11 @@ pub async fn get_token_pm_type_mandate_details(
                     .async_map(|payment_method_id| async move {
                         state
                             .store
-                            .find_payment_method(
+                            .find_payment_method_with_modular_fallback(
                                 platform.get_provider().get_key_store(),
                                 &payment_method_id,
                                 platform.get_provider().get_account().storage_scheme,
+                                modular_fetch_context,
                             )
                             .await
                             .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)
@@ -775,12 +828,12 @@ pub async fn get_token_pm_type_mandate_details(
             let resolved_payment_method = request.payment_method.or_else(|| {
                 payment_method_info
                     .as_ref()
-                    .and_then(|pm_info| pm_info.get_payment_method_type())
+                    .and_then(|pm_info| pm_info.payment_method.get_payment_method_type())
             });
             let resolved_payment_method_type = request.payment_method_type.or_else(|| {
                 payment_method_info
                     .as_ref()
-                    .and_then(|pm_info| pm_info.get_payment_method_subtype())
+                    .and_then(|pm_info| pm_info.payment_method.get_payment_method_subtype())
             });
 
             (
@@ -939,7 +992,12 @@ pub async fn get_token_for_recurring_mandate(
             payment_method_type: payment_method.get_payment_method_subtype(),
             mandate_connector: Some(mandate_connector_details),
             mandate_data: None,
-            payment_method_info: Some(payment_method),
+            payment_method_info: Some(
+                hyperswitch_domain_models::payment_methods::PaymentMethodWithRawData {
+                    payment_method,
+                    raw_payment_method_data: None,
+                },
+            ),
         })
     } else {
         Ok(MandateGenericData {
@@ -954,7 +1012,12 @@ pub async fn get_token_for_recurring_mandate(
             payment_method_type: payment_method.get_payment_method_subtype(),
             mandate_connector: Some(mandate_connector_details),
             mandate_data: None,
-            payment_method_info: Some(payment_method),
+            payment_method_info: Some(
+                hyperswitch_domain_models::payment_methods::PaymentMethodWithRawData {
+                    payment_method,
+                    raw_payment_method_data: None,
+                },
+            ),
         })
     }
 }
@@ -3133,10 +3196,11 @@ pub async fn fetch_card_details_for_network_transaction_flow_from_locker(
 
 #[cfg(feature = "v2")]
 pub async fn retrieve_payment_method_from_db_with_token_data(
-    state: &SessionState,
-    merchant_key_store: &domain::MerchantKeyStore,
-    token_data: &storage::PaymentTokenData,
-    storage_scheme: storage::enums::MerchantStorageScheme,
+    _state: &SessionState,
+    _merchant_key_store: &domain::MerchantKeyStore,
+    _token_data: &storage::PaymentTokenData,
+    _storage_scheme: storage::enums::MerchantStorageScheme,
+    _modular_fetch_context: &(),
 ) -> RouterResult<Option<domain::PaymentMethod>> {
     todo!()
 }
@@ -3147,13 +3211,19 @@ pub async fn retrieve_payment_method_from_db_with_token_data(
     merchant_key_store: &domain::MerchantKeyStore,
     token_data: &storage::PaymentTokenData,
     storage_scheme: storage::enums::MerchantStorageScheme,
-) -> RouterResult<Option<domain::PaymentMethod>> {
+    modular_fetch_context: &ModularPaymentMethodFetchContext<'_>,
+) -> RouterResult<Option<hyperswitch_domain_models::payment_methods::PaymentMethodWithRawData>> {
     match token_data {
         storage::PaymentTokenData::PermanentCard(data) => {
             if let Some(ref payment_method_id) = data.payment_method_id {
                 state
                     .store
-                    .find_payment_method(merchant_key_store, payment_method_id, storage_scheme)
+                    .find_payment_method_with_modular_fallback(
+                        merchant_key_store,
+                        payment_method_id,
+                        storage_scheme,
+                        modular_fetch_context,
+                    )
                     .await
                     .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)
                     .attach_printable("error retrieving payment method from DB")
@@ -3165,7 +3235,12 @@ pub async fn retrieve_payment_method_from_db_with_token_data(
 
         storage::PaymentTokenData::WalletToken(data) => state
             .store
-            .find_payment_method(merchant_key_store, &data.payment_method_id, storage_scheme)
+            .find_payment_method_with_modular_fallback(
+                merchant_key_store,
+                &data.payment_method_id,
+                storage_scheme,
+                modular_fetch_context,
+            )
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)
             .attach_printable("error retrieveing payment method from DB")
@@ -3177,7 +3252,12 @@ pub async fn retrieve_payment_method_from_db_with_token_data(
         | storage::PaymentTokenData::AuthBankDebit(_) => Ok(None),
         storage::PaymentTokenData::BankDebit(data) => state
             .store
-            .find_payment_method(merchant_key_store, &data.payment_method_id, storage_scheme)
+            .find_payment_method_with_modular_fallback(
+                merchant_key_store,
+                &data.payment_method_id,
+                storage_scheme,
+                modular_fetch_context,
+            )
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)
             .attach_printable("error retrieving payment method from DB")

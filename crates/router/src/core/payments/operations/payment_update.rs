@@ -141,6 +141,14 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
 
         let customer_acceptance = request.customer_acceptance.clone();
         let recurring_details = request.recurring_details.clone();
+        let profile_id = payment_intent
+            .profile_id
+            .clone()
+            .get_required_value("profile_id")
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("'profile_id' not set in payment intent")?;
+        let modular_fetch_context =
+            helpers::build_modular_fetch_context(state, platform, &profile_id);
 
         let mandate_type = m_helpers::get_mandate_type(
             request.mandate_data.clone(),
@@ -171,8 +179,10 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             payment_intent.customer_id.as_ref(),
             None,
             dimensions,
+            &modular_fetch_context,
         ))
         .await?;
+        let payment_method_info = payment_method_info.map(|pm_wrapper| pm_wrapper.payment_method);
         helpers::validate_amount_to_capture_and_capture_method(Some(&payment_attempt), request)?;
 
         helpers::validate_request_amount_and_amount_to_capture(

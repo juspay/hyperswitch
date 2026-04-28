@@ -17,6 +17,10 @@ use diesel_models::payment_method::{PaymentMethodUpdate, PaymentMethodUpdateInte
 use error_stack::ResultExt;
 #[cfg(feature = "v1")]
 use hyperswitch_domain_models::behaviour::ReverseConversion;
+#[cfg(feature = "v1")]
+use hyperswitch_domain_models::payment_methods::{
+    ModularPaymentMethodFetchContext, PaymentMethodWithRawData,
+};
 #[cfg(feature = "v2")]
 use hyperswitch_domain_models::platform::Initiator;
 use hyperswitch_domain_models::{
@@ -58,6 +62,32 @@ impl<T: DatabaseStore> PaymentMethodInterface for KVRouterStore<T> {
             FindResourceBy::LookupId(format!("payment_method_{payment_method_id}")),
         )
         .await
+    }
+
+    #[cfg(feature = "v1")]
+    async fn find_payment_method_with_modular_fallback(
+        &self,
+        key_store: &MerchantKeyStore,
+        payment_method_id: &str,
+        storage_scheme: MerchantStorageScheme,
+        modular_fetch_context: &ModularPaymentMethodFetchContext<'_>,
+    ) -> CustomResult<PaymentMethodWithRawData, errors::StorageError> {
+        let payment_method = self
+            .find_payment_method(key_store, payment_method_id, storage_scheme)
+            .await?;
+
+        if payment_method.version == common_enums::ApiVersion::V2 {
+            modular_fetch_context
+                .fetch_payment_method(payment_method_id)
+                .await
+                .change_context(errors::StorageError::KVError)
+                .attach_printable("Failed to fetch payment method from modular service")
+        } else {
+            Ok(PaymentMethodWithRawData {
+                payment_method,
+                raw_payment_method_data: None,
+            })
+        }
     }
 
     #[cfg(feature = "v2")]
@@ -480,6 +510,32 @@ impl<T: DatabaseStore> PaymentMethodInterface for RouterStore<T> {
         .await
     }
 
+    #[cfg(feature = "v1")]
+    async fn find_payment_method_with_modular_fallback(
+        &self,
+        key_store: &MerchantKeyStore,
+        payment_method_id: &str,
+        storage_scheme: MerchantStorageScheme,
+        modular_fetch_context: &ModularPaymentMethodFetchContext<'_>,
+    ) -> CustomResult<PaymentMethodWithRawData, errors::StorageError> {
+        let payment_method = self
+            .find_payment_method(key_store, payment_method_id, storage_scheme)
+            .await?;
+
+        if payment_method.version == common_enums::ApiVersion::V2 {
+            modular_fetch_context
+                .fetch_payment_method(payment_method_id)
+                .await
+                .change_context(errors::StorageError::KVError)
+                .attach_printable("Failed to fetch payment method from modular service")
+        } else {
+            Ok(PaymentMethodWithRawData {
+                payment_method,
+                raw_payment_method_data: None,
+            })
+        }
+    }
+
     #[cfg(feature = "v2")]
     async fn find_payment_method(
         &self,
@@ -839,6 +895,22 @@ impl PaymentMethodInterface for MockDb {
             "cannot find payment method".to_string(),
         )
         .await
+    }
+
+    #[cfg(feature = "v1")]
+    async fn find_payment_method_with_modular_fallback(
+        &self,
+        key_store: &MerchantKeyStore,
+        payment_method_id: &str,
+        storage_scheme: MerchantStorageScheme,
+        _modular_fetch_context: &ModularPaymentMethodFetchContext<'_>,
+    ) -> CustomResult<PaymentMethodWithRawData, errors::StorageError> {
+        self.find_payment_method(key_store, payment_method_id, storage_scheme)
+            .await
+            .map(|payment_method| PaymentMethodWithRawData {
+                payment_method,
+                raw_payment_method_data: None,
+            })
     }
 
     #[cfg(feature = "v2")]

@@ -48,6 +48,8 @@ ALTER TABLE payment_attempt
 
 ---------------------- Payment Methods ----------------------
 DROP INDEX IF EXISTS idx_payment_methods_payment_method_id;
+ALTER TABLE payment_methods
+    ADD COLUMN IF NOT EXISTS payment_method_id VARCHAR(64);
 ALTER TABLE payment_methods 
     ADD PRIMARY KEY (payment_method_id);
 

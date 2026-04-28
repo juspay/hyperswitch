@@ -438,18 +438,19 @@ async fn get_tracker_for_sync<
 
     let profile_id = payment_intent
         .profile_id
-        .as_ref()
+        .clone()
         .get_required_value("profile_id")
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("'profile_id' not set in payment intent")?;
 
     let business_profile = db
-        .find_business_profile_by_profile_id(platform.get_processor().get_key_store(), profile_id)
+        .find_business_profile_by_profile_id(platform.get_processor().get_key_store(), &profile_id)
         .await
         .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {
             id: profile_id.get_string_repr().to_owned(),
         })?;
 
+    let modular_fetch_context = helpers::build_modular_fetch_context(state, platform, &profile_id);
     let payment_method_info = if let Some(ref payment_method_id) =
         payment_attempt.payment_method_id.clone()
     {
@@ -460,23 +461,24 @@ async fn get_tracker_for_sync<
             let pm_info = pm_transformers::fetch_payment_method_from_modular_service(
                 state,
                 platform,
-                profile_id,
+                &profile_id,
                 payment_method_id,
                 None,
             )
             .await
             .attach_printable("Failed to fetch payment method from modular service in sync flow")?;
-            Some(pm_info.payment_method.0)
+            Some(pm_info.payment_method)
         } else {
             match db
-                .find_payment_method(
+                .find_payment_method_with_modular_fallback(
                     platform.get_provider().get_key_store(),
                     payment_method_id,
                     storage_scheme,
+                    &modular_fetch_context,
                 )
                 .await
             {
-                Ok(payment_method) => Some(payment_method),
+                Ok(payment_method_wrapper) => Some(payment_method_wrapper.payment_method),
                 Err(error) => {
                     if error.current_context().is_db_not_found() {
                         logger::info!("Payment Method not found in db {:?}", error);
