@@ -5081,7 +5081,7 @@ Cypress.Commands.add(
       method: "POST",
       url: `${globalState.get("baseUrl")}/routing`,
       headers: {
-        Authorization: `Bearer ${globalState.get("userInfoToken")}`,
+        "api-key": globalState.get("apiKey"),
         "Content-Type": "application/json",
       },
       failOnStatusCode: false,
@@ -5114,7 +5114,7 @@ Cypress.Commands.add("activateRoutingConfig", (data, globalState) => {
     method: "POST",
     url: `${globalState.get("baseUrl")}/routing/${routing_config_id}/activate`,
     headers: {
-      Authorization: `Bearer ${globalState.get("userInfoToken")}`,
+      "api-key": globalState.get("apiKey"),
       "Content-Type": "application/json",
     },
     failOnStatusCode: false,
@@ -5144,7 +5144,7 @@ Cypress.Commands.add("retrieveRoutingConfig", (data, globalState) => {
     method: "GET",
     url: `${globalState.get("baseUrl")}/routing/${routing_config_id}`,
     headers: {
-      Authorization: `Bearer ${globalState.get("userInfoToken")}`,
+      "api-key": globalState.get("apiKey"),
       "Content-Type": "application/json",
     },
     failOnStatusCode: false,
