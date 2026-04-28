@@ -717,7 +717,8 @@ static IMERCHANTSOLUTIONS_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
     integration_status: enums::ConnectorIntegrationStatus::Alpha,
 };
 
-static IMERCHANTSOLUTIONS_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 2] = [enums::EventClass::Payments, enums::EventClass::Refunds];
+static IMERCHANTSOLUTIONS_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 2] =
+    [enums::EventClass::Payments, enums::EventClass::Refunds];
 
 impl ConnectorSpecifications for Imerchantsolutions {
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
