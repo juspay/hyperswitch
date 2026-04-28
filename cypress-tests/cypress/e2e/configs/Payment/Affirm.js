@@ -52,6 +52,18 @@ export const connectorDetails = {
         },
       },
     },
+    AffirmPaymentNotSupported: {
+      Response: {
+        status: 400,
+        body: {
+          error: {
+            type: "invalid_request",
+            message: "Connector not found",
+            code: "IR_16",
+          },
+        },
+      },
+    },
     Refund: {
       Request: {
         amount: 6000,
