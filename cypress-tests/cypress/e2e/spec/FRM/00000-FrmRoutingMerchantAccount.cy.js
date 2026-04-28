@@ -1,5 +1,6 @@
 import * as fixtures from "../../../fixtures/imports";
 import State from "../../../utils/State";
+import * as RequestBodyUtils from "../../../utils/RequestBodyUtils";
 
 let globalState;
 
