@@ -2,9 +2,10 @@ use std::str::FromStr;
 
 use common_enums::AttemptStatus;
 use common_types::primitive_wrappers::{ExtendedAuthorizationAppliedBool, OvercaptureEnabledBool};
-use common_utils::request::Method;
+use common_utils::{errors::ErrorSwitch, request::Method};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
+    errors::api_error_response::{ApiErrorResponse, NotImplementedMessage},
     router_data::{
         AdditionalPaymentMethodConnectorResponse, ConnectorResponseData, ErrorResponse,
         ExtendedAuthorizationResponseData,
@@ -12,6 +13,7 @@ use hyperswitch_domain_models::{
     router_response_types::{PaymentsResponseData, RedirectForm},
 };
 use hyperswitch_masking::ExposeInterface;
+use prost::Message;
 
 use crate::{
     helpers::{ForeignFrom, ForeignTryFrom},
@@ -86,6 +88,91 @@ pub enum UnifiedConnectorServiceError {
     #[error("Failed to inject metadata into request headers: {0}")]
     HeaderInjectionFailed(String),
 
+    /// Tonic gRPC status error - InvalidArgument (HTTP 400)
+    #[error("UCS validation error: {message}")]
+    TonicInvalidArgument {
+        /// Error message from UCS
+        message: String,
+    },
+
+    /// Tonic gRPC status error - NotFound (HTTP 404)
+    #[error("UCS resource not found: {message}")]
+    TonicNotFound {
+        /// Error message from UCS
+        message: String,
+    },
+
+    /// Tonic gRPC status error - AlreadyExists (HTTP 409)
+    #[error("UCS resource already exists: {message}")]
+    TonicAlreadyExists {
+        /// Error message from UCS
+        message: String,
+    },
+
+    /// Tonic gRPC status error - PermissionDenied (HTTP 403)
+    #[error("UCS permission denied: {message}")]
+    TonicPermissionDenied {
+        /// Error message from UCS
+        message: String,
+    },
+
+    /// Tonic gRPC status error - Unauthenticated (HTTP 401)
+    #[error("UCS unauthenticated: {message}")]
+    TonicUnauthenticated {
+        /// Error message from UCS
+        message: String,
+    },
+
+    /// Tonic gRPC status error - FailedPrecondition (HTTP 400)
+    #[error("UCS precondition failed: {message}")]
+    TonicFailedPrecondition {
+        /// Error message from UCS
+        message: String,
+    },
+
+    /// Tonic gRPC status error - Unimplemented (HTTP 501)
+    #[error("UCS unimplemented: {message}")]
+    TonicUnimplemented {
+        /// Error message from UCS
+        message: String,
+    },
+
+    /// Tonic gRPC status error - Unavailable (HTTP 503)
+    #[error("UCS service unavailable: {message}")]
+    TonicUnavailable {
+        /// Error message from UCS
+        message: String,
+    },
+
+    /// Tonic gRPC status error - DeadlineExceeded (HTTP 504)
+    #[error("UCS deadline exceeded: {message}")]
+    TonicDeadlineExceeded {
+        /// Error message from UCS
+        message: String,
+    },
+
+    /// Tonic gRPC status error - Internal (HTTP 500)
+    #[error("UCS internal error: {message}")]
+    TonicInternal {
+        /// Error message from UCS
+        message: String,
+    },
+
+    /// Connector error received through UCS (contains original connector HTTP status code)
+    /// When status_code is present and 4xx/5xx, this is a connector error (not a UCS error).
+    /// When status_code is None, the error originated from UCS itself.
+    #[error("Connector error via UCS: {code} - {message} (status: {status_code})")]
+    ConnectorError {
+        /// Connector error code
+        code: String,
+        /// Connector error message
+        message: String,
+        /// Original HTTP status code from connector
+        status_code: u16,
+        /// Optional reason for the error
+        reason: Option<String>,
+    },
+
     /// Failed to perform Payment Create Order from gRPC Server
     #[error("Failed to perform Payment Create Order from gRPC Server")]
     PaymentCreateOrderFailure,
@@ -154,6 +241,10 @@ pub enum UnifiedConnectorServiceError {
     #[error("Failed to handle incoming webhook event from gRPC Server")]
     IncomingWebhookHandleEventFailure,
 
+    /// Failed to parse incoming webhook event from gRPC Server
+    #[error("Failed to parse incoming webhook event from gRPC Server")]
+    IncomingWebhookParseEventFailure,
+
     /// Failed to perform Payment Void from gRPC Server
     #[error("Failed to perform Void from gRPC Server")]
     PaymentVoidFailure,
@@ -193,26 +284,6 @@ pub enum UnifiedConnectorServiceError {
     /// Failed to perform Payout Enroll Disburse Account from gRPC Server
     #[error("Failed to perform Payout Enroll Disburse Account from gRPC Server")]
     PayoutEnrollDisburseAccountFailure,
-}
-
-/// UCS Webhook transformation status
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-pub enum WebhookTransformationStatus {
-    /// Transformation completed successfully, no further action needed
-    Complete,
-    /// Transformation incomplete, requires second call for final status
-    Incomplete,
-}
-
-#[allow(missing_docs)]
-/// Webhook transform data structure containing UCS response information
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-pub struct WebhookTransformData {
-    pub event_type: api_models::webhooks::IncomingWebhookEvent,
-    pub source_verified: bool,
-    pub webhook_content: Option<payments_grpc::EventContent>,
-    pub response_ref_id: Option<String>,
-    pub webhook_transformation_status: WebhookTransformationStatus,
 }
 
 impl ForeignTryFrom<(payments_grpc::PaymentServiceGetResponse, AttemptStatus)>
@@ -542,6 +613,28 @@ pub fn convert_connector_service_status_code(
     })
 }
 
+/// Determines if a UCS response represents a connector error or UCS validation error.
+/// Returns Some(UnifiedConnectorServiceError) if it's a connector error that should
+/// bypass normal ErrorResponse handling, None otherwise.
+pub fn resolve_ucs_connector_error(
+    status_code: u16,
+    error_code: String,
+    error_message: String,
+    error_reason: Option<String>,
+) -> Option<UnifiedConnectorServiceError> {
+    // Connector errors have status codes in the 4xx or 5xx range
+    if (400..600).contains(&status_code) {
+        Some(UnifiedConnectorServiceError::ConnectorError {
+            code: error_code,
+            message: error_message,
+            status_code,
+            reason: error_reason,
+        })
+    } else {
+        None
+    }
+}
+
 // Bank Debit Reverse Transformations: Proto -> Hyperswitch
 
 impl ForeignTryFrom<payments_grpc::Ach>
@@ -675,22 +768,18 @@ impl ForeignTryFrom<payments_grpc::BankType> for common_enums::BankType {
                 UnifiedConnectorServiceError::ResponseDeserializationFailed,
             )
             .attach_printable("BankType unspecified")),
-            payments_grpc::BankType::Transmission => Err(error_stack::Report::new(
-                UnifiedConnectorServiceError::ResponseDeserializationFailed,
-            )
-            .attach_printable("BankType unspecified")),
-            payments_grpc::BankType::Current => Err(error_stack::Report::new(
-                UnifiedConnectorServiceError::ResponseDeserializationFailed,
-            )
-            .attach_printable("BankType unspecified")),
-            payments_grpc::BankType::Bond => Err(error_stack::Report::new(
-                UnifiedConnectorServiceError::ResponseDeserializationFailed,
-            )
-            .attach_printable("BankType unspecified")),
-            payments_grpc::BankType::SubscriptionShare => Err(error_stack::Report::new(
-                UnifiedConnectorServiceError::ResponseDeserializationFailed,
-            )
-            .attach_printable("BankType unspecified")),
+            // Variants present in the UCS proto but not modelled in `common_enums::BankType`
+            // yet. Enumerated explicitly so any future addition to the UCS enum forces this
+            // match to be updated (and the corresponding HS-side variant decided) rather
+            // than silently falling through a catch-all.
+            payments_grpc::BankType::Transmission
+            | payments_grpc::BankType::Current
+            | payments_grpc::BankType::Bond
+            | payments_grpc::BankType::SubscriptionShare => Err(error_stack::Report::new(
+                UnifiedConnectorServiceError::NotImplemented(format!(
+                    "UCS BankType variant not yet mapped to HS: {bank_type:?}"
+                )),
+            )),
         }
     }
 }
@@ -870,6 +959,134 @@ impl ForeignFrom<payments_grpc::UpiSource>
             payments_grpc::UpiSource::UpiCcCl => Self::UpiCcCl,
             payments_grpc::UpiSource::UpiPpi => Self::UpiPpi,
             payments_grpc::UpiSource::UpiVoucher => Self::UpiVoucher,
+        }
+    }
+}
+
+impl UnifiedConnectorServiceError {
+    /// Maps a tonic::Status to UnifiedConnectorServiceError based on the status code.
+    pub fn from_tonic_status(status: &tonic::Status) -> Self {
+        let message = status.message().to_string();
+
+        if let Some(connector_error) = Self::try_parse_structured_error(&message) {
+            return connector_error;
+        }
+        if let Some(error_from_details) = Self::try_parse_from_details(status) {
+            return error_from_details;
+        }
+        match status.code() {
+            tonic::Code::InvalidArgument => Self::TonicInvalidArgument { message },
+            tonic::Code::NotFound => Self::TonicNotFound { message },
+            tonic::Code::AlreadyExists => Self::TonicAlreadyExists { message },
+            tonic::Code::PermissionDenied => Self::TonicPermissionDenied { message },
+            tonic::Code::Unauthenticated => Self::TonicUnauthenticated { message },
+            tonic::Code::FailedPrecondition => Self::TonicFailedPrecondition { message },
+            tonic::Code::Unimplemented => Self::TonicUnimplemented { message },
+            tonic::Code::Unavailable => Self::TonicUnavailable { message },
+            tonic::Code::DeadlineExceeded => Self::TonicDeadlineExceeded { message },
+            tonic::Code::Internal => Self::TonicInternal { message },
+            _ => Self::TonicInternal { message },
+        }
+    }
+
+    fn try_parse_structured_error(message: &str) -> Option<Self> {
+        let parsed: serde_json::Value = serde_json::from_str(message).ok()?;
+
+        let error_type = parsed.get("type")?.as_str()?;
+
+        match error_type {
+            "connector_error" => {
+                let status_code = u16::try_from(parsed.get("status_code")?.as_u64()?).ok()?;
+                let code = parsed
+                    .get("code")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("UNKNOWN")
+                    .to_string();
+                let error_message = parsed
+                    .get("message")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("")
+                    .to_string();
+                let reason = parsed
+                    .get("reason")
+                    .and_then(|v| v.as_str())
+                    .map(String::from);
+
+                Some(Self::ConnectorError {
+                    code,
+                    message: error_message,
+                    status_code,
+                    reason,
+                })
+            }
+            "validation_error" | "ucs_error" => None,
+            _ => None,
+        }
+    }
+
+    fn try_parse_from_details(status: &tonic::Status) -> Option<Self> {
+        let details = status.details();
+        if details.is_empty() {
+            return None;
+        }
+
+        // Attempt to decode the ConnectorError from the status details
+        let connector_error = payments_grpc::ConnectorError::decode(details).ok()?;
+        let status_code = u16::try_from(connector_error.http_status_code?).ok()?;
+        Some(Self::ConnectorError {
+            code: connector_error.error_code,
+            message: connector_error.error_message,
+            status_code,
+            reason: None,
+        })
+    }
+}
+
+impl ErrorSwitch<ApiErrorResponse> for UnifiedConnectorServiceError {
+    fn switch(&self) -> ApiErrorResponse {
+        match self {
+            // === UCS validation errors (no connector status_code) -> client-facing 4xx ===
+            Self::TonicInvalidArgument { message } => ApiErrorResponse::InvalidRequestData {
+                message: message.clone(),
+            },
+            Self::TonicNotFound { message } => ApiErrorResponse::InvalidRequestData {
+                message: format!("Resource not found: {message}"),
+            },
+            Self::TonicAlreadyExists { message } => ApiErrorResponse::InvalidRequestData {
+                message: format!("Resource already exists: {message}"),
+            },
+            Self::TonicPermissionDenied { message } => ApiErrorResponse::AccessForbidden {
+                resource: message.clone(),
+            },
+            Self::TonicUnauthenticated { .. } => ApiErrorResponse::Unauthorized,
+            Self::TonicFailedPrecondition { message } => ApiErrorResponse::InvalidRequestData {
+                message: format!("Precondition failed: {message}"),
+            },
+            Self::TonicUnimplemented { message } => ApiErrorResponse::NotImplemented {
+                message: NotImplementedMessage::Reason(message.clone()),
+            },
+
+            // === UCS server errors -> 5xx ===
+            Self::TonicUnavailable { .. }
+            | Self::TonicDeadlineExceeded { .. }
+            | Self::TonicInternal { .. } => ApiErrorResponse::InternalServerError,
+
+            // === Connector error passed through UCS (has status_code) ===
+            Self::ConnectorError {
+                code,
+                message,
+                status_code,
+                reason,
+            } => ApiErrorResponse::ExternalConnectorError {
+                code: code.clone(),
+                message: message.clone(),
+                connector: "ucs".to_string(),
+                status_code: *status_code,
+                reason: reason.clone(),
+            },
+
+            // === All other legacy/generic errors -> 500 ===
+            _ => ApiErrorResponse::InternalServerError,
         }
     }
 }
