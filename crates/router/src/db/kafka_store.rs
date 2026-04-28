@@ -1040,13 +1040,16 @@ impl PaymentLinkInterface for KafkaStore {
             .await
     }
 
-    async fn list_payment_link_by_merchant_id(
+    async fn list_payment_link_by_processor_merchant_id(
         &self,
-        merchant_id: &id_type::MerchantId,
+        processor_merchant_id: &id_type::MerchantId,
         payment_link_constraints: api_models::payments::PaymentLinkListConstraints,
     ) -> CustomResult<Vec<storage::PaymentLink>, errors::StorageError> {
         self.diesel_store
-            .list_payment_link_by_merchant_id(merchant_id, payment_link_constraints)
+            .list_payment_link_by_processor_merchant_id(
+                processor_merchant_id,
+                payment_link_constraints,
+            )
             .await
     }
 }

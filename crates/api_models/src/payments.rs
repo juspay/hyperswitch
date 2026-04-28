@@ -12127,6 +12127,9 @@ pub struct RetrievePaymentLinkResponse {
     /// Identifier for Merchant
     #[schema(value_type = String)]
     pub merchant_id: id_type::MerchantId,
+    /// Identifier for the processor merchant
+    #[schema(value_type = Option<String>)]
+    pub processor_merchant_id: Option<id_type::MerchantId>,
     /// Open payment link (without any security checks and listing SPMs)
     pub link_to_pay: String,
     /// The payment amount. Amount for the payment in the lowest denomination of the currency

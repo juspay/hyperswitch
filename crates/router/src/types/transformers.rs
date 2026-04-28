@@ -1761,6 +1761,7 @@ impl ForeignFrom<(storage::PaymentLink, payments::PaymentLinkStatus)>
         Self {
             payment_link_id: payment_link_config.payment_link_id,
             merchant_id: payment_link_config.merchant_id,
+            processor_merchant_id: payment_link_config.processor_merchant_id,
             link_to_pay: payment_link_config.link_to_pay,
             amount: payment_link_config.amount,
             created_at: payment_link_config.created_at,
