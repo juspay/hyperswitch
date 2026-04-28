@@ -1,0 +1,86 @@
+TEST_GENERATION_RESULT:
+  SpecFile: cypress-tests/cypress/e2e/spec/Payment/09-RefundPayment.cy.js (existing spec - no changes needed)
+  NewFile: NO
+  TestCasesAdded:
+    - TestCase: Volt - Full Refund for Open Banking UK (bank_redirect)
+      Type: happy_path
+      ConfigKey: Refund (bank_redirect_pm)
+      Connector: volt
+      CommandsUsed:
+        - refundCallTest
+        - syncRefundCallTest
+    - TestCase: Volt - Partial Refund for Open Banking UK
+      Type: happy_path
+      ConfigKey: PartialRefund (bank_redirect_pm)
+      Connector: volt
+      CommandsUsed:
+        - refundCallTest
+        - syncRefundCallTest
+    - TestCase: Volt - Sync Refund for Open Banking UK
+      Type: happy_path
+      ConfigKey: SyncRefund (bank_redirect_pm)
+      Connector: volt
+      CommandsUsed:
+        - syncRefundCallTest
+    - TestCase: Worldline - Full Refund for Card (credit/debit)
+      Type: happy_path
+      ConfigKey: Refund (card_pm)
+      Connector: worldline
+      CommandsUsed:
+        - refundCallTest
+        - syncRefundCallTest
+    - TestCase: Worldline - Partial Refund for Card
+      Type: happy_path
+      ConfigKey: PartialRefund (card_pm)
+      Connector: worldline
+      CommandsUsed:
+        - refundCallTest
+        - syncRefundCallTest
+    - TestCase: Worldline - Manual Payment Full Refund for Card
+      Type: happy_path
+      ConfigKey: manualPaymentRefund (card_pm)
+      Connector: worldline
+      CommandsUsed:
+        - refundCallTest
+        - syncRefundCallTest
+    - TestCase: Worldline - Manual Payment Partial Refund for Card
+      Type: happy_path
+      ConfigKey: manualPaymentPartialRefund (card_pm)
+      Connector: worldline
+      CommandsUsed:
+        - refundCallTest
+        - syncRefundCallTest
+    - TestCase: Worldline - Sync Refund for Card
+      Type: happy_path
+      ConfigKey: SyncRefund (card_pm)
+      Connector: worldline
+      CommandsUsed:
+        - syncRefundCallTest
+    - TestCase: Worldpaymodular - Full Refund for Wallet (Google Pay/Apple Pay)
+      Type: happy_path
+      ConfigKey: Refund (wallet_pm)
+      Connector: worldpaymodular
+      CommandsUsed:
+        - refundCallTest
+        - syncRefundCallTest
+    - TestCase: Worldpaymodular - Partial Refund for Wallet
+      Type: happy_path
+      ConfigKey: PartialRefund (wallet_pm)
+      Connector: worldpaymodular
+      CommandsUsed:
+        - refundCallTest
+        - syncRefundCallTest
+    - TestCase: Worldpaymodular - Sync Refund for Wallet
+      Type: happy_path
+      ConfigKey: SyncRefund (wallet_pm)
+      Connector: worldpaymodular
+      CommandsUsed:
+        - syncRefundCallTest
+  NewCommandsAddedToCommandsJs: NO
+  ConnectorConfigCreated: YES
+  ConnectorConfigFiles:
+    - cypress-tests/cypress/e2e/configs/Payment/Volt.js (updated with refund keys)
+    - cypress-tests/cypress/e2e/configs/Payment/Worldline.js (new file)
+    - cypress-tests/cypress/e2e/configs/Payment/Worldpaymodular.js (new file)
+  UtilsJsUpdated: YES
+  ReadyForRunner: YES

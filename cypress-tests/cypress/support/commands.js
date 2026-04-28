@@ -2056,6 +2056,11 @@ Cypress.Commands.add(
           expect(response.body.connector_mandate_id, "connector_mandate_id").to
             .be.null;
 
+          // Store payment_link_id if present in response
+          if (response.body.payment_link && response.body.payment_link.payment_link_id) {
+            globalState.set("paymentLinkId", response.body.payment_link.payment_link_id);
+          }
+
           validateErrorMessage(response, resData);
         } else {
           defaultErrorHandler(response, resData);
@@ -7044,3 +7049,531 @@ Cypress.Commands.add("blocklistToggle", (status, globalState) => {
     });
   });
 });
+
+Cypress.Commands.add(
+  "initiatePaymentLinkTest",
+  (data, globalState) => {
+    const { Configs: configs = {}, Response: resData } = data || {};
+    execConfig(validateConfig(configs));
+
+    const merchantId = globalState.get("merchantId");
+    const paymentId = globalState.get("paymentID");
+    const baseUrl = globalState.get("baseUrl");
+    const url = `${baseUrl}/payment_link/${merchantId}/${paymentId}?locale=en`;
+
+    cy.request({
+      method: "GET",
+      url: url,
+      headers: {
+        Accept: "text/html",
+      },
+      failOnStatusCode: false,
+    }).then((response) => {
+      logRequestId(response.headers["x-request-id"]);
+
+      cy.wrap(response).then(() => {
+        if (response.status === 200) {
+          expect(response.body).to.be.a("string");
+          expect(response.body).to.include(paymentId);
+          expect(response.body).to.include(merchantId);
+          expect(response.body).to.include("payment_link");
+        } else {
+          defaultErrorHandler(response, resData);
+        }
+      });
+    });
+  }
+);
+
+Cypress.Commands.add(
+  "retrievePaymentLinkTest",
+  (data, globalState) => {
+    const { Configs: configs = {}, Response: resData } = data || {};
+    execConfig(validateConfig(configs));
+
+    const paymentLinkId = globalState.get("paymentLinkId");
+    const baseUrl = globalState.get("baseUrl");
+    const url = `${baseUrl}/payment_link/${paymentLinkId}`;
+    const apiKey = globalState.get("apiKey");
+
+    cy.request({
+      method: "GET",
+      url: url,
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json",
+        "api-key": apiKey,
+      },
+      failOnStatusCode: false,
+    }).then((response) => {
+      logRequestId(response.headers["x-request-id"]);
+
+      cy.wrap(response).then(() => {
+        if (response.status === 200) {
+          expect(response.body).to.have.property(
+            "payment_link_id",
+            paymentLinkId
+          );
+          expect(response.body).to.have.property("link_to_pay");
+          expect(response.body).to.have.property("amount");
+          expect(response.body).to.have.property("status");
+        } else {
+          defaultErrorHandler(response, resData);
+        }
+      });
+    });
+  }
+);
+
+Cypress.Commands.add(
+  "listPaymentLinksTest",
+  (data, globalState) => {
+    const { Configs: configs = {}, Response: resData } = data || {};
+    execConfig(validateConfig(configs));
+
+    const baseUrl = globalState.get("baseUrl");
+    const url = `${baseUrl}/payment_link/list`;
+    const apiKey = globalState.get("apiKey");
+
+    cy.request({
+      method: "POST",
+      url: url,
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json",
+        "api-key": apiKey,
+      },
+      body: {},
+      failOnStatusCode: false,
+    }).then((response) => {
+      logRequestId(response.headers["x-request-id"]);
+
+      cy.wrap(response).then(() => {
+        if (response.status === 200) {
+          expect(response.body).to.be.an("array");
+          if (response.body.length > 0) {
+            const link = response.body[0];
+            expect(link).to.have.property("payment_link_id");
+            expect(link).to.have.property("link_to_pay");
+            expect(link).to.have.property("amount");
+            expect(link).to.have.property("status");
+          }
+        } else {
+          defaultErrorHandler(response, resData);
+        }
+      });
+    });
+  }
+);
+
+// Payment Link Commands
+Cypress.Commands.add(
+  "createPaymentIntentWithPaymentLinkTest",
+  (
+    createPaymentBody,
+    data,
+    authentication_type,
+    capture_method,
+    globalState,
+    sessionExpiry = 900
+  ) => {
+    const {
+      Configs: configs = {},
+      Request: reqData,
+      Response: resData,
+    } = data || {};
+
+    const configInfo = execConfig(validateConfig(configs));
+    const profile_id = globalState.get(`${configInfo.profilePrefix}Id`);
+
+    for (const key in reqData) {
+      createPaymentBody[key] = reqData[key];
+    }
+    createPaymentBody.authentication_type = authentication_type;
+    createPaymentBody.capture_method = capture_method;
+    createPaymentBody.customer_id = globalState.get("customerId");
+    createPaymentBody.profile_id = profile_id;
+    createPaymentBody.payment_link = true;
+    createPaymentBody.session_expiry = sessionExpiry;
+
+    const headers = {
+      "Content-Type": "application/json",
+      Accept: "application/json",
+      "api-key": globalState.get("apiKey"),
+    };
+
+    globalState.set("paymentAmount", createPaymentBody.amount);
+
+    cy.request({
+      method: "POST",
+      url: `${globalState.get("baseUrl")}/payments`,
+      headers,
+      failOnStatusCode: false,
+      body: createPaymentBody,
+    }).then((response) => {
+      logRequestId(response.headers["x-request-id"]);
+
+      cy.wrap(response).then(() => {
+        expect(response.headers["content-type"]).to.include("application/json");
+        if (resData.status === 200) {
+          expect(response.body).to.have.property("client_secret");
+          expect(response.body).to.have.property("payment_link");
+          expect(response.body.payment_link).to.have.property("link");
+          expect(response.body.payment_link).to.have.property("payment_link_id");
+
+          globalState.set("clientSecret", response.body.client_secret);
+          globalState.set("paymentID", response.body.payment_id);
+          globalState.set("paymentLinkId", response.body.payment_link.payment_link_id);
+          globalState.set("paymentLinkUrl", response.body.payment_link.link);
+
+          if (response.body.payment_link.secure_link) {
+            globalState.set("securePaymentLinkUrl", response.body.payment_link.secure_link);
+          }
+
+          for (const key in resData.body) {
+            if (
+              typeof resData.body[key] === "object" &&
+              resData.body[key] !== null
+            ) {
+              expect(
+                response.body[key],
+                `Expected ${key} to deep equal`
+              ).to.deep.eq(resData.body[key]);
+            } else {
+              expect(resData.body[key]).to.equal(
+                response.body[key],
+                `Expected ${resData.body[key]} but got ${response.body[key]}`
+              );
+            }
+          }
+          expect(response.body.payment_id, "payment_id").to.not.be.null;
+          expect(response.body.merchant_id, "merchant_id").to.not.be.null;
+          expect(createPaymentBody.amount, "amount").to.equal(
+            response.body.amount
+          );
+          expect(createPaymentBody.currency, "currency").to.equal(
+            response.body.currency
+          );
+        } else {
+          defaultErrorHandler(response, resData);
+        }
+      });
+    });
+  }
+);
+
+Cypress.Commands.add(
+  "createConfirmPaymentWithPaymentLinkTest",
+  (
+    createConfirmPaymentBody,
+    data,
+    authentication_type,
+    capture_method,
+    globalState
+  ) => {
+    const {
+      Configs: configs = {},
+      Request: reqData,
+      Response: resData,
+    } = data || {};
+
+    const configInfo = execConfig(validateConfig(configs));
+    const merchant_connector_id = globalState.get(
+      `${configInfo.merchantConnectorPrefix}Id`
+    );
+    const profile_id = globalState.get(`${configInfo.profilePrefix}Id`);
+    const customer_id = globalState.get("customerId");
+
+    createConfirmPaymentBody.authentication_type = authentication_type;
+    createConfirmPaymentBody.capture_method = capture_method;
+    createConfirmPaymentBody.profile_id = profile_id;
+    createConfirmPaymentBody.customer_id = customer_id;
+    createConfirmPaymentBody.payment_link = true;
+
+    for (const key in reqData) {
+      createConfirmPaymentBody[key] = reqData[key];
+    }
+
+    const headers = {
+      "Content-Type": "application/json",
+      "api-key": globalState.get("apiKey"),
+    };
+
+    cy.request({
+      method: "POST",
+      url: `${globalState.get("baseUrl")}/payments`,
+      headers: headers,
+      failOnStatusCode: false,
+      body: createConfirmPaymentBody,
+    }).then((response) => {
+      logRequestId(response.headers["x-request-id"]);
+      storeRequestId(response.headers["x-request-id"], globalState);
+
+      cy.wrap(response).then(() => {
+        globalState.set("clientSecret", response.body.client_secret);
+        expect(response.headers["content-type"]).to.include("application/json");
+
+        if (response.status === 200) {
+          globalState.set("paymentAmount", createConfirmPaymentBody.amount);
+          globalState.set("paymentID", response.body.payment_id);
+
+          expect(response.body).to.have.property("payment_link");
+          expect(response.body.payment_link).to.have.property("link");
+          expect(response.body.payment_link).to.have.property("payment_link_id");
+
+          globalState.set("paymentLinkId", response.body.payment_link.payment_link_id);
+          globalState.set("paymentLinkUrl", response.body.payment_link.link);
+
+          if (response.body.payment_link.secure_link) {
+            globalState.set("securePaymentLinkUrl", response.body.payment_link.secure_link);
+          }
+
+          const expectedConnector = getOriginalConnectorName(
+            globalState.get("connectorId")
+          );
+          expect(response.body.connector, "connector").to.equal(
+            expectedConnector
+          );
+          expect(response.body.payment_id, "payment_id").to.equal(
+            globalState.get("paymentID")
+          );
+          expect(response.body.payment_method_data, "payment_method_data").to
+            .not.be.empty;
+          expect(response.body.merchant_connector_id, "connector_id").to.equal(
+            merchant_connector_id
+          );
+          expect(response.body.customer, "customer").to.not.be.empty;
+          expect(response.body.billing, "billing_address").to.not.be.empty;
+          expect(response.body.profile_id, "profile_id").to.not.be.null;
+          expect(response.body).to.have.property("status");
+
+          validateErrorMessage(response, resData);
+
+          for (const key in resData.body) {
+            expect(resData.body[key], [key]).to.deep.equal(response.body[key]);
+          }
+        } else {
+          defaultErrorHandler(response, resData);
+        }
+      });
+    });
+  }
+);
+
+Cypress.Commands.add("retrievePaymentLinkTest", (globalState) => {
+  const paymentLinkId = globalState.get("paymentLinkId");
+  const apiKey = globalState.get("apiKey");
+  const baseUrl = globalState.get("baseUrl");
+  const url = `${baseUrl}/payment_link/${paymentLinkId}`;
+
+  cy.request({
+    method: "GET",
+    url: url,
+    headers: {
+      "Content-Type": "application/json",
+      "api-key": apiKey,
+    },
+    failOnStatusCode: false,
+  }).then((response) => {
+    logRequestId(response.headers["x-request-id"]);
+
+    cy.wrap(response).then(() => {
+      expect(response.headers["content-type"]).to.include("application/json");
+
+      if (response.status === 200) {
+        expect(response.body).to.have.property("payment_link_id").to.equal(paymentLinkId);
+        expect(response.body).to.have.property("merchant_id");
+        expect(response.body).to.have.property("link_to_pay");
+        expect(response.body).to.have.property("amount");
+        expect(response.body).to.have.property("status");
+        expect(response.body.status).to.be.oneOf(["active", "expired"]);
+        expect(response.body.amount).to.equal(globalState.get("paymentAmount"));
+      } else {
+        cy.task(
+          "cli_log",
+          `Retrieve payment link failed with status: ${response.status}, body: ${JSON.stringify(response.body)}`
+        );
+      }
+    });
+  });
+});
+
+Cypress.Commands.add("listPaymentLinksTest", (globalState) => {
+  const apiKey = globalState.get("apiKey");
+  const baseUrl = globalState.get("baseUrl");
+  const url = `${baseUrl}/payment_link/list`;
+
+  cy.request({
+    method: "GET",
+    url: url,
+    headers: {
+      "Content-Type": "application/json",
+      "api-key": apiKey,
+    },
+    failOnStatusCode: false,
+  }).then((response) => {
+    logRequestId(response.headers["x-request-id"]);
+
+    cy.wrap(response).then(() => {
+      expect(response.headers["content-type"]).to.include("application/json");
+
+      if (response.status === 200) {
+        expect(response.body).to.have.property("size").to.be.a("number");
+        expect(response.body).to.have.property("data").to.be.an("array");
+
+        const paymentLinkId = globalState.get("paymentLinkId");
+        const foundLink = response.body.data.find(
+          (link) => link.payment_link_id === paymentLinkId
+        );
+        expect(foundLink).to.exist;
+        expect(foundLink).to.have.property("link");
+      } else {
+        cy.task(
+          "cli_log",
+          `List payment links failed with status: ${response.status}, body: ${JSON.stringify(response.body)}`
+        );
+      }
+    });
+  });
+});
+
+Cypress.Commands.add("initiatePaymentLinkTest", (globalState) => {
+  const paymentLinkId = globalState.get("paymentLinkId");
+  const merchantId = globalState.get("merchantId");
+  const paymentId = globalState.get("paymentID");
+  const baseUrl = globalState.get("baseUrl");
+  const url = `${baseUrl}/payment_link/${paymentLinkId}/initiate`;
+
+  const requestBody = {
+    merchant_id: merchantId,
+    payment_id: paymentId,
+  };
+
+  cy.request({
+    method: "POST",
+    url: url,
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: requestBody,
+    failOnStatusCode: false,
+  }).then((response) => {
+    logRequestId(response.headers["x-request-id"]);
+
+    cy.wrap(response).then(() => {
+      expect(response.headers["content-type"]).to.include("application/json");
+
+      if (response.status === 200) {
+        expect(response.body).to.have.property("pub_key");
+        expect(response.body).to.have.property("client_secret");
+        expect(response.body).to.have.property("payment_id").to.equal(paymentId);
+        expect(response.body).to.have.property("amount");
+        expect(response.body).to.have.property("currency");
+      } else {
+        cy.task(
+          "cli_log",
+          `Initiate payment link failed with status: ${response.status}, body: ${JSON.stringify(response.body)}`
+        );
+      }
+    });
+  });
+});
+
+Cypress.Commands.add("verifyExpiredPaymentLinkTest", (globalState) => {
+  cy.wait(2000);
+
+  const paymentLinkId = globalState.get("paymentLinkId");
+  const apiKey = globalState.get("apiKey");
+  const baseUrl = globalState.get("baseUrl");
+  const url = `${baseUrl}/payment_link/${paymentLinkId}`;
+
+  cy.request({
+    method: "GET",
+    url: url,
+    headers: {
+      "Content-Type": "application/json",
+      "api-key": apiKey,
+    },
+    failOnStatusCode: false,
+  }).then((response) => {
+    logRequestId(response.headers["x-request-id"]);
+
+    cy.wrap(response).then(() => {
+      expect(response.headers["content-type"]).to.include("application/json");
+
+      if (response.status === 200) {
+        expect(response.body).to.have.property("status");
+        expect(response.body.status).to.equal("expired");
+      } else {
+        cy.task(
+          "cli_log",
+          `Verify expired payment link failed with status: ${response.status}, body: ${JSON.stringify(response.body)}`
+        );
+      }
+    });
+  });
+});
+
+Cypress.Commands.add(
+  "confirmPaymentViaPaymentLinkTest",
+  (confirmBody, data, globalState) => {
+    const { Request: reqData, Response: resData } = data || {};
+    const clientSecret = globalState.get("clientSecret");
+    const paymentIntentID = globalState.get("paymentID");
+
+    confirmBody.client_secret = clientSecret;
+    confirmBody.confirm = true;
+
+    for (const key in reqData) {
+      confirmBody[key] = reqData[key];
+    }
+
+    cy.request({
+      method: "POST",
+      url: `${globalState.get("baseUrl")}/payments/${paymentIntentID}/confirm`,
+      headers: {
+        "Content-Type": "application/json",
+        "api-key": globalState.get("publishableKey"),
+      },
+      failOnStatusCode: false,
+      body: confirmBody,
+    }).then((response) => {
+      logRequestId(response.headers["x-request-id"]);
+
+      cy.wrap(response).then(() => {
+        expect(response.headers["content-type"]).to.include("application/json");
+
+        if (response.status === 200) {
+          globalState.set("paymentID", paymentIntentID);
+          updateConnectorState(globalState, response.body.connector);
+          globalState.set(
+            "connectorTransactionID",
+            response.body.connector_transaction_id
+          );
+          globalState.set("paymentIntentStatus", response.body.status);
+
+          const expectedConnector = getOriginalConnectorName(
+            globalState.get("connectorId")
+          );
+          expect(response.body.connector, "connector").to.equal(
+            expectedConnector
+          );
+          expect(paymentIntentID, "payment_id").to.equal(
+            response.body.payment_id
+          );
+          expect(response.body.payment_method_data, "payment_method_data").to
+            .not.be.empty;
+          expect(response.body.customer, "customer").to.not.be.empty;
+          expect(response.body.billing, "billing_address").to.not.be.empty;
+          expect(response.body.profile_id, "profile_id").to.not.be.null;
+
+          for (const key in resData.body) {
+            expect(resData.body[key], [key]).to.deep.equal(response.body[key]);
+          }
+        } else {
+          defaultErrorHandler(response, resData);
+        }
+      });
+    });
+  }
+);

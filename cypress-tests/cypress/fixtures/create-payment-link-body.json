@@ -1,0 +1,13 @@
+{
+  "currency": "USD",
+  "amount": 6000,
+  "authentication_type": "no_three_ds",
+  "description": "Payment Link Test",
+  "email": "hyperswitch_sdk_demo_id@gmail.com",
+  "payment_link": true,
+  "session_expiry": 900,
+  "metadata": {
+    "udf1": "value1",
+    "new_customer": "true"
+  }
+}
