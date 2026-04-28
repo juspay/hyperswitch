@@ -87,6 +87,7 @@ pub struct PaymentMethod {
     //customer_id should only be none in case of guest checkout flow as volatile pm are stored in redis, for all other cases it should be present to maintain the db persistency
     pub customer_id: Option<common_utils::id_type::GlobalCustomerId>,
     pub merchant_id: common_utils::id_type::MerchantId,
+    pub payment_method_id: Option<String>,
     pub created_at: PrimitiveDateTime,
     pub last_modified: PrimitiveDateTime,
     pub payment_method_data: Option<Encryption>,
@@ -111,7 +112,6 @@ pub struct PaymentMethod {
     pub locker_fingerprint_id: Option<String>,
     pub network_tokenization_data: Option<Encryption>,
     pub id: common_utils::id_type::GlobalPaymentMethodId,
-    pub payment_method_id: Option<String>,
     pub payment_method_type_v2: Option<storage_enums::PaymentMethod>,
     pub payment_method_subtype: Option<storage_enums::PaymentMethodType>,
     pub external_vault_token_data: Option<Encryption>,
@@ -185,6 +185,7 @@ pub struct PaymentMethodNew {
 pub struct PaymentMethodNew {
     pub customer_id: Option<common_utils::id_type::GlobalCustomerId>,
     pub merchant_id: common_utils::id_type::MerchantId,
+    pub payment_method_id: Option<String>,
     pub created_at: PrimitiveDateTime,
     pub last_modified: PrimitiveDateTime,
     pub payment_method_data: Option<Encryption>,
@@ -206,7 +207,6 @@ pub struct PaymentMethodNew {
     pub payment_method_type_v2: Option<storage_enums::PaymentMethod>,
     pub payment_method_subtype: Option<storage_enums::PaymentMethodType>,
     pub id: common_utils::id_type::GlobalPaymentMethodId,
-    pub payment_method_id: Option<String>,
     pub vault_type: Option<storage_enums::VaultType>,
     pub created_by: Option<String>,
     pub last_modified_by: Option<String>,

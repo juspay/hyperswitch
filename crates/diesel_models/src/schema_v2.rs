@@ -1289,6 +1289,8 @@ diesel::table! {
         customer_id -> Nullable<Varchar>,
         #[max_length = 64]
         merchant_id -> Varchar,
+        #[max_length = 64]
+        payment_method_id -> Nullable<Varchar>,
         created_at -> Timestamp,
         last_modified -> Timestamp,
         payment_method_data -> Nullable<Bytea>,
@@ -1326,8 +1328,6 @@ diesel::table! {
         network_tokenization_data -> Nullable<Bytea>,
         #[max_length = 64]
         id -> Varchar,
-        #[max_length = 64]
-        payment_method_id -> Nullable<Varchar>,
         #[max_length = 64]
         payment_method_type_v2 -> Nullable<Varchar>,
         #[max_length = 64]
