@@ -13,7 +13,7 @@ permissions:
 
 concurrency:
   group: hyperswitch-review-${{ github.event.pull_request.number || github.event.issue.number }}
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 defaults:
   run:
