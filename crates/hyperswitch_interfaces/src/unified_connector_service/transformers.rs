@@ -784,6 +784,22 @@ impl ForeignTryFrom<payments_grpc::BankType> for common_enums::BankType {
                 UnifiedConnectorServiceError::ResponseDeserializationFailed,
             )
             .attach_printable("BankType unspecified")),
+            payments_grpc::BankType::Transmission => Err(error_stack::Report::new(
+                UnifiedConnectorServiceError::ResponseDeserializationFailed,
+            )
+            .attach_printable("BankType unspecified")),
+            payments_grpc::BankType::Current => Err(error_stack::Report::new(
+                UnifiedConnectorServiceError::ResponseDeserializationFailed,
+            )
+            .attach_printable("BankType unspecified")),
+            payments_grpc::BankType::Bond => Err(error_stack::Report::new(
+                UnifiedConnectorServiceError::ResponseDeserializationFailed,
+            )
+            .attach_printable("BankType unspecified")),
+            payments_grpc::BankType::SubscriptionShare => Err(error_stack::Report::new(
+                UnifiedConnectorServiceError::ResponseDeserializationFailed,
+            )
+            .attach_printable("BankType unspecified")),
         }
     }
 }
