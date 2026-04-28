@@ -337,6 +337,21 @@ export const connectorDetails = {
         },
       },
     },
+    Overcapture: {
+      Request: {
+        amount_to_capture: 7000,
+      },
+      Response: {
+        status: 400,
+        body: {
+          error: {
+            type: "invalid_request",
+            code: "IR_01",
+            message: "Overcapture is not supported by stripe",
+          },
+        },
+      },
+    },
     Void: {
       Request: {},
       Response: {
