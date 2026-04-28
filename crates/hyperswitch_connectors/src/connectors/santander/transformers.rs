@@ -159,12 +159,14 @@ impl
             .unwrap_or(AttemptStatus::Pending);
         let resource_id =
             ResponseId::ConnectorTransactionId(item.data.connector_request_reference_id.clone());
-        let connector_response_reference_id = Some(item.response.id_rec.clone().expose());
+        let connector_response_reference_id = Some(item.response.id_solic_rec.clone().expose());
         let mandate_reference = Some(MandateReference {
             connector_mandate_id: Some(item.response.id_rec.clone().expose()),
             payment_method_id: None,
             mandate_metadata: None,
-            connector_mandate_request_reference_id: Some(item.response.id_solic_rec.expose()),
+            connector_mandate_request_reference_id: Some(
+                item.response.id_solic_rec.clone().expose(),
+            ),
         });
 
         Ok(Self {
