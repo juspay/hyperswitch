@@ -34,7 +34,6 @@ use crate::{
 };
 
 pub const NETWORK_TOKEN_SERVICE: &str = "NETWORK_TOKEN";
-pub const CARD_ISSUING_COUNTRY_INDIA: &str = "india";
 
 #[cfg(feature = "v1")]
 pub async fn mk_tokenization_req(
@@ -1354,7 +1353,8 @@ fn should_attempt_altid(
     card.card_issuing_country
         .as_ref()
         .map(|country| {
-            country.to_lowercase() == CARD_ISSUING_COUNTRY_INDIA || country.to_uppercase() == api_models::enums::CountryAlpha2::IN.to_string()
+            country.to_lowercase() == common_enums::Country::India.to_string().to_lowercase()
+                || country.to_uppercase() == api_models::enums::CountryAlpha2::IN.to_string()
         })
         .unwrap_or(false) &&
     // Check if card network is supported and connector supports Alt-ID for that network
@@ -1387,7 +1387,7 @@ pub async fn try_get_altid_for_guest_checkout(
                 let amount_f64 = major_amount.get_amount_as_f64();
 
                 // Build card detail for Alt-ID using From impl
-                let card_detail: domain::CardDetail = card.clone().into();
+                let card_detail: domain::CardDetail = card.into();
 
                 // Attempt to fetch Alt-ID
                 get_altid_for_card(

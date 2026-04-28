@@ -5001,12 +5001,19 @@ where
         }
     }
 
-    // Try to fetch Alt-ID for guest checkout if applicable (no saved card, card_reference)
-    // This is for one-time card payments where we need a network token
-    if let (Some(domain::PaymentMethodData::Card(card)), Some(currency), Some(connector_str)) = (
+    if let (
+        Some(domain::PaymentMethodData::Card(card)),
+        Some(currency),
+        Some(connector_str),
+        None,
+    ) = (
         payment_data.get_payment_method_data(),
         payment_data.get_payment_intent().currency,
         payment_data.get_payment_attempt().connector.as_ref(),
+        payment_data
+            .get_payment_attempt()
+            .customer_acceptance
+            .as_ref(),
     ) {
         if let Ok(connector_enum) = enums::Connector::from_str(connector_str.as_str()) {
             match network_tokenization::try_get_altid_for_guest_checkout(

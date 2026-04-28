@@ -592,25 +592,6 @@ pub struct CardDetail {
     pub co_badged_card_data: Option<payment_methods::CoBadgedCardData>,
 }
 
-impl From<Card> for CardDetail {
-    fn from(card: Card) -> Self {
-        Self {
-            card_number: card.card_number,
-            card_exp_month: card.card_exp_month,
-            card_exp_year: card.card_exp_year,
-            card_issuer: card.card_issuer,
-            card_network: card.card_network,
-            card_type: card.card_type,
-            card_issuing_country: None,
-            card_issuing_country_code: None,
-            bank_code: None,
-            nick_name: card.nick_name,
-            card_holder_name: card.card_holder_name,
-            co_badged_card_data: card.co_badged_card_data,
-        }
-    }
-}
-
 #[derive(PartialEq, Clone, Debug, Serialize, Deserialize, Default)]
 pub struct CardWithLimitedDetails {
     pub card_number: cards::CardNumber,
