@@ -27,6 +27,7 @@ env:
   AGENT_FILE: /home/phoenix/.config/opencode/agents/hyperswitch-reviewer.md
   AGENT_FILE_SHA256: ""
   OPENCODE_SKILLS_DIR: /home/phoenix/.config/opencode/skills
+  SOURCE_REPO_LOCAL: /home/phoenix/repos/hyperswitch
   SPECS_REPO_LOCAL: /home/phoenix/repos/hyperswitch-specs
   SPECS_REPO_PINNED_SHA: ""
   TEAM_REVIEWER_SKILLS: >-
@@ -122,28 +123,21 @@ jobs:
             echo "         Recommend setting it to '$CURRENT_SHA' to enforce integrity."
           fi
 
-      - name: Resolve PR head SHA
-        id: pr_sha
+      - name: Checkout PR branch
         env:
           PR_NUMBER: ${{ steps.context.outputs.pr_number }}
         run: |
           set -euo pipefail
-          HEAD_SHA=$(gh api "repos/$SOURCE_REPO/pulls/$PR_NUMBER" --jq '.head.sha')
-          if ! [[ "$HEAD_SHA" =~ ^[0-9a-f]{40}$ ]]; then
-            echo "ERROR: HEAD SHA '$HEAD_SHA' is not a valid git SHA"
+          if [ ! -d "$SOURCE_REPO_LOCAL/.git" ]; then
+            echo "ERROR: $SOURCE_REPO_LOCAL is not a git clone on this runner."
+            echo "       Seed it once with: git clone https://github.com/juspay/hyperswitch.git $SOURCE_REPO_LOCAL"
             exit 1
           fi
-          echo "head_sha=$HEAD_SHA" >> "$GITHUB_OUTPUT"
-          echo "PR #$PR_NUMBER head: $HEAD_SHA"
-
-      - name: Checkout PR branch
-        uses: actions/checkout@v4
-        with:
-          repository: ${{ env.SOURCE_REPO }}
-          ref: ${{ steps.pr_sha.outputs.head_sha }}
-          path: hyperswitch
-          fetch-depth: 50
-          persist-credentials: false
+          BRANCH=$(gh pr view "$PR_NUMBER" --repo "$SOURCE_REPO" --json headRefName -q '.headRefName')
+          git -C "$SOURCE_REPO_LOCAL" fetch origin "$BRANCH"
+          git -C "$SOURCE_REPO_LOCAL" checkout "$BRANCH"
+          git -C "$SOURCE_REPO_LOCAL" reset --hard origin/"$BRANCH"
+          echo "Checked out PR branch: $BRANCH at $(git -C "$SOURCE_REPO_LOCAL" rev-parse HEAD)"
 
       - name: Sync team reviewer skills
         run: |
@@ -189,7 +183,6 @@ jobs:
         env:
           PR_NUMBER: ${{ steps.context.outputs.pr_number }}
           EVENT_NAME: ${{ github.event_name }}
-          SOURCE_REPO_LOCAL: ${{ github.workspace }}/hyperswitch
         run: |
           set -euo pipefail
 
