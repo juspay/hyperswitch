@@ -24,7 +24,8 @@ clippy *FLAGS:
         jq -r '
             [ ( .workspace_members | sort ) as $package_ids # Store workspace crate package IDs in `package_ids` array
             | .packages[] | select( IN(.id; $package_ids[]) ) | .features | keys[] ] | unique # Select all unique features from all workspace crates
-            | del( .[] | select( any( . ; test("(([a-z_]+)_)?v2") ) ) ) # Exclude some features from features list
+            | del( .[] | select( any( . ; test("(([a-z_]+)_)?v2") ) ) ) # Exclude v2 features
+            | del( .[] | select( . == ("fred", "redis-rs") ) ) # Exclude backend flags (fred comes in via default features)
             | join(",") # Construct a comma-separated string of features for passing to `cargo`
     ')"
 
@@ -40,9 +41,10 @@ clippy_v2 *FLAGS:
         jq -r '
             [ ( .workspace_members | sort ) as $package_ids # Store workspace crate package IDs in `package_ids` array
             | .packages[] | select( IN(.id; $package_ids[]) ) | .features | keys[] ] | unique # Select all unique features from all workspace crates
-            | del( .[] | select( . == ("default", "v1") ) ) # Exclude some features from features list
+            | del( .[] | select( . == ("default", "v1", "fred", "redis-rs") ) ) # Exclude default, v1, and both backend flags
             | join(",") # Construct a comma-separated string of features for passing to `cargo`
     ')"
+    FEATURES="${FEATURES},redis-rs" # redis-rs is the v2 backend (fred is excluded via --no-default-features)
 
     set -x
     cargo clippy {{ check_flags }} --no-default-features --features "${FEATURES}" -- {{ v2_lints }} {{ FLAGS }}
@@ -56,9 +58,10 @@ check_v2 *FLAGS:
         jq -r '
             [ ( .workspace_members | sort ) as $package_ids # Store workspace crate package IDs in `package_ids` array
             | .packages[] | select( IN(.id; $package_ids[]) ) | .features | keys[] ] | unique # Select all unique features from all workspace crates
-            | del( .[] | select( . == ("default", "v1") ) ) # Exclude some features from features list
+            | del( .[] | select( . == ("default", "v1", "fred", "redis-rs") ) ) # Exclude default, v1, and both backend flags
             | join(",") # Construct a comma-separated string of features for passing to `cargo`
     ')"
+    FEATURES="${FEATURES},redis-rs" # redis-rs is the v2 backend (fred is excluded via --no-default-features)
 
     set -x
     cargo check {{ check_flags }} --no-default-features --features "${FEATURES}" -- {{ FLAGS }}
@@ -103,7 +106,8 @@ check *FLAGS:
         jq -r '
             [ ( .workspace_members | sort ) as $package_ids # Store workspace crate package IDs in `package_ids` array
             | .packages[] | select( IN(.id; $package_ids[]) ) | .features | keys[] ] | unique # Select all unique features from all workspace crates
-            | del( .[] | select( any( . ; test("(([a-z_]+)_)?v2") ) ) ) # Exclude some features from features list
+            | del( .[] | select( any( . ; test("(([a-z_]+)_)?v2") ) ) ) # Exclude v2 features
+            | del( .[] | select( . == ("fred", "redis-rs") ) ) # Exclude backend flags (fred comes in via default features)
             | join(",") # Construct a comma-separated string of features for passing to `cargo`
     ')"
 

@@ -1,86 +1,29 @@
-//! Data types and type conversions
-//! from `redis`'s internal data-types to custom data-types
+//! Shared data types — backend-neutral.
+//!
+//! All struct/enum *definitions* live here. Backend-specific trait
+//! implementations (`FromRedisValue`, `FromRedis`, `ToRedisArgs`, `Deref`,
+//! `From<RedisValue> for …`) live in each backend's `types.rs` instead.
+//!
+//! The one cfg-gated field that cannot be split is `RedisValue::inner`,
+//! because Rust does not allow splitting a struct definition across files.
 
 use common_utils::errors::CustomResult;
-pub use redis::Value;
-use redis::Value as RedisCrateValue;
 
-use crate::{errors, RedisConnectionPool};
+use crate::errors;
 
+// ─── RedisValue — wrapper whose inner type depends on the active backend ─────
+
+#[derive(Clone, Debug)]
 pub struct RedisValue {
-    inner: RedisCrateValue,
+    #[cfg(feature = "redis-rs")]
+    pub(crate) inner: redis::Value,
+    #[cfg(not(feature = "redis-rs"))]
+    pub(crate) inner: fred::types::RedisValue,
 }
 
-impl std::ops::Deref for RedisValue {
-    type Target = RedisCrateValue;
+// Method impls are in backends/redis_rs/types.rs and backends/fred/types.rs.
 
-    fn deref(&self) -> &Self::Target {
-        &self.inner
-    }
-}
-
-impl RedisValue {
-    pub fn new(value: RedisCrateValue) -> Self {
-        Self { inner: value }
-    }
-    pub fn into_inner(self) -> RedisCrateValue {
-        self.inner
-    }
-
-    pub fn from_bytes(val: Vec<u8>) -> Self {
-        Self {
-            inner: RedisCrateValue::BulkString(val),
-        }
-    }
-    pub fn from_string(value: String) -> Self {
-        Self {
-            inner: RedisCrateValue::SimpleString(value),
-        }
-    }
-
-    /// Extract bytes from the underlying redis value
-    pub fn as_bytes(&self) -> Option<&[u8]> {
-        match &self.inner {
-            RedisCrateValue::BulkString(bytes) => Some(bytes.as_slice()),
-            RedisCrateValue::SimpleString(s) => Some(s.as_bytes()),
-            _ => None,
-        }
-    }
-
-    /// Convert to string if the value is a string type
-    pub fn as_string(&self) -> Option<String> {
-        match &self.inner {
-            RedisCrateValue::BulkString(bytes) => String::from_utf8(bytes.clone()).ok(),
-            RedisCrateValue::SimpleString(s) => Some(s.clone()),
-            _ => None,
-        }
-    }
-}
-
-impl From<RedisValue> for RedisCrateValue {
-    fn from(v: RedisValue) -> Self {
-        v.inner
-    }
-}
-
-/// Allows conversion from RedisValue to bytes for use with ToRedisArgs
-impl redis::ToRedisArgs for RedisValue {
-    fn write_redis_args<W>(&self, out: &mut W)
-    where
-        W: ?Sized + redis::RedisWrite,
-    {
-        match &self.inner {
-            RedisCrateValue::BulkString(bytes) => bytes.write_redis_args(out),
-            RedisCrateValue::SimpleString(s) => s.write_redis_args(out),
-            _ => {
-                // Fallback: serialize as empty bytes
-                Vec::<u8>::new().write_redis_args(out)
-            }
-        }
-    }
-}
-
-impl redis::ToSingleRedisArg for RedisValue {}
+// ─── Shared configuration types ─────────────────────────────────────────────
 
 #[derive(Debug, serde::Deserialize, Clone)]
 #[serde(default)]
@@ -176,6 +119,8 @@ impl Default for RedisSettings {
     }
 }
 
+// ─── RedisEntryId ────────────────────────────────────────────────────────────
+
 #[derive(Debug)]
 pub enum RedisEntryId {
     UserSpecifiedID {
@@ -203,40 +148,14 @@ impl RedisEntryId {
     }
 }
 
-impl redis::ToRedisArgs for RedisEntryId {
-    fn write_redis_args<W>(&self, out: &mut W)
-    where
-        W: ?Sized + redis::RedisWrite,
-    {
-        self.to_stream_id().write_redis_args(out)
-    }
-}
+// Trait impls live in backends/redis_rs/types.rs and backends/fred/types.rs.
+
+// ─── Reply type enums ────────────────────────────────────────────────────────
 
 #[derive(Debug, Eq, PartialEq)]
 pub enum SetnxReply {
     KeySet,
     KeyNotSet, // Existing key
-}
-
-impl redis::FromRedisValue for SetnxReply {
-    fn from_redis_value(v: Value) -> Result<Self, redis::ParsingError> {
-        match v {
-            // SET NX returns Okay on success (newer redis crate)
-            Value::Okay => Ok(Self::KeySet),
-            // SET NX returns "OK" on success (older format)
-            Value::SimpleString(ref s) if s == "OK" => Ok(Self::KeySet),
-            Value::BulkString(ref s) if s == b"OK" => Ok(Self::KeySet),
-            // Returns Nil if key already exists
-            Value::Nil => Ok(Self::KeyNotSet),
-            _ => {
-                tracing::error!(received = ?v, "Unexpected SETNX command reply from Redis");
-                Err(redis::ParsingError::from(format!(
-                    "Unexpected SETNX command reply: {:?}",
-                    v
-                )))
-            }
-        }
-    }
 }
 
 #[derive(Debug, Eq, PartialEq)]
@@ -245,71 +164,50 @@ pub enum HsetnxReply {
     KeyNotSet, // Existing key
 }
 
-impl redis::FromRedisValue for HsetnxReply {
-    fn from_redis_value(v: Value) -> Result<Self, redis::ParsingError> {
-        match v {
-            Value::Int(1) => Ok(Self::KeySet),
-            Value::Int(0) => Ok(Self::KeyNotSet),
-            _ => {
-                tracing::error!(received = ?v, "Unexpected HSETNX command reply from Redis");
-                Err(redis::ParsingError::from(format!(
-                    "Unexpected HSETNX command reply: {:?}",
-                    v
-                )))
-            }
-        }
-    }
-}
-
 #[derive(Debug, Eq, PartialEq)]
 pub enum MsetnxReply {
     KeysSet,
     KeysNotSet, // At least one existing key
 }
 
-impl redis::FromRedisValue for MsetnxReply {
-    fn from_redis_value(v: Value) -> Result<Self, redis::ParsingError> {
-        match v {
-            Value::Int(1) => Ok(Self::KeysSet),
-            Value::Int(0) => Ok(Self::KeysNotSet),
-            _ => {
-                tracing::error!(received = ?v, "Unexpected MSETNX command reply from Redis");
-                Err(redis::ParsingError::from(format!(
-                    "Unexpected MSETNX command reply: {:?}",
-                    v
-                )))
-            }
+#[derive(Debug, Eq, PartialEq)]
+pub enum DelReply {
+    KeyDeleted,
+    KeyNotDeleted, // Key not found
+}
+
+impl DelReply {
+    pub fn is_key_deleted(&self) -> bool {
+        matches!(self, Self::KeyDeleted)
+    }
+
+    pub fn is_key_not_deleted(&self) -> bool {
+        matches!(self, Self::KeyNotDeleted)
+    }
+}
+
+#[derive(Debug, Eq, PartialEq)]
+pub enum SaddReply {
+    KeySet,
+    KeyNotSet,
+}
+
+#[derive(Debug)]
+pub enum SetGetReply<T> {
+    ValueSet(T),    // Value was set and this is the value that was set
+    ValueExists(T), // Value already existed and this is the existing value
+}
+
+impl<T> SetGetReply<T> {
+    pub fn get_value(&self) -> &T {
+        match self {
+            Self::ValueSet(value) => value,
+            Self::ValueExists(value) => value,
         }
     }
 }
 
-/// Converts a `redis::Value` to `Option<String>`.
-///
-/// - `BulkString` → decoded as UTF-8, returns `None` if invalid
-/// - `SimpleString` → `Some(s)`
-/// - `Int` → `Some(i.to_string())`
-/// - `Nil` / other variants → `None`
-pub fn redis_value_to_option_string(v: &Value) -> Option<String> {
-    match v {
-        Value::BulkString(bytes) => std::str::from_utf8(bytes)
-            .ok()
-            .map(|utf8_str| utf8_str.to_string()),
-        Value::SimpleString(s) => Some(s.clone()),
-        Value::Int(i) => Some(i.to_string()),
-        _ => None,
-    }
-}
-
-/// Converts a stream entry's field map (`HashMap<String, Value>`) into
-/// `HashMap<String, Option<String>>`, preserving `Nil` as `None`.
-pub fn stream_fields_to_option_strings(
-    fields: std::collections::HashMap<String, Value>,
-) -> std::collections::HashMap<String, Option<String>> {
-    fields
-        .into_iter()
-        .map(|(field_name, redis_value)| (field_name, redis_value_to_option_string(&redis_value)))
-        .collect()
-}
+// ─── Stream types ────────────────────────────────────────────────────────────
 
 /// Entries within a single stream, as `(entry_id, fields)`.
 pub type StreamEntries = Vec<(String, std::collections::HashMap<String, String>)>;
@@ -329,84 +227,19 @@ pub enum StreamCapTrim {
     AlmostExact,
 }
 
-#[derive(Debug, Eq, PartialEq)]
-pub enum DelReply {
-    KeyDeleted,
-    KeyNotDeleted, // Key not found
-}
+// Trait impls for StreamCapKind/StreamCapTrim live in backends/fred/types.rs.
 
-impl DelReply {
-    pub fn is_key_deleted(&self) -> bool {
-        matches!(self, Self::KeyDeleted)
-    }
-
-    pub fn is_key_not_deleted(&self) -> bool {
-        matches!(self, Self::KeyNotDeleted)
-    }
-}
-
-impl redis::FromRedisValue for DelReply {
-    fn from_redis_value(v: Value) -> Result<Self, redis::ParsingError> {
-        match v {
-            Value::Int(1) => Ok(Self::KeyDeleted),
-            Value::Int(0) => Ok(Self::KeyNotDeleted),
-            _ => {
-                tracing::error!(received = ?v, "Unexpected DEL command reply from Redis");
-                Err(redis::ParsingError::from(format!(
-                    "Unexpected DEL command reply: {:?}",
-                    v
-                )))
-            }
-        }
-    }
-}
-
-#[derive(Debug, Eq, PartialEq)]
-pub enum SaddReply {
-    KeySet,
-    KeyNotSet,
-}
-
-impl redis::FromRedisValue for SaddReply {
-    fn from_redis_value(v: Value) -> Result<Self, redis::ParsingError> {
-        match v {
-            Value::Int(1) => Ok(Self::KeySet),
-            Value::Int(0) => Ok(Self::KeyNotSet),
-            _ => {
-                tracing::error!(received = ?v, "Unexpected SADD command reply from Redis");
-                Err(redis::ParsingError::from(format!(
-                    "Unexpected SADD command reply: {:?}",
-                    v
-                )))
-            }
-        }
-    }
-}
-
-#[derive(Debug)]
-pub enum SetGetReply<T> {
-    ValueSet(T),    // Value was set and this is the value that was set
-    ValueExists(T), // Value already existed and this is the existing value
-}
-
-impl<T> SetGetReply<T> {
-    pub fn get_value(&self) -> &T {
-        match self {
-            Self::ValueSet(value) => value,
-            Self::ValueExists(value) => value,
-        }
-    }
-}
+// ─── RedisKey ────────────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone)]
 pub struct RedisKey(String);
 
 impl RedisKey {
-    pub fn tenant_aware_key(&self, pool: &RedisConnectionPool) -> String {
+    pub fn tenant_aware_key(&self, pool: &crate::RedisConnectionPool) -> String {
         pool.add_prefix(&self.0)
     }
 
-    pub fn tenant_unaware_key(&self, _pool: &RedisConnectionPool) -> String {
+    pub fn tenant_unaware_key(&self, _pool: &crate::RedisConnectionPool) -> String {
         self.0.clone()
     }
 }
@@ -414,224 +247,15 @@ impl RedisKey {
 impl<T: AsRef<str>> From<T> for RedisKey {
     fn from(value: T) -> Self {
         let value = value.as_ref();
-
         Self(value.to_string())
     }
 }
 
+// ─── Tests (backend-neutral only) ────────────────────────────────────────────
+
 #[cfg(test)]
 mod tests {
-    use redis::FromRedisValue;
-
     use super::*;
-
-    // ── redis_value_to_option_string ───────────────────────────────────────
-
-    #[test]
-    fn test_redis_value_bulk_string_valid_utf8() {
-        let value = Value::BulkString("hello".as_bytes().to_vec());
-        assert_eq!(
-            redis_value_to_option_string(&value),
-            Some("hello".to_string())
-        );
-    }
-
-    #[test]
-    fn test_redis_value_bulk_string_invalid_utf8() {
-        let value = Value::BulkString(vec![0xff, 0xfe]);
-        assert_eq!(redis_value_to_option_string(&value), None);
-    }
-
-    #[test]
-    fn test_redis_value_simple_string() {
-        let value = Value::SimpleString("OK".to_string());
-        assert_eq!(redis_value_to_option_string(&value), Some("OK".to_string()));
-    }
-
-    #[test]
-    fn test_redis_value_int() {
-        let value = Value::Int(42);
-        assert_eq!(redis_value_to_option_string(&value), Some("42".to_string()));
-    }
-
-    #[test]
-    fn test_redis_value_nil() {
-        let value = Value::Nil;
-        assert_eq!(redis_value_to_option_string(&value), None);
-    }
-
-    #[test]
-    fn test_redis_value_okay() {
-        let value = Value::Okay;
-        assert_eq!(redis_value_to_option_string(&value), None);
-    }
-
-    #[test]
-    fn test_redis_value_array() {
-        let value = Value::Array(vec![]);
-        assert_eq!(redis_value_to_option_string(&value), None);
-    }
-
-    // ── stream_fields_to_option_strings ───────────────────────────────────
-
-    #[test]
-    fn test_stream_fields_all_string_values() {
-        let fields = std::collections::HashMap::from([
-            (
-                "name".to_string(),
-                Value::BulkString("test".as_bytes().to_vec()),
-            ),
-            ("count".to_string(), Value::Int(5)),
-        ]);
-        let result = stream_fields_to_option_strings(fields);
-        assert_eq!(result.get("name").unwrap(), &Some("test".to_string()));
-        assert_eq!(result.get("count").unwrap(), &Some("5".to_string()));
-    }
-
-    #[test]
-    fn test_stream_fields_nil_preserved_as_none() {
-        let fields = std::collections::HashMap::from([
-            (
-                "present".to_string(),
-                Value::BulkString("value".as_bytes().to_vec()),
-            ),
-            ("absent".to_string(), Value::Nil),
-        ]);
-        let result = stream_fields_to_option_strings(fields);
-        assert_eq!(result.get("present").unwrap(), &Some("value".to_string()));
-        assert!(result.get("absent").unwrap().is_none());
-    }
-
-    #[test]
-    fn test_stream_fields_invalid_utf8_becomes_none() {
-        let fields = std::collections::HashMap::from([(
-            "bad".to_string(),
-            Value::BulkString(vec![0xff, 0xfe]),
-        )]);
-        let result = stream_fields_to_option_strings(fields);
-        assert!(result.get("bad").unwrap().is_none());
-    }
-
-    #[test]
-    fn test_stream_fields_empty_map() {
-        let fields = std::collections::HashMap::new();
-        let result = stream_fields_to_option_strings(fields);
-        assert!(result.is_empty());
-    }
-
-    // ── SetnxReply::from_redis_value ──────────────────────────────────────
-
-    #[test]
-    fn test_setnx_reply_okay() {
-        let reply = SetnxReply::from_redis_value(Value::Okay);
-        assert_eq!(reply.unwrap(), SetnxReply::KeySet);
-    }
-
-    #[test]
-    fn test_setnx_reply_simple_string_ok() {
-        let reply = SetnxReply::from_redis_value(Value::SimpleString("OK".to_string()));
-        assert_eq!(reply.unwrap(), SetnxReply::KeySet);
-    }
-
-    #[test]
-    fn test_setnx_reply_bulk_string_ok() {
-        let reply = SetnxReply::from_redis_value(Value::BulkString(b"OK".to_vec()));
-        assert_eq!(reply.unwrap(), SetnxReply::KeySet);
-    }
-
-    #[test]
-    fn test_setnx_reply_nil() {
-        let reply = SetnxReply::from_redis_value(Value::Nil);
-        assert_eq!(reply.unwrap(), SetnxReply::KeyNotSet);
-    }
-
-    #[test]
-    fn test_setnx_reply_unexpected_value() {
-        let reply = SetnxReply::from_redis_value(Value::Int(99));
-        assert!(reply.is_err());
-    }
-
-    // ── DelReply::from_redis_value ────────────────────────────────────────
-
-    #[test]
-    fn test_del_reply_one() {
-        let reply = DelReply::from_redis_value(Value::Int(1));
-        assert_eq!(reply.unwrap(), DelReply::KeyDeleted);
-    }
-
-    #[test]
-    fn test_del_reply_zero() {
-        let reply = DelReply::from_redis_value(Value::Int(0));
-        assert_eq!(reply.unwrap(), DelReply::KeyNotDeleted);
-    }
-
-    #[test]
-    fn test_del_reply_unexpected_value() {
-        let reply = DelReply::from_redis_value(Value::Nil);
-        assert!(reply.is_err());
-    }
-
-    // ── HsetnxReply::from_redis_value ──────────────────────────────────────
-
-    #[test]
-    fn test_hsetnx_reply_key_set() {
-        let reply = HsetnxReply::from_redis_value(Value::Int(1));
-        assert_eq!(reply.unwrap(), HsetnxReply::KeySet);
-    }
-
-    #[test]
-    fn test_hsetnx_reply_key_not_set() {
-        let reply = HsetnxReply::from_redis_value(Value::Int(0));
-        assert_eq!(reply.unwrap(), HsetnxReply::KeyNotSet);
-    }
-
-    #[test]
-    fn test_hsetnx_reply_unexpected_value() {
-        let reply = HsetnxReply::from_redis_value(Value::Nil);
-        assert!(reply.is_err());
-    }
-
-    // ── MsetnxReply::from_redis_value ──────────────────────────────────────
-
-    #[test]
-    fn test_msetnx_reply_keys_set() {
-        let reply = MsetnxReply::from_redis_value(Value::Int(1));
-        assert_eq!(reply.unwrap(), MsetnxReply::KeysSet);
-    }
-
-    #[test]
-    fn test_msetnx_reply_keys_not_set() {
-        let reply = MsetnxReply::from_redis_value(Value::Int(0));
-        assert_eq!(reply.unwrap(), MsetnxReply::KeysNotSet);
-    }
-
-    #[test]
-    fn test_msetnx_reply_unexpected_value() {
-        let reply = MsetnxReply::from_redis_value(Value::Nil);
-        assert!(reply.is_err());
-    }
-
-    // ── SaddReply::from_redis_value ────────────────────────────────────────
-
-    #[test]
-    fn test_sadd_reply_key_set() {
-        let reply = SaddReply::from_redis_value(Value::Int(1));
-        assert_eq!(reply.unwrap(), SaddReply::KeySet);
-    }
-
-    #[test]
-    fn test_sadd_reply_key_not_set() {
-        let reply = SaddReply::from_redis_value(Value::Int(0));
-        assert_eq!(reply.unwrap(), SaddReply::KeyNotSet);
-    }
-
-    #[test]
-    fn test_sadd_reply_unexpected_value() {
-        let reply = SaddReply::from_redis_value(Value::Nil);
-        assert!(reply.is_err());
-    }
-
-    // ── RedisEntryId::to_stream_id ────────────────────────────────────────
 
     #[test]
     fn test_entry_id_user_specified() {
@@ -657,58 +281,6 @@ mod tests {
         assert_eq!(RedisEntryId::UndeliveredEntryID.to_stream_id(), ">");
     }
 
-    // ── DelReply helper methods ────────────────────────────────────────────
-
-    #[test]
-    fn test_del_reply_is_key_deleted() {
-        assert!(DelReply::KeyDeleted.is_key_deleted());
-        assert!(!DelReply::KeyNotDeleted.is_key_deleted());
-    }
-
-    #[test]
-    fn test_del_reply_is_key_not_deleted() {
-        assert!(DelReply::KeyNotDeleted.is_key_not_deleted());
-        assert!(!DelReply::KeyDeleted.is_key_not_deleted());
-    }
-
-    // ── RedisValue constructors and accessors ──────────────────────────────
-
-    #[test]
-    fn test_redis_value_new_and_into_inner() {
-        let inner = Value::Int(42);
-        let rv = RedisValue::new(inner.clone());
-        assert_eq!(*rv, inner);
-        assert_eq!(rv.into_inner(), inner);
-    }
-
-    #[test]
-    fn test_redis_value_from_bytes() {
-        let rv = RedisValue::from_bytes(b"hello".to_vec());
-        assert_eq!(rv.as_bytes(), Some(&b"hello"[..]));
-        assert_eq!(rv.as_string(), Some("hello".to_string()));
-    }
-
-    #[test]
-    fn test_redis_value_from_string() {
-        let rv = RedisValue::from_string("world".to_string());
-        assert_eq!(rv.as_string(), Some("world".to_string()));
-        assert_eq!(rv.as_bytes(), Some(b"world".as_slice()));
-    }
-
-    #[test]
-    fn test_redis_value_as_bytes_non_string() {
-        let rv = RedisValue::new(Value::Int(7));
-        assert!(rv.as_bytes().is_none());
-    }
-
-    #[test]
-    fn test_redis_value_as_string_non_string() {
-        let rv = RedisValue::new(Value::Int(7));
-        assert!(rv.as_string().is_none());
-    }
-
-    // ── RedisSettings::validate ────────────────────────────────────────────
-
     #[test]
     fn test_redis_settings_validate_valid_defaults() {
         let settings = RedisSettings::default();
@@ -721,8 +293,7 @@ mod tests {
             host: String::new(),
             ..RedisSettings::default()
         };
-        let result = settings.validate();
-        assert!(result.is_err());
+        assert!(settings.validate().is_err());
     }
 
     #[test]
@@ -732,8 +303,7 @@ mod tests {
             cluster_urls: vec![],
             ..RedisSettings::default()
         };
-        let result = settings.validate();
-        assert!(result.is_err());
+        assert!(settings.validate().is_err());
     }
 
     #[test]
@@ -753,11 +323,8 @@ mod tests {
             default_command_timeout: 30,
             ..RedisSettings::default()
         };
-        let result = settings.validate();
-        assert!(result.is_err());
+        assert!(settings.validate().is_err());
     }
-
-    // ── RedisSettings::Default ─────────────────────────────────────────────
 
     #[test]
     fn test_redis_settings_default_values() {
@@ -775,71 +342,6 @@ mod tests {
         assert_eq!(settings.max_failure_threshold, 5);
     }
 
-    // ── RedisValue::ToRedisArgs ────────────────────────────────────────────
-
-    #[test]
-    fn test_redis_value_to_redis_args_bulk_string() {
-        let value = RedisValue::from_bytes(b"hello".to_vec());
-        let mut args = Vec::new();
-        redis::ToRedisArgs::write_redis_args(&value, &mut args);
-        assert_eq!(args, vec![b"hello".as_slice()]);
-    }
-
-    #[test]
-    fn test_redis_value_to_redis_args_simple_string() {
-        let value = RedisValue::from_string("world".to_string());
-        let mut args = Vec::new();
-        redis::ToRedisArgs::write_redis_args(&value, &mut args);
-        assert_eq!(args, vec![b"world".as_slice()]);
-    }
-
-    #[test]
-    fn test_redis_value_to_redis_args_non_string_fallback() {
-        let value = RedisValue::new(Value::Int(42));
-        let mut args = Vec::new();
-        redis::ToRedisArgs::write_redis_args(&value, &mut args);
-        assert_eq!(args, vec![b"".as_slice()]);
-    }
-
-    // ── RedisEntryId::ToRedisArgs ──────────────────────────────────────────
-
-    #[test]
-    fn test_entry_id_to_redis_args_user_specified() {
-        let id = RedisEntryId::UserSpecifiedID {
-            milliseconds: "1234567890".to_string(),
-            sequence_number: "0".to_string(),
-        };
-        let mut args = Vec::new();
-        redis::ToRedisArgs::write_redis_args(&id, &mut args);
-        assert_eq!(args, vec![b"1234567890-0".as_slice()]);
-    }
-
-    #[test]
-    fn test_entry_id_to_redis_args_auto_generated() {
-        let id = RedisEntryId::AutoGeneratedID;
-        let mut args = Vec::new();
-        redis::ToRedisArgs::write_redis_args(&id, &mut args);
-        assert_eq!(args, vec![b"*".as_slice()]);
-    }
-
-    #[test]
-    fn test_entry_id_to_redis_args_after_last() {
-        let id = RedisEntryId::AfterLastID;
-        let mut args = Vec::new();
-        redis::ToRedisArgs::write_redis_args(&id, &mut args);
-        assert_eq!(args, vec![b"$".as_slice()]);
-    }
-
-    #[test]
-    fn test_entry_id_to_redis_args_undelivered() {
-        let id = RedisEntryId::UndeliveredEntryID;
-        let mut args = Vec::new();
-        redis::ToRedisArgs::write_redis_args(&id, &mut args);
-        assert_eq!(args, vec![b">".as_slice()]);
-    }
-
-    // ── SetGetReply::get_value ─────────────────────────────────────────────
-
     #[test]
     fn test_set_get_reply_value_set_get_value() {
         let reply: SetGetReply<String> = SetGetReply::ValueSet("hello".to_string());
@@ -852,8 +354,6 @@ mod tests {
         assert_eq!(reply.get_value(), "world");
     }
 
-    // ── RedisKey ───────────────────────────────────────────────────────────
-
     #[test]
     fn test_redis_key_from_string() {
         let key: RedisKey = "my_key".into();
@@ -864,5 +364,17 @@ mod tests {
     fn test_redis_key_from_string_ref() {
         let key: RedisKey = "my_key".to_string().into();
         assert_eq!(key.0, "my_key");
+    }
+
+    #[test]
+    fn test_del_reply_is_key_deleted() {
+        assert!(DelReply::KeyDeleted.is_key_deleted());
+        assert!(!DelReply::KeyNotDeleted.is_key_deleted());
+    }
+
+    #[test]
+    fn test_del_reply_is_key_not_deleted() {
+        assert!(DelReply::KeyNotDeleted.is_key_not_deleted());
+        assert!(!DelReply::KeyDeleted.is_key_not_deleted());
     }
 }
