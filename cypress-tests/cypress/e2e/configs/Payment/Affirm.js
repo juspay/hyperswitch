@@ -45,10 +45,13 @@ export const connectorDetails = {
         },
       },
       Response: {
-        status: 200,
+        status: 400,
         body: {
-          status: "requires_customer_action",
-          payment_method: "pay_later",
+          error: {
+            type: "invalid_request",
+            message: "Connector not found",
+            code: "IR_16",
+          },
         },
       },
     },
