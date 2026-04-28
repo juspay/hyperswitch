@@ -422,6 +422,11 @@ function bankRedirectRedirection(
                   .should("be.visible")
                   .click();
                 break;
+              case "klarna":
+                cy.get('input[type="submit"][value="Confirm Transaction"]')
+                  .should("be.visible")
+                  .click();
+                break;
               default:
                 throw new Error(
                   `Unsupported ACI payment method type in handleFlow: ${paymentMethodType}`
@@ -467,6 +472,90 @@ function bankRedirectRedirection(
                       .click();
                   }
                 });
+              });
+              verifyUrl = true;
+            } else if (paymentMethodType === "klarna") {
+              cy.log(
+                "Executing on Klarna sandbox — Step 1: Enter phone number"
+              );
+              cy.wait(constants.TIMEOUT / 6);
+              cy.get("body").then(($body) => {
+                const phoneInput =
+                  $body.find('input[id="phone"]').length > 0
+                    ? 'input[id="phone"]'
+                    : $body.find('input[type="tel"]').length > 0
+                      ? 'input[type="tel"]'
+                      : $body.find('input[id*="phone"]').length > 0
+                        ? 'input[id*="phone"]'
+                        : null;
+                if (phoneInput) {
+                  cy.get(phoneInput).first().clear().type("9123456789");
+                  cy.wait(constants.TIMEOUT / 10);
+                  cy.get(
+                    'button[type="submit"], button[id*="continue"], button[data-testid*="continue"], button[class*="continue"]'
+                  )
+                    .first()
+                    .should("be.visible")
+                    .click({ force: true });
+                  cy.wait(constants.TIMEOUT / 6);
+                }
+              });
+              cy.log("Klarna sandbox — Step 2: Handle OTP");
+              cy.get("body").then(($body) => {
+                if ($body.find('input[id="otp_field"]').length > 0) {
+                  cy.get('input[id="otp_field"]').clear().type("123456");
+                  cy.wait(constants.TIMEOUT / 10);
+                  cy.get(
+                    'button[type="submit"], button[id*="confirm"], button[data-testid*="confirm"]'
+                  )
+                    .first()
+                    .should("be.visible")
+                    .click({ force: true });
+                  cy.wait(constants.TIMEOUT / 6);
+                }
+              });
+              cy.log("Klarna sandbox — Step 3: Select payment method");
+              cy.get("body").then(($body) => {
+                if ($body.find("#onContinue").length > 0) {
+                  cy.get("#onContinue").click();
+                }
+                if (
+                  $body.find('button[data-testid="select-payment-category"]')
+                    .length > 0
+                ) {
+                  cy.get('button[data-testid="select-payment-category"]')
+                    .first()
+                    .click();
+                }
+                if (
+                  $body.find("#payment-methods-selector-pay-over-time").length >
+                  0
+                ) {
+                  cy.get("#payment-methods-selector-pay-over-time").click();
+                }
+                cy.wait(constants.TIMEOUT / 10);
+                cy.get(
+                  'button[type="submit"], button[id*="continue"], button[data-testid*="continue"]'
+                )
+                  .first()
+                  .should("be.visible")
+                  .click({ force: true });
+                cy.wait(constants.TIMEOUT / 6);
+              });
+              cy.log("Klarna sandbox — Step 4: Final confirmation");
+              cy.get("body").then(($body) => {
+                if (
+                  $body.find(
+                    'button[type="submit"], button[id*="confirm"], button[data-testid*="confirm"]'
+                  ).length > 0
+                ) {
+                  cy.get(
+                    'button[type="submit"], button[id*="confirm"], button[data-testid*="confirm"]'
+                  )
+                    .first()
+                    .should("be.visible")
+                    .click({ force: true });
+                }
               });
               verifyUrl = true;
             } else {
