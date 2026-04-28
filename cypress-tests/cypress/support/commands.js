@@ -7044,3 +7044,97 @@ Cypress.Commands.add("blocklistToggle", (status, globalState) => {
     });
   });
 });
+
+// Payment Method Collect Link Commands
+Cypress.Commands.add(
+  "paymentMethodCollectLinkCreate",
+  (requestBody, data, globalState) => {
+    const { Request: reqData, Response: resData } = data || {};
+
+    const apiKey = globalState.get("apiKey");
+    const baseUrl = globalState.get("baseUrl");
+    const customerId = globalState.get("customerId");
+    const url = `${baseUrl}/payment_methods/collect`;
+
+    const body = {
+      ...requestBody,
+      ...reqData,
+      customer_id: customerId,
+    };
+
+    cy.request({
+      method: "POST",
+      url: url,
+      headers: {
+        "Content-Type": "application/json",
+        "api-key": apiKey,
+      },
+      body: body,
+      failOnStatusCode: false,
+    }).then((response) => {
+      logRequestId(response.headers["x-request-id"]);
+
+      cy.wrap(response).then(() => {
+        expect(response.headers["content-type"]).to.include("application/json");
+
+        if (response.status === 200) {
+          globalState.set("pmCollectId", response.body.pm_collect_id);
+          globalState.set("pmCollectLink", response.body.link);
+
+          expect(response.body).to.have.property("pm_collect_id").and.not.be
+            .empty;
+          expect(response.body).to.have.property("link").and.not.be.empty;
+          expect(response.body).to.have.property("customer_id").and.not.be
+            .empty;
+        }
+
+        if (resData && resData.body) {
+          for (const key in resData.body) {
+            if (resData.body[key] !== undefined) {
+              expect(response.body[key]).to.deep.equal(resData.body[key]);
+            }
+          }
+        }
+      });
+    });
+  }
+);
+
+Cypress.Commands.add("paymentMethodCollectLinkRender", (data, globalState) => {
+  const { Response: resData } = data || {};
+
+  const baseUrl = globalState.get("baseUrl");
+  const merchantId = globalState.get("merchantId");
+  const pmCollectId = globalState.get("pmCollectId");
+
+  if (!pmCollectId) {
+    cy.log("No pmCollectId found in globalState, skipping render call");
+    return;
+  }
+
+  const url = `${baseUrl}/payment_methods/collect/${merchantId}/${pmCollectId}`;
+
+  cy.request({
+    method: "GET",
+    url: url,
+    headers: {
+      "Content-Type": "application/json",
+    },
+    failOnStatusCode: false,
+  }).then((response) => {
+    logRequestId(response.headers["x-request-id"]);
+
+    cy.wrap(response).then(() => {
+      if (response.status === 200) {
+        expect(response.headers["content-type"]).to.include("text/html");
+        expect(response.body).to.be.a("string");
+      } else if (response.status === 400 || response.status === 404) {
+        if (resData && resData.body) {
+          for (const key in resData.body) {
+            expect(response.body[key]).to.deep.equal(resData.body[key]);
+          }
+        }
+      }
+    });
+  });
+});
