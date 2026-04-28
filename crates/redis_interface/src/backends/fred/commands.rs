@@ -508,10 +508,10 @@ impl super::RedisConnectionPool {
             .map(|(f, v)| (f.clone().into(), v.clone().into()))
             .collect();
 
-        let map: RedisMap = pairs
-            .try_into()
-            .map_err(|err| error_stack::report!(errors::RedisError::SetHashFailed)
-                .attach_printable(format!("{err}")))?;
+        let map: RedisMap = pairs.try_into().map_err(|err| {
+            error_stack::report!(errors::RedisError::SetHashFailed)
+                .attach_printable(format!("{err}"))
+        })?;
 
         let output: Result<(), _> = self
             .pool
@@ -819,13 +819,19 @@ impl super::RedisConnectionPool {
             .map(|(f, v)| (f.clone().into(), v.clone().into()))
             .collect();
 
-        let fred_fields: MultipleOrderedPairs = pairs
-            .try_into()
-            .map_err(|err| error_stack::report!(errors::RedisError::StreamAppendFailed)
-                .attach_printable(format!("{err}")))?;
+        let fred_fields: MultipleOrderedPairs = pairs.try_into().map_err(|err| {
+            error_stack::report!(errors::RedisError::StreamAppendFailed)
+                .attach_printable(format!("{err}"))
+        })?;
 
         self.pool
-            .xadd(stream.tenant_aware_key(self), false, None, entry_id, fred_fields)
+            .xadd(
+                stream.tenant_aware_key(self),
+                false,
+                None,
+                entry_id,
+                fred_fields,
+            )
             .await
             .change_context(errors::RedisError::StreamAppendFailed)
     }
@@ -856,7 +862,10 @@ impl super::RedisConnectionPool {
     ) -> CustomResult<usize, errors::RedisError> {
         let xcap: fred::types::XCap = (cap_kind, cap_trim, threshold, None::<i64>)
             .try_into()
-            .map_err(|err| error_stack::report!(errors::RedisError::StreamTrimFailed).attach_printable(format!("{err}")))?;
+            .map_err(|err| {
+                error_stack::report!(errors::RedisError::StreamTrimFailed)
+                    .attach_printable(format!("{err}"))
+            })?;
         self.pool
             .xtrim(stream.tenant_aware_key(self), xcap)
             .await

@@ -11,11 +11,12 @@
 //! Run with redis-rs:
 //!     cargo test -p redis_interface --features redis-rs
 
-use crate::{
-    DelReply, HsetnxReply, MsetnxReply, RedisConnectionPool, RedisEntryId, RedisKey,
-    RedisSettings, RedisValue, SaddReply, SetGetReply, SetnxReply, StreamCapKind, StreamCapTrim,
-};
 use std::collections::HashMap;
+
+use crate::{
+    DelReply, HsetnxReply, MsetnxReply, RedisConnectionPool, RedisEntryId, RedisKey, RedisSettings,
+    RedisValue, SaddReply, SetGetReply, SetnxReply, StreamCapKind, StreamCapTrim,
+};
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -113,11 +114,7 @@ async fn test_consumer_group_create() {
                 .await;
 
             let result2 = redis_conn
-                .consumer_group_create(
-                    &"TEST3".into(),
-                    "GTEST",
-                    &RedisEntryId::UndeliveredEntryID,
-                )
+                .consumer_group_create(&"TEST3".into(), "GTEST", &RedisEntryId::UndeliveredEntryID)
                 .await;
 
             *result1.unwrap_err().current_context()
@@ -589,10 +586,16 @@ async fn test_get_multiple_keys_with_missing_keys() {
             ];
 
             let _ = pool
-                .set_key(keys.first().expect("should not be none"), "value1".to_string())
+                .set_key(
+                    keys.first().expect("should not be none"),
+                    "value1".to_string(),
+                )
                 .await;
             let _ = pool
-                .set_key(keys.get(2).expect("should not be none"), "value3".to_string())
+                .set_key(
+                    keys.get(2).expect("should not be none"),
+                    "value3".to_string(),
+                )
                 .await;
 
             let result = pool.get_multiple_keys::<String>(&keys).await;
@@ -969,8 +972,7 @@ async fn test_set_hash_field_if_not_exist_and_get() {
 
             let get_result: Result<String, _> = pool.get_hash_field(&key, "field1").await;
 
-            let all_fields: Result<HashMap<String, String>, _> =
-                pool.get_hash_fields(&key).await;
+            let all_fields: Result<HashMap<String, String>, _> = pool.get_hash_fields(&key).await;
 
             match (set_result, dup_result, get_result, all_fields) {
                 (Ok(HsetnxReply::KeySet), Ok(HsetnxReply::KeyNotSet), Ok(val), Ok(map)) => {
@@ -1358,7 +1360,10 @@ async fn test_stream_read_entries() {
             match result {
                 Ok(reply) => {
                     reply.len() == 1
-                        && reply.values().next().is_some_and(|entries| !entries.is_empty())
+                        && reply
+                            .values()
+                            .next()
+                            .is_some_and(|entries| !entries.is_empty())
                 }
                 Err(_) => false,
             }
@@ -1411,7 +1416,10 @@ async fn test_stream_read_with_options_xreadgroup() {
             match result {
                 Ok(reply) => {
                     reply.len() == 1
-                        && reply.values().next().is_some_and(|entries| entries.len() == 1)
+                        && reply
+                            .values()
+                            .next()
+                            .is_some_and(|entries| entries.len() == 1)
                         && reply
                             .values()
                             .next()
@@ -1482,11 +1490,7 @@ async fn test_stream_delete_entries() {
                 .await;
 
             let read_result = pool
-                .stream_read_entries(
-                    std::slice::from_ref(&stream),
-                    &["0-0".to_string()],
-                    Some(1),
-                )
+                .stream_read_entries(std::slice::from_ref(&stream), &["0-0".to_string()], Some(1))
                 .await
                 .expect("failed to read");
 
@@ -1546,7 +1550,12 @@ async fn test_stream_trim_entries() {
             if entries.len() >= 3 {
                 let trim_id = &entries.get(1).expect("checked len >= 3").0;
                 let trim_result = pool
-                    .stream_trim_entries(&stream, StreamCapKind::MinID, StreamCapTrim::Exact, trim_id)
+                    .stream_trim_entries(
+                        &stream,
+                        StreamCapKind::MinID,
+                        StreamCapTrim::Exact,
+                        trim_id,
+                    )
                     .await;
 
                 match trim_result {
@@ -1754,8 +1763,7 @@ async fn test_list_operations() {
 
             let length_result = pool.get_list_length(&key).await;
 
-            let elements_result: Result<Vec<String>, _> =
-                pool.get_list_elements(&key, 0, -1).await;
+            let elements_result: Result<Vec<String>, _> = pool.get_list_elements(&key, 0, -1).await;
 
             let pop_result = pool.lpop_list_elements(&key, Some(1)).await;
 
@@ -1910,10 +1918,7 @@ async fn test_pubsub_standalone_publish_and_receive() {
             tokio::time::sleep(std::time::Duration::from_millis(100)).await;
 
             pool.publisher
-                .publish(
-                    channel,
-                    RedisValue::from_string(test_message.to_string()),
-                )
+                .publish(channel, RedisValue::from_string(test_message.to_string()))
                 .await
                 .expect("failed to publish");
 
@@ -2108,7 +2113,13 @@ async fn test_cluster_hash_operations() {
             let hgetall_result: Result<HashMap<String, String>, _> =
                 pool.get_hash_fields(&key).await;
 
-            match (set_result, hsetnx_new, hsetnx_dup, hget_result, hgetall_result) {
+            match (
+                set_result,
+                hsetnx_new,
+                hsetnx_dup,
+                hget_result,
+                hgetall_result,
+            ) {
                 (Ok(()), Ok(HsetnxReply::KeySet), Ok(HsetnxReply::KeyNotSet), Ok(val), Ok(map)) => {
                     val == "val1" && map.contains_key("field1") && map.contains_key("field3")
                 }
@@ -2167,11 +2178,20 @@ async fn test_cluster_stream_operations() {
 
             let destroy_result = pool.consumer_group_destroy(&stream, &group).await;
 
-            match (append_result, len_result, group_result, read_result, destroy_result) {
+            match (
+                append_result,
+                len_result,
+                group_result,
+                read_result,
+                destroy_result,
+            ) {
                 (Ok(()), Ok(len), Ok(()), Ok(reply), Ok(_)) => {
                     len >= 1
                         && reply.len() == 1
-                        && reply.values().next().is_some_and(|entries| !entries.is_empty())
+                        && reply
+                            .values()
+                            .next()
+                            .is_some_and(|entries| !entries.is_empty())
                 }
                 _ => false,
             }
@@ -2268,10 +2288,7 @@ async fn test_cluster_pubsub() {
             tokio::time::sleep(std::time::Duration::from_millis(100)).await;
 
             pool.publisher
-                .publish(
-                    &channel,
-                    RedisValue::from_string(test_message.to_string()),
-                )
+                .publish(&channel, RedisValue::from_string(test_message.to_string()))
                 .await
                 .expect("failed to publish on cluster");
 

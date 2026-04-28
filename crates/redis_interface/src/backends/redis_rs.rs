@@ -25,7 +25,10 @@ pub enum RedisConn {
 }
 
 impl redis::aio::ConnectionLike for RedisConn {
-    fn req_packed_command<'a>(&'a mut self, cmd: &'a redis::Cmd) -> redis::RedisFuture<'a, redis::Value> {
+    fn req_packed_command<'a>(
+        &'a mut self,
+        cmd: &'a redis::Cmd,
+    ) -> redis::RedisFuture<'a, redis::Value> {
         match self {
             Self::Standalone(c) => c.req_packed_command(cmd),
             Self::Cluster(c) => c.req_packed_command(cmd),
@@ -83,7 +86,9 @@ pub struct PubSubMessage {
 }
 
 impl SubscriberClient {
-    pub(crate) async fn new(conf: &crate::types::RedisSettings) -> CustomResult<Self, crate::errors::RedisError> {
+    pub(crate) async fn new(
+        conf: &crate::types::RedisSettings,
+    ) -> CustomResult<Self, crate::errors::RedisError> {
         let (push_sender, _) =
             tokio::sync::broadcast::channel::<redis::PushInfo>(conf.broadcast_channel_capacity);
 
@@ -351,7 +356,9 @@ pub struct RedisConnectionPool {
 
 impl RedisConnectionPool {
     /// Create a new Redis connection
-    pub async fn new(conf: &crate::types::RedisSettings) -> CustomResult<Self, crate::errors::RedisError> {
+    pub async fn new(
+        conf: &crate::types::RedisSettings,
+    ) -> CustomResult<Self, crate::errors::RedisError> {
         let (pool, subscriber, publisher) = match conf.cluster_enabled {
             true => {
                 let nodes: Vec<String> = conf

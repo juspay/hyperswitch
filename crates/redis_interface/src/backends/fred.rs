@@ -10,7 +10,11 @@ use std::sync::{atomic, Arc};
 
 use common_utils::errors::CustomResult;
 use error_stack::ResultExt;
-use fred::{clients::Transaction, interfaces::{ClientLike, EventInterface}, prelude::TransactionInterface};
+use fred::{
+    clients::Transaction,
+    interfaces::{ClientLike, EventInterface},
+    prelude::TransactionInterface,
+};
 
 use crate::types::RedisValue;
 
@@ -160,7 +164,9 @@ pub struct RedisConnectionPool {
 
 impl RedisConnectionPool {
     /// Create a new Redis connection
-    pub async fn new(conf: &crate::types::RedisSettings) -> CustomResult<Self, crate::errors::RedisError> {
+    pub async fn new(
+        conf: &crate::types::RedisSettings,
+    ) -> CustomResult<Self, crate::errors::RedisError> {
         let redis_connection_url = match conf.cluster_enabled {
             true => format!(
                 "redis-cluster://{}:{}?{}",

@@ -18,6 +18,7 @@ use redis::{
 };
 use tracing::instrument;
 
+use super::types::redis_value_to_option_string;
 use crate::{
     constant::redis_rs_commands::{
         REDIS_ARG_COUNT, REDIS_ARG_EX, REDIS_ARG_MATCH, REDIS_ARG_NX, REDIS_ARG_TYPE,
@@ -25,12 +26,10 @@ use crate::{
     },
     errors,
     types::{
-        DelReply, HsetnxReply, MsetnxReply, RedisEntryId, RedisKey,
-        SaddReply, SetGetReply, SetnxReply, StreamCapKind, StreamCapTrim, StreamEntries,
-        StreamReadResult,
+        DelReply, HsetnxReply, MsetnxReply, RedisEntryId, RedisKey, SaddReply, SetGetReply,
+        SetnxReply, StreamCapKind, StreamCapTrim, StreamEntries, StreamReadResult,
     },
 };
-use super::types::redis_value_to_option_string;
 
 impl super::RedisConnectionPool {
     pub fn add_prefix(&self, key: &str) -> String {

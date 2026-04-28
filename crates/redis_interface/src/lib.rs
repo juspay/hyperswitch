@@ -12,9 +12,9 @@
 //! }
 //! ```
 
+pub mod constant;
 pub mod errors;
 pub mod types;
-pub mod constant;
 
 #[cfg(not(feature = "redis-rs"))]
 mod backends {
@@ -34,11 +34,9 @@ mod backends {
 pub use backends::fred::{
     PubSubMessage, RedisClient, RedisConfig, RedisConnectionPool, SubscriberClient,
 };
-
 #[cfg(feature = "redis-rs")]
 pub use backends::redis_rs::{
-    PubSubMessage, PublisherClient, RedisConfig, RedisConn, RedisConnectionPool,
-    SubscriberClient,
+    PubSubMessage, PublisherClient, RedisConfig, RedisConn, RedisConnectionPool, SubscriberClient,
 };
 
 pub use self::types::*;

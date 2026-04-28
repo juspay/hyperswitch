@@ -183,10 +183,11 @@ pub fn redis_value_to_option_string(v: &redis::Value) -> Option<String> {
 
 #[cfg(test)]
 mod tests {
+    use redis::FromRedisValue;
+
     use crate::types::{
         DelReply, HsetnxReply, MsetnxReply, RedisEntryId, RedisValue, SaddReply, SetnxReply,
     };
-    use redis::FromRedisValue;
 
     #[test]
     fn test_redis_value_new_and_into_inner() {
