@@ -8,12 +8,13 @@ use common_utils::{
     types::{authentication, keymanager::ToEncryptable},
 };
 use error_stack::ResultExt;
-use masking::PeekInterface;
+use hyperswitch_masking::PeekInterface;
 use router_env::{instrument, tracing};
 
 use super::{BoxedOperation, Domain, GetTracker, Operation, UpdateTracker, ValidateRequest};
 use crate::{
     core::{
+        configs::dimension_state::DimensionsWithProcessorAndProviderMerchantId,
         errors::{self, RouterResult, StorageErrorExt},
         payments::{self, helpers, operations},
     },
@@ -119,8 +120,8 @@ impl<F: Send + Clone + Sync>
             domain_types::CryptoOperation::BatchEncrypt(
                 hyperswitch_domain_models::payments::FromRequestEncryptablePaymentIntent::to_encryptable(
                     hyperswitch_domain_models::payments::FromRequestEncryptablePaymentIntent {
-                        shipping_address: request.shipping.clone().map(|address| address.encode_to_value()).transpose().change_context(errors::ApiErrorResponse::InternalServerError).attach_printable("Failed to encode shipping address")?.map(masking::Secret::new),
-                        billing_address: request.billing.clone().map(|address| address.encode_to_value()).transpose().change_context(errors::ApiErrorResponse::InternalServerError).attach_printable("Failed to encode billing address")?.map(masking::Secret::new),
+                        shipping_address: request.shipping.clone().map(|address| address.encode_to_value()).transpose().change_context(errors::ApiErrorResponse::InternalServerError).attach_printable("Failed to encode shipping address")?.map(hyperswitch_masking::Secret::new),
+                        billing_address: request.billing.clone().map(|address| address.encode_to_value()).transpose().change_context(errors::ApiErrorResponse::InternalServerError).attach_printable("Failed to encode billing address")?.map(hyperswitch_masking::Secret::new),
                         customer_details: None,
                     },
                 ),
@@ -201,6 +202,7 @@ impl<F: Clone + Sync> UpdateTracker<F, payments::PaymentIntentData<F>, PaymentsC
         payment_data: payments::PaymentIntentData<F>,
         _frm_suggestion: Option<FrmSuggestion>,
         _header_payload: hyperswitch_domain_models::payments::HeaderPayload,
+        _dimensions: &DimensionsWithProcessorAndProviderMerchantId,
     ) -> RouterResult<(
         PaymentsCreateIntentOperation<'b, F>,
         payments::PaymentIntentData<F>,

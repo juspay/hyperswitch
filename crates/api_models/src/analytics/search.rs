@@ -1,5 +1,5 @@
 use common_utils::{hashing::HashedString, types::TimeRange};
-use masking::WithType;
+use hyperswitch_masking::WithType;
 use serde_json::Value;
 
 #[derive(Clone, Debug, Default, serde::Deserialize, serde::Serialize)]

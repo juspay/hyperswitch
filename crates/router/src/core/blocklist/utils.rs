@@ -3,7 +3,7 @@ use common_enums::{BlockReason, MerchantDecision};
 use common_utils::errors::CustomResult;
 use diesel_models::{business_profile::CardBlockingConfig, configs};
 use error_stack::ResultExt;
-use masking::StrongSecret;
+use hyperswitch_masking::StrongSecret;
 
 use super::{errors, transformers::generate_fingerprint, SessionState};
 use crate::{

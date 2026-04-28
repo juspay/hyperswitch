@@ -121,7 +121,10 @@ pub async fn trigger_refund_to_gateway(
     payment_attempt: &storage::PaymentAttempt,
     payment_intent: &storage::PaymentIntent,
     return_raw_connector_response: Option<bool>,
-) -> errors::RouterResult<(diesel_refund::Refund, Option<masking::Secret<String>>)> {
+) -> errors::RouterResult<(
+    diesel_refund::Refund,
+    Option<hyperswitch_masking::Secret<String>>,
+)> {
     let db = &*state.store;
 
     let mca_id = payment_attempt.get_attempt_merchant_connector_account_id()?;
@@ -244,7 +247,10 @@ pub async fn internal_trigger_refund_to_gateway(
     payment_intent: &storage::PaymentIntent,
     merchant_connector_details: common_types::domain::MerchantConnectorAuthDetails,
     return_raw_connector_response: Option<bool>,
-) -> errors::RouterResult<(diesel_refund::Refund, Option<masking::Secret<String>>)> {
+) -> errors::RouterResult<(
+    diesel_refund::Refund,
+    Option<hyperswitch_masking::Secret<String>>,
+)> {
     let storage_scheme = platform.get_processor().get_account().storage_scheme;
 
     let routed_through = payment_attempt
@@ -705,7 +711,10 @@ pub async fn refund_retrieve_core(
     profile_id: Option<id_type::ProfileId>,
     request: refunds::RefundsRetrieveRequest,
     refund: diesel_refund::Refund,
-) -> errors::RouterResult<(diesel_refund::Refund, Option<masking::Secret<String>>)> {
+) -> errors::RouterResult<(
+    diesel_refund::Refund,
+    Option<hyperswitch_masking::Secret<String>>,
+)> {
     let db = &*state.store;
 
     core_utils::validate_profile_id_from_auth_layer(profile_id, &refund)?;
@@ -826,7 +835,10 @@ pub async fn sync_refund_with_gateway(
     payment_intent: &storage::PaymentIntent,
     refund: &diesel_refund::Refund,
     return_raw_connector_response: Option<bool>,
-) -> errors::RouterResult<(diesel_refund::Refund, Option<masking::Secret<String>>)> {
+) -> errors::RouterResult<(
+    diesel_refund::Refund,
+    Option<hyperswitch_masking::Secret<String>>,
+)> {
     let db = &*state.store;
 
     let connector_id = refund.connector.to_string();
@@ -933,7 +945,10 @@ pub async fn internal_sync_refund_with_gateway(
     refund: &diesel_refund::Refund,
     merchant_connector_details: common_types::domain::MerchantConnectorAuthDetails,
     return_raw_connector_response: Option<bool>,
-) -> errors::RouterResult<(diesel_refund::Refund, Option<masking::Secret<String>>)> {
+) -> errors::RouterResult<(
+    diesel_refund::Refund,
+    Option<hyperswitch_masking::Secret<String>>,
+)> {
     let connector_enum = merchant_connector_details.connector_name;
 
     let connector: api::ConnectorData = api::ConnectorData::get_connector_by_name(
@@ -1360,7 +1375,10 @@ pub async fn schedule_refund_execution(
     payment_intent: &storage::PaymentIntent,
     merchant_connector_details: Option<common_types::domain::MerchantConnectorAuthDetails>,
     return_raw_connector_response: Option<bool>,
-) -> errors::RouterResult<(diesel_refund::Refund, Option<masking::Secret<String>>)> {
+) -> errors::RouterResult<(
+    diesel_refund::Refund,
+    Option<hyperswitch_masking::Secret<String>>,
+)> {
     let db = &*state.store;
     let runner = storage::ProcessTrackerRunner::RefundWorkflowRouter;
     let task = "EXECUTE_REFUND";

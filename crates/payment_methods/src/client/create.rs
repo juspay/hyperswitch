@@ -9,7 +9,7 @@ use common_utils::{
 };
 use hyperswitch_domain_models::payment_method_data::PaymentMethodData;
 use hyperswitch_interfaces::micro_service::{MicroserviceClientError, MicroserviceClientErrorKind};
-use masking::Secret;
+use hyperswitch_masking::Secret;
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 /// V1-facing create flow type.

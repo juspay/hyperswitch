@@ -77,6 +77,33 @@ services:
       # format -> postgresql://DB_USER:DB_PASSWORD@HOST:PORT/DATABASE_NAME
       - DATABASE_URL=postgresql://db_user:db_pass@pg:5432/hyperswitch_db
 
+  superposition:
+    image: ghcr.io/juspay/superposition-demo:latest
+    ports:
+      - "8081:8080"
+    networks:
+      - router_net
+    environment:
+      - API_HOSTNAME=http://localhost:8081
+
+  superposition-init:
+    image: alpine:latest
+    depends_on:
+      superposition:
+        condition: service_started
+    networks:
+      - router_net
+    volumes:
+      - ./config/superposition_seed.toml:/seed.toml:ro
+      - ./scripts/seed_superposition.sh:/seed_superposition.sh:ro
+    environment:
+      - SUPERPOSITION_URL=http://superposition:8080
+      - SEED_FILE=/seed.toml
+      - WORKSPACE_ID=dev
+      - ORG_ID=localorg
+    command: sh -c "apk add --no-cache curl jq yq && sh /seed_superposition.sh"
+    restart: "no"
+
   mailhog:
     image: docker.io/mailhog/mailhog
     networks:
@@ -105,6 +132,8 @@ services:
       redis-standalone:
         condition: service_healthy
       migration_runner:
+        condition: service_completed_successfully
+      superposition-init:
         condition: service_completed_successfully
     labels:
       logs: "promtail"

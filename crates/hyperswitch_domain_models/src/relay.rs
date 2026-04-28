@@ -8,7 +8,7 @@ use common_utils::{
 };
 use diesel_models::relay::RelayUpdateInternal;
 use error_stack::ResultExt;
-use masking::{ExposeInterface, Secret};
+use hyperswitch_masking::{ExposeInterface, Secret};
 use serde::{self, Deserialize, Serialize};
 use time::PrimitiveDateTime;
 

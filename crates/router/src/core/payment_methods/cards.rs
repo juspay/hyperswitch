@@ -50,9 +50,9 @@ use hyperswitch_constraint_graph as cgraph;
 use hyperswitch_domain_models::customer::CustomerUpdate;
 use hyperswitch_domain_models::mandates::CommonMandateReference;
 use hyperswitch_interfaces::secrets_interface::secret_state::RawSecret;
+use hyperswitch_masking::Secret;
 #[cfg(feature = "v1")]
 use kgraph_utils::transformers::IntoDirValue;
-use masking::Secret;
 use router_env::{instrument, tracing};
 use scheduler::errors as sch_errors;
 use strum::IntoEnumIterator;
@@ -78,6 +78,7 @@ use crate::{
     consts as router_consts,
     core::{
         configs,
+        configs::dimension_state::DimensionsWithProcessorAndProviderMerchantId,
         errors::{self, StorageErrorExt},
         payment_methods::{
             network_tokenization, transformers as payment_methods, utils as payment_method_utils,
@@ -94,7 +95,7 @@ use crate::{
         utils as core_utils,
     },
     db, logger,
-    pii::prelude::*,
+    pii::{ExposeInterface, ExposeOptionInterface, PeekInterface},
     routes::{self, metrics, payment_methods::ParentPaymentMethodToken},
     services,
     types::{
@@ -4272,6 +4273,9 @@ pub async fn do_list_customer_pm_fetch_customer_if_not_passed(
     customer_id: Option<&id_type::CustomerId>,
     ephemeral_api_key: Option<&str>,
 ) -> errors::RouterResponse<api::CustomerPaymentMethodsListResponse> {
+    let dimensions = configs::dimension_state::Dimensions::new()
+        .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
+        .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id());
     let limit = req.clone().and_then(|pml_req| pml_req.limit);
 
     let auth_cust = if let Some(key) = ephemeral_api_key {
@@ -4295,6 +4299,7 @@ pub async fn do_list_customer_pm_fetch_customer_if_not_passed(
             None,
             customer_id,
             limit,
+            dimensions,
         ))
         .await
     } else {
@@ -4314,6 +4319,7 @@ pub async fn do_list_customer_pm_fetch_customer_if_not_passed(
                     payment_intent,
                     &customer_id,
                     limit,
+                    dimensions,
                 ))
                 .await
             }
@@ -4335,6 +4341,7 @@ pub async fn list_customer_payment_method(
     payment_intent: Option<storage::PaymentIntent>,
     customer_id: &id_type::CustomerId,
     limit: Option<i64>,
+    dimensions: DimensionsWithProcessorAndProviderMerchantId,
 ) -> errors::RouterResponse<api::CustomerPaymentMethodsListResponse> {
     let db = &*state.store;
     let off_session_payment_flag = payment_intent
@@ -4357,29 +4364,14 @@ pub async fn list_customer_payment_method(
         .await
         .to_not_found_response(errors::ApiErrorResponse::CustomerNotFound)?;
 
-    let requires_cvv = configs::get_config_bool(
-        state,
-        router_consts::superposition::REQUIRES_CVV, // superposition key
-        &platform
-            .get_processor()
-            .get_account()
-            .get_id()
-            .get_requires_cvv_key(), // database key
-        Some(
-            external_services::superposition::ConfigContext::new().with(
-                "merchant_id",
-                platform
-                    .get_processor()
-                    .get_account()
-                    .get_id()
-                    .get_string_repr(),
-            ),
-        ), // context
-        true,                                       // default value
-    )
-    .await
-    .change_context(errors::ApiErrorResponse::InternalServerError)
-    .attach_printable("Failed to fetch requires_cvv config")?;
+    // Get requires_cvv using type-safe dimensions config
+    let requires_cvv = dimensions
+        .get_requires_cvv(
+            state.store.as_ref(),
+            state.superposition_service.as_ref(),
+            Some(customer_id),
+        )
+        .await;
 
     let resp = db
         .find_payment_method_by_customer_id_merchant_id_status(
@@ -4790,18 +4782,19 @@ where
 {
     let key = key_store.key.get_inner().peek();
     let identifier = Identifier::Merchant(key_store.merchant_id.clone());
-    let decrypted_data = domain::types::crypto_operation::<serde_json::Value, masking::WithType>(
-        &state.into(),
-        type_name!(T),
-        domain::types::CryptoOperation::DecryptOptional(data),
-        identifier,
-        key,
-    )
-    .await
-    .and_then(|val| val.try_into_optionaloperation())
-    .change_context(errors::StorageError::DecryptionError)
-    .change_context(errors::ApiErrorResponse::InternalServerError)
-    .attach_printable("unable to decrypt data")?;
+    let decrypted_data =
+        domain::types::crypto_operation::<serde_json::Value, hyperswitch_masking::WithType>(
+            &state.into(),
+            type_name!(T),
+            domain::types::CryptoOperation::DecryptOptional(data),
+            identifier,
+            key,
+        )
+        .await
+        .and_then(|val| val.try_into_optionaloperation())
+        .change_context(errors::StorageError::DecryptionError)
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("unable to decrypt data")?;
 
     decrypted_data
         .map(|decrypted_data| decrypted_data.into_inner().expose())
@@ -5237,7 +5230,7 @@ where
         .change_context(errors::StorageError::SerializationFailed)
         .attach_printable("Unable to encode data")?;
 
-    let secret_data = Secret::<_, masking::WithType>::new(encoded_data);
+    let secret_data = Secret::<_, hyperswitch_masking::WithType>::new(encoded_data);
 
     let encrypted_data = domain::types::crypto_operation(
         key_manager_state,

@@ -350,7 +350,7 @@ pub struct RefundResponse {
     pub issuer_error_message: Option<String>,
     /// Contains whole connector response
     #[schema(value_type = Option<String>)]
-    pub raw_connector_response: Option<masking::Secret<String>>,
+    pub raw_connector_response: Option<hyperswitch_masking::Secret<String>>,
 }
 
 #[cfg(feature = "v1")]
@@ -411,7 +411,7 @@ pub struct RefundResponse {
     pub connector_refund_reference_id: Option<String>,
     /// Contains raw connector response
     #[schema(value_type = Option<String>)]
-    pub raw_connector_response: Option<masking::Secret<String>>,
+    pub raw_connector_response: Option<hyperswitch_masking::Secret<String>>,
 }
 
 #[cfg(feature = "v2")]

@@ -75,7 +75,7 @@ impl ConnectorEvent {
 
     /// fn set_response_body
     pub fn set_response_body<T: Serialize>(&mut self, response: &T) {
-        match masking::masked_serialize(response) {
+        match hyperswitch_masking::masked_serialize(response) {
             Ok(masked) => {
                 self.masked_response = Some(masked.to_string());
             }
@@ -85,7 +85,7 @@ impl ConnectorEvent {
 
     /// fn set_error_response_body
     pub fn set_error_response_body<T: Serialize>(&mut self, response: &T) {
-        match masking::masked_serialize(response) {
+        match hyperswitch_masking::masked_serialize(response) {
             Ok(masked) => {
                 self.error = Some(masked.to_string());
             }

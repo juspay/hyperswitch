@@ -18,7 +18,7 @@ use common_utils::{
 use error_stack::ResultExt;
 use helpers::PaymentAuthConnectorDataExt;
 use hyperswitch_domain_models::payments::PaymentIntent;
-use masking::{ExposeInterface, PeekInterface, Secret};
+use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 use pm_auth::{
     connector::plaid::transformers::PlaidAuthType,
     types::{

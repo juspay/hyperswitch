@@ -275,7 +275,9 @@ impl IncomingWebhook for ConnectorEnum {
         request: &IncomingWebhookRequestDetails<'_>,
         merchant_id: &common_utils::id_type::MerchantId,
         connector_webhook_details: Option<common_utils::pii::SecretSerdeValue>,
-        connector_account_details: crypto::Encryptable<masking::Secret<serde_json::Value>>,
+        connector_account_details: crypto::Encryptable<
+            hyperswitch_masking::Secret<serde_json::Value>,
+        >,
         connector_name: &str,
     ) -> CustomResult<bool, errors::ConnectorError> {
         match self {
@@ -339,7 +341,8 @@ impl IncomingWebhook for ConnectorEnum {
     fn get_webhook_resource_object(
         &self,
         request: &IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, errors::ConnectorError> {
+    ) -> CustomResult<Box<dyn hyperswitch_masking::ErasedMaskSerialize>, errors::ConnectorError>
+    {
         match self {
             Self::Old(connector) => connector.get_webhook_resource_object(request),
             Self::New(connector) => connector.get_webhook_resource_object(request),
@@ -773,7 +776,8 @@ impl ConnectorCommon for ConnectorEnum {
     fn get_auth_header(
         &self,
         auth_type: &ConnectorAuthType,
-    ) -> CustomResult<Vec<(String, masking::Maskable<String>)>, errors::ConnectorError> {
+    ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
+    {
         match self {
             Self::Old(connector) => connector.get_auth_header(auth_type),
             Self::New(connector) => connector.get_auth_header(auth_type),

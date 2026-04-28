@@ -7,7 +7,7 @@ use hyperswitch_domain_models::{
     behaviour::{Conversion, ReverseConversion},
     merchant_key_store::MerchantKeyStore,
 };
-use masking::StrongSecret;
+use hyperswitch_masking::StrongSecret;
 use redis::{kv_store::RedisConnInterface, pub_sub::PubSubInterface, RedisStore};
 mod address;
 pub mod business_profile;

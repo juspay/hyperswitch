@@ -1,5 +1,5 @@
 use hyperswitch_domain_models::address::{Address, AddressDetails};
-use masking::Secret;
+use hyperswitch_masking::Secret;
 use router::types::{self, domain, storage::enums, PaymentAddress};
 
 use crate::{

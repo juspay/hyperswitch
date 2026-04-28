@@ -16,7 +16,7 @@ use diesel_models::enums as storage_enums;
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::payments::payment_intent::CustomerData;
 use hyperswitch_interfaces::api::ConnectorSpecifications;
-use masking::{ExposeInterface, PeekInterface, Secret};
+use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 
 use super::domain;
 #[cfg(feature = "v2")]
@@ -643,7 +643,7 @@ impl
             crate::core::api_keys::PlaintextApiKey,
         ),
     ) -> Self {
-        use masking::StrongSecret;
+        use hyperswitch_masking::StrongSecret;
 
         let (api_key, plaintext_api_key) = item;
         Self {

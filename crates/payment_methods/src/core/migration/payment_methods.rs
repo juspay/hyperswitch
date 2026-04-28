@@ -19,9 +19,9 @@ use hyperswitch_domain_models::{
 };
 #[cfg(feature = "v1")]
 use hyperswitch_domain_models::{ext_traits::OptionExt, payment_methods as domain_pm};
-use masking::PeekInterface;
+use hyperswitch_masking::PeekInterface;
 #[cfg(feature = "v1")]
-use masking::Secret;
+use hyperswitch_masking::Secret;
 #[cfg(feature = "v1")]
 use router_env::{instrument, logger, tracing};
 #[cfg(feature = "v1")]

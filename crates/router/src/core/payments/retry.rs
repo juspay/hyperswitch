@@ -12,6 +12,7 @@ use router_env::{
 use crate::{
     consts,
     core::{
+        configs,
         errors::{self, RouterResult, StorageErrorExt},
         payments::{
             self, complete_connector_service,
@@ -384,6 +385,10 @@ where
     types::RouterData<F, FData, types::PaymentsResponseData>: Feature<F, FData>,
     dyn api::Connector: services::api::ConnectorIntegration<F, FData, types::PaymentsResponseData>,
 {
+    let dimensions = configs::dimension_state::Dimensions::new()
+        .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
+        .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id());
+
     metrics::AUTO_RETRY_PAYMENT_COUNT.add(1, &[]);
 
     modify_trackers(
@@ -461,6 +466,7 @@ where
         hyperswitch_domain_models::payments::HeaderPayload::default(),
         frm_suggestion,
         call_connector_service_response,
+        &dimensions,
     )
     .await?;
     Ok(router_data)
