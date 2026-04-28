@@ -476,6 +476,8 @@ diesel::table! {
         #[max_length = 64]
         last_modified_by -> Varchar,
         last_modified_at -> Timestamp,
+        #[max_length = 64]
+        profile_id -> Nullable<Varchar>,
     }
 }
 
@@ -1325,11 +1327,11 @@ diesel::table! {
         locker_fingerprint_id -> Nullable<Varchar>,
         network_tokenization_data -> Nullable<Bytea>,
         #[max_length = 64]
+        id -> Varchar,
+        #[max_length = 64]
         payment_method_type_v2 -> Nullable<Varchar>,
         #[max_length = 64]
         payment_method_subtype -> Nullable<Varchar>,
-        #[max_length = 64]
-        id -> Varchar,
         external_vault_token_data -> Nullable<Bytea>,
     }
 }

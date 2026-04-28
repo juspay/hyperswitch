@@ -3,6 +3,7 @@ use diesel_models::enums::DashboardMetadata as DBEnum;
 use hyperswitch_masking::Secret;
 use time::PrimitiveDateTime;
 
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
 pub enum MetaData {
     ProductionAgreement(ProductionAgreementValue),
     SetupProcessor(api::SetupProcessor),
@@ -28,6 +29,8 @@ pub enum MetaData {
     IsChangePasswordRequired(bool),
     OnboardingSurvey(api::OnboardingSurvey),
     ReconStatus(api::ReconStatus),
+    #[cfg(feature = "v1")]
+    PaymentViews(api::SavedViewOperation),
 }
 
 impl From<&MetaData> for DBEnum {
@@ -57,12 +60,31 @@ impl From<&MetaData> for DBEnum {
             MetaData::IsChangePasswordRequired(_) => Self::IsChangePasswordRequired,
             MetaData::OnboardingSurvey(_) => Self::OnboardingSurvey,
             MetaData::ReconStatus(_) => Self::ReconStatus,
+            #[cfg(feature = "v1")]
+            MetaData::PaymentViews(_) => Self::PaymentViews,
         }
     }
 }
-#[derive(Debug, serde::Serialize)]
+
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
 pub struct ProductionAgreementValue {
     pub version: String,
     pub ip_address: Secret<String, common_utils::pii::IpAddress>,
     pub timestamp: PrimitiveDateTime,
+}
+
+#[cfg(feature = "v1")]
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
+pub struct SavedViewV1 {
+    pub view_id: String,
+    pub view_name: String,
+    pub filters: api::PaymentListFilterConstraintsV1,
+    pub created_at: String,
+    pub updated_at: String,
+}
+
+#[cfg(feature = "v1")]
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
+pub struct PaymentViewsValue {
+    pub views: Vec<SavedViewV1>,
 }
