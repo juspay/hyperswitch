@@ -23,11 +23,16 @@ describe("UPI Payments - Hyperswitch", () => {
         const data = getConnectorDetails(globalState.get("connectorId"))[
           "upi_pm"
         ]["PaymentIntent"];
+        // Use no_three_ds for Razorpay UPI as it doesn't support 3DS authentication
+        const authType =
+          globalState.get("connectorId") === "razorpay"
+            ? "no_three_ds"
+            : "three_ds";
 
         cy.createPaymentIntentTest(
           fixtures.createPaymentBody,
           data,
-          "three_ds",
+          authType,
           "automatic",
           globalState
         );
