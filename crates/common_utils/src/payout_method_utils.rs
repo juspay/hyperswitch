@@ -186,7 +186,7 @@ pub struct PixBankTransferAdditionalData {
 
     /// Partially masked string formatted QR code for pix payout
     #[schema(value_type = String, example = "0002**************************************************I63041D3D")]
-    pub pix_emv: Option<MaskedBankAccount>,
+    pub emv: Option<MaskedBankAccount>,
 
     /// Partially masked CPF - CPF is a Brazilian tax identification number
     #[schema(value_type = Option<String>, example = "**** 124689")]

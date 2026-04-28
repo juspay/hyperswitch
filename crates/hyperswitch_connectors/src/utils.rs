@@ -6727,6 +6727,8 @@ pub enum PaymentMethodDataType {
     DanamonVaBankTransfer,
     MandiriVaBankTransfer,
     Pix,
+    PixKey,
+    PixEmv,
     PixAutomaticoPush,
     PixAutomaticoQr,
     Pse,

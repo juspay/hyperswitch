@@ -888,6 +888,8 @@ impl TryFrom<enums::PaymentMethodType> for StripePaymentMethodType {
             | enums::PaymentMethodType::Paypal
             | enums::PaymentMethodType::BhnCardNetwork
             | enums::PaymentMethodType::Pix
+            | enums::PaymentMethodType::PixKey
+            | enums::PaymentMethodType::PixEmv
             | enums::PaymentMethodType::PixAutomaticoPush
             | enums::PaymentMethodType::PixAutomaticoQr
             | enums::PaymentMethodType::UpiCollect
