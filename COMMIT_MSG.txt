@@ -1,0 +1,17 @@
+feat(cypress): add Retrieve Payment Method test coverage
+
+Adds comprehensive test coverage for retrieving payment methods by ID:
+- New retrievePaymentMethodTest command (GET /payment_methods/{id})
+- Happy path: create -> retrieve -> verify
+- Edge case: retrieve after payment with saved card
+- Negative case: 404 on deleted payment method
+
+Files added/modified:
+- cypress-tests/cypress/support/commands.js (+retrievePaymentMethodTest)
+- cypress-tests/cypress/e2e/spec/Payment/48-RetrievePaymentMethod.cy.js
+
+Target connector: stripe
+Relates to: juspay/hyperswitch#7516
+
+QA Pipeline: Step 4 complete
+Co-Authored-By: Paperclip <noreply@paperclip.ing>
