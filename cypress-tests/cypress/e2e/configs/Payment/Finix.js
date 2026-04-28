@@ -726,6 +726,35 @@ export const connectorDetails = {
         },
       },
     },
+    external_three_ds: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        authentication_type: "no_three_ds",
+        request_external_three_ds_authentication: true,
+        three_ds_data: {
+          authentication_cryptogram: {
+            cavv: {
+              authentication_cryptogram: "3q2+78r+ur7erb7vyv66vv////8=",
+            },
+          },
+          ds_trans_id: "c4e59ceb-a382-4d6a-bc87-385d591fa09d",
+          version: "2.1.0",
+          eci: "AUTHENTICATED",
+          transaction_status: "Y",
+          exemption_indicator: "low_value",
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+          authentication_type: "no_three_ds",
+        },
+      },
+    },
   },
   pm_list: {
     PmListResponse: {
