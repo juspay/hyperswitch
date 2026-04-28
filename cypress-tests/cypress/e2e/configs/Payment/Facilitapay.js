@@ -40,10 +40,10 @@ export const connectorDetails = {
       },
       Request: {
         payment_method: "bank_transfer",
-        payment_method_type: "pix",
+        payment_method_type: "pix_qr",
         payment_method_data: {
           bank_transfer: {
-            pix: {
+            pix_qr: {
               // since we pass the same cpf number, the connector customer id will be updated instead of new ones being created
               cpf: "86665623580",
               source_bank_account_id: "739d6b0a-e92a-40fd-9f58-6d4cdeb699bb",

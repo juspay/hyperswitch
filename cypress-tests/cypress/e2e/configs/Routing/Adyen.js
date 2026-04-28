@@ -383,10 +383,10 @@ export const connectorDetails = {
     Pix: {
       Request: {
         payment_method: "bank_transfer",
-        payment_method_type: "pix",
+        payment_method_type: "pix_qr",
         payment_method_data: {
           bank_transfer: {
-            pix: {},
+            pix_qr: {},
           },
         },
         billing: {
