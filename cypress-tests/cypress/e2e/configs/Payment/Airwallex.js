@@ -846,6 +846,202 @@ export const connectorDetails = {
         },
       },
     },
+    PaymentIntentWithOrderDetails: {
+      Request: {
+        currency: "USD",
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+        order_details: [
+          {
+            product_type: "physical",
+            product_name: "Test Product",
+            quantity: 1,
+            amount: 6000,
+          },
+        ],
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+          setup_future_usage: "on_session",
+          amount: 6000,
+        },
+      },
+    },
+    PaymentConfirmWithOrderDetails: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "USD",
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+        order_details: [
+          {
+            product_type: "physical",
+            product_name: "Test Product",
+            quantity: 1,
+            amount: 6000,
+          },
+        ],
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+          payment_method: "card",
+          attempt_count: 1,
+          payment_method_data: payment_method_data_no3ds,
+          amount: 6000,
+        },
+      },
+    },
+    PaymentIntentWithInvalidOrderDetails: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+      Request: {
+        currency: "USD",
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+        order_details: [
+          {
+            product_type: "physical",
+            product_name: "Test Product",
+          },
+        ],
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_confirmation",
+        },
+      },
+    },
+    PaymentIntentWithSpecialCharsOrderDetails: {
+      Request: {
+        currency: "USD",
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+        amount: 9999900,
+        order_details: [
+          {
+            product_type: "physical",
+            product_name: "Product with Special Chars: Ñoño & Cía®™",
+            quantity: 2,
+            amount: 9999900,
+          },
+        ],
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+          setup_future_usage: "on_session",
+          amount: 9999900,
+        },
+      },
+    },
+    PaymentIntentWithOrderDetailsAndShipping: {
+      Request: {
+        currency: "USD",
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+        amount: 9999900,
+        order_details: [
+          {
+            product_type: "physical",
+            product_name: "Shipped Product",
+            quantity: 1,
+            amount: 9999900,
+          },
+        ],
+        shipping: {
+          address: {
+            line1: "123 Test Street",
+            line2: "Suite 100",
+            city: "San Francisco",
+            state: "CA",
+            zip: "94102",
+            country: "US",
+          },
+          phone: {
+            number: "1234567890",
+            country_code: "1",
+          },
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+          setup_future_usage: "on_session",
+          amount: 9999900,
+        },
+      },
+    },
+    No3DSAutoCaptureWithOrderDetails: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "USD",
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+        order_details: [
+          {
+            product_type: "physical",
+            product_name: "Test Product",
+            quantity: 1,
+            amount: 6000,
+          },
+        ],
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+          payment_method: "card",
+          attempt_count: 1,
+          payment_method_data: payment_method_data_no3ds,
+          amount: 6000,
+        },
+      },
+    },
+    No3DSAutoCaptureWithLargeAmount: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "USD",
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+        amount: 9999900,
+        order_details: [
+          {
+            product_type: "physical",
+            product_name: "Premium Package",
+            quantity: 1,
+            amount: 9999900,
+          },
+        ],
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+          payment_method: "card",
+          attempt_count: 1,
+          payment_method_data: payment_method_data_no3ds,
+          amount: 9999900,
+          amount_received: 9999900,
+        },
+      },
+    },
   },
   bank_redirect_pm: {
     Trustly: {
@@ -906,6 +1102,162 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "requires_customer_action",
+        },
+      },
+    },
+    OrderCreate: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "USD",
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+          payment_method: "card",
+          attempt_count: 1,
+          payment_method_data: payment_method_data_no3ds,
+        },
+      },
+    },
+    PaymentIntentWithOrderDetails: {
+      Request: {
+        currency: "USD",
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+        order_details: [
+          {
+            product_type: "physical",
+            product_name: "Test Product",
+            quantity: 1,
+            amount: 6000,
+          },
+        ],
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+          setup_future_usage: "on_session",
+          amount: 6000,
+        },
+      },
+    },
+    PaymentConfirmWithOrderDetails: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "USD",
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+        order_details: [
+          {
+            product_type: "physical",
+            product_name: "Test Product",
+            quantity: 1,
+            amount: 6000,
+          },
+        ],
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+          payment_method: "card",
+          attempt_count: 1,
+          payment_method_data: payment_method_data_no3ds,
+          amount: 6000,
+        },
+      },
+    },
+    PaymentIntentWithInvalidOrderDetails: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+      Request: {
+        currency: "USD",
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+        order_details: [
+          {
+            product_type: "physical",
+            product_name: "Test Product",
+          },
+        ],
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_confirmation",
+        },
+      },
+    },
+    PaymentIntentWithSpecialCharsOrderDetails: {
+      Request: {
+        currency: "USD",
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+        amount: 9999900,
+        order_details: [
+          {
+            product_type: "physical",
+            product_name: "Product with Special Chars: Ñoño & Cía®™",
+            quantity: 2,
+            amount: 9999900,
+          },
+        ],
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+          setup_future_usage: "on_session",
+          amount: 9999900,
+        },
+      },
+    },
+    PaymentIntentWithOrderDetailsAndShipping: {
+      Request: {
+        currency: "USD",
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+        amount: 9999900,
+        order_details: [
+          {
+            product_type: "physical",
+            product_name: "Shipped Product",
+            quantity: 1,
+            amount: 9999900,
+          },
+        ],
+        shipping: {
+          address: {
+            line1: "123 Test Street",
+            line2: "Suite 100",
+            city: "San Francisco",
+            state: "CA",
+            zip: "94102",
+            country: "US",
+          },
+          phone: {
+            number: "1234567890",
+            country_code: "1",
+          },
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+          setup_future_usage: "on_session",
+          amount: 9999900,
         },
       },
     },

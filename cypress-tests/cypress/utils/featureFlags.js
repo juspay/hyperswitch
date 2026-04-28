@@ -197,5 +197,6 @@ export function execConfig(configs) {
   return {
     profilePrefix: profileId,
     merchantConnectorPrefix: connectorId,
+    triggerSkip: configs?.TRIGGER_SKIP === true,
   };
 }
