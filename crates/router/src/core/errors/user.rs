@@ -118,6 +118,18 @@ pub enum UserErrors {
     InvalidEmbeddedOperation(String),
     #[error("Invalid Platform Operation")]
     InvalidPlatformOperation,
+    #[error("MaxDashboardsReached")]
+    MaxDashboardsReached,
+    #[error("DashboardNameAlreadyExists")]
+    DashboardNameAlreadyExists,
+    #[error("DashboardNotFound")]
+    DashboardNotFound,
+    #[error("InvalidDashboardName")]
+    InvalidDashboardName,
+    #[error("MaxWidgetsReached")]
+    MaxWidgetsReached,
+    #[error("WidgetNotFound")]
+    WidgetNotFound,
 }
 
 impl common_utils::errors::ErrorSwitch<api_models::errors::types::ApiErrorResponse> for UserErrors {
@@ -308,6 +320,24 @@ impl common_utils::errors::ErrorSwitch<api_models::errors::types::ApiErrorRespon
             Self::InvalidPlatformOperation => {
                 AER::BadRequest(ApiError::new(sub_code, 61, self.get_error_message(), None))
             }
+            Self::MaxDashboardsReached => {
+                AER::BadRequest(ApiError::new(sub_code, 62, self.get_error_message(), None))
+            }
+            Self::DashboardNameAlreadyExists => {
+                AER::BadRequest(ApiError::new(sub_code, 63, self.get_error_message(), None))
+            }
+            Self::DashboardNotFound => {
+                AER::NotFound(ApiError::new(sub_code, 64, self.get_error_message(), None))
+            }
+            Self::InvalidDashboardName => {
+                AER::BadRequest(ApiError::new(sub_code, 65, self.get_error_message(), None))
+            }
+            Self::MaxWidgetsReached => {
+                AER::BadRequest(ApiError::new(sub_code, 66, self.get_error_message(), None))
+            }
+            Self::WidgetNotFound => {
+                AER::NotFound(ApiError::new(sub_code, 67, self.get_error_message(), None))
+            }
         }
     }
 }
@@ -388,6 +418,20 @@ impl UserErrors {
                 format!("Invalid Embedded Operation: {error_message}")
             }
             Self::InvalidPlatformOperation => "Invalid Platform Operation".to_string(),
+            Self::MaxDashboardsReached => {
+                "Maximum number of dashboards reached (limit: 10)".to_string()
+            }
+            Self::DashboardNameAlreadyExists => {
+                "A dashboard with this name already exists".to_string()
+            }
+            Self::DashboardNotFound => "Dashboard not found".to_string(),
+            Self::InvalidDashboardName => {
+                "The dashboard name cannot be empty or contain only whitespace".to_string()
+            }
+            Self::MaxWidgetsReached => {
+                "Maximum number of widgets per dashboard reached (limit: 20)".to_string()
+            }
+            Self::WidgetNotFound => "Widget not found in this dashboard".to_string(),
         }
     }
 }

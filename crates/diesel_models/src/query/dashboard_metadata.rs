@@ -82,6 +82,29 @@ impl DashboardMetadata {
         .await
     }
 
+    pub async fn find_org_scoped_dashboard_metadata(
+        conn: &PgPooledConn,
+        user_id: String,
+        org_id: id_type::OrganizationId,
+        entity_type: String,
+        data_types: Vec<enums::DashboardMetadata>,
+    ) -> StorageResult<Vec<Self>> {
+        let predicate = dsl::user_id
+            .eq(user_id)
+            .and(dsl::org_id.eq(org_id))
+            .and(dsl::entity_type.eq(entity_type))
+            .and(dsl::data_key.eq_any(data_types));
+
+        generics::generic_filter::<<Self as HasTable>::Table, _, _, _>(
+            conn,
+            predicate,
+            None,
+            None,
+            Some(dsl::last_modified_at.asc()),
+        )
+        .await
+    }
+
     pub async fn find_merchant_scoped_dashboard_metadata(
         conn: &PgPooledConn,
         merchant_id: id_type::MerchantId,

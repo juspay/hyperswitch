@@ -1,5 +1,4 @@
 use api_models::user::dashboard_metadata::{self as api, GetMultipleMetaDataPayload};
-#[cfg(feature = "email")]
 use common_enums::EntityType;
 use diesel_models::{
     enums::DashboardMetadata as DBEnum, user::dashboard_metadata::DashboardMetadata,
@@ -119,6 +118,9 @@ fn parse_set_request(data_enum: api::SetMetaDataRequest) -> UserResult<types::Me
             Ok(types::MetaData::OnboardingSurvey(req))
         }
         api::SetMetaDataRequest::ReconStatus(req) => Ok(types::MetaData::ReconStatus(req)),
+        api::SetMetaDataRequest::CustomDashboards(operation) => {
+            Ok(types::MetaData::CustomDashboards(operation))
+        }
     }
 }
 
@@ -148,6 +150,7 @@ fn parse_get_request(data_enum: api::GetMetaDataRequest) -> DBEnum {
         api::GetMetaDataRequest::IsChangePasswordRequired => DBEnum::IsChangePasswordRequired,
         api::GetMetaDataRequest::OnboardingSurvey => DBEnum::OnboardingSurvey,
         api::GetMetaDataRequest::ReconStatus => DBEnum::ReconStatus,
+        api::GetMetaDataRequest::CustomDashboards => DBEnum::CustomDashboards,
     }
 }
 
@@ -234,6 +237,33 @@ fn into_response(
         DBEnum::ReconStatus => {
             let resp = utils::deserialize_to_response(data)?;
             Ok(api::GetMetaDataResponse::ReconStatus(resp))
+        }
+        DBEnum::CustomDashboards => {
+            let resp: Option<types::CustomDashboardsValue> =
+                utils::deserialize_to_response(data)?;
+            Ok(api::GetMetaDataResponse::CustomDashboards(resp.map(|d| {
+                d.dashboards
+                    .into_iter()
+                    .map(|db| api::Dashboard {
+                        dashboard_name: db.dashboard_name,
+                        description: db.description,
+                        is_default: db.is_default,
+                        widgets: db
+                            .widgets
+                            .into_iter()
+                            .map(|w| api::Widget {
+                                widget_id: w.widget_id,
+                                widget_name: w.widget_name,
+                                chart_type: w.chart_type,
+                                position: w.position,
+                                config: w.config,
+                            })
+                            .collect(),
+                        created_at: db.created_at,
+                        updated_at: db.updated_at,
+                    })
+                    .collect()
+            })))
         }
     }
 }
@@ -655,6 +685,20 @@ async fn insert_metadata(
             }
             metadata
         }
+        types::MetaData::CustomDashboards(operation) => {
+            let entity_type =
+                utils::get_entity_type_for_dashboard(state, &user).await?;
+            utils::handle_dashboard_operations(
+                state,
+                user.user_id,
+                user.merchant_id,
+                user.org_id,
+                metadata_key,
+                operation,
+                entity_type,
+            )
+            .await
+        }
     }
 }
 
@@ -679,15 +723,89 @@ async fn fetch_metadata(
     }
 
     if !user_scoped_enums.is_empty() {
-        let mut res = utils::get_user_scoped_metadata_from_db(
-            state,
-            user.user_id.to_owned(),
-            user.merchant_id.to_owned(),
-            user.org_id.to_owned(),
-            user_scoped_enums,
-        )
-        .await?;
-        dashboard_metadata.append(&mut res);
+        // Check if any user-scoped key needs org-level resolution (CustomDashboards)
+        let has_dashboard_key = user_scoped_enums.contains(&DBEnum::CustomDashboards);
+
+        if has_dashboard_key {
+            let entity_type =
+                utils::get_entity_type_for_dashboard(state, user).await?;
+
+            let (dashboard_keys, other_keys): (Vec<_>, Vec<_>) = user_scoped_enums
+                .into_iter()
+                .partition(|k| *k == DBEnum::CustomDashboards);
+
+            // Fetch dashboard metadata with proper scope
+            if !dashboard_keys.is_empty() {
+                let entity_type_str = match entity_type {
+                    EntityType::Organization | EntityType::Tenant => "org",
+                    EntityType::Merchant => "merchant",
+                    EntityType::Profile => "profile",
+                };
+
+                let mut res = match entity_type {
+                    EntityType::Organization | EntityType::Tenant => {
+                        match state
+                            .store
+                            .find_org_scoped_dashboard_metadata(
+                                &user.user_id,
+                                &user.org_id,
+                                entity_type_str,
+                                dashboard_keys,
+                            )
+                            .await
+                        {
+                            Ok(data) => data,
+                            Err(e) => {
+                                if e.current_context().is_db_not_found() {
+                                    vec![]
+                                } else {
+                                    return Err(e
+                                        .change_context(UserErrors::InternalServerError)
+                                        .attach_printable(
+                                            "Error fetching org-scoped dashboard metadata",
+                                        ));
+                                }
+                            }
+                        }
+                    }
+                    _ => {
+                        utils::get_user_scoped_metadata_from_db(
+                            state,
+                            user.user_id.to_owned(),
+                            user.merchant_id.to_owned(),
+                            user.org_id.to_owned(),
+                            dashboard_keys,
+                        )
+                        .await?
+                    }
+                };
+                dashboard_metadata.append(&mut res);
+            }
+
+            // Fetch remaining user-scoped keys normally
+            if !other_keys.is_empty() {
+                let mut res = utils::get_user_scoped_metadata_from_db(
+                    state,
+                    user.user_id.to_owned(),
+                    user.merchant_id.to_owned(),
+                    user.org_id.to_owned(),
+                    other_keys,
+                )
+                .await?;
+                dashboard_metadata.append(&mut res);
+            }
+        } else {
+            // No dashboard keys — use standard user-scoped fetch
+            let mut res = utils::get_user_scoped_metadata_from_db(
+                state,
+                user.user_id.to_owned(),
+                user.merchant_id.to_owned(),
+                user.org_id.to_owned(),
+                user_scoped_enums,
+            )
+            .await?;
+            dashboard_metadata.append(&mut res);
+        }
     }
 
     Ok(dashboard_metadata)

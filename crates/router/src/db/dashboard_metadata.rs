@@ -34,6 +34,14 @@ pub trait DashboardMetadataInterface {
         data_keys: Vec<enums::DashboardMetadata>,
     ) -> CustomResult<Vec<storage::DashboardMetadata>, errors::StorageError>;
 
+    async fn find_org_scoped_dashboard_metadata(
+        &self,
+        user_id: &str,
+        org_id: &id_type::OrganizationId,
+        entity_type: &str,
+        data_keys: Vec<enums::DashboardMetadata>,
+    ) -> CustomResult<Vec<storage::DashboardMetadata>, errors::StorageError>;
+
     async fn find_merchant_scoped_dashboard_metadata(
         &self,
         merchant_id: &id_type::MerchantId,
@@ -110,6 +118,26 @@ impl DashboardMetadataInterface for Store {
             user_id.to_owned(),
             merchant_id.to_owned(),
             org_id.to_owned(),
+            data_keys,
+        )
+        .await
+        .map_err(|error| report!(errors::StorageError::from(error)))
+    }
+
+    #[instrument(skip_all)]
+    async fn find_org_scoped_dashboard_metadata(
+        &self,
+        user_id: &str,
+        org_id: &id_type::OrganizationId,
+        entity_type: &str,
+        data_keys: Vec<enums::DashboardMetadata>,
+    ) -> CustomResult<Vec<storage::DashboardMetadata>, errors::StorageError> {
+        let conn = connection::pg_accounts_connection_read(self).await?;
+        storage::DashboardMetadata::find_org_scoped_dashboard_metadata(
+            &conn,
+            user_id.to_owned(),
+            org_id.to_owned(),
+            entity_type.to_owned(),
             data_keys,
         )
         .await
@@ -210,6 +238,8 @@ impl DashboardMetadataInterface for MockDb {
             created_at: metadata.created_at,
             last_modified_by: metadata.last_modified_by,
             last_modified_at: metadata.last_modified_at,
+            profile_id: metadata.profile_id,
+            entity_type: metadata.entity_type,
         };
         dashboard_metadata.push(metadata_new.clone());
         Ok(metadata_new)
@@ -283,6 +313,39 @@ impl DashboardMetadataInterface for MockDb {
         Ok(query_result)
     }
 
+    async fn find_org_scoped_dashboard_metadata(
+        &self,
+        user_id: &str,
+        org_id: &id_type::OrganizationId,
+        entity_type: &str,
+        data_keys: Vec<enums::DashboardMetadata>,
+    ) -> CustomResult<Vec<storage::DashboardMetadata>, errors::StorageError> {
+        let dashboard_metadata = self.dashboard_metadata.lock().await;
+        let query_result = dashboard_metadata
+            .iter()
+            .filter(|metadata_inner| {
+                metadata_inner
+                    .user_id
+                    .clone()
+                    .map(|user_id_inner| user_id_inner == user_id)
+                    .unwrap_or(false)
+                    && metadata_inner.org_id == *org_id
+                    && metadata_inner.entity_type.as_deref() == Some(entity_type)
+                    && data_keys.contains(&metadata_inner.data_key)
+            })
+            .cloned()
+            .collect::<Vec<storage::DashboardMetadata>>();
+
+        if query_result.is_empty() {
+            return Err(errors::StorageError::ValueNotFound(format!(
+                "No dashboard_metadata available for user_id = {user_id},\
+                org_id = {org_id:?}, entity_type = {entity_type:?} and data_keys = {data_keys:?}",
+            ))
+            .into());
+        }
+        Ok(query_result)
+    }
+
     async fn find_merchant_scoped_dashboard_metadata(
         &self,
         merchant_id: &id_type::MerchantId,
@@ -309,6 +372,7 @@ impl DashboardMetadataInterface for MockDb {
         }
         Ok(query_result)
     }
+
     async fn delete_all_user_scoped_dashboard_metadata_by_merchant_id(
         &self,
         user_id: &str,
