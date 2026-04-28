@@ -1,4 +1,3 @@
-import { customerAcceptance } from "./Commons";
 import { getCustomExchange } from "./Modifiers";
 
 // Test card details for successful non-3DS transactions
@@ -7,15 +6,6 @@ const successfulNo3DSCardDetails = {
   card_exp_month: "08",
   card_exp_year: "30",
   card_holder_name: "joseph Doe",
-  card_cvc: "999",
-};
-
-// Test card details for 3DS transactions
-const successfulThreeDSTestCardDetails = {
-  card_number: "4111111111111111",
-  card_exp_month: "10",
-  card_exp_year: "30",
-  card_holder_name: "morino",
   card_cvc: "999",
 };
 
