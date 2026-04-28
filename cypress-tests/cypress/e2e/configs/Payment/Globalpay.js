@@ -1,4 +1,9 @@
-import { cardRequiredField, customerAcceptance } from "./Commons";
+import {
+  cardRequiredField,
+  customerAcceptance,
+  singleUseMandateData,
+  multiUseMandateData,
+} from "./Commons";
 import { getCustomExchange } from "./Modifiers";
 
 // Test card details for successful non-3DS transactions
@@ -23,29 +28,6 @@ const failedNo3DSCardDetails = {
   card_number: "4242420000000091", // Generic decline card
 };
 
-// Single-use mandate data structure
-const singleUseMandateData = {
-  customer_acceptance: customerAcceptance,
-  mandate_type: {
-    single_use: {
-      amount: 8000,
-      currency: "EUR",
-    },
-  },
-};
-
-// Multi-use mandate data structure
-const multiUseMandateData = {
-  customer_acceptance: customerAcceptance,
-  mandate_type: {
-    multi_use: {
-      amount: 8000,
-      currency: "EUR",
-    },
-  },
-};
-
-// Payment method data for non-3DS card transactions
 const payment_method_data_no3ds = {
   card: {
     last4: "1111",
@@ -881,6 +863,109 @@ export const connectorDetails = {
           message:
             "You cannot confirm this payment using `manual_retry` because the allowed duration has expired",
           code: "IR_16",
+        },
+      },
+    },
+  },
+  bank_redirect_pm: {
+    PaymentIntentOffSession: {
+      Request: {
+        currency: "EUR",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+        },
+      },
+    },
+    ConfirmCIT: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+      Request: {
+        payment_method: "bank_redirect",
+        payment_method_type: "ideal",
+        payment_method_data: {
+          bank_redirect: {
+            ideal: {
+              bank_name: "ing",
+            },
+          },
+        },
+        billing: billingAddressEurope,
+        mandate_data: singleUseMandateData,
+        setup_future_usage: "off_session",
+        currency: "EUR",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+    },
+    ConfirmMIT: {
+      Request: {
+        payment_method: "bank_redirect",
+        payment_method_type: "ideal",
+        currency: "EUR",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+    },
+    ConfirmCITManual: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+      Request: {
+        payment_method: "bank_redirect",
+        payment_method_type: "ideal",
+        payment_method_data: {
+          bank_redirect: {
+            ideal: {
+              bank_name: "ing",
+            },
+          },
+        },
+        billing: billingAddressEurope,
+        mandate_data: singleUseMandateData,
+        setup_future_usage: "off_session",
+        capture_method: "manual",
+        currency: "EUR",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+    },
+    ConfirmMITManual: {
+      Request: {
+        payment_method: "bank_redirect",
+        payment_method_type: "ideal",
+        currency: "EUR",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+    },
+    Capture: {
+      Request: {
+        amount_to_capture: 10000,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
         },
       },
     },

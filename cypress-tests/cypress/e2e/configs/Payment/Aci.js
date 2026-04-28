@@ -714,6 +714,102 @@ export const connectorDetails = {
         },
       },
     },
+    PaymentIntentOffSession: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+      Request: {
+        currency: "EUR",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+        },
+      },
+    },
+    ConfirmCIT: {
+      Request: {
+        payment_method: "bank_redirect",
+        payment_method_type: "ideal",
+        payment_method_data: {
+          bank_redirect: {
+            ideal: {
+              bank_name: "ing",
+            },
+          },
+        },
+        billing: billingAddress,
+        setup_future_usage: "off_session",
+        currency: "EUR",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+    },
+    ConfirmMIT: {
+      Request: {
+        payment_method: "bank_redirect",
+        payment_method_type: "ideal",
+        currency: "EUR",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+    },
+    ConfirmCITManual: {
+      Request: {
+        payment_method: "bank_redirect",
+        payment_method_type: "ideal",
+        payment_method_data: {
+          bank_redirect: {
+            ideal: {
+              bank_name: "ing",
+            },
+          },
+        },
+        billing: billingAddress,
+        setup_future_usage: "off_session",
+        capture_method: "manual",
+        currency: "EUR",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+    },
+    ConfirmMITManual: {
+      Request: {
+        payment_method: "bank_redirect",
+        payment_method_type: "ideal",
+        currency: "EUR",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+    },
+    Capture: {
+      Request: {
+        amount_to_capture: 10000,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    },
     Przelewy24: {
       Request: {
         payment_method: "bank_redirect",

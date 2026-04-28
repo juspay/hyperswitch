@@ -1,4 +1,8 @@
-import { customerAcceptance, multiUseMandateData } from "./Commons";
+import {
+  customerAcceptance,
+  multiUseMandateData,
+  singleUseMandateData,
+} from "./Commons";
 import { getCurrency, getCustomExchange } from "./Modifiers";
 
 const successfulNo3DSCardDetails = {
@@ -23,16 +27,6 @@ const failedNo3DSCardDetails = {
   card_exp_year: "35",
   card_holder_name: "joseph Doe",
   card_cvc: "123",
-};
-
-const singleUseMandateData = {
-  customer_acceptance: customerAcceptance,
-  mandate_type: {
-    single_use: {
-      amount: 8000,
-      currency: "USD",
-    },
-  },
 };
 
 export const connectorDetails = {
@@ -1060,6 +1054,139 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "processing",
+        },
+      },
+    },
+    PaymentIntentOffSession: {
+      Request: {
+        currency: "EUR",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+        },
+      },
+    },
+    ConfirmCIT: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+      Request: {
+        payment_method: "bank_redirect",
+        payment_method_type: "ideal",
+        payment_method_data: {
+          bank_redirect: {
+            ideal: {
+              bank_name: "ing",
+            },
+          },
+        },
+        billing: {
+          address: {
+            line1: "1467",
+            line2: "Harrison Street",
+            line3: "Harrison Street",
+            city: "San Fransico",
+            state: "California",
+            zip: "94122",
+            country: "NL",
+            first_name: "joseph",
+            last_name: "Doe",
+          },
+          phone: {
+            number: "9123456789",
+            country_code: "+31",
+          },
+        },
+        mandate_data: singleUseMandateData,
+        setup_future_usage: "off_session",
+        currency: "EUR",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+    },
+    ConfirmMIT: {
+      Request: {
+        payment_method: "bank_redirect",
+        payment_method_type: "ideal",
+        currency: "EUR",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+    },
+    ConfirmCITManual: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+      Request: {
+        payment_method: "bank_redirect",
+        payment_method_type: "ideal",
+        payment_method_data: {
+          bank_redirect: {
+            ideal: {
+              bank_name: "ing",
+            },
+          },
+        },
+        billing: {
+          address: {
+            line1: "1467",
+            line2: "Harrison Street",
+            line3: "Harrison Street",
+            city: "San Fransico",
+            state: "California",
+            zip: "94122",
+            country: "NL",
+            first_name: "joseph",
+            last_name: "Doe",
+          },
+          phone: {
+            number: "9123456789",
+            country_code: "+31",
+          },
+        },
+        mandate_data: singleUseMandateData,
+        setup_future_usage: "off_session",
+        capture_method: "manual",
+        currency: "EUR",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+    },
+    ConfirmMITManual: {
+      Request: {
+        payment_method: "bank_redirect",
+        payment_method_type: "ideal",
+        currency: "EUR",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+    },
+    Capture: {
+      Request: {
+        amount_to_capture: 10000,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
         },
       },
     },

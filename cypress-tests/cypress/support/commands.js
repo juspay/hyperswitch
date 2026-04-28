@@ -3668,7 +3668,11 @@ Cypress.Commands.add(
           }
 
           if (response.body.capture_method === "automatic") {
-            expect(response.body).to.have.property("mandate_id");
+            // Only expect mandate_id if mandate_data was provided (not null)
+            // For bank_redirect flows like iDEAL, mandate_data is null and payment_method_id is returned
+            if (requestBody.mandate_data !== null) {
+              expect(response.body).to.have.property("mandate_id");
+            }
             if (response.body.authentication_type === "three_ds") {
               let nextActionUrl = null;
               if (response.body.next_action.type === "invoke_ddc") {
@@ -3697,13 +3701,21 @@ Cypress.Commands.add(
                 );
               }
             } else if (response.body.authentication_type === "no_three_ds") {
+              if (
+                response.body.next_action &&
+                response.body.next_action.redirect_to_url
+              ) {
+                globalState.set(
+                  "nextActionUrl",
+                  response.body.next_action.redirect_to_url
+                );
+              }
               for (const key in resData.body) {
                 expect(resData.body[key], [key]).to.deep.equal(
                   response.body[key]
                 );
                 if (
                   response.body.setup_future_usage === "off_session" &&
-                  //Added this check to ensure mandate_id is null so that will get connector_mandate_id
                   response.body.mandate_id === null &&
                   response.body.status === "succeeded"
                 ) {
@@ -3747,6 +3759,15 @@ Cypress.Commands.add(
                 );
               }
             } else if (response.body.authentication_type === "no_three_ds") {
+              if (
+                response.body.next_action &&
+                response.body.next_action.redirect_to_url
+              ) {
+                globalState.set(
+                  "nextActionUrl",
+                  response.body.next_action.redirect_to_url
+                );
+              }
               for (const key in resData.body) {
                 expect(resData.body[key], [key]).to.deep.equal(
                   response.body[key]
