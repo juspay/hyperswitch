@@ -6791,11 +6791,11 @@ impl transformers::ForeignTryFrom<&api_models::payouts::PayoutMethodData>
                         payments_grpc::SepaBankTransferPayout::foreign_try_from(sepa)?,
                     )
                 }
-                api_models::payouts::Bank::Pix(_) => Err(error_stack::Report::new(
-                    UnifiedConnectorServiceError::RequestEncodingFailedWithReason(
-                        "Pix bank transfer not supported for Unified Connector Service".to_string(),
-                    ),
-                ))?,
+                api_models::payouts::Bank::Pix(pix) => {
+                    payments_grpc::payout_method::PayoutMethodData::Pix(
+                        payments_grpc::PixBankTransferPayout::foreign_try_from(pix)?,
+                    )
+                }
                 api_models::payouts::Bank::Trustly(_) => Err(error_stack::Report::new(
                     UnifiedConnectorServiceError::RequestEncodingFailedWithReason(
                         "Trustly bank transfer not supported for Unified Connector Service"
