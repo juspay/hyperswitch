@@ -2663,20 +2663,19 @@ export const connectorDetails = {
         billing: {
           address: {
             line1: "123 Test St",
-            city: "San Francisco",
-            state: "California",
-            zip: "94122",
-            country: "US",
+            city: "Manama",
+            zip: "317",
+            country: "BH",
             first_name: "Test",
             last_name: "Customer",
           },
           phone: {
             number: "1234567890",
-            country_code: "+1",
+            country_code: "+973",
           },
           email: "test@example.com",
         },
-        currency: "USD",
+        currency: "BHD",
       },
     }),
     Knet: getCustomExchange({
@@ -2715,6 +2714,22 @@ export const connectorDetails = {
             momo_atm: {},
           },
         },
+        billing: {
+          address: {
+            line1: "123 Test St",
+            city: "Ho Chi Minh City",
+            zip: "700000",
+            country: "VN",
+            first_name: "Test",
+            last_name: "Customer",
+          },
+          phone: {
+            number: "1234567890",
+            country_code: "+84",
+          },
+          email: "test@example.com",
+        },
+        currency: "VND",
       },
     }),
   },

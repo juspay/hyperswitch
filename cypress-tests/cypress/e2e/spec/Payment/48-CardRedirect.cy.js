@@ -16,169 +16,215 @@ describe("Card Redirect tests", () => {
   });
 
   context("Benefit Create and Confirm flow test", () => {
-    it("Create Payment Intent -> List Merchant Payment Methods -> Confirm Payment -> Retrieve Payment", () => {
-      let shouldContinue = true;
+    let shouldContinue = true;
 
-      cy.step("Create Payment Intent", () => {
-        const data = getConnectorDetails(globalState.get("connectorId"))[
-          "card_redirect_pm"
-        ]["PaymentIntent"]("Benefit");
-        cy.createPaymentIntentTest(
-          fixtures.createPaymentBody,
-          data,
-          "three_ds",
-          "automatic",
-          globalState
-        );
-        if (!utils.should_continue_further(data)) {
-          shouldContinue = false;
-        }
+    before("seed global state", () => {
+      cy.task("getGlobalState").then((state) => {
+        globalState = new State(state);
       });
+    });
 
-      cy.step("List Merchant Payment Methods", () => {
-        if (!shouldContinue) {
-          cy.task("cli_log", "Skipping step: List Merchant Payment Methods");
-          return;
-        }
-        cy.paymentMethodsCallTest(globalState);
-      });
+    beforeEach(function () {
+      if (!shouldContinue) {
+        this.skip();
+      }
+    });
 
-      cy.step("Confirm Payment", () => {
-        if (!shouldContinue) {
-          cy.task("cli_log", "Skipping step: Confirm Payment");
-          return;
-        }
-        const confirmData = getConnectorDetails(globalState.get("connectorId"))[
-          "card_redirect_pm"
-        ]["Benefit"];
-        cy.confirmBankRedirectCallTest(
-          fixtures.confirmBody,
-          confirmData,
-          true,
-          globalState
-        );
-        if (!utils.should_continue_further(confirmData)) {
-          shouldContinue = false;
-        }
-      });
+    it("create-payment-call-test", () => {
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "card_redirect_pm"
+      ]["PaymentIntent"]("Benefit");
+      cy.createPaymentIntentTest(
+        fixtures.createPaymentBody,
+        data,
+        "three_ds",
+        "automatic",
+        globalState
+      );
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
+    });
 
-      cy.step("Retrieve Payment", () => {
-        if (!shouldContinue) {
-          cy.task("cli_log", "Skipping step: Retrieve Payment");
-          return;
-        }
-        const retrieveData = getConnectorDetails(
-          globalState.get("connectorId")
-        )["card_redirect_pm"]["Benefit"];
-        cy.retrievePaymentCallTest({ globalState, data: retrieveData });
-      });
+    it("payment_methods-call-test", () => {
+      cy.paymentMethodsCallTest(globalState);
+    });
+
+    it("confirm-card-redirect-call-test", () => {
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "card_redirect_pm"
+      ]["Benefit"];
+      cy.confirmBankRedirectCallTest(
+        fixtures.confirmBody,
+        data,
+        true,
+        globalState
+      );
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
+    });
+
+    it("handle-card-redirect-redirection", () => {
+      const expected_redirection = fixtures.confirmBody["return_url"];
+      const payment_method_type = globalState.get("paymentMethodType");
+      const nextActionUrl = globalState.get("nextActionUrl");
+
+      expect(
+        nextActionUrl,
+        "nextActionUrl should be defined before handling card redirect redirection"
+      ).to.be.a("string");
+
+      cy.handleBankRedirectRedirection(
+        globalState,
+        payment_method_type,
+        expected_redirection
+      );
+    });
+
+    it("retrieve-payment-call-test", () => {
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "card_redirect_pm"
+      ]["Benefit"];
+      cy.retrievePaymentCallTest({ globalState, data });
     });
   });
 
   context("Knet Create and Confirm flow test", () => {
-    it("Create Payment Intent -> List Merchant Payment Methods -> Confirm Payment -> Retrieve Payment", () => {
-      let shouldContinue = true;
+    let shouldContinue = true;
 
-      cy.step("Create Payment Intent", () => {
-        const data = getConnectorDetails(globalState.get("connectorId"))[
-          "card_redirect_pm"
-        ]["PaymentIntent"]("Knet");
-        cy.createPaymentIntentTest(
-          fixtures.createPaymentBody,
-          data,
-          "three_ds",
-          "automatic",
-          globalState
-        );
-        if (!utils.should_continue_further(data)) {
-          shouldContinue = false;
-        }
+    before("seed global state", () => {
+      cy.task("getGlobalState").then((state) => {
+        globalState = new State(state);
       });
+    });
 
-      cy.step("List Merchant Payment Methods", () => {
-        if (!shouldContinue) {
-          cy.task("cli_log", "Skipping step: List Merchant Payment Methods");
-          return;
-        }
-        cy.paymentMethodsCallTest(globalState);
-      });
+    beforeEach(function () {
+      if (!shouldContinue) {
+        this.skip();
+      }
+    });
 
-      cy.step("Confirm Payment", () => {
-        if (!shouldContinue) {
-          cy.task("cli_log", "Skipping step: Confirm Payment");
-          return;
-        }
-        const confirmData = getConnectorDetails(globalState.get("connectorId"))[
-          "card_redirect_pm"
-        ]["Knet"];
-        cy.confirmBankRedirectCallTest(
-          fixtures.confirmBody,
-          confirmData,
-          true,
-          globalState
-        );
-        if (!utils.should_continue_further(confirmData)) {
-          shouldContinue = false;
-        }
-      });
+    it("create-payment-call-test", () => {
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "card_redirect_pm"
+      ]["PaymentIntent"]("Knet");
+      cy.createPaymentIntentTest(
+        fixtures.createPaymentBody,
+        data,
+        "three_ds",
+        "automatic",
+        globalState
+      );
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
+    });
 
-      cy.step("Retrieve Payment", () => {
-        if (!shouldContinue) {
-          cy.task("cli_log", "Skipping step: Retrieve Payment");
-          return;
-        }
-        const retrieveData = getConnectorDetails(
-          globalState.get("connectorId")
-        )["card_redirect_pm"]["Knet"];
-        cy.retrievePaymentCallTest({ globalState, data: retrieveData });
-      });
+    it("payment_methods-call-test", () => {
+      cy.paymentMethodsCallTest(globalState);
+    });
+
+    it("confirm-card-redirect-call-test", () => {
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "card_redirect_pm"
+      ]["Knet"];
+      cy.confirmBankRedirectCallTest(
+        fixtures.confirmBody,
+        data,
+        true,
+        globalState
+      );
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
+    });
+
+    it("handle-card-redirect-redirection", () => {
+      const expected_redirection = fixtures.confirmBody["return_url"];
+      const payment_method_type = globalState.get("paymentMethodType");
+      const nextActionUrl = globalState.get("nextActionUrl");
+
+      expect(
+        nextActionUrl,
+        "nextActionUrl should be defined before handling card redirect redirection"
+      ).to.be.a("string");
+
+      cy.handleBankRedirectRedirection(
+        globalState,
+        payment_method_type,
+        expected_redirection
+      );
+    });
+
+    it("retrieve-payment-call-test", () => {
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "card_redirect_pm"
+      ]["Knet"];
+      cy.retrievePaymentCallTest({ globalState, data });
     });
   });
 
   context("MomoAtm Create and Confirm flow test", () => {
-    it("Create Payment Intent -> List Merchant Payment Methods -> Confirm Payment (expects IR_39 error)", () => {
-      let shouldContinue = true;
+    let shouldContinue = true;
 
-      cy.step("Create Payment Intent", () => {
-        const data = getConnectorDetails(globalState.get("connectorId"))[
-          "card_redirect_pm"
-        ]["PaymentIntent"]("MomoAtm");
-        cy.createPaymentIntentTest(
-          fixtures.createPaymentBody,
-          data,
-          "three_ds",
-          "automatic",
-          globalState
-        );
-        if (!utils.should_continue_further(data)) {
-          shouldContinue = false;
-        }
+    before("seed global state", () => {
+      cy.task("getGlobalState").then((state) => {
+        globalState = new State(state);
       });
+    });
 
-      cy.step("List Merchant Payment Methods", () => {
-        if (!shouldContinue) {
-          cy.task("cli_log", "Skipping step: List Merchant Payment Methods");
-          return;
-        }
-        cy.paymentMethodsCallTest(globalState);
-      });
+    beforeEach(function () {
+      if (!shouldContinue) {
+        this.skip();
+      }
+    });
 
-      cy.step("Confirm Payment", () => {
-        if (!shouldContinue) {
-          cy.task("cli_log", "Skipping step: Confirm Payment");
-          return;
-        }
-        const confirmData = getConnectorDetails(globalState.get("connectorId"))[
-          "card_redirect_pm"
-        ]["MomoAtm"];
-        cy.confirmBankRedirectCallTest(
-          fixtures.confirmBody,
-          confirmData,
-          true,
-          globalState
-        );
-        // MomoAtm returns IR_39 error, so no further steps needed
-      });
+    it("create-payment-call-test", () => {
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "card_redirect_pm"
+      ]["PaymentIntent"]("MomoAtm");
+      cy.createPaymentIntentTest(
+        fixtures.createPaymentBody,
+        data,
+        "three_ds",
+        "automatic",
+        globalState
+      );
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
+    });
+
+    it("payment_methods-call-test", () => {
+      cy.paymentMethodsCallTest(globalState);
+    });
+
+    it("confirm-card-redirect-call-test", () => {
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "card_redirect_pm"
+      ]["MomoAtm"];
+      cy.confirmBankRedirectCallTest(
+        fixtures.confirmBody,
+        data,
+        true,
+        globalState
+      );
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
+    });
+
+    it("handle-card-redirect-redirection", () => {
+      const expected_redirection = fixtures.confirmBody["return_url"];
+      const payment_method_type = globalState.get("paymentMethodType");
+      const nextActionUrl = globalState.get("nextActionUrl");
+
+      expect(
+        nextActionUrl,
+        "nextActionUrl should be defined before handling card redirect redirection"
+      ).to.be.a("string");
+
+      cy.handleBankRedirectRedirection(
+        globalState,
+        payment_method_type,
+        expected_redirection
+      );
+    });
+
+    it("retrieve-payment-call-test", () => {
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "card_redirect_pm"
+      ]["MomoAtm"];
+      cy.retrievePaymentCallTest({ globalState, data });
     });
   });
 });

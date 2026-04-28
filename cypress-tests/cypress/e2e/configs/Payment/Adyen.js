@@ -1174,32 +1174,10 @@ export const connectorDetails = {
   },
 
   card_redirect_pm: {
-    PaymentIntent: (paymentMethodType) => {
-      const currencyMap = {
-        Benefit: "USD",
-        Knet: "KWD",
-        MomoAtm: "USD",
-      };
-      return {
+    PaymentIntent: (paymentMethodType) =>
+      getCustomExchange({
         Request: {
-          currency: currencyMap[paymentMethodType] || "USD",
-          return_url: "https://example.com/payment_return",
-          billing: {
-            first_name: "Test",
-            last_name: "Customer",
-            email: "test@example.com",
-            phone: {
-              number: "1234567890",
-              cc: "+1",
-            },
-            address: {
-              line1: "123 Test St",
-              city: "San Francisco",
-              state: "California",
-              zip: "94122",
-              country: "US",
-            },
-          },
+          currency: getCurrency(paymentMethodType),
         },
         Response: {
           status: 200,
@@ -1207,8 +1185,7 @@ export const connectorDetails = {
             status: "requires_payment_method",
           },
         },
-      };
-    },
+      }),
     Benefit: getCustomExchange({
       Request: {
         payment_method: "card_redirect",
@@ -1221,20 +1198,19 @@ export const connectorDetails = {
         billing: {
           address: {
             line1: "123 Test St",
-            city: "San Francisco",
-            state: "California",
-            zip: "94122",
-            country: "US",
+            city: "Manama",
+            zip: "317",
+            country: "BH",
             first_name: "Test",
             last_name: "Customer",
           },
           phone: {
             number: "1234567890",
-            country_code: "+1",
+            country_code: "+973",
           },
           email: "test@example.com",
         },
-        currency: "USD",
+        currency: "BHD",
       },
       Response: {
         status: 200,
@@ -1288,9 +1264,8 @@ export const connectorDetails = {
         billing: {
           address: {
             line1: "123 Test St",
-            city: "San Francisco",
-            state: "California",
-            zip: "94122",
+            city: "Ho Chi Minh City",
+            zip: "700000",
             country: "VN",
             first_name: "Test",
             last_name: "Customer",

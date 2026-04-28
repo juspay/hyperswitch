@@ -134,9 +134,9 @@ const CURRENCY_MAP = {
   AliPayHk: "HKD", // Hong Kong payment method
 
   // Card redirect payment methods
-  Benefit: "USD",
+  Benefit: "BHD",
   Knet: "KWD",
-  MomoAtm: "USD",
+  MomoAtm: "VND",
 };
 
 export const getCurrency = (paymentMethodType) => {
