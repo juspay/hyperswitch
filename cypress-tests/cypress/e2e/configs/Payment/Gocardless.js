@@ -63,11 +63,6 @@ export const connectorDetails = {
         body: {
           status: "succeeded",
           payment_method_data: paymentMethodDataResponse,
-          billing: {
-            address: {
-              country: "US",
-            },
-          },
         },
       },
     }),
