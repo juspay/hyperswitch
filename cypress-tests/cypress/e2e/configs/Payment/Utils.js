@@ -534,6 +534,8 @@ export const CONNECTOR_LISTS = {
       "worldpay",
       "worldpayvantiv",
     ],
+    TRUSTLY_REFUND: ["trustly"],
+    TRUELAYER_REFUND: ["truelayer"],
     // Add more inclusion lists
   },
 };

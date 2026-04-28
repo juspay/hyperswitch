@@ -536,6 +536,18 @@ describe("Bank Redirect tests", () => {
   });
 
   context("Trustly Full Refund flow test", () => {
+    before(function () {
+      // Skip this context if connector is not in the inclusion list
+      if (
+        utils.shouldIncludeConnector(
+          connector,
+          utils.CONNECTOR_LISTS.INCLUDE.TRUSTLY_REFUND
+        )
+      ) {
+        this.skip();
+      }
+    });
+
     it("Create Payment Intent -> List Merchant Payment Methods -> Confirm Payment -> Handle Bank Redirect Redirection -> Retrieve Payment -> Refund Payment -> Sync Refund", () => {
       let shouldContinue = true;
 
@@ -740,6 +752,18 @@ describe("Bank Redirect tests", () => {
   });
 
   context("TrueLayer OpenBankingUk Full Refund flow test", () => {
+    before(function () {
+      // Skip this context if connector is not in the inclusion list
+      if (
+        utils.shouldIncludeConnector(
+          connector,
+          utils.CONNECTOR_LISTS.INCLUDE.TRUELAYER_REFUND
+        )
+      ) {
+        this.skip();
+      }
+    });
+
     it("Create Payment Intent -> List Merchant Payment Methods -> Confirm Payment -> Handle Bank Redirect Redirection -> Retrieve Payment -> Refund Payment -> Sync Refund", () => {
       let shouldContinue = true;
 
