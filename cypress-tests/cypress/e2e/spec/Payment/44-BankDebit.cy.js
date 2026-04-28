@@ -1,6 +1,10 @@
 import * as fixtures from "../../../fixtures/imports";
 import State from "../../../utils/State";
-import getConnectorDetails, * as utils from "../../configs/Payment/Utils";
+import getConnectorDetails, {
+  CONNECTOR_LISTS,
+  shouldIncludeConnector,
+} from "../../configs/Payment/Utils";
+import * as utils from "../../configs/Payment/Utils";
 
 let globalState;
 
