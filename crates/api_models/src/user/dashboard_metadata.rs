@@ -4,6 +4,9 @@ use common_utils::{id_type, pii};
 use hyperswitch_masking::Secret;
 use strum::EnumString;
 
+#[cfg(feature = "v1")]
+use crate::{enums, payments};
+
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub enum SetMetaDataRequest {
     ProductionAgreement(ProductionAgreementRequest),
@@ -29,6 +32,17 @@ pub enum SetMetaDataRequest {
     IsChangePasswordRequired,
     OnboardingSurvey(OnboardingSurvey),
     ReconStatus(ReconStatus),
+    #[cfg(feature = "v1")]
+    PaymentViews(SavedViewOperation),
+}
+
+#[cfg(feature = "v1")]
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+#[serde(tag = "type", content = "data")]
+pub enum SavedViewOperation {
+    Create(CreateSavedViewRequest),
+    Update(UpdateSavedViewRequest),
+    Delete(DeleteSavedViewRequest),
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
@@ -141,6 +155,8 @@ pub enum GetMetaDataRequest {
     IsChangePasswordRequired,
     OnboardingSurvey,
     ReconStatus,
+    #[cfg(feature = "v1")]
+    PaymentViews,
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
@@ -180,4 +196,84 @@ pub enum GetMetaDataResponse {
     IsChangePasswordRequired(bool),
     OnboardingSurvey(Option<OnboardingSurvey>),
     ReconStatus(Option<ReconStatus>),
+    #[cfg(feature = "v1")]
+    PaymentViews(Option<Vec<SavedViewResponse>>),
+}
+
+// === Saved Views API Types ===
+
+#[cfg(feature = "v1")]
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+#[serde(tag = "entity", content = "filters")]
+#[serde(rename_all = "snake_case")]
+pub enum SavedViewFiltersV1 {
+    PaymentViews(PaymentListFilterConstraintsV1),
+}
+
+#[cfg(feature = "v1")]
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+pub struct PaymentListFilterConstraintsV1 {
+    pub payment_id: Option<id_type::PaymentId>,
+    pub profile_id: Option<id_type::ProfileId>,
+    pub customer_id: Option<id_type::CustomerId>,
+    #[serde(default = "common_utils::consts::default_payments_list_limit")]
+    pub limit: u32,
+    pub offset: Option<u32>,
+    pub amount_filter: Option<payments::AmountFilter>,
+    #[serde(flatten)]
+    pub time_range: Option<common_utils::types::TimeRange>,
+    pub connector: Option<Vec<enums::Connector>>,
+    pub currency: Option<Vec<enums::Currency>>,
+    pub status: Option<Vec<enums::IntentStatus>>,
+    pub payment_method: Option<Vec<enums::PaymentMethod>>,
+    pub payment_method_type: Option<Vec<enums::PaymentMethodType>>,
+    pub authentication_type: Option<Vec<enums::AuthenticationType>>,
+    pub merchant_connector_id: Option<Vec<id_type::MerchantConnectorAccountId>>,
+    #[serde(default)]
+    pub order: payments::Order,
+    pub card_network: Option<Vec<enums::CardNetwork>>,
+    pub merchant_order_reference_id: Option<String>,
+    pub card_discovery: Option<Vec<enums::CardDiscovery>>,
+    pub customer_email: Option<pii::Email>,
+}
+
+#[cfg(feature = "v1")]
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+#[serde(tag = "version", rename_all = "snake_case")]
+pub enum SavedViewFilters {
+    V1(SavedViewFiltersV1),
+}
+
+#[cfg(feature = "v1")]
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct SavedViewResponse {
+    pub view_id: String,
+    pub view_name: String,
+    pub data: SavedViewFilters,
+    pub created_at: String,
+    pub updated_at: String,
+}
+/// POST /user/views
+#[cfg(feature = "v1")]
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct CreateSavedViewRequest {
+    pub view_name: String,
+    #[serde(flatten)]
+    pub data: SavedViewFilters,
+}
+
+/// PUT /user/views
+#[cfg(feature = "v1")]
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct UpdateSavedViewRequest {
+    pub view_id: String,
+    pub view_name: Option<String>,
+    #[serde(flatten)]
+    pub data: SavedViewFilters,
+}
+
+/// DELETE /user/views
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct DeleteSavedViewRequest {
+    pub view_id: String,
 }
