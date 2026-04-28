@@ -74,7 +74,6 @@ export const connectorDetails = {
     PaymentIntent: {
       Request: {
         currency: "USD",
-        amount: 5000,
         customer_acceptance: null,
         setup_future_usage: "on_session",
       },
@@ -83,69 +82,74 @@ export const connectorDetails = {
         body: {
           status: "requires_payment_method",
           setup_future_usage: "on_session",
-          amount: 5000,
         },
       },
     },
-    Affirm: {
+    No3DSAutoCapture: {
       Request: {
         payment_method: "pay_later",
         payment_method_type: "affirm",
-        payment_experience: "redirect_to_url",
-        currency: "USD",
-        amount: 5000,
         payment_method_data: {
           pay_later: {
-            affirm_redirect: {},
+            affirm: {},
           },
         },
-        billing: {
-          address: {
-            line1: "123 Test Street",
-            city: "San Francisco",
-            state: "CA",
-            zip: "94102",
-            country: "US",
-          },
-          email: "test@example.com",
-        },
+        currency: "USD",
         customer_acceptance: null,
         setup_future_usage: "on_session",
+        billing: {
+          address: {
+            line1: "1467",
+            line2: "Harrison Street",
+            city: "San Francisco",
+            state: "California",
+            zip: "94122",
+            country: "US",
+            first_name: "joseph",
+            last_name: "Doe",
+          },
+          phone: {
+            number: "8056599999",
+            country_code: "+1",
+          },
+          email: "something@example.com",
+        },
       },
       Response: {
         status: 200,
         body: {
           status: "requires_customer_action",
           payment_method: "pay_later",
-          payment_method_type: "affirm",
-          amount: 5000,
         },
       },
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
     },
-    AffirmCapture: {
+    Refund: {
       Request: {
-        amount_to_capture: 5000,
+        amount: 6000,
       },
       Response: {
         status: 200,
         body: {
           status: "succeeded",
-          amount_received: 5000,
         },
       },
     },
-    AffirmRefund: {
+    PartialRefund: {
       Request: {
-        amount: 5000,
+        amount: 2000,
       },
       Response: {
         status: 200,
         body: {
           status: "succeeded",
-          amount: 5000,
+        },
+      },
+    },
+    SyncRefund: {
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
         },
       },
     },
