@@ -508,7 +508,7 @@ export const CONNECTOR_LISTS = {
       "paypal",
       "stripe",
     ],
-    BANK_DEBIT: ["adyen"],
+    BANK_DEBIT: ["adyen", "novalnet"],
     CARD_INSTALLMENTS: ["adyen"],
     BILLING_DESCRIPTOR: [
       "adyen",
@@ -541,7 +541,6 @@ export const CONNECTOR_LISTS = {
       "worldpayvantiv",
     ],
     EXTERNAL_THREE_DS: ["stripe"],
-    BANK_DEBIT: ["novalnet"],
     PARTNER_MERCHANT_IDENTIFIER: ["adyen", "checkout"],
     GIFT_CARD: ["adyen"],
     AUTH_SERVICE_ELIGIBILITY: ["stripe", "cybersource"],
