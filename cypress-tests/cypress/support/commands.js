@@ -617,6 +617,142 @@ Cypress.Commands.add("merchantDeleteCall", (globalState) => {
   });
 });
 
+Cypress.Commands.add("merchantCreateWithFrmCallTest", (merchantCreateBody, frmRoutingConfig, globalState, options = {}) => {
+  const {
+    merchantIdStateKey = "frmMerchantId",
+    expectedStatus = 200,
+    verifyFrmInResponse = true,
+  } = options;
+
+  const merchantId = RequestBodyUtils.generateRandomString();
+  RequestBodyUtils.setMerchantId(merchantCreateBody, merchantId);
+
+  if (frmRoutingConfig) {
+    merchantCreateBody.frm_routing_algorithm = frmRoutingConfig;
+  }
+
+  globalState.set(merchantIdStateKey, merchantId);
+
+  cy.request({
+    method: "POST",
+    url: `${globalState.get("baseUrl")}/accounts`,
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json",
+      "api-key": globalState.get("adminApiKey"),
+    },
+    body: merchantCreateBody,
+    failOnStatusCode: false,
+  }).then((response) => {
+    logRequestId(response.headers["x-request-id"]);
+
+    cy.wrap(response).then(() => {
+      expect(response.status).to.equal(expectedStatus);
+
+      if (response.status === 200) {
+        expect(response.body.merchant_id).to.equal(merchantId);
+        globalState.set("frmProfileId", response.body.default_profile);
+        globalState.set("frmPublishableKey", response.body.publishable_key);
+        globalState.set("frmOrganizationId", response.body.organization_id);
+
+        if (verifyFrmInResponse && frmRoutingConfig) {
+          expect(response.body).to.have.property("frm_routing_algorithm");
+          expect(response.body.frm_routing_algorithm).to.deep.equal(frmRoutingConfig);
+        }
+      } else {
+        expect(response.body).to.have.property("error");
+      }
+    });
+  });
+});
+
+Cypress.Commands.add("merchantRetrieveFrmCallTest", (merchantId, expectedFrmConfig, globalState) => {
+  cy.request({
+    method: "GET",
+    url: `${globalState.get("baseUrl")}/accounts/${merchantId}`,
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json",
+      "api-key": globalState.get("adminApiKey"),
+    },
+  }).then((response) => {
+    logRequestId(response.headers["x-request-id"]);
+
+    cy.wrap(response).then(() => {
+      expect(response.status).to.equal(200);
+      expect(response.body.merchant_id).to.equal(merchantId);
+      expect(response.body).to.have.property("frm_routing_algorithm");
+      expect(response.body.frm_routing_algorithm).to.deep.equal(expectedFrmConfig);
+    });
+  });
+});
+
+Cypress.Commands.add("merchantUpdateWithFrmCallTest", (merchantId, updateBody, frmRoutingConfig, globalState) => {
+  updateBody.merchant_id = merchantId;
+
+  if (frmRoutingConfig) {
+    updateBody.frm_routing_algorithm = frmRoutingConfig;
+  }
+
+  cy.request({
+    method: "POST",
+    url: `${globalState.get("baseUrl")}/accounts/${merchantId}`,
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json",
+      "api-key": globalState.get("adminApiKey"),
+    },
+    body: updateBody,
+    failOnStatusCode: false,
+  }).then((response) => {
+    logRequestId(response.headers["x-request-id"]);
+
+    cy.wrap(response).then(() => {
+      expect(response.status).to.equal(200);
+      expect(response.body.merchant_id).to.equal(merchantId);
+
+      if (frmRoutingConfig) {
+        expect(response.body).to.have.property("frm_routing_algorithm");
+        expect(response.body.frm_routing_algorithm).to.deep.equal(frmRoutingConfig);
+      }
+    });
+  });
+});
+
+Cypress.Commands.add("merchantCreateWithoutFrmTest", (merchantCreateBody, globalState, options = {}) => {
+  const {
+    merchantIdStateKey = "merchantId",
+  } = options;
+
+  const merchantId = RequestBodyUtils.generateRandomString();
+  RequestBodyUtils.setMerchantId(merchantCreateBody, merchantId);
+  delete merchantCreateBody.frm_routing_algorithm;
+
+  globalState.set(merchantIdStateKey, merchantId);
+
+  cy.request({
+    method: "POST",
+    url: `${globalState.get("baseUrl")}/accounts`,
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json",
+      "api-key": globalState.get("adminApiKey"),
+    },
+    body: merchantCreateBody,
+  }).then((response) => {
+    logRequestId(response.headers["x-request-id"]);
+
+    cy.wrap(response).then(() => {
+      expect(response.status).to.equal(200);
+      expect(response.body.merchant_id).to.equal(merchantId);
+      expect(
+        response.body.frm_routing_algorithm,
+        "frm_routing_algorithm should be null when not provided"
+      ).to.be.oneOf([null, undefined]);
+    });
+  });
+});
+
 Cypress.Commands.add("ListConnectorsFeatureMatrixCall", (globalState) => {
   const baseUrl = globalState.get("baseUrl");
   const url = `${baseUrl}/feature_matrix`;
