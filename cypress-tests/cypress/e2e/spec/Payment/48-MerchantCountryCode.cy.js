@@ -12,10 +12,6 @@ describe("Merchant Country Code Tests", () => {
     });
   });
 
-  after("flush global state", () => {
-    cy.task("setGlobalState", globalState.data);
-  });
-
   context(
     "Create Business Profile with merchant_country_code",
     () => {
@@ -25,6 +21,10 @@ describe("Merchant Country Code Tests", () => {
         if (!shouldContinue) {
           this.skip();
         }
+      });
+
+      afterEach("flush global state", () => {
+        cy.task("setGlobalState", globalState.data);
       });
 
       it("Create Business Profile with merchant_country_code US", () => {
@@ -95,6 +95,10 @@ describe("Merchant Country Code Tests", () => {
         }
       });
 
+      afterEach("flush global state", () => {
+        cy.task("setGlobalState", globalState.data);
+      });
+
       it("Create Business Profile without merchant_country_code", () => {
         cy.createBusinessProfileTest(
           fixtures.businessProfile.bpCreate,
@@ -163,6 +167,10 @@ describe("Merchant Country Code Tests", () => {
         }
       });
 
+      afterEach("flush global state", () => {
+        cy.task("setGlobalState", globalState.data);
+      });
+
       it("Create Business Profile with merchant_country_code DE", () => {
         cy.createBusinessProfileTest(
           fixtures.businessProfile.bpCreate,
@@ -229,6 +237,10 @@ describe("Merchant Country Code Tests", () => {
         if (!shouldContinue) {
           this.skip();
         }
+      });
+
+      afterEach("flush global state", () => {
+        cy.task("setGlobalState", globalState.data);
       });
 
       it("Create Business Profile", () => {
@@ -315,6 +327,10 @@ describe("Merchant Country Code Tests", () => {
         if (!shouldContinue) {
           this.skip();
         }
+      });
+
+      afterEach("flush global state", () => {
+        cy.task("setGlobalState", globalState.data);
       });
 
       it("Create Business Profile with merchant_country_code SG", () => {

@@ -763,6 +763,7 @@ Cypress.Commands.add(
     collect_shipping_details_from_wallet_connector,
     always_collect_billing_details_from_wallet_connector,
     always_collect_shipping_details_from_wallet_connector,
+    merchant_country_code,
     globalState,
     profilePrefix = "profile"
   ) => {
@@ -776,6 +777,11 @@ Cypress.Commands.add(
       always_collect_billing_details_from_wallet_connector;
     updateBusinessProfileBody.always_collect_shipping_details_from_wallet_connector =
       always_collect_shipping_details_from_wallet_connector;
+
+    // Add merchant_country_code if provided
+    if (merchant_country_code !== undefined && merchant_country_code !== null) {
+      updateBusinessProfileBody.merchant_country_code = merchant_country_code;
+    }
 
     const apiKey = globalState.get("apiKey");
     const merchantId = globalState.get("merchantId");
@@ -812,6 +818,14 @@ Cypress.Commands.add(
             "alwaysCollectShippingDetails",
             response.body.always_collect_shipping_details_from_wallet_connector
           );
+          // Store merchant_country_code if present in response
+          const mcc = response.body?.merchant_country_code ?? response.merchant_country_code;
+          if (mcc !== undefined) {
+            globalState.set(
+              "merchantCountryCode",
+              mcc
+            );
+          }
         }
       });
     });
