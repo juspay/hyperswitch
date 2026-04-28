@@ -96,6 +96,7 @@ impl PayoutsInterface for MockDb {
         &self,
         _merchant_id: &common_utils::id_type::MerchantId,
         _active_payout_ids: &[common_utils::id_type::PayoutId],
+        _profile_id_list: Option<Vec<common_utils::id_type::ProfileId>>,
         _connector: Option<Vec<api_models::enums::PayoutConnectors>>,
         _currency: Option<Vec<storage_enums::Currency>>,
         _status: Option<Vec<storage_enums::PayoutStatus>>,

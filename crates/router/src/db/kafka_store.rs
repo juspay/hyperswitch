@@ -2586,6 +2586,7 @@ impl PayoutsInterface for KafkaStore {
         &self,
         merchant_id: &id_type::MerchantId,
         active_payout_ids: &[id_type::PayoutId],
+        profile_id_list: Option<Vec<id_type::ProfileId>>,
         connector: Option<Vec<api_models::enums::PayoutConnectors>>,
         currency: Option<Vec<enums::Currency>>,
         status: Option<Vec<enums::PayoutStatus>>,
@@ -2595,6 +2596,7 @@ impl PayoutsInterface for KafkaStore {
             .get_total_count_of_filtered_payouts(
                 merchant_id,
                 active_payout_ids,
+                profile_id_list,
                 connector,
                 currency,
                 status,

@@ -809,7 +809,8 @@ pub async fn payouts_list_core(
     )
     .await
     .to_not_found_response(errors::ApiErrorResponse::PayoutNotFound)?;
-    let payouts = core_utils::filter_objects_based_on_profile_id_list(profile_id_list, payouts);
+    let payouts =
+        core_utils::filter_objects_based_on_profile_id_list(profile_id_list.clone(), payouts);
 
     let mut pi_pa_tuple_vec = PayoutActionData::new();
 
@@ -902,11 +903,32 @@ pub async fn payouts_list_core(
         .map(ForeignFrom::foreign_from)
         .collect();
 
+    let constraints = constraints.into();
+    let active_payout_ids = db
+        .filter_active_payout_ids_by_constraints(merchant_id, &constraints)
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to filter active payout ids based on the constraints")?;
+
+    let total_count = db
+        .get_total_count_of_filtered_payouts(
+            merchant_id,
+            &active_payout_ids,
+            profile_id_list,
+            None,
+            None,
+            None,
+            None,
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to get total count of filtered payouts")?;
+
     Ok(services::ApplicationResponse::Json(
         api::PayoutListResponse {
             size: data.len(),
             data,
-            total_count: None,
+            total_count: Some(total_count),
         },
     ))
 }
@@ -935,7 +957,7 @@ pub async fn payouts_filtered_list_core(
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::PayoutNotFound)?;
-    let list = core_utils::filter_objects_based_on_profile_id_list(profile_id_list, list);
+    let list = core_utils::filter_objects_based_on_profile_id_list(profile_id_list.clone(), list);
     let data: Vec<api::PayoutCreateResponse> =
         join_all(list.into_iter().map(|(p, pa, customer, address)| async {
             let customer: Option<domain::Customer> = customer
@@ -1004,6 +1026,7 @@ pub async fn payouts_filtered_list_core(
         .get_total_count_of_filtered_payouts(
             platform.get_processor().get_account().get_id(),
             &active_payout_ids,
+            profile_id_list,
             filters.connector.clone(),
             filters.currency.clone(),
             filters.status.clone(),
