@@ -38,12 +38,13 @@ use diesel_models::enums;
 use error_stack::{report, ResultExt};
 use futures::future::Either;
 #[cfg(feature = "v1")]
+use hyperswitch_domain_models::payment_methods::ModularPaymentMethodFetchContext;
+#[cfg(feature = "v1")]
 use hyperswitch_domain_models::payments::payment_intent::CustomerData;
 pub use hyperswitch_domain_models::{customer, type_encryption::AsyncLift};
 use hyperswitch_domain_models::{
     mandates::MandateData,
     payment_method_data::{GetPaymentMethodType, PazeWalletData},
-    payment_methods::ModularPaymentMethodFetchContext,
     payments::{
         self as domain_payments, payment_attempt::PaymentAttempt,
         payment_intent::PaymentIntentFetchConstraints, PaymentIntent,
@@ -3199,8 +3200,8 @@ pub async fn retrieve_payment_method_from_db_with_token_data(
     _merchant_key_store: &domain::MerchantKeyStore,
     _token_data: &storage::PaymentTokenData,
     _storage_scheme: storage::enums::MerchantStorageScheme,
-    _modular_fetch_context: &ModularPaymentMethodFetchContext<'_>,
-) -> RouterResult<Option<hyperswitch_domain_models::payment_methods::PaymentMethodWithRawData>> {
+    _modular_fetch_context: &(),
+) -> RouterResult<Option<domain::PaymentMethod>> {
     todo!()
 }
 
