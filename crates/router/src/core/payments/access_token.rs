@@ -296,6 +296,12 @@ pub async fn refresh_connector_auth(
         types::AccessToken,
     > = connector.connector.get_connector_integration();
 
+    // Always use the Direct path for the access token sub-flow, regardless of the parent
+    // Authorize flow's execution_path. UCS handles OAuth internally via its composite service
+    // and does not implement MerchantAuthenticationService/CreateAccessToken — routing this
+    // sub-flow to UCS would result in gRPC status 12 (UNIMPLEMENTED).
+    let access_token_gateway_context = gateway_context.clone_with_direct_path();
+
     let access_token_router_data_result = gateway::execute_payment_gateway(
         state,
         connector_integration,
@@ -303,7 +309,7 @@ pub async fn refresh_connector_auth(
         payments::CallConnectorAction::Trigger,
         None,
         None,
-        gateway_context.clone(),
+        access_token_gateway_context,
     )
     .await;
 
