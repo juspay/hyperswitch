@@ -884,6 +884,26 @@ export const connectorDetails = {
       commonConnectorDetails.bank_transfer_pm.InstantBankTransferPoland
     ),
   },
+  wallet_pm: {
+    CreateOrderWallet: getCustomExchange({
+      Request: {
+        payment_method: "wallet",
+        payment_method_data: {
+          wallet: {
+            apple_pay: {
+              token: "PLACEHOLDER_APPLE_PAY_TOKEN",
+            },
+          },
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "processing",
+        },
+      },
+    }),
+  },
   webhook: {
     TransactionIdConfig: {
       path: "PaymentInformation.References.MerchantReference",

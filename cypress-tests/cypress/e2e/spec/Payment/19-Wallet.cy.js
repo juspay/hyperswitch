@@ -166,4 +166,47 @@ describe("Wallet tests", () => {
       });
     });
   });
+
+  context("TrustPay CreateOrder Wallet Flow test", () => {
+    let shouldContinue = true;
+
+    before("seed global state", () => {
+      cy.task("getGlobalState").then((state) => {
+        globalState = new State(state);
+      });
+    });
+
+    beforeEach(function () {
+      if (!shouldContinue) {
+        this.skip();
+      }
+    });
+
+    it("create-payment-intent-for-wallet-order", () => {
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "wallet_pm"
+      ]["CreateOrderWallet"];
+
+      cy.createPaymentIntentTest(
+        fixtures.createPaymentBody,
+        data,
+        "no_three_ds",
+        "automatic",
+        globalState
+      );
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
+    });
+
+    it("retrieve-wallet-payment-status", () => {
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "wallet_pm"
+      ]["CreateOrderWallet"];
+
+      cy.retrievePaymentCallTest({
+        globalState,
+        data,
+        expectedIntentStatus: "processing",
+      });
+    });
+  });
 });
