@@ -141,13 +141,16 @@ jobs:
       # Use `sccache` for caching compilation artifacts
       # RUSTC_WRAPPER: sccache
       RUSTFLAGS: "-D warnings"
+      CARGO_BUILD_JOBS: ${{ matrix.cargo_jobs }}
 
     strategy:
       fail-fast: false
       matrix:
-        runner:
-          - ubuntu-latest
-          - hyperswitch-runners
+        include:
+          - runner: ubuntu-latest
+            cargo_jobs: 2
+          - runner: hyperswitch-runners
+            cargo_jobs: 4
 
     steps:
       - name: Generate a token
@@ -200,7 +203,7 @@ jobs:
 
       - name: Run clippy
         shell: bash
-        run: just clippy --jobs 3
+        run: just clippy
 
       - name: Check Cargo.lock changed
         if: ${{ (github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name) }}
