@@ -260,7 +260,7 @@ impl Default for PayoutMethodData {
 impl PayoutMethodData {
     pub fn normalize(self) -> Result<Self, error_stack::Report<ValidationError>> {
         match self {
-            Self::Bank(bank) => Ok(Self::BankTransfer(bank.try_into()?)),
+            Self::Bank(bank) => Ok(Self::BankTransfer(BankTransfer::try_from(bank)?)),
             other => Ok(other),
         }
     }
