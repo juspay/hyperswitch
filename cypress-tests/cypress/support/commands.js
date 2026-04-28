@@ -617,6 +617,37 @@ Cypress.Commands.add("merchantDeleteCall", (globalState) => {
   });
 });
 
+Cypress.Commands.add("merchantRetrieveWithFrmValidationCall", (globalState) => {
+  const merchant_id = globalState.get("merchantId");
+  cy.request({
+    method: "GET",
+    url: `${globalState.get("baseUrl")}/accounts/${merchant_id}`,
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json",
+      "api-key": globalState.get("adminApiKey"),
+    },
+    failOnStatusCode: false,
+  }).then((response) => {
+    logRequestId(response.headers["x-request-id"]);
+
+    cy.wrap(response).then(() => {
+      expect(response.status).to.eq(200);
+      expect(response.body).to.have.property("merchant_id").that.equals(merchant_id);
+      expect(response.body).to.have.property("default_profile");
+      expect(response.body).to.have.property("publishable_key");
+      expect(response.body).to.have.property("organization_id");
+      
+      // Validate frm_routing_algorithm if present in response
+      if (response.body.frm_routing_algorithm) {
+        expect(response.body.frm_routing_algorithm).to.have.property("type");
+        expect(response.body.frm_routing_algorithm).to.have.property("data");
+        cy.log("FRM Routing Algorithm validated:", JSON.stringify(response.body.frm_routing_algorithm));
+      }
+    });
+  });
+});
+
 Cypress.Commands.add("ListConnectorsFeatureMatrixCall", (globalState) => {
   const baseUrl = globalState.get("baseUrl");
   const url = `${baseUrl}/feature_matrix`;
