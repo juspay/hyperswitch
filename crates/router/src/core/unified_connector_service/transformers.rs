@@ -685,8 +685,7 @@ impl
         // floor — the proto no longer carries it.
         match call_connector_action {
             common_enums::CallConnectorAction::Trigger
-            | common_enums::CallConnectorAction::HandleResponseWithoutBuildRequest
-            | common_enums::CallConnectorAction::UCSHandleResponse(_) => {}
+            | common_enums::CallConnectorAction::HandleResponseWithoutBuildRequest => {}
             common_enums::CallConnectorAction::HandleResponse(_)
             | common_enums::CallConnectorAction::UCSConsumeResponse(_)
             | common_enums::CallConnectorAction::Avoid

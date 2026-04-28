@@ -95,7 +95,7 @@ pub async fn incoming_webhooks_wrapper<W: types::OutgoingWebhookType>(
         ))
         .await?;
 
-    logger::info!(incoming_webhook_payload = ?serialized_req);
+    logger::info!(incoming_webhook_payload = ?serialized_req.peek());
 
     let request_duration = Instant::now()
         .saturating_duration_since(start_instant)
@@ -125,7 +125,7 @@ pub async fn incoming_webhooks_wrapper<W: types::OutgoingWebhookType>(
         &request_id,
         request_duration,
         status_code,
-        serialized_req,
+        serialized_req.peek().clone(),
         Some(response_value),
         None,
         auth_type,
@@ -214,7 +214,7 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
 ) -> errors::RouterResult<(
     services::ApplicationResponse<serde_json::Value>,
     WebhookResponseTracker,
-    serde_json::Value,
+    common_utils::pii::SecretSerdeValue,
 )> {
     // Initial setup and metrics
     metrics::WEBHOOK_INCOMING_COUNT.add(
@@ -285,19 +285,27 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
                 "Selected webhook execution path"
             );
 
-            let ctx = super::gateway::WebhookGatewayContext {
-                state: &state,
-                platform: &platform,
-                connector: &connector,
-                connector_name: connector_name.as_str(),
-                merchant_connector_account: mca_ref,
+            let execution_mode = match execution_path {
+                common_enums::ExecutionPath::UnifiedConnectorService => {
+                    common_enums::ExecutionMode::Primary
+                }
+                common_enums::ExecutionPath::ShadowUnifiedConnectorService => {
+                    common_enums::ExecutionMode::Shadow
+                }
+                common_enums::ExecutionPath::Direct => common_enums::ExecutionMode::NotApplicable,
             };
-            let outcome = super::gateway::execute_incoming_webhook_gateway(
-                &ctx,
-                &request_details,
+
+            let ctx = super::gateway::WebhookGatewayContext {
+                state: state.clone(),
+                platform: platform.clone(),
+                connector: connector.clone(),
+                connector_name: connector_name.clone(),
+                merchant_connector_account: mca_ref.cloned(),
                 execution_path,
-            )
-            .await;
+                execution_mode,
+            };
+            let outcome =
+                super::gateway::execute_incoming_webhook_gateway(&ctx, &request_details).await;
 
             (connector, connector_name, outcome)
         }
@@ -310,7 +318,7 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
         return Ok((
             services::ApplicationResponse::StatusOk,
             WebhookResponseTracker::NoEffect,
-            serde_json::Value::default(),
+            hyperswitch_masking::Secret::new(serde_json::Value::default()),
         ));
     }
 
@@ -331,7 +339,7 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
             (
                 ack_response,
                 WebhookResponseTracker::NoEffect,
-                serde_json::Value::Null,
+                hyperswitch_masking::Secret::new(serde_json::Value::Null),
             )
         }
         Ok(super::gateway::WebhookOutcome::Processed {
@@ -689,7 +697,7 @@ fn handle_incoming_webhook_error(
 ) -> errors::RouterResult<(
     services::ApplicationResponse<serde_json::Value>,
     WebhookResponseTracker,
-    serde_json::Value,
+    common_utils::pii::SecretSerdeValue,
 )> {
     logger::error!(?error, "Incoming webhook flow failed");
 
@@ -720,7 +728,7 @@ fn handle_incoming_webhook_error(
         Ok((
             response,
             WebhookResponseTracker::NoEffect,
-            serde_json::Value::Null,
+            hyperswitch_masking::Secret::new(serde_json::Value::Null),
         ))
     } else {
         Err(error)
@@ -2837,11 +2845,13 @@ pub async fn process_uas_incoming_webhook<'a>(
     let body_bytes = body.to_vec();
 
     let ctx = super::gateway::WebhookGatewayContext {
-        state,
-        platform,
-        connector: &uas_connector,
-        connector_name: connector_name.as_str(),
+        state: state.clone(),
+        platform: platform.clone(),
+        connector: uas_connector.clone(),
+        connector_name: connector_name.clone(),
         merchant_connector_account: None,
+        execution_path: common_enums::ExecutionPath::Direct,
+        execution_mode: common_enums::ExecutionMode::NotApplicable,
     };
 
     // Reference fetch, MCA resolution, source verification, and resource-object
@@ -2892,13 +2902,15 @@ pub async fn process_uas_incoming_webhook<'a>(
         .get_webhook_resource_object(&uas_request)
         .switch()
         .attach_printable("Failed to extract UAS webhook resource object")?;
-    let masked_log_payload = resource_object.masked_serialize().unwrap_or_else(|error| {
-        router_env::logger::warn!(
-            ?error,
-            "Failed to mask-serialize UAS webhook resource object for logging"
-        );
-        serde_json::Value::Null
-    });
+    let masked_log_payload = hyperswitch_masking::Secret::new(
+        resource_object.masked_serialize().unwrap_or_else(|error| {
+            router_env::logger::warn!(
+                ?error,
+                "Failed to mask-serialize UAS webhook resource object for logging"
+            );
+            serde_json::Value::Null
+        }),
+    );
 
     let ack_response = uas_connector
         .get_webhook_api_response(

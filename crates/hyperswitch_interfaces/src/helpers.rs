@@ -1,6 +1,8 @@
 use common_utils::{
     consts::{X_CONNECTOR_NAME, X_SUB_FLOW_NAME},
-    errors as common_utils_errors, request,
+    errors as common_utils_errors,
+    ext_traits::Encode,
+    request,
 };
 use error_stack::ResultExt;
 use hyperswitch_domain_models::router_data;
@@ -102,18 +104,21 @@ pub async fn serialize_webhook_outcome_and_send_to_comparison_service<P, S>(
     connector_name: String,
     request_id: Option<String>,
 ) where
-    P: serde::Serialize,
-    S: serde::Serialize,
+    P: serde::Serialize + std::fmt::Debug,
+    S: serde::Serialize + std::fmt::Debug,
 {
-    let to_masked =
-        |value: Result<serde_json::Value, serde_json::Error>, source: &str| {
-            hyperswitch_masking::Secret::new(value.unwrap_or_else(
-                |e| serde_json::json!({ "error": e.to_string(), "source": source }),
-            ))
-        };
+    let to_masked = |value: common_utils_errors::CustomResult<
+        serde_json::Value,
+        common_utils_errors::ParsingError,
+    >,
+                     source: &str| {
+        hyperswitch_masking::Secret::new(value.unwrap_or_else(|e| {
+            serde_json::json!({ "error": e.to_string(), "source": source })
+        }))
+    };
     let comparison_data = ComparisonData {
-        hyperswitch_data: to_masked(serde_json::to_value(primary), "hyperswitch"),
-        unified_connector_service_data: to_masked(serde_json::to_value(shadow), "ucs"),
+        hyperswitch_data: to_masked(primary.encode_to_value(), "hyperswitch"),
+        unified_connector_service_data: to_masked(shadow.encode_to_value(), "ucs"),
     };
     if let Err(error) = send_comparison_data(
         state,
@@ -125,7 +130,7 @@ pub async fn serialize_webhook_outcome_and_send_to_comparison_service<P, S>(
     )
     .await
     {
-        logger::debug!(?error, "Failed to send webhook comparison data");
+        logger::warn!(?error, "Failed to send webhook comparison data");
     }
 }
 

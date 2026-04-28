@@ -348,10 +348,9 @@ where
     // Single decision point using pattern matching
     let (gateway_system, mut execution_path) = if ucs_availability == UcsAvailability::Disabled {
         match call_connector_action {
-            CallConnectorAction::UCSConsumeResponse(_)
-            | CallConnectorAction::UCSHandleResponse(_) => {
+            CallConnectorAction::UCSConsumeResponse(_) => {
                 Err(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("CallConnectorAction UCSHandleResponse/UCSConsumeResponse received but UCS is disabled. These actions are only valid in UCS gateway")?
+                    .attach_printable("CallConnectorAction UCSConsumeResponse received but UCS is disabled. These actions are only valid in UCS gateway")?
             }
             CallConnectorAction::Avoid
             | CallConnectorAction::Trigger
@@ -364,9 +363,8 @@ where
         }
     } else {
         match call_connector_action {
-            CallConnectorAction::UCSConsumeResponse(_)
-            | CallConnectorAction::UCSHandleResponse(_) => {
-                router_env::logger::info!("CallConnectorAction UCSHandleResponse/UCSConsumeResponse received, using UCS gateway");
+            CallConnectorAction::UCSConsumeResponse(_) => {
+                router_env::logger::info!("CallConnectorAction UCSConsumeResponse received, using UCS gateway");
                 (
                     GatewaySystem::UnifiedConnectorService,
                     ExecutionPath::UnifiedConnectorService,
@@ -2738,8 +2736,12 @@ where
     tracing::Span::current().record("flow_type", flow);
 
     let grpc_header = grpc_header_builder.build();
-    let grpc_request_body = hyperswitch_masking::masked_serialize(&grpc_request)
-        .unwrap_or_else(|_| serde_json::json!({"error": "failed_to_serialize_grpc_request"}));
+    let grpc_request_body = hyperswitch_masking::masked_serialize(&grpc_request).unwrap_or_else(
+        |error| {
+            logger::warn!(?error, "Failed to mask-serialize UCS gRPC request for logging");
+            serde_json::json!({"error": "failed_to_serialize_grpc_request"})
+        },
+    );
 
     crate::routes::metrics::CONNECTOR_CALL_COUNT.add(
         1,
@@ -2753,9 +2755,13 @@ where
     let (status_code, response_body, router_result) = match result {
         Ok(grpc_response) => {
             let grpc_response_body = hyperswitch_masking::masked_serialize(&grpc_response)
-                .unwrap_or_else(
-                    |_| serde_json::json!({"error": "failed_to_serialize_grpc_response"}),
-                );
+                .unwrap_or_else(|error| {
+                    logger::warn!(
+                        ?error,
+                        "Failed to mask-serialize UCS gRPC response for logging"
+                    );
+                    serde_json::json!({"error": "failed_to_serialize_grpc_response"})
+                });
             (200u16, Some(grpc_response_body), Ok(grpc_response))
         }
         Err(error) => {
