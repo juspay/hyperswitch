@@ -1048,16 +1048,12 @@ pub fn build_unified_connector_service_payment_method(
             hyperswitch_domain_models::payment_method_data::BankRedirectData::Eft {
                 provider
             } => {
-                let eft = payments_grpc::Eft {
-                    account_number: Some(Secret::new(provider)),
-                    branch_code: None,
-                    bank_account_holder_name: None,
-                    bank_name: Default::default(),
-                    bank_type: Default::default(),
+                let eft = payments_grpc::EftBankRedirect {
+                    provider,
                 };
 
                 Ok(payments_grpc::PaymentMethod {
-                    payment_method: Some(PaymentMethod::Eft(eft)),
+                    payment_method: Some(PaymentMethod::EftBankRedirect(eft)),
                 })
             }
             hyperswitch_domain_models::payment_method_data::BankRedirectData::BancontactCard {
@@ -1559,6 +1555,33 @@ pub fn build_unified_connector_service_payment_method(
 
                 Ok(payments_grpc::PaymentMethod {
                     payment_method: Some(PaymentMethod::SepaGuaranteedDebit(sepa_guaranteed_debit)),
+                })
+            }
+            hyperswitch_domain_models::payment_method_data::BankDebitData::EftDebitOrder {
+                account_number,
+                branch_code,
+                bank_account_holder_name,
+                bank_name,
+                bank_type,
+            } => {
+                let bank_name = bank_name
+                    .map(payments_grpc::BankNames::foreign_try_from)
+                    .transpose()?;
+                let bank_type = bank_type
+                    .map(payments_grpc::BankType::foreign_try_from)
+                    .transpose()?;
+
+                let eft = payments_grpc::Eft {
+                    account_number: Some(account_number.expose().into()),
+                    branch_code: branch_code.map(|code| code.expose().into()),
+                    bank_account_holder_name: bank_account_holder_name
+                        .map(|name| name.expose().into()),
+                    bank_name: bank_name.map(Into::into).unwrap_or_default(),
+                    bank_type: bank_type.map(Into::into).unwrap_or_default(),
+                };
+
+                Ok(payments_grpc::PaymentMethod {
+                    payment_method: Some(PaymentMethod::Eft(eft)),
                 })
             }
         },
