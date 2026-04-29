@@ -4,6 +4,26 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.04.29.0
+
+### Features
+
+- **dashboard:** Implement saved views to store frequently used payment filters ([#11447](https://github.com/juspay/hyperswitch/pull/11447)) ([`766281e`](https://github.com/juspay/hyperswitch/commit/766281e3c1c3f21a0b83e4c1b2c90a6747e8e7e5))
+- **payments:** Add advice_message field and improve merchant advice code handling ([#11584](https://github.com/juspay/hyperswitch/pull/11584)) ([`182e265`](https://github.com/juspay/hyperswitch/commit/182e2650f3316c3a357449a5bbdb360f520a1d74))
+
+### Bug Fixes
+
+- **connector:** [AuthorizeDotNet] merchant_requires_action for review ([#11890](https://github.com/juspay/hyperswitch/pull/11890)) ([`0416c91`](https://github.com/juspay/hyperswitch/commit/0416c91396a456ae0b916edddfa19e87c060b8cc))
+- **connectors:** [mollie] add billing.address.line2 as a required filed for klarna and cards ([#11219](https://github.com/juspay/hyperswitch/pull/11219)) ([`6a48c00`](https://github.com/juspay/hyperswitch/commit/6a48c002d1abe6a180c01d4ce0f04ca97945bfb7))
+
+### Testing
+
+- **cypress:** Add Adyen gift card (Givex) balance check tests ([#11874](https://github.com/juspay/hyperswitch/pull/11874)) ([`96b457e`](https://github.com/juspay/hyperswitch/commit/96b457e3b28b68739892fe49a85f305815f57e12))
+
+**Full Changelog:** [`2026.04.28.0...2026.04.29.0`](https://github.com/juspay/hyperswitch/compare/2026.04.28.0...2026.04.29.0)
+
+- - -
+
 ## 2026.04.28.0
 
 ### Features
