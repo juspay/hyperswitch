@@ -337,6 +337,24 @@ export const connectorDetails = {
         },
       },
     },
+    Overcapture: {
+      Request: {
+        amount_to_capture: 7000,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+          amount: 6000,
+          amount_capturable: 0,
+          amount_received: 7000,
+          overcapture: {
+            status: "Available",
+            maximum_amount_capturable: 12000,
+          },
+        },
+      },
+    },
     Void: {
       Request: {},
       Response: {
