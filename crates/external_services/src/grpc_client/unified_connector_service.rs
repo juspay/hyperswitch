@@ -1386,22 +1386,32 @@ pub fn build_unified_connector_service_grpc_headers(
 }
 
 /// Converts tonic::Status to error_stack::Report<UnifiedConnectorServiceError>
-/// This helper properly maps tonic gRPC errors to our error types
+/// This helper properly maps tonic gRPC errors to our error types.
+///
+/// Always attempts to extract a ConnectorError from the status details first,
+/// since UCS may forward connector errors with any gRPC status code.
+/// Falls back to specific tonic error variants for 4xx codes, or the
+/// provided default error for 5xx codes.
 pub fn tonic_status_to_report(
     status: tonic::Status,
     default_error: UnifiedConnectorServiceError,
 ) -> error_stack::Report<UnifiedConnectorServiceError> {
+    // Always try to extract ConnectorError from details first,
+    // regardless of gRPC status code
+    if let Some(connector_error) = UnifiedConnectorServiceError::try_parse_from_details(&status) {
+        return error_stack::Report::new(connector_error);
+    }
+
     let err = match status.code() {
-        // 4xx equivalent gRPC status codes
+        // 4xx equivalent gRPC status codes - parse into specific tonic variants
         tonic::Code::InvalidArgument
         | tonic::Code::NotFound
         | tonic::Code::AlreadyExists
         | tonic::Code::PermissionDenied
         | tonic::Code::Unauthenticated
-        | tonic::Code::FailedPrecondition => {
-            UnifiedConnectorServiceError::from_tonic_status(&status)
-        }
-        // 5xx equivalent gRPC status codes
+        | tonic::Code::FailedPrecondition
+        | tonic::Code::Unimplemented => UnifiedConnectorServiceError::from_tonic_status(&status),
+        // 5xx equivalent gRPC status codes - use the default error
         _ => default_error,
     };
     error_stack::Report::new(err)

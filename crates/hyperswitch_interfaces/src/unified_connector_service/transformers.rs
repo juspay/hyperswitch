@@ -965,12 +965,14 @@ impl ForeignFrom<payments_grpc::UpiSource>
 
 impl UnifiedConnectorServiceError {
     /// Maps a tonic::Status to UnifiedConnectorServiceError based on the status code.
+    ///
+    /// UCS sends connector errors as proto-encoded `ConnectorError` in the status details
+    /// (via `with_details`). This method decodes those details using `Message::decode(details)`.
+    /// If no proto details are found, falls back to generic tonic status code mapping.
     pub fn from_tonic_status(status: &tonic::Status) -> Self {
         let message = status.message().to_string();
 
-        if let Some(connector_error) = Self::try_parse_structured_error(&message) {
-            return connector_error;
-        }
+        // Try to extract ConnectorError from proto-encoded status details
         if let Some(error_from_details) = Self::try_parse_from_details(status) {
             return error_from_details;
         }
@@ -989,42 +991,10 @@ impl UnifiedConnectorServiceError {
         }
     }
 
-    fn try_parse_structured_error(message: &str) -> Option<Self> {
-        let parsed: serde_json::Value = serde_json::from_str(message).ok()?;
-
-        let error_type = parsed.get("type")?.as_str()?;
-
-        match error_type {
-            "connector_error" => {
-                let status_code = u16::try_from(parsed.get("status_code")?.as_u64()?).ok()?;
-                let code = parsed
-                    .get("code")
-                    .and_then(|v| v.as_str())
-                    .unwrap_or("UNKNOWN")
-                    .to_string();
-                let error_message = parsed
-                    .get("message")
-                    .and_then(|v| v.as_str())
-                    .unwrap_or("")
-                    .to_string();
-                let reason = parsed
-                    .get("reason")
-                    .and_then(|v| v.as_str())
-                    .map(String::from);
-
-                Some(Self::ConnectorError {
-                    code,
-                    message: error_message,
-                    status_code,
-                    reason,
-                })
-            }
-            "validation_error" | "ucs_error" => None,
-            _ => None,
-        }
-    }
-
-    fn try_parse_from_details(status: &tonic::Status) -> Option<Self> {
+    /// Attempts to extract a `ConnectorError` from the tonic status details (proto-encoded).
+    /// This is the primary mechanism for UCS to forward connector errors with their
+    /// original error codes, messages, and HTTP status codes via gRPC error details.
+    pub fn try_parse_from_details(status: &tonic::Status) -> Option<Self> {
         let details = status.details();
         if details.is_empty() {
             return None;
@@ -1037,7 +1007,11 @@ impl UnifiedConnectorServiceError {
             code: connector_error.error_code,
             message: connector_error.error_message,
             status_code,
-            reason: None,
+            reason: connector_error
+                .error_info
+                .as_ref()
+                .and_then(|ei| ei.connector_details.as_ref())
+                .and_then(|cd| cd.reason.clone()),
         })
     }
 }

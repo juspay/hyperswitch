@@ -2058,6 +2058,7 @@ impl transformers::ForeignTryFrom<&RouterData<Session, PaymentsSessionData, Paym
             domain_context: Some(
                 payments_grpc::merchant_authentication_service_create_client_authentication_token_request::DomainContext::Payment(payment_sdk_session_context),
             ),
+            permissions: None,
         })
     }
 }
@@ -5854,6 +5855,11 @@ impl transformers::ForeignTryFrom<&RouterData<RSync, RefundsData, RefundsRespons
             test_mode: router_data.test_mode,
             payment_method_type,
             connector_feature_data: None,
+            connector_refund_id: router_data.request.connector_refund_id.clone().ok_or(
+                UnifiedConnectorServiceError::RequestEncodingFailedWithReason(
+                    "Missing connector_refund_id for refund sync operation".to_string(),
+                ),
+            )?,
         })
     }
 }

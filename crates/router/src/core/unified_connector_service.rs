@@ -73,6 +73,43 @@ use crate::{
 
 pub mod connector_config;
 pub mod transformers;
+
+/// Maps a UnifiedConnectorServiceError to an HTTP status code for logging.
+/// Connector errors (from downstream connectors) use their own status codes,
+/// while tonic/gRPC errors use the appropriate HTTP mapping.
+/// UCS-internal errors default to 500.
+pub fn map_ucs_error_to_http_status(error: &UnifiedConnectorServiceError) -> u16 {
+    match error {
+        UnifiedConnectorServiceError::ConnectorError { .. } => 400,
+        UnifiedConnectorServiceError::TonicInvalidArgument { .. } => 400,
+        UnifiedConnectorServiceError::TonicNotFound { .. } => 404,
+        UnifiedConnectorServiceError::TonicAlreadyExists { .. } => 409,
+        UnifiedConnectorServiceError::TonicPermissionDenied { .. } => 403,
+        UnifiedConnectorServiceError::TonicUnauthenticated { .. } => 401,
+        UnifiedConnectorServiceError::TonicFailedPrecondition { .. } => 400,
+        UnifiedConnectorServiceError::ConnectionError(_) => 503,
+        UnifiedConnectorServiceError::InvalidDataFormat { .. }
+        | UnifiedConnectorServiceError::MissingRequiredField { .. }
+        | UnifiedConnectorServiceError::MissingRequiredFields { .. }
+        | UnifiedConnectorServiceError::RequestEncodingFailed
+        | UnifiedConnectorServiceError::RequestEncodingFailedWithReason(_) => 400,
+        UnifiedConnectorServiceError::InvalidConnectorName
+        | UnifiedConnectorServiceError::MissingConnectorName => 400,
+        UnifiedConnectorServiceError::NotImplemented(_) => 501,
+        _ => 500,
+    }
+}
+
+/// Extracts the HTTP status code from an ApiErrorResponse for UCS error logging.
+/// For ExternalConnectorError, uses the connector's HTTP status code.
+/// All other API errors default to 500.
+pub fn extract_ucs_error_http_status(error: &errors::ApiErrorResponse) -> u16 {
+    match error {
+        errors::ApiErrorResponse::ExternalConnectorError { status_code, .. } => *status_code,
+        _ => 500,
+    }
+}
+
 /// Returns Apple Pay data from payment method token when it has decrypt data,
 /// otherwise returns the original payment data.
 fn get_apple_pay_payment_data(
@@ -2564,7 +2601,11 @@ where
                 "error": error.to_string(),
                 "error_type": "ucs_call_failed"
             });
-            (500, Some(error_body), Err(error))
+            (
+                extract_ucs_error_http_status(error.current_context()),
+                Some(error_body),
+                Err(error),
+            )
         }
     };
 
@@ -2708,7 +2749,11 @@ where
                 "error": error.to_string(),
                 "error_type": "ucs_call_failed"
             });
-            (500, Some(error_body), Err(error))
+            (
+                map_ucs_error_to_http_status(error.current_context()),
+                Some(error_body),
+                Err(error),
+            )
         }
     };
 
@@ -2822,7 +2867,11 @@ where
                 "error": error.to_string(),
                 "error_type": "ucs_call_failed",
             });
-            (500u16, Some(error_body), Err(error))
+            (
+                extract_ucs_error_http_status(error.current_context()),
+                Some(error_body),
+                Err(error),
+            )
         }
     };
 
