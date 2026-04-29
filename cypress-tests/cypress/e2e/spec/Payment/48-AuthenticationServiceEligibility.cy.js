@@ -1,6 +1,6 @@
 import * as fixtures from "../../../fixtures/imports";
 import State from "../../../utils/State";
-import { connectorDetails } from "../../../e2e/configs/Payment/Commons";
+import getConnectorDetails, * as utils from "../../configs/Payment/Utils";
 
 let globalState;
 
@@ -31,8 +31,9 @@ describe("Authentication Service Eligibility", () => {
       });
 
       it("should confirm 3DS payment with org and merchant both enabled", () => {
-        const data =
-          connectorDetails.auth_service_eligibility.OrgEnabledMerchantEnabled;
+        const data = getConnectorDetails(
+          globalState.get("connectorId")
+        ).auth_service_eligibility.OrgEnabledMerchantEnabled;
         cy.createConfirmPaymentTest(
           fixtures.createConfirmPaymentBody,
           data,
@@ -77,8 +78,9 @@ describe("Authentication Service Eligibility", () => {
       });
 
       it("should confirm 3DS payment with org overriding merchant", () => {
-        const data =
-          connectorDetails.auth_service_eligibility.OrgEnabledMerchantDisabled;
+        const data = getConnectorDetails(
+          globalState.get("connectorId")
+        ).auth_service_eligibility.OrgEnabledMerchantDisabled;
         cy.createConfirmPaymentTest(
           fixtures.createConfirmPaymentBody,
           data,
@@ -123,8 +125,9 @@ describe("Authentication Service Eligibility", () => {
       });
 
       it("should confirm payment with no_three_ds when org overrides merchant", () => {
-        const data =
-          connectorDetails.auth_service_eligibility.OrgDisabledMerchantEnabled;
+        const data = getConnectorDetails(
+          globalState.get("connectorId")
+        ).auth_service_eligibility.OrgDisabledMerchantEnabled;
         cy.createConfirmPaymentTest(
           fixtures.createConfirmPaymentBody,
           data,
@@ -167,8 +170,9 @@ describe("Authentication Service Eligibility", () => {
     });
 
     it("should confirm payment with no_three_ds when both configs disabled", () => {
-      const data =
-        connectorDetails.auth_service_eligibility.OrgDisabledMerchantDisabled;
+      const data = getConnectorDetails(
+        globalState.get("connectorId")
+      ).auth_service_eligibility.OrgDisabledMerchantDisabled;
       cy.createConfirmPaymentTest(
         fixtures.createConfirmPaymentBody,
         data,
@@ -206,8 +210,9 @@ describe("Authentication Service Eligibility", () => {
       });
 
       it("should confirm 3DS payment with merchant-only config enabled", () => {
-        const data =
-          connectorDetails.auth_service_eligibility.MerchantOnlyEnabled;
+        const data = getConnectorDetails(
+          globalState.get("connectorId")
+        ).auth_service_eligibility.MerchantOnlyEnabled;
         cy.createConfirmPaymentTest(
           fixtures.createConfirmPaymentBody,
           data,
@@ -239,8 +244,9 @@ describe("Authentication Service Eligibility", () => {
       });
 
       it("should confirm payment with no_three_ds when merchant config disabled", () => {
-        const data =
-          connectorDetails.auth_service_eligibility.MerchantOnlyDisabled;
+        const data = getConnectorDetails(
+          globalState.get("connectorId")
+        ).auth_service_eligibility.MerchantOnlyDisabled;
         cy.createConfirmPaymentTest(
           fixtures.createConfirmPaymentBody,
           data,
@@ -264,7 +270,9 @@ describe("Authentication Service Eligibility", () => {
 
   context("No config at all - default behavior", () => {
     it("should confirm 3DS payment with default behavior (no config set)", () => {
-      const data = connectorDetails.auth_service_eligibility.NoConfigDefault;
+      const data = getConnectorDetails(
+        globalState.get("connectorId")
+      ).auth_service_eligibility.NoConfigDefault;
       cy.createConfirmPaymentTest(
         fixtures.createConfirmPaymentBody,
         data,
