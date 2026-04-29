@@ -111,15 +111,16 @@ pub async fn serialize_webhook_outcome_and_send_to_comparison_service<P, S>(
     P: serde::Serialize + std::fmt::Debug,
     S: serde::Serialize + std::fmt::Debug,
 {
-    let to_masked = |value: common_utils_errors::CustomResult<
-        serde_json::Value,
-        common_utils_errors::ParsingError,
-    >,
-                     source: &str| {
-        hyperswitch_masking::Secret::new(value.unwrap_or_else(|e| {
-            serde_json::json!({ "error": e.to_string(), "source": source })
-        }))
-    };
+    let to_masked =
+        |value: common_utils_errors::CustomResult<
+            serde_json::Value,
+            common_utils_errors::ParsingError,
+        >,
+         source: &str| {
+            hyperswitch_masking::Secret::new(value.unwrap_or_else(
+                |e| serde_json::json!({ "error": e.to_string(), "source": source }),
+            ))
+        };
     let comparison_data = ComparisonData {
         hyperswitch_data: to_masked(primary.encode_to_value(), "hyperswitch"),
         unified_connector_service_data: to_masked(shadow.encode_to_value(), "ucs"),

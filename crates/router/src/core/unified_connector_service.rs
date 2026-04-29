@@ -355,7 +355,9 @@ where
     } else {
         match call_connector_action {
             CallConnectorAction::UCSConsumeResponse(_) => {
-                router_env::logger::info!("CallConnectorAction UCSConsumeResponse received, using UCS gateway");
+                router_env::logger::info!(
+                    "CallConnectorAction UCSConsumeResponse received, using UCS gateway"
+                );
                 (
                     GatewaySystem::UnifiedConnectorService,
                     ExecutionPath::UnifiedConnectorService,
@@ -2799,12 +2801,14 @@ where
     tracing::Span::current().record("flow_type", flow);
 
     let grpc_header = grpc_header_builder.build();
-    let grpc_request_body = hyperswitch_masking::masked_serialize(&grpc_request).unwrap_or_else(
-        |error| {
-            logger::warn!(?error, "Failed to mask-serialize UCS gRPC request for logging");
+    let grpc_request_body =
+        hyperswitch_masking::masked_serialize(&grpc_request).unwrap_or_else(|error| {
+            logger::warn!(
+                ?error,
+                "Failed to mask-serialize UCS gRPC request for logging"
+            );
             serde_json::json!({"error": "failed_to_serialize_grpc_request"})
-        },
-    );
+        });
 
     crate::routes::metrics::CONNECTOR_CALL_COUNT.add(
         1,

@@ -120,10 +120,7 @@ pub enum FilterDecision {
 }
 
 impl FilterDecision {
-    pub async fn evaluate(
-        event_type: IncomingWebhookEvent,
-        ctx: &WebhookGatewayContext,
-    ) -> Self {
+    pub async fn evaluate(event_type: IncomingWebhookEvent, ctx: &WebhookGatewayContext) -> Self {
         let supported = !matches!(event_type, IncomingWebhookEvent::EventNotSupported);
         let enabled = !webhook_utils::is_webhook_event_disabled(
             &*ctx.state.store,
@@ -181,11 +178,10 @@ impl IncomingWebhookGateway for DirectIncomingWebhookGateway {
 
         let mca = resolve_mca(ctx, reference.as_ref()).await?;
 
-        let webhook_context =
-            build_webhook_context(&ctx.state, &ctx.platform, reference.as_ref())
-                .await
-                .ok()
-                .flatten();
+        let webhook_context = build_webhook_context(&ctx.state, &ctx.platform, reference.as_ref())
+            .await
+            .ok()
+            .flatten();
 
         let event_type = ctx
             .connector
@@ -247,15 +243,14 @@ impl IncomingWebhookGateway for DirectIncomingWebhookGateway {
                 let bytes = serde_json::to_vec(&resource_object)
                     .change_context(errors::ApiErrorResponse::InternalServerError)
                     .attach_printable("Failed to encode webhook resource object")?;
-                let masked_log_payload = Secret::new(
-                    resource_object.masked_serialize().unwrap_or_else(|error| {
+                let masked_log_payload =
+                    Secret::new(resource_object.masked_serialize().unwrap_or_else(|error| {
                         logger::warn!(
                             ?error,
                             "Failed to mask-serialize webhook resource object for logging"
                         );
                         serde_json::Value::Null
-                    }),
-                );
+                    }));
 
                 WebhookOutcome::Processed {
                     reference,
@@ -367,8 +362,7 @@ impl IncomingWebhookGateway for UcsIncomingWebhookGateway {
                     .change_context(errors::ApiErrorResponse::InternalServerError)
                     .attach_printable("Failed to build UCS EventServiceHandleRequest")?;
                 let handle_auth = build_ucs_auth_metadata(ctx, Some(&mca))?;
-                let handle_headers =
-                    build_ucs_headers_builder(ctx, Some(&mca), ctx.execution_mode);
+                let handle_headers = build_ucs_headers_builder(ctx, Some(&mca), ctx.execution_mode);
                 let handle_client = client.clone();
                 let handle_response = unified_connector_service::ucs_webhook_logging_wrapper(
                     &ctx.state,
@@ -399,15 +393,14 @@ impl IncomingWebhookGateway for UcsIncomingWebhookGateway {
                 let bytes = serde_json::to_vec(&event_content)
                     .change_context(errors::ApiErrorResponse::InternalServerError)
                     .attach_printable("Failed to encode unified event content")?;
-                let masked_log_payload = Secret::new(
-                    event_content.masked_serialize().unwrap_or_else(|error| {
+                let masked_log_payload =
+                    Secret::new(event_content.masked_serialize().unwrap_or_else(|error| {
                         logger::warn!(
                             ?error,
                             "Failed to mask-serialize unified event content for logging"
                         );
                         serde_json::Value::Null
-                    }),
-                );
+                    }));
 
                 let ack_response = handle_response
                     .event_ack_response
@@ -447,7 +440,6 @@ pub async fn execute_incoming_webhook_gateway(
         }
     }
 }
-
 
 fn spawn_shadow_ucs_run(
     ctx: &WebhookGatewayContext,
