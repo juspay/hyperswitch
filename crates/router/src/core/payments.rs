@@ -11852,7 +11852,8 @@ pub async fn payments_manual_update(
                 amount_captured > payment_attempt.net_amount.get_total_amount(),
                 || {
                     Err(errors::ApiErrorResponse::InvalidRequestData {
-                        message: "amount_captured should be less than or equal to total amount".to_string(),
+                        message: "amount_captured should be less than or equal to total amount"
+                            .to_string(),
                     })
                 },
             )?;
