@@ -1,10 +1,11 @@
 use std::{collections::HashMap, str::FromStr};
 
 use api_models::payments::{
-    AmountInfo, ApplePayAddressParameters, ApplePayPaymentRequest, ApplePaySessionResponse,
-    ApplepaySessionTokenResponse, GooglePaySessionResponse, GpayAllowedMethodsParameters,
-    GpayAllowedPaymentMethods, GpayBillingAddressFormat, GpayBillingAddressParameters,
-    GpayMerchantInfo, GpaySessionTokenResponse, GpayShippingAddressParameters, GpayTokenParameters,
+    AdditionalCardInfo, AdditionalPaymentData, AmountInfo, ApplePayAddressParameters,
+    ApplePayPaymentRequest, ApplePaySessionResponse, ApplepaySessionTokenResponse,
+    GooglePaySessionResponse, GpayAllowedMethodsParameters, GpayAllowedPaymentMethods,
+    GpayBillingAddressFormat, GpayBillingAddressParameters, GpayMerchantInfo,
+    GpaySessionTokenResponse, GpayShippingAddressParameters, GpayTokenParameters,
     GpayTokenizationSpecification, GpayTransactionInfo, NextActionCall, PaypalFlow,
     PaypalSessionTokenResponse, PaypalTransactionInfo, SdkNextAction, SecretInfoToInitiateSdk,
     SessionToken, ThirdPartySdkSessionResponse,
@@ -1881,6 +1882,13 @@ impl
             .map(payments_grpc::AuthenticationData::foreign_try_from)
             .transpose()?;
 
+        let additional_payment_data = router_data
+            .request
+            .additional_payment_method_data
+            .clone()
+            .map(|additional_payment_data| {
+                payments_grpc::AdditionalPaymentData::foreign_from(additional_payment_data)
+            });
         Ok(Self {
             merchant_charge_id: Some(router_data.connector_request_reference_id.clone()),
             payment_method,
@@ -1972,6 +1980,7 @@ impl
                 phone_number: None,
                 phone_country_code: None,
             }),
+            additional_payment_data,
         })
     }
 }
@@ -7311,5 +7320,38 @@ impl transformers::ForeignTryFrom<payments_grpc::SurchargeServiceCalculateRespon
                     .and_then(|cd| cd.message.clone())
             }),
         })
+    }
+}
+
+impl ForeignFrom<AdditionalCardInfo> for payments_grpc::AdditionalCardInfo {
+    fn foreign_from(value: AdditionalCardInfo) -> Self {
+        Self {
+            card_issuer: value.card_issuer,
+            last4: value.last4,
+            card_isin: value.card_isin,
+            card_extended_bin: value.card_extended_bin,
+            card_exp_month: value.card_exp_month.map(|m| m.into()),
+            card_exp_year: value.card_exp_year.map(|y| y.into()),
+            card_holder_name: value.card_holder_name.map(|n| n.into()),
+        }
+    }
+}
+
+impl ForeignFrom<AdditionalPaymentData> for payments_grpc::AdditionalPaymentData {
+    fn foreign_from(value: AdditionalPaymentData) -> Self {
+        match value {
+            AdditionalPaymentData::Card(card_info) => {
+                Self {
+                    payment_method_data: Some(
+                        payments_grpc::additional_payment_data::PaymentMethodData::Card(
+                            ForeignFrom::<AdditionalCardInfo>::foreign_from(*card_info),
+                        ),
+                    ),
+                }
+            }
+            _ => Self {
+                payment_method_data: None,
+            },
+        }
     }
 }
