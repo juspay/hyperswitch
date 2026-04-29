@@ -67,6 +67,7 @@ impl TryFrom<&ImerchantsolutionsRouterData<&PaymentsAuthorizeRouterData>>
 // Auth Struct
 pub struct ImerchantsolutionsAuthType {
     pub(super) api_key: Secret<String>,
+    pub(super) merchant_id: Option<Secret<String>>,
 }
 
 impl TryFrom<&ConnectorAuthType> for ImerchantsolutionsAuthType {
@@ -75,6 +76,11 @@ impl TryFrom<&ConnectorAuthType> for ImerchantsolutionsAuthType {
         match auth_type {
             ConnectorAuthType::HeaderKey { api_key } => Ok(Self {
                 api_key: api_key.to_owned(),
+                merchant_id: None,
+            }),
+            ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self {
+                api_key: api_key.to_owned(),
+                merchant_id: Some(key1.to_owned()),
             }),
             _ => Err(errors::ConnectorError::FailedToObtainAuthType.into()),
         }
@@ -266,6 +272,7 @@ pub enum ImerchantsolutionsWebhookEventType {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "snake_case")]
 pub enum ImerchantsolutionsWebhookStatus {
+    Authorized,
     PartiallyCaptured,
     Captured,
     PartiallyRefunded,

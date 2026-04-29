@@ -515,7 +515,10 @@ pub enum ConnectorSpecificConfig {
         client_secret: Secret<String>,
     },
     /// Imerchantsolutions connector configuration
-    Imerchantsolutions { api_key: Secret<String> },
+    Imerchantsolutions {
+        api_key: Secret<String>,
+        merchant_id: Option<Secret<String>>,
+    },
 }
 
 impl ForeignTryFrom<(Connector, &ConnectorAuthType, Option<&serde_json::Value>)>
@@ -1405,6 +1408,11 @@ impl ForeignTryFrom<(Connector, &ConnectorAuthType, Option<&serde_json::Value>)>
             Connector::Imerchantsolutions => match auth {
                 ConnectorAuthType::HeaderKey { api_key } => Ok(Self::Imerchantsolutions {
                     api_key: api_key.clone(),
+                    merchant_id: None,
+                }),
+                ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Imerchantsolutions {
+                    api_key: api_key.clone(),
+                    merchant_id: Some(key1.clone()),
                 }),
                 _ => Err(err("Imerchantsolutions requires HeaderKey auth type")),
             },
