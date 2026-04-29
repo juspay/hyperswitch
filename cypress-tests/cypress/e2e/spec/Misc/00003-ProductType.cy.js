@@ -31,23 +31,23 @@ describe("Merchant Account Product Type Tests", () => {
         expect(response.status).to.equal(200);
         expect(response.body).to.have.property("product_type", "vault");
         globalState.set("merchantId", response.body.merchant_id);
+        // Verify product_type persists on retrieve
+        const merchant_id_val = globalState.get("merchantId");
+        cy.request({
+          method: "GET",
+          url: `${globalState.get("baseUrl")}/accounts/${merchant_id_val}`,
+          headers: {
+            Accept: "application/json",
+            "Content-Type": "application/json",
+            "api-key": globalState.get("adminApiKey"),
+          },
+          failOnStatusCode: false,
+        }).then((getResponse) => {
+          expect(getResponse.body).to.have.property("product_type", "vault");
+        });
+        // Cleanup merchant
+        cy.merchantDeleteCall(globalState);
       });
-      // Verify product_type persists on retrieve
-      const merchant_id_val = globalState.get("merchantId");
-      cy.request({
-        method: "GET",
-        url: `${globalState.get("baseUrl")}/accounts/${merchant_id_val}`,
-        headers: {
-          Accept: "application/json",
-          "Content-Type": "application/json",
-          "api-key": globalState.get("adminApiKey"),
-        },
-        failOnStatusCode: false,
-      }).then((response) => {
-        expect(response.body).to.have.property("product_type", "vault");
-      });
-      // Cleanup merchant
-      cy.merchantDeleteCall(globalState);
     });
   });
   context("Create merchant with product_type=recon", () => {
@@ -70,21 +70,21 @@ describe("Merchant Account Product Type Tests", () => {
         expect(response.status).to.equal(200);
         expect(response.body).to.have.property("product_type", "recon");
         globalState.set("merchantId", response.body.merchant_id);
+        const merchant_id_val = globalState.get("merchantId");
+        cy.request({
+          method: "GET",
+          url: `${globalState.get("baseUrl")}/accounts/${merchant_id_val}`,
+          headers: {
+            Accept: "application/json",
+            "Content-Type": "application/json",
+            "api-key": globalState.get("adminApiKey"),
+          },
+          failOnStatusCode: false,
+        }).then((getResponse) => {
+          expect(getResponse.body).to.have.property("product_type", "recon");
+        });
+        cy.merchantDeleteCall(globalState);
       });
-      const merchant_id_val = globalState.get("merchantId");
-      cy.request({
-        method: "GET",
-        url: `${globalState.get("baseUrl")}/accounts/${merchant_id_val}`,
-        headers: {
-          Accept: "application/json",
-          "Content-Type": "application/json",
-          "api-key": globalState.get("adminApiKey"),
-        },
-        failOnStatusCode: false,
-      }).then((response) => {
-        expect(response.body).to.have.property("product_type", "recon");
-      });
-      cy.merchantDeleteCall(globalState);
     });
   });
   context("Create merchant with product_type=recovery", () => {
@@ -107,21 +107,21 @@ describe("Merchant Account Product Type Tests", () => {
         expect(response.status).to.equal(200);
         expect(response.body).to.have.property("product_type", "recovery");
         globalState.set("merchantId", response.body.merchant_id);
+        const merchant_id_val = globalState.get("merchantId");
+        cy.request({
+          method: "GET",
+          url: `${globalState.get("baseUrl")}/accounts/${merchant_id_val}`,
+          headers: {
+            Accept: "application/json",
+            "Content-Type": "application/json",
+            "api-key": globalState.get("adminApiKey"),
+          },
+          failOnStatusCode: false,
+        }).then((getResponse) => {
+          expect(getResponse.body).to.have.property("product_type", "recovery");
+        });
+        cy.merchantDeleteCall(globalState);
       });
-      const merchant_id_val = globalState.get("merchantId");
-      cy.request({
-        method: "GET",
-        url: `${globalState.get("baseUrl")}/accounts/${merchant_id_val}`,
-        headers: {
-          Accept: "application/json",
-          "Content-Type": "application/json",
-          "api-key": globalState.get("adminApiKey"),
-        },
-        failOnStatusCode: false,
-      }).then((response) => {
-        expect(response.body).to.have.property("product_type", "recovery");
-      });
-      cy.merchantDeleteCall(globalState);
     });
   });
   context("Create merchant with product_type=cost_observability", () => {
@@ -144,21 +144,21 @@ describe("Merchant Account Product Type Tests", () => {
         expect(response.status).to.equal(200);
         expect(response.body).to.have.property("product_type", "cost_observability");
         globalState.set("merchantId", response.body.merchant_id);
+        const merchant_id_val = globalState.get("merchantId");
+        cy.request({
+          method: "GET",
+          url: `${globalState.get("baseUrl")}/accounts/${merchant_id_val}`,
+          headers: {
+            Accept: "application/json",
+            "Content-Type": "application/json",
+            "api-key": globalState.get("adminApiKey"),
+          },
+          failOnStatusCode: false,
+        }).then((getResponse) => {
+          expect(getResponse.body).to.have.property("product_type", "cost_observability");
+        });
+        cy.merchantDeleteCall(globalState);
       });
-      const merchant_id_val = globalState.get("merchantId");
-      cy.request({
-        method: "GET",
-        url: `${globalState.get("baseUrl")}/accounts/${merchant_id_val}`,
-        headers: {
-          Accept: "application/json",
-          "Content-Type": "application/json",
-          "api-key": globalState.get("adminApiKey"),
-        },
-        failOnStatusCode: false,
-      }).then((response) => {
-        expect(response.body).to.have.property("product_type", "cost_observability");
-      });
-      cy.merchantDeleteCall(globalState);
     });
   });
   context("Create merchant with product_type=dynamic_routing", () => {
@@ -181,21 +181,21 @@ describe("Merchant Account Product Type Tests", () => {
         expect(response.status).to.equal(200);
         expect(response.body).to.have.property("product_type", "dynamic_routing");
         globalState.set("merchantId", response.body.merchant_id);
+        const merchant_id_val = globalState.get("merchantId");
+        cy.request({
+          method: "GET",
+          url: `${globalState.get("baseUrl")}/accounts/${merchant_id_val}`,
+          headers: {
+            Accept: "application/json",
+            "Content-Type": "application/json",
+            "api-key": globalState.get("adminApiKey"),
+          },
+          failOnStatusCode: false,
+        }).then((getResponse) => {
+          expect(getResponse.body).to.have.property("product_type", "dynamic_routing");
+        });
+        cy.merchantDeleteCall(globalState);
       });
-      const merchant_id_val = globalState.get("merchantId");
-      cy.request({
-        method: "GET",
-        url: `${globalState.get("baseUrl")}/accounts/${merchant_id_val}`,
-        headers: {
-          Accept: "application/json",
-          "Content-Type": "application/json",
-          "api-key": globalState.get("adminApiKey"),
-        },
-        failOnStatusCode: false,
-      }).then((response) => {
-        expect(response.body).to.have.property("product_type", "dynamic_routing");
-      });
-      cy.merchantDeleteCall(globalState);
     });
   });
   context("Create merchant without product_type (default to orchestration)", () => {
@@ -214,21 +214,21 @@ describe("Merchant Account Product Type Tests", () => {
         expect(response.status).to.equal(200);
         expect(response.body).to.have.property("product_type", "orchestration");
         globalState.set("merchantId", response.body.merchant_id);
+        const merchant_id_val = globalState.get("merchantId");
+        cy.request({
+          method: "GET",
+          url: `${globalState.get("baseUrl")}/accounts/${merchant_id_val}`,
+          headers: {
+            Accept: "application/json",
+            "Content-Type": "application/json",
+            "api-key": globalState.get("adminApiKey"),
+          },
+          failOnStatusCode: false,
+        }).then((getResponse) => {
+          expect(getResponse.body).to.have.property("product_type", "orchestration");
+        });
+        cy.merchantDeleteCall(globalState);
       });
-      const merchant_id_val = globalState.get("merchantId");
-      cy.request({
-        method: "GET",
-        url: `${globalState.get("baseUrl")}/accounts/${merchant_id_val}`,
-        headers: {
-          Accept: "application/json",
-          "Content-Type": "application/json",
-          "api-key": globalState.get("adminApiKey"),
-        },
-        failOnStatusCode: false,
-      }).then((response) => {
-        expect(response.body).to.have.property("product_type", "orchestration");
-      });
-      cy.merchantDeleteCall(globalState);
     });
   });
   context("Create merchant with invalid product_type (negative test)", () => {
