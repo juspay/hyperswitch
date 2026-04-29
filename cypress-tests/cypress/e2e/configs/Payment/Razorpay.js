@@ -1,5 +1,3 @@
-import { customerAcceptance } from "./Commons";
-
 export const connectorDetails = {
   upi_pm: {
     PaymentIntent: {
