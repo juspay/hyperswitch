@@ -360,20 +360,20 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
             // etc.) receive the structured payload they expect.
             // UCS path leaves decoded_body as None and uses the raw request body.
             let biz_req;
-            let request_for_biz: &IncomingWebhookRequestDetails<'_> =
-                match decoded_body.as_deref() {
-                    Some(body) => {
-                        biz_req = IncomingWebhookRequestDetails {
-                            method: request_details.method.clone(),
-                            uri: request_details.uri.clone(),
-                            headers: request_details.headers,
-                            query_params: request_details.query_params.clone(),
-                            body,
-                        };
-                        &biz_req
-                    }
-                    None => &request_details,
-                };
+            let request_for_biz: &IncomingWebhookRequestDetails<'_> = match decoded_body.as_deref()
+            {
+                Some(body) => {
+                    biz_req = IncomingWebhookRequestDetails {
+                        method: request_details.method.clone(),
+                        uri: request_details.uri.clone(),
+                        headers: request_details.headers,
+                        query_params: request_details.query_params.clone(),
+                        body,
+                    };
+                    &biz_req
+                }
+                None => &request_details,
+            };
 
             let effect = match Box::pin(process_webhook_business_logic(
                 &state,
@@ -2924,12 +2924,9 @@ pub async fn process_uas_incoming_webhook<'a>(
     ))
     .await?;
 
-    let source_verified = super::gateway::verify_webhook_source_via_connector(
-        &ctx,
-        &uas_webhook_request,
-        &mca,
-    )
-    .await?;
+    let source_verified =
+        super::gateway::verify_webhook_source_via_connector(&ctx, &uas_webhook_request, &mca)
+            .await?;
 
     let resource_object = uas_connector
         .get_webhook_resource_object(&uas_webhook_request)

@@ -2817,8 +2817,8 @@ where
 
     let router_result = match result {
         Ok(grpc_response) => {
-            let grpc_response_body =
-                hyperswitch_masking::masked_serialize(&grpc_response).unwrap_or_else(|error| {
+            let grpc_response_body = hyperswitch_masking::masked_serialize(&grpc_response)
+                .unwrap_or_else(|error| {
                     logger::warn!(
                         ?error,
                         "Failed to mask-serialize UCS webhook gRPC response for logging"

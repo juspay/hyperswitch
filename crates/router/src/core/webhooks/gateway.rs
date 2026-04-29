@@ -224,9 +224,7 @@ impl IncomingWebhookGateway for DirectIncomingWebhookGateway {
                 return Err(error_stack::report!(
                     errors::ApiErrorResponse::WebhookProcessingFailure
                 )
-                .attach_printable(
-                    "Failed to identify event type in incoming webhook body",
-                ));
+                .attach_printable("Failed to identify event type in incoming webhook body"));
             }
         };
 
