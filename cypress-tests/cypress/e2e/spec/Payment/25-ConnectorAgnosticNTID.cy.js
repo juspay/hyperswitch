@@ -5,7 +5,6 @@ import getConnectorDetails, * as utils from "../../configs/Payment/Utils";
 
 let globalState;
 let connector;
-let isNtidExcluded = false;
 
 /*
 Flow:
@@ -60,14 +59,27 @@ Flow:
 
 describe("Connector Agnostic Tests", () => {
   before(function () {
-    cy.task("getGlobalState").then((state) => {
-      globalState = new State(state);
-      connector = globalState.get("connectorId");
-      isNtidExcluded = utils.shouldExcludeConnector(
-        connector,
-        utils.CONNECTOR_LISTS.EXCLUDE.CONNECTOR_AGNOSTIC_NTID
-      );
-    });
+    let skip = false;
+
+    cy.task("getGlobalState")
+      .then((state) => {
+        globalState = new State(state);
+        connector = globalState.get("connectorId");
+
+        if (
+          utils.shouldExcludeConnector(
+            connector,
+            utils.CONNECTOR_LISTS.EXCLUDE.CONNECTOR_AGNOSTIC_NTID
+          )
+        ) {
+          skip = true;
+        }
+      })
+      .then(() => {
+        if (skip) {
+          this.skip();
+        }
+      });
   });
 
   after("flush global state", () => {
@@ -130,17 +142,12 @@ describe("Connector Agnostic Tests", () => {
         cy.confirmCallTest(fixtures.confirmBody, data, true, globalState);
         cy.then(() => {
           const ntid = globalState.get("networkTransactionId");
-          if (!isNtidExcluded) {
-            expect(ntid, "network_transaction_id").to.exist;
-            expect(ntid, "network_transaction_id").to.not.be.empty;
-          } else {
-            expect(ntid, "network_transaction_id").to.not.exist;
-          }
+          expect(ntid, "network_transaction_id").to.exist;
+          expect(ntid, "network_transaction_id").to.not.be.empty;
         });
 
         if (shouldContinue)
           shouldContinue = utils.should_continue_further(data);
-        if (isNtidExcluded) shouldContinue = false;
       });
 
       it("List Payment Method for Customer using Client Secret", () => {
@@ -328,17 +335,12 @@ describe("Connector Agnostic Tests", () => {
         cy.confirmCallTest(fixtures.confirmBody, data, true, globalState);
         cy.then(() => {
           const ntid = globalState.get("networkTransactionId");
-          if (!isNtidExcluded) {
-            expect(ntid, "network_transaction_id").to.exist;
-            expect(ntid, "network_transaction_id").to.not.be.empty;
-          } else {
-            expect(ntid, "network_transaction_id").to.not.exist;
-          }
+          expect(ntid, "network_transaction_id").to.exist;
+          expect(ntid, "network_transaction_id").to.not.be.empty;
         });
 
         if (shouldContinue)
           shouldContinue = utils.should_continue_further(data);
-        if (isNtidExcluded) shouldContinue = false;
       });
 
       it("List Payment Method for Customer using Client Secret", () => {
@@ -514,17 +516,12 @@ describe("Connector Agnostic Tests", () => {
         cy.confirmCallTest(fixtures.confirmBody, data, true, globalState);
         cy.then(() => {
           const ntid = globalState.get("networkTransactionId");
-          if (!isNtidExcluded) {
-            expect(ntid, "network_transaction_id").to.exist;
-            expect(ntid, "network_transaction_id").to.not.be.empty;
-          } else {
-            expect(ntid, "network_transaction_id").to.not.exist;
-          }
+          expect(ntid, "network_transaction_id").to.exist;
+          expect(ntid, "network_transaction_id").to.not.be.empty;
         });
 
         if (shouldContinue)
           shouldContinue = utils.should_continue_further(data);
-        if (isNtidExcluded) shouldContinue = false;
       });
 
       it("List Payment Method for Customer using Client Secret", () => {
@@ -699,16 +696,11 @@ describe("Connector Agnostic Tests", () => {
       cy.confirmCallTest(fixtures.confirmBody, data, true, globalState);
       cy.then(() => {
         const ntid = globalState.get("networkTransactionId");
-        if (!isNtidExcluded) {
-          expect(ntid, "network_transaction_id").to.exist;
-          expect(ntid, "network_transaction_id").to.not.be.empty;
-        } else {
-          expect(ntid, "network_transaction_id").to.not.exist;
-        }
+        expect(ntid, "network_transaction_id").to.exist;
+        expect(ntid, "network_transaction_id").to.not.be.empty;
       });
 
       if (shouldContinue) shouldContinue = utils.should_continue_further(data);
-      if (isNtidExcluded) shouldContinue = false;
     });
 
     it("List Payment Method for Customer using Client Secret", () => {
