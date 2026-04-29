@@ -910,6 +910,61 @@ export const connectorDetails = {
       },
     },
   },
+  order_create_pm: {
+    OrderCreate: {
+      Request: {
+        currency: "USD",
+        amount: 6000,
+        order_details: [
+          {
+            product_name: "Test Product",
+            quantity: 1,
+            amount: 6000,
+          },
+        ],
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+          amount: 6000,
+        },
+      },
+    },
+    OrderCreateConfirm: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: {
+            card_number: "4111111111111111",
+            card_exp_month: "10",
+            card_exp_year: "30",
+            card_holder_name: "Joseph Doe",
+            card_cvc: "999",
+          },
+        },
+        currency: "USD",
+        amount: 6000,
+        order_details: [
+          {
+            product_name: "Test Product",
+            quantity: 1,
+            amount: 6000,
+          },
+        ],
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+          amount: 6000,
+          payment_method: "card",
+        },
+      },
+    },
+  },
   webhook: {
     TransactionIdConfig: {
       path: "sourceId",
