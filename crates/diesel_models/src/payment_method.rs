@@ -1244,7 +1244,6 @@ pub struct PaymentsMandateReferenceRecord {
     pub connector_customer_id: Option<String>,
 }
 
-#[cfg(feature = "v2")]
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct ConnectorTokenReferenceRecord {
     pub connector_token: String,
@@ -1278,14 +1277,12 @@ impl std::ops::DerefMut for PaymentsMandateReference {
     }
 }
 
-#[cfg(feature = "v2")]
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, diesel::AsExpression)]
 #[diesel(sql_type = diesel::sql_types::Jsonb)]
 pub struct PaymentsTokenReference(
     pub HashMap<common_utils::id_type::MerchantConnectorAccountId, ConnectorTokenReferenceRecord>,
 );
 
-#[cfg(feature = "v2")]
 impl std::ops::Deref for PaymentsTokenReference {
     type Target =
         HashMap<common_utils::id_type::MerchantConnectorAccountId, ConnectorTokenReferenceRecord>;
@@ -1295,7 +1292,6 @@ impl std::ops::Deref for PaymentsTokenReference {
     }
 }
 
-#[cfg(feature = "v2")]
 impl std::ops::DerefMut for PaymentsTokenReference {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.0
@@ -1418,26 +1414,6 @@ impl CommonMandateReference {
     fn parse_payments_reference_with_token_fallback(
         payments_json: serde_json::Value,
     ) -> CustomResult<PaymentsMandateReference, ParsingError> {
-        #[derive(Debug, Clone, serde::Deserialize)]
-        struct ConnectorTokenReferenceRecord {
-            connector_token: String,
-            payment_method_subtype: Option<common_enums::PaymentMethodType>,
-            original_payment_authorized_amount: Option<common_utils::types::MinorUnit>,
-            original_payment_authorized_currency: Option<common_enums::Currency>,
-            metadata: Option<pii::SecretSerdeValue>,
-            connector_token_status: common_enums::ConnectorTokenStatus,
-            connector_token_request_reference_id: Option<String>,
-            connector_customer_id: Option<String>,
-        }
-
-        #[derive(Debug, Clone, serde::Deserialize)]
-        struct PaymentsTokenReference(
-            HashMap<
-                common_utils::id_type::MerchantConnectorAccountId,
-                ConnectorTokenReferenceRecord,
-            >,
-        );
-
         match serde_json::from_value::<PaymentsMandateReference>(payments_json.clone()) {
             Ok(mandate_reference) => Ok(mandate_reference),
             Err(mandate_err) => {
