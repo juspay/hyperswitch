@@ -31491,7 +31491,7 @@
         "required": [
           "client_secret",
           "payment_method_type",
-          "payment_method_data"
+          "payment_token"
         ],
         "properties": {
           "client_secret": {
@@ -31511,7 +31511,12 @@
             "nullable": true
           },
           "payment_method_data": {
-            "$ref": "#/components/schemas/EligibilityPaymentMethodDataRequest"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/EligibilityPaymentMethodDataRequest"
+              }
+            ],
+            "nullable": true
           },
           "browser_info": {
             "allOf": [
@@ -31520,6 +31525,11 @@
               }
             ],
             "nullable": true
+          },
+          "payment_token": {
+            "type": "string",
+            "description": "The payment token to look up the saved payment method\nWhen provided, the system will fetch the payment method data from the locker/vault",
+            "example": "token_abc123xyz"
           }
         }
       },
