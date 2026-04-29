@@ -1249,6 +1249,7 @@ impl TryFrom<&PaypalRouterData<&PaymentsAuthorizeRouterData>> for PaypalPayments
                     | enums::PaymentMethodType::DuitNow
                     | enums::PaymentMethodType::Efecty
                     | enums::PaymentMethodType::Eft
+                    | enums::PaymentMethodType::EftDebitOrder
                     | enums::PaymentMethodType::Eps
                     | enums::PaymentMethodType::Bluecode
                     | enums::PaymentMethodType::Fps
@@ -1409,6 +1410,7 @@ impl TryFrom<&BankDebitData> for PaypalPaymentsRequest {
             | BankDebitData::SepaBankDebit { .. }
             | BankDebitData::BecsBankDebit { .. }
             | BankDebitData::BacsBankDebit { .. }
+            | BankDebitData::EftDebitOrder { .. }
             | BankDebitData::SepaGuarenteedBankDebit { .. } => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("Paypal"),
