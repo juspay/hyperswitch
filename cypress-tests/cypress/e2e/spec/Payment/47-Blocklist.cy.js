@@ -3,8 +3,14 @@ import State from "../../../utils/State";
 import { connectorDetails } from "../../configs/Payment/Commons";
 
 let globalState;
-const TEST_CARD_BIN = `123${Date.now().toString().slice(-3)}`;
-const TEST_EXTENDED_BIN = `12345${Date.now().toString().slice(-3)}`;
+const generateUniqueBin = (digits) => {
+  const base = Math.pow(10, digits - 1);
+  const range = Math.pow(10, digits) - base;
+  return String(base + Math.floor(Math.random() * range));
+};
+
+const TEST_CARD_BIN = generateUniqueBin(6);
+const TEST_EXTENDED_BIN = generateUniqueBin(8);
 
 describe("Blocklist CRUD Operations", () => {
   before("seed global state", () => {
@@ -92,16 +98,27 @@ describe("Blocklist CRUD Operations", () => {
           cy.task("cli_log", "Skipping step: Duplicate creation");
           return;
         }
-        cy.blocklistCreateRule(
-          fixtures.blocklistCreateBody,
-          TEST_CARD_BIN,
-          globalState
-        );
-
+        const apiKey = globalState.get("apiKey");
+        const baseUrl = globalState.get("baseUrl");
         const data = connectorDetails.Blocklist.CreateDuplicate;
-        if (data.Response.body.error) {
-          shouldContinue = false;
-        }
+
+        cy.request({
+          method: "POST",
+          url: `${baseUrl}/blocklist`,
+          headers: {
+            "Content-Type": "application/json",
+            "api-key": apiKey,
+          },
+          body: {
+            ...fixtures.blocklistCreateBody,
+            type: "card_bin",
+            data: TEST_CARD_BIN,
+          },
+          failOnStatusCode: false,
+        }).then((response) => {
+          expect(response.status).to.eq(data.Response.status);
+          expect(response.body.error.message).to.include("already blocked");
+        });
       });
 
       cy.step("Cleanup - delete card_bin entry", () => {
