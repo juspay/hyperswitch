@@ -7111,6 +7111,17 @@
                 "$ref": "#/components/schemas/SepaBankDebitAdditionalData"
               }
             }
+          },
+          {
+            "type": "object",
+            "required": [
+              "eft_debit_order"
+            ],
+            "properties": {
+              "eft_debit_order": {
+                "$ref": "#/components/schemas/EftDebitOrderAdditionalData"
+              }
+            }
           }
         ]
       },
@@ -7348,6 +7359,62 @@
                 }
               }
             }
+          },
+          {
+            "type": "object",
+            "required": [
+              "eft_debit_order"
+            ],
+            "properties": {
+              "eft_debit_order": {
+                "type": "object",
+                "required": [
+                  "account_number"
+                ],
+                "properties": {
+                  "billing_details": {
+                    "allOf": [
+                      {
+                        "$ref": "#/components/schemas/BankDebitBilling"
+                      }
+                    ],
+                    "nullable": true
+                  },
+                  "account_number": {
+                    "type": "string",
+                    "description": "Account number for eft bank debit payment",
+                    "example": "000123456789"
+                  },
+                  "branch_code": {
+                    "type": "string",
+                    "description": "Branch code for eft bank debit payment",
+                    "example": "110000000",
+                    "nullable": true
+                  },
+                  "bank_account_holder_name": {
+                    "type": "string",
+                    "example": "John Doe",
+                    "nullable": true
+                  },
+                  "bank_name": {
+                    "allOf": [
+                      {
+                        "$ref": "#/components/schemas/BankNames"
+                      }
+                    ],
+                    "nullable": true
+                  },
+                  "bank_type": {
+                    "allOf": [
+                      {
+                        "$ref": "#/components/schemas/BankType"
+                      }
+                    ],
+                    "nullable": true
+                  }
+                }
+              }
+            }
           }
         ]
       },
@@ -7513,6 +7580,7 @@
         "type": "string",
         "description": "Name of banks supported by Hyperswitch",
         "enum": [
+          "absa",
           "american_express",
           "affin_bank",
           "agro_bank",
@@ -11028,6 +11096,7 @@
           "recurly",
           "redsys",
           "revolv3",
+          "sanlam",
           "santander",
           "shift4",
           "silverflow",
@@ -13469,6 +13538,47 @@
           "CardNetwork",
           "CardBin"
         ]
+      },
+      "EftDebitOrderAdditionalData": {
+        "type": "object",
+        "required": [
+          "account_number"
+        ],
+        "properties": {
+          "account_number": {
+            "type": "string",
+            "description": "Partially masked account number for eft bank debit payment",
+            "example": "0001****3456"
+          },
+          "branch_code": {
+            "type": "string",
+            "description": "Partially masked branch code for eft bank debit payment",
+            "example": "110***000",
+            "nullable": true
+          },
+          "bank_account_holder_name": {
+            "type": "string",
+            "description": "Bank account's owner name",
+            "example": "John Doe",
+            "nullable": true
+          },
+          "bank_name": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/BankNames"
+              }
+            ],
+            "nullable": true
+          },
+          "bank_type": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/BankType"
+              }
+            ],
+            "nullable": true
+          }
+        }
       },
       "ElementPosition": {
         "type": "string",
@@ -22617,6 +22727,7 @@
           "duit_now",
           "efecty",
           "eft",
+          "eft_debit_order",
           "eps",
           "flexiti",
           "fps",
@@ -28741,6 +28852,7 @@
           "redsys",
           "revolv3",
           "riskified",
+          "sanlam",
           "santander",
           "shift4",
           "signifyd",
