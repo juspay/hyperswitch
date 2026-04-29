@@ -2747,18 +2747,9 @@ fn insert_mandate_details(
     Ok(connector_mandate_details)
 }
 
-/// Runs the Unified Authentication Service path and produces the same
-/// `WebhookOutcome` shape the Direct and UCS gateway implementations
-/// return, so `incoming_webhooks_core` has a single `Skipped`/`Processed`
-/// call site for all three paths. UAS is not a connector and doesn't fit the
-/// `IncomingWebhookGateway` trait (it runs an external auth-service call and
-/// uses the UAS connector for parsing/verification while the ack goes back
-/// through the merchant's connector), so it stays as a plain function.
-///
-/// Flow: UAS gRPC call → event classification on the inbound request →
-/// filter on event type → reference fetch on the UAS response body → MCA
-/// resolution via `get_mca_from_object_reference_id` → source verification
-/// on the UAS connector → resource-object extraction.
+/// Runs the Unified Authentication Service path and returns `WebhookOutcome`
+/// so `incoming_webhooks_core` handles all paths through one
+/// `Skipped`/`Processed` call site.
 #[cfg(feature = "v1")]
 pub async fn process_uas_incoming_webhook<'a>(
     state: &'a SessionState,
@@ -2854,12 +2845,8 @@ pub async fn process_uas_incoming_webhook<'a>(
         execution_mode: common_enums::ExecutionMode::NotApplicable,
     };
 
-    // Reference fetch, MCA resolution, source verification, and resource-object
-    // extraction all run against the UAS response body: the inbound request is
-    // just the trigger, and the substantive payload — what identifies the
-    // payment, what the connector integration expects to parse — lives in the
-    // response returned by the UAS gRPC call.
-    let uas_request = IncomingWebhookRequestDetails {
+    // Reuse inbound request metadata, but parse using UAS response body.
+    let uas_webhook_request = IncomingWebhookRequestDetails {
         method: request_details.method.clone(),
         uri: request_details.uri.clone(),
         headers: request_details.headers,
@@ -2872,7 +2859,7 @@ pub async fn process_uas_incoming_webhook<'a>(
         super::gateway::FilterDecision::Skip
     ) {
         let ack_response = uas_connector
-            .get_webhook_api_response(&uas_request, None, None)
+            .get_webhook_api_response(&uas_webhook_request, None, None)
             .switch()
             .attach_printable("Failed to build UAS webhook ack")?;
         return Ok(super::gateway::WebhookOutcome::Skipped {
@@ -2883,7 +2870,7 @@ pub async fn process_uas_incoming_webhook<'a>(
     }
 
     let reference = uas_connector
-        .get_webhook_object_reference_id(&uas_request)
+        .get_webhook_object_reference_id(&uas_webhook_request)
         .switch()
         .attach_printable("Could not find object reference id in UAS webhook body")?;
 
@@ -2895,11 +2882,15 @@ pub async fn process_uas_incoming_webhook<'a>(
     ))
     .await?;
 
-    let source_verified =
-        super::gateway::verify_webhook_source_via_connector(&ctx, &uas_request, &mca).await?;
+    let source_verified = super::gateway::verify_webhook_source_via_connector(
+        &ctx,
+        &uas_webhook_request,
+        &mca,
+    )
+    .await?;
 
     let resource_object = uas_connector
-        .get_webhook_resource_object(&uas_request)
+        .get_webhook_resource_object(&uas_webhook_request)
         .switch()
         .attach_printable("Failed to extract UAS webhook resource object")?;
     let masked_log_payload = hyperswitch_masking::Secret::new(
@@ -2914,7 +2905,7 @@ pub async fn process_uas_incoming_webhook<'a>(
 
     let ack_response = uas_connector
         .get_webhook_api_response(
-            &uas_request,
+            &uas_webhook_request,
             None,
             Some(mca.connector_account_details.clone()),
         )

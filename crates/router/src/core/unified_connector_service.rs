@@ -35,7 +35,7 @@ use router_env::{instrument, logger, tracing};
 use unified_connector_service_cards::CardNumber;
 use unified_connector_service_client::payments::{
     self as payments_grpc, payment_method::PaymentMethod, CardDetails, ClassicReward,
-    CryptoCurrency, EVoucher, OpenBanking, PaymentServiceAuthorizeResponse, ProxyCardDetails,
+    CryptoCurrency, EVoucher, OpenBanking, PaymentServiceAuthorizeResponse,
 };
 
 #[cfg(feature = "v2")]
@@ -2773,22 +2773,18 @@ where
     })
 }
 
-/// UCS event-logging wrapper for webhook flows. Mirrors `ucs_logging_wrapper_granular`
-/// (metrics, latency, masked request/response, connector-event emission) but takes no
+/// UCS wrapper for webhook flows. It centralizes header building and handler
+/// invocation plus masked request/response logging, and takes no
 /// `RouterData` — incoming webhooks don't have one at the UCS call site. `flow` is
-/// the gRPC method label (e.g. `"EventServiceParseEvent"`), `event_id` is the stable
-/// per-invocation id recorded as the connector event's payment_id.
+/// the gRPC method label (e.g. `"EventServiceParseEvent"`).
 #[allow(clippy::too_many_arguments)]
 #[instrument(skip_all, fields(connector_name, flow_type))]
 pub async fn ucs_webhook_logging_wrapper<F, Fut, GrpcReq, GrpcResp>(
     state: &SessionState,
     connector_name: String,
     flow: &'static str,
-    merchant_id: id_type::MerchantId,
-    event_id: String,
     grpc_request: GrpcReq,
     grpc_header_builder: external_services::grpc_client::GrpcHeadersUcsBuilderFinal,
-    execution_mode: ExecutionMode,
     handler: F,
 ) -> RouterResult<GrpcResp>
 where
@@ -2805,72 +2801,48 @@ where
         hyperswitch_masking::masked_serialize(&grpc_request).unwrap_or_else(|error| {
             logger::warn!(
                 ?error,
-                "Failed to mask-serialize UCS gRPC request for logging"
+                "Failed to mask-serialize UCS webhook gRPC request for logging"
             );
             serde_json::json!({"error": "failed_to_serialize_grpc_request"})
         });
-
-    crate::routes::metrics::CONNECTOR_CALL_COUNT.add(
-        1,
-        router_env::metric_attributes!(("connector", connector_name.clone()), ("flow", flow),),
+    logger::info!(
+        flow,
+        ucs_webhook_grpc_request = ?grpc_request_body,
+        "UCS webhook gRPC request"
     );
 
     let start_time = Instant::now();
     let result = handler(grpc_request, grpc_header).await;
     let external_latency = start_time.elapsed().as_millis();
 
-    let (status_code, response_body, router_result) = match result {
+    let router_result = match result {
         Ok(grpc_response) => {
-            let grpc_response_body = hyperswitch_masking::masked_serialize(&grpc_response)
-                .unwrap_or_else(|error| {
+            let grpc_response_body =
+                hyperswitch_masking::masked_serialize(&grpc_response).unwrap_or_else(|error| {
                     logger::warn!(
                         ?error,
-                        "Failed to mask-serialize UCS gRPC response for logging"
+                        "Failed to mask-serialize UCS webhook gRPC response for logging"
                     );
                     serde_json::json!({"error": "failed_to_serialize_grpc_response"})
                 });
-            (200u16, Some(grpc_response_body), Ok(grpc_response))
+            logger::info!(
+                flow,
+                external_latency,
+                ucs_webhook_grpc_response = ?grpc_response_body,
+                "UCS webhook gRPC response"
+            );
+            Ok(grpc_response)
         }
         Err(error) => {
-            crate::routes::metrics::CONNECTOR_ERROR_RESPONSE_COUNT.add(
-                1,
-                router_env::metric_attributes!(("connector", connector_name.clone())),
+            logger::warn!(
+                flow,
+                external_latency,
+                ?error,
+                "UCS webhook gRPC call failed"
             );
-            let error_body = serde_json::json!({
-                "error": error.to_string(),
-                "error_type": "ucs_call_failed",
-            });
-            (500u16, Some(error_body), Err(error))
+            Err(error)
         }
     };
-
-    if let ExecutionMode::Primary = execution_mode {
-        let mut connector_event = ConnectorEvent::new(
-            state.tenant.tenant_id.clone(),
-            connector_name,
-            flow,
-            grpc_request_body,
-            "grpc://unified-connector-service".to_string(),
-            Method::Post,
-            event_id,
-            merchant_id,
-            state.request_id.as_ref(),
-            external_latency,
-            None,
-            None,
-            None,
-            status_code,
-        );
-
-        if let Some(body) = response_body {
-            match status_code {
-                400..=599 => connector_event.set_error_response_body(&body),
-                _ => connector_event.set_response_body(&body),
-            }
-        }
-
-        state.event_handler.log_event(&connector_event);
-    }
 
     router_result
 }

@@ -19,6 +19,7 @@ use crate::{
     core::{
         errors::{self, utils::ConnectorErrorExt, RouterResult},
         metrics,
+        #[cfg(feature = "v1")]
         payments::helpers::MerchantConnectorAccountType,
         unified_connector_service::{
             self, build_unified_connector_service_auth_metadata,
@@ -304,11 +305,8 @@ impl IncomingWebhookGateway for UcsIncomingWebhookGateway {
             &ctx.state,
             connector_name.clone(),
             "EventServiceParseEvent",
-            merchant_id.clone(),
-            merchant_event_id.clone(),
             parse_request,
             parse_headers,
-            ctx.execution_mode,
             |request, headers| async move {
                 parse_client
                     .incoming_webhook_parse_event(request, parse_auth, headers)
@@ -343,8 +341,19 @@ impl IncomingWebhookGateway for UcsIncomingWebhookGateway {
                         )
                 })?;
                 let mca = resolve_mca(ctx, Some(&reference)).await?;
+                #[cfg(feature = "v1")]
                 let webhook_secrets = build_webhook_secrets_from_merchant_connector_account(
                     &MerchantConnectorAccountType::DbVal(Box::new(mca.clone())),
+                )
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable(
+                    "Failed to resolve webhook secrets from merchant connector account",
+                )?;
+                #[cfg(feature = "v2")]
+                let webhook_secrets = build_webhook_secrets_from_merchant_connector_account(
+                    &domain::MerchantConnectorAccountTypeDetails::MerchantConnectorAccount(
+                        Box::new(mca.clone()),
+                    ),
                 )
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable(
@@ -368,11 +377,8 @@ impl IncomingWebhookGateway for UcsIncomingWebhookGateway {
                     &ctx.state,
                     connector_name.clone(),
                     "EventServiceHandleEvent",
-                    merchant_id.clone(),
-                    merchant_event_id.clone(),
                     handle_request,
                     handle_headers,
-                    ctx.execution_mode,
                     |request, headers| async move {
                         handle_client
                             .incoming_webhook_handle_event(request, handle_auth, headers)
@@ -723,13 +729,25 @@ fn build_ucs_auth_metadata(
 ) -> RouterResult<external_services::grpc_client::unified_connector_service::ConnectorAuthMetadata>
 {
     match mca {
-        Some(mca) => build_unified_connector_service_auth_metadata(
-            MerchantConnectorAccountType::DbVal(Box::new(mca.clone())),
-            ctx.platform.get_processor(),
-            ctx.connector_name.to_string(),
-        )
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to build UCS auth metadata"),
+        Some(mca) => {
+            #[cfg(feature = "v1")]
+            let auth_metadata = build_unified_connector_service_auth_metadata(
+                MerchantConnectorAccountType::DbVal(Box::new(mca.clone())),
+                ctx.platform.get_processor(),
+                ctx.connector_name.to_string(),
+            );
+            #[cfg(feature = "v2")]
+            let auth_metadata = build_unified_connector_service_auth_metadata(
+                domain::MerchantConnectorAccountTypeDetails::MerchantConnectorAccount(Box::new(
+                    mca.clone(),
+                )),
+                ctx.platform.get_processor(),
+                ctx.connector_name.to_string(),
+            );
+            auth_metadata
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to build UCS auth metadata")
+        }
         None => {
             let merchant_id = ctx
                 .platform
