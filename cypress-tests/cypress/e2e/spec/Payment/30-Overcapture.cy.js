@@ -35,96 +35,85 @@ describe("[Payment] Overcapture", () => {
     cy.task("setGlobalState", globalState.data);
   });
 
-  context(
-    "[Payment] Overcapture Happy Path - Amount Exceeds Authorization",
-    () => {
-      let shouldContinue = true;
+  context("[Payment] Overcapture Happy Path - Amount Exceeds Authorization", () => {
+    let shouldContinue = true;
 
-      it("create-call-test-with-overcapture-enabled", () => {
-        const data = getConnectorDetails(globalState.get("connectorId"))[
-          "card_pm"
-        ]["PaymentIntent"];
+    it("create-call-test-with-overcapture-enabled", () => {
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "card_pm"
+      ]["PaymentIntent"];
 
-        const newData = {
-          ...data,
-          Request: {
-            ...data.Request,
-            enable_overcapture: true,
+      const newData = {
+        ...data,
+        Request: {
+          ...data.Request,
+          enable_overcapture: true,
+        },
+      };
+
+      cy.createPaymentIntentTest(
+        fixtures.createPaymentBody,
+        newData,
+        "no_three_ds",
+        "manual",
+        globalState
+      );
+
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
+    });
+
+    it("confirm-call-test", () => {
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "card_pm"
+      ]["No3DSManualCapture"];
+
+      cy.confirmCallTest(fixtures.confirmBody, data, true, globalState);
+
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
+    });
+
+    it("overcapture-call-test-amount-exceeds-authorization", () => {
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "card_pm"
+      ]["Overcapture"];
+
+      cy.captureCallTest(fixtures.captureBody, data, globalState);
+
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
+    });
+
+    it("retrieve-payment-validate-overcapture-fields", () => {
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "card_pm"
+      ]["Overcapture"];
+
+      cy.retrievePaymentCallTest({ globalState, data }).then(() => {
+        const paymentId = globalState.get("paymentID");
+
+        cy.request({
+          method: "GET",
+          url: `${globalState.get("baseUrl")}/payments/${paymentId}`,
+          headers: {
+            "Content-Type": "application/json",
+            Accept: "application/json",
+            "api-key": globalState.get("apiKey"),
           },
-        };
+        }).then((response) => {
+          expect(response.status).to.eq(200);
+          expect(response.body.amount).to.eq(6000);
+          expect(response.body.amount_captured).to.eq(7000);
+          expect(response.body.status).to.eq("succeeded");
 
-        cy.createPaymentIntentTest(
-          fixtures.createPaymentBody,
-          newData,
-          "no_three_ds",
-          "manual",
-          globalState
-        );
-
-        if (shouldContinue)
-          shouldContinue = utils.should_continue_further(data);
-      });
-
-      it("confirm-call-test", () => {
-        const data = getConnectorDetails(globalState.get("connectorId"))[
-          "card_pm"
-        ]["No3DSManualCapture"];
-
-        cy.confirmCallTest(fixtures.confirmBody, data, true, globalState);
-
-        if (shouldContinue)
-          shouldContinue = utils.should_continue_further(data);
-      });
-
-      it("overcapture-call-test-amount-exceeds-authorization", () => {
-        const data = getConnectorDetails(globalState.get("connectorId"))[
-          "card_pm"
-        ]["Overcapture"];
-
-        cy.captureCallTest(fixtures.captureBody, data, globalState);
-
-        if (shouldContinue)
-          shouldContinue = utils.should_continue_further(data);
-      });
-
-      it("retrieve-payment-validate-overcapture-fields", () => {
-        const data = getConnectorDetails(globalState.get("connectorId"))[
-          "card_pm"
-        ]["Overcapture"];
-
-        cy.retrievePaymentCallTest({ globalState, data }).then(() => {
-          const paymentId = globalState.get("paymentID");
-
-          cy.request({
-            method: "GET",
-            url: `${globalState.get("baseUrl")}/payments/${paymentId}`,
-            headers: {
-              "Content-Type": "application/json",
-              Accept: "application/json",
-              "api-key": globalState.get("apiKey"),
-            },
-          }).then((response) => {
-            expect(response.status).to.eq(200);
-            expect(response.body.amount).to.eq(6000);
-            expect(response.body.amount_captured).to.eq(7000);
-            expect(response.body.status).to.eq("succeeded");
-
-            // Validate overcapture specific fields
-            if (response.body.overcapture) {
-              expect(response.body.overcapture).to.have.property("status");
-              expect(response.body.overcapture.status).to.be.oneOf([
-                "Available",
-                "Unavailable",
-              ]);
-              expect(response.body.overcapture).to.have.property(
-                "maximum_amount_capturable"
-              );
-            }
-          });
+          // Validate overcapture specific fields
+          if (response.body.overcapture) {
+            expect(response.body.overcapture).to.have.property("status");
+            expect(response.body.overcapture.status).to.be.oneOf(["Available", "Unavailable"]);
+            expect(response.body.overcapture).to.have.property("maximum_amount_capturable");
+          }
         });
       });
-    }
-  );
+    });
+  });
 
   context("[Payment] Overcapture Edge Case - Exact Authorized Amount", () => {
     let shouldContinue = true;
@@ -174,130 +163,118 @@ describe("[Payment] Overcapture", () => {
     });
   });
 
-  context(
-    "[Payment] Overcapture Edge Case - Partial Capture with Overcapture Enabled",
-    () => {
-      let shouldContinue = true;
+  context("[Payment] Overcapture Edge Case - Partial Capture with Overcapture Enabled", () => {
+    let shouldContinue = true;
 
-      it("create-call-test-with-overcapture-enabled", () => {
-        const data = getConnectorDetails(globalState.get("connectorId"))[
-          "card_pm"
-        ]["PaymentIntent"];
+    it("create-call-test-with-overcapture-enabled", () => {
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "card_pm"
+      ]["PaymentIntent"];
 
-        const newData = {
-          ...data,
-          Request: {
-            ...data.Request,
-            enable_overcapture: true,
-          },
-        };
+      const newData = {
+        ...data,
+        Request: {
+          ...data.Request,
+          enable_overcapture: true,
+        },
+      };
 
-        cy.createPaymentIntentTest(
-          fixtures.createPaymentBody,
-          newData,
-          "no_three_ds",
-          "manual",
-          globalState
-        );
+      cy.createPaymentIntentTest(
+        fixtures.createPaymentBody,
+        newData,
+        "no_three_ds",
+        "manual",
+        globalState
+      );
 
-        if (shouldContinue)
-          shouldContinue = utils.should_continue_further(data);
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
+    });
+
+    it("confirm-call-test", () => {
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "card_pm"
+      ]["No3DSManualCapture"];
+
+      cy.confirmCallTest(fixtures.confirmBody, data, true, globalState);
+
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
+    });
+
+    it("capture-call-test-partial-capture", () => {
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "card_pm"
+      ]["PartialCapture"];
+
+      cy.captureCallTest(fixtures.captureBody, data, globalState);
+
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
+    });
+
+    it("retrieve-payment-partial-captured-status", () => {
+      const paymentId = globalState.get("paymentID");
+
+      cy.request({
+        method: "GET",
+        url: `${globalState.get("baseUrl")}/payments/${paymentId}`,
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+          "api-key": globalState.get("apiKey"),
+        },
+      }).then((response) => {
+        expect(response.status).to.eq(200);
+        expect(response.body.status).to.eq("partially_captured");
+        expect(response.body.amount).to.eq(6000);
+        expect(response.body.amount_captured).to.eq(2000);
       });
+    });
+  });
 
-      it("confirm-call-test", () => {
-        const data = getConnectorDetails(globalState.get("connectorId"))[
-          "card_pm"
-        ]["No3DSManualCapture"];
+  context("[Payment] Overcapture - Standard Capture Flow (without overcapture flag)", () => {
+    let shouldContinue = true;
 
-        cy.confirmCallTest(fixtures.confirmBody, data, true, globalState);
+    it("create-call-test-without-overcapture-flag", () => {
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "card_pm"
+      ]["PaymentIntent"];
 
-        if (shouldContinue)
-          shouldContinue = utils.should_continue_further(data);
-      });
+      cy.createPaymentIntentTest(
+        fixtures.createPaymentBody,
+        data,
+        "no_three_ds",
+        "manual",
+        globalState
+      );
 
-      it("capture-call-test-partial-capture", () => {
-        const data = getConnectorDetails(globalState.get("connectorId"))[
-          "card_pm"
-        ]["PartialCapture"];
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
+    });
 
-        cy.captureCallTest(fixtures.captureBody, data, globalState);
+    it("confirm-call-test", () => {
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "card_pm"
+      ]["No3DSManualCapture"];
 
-        if (shouldContinue)
-          shouldContinue = utils.should_continue_further(data);
-      });
+      cy.confirmCallTest(fixtures.confirmBody, data, true, globalState);
 
-      it("retrieve-payment-partial-captured-status", () => {
-        const paymentId = globalState.get("paymentID");
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
+    });
 
-        cy.request({
-          method: "GET",
-          url: `${globalState.get("baseUrl")}/payments/${paymentId}`,
-          headers: {
-            "Content-Type": "application/json",
-            Accept: "application/json",
-            "api-key": globalState.get("apiKey"),
-          },
-        }).then((response) => {
-          expect(response.status).to.eq(200);
-          expect(response.body.status).to.eq("partially_captured");
-          expect(response.body.amount).to.eq(6000);
-          expect(response.body.amount_captured).to.eq(2000);
-        });
-      });
-    }
-  );
+    it("capture-call-test-standard-flow", () => {
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "card_pm"
+      ]["Capture"];
 
-  context(
-    "[Payment] Overcapture - Standard Capture Flow (without overcapture flag)",
-    () => {
-      let shouldContinue = true;
+      cy.captureCallTest(fixtures.captureBody, data, globalState);
 
-      it("create-call-test-without-overcapture-flag", () => {
-        const data = getConnectorDetails(globalState.get("connectorId"))[
-          "card_pm"
-        ]["PaymentIntent"];
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
+    });
 
-        cy.createPaymentIntentTest(
-          fixtures.createPaymentBody,
-          data,
-          "no_three_ds",
-          "manual",
-          globalState
-        );
+    it("retrieve-payment-verification", () => {
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "card_pm"
+      ]["Capture"];
 
-        if (shouldContinue)
-          shouldContinue = utils.should_continue_further(data);
-      });
-
-      it("confirm-call-test", () => {
-        const data = getConnectorDetails(globalState.get("connectorId"))[
-          "card_pm"
-        ]["No3DSManualCapture"];
-
-        cy.confirmCallTest(fixtures.confirmBody, data, true, globalState);
-
-        if (shouldContinue)
-          shouldContinue = utils.should_continue_further(data);
-      });
-
-      it("capture-call-test-standard-flow", () => {
-        const data = getConnectorDetails(globalState.get("connectorId"))[
-          "card_pm"
-        ]["Capture"];
-
-        cy.captureCallTest(fixtures.captureBody, data, globalState);
-
-        if (shouldContinue)
-          shouldContinue = utils.should_continue_further(data);
-      });
-
-      it("retrieve-payment-verification", () => {
-        const data = getConnectorDetails(globalState.get("connectorId"))[
-          "card_pm"
-        ]["Capture"];
-
-        cy.retrievePaymentCallTest({ globalState, data });
-      });
-    }
-  );
+      cy.retrievePaymentCallTest({ globalState, data });
+    });
+  });
 });
