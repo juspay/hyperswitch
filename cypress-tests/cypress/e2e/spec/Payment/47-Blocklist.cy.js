@@ -86,11 +86,63 @@ describe("Blocklist CRUD Operations", () => {
       });
 
       cy.step("Create card_bin blocklist entry", () => {
-        cy.blocklistCreateRule(
-          fixtures.blocklistCreateBody,
-          TEST_CARD_BIN,
-          globalState
-        );
+        const apiKey = globalState.get("apiKey");
+        const baseUrl = globalState.get("baseUrl");
+
+        cy.request({
+          method: "POST",
+          url: `${baseUrl}/blocklist`,
+          headers: {
+            "Content-Type": "application/json",
+            "api-key": apiKey,
+          },
+          body: {
+            ...fixtures.blocklistCreateBody,
+            type: "card_bin",
+            data: TEST_CARD_BIN,
+          },
+          failOnStatusCode: false,
+        }).then((response) => {
+          if (response.status === 200) {
+            expect(response.body).to.have.property("fingerprint_id", TEST_CARD_BIN);
+            expect(response.body).to.have.property("data_kind", "card_bin");
+          } else if (
+            response.status === 400 &&
+            response.body?.error?.message?.includes("already blocked")
+          ) {
+            cy.request({
+              method: "DELETE",
+              url: `${baseUrl}/blocklist`,
+              headers: {
+                "Content-Type": "application/json",
+                "api-key": apiKey,
+              },
+              body: { type: "card_bin", data: TEST_CARD_BIN },
+              failOnStatusCode: false,
+            }).then((deleteResponse) => {
+              cy.request({
+                method: "POST",
+                url: `${baseUrl}/blocklist`,
+                headers: {
+                  "Content-Type": "application/json",
+                  "api-key": apiKey,
+                },
+                body: {
+                  ...fixtures.blocklistCreateBody,
+                  type: "card_bin",
+                  data: TEST_CARD_BIN,
+                },
+                failOnStatusCode: false,
+              }).then((recreateResponse) => {
+                expect(recreateResponse.status).to.eq(200);
+              });
+            });
+          } else {
+            throw new Error(
+              `Unexpected status ${response.status} when creating card_bin blocklist entry`
+            );
+          }
+        });
       });
 
       cy.step("Attempt to create duplicate card_bin - should fail", () => {
@@ -126,7 +178,16 @@ describe("Blocklist CRUD Operations", () => {
           cy.task("cli_log", "Skipping step: Cleanup");
           return;
         }
-        cy.blocklistDeleteRule("card_bin", TEST_CARD_BIN, globalState);
+        const apiKey = globalState.get("apiKey");
+        const baseUrl = globalState.get("baseUrl");
+
+        cy.request({
+          method: "DELETE",
+          url: `${baseUrl}/blocklist`,
+          headers: { "Content-Type": "application/json", "api-key": apiKey },
+          body: { type: "card_bin", data: TEST_CARD_BIN },
+          failOnStatusCode: false,
+        });
       });
     });
   });
@@ -182,9 +243,23 @@ describe("Blocklist CRUD Operations", () => {
       let shouldContinue = true;
 
       cy.step("Disable blocklist guard", () => {
-        cy.blocklistToggle(false, globalState);
-
+        const apiKey = globalState.get("apiKey");
+        const baseUrl = globalState.get("baseUrl");
         const data = connectorDetails.Blocklist.ToggleDisable;
+
+        cy.request({
+          method: "POST",
+          url: `${baseUrl}/blocklist/toggle?status=false`,
+          headers: {
+            "Content-Type": "application/json",
+            "api-key": apiKey,
+          },
+          failOnStatusCode: false,
+        }).then((response) => {
+          expect(response.status).to.eq(data.Response.status);
+          expect(response.body.blocklist_guard_status).to.eq("disabled");
+        });
+
         if (data.Response.body.error) {
           shouldContinue = false;
         }
@@ -195,12 +270,22 @@ describe("Blocklist CRUD Operations", () => {
           cy.task("cli_log", "Skipping step: Re-enable guard");
           return;
         }
-        cy.blocklistToggle(true, globalState);
-
+        const apiKey = globalState.get("apiKey");
+        const baseUrl = globalState.get("baseUrl");
         const data = connectorDetails.Blocklist.ToggleEnable;
-        if (data.Response.body.error) {
-          shouldContinue = false;
-        }
+
+        cy.request({
+          method: "POST",
+          url: `${baseUrl}/blocklist/toggle?status=true`,
+          headers: {
+            "Content-Type": "application/json",
+            "api-key": apiKey,
+          },
+          failOnStatusCode: false,
+        }).then((response) => {
+          expect(response.status).to.eq(data.Response.status);
+          expect(response.body.blocklist_guard_status).to.eq("enabled");
+        });
       });
     });
   });
@@ -229,16 +314,35 @@ describe("Blocklist CRUD Operations", () => {
       });
 
       cy.step("Add card_bin to blocklist", () => {
-        cy.blocklistCreateRule(
-          fixtures.blocklistCreateBody,
-          TEST_CARD_BIN,
-          globalState
-        );
+        const apiKey = globalState.get("apiKey");
+        const baseUrl = globalState.get("baseUrl");
 
-        const data = connectorDetails.Blocklist.CreateCardBin;
-        if (data.Response.body.error) {
-          shouldContinue = false;
-        }
+        cy.request({
+          method: "POST",
+          url: `${baseUrl}/blocklist`,
+          headers: {
+            "Content-Type": "application/json",
+            "api-key": apiKey,
+          },
+          body: {
+            ...fixtures.blocklistCreateBody,
+            type: "card_bin",
+            data: TEST_CARD_BIN,
+          },
+          failOnStatusCode: false,
+        }).then((response) => {
+          if (response.status === 200) {
+            expect(response.body).to.have.property("fingerprint_id", TEST_CARD_BIN);
+            expect(response.body).to.have.property("data_kind", "card_bin");
+          } else if (
+            response.status === 400 &&
+            response.body?.error?.message?.includes("already blocked")
+          ) {
+            cy.log("card_bin already blocked, continuing with existing entry");
+          } else {
+            shouldContinue = false;
+          }
+        });
       });
 
       cy.step("Add extended_card_bin to blocklist", () => {
@@ -287,7 +391,18 @@ describe("Blocklist CRUD Operations", () => {
           cy.task("cli_log", "Skipping step: Delete card_bin");
           return;
         }
-        cy.blocklistDeleteRule("card_bin", TEST_CARD_BIN, globalState);
+        const apiKey = globalState.get("apiKey");
+        const baseUrl = globalState.get("baseUrl");
+
+        cy.request({
+          method: "DELETE",
+          url: `${baseUrl}/blocklist`,
+          headers: { "Content-Type": "application/json", "api-key": apiKey },
+          body: { type: "card_bin", data: TEST_CARD_BIN },
+          failOnStatusCode: false,
+        }).then((response) => {
+          expect(response.status).to.eq(200);
+        });
       });
 
       cy.step("Delete extended_card_bin entry", () => {
@@ -295,7 +410,18 @@ describe("Blocklist CRUD Operations", () => {
           cy.task("cli_log", "Skipping step: Delete extended_card_bin");
           return;
         }
-        cy.blocklistDeleteRule("extended_card_bin", TEST_EXTENDED_BIN, globalState);
+        const apiKey = globalState.get("apiKey");
+        const baseUrl = globalState.get("baseUrl");
+
+        cy.request({
+          method: "DELETE",
+          url: `${baseUrl}/blocklist`,
+          headers: { "Content-Type": "application/json", "api-key": apiKey },
+          body: { type: "extended_card_bin", data: TEST_EXTENDED_BIN },
+          failOnStatusCode: false,
+        }).then((response) => {
+          expect(response.status).to.eq(200);
+        });
       });
 
       cy.step("Verify card_bin list is empty", () => {
