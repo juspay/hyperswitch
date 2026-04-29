@@ -182,31 +182,6 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         )
         .await?;
 
-        let (payment_method_with_raw_data, payment_method_info) = if let Some(token) = token.clone()
-        {
-            let token_data =
-                helpers::retrieve_payment_token_data(state, token, payment_method).await?;
-            let payment_method_with_raw_data_from_token =
-                helpers::retrieve_payment_method_from_db_with_token_data(
-                    state,
-                    platform.get_provider().get_key_store(),
-                    &token_data,
-                    platform.get_provider().get_account().storage_scheme,
-                    &modular_fetch_context,
-                )
-                .await?;
-
-            let resolved_payment_method_with_raw_data =
-                payment_method_with_raw_data.or(payment_method_with_raw_data_from_token);
-            let resolved_payment_method_info =
-                payment_method_info.or(resolved_payment_method_with_raw_data.as_ref().cloned());
-            (
-                resolved_payment_method_with_raw_data,
-                resolved_payment_method_info,
-            )
-        } else {
-            (payment_method_with_raw_data, payment_method_info)
-        };
         let payment_method_info = payment_method_info.map(|pm_wrapper| pm_wrapper.payment_method);
 
         helpers::validate_allowed_payment_method_types_request(
