@@ -1260,9 +1260,11 @@ export const connectorDetails = {
         currency: "BHD",
       },
       Response: {
-        status: 200,
+        status: 400,
         body: {
-          status: "requires_customer_action",
+          error_code: "IR_39",
+          error_message:
+            "No eligible connector was found for the current payment method configuration",
         },
       },
     }),
@@ -1293,9 +1295,11 @@ export const connectorDetails = {
         currency: "KWD",
       },
       Response: {
-        status: 200,
+        status: 400,
         body: {
-          status: "requires_customer_action",
+          error_code: "IR_39",
+          error_message:
+            "No eligible connector was found for the current payment method configuration",
         },
       },
     }),
@@ -1326,9 +1330,11 @@ export const connectorDetails = {
         currency: "VND",
       },
       Response: {
-        status: 200,
+        status: 400,
         body: {
-          status: "requires_customer_action",
+          error_code: "IR_39",
+          error_message:
+            "No eligible connector was found for the current payment method configuration",
         },
       },
     }),
