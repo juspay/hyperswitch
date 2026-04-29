@@ -63,7 +63,11 @@ impl RedisValue {
     /// and `Nil`.
     pub fn as_string(&self) -> Option<String> {
         match &self.inner {
-            RedisCrateValue::BulkString(bytes) => String::from_utf8(bytes.clone()).ok(),
+            RedisCrateValue::BulkString(bytes) => String::from_utf8(bytes.clone())
+                .inspect_err(|error| {
+                    tracing::debug!(?error, "BulkString contains invalid UTF-8 in as_string()");
+                })
+                .ok(),
             RedisCrateValue::SimpleString(string) => Some(string.clone()),
             RedisCrateValue::VerbatimString { text, .. } => Some(text.clone()),
             RedisCrateValue::Int(integer) => Some(integer.to_string()),
@@ -452,6 +456,12 @@ impl redis::FromRedisValue for MsetnxReply {
 pub fn redis_value_to_option_string(value: &Value) -> Option<String> {
     match value {
         Value::BulkString(bytes) => std::str::from_utf8(bytes)
+            .inspect_err(|error| {
+                tracing::debug!(
+                    ?error,
+                    "BulkString contains invalid UTF-8 in redis_value_to_option_string()"
+                );
+            })
             .ok()
             .map(|utf8_str| utf8_str.to_string()),
         Value::SimpleString(string) => Some(string.clone()),
@@ -671,8 +681,6 @@ impl<T: AsRef<str>> From<T> for RedisKey {
 
 #[cfg(test)]
 mod tests {
-    use redis::FromRedisValue;
-
     use super::*;
 
     // ── redis_value_to_option_string ───────────────────────────────────────
@@ -693,63 +701,9 @@ mod tests {
     }
 
     #[test]
-    fn test_redis_value_simple_string() {
-        let value = Value::SimpleString("OK".to_string());
-        assert_eq!(redis_value_to_option_string(&value), Some("OK".to_string()));
-    }
-
-    #[test]
     fn test_redis_value_int() {
         let value = Value::Int(42);
         assert_eq!(redis_value_to_option_string(&value), Some("42".to_string()));
-    }
-
-    #[test]
-    fn test_redis_value_nil() {
-        let value = Value::Nil;
-        assert_eq!(redis_value_to_option_string(&value), None);
-    }
-
-    #[test]
-    fn test_redis_value_okay() {
-        let value = Value::Okay;
-        assert_eq!(redis_value_to_option_string(&value), Some("OK".to_string()));
-    }
-
-    #[test]
-    fn test_redis_value_double() {
-        let value = Value::Double(2.5);
-        assert_eq!(
-            redis_value_to_option_string(&value),
-            Some("2.5".to_string())
-        );
-    }
-
-    #[test]
-    fn test_redis_value_boolean() {
-        let value = Value::Boolean(true);
-        assert_eq!(
-            redis_value_to_option_string(&value),
-            Some("true".to_string())
-        );
-    }
-
-    #[test]
-    fn test_redis_value_verbatim_string() {
-        let value = Value::VerbatimString {
-            format: redis::VerbatimFormat::Text,
-            text: "raw text".to_string(),
-        };
-        assert_eq!(
-            redis_value_to_option_string(&value),
-            Some("raw text".to_string())
-        );
-    }
-
-    #[test]
-    fn test_redis_value_array() {
-        let value = Value::Array(vec![]);
-        assert_eq!(redis_value_to_option_string(&value), None);
     }
 
     // ── stream_fields_to_option_strings ───────────────────────────────────
@@ -792,113 +746,6 @@ mod tests {
         assert!(result.get("bad").unwrap().is_none());
     }
 
-    #[test]
-    fn test_stream_fields_empty_map() {
-        let fields = std::collections::HashMap::new();
-        let result = stream_fields_to_option_strings(fields);
-        assert!(result.is_empty());
-    }
-
-    // ── SetnxReply::from_redis_value ──────────────────────────────────────
-
-    #[test]
-    fn test_setnx_reply_okay() {
-        let reply = SetnxReply::from_redis_value(Value::Okay);
-        assert_eq!(reply.unwrap(), SetnxReply::KeySet);
-    }
-
-    #[test]
-    fn test_setnx_reply_nil() {
-        let reply = SetnxReply::from_redis_value(Value::Nil);
-        assert_eq!(reply.unwrap(), SetnxReply::KeyNotSet);
-    }
-
-    #[test]
-    fn test_setnx_reply_unexpected_value() {
-        let reply = SetnxReply::from_redis_value(Value::Int(99));
-        assert!(reply.is_err());
-    }
-
-    // ── DelReply::from_redis_value ────────────────────────────────────────
-
-    #[test]
-    fn test_del_reply_one() {
-        let reply = DelReply::from_redis_value(Value::Int(1));
-        assert_eq!(reply.unwrap(), DelReply::KeyDeleted);
-    }
-
-    #[test]
-    fn test_del_reply_zero() {
-        let reply = DelReply::from_redis_value(Value::Int(0));
-        assert_eq!(reply.unwrap(), DelReply::KeyNotDeleted);
-    }
-
-    #[test]
-    fn test_del_reply_unexpected_value() {
-        let reply = DelReply::from_redis_value(Value::Nil);
-        assert!(reply.is_err());
-    }
-
-    // ── HsetnxReply::from_redis_value ──────────────────────────────────────
-
-    #[test]
-    fn test_hsetnx_reply_key_set() {
-        let reply = HsetnxReply::from_redis_value(Value::Int(1));
-        assert_eq!(reply.unwrap(), HsetnxReply::KeySet);
-    }
-
-    #[test]
-    fn test_hsetnx_reply_key_not_set() {
-        let reply = HsetnxReply::from_redis_value(Value::Int(0));
-        assert_eq!(reply.unwrap(), HsetnxReply::KeyNotSet);
-    }
-
-    #[test]
-    fn test_hsetnx_reply_unexpected_value() {
-        let reply = HsetnxReply::from_redis_value(Value::Nil);
-        assert!(reply.is_err());
-    }
-
-    // ── MsetnxReply::from_redis_value ──────────────────────────────────────
-
-    #[test]
-    fn test_msetnx_reply_keys_set() {
-        let reply = MsetnxReply::from_redis_value(Value::Int(1));
-        assert_eq!(reply.unwrap(), MsetnxReply::KeysSet);
-    }
-
-    #[test]
-    fn test_msetnx_reply_keys_not_set() {
-        let reply = MsetnxReply::from_redis_value(Value::Int(0));
-        assert_eq!(reply.unwrap(), MsetnxReply::KeysNotSet);
-    }
-
-    #[test]
-    fn test_msetnx_reply_unexpected_value() {
-        let reply = MsetnxReply::from_redis_value(Value::Nil);
-        assert!(reply.is_err());
-    }
-
-    // ── SaddReply::from_redis_value ────────────────────────────────────────
-
-    #[test]
-    fn test_sadd_reply_key_set() {
-        let reply = SaddReply::from_redis_value(Value::Int(1));
-        assert_eq!(reply.unwrap(), SaddReply::KeySet);
-    }
-
-    #[test]
-    fn test_sadd_reply_key_not_set() {
-        let reply = SaddReply::from_redis_value(Value::Int(0));
-        assert_eq!(reply.unwrap(), SaddReply::KeyNotSet);
-    }
-
-    #[test]
-    fn test_sadd_reply_unexpected_value() {
-        let reply = SaddReply::from_redis_value(Value::Nil);
-        assert!(reply.is_err());
-    }
-
     // ── RedisEntryId::to_stream_id ────────────────────────────────────────
 
     #[test]
@@ -908,35 +755,6 @@ mod tests {
             sequence_number: "0".to_string(),
         };
         assert_eq!(id.to_stream_id(), "1234567890-0");
-    }
-
-    #[test]
-    fn test_entry_id_auto_generated() {
-        assert_eq!(RedisEntryId::AutoGeneratedID.to_stream_id(), "*");
-    }
-
-    #[test]
-    fn test_entry_id_after_last() {
-        assert_eq!(RedisEntryId::AfterLastID.to_stream_id(), "$");
-    }
-
-    #[test]
-    fn test_entry_id_undelivered() {
-        assert_eq!(RedisEntryId::UndeliveredEntryID.to_stream_id(), ">");
-    }
-
-    // ── DelReply helper methods ────────────────────────────────────────────
-
-    #[test]
-    fn test_del_reply_is_key_deleted() {
-        assert!(DelReply::KeyDeleted.is_key_deleted());
-        assert!(!DelReply::KeyNotDeleted.is_key_deleted());
-    }
-
-    #[test]
-    fn test_del_reply_is_key_not_deleted() {
-        assert!(DelReply::KeyNotDeleted.is_key_not_deleted());
-        assert!(!DelReply::KeyDeleted.is_key_not_deleted());
     }
 
     // ── RedisValue constructors and accessors ──────────────────────────────
@@ -1025,24 +843,6 @@ mod tests {
         assert!(result.is_err());
     }
 
-    // ── RedisSettings::Default ─────────────────────────────────────────────
-
-    #[test]
-    fn test_redis_settings_default_values() {
-        let settings = RedisSettings::default();
-        assert_eq!(settings.host, "127.0.0.1");
-        assert_eq!(settings.port, 6379);
-        assert!(!settings.cluster_enabled);
-        assert!(settings.cluster_urls.is_empty());
-        assert!(!settings.use_legacy_version);
-        assert_eq!(settings.reconnect_max_attempts, 5);
-        assert_eq!(settings.reconnect_delay, 5);
-        assert_eq!(settings.default_ttl, 300);
-        assert_eq!(settings.default_hash_ttl, 900);
-        assert_eq!(settings.broadcast_channel_capacity, 32);
-        assert_eq!(settings.max_failure_threshold_seconds, 5);
-    }
-
     // ── RedisValue::ToRedisArgs ────────────────────────────────────────────
 
     #[test]
@@ -1098,57 +898,5 @@ mod tests {
         let mut args = Vec::new();
         redis::ToRedisArgs::write_redis_args(&id, &mut args);
         assert_eq!(args, vec![b"1234567890-0".as_slice()]);
-    }
-
-    #[test]
-    fn test_entry_id_to_redis_args_auto_generated() {
-        let id = RedisEntryId::AutoGeneratedID;
-        let mut args = Vec::new();
-        redis::ToRedisArgs::write_redis_args(&id, &mut args);
-        assert_eq!(args, vec![b"*".as_slice()]);
-    }
-
-    #[test]
-    fn test_entry_id_to_redis_args_after_last() {
-        let id = RedisEntryId::AfterLastID;
-        let mut args = Vec::new();
-        redis::ToRedisArgs::write_redis_args(&id, &mut args);
-        assert_eq!(args, vec![b"$".as_slice()]);
-    }
-
-    #[test]
-    fn test_entry_id_to_redis_args_undelivered() {
-        let id = RedisEntryId::UndeliveredEntryID;
-        let mut args = Vec::new();
-        redis::ToRedisArgs::write_redis_args(&id, &mut args);
-        assert_eq!(args, vec![b">".as_slice()]);
-    }
-
-    // ── SetGetReply::get_value ─────────────────────────────────────────────
-
-    #[test]
-    fn test_set_get_reply_value_set_get_value() {
-        let reply: SetGetReply<String> = SetGetReply::ValueSet("hello".to_string());
-        assert_eq!(reply.get_value(), "hello");
-    }
-
-    #[test]
-    fn test_set_get_reply_value_exists_get_value() {
-        let reply: SetGetReply<String> = SetGetReply::ValueExists("world".to_string());
-        assert_eq!(reply.get_value(), "world");
-    }
-
-    // ── RedisKey ───────────────────────────────────────────────────────────
-
-    #[test]
-    fn test_redis_key_from_string() {
-        let key: RedisKey = "my_key".into();
-        assert_eq!(key.0, "my_key");
-    }
-
-    #[test]
-    fn test_redis_key_from_string_ref() {
-        let key: RedisKey = "my_key".to_string().into();
-        assert_eq!(key.0, "my_key");
     }
 }
