@@ -3,7 +3,7 @@ use std::fmt::Debug;
 use api_models::{self, enums as api_enums};
 use common_enums::CaptureMethod;
 use error_stack::ResultExt;
-use masking::PeekInterface;
+use hyperswitch_masking::PeekInterface;
 use router_env::{
     logger,
     tracing::{self, instrument},
@@ -179,7 +179,7 @@ where
     D: payments::OperationSessionGetters<F> + Send + Sync + Clone,
 {
     use common_utils::ext_traits::OptionExt;
-    use masking::ExposeInterface;
+    use hyperswitch_masking::ExposeInterface;
 
     let db = &*state.store;
     match platform
@@ -428,7 +428,7 @@ where
             // when the order_details are present within the meta_data, we need to take those to support backward compatibility
             payment_data.get_payment_intent().metadata.clone().and_then(|meta| {
                 let order_details = meta.get("order_details").to_owned();
-                order_details.map(|order| vec![masking::Secret::new(order.to_owned())])
+                order_details.map(|order| vec![hyperswitch_masking::Secret::new(order.to_owned())])
             }))
         .map(|order_details_value| {
             order_details_value

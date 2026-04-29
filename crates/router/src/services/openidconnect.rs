@@ -1,7 +1,7 @@
 use common_utils::errors::ErrorSwitch;
 use error_stack::ResultExt;
 use external_services::http_client::client;
-use masking::{ExposeInterface, Secret};
+use hyperswitch_masking::{ExposeInterface, Secret};
 use oidc::TokenResponse;
 use openidconnect::{self as oidc, core as oidc_core};
 use redis_interface::RedisConnectionPool;

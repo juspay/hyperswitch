@@ -110,6 +110,15 @@ impl GlobalPaymentMethodId {
             .change_context(GlobalPaymentMethodIdError::ConstructionError)?;
         Ok(Self(id))
     }
+
+    /// Create a new GlobalPaymentMethodId without validation
+    /// WARNING: This should only be used when the input is already trusted/validated,
+    /// such as when reading a V1 payment method id from the database
+    pub fn new_unchecked(input_string: String) -> Self {
+        let alphanumeric_id = crate::id_type::AlphaNumericId::new_unchecked(input_string);
+        let length_id = crate::id_type::LengthId::new_unchecked(alphanumeric_id);
+        Self(GlobalId(length_id))
+    }
 }
 
 impl<DB> diesel::Queryable<diesel::sql_types::Text, DB> for GlobalPaymentMethodId
@@ -139,11 +148,11 @@ where
 impl<DB> diesel::deserialize::FromSql<diesel::sql_types::Text, DB> for GlobalPaymentMethodId
 where
     DB: diesel::backend::Backend,
-    GlobalId: diesel::deserialize::FromSql<diesel::sql_types::Text, DB>,
+    String: diesel::deserialize::FromSql<diesel::sql_types::Text, DB>,
 {
     fn from_sql(value: DB::RawValue<'_>) -> diesel::deserialize::Result<Self> {
-        let global_id = GlobalId::from_sql(value)?;
-        Ok(Self(global_id))
+        let string_val = String::from_sql(value)?;
+        Ok(Self::new_unchecked(string_val))
     }
 }
 

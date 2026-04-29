@@ -1,7 +1,7 @@
 use api_models::{webhook_events, webhooks};
 use common_utils::{crypto::SignMessage, ext_traits::Encode};
 use error_stack::ResultExt;
-use masking::Secret;
+use hyperswitch_masking::Secret;
 use serde::Serialize;
 
 use crate::{

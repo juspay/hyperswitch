@@ -24,8 +24,8 @@ use diesel_models::{
 };
 use error_stack::ResultExt;
 #[cfg(feature = "v2")]
-use masking::ExposeInterface;
-use masking::{Deserialize, PeekInterface, Secret};
+use hyperswitch_masking::ExposeInterface;
+use hyperswitch_masking::{Deserialize, PeekInterface, Secret};
 use serde::Serialize;
 use time::PrimitiveDateTime;
 
@@ -353,6 +353,10 @@ pub enum PaymentIntentUpdate {
     },
     StateMetadataUpdate {
         state_metadata: common_types::payments::PaymentIntentStateMetadata,
+        updated_by: String,
+    },
+    RecurrenceUpdate {
+        status: common_enums::IntentStatus,
         updated_by: String,
     },
 }
@@ -1271,6 +1275,58 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 shipping_cost: None,
                 installment_options: None,
             },
+            PaymentIntentUpdate::RecurrenceUpdate { status, updated_by } => Self {
+                status: Some(status),
+                updated_by,
+                session_expiry: None,
+                state_metadata: None,
+                amount: None,
+                currency: None,
+                amount_captured: None,
+                customer_id: None,
+                return_url: None,
+                setup_future_usage: None,
+                off_session: None,
+                metadata: None,
+                billing_address_id: None,
+                shipping_address_id: None,
+                modified_at: None,
+                active_attempt_id: None,
+                business_country: None,
+                business_label: None,
+                description: None,
+                statement_descriptor_name: None,
+                statement_descriptor_suffix: None,
+                order_details: None,
+                attempt_count: None,
+                merchant_decision: None,
+                payment_confirm_source: None,
+                surcharge_applicable: None,
+                incremental_authorization_allowed: None,
+                authorization_count: None,
+                fingerprint_id: None,
+                request_external_three_ds_authentication: None,
+                frm_metadata: None,
+                customer_details: None,
+                billing_details: None,
+                merchant_order_reference_id: None,
+                shipping_details: None,
+                is_payment_processor_token_flow: None,
+                tax_details: None,
+                force_3ds_challenge: None,
+                is_iframe_redirection_enabled: None,
+                payment_channel: None,
+                feature_metadata: None,
+                tax_status: None,
+                discount_amount: None,
+                order_date: None,
+                shipping_amount_tax: None,
+                duty_amount: None,
+                enable_partial_authorization: None,
+                enable_overcapture: None,
+                shipping_cost: None,
+                installment_options: None,
+            },
         }
     }
 }
@@ -1489,6 +1545,9 @@ impl From<PaymentIntentUpdate> for DieselPaymentIntentUpdate {
                 updated_by,
                 shipping_details: shipping_details.map(Encryption::from),
             },
+            PaymentIntentUpdate::RecurrenceUpdate { status, updated_by } => {
+                Self::RecurrenceUpdate { status, updated_by }
+            }
         }
     }
 }

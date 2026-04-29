@@ -4,7 +4,7 @@ use async_trait::async_trait;
 use common_utils::{id_type::GenerateId, pii::Email};
 use error_stack::Report;
 use hyperswitch_domain_models::router_data_v2::flow_common_types::PaymentFlowData;
-use masking::Secret;
+use hyperswitch_masking::Secret;
 use router::{
     configs::settings::Settings,
     core::{errors::ConnectorError, payments},
@@ -569,6 +569,7 @@ pub trait ConnectorActions: Connector {
             minor_amount_capturable: None,
             authorized_amount: None,
             customer_document_details: None,
+            feature_data: None,
         }
     }
 
@@ -1025,6 +1026,7 @@ impl Default for PaymentAuthorizeType {
             rrn: None,
             feature_metadata: None,
             installment_details: None,
+            connector_intent_metadata: None,
         };
         Self(data)
     }

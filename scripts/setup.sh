@@ -178,7 +178,7 @@ check_prerequisites() {
     echo ""
 
     # Check ports
-    required_ports=(8080 9000 9050 5432 6379 9060)
+    required_ports=(8080 8081 9000 9050 5432 6379 9060)
     unavailable_ports=()
 
     for port in "${required_ports[@]}"; do

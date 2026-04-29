@@ -6,7 +6,7 @@ use std::str::FromStr;
 use base64::Engine;
 use error_stack::ResultExt;
 use http::{HeaderMap, HeaderName, HeaderValue, Method, StatusCode};
-use masking::{PeekInterface, StrongSecret};
+use hyperswitch_masking::{PeekInterface, StrongSecret};
 use once_cell::sync::OnceCell;
 use router_env::{instrument, logger, tracing};
 

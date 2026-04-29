@@ -109,11 +109,8 @@ where
                         )?,
                     }),
                     ApiEventMetricRow {
-                        latency: if i.latency_count != 0 {
-                            Some(i.latency_sum.unwrap_or(0) / i.latency_count)
-                        } else {
-                            None
-                        },
+                        latency: Some(i.latency_sum.unwrap_or(0))
+                            .and_then(|sum| sum.checked_div(i.latency_count)),
                         api_count: None,
                         status_code_count: None,
                         start_bucket: i.start_bucket,

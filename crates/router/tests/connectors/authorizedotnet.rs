@@ -1,6 +1,6 @@
 use std::str::FromStr;
 
-use masking::Secret;
+use hyperswitch_masking::Secret;
 use router::types::{self, domain, storage::enums};
 
 use crate::{

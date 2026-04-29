@@ -26,6 +26,10 @@ const CONSTANTS = {
   ],
 };
 
+function normalizeConnectorForRedirect(connectorId) {
+  return connectorId === "stripeconnect" ? "stripe" : connectorId;
+}
+
 export function handleRedirection(
   redirectionType,
   urls,
@@ -33,12 +37,14 @@ export function handleRedirection(
   paymentMethodType,
   handlerMetadata
 ) {
+  const resolvedConnectorId = normalizeConnectorForRedirect(connectorId);
+
   switch (redirectionType) {
     case "bank_redirect":
       bankRedirectRedirection(
         urls.redirectionUrl,
         urls.expectedUrl,
-        connectorId,
+        resolvedConnectorId,
         paymentMethodType
       );
       break;
@@ -46,19 +52,23 @@ export function handleRedirection(
       bankTransferRedirection(
         urls.redirectionUrl,
         urls.expectedUrl,
-        connectorId,
+        resolvedConnectorId,
         paymentMethodType,
         handlerMetadata.nextActionType
       );
       break;
     case "three_ds":
-      threeDsRedirection(urls.redirectionUrl, urls.expectedUrl, connectorId);
+      threeDsRedirection(
+        urls.redirectionUrl,
+        urls.expectedUrl,
+        resolvedConnectorId
+      );
       break;
     case "upi":
       upiRedirection(
         urls.redirectionUrl,
         urls.expectedUrl,
-        connectorId,
+        resolvedConnectorId,
         paymentMethodType
       );
       break;
@@ -66,7 +76,7 @@ export function handleRedirection(
       rewardRedirection(
         urls.redirectionUrl,
         urls.expectedUrl,
-        connectorId,
+        resolvedConnectorId,
         paymentMethodType
       );
       break;
@@ -74,7 +84,7 @@ export function handleRedirection(
       cryptoRedirection(
         urls.redirectionUrl,
         urls.expectedUrl,
-        connectorId,
+        resolvedConnectorId,
         paymentMethodType
       );
       break;
@@ -139,6 +149,7 @@ function bankTransferRedirection(
   paymentMethodType,
   nextActionType
 ) {
+  connectorId = normalizeConnectorForRedirect(connectorId);
   let verifyUrl = true; // Default to true, can be set to false based on conditions
   switch (nextActionType) {
     case "bank_transfer_steps_and_charges_details":
@@ -252,6 +263,7 @@ function bankRedirectRedirection(
   connectorId,
   paymentMethodType
 ) {
+  connectorId = normalizeConnectorForRedirect(connectorId);
   let verifyUrl = false;
 
   cy.visit(redirectionUrl.href);
@@ -374,6 +386,40 @@ function bankRedirectRedirection(
       }
     );
     verifyUrl = false;
+  } else if (connectorId === "trustpay" && paymentMethodType === "ideal") {
+    // TrustPay iDEAL: aapi.finby.eu JS auto-redirects to pay.ideal.nl with no user interaction.
+    // Cypress does not support nested cy.origin, so we handle origins sequentially.
+    // ref: https://github.com/cypress-io/cypress/issues/20718
+    const trustpayIdealOrigin2 = "https://pay.ideal.nl";
+
+    // aapi.finby.eu redirects automatically — just wait for pay.ideal.nl to load
+    cy.log(`Waiting for redirection to ${trustpayIdealOrigin2}`);
+    cy.location("origin", { timeout: CONSTANTS.TIMEOUT }).should(
+      "eq",
+      trustpayIdealOrigin2
+    );
+
+    cy.origin(
+      trustpayIdealOrigin2,
+      { args: { constants: CONSTANTS } },
+      ({ constants }) => {
+        cy.log("Executing on TrustPay iDEAL Origin (pay.ideal.nl)");
+        cy.wait(constants.TIMEOUT / 10); // 2 seconds for page load
+        cy.get("button[data-testid=payment-action-button]", {
+          timeout: constants.TIMEOUT,
+        })
+          .should("be.visible")
+          .click();
+        cy.wait(constants.TIMEOUT / 10); // 2 seconds for bank list to render
+        cy.get('button[id="bank-item-INGBNL2A"]', {
+          timeout: constants.TIMEOUT,
+        })
+          .should("be.visible")
+          .click();
+      }
+    );
+
+    verifyUrl = false;
   } else {
     handleFlow(
       redirectionUrl,
@@ -386,6 +432,11 @@ function bankRedirectRedirection(
           case "adyen":
             switch (paymentMethodType) {
               case "eps":
+                cy.get("h1").should("contain.text", "Acquirer Simulator");
+                cy.get('[value="authorised"]').click();
+                verifyUrl = true;
+                break;
+              case "ali_pay_hk":
                 cy.get("h1").should("contain.text", "Acquirer Simulator");
                 cy.get('[value="authorised"]').click();
                 verifyUrl = true;
@@ -468,12 +519,6 @@ function bankRedirectRedirection(
                   "Allgemeine Sparkasse Oberösterreich Bank AG (ASPKAT2LXXX / 20320)"
                 );
                 cy.get("#selectionSubmit").click();
-                break;
-              case "ideal":
-                cy.contains("button", "Select your bank").click();
-                cy.get(
-                  'button[data-testid="bank-item"][id="bank-item-INGBNL2A"]'
-                ).click();
                 break;
               case "giropay":
                 cy.get("._transactionId__header__iXVd_").should(
@@ -1349,15 +1394,15 @@ function threeDsRedirection(redirectionUrl, expectedUrl, connectorId) {
           break;
 
         case "trustpay":
-          cy.get('form[name="challengeForm"]', {
+          cy.get('form[name="simulationForm"]', {
             timeout: constants.WAIT_TIME,
           })
             .should("exist")
             .then(() => {
-              cy.get("#outcomeSelect")
-                .select("Approve")
-                .should("have.value", "Y");
-              cy.get('button[type="submit"]').click();
+              cy.get("#challengeResult")
+                .select("Successful")
+                .should("have.value", "Success");
+              cy.get('input[type="submit"]').click();
             });
           break;
 

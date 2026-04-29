@@ -137,6 +137,7 @@ crates/router/src/types/api/verify_connector @juspay/hyperswitch-dashboard
 crates/router/src/types/api/verify_connector.rs @juspay/hyperswitch-dashboard
 crates/router/src/types/domain/user @juspay/hyperswitch-dashboard
 crates/router/src/types/domain/user.rs @juspay/hyperswitch-dashboard
+crates/router/src/types/domain/role.rs @juspay/hyperswitch-dashboard
 crates/router/src/types/storage/user.rs @juspay/hyperswitch-dashboard
 crates/router/src/types/storage/user_role.rs @juspay/hyperswitch-dashboard
 crates/router/src/types/storage/dashboard_metadata.rs @juspay/hyperswitch-dashboard

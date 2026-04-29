@@ -42,7 +42,7 @@ pub async fn list_blocklist_entries(
     state: SessionState,
     platform: domain::Platform,
     query: api_blocklist::ListBlocklistQuery,
-) -> RouterResponse<Vec<api_blocklist::BlocklistResponse>> {
+) -> RouterResponse<api_blocklist::ListBlocklistResponse> {
     utils::list_blocklist_entries_for_merchant(
         &state,
         platform.get_processor().get_account().get_id(),

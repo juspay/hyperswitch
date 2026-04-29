@@ -17,7 +17,7 @@ use diesel_models::{
     customers as storage_types, customers::CustomerUpdateInternal, query::customers as query,
 };
 use error_stack::ResultExt;
-use masking::{ExposeInterface, PeekInterface, Secret, SwitchStrategy};
+use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret, SwitchStrategy};
 use router_env::{instrument, tracing};
 use rustc_hash::FxHashMap;
 use serde_json::Value;
@@ -109,7 +109,7 @@ impl Customer {
     pub fn get_connector_customer_map(
         &self,
     ) -> FxHashMap<id_type::MerchantConnectorAccountId, String> {
-        use masking::PeekInterface;
+        use hyperswitch_masking::PeekInterface;
         if let Some(connector_customer_value) = &self.connector_customer {
             connector_customer_value
                 .peek()
@@ -124,7 +124,7 @@ impl Customer {
     /// Get the connector customer ID for the specified connector label, if present
     #[cfg(feature = "v1")]
     pub fn get_connector_customer_id(&self, connector_label: &str) -> Option<&str> {
-        use masking::PeekInterface;
+        use hyperswitch_masking::PeekInterface;
 
         self.connector_customer
             .as_ref()
@@ -160,7 +160,7 @@ impl behaviour::Conversion for Customer {
     type NewDstType = diesel_models::customers::CustomerNew;
     async fn convert(self) -> CustomResult<Self::DstType, ValidationError> {
         Ok(diesel_models::customers::Customer {
-            customer_id: self.customer_id,
+            customer_id: self.customer_id.clone(),
             merchant_id: self.merchant_id,
             name: self.name.map(Encryption::from),
             email: self.email.map(Encryption::from),
@@ -181,6 +181,7 @@ impl behaviour::Conversion for Customer {
             last_modified_by: self
                 .last_modified_by
                 .map(|last_modified_by| last_modified_by.to_string()),
+            id: Some(self.customer_id),
         })
     }
 
@@ -271,6 +272,7 @@ impl behaviour::Conversion for Customer {
     async fn construct_new(self) -> CustomResult<Self::NewDstType, ValidationError> {
         let now = date_time::now();
         Ok(diesel_models::customers::CustomerNew {
+            id: Some(self.customer_id.clone()),
             customer_id: self.customer_id,
             merchant_id: self.merchant_id,
             name: self.name.map(Encryption::from),

@@ -19,7 +19,7 @@ use hyperswitch_domain_models::{
     router_response_types::GiftCardBalanceCheckResponseData,
 };
 use hyperswitch_interfaces::connector_integration_interface::RouterDataConversion;
-use masking::ExposeInterface;
+use hyperswitch_masking::ExposeInterface;
 use router_env::{instrument, tracing};
 
 use crate::{
@@ -247,14 +247,14 @@ pub async fn payments_check_and_apply_pm_data_core(
                     )
                 }
                 None => {
-                    match payments_check_gift_card_balance_core(
+                    match Box::pin(payments_check_gift_card_balance_core(
                         &state,
                         &platform,
                         &profile,
                         &_req_state,
                         pm.clone(),
                         &payment_id,
-                    )
+                    ))
                     .await
                     {
                         Ok((balance, currency)) => {

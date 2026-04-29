@@ -2,7 +2,7 @@ use actix_multipart::form::MultipartForm;
 use actix_web::{web, HttpRequest, HttpResponse};
 use api_models::user::theme as theme_api;
 use common_utils::types::user::ThemeLineage;
-use masking::Secret;
+use hyperswitch_masking::Secret;
 use router_env::Flow;
 
 use crate::{

@@ -1,5 +1,5 @@
 use common_utils::{pii::Email, types::StringMajorUnit};
-use masking::Secret;
+use hyperswitch_masking::Secret;
 use serde::{Deserialize, Serialize};
 
 use crate::connectors::payload::responses;
@@ -81,6 +81,8 @@ pub struct PayloadMandateRequestData {
     // For manual capture, set status to "authorized", otherwise omit
     #[serde(skip_serializing_if = "Option::is_none")]
     pub status: Option<responses::PayloadPaymentStatus>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub processing_id: Option<Secret<String>>,
 }
 
 #[derive(Default, Clone, Debug, Serialize, Eq, PartialEq)]

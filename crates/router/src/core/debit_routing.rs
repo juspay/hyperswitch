@@ -4,7 +4,7 @@ use api_models::{enums as api_enums, open_router};
 use common_enums::enums;
 use common_utils::{errors::CustomResult, ext_traits::ValueExt, id_type};
 use error_stack::ResultExt;
-use masking::{PeekInterface, Secret};
+use hyperswitch_masking::{PeekInterface, Secret};
 
 use super::{
     payments::{OperationSessionGetters, OperationSessionSetters},

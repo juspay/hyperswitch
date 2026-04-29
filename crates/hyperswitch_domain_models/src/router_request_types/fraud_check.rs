@@ -3,7 +3,7 @@ use common_utils::{
     pii::Email,
 };
 use diesel_models::types::OrderDetailsWithAmount;
-use masking::Secret;
+use hyperswitch_masking::Secret;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 

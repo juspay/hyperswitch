@@ -196,6 +196,28 @@ impl PaymentMethod {
         .await
     }
 
+    pub async fn find_by_customer_id_merchant_id_status_pm_type(
+        conn: &PgPooledConn,
+        customer_id: &common_utils::id_type::CustomerId,
+        merchant_id: &common_utils::id_type::MerchantId,
+        status: storage_enums::PaymentMethodStatus,
+        payment_method_type: storage_enums::PaymentMethodType,
+        limit: Option<i64>,
+    ) -> StorageResult<Vec<Self>> {
+        generics::generic_filter::<<Self as HasTable>::Table, _, _, _>(
+            conn,
+            dsl::customer_id
+                .eq(customer_id.to_owned())
+                .and(dsl::merchant_id.eq(merchant_id.to_owned()))
+                .and(dsl::status.eq(status))
+                .and(dsl::payment_method_type.eq(payment_method_type)),
+            limit,
+            None,
+            Some(dsl::last_used_at.desc()),
+        )
+        .await
+    }
+
     pub async fn update_with_payment_method_id(
         self,
         conn: &PgPooledConn,
@@ -350,5 +372,13 @@ impl PaymentMethod {
         .await
         .change_context(errors::DatabaseError::Others)
         .attach_printable("Failed to get a count of payment methods")
+    }
+
+    pub async fn find_by_locker_id(conn: &PgPooledConn, locker_id: &str) -> StorageResult<Self> {
+        generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
+            conn,
+            dsl::locker_id.eq(locker_id.to_owned()),
+        )
+        .await
     }
 }

@@ -49,7 +49,7 @@ use hyperswitch_interfaces::{
     types::Response,
     webhooks::{IncomingWebhook, IncomingWebhookRequestDetails, WebhookContext},
 };
-use masking::Maskable;
+use hyperswitch_masking::Maskable;
 use transformers as gpayments;
 
 use crate::{
@@ -213,7 +213,7 @@ impl IncomingWebhook for Gpayments {
     fn get_webhook_resource_object(
         &self,
         _request: &IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, ConnectorError> {
+    ) -> CustomResult<Box<dyn hyperswitch_masking::ErasedMaskSerialize>, ConnectorError> {
         Err(report!(ConnectorError::WebhooksNotImplemented))
     }
 }

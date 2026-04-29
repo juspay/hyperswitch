@@ -1,5 +1,5 @@
 use common_enums::GooglePayCardFundingSource;
-use masking::PeekInterface;
+use hyperswitch_masking::PeekInterface;
 use router::types::{self, domain, storage::enums, AccessToken, ConnectorAuthType};
 
 use crate::{

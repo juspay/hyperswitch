@@ -3,7 +3,7 @@ use common_utils::{
     errors::{CustomResult, ValidationError},
     types::keymanager,
 };
-use masking::Secret;
+use hyperswitch_masking::Secret;
 use serde::{Deserialize, Serialize};
 use time::PrimitiveDateTime;
 

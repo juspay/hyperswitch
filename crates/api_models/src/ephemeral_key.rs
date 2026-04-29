@@ -1,6 +1,6 @@
 use common_utils::id_type;
 #[cfg(feature = "v2")]
-use masking::Secret;
+use hyperswitch_masking::Secret;
 use smithy::SmithyModel;
 use utoipa::ToSchema;
 

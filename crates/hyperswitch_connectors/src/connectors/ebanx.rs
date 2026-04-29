@@ -44,7 +44,7 @@ use hyperswitch_interfaces::{
     webhooks::{IncomingWebhook, IncomingWebhookRequestDetails, WebhookContext},
 };
 #[cfg(feature = "payouts")]
-use masking::Maskable;
+use hyperswitch_masking::Maskable;
 #[cfg(feature = "payouts")]
 use router_env::{instrument, tracing};
 use transformers as ebanx;
@@ -448,7 +448,7 @@ impl IncomingWebhook for Ebanx {
     fn get_webhook_resource_object(
         &self,
         _request: &IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, ConnectorError> {
+    ) -> CustomResult<Box<dyn hyperswitch_masking::ErasedMaskSerialize>, ConnectorError> {
         Err(report!(ConnectorError::WebhooksNotImplemented))
     }
 }

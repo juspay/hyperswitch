@@ -24,7 +24,7 @@ pub struct GenericTokenizationRequest {
     pub customer_id: id_type::GlobalCustomerId,
     /// Request for tokenization which contains the data to be tokenized
     #[schema(value_type = Object,example = json!({ "city": "NY", "unit": "245" }))]
-    pub token_request: masking::Secret<serde_json::Value>,
+    pub token_request: hyperswitch_masking::Secret<serde_json::Value>,
 }
 
 #[cfg(all(feature = "v2", feature = "tokenization_v2"))]

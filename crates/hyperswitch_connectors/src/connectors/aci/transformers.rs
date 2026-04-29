@@ -24,7 +24,7 @@ use hyperswitch_domain_models::{
     },
 };
 use hyperswitch_interfaces::errors;
-use masking::{ExposeInterface, Secret};
+use hyperswitch_masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
 use url::Url;
 
@@ -39,25 +39,37 @@ use crate::{
 
 type Error = error_stack::Report<errors::ConnectorError>;
 
-trait GetCaptureMethod {
+trait AttemptStatusMapper {
     fn get_capture_method(&self) -> Option<enums::CaptureMethod>;
+
+    fn map_success_status(&self, auto_capture: bool) -> enums::AttemptStatus {
+        if auto_capture {
+            enums::AttemptStatus::Charged
+        } else {
+            enums::AttemptStatus::Authorized
+        }
+    }
 }
 
-impl GetCaptureMethod for PaymentsAuthorizeData {
+impl AttemptStatusMapper for PaymentsAuthorizeData {
     fn get_capture_method(&self) -> Option<enums::CaptureMethod> {
         self.capture_method
     }
 }
 
-impl GetCaptureMethod for PaymentsSyncData {
+impl AttemptStatusMapper for PaymentsSyncData {
     fn get_capture_method(&self) -> Option<enums::CaptureMethod> {
         self.capture_method
     }
 }
 
-impl GetCaptureMethod for PaymentsCancelData {
+impl AttemptStatusMapper for PaymentsCancelData {
     fn get_capture_method(&self) -> Option<enums::CaptureMethod> {
         None
+    }
+
+    fn map_success_status(&self, _auto_capture: bool) -> enums::AttemptStatus {
+        enums::AttemptStatus::Voided
     }
 }
 
@@ -650,6 +662,8 @@ impl TryFrom<&AciRouterData<&PaymentsAuthorizeRouterData>> for AciPaymentsReques
             | PaymentMethodData::OpenBanking(_)
             | PaymentMethodData::CardToken(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+            | PaymentMethodData::CardWithOptionalCVC(_)
+            | PaymentMethodData::CardWithNetworkTokenDetails(_)
             | PaymentMethodData::CardWithLimitedDetails(_)
             | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
             | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
@@ -965,15 +979,13 @@ pub enum AciPaymentStatus {
     RedirectShopper,
 }
 
-fn map_aci_attempt_status(item: AciPaymentStatus, auto_capture: bool) -> enums::AttemptStatus {
+fn map_aci_attempt_status<T: AttemptStatusMapper>(
+    request: &T,
+    item: AciPaymentStatus,
+    auto_capture: bool,
+) -> enums::AttemptStatus {
     match item {
-        AciPaymentStatus::Succeeded => {
-            if auto_capture {
-                enums::AttemptStatus::Charged
-            } else {
-                enums::AttemptStatus::Authorized
-            }
-        }
+        AciPaymentStatus::Succeeded => request.map_success_status(auto_capture),
         AciPaymentStatus::Failed => enums::AttemptStatus::Failure,
         AciPaymentStatus::Pending => enums::AttemptStatus::Authorizing,
         AciPaymentStatus::RedirectShopper => enums::AttemptStatus::AuthenticationPending,
@@ -1059,7 +1071,7 @@ pub struct ErrorParameters {
 impl<F, Req> TryFrom<ResponseRouterData<F, AciPaymentsResponse, Req, PaymentsResponseData>>
     for RouterData<F, Req, PaymentsResponseData>
 where
-    Req: GetCaptureMethod,
+    Req: AttemptStatusMapper,
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
@@ -1102,15 +1114,15 @@ where
                 connector_mandate_request_reference_id: Some(item.response.id.clone()),
             });
 
-        let auto_capture = matches!(
-            item.data.request.get_capture_method(),
-            Some(enums::CaptureMethod::Automatic) | None
-        );
-
         let status = if redirection_data.is_some() {
-            map_aci_attempt_status(AciPaymentStatus::RedirectShopper, auto_capture)
+            enums::AttemptStatus::AuthenticationPending
         } else {
+            let auto_capture = matches!(
+                item.data.request.get_capture_method(),
+                Some(enums::CaptureMethod::Automatic) | None
+            );
             map_aci_attempt_status(
+                &item.data.request,
                 AciPaymentStatus::from_str(&item.response.result.code)?,
                 auto_capture,
             )
@@ -1532,6 +1544,7 @@ impl
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "UPPERCASE")]
 pub enum AciWebhookEventType {
     Payment,
 }

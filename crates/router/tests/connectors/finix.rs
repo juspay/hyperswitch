@@ -1,5 +1,5 @@
 use hyperswitch_domain_models::payment_method_data::{Card, PaymentMethodData};
-use masking::Secret;
+use hyperswitch_masking::Secret;
 use router::types::{self, api, storage::enums};
 use test_utils::connector_auth;
 

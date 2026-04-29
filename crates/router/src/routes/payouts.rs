@@ -53,7 +53,7 @@ pub async fn payouts_create(
         &req,
         payload,
         |state, auth: auth::AuthenticationData, req, _| {
-            payouts_create_core(state, auth.platform, req)
+            payouts_create_core(state, auth.platform, header_payload.clone(), req)
         },
         &auth::HeaderAuth(auth::ApiKeyAuth {
             allow_connected_scope_operation: false,
@@ -80,6 +80,11 @@ pub async fn payouts_retrieve(
     };
     let flow = Flow::PayoutsRetrieve;
 
+    let header_payload = match HeaderPayload::foreign_try_from(req.headers()) {
+        Ok(headers) => headers,
+        Err(err) => return api::log_and_return_error_response(err),
+    };
+
     Box::pin(api::server_wrap(
         flow,
         state,
@@ -87,7 +92,13 @@ pub async fn payouts_retrieve(
         payout_retrieve_request,
         |state, auth: auth::AuthenticationData, req, _| {
             let profile_id = auth.profile.map(|profile| profile.get_id().clone());
-            payouts_retrieve_core(state, auth.platform, profile_id, req)
+            payouts_retrieve_core(
+                state,
+                auth.platform,
+                header_payload.clone(),
+                profile_id,
+                req,
+            )
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
@@ -134,7 +145,7 @@ pub async fn payouts_update(
         &req,
         payout_update_payload,
         |state, auth: auth::AuthenticationData, req, _| {
-            payouts_update_core(state, auth.platform, req)
+            payouts_update_core(state, auth.platform, req, header_payload.clone())
         },
         &auth::HeaderAuth(auth::ApiKeyAuth {
             allow_connected_scope_operation: false,
@@ -196,7 +207,7 @@ pub async fn payouts_confirm(
                 req.client_secret = Some(client_secret);
             }
 
-            payouts_confirm_core(state, auth.platform, req)
+            payouts_confirm_core(state, auth.platform, req, header_payload.clone())
         },
         &*auth_type,
         api_locking::LockAction::NotApplicable,
@@ -215,6 +226,10 @@ pub async fn payouts_cancel(
     let payload = payout_types::PayoutActionRequest {
         payout_id: path.into_inner(),
     };
+    let header_payload = match HeaderPayload::foreign_try_from(req.headers()) {
+        Ok(headers) => headers,
+        Err(err) => return api::log_and_return_error_response(err),
+    };
 
     Box::pin(api::server_wrap(
         flow,
@@ -222,7 +237,7 @@ pub async fn payouts_cancel(
         &req,
         payload,
         |state, auth: auth::AuthenticationData, req, _| {
-            payouts_cancel_core(state, auth.platform, req)
+            payouts_cancel_core(state, auth.platform, header_payload.clone(), req)
         },
         &auth::HeaderAuth(auth::ApiKeyAuth {
             allow_connected_scope_operation: false,
@@ -244,13 +259,18 @@ pub async fn payouts_fulfill(
         payout_id: path.into_inner(),
     };
 
+    let header_payload = match HeaderPayload::foreign_try_from(req.headers()) {
+        Ok(headers) => headers,
+        Err(err) => return api::log_and_return_error_response(err),
+    };
+
     Box::pin(api::server_wrap(
         flow,
         state,
         &req,
         payload,
         |state, auth: auth::AuthenticationData, req, _| {
-            payouts_fulfill_core(state, auth.platform, req)
+            payouts_fulfill_core(state, auth.platform, header_payload.clone(), req)
         },
         &auth::HeaderAuth(auth::ApiKeyAuth {
             allow_connected_scope_operation: false,
@@ -503,7 +523,7 @@ fn http_response<T: MessageBody + 'static>(response: T) -> HttpResponse<BoxBody>
     HttpResponse::Ok().body(response)
 }
 
-/// Payouts - Available filters for Profile
+/// Payouts - Available filters for Merchant
 #[cfg(all(feature = "olap", feature = "payouts", feature = "v1"))]
 #[instrument(skip_all, fields(flow = ?Flow::PayoutsFilter))]
 pub async fn get_payout_filters(state: web::Data<AppState>, req: HttpRequest) -> impl Responder {
@@ -514,7 +534,47 @@ pub async fn get_payout_filters(state: web::Data<AppState>, req: HttpRequest) ->
         state,
         &req,
         (),
-        |state, auth: auth::AuthenticationData, _, _| get_payout_filters_core(state, auth.platform),
+        |state, auth: auth::AuthenticationData, _, _| {
+            get_payout_filters_core(state, auth.platform, None)
+        },
+        auth::auth_type(
+            &auth::HeaderAuth(auth::ApiKeyAuth {
+                allow_connected_scope_operation: false,
+                allow_platform_self_operation: false,
+            }),
+            &auth::JWTAuth {
+                permission: Permission::ProfilePayoutRead,
+                allow_connected: false,
+                allow_platform: false,
+            },
+            req.headers(),
+        ),
+        api_locking::LockAction::NotApplicable,
+    )
+    .await
+}
+
+/// Payouts - Available filters for Profile
+#[cfg(all(feature = "olap", feature = "payouts", feature = "v1"))]
+#[instrument(skip_all, fields(flow = ?Flow::PayoutsFilter))]
+pub async fn get_payout_filters_profile(
+    state: web::Data<AppState>,
+    req: HttpRequest,
+) -> impl Responder {
+    let flow = Flow::PayoutsFilter;
+
+    api::server_wrap(
+        flow,
+        state,
+        &req,
+        (),
+        |state, auth: auth::AuthenticationData, _, _| {
+            get_payout_filters_core(
+                state,
+                auth.platform,
+                auth.profile.map(|profile| vec![profile.get_id().clone()]),
+            )
+        },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
                 allow_connected_scope_operation: false,

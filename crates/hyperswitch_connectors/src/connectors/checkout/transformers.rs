@@ -27,7 +27,7 @@ use hyperswitch_domain_models::{
     },
 };
 use hyperswitch_interfaces::{consts, errors, webhooks};
-use masking::{ExposeInterface, Secret};
+use hyperswitch_masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use serde_with::skip_serializing_none;
@@ -170,6 +170,8 @@ impl TryFrom<&TokenizationRouterData> for TokenRequest {
             | PaymentMethodData::CardToken(_)
             | PaymentMethodData::NetworkToken(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+            | PaymentMethodData::CardWithOptionalCVC(_)
+            | PaymentMethodData::CardWithNetworkTokenDetails(_)
             | PaymentMethodData::CardWithLimitedDetails(_)
             | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
             | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
@@ -553,7 +555,12 @@ impl TryFrom<&CheckoutRouterData<&PaymentsAuthorizeRouterData>> for PaymentsRequ
         ) {
             CheckoutPaymentType::Moto
         } else if item.router_data.request.is_mandate_payment() {
-            CheckoutPaymentType::Unscheduled
+            match item.router_data.request.mit_category {
+                Some(MitCategory::Installment) => CheckoutPaymentType::Installment,
+                Some(MitCategory::Recurring) => CheckoutPaymentType::Recurring,
+                Some(MitCategory::Unscheduled) | None => CheckoutPaymentType::Unscheduled,
+                _ => CheckoutPaymentType::Unscheduled,
+            }
         } else {
             CheckoutPaymentType::Regular
         };
@@ -1378,7 +1385,10 @@ impl
         };
         Ok(Self {
             status,
-            response: error_response.map_or_else(|| Ok(payments_response_data), Err),
+            response: match error_response {
+                Some(err) => Err(err),
+                None => Ok(payments_response_data),
+            },
             ..item.data
         })
     }
@@ -1456,7 +1466,10 @@ impl TryFrom<PaymentsSyncResponseRouterData<PaymentsResponse>> for PaymentsSyncR
         };
         Ok(Self {
             status,
-            response: error_response.map_or_else(|| Ok(payments_response_data), Err),
+            response: match error_response {
+                Some(err) => Err(err),
+                None => Ok(payments_response_data),
+            },
             connector_response: additional_information,
             ..item.data
         })

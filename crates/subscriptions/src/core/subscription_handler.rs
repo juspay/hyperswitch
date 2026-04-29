@@ -13,7 +13,7 @@ use hyperswitch_domain_models::{
     router_response_types::{self, subscriptions as subscription_response_types},
     subscription::{Subscription, SubscriptionStatus},
 };
-use masking::Secret;
+use hyperswitch_masking::Secret;
 
 use super::errors;
 use crate::{

@@ -18,7 +18,7 @@ use api_models::{
 use async_trait::async_trait;
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
 use common_utils::ext_traits::AsyncExt;
-use common_utils::request::Method;
+use common_utils::{ext_traits::Encode, request::Method};
 use diesel_models::routing_algorithm::RoutingAlgorithm;
 use error_stack::ResultExt;
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
@@ -32,6 +32,7 @@ use helpers::{
     enable_decision_engine_dynamic_routing_setup, update_decision_engine_dynamic_routing_setup,
 };
 use hyperswitch_domain_models::{mandates, payment_address};
+use hyperswitch_masking::Secret;
 use payment_methods::helpers::StorageErrorExt;
 use rustc_hash::FxHashSet;
 #[cfg(all(feature = "v1", feature = "dynamic_routing"))]
@@ -1642,6 +1643,25 @@ pub async fn update_default_routing_config_for_profile(
         transaction_type,
     )
     .await?;
+
+    // Dual-write: also update business_profile.default_fallback_routing column
+    let default_fallback_routing = Secret::from(
+        updated_config
+            .encode_to_value()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to encode updated config to value")?,
+    );
+    let profile_update = domain::ProfileUpdate::DefaultRoutingFallbackUpdate {
+        default_fallback_routing: Some(default_fallback_routing),
+    };
+    db.update_profile_by_profile_id(
+        platform.get_processor().get_key_store(),
+        business_profile.clone(),
+        profile_update,
+    )
+    .await
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("Failed to update default_fallback_routing in business profile")?;
 
     metrics::ROUTING_UPDATE_CONFIG_FOR_PROFILE_SUCCESS_RESPONSE.add(1, &[]);
     Ok(service_api::ApplicationResponse::Json(

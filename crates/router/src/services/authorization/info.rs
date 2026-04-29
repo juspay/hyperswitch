@@ -43,13 +43,17 @@ fn get_group_description(group: PermissionGroup) -> Option<&'static str> {
         PermissionGroup::UsersManage => Some("Manage and invite Users to the Team"),
         PermissionGroup::AccountView => Some("View Merchant Details"),
         PermissionGroup::AccountManage => Some("Create, modify and delete Merchant Details like api keys, webhooks, etc"),
-        PermissionGroup::ReconReportsView => Some("View reconciliation reports and analytics"),
-        PermissionGroup::ReconReportsManage => Some("Manage reconciliation reports"),
-        PermissionGroup::ReconOpsView => Some("View and access all reconciliation operations including reports and analytics"),
-        PermissionGroup::ReconOpsManage => Some("Manage all reconciliation operations including reports and analytics"),
         PermissionGroup::ThemeView => Some("View Themes"),
         PermissionGroup::ThemeManage => Some("Manage Themes"),
         PermissionGroup::InternalManage => None, // Internal group, no user-facing description
+        PermissionGroup::ReconSourcesView => Some("View recon ingestion and transformation configs and files"),
+        PermissionGroup::ReconSourcesManage => Some("Create and edit recon ingestion and transformation configs and download files"),
+        PermissionGroup::ReconExceptionsView => Some("Investigate Exceptions and view resolutions"),
+        PermissionGroup::ReconExceptionsManage => Some("Investigate and resolve recon exceptions"),
+        PermissionGroup::ReconTransactionsView => Some("View recon staging entries and transactions"),
+        PermissionGroup::ReconTransactionsManage => Some("View and edit recon staging entries and transactions"),
+        PermissionGroup::ReconRulesView => Some("View reconciliation rules"),
+        PermissionGroup::ReconRulesManage => Some("Create and edit reconciliation rules"),
     }
 }
 
@@ -61,9 +65,11 @@ pub fn get_parent_group_description(group: ParentGroup) -> Option<&'static str> 
         ParentGroup::Analytics => Some("View Analytics"),
         ParentGroup::Users =>  Some("Manage and invite Users to the Team"),
         ParentGroup::Account => Some("Create, modify and delete Merchant Details like api keys, webhooks, etc"),
-        ParentGroup::ReconOps => Some("View, manage reconciliation operations like upload and process files, run reconciliation etc"),
-        ParentGroup::ReconReports => Some("View, manage reconciliation reports and analytics"),
         ParentGroup::Theme => Some("Manage and view themes for the organization"),
         ParentGroup::Internal => None, // Internal group, no user-facing description
+        ParentGroup::ReconSources => Some("Recon ingestion and transformation pipelines"),
+        ParentGroup::ReconExceptions => Some("Recon exception investigation and resolution"),
+        ParentGroup::ReconTransactions => Some("Recon staging entries and transactions"),
+        ParentGroup::ReconRules => Some("Reconciliation rules"),
     }
 }

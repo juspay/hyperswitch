@@ -33,6 +33,7 @@ fn get_dir_value_payment_method(
         api_enums::PaymentMethodType::Sofort => Ok(dirval!(BankRedirectType = Sofort)),
         api_enums::PaymentMethodType::Eps => Ok(dirval!(BankRedirectType = Eps)),
         api_enums::PaymentMethodType::Eft => Ok(dirval!(BankRedirectType = Eft)),
+        api_enums::PaymentMethodType::EftDebitOrder => Ok(dirval!(BankDebitType = EftDebitOrder)),
         api_enums::PaymentMethodType::Klarna => Ok(dirval!(PayLaterType = Klarna)),
         api_enums::PaymentMethodType::Flexiti => Ok(dirval!(PayLaterType = Flexiti)),
         api_enums::PaymentMethodType::Affirm => Ok(dirval!(PayLaterType = Affirm)),
@@ -65,6 +66,14 @@ fn get_dir_value_payment_method(
         api_enums::PaymentMethodType::Cashapp => Ok(dirval!(WalletType = Cashapp)),
         api_enums::PaymentMethodType::Multibanco => Ok(dirval!(BankTransferType = Multibanco)),
         api_enums::PaymentMethodType::Pix => Ok(dirval!(BankTransferType = Pix)),
+        api_enums::PaymentMethodType::PixKey => Ok(dirval!(BankTransferType = PixKey)),
+        api_enums::PaymentMethodType::PixEmv => Ok(dirval!(BankTransferType = PixEmv)),
+        api_enums::PaymentMethodType::PixAutomaticoPush => {
+            Ok(dirval!(BankTransferType = PixAutomaticoPush))
+        }
+        api_enums::PaymentMethodType::PixAutomaticoQr => {
+            Ok(dirval!(BankTransferType = PixAutomaticoQr))
+        }
         api_enums::PaymentMethodType::Pse => Ok(dirval!(BankTransferType = Pse)),
         api_enums::PaymentMethodType::Interac => Ok(dirval!(BankRedirectType = Interac)),
         api_enums::PaymentMethodType::OnlineBankingCzechRepublic => {
@@ -1088,7 +1097,7 @@ mod tests {
         //     connector_name: "stripe".to_string(),
         //     id: common_utils::generate_merchant_connector_account_id_of_default_length(),
         //     connector_label: Some("something".to_string()),
-        //     connector_account_details: masking::Secret::new(serde_json::json!({})),
+        //     connector_account_details: hyperswitch_masking::Secret::new(serde_json::json!({})),
         //     disabled: None,
         //     metadata: None,
         //     payment_methods_enabled: Some(vec![PaymentMethodsEnabled {
@@ -1147,7 +1156,7 @@ mod tests {
             connector_label: Some("something".to_string()),
             business_label: Some("food".to_string()),
             business_sub_label: None,
-            connector_account_details: masking::Secret::new(serde_json::json!({})),
+            connector_account_details: hyperswitch_masking::Secret::new(serde_json::json!({})),
             test_mode: None,
             disabled: None,
             metadata: None,

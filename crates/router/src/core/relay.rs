@@ -836,12 +836,12 @@ pub async fn relay_retrieve(
         }
         common_enums::RelayType::Capture => {
             if should_call_connector_for_relay_capture_status(&relay_record, req.force_sync) {
-                let relay_response = sync_relay_capture_with_gateway(
+                let relay_response = Box::pin(sync_relay_capture_with_gateway(
                     &state,
                     &platform,
                     &relay_record,
                     connector_account,
-                )
+                ))
                 .await?;
 
                 db.update_relay(

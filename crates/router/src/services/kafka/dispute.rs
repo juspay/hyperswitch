@@ -1,10 +1,10 @@
 use common_utils::{
     ext_traits::StringExt,
     id_type,
-    types::{AmountConvertor, MinorUnit, StringMinorUnitForConnector},
+    types::{AmountConvertor, CreatedBy, MinorUnit, StringMinorUnitForConnector},
 };
 use diesel_models::enums as storage_enums;
-use masking::Secret;
+use hyperswitch_masking::Secret;
 use time::OffsetDateTime;
 
 use crate::types::storage::dispute::Dispute;
@@ -39,7 +39,7 @@ pub struct KafkaDispute<'a> {
     pub merchant_connector_id: Option<&'a id_type::MerchantConnectorAccountId>,
     pub organization_id: &'a id_type::OrganizationId,
     pub processor_merchant_id: Option<&'a id_type::MerchantId>,
-    pub created_by: Option<&'a String>,
+    pub created_by: Option<CreatedBy>,
 }
 
 impl<'a> KafkaDispute<'a> {
@@ -83,7 +83,10 @@ impl<'a> KafkaDispute<'a> {
             merchant_connector_id: dispute.merchant_connector_id.as_ref(),
             organization_id: &dispute.organization_id,
             processor_merchant_id: dispute.processor_merchant_id.as_ref(),
-            created_by: dispute.created_by.as_ref(),
+            created_by: dispute
+                .created_by
+                .as_ref()
+                .and_then(|created_by| created_by.parse::<CreatedBy>().ok()),
         }
     }
 }

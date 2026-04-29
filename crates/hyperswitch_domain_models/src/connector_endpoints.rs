@@ -1,7 +1,7 @@
 //! Configs interface
 use common_enums::{connector_enums, ApplicationError};
 use common_utils::errors::CustomResult;
-use masking::Secret;
+use hyperswitch_masking::Secret;
 use serde::Deserialize;
 
 use crate::errors::api_error_response;
@@ -58,6 +58,7 @@ pub struct Connectors {
     pub facilitapay: ConnectorParams,
     pub finix: ConnectorParams,
     pub fiserv: ConnectorParams,
+    pub fiservcommercehub: ConnectorParams,
     pub fiservemea: ConnectorParams,
     pub fiuu: ConnectorParamsWithThreeUrls,
     pub flexiti: ConnectorParams,
@@ -74,6 +75,7 @@ pub struct Connectors {
     pub hyperswitch_vault: ConnectorParams,
     pub hyperwallet: ConnectorParams,
     pub iatapay: ConnectorParams,
+    pub imerchantsolutions: ConnectorParams,
     pub inespay: ConnectorParams,
     pub itaubank: ConnectorParams,
     pub jpmorgan: ConnectorParams,
@@ -121,6 +123,7 @@ pub struct Connectors {
     pub recurly: ConnectorParams,
     pub redsys: ConnectorParams,
     pub revolv3: ConnectorParams,
+    pub sanlam: ConnectorParams,
     pub riskified: ConnectorParams,
     pub santander: ConnectorParams,
     pub shift4: ConnectorParams,

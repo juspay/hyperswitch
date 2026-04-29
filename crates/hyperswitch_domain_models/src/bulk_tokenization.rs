@@ -32,11 +32,11 @@ pub enum TokenizeDataRequest {
 #[derive(Clone, Debug)]
 pub struct TokenizeCardRequest {
     pub raw_card_number: CardNumber,
-    pub card_expiry_month: masking::Secret<String>,
-    pub card_expiry_year: masking::Secret<String>,
-    pub card_cvc: Option<masking::Secret<String>>,
-    pub card_holder_name: Option<masking::Secret<String>>,
-    pub nick_name: Option<masking::Secret<String>>,
+    pub card_expiry_month: hyperswitch_masking::Secret<String>,
+    pub card_expiry_year: hyperswitch_masking::Secret<String>,
+    pub card_cvc: Option<hyperswitch_masking::Secret<String>>,
+    pub card_holder_name: Option<hyperswitch_masking::Secret<String>>,
+    pub nick_name: Option<hyperswitch_masking::Secret<String>>,
     pub card_issuing_country: Option<String>,
     pub card_issuing_country_code: Option<String>,
     pub card_network: Option<enums::CardNetwork>,
@@ -47,18 +47,18 @@ pub struct TokenizeCardRequest {
 #[derive(Clone, Debug)]
 pub struct TokenizePaymentMethodRequest {
     pub payment_method_id: String,
-    pub card_cvc: Option<masking::Secret<String>>,
+    pub card_cvc: Option<hyperswitch_masking::Secret<String>>,
 }
 
 #[derive(Default, Debug, serde::Deserialize, serde::Serialize)]
 pub struct CardNetworkTokenizeRecord {
     // Card details
     pub raw_card_number: Option<CardNumber>,
-    pub card_expiry_month: Option<masking::Secret<String>>,
-    pub card_expiry_year: Option<masking::Secret<String>>,
-    pub card_cvc: Option<masking::Secret<String>>,
-    pub card_holder_name: Option<masking::Secret<String>>,
-    pub nick_name: Option<masking::Secret<String>>,
+    pub card_expiry_month: Option<hyperswitch_masking::Secret<String>>,
+    pub card_expiry_year: Option<hyperswitch_masking::Secret<String>>,
+    pub card_cvc: Option<hyperswitch_masking::Secret<String>>,
+    pub card_holder_name: Option<hyperswitch_masking::Secret<String>>,
+    pub nick_name: Option<hyperswitch_masking::Secret<String>>,
     pub card_issuing_country: Option<String>,
     pub card_issuing_country_code: Option<String>,
     pub card_network: Option<enums::CardNetwork>,
@@ -73,28 +73,28 @@ pub struct CardNetworkTokenizeRecord {
     // Customer details
     pub customer_id: id_type::CustomerId,
     #[serde(rename = "name")]
-    pub customer_name: Option<masking::Secret<String>>,
+    pub customer_name: Option<hyperswitch_masking::Secret<String>>,
     #[serde(rename = "email")]
     pub customer_email: Option<pii::Email>,
     #[serde(rename = "phone")]
-    pub customer_phone: Option<masking::Secret<String>>,
+    pub customer_phone: Option<hyperswitch_masking::Secret<String>>,
     #[serde(rename = "phone_country_code")]
     pub customer_phone_country_code: Option<String>,
     #[serde(rename = "tax_registration_id")]
-    pub customer_tax_registration_id: Option<masking::Secret<String>>,
+    pub customer_tax_registration_id: Option<hyperswitch_masking::Secret<String>>,
     #[serde(rename = "document_details")]
     pub customer_document_details: Option<api_models::customers::CustomerDocumentDetails>,
     // Billing details
     pub billing_address_city: Option<String>,
     pub billing_address_country: Option<enums::CountryAlpha2>,
-    pub billing_address_line1: Option<masking::Secret<String>>,
-    pub billing_address_line2: Option<masking::Secret<String>>,
-    pub billing_address_line3: Option<masking::Secret<String>>,
-    pub billing_address_zip: Option<masking::Secret<String>>,
-    pub billing_address_state: Option<masking::Secret<String>>,
-    pub billing_address_first_name: Option<masking::Secret<String>>,
-    pub billing_address_last_name: Option<masking::Secret<String>>,
-    pub billing_phone_number: Option<masking::Secret<String>>,
+    pub billing_address_line1: Option<hyperswitch_masking::Secret<String>>,
+    pub billing_address_line2: Option<hyperswitch_masking::Secret<String>>,
+    pub billing_address_line3: Option<hyperswitch_masking::Secret<String>>,
+    pub billing_address_zip: Option<hyperswitch_masking::Secret<String>>,
+    pub billing_address_state: Option<hyperswitch_masking::Secret<String>>,
+    pub billing_address_first_name: Option<hyperswitch_masking::Secret<String>>,
+    pub billing_address_last_name: Option<hyperswitch_masking::Secret<String>>,
+    pub billing_phone_number: Option<hyperswitch_masking::Secret<String>>,
     pub billing_phone_country_code: Option<String>,
     pub billing_email: Option<pii::Email>,
 
@@ -201,7 +201,7 @@ impl ForeignTryFrom<CardNetworkTokenizeRecord> for payment_methods_api::CardNetw
 impl ForeignFrom<&TokenizeCardRequest> for payment_methods_api::MigrateCardDetail {
     fn foreign_from(card: &TokenizeCardRequest) -> Self {
         Self {
-            card_number: masking::Secret::new(card.raw_card_number.get_card_no()),
+            card_number: hyperswitch_masking::Secret::new(card.raw_card_number.get_card_no()),
             card_exp_month: card.card_expiry_month.clone(),
             card_exp_year: card.card_expiry_year.clone(),
             card_holder_name: card.card_holder_name.clone(),

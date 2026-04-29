@@ -12,7 +12,7 @@ use common_utils::{
 use error_stack::{report, ResultExt};
 use futures::future;
 use hyperswitch_domain_models::api::{GenericLinks, GenericLinksData};
-use masking::{PeekInterface, Secret};
+use hyperswitch_masking::{PeekInterface, Secret};
 use router_env::logger;
 use time::PrimitiveDateTime;
 

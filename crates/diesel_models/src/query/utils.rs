@@ -86,6 +86,7 @@ macro_rules! impl_get_primary_key {
 }
 impl_get_primary_key!(
     // v1 tables
+    schema::card_issuers::table,
     schema::dashboard_metadata::table,
     schema::merchant_connector_account::table,
     schema::merchant_key_store::table,

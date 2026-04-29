@@ -1,6 +1,6 @@
 use common_utils::id_type;
 use diesel::{query_builder::AsChangeset, Identifiable, Insertable, Queryable, Selectable};
-use masking::Secret;
+use hyperswitch_masking::Secret;
 use time::PrimitiveDateTime;
 
 use crate::{enums, schema::dashboard_metadata};
@@ -18,6 +18,7 @@ pub struct DashboardMetadata {
     pub created_at: PrimitiveDateTime,
     pub last_modified_by: String,
     pub last_modified_at: PrimitiveDateTime,
+    pub profile_id: Option<String>,
 }
 
 #[derive(
@@ -34,6 +35,7 @@ pub struct DashboardMetadataNew {
     pub created_at: PrimitiveDateTime,
     pub last_modified_by: String,
     pub last_modified_at: PrimitiveDateTime,
+    pub profile_id: Option<String>,
 }
 
 #[derive(

@@ -18,7 +18,7 @@ use hyperswitch_domain_models::{
     types as router_types,
 };
 use hyperswitch_interfaces::webhooks as interface_webhooks;
-use masking::{PeekInterface, Secret};
+use hyperswitch_masking::{PeekInterface, Secret};
 use router_env::{instrument, logger, tracing};
 use services::kafka;
 use storage::business_status;

@@ -29,7 +29,7 @@ use hyperswitch_interfaces::{
     types::*,
     webhooks::{IncomingWebhook, IncomingWebhookRequestDetails, WebhookContext},
 };
-use masking::{Mask, Maskable};
+use hyperswitch_masking::{Mask, Maskable};
 use transformers::*;
 
 use crate::{
@@ -768,7 +768,7 @@ impl IncomingWebhook for Worldpaymodular {
     fn get_webhook_resource_object(
         &self,
         request: &IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, ConnectorError> {
+    ) -> CustomResult<Box<dyn hyperswitch_masking::ErasedMaskSerialize>, ConnectorError> {
         let body: WorldpaymodularWebhookEventType = request
             .body
             .parse_struct("WorldpayWebhookEventType")
