@@ -21,8 +21,8 @@ pub mod vault_session;
 #[cfg(feature = "olap")]
 use std::collections::HashMap;
 use std::{
-    collections::HashSet, fmt::Debug, marker::PhantomData, ops::Deref, str::FromStr, sync::Arc,
-    time::Instant, vec::IntoIter,
+    collections::HashSet, fmt::Debug, marker::PhantomData, str::FromStr, sync::Arc, time::Instant,
+    vec::IntoIter,
 };
 
 use external_services::grpc_client;
@@ -11777,7 +11777,7 @@ pub async fn payments_manual_update(
         error_reason,
         connector_transaction_id,
         amount_capturable,
-        amount_captured,
+        update_amount_captured,
     } = req;
     let key_store = state
         .store
@@ -11809,19 +11809,32 @@ pub async fn payments_manual_update(
             "Error while fetching the payment_attempt by payment_id, merchant_id and attempt_id",
         )?;
 
-    if let Some(amount_capturable) = amount_capturable {
-        utils::when(
-            amount_capturable > payment_attempt.net_amount.get_total_amount(),
-            || {
-                Err(errors::ApiErrorResponse::InvalidRequestData {
-                    message: "amount_capturable should be less than or equal to amount".to_string(),
-                })
-            },
-        )?;
-    }
+    let payment_intent = state
+        .store
+        .find_payment_intent_by_payment_id_processor_merchant_id(
+            &payment_id,
+            merchant_account.get_id(),
+            &key_store,
+            merchant_account.storage_scheme,
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
+        .attach_printable("Error while fetching the payment_intent by payment_id, merchant_id")?;
 
-    // Validate amount_captured constraints
-    if let Some(amount_captured) = amount_captured {
+    // Calculate amount_captured and amount_capturable based on update_amount_captured flag
+    let (calculated_amount_captured, calculated_amount_capturable) = if update_amount_captured
+        == Some(true)
+    {
+        // Throw error if amount_capturable is also provided in request
+        if amount_capturable.is_some() {
+            return Err(errors::ApiErrorResponse::InvalidRequestData {
+                message: "amount_capturable cannot be provided when update_amount_captured is true"
+                    .to_string(),
+            }
+            .into());
+        }
+
+        // Validate the calculated amounts
         if let Some(status) = attempt_status {
             utils::when(
                 !matches!(
@@ -11834,55 +11847,46 @@ pub async fn payments_manual_update(
                 ),
                 || {
                     Err(errors::ApiErrorResponse::InvalidRequestData {
-                        message: "amount_captured can only be set for terminal statuses with captured funds: Charged, PartialCharged, PartialChargedAndChargeable, Voided, VoidedPostCharge".to_string(),
+                        message: "update_amount_captured can only be used for terminal statuses with captured funds: Charged, PartialCharged, PartialChargedAndChargeable, Voided, VoidedPostCharge".to_string(),
                     })
                 },
             )?;
         }
-
-        let is_overcapture_enabled = payment_attempt
-            .is_overcapture_enabled
-            .map(|v| *v.deref())
-            .unwrap_or(false);
-
-        if !is_overcapture_enabled {
-            utils::when(
-                amount_captured > payment_attempt.net_amount.get_total_amount(),
-                || {
-                    Err(errors::ApiErrorResponse::InvalidRequestData {
-                        message: "amount_captured should be less than or equal to total amount"
-                            .to_string(),
-                    })
-                },
-            )?;
-        }
-
-        if let Some(amount_capturable) = amount_capturable {
-            if !is_overcapture_enabled {
-                let total_processed = amount_captured + amount_capturable;
-                utils::when(
-                    total_processed > payment_attempt.net_amount.get_total_amount(),
-                    || {
-                        Err(errors::ApiErrorResponse::InvalidRequestData {
-                            message: "sum of amount_captured and amount_capturable should not exceed total amount".to_string(),
-                        })
-                    },
-                )?;
+        // Check if there's already an existing amount_captured > 0 in payment intent
+        if let Some(existing_captured) = payment_intent.amount_captured {
+            if existing_captured > MinorUnit::zero() {
+                return Err(errors::ApiErrorResponse::InvalidRequestData {
+                    message: "Cannot update amount_captured: payment intent already has amount_captured > 0".to_string(),
+                }.into());
             }
         }
-    }
 
-    let payment_intent = state
-        .store
-        .find_payment_intent_by_payment_id_processor_merchant_id(
-            &payment_id,
-            merchant_account.get_id(),
-            &key_store,
-            merchant_account.storage_scheme,
-        )
-        .await
-        .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)
-        .attach_printable("Error while fetching the payment_intent by payment_id, merchant_id")?;
+        // Get amount_to_capture from the attempt (this represents what was actually captured)
+        let amount_to_capture = payment_attempt
+            .amount_to_capture
+            .unwrap_or(MinorUnit::zero());
+
+        // amount_captured = amount_to_capture
+        let captured = amount_to_capture;
+
+        // Calculate amount_capturable = current capturable - captured amount
+        let new_capturable = payment_attempt.amount_capturable - captured;
+
+        // Check if the new capturable amount is negative
+        if new_capturable < MinorUnit::zero() {
+            return Err(errors::ApiErrorResponse::InvalidRequestData {
+                message: format!(
+                    "calculated amount_capturable ({:?}) cannot be negative",
+                    new_capturable
+                ),
+            }
+            .into());
+        }
+
+        (Some(captured), Some(new_capturable))
+    } else {
+        (None, amount_capturable)
+    };
 
     let option_gsm = if let Some(((code, message), connector_name)) = error_code
         .as_ref()
@@ -11915,7 +11919,7 @@ pub async fn payments_manual_update(
         unified_code: option_gsm.as_ref().and_then(|gsm| gsm.unified_code.clone()),
         unified_message: option_gsm.and_then(|gsm| gsm.unified_message),
         connector_transaction_id,
-        amount_capturable,
+        amount_capturable: calculated_amount_capturable,
     };
     let updated_payment_attempt = state
         .store
@@ -11935,7 +11939,7 @@ pub async fn payments_manual_update(
             let payment_intent_update = storage::PaymentIntentUpdate::ManualUpdate {
                 status: Some(intent_status),
                 updated_by: merchant_account.storage_scheme.to_string(),
-                amount_captured,
+                amount_captured: calculated_amount_captured,
             };
             state
                 .store
