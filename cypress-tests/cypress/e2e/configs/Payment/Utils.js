@@ -546,7 +546,7 @@ export const CONNECTOR_LISTS = {
     ],
     EXTERNAL_THREE_DS: ["stripe"],
     BANK_DEBIT: ["novalnet"],
-    ORDER_CREATE: ["airwallex", "nordea", "razorpay", "trustpay"],
+    ORDER_CREATE: ["airwallex", "nordea", "trustpay"],
     PARTNER_MERCHANT_IDENTIFIER: ["adyen", "checkout"],
     GIFT_CARD: ["adyen"],
     // Add more inclusion lists
