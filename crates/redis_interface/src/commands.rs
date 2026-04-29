@@ -15,6 +15,7 @@ use error_stack::{report, ResultExt};
 use redis::{
     streams::{StreamReadOptions, StreamTrimOptions, StreamTrimmingMode},
     AsyncCommands, ExistenceCheck, FromRedisValue, SetExpiry, SetOptions, ToSingleRedisArg,
+    Value,
 };
 use tracing::instrument;
 
@@ -27,7 +28,7 @@ use crate::{
     types::{
         redis_value_to_option_string, DelReply, HsetnxReply, MsetnxReply, RedisEntryId, RedisKey,
         SaddReply, SetGetReply, SetnxReply, StreamCapKind, StreamCapTrim, StreamEntries,
-        StreamReadResult, Value,
+        StreamReadResult,
     },
 };
 
@@ -3866,7 +3867,7 @@ mod tests {
         assert!(is_success);
     }
 
-    // ─── on_error / max_failure_threshold tests ──────────────────────────────
+    // ─── on_error / max_failure_threshold_seconds tests ──────────────────────────────
 
     #[tokio::test]
     async fn test_on_error_triggers_shutdown_when_redis_unreachable() {
@@ -3875,7 +3876,7 @@ mod tests {
             host: "192.0.2.1".to_string(), // RFC 5737 test address, guaranteed unreachable
             port: 1,
             unresponsive_check_interval: 1,
-            max_failure_threshold: 2, // 2 seconds of unreachability → shutdown
+            max_failure_threshold_seconds: 2, // 2 seconds of unreachability → shutdown
             reconnect_max_attempts: 1,
             default_command_timeout: 1,
             ..RedisSettings::default()
@@ -3937,7 +3938,7 @@ mod tests {
             host: "192.0.2.1".to_string(),
             port: 1,
             unresponsive_check_interval: 1,
-            max_failure_threshold: 2,
+            max_failure_threshold_seconds: 2,
             reconnect_max_attempts: 1,
             default_command_timeout: 1,
             ..RedisSettings::default()

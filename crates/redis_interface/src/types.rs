@@ -2,10 +2,12 @@
 //! from `redis`'s internal data-types to custom data-types
 
 use common_utils::errors::CustomResult;
-pub use redis::Value;
+use error_stack::ResultExt;
+use redis::IntoConnectionInfo;
+use redis::Value;
 use redis::Value as RedisCrateValue;
 
-use crate::{errors, RedisConnectionPool};
+use crate::{constant, errors, RedisConnectionPool};
 
 pub struct RedisValue {
     inner: RedisCrateValue,
@@ -38,28 +40,53 @@ impl RedisValue {
         }
     }
 
-    /// Extract bytes from the underlying redis value
+    /// Extract bytes from the underlying redis value.
+    ///
+    /// Returns `Some` for string-like variants (`BulkString`, `SimpleString`,
+    /// `VerbatimString`) and `None` for all others.
     pub fn as_bytes(&self) -> Option<&[u8]> {
         match &self.inner {
             RedisCrateValue::BulkString(bytes) => Some(bytes.as_slice()),
-            RedisCrateValue::SimpleString(s) => Some(s.as_bytes()),
-            _ => None,
+            RedisCrateValue::SimpleString(string) => Some(string.as_bytes()),
+            RedisCrateValue::VerbatimString { text, .. } => Some(text.as_bytes()),
+            other => {
+                tracing::debug!(
+                    ?other,
+                    "as_bytes() called on non-string RedisValue variant, returning None"
+                );
+                None
+            }
         }
     }
 
-    /// Convert to string if the value is a string type
+    /// Convert to string if the value has a meaningful string representation.
+    ///
+    /// Returns `Some` for string-like and scalar variants, `None` for aggregates
+    /// and `Nil`.
     pub fn as_string(&self) -> Option<String> {
         match &self.inner {
             RedisCrateValue::BulkString(bytes) => String::from_utf8(bytes.clone()).ok(),
-            RedisCrateValue::SimpleString(s) => Some(s.clone()),
-            _ => None,
+            RedisCrateValue::SimpleString(string) => Some(string.clone()),
+            RedisCrateValue::VerbatimString { text, .. } => Some(text.clone()),
+            RedisCrateValue::Int(integer) => Some(integer.to_string()),
+            RedisCrateValue::Double(double) => Some(double.to_string()),
+            RedisCrateValue::Boolean(boolean) => Some(boolean.to_string()),
+            RedisCrateValue::Okay => Some("OK".to_string()),
+            RedisCrateValue::BigNumber(ref big_number) => Some(big_number.to_string()),
+            other => {
+                tracing::debug!(
+                    ?other,
+                    "as_string() called on non-string RedisValue variant, returning None"
+                );
+                None
+            }
         }
     }
 }
 
 impl From<RedisValue> for RedisCrateValue {
-    fn from(v: RedisValue) -> Self {
-        v.inner
+    fn from(redis_value: RedisValue) -> Self {
+        redis_value.inner
     }
 }
 
@@ -71,10 +98,45 @@ impl redis::ToRedisArgs for RedisValue {
     {
         match &self.inner {
             RedisCrateValue::BulkString(bytes) => bytes.write_redis_args(out),
-            RedisCrateValue::SimpleString(s) => s.write_redis_args(out),
+            RedisCrateValue::SimpleString(string) => string.write_redis_args(out),
+            RedisCrateValue::VerbatimString { text, .. } => text.write_redis_args(out),
+            RedisCrateValue::Int(integer) => integer.write_redis_args(out),
+            RedisCrateValue::Double(double) => double.to_string().write_redis_args(out),
+            RedisCrateValue::Boolean(boolean) => {
+                (if *boolean { 1i64 } else { 0i64 }).write_redis_args(out)
+            }
+            RedisCrateValue::Okay => "OK".write_redis_args(out),
+            RedisCrateValue::BigNumber(ref big_number) => {
+                big_number.to_string().write_redis_args(out)
+            }
+            RedisCrateValue::Nil => {
+                // Nil cannot be meaningfully represented as a Redis command argument.
+                // Writing empty bytes would turn "null" into "empty string", which
+                // are semantically different. Skip the write so Redis sees a missing
+                // argument rather than an empty one.
+                tracing::warn!("Attempted to write Nil as a Redis command argument — skipping");
+            }
+            // Aggregate and error types cannot be serialized as a single Redis argument.
+            // These variants are only expected in Redis *responses*, not as command
+            // arguments. Writing empty bytes would silently corrupt data.
+            RedisCrateValue::Array(_)
+            | RedisCrateValue::Map(_)
+            | RedisCrateValue::Set(_)
+            | RedisCrateValue::Attribute { .. }
+            | RedisCrateValue::Push { .. }
+            | RedisCrateValue::ServerError(_) => {
+                tracing::warn!(
+                    variant = ?self.inner,
+                    "Attempted to write an aggregate/error Redis value as a command argument — skipping. \
+                     Aggregate types (Array, Map, Set, etc.) should not be used as command arguments."
+                );
+            }
+            // Catch-all for future variants added to the non-exhaustive enum
             _ => {
-                // Fallback: serialize as empty bytes
-                Vec::<u8>::new().write_redis_args(out)
+                tracing::warn!(
+                    variant = ?self.inner,
+                    "Attempted to write an unknown Redis value as a command argument — skipping"
+                );
             }
         }
     }
@@ -107,8 +169,9 @@ pub struct RedisSettings {
     pub auto_pipeline: bool,
     pub disable_auto_backpressure: bool,
     /// Maximum number of in-flight commands before backpressure is applied.
-    /// Passed to `ConnectionManagerConfig::set_response_timeout` indirectly via command timeout.
-    pub max_in_flight_commands: u64,
+    /// Set to 0 to disable. Passed to `ConnectionManagerConfig::set_pipeline_buffer_size`
+    /// or `ClusterClientBuilder::connection_concurrency_limit`.
+    pub max_in_flight_commands: usize,
     /// Command timeout in seconds. Passed to `ConnectionManagerConfig::set_response_timeout`.
     pub default_command_timeout: u64,
     pub max_feed_count: u64,
@@ -117,7 +180,7 @@ pub struct RedisSettings {
     /// Capacity of the broadcast channel used for pub/sub message distribution.
     pub broadcast_channel_capacity: usize,
     /// Maximum duration (in seconds) that Redis can be unreachable before the server shuts down.
-    pub max_failure_threshold: u32,
+    pub max_failure_threshold_seconds: u32,
 }
 
 impl RedisSettings {
@@ -142,10 +205,115 @@ impl RedisSettings {
             || {
                 Err(errors::RedisError::InvalidConfiguration(
                     "Unresponsive timeout cannot be greater than the command timeout".into(),
-                )
-                .into())
+                ))
             },
-        )
+        )?;
+
+        when(
+            self.unresponsive_check_interval > self.max_failure_threshold_seconds.into(),
+            || {
+                Err(errors::RedisError::InvalidConfiguration(
+                    "Unresponsive check interval cannot be greater than the max failure threshold"
+                        .into(),
+                ))
+            },
+        )?;
+
+        Ok(())
+    }
+
+    // ── Connection-building helpers ────────────────────────────────────────
+
+    /// Normalize cluster URLs by prepending `"redis://"` if the scheme is missing.
+    pub fn normalize_cluster_urls(&self) -> Vec<String> {
+        self.cluster_urls
+            .iter()
+            .map(|url| {
+                if url.starts_with("redis://") {
+                    url.clone()
+                } else {
+                    format!("redis://{url}")
+                }
+            })
+            .collect()
+    }
+
+    /// Convert `max_in_flight_commands` to `Option<usize>`.
+    ///
+    /// Returns `None` when `max_in_flight_commands` is 0 (feature disabled).
+    pub fn max_in_flight_commands_as_usize(&self) -> Option<usize> {
+        (self.max_in_flight_commands > 0).then_some(self.max_in_flight_commands)
+    }
+
+    /// Convert `reconnect_max_attempts` to `usize`.
+    ///
+    /// Logs a warning and falls back to [`constant::DEFAULT_RECONNECT_MAX_ATTEMPTS`]
+    /// when the value overflows.
+    pub fn reconnect_max_attempts_as_usize(&self) -> usize {
+        usize::try_from(self.reconnect_max_attempts).unwrap_or_else(|_| {
+            tracing::warn!(
+                "reconnect_max_attempts ({}) exceeds usize, using default ({})",
+                self.reconnect_max_attempts,
+                constant::DEFAULT_RECONNECT_MAX_ATTEMPTS
+            );
+            constant::DEFAULT_RECONNECT_MAX_ATTEMPTS
+        })
+    }
+
+    /// Build a standalone [`redis::ConnectionInfo`] with RESP3 protocol from host and port.
+    pub fn build_standalone_connection_info(
+        &self,
+    ) -> CustomResult<redis::ConnectionInfo, errors::RedisError> {
+        let connection_url = format!("redis://{}:{}", self.host, self.port);
+        let mut connection_info = connection_url
+            .as_str()
+            .into_connection_info()
+            .change_context(errors::RedisError::RedisConnectionError)?;
+
+        let redis_settings = connection_info
+            .redis_settings()
+            .clone()
+            .set_protocol(redis::ProtocolVersion::RESP3);
+        connection_info = connection_info.set_redis_settings(redis_settings);
+
+        Ok(connection_info)
+    }
+
+    /// Build the base [`redis::aio::ConnectionManagerConfig`] from these settings.
+    ///
+    /// Sets reconnection retries, minimum delay, and optional response timeout.
+    /// Callers can further customize (e.g. `set_pipeline_buffer_size`) before use.
+    pub fn build_connection_manager_config(&self) -> redis::aio::ConnectionManagerConfig {
+        let mut config = redis::aio::ConnectionManagerConfig::new()
+            .set_number_of_retries(self.reconnect_max_attempts_as_usize())
+            .set_min_delay(std::time::Duration::from_millis(u64::from(
+                self.reconnect_delay,
+            )));
+
+        if self.default_command_timeout > 0 {
+            config = config.set_response_timeout(Some(std::time::Duration::from_secs(
+                self.default_command_timeout,
+            )));
+        }
+
+        config
+    }
+
+    /// Build a base [`redis::cluster::ClusterClientBuilder`] with common configuration.
+    ///
+    /// Sets retries, retry wait, response timeout, and RESP3 protocol.
+    /// Callers can further customize (e.g. `push_sender`, `connection_concurrency_limit`).
+    pub fn build_cluster_client_builder(
+        &self,
+        nodes: Vec<String>,
+    ) -> redis::cluster::ClusterClientBuilder {
+        redis::cluster::ClusterClient::builder(nodes)
+            .retries(self.reconnect_max_attempts)
+            .min_retry_wait(u64::from(self.reconnect_delay))
+            .response_timeout(std::time::Duration::from_secs(
+                self.default_command_timeout.max(1),
+            ))
+            .use_protocol(redis::ProtocolVersion::RESP3)
     }
 }
 
@@ -171,7 +339,7 @@ impl Default for RedisSettings {
             unresponsive_timeout: 10,
             unresponsive_check_interval: 2,
             broadcast_channel_capacity: 32,
-            max_failure_threshold: 5,
+            max_failure_threshold_seconds: 5,
         }
     }
 }
@@ -219,20 +387,17 @@ pub enum SetnxReply {
 }
 
 impl redis::FromRedisValue for SetnxReply {
-    fn from_redis_value(v: Value) -> Result<Self, redis::ParsingError> {
-        match v {
-            // SET NX returns Okay on success (newer redis crate)
+    fn from_redis_value(value: Value) -> Result<Self, redis::ParsingError> {
+        match value {
+            // SET NX returns Okay on success
             Value::Okay => Ok(Self::KeySet),
-            // SET NX returns "OK" on success (older format)
-            Value::SimpleString(ref s) if s == "OK" => Ok(Self::KeySet),
-            Value::BulkString(ref s) if s == b"OK" => Ok(Self::KeySet),
             // Returns Nil if key already exists
             Value::Nil => Ok(Self::KeyNotSet),
             _ => {
-                tracing::error!(received = ?v, "Unexpected SETNX command reply from Redis");
+                tracing::error!(received = ?value, "Unexpected SETNX command reply from Redis");
                 Err(redis::ParsingError::from(format!(
                     "Unexpected SETNX command reply: {:?}",
-                    v
+                    value
                 )))
             }
         }
@@ -246,15 +411,15 @@ pub enum HsetnxReply {
 }
 
 impl redis::FromRedisValue for HsetnxReply {
-    fn from_redis_value(v: Value) -> Result<Self, redis::ParsingError> {
-        match v {
+    fn from_redis_value(value: Value) -> Result<Self, redis::ParsingError> {
+        match value {
             Value::Int(1) => Ok(Self::KeySet),
             Value::Int(0) => Ok(Self::KeyNotSet),
             _ => {
-                tracing::error!(received = ?v, "Unexpected HSETNX command reply from Redis");
+                tracing::error!(received = ?value, "Unexpected HSETNX command reply from Redis");
                 Err(redis::ParsingError::from(format!(
                     "Unexpected HSETNX command reply: {:?}",
-                    v
+                    value
                 )))
             }
         }
@@ -268,15 +433,15 @@ pub enum MsetnxReply {
 }
 
 impl redis::FromRedisValue for MsetnxReply {
-    fn from_redis_value(v: Value) -> Result<Self, redis::ParsingError> {
-        match v {
+    fn from_redis_value(value: Value) -> Result<Self, redis::ParsingError> {
+        match value {
             Value::Int(1) => Ok(Self::KeysSet),
             Value::Int(0) => Ok(Self::KeysNotSet),
             _ => {
-                tracing::error!(received = ?v, "Unexpected MSETNX command reply from Redis");
+                tracing::error!(received = ?value, "Unexpected MSETNX command reply from Redis");
                 Err(redis::ParsingError::from(format!(
                     "Unexpected MSETNX command reply: {:?}",
-                    v
+                    value
                 )))
             }
         }
@@ -285,17 +450,30 @@ impl redis::FromRedisValue for MsetnxReply {
 
 /// Converts a `redis::Value` to `Option<String>`.
 ///
-/// - `BulkString` → decoded as UTF-8, returns `None` if invalid
-/// - `SimpleString` → `Some(s)`
-/// - `Int` → `Some(i.to_string())`
-/// - `Nil` / other variants → `None`
-pub fn redis_value_to_option_string(v: &Value) -> Option<String> {
-    match v {
+/// - String-like variants (`BulkString`, `SimpleString`, `VerbatimString`) → decoded string
+/// - Scalar variants (`Int`, `Double`, `Boolean`, `Okay`, `BigNumber`) → string representation
+/// - `Nil` and aggregate types (`Array`, `Map`, `Set`, `Attribute`, `Push`, `ServerError`) → `None`
+pub fn redis_value_to_option_string(value: &Value) -> Option<String> {
+    match value {
         Value::BulkString(bytes) => std::str::from_utf8(bytes)
             .ok()
             .map(|utf8_str| utf8_str.to_string()),
-        Value::SimpleString(s) => Some(s.clone()),
-        Value::Int(i) => Some(i.to_string()),
+        Value::SimpleString(string) => Some(string.clone()),
+        Value::VerbatimString { text, .. } => Some(text.clone()),
+        Value::Int(integer) => Some(integer.to_string()),
+        Value::Double(double) => Some(double.to_string()),
+        Value::Boolean(boolean) => Some(boolean.to_string()),
+        Value::Okay => Some("OK".to_string()),
+        Value::BigNumber(ref big_number) => Some(big_number.to_string()),
+        // Nil and aggregate types have no meaningful single-string representation
+        Value::Nil
+        | Value::Array(_)
+        | Value::Map(_)
+        | Value::Set(_)
+        | Value::Attribute { .. }
+        | Value::Push { .. }
+        | Value::ServerError(_) => None,
+        // Catch-all for future variants added to the non-exhaustive enum
         _ => None,
     }
 }
@@ -346,15 +524,15 @@ impl DelReply {
 }
 
 impl redis::FromRedisValue for DelReply {
-    fn from_redis_value(v: Value) -> Result<Self, redis::ParsingError> {
-        match v {
+    fn from_redis_value(value: Value) -> Result<Self, redis::ParsingError> {
+        match value {
             Value::Int(1) => Ok(Self::KeyDeleted),
             Value::Int(0) => Ok(Self::KeyNotDeleted),
             _ => {
-                tracing::error!(received = ?v, "Unexpected DEL command reply from Redis");
+                tracing::error!(received = ?value, "Unexpected DEL command reply from Redis");
                 Err(redis::ParsingError::from(format!(
                     "Unexpected DEL command reply: {:?}",
-                    v
+                    value
                 )))
             }
         }
@@ -368,15 +546,15 @@ pub enum SaddReply {
 }
 
 impl redis::FromRedisValue for SaddReply {
-    fn from_redis_value(v: Value) -> Result<Self, redis::ParsingError> {
-        match v {
+    fn from_redis_value(value: Value) -> Result<Self, redis::ParsingError> {
+        match value {
             Value::Int(1) => Ok(Self::KeySet),
             Value::Int(0) => Ok(Self::KeyNotSet),
             _ => {
-                tracing::error!(received = ?v, "Unexpected SADD command reply from Redis");
+                tracing::error!(received = ?value, "Unexpected SADD command reply from Redis");
                 Err(redis::ParsingError::from(format!(
                     "Unexpected SADD command reply: {:?}",
-                    v
+                    value
                 )))
             }
         }
@@ -463,7 +641,37 @@ mod tests {
     #[test]
     fn test_redis_value_okay() {
         let value = Value::Okay;
-        assert_eq!(redis_value_to_option_string(&value), None);
+        assert_eq!(redis_value_to_option_string(&value), Some("OK".to_string()));
+    }
+
+    #[test]
+    fn test_redis_value_double() {
+        let value = Value::Double(3.14);
+        assert_eq!(
+            redis_value_to_option_string(&value),
+            Some("3.14".to_string())
+        );
+    }
+
+    #[test]
+    fn test_redis_value_boolean() {
+        let value = Value::Boolean(true);
+        assert_eq!(
+            redis_value_to_option_string(&value),
+            Some("true".to_string())
+        );
+    }
+
+    #[test]
+    fn test_redis_value_verbatim_string() {
+        let value = Value::VerbatimString {
+            format: redis::VerbatimFormat::Text,
+            text: "raw text".to_string(),
+        };
+        assert_eq!(
+            redis_value_to_option_string(&value),
+            Some("raw text".to_string())
+        );
     }
 
     #[test]
@@ -524,18 +732,6 @@ mod tests {
     #[test]
     fn test_setnx_reply_okay() {
         let reply = SetnxReply::from_redis_value(Value::Okay);
-        assert_eq!(reply.unwrap(), SetnxReply::KeySet);
-    }
-
-    #[test]
-    fn test_setnx_reply_simple_string_ok() {
-        let reply = SetnxReply::from_redis_value(Value::SimpleString("OK".to_string()));
-        assert_eq!(reply.unwrap(), SetnxReply::KeySet);
-    }
-
-    #[test]
-    fn test_setnx_reply_bulk_string_ok() {
-        let reply = SetnxReply::from_redis_value(Value::BulkString(b"OK".to_vec()));
         assert_eq!(reply.unwrap(), SetnxReply::KeySet);
     }
 
@@ -704,7 +900,7 @@ mod tests {
     #[test]
     fn test_redis_value_as_string_non_string() {
         let rv = RedisValue::new(Value::Int(7));
-        assert!(rv.as_string().is_none());
+        assert_eq!(rv.as_string(), Some("7".to_string()));
     }
 
     // ── RedisSettings::validate ────────────────────────────────────────────
@@ -772,7 +968,7 @@ mod tests {
         assert_eq!(settings.default_ttl, 300);
         assert_eq!(settings.default_hash_ttl, 900);
         assert_eq!(settings.broadcast_channel_capacity, 32);
-        assert_eq!(settings.max_failure_threshold, 5);
+        assert_eq!(settings.max_failure_threshold_seconds, 5);
     }
 
     // ── RedisValue::ToRedisArgs ────────────────────────────────────────────
@@ -794,11 +990,29 @@ mod tests {
     }
 
     #[test]
-    fn test_redis_value_to_redis_args_non_string_fallback() {
+    fn test_redis_value_to_redis_args_int() {
         let value = RedisValue::new(Value::Int(42));
         let mut args = Vec::new();
         redis::ToRedisArgs::write_redis_args(&value, &mut args);
-        assert_eq!(args, vec![b"".as_slice()]);
+        assert_eq!(args, vec![b"42".as_slice()]);
+    }
+
+    #[test]
+    fn test_redis_value_to_redis_args_nil_writes_nothing() {
+        let value = RedisValue::new(Value::Nil);
+        let mut args = Vec::new();
+        redis::ToRedisArgs::write_redis_args(&value, &mut args);
+        // Nil should not write any bytes — empty args, not empty byte slice
+        assert!(args.is_empty());
+    }
+
+    #[test]
+    fn test_redis_value_to_redis_args_array_writes_nothing() {
+        let value = RedisValue::new(Value::Array(vec![Value::BulkString(b"hello".to_vec())]));
+        let mut args = Vec::new();
+        redis::ToRedisArgs::write_redis_args(&value, &mut args);
+        // Aggregate types should not write any bytes
+        assert!(args.is_empty());
     }
 
     // ── RedisEntryId::ToRedisArgs ──────────────────────────────────────────
