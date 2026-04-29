@@ -587,5 +587,78 @@ export const connectorDetails = {
         },
       },
     },
+    XenditSplitPayment: {
+      Configs: {
+        DELAY: {
+          STATUS: true,
+          TIMEOUT: 3000,
+        },
+      },
+      Request: {
+        payment_method: "card",
+        amount: 5000000,
+        currency: "IDR",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+          billing: {
+            phone: {
+              number: "1234567890",
+              country_code: "+62",
+            },
+          },
+        },
+        split_payments: {
+          xendit_split_payment: {
+            multiple_splits: {
+              name: "20210908 Test",
+              for_user_id: "678a407d0951bdff0db5ba78",
+              description: "Platform fee and Delivery Fee for Marketplace",
+              routes: [
+                {
+                  flat_amount: 1000000,
+                  currency: "IDR",
+                  destination_account_id: "678a29180bffc2f28d8527c0",
+                  reference_id: "1234",
+                },
+                {
+                  flat_amount: 4000000,
+                  currency: "IDR",
+                  destination_account_id: "678a407d0951bdff0db5ba78",
+                  reference_id: "1235",
+                },
+              ],
+            },
+          },
+        },
+        confirm: true,
+        capture_method: "automatic",
+        customer_acceptance: customerAcceptance,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "processing",
+          amount: 5000000,
+          currency: "IDR",
+        },
+      },
+    },
+    XenditSplitRefund: {
+      Request: {
+        amount: 100000,
+        reason: "Customer request",
+        split_refunds: {
+          xendit_split_refund: {
+            for_user_id: "678a407d0951bdff0db5ba78",
+          },
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    },
   },
 };
