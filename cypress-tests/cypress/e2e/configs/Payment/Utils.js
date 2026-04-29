@@ -514,6 +514,15 @@ export const CONNECTOR_LISTS = {
       "stripe",
     ],
     CARD_INSTALLMENTS: ["adyen"],
+    BILLING_DESCRIPTOR: [
+      "adyen",
+      "checkout",
+      "stripe",
+      "nuvei",
+      "trustpay",
+      "finix",
+    ],
+    BILLING_DESCRIPTOR_INVALID_PHONE: ["nuvei"],
     AUTO_RETRY: [
       "cybersource",
       "checkout",
@@ -536,6 +545,10 @@ export const CONNECTOR_LISTS = {
       "worldpay",
       "worldpayvantiv",
     ],
+    EXTERNAL_THREE_DS: ["stripe"],
+    BANK_DEBIT: ["novalnet"],
+    PARTNER_MERCHANT_IDENTIFIER: ["adyen", "checkout"],
+    GIFT_CARD: ["adyen"],
     // Add more inclusion lists
   },
 };

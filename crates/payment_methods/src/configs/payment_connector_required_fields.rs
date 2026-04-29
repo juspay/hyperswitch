@@ -1501,7 +1501,25 @@ fn get_cards_required_fields() -> HashMap<Connector, RequiredFieldFinal> {
             ),
         ),
         (Connector::Iatapay, fields(vec![], vec![], vec![])),
-        (Connector::Mollie, fields(vec![], card_with_name(), vec![])),
+        (
+            Connector::Mollie,
+            fields(
+                vec![],
+                vec![],
+                [
+                    card_with_name(),
+                    vec![
+                        RequiredField::BillingAddressCountries(vec!["ALL"]),
+                        RequiredField::BillingEmail,
+                        RequiredField::BillingAddressLine1,
+                        RequiredField::BillingAddressLine2,
+                        RequiredField::BillingAddressZip,
+                        RequiredField::BillingAddressCity,
+                    ],
+                ]
+                .concat(),
+            ),
+        ),
         (Connector::Moneris, fields(vec![], card_basic(), vec![])),
         (
             Connector::Multisafepay,
@@ -3118,6 +3136,7 @@ fn get_pay_later_required_fields() -> HashMap<enums::PaymentMethodType, Connecto
                             ]),
                             RequiredField::BillingEmail,
                             RequiredField::BillingAddressLine1,
+                            RequiredField::BillingAddressLine2,
                             RequiredField::BillingAddressZip,
                             RequiredField::BillingAddressCity,
                             RequiredField::BillingUserFirstName,
