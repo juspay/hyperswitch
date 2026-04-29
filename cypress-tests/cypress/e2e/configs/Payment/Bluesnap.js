@@ -1,3 +1,4 @@
+import { error } from "console";
 import { customerAcceptance } from "./Commons";
 
 const successfulNo3DSCardDetails = {
@@ -34,6 +35,14 @@ const multiUseMandateData = {
       currency: "USD",
     },
   },
+};
+
+const failedNo3DSCardDetails = {
+  card_number: "378282246310005",
+  card_exp_month: "05",
+  card_exp_year: "26",
+  card_holder_name: "joseph Doe",
+  card_cvc: "1234",
 };
 
 export const connectorDetails = {
@@ -255,6 +264,24 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "succeeded",
+        },
+      },
+    },
+    No3DSFailPayment: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: failedNo3DSCardDetails,
+        },
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "failed",
+          error_code: "14002",
+          error_message:"Transaction failed  because of payment processing failure.: DECLINE - Default BlueSnapTestProcessor [DECLINE] message",
         },
       },
     },
