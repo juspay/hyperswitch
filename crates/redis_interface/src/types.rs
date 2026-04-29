@@ -3,9 +3,7 @@
 
 use common_utils::errors::CustomResult;
 use error_stack::ResultExt;
-use redis::IntoConnectionInfo;
-use redis::Value;
-use redis::Value as RedisCrateValue;
+use redis::{IntoConnectionInfo, Value, Value as RedisCrateValue};
 
 use crate::{constant, errors, RedisConnectionPool};
 

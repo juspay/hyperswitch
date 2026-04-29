@@ -14,8 +14,7 @@ use common_utils::{
 use error_stack::{report, ResultExt};
 use redis::{
     streams::{StreamReadOptions, StreamTrimOptions, StreamTrimmingMode},
-    AsyncCommands, ExistenceCheck, FromRedisValue, SetExpiry, SetOptions, ToSingleRedisArg,
-    Value,
+    AsyncCommands, ExistenceCheck, FromRedisValue, SetExpiry, SetOptions, ToSingleRedisArg, Value,
 };
 use tracing::instrument;
 

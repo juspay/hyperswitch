@@ -515,7 +515,10 @@ impl RedisConnectionPool {
     /// When Redis is unreachable for longer than `max_failure_threshold_seconds` seconds,
     /// signals via the oneshot sender and marks redis as unavailable.
     pub async fn on_error(&self, tx: tokio::sync::oneshot::Sender<()>) {
-        let check_interval = self.config.unresponsive_check_interval.max(constant::MIN_ERROR_CHECK_INTERVAL_SECS);
+        let check_interval = self
+            .config
+            .unresponsive_check_interval
+            .max(constant::MIN_ERROR_CHECK_INTERVAL_SECS);
         let max_unreachable_secs = self.config.max_failure_threshold_seconds;
         let mut first_failure_at: Option<std::time::Instant> = None;
 
