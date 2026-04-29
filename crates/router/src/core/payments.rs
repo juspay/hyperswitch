@@ -11819,7 +11819,7 @@ pub async fn payments_manual_update(
             },
         )?;
     }
-    
+
     let payment_intent = state
         .store
         .find_payment_intent_by_payment_id_processor_merchant_id(
@@ -11833,6 +11833,7 @@ pub async fn payments_manual_update(
         .attach_printable("Error while fetching the payment_intent by payment_id, merchant_id")?;
 
     // Calculate amount_captured and amount_capturable based on update_amount_captured flag
+    // Applicable for Single capture TODO Multi capture
     let (calculated_amount_captured, calculated_amount_capturable) = if update_amount_captured
         == Some(true)
     {
