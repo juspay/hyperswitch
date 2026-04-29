@@ -147,7 +147,7 @@ describe("Rule Based Routing Test", () => {
     it("Confirm bank redirect", () => {
       if (!shouldContinue) return;
       const data =
-        utils.getConnectorDetails("adyen")["bank_redirect_pm"]["ideal"];
+        utils.getConnectorDetails("adyen")["bank_redirect_pm"]["eps"];
 
       cy.confirmBankRedirectCallTest(
         fixtures.confirmBody,
