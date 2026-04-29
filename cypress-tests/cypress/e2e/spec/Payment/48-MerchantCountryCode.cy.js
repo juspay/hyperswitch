@@ -12,77 +12,73 @@ describe("Merchant Country Code Tests", () => {
     });
   });
 
-  context(
-    "Create Business Profile with merchant_country_code",
-    () => {
-      let shouldContinue = true;
+  context("Create Business Profile with merchant_country_code", () => {
+    let shouldContinue = true;
 
-      beforeEach(function () {
-        if (!shouldContinue) {
-          this.skip();
-        }
-      });
+    beforeEach(function () {
+      if (!shouldContinue) {
+        this.skip();
+      }
+    });
 
-      afterEach("flush global state", () => {
-        cy.task("setGlobalState", globalState.data);
-      });
+    afterEach("flush global state", () => {
+      cy.task("setGlobalState", globalState.data);
+    });
 
-      it("Create Business Profile with merchant_country_code US", () => {
-        cy.createBusinessProfileTest(
-          fixtures.businessProfile.bpCreate,
-          globalState
-        );
-      });
+    it("Create Business Profile with merchant_country_code US", () => {
+      cy.createBusinessProfileTest(
+        fixtures.businessProfile.bpCreate,
+        globalState
+      );
+    });
 
-      it("connector-create-call-test", () => {
-        cy.createConnectorCallTest(
-          "payment_processor",
-          fixtures.createConnectorBody,
-          payment_methods_enabled,
-          globalState
-        );
-      });
+    it("connector-create-call-test", () => {
+      cy.createConnectorCallTest(
+        "payment_processor",
+        fixtures.createConnectorBody,
+        payment_methods_enabled,
+        globalState
+      );
+    });
 
-      it("Create Customer", () => {
-        cy.createCustomerCallTest(fixtures.customerCreateBody, globalState);
-      });
+    it("Create Customer", () => {
+      cy.createCustomerCallTest(fixtures.customerCreateBody, globalState);
+    });
 
-      it("Update business profile with merchant_country_code US", () => {
-        cy.UpdateBusinessProfileTest(
-          fixtures.businessProfile.bpUpdate,
-          true, // is_connector_agnostic_mit_enabled
-          false, // collect_billing_details_from_wallet_connector
-          false, // collect_shipping_details_from_wallet_connector
-          false, // always_collect_billing_details_from_wallet_connector
-          false, // always_collect_shipping_details_from_wallet_connector
-          "US", // merchant_country_code
-          globalState
-        );
-      });
+    it("Update business profile with merchant_country_code US", () => {
+      cy.UpdateBusinessProfileTest(
+        fixtures.businessProfile.bpUpdate,
+        true, // is_connector_agnostic_mit_enabled
+        false, // collect_billing_details_from_wallet_connector
+        false, // collect_shipping_details_from_wallet_connector
+        false, // always_collect_billing_details_from_wallet_connector
+        false, // always_collect_shipping_details_from_wallet_connector
+        "US", // merchant_country_code
+        globalState
+      );
+    });
 
-      it("Verify merchant_country_code is stored in globalState", () => {
-        const storedCountryCode = globalState.get("merchantCountryCode");
-        expect(storedCountryCode).to.equal("US");
-      });
+    it("Verify merchant_country_code is stored in globalState", () => {
+      const storedCountryCode = globalState.get("merchantCountryCode");
+      expect(storedCountryCode).to.equal("US");
+    });
 
-      it("Create and confirm payment with merchant_country_code US", () => {
-        const data = getConnectorDetails(globalState.get("connectorId"))[
-          "card_pm"
-        ]["No3DSAutoCapture"];
+    it("Create and confirm payment with merchant_country_code US", () => {
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "card_pm"
+      ]["No3DSAutoCapture"];
 
-        cy.createConfirmPaymentTest(
-          fixtures.createPaymentBody,
-          data,
-          "no_three_ds",
-          "automatic",
-          globalState
-        );
+      cy.createConfirmPaymentTest(
+        fixtures.createPaymentBody,
+        data,
+        "no_three_ds",
+        "automatic",
+        globalState
+      );
 
-        if (shouldContinue)
-          shouldContinue = utils.should_continue_further(data);
-      });
-    }
-  );
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
+    });
+  });
 
   context(
     "Update Business Profile with different merchant_country_code",
@@ -156,77 +152,73 @@ describe("Merchant Country Code Tests", () => {
     }
   );
 
-  context(
-    "3DS Payment Flow with merchant_country_code",
-    () => {
-      let shouldContinue = true;
+  context("3DS Payment Flow with merchant_country_code", () => {
+    let shouldContinue = true;
 
-      beforeEach(function () {
-        if (!shouldContinue) {
-          this.skip();
-        }
-      });
+    beforeEach(function () {
+      if (!shouldContinue) {
+        this.skip();
+      }
+    });
 
-      afterEach("flush global state", () => {
-        cy.task("setGlobalState", globalState.data);
-      });
+    afterEach("flush global state", () => {
+      cy.task("setGlobalState", globalState.data);
+    });
 
-      it("Create Business Profile with merchant_country_code DE", () => {
-        cy.createBusinessProfileTest(
-          fixtures.businessProfile.bpCreate,
-          globalState
-        );
-      });
+    it("Create Business Profile with merchant_country_code DE", () => {
+      cy.createBusinessProfileTest(
+        fixtures.businessProfile.bpCreate,
+        globalState
+      );
+    });
 
-      it("connector-create-call-test", () => {
-        cy.createConnectorCallTest(
-          "payment_processor",
-          fixtures.createConnectorBody,
-          payment_methods_enabled,
-          globalState
-        );
-      });
+    it("connector-create-call-test", () => {
+      cy.createConnectorCallTest(
+        "payment_processor",
+        fixtures.createConnectorBody,
+        payment_methods_enabled,
+        globalState
+      );
+    });
 
-      it("Create Customer", () => {
-        cy.createCustomerCallTest(fixtures.customerCreateBody, globalState);
-      });
+    it("Create Customer", () => {
+      cy.createCustomerCallTest(fixtures.customerCreateBody, globalState);
+    });
 
-      it("Update business profile with merchant_country_code DE", () => {
-        cy.UpdateBusinessProfileTest(
-          fixtures.businessProfile.bpUpdate,
-          true, // is_connector_agnostic_mit_enabled
-          false, // collect_billing_details_from_wallet_connector
-          false, // collect_shipping_details_from_wallet_connector
-          false, // always_collect_billing_details_from_wallet_connector
-          false, // always_collect_shipping_details_from_wallet_connector
-          "DE", // merchant_country_code
-          globalState
-        );
-      });
+    it("Update business profile with merchant_country_code DE", () => {
+      cy.UpdateBusinessProfileTest(
+        fixtures.businessProfile.bpUpdate,
+        true, // is_connector_agnostic_mit_enabled
+        false, // collect_billing_details_from_wallet_connector
+        false, // collect_shipping_details_from_wallet_connector
+        false, // always_collect_billing_details_from_wallet_connector
+        false, // always_collect_shipping_details_from_wallet_connector
+        "DE", // merchant_country_code
+        globalState
+      );
+    });
 
-      it("Verify merchant_country_code DE is stored correctly", () => {
-        const storedCountryCode = globalState.get("merchantCountryCode");
-        expect(storedCountryCode).to.equal("DE");
-      });
+    it("Verify merchant_country_code DE is stored correctly", () => {
+      const storedCountryCode = globalState.get("merchantCountryCode");
+      expect(storedCountryCode).to.equal("DE");
+    });
 
-      it("Create and confirm 3DS payment with merchant_country_code DE", () => {
-        const data = getConnectorDetails(globalState.get("connectorId"))[
-          "card_pm"
-        ]["3DSAutoCapture"];
+    it("Create and confirm 3DS payment with merchant_country_code DE", () => {
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "card_pm"
+      ]["3DSAutoCapture"];
 
-        cy.createConfirmPaymentTest(
-          fixtures.createPaymentBody,
-          data,
-          "three_ds",
-          "automatic",
-          globalState
-        );
+      cy.createConfirmPaymentTest(
+        fixtures.createPaymentBody,
+        data,
+        "three_ds",
+        "automatic",
+        globalState
+      );
 
-        if (shouldContinue)
-          shouldContinue = utils.should_continue_further(data);
-      });
-    }
-  );
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
+    });
+  });
 
   context(
     "Edge case - Update merchant_country_code on existing profile",
@@ -318,86 +310,82 @@ describe("Merchant Country Code Tests", () => {
     }
   );
 
-  context(
-    "Edge case - merchant_country_code SG with manual capture",
-    () => {
-      let shouldContinue = true;
+  context("Edge case - merchant_country_code SG with manual capture", () => {
+    let shouldContinue = true;
 
-      beforeEach(function () {
-        if (!shouldContinue) {
-          this.skip();
-        }
-      });
+    beforeEach(function () {
+      if (!shouldContinue) {
+        this.skip();
+      }
+    });
 
-      afterEach("flush global state", () => {
-        cy.task("setGlobalState", globalState.data);
-      });
+    afterEach("flush global state", () => {
+      cy.task("setGlobalState", globalState.data);
+    });
 
-      it("Create Business Profile with merchant_country_code SG", () => {
-        cy.createBusinessProfileTest(
-          fixtures.businessProfile.bpCreate,
-          globalState
-        );
-      });
+    it("Create Business Profile with merchant_country_code SG", () => {
+      cy.createBusinessProfileTest(
+        fixtures.businessProfile.bpCreate,
+        globalState
+      );
+    });
 
-      it("connector-create-call-test", () => {
-        cy.createConnectorCallTest(
-          "payment_processor",
-          fixtures.createConnectorBody,
-          payment_methods_enabled,
-          globalState
-        );
-      });
+    it("connector-create-call-test", () => {
+      cy.createConnectorCallTest(
+        "payment_processor",
+        fixtures.createConnectorBody,
+        payment_methods_enabled,
+        globalState
+      );
+    });
 
-      it("Create Customer", () => {
-        cy.createCustomerCallTest(fixtures.customerCreateBody, globalState);
-      });
+    it("Create Customer", () => {
+      cy.createCustomerCallTest(fixtures.customerCreateBody, globalState);
+    });
 
-      it("Update business profile with merchant_country_code SG", () => {
-        cy.UpdateBusinessProfileTest(
-          fixtures.businessProfile.bpUpdate,
-          true, // is_connector_agnostic_mit_enabled
-          false, // collect_billing_details_from_wallet_connector
-          false, // collect_shipping_details_from_wallet_connector
-          false, // always_collect_billing_details_from_wallet_connector
-          false, // always_collect_shipping_details_from_wallet_connector
-          "SG", // merchant_country_code
-          globalState
-        );
-      });
+    it("Update business profile with merchant_country_code SG", () => {
+      cy.UpdateBusinessProfileTest(
+        fixtures.businessProfile.bpUpdate,
+        true, // is_connector_agnostic_mit_enabled
+        false, // collect_billing_details_from_wallet_connector
+        false, // collect_shipping_details_from_wallet_connector
+        false, // always_collect_billing_details_from_wallet_connector
+        false, // always_collect_shipping_details_from_wallet_connector
+        "SG", // merchant_country_code
+        globalState
+      );
+    });
 
-      it("Verify merchant_country_code SG is stored correctly", () => {
-        const storedCountryCode = globalState.get("merchantCountryCode");
-        expect(storedCountryCode).to.equal("SG");
-      });
+    it("Verify merchant_country_code SG is stored correctly", () => {
+      const storedCountryCode = globalState.get("merchantCountryCode");
+      expect(storedCountryCode).to.equal("SG");
+    });
 
-      it("Create and confirm manual capture payment", () => {
-        const data = getConnectorDetails(globalState.get("connectorId"))[
-          "card_pm"
-        ]["No3DSManualCapture"];
+    it("Create and confirm manual capture payment", () => {
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "card_pm"
+      ]["No3DSManualCapture"];
 
-        cy.createConfirmPaymentTest(
-          fixtures.createPaymentBody,
-          data,
-          "no_three_ds",
-          "manual",
-          globalState
-        );
+      cy.createConfirmPaymentTest(
+        fixtures.createPaymentBody,
+        data,
+        "no_three_ds",
+        "manual",
+        globalState
+      );
 
-        if (shouldContinue)
-          shouldContinue = utils.should_continue_further(data);
-      });
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
+    });
 
-      it("Capture the payment", () => {
-        if (!shouldContinue) {
-          cy.task("cli_log", "Skipping step: Capture payment");
-          return;
-        }
-        const data = getConnectorDetails(globalState.get("connectorId"))[
-          "card_pm"
-        ]["Capture"];
-        cy.captureCallTest(fixtures.captureBody, data, globalState);
-      });
-    }
-  );
+    it("Capture the payment", () => {
+      if (!shouldContinue) {
+        cy.task("cli_log", "Skipping step: Capture payment");
+        return;
+      }
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "card_pm"
+      ]["Capture"];
+      cy.captureCallTest(fixtures.captureBody, data, globalState);
+    });
+  });
 });

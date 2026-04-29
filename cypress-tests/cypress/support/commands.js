@@ -819,12 +819,11 @@ Cypress.Commands.add(
             response.body.always_collect_shipping_details_from_wallet_connector
           );
           // Store merchant_country_code if present in response
-          const mcc = response.body?.merchant_country_code ?? response.merchant_country_code;
+          const mcc =
+            response.body?.merchant_country_code ??
+            response.merchant_country_code;
           if (mcc !== undefined) {
-            globalState.set(
-              "merchantCountryCode",
-              mcc
-            );
+            globalState.set("merchantCountryCode", mcc);
           }
         }
       });
