@@ -22,13 +22,17 @@ export const setApiKey = (requestBody, apiKey) => {
 };
 
 export const generateRandomString = (prefix = "cyMerchant") => {
-  const uuidPart = "xxxxxxxx";
+  if (!globalThis.crypto || !globalThis.crypto.getRandomValues) {
+    throw new Error("Secure random generator is not available");
+  }
 
-  const randomString = uuidPart.replace(/[xy]/g, function (c) {
-    const r = (Math.random() * 16) | 0;
-    const v = c === "x" ? r : (r & 0x3) | 0x8;
-    return v.toString(16);
-  });
+  const randomBytes = new Uint8Array(4);
+  globalThis.crypto.getRandomValues(randomBytes);
+  const randomString = Array.from(randomBytes, (byte) =>
+    byte.toString(16).padStart(2, "0")
+  )
+    .join("")
+    .slice(0, 8);
 
   return `${prefix}_${randomString}`;
 };
