@@ -631,6 +631,7 @@ where
                 issuer_error_message: None,
                 network_details: None,
                 network_error_message: None,
+                advice_message: None,
                 recommended_action: None,
                 card_network: payment_data.get_payment_attempt().extract_card_network(),
             };
@@ -670,12 +671,12 @@ where
                 None
             };
 
-            // For MIT transactions, lookup recommended action from merchant_advice_codes config
-            let recommended_action = payments_helpers::get_merchant_advice_code_recommended_action(
+            // For MIT transactions, lookup recommended action and description from merchant_advice_codes config
+            let merchant_advice = payments_helpers::get_merchant_advice_code_config(
                 &state.conf.merchant_advice_codes,
                 payment_data.get_payment_intent().off_session,
-                card_network.as_ref(),
-                error_response.network_advice_code.as_deref(),
+                card_network.clone(),
+                error_response.network_advice_code.clone(),
             );
 
             let payment_attempt_update = storage::PaymentAttemptUpdate::ErrorUpdate {
@@ -702,7 +703,8 @@ where
                 issuer_error_message: Some(error_response.network_error_message.clone()),
                 network_details: Some(Some(ForeignFrom::foreign_from(error_response))),
                 network_error_message: Some(error_response.network_error_message.clone()),
-                recommended_action: Some(recommended_action),
+                advice_message: Some(merchant_advice.map(|m| m.description.clone())),
+                recommended_action: Some(merchant_advice.map(|m| m.recommended_action)),
                 card_network: payment_data.get_payment_attempt().extract_card_network(),
             };
 

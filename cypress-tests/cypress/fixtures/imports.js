@@ -25,6 +25,7 @@ import customerUpdateBody from "./update-customer-body.json";
 import voidBody from "./void-payment-body.json";
 import ntidConfirmBody from "./create-ntid-mit.json";
 import blocklistCreateBody from "./blocklist-create-body.json";
+import disputeEvidenceBody from "./dispute-evidence-body.json";
 import eligibilityCheckBody from "./eligibility-check-body.json";
 import * as IncomingWebhookBody from "./webhooks/import";
 import customerCreate from "./modularPmService/modularPmServiceCustomerCreate.json";
@@ -49,6 +50,7 @@ export {
   createPayoutBody,
   customerCreateBody,
   customerUpdateBody,
+  disputeEvidenceBody,
   eligibilityCheckBody,
   gsmBody,
   listRefundCall,
