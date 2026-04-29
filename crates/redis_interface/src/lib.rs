@@ -180,7 +180,7 @@ impl SubscriberClient {
             false => Self::create_standalone_backend(conf, push_sender.clone()).await?,
         };
 
-        let (broadcast_sender, _) =
+        let (broadcast_sender, _value) =
             tokio::sync::broadcast::channel(conf.broadcast_channel_capacity);
 
         tokio::spawn(Self::run(push_receiver, broadcast_sender.clone()).in_current_span());
@@ -308,6 +308,7 @@ impl SubscriberClient {
                 }
             }
         }
+        tracing::warn!("Subscriber handler task exiting — no further messages will be received");
     }
 
     /// Parses a single push message and, if it is a pub/sub `Message`,
@@ -530,7 +531,7 @@ impl RedisConnectionPool {
             // even when ConnectionManager is retrying internally
             let result = tokio::time::timeout(
                 std::time::Duration::from_secs(check_interval),
-                conn.ping::<String>(),
+                conn.ping::<()>(),
             )
             .await;
 

@@ -65,7 +65,7 @@ impl RedisValue {
         match &self.inner {
             RedisCrateValue::BulkString(bytes) => String::from_utf8(bytes.clone())
                 .inspect_err(|error| {
-                    tracing::debug!(?error, "BulkString contains invalid UTF-8 in as_string()");
+                    tracing::warn!(?error, "BulkString contains invalid UTF-8 in as_string()");
                 })
                 .ok(),
             RedisCrateValue::SimpleString(string) => Some(string.clone()),
@@ -457,7 +457,7 @@ pub fn redis_value_to_option_string(value: &Value) -> Option<String> {
     match value {
         Value::BulkString(bytes) => std::str::from_utf8(bytes)
             .inspect_err(|error| {
-                tracing::debug!(
+                tracing::warn!(
                     ?error,
                     "BulkString contains invalid UTF-8 in redis_value_to_option_string()"
                 );
