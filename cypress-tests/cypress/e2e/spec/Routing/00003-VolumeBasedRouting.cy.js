@@ -283,46 +283,17 @@ describe("Volume Based Routing Test", () => {
     });
 
     it("payment-routing-test-1", () => {
-      // Bug C: 50/50 routing is non-deterministic — the first payment may go to either
-      // connector. Accept whichever connector the server picks and record it.
-      const stripeData =
+      globalState.set("connectorId", "stripe");
+      globalState.set("merchantConnectorId", globalState.get("stripeMcaId"));
+      const data =
         utils.getConnectorDetails("stripe")["card_pm"]["No3DSAutoCapture"];
-      const { Request: reqData } = stripeData;
-      cy.request({
-        method: "POST",
-        url: `${globalState.get("baseUrl")}/payments`,
-        headers: {
-          "Content-Type": "application/json",
-          "api-key": globalState.get("apiKey"),
-        },
-        failOnStatusCode: false,
-        body: Object.assign({}, fixtures.createConfirmPaymentBody, reqData, {
-          authentication_type: "no_three_ds",
-          capture_method: "automatic",
-          customer_id: globalState.get("customerId"),
-          profile_id: globalState.get("profileId"),
-        }),
-      }).then((response) => {
-        expect(response.status, "status_code").to.equal(200);
-        const connector = response.body.connector;
-        const mcaId = response.body.merchant_connector_id;
-        expect(["stripe", "adyen"]).to.include(
-          connector,
-          "payment 1 must go to stripe or adyen"
-        );
-        const expectedMcaId =
-          connector === "stripe"
-            ? globalState.get("stripeMcaId")
-            : globalState.get("adyenMcaId");
-        expect(mcaId, "merchant_connector_id matches connector").to.equal(
-          expectedMcaId
-        );
-        globalState.set("connectorId", connector);
-        globalState.set("merchantConnectorId", mcaId);
-        globalState.set("payment1Connector", connector);
-        globalState.set("paymentID", response.body.payment_id);
-        globalState.set("paymentAmount", response.body.amount);
-      });
+      cy.createConfirmPaymentTest(
+        fixtures.createConfirmPaymentBody,
+        data,
+        "no_three_ds",
+        "automatic",
+        globalState
+      );
     });
 
     it("retrieve-payment-call-test-1", () => {
@@ -330,17 +301,10 @@ describe("Volume Based Routing Test", () => {
     });
 
     it("payment-routing-test-2", () => {
-      // Bug C: second payment must use the other connector (50/50 alternates).
-      const p1Connector = globalState.get("payment1Connector");
-      const p2Connector = p1Connector === "stripe" ? "adyen" : "stripe";
-      const p2McaId =
-        p2Connector === "stripe"
-          ? globalState.get("stripeMcaId")
-          : globalState.get("adyenMcaId");
-      globalState.set("connectorId", p2Connector);
-      globalState.set("merchantConnectorId", p2McaId);
+      globalState.set("connectorId", "adyen");
+      globalState.set("merchantConnectorId", globalState.get("adyenMcaId"));
       const data =
-        utils.getConnectorDetails(p2Connector)["card_pm"]["No3DSAutoCapture"];
+        utils.getConnectorDetails("adyen")["card_pm"]["No3DSAutoCapture"];
       cy.createConfirmPaymentTest(
         fixtures.createConfirmPaymentBody,
         data,
