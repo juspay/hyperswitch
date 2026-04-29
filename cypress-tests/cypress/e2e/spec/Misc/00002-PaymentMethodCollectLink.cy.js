@@ -52,9 +52,6 @@ describe("Payment Method Collect Link", () => {
           },
           Response: {
             status: 200,
-            body: {
-              status: "pending",
-            },
           },
         };
         cy.paymentMethodCollectLinkCreate(fixtures.pmCollectLinkBody, data, globalState);
@@ -107,7 +104,7 @@ describe("Payment Method Collect Link", () => {
               error: {
                 type: "invalid_request",
                 code: "IR_37",
-                message: "Resource not found",
+                message: "payment method collect link not found",
               },
             },
           },
