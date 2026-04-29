@@ -78,14 +78,16 @@ impl Store {
         stream_name: &str,
         minimum_entry_id: &str,
     ) -> errors::DrainerResult<usize> {
-        let trim_kind = redis::StreamCapKind::MinID;
-        let trim_type = redis::StreamCapTrim::Exact;
-        let trim_id = minimum_entry_id;
+        let trim_config = redis::StreamTrimConfig::new(
+            redis::StreamCapKind::MinID,
+            redis::StreamCapTrim::Exact,
+            minimum_entry_id,
+        );
         let (trim_result, execution_time) =
             common_utils::date_time::time_it::<errors::DrainerResult<_>, _, _>(|| async {
                 let trim_result = self
                     .redis_conn
-                    .stream_trim_entries(&stream_name.into(), trim_kind, trim_type, trim_id)
+                    .stream_trim_entries(&stream_name.into(), trim_config.clone())
                     .await
                     .map_err(errors::DrainerError::from)?;
 

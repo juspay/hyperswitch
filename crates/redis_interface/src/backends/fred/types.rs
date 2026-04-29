@@ -6,7 +6,7 @@
 
 use crate::types::{
     DelReply, HsetnxReply, MsetnxReply, RedisEntryId, RedisValue, SaddReply, SetnxReply,
-    StreamCapKind, StreamCapTrim,
+    StreamCapKind, StreamCapTrim, StreamTrimConfig,
 };
 
 // ─── RedisValue impls ────────────────────────────────────────────────────────
@@ -180,5 +180,15 @@ impl From<StreamCapTrim> for fred::types::XCapTrim {
             StreamCapTrim::Exact => Self::Exact,
             StreamCapTrim::AlmostExact => Self::AlmostExact,
         }
+    }
+}
+
+// ─── StreamTrimConfig → XCap ─────────────────────────────────────────────────
+
+impl TryFrom<StreamTrimConfig> for fred::types::XCap {
+    type Error = fred::error::RedisError;
+
+    fn try_from(config: StreamTrimConfig) -> Result<Self, Self::Error> {
+        (config.kind, config.trim, config.threshold).try_into()
     }
 }

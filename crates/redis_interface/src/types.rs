@@ -330,19 +330,96 @@ pub type StreamEntries = Vec<(String, std::collections::HashMap<String, String>)
 /// Grouped result of a stream read: stream key → list of `(entry_id, fields)`.
 pub type StreamReadResult = std::collections::HashMap<String, StreamEntries>;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum StreamCapKind {
     MinID,
     MaxLen,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum StreamCapTrim {
     Exact,
     AlmostExact,
 }
 
 // Trait impls for StreamCapKind/StreamCapTrim live in backends/fred/types.rs.
+
+/// Configuration for trimming a Redis stream via `XTRIM`.
+///
+/// Encapsulates the kind (MaxLen or MinID), precision (Exact or AlmostExact),
+/// and the numeric or ID threshold. Use [`StreamTrimConfig::to_trim_options`]
+/// (redis-rs backend) or the `From` impl in `backends/fred/types.rs` to convert
+/// to the backend-specific type.
+///
+/// # Examples
+///
+/// ```
+/// use redis_interface::types::{StreamCapKind, StreamCapTrim, StreamTrimConfig};
+///
+/// let config = StreamTrimConfig::new(StreamCapKind::MaxLen, StreamCapTrim::AlmostExact, "1000");
+/// ```
+#[derive(Debug, Clone)]
+pub struct StreamTrimConfig {
+    /// What to compare against — entry count or minimum ID.
+    pub kind: StreamCapKind,
+    /// How precisely to match the threshold.
+    pub trim: StreamCapTrim,
+    /// The threshold value: a numeric string for `MaxLen`, a stream ID for `MinID`.
+    pub threshold: String,
+}
+
+impl StreamTrimConfig {
+    /// Create a new trim configuration.
+    pub fn new(kind: StreamCapKind, trim: StreamCapTrim, threshold: impl Into<String>) -> Self {
+        Self {
+            kind,
+            trim,
+            threshold: threshold.into(),
+        }
+    }
+
+    /// Convert to the `redis` crate's `StreamTrimOptions` (redis-rs backend).
+    ///
+    /// Returns an error if `kind` is `MaxLen` and the threshold
+    /// cannot be parsed as a `usize`.
+    #[cfg(feature = "redis-rs")]
+    pub fn to_trim_options(
+        self,
+    ) -> Result<redis::streams::StreamTrimOptions, StreamTrimThresholdError> {
+        let trim_mode = match self.trim {
+            StreamCapTrim::Exact => redis::streams::StreamTrimmingMode::Exact,
+            StreamCapTrim::AlmostExact => redis::streams::StreamTrimmingMode::Approx,
+        };
+
+        match self.kind {
+            StreamCapKind::MaxLen => {
+                let max_len: usize = self
+                    .threshold
+                    .parse()
+                    .map_err(|_| StreamTrimThresholdError(self.threshold.clone()))?;
+                Ok(redis::streams::StreamTrimOptions::maxlen(
+                    trim_mode, max_len,
+                ))
+            }
+            StreamCapKind::MinID => Ok(redis::streams::StreamTrimOptions::minid(
+                trim_mode,
+                self.threshold,
+            )),
+        }
+    }
+}
+
+/// Error returned when a `StreamTrimConfig` threshold cannot be parsed.
+#[derive(Debug)]
+pub struct StreamTrimThresholdError(pub String);
+
+impl std::fmt::Display for StreamTrimThresholdError {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(formatter, "Invalid stream trim threshold: {}", self.0)
+    }
+}
+
+impl std::error::Error for StreamTrimThresholdError {}
 
 // ─── RedisKey ────────────────────────────────────────────────────────────────
 

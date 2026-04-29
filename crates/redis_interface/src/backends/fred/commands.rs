@@ -26,7 +26,7 @@ use crate::{
     errors,
     types::{
         DelReply, HsetnxReply, MsetnxReply, RedisEntryId, RedisKey, SaddReply, SetGetReply,
-        SetnxReply, StreamCapKind, StreamCapTrim, StreamEntries, StreamReadResult,
+        SetnxReply, StreamEntries, StreamReadResult, StreamTrimConfig,
     },
 };
 
@@ -856,11 +856,9 @@ impl super::RedisConnectionPool {
     pub async fn stream_trim_entries(
         &self,
         stream: &RedisKey,
-        cap_kind: StreamCapKind,
-        cap_trim: StreamCapTrim,
-        threshold: &str,
+        config: StreamTrimConfig,
     ) -> CustomResult<usize, errors::RedisError> {
-        let xcap: fred::types::XCap = (cap_kind, cap_trim, threshold, None::<i64>)
+        let xcap: fred::types::XCap = config
             .try_into()
             .map_err(|err| {
                 error_stack::report!(errors::RedisError::StreamTrimFailed)

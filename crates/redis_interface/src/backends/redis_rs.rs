@@ -525,32 +525,29 @@ impl RedisConnectionPool {
                     tracing::info!("Redis connection restored");
                 }
                 first_failure_at = None;
-                self.is_redis_available
-                    .store(true, atomic::Ordering::SeqCst);
-                continue;
-            }
+            } else {
+                let now = std::time::Instant::now();
+                let first_failure = *first_failure_at.get_or_insert(now);
+                let unreachable_secs = now.duration_since(first_failure).as_secs();
 
-            let now = std::time::Instant::now();
-            let first_failure = *first_failure_at.get_or_insert(now);
-            let unreachable_secs = now.duration_since(first_failure).as_secs();
+                if unreachable_secs >= u64::from(max_unreachable_secs) {
+                    tracing::error!(
+                        "Redis has been unreachable for {}s (threshold: {}s), shutting down",
+                        unreachable_secs,
+                        max_unreachable_secs
+                    );
+                    let _ = tx.send(());
+                    self.is_redis_available
+                        .store(false, atomic::Ordering::SeqCst);
+                    break;
+                }
 
-            if unreachable_secs >= u64::from(max_unreachable_secs) {
-                tracing::error!(
-                    "Redis has been unreachable for {}s (threshold: {}s), shutting down",
+                tracing::warn!(
+                    "Redis unreachable for {}s (threshold: {}s), reconnecting",
                     unreachable_secs,
                     max_unreachable_secs
                 );
-                let _ = tx.send(());
-                self.is_redis_available
-                    .store(false, atomic::Ordering::SeqCst);
-                break;
             }
-
-            tracing::warn!(
-                "Redis unreachable for {}s (threshold: {}s), reconnecting",
-                unreachable_secs,
-                max_unreachable_secs
-            );
         }
     }
 

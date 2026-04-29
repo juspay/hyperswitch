@@ -15,7 +15,7 @@ use std::collections::HashMap;
 
 use crate::{
     DelReply, HsetnxReply, MsetnxReply, RedisConnectionPool, RedisEntryId, RedisKey, RedisSettings,
-    RedisValue, SaddReply, SetGetReply, SetnxReply, StreamCapKind, StreamCapTrim,
+    RedisValue, SaddReply, SetGetReply, SetnxReply, StreamCapKind, StreamCapTrim, StreamTrimConfig,
 };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -1552,9 +1552,11 @@ async fn test_stream_trim_entries() {
                 let trim_result = pool
                     .stream_trim_entries(
                         &stream,
-                        StreamCapKind::MinID,
-                        StreamCapTrim::Exact,
-                        trim_id,
+                        StreamTrimConfig::new(
+                            StreamCapKind::MinID,
+                            StreamCapTrim::Exact,
+                            trim_id.as_str(),
+                        ),
                     )
                     .await;
 

@@ -214,9 +214,11 @@ impl HealthCheckInterface for Store {
         redis_conn
             .stream_trim_entries(
                 &TEST_STREAM_NAME.into(),
-                redis_interface::StreamCapKind::MinID,
-                redis_interface::StreamCapTrim::Exact,
-                &id_to_trim,
+                redis_interface::StreamTrimConfig::new(
+                    redis_interface::StreamCapKind::MinID,
+                    redis_interface::StreamCapTrim::Exact,
+                    &id_to_trim,
+                ),
             )
             .await
             .change_context(HealthCheckRedisError::StreamTrimFailed)?;

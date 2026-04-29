@@ -13,7 +13,7 @@ use common_utils::{
 };
 use error_stack::{report, ResultExt};
 use redis::{
-    streams::{StreamReadOptions, StreamTrimOptions, StreamTrimmingMode},
+    streams::StreamReadOptions,
     AsyncCommands, ExistenceCheck, FromRedisValue, SetExpiry, SetOptions, ToSingleRedisArg,
 };
 use tracing::instrument;
@@ -27,7 +27,7 @@ use crate::{
     errors,
     types::{
         DelReply, HsetnxReply, MsetnxReply, RedisEntryId, RedisKey, SaddReply, SetGetReply,
-        SetnxReply, StreamCapKind, StreamCapTrim, StreamEntries, StreamReadResult,
+        SetnxReply, StreamEntries, StreamReadResult, StreamTrimConfig,
     },
 };
 
@@ -888,26 +888,13 @@ impl super::RedisConnectionPool {
     pub async fn stream_trim_entries(
         &self,
         stream: &RedisKey,
-        cap_kind: StreamCapKind,
-        cap_trim: StreamCapTrim,
-        threshold: &str,
+        config: StreamTrimConfig,
     ) -> CustomResult<usize, errors::RedisError> {
         let mut conn = self.pool.clone();
 
-        let trim_mode = match cap_trim {
-            StreamCapTrim::AlmostExact => StreamTrimmingMode::Approx,
-            StreamCapTrim::Exact => StreamTrimmingMode::Exact,
-        };
-
-        let options = match cap_kind {
-            StreamCapKind::MaxLen => {
-                let max_len: usize = threshold
-                    .parse()
-                    .map_err(|_| errors::RedisError::StreamTrimFailed)?;
-                StreamTrimOptions::maxlen(trim_mode, max_len)
-            }
-            StreamCapKind::MinID => StreamTrimOptions::minid(trim_mode, threshold),
-        };
+        let options = config
+            .to_trim_options()
+            .change_context(errors::RedisError::StreamTrimFailed)?;
 
         conn.xtrim_options(stream.tenant_aware_key(self), &options)
             .await
