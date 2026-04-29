@@ -4787,7 +4787,22 @@ pub async fn list_customer_payment_method(
         .and_then(|business_profile| business_profile.is_connector_agnostic_mit_enabled)
         .unwrap_or(false);
 
-    let mut prefetched_mcas: Option<domain::MerchantConnectorAccounts> = None;
+    let merchant_connector_accounts = state
+        .store
+        .find_merchant_connector_account_by_merchant_id_and_disabled_list(
+            platform.get_processor().get_account().get_id(),
+            true,
+            platform.get_provider().get_key_store(),
+        )
+        .await
+        .change_context(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
+            id: platform
+                .get_processor()
+                .get_account()
+                .get_id()
+                .get_string_repr()
+                .to_owned(),
+        })?;
 
     for pm in resp.into_iter() {
         let parent_payment_method_token = generate_id(consts::ID_LENGTH, "token");
@@ -4837,14 +4852,11 @@ pub async fn list_customer_payment_method(
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to deserialize to Payment Mandate Reference ")?;
         let mca_enabled = get_mca_status(
-            state,
-            platform.get_processor().get_key_store(),
             profile_id.clone(),
-            platform.get_processor().get_account().get_id(),
             is_connector_agnostic_mit_enabled,
             Some(connector_mandate_details),
             pm.network_transaction_id.as_ref(),
-            &mut prefetched_mcas,
+            &merchant_connector_accounts,
         )
         .await?;
 
@@ -4867,7 +4879,7 @@ pub async fn list_customer_payment_method(
             card: pm_list_context.card_details,
             metadata: pm.metadata,
             payment_method_issuer_code: pm.payment_method_issuer_code,
-            recurring_enabled: mca_enabled,
+            recurring_enabled: Some(mca_enabled),
             installment_payment_enabled: Some(false),
             payment_experience: Some(vec![api_models::enums::PaymentExperience::RedirectToUrl]),
             created: Some(pm.created_at),
@@ -4883,7 +4895,7 @@ pub async fn list_customer_payment_method(
                 && customer.default_payment_method_id == Some(pm.payment_method_id),
             billing: payment_method_billing,
         };
-        if requires_cvv || mca_enabled.unwrap_or(false) {
+        if requires_cvv || mca_enabled {
             customer_pms.push(pma.to_owned());
         }
 
@@ -5095,51 +5107,23 @@ pub async fn perform_surcharge_ops(
 
 #[cfg(feature = "v1")]
 pub async fn get_mca_status(
-    state: &routes::SessionState,
-    key_store: &domain::MerchantKeyStore,
     profile_id: Option<id_type::ProfileId>,
-    merchant_id: &id_type::MerchantId,
+
     is_connector_agnostic_mit_enabled: bool,
     connector_mandate_details: Option<CommonMandateReference>,
     network_transaction_id: Option<&String>,
-    prefetched_mcas: &mut Option<domain::MerchantConnectorAccounts>,
-) -> errors::RouterResult<Option<bool>> {
-    if is_connector_agnostic_mit_enabled && network_transaction_id.is_some() {
-        return Ok(Some(true));
-    }
-    if let Some(connector_mandate_details) = connector_mandate_details {
-        // Lazy fetch: Only query DB on first call with mandate_details
-        if prefetched_mcas.is_none() {
-            logger::debug!("MCA_DB_FETCH: Fetching merchant connector accounts from DB (first call with mandate_details)");
-            *prefetched_mcas = Some(
-                state
-                    .store
-                    .find_merchant_connector_account_by_merchant_id_and_disabled_list(
-                        merchant_id,
-                        true,
-                        key_store,
-                    )
-                    .await
-                    .change_context(
-                        errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
-                            id: merchant_id.get_string_repr().to_owned(),
-                        },
-                    )?,
-            );
-        } else {
-            logger::debug!("MCA_DB_FETCH: Reusing previously fetched merchant connector accounts");
-        }
+    merchant_connector_accounts: &domain::MerchantConnectorAccounts,
+) -> errors::RouterResult<bool> {
+    let agnostic_mit = is_connector_agnostic_mit_enabled && network_transaction_id.is_some();
 
-        let mcas = prefetched_mcas.as_ref().unwrap();
+    let mandate_match = connector_mandate_details.is_some_and(|details| {
+        merchant_connector_accounts.is_merchant_connector_account_id_in_connector_mandate_details(
+            profile_id.as_ref(),
+            &details,
+        )
+    });
 
-        return Ok(Some(
-            mcas.is_merchant_connector_account_id_in_connector_mandate_details(
-                profile_id.as_ref(),
-                &connector_mandate_details,
-            ),
-        ));
-    }
-    Ok(Some(false))
+    Ok(agnostic_mit || mandate_match)
 }
 
 #[cfg(feature = "v2")]
