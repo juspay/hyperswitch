@@ -5120,11 +5120,9 @@ pub async fn get_mca_status(
                         key_store,
                     )
                     .await
-                    .change_context(
-                        errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
-                            id: merchant_id.get_string_repr().to_owned(),
-                        },
-                    )?,
+                    .change_context(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
+                        id: merchant_id.get_string_repr().to_owned(),
+                    })?,
             );
         } else {
             logger::debug!("MCA_DB_FETCH: Reusing previously fetched merchant connector accounts");
