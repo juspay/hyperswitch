@@ -66,4 +66,55 @@ export const connectorDetails = {
       body: {},
     },
   },
+  dynamicRouting: {
+    Request: {
+      algorithm_for: "payment",
+      connectors: [],
+    },
+    Response: {
+      status: 200,
+      body: {},
+    },
+  },
+  deactivateRouting: {
+    Request: {
+      profile_id: "{{profile_id}}",
+      algorithm_for: "payment",
+    },
+    Response: {
+      status: 200,
+      body: {},
+    },
+  },
+  deactivateRoutingNegative: {
+    Request: {
+      profile_id: "{{profile_id}}",
+      algorithm_for: "payment",
+    },
+    Response: {
+      status: 400,
+      body: {
+        error: {
+          message: "Algorithm is already inactive",
+          code: "IR_16",
+        },
+      },
+    },
+  },
+  deactivateDynamicRouting: {
+    Request: {},
+    Response: {
+      status: 200,
+      body: {},
+    },
+  },
+  toggleRouting: {
+    Request: {},
+    Response: {
+      status: 200,
+      body: {
+        kind: "dynamic",
+      },
+    },
+  },
 };

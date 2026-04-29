@@ -5173,6 +5173,148 @@ Cypress.Commands.add("retrieveRoutingConfig", (data, globalState) => {
 });
 
 Cypress.Commands.add(
+  "addDynamicRoutingConfig",
+  (dynamicRoutingBody, data, routingType, routing_data, globalState) => {
+    const { Request: reqData, Response: resData } = data || {};
+    const merchantId = globalState.get("merchantId");
+    const profileId = globalState.get("profileId");
+
+    const body = { ...dynamicRoutingBody, ...reqData };
+    body.algorithm_for = reqData?.algorithm_for || "payment";
+    body.connectors = routing_data;
+
+    cy.request({
+      method: "POST",
+      url: `${globalState.get("baseUrl")}/account/${merchantId}/business_profile/${profileId}/dynamic_routing/${routingType}/create?enable=dynamic_connector_selection`,
+      headers: {
+        "api-key": globalState.get("apiKey"),
+        "Content-Type": "application/json",
+      },
+      failOnStatusCode: false,
+      body: body,
+    }).then((response) => {
+      logRequestId(response.headers["x-request-id"]);
+
+      cy.wrap(response).then(() => {
+        expect(response.headers["content-type"]).to.include("application/json");
+
+        if (response.status === 200) {
+          expect(response.body).to.have.property("id");
+          globalState.set("routingConfigId", response.body.id);
+          for (const key in resData.body) {
+            expect(resData.body[key]).to.equal(response.body[key]);
+          }
+        } else {
+          defaultErrorHandler(response, resData);
+        }
+      });
+    });
+  }
+);
+
+Cypress.Commands.add(
+  "toggleDynamicRoutingConfig",
+  (data, globalState) => {
+    const { Response: resData } = data || {};
+    const merchantId = globalState.get("merchantId");
+    const profileId = globalState.get("profileId");
+
+    cy.request({
+      method: "POST",
+      url: `${globalState.get("baseUrl")}/account/${merchantId}/business_profile/${profileId}/dynamic_routing/contracts/toggle?enable=dynamic_connector_selection`,
+      headers: {
+        "api-key": globalState.get("apiKey"),
+        "Content-Type": "application/json",
+      },
+      failOnStatusCode: false,
+      body: {},
+    }).then((response) => {
+      logRequestId(response.headers["x-request-id"]);
+
+      cy.wrap(response).then(() => {
+        expect(response.headers["content-type"]).to.include("application/json");
+
+        if (response.status === 200) {
+          expect(response.body).to.have.property("id");
+          globalState.set("routingConfigId", response.body.id);
+          for (const key in resData.body) {
+            expect(resData.body[key]).to.equal(response.body[key]);
+          }
+        } else {
+          defaultErrorHandler(response, resData);
+        }
+      });
+    });
+  }
+);
+
+Cypress.Commands.add(
+  "deactivateDynamicRoutingConfig",
+  (routingType, data, globalState) => {
+    const { Response: resData } = data || {};
+    const merchantId = globalState.get("merchantId");
+    const profileId = globalState.get("profileId");
+
+    cy.request({
+      method: "POST",
+      url: `${globalState.get("baseUrl")}/account/${merchantId}/business_profile/${profileId}/dynamic_routing/${routingType}/create?enable=none`,
+      headers: {
+        "api-key": globalState.get("apiKey"),
+        "Content-Type": "application/json",
+      },
+      failOnStatusCode: false,
+      body: {},
+    }).then((response) => {
+      logRequestId(response.headers["x-request-id"]);
+
+      cy.wrap(response).then(() => {
+        expect(response.headers["content-type"]).to.include("application/json");
+
+        if (response.status === 200) {
+          for (const key in resData.body) {
+            expect(resData.body[key]).to.equal(response.body[key]);
+          }
+        } else {
+          defaultErrorHandler(response, resData);
+        }
+      });
+    });
+  }
+);
+
+Cypress.Commands.add("deactivateRoutingConfig", (data, globalState) => {
+  const { Request: reqData, Response: resData } = data || {};
+
+  const body = { ...reqData };
+  body.profile_id = globalState.get("profileId");
+
+  cy.request({
+    method: "POST",
+    url: `${globalState.get("baseUrl")}/routing/deactivate`,
+    headers: {
+      "api-key": globalState.get("apiKey"),
+      "Content-Type": "application/json",
+    },
+    failOnStatusCode: false,
+    body: body,
+  }).then((response) => {
+    logRequestId(response.headers["x-request-id"]);
+
+    cy.wrap(response).then(() => {
+      expect(response.headers["content-type"]).to.include("application/json");
+
+      if (response.status === 200) {
+        for (const key in resData.body) {
+          expect(resData.body[key]).to.equal(response.body[key]);
+        }
+      } else {
+        defaultErrorHandler(response, resData);
+      }
+    });
+  });
+});
+
+Cypress.Commands.add(
   "updateGsmConfig",
   (gsmBody, globalState, step_up_possible) => {
     gsmBody.step_up_possible = step_up_possible;
