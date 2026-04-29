@@ -954,6 +954,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::additional_info::CardTokenAdditionalData,
         api_models::payments::additional_info::BankDebitAdditionalData,
         api_models::payments::additional_info::AchBankDebitAdditionalData,
+        api_models::payments::additional_info::EftDebitOrderAdditionalData,
         api_models::payments::additional_info::BacsBankDebitAdditionalData,
         api_models::payments::additional_info::BecsBankDebitAdditionalData,
         api_models::payments::additional_info::SepaBankDebitAdditionalData,

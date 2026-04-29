@@ -136,7 +136,9 @@ use crate::{
             DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
         },
         errors::{self, CustomResult, RouterResponse, RouterResult},
-        payment_methods::{cards, network_tokenization},
+        payment_methods::{
+            cards, network_tokenization, transformers as pm_transformers, utils as pm_utils,
+        },
         payments::helpers::{
             get_applepay_metadata, is_applepay_predecrypted_flow_supported,
             is_googlepay_predecrypted_flow_supported,
@@ -8682,21 +8684,11 @@ impl PaymentEligibilityData {
         platform: &domain::Platform,
         payments_eligibility_request: &api_models::payments::PaymentsEligibilityRequest,
     ) -> CustomResult<Self, errors::ApiErrorResponse> {
-        let payment_method_data = payments_eligibility_request
-            .payment_method_data
-            .payment_method_data
-            .clone()
-            .map(domain::EligibilityPaymentMethodData::from);
-        let browser_info = payments_eligibility_request
-            .browser_info
-            .clone()
-            .map(|browser_info| {
-                serde_json::to_value(browser_info)
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("Unable to encode payout method data")
-            })
-            .transpose()?
-            .map(pii::SecretSerdeValue::new);
+        payments_eligibility_request
+            .validate_payment_method_input()
+            .change_context(errors::ApiErrorResponse::MissingRequiredField {
+                field_name: "Either payment_token or payment_method_data",
+            })?;
         let payment_intent = state
             .store
             .find_payment_intent_by_payment_id_processor_merchant_id(
@@ -8707,6 +8699,43 @@ impl PaymentEligibilityData {
             )
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentNotFound)?;
+
+        let payment_method_data = match &payments_eligibility_request.payment_token {
+            Some(payment_token) => {
+                let profile_id = payment_intent
+                    .profile_id
+                    .as_ref()
+                    .ok_or(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("profile_id not found in payment intent")?;
+
+                Self::resolve_payment_token_to_method_data(
+                    state,
+                    platform,
+                    payment_token,
+                    payments_eligibility_request.payment_method_type,
+                    profile_id,
+                )
+                .await
+                .attach_printable("Failed to resolve payment token to payment method data")?
+            }
+            None => payments_eligibility_request
+                .payment_method_data
+                .as_ref()
+                .and_then(|pmd| pmd.payment_method_data.clone())
+                .map(domain::EligibilityPaymentMethodData::from),
+        };
+
+        let browser_info = payments_eligibility_request
+            .browser_info
+            .clone()
+            .map(|browser_info| {
+                serde_json::to_value(browser_info)
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Unable to encode browser info")
+            })
+            .transpose()?
+            .map(pii::SecretSerdeValue::new);
+
         Ok(Self {
             payment_method_data,
             browser_info,
@@ -8723,7 +8752,7 @@ impl PaymentEligibilityData {
         payment_method_type: common_enums::PaymentMethod,
         profile_id: &id_type::ProfileId,
     ) -> CustomResult<Option<domain::EligibilityPaymentMethodData>, errors::ApiErrorResponse> {
-        let pm_modular_dimensions = Dimensions::new().with_organization_id(
+        let pm_modular_dimensions = dimension_state::Dimensions::new().with_organization_id(
             platform
                 .get_processor()
                 .get_account()
@@ -12198,8 +12227,10 @@ pub async fn payments_submit_eligibility(
     req: api_models::payments::PaymentsEligibilityRequest,
     payment_id: id_type::PaymentId,
 ) -> RouterResponse<api_models::payments::PaymentsEligibilityResponse> {
-    let payment_eligibility_data =
-        PaymentEligibilityData::from_request(&state, &platform, &req).await?;
+    let payment_eligibility_data = Box::pin(PaymentEligibilityData::from_request(
+        &state, &platform, &req,
+    ))
+    .await?;
     let profile_id = payment_eligibility_data
         .payment_intent
         .profile_id
