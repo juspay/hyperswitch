@@ -1,7 +1,7 @@
 //! Data types and type conversions
 //! from `redis`'s internal data-types to custom data-types
 
-use common_utils::errors::CustomResult;
+use common_utils::{errors::CustomResult, ext_traits::ConfigExt, fp_utils::when};
 use error_stack::ResultExt;
 use redis::{IntoConnectionInfo, Value, Value as RedisCrateValue};
 
@@ -184,8 +184,6 @@ pub struct RedisSettings {
 impl RedisSettings {
     /// Validates the Redis configuration provided.
     pub fn validate(&self) -> CustomResult<(), errors::RedisError> {
-        use common_utils::{ext_traits::ConfigExt, fp_utils::when};
-
         when(self.host.is_default_or_empty(), || {
             Err(errors::RedisError::InvalidConfiguration(
                 "Redis `host` must be specified".into(),
@@ -493,17 +491,93 @@ pub type StreamEntries = Vec<(String, std::collections::HashMap<String, String>)
 /// Grouped result of a stream read: stream key → list of `(entry_id, fields)`.
 pub type StreamReadResult = std::collections::HashMap<String, StreamEntries>;
 
-#[derive(Debug)]
+/// Whether to trim by entry count or by minimum entry ID.
+#[derive(Debug, Clone, Copy)]
 pub enum StreamCapKind {
     MinID,
     MaxLen,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub enum StreamCapTrim {
     Exact,
     AlmostExact,
 }
+
+/// Configuration for a stream trim (`XTRIM`) operation.
+///
+/// Bundles the kind (MaxLen vs MinID), trim precision (Exact vs Approx),
+/// and the threshold value into a single cohesive unit.
+///
+/// # Examples
+///
+/// ```
+/// use redis_interface::types::{StreamCapKind, StreamCapTrim, StreamTrimConfig};
+///
+/// let config = StreamTrimConfig::new(StreamCapKind::MaxLen, StreamCapTrim::AlmostExact, "1000");
+/// let options = config.to_trim_options().unwrap();
+/// ```
+#[derive(Debug, Clone)]
+pub struct StreamTrimConfig {
+    /// What to compare against — entry count or minimum ID.
+    pub kind: StreamCapKind,
+    /// How precisely to match the threshold.
+    pub trim: StreamCapTrim,
+    /// The threshold value: a numeric string for `MaxLen`, a stream ID for `MinID`.
+    pub threshold: String,
+}
+
+impl StreamTrimConfig {
+    /// Create a new trim configuration.
+    pub fn new(kind: StreamCapKind, trim: StreamCapTrim, threshold: impl Into<String>) -> Self {
+        Self {
+            kind,
+            trim,
+            threshold: threshold.into(),
+        }
+    }
+
+    /// Convert to the `redis` crate's `StreamTrimOptions`.
+    ///
+    /// Returns an error if `kind` is `MaxLen` and the threshold
+    /// cannot be parsed as a `usize`.
+    pub fn to_trim_options(
+        self,
+    ) -> Result<redis::streams::StreamTrimOptions, StreamTrimThresholdError> {
+        let trim_mode = match self.trim {
+            StreamCapTrim::Exact => redis::streams::StreamTrimmingMode::Exact,
+            StreamCapTrim::AlmostExact => redis::streams::StreamTrimmingMode::Approx,
+        };
+
+        match self.kind {
+            StreamCapKind::MaxLen => {
+                let max_len: usize = self
+                    .threshold
+                    .parse()
+                    .map_err(|_| StreamTrimThresholdError(self.threshold.clone()))?;
+                Ok(redis::streams::StreamTrimOptions::maxlen(
+                    trim_mode, max_len,
+                ))
+            }
+            StreamCapKind::MinID => Ok(redis::streams::StreamTrimOptions::minid(
+                trim_mode,
+                self.threshold,
+            )),
+        }
+    }
+}
+
+/// Error returned when a stream trim threshold cannot be parsed as a number.
+#[derive(Debug)]
+pub struct StreamTrimThresholdError(String);
+
+impl std::fmt::Display for StreamTrimThresholdError {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(formatter, "Invalid stream trim threshold: {}", self.0)
+    }
+}
+
+impl std::error::Error for StreamTrimThresholdError {}
 
 #[derive(Debug, Eq, PartialEq)]
 pub enum DelReply {
@@ -644,10 +718,10 @@ mod tests {
 
     #[test]
     fn test_redis_value_double() {
-        let value = Value::Double(3.14);
+        let value = Value::Double(2.5);
         assert_eq!(
             redis_value_to_option_string(&value),
-            Some("3.14".to_string())
+            Some("2.5".to_string())
         );
     }
 

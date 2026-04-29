@@ -13,7 +13,7 @@ use common_utils::{
 };
 use error_stack::{report, ResultExt};
 use redis::{
-    streams::{StreamReadOptions, StreamTrimOptions, StreamTrimmingMode},
+    streams::StreamReadOptions,
     AsyncCommands, ExistenceCheck, FromRedisValue, SetExpiry, SetOptions, ToSingleRedisArg, Value,
 };
 use tracing::instrument;
@@ -26,8 +26,7 @@ use crate::{
     errors,
     types::{
         redis_value_to_option_string, DelReply, HsetnxReply, MsetnxReply, RedisEntryId, RedisKey,
-        SaddReply, SetGetReply, SetnxReply, StreamCapKind, StreamCapTrim, StreamEntries,
-        StreamReadResult,
+        SaddReply, SetGetReply, SetnxReply, StreamEntries, StreamReadResult, StreamTrimConfig,
     },
 };
 
@@ -882,26 +881,13 @@ impl super::RedisConnectionPool {
     pub async fn stream_trim_entries(
         &self,
         stream: &RedisKey,
-        cap_kind: StreamCapKind,
-        cap_trim: StreamCapTrim,
-        threshold: &str,
+        config: StreamTrimConfig,
     ) -> CustomResult<usize, errors::RedisError> {
         let mut conn = self.pool.clone();
 
-        let trim_mode = match cap_trim {
-            StreamCapTrim::AlmostExact => StreamTrimmingMode::Approx,
-            StreamCapTrim::Exact => StreamTrimmingMode::Exact,
-        };
-
-        let options = match cap_kind {
-            StreamCapKind::MaxLen => {
-                let max_len: usize = threshold
-                    .parse()
-                    .map_err(|_| errors::RedisError::StreamTrimFailed)?;
-                StreamTrimOptions::maxlen(trim_mode, max_len)
-            }
-            StreamCapKind::MinID => StreamTrimOptions::minid(trim_mode, threshold),
-        };
+        let options = config
+            .to_trim_options()
+            .change_context(errors::RedisError::StreamTrimFailed)?;
 
         conn.xtrim_options(stream.tenant_aware_key(self), &options)
             .await
@@ -1330,7 +1316,10 @@ impl super::RedisConnectionPool {
 /// Custom reply types for delete and set operations to indicate whether the key was actually deleted/set or not.
 #[cfg(test)]
 mod tests {
-    use crate::{errors::RedisError, RedisConnectionPool, RedisEntryId, RedisSettings};
+    use crate::{
+        errors::RedisError, RedisConnectionPool, RedisEntryId, RedisSettings, StreamCapKind,
+        StreamCapTrim, StreamTrimConfig,
+    };
 
     /// Generate a unique ID for test key isolation.
     /// Uses thread ID + nanoseconds to avoid collisions in parallel test runs.
@@ -2479,9 +2468,11 @@ mod tests {
                     let trim_result = pool
                         .stream_trim_entries(
                             &stream,
-                            crate::types::StreamCapKind::MinID,
-                            crate::types::StreamCapTrim::Exact,
-                            trim_id,
+                            StreamTrimConfig::new(
+                                StreamCapKind::MinID,
+                                StreamCapTrim::Exact,
+                                trim_id.as_str(),
+                            ),
                         )
                         .await;
 
