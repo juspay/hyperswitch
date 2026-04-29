@@ -1,5 +1,3 @@
-import { customerAcceptance } from "./Commons";
-
 const successfulNo3DSCardDetails = {
   card_number: "5267 3181 8797 5449",
   card_exp_month: "10",
