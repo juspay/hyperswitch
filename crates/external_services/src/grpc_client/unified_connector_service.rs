@@ -614,11 +614,9 @@ impl UnifiedConnectorServiceClient {
 
         *request.metadata_mut() = metadata;
 
-        self.payment_service_client
-            .clone()
-            .authorize(request)
-            .await
-            .change_context(UnifiedConnectorServiceError::PaymentAuthorizeFailure)
+        let d = self.payment_service_client.clone().authorize(request).await;
+
+        d.change_context(UnifiedConnectorServiceError::PaymentAuthorizeFailure)
             .inspect_err(|error| {
                 logger::error!(
                     grpc_error=?error,
