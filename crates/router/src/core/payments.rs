@@ -8752,7 +8752,7 @@ impl PaymentEligibilityData {
         payment_method_type: common_enums::PaymentMethod,
         profile_id: &id_type::ProfileId,
     ) -> CustomResult<Option<domain::EligibilityPaymentMethodData>, errors::ApiErrorResponse> {
-        let pm_modular_dimensions = dimension_state::Dimensions::new().with_organization_id(
+        let pm_modular_dimensions = Dimensions::new().with_organization_id(
             platform
                 .get_processor()
                 .get_account()
