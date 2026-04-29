@@ -75,6 +75,7 @@ pub struct Connectors {
     pub hyperswitch_vault: ConnectorParams,
     pub hyperwallet: ConnectorParams,
     pub iatapay: ConnectorParams,
+    pub imerchantsolutions: ConnectorParams,
     pub inespay: ConnectorParams,
     pub itaubank: ConnectorParams,
     pub jpmorgan: ConnectorParams,

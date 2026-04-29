@@ -260,11 +260,6 @@ pub fn mk_app(
         server_app = server_app.service(routes::Proxy::server(state.clone()));
     }
 
-    #[cfg(all(feature = "recon", feature = "v1"))]
-    {
-        server_app = server_app.service(routes::Recon::server(state.clone()));
-    }
-
     server_app = server_app.service(routes::Cache::server(state.clone()));
     server_app = server_app.service(routes::Health::server(state.clone()));
     // Registered at the end because this entry has an empty scope

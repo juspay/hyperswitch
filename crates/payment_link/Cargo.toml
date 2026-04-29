@@ -13,7 +13,7 @@ crate-type = ["rlib", "cdylib"]
 default = ["v1"]
 v1 = ["api_models/v1"]
 v2 = ["api_models/v2"]
-wasm = ["dep:wasm-bindgen", "getrandom/js"]
+wasm = ["dep:wasm-bindgen", "getrandom/wasm_js"]
 
 [dependencies]
 serde = { version = "1.0.219", features = ["derive"] }
@@ -28,7 +28,7 @@ wasm-bindgen = { version = "0.2", optional = true }
 # First party crates
 api_models = { path = "../api_models", default-features = false }
 common_utils = { path = "../common_utils" }
-getrandom = { version = "0.2.16", optional = true }
+getrandom = { version = "0.3", optional = true }
 
 [build-dependencies]
 router_env = { path = "../router_env" }

@@ -64,6 +64,7 @@ mod hyperpg;
 mod hyperswitch_vault;
 mod hyperwallet;
 mod iatapay;
+mod imerchantsolutions;
 mod inespay;
 mod itaubank;
 mod jpmorgan;

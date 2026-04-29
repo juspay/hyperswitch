@@ -74,6 +74,7 @@ pub struct ConnectorAuthentication {
     pub hyperswitch_vault: Option<SignatureKey>,
     pub hyperwallet: Option<BodyKey>,
     pub iatapay: Option<SignatureKey>,
+    pub imerchantsolutions: Option<HeaderKey>,
     pub inespay: Option<HeaderKey>,
     pub itaubank: Option<MultiAuthKey>,
     pub jpmorgan: Option<BodyKey>,

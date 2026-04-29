@@ -181,3 +181,6 @@ key1 = "Merchant Terminal Id"
 [truelayer]
 api_key="Client ID"
 key1="Client Secret"
+
+[imerchantsolutions]
+api_key = "API Key"

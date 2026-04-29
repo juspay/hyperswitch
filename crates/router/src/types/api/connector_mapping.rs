@@ -307,6 +307,9 @@ impl ConnectorData {
                 enums::Connector::Iatapay => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Iatapay::new())))
                 }
+                enums::Connector::Imerchantsolutions => Ok(ConnectorEnum::Old(Box::new(
+                    connector::Imerchantsolutions::new(),
+                ))),
                 enums::Connector::Inespay => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Inespay::new())))
                 }

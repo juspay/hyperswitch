@@ -36,7 +36,6 @@ pub enum ApiIdentifier {
     User,
     UserRole,
     ConnectorOnboarding,
-    Recon,
     AiWorkflow,
     Poll,
     ApplePayCertificatesMigration,
@@ -351,10 +350,6 @@ impl From<Flow> for ApiIdentifier {
             Flow::GetActionUrl | Flow::SyncOnboardingStatus | Flow::ResetTrackingId => {
                 Self::ConnectorOnboarding
             }
-            Flow::ReconMerchantUpdate
-            | Flow::ReconTokenRequest
-            | Flow::ReconServiceRequest
-            | Flow::ReconVerifyToken => Self::Recon,
             Flow::RetrievePollStatus => Self::Poll,
             Flow::FeatureMatrix => Self::Documentation,
             Flow::TokenizeCard
