@@ -51,34 +51,26 @@ export const connectorDetails = {
       },
     }),
     Refund: getCustomExchange({
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
       Request: {
         amount: 6000,
       },
-      Response: {
-        status: 200,
-        body: {
-          status: "pending",
-        },
-      },
     }),
     PartialRefund: getCustomExchange({
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
       Request: {
         amount: 2000,
       },
-      Response: {
-        status: 200,
-        body: {
-          status: "pending",
-        },
-      },
     }),
     SyncRefund: getCustomExchange({
-      Response: {
-        status: 200,
-        body: {
-          status: "succeeded",
-        },
+      Configs: {
+        TRIGGER_SKIP: true,
       },
+      Request: {},
     }),
   },
 };

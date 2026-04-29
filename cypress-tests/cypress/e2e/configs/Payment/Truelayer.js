@@ -26,6 +26,23 @@ export const connectorDetails = {
             },
           },
         },
+        billing: {
+          address: {
+            line1: "1467",
+            line2: "Harrison Street",
+            line3: "Harrison Street",
+            city: "London",
+            state: "Greater London",
+            zip: "SW1A 1AA",
+            country: "GB",
+            first_name: "joseph",
+            last_name: "Doe",
+          },
+          phone: {
+            number: "9123456789",
+            country_code: "+44",
+          },
+        },
       },
       Response: {
         status: 200,
