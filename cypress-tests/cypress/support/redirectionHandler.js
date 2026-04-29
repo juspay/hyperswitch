@@ -88,6 +88,14 @@ export function handleRedirection(
         paymentMethodType
       );
       break;
+    case "pay_later":
+      payLaterRedirection(
+        urls.redirectionUrl,
+        urls.expectedUrl,
+        resolvedConnectorId,
+        paymentMethodType
+      );
+      break;
     default:
       throw new Error(`Unknown redirection type: ${redirectionType}`);
   }
@@ -136,6 +144,61 @@ function cryptoRedirection(
   } else {
     cy.log("Skipping crypto redirection - no valid redirect URL provided");
   }
+
+  cy.then(() => {
+    verifyReturnUrl(redirectionUrl, expectedUrl, verifyUrl);
+  });
+}
+
+function payLaterRedirection(
+  redirectionUrl,
+  expectedUrl,
+  connectorId,
+  paymentMethodType
+) {
+  connectorId = normalizeConnectorForRedirect(connectorId);
+  let verifyUrl = false;
+
+  cy.visit(redirectionUrl.href);
+
+  // Suppress cross-origin JavaScript errors from Klarna's sandbox pages
+  cy.on("uncaught:exception", (err) => {
+    if (
+      err.message.includes("$ is not defined") ||
+      err.message.includes("Klarna") ||
+      err.message.includes("klarna")
+    ) {
+      return false; // Prevent test failure
+    }
+    return true;
+  });
+
+  handleFlow(
+    redirectionUrl,
+    expectedUrl,
+    connectorId,
+    ({ connectorId, paymentMethodType }) => {
+      switch (connectorId) {
+        case "adyen":
+          switch (paymentMethodType) {
+            case "klarna":
+              cy.log("Adyen Klarna PayLater redirection - verifying navigation");
+              // Klarna sandbox loads successfully; we only verify page navigation
+              // without completing the payment flow
+              break;
+            default:
+              throw new Error(
+                `Unsupported Adyen pay later payment method type: ${paymentMethodType}`
+              );
+          }
+          verifyUrl = false;
+          break;
+        default:
+          verifyReturnUrl(redirectionUrl, expectedUrl, verifyUrl);
+      }
+    },
+    { paymentMethodType }
+  );
 
   cy.then(() => {
     verifyReturnUrl(redirectionUrl, expectedUrl, verifyUrl);
