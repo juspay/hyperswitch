@@ -202,9 +202,10 @@ pub async fn make_connector_decision(
             #[cfg(feature = "payout_retry")]
             {
                 let config_bool = retry::config_should_call_gsm_payout(
-                    &*state.store,
-                    platform.get_processor().get_account().get_id(),
+                    state,
+                    dimensions,
                     PayoutRetryType::SingleConnector,
+                    payout_data.payouts.customer_id.as_ref(),
                 )
                 .await;
 
@@ -241,9 +242,10 @@ pub async fn make_connector_decision(
             #[cfg(feature = "payout_retry")]
             {
                 let config_multiple_connector_bool = retry::config_should_call_gsm_payout(
-                    &*state.store,
-                    platform.get_processor().get_account().get_id(),
+                    state,
+                    dimensions,
                     PayoutRetryType::MultiConnector,
+                    payout_data.payouts.customer_id.as_ref(),
                 )
                 .await;
 
@@ -261,9 +263,10 @@ pub async fn make_connector_decision(
                 }
 
                 let config_single_connector_bool = retry::config_should_call_gsm_payout(
-                    &*state.store,
-                    platform.get_processor().get_account().get_id(),
+                    state,
+                    dimensions,
                     PayoutRetryType::SingleConnector,
+                    payout_data.payouts.customer_id.as_ref(),
                 )
                 .await;
 

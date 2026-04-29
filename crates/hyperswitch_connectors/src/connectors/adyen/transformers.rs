@@ -1356,6 +1356,7 @@ impl TryFrom<&common_enums::BankNames> for OpenBankingUKIssuer {
             | common_enums::BankNames::TheSiamCommercialBank
             | common_enums::BankNames::Yoursafe
             | common_enums::BankNames::N26
+            | common_enums::BankNames::Absa
             | common_enums::BankNames::NationaleNederlanden
             | common_enums::BankNames::KasikornBank => {
                 Err(errors::ConnectorError::NotImplemented(
@@ -2359,12 +2360,12 @@ impl TryFrom<(&BankDebitData, &PaymentsAuthorizeRouterData)> for AdyenPaymentMet
                 )))
             }
 
-            BankDebitData::BecsBankDebit { .. } | BankDebitData::SepaGuarenteedBankDebit { .. } => {
-                Err(errors::ConnectorError::NotImplemented(
-                    utils::get_unimplemented_payment_method_error_message("Adyen"),
-                )
-                .into())
-            }
+            BankDebitData::BecsBankDebit { .. }
+            | BankDebitData::SepaGuarenteedBankDebit { .. }
+            | BankDebitData::EftDebitOrder { .. } => Err(errors::ConnectorError::NotImplemented(
+                utils::get_unimplemented_payment_method_error_message("Adyen"),
+            )
+            .into()),
         }
     }
 }
@@ -5562,6 +5563,9 @@ pub enum DisputeStatus {
     Lost,
     Accepted,
     Won,
+    Unresponded,
+    Responded,
+    Expired,
 }
 
 #[derive(Debug, Deserialize)]
@@ -5618,6 +5622,7 @@ pub enum WebhookEventCode {
     SecondChargeback,
     PrearbitrationWon,
     PrearbitrationLost,
+    RequestForInformation,
     OfferClosed,
     RecurringContract,
     #[cfg(feature = "payouts")]
@@ -5670,6 +5675,7 @@ pub fn is_chargeback_event(event_code: &WebhookEventCode) -> bool {
             | WebhookEventCode::SecondChargeback
             | WebhookEventCode::PrearbitrationWon
             | WebhookEventCode::PrearbitrationLost
+            | WebhookEventCode::RequestForInformation
     )
 }
 
@@ -5735,6 +5741,18 @@ pub(crate) fn get_adyen_webhook_event(
             }
             Some(_) => api_models::webhooks::IncomingWebhookEvent::DisputeOpened,
         },
+        WebhookEventCode::RequestForInformation => match dispute_status {
+            Some(DisputeStatus::Responded) => {
+                api_models::webhooks::IncomingWebhookEvent::DisputeChallenged
+            }
+            Some(DisputeStatus::Expired) => {
+                api_models::webhooks::IncomingWebhookEvent::DisputeExpired
+            }
+            Some(DisputeStatus::Unresponded) => {
+                api_models::webhooks::IncomingWebhookEvent::EventNotSupported
+            }
+            None | Some(_) => api_models::webhooks::IncomingWebhookEvent::DisputeOpened,
+        },
         WebhookEventCode::ChargebackReversed => match dispute_status {
             Some(DisputeStatus::Pending) => {
                 api_models::webhooks::IncomingWebhookEvent::DisputeChallenged
@@ -5794,7 +5812,8 @@ pub(crate) fn get_adyen_webhook_event(
 impl From<WebhookEventCode> for storage_enums::DisputeStage {
     fn from(code: WebhookEventCode) -> Self {
         match code {
-            WebhookEventCode::NotificationOfChargeback => Self::PreDispute,
+            WebhookEventCode::NotificationOfChargeback
+            | WebhookEventCode::RequestForInformation => Self::PreDispute,
             WebhookEventCode::SecondChargeback => Self::PreArbitration,
             WebhookEventCode::PrearbitrationWon => Self::PreArbitration,
             WebhookEventCode::PrearbitrationLost => Self::PreArbitration,
@@ -5902,6 +5921,7 @@ impl From<AdyenNotificationRequestItemWH> for AdyenWebhookResponse {
                 | WebhookEventCode::RefundFailed
                 | WebhookEventCode::RefundReversed
                 | WebhookEventCode::NotificationOfChargeback
+                | WebhookEventCode::RequestForInformation
                 | WebhookEventCode::Chargeback
                 | WebhookEventCode::ChargebackReversed
                 | WebhookEventCode::SecondChargeback

@@ -70,7 +70,10 @@ use super::{
 #[cfg(feature = "v2")]
 use crate::{
     configs::settings,
-    core::{payment_methods::transformers as pm_transforms, tokenization as tokenization_core},
+    core::{
+        configs::dimension_state, payment_methods::transformers as pm_transforms,
+        tokenization as tokenization_core,
+    },
     headers,
     routes::{self, payment_methods as pm_routes},
     services::encryption,
@@ -102,6 +105,8 @@ use crate::{
 
 const PAYMENT_METHOD_STATUS_UPDATE_TASK: &str = "PAYMENT_METHOD_STATUS_UPDATE";
 const PAYMENT_METHOD_STATUS_TAG: &str = "PAYMENT_METHOD_STATUS";
+const PAYMENT_METHOD_MODULAR_FORWARD_COMPAT_TASK: &str = "PAYMENT_METHOD_MODULAR_FORWARD_COMPAT";
+const PAYMENT_METHOD_MODULAR_FORWARD_COMPAT_TAG: &str = "PAYMENT_METHOD_MODULAR_FORWARD_COMPAT";
 #[cfg(feature = "v2")]
 const PAYMENT_METHOD_REDACTED_FINGERPRINT_ID: &str = "FINGERPRINT_ID_REDACTED";
 
@@ -514,6 +519,60 @@ pub async fn add_payment_method_status_update_task(
             format!(
                 "Failed while inserting PAYMENT_METHOD_STATUS_UPDATE reminder to process_tracker for payment_method_id: {}",
                 payment_method.get_id().clone()
+            )
+        })?;
+
+    Ok(())
+}
+
+#[cfg(feature = "v1")]
+pub async fn add_payment_method_modular_forward_compat_task(
+    db: &dyn StorageInterface,
+    payment_method: &domain::PaymentMethod,
+    merchant_id: &id_type::MerchantId,
+    application_source: common_enums::ApplicationSource,
+    initiator: Option<&hyperswitch_domain_models::platform::Initiator>,
+) -> Result<(), ProcessTrackerError> {
+    let tracking_data = storage::PaymentMethodModularCompatTrackingData {
+        payment_method_id: payment_method.payment_method_id.clone(),
+        merchant_id: merchant_id.to_owned(),
+        last_modified_by: initiator
+            .and_then(|initiator| initiator.to_created_by())
+            .map(|last_modified_by| last_modified_by.to_string()),
+    };
+
+    let runner = storage::ProcessTrackerRunner::PaymentMethodModularForwardCompatWorkflow;
+    let task = PAYMENT_METHOD_MODULAR_FORWARD_COMPAT_TASK;
+    let tag = [PAYMENT_METHOD_MODULAR_FORWARD_COMPAT_TAG];
+    let process_tracker_id = generate_task_id_for_payment_method_status_update_workflow(
+        payment_method.payment_method_id.as_str(),
+        runner,
+        task,
+    );
+
+    let process_tracker_entry = storage::ProcessTrackerNew::new(
+        process_tracker_id,
+        task,
+        runner,
+        tag,
+        tracking_data,
+        None,
+        common_utils::date_time::now(),
+        common_types::consts::API_VERSION,
+        application_source,
+    )
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable(
+        "Failed to construct PAYMENT_METHOD_MODULAR_FORWARD_COMPAT process tracker task",
+    )?;
+
+    db.insert_process(process_tracker_entry)
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable_lazy(|| {
+            format!(
+                "Failed while inserting PAYMENT_METHOD_MODULAR_FORWARD_COMPAT task to process_tracker for payment_method_id: {}",
+                payment_method.payment_method_id
             )
         })?;
 
@@ -4108,6 +4167,9 @@ pub async fn retrieve_payment_method(
 ) -> RouterResponse<api::PaymentMethodResponse> {
     let db = state.store.as_ref();
 
+    let dimensions = dimension_state::Dimensions::new()
+        .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id());
+
     // 1. Resolve parent token (if any) -> storage type & optional token data
     let (storage_type, pm_token_data_opt) =
         resolve_storage_type_from_token(&state, &pm.payment_method_id).await?;
@@ -4132,10 +4194,11 @@ pub async fn retrieve_payment_method(
     )?;
 
     let raw_payment_method_fetch_access = get_raw_payment_method_data_fetch_access(
-        db,
-        platform.get_provider().get_account().get_id(),
+        &state,
+        &dimensions,
         api_key_type,
         fetch_raw_detail_query_param,
+        payment_method.customer_id.as_ref(),
     )
     .await
     .attach_printable("Failed to get raw payment method fetch access")?;
@@ -4252,11 +4315,9 @@ pub async fn fetch_payment_method_by_storage(
                 }
                 Some(_) => Err(report!(errors::ApiErrorResponse::PaymentMethodNotFound)
                     .attach_printable("Unexpected token data variant for payment method fetch")),
-                None => id_type::GlobalPaymentMethodId::generate_from_string(
+                None => Ok(id_type::GlobalPaymentMethodId::new_unchecked(
                     pm_incoming.payment_method_id.clone(),
-                )
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Unable to generate GlobalPaymentMethodId"),
+                )),
             }?;
 
             fetch_payment_method_with_fallback(state, provider, &pm_id, storage_type)
@@ -4531,11 +4592,13 @@ impl RawPaymentMethodFetchAccess {
     }
 }
 
+#[cfg(feature = "v2")]
 pub async fn get_raw_payment_method_data_fetch_access(
-    db: &dyn StorageInterface,
-    merchant_id: &id_type::MerchantId,
+    state: &SessionState,
+    dimensions: &dimension_state::DimensionsWithProviderMerchantId,
     api_key_type: enums::ApiKeyType,
     fetch_raw_detail_query_param: bool,
+    customer_id: Option<&id_type::GlobalCustomerId>,
 ) -> RouterResult<RawPaymentMethodFetchAccess> {
     // If query param not set, never allowed to fetch raw payment method details
     let fetch_access = match fetch_raw_detail_query_param {
@@ -4550,23 +4613,17 @@ pub async fn get_raw_payment_method_data_fetch_access(
         // External API keys allowed only via org-level config
         // This supports cases where a PCI-compliant entity needs to retrieve raw payment method details.
         enums::ApiKeyType::External => {
-            let config = db
-                .find_config_by_key_unwrap_or(
-                    &merchant_id.should_return_raw_payment_method_details_key(),
-                    Some("false".to_string()),
+            let allowed = dimensions
+                .get_should_return_raw_payment_method_details(
+                    state.store.as_ref(),
+                    state.superposition_service.as_ref(),
+                    customer_id,
                 )
                 .await;
 
-            match config {
-                Ok(conf) if conf.config.eq_ignore_ascii_case("true") => Ok(fetch_access),
-                Ok(_) => Ok(RawPaymentMethodFetchAccess::Denied),
-                Err(error) => {
-                    router_env::logger::error!(
-                        ?error,
-                        "Failed to fetch raw payment method details config"
-                    );
-                    Ok(RawPaymentMethodFetchAccess::Denied)
-                }
+            match allowed {
+                true => Ok(fetch_access),
+                false => Ok(RawPaymentMethodFetchAccess::Denied),
             }
         }
     }
@@ -4708,9 +4765,7 @@ pub async fn delete_payment_method(
     platform: domain::Platform,
     profile: domain::Profile,
 ) -> RouterResponse<api::PaymentMethodDeleteResponse> {
-    let pm_id = id_type::GlobalPaymentMethodId::generate_from_string(pm_id.payment_method_id)
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Unable to generate GlobalPaymentMethodId")?;
+    let pm_id = id_type::GlobalPaymentMethodId::new_unchecked(pm_id.payment_method_id);
     let response = Box::pin(delete_payment_method_core(
         &state, pm_id, &platform, &profile,
     ))

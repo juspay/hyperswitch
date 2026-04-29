@@ -3,7 +3,7 @@ pub mod models {
 
     use async_trait::async_trait;
     use common_utils::pii::SecretSerdeValue;
-    use hyperswitch_masking::Secret;
+    use hyperswitch_masking::{ExposeInterface, Secret};
     use router_env::logger;
     use serde::{Deserialize, Serialize};
 
@@ -20,6 +20,21 @@ pub mod models {
         TextPlain,
     }
 
+    impl ContentType {
+        /// Parse a `Content-Type` header value string into a [`ContentType`].
+        /// Returns the default (`ApplicationXWwwFormUrlencoded`) for unknown values.
+        pub fn from_header_value(value: &str) -> Self {
+            match value {
+                "application/json" => Self::ApplicationJson,
+                "application/x-www-form-urlencoded" => Self::ApplicationXWwwFormUrlencoded,
+                "application/xml" => Self::ApplicationXml,
+                "text/xml" => Self::TextXml,
+                "text/plain" => Self::TextPlain,
+                _ => Self::ApplicationXWwwFormUrlencoded,
+            }
+        }
+    }
+
     /// HTTP methods supported by the injector
     #[derive(Clone, Copy, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
     #[serde(rename_all = "UPPERCASE")]
@@ -29,6 +44,19 @@ pub mod models {
         PUT,
         PATCH,
         DELETE,
+    }
+
+    impl HttpMethod {
+        /// Returns a stable string representation suitable for metric dimensions.
+        pub fn as_metric_str(self) -> &'static str {
+            match self {
+                Self::GET => "GET",
+                Self::POST => "POST",
+                Self::PUT => "PUT",
+                Self::PATCH => "PATCH",
+                Self::DELETE => "DELETE",
+            }
+        }
     }
 
     /// Vault connectors supported by the injector for token management
@@ -42,15 +70,25 @@ pub mod models {
     pub enum VaultConnectors {
         /// VGS (Very Good Security) vault connector
         VGS,
+        HyperswitchVault,
+    }
+
+    impl VaultConnectors {
+        /// Returns a stable string representation suitable for metric dimensions.
+        pub fn as_metric_str(self) -> &'static str {
+            match self {
+                Self::VGS => "VGS",
+                Self::HyperswitchVault => "HyperswitchVault",
+            }
+        }
     }
 
     /// Token data containing vault-specific information for token replacement
     #[derive(Clone, Debug, Deserialize, Serialize)]
     pub struct TokenData {
-        /// The specific token data retrieved from the vault
+        /// The specific token data retrieved from the vault.
+        /// Contains token aliases mapped to field names (never real card data).
         pub specific_token_data: SecretSerdeValue,
-        /// The type of vault connector being used (e.g., VGS)
-        pub vault_connector: VaultConnectors,
     }
 
     /// Connector payload containing the template to be processed
@@ -64,11 +102,23 @@ pub mod models {
     #[derive(Clone, Debug, Deserialize, Serialize)]
     pub struct ConnectionConfig {
         /// Complete URL endpoint for the connector (e.g., "https://api.stripe.com/v1/payment_intents")
-        pub endpoint: String,
+        pub endpoint: url::Url,
         /// HTTP method to use for the request
         pub http_method: HttpMethod,
         /// HTTP headers to include in the request
         pub headers: HashMap<String, Secret<String>>,
+
+        /// Optional vault endpoint to use for token retrieval (overrides default vault endpoint if provided)
+        pub vault_endpoint: Option<url::Url>,
+
+        /// Optional vault connector type to use for token retrieval (overrides default vault connector if provided)
+        pub vault_connector_id: Option<VaultConnectors>,
+
+        /// Optional vault authentication data for authenticating with the vault connector (e.g., API keys, client credentials, etc.)
+        pub vault_auth_data: Option<VaultConnectorAuth>,
+
+        /// Optional vault connector type to use for token retrieval (overrides default vault connector if provided)
+        pub vault_connector_type: Option<VaultConnectorType>,
         /// Optional proxy URL for routing the request through a proxy server
         pub proxy_url: Option<Secret<String>>,
         /// Optional backup proxy URL to use if vault metadata doesn't provide one
@@ -88,6 +138,95 @@ pub mod models {
         pub cert_format: Option<String>,
         /// Maximum response size in bytes (defaults to 10MB if not specified)
         pub max_response_size: Option<usize>,
+    }
+
+    #[derive(Debug, Clone, Deserialize, Serialize)]
+    #[serde(rename_all = "snake_case")]
+    pub enum VaultConnectorType {
+        /// Proxy vault - forwards requests through a proxy (e.g., VGS forward proxy)
+        Proxy,
+        /// Transformation vault - transforms/tokenizes data (e.g., HyperswitchVault)
+        Transformation,
+    }
+
+    #[derive(Debug, Clone, Deserialize, Serialize)]
+    pub struct VaultConnectorAuth {
+        /// API key for authenticating with the vault connector
+        pub api_key: Secret<String>,
+        /// API secret for authenticating with the vault connector
+        pub profile_id: Secret<String>,
+    }
+
+    /// Request body for HyperswitchVault proxy endpoint.
+    ///
+    /// The HS Vault proxy receives the original template (with {{$field_name}} placeholders),
+    /// the destination connector URL, headers, and a token reference. The vault resolves
+    /// placeholders with actual card data and forwards the request to the destination.
+    #[derive(Clone, Debug, Serialize, Deserialize)]
+    pub struct HyperswitchVaultProxyRequest {
+        /// The connector request body template with {{$field_name}} placeholders.
+        /// HS Vault will resolve these with actual card data before forwarding.
+        pub request_body: serde_json::Value,
+        /// The connector's actual endpoint URL (e.g. "https://api.sandbox.checkout.com/payments")
+        pub destination_url: url::Url,
+        /// The connector's headers (Content-Type, Authorization, etc.)
+        pub headers: HashMap<String, Secret<String>>,
+        /// The single token reference extracted from specific_token_data.card_number.
+        /// For HyperswitchVault, all fields share the same token value.
+        pub token: String,
+
+        pub token_type: String,
+        /// HTTP method to use for the forwarded request
+        pub method: String,
+    }
+
+    impl HyperswitchVaultProxyRequest {
+        /// Constructs a HyperswitchVaultProxyRequest from the injector request components.
+        ///
+        /// Extracts the single shared token from `specific_token_data.card_number`
+        /// (HyperswitchVault uses a single token for all fields).
+        pub fn try_from_injector_request(
+            processed_payload: &str,
+            connection_config: &ConnectionConfig,
+            token_data: &TokenData,
+        ) -> Result<Self, crate::injector::core::InjectorError> {
+            // Extract the single token from card_number field in specific_token_data
+            let vault_data = token_data.specific_token_data.clone().expose();
+            let token = vault_data
+                .as_object()
+                .and_then(|obj| obj.get("card_number"))
+                .and_then(|v| v.as_str())
+                .map(|s| s.to_string())
+                .ok_or_else(|| {
+                    crate::injector::core::InjectorError::InvalidTemplate(
+                        "card_number field is required in specific_token_data for HyperswitchVault"
+                            .to_string(),
+                    )
+                })?;
+
+            // Parse the processed payload as JSON value.
+            // The template may be JSON or form-urlencoded; wrap non-JSON as a string value.
+            let request_body = serde_json::from_str::<serde_json::Value>(processed_payload)
+                .unwrap_or_else(|_| serde_json::Value::String(processed_payload.to_string()));
+
+            // Convert connector headers from Secret<String> → plain String for the vault request
+            let headers: HashMap<String, Secret<String>> = connection_config
+                .headers
+                .iter()
+                .map(|(k, v)| (k.clone(), v.clone()))
+                .collect();
+
+            let method = connection_config.http_method.as_metric_str().to_string();
+
+            Ok(Self {
+                request_body,
+                destination_url: connection_config.endpoint.clone(),
+                headers,
+                token,
+                token_type: "payment_method_token".to_string(),
+                method,
+            })
+        }
     }
 
     /// Complete request structure for the injector service
@@ -181,7 +320,7 @@ pub mod models {
         /// Creates a new InjectorRequest
         #[allow(clippy::too_many_arguments)]
         pub fn new(
-            endpoint: String,
+            endpoint: url::Url,
             http_method: HttpMethod,
             template: String,
             token_data: TokenData,
@@ -213,11 +352,15 @@ pub mod models {
 
     impl ConnectionConfig {
         /// Creates a new ConnectionConfig from basic parameters
-        pub fn new(endpoint: String, http_method: HttpMethod) -> Self {
+        pub fn new(endpoint: url::Url, http_method: HttpMethod) -> Self {
             Self {
                 endpoint,
                 http_method,
                 headers: HashMap::new(),
+                vault_endpoint: None,
+                vault_connector_id: None,
+                vault_auth_data: None,
+                vault_connector_type: None,
                 proxy_url: None,
                 backup_proxy_url: None,
                 client_cert: None,
@@ -228,6 +371,20 @@ pub mod models {
                 cert_format: None,
                 max_response_size: None,
             }
+        }
+
+        /// Extracts the host portion of the endpoint URL for use as a metric dimension.
+        /// Returns `"unknown"` when the host cannot be determined, or `"invalid_url"` when
+        /// the endpoint cannot be parsed as a URL at all.
+        pub fn endpoint_host(&self) -> String {
+            self.endpoint.host_str().unwrap_or("unknown").to_string()
+        }
+
+        /// Returns the metric-string for the vault connector, falling back to `"None"`.
+        pub fn vault_connector_metric_str(&self) -> &'static str {
+            self.vault_connector_id
+                .map(VaultConnectors::as_metric_str)
+                .unwrap_or("None")
         }
     }
 }
