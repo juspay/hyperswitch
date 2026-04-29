@@ -4,7 +4,7 @@ use async_trait::async_trait;
 use common_utils::{id_type::GenerateId, pii::Email};
 use error_stack::Report;
 use hyperswitch_domain_models::router_data_v2::flow_common_types::PaymentFlowData;
-use masking::Secret;
+use hyperswitch_masking::Secret;
 use router::{
     configs::settings::Settings,
     core::{errors::ConnectorError, payments},
@@ -569,6 +569,7 @@ pub trait ConnectorActions: Connector {
             minor_amount_capturable: None,
             authorized_amount: None,
             customer_document_details: None,
+            feature_data: None,
         }
     }
 
@@ -592,6 +593,7 @@ pub trait ConnectorActions: Connector {
             Ok(types::PaymentsResponseData::PostProcessingResponse { .. }) => None,
             Ok(types::PaymentsResponseData::PaymentResourceUpdateResponse { .. }) => None,
             Ok(types::PaymentsResponseData::PaymentsCreateOrderResponse { .. }) => None,
+            Ok(types::PaymentsResponseData::PostCaptureVoidResponse { .. }) => None,
             Err(_) => None,
         }
     }
@@ -1023,6 +1025,8 @@ impl Default for PaymentAuthorizeType {
             partner_merchant_identifier_details: None,
             rrn: None,
             feature_metadata: None,
+            installment_details: None,
+            connector_intent_metadata: None,
         };
         Self(data)
     }
@@ -1185,6 +1189,7 @@ pub fn get_connector_transaction_id(
         Ok(types::PaymentsResponseData::PostProcessingResponse { .. }) => None,
         Ok(types::PaymentsResponseData::PaymentResourceUpdateResponse { .. }) => None,
         Ok(types::PaymentsResponseData::PaymentsCreateOrderResponse { .. }) => None,
+        Ok(types::PaymentsResponseData::PostCaptureVoidResponse { .. }) => None,
         Err(_) => None,
     }
 }

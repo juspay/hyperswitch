@@ -1,6 +1,6 @@
 use common_utils::{generate_id_with_default_len, pii::SecretSerdeValue};
 use diesel::{AsChangeset, Identifiable, Insertable, Queryable, Selectable};
-use masking::{PeekInterface, Secret};
+use hyperswitch_masking::{PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 
 use crate::schema::subscription;

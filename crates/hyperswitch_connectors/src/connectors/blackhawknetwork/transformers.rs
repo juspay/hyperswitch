@@ -21,7 +21,7 @@ use hyperswitch_domain_models::{
     },
 };
 use hyperswitch_interfaces::{consts::NO_ERROR_MESSAGE, errors};
-use masking::Secret;
+use hyperswitch_masking::Secret;
 use serde::{Deserialize, Serialize};
 
 use crate::types::{

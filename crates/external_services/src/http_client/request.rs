@@ -4,7 +4,7 @@ use common_utils::request::Headers;
 pub use common_utils::{errors::CustomResult, request::ContentType};
 use error_stack::ResultExt;
 use hyperswitch_interfaces::errors::HttpClientError;
-pub use masking::{Mask, Maskable};
+pub use hyperswitch_masking::{Mask, Maskable};
 use router_env::{instrument, tracing};
 
 #[allow(missing_docs)]

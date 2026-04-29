@@ -87,6 +87,8 @@ pub enum EuclidKey {
     CustomerDevicePlatform,
     #[strum(serialize = "transaction_initiator")]
     TransactionInitiator,
+    #[strum(serialize = "card_discovery")]
+    CardDiscovery,
 }
 
 impl EuclidDirFilter for DummyOutput {
@@ -179,6 +181,7 @@ impl EuclidKey {
             Self::CustomerDeviceDisplaySize => DataType::EnumVariant,
             Self::CustomerDevicePlatform => DataType::EnumVariant,
             Self::TransactionInitiator => DataType::EnumVariant,
+            Self::CardDiscovery => DataType::EnumVariant,
         }
     }
 }
@@ -305,6 +308,7 @@ pub enum EuclidValue {
     CustomerDeviceDisplaySize(CustomerDeviceDisplaySize),
     CustomerDevicePlatform(CustomerDevicePlatform),
     TransactionInitiator(TransactionInitiator),
+    CardDiscovery(enums::CardDiscovery),
 }
 
 impl EuclidValue {
@@ -344,6 +348,7 @@ impl EuclidValue {
             Self::CustomerDeviceDisplaySize(_) => EuclidKey::CustomerDeviceDisplaySize,
             Self::CustomerDevicePlatform(_) => EuclidKey::CustomerDevicePlatform,
             Self::TransactionInitiator(_) => EuclidKey::TransactionInitiator,
+            Self::CardDiscovery(_) => EuclidKey::CardDiscovery,
         }
     }
 }

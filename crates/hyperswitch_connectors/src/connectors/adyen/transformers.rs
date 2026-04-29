@@ -1,4 +1,4 @@
-use std::{ops::Deref, str::FromStr};
+use std::{num::NonZeroU8, ops::Deref, str::FromStr};
 
 #[cfg(feature = "payouts")]
 use api_models::payouts::{self, PayoutMethodData};
@@ -54,7 +54,7 @@ use hyperswitch_interfaces::{
     consts::{NO_ERROR_CODE, NO_ERROR_MESSAGE},
     errors,
 };
-use masking::{ExposeInterface, PeekInterface, Secret};
+use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 use time::{Duration, OffsetDateTime, PrimitiveDateTime};
 use url::Url;
@@ -130,6 +130,7 @@ pub enum AdyenShopperInteraction {
 pub enum AdyenRecurringModel {
     UnscheduledCardOnFile,
     CardOnFile,
+    Subscription,
 }
 
 #[derive(Clone, Default, Debug, Serialize, Deserialize)]
@@ -370,6 +371,7 @@ pub struct AdyenPaymentRequest<'a> {
     metadata: Option<serde_json::Value>,
     platform_chargeback_logic: Option<AdyenPlatformChargeBackLogicMetadata>,
     application_info: Option<ApplicationInfo>,
+    installments: Option<AdyenInstallments>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -747,6 +749,11 @@ pub enum ActionType {
 pub struct Amount {
     pub currency: storage_enums::Currency,
     pub value: MinorUnit,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct AdyenInstallments {
+    value: NonZeroU8,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -1349,6 +1356,7 @@ impl TryFrom<&common_enums::BankNames> for OpenBankingUKIssuer {
             | common_enums::BankNames::TheSiamCommercialBank
             | common_enums::BankNames::Yoursafe
             | common_enums::BankNames::N26
+            | common_enums::BankNames::Absa
             | common_enums::BankNames::NationaleNederlanden
             | common_enums::BankNames::KasikornBank => {
                 Err(errors::ConnectorError::NotImplemented(
@@ -1941,6 +1949,8 @@ impl TryFrom<&AdyenRouterData<&PaymentsAuthorizeRouterData>> for AdyenPaymentReq
                 | PaymentMethodData::Upi(_)
                 | PaymentMethodData::OpenBanking(_)
                 | PaymentMethodData::CardToken(_)
+                | PaymentMethodData::CardWithOptionalCVC(_)
+                | PaymentMethodData::CardWithNetworkTokenDetails(_)
                 | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
                 | PaymentMethodData::CardWithLimitedDetails(_)
                 | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
@@ -2197,6 +2207,18 @@ fn get_amount_data(item: &AdyenRouterData<&PaymentsAuthorizeRouterData>) -> Amou
     }
 }
 
+fn get_installment_details(
+    item: &AdyenRouterData<&PaymentsAuthorizeRouterData>,
+) -> Option<AdyenInstallments> {
+    item.router_data
+        .request
+        .installment_details
+        .as_ref()
+        .map(|d| AdyenInstallments {
+            value: d.number_of_installments,
+        })
+}
+
 pub fn get_address_info(
     address: Option<&hyperswitch_domain_models::address::Address>,
 ) -> Option<Result<Address, error_stack::Report<errors::ConnectorError>>> {
@@ -2338,12 +2360,12 @@ impl TryFrom<(&BankDebitData, &PaymentsAuthorizeRouterData)> for AdyenPaymentMet
                 )))
             }
 
-            BankDebitData::BecsBankDebit { .. } | BankDebitData::SepaGuarenteedBankDebit { .. } => {
-                Err(errors::ConnectorError::NotImplemented(
-                    utils::get_unimplemented_payment_method_error_message("Adyen"),
-                )
-                .into())
-            }
+            BankDebitData::BecsBankDebit { .. }
+            | BankDebitData::SepaGuarenteedBankDebit { .. }
+            | BankDebitData::EftDebitOrder { .. } => Err(errors::ConnectorError::NotImplemented(
+                utils::get_unimplemented_payment_method_error_message("Adyen"),
+            )
+            .into()),
         }
     }
 }
@@ -2950,6 +2972,8 @@ impl TryFrom<(&BankTransferData, &PaymentsAuthorizeRouterData)> for AdyenPayment
             | BankTransferData::InstantBankTransferFinland {}
             | BankTransferData::InstantBankTransferPoland {}
             | BankTransferData::IndonesianBankTransfer { .. }
+            | BankTransferData::PixAutomaticoPush { .. }
+            | BankTransferData::PixAutomaticoQr {}
             | BankTransferData::Pse {} => Err(errors::ConnectorError::NotImplemented(
                 utils::get_unimplemented_payment_method_error_message("Adyen"),
             )
@@ -3186,6 +3210,8 @@ impl
                     | PaymentMethodData::CardToken(_)
                     | PaymentMethodData::NetworkToken(_)
                     | PaymentMethodData::Card(_)
+                    | PaymentMethodData::CardWithOptionalCVC(_)
+                    | PaymentMethodData::CardWithNetworkTokenDetails(_)
                     | PaymentMethodData::CardWithLimitedDetails(_)
                     | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
                     | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
@@ -3218,6 +3244,8 @@ impl
                     }
 
                     PaymentMethodData::Card(_)
+                    | PaymentMethodData::CardWithOptionalCVC(_)
+                    | PaymentMethodData::CardWithNetworkTokenDetails(_)
                     | PaymentMethodData::CardRedirect(_)
                     | PaymentMethodData::Wallet(_)
                     | PaymentMethodData::PayLater(_)
@@ -3309,6 +3337,7 @@ impl
                 .map(filter_adyen_metadata),
             platform_chargeback_logic,
             application_info,
+            installments: None,
         })
     }
 }
@@ -3358,6 +3387,7 @@ impl TryFrom<(&AdyenRouterData<&PaymentsAuthorizeRouterData>, &Card)> for AdyenP
             get_address_info(item.router_data.get_optional_shipping()).and_then(Result::ok);
         let telephone_number = item.router_data.get_optional_billing_phone_number();
         let application_info = get_application_info(item);
+        let installments = get_installment_details(item);
 
         let mpi_data =
             if let Some(auth_data) = value.0.router_data.request.authentication_data.as_ref() {
@@ -3445,6 +3475,7 @@ impl TryFrom<(&AdyenRouterData<&PaymentsAuthorizeRouterData>, &Card)> for AdyenP
                 .map(filter_adyen_metadata),
             platform_chargeback_logic,
             application_info,
+            installments,
         })
     }
 }
@@ -3538,6 +3569,7 @@ impl
                 .clone()
                 .map(filter_adyen_metadata),
             platform_chargeback_logic,
+            installments: None,
             application_info,
         };
         Ok(request)
@@ -3621,6 +3653,7 @@ impl TryFrom<(&AdyenRouterData<&PaymentsAuthorizeRouterData>, &VoucherData)>
                 .map(filter_adyen_metadata),
 
             platform_chargeback_logic,
+            installments: None,
             application_info,
         };
         Ok(request)
@@ -3704,6 +3737,8 @@ impl
             | BankTransferData::InstantBankTransfer {}
             | BankTransferData::InstantBankTransferFinland {}
             | BankTransferData::InstantBankTransferPoland {}
+            | BankTransferData::PixAutomaticoPush { .. }
+            | BankTransferData::PixAutomaticoQr {}
             | BankTransferData::IndonesianBankTransfer { .. } => (None, None),
         };
         let application_info = get_application_info(item);
@@ -3746,6 +3781,7 @@ impl
                 .map(filter_adyen_metadata),
 
             platform_chargeback_logic,
+            installments: None,
             application_info,
         };
         Ok(request)
@@ -3829,6 +3865,7 @@ impl
                 .clone()
                 .map(filter_adyen_metadata),
             platform_chargeback_logic,
+            installments: None,
             application_info,
         };
         Ok(request)
@@ -3917,6 +3954,7 @@ impl
                 .clone()
                 .map(filter_adyen_metadata),
             platform_chargeback_logic,
+            installments: None,
             application_info,
         })
     }
@@ -4088,6 +4126,7 @@ impl TryFrom<(&AdyenRouterData<&PaymentsAuthorizeRouterData>, &WalletData)>
                 .clone()
                 .map(filter_adyen_metadata),
             platform_chargeback_logic,
+            installments: None,
             application_info,
         })
     }
@@ -4183,6 +4222,7 @@ impl
                 .clone()
                 .map(filter_adyen_metadata),
             platform_chargeback_logic,
+            installments: None,
             application_info,
         })
     }
@@ -4272,6 +4312,7 @@ impl
                 .clone()
                 .map(filter_adyen_metadata),
             platform_chargeback_logic,
+            installments: None,
             application_info,
         })
     }
@@ -4984,6 +5025,7 @@ pub fn get_qr_metadata(
             qr_code_url,
             display_to_timestamp,
             expiry_type: None,
+            raw_qr_data: None,
         };
         Some(qr_code_info.encode_to_value())
             .transpose()
@@ -5125,6 +5167,7 @@ pub fn get_present_to_shopper_metadata(
                 qr_code_url: None,
                 barcode: None,
                 expiry_date: None,
+                raw_qr_data: None,
             };
 
             Some(voucher_data.encode_to_value())
@@ -5257,10 +5300,10 @@ impl<F, Req>
         Ok(Self {
             status: adyen_payments_response_data.status,
             amount_captured: minor_amount_captured.map(|amount| amount.get_amount_as_i64()),
-            response: adyen_payments_response_data.error.map_or_else(
-                || Ok(adyen_payments_response_data.payments_response_data),
-                Err,
-            ),
+            response: match adyen_payments_response_data.error {
+                Some(err) => Err(err),
+                None => Ok(adyen_payments_response_data.payments_response_data),
+            },
             connector_response: adyen_payments_response_data.connector_response,
             minor_amount_captured,
             ..item.data
@@ -5520,6 +5563,9 @@ pub enum DisputeStatus {
     Lost,
     Accepted,
     Won,
+    Unresponded,
+    Responded,
+    Expired,
 }
 
 #[derive(Debug, Deserialize)]
@@ -5576,6 +5622,7 @@ pub enum WebhookEventCode {
     SecondChargeback,
     PrearbitrationWon,
     PrearbitrationLost,
+    RequestForInformation,
     OfferClosed,
     RecurringContract,
     #[cfg(feature = "payouts")]
@@ -5628,6 +5675,7 @@ pub fn is_chargeback_event(event_code: &WebhookEventCode) -> bool {
             | WebhookEventCode::SecondChargeback
             | WebhookEventCode::PrearbitrationWon
             | WebhookEventCode::PrearbitrationLost
+            | WebhookEventCode::RequestForInformation
     )
 }
 
@@ -5693,6 +5741,18 @@ pub(crate) fn get_adyen_webhook_event(
             }
             Some(_) => api_models::webhooks::IncomingWebhookEvent::DisputeOpened,
         },
+        WebhookEventCode::RequestForInformation => match dispute_status {
+            Some(DisputeStatus::Responded) => {
+                api_models::webhooks::IncomingWebhookEvent::DisputeChallenged
+            }
+            Some(DisputeStatus::Expired) => {
+                api_models::webhooks::IncomingWebhookEvent::DisputeExpired
+            }
+            Some(DisputeStatus::Unresponded) => {
+                api_models::webhooks::IncomingWebhookEvent::EventNotSupported
+            }
+            None | Some(_) => api_models::webhooks::IncomingWebhookEvent::DisputeOpened,
+        },
         WebhookEventCode::ChargebackReversed => match dispute_status {
             Some(DisputeStatus::Pending) => {
                 api_models::webhooks::IncomingWebhookEvent::DisputeChallenged
@@ -5752,7 +5812,8 @@ pub(crate) fn get_adyen_webhook_event(
 impl From<WebhookEventCode> for storage_enums::DisputeStage {
     fn from(code: WebhookEventCode) -> Self {
         match code {
-            WebhookEventCode::NotificationOfChargeback => Self::PreDispute,
+            WebhookEventCode::NotificationOfChargeback
+            | WebhookEventCode::RequestForInformation => Self::PreDispute,
             WebhookEventCode::SecondChargeback => Self::PreArbitration,
             WebhookEventCode::PrearbitrationWon => Self::PreArbitration,
             WebhookEventCode::PrearbitrationLost => Self::PreArbitration,
@@ -5860,6 +5921,7 @@ impl From<AdyenNotificationRequestItemWH> for AdyenWebhookResponse {
                 | WebhookEventCode::RefundFailed
                 | WebhookEventCode::RefundReversed
                 | WebhookEventCode::NotificationOfChargeback
+                | WebhookEventCode::RequestForInformation
                 | WebhookEventCode::Chargeback
                 | WebhookEventCode::ChargebackReversed
                 | WebhookEventCode::SecondChargeback
@@ -6187,9 +6249,9 @@ impl<F> TryFrom<&AdyenRouterData<&PayoutsRouterData<F>>> for AdyenPayoutCreateRe
                 message: "Card payout creation is not supported".to_string(),
                 connector: "Adyen",
             })?,
-            PayoutMethodData::Bank(bd) => {
+            PayoutMethodData::BankTransfer(bd) => {
                 let bank_details = match bd {
-                    payouts::Bank::Sepa(b) => PayoutBankDetails {
+                    payouts::BankTransfer::Sepa(b) => PayoutBankDetails {
                         bank_name: b.bank_name,
                         country_code: b.bank_country_code,
                         bank_city: b.bank_city,
@@ -6198,18 +6260,24 @@ impl<F> TryFrom<&AdyenRouterData<&PayoutsRouterData<F>>> for AdyenPayoutCreateRe
                         iban: b.iban,
                         tax_id: None,
                     },
-                    payouts::Bank::Ach(..) => Err(errors::ConnectorError::NotSupported {
+                    payouts::BankTransfer::Ach(..) => Err(errors::ConnectorError::NotSupported {
                         message: "Bank transfer via ACH is not supported".to_string(),
                         connector: "Adyen",
                     })?,
-                    payouts::Bank::Bacs(..) => Err(errors::ConnectorError::NotSupported {
+                    payouts::BankTransfer::Bacs(..) => Err(errors::ConnectorError::NotSupported {
                         message: "Bank transfer via Bacs is not supported".to_string(),
                         connector: "Adyen",
                     })?,
-                    payouts::Bank::Pix(..) => Err(errors::ConnectorError::NotSupported {
+                    payouts::BankTransfer::Pix(..) => Err(errors::ConnectorError::NotSupported {
                         message: "Bank transfer via Pix is not supported".to_string(),
                         connector: "Adyen",
                     })?,
+                    payouts::BankTransfer::Trustly(..) => {
+                        Err(errors::ConnectorError::NotSupported {
+                            message: "Bank transfer via Trustly is not supported".to_string(),
+                            connector: "Adyen",
+                        })?
+                    }
                 };
                 let bank_data = PayoutBankData { bank: bank_details };
                 let address: &hyperswitch_domain_models::address::AddressDetails =
@@ -6296,6 +6364,10 @@ impl<F> TryFrom<&AdyenRouterData<&PayoutsRouterData<F>>> for AdyenPayoutCreateRe
             PayoutMethodData::Passthrough(_) => Err(errors::ConnectorError::NotSupported {
                 message: "Passthrough payout creation is not supported".to_string(),
                 connector: "Adyen",
+            })?,
+            PayoutMethodData::Bank(_) => Err(errors::ConnectorError::GenericError {
+                error_message: "Payout method 'Bank' should have been normalized to 'BankTransfer'. This is an unexpected state.".to_string(),
+                error_object: serde_json::Value::Null,
             })?,
         }
     }
@@ -6860,6 +6932,7 @@ impl
                 .clone()
                 .map(filter_adyen_metadata),
             platform_chargeback_logic,
+            installments: None,
             application_info,
         })
     }

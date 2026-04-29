@@ -1,7 +1,7 @@
 use api_models::enums::Currency;
 use common_utils::{errors::CustomResult, generate_id_with_default_len, pii};
 use error_stack::report;
-use masking::Secret;
+use hyperswitch_masking::Secret;
 use router_env::types::FlowMetric;
 use strum::Display;
 use time::PrimitiveDateTime;

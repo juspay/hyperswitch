@@ -1,5 +1,5 @@
 use common_types::payments as common_payments_types;
-use masking::Secret;
+use hyperswitch_masking::Secret;
 use serde::{Deserialize, Serialize};
 use smithy::SmithyModel;
 use time::PrimitiveDateTime;

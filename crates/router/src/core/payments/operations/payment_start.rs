@@ -1,17 +1,18 @@
 use std::marker::PhantomData;
 
-use api_models::enums::FrmSuggestion;
+use api_models::{enums::FrmSuggestion, payments::MandateTransactionType};
 use async_trait::async_trait;
 use error_stack::ResultExt;
 use router_derive::PaymentOperation;
-use router_env::{instrument, tracing};
+use router_env::{instrument, logger, tracing};
 
 use super::{BoxedOperation, Domain, GetTracker, Operation, UpdateTracker, ValidateRequest};
 use crate::{
     core::{
-        configs::dimension_state::DimensionsWithMerchantId,
+        configs::dimension_state,
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
         payments::{helpers, operations, CustomerDetails, PaymentAddress, PaymentData},
+        utils,
     },
     routes::{app::ReqState, SessionState},
     services,
@@ -44,6 +45,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsStartReq
         _auth_flow: services::AuthFlow,
         _header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
         _payment_method_wrapper: Option<operations::PaymentMethodWithRawData>,
+        dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
     ) -> RouterResult<
         operations::GetTrackerResponse<'a, F, api::PaymentsStartRequest, PaymentData<F>>,
     > {
@@ -126,13 +128,30 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsStartReq
         )
         .await?;
 
-        let token_data = if let Some(token) = payment_attempt.payment_token.clone() {
-            Some(
-                helpers::retrieve_payment_token_data(state, token, payment_attempt.payment_method)
+        // In case of modular payment method flow payment token in the request will belong to payment method modular service
+        // hence populating token data is not required
+        let token_data = {
+            let is_payment_method_modular_allowed =
+                utils::get_feature_config(state, platform, dimensions)
+                    .await
+                    .is_payment_method_modular_allowed;
+            match (
+                payment_attempt.payment_token.clone(),
+                is_payment_method_modular_allowed,
+            ) {
+                (Some(token), false) => Some(
+                    helpers::retrieve_payment_token_data(
+                        state,
+                        token,
+                        payment_attempt.payment_method,
+                    )
                     .await?,
-            )
-        } else {
-            None
+                ),
+                _ => {
+                    logger::debug!("skipping token data retrieval in payment start");
+                    None
+                }
+            }
         };
 
         payment_intent.shipping_address_id = shipping_address.clone().map(|i| i.address_id);
@@ -213,6 +232,8 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsStartReq
             is_manual_retry_enabled: None,
             is_l2_l3_enabled: false,
             external_authentication_data: None,
+            client_session_id: None,
+            vault_session_details: None,
         };
 
         let get_trackers_response = operations::GetTrackerResponse {
@@ -238,6 +259,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsStartRequest
         payment_data: PaymentData<F>,
         _frm_suggestion: Option<FrmSuggestion>,
         _header_payload: hyperswitch_domain_models::payments::HeaderPayload,
+        _dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
     ) -> RouterResult<(PaymentSessionOperation<'b, F>, PaymentData<F>)>
     where
         F: 'b + Send,
@@ -291,7 +313,9 @@ where
         _payment_data: &mut PaymentData<F>,
         _request: Option<CustomerDetails>,
         _provider: &domain::Provider,
-        _dimensions: DimensionsWithMerchantId,
+        _initiator: Option<&domain::Initiator>,
+        _dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
+        _mandate_type: Option<MandateTransactionType>,
     ) -> CustomResult<
         (PaymentSessionOperation<'a, F>, Option<domain::Customer>),
         errors::StorageError,
@@ -341,7 +365,7 @@ where
 
     async fn get_connector<'a>(
         &'a self,
-        _platform: &domain::Platform,
+        _processor: &domain::Processor,
         state: &SessionState,
         _request: &api::PaymentsStartRequest,
         _payment_intent: &storage::PaymentIntent,
@@ -355,6 +379,7 @@ where
         _state: &SessionState,
         _processor: &domain::Processor,
         _payment_data: &mut PaymentData<F>,
+        _business_profile: &domain::Profile,
     ) -> CustomResult<bool, errors::ApiErrorResponse> {
         Ok(false)
     }

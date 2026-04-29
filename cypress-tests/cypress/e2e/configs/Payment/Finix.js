@@ -695,6 +695,37 @@ export const connectorDetails = {
         },
       },
     },
+    PaymentIntentWithBillingDescriptor: {
+      Request: {
+        currency: "USD",
+        amount: 6540,
+        authentication_type: "no_three_ds",
+        capture_method: "automatic",
+        billing_descriptor: {
+          statement_descriptor: "QA-BillingDesc",
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+        },
+      },
+    },
+    PaymentConfirmWithBillingDescriptor: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: { card: successfulNo3DSCardDetails },
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    },
   },
   pm_list: {
     PmListResponse: {
@@ -705,6 +736,19 @@ export const connectorDetails = {
       pmListDynamicFieldWithBilling: requiredFields,
       pmListDynamicFieldWithNames: requiredFields,
       pmListDynamicFieldWithEmail: requiredFields,
+    },
+  },
+  webhook: {
+    TransactionIdConfig: {
+      // Defines how to locate and parse the payment reference ID from connector-specific webhook payloads
+      path: "_embedded.authorizations.0.id",
+      // Type of payment reference ID
+      type: "string",
+    },
+    RefundIdConfig: {
+      // Finix refund (REVERSAL) webhooks carry the connector refund ID in the transfers array
+      path: "_embedded.transfers.0.id",
+      type: "string",
     },
   },
 };

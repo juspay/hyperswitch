@@ -30,7 +30,7 @@ use hyperswitch_domain_models::{
     router_flow_types::Authorize,
 };
 #[cfg(feature = "v2")]
-use masking::{ExposeInterface, PeekInterface, Secret};
+use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 #[cfg(feature = "v2")]
 use rand::Rng;
 use router_env::{
@@ -1079,7 +1079,7 @@ pub async fn call_decider_for_payment_processor_tokens_select_closest_time(
             // Unlock the customer status only if all tokens are hard declined and payment intent is in Failed status
             let _unlocked = match payment_intent.status {
                 common_enums::enums::IntentStatus::Failed => {
-                    let lock_released = RedisTokenManager::unlock_connector_customer_status(
+                    RedisTokenManager::unlock_connector_customer_status(
                         state,
                         connector_customer_id,
                         &payment_intent.id,
@@ -1089,8 +1089,7 @@ pub async fn call_decider_for_payment_processor_tokens_select_closest_time(
                         errors::ProcessTrackerError::ERedisError(
                             errors::RedisError::RedisConnectionError.into(),
                         ),
-                    )?;
-                    lock_released
+                    )?
                 }
                 _ => false,
             };

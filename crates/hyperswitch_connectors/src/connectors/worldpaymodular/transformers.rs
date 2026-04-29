@@ -17,7 +17,7 @@ use hyperswitch_domain_models::{
     types::*,
 };
 use hyperswitch_interfaces::{api::*, errors::ConnectorError};
-use masking::{ExposeInterface as _, PeekInterface, Secret};
+use hyperswitch_masking::{ExposeInterface as _, PeekInterface, Secret};
 pub use request::*;
 pub use response::*;
 use serde::{Deserialize, Serialize};

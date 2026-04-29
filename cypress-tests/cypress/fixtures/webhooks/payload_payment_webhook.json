@@ -1,0 +1,11 @@
+{
+  "object": "transaction",
+  "trigger": "processed",
+  "webhook_id": "webhook_test_001",
+  "triggered_at": "2026-03-24T12:00:00Z",
+  "triggered_on": {
+    "id": "{{connector_transaction_id}}",
+    "object": "transaction"
+  },
+  "url": "https://webhook.example.com/callback"
+}

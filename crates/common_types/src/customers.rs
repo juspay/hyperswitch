@@ -1,7 +1,7 @@
 //! Customer related types
 
 use common_utils::errors::ValidationError;
-use error_stack::Report;
+use cpf_cnpj::{cnpj, cpf};
 use utoipa::ToSchema;
 /// HashMap containing MerchantConnectorAccountId and corresponding customer id
 #[cfg(feature = "v2")]
@@ -70,32 +70,25 @@ impl DocumentKind {
         self,
         doc_number: &str,
     ) -> common_utils::errors::CustomResult<(), ValidationError> {
-        (doc_number.len() == common_utils::consts::CPF_LENGTH)
-            .then_some(())
-            .ok_or_else(|| {
-                self.length_error("CPF", common_utils::consts::CPF_LENGTH, doc_number.len())
-            })?;
-
-        Ok(())
+        if cpf::validate(doc_number) {
+            Ok(())
+        } else {
+            Err(error_stack::Report::new(ValidationError::InvalidValue {
+                message: "Invalid CPF".to_string(),
+            }))
+        }
     }
 
     fn validate_cnpj(
         self,
         doc_number: &str,
     ) -> common_utils::errors::CustomResult<(), ValidationError> {
-        (doc_number.len() == common_utils::consts::CNPJ_LENGTH)
-            .then_some(())
-            .ok_or_else(|| {
-                self.length_error("CNPJ", common_utils::consts::CNPJ_LENGTH, doc_number.len())
-            })?;
-
-        Ok(())
-    }
-
-    fn length_error(self, name: &str, expected: usize, actual: usize) -> Report<ValidationError> {
-        let message = format!("{name} document_number (expected {expected}, got {actual})");
-        Report::new(ValidationError::IncorrectValueProvided {
-            field_name: Box::leak(message.into_boxed_str()),
-        })
+        if cnpj::validate(doc_number) {
+            Ok(())
+        } else {
+            Err(error_stack::Report::new(ValidationError::InvalidValue {
+                message: "Invalid CNPJ".to_string(),
+            }))
+        }
     }
 }

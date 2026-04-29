@@ -13,8 +13,8 @@ use std::{
     borrow::Cow,
     fmt::Display,
     iter::Sum,
-    num::NonZeroI64,
-    ops::{Add, Mul, Sub},
+    num::{NonZeroI64, NonZeroU8},
+    ops::{Add, Div, Mul, Sub},
     primitive::i64,
     str::FromStr,
 };
@@ -427,7 +427,7 @@ impl MinorUnit {
     }
 
     /// Convert the amount to its major denomination based on Currency and return f64
-    fn to_major_unit_as_f64(
+    pub fn to_major_unit_as_f64(
         self,
         currency: enums::Currency,
     ) -> Result<FloatMajorUnit, error_stack::Report<ParsingError>> {
@@ -517,6 +517,14 @@ impl Mul<u16> for MinorUnit {
 
     fn mul(self, a2: u16) -> Self::Output {
         Self(self.0 * i64::from(a2))
+    }
+}
+
+impl Div<NonZeroU8> for MinorUnit {
+    type Output = Self;
+
+    fn div(self, a2: NonZeroU8) -> Self::Output {
+        Self(self.0 / i64::from(a2.get()))
     }
 }
 

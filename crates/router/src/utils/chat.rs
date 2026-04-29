@@ -5,7 +5,7 @@ use common_utils::{
 };
 use diesel_models::hyperswitch_ai_interaction::HyperswitchAiInteractionNew;
 use error_stack::ResultExt;
-use masking::ExposeInterface;
+use hyperswitch_masking::ExposeInterface;
 
 use crate::{
     core::errors::{self, CustomResult},

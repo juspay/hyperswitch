@@ -7,12 +7,13 @@ use hyperswitch_domain_models::{
     payment_method_data::PaymentMethodData, payments::PaymentConfirmData,
 };
 use hyperswitch_interfaces::api::ConnectorSpecifications;
-use masking::PeekInterface;
+use hyperswitch_masking::PeekInterface;
 use router_env::{instrument, tracing};
 
 use super::{Domain, GetTracker, Operation, PostUpdateTracker, UpdateTracker, ValidateRequest};
 use crate::{
     core::{
+        configs::dimension_state,
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
         payments::{
             operations::{self, ValidateStatusForOperation},
@@ -213,7 +214,8 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentConfirmData<F>, ProxyPaymentsR
                     cell_id,
                     storage_scheme,
                     request,
-                    encrypted_data
+                    encrypted_data,
+                    platform.get_initiator(),
                 )
                 .await?;
                 db.insert_payment_attempt(
@@ -367,6 +369,7 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentConfirmData<F>, ProxyPaymentsReque
         mut payment_data: PaymentConfirmData<F>,
         _frm_suggestion: Option<api_models::enums::FrmSuggestion>,
         _header_payload: hyperswitch_domain_models::payments::HeaderPayload,
+        _dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
     ) -> RouterResult<(BoxedConfirmOperation<'b, F>, PaymentConfirmData<F>)>
     where
         F: 'b + Send,
@@ -467,6 +470,7 @@ impl<F: Clone> PostUpdateTracker<F, PaymentConfirmData<F>, types::PaymentsAuthor
         &'b self,
         state: &'b SessionState,
         processor: &domain::Processor,
+        _initiator: Option<&domain::Initiator>,
         mut payment_data: PaymentConfirmData<F>,
         response: types::RouterData<F, types::PaymentsAuthorizeData, types::PaymentsResponseData>,
     ) -> RouterResult<PaymentConfirmData<F>>

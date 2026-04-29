@@ -6,7 +6,7 @@ use common_utils::{
     id_type, pii,
     types::Description,
 };
-use masking::{PeekInterface, Secret};
+use hyperswitch_masking::{PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 use smithy::SmithyModel;
 use utoipa::ToSchema;

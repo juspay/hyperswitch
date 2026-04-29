@@ -1917,6 +1917,14 @@ pub struct RoutingEvaluateRequest {
     /// ```
     #[schema(example = "profile_123")]
     pub created_by: String,
+    /// Payment ID for debugging and tracing routing decisions.
+    ///
+    /// Example:
+    /// ```json
+    /// "payment_id": "pay_abc123"
+    /// ```
+    #[schema(example = "pay_abc123")]
+    pub payment_id: Option<String>,
     /// Dynamic parameters used during routing evaluation.
     ///
     /// Each key represents a routing attribute.

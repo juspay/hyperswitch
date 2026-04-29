@@ -1281,7 +1281,7 @@ mod tests {
                 webhook_version: None,
                 webhook_username: None,
                 webhook_password: None,
-                webhook_url: Some(masking::Secret::new(
+                webhook_url: Some(hyperswitch_masking::Secret::new(
                     "https://example.com/webhooks".to_string(),
                 )),
                 payment_created_enabled: None,
@@ -1318,6 +1318,7 @@ mod tests {
             merchant_account_type: common_enums::MerchantAccountType::Standard,
             product_type: None,
             version: common_enums::ApiVersion::V1,
+            network_tokenization_credentials: None,
         });
         let merchant_account = state
             .store
@@ -1348,7 +1349,7 @@ mod tests {
                 webhook_version: None,
                 webhook_username: None,
                 webhook_password: None,
-                webhook_url: Some(masking::Secret::new(
+                webhook_url: Some(hyperswitch_masking::Secret::new(
                     "https://example.com/webhooks".to_string(),
                 )),
                 payment_created_enabled: None,
@@ -1403,6 +1404,9 @@ mod tests {
             external_vault_details: domain::ExternalVaultDetails::Skip,
             billing_processor_id: None,
             is_l2_l3_enabled: false,
+            network_tokenization_credentials: None,
+            payment_method_blocking: None,
+            default_fallback_routing: None,
         });
 
         let business_profile = state
@@ -1529,6 +1533,10 @@ mod tests {
             partner_merchant_identifier_details: None,
             payment_method_tokenization_details: None,
             error_details: None,
+            installment_options: None,
+            installment_data: None,
+            state_metadata: None,
+            connector_response_metadata: None,
         };
         let content =
             api_webhooks::OutgoingWebhookContent::PaymentDetails(Box::new(expected_response));

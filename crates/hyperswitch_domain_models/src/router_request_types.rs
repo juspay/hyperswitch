@@ -4,7 +4,10 @@ pub mod merchant_connector_webhook_management;
 pub mod revenue_recovery;
 pub mod subscriptions;
 pub mod unified_authentication_service;
-use api_models::payments::{AdditionalPaymentData, AddressDetails, RequestSurchargeDetails};
+use api_models::payments::{
+    AdditionalPaymentData, AddressDetails, ConnectorMetadata, RequestSurchargeDetails,
+};
+use common_enums;
 use common_types::payments as common_payments_types;
 use common_utils::{
     consts, errors,
@@ -14,7 +17,7 @@ use common_utils::{
 };
 use diesel_models::{enums as storage_enums, types::OrderDetailsWithAmount};
 use error_stack::ResultExt;
-use masking::Secret;
+use hyperswitch_masking::Secret;
 use serde::{Deserialize, Serialize};
 use serde_with::serde_as;
 
@@ -29,6 +32,51 @@ use crate::{
     router_flow_types as flows, router_response_types as response_types,
     vault::PaymentMethodCustomVaultingData,
 };
+
+/// Current flow information passed to the connector specifications trait
+/// In order to make some decision about the preprocessing or alternate flow
+#[derive(Clone, Debug, Serialize)]
+pub enum CurrentFlowInfo {
+    /// Authorize flow information
+    Authorize {
+        /// The authentication type being used
+        auth_type: storage_enums::AuthenticationType,
+        /// The payment authorize request data
+        request_data: Box<PaymentsAuthorizeData>,
+    },
+    /// CompleteAuthorize flow information
+    CompleteAuthorize {
+        /// The authentication type being used
+        auth_type: storage_enums::AuthenticationType,
+        /// The payment authorize request data
+        request_data: Box<CompleteAuthorizeData>,
+        /// The payment method that is used
+        payment_method: Option<common_enums::PaymentMethod>,
+    },
+    /// SetupMandate flow information
+    SetupMandate {
+        /// The authentication type being used
+        auth_type: storage_enums::AuthenticationType,
+        /// The payment setup mandate request data
+        request_data: Box<SetupMandateRequestData>,
+    },
+    Psync {
+        /// The payment setup mandate request data
+        request_data: Box<PaymentsSyncData>,
+    },
+}
+
+impl CurrentFlowInfo {
+    pub fn get_feature_metadata(&self) -> Option<api_models::payments::FeatureMetadata> {
+        match self {
+            Self::Authorize { request_data, .. } => request_data.feature_metadata.clone(),
+            Self::CompleteAuthorize { .. } => None,
+            Self::SetupMandate { .. } => None,
+            Self::Psync { request_data } => request_data.feature_metadata.clone(),
+        }
+    }
+}
+
 #[derive(Debug, Clone, Serialize)]
 pub struct PaymentsAuthorizeData {
     pub payment_method_data: PaymentMethodData,
@@ -104,6 +152,9 @@ pub struct PaymentsAuthorizeData {
         Option<common_types::payments::PartnerMerchantIdentifierDetails>,
     pub rrn: Option<String>,
     pub feature_metadata: Option<api_models::payments::FeatureMetadata>,
+    pub installment_details: Option<common_types::payments::InstallmentData>,
+    // Contains the connector specific metadata coming from payments request
+    pub connector_intent_metadata: Option<ConnectorMetadata>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -374,6 +425,59 @@ impl TryFrom<SetupMandateRequestData> for PaymentsPreProcessingData {
         })
     }
 }
+
+impl TryFrom<SetupMandateRequestData> for PushNotificationRequestData {
+    type Error = error_stack::Report<ApiErrorResponse>;
+
+    fn try_from(data: SetupMandateRequestData) -> Result<Self, Self::Error> {
+        Ok(Self {
+            payment_method_data: Some(data.payment_method_data),
+            feature_metadata: data.feature_metadata,
+            mandate_id: data.mandate_id,
+            amount: Some(data.amount),
+        })
+    }
+}
+
+impl TryFrom<PaymentsAuthorizeData> for PushNotificationRequestData {
+    type Error = error_stack::Report<ApiErrorResponse>;
+
+    fn try_from(data: PaymentsAuthorizeData) -> Result<Self, Self::Error> {
+        Ok(Self {
+            payment_method_data: Some(data.payment_method_data),
+            feature_metadata: None,
+            mandate_id: None,
+            amount: None,
+        })
+    }
+}
+
+impl TryFrom<PaymentsAuthenticateData> for PushNotificationRequestData {
+    type Error = error_stack::Report<ApiErrorResponse>;
+
+    fn try_from(data: PaymentsAuthenticateData) -> Result<Self, Self::Error> {
+        Ok(Self {
+            payment_method_data: data.payment_method_data,
+            feature_metadata: None,
+            mandate_id: None,
+            amount: None,
+        })
+    }
+}
+
+impl TryFrom<CompleteAuthorizeData> for PushNotificationRequestData {
+    type Error = error_stack::Report<ApiErrorResponse>;
+
+    fn try_from(data: CompleteAuthorizeData) -> Result<Self, Self::Error> {
+        Ok(Self {
+            payment_method_data: data.payment_method_data,
+            feature_metadata: None,
+            mandate_id: None,
+            amount: None,
+        })
+    }
+}
+
 impl
     TryFrom<
         &RouterData<flows::Authorize, PaymentsAuthorizeData, response_types::PaymentsResponseData>,
@@ -1365,6 +1469,7 @@ pub struct AccessTokenRequestData {
     pub app_id: Secret<String>,
     pub id: Option<Secret<String>>,
     pub authentication_token: Option<AccessTokenAuthenticationResponse>,
+    pub current_flow: Option<CurrentFlowInfo>,
     // Add more keys if required
 }
 
@@ -1377,21 +1482,25 @@ impl TryFrom<router_data::ConnectorAuthType> for AccessTokenRequestData {
                 app_id: api_key,
                 id: None,
                 authentication_token: None,
+                current_flow: None,
             }),
             router_data::ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self {
                 app_id: api_key,
                 id: Some(key1),
                 authentication_token: None,
+                current_flow: None,
             }),
             router_data::ConnectorAuthType::SignatureKey { api_key, key1, .. } => Ok(Self {
                 app_id: api_key,
                 id: Some(key1),
                 authentication_token: None,
+                current_flow: None,
             }),
             router_data::ConnectorAuthType::MultiAuthKey { api_key, key1, .. } => Ok(Self {
                 app_id: api_key,
                 id: Some(key1),
                 authentication_token: None,
+                current_flow: None,
             }),
             router_data::ConnectorAuthType::CertificateAuth {
                 certificate,
@@ -1401,6 +1510,7 @@ impl TryFrom<router_data::ConnectorAuthType> for AccessTokenRequestData {
                 app_id: certificate,
                 id: Some(private_key),
                 authentication_token: None,
+                current_flow: None,
             }),
 
             _ => Err(ApiErrorResponse::InvalidDataValue {
@@ -1414,17 +1524,20 @@ impl
     TryFrom<(
         router_data::ConnectorAuthType,
         Option<AccessTokenAuthenticationResponse>,
+        Option<CurrentFlowInfo>,
     )> for AccessTokenRequestData
 {
     type Error = ApiErrorResponse;
     fn try_from(
-        (connector_auth, authentication_token): (
+        (connector_auth, authentication_token, current_flow): (
             router_data::ConnectorAuthType,
             Option<AccessTokenAuthenticationResponse>,
+            Option<CurrentFlowInfo>,
         ),
     ) -> Result<Self, Self::Error> {
         let mut access_token_request_data = Self::try_from(connector_auth)?;
         access_token_request_data.authentication_token = authentication_token;
+        access_token_request_data.current_flow = current_flow;
         Ok(access_token_request_data)
     }
 }
@@ -1532,7 +1645,7 @@ pub struct UploadFileRequestData {
 }
 
 #[cfg(feature = "payouts")]
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct PayoutsData {
     pub payout_id: id_type::PayoutId,
     pub amount: i64,
@@ -1554,14 +1667,14 @@ pub struct PayoutsData {
     pub additional_payout_method_data: Option<payout_method_utils::AdditionalPayoutMethodData>,
 }
 
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, Default, Clone, Serialize)]
 pub struct CustomerDetails {
     pub customer_id: Option<id_type::CustomerId>,
-    pub name: Option<Secret<String, masking::WithType>>,
+    pub name: Option<Secret<String, hyperswitch_masking::WithType>>,
     pub email: Option<pii::Email>,
-    pub phone: Option<Secret<String, masking::WithType>>,
+    pub phone: Option<Secret<String, hyperswitch_masking::WithType>>,
     pub phone_country_code: Option<String>,
-    pub tax_registration_id: Option<Secret<String, masking::WithType>>,
+    pub tax_registration_id: Option<Secret<String, hyperswitch_masking::WithType>>,
     pub document_details: Option<api_models::customers::CustomerDocumentDetails>,
 }
 
@@ -1593,6 +1706,7 @@ pub struct VerifyWebhookSourceRequestData {
     pub webhook_headers: actix_web::http::header::HeaderMap,
     pub webhook_body: Vec<u8>,
     pub merchant_secret: api_models::webhooks::ConnectorWebhookSecrets,
+    pub webhook_uri: http::Uri,
 }
 
 #[derive(Debug, Clone)]
@@ -1677,6 +1791,7 @@ pub struct SetupMandateRequestData {
     pub setup_mandate_details: Option<mandates::MandateData>,
     pub router_return_url: Option<String>,
     pub webhook_url: Option<String>,
+    pub feature_metadata: Option<api_models::payments::FeatureMetadata>,
     pub browser_info: Option<BrowserInformation>,
     pub email: Option<pii::Email>,
     pub customer_name: Option<Secret<String>>,
@@ -1703,6 +1818,8 @@ pub struct SetupMandateRequestData {
     pub tokenization: Option<common_enums::Tokenization>,
     pub partner_merchant_identifier_details:
         Option<common_types::payments::PartnerMerchantIdentifierDetails>,
+    pub authentication_data: Option<AuthenticationData>,
+    pub connector_intent_metadata: Option<ConnectorMetadata>,
 }
 
 #[derive(Debug, Clone)]
@@ -1717,4 +1834,113 @@ pub struct VaultRequestData {
 pub struct DisputeSyncData {
     pub dispute_id: String,
     pub connector_dispute_id: String,
+}
+
+/// Trait for request data types that carry an optional mandate_id.
+/// Implemented by request types used in flows triggered after SetupMandate,
+/// where the mandate_id from the SetupMandate response needs to be propagated.
+pub trait MandateIdSettable {
+    fn set_mandate_id(&mut self, mandate_id: api_models::payments::MandateIds);
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct PushNotificationRequestData {
+    pub payment_method_data: Option<PaymentMethodData>,
+    pub feature_metadata: Option<api_models::payments::FeatureMetadata>,
+    pub mandate_id: Option<api_models::payments::MandateIds>,
+    pub amount: Option<i64>,
+}
+
+impl MandateIdSettable for PushNotificationRequestData {
+    fn set_mandate_id(&mut self, mandate_id: api_models::payments::MandateIds) {
+        self.mandate_id = Some(mandate_id);
+    }
+}
+
+impl PushNotificationRequestData {
+    pub fn get_connector_mandate_id(&self) -> Option<String> {
+        self.mandate_id
+            .as_ref()
+            .and_then(|mandate_ids| match &mandate_ids.mandate_reference_id {
+                Some(api_models::payments::MandateReferenceId::ConnectorMandateId(
+                    connector_mandate_ids,
+                )) => connector_mandate_ids.get_connector_mandate_id(),
+                Some(api_models::payments::MandateReferenceId::NetworkMandateId(_))
+                | Some(api_models::payments::MandateReferenceId::NetworkTokenWithNTI(_))
+                | Some(api_models::payments::MandateReferenceId::CardWithLimitedData)
+                | None => None,
+            })
+    }
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct GenerateQrRequestData {
+    pub amount: Option<i64>,
+    pub mandate_id: Option<api_models::payments::MandateIds>,
+}
+
+impl MandateIdSettable for GenerateQrRequestData {
+    fn set_mandate_id(&mut self, mandate_id: api_models::payments::MandateIds) {
+        self.mandate_id = Some(mandate_id);
+    }
+}
+
+impl GenerateQrRequestData {
+    pub fn get_connector_mandate_id(&self) -> Option<String> {
+        self.mandate_id
+            .as_ref()
+            .and_then(|mandate_ids| match &mandate_ids.mandate_reference_id {
+                Some(api_models::payments::MandateReferenceId::ConnectorMandateId(
+                    connector_mandate_ids,
+                )) => connector_mandate_ids.get_connector_mandate_id(),
+                Some(api_models::payments::MandateReferenceId::NetworkMandateId(_))
+                | Some(api_models::payments::MandateReferenceId::NetworkTokenWithNTI(_))
+                | Some(api_models::payments::MandateReferenceId::CardWithLimitedData)
+                | None => None,
+            })
+    }
+}
+
+impl TryFrom<SetupMandateRequestData> for GenerateQrRequestData {
+    type Error = error_stack::Report<ApiErrorResponse>;
+
+    fn try_from(data: SetupMandateRequestData) -> Result<Self, Self::Error> {
+        Ok(Self {
+            amount: Some(data.amount),
+            mandate_id: data.mandate_id,
+        })
+    }
+}
+
+impl TryFrom<PaymentsAuthorizeData> for GenerateQrRequestData {
+    type Error = error_stack::Report<ApiErrorResponse>;
+
+    fn try_from(data: PaymentsAuthorizeData) -> Result<Self, Self::Error> {
+        Ok(Self {
+            amount: Some(data.amount),
+            mandate_id: data.mandate_id,
+        })
+    }
+}
+
+impl TryFrom<PaymentsAuthenticateData> for GenerateQrRequestData {
+    type Error = error_stack::Report<ApiErrorResponse>;
+
+    fn try_from(_data: PaymentsAuthenticateData) -> Result<Self, Self::Error> {
+        Ok(Self {
+            amount: None,
+            mandate_id: None,
+        })
+    }
+}
+
+impl TryFrom<CompleteAuthorizeData> for GenerateQrRequestData {
+    type Error = error_stack::Report<ApiErrorResponse>;
+
+    fn try_from(_data: CompleteAuthorizeData) -> Result<Self, Self::Error> {
+        Ok(Self {
+            amount: None,
+            mandate_id: None,
+        })
+    }
 }

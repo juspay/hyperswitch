@@ -83,6 +83,7 @@ mod routing {
 }
 
 pub mod payments;
+pub mod role;
 pub mod types;
 #[cfg(feature = "olap")]
 pub mod user;

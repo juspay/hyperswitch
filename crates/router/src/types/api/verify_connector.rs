@@ -76,6 +76,8 @@ impl VerifyConnectorData {
             partner_merchant_identifier_details: None,
             rrn: None,
             feature_metadata: None,
+            installment_details: None,
+            connector_intent_metadata: None,
         }
     }
 
@@ -146,6 +148,7 @@ impl VerifyConnectorData {
             minor_amount_capturable: None,
             authorized_amount: None,
             customer_document_details: None,
+            feature_data: None,
         }
     }
 }

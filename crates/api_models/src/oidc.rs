@@ -1,7 +1,7 @@
 use std::str::FromStr;
 
 use common_utils::events::ApiEventMetric;
-use masking::Secret;
+use hyperswitch_masking::Secret;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 

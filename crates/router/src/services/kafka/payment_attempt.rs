@@ -73,6 +73,8 @@ pub struct KafkaPaymentAttempt<'a> {
     pub debit_routing_savings: Option<MinorUnit>,
     pub signature_network: Option<common_enums::CardNetwork>,
     pub is_issuer_regulated: Option<bool>,
+    pub processor_merchant_id: &'a id_type::MerchantId,
+    pub created_by: Option<&'a common_utils::types::CreatedBy>,
 }
 
 #[cfg(feature = "v1")]
@@ -143,6 +145,8 @@ impl<'a> KafkaPaymentAttempt<'a> {
                 .as_ref()
                 .and_then(|data| data.signature_network.clone()),
             is_issuer_regulated: card_payment_method_data.and_then(|data| data.is_regulated),
+            processor_merchant_id: &attempt.processor_merchant_id,
+            created_by: attempt.created_by.as_ref(),
         }
     }
 }
@@ -177,7 +181,7 @@ pub struct KafkaPaymentAttempt<'a> {
     pub connector_metadata: Option<String>,
     // TODO: These types should implement copy ideally
     pub payment_experience: Option<&'a storage_enums::PaymentExperience>,
-    pub payment_method_type: &'a storage_enums::PaymentMethodType,
+    pub payment_method_type: Option<&'a storage_enums::PaymentMethodType>,
     pub payment_method_data: Option<String>,
     pub error_reason: Option<&'a String>,
     pub multiple_capture_count: Option<i16>,
@@ -198,24 +202,24 @@ pub struct KafkaPaymentAttempt<'a> {
     pub preprocessing_step_id: Option<String>,
     pub connector_response_reference_id: Option<String>,
     pub updated_by: &'a String,
-    pub encoded_data: Option<&'a masking::Secret<String>>,
+    pub encoded_data: Option<&'a hyperswitch_masking::Secret<String>>,
     pub external_three_ds_authentication_attempted: Option<bool>,
     pub authentication_connector: Option<String>,
     pub authentication_id: Option<String>,
     pub fingerprint_id: Option<String>,
-    pub customer_acceptance: Option<&'a masking::Secret<payments::CustomerAcceptance>>,
+    pub customer_acceptance: Option<&'a hyperswitch_masking::Secret<payments::CustomerAcceptance>>,
     pub shipping_cost: Option<MinorUnit>,
     pub order_tax_amount: Option<MinorUnit>,
     pub charges: Option<payments::ConnectorChargeResponseData>,
     pub processor_merchant_id: &'a id_type::MerchantId,
     pub created_by: Option<&'a types::CreatedBy>,
     pub payment_method_type_v2: storage_enums::PaymentMethod,
-    pub payment_method_subtype: storage_enums::PaymentMethodType,
+    pub payment_method_subtype: Option<storage_enums::PaymentMethodType>,
     pub routing_result: Option<serde_json::Value>,
     pub authentication_applied: Option<common_enums::AuthenticationType>,
     pub external_reference_id: Option<String>,
     pub tax_on_surcharge: Option<MinorUnit>,
-    pub payment_method_billing_address: Option<masking::Secret<&'a address::Address>>, // adjusted from Encryption
+    pub payment_method_billing_address: Option<hyperswitch_masking::Secret<&'a address::Address>>,
     pub redirection_data: Option<&'a RedirectForm>,
     pub connector_payment_data: Option<String>,
     pub connector_token_details: Option<&'a payment_attempt::ConnectorTokenDetails>,
@@ -229,7 +233,7 @@ pub struct KafkaPaymentAttempt<'a> {
 #[cfg(feature = "v2")]
 impl<'a> KafkaPaymentAttempt<'a> {
     pub fn from_storage(attempt: &'a PaymentAttempt) -> Self {
-        use masking::PeekInterface;
+        use hyperswitch_masking::PeekInterface;
         let PaymentAttempt {
             payment_id,
             merchant_id,
@@ -314,7 +318,7 @@ impl<'a> KafkaPaymentAttempt<'a> {
             error_code: error.as_ref().map(|error_details| &error_details.code),
             connector_metadata: connector_metadata.as_ref().map(|v| v.peek().to_string()),
             payment_experience: payment_experience.as_ref(),
-            payment_method_type: payment_method_subtype,
+            payment_method_type: payment_method_subtype.as_ref(),
             payment_method_data: payment_method_data.as_ref().map(|v| v.peek().to_string()),
             error_reason: error
                 .as_ref()
@@ -369,7 +373,7 @@ impl<'a> KafkaPaymentAttempt<'a> {
             tax_on_surcharge: amount_details.get_tax_on_surcharge(),
             payment_method_billing_address: payment_method_billing_address
                 .as_ref()
-                .map(|v| masking::Secret::new(v.get_inner())),
+                .map(|v| hyperswitch_masking::Secret::new(v.get_inner())),
             redirection_data: redirection_data.as_ref(),
             connector_payment_data,
             connector_token_details: connector_token_details.as_ref(),

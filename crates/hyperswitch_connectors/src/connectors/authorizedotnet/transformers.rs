@@ -30,7 +30,7 @@ use hyperswitch_domain_models::{
     },
 };
 use hyperswitch_interfaces::errors;
-use masking::{ExposeInterface, PeekInterface, Secret, StrongSecret};
+use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret, StrongSecret};
 use rand::distributions::{Alphanumeric, DistString};
 use regex::Regex;
 use serde::{Deserialize, Serialize};
@@ -558,6 +558,8 @@ impl TryFrom<&SetupMandateRouterData> for CreateCustomerPaymentProfileRequest {
             | PaymentMethodData::CardToken(_)
             | PaymentMethodData::NetworkToken(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+            | PaymentMethodData::CardWithOptionalCVC(_)
+            | PaymentMethodData::CardWithNetworkTokenDetails(_)
             | PaymentMethodData::CardWithLimitedDetails(_)
             | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
             | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
@@ -846,6 +848,8 @@ impl TryFrom<&AuthorizedotnetRouterData<&PaymentsAuthorizeRouterData>>
                     | PaymentMethodData::CardToken(_)
                     | PaymentMethodData::NetworkToken(_)
                     | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+                    | PaymentMethodData::CardWithOptionalCVC(_)
+                    | PaymentMethodData::CardWithNetworkTokenDetails(_)
                     | PaymentMethodData::CardWithLimitedDetails(_)
                     | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
                     | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
@@ -911,6 +915,8 @@ impl
                 | PaymentMethodData::CardToken(_)
                 | PaymentMethodData::NetworkToken(_)
                 | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+                | PaymentMethodData::CardWithOptionalCVC(_)
+                | PaymentMethodData::CardWithNetworkTokenDetails(_)
                 | PaymentMethodData::CardWithLimitedDetails(_)
                 | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
                 | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {
@@ -1348,7 +1354,7 @@ fn get_payment_status(
             enums::AttemptStatus::Failure
         }
         AuthorizedotnetPaymentStatus::RequiresAction => enums::AttemptStatus::AuthenticationPending,
-        AuthorizedotnetPaymentStatus::HeldForReview => enums::AttemptStatus::Pending,
+        AuthorizedotnetPaymentStatus::HeldForReview => enums::AttemptStatus::Unresolved,
     }
 }
 
@@ -1930,6 +1936,8 @@ pub enum SyncStatus {
     GeneralError,
     #[serde(rename = "FDSPendingReview")]
     FDSPendingReview,
+    #[serde(rename = "FDSAuthorizedPendingReview")]
+    FDSAuthorizedPendingReview,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -1981,9 +1989,12 @@ impl From<SyncStatus> for enums::AttemptStatus {
             SyncStatus::Voided => Self::Voided,
             SyncStatus::CouldNotVoid => Self::VoidFailed,
             SyncStatus::GeneralError => Self::Failure,
-            SyncStatus::RefundSettledSuccessfully
-            | SyncStatus::RefundPendingSettlement
-            | SyncStatus::FDSPendingReview => Self::Pending,
+            SyncStatus::RefundSettledSuccessfully | SyncStatus::RefundPendingSettlement => {
+                Self::Charged
+            }
+            SyncStatus::FDSPendingReview | SyncStatus::FDSAuthorizedPendingReview => {
+                Self::Unresolved
+            }
         }
     }
 }

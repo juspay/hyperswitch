@@ -14,7 +14,6 @@ ADD COLUMN routing_algorithm_id VARCHAR(64) DEFAULT NULL,
     ADD COLUMN order_fulfillment_time_origin "OrderFulfillmentTimeOrigin" DEFAULT NULL,
     ADD COLUMN frm_routing_algorithm_id VARCHAR(64) DEFAULT NULL,
     ADD COLUMN payout_routing_algorithm_id VARCHAR(64) DEFAULT NULL,
-    ADD COLUMN default_fallback_routing JSONB DEFAULT NULL,
     ADD COLUMN three_ds_decision_manager_config jsonb,
     -- Intentionally not adding a default value here since we would have to
     -- check if any merchants have enabled this from configs table,

@@ -1,0 +1,11 @@
+{
+  "event_type": "transaction.sale.success",
+  "event_body": {
+    "transaction_id": "123456789",
+    "order_id": "{{connector_transaction_id}}",
+    "condition": "success",
+    "action": {
+      "action_type": "sale"
+    }
+  }
+}

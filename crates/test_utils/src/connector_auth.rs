@@ -1,6 +1,6 @@
 use std::{collections::HashMap, env};
 
-use masking::Secret;
+use hyperswitch_masking::Secret;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -57,6 +57,7 @@ pub struct ConnectorAuthentication {
     pub facilitapay: Option<BodyKey>,
     pub finix: Option<HeaderKey>,
     pub fiserv: Option<SignatureKey>,
+    pub fiservcommercehub: Option<HeaderKey>,
     pub fiservemea: Option<HeaderKey>,
     pub fiuu: Option<HeaderKey>,
     pub flexiti: Option<HeaderKey>,
@@ -73,6 +74,7 @@ pub struct ConnectorAuthentication {
     pub hyperswitch_vault: Option<SignatureKey>,
     pub hyperwallet: Option<BodyKey>,
     pub iatapay: Option<SignatureKey>,
+    pub imerchantsolutions: Option<HeaderKey>,
     pub inespay: Option<HeaderKey>,
     pub itaubank: Option<MultiAuthKey>,
     pub jpmorgan: Option<BodyKey>,
@@ -117,6 +119,8 @@ pub struct ConnectorAuthentication {
     pub razorpay: Option<BodyKey>,
     pub recurly: Option<HeaderKey>,
     pub redsys: Option<HeaderKey>,
+    pub revolv3: Option<HeaderKey>,
+    pub sanlam: Option<BodyKey>,
     pub santander: Option<BodyKey>,
     pub shift4: Option<HeaderKey>,
     pub sift: Option<HeaderKey>,
@@ -132,6 +136,7 @@ pub struct ConnectorAuthentication {
     pub tokenex: Option<BodyKey>,
     pub tokenio: Option<HeaderKey>,
     pub truelayer: Option<BodyKey>,
+    pub trustly: Option<HeaderKey>,
     pub stripe_au: Option<HeaderKey>,
     pub stripe_uk: Option<HeaderKey>,
     pub trustpay: Option<SignatureKey>,

@@ -1,6 +1,6 @@
 use common_enums::Currency;
 use common_utils::types::StringMinorUnit;
-use masking::Secret;
+use hyperswitch_masking::Secret;
 use serde::{Deserialize, Serialize};
 
 use crate::utils::deserialize_optional_currency;

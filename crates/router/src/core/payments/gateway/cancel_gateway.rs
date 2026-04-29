@@ -115,9 +115,9 @@ where
             unified_connector_service_execution_mode,
             |mut router_data, payment_void_request, grpc_headers| async move {
                 let response = client
-                    .payment_cancel(payment_void_request, connector_auth_metadata, grpc_headers)
+                    .payment_void(payment_void_request, connector_auth_metadata, grpc_headers)
                     .await
-                    .attach_printable("Failed to Cancel payment")?;
+                    .attach_printable("Failed to Void payment")?;
 
                 let payment_void_response = response.into_inner();
 

@@ -3,6 +3,7 @@
 pub mod api_keys;
 pub mod authentication;
 pub mod blocklist;
+pub mod card_issuer;
 pub mod customers;
 pub mod disputes;
 pub mod gsm;

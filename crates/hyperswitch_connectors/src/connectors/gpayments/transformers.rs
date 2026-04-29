@@ -17,7 +17,7 @@ use hyperswitch_domain_models::{
     router_response_types::AuthenticationResponseData,
 };
 use hyperswitch_interfaces::errors::ConnectorError;
-use masking::{ExposeInterface, Secret};
+use hyperswitch_masking::{ExposeInterface, Secret};
 use serde::Deserialize;
 use serde_json::to_string;
 

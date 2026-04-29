@@ -1,5 +1,5 @@
 use common_utils::id_type;
-use masking::Secret;
+use hyperswitch_masking::Secret;
 use time::PrimitiveDateTime;
 
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]

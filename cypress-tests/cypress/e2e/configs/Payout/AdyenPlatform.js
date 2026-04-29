@@ -31,10 +31,10 @@ const billing = {
 
 const PaymentMethodData = {
   card: {
-    card_issuer: "JP Morgan",
+    card_issuer: "Conotoxia Sp Z Oo",
     card_network: "Visa",
-    card_type: "CREDIT",
-    card_issuing_country: "INDIA",
+    card_type: "DEBIT",
+    card_issuing_country: "POLAND",
     bank_code: "JP_JPM",
     last4: "1111",
     card_isin: "411111",

@@ -7,7 +7,7 @@ use diesel::{
     sql_types::{Json, Jsonb},
     AsExpression, FromSqlRow,
 };
-use masking::{Secret, WithType};
+use hyperswitch_masking::{Secret, WithType};
 use serde::{self, Deserialize, Serialize};
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, FromSqlRow, AsExpression)]
@@ -55,7 +55,7 @@ pub struct OrderDetailsWithAmount {
     pub unit_discount_amount: Option<MinorUnit>,
 }
 
-impl masking::SerializableSecret for OrderDetailsWithAmount {}
+impl hyperswitch_masking::SerializableSecret for OrderDetailsWithAmount {}
 
 common_utils::impl_to_sql_from_sql_json!(OrderDetailsWithAmount);
 
@@ -75,6 +75,8 @@ pub struct FeatureMetadata {
     pub pix_additional_details: Option<PixAdditionalDetails>,
     /// Extra information like fine percentage, interest percentage etc required for Pix payment method
     pub boleto_additional_details: Option<BoletoAdditionalDetails>,
+    /// Pix Automatico additional details for Push and QR flows
+    pub pix_automatico_additional_details: Option<PixAutomaticoAdditionalDetails>,
 }
 
 #[derive(Debug, Default, Clone, PartialEq, Deserialize, Serialize, FromSqlRow, AsExpression)]
@@ -136,6 +138,8 @@ pub struct FeatureMetadata {
     pub pix_additional_details: Option<PixAdditionalDetails>,
     /// Extra information like fine percentage, interest percentage etc required for Pix payment method
     pub boleto_additional_details: Option<BoletoAdditionalDetails>,
+    /// Pix Automatico additional details for Push and QR flows
+    pub pix_automatico_additional_details: Option<PixAutomaticoAdditionalDetails>,
 }
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize, FromSqlRow, AsExpression)]
@@ -160,11 +164,26 @@ pub struct ImmediateExpirationTime {
 #[diesel(sql_type = Json)]
 pub struct ScheduledExpirationTime {
     /// Expiration time in terms of date, format: YYYY-MM-DD
+    #[serde(with = "common_utils::custom_serde::date_only")]
     pub date: time::PrimitiveDateTime,
     /// Days after expiration date for which the QR code remains valid
     pub validity_after_expiration: Option<u32>,
     /// Pix identification details
     pub pix_key: Option<common_enums::enums::PixKey>,
+}
+
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize, FromSqlRow, AsExpression)]
+#[diesel(sql_type = Json)]
+pub enum PixAutomaticoAdditionalDetails {
+    /// Pix Automatico Push notification flow
+    PixAutomaticoPush(PixAutomaticoPushDetails),
+}
+
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize, FromSqlRow, AsExpression)]
+#[diesel(sql_type = Json)]
+pub struct PixAutomaticoPushDetails {
+    /// Time in seconds until which the push notification is valid
+    pub time: u32,
 }
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize, FromSqlRow, AsExpression)]
@@ -219,7 +238,7 @@ pub struct RedirectResponse {
     pub param: Option<Secret<String>>,
     pub json_payload: Option<pii::SecretSerdeValue>,
 }
-impl masking::SerializableSecret for RedirectResponse {}
+impl hyperswitch_masking::SerializableSecret for RedirectResponse {}
 common_utils::impl_to_sql_from_sql_json!(RedirectResponse);
 
 #[cfg(feature = "v2")]

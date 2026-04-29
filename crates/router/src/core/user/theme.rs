@@ -7,7 +7,7 @@ use common_utils::{
 use diesel_models::user::theme::{ThemeNew, ThemeUpdate};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::api::ApplicationResponse;
-use masking::ExposeInterface;
+use hyperswitch_masking::ExposeInterface;
 use rdkafka::message::ToBytes;
 use uuid::Uuid;
 

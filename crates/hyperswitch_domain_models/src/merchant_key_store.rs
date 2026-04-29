@@ -6,7 +6,7 @@ use common_utils::{
     types::keymanager::{self, KeyManagerState},
 };
 use error_stack::ResultExt;
-use masking::{PeekInterface, Secret};
+use hyperswitch_masking::{PeekInterface, Secret};
 use time::PrimitiveDateTime;
 
 use crate::type_encryption::{crypto_operation, CryptoOperation};

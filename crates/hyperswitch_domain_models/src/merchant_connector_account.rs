@@ -21,7 +21,7 @@ use diesel_models::{
     merchant_connector_account::{self as storage, MerchantConnectorAccountUpdateInternal},
 };
 use error_stack::ResultExt;
-use masking::{PeekInterface, Secret};
+use hyperswitch_masking::{PeekInterface, Secret};
 use rustc_hash::FxHashMap;
 use serde_json::Value;
 

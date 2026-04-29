@@ -23,7 +23,7 @@ use hyperswitch_domain_models::{
     payment_method_data,
 };
 use hyperswitch_interfaces::api::gateway;
-use masking::{ExposeInterface, Secret};
+use hyperswitch_masking::{ExposeInterface, Secret};
 use router_env::{instrument, tracing};
 
 use super::helpers;
@@ -36,12 +36,9 @@ use crate::{
     core::{
         errors::{self, ConnectorErrorExt, RouterResult, StorageErrorExt},
         mandate,
-        payment_methods::{
-            self,
-            cards::{create_encrypted_data, PmCards},
-            network_tokenization,
-        },
+        payment_methods::{self, cards::PmCards, network_tokenization},
         payments::{self, gateway::context as gateway_context},
+        utils::create_encrypted_data,
     },
     logger,
     routes::{metrics, SessionState},
@@ -302,7 +299,7 @@ where
                         save_payment_method_data.attempt_status,
                     );
                     pm_status = Some(payment_method_status);
-                    save_card_and_network_token_in_locker(
+                    Box::pin(save_card_and_network_token_in_locker(
                         state,
                         customer_id.clone(),
                         payment_method_status,
@@ -313,7 +310,7 @@ where
                         payment_method_create_request.clone(),
                         is_network_tokenization_enabled,
                         business_profile,
-                    )
+                    ))
                     .await?
                 };
                 let network_token_locker_id = match network_token_resp {
@@ -357,6 +354,9 @@ where
                                 &key_manager_state,
                                 platform.get_provider().get_key_store(),
                                 pm,
+                                common_utils::type_name!(
+                                    diesel_models::payment_method::PaymentMethod
+                                ),
                             )
                         })
                         .await
@@ -380,6 +380,9 @@ where
                                     &key_manager_state,
                                     platform.get_provider().get_key_store(),
                                     pm_card,
+                                    common_utils::type_name!(
+                                        diesel_models::payment_method::PaymentMethod
+                                    ),
                                 )
                             })
                             .await
@@ -398,6 +401,7 @@ where
                             &key_manager_state,
                             platform.get_provider().get_key_store(),
                             address.clone(),
+                            common_utils::type_name!(diesel_models::payment_method::PaymentMethod),
                         )
                     })
                     .await
@@ -413,6 +417,7 @@ where
                             &key_manager_state,
                             platform.get_processor().get_key_store(),
                             customer_details,
+                            common_utils::type_name!(diesel_models::payment_method::PaymentMethod),
                         )
                     })
                     .await
@@ -499,6 +504,7 @@ where
                                         network_token_locker_id,
                                         pm_network_token_data_encrypted,
                                         platform.get_provider().get_account().storage_scheme,
+                                        platform.get_initiator(),
                                     )
                                     .await
                                     .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -548,6 +554,7 @@ where
                                                 Some(vault_source_details),
                                                 payment_method_customer_details_encrypted,
                                                 resp.locker_fingerprint_id,
+                                                platform.get_initiator(),
                                             )
                                             .await
                                     } else {
@@ -640,6 +647,7 @@ where
                                             network_token_locker_id,
                                             pm_network_token_data_encrypted,
                                             platform.get_provider().get_account().storage_scheme,
+                                            platform.get_initiator(),
                                         )
                                         .await
                                         .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -692,6 +700,7 @@ where
                                                     Some(vault_source_details),
                                                     payment_method_customer_details_encrypted,
                                                     resp.locker_fingerprint_id,
+                                                    platform.get_initiator(),
                                                 )
                                                 .await
                                         } else {
@@ -803,6 +812,9 @@ where
                                             &key_manager_state,
                                             platform.get_provider().get_key_store(),
                                             pmd,
+                                            common_utils::type_name!(
+                                                diesel_models::payment_method::PaymentMethod
+                                            ),
                                         )
                                     })
                                     .await
@@ -817,6 +829,7 @@ where
                                     pm_data_encrypted.map(Into::into),
                                     platform.get_provider().get_account().storage_scheme,
                                     card_scheme,
+                                    platform.get_initiator(),
                                 )
                                 .await
                                 .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -917,6 +930,7 @@ where
                                     Some(vault_source_details),
                                     payment_method_customer_details_encrypted,
                                     resp.locker_fingerprint_id,
+                                    platform.get_initiator(),
                                 )
                                 .await?;
 
@@ -2127,6 +2141,9 @@ async fn generate_network_token_and_update_payment_method(
                                 &key_manager_state,
                                 platform.get_provider().get_key_store(),
                                 pm_card,
+                                common_utils::type_name!(
+                                    diesel_models::payment_method::PaymentMethod
+                                ),
                             )
                         })
                         .await
@@ -2145,6 +2162,7 @@ async fn generate_network_token_and_update_payment_method(
                     network_token_locker_id,
                     pm_network_token_data_encrypted,
                     platform.get_provider().get_account().storage_scheme,
+                    platform.get_initiator(),
                 )
                 .await
                 .change_context(errors::ApiErrorResponse::InternalServerError)

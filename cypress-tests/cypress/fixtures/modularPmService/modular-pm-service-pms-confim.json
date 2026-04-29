@@ -1,0 +1,13 @@
+{
+  "payment_method_data": {
+    "card": {
+      "card_number": "4242424242424242",
+      "card_exp_month": "01",
+      "card_exp_year": "27",
+      "card_holder_name": "John Doe",
+      "card_cvc": "100"
+    }
+  },
+  "payment_method_type": "card",
+  "payment_method_subtype": "credit"
+}

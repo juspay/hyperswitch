@@ -28,6 +28,8 @@ CREATE TABLE payout_queue (
     `business_country` LowCardinality(Nullable(String)),
     `business_label` Nullable(String),
     `merchant_connector_id` Nullable(String),
+    `processor_merchant_id` Nullable(String),
+    `created_by` Nullable(String),
     `sign_flag` Int8
 ) ENGINE = Kafka SETTINGS kafka_broker_list = 'kafka0:29092',
 kafka_topic_list = 'hyperswitch-payout-events',
@@ -65,6 +67,8 @@ CREATE TABLE payout (
     `business_country` LowCardinality(Nullable(String)),
     `business_label` Nullable(String),
     `merchant_connector_id` Nullable(String),
+    `processor_merchant_id` Nullable(String),
+    `created_by` Nullable(String),
     `inserted_at` DateTime DEFAULT now() CODEC(T64, LZ4),
     `sign_flag` Int8,
     INDEX payoutTypeIndex payout_type TYPE bloom_filter GRANULARITY 1,
@@ -107,6 +111,8 @@ CREATE MATERIALIZED VIEW payout_mv TO payout (
     `business_country` LowCardinality(Nullable(String)),
     `business_label` Nullable(String),
     `merchant_connector_id` Nullable(String),
+    `processor_merchant_id` Nullable(String),
+    `created_by` Nullable(String),
     `inserted_at` DateTime DEFAULT now() CODEC(T64, LZ4),
     `sign_flag` Int8,
 ) AS
@@ -140,6 +146,8 @@ SELECT
     business_country,
     business_label,
     merchant_connector_id,
+    processor_merchant_id,
+    created_by,
     now() as inserted_at,
     sign_flag
 FROM

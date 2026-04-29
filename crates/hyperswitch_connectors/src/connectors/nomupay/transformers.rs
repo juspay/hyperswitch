@@ -8,7 +8,7 @@ use hyperswitch_domain_models::{
     router_response_types::PayoutsResponseData, types::PayoutsRouterData,
 };
 use hyperswitch_interfaces::errors;
-use masking::Secret;
+use hyperswitch_masking::Secret;
 use serde::{Deserialize, Serialize};
 
 #[cfg(feature = "payouts")]
@@ -427,8 +427,8 @@ impl<F> TryFrom<&PayoutsRouterData<F>> for OnboardTransferMethodRequest {
     fn try_from(item: &PayoutsRouterData<F>) -> Result<Self, Self::Error> {
         let payout_method_data = item.get_payout_method_data()?;
         match payout_method_data {
-            api_models::payouts::PayoutMethodData::Bank(bank) => match bank {
-                api_models::payouts::Bank::Sepa(bank_details) => {
+            api_models::payouts::PayoutMethodData::BankTransfer(bank) => match bank {
+                api_models::payouts::BankTransfer::Sepa(bank_details) => {
                     let bank_account = BankAccount {
                         bank_id: bank_details.bic,
                         account_id: bank_details.iban,

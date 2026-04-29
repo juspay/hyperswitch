@@ -4,7 +4,7 @@ use common_utils::types::TenantConfig;
 use error_stack::ResultExt;
 use events::{EventsError, Message, MessagingInterface};
 use hyperswitch_interfaces::events as events_interfaces;
-use masking::ErasedMaskSerialize;
+use hyperswitch_masking::ErasedMaskSerialize;
 use router_env::logger;
 use serde::{Deserialize, Serialize};
 use storage_impl::errors::{ApplicationError, StorageError, StorageResult};

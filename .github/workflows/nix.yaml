@@ -13,5 +13,5 @@ jobs:
       matrix:
         system: [x86_64-linux, aarch64-darwin]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - run: om ci run --extra-access-tokens ${{ secrets.GITHUB_TOKEN }} --systems "${{ matrix.system }}"

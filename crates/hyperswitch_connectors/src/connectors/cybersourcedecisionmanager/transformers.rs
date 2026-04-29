@@ -7,7 +7,7 @@ use hyperswitch_domain_models::{
     router_response_types::fraud_check::FraudCheckResponseData,
 };
 use hyperswitch_interfaces::errors;
-use masking::{ExposeInterface, Secret};
+use hyperswitch_masking::{ExposeInterface, Secret};
 use serde::{Deserialize, Serialize};
 
 use crate::{

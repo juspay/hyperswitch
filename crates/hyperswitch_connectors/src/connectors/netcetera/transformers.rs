@@ -11,7 +11,7 @@ use hyperswitch_domain_models::{
     router_response_types::AuthenticationResponseData,
 };
 use hyperswitch_interfaces::{api::CurrencyUnit, errors::ConnectorError};
-use masking::Secret;
+use hyperswitch_masking::Secret;
 use serde::{Deserialize, Serialize};
 
 use super::netcetera_types;

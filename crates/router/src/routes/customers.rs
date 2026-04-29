@@ -3,11 +3,14 @@ use common_utils::id_type;
 use router_env::{instrument, tracing, Flow};
 
 use super::app::AppState;
+#[cfg(feature = "v1")]
+use crate::core::utils as core_utils;
 use crate::{
     core::{api_locking, customers::*},
     services::{api, authentication as auth, authorization::permissions::Permission},
     types::api::customers,
 };
+
 #[cfg(feature = "v2")]
 #[instrument(skip_all, fields(flow = ?Flow::CustomersCreate))]
 pub async fn customers_create(
@@ -22,7 +25,13 @@ pub async fn customers_create(
         &req,
         json_payload.into_inner(),
         |state, auth: auth::AuthenticationData, req, _| {
-            create_customer(state, auth.platform.get_provider().clone(), req, None)
+            create_customer(
+                state,
+                auth.platform.get_provider().clone(),
+                auth.platform.get_initiator().cloned(),
+                req,
+                None,
+            )
         },
         auth::auth_type(
             &auth::V2ApiKeyAuth {
@@ -40,6 +49,7 @@ pub async fn customers_create(
     ))
     .await
 }
+
 #[cfg(feature = "v1")]
 #[instrument(skip_all, fields(flow = ?Flow::CustomersCreate))]
 pub async fn customers_create(
@@ -54,7 +64,17 @@ pub async fn customers_create(
         &req,
         json_payload.into_inner(),
         |state, auth: auth::AuthenticationData, req, _| {
-            create_customer(state, auth.platform.get_provider().clone(), req, None)
+            Box::pin(async move {
+                core_utils::validate_legacy_endpoint_access(&state, &auth.platform).await?;
+                create_customer(
+                    state,
+                    auth.platform.get_provider().clone(),
+                    auth.platform.get_initiator().cloned(),
+                    req,
+                    None,
+                )
+                .await
+            })
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
@@ -106,14 +126,18 @@ pub async fn customers_retrieve(
         state,
         &req,
         customer_id,
-        |state, auth, customer_id, _| {
-            let profile_id = auth.profile.map(|profile| profile.get_id().clone());
-            retrieve_customer(
-                state,
-                auth.platform.get_provider().clone(),
-                profile_id,
-                customer_id,
-            )
+        move |state, auth: auth::AuthenticationData, customer_id, _| {
+            Box::pin(async move {
+                core_utils::validate_legacy_endpoint_access(&state, &auth.platform).await?;
+                let profile_id = auth.profile.map(|profile| profile.get_id().clone());
+                retrieve_customer(
+                    state,
+                    auth.platform.get_provider().clone(),
+                    profile_id,
+                    customer_id,
+                )
+                .await
+            })
         },
         &*auth,
         api_locking::LockAction::NotApplicable,
@@ -126,13 +150,13 @@ pub async fn customers_retrieve(
 pub async fn customers_retrieve(
     state: web::Data<AppState>,
     req: HttpRequest,
-    path: web::Path<id_type::GlobalCustomerId>,
+    path: web::Path<String>,
 ) -> HttpResponse {
     use crate::services::authentication::sdk_or_api_or_client_auth;
 
     let flow = Flow::CustomersRetrieve;
 
-    let id = path.into_inner();
+    let id = id_type::GlobalCustomerId::new_unchecked(path.into_inner());
 
     let v2_client_auth = auth::V2ClientAuth(
         common_utils::types::authentication::ResourceId::Customer(id.clone()),
@@ -173,6 +197,7 @@ pub async fn customers_retrieve(
     ))
     .await
 }
+
 #[cfg(feature = "v2")]
 #[instrument(skip_all, fields(flow = ?Flow::CustomersList))]
 pub async fn customers_list(
@@ -207,6 +232,7 @@ pub async fn customers_list(
     ))
     .await
 }
+
 #[cfg(feature = "v1")]
 #[instrument(skip_all, fields(flow = ?Flow::CustomersList))]
 pub async fn customers_list(
@@ -333,11 +359,16 @@ pub async fn customers_update(
         &req,
         request_internal,
         |state, auth: auth::AuthenticationData, request_internal, _| {
-            update_customer(
-                state,
-                auth.platform.get_provider().clone(),
-                request_internal,
-            )
+            Box::pin(async move {
+                core_utils::validate_legacy_endpoint_access(&state, &auth.platform).await?;
+                update_customer(
+                    state,
+                    auth.platform.get_provider().clone(),
+                    auth.platform.get_initiator().cloned(),
+                    request_internal,
+                )
+                .await
+            })
         },
         auth::auth_type(
             &auth::ApiKeyAuth {
@@ -361,11 +392,11 @@ pub async fn customers_update(
 pub async fn customers_update(
     state: web::Data<AppState>,
     req: HttpRequest,
-    path: web::Path<id_type::GlobalCustomerId>,
+    path: web::Path<String>,
     json_payload: web::Json<customers::CustomerUpdateRequest>,
 ) -> HttpResponse {
     let flow = Flow::CustomersUpdate;
-    let id = path.into_inner();
+    let id = id_type::GlobalCustomerId::new_unchecked(path.into_inner());
     let request = json_payload.into_inner();
     let request_internal = customers::CustomerUpdateRequestInternal { id, request };
 
@@ -378,6 +409,7 @@ pub async fn customers_update(
             update_customer(
                 state,
                 auth.platform.get_provider().clone(),
+                auth.platform.get_initiator().cloned(),
                 request_internal,
             )
         },
@@ -403,10 +435,10 @@ pub async fn customers_update(
 pub async fn customers_delete(
     state: web::Data<AppState>,
     req: HttpRequest,
-    path: web::Path<id_type::GlobalCustomerId>,
+    path: web::Path<String>,
 ) -> impl Responder {
     let flow = Flow::CustomersDelete;
-    let id = path.into_inner();
+    let id = id_type::GlobalCustomerId::new_unchecked(path.into_inner());
 
     Box::pin(api::server_wrap(
         flow,
@@ -449,7 +481,16 @@ pub async fn customers_delete(
         &req,
         customer_id,
         |state, auth: auth::AuthenticationData, customer_id, _| {
-            delete_customer(state, auth.platform.get_provider().clone(), customer_id)
+            Box::pin(async move {
+                core_utils::validate_legacy_endpoint_access(&state, &auth.platform).await?;
+                delete_customer(
+                    state,
+                    auth.platform.get_provider().clone(),
+                    auth.platform.get_initiator().cloned(),
+                    customer_id,
+                )
+                .await
+            })
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {

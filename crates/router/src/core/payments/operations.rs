@@ -15,6 +15,8 @@ pub mod payment_create;
 #[cfg(feature = "v1")]
 pub mod payment_post_session_tokens;
 #[cfg(feature = "v1")]
+pub mod payment_recurrence;
+#[cfg(feature = "v1")]
 pub mod payment_reject;
 pub mod payment_response;
 #[cfg(feature = "v1")]
@@ -97,13 +99,13 @@ pub use self::{
     payment_session_intent::PaymentSessionIntent,
 };
 use super::{helpers, CustomerDetails, OperationSessionGetters, OperationSessionSetters};
+#[cfg(feature = "v1")]
+use crate::core::payment_methods::transformers::PaymentMethodWithRawData;
 #[cfg(feature = "v2")]
 use crate::core::payments;
-#[cfg(feature = "v1")]
-use crate::core::payments::pm_transformers::PaymentMethodWithRawData;
 use crate::{
     core::{
-        configs::dimension_state::DimensionsWithMerchantId,
+        configs::dimension_state,
         errors::{self, CustomResult, RouterResult},
         utils as core_utils,
     },
@@ -220,6 +222,7 @@ pub trait GetTracker<F: Clone, D, R>: Send {
         auth_flow: services::AuthFlow,
         header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
         payment_method_with_raw_data: Option<PaymentMethodWithRawData>,
+        dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
     ) -> RouterResult<GetTrackerResponse<'a, F, R, D>>;
 
     #[cfg(feature = "v2")]
@@ -266,6 +269,7 @@ pub trait GetTracker<F: Clone, D, R>: Send {
 #[async_trait]
 pub trait Domain<F: Clone, R, D>: Send + Sync {
     #[cfg(feature = "v1")]
+    #[allow(clippy::too_many_arguments)]
     /// This will fetch customer details, (this operation is flow specific)
     async fn get_or_create_customer_details<'a>(
         &'a self,
@@ -273,7 +277,9 @@ pub trait Domain<F: Clone, R, D>: Send + Sync {
         payment_data: &mut D,
         request: Option<CustomerDetails>,
         provider: &domain::Provider,
-        _dimensions: DimensionsWithMerchantId,
+        initiator: Option<&domain::Initiator>,
+        _dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
+        _mandate_type: Option<api::MandateTransactionType>,
     ) -> CustomResult<(BoxedOperation<'a, F, R, D>, Option<domain::Customer>), errors::StorageError>;
 
     #[cfg(feature = "v2")]
@@ -360,7 +366,7 @@ pub trait Domain<F: Clone, R, D>: Send + Sync {
     #[cfg(feature = "v1")]
     async fn get_connector<'a>(
         &'a self,
-        platform: &domain::Platform,
+        processor: &domain::Processor,
         state: &SessionState,
         request: &R,
         payment_intent: &storage::PaymentIntent,
@@ -407,6 +413,7 @@ pub trait Domain<F: Clone, R, D>: Send + Sync {
         _connector_call_type: &ConnectorCallType,
         _business_profile: &domain::Profile,
         _processor: &domain::Processor,
+        _initiator: Option<&domain::Initiator>,
         _mandate_type: Option<api_models::payments::MandateTransactionType>,
     ) -> CustomResult<(), errors::ApiErrorResponse> {
         Ok(())
@@ -433,7 +440,7 @@ pub trait Domain<F: Clone, R, D>: Send + Sync {
         _payment_data: &mut D,
         _connector_call_type: &ConnectorCallType,
         _business_profile: &domain::Profile,
-        _platform: &domain::Platform,
+        _processor: &domain::Processor,
     ) -> CustomResult<(), errors::ApiErrorResponse> {
         Ok(())
     }
@@ -444,6 +451,7 @@ pub trait Domain<F: Clone, R, D>: Send + Sync {
         _state: &SessionState,
         _processor: &domain::Processor,
         _payment_data: &mut D,
+        _business_profile: &domain::Profile,
     ) -> CustomResult<bool, errors::ApiErrorResponse> {
         Ok(false)
     }
@@ -535,6 +543,7 @@ pub trait UpdateTracker<F, D, Req>: Send {
         payment_data: D,
         frm_suggestion: Option<FrmSuggestion>,
         header_payload: hyperswitch_domain_models::payments::HeaderPayload,
+        dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
     ) -> RouterResult<(BoxedOperation<'b, F, Req, D>, D)>
     where
         F: 'b + Send;
@@ -585,6 +594,7 @@ pub trait PostUpdateTracker<F, D, R: Send>: Send {
         &'b self,
         db: &'b SessionState,
         processor: &domain::Processor,
+        initiator: Option<&domain::Initiator>,
         payment_data: D,
         response: types::RouterData<F, R, PaymentsResponseData>,
     ) -> RouterResult<D>
@@ -614,9 +624,10 @@ pub trait PostUpdateTracker<F, D, R: Send>: Send {
         &self,
         _state: &SessionState,
         _provider: &domain::Provider,
+        _initiator: Option<&domain::Initiator>,
         _payment_data: &D,
         _router_data: &types::RouterData<F, R, PaymentsResponseData>,
-        _feature_set: &core_utils::FeatureConfig,
+        _feature_config: &core_utils::FeatureConfig,
     ) -> RouterResult<()>
     where
         F: 'b + Clone + Send + Sync,
@@ -662,7 +673,9 @@ where
         _payment_data: &mut D,
         _request: Option<CustomerDetails>,
         _provider: &domain::Provider,
-        _dimensions: DimensionsWithMerchantId,
+        _initiator: Option<&domain::Initiator>,
+        _dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
+        _mandate_type: Option<api::MandateTransactionType>,
     ) -> CustomResult<
         (
             BoxedOperation<'a, F, api::PaymentsRetrieveRequest, D>,
@@ -679,7 +692,7 @@ where
 
     async fn get_connector<'a>(
         &'a self,
-        _platform: &domain::Platform,
+        _processor: &domain::Processor,
         state: &SessionState,
         _request: &api::PaymentsRetrieveRequest,
         _payment_intent: &storage::PaymentIntent,
@@ -710,6 +723,7 @@ where
         _state: &SessionState,
         _processor: &domain::Processor,
         _payment_data: &mut D,
+        _business_profile: &domain::Profile,
     ) -> CustomResult<bool, errors::ApiErrorResponse> {
         Ok(false)
     }
@@ -731,7 +745,9 @@ where
         _payment_data: &mut D,
         _request: Option<CustomerDetails>,
         _provider: &domain::Provider,
-        _dimensions: DimensionsWithMerchantId,
+        _initiator: Option<&domain::Initiator>,
+        _dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
+        _mandate_type: Option<api::MandateTransactionType>,
     ) -> CustomResult<
         (
             BoxedOperation<'a, F, api::PaymentsCaptureRequest, D>,
@@ -783,7 +799,7 @@ where
 
     async fn get_connector<'a>(
         &'a self,
-        _platform: &domain::Platform,
+        _processor: &domain::Processor,
         state: &SessionState,
         _request: &api::PaymentsCaptureRequest,
         _payment_intent: &storage::PaymentIntent,
@@ -797,6 +813,7 @@ where
         _state: &SessionState,
         _processor: &domain::Processor,
         _payment_data: &mut D,
+        _business_profile: &domain::Profile,
     ) -> CustomResult<bool, errors::ApiErrorResponse> {
         Ok(false)
     }
@@ -818,7 +835,9 @@ where
         _payment_data: &mut D,
         _request: Option<CustomerDetails>,
         _provider: &domain::Provider,
-        _dimensions: DimensionsWithMerchantId,
+        _initiator: Option<&domain::Initiator>,
+        _dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
+        _mandate_type: Option<api::MandateTransactionType>,
     ) -> CustomResult<
         (
             BoxedOperation<'a, F, api::PaymentsCancelRequest, D>,
@@ -871,7 +890,7 @@ where
 
     async fn get_connector<'a>(
         &'a self,
-        _platform: &domain::Platform,
+        _processor: &domain::Processor,
         state: &SessionState,
         _request: &api::PaymentsCancelRequest,
         _payment_intent: &storage::PaymentIntent,
@@ -885,6 +904,7 @@ where
         _state: &SessionState,
         _processor: &domain::Processor,
         _payment_data: &mut D,
+        _business_profile: &domain::Profile,
     ) -> CustomResult<bool, errors::ApiErrorResponse> {
         Ok(false)
     }
@@ -905,7 +925,9 @@ where
         _payment_data: &mut D,
         _request: Option<CustomerDetails>,
         _provider: &domain::Provider,
-        _dimensions: DimensionsWithMerchantId,
+        _initiator: Option<&domain::Initiator>,
+        _dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
+        _mandate_type: Option<api::MandateTransactionType>,
     ) -> CustomResult<
         (
             BoxedOperation<'a, F, api::PaymentsRejectRequest, D>,
@@ -953,7 +975,7 @@ where
 
     async fn get_connector<'a>(
         &'a self,
-        _platform: &domain::Platform,
+        _processor: &domain::Processor,
         state: &SessionState,
         _request: &api::PaymentsRejectRequest,
         _payment_intent: &storage::PaymentIntent,
@@ -967,6 +989,7 @@ where
         _state: &SessionState,
         _processor: &domain::Processor,
         _payment_data: &mut D,
+        _business_profile: &domain::Profile,
     ) -> CustomResult<bool, errors::ApiErrorResponse> {
         Ok(false)
     }

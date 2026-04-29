@@ -16,7 +16,7 @@ use hyperswitch_domain_models::{
     types,
 };
 use hyperswitch_interfaces::errors;
-use masking::Secret;
+use hyperswitch_masking::Secret;
 use serde::{Deserialize, Serialize};
 use time::{Duration, OffsetDateTime};
 
@@ -106,6 +106,7 @@ impl TryFrom<CreateOrderResponseRouterData<RazorpayOrderResponse>>
         Ok(Self {
             response: Ok(PaymentsResponseData::PaymentsCreateOrderResponse {
                 order_id: item.response.id.clone(),
+                session_token: None,
             }),
             ..item.data
         })

@@ -54,6 +54,9 @@ pub struct RelayCaptureRequestData {
     /// The currency in which the amount is being captured
     #[schema(value_type = Currency)]
     pub currency: api_enums::Currency,
+    /// type of capture for the relay
+    #[schema(value_type = Option<CaptureMethod>)]
+    pub capture_method: Option<api_enums::CaptureMethod>,
 }
 
 #[derive(Debug, ToSchema, Clone, Deserialize, Serialize)]

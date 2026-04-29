@@ -50,7 +50,7 @@ use hyperswitch_interfaces::{
     },
     webhooks::{IncomingWebhook, IncomingWebhookRequestDetails, WebhookContext},
 };
-use masking::Maskable;
+use hyperswitch_masking::Maskable;
 use regex::Regex;
 use transformers as nmi;
 
@@ -1041,7 +1041,7 @@ impl IncomingWebhook for Nmi {
     fn get_webhook_resource_object(
         &self,
         request: &IncomingWebhookRequestDetails<'_>,
-    ) -> CustomResult<Box<dyn masking::ErasedMaskSerialize>, ConnectorError> {
+    ) -> CustomResult<Box<dyn hyperswitch_masking::ErasedMaskSerialize>, ConnectorError> {
         let webhook_body: nmi::NmiWebhookBody = request
             .body
             .parse_struct("nmi NmiWebhookBody")
@@ -1196,7 +1196,7 @@ static NMI_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 2] =
     [enums::EventClass::Payments, enums::EventClass::Refunds];
 
 impl ConnectorSpecifications for Nmi {
-    fn is_pre_authentication_flow_required(&self, current_flow: api::CurrentFlowInfo<'_>) -> bool {
+    fn is_pre_authentication_flow_required(&self, current_flow: api::CurrentFlowInfo) -> bool {
         match current_flow {
             api::CurrentFlowInfo::Authorize {
                 auth_type,
@@ -1207,6 +1207,7 @@ impl ConnectorSpecifications for Nmi {
                 auth_type,
                 request_data,
             } => auth_type.is_three_ds() && request_data.is_card(),
+            api::CurrentFlowInfo::Psync { .. } => false,
         }
     }
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {

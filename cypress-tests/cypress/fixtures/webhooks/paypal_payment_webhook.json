@@ -1,0 +1,14 @@
+{
+  "event_type": "PAYMENT.CAPTURE.COMPLETED",
+  "resource": {
+    "supplementary_data": {
+      "related_ids": {
+        "order_id": "{{connector_transaction_id}}"
+      }
+    },
+    "amount": {
+      "currency_code": "USD",
+      "value": "60.00"
+    }
+  }
+}

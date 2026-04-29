@@ -24,7 +24,7 @@ use common_utils::{
 use diesel_models::{enums, types::OrderDetailsWithAmount};
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::payments::payment_attempt::PaymentAttempt;
-use masking::{Deserialize, ExposeInterface, Secret};
+use hyperswitch_masking::{Deserialize, ExposeInterface, Secret};
 use regex::Regex;
 
 #[cfg(feature = "frm")]
@@ -2599,6 +2599,7 @@ pub enum PaymentMethodDataType {
     OnlineBankingFpx,
     OnlineBankingThailand,
     AchBankDebit,
+    EftDebitOrder,
     SepaBankDebit,
     SepaGuarenteedDebit,
     BecsBankDebit,
@@ -2615,6 +2616,8 @@ pub enum PaymentMethodDataType {
     DanamonVaBankTransfer,
     MandiriVaBankTransfer,
     Pix,
+    PixAutomaticoPush,
+    PixAutomaticoQr,
     Pse,
     Crypto,
     MandatePayment,
@@ -2658,6 +2661,8 @@ impl From<domain::payments::PaymentMethodData> for PaymentMethodDataType {
     fn from(pm_data: domain::payments::PaymentMethodData) -> Self {
         match pm_data {
             domain::payments::PaymentMethodData::Card(_) => Self::Card,
+            domain::payments::PaymentMethodData::CardWithOptionalCVC(_) => Self::Card,
+            domain::payments::PaymentMethodData::CardWithNetworkTokenDetails(_) => Self::Card,
             domain::payments::PaymentMethodData::NetworkToken(_) => Self::NetworkToken,
             domain::PaymentMethodData::CardDetailsForNetworkTransactionId(_) => Self::Card,
             domain::PaymentMethodData::CardWithLimitedDetails(_) => Self::Card,
@@ -2773,6 +2778,7 @@ impl From<domain::payments::PaymentMethodData> for PaymentMethodDataType {
                     domain::payments::BankDebitData::SepaGuarenteedBankDebit { .. } => Self::SepaGuarenteedDebit,
                     domain::payments::BankDebitData::BecsBankDebit { .. } => Self::BecsBankDebit,
                     domain::payments::BankDebitData::BacsBankDebit { .. } => Self::BacsBankDebit,
+                    domain::payments::BankDebitData::EftDebitOrder { .. } => Self::EftDebitOrder,
                 }
             }
             domain::payments::PaymentMethodData::BankTransfer(bank_transfer_data) => {
@@ -2811,6 +2817,8 @@ impl From<domain::payments::PaymentMethodData> for PaymentMethodDataType {
                         Self::MandiriVaBankTransfer
                     }
                     domain::payments::BankTransferData::Pix { .. } => Self::Pix,
+                    domain::payments::BankTransferData::PixAutomaticoPush { .. } => Self::PixAutomaticoPush,
+                    domain::payments::BankTransferData::PixAutomaticoQr {} => Self::PixAutomaticoQr,
                     domain::payments::BankTransferData::Pse {} => Self::Pse,
                     domain::payments::BankTransferData::LocalBankTransfer { .. } => {
                         Self::LocalBankTransfer

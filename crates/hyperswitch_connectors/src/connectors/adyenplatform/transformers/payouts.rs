@@ -4,7 +4,7 @@ use common_utils::pii;
 use error_stack::{report, ResultExt};
 use hyperswitch_domain_models::types::{self, PayoutsRouterData};
 use hyperswitch_interfaces::errors::ConnectorError;
-use masking::{ExposeInterface, PeekInterface, Secret};
+use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 use serde::{Deserialize, Serialize};
 
 use super::{AdyenPlatformRouterData, Error};
@@ -309,11 +309,11 @@ impl<F> TryFrom<(&PayoutsRouterData<F>, &payouts::CardPayout)> for AdyenAccountH
     }
 }
 
-impl<F> TryFrom<(&PayoutsRouterData<F>, &payouts::Bank)> for AdyenAccountHolder {
+impl<F> TryFrom<(&PayoutsRouterData<F>, &payouts::BankTransfer)> for AdyenAccountHolder {
     type Error = Error;
 
     fn try_from(
-        (router_data, _bank): (&PayoutsRouterData<F>, &payouts::Bank),
+        (router_data, _bank): (&PayoutsRouterData<F>, &payouts::BankTransfer),
     ) -> Result<Self, Self::Error> {
         let billing_address = router_data.get_optional_billing();
 
@@ -498,6 +498,7 @@ impl<F> TryFrom<RawPaymentCounterparty<'_, F>>
 
         match raw_payment.raw_payout_method_data {
             payouts::PayoutMethodData::Wallet(_)
+            | payouts::PayoutMethodData::Bank(_)
             | payouts::PayoutMethodData::BankRedirect(_)
             | payouts::PayoutMethodData::Passthrough(_) => Err(ConnectorError::NotImplemented(
                 utils::get_unimplemented_payment_method_error_message("Adyenplatform"),
@@ -523,26 +524,30 @@ impl<F> TryFrom<RawPaymentCounterparty<'_, F>>
 
                 Ok((counterparty, None))
             }
-            payouts::PayoutMethodData::Bank(bd) => {
+            payouts::PayoutMethodData::BankTransfer(bd) => {
                 let account_holder: AdyenAccountHolder =
                     (raw_payment.item.router_data, &bd).try_into()?;
                 let bank_details = match bd {
-                    payouts::Bank::Sepa(b) => AdyenBankAccountIdentification {
+                    payouts::BankTransfer::Sepa(b) => AdyenBankAccountIdentification {
                         bank_type: "iban".to_string(),
                         account_details: AdyenBankAccountIdentificationDetails::Sepa(SepaDetails {
                             iban: b.iban,
                         }),
                     },
-                    payouts::Bank::Ach(..) => Err(ConnectorError::NotSupported {
+                    payouts::BankTransfer::Ach(..) => Err(ConnectorError::NotSupported {
                         message: "Bank transfer via ACH is not supported".to_string(),
                         connector: "Adyenplatform",
                     })?,
-                    payouts::Bank::Bacs(..) => Err(ConnectorError::NotSupported {
+                    payouts::BankTransfer::Bacs(..) => Err(ConnectorError::NotSupported {
                         message: "Bank transfer via Bacs is not supported".to_string(),
                         connector: "Adyenplatform",
                     })?,
-                    payouts::Bank::Pix(..) => Err(ConnectorError::NotSupported {
+                    payouts::BankTransfer::Pix(..) => Err(ConnectorError::NotSupported {
                         message: "Bank transfer via Pix is not supported".to_string(),
+                        connector: "Adyenplatform",
+                    })?,
+                    payouts::BankTransfer::Trustly(..) => Err(ConnectorError::NotSupported {
+                        message: "Bank transfer via Trustly is not supported".to_string(),
                         connector: "Adyenplatform",
                     })?,
                 };
