@@ -107,6 +107,10 @@ describe("Volume Based Routing Test", () => {
       // return_url is a static url (https://example.com) taken from confirm-body fixture and is not updated
       const expected_redirection = fixtures.confirmBody["return_url"];
       const payment_method_type = globalState.get("paymentMethodType");
+      // confirmBankRedirectCallTest overwrites connectorId via updateConnectorState; restore it
+      // to "stripe" here because the 100% stripe routing config guarantees a stripe redirect URL.
+      globalState.set("connectorId", "stripe");
+      globalState.set("merchantConnectorId", globalState.get("stripeMcaId"));
       cy.handleBankRedirectRedirection(
         globalState,
         payment_method_type,
