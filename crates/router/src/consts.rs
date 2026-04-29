@@ -357,12 +357,6 @@ pub mod superposition {
     pub const REQUIRES_CVV: &str = "requires_cvv";
     /// implicit customer update configuration key
     pub const IMPLICIT_CUSTOMER_UPDATE: &str = "implicit_customer_update";
-    /// dynamic fields configuration key for sdk config
-    pub const DYNAMIC_FIELDS: &str = "dynamic_fields";
-    /// payout sync tracker configuration key
-    pub const PAYOUT_TRACKER_MAPPING: &str = "payout_tracker_mapping";
-    /// client session validation enabled configuration key
-    pub const CLIENT_SESSION_VALIDATION_ENABLED: &str = "client_session_validation_enabled";
     /// GSM (Global Status Map) call configuration key
     pub const SHOULD_CALL_GSM: &str = "should_call_gsm";
     /// Eligibility check configuration key
@@ -377,6 +371,24 @@ pub mod superposition {
     pub const ENABLE_EXTENDED_CARD_BIN: &str = "enable_extended_card_bin";
     /// Max auto payout retries configuration key
     pub const MAX_AUTO_PAYOUT_RETRIES: &str = "max_auto_payout_retries";
+    /// GSM payout call configuration key (scoped by merchant, profile, and payout retry type)
+    pub const GSM_PAYOUT_CALL: &str = "gsm_payout_call";
+    /// Disable vault tokenization configuration key
+    pub const SHOULD_DISABLE_VAULT_TOKENIZATION: &str = "should_disable_vault_tokenization";
+    /// Return raw payment method details configuration key
+    pub const SHOULD_RETURN_RAW_PAYMENT_METHOD_DETAILS: &str =
+        "should_return_raw_payment_method_details";
+    /// Call PM modular service configuration key
+    pub const SHOULD_CALL_PM_MODULAR_SERVICE: &str = "should_call_pm_modular_service";
+    /// Schedule PM modular forward compatibility PT configuration key
+    pub const SHOULD_SCHEDULE_MODULAR_FORWARD_COMPAT: &str =
+        "should_schedule_modular_forward_compat";
+    /// dynamic fields configuration key for sdk config
+    pub const DYNAMIC_FIELDS: &str = "dynamic_fields";
+    /// payout sync tracker configuration key
+    pub const PAYOUT_TRACKER_MAPPING: &str = "payout_tracker_mapping";
+    /// client session validation enabled configuration key
+    pub const CLIENT_SESSION_VALIDATION_ENABLED: &str = "client_session_validation_enabled";
 }
 
 #[cfg(test)]

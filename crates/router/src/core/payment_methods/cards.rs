@@ -213,6 +213,45 @@ impl PaymentMethodsController for PmCards<'_> {
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to add payment method in db")?;
 
+        let should_schedule_modular_forward_compat =
+            payment_method_utils::get_should_schedule_modular_forward_compat(
+                self.state,
+                &dimension_state::Dimensions::new()
+                    .with_provider_merchant_id(self.provider.get_provider_merchant_id()),
+                Some(customer_id),
+            )
+            .await;
+
+        if should_schedule_modular_forward_compat {
+            let res = super::add_payment_method_modular_forward_compat_task(
+                &*self.state.store,
+                &response,
+                merchant_id,
+                self.state.conf.application_source,
+                initiator,
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable(
+                "Failed to add payment method modular compatibility task in process tracker",
+            );
+
+            if let Err(err) = res {
+                logger::error!(
+                    ?err,
+                    payment_method_id=%response.payment_method_id,
+                    merchant_id=%merchant_id.get_string_repr(),
+                    "Failed to schedule modular forward compatibility PT; continuing payment method create flow"
+                );
+            }
+        } else {
+            logger::debug!(
+                payment_method_id=%response.payment_method_id,
+                merchant_id=%merchant_id.get_string_repr(),
+                "Skipping modular forward compatibility PT scheduling by config"
+            );
+        }
+
         if customer.default_payment_method_id.is_none() && req.payment_method.is_some() {
             let _ = self
                 .set_default_payment_method(
@@ -3076,9 +3115,6 @@ pub async fn list_payment_methods(
 ) -> errors::RouterResponse<api::PaymentMethodListResponse> {
     let db = &*state.store;
     let pm_config_mapping = &state.conf.pm_filters;
-    let dimensions = dimension_state::Dimensions::new()
-        .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
-        .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id());
     let payment_intent = if let Some(cs) = &req.client_secret {
         if cs.starts_with("pm_") {
             validate_payment_method_and_client_secret(cs, db, &platform).await?;
@@ -3217,6 +3253,11 @@ pub async fn list_payment_methods(
                 (profile_id, profile)
             }
         };
+
+    let dimensions = dimension_state::Dimensions::new()
+        .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
+        .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id())
+        .with_profile_id(profile_id.clone());
 
     // filter out payment connectors based on profile_id
     let filtered_mcas = all_mcas
@@ -5398,7 +5439,9 @@ pub async fn get_bank_from_vault(
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Error storing payout method data in temporary locker")?;
             }
-            let bank_data: api::BankTransferPayout = bank.to_owned().into();
+            let bank_data = api::BankTransferPayout::try_from(bank.to_owned())
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Error converting bank transfer data")?;
             Ok(bank_data)
         }
         api::PayoutMethodData::BankTransfer(bank) => {
