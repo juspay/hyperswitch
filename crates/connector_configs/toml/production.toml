@@ -7376,7 +7376,7 @@ api_key = "Username"
 key1 = "Password"
 api_secret = "Private Key(Base64 encoded)"
 [[trustly_payout.bank_transfer]]
-payment_method_type = "open_banking"
+payment_method_type = "trustly"
 [trustly_payout.connector_webhook_details]
 merchant_secret="Trustly's public key"
 
@@ -7426,7 +7426,7 @@ api_key = "Username"
 key1 = "Password"
 api_secret = "Private Key(Base64 encoded)"
 [[trustly.bank_redirect]]
-payment_method_type = "trustly"
+payment_method_type = "open_banking"
 [trustly.connector_webhook_details]
 merchant_secret="Trustly's public key"
 
