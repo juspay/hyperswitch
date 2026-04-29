@@ -40,6 +40,7 @@ import { connectorDetails as hipayConnectorDetails } from "./Hipay.js";
 import { connectorDetails as iatapayConnectorDetails } from "./Iatapay.js";
 import { connectorDetails as itaubankConnectorDetails } from "./ItauBank.js";
 import { connectorDetails as jpmorganConnectorDetails } from "./Jpmorgan.js";
+import { connectorDetails as klarnaConnectorDetails } from "./Klarna.js";
 import { connectorDetails as loonioConnectorDetails } from "./Loonio.js";
 import { connectorDetails as mollieConnectorDetails } from "./Mollie.js";
 import { connectorDetails as monerisConnectorDetails } from "./Moneris.js";
@@ -114,6 +115,7 @@ const connectorDetails = {
   iatapay: iatapayConnectorDetails,
   itaubank: itaubankConnectorDetails,
   jpmorgan: jpmorganConnectorDetails,
+  klarna: klarnaConnectorDetails,
   mollie: mollieConnectorDetails,
   moneris: monerisConnectorDetails,
   multisafepay: multisafepayConnectorDetails,
@@ -544,6 +546,7 @@ export const CONNECTOR_LISTS = {
     BANK_DEBIT: ["novalnet"],
     PARTNER_MERCHANT_IDENTIFIER: ["adyen", "checkout"],
     GIFT_CARD: ["adyen"],
+    PAY_LATER: ["klarna", "adyen", "aci", "stripe"],
     // Add more inclusion lists
   },
 };
