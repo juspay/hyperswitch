@@ -69,46 +69,43 @@ describe("Card - 3DS Routing Region (UAS) payment flow test", () => {
     }
   );
 
-  context(
-    "Card-3DS-UAS-Routing with manual capture flow test",
-    () => {
-      it("create confirm capture payment with 3DS UAS routing", () => {
-        let shouldContinue = true;
+  context("Card-3DS-UAS-Routing with manual capture flow test", () => {
+    it("create confirm capture payment with 3DS UAS routing", () => {
+      let shouldContinue = true;
 
-        cy.step("create and confirm payment with manual capture", () => {
-          const data = getConnectorDetails(globalState.get("connectorId"))[
-            "card_pm"
-          ]["three_ds_uas_routing_manual_capture"];
+      cy.step("create and confirm payment with manual capture", () => {
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["three_ds_uas_routing_manual_capture"];
 
-          cy.createConfirmPaymentTest(
-            fixtures.createConfirmPaymentBody,
-            data,
-            "three_ds",
-            "manual",
-            globalState
-          );
+        cy.createConfirmPaymentTest(
+          fixtures.createConfirmPaymentBody,
+          data,
+          "three_ds",
+          "manual",
+          globalState
+        );
 
-          if (!utils.should_continue_further(data)) {
-            shouldContinue = false;
-          }
-        });
-
-        cy.step("capture payment", () => {
-          if (!shouldContinue) {
-            cy.task("cli_log", "Skipping step: capture payment");
-            return;
-          }
-          cy.capturePaymentCallTest({ globalState });
-        });
-
-        cy.step("retrieve payment after capture", () => {
-          if (!shouldContinue) {
-            cy.task("cli_log", "Skipping step: retrieve payment after capture");
-            return;
-          }
-          cy.retrievePaymentCallTest({ globalState });
-        });
+        if (!utils.should_continue_further(data)) {
+          shouldContinue = false;
+        }
       });
-    }
-  );
+
+      cy.step("capture payment", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: capture payment");
+          return;
+        }
+        cy.capturePaymentCallTest({ globalState });
+      });
+
+      cy.step("retrieve payment after capture", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: retrieve payment after capture");
+          return;
+        }
+        cy.retrievePaymentCallTest({ globalState });
+      });
+    });
+  });
 });
