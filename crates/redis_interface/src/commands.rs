@@ -13,8 +13,8 @@ use common_utils::{
 };
 use error_stack::{report, ResultExt};
 use redis::{
-    streams::StreamReadOptions,
-    AsyncCommands, ExistenceCheck, FromRedisValue, SetExpiry, SetOptions, ToSingleRedisArg, Value,
+    streams::StreamReadOptions, AsyncCommands, ExistenceCheck, FromRedisValue, SetExpiry,
+    SetOptions, ToSingleRedisArg, Value,
 };
 use tracing::instrument;
 
