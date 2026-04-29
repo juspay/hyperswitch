@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.02.02.0-hotfix16-4
+
+### Features
+
+- **Connector:** [Peachpayments] Add COF Data For CardWithLimitedDetails CIT And No-3DS Cards CIT ([#12001](https://github.com/juspay/hyperswitch/pull/12001)) ([`2c87024`](https://github.com/juspay/hyperswitch/commit/2c870240b6f2f2c01ff987d190c76f3ca0d6ec9c))
+
+**Full Changelog:** [`2026.02.02.0-hotfix16-3...2026.02.02.0-hotfix16-4`](https://github.com/juspay/hyperswitch/compare/2026.02.02.0-hotfix16-3...2026.02.02.0-hotfix16-4)
+
+- - -
+
 ## 2026.02.02.0-hotfix16-3
 
 ### Bug Fixes
