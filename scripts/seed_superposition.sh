@@ -7,6 +7,8 @@ SUPERPOSITION_URL="${SUPERPOSITION_URL:-http://localhost:8081}"
 SEED_FILE="${SEED_FILE:-./config/superposition_seed.toml}"
 WORKSPACE_ID="${WORKSPACE_ID:-dev}"
 ORG_ID="${ORG_ID:-localorg}"
+MAX_RETRIES="${MAX_RETRIES:-60}"
+RETRY_INTERVAL="${RETRY_INTERVAL:-2}"
 
 echo "Seeding Superposition at $SUPERPOSITION_URL"
 echo "Using seed file: $SEED_FILE"
@@ -15,18 +17,18 @@ echo "Workspace: $WORKSPACE_ID, Org: $ORG_ID"
 # Wait for superposition to be ready
 echo "Waiting for Superposition to be ready..."
 READY=0
-for i in {1..60}; do
+for ((i=1; i<=MAX_RETRIES; i++)); do
     if curl -sS -o /dev/null "$SUPERPOSITION_URL/health"; then
         echo "Superposition is ready!"
         READY=1
         break
     fi
-    echo "Waiting for Superposition... ($i/60)"
-    sleep 2
+    echo "Waiting for Superposition... ($i/$MAX_RETRIES)"
+    sleep "$RETRY_INTERVAL"
 done
 
 if [ "$READY" -ne 1 ]; then
-    echo "Error: Superposition did not become ready at $SUPERPOSITION_URL after 120s"
+    echo "Error: Superposition did not become ready at $SUPERPOSITION_URL after $((MAX_RETRIES * RETRY_INTERVAL))s"
     exit 1
 fi
 

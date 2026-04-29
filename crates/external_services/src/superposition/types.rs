@@ -29,12 +29,9 @@ impl ToDocument for bool {
 
 impl ToDocument for i64 {
     fn to_document(&self) -> Document {
-        // u64::try_from(i64) has exactly one failure reason: the value is negative.
-        // Any non-negative i64 always fits in u64 (i64::MAX < u64::MAX), so Err(_)
-        // here means "was negative" — use NegInt. No overflow or precision loss possible.
-        match u64::try_from(*self) {
-            Ok(n) => Document::Number(aws_smithy_types::Number::PosInt(n)),
-            Err(_) => Document::Number(aws_smithy_types::Number::NegInt(*self)),
+        match *self {
+            n if n >= 0 => Document::Number(aws_smithy_types::Number::PosInt(n.unsigned_abs())),
+            n => Document::Number(aws_smithy_types::Number::NegInt(n)),
         }
     }
 }
