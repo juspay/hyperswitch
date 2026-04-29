@@ -11221,6 +11221,8 @@ pub struct PaymentsManualUpdateRequest {
     pub connector_transaction_id: Option<String>,
     /// The amount that can be captured on the payment.
     pub amount_capturable: Option<MinorUnit>,
+    /// The amount that has been captured on the payment.
+    pub amount_captured: Option<MinorUnit>,
 }
 
 #[derive(Debug, serde::Serialize, serde::Deserialize, Clone, ToSchema)]

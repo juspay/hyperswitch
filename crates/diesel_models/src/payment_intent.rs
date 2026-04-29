@@ -603,6 +603,7 @@ pub enum PaymentIntentUpdate {
     ManualUpdate {
         status: Option<storage_enums::IntentStatus>,
         updated_by: String,
+        amount_captured: Option<MinorUnit>,
     },
     SessionResponseUpdate {
         tax_details: TaxDetails,
@@ -1915,12 +1916,16 @@ impl From<PaymentIntentUpdate> for PaymentIntentUpdateInternal {
                 enable_overcapture: None,
                 shipping_cost: None,
             },
-            PaymentIntentUpdate::ManualUpdate { status, updated_by } => Self {
+            PaymentIntentUpdate::ManualUpdate {
+                status,
+                updated_by,
+                amount_captured,
+            } => Self {
                 status,
                 updated_by,
                 amount: None,
                 currency: None,
-                amount_captured: None,
+                amount_captured,
                 customer_id: None,
                 return_url: None,
                 setup_future_usage: None,

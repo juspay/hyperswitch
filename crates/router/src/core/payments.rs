@@ -21,8 +21,8 @@ pub mod vault_session;
 #[cfg(feature = "olap")]
 use std::collections::HashMap;
 use std::{
-    collections::HashSet, fmt::Debug, marker::PhantomData, str::FromStr, sync::Arc, time::Instant,
-    vec::IntoIter,
+    collections::HashSet, fmt::Debug, marker::PhantomData, ops::Deref, str::FromStr, sync::Arc,
+    time::Instant, vec::IntoIter,
 };
 
 use external_services::grpc_client;
@@ -11777,6 +11777,7 @@ pub async fn payments_manual_update(
         error_reason,
         connector_transaction_id,
         amount_capturable,
+        amount_captured,
     } = req;
     let key_store = state
         .store
@@ -11817,6 +11818,61 @@ pub async fn payments_manual_update(
                 })
             },
         )?;
+    }
+
+    // Validate amount_captured constraints
+    if let Some(amount_captured) = amount_captured {
+        // amount_captured is only valid for terminal statuses involving captured funds
+        if let Some(status) = attempt_status {
+            utils::when(
+                !matches!(
+                    status,
+                    enums::AttemptStatus::Charged
+                        | enums::AttemptStatus::PartialCharged
+                        | enums::AttemptStatus::PartialChargedAndChargeable
+                        | enums::AttemptStatus::Voided
+                        | enums::AttemptStatus::VoidedPostCharge
+                ),
+                || {
+                    Err(errors::ApiErrorResponse::InvalidRequestData {
+                        message: "amount_captured can only be set for terminal statuses with captured funds: Charged, PartialCharged, PartialChargedAndChargeable, Voided, VoidedPostCharge".to_string(),
+                    })
+                },
+            )?;
+        }
+
+        // amount_captured cannot exceed the total amount (unless overcapture is enabled)
+        let is_overcapture_enabled = payment_attempt
+            .is_overcapture_enabled
+            .map(|v| *v.deref())
+            .unwrap_or(false);
+
+        if !is_overcapture_enabled {
+            utils::when(
+                amount_captured > payment_attempt.net_amount.get_total_amount(),
+                || {
+                    Err(errors::ApiErrorResponse::InvalidRequestData {
+                        message: "amount_captured should be less than or equal to total amount".to_string(),
+                    })
+                },
+            )?;
+        }
+
+        // If amount_capturable is provided, amount_captured + amount_capturable should not exceed total amount
+        // (unless overcapture is enabled, in which case amount_captured can exceed total)
+        if let Some(amount_capturable) = amount_capturable {
+            if !is_overcapture_enabled {
+                let total_processed = amount_captured + amount_capturable;
+                utils::when(
+                    total_processed > payment_attempt.net_amount.get_total_amount(),
+                    || {
+                        Err(errors::ApiErrorResponse::InvalidRequestData {
+                            message: "sum of amount_captured and amount_capturable should not exceed total amount".to_string(),
+                        })
+                    },
+                )?;
+            }
+        }
     }
 
     let payment_intent = state
@@ -11881,6 +11937,7 @@ pub async fn payments_manual_update(
         let payment_intent_update = storage::PaymentIntentUpdate::ManualUpdate {
             status: Some(intent_status),
             updated_by: merchant_account.storage_scheme.to_string(),
+            amount_captured,
         };
         state
             .store
