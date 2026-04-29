@@ -99,7 +99,7 @@ impl ProcessTracker {
         runner: &str,
         limit: usize,
     ) -> StorageResult<Vec<Self>> {
-        let mut x: Vec<Self> = generics::generic_filter::<
+        let mut processes: Vec<Self> = generics::generic_filter::<
             <Self as HasTable>::Table,
             _,
             <<Self as HasTable>::Table as Table>::PrimaryKey,
@@ -115,9 +115,10 @@ impl ProcessTracker {
             None,
         )
         .await?;
-        x.sort_by(|a, b| a.schedule_time.cmp(&b.schedule_time));
-        x.truncate(limit);
-        Ok(x)
+        processes.sort_by_key(|x| x.schedule_time);
+        processes.truncate(limit);
+
+        Ok(processes)
     }
 
     #[instrument(skip(conn))]
