@@ -58,6 +58,8 @@ describe("Priority Based Routing Test", () => {
     });
 
     it("payment-routing-test", () => {
+      globalState.set("connectorId", "stripe");
+      globalState.set("merchantConnectorId", globalState.get("stripeMcaId"));
       const data =
         utils.getConnectorDetails("stripe")["card_pm"]["No3DSAutoCapture"];
 
@@ -129,6 +131,8 @@ describe("Priority Based Routing Test", () => {
     });
 
     it("payment-routing-test", () => {
+      globalState.set("connectorId", "adyen");
+      globalState.set("merchantConnectorId", globalState.get("adyenMcaId"));
       const data =
         utils.getConnectorDetails("adyen")["card_pm"]["No3DSAutoCapture"];
 

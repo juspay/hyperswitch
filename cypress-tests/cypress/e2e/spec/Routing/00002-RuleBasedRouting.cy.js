@@ -108,6 +108,8 @@ describe("Rule Based Routing Test", () => {
     });
 
     it("payment-routing-test for card", () => {
+      globalState.set("connectorId", "stripe");
+      globalState.set("merchantConnectorId", globalState.get("stripeMcaId"));
       const data =
         utils.getConnectorDetails("stripe")["card_pm"]["No3DSAutoCapture"];
 
@@ -242,6 +244,8 @@ describe("Rule Based Routing Test", () => {
     });
 
     it("create-payment-call-test-with-USD", () => {
+      globalState.set("connectorId", "stripe");
+      globalState.set("merchantConnectorId", globalState.get("stripeMcaId"));
       const data =
         utils.getConnectorDetails("stripe")["card_pm"]["PaymentIntent"];
 
@@ -266,6 +270,8 @@ describe("Rule Based Routing Test", () => {
     });
 
     it("create-payment-call-test-with-EUR", () => {
+      globalState.set("connectorId", "adyen");
+      globalState.set("merchantConnectorId", globalState.get("adyenMcaId"));
       const data =
         utils.getConnectorDetails("adyen")["card_pm"]["PaymentIntent"];
 
@@ -389,6 +395,8 @@ describe("Rule Based Routing Test", () => {
       });
 
       it("create-payment-call-test-with-amount-10", () => {
+        globalState.set("connectorId", "stripe");
+        globalState.set("merchantConnectorId", globalState.get("stripeMcaId"));
         const data =
           utils.getConnectorDetails("stripe")["card_pm"]["PaymentIntent"];
 
@@ -413,6 +421,8 @@ describe("Rule Based Routing Test", () => {
       });
 
       it("create-payment-call-test-with-amount-9", () => {
+        globalState.set("connectorId", "adyen");
+        globalState.set("merchantConnectorId", globalState.get("adyenMcaId"));
         const data =
           utils.getConnectorDetails("adyen")["card_pm"]["PaymentIntent"];
 
@@ -521,6 +531,8 @@ describe("Rule Based Routing Test", () => {
 
       // amount=100 does NOT match the rule (amount > 999999), so defaultSelection (adyen) is used
       it("payment-routing-test-via-default-selection", () => {
+        globalState.set("connectorId", "adyen");
+        globalState.set("merchantConnectorId", globalState.get("adyenMcaId"));
         const data =
           utils.getConnectorDetails("adyen")["card_pm"]["No3DSAutoCapture"];
 

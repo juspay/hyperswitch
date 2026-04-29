@@ -54,6 +54,8 @@ describe("Default Routing Test", () => {
     });
 
     it("payment-routing-test", () => {
+      globalState.set("connectorId", "stripe");
+      globalState.set("merchantConnectorId", globalState.get("stripeMcaId"));
       const data =
         utils.getConnectorDetails("stripe")["card_pm"]["No3DSAutoCapture"];
 
@@ -154,6 +156,8 @@ describe("Default Routing Test", () => {
 
       // amount=100 does NOT match rule (amount > 999999), routed to adyen via defaultSelection
       it("payment-routing-test", () => {
+        globalState.set("connectorId", "adyen");
+        globalState.set("merchantConnectorId", globalState.get("adyenMcaId"));
         const data =
           utils.getConnectorDetails("adyen")["card_pm"]["No3DSAutoCapture"];
 
