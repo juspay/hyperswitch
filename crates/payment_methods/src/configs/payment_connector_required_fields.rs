@@ -188,6 +188,10 @@ enum RequiredField {
     AchBankDebitRoutingNumber,
     AchBankDebitBankType(Vec<enums::BankType>),
     AchBankDebitBankAccountHolderName,
+    EftDebitOrderAccountNumber,
+    EftDebitOrderBankType(Vec<enums::BankType>),
+    EftDebitOrderBankAccountHolderName,
+    EftDebitOrderBankName,
     SepaBankDebitIban,
     BacsBankDebitAccountNumber,
     BacsBankDebitSortCode,
@@ -791,6 +795,50 @@ impl RequiredField {
                             .to_string(),
                     display_name: "bank_account_holder_name".to_string(),
                     field_type: FieldType::UserBankAccountHolderName,
+                    value: None,
+                },
+            ),
+            Self::EftDebitOrderAccountNumber => (
+                "payment_method_data.bank_debit.eft_debit_order.account_number".to_string(),
+                RequiredFieldInfo {
+                    required_field: "payment_method_data.bank_debit.eft_debit_order.account_number"
+                        .to_string(),
+                    display_name: "bank_account_number".to_string(),
+                    field_type: FieldType::UserBankAccountNumber,
+                    value: None,
+                },
+            ),
+            Self::EftDebitOrderBankType(bank_type) => (
+                "payment_method_data.bank_debit.eft_debit_order.bank_type".to_string(),
+                RequiredFieldInfo {
+                    required_field: "payment_method_data.bank_debit.eft_debit_order.bank_type"
+                        .to_string(),
+                    display_name: "bank_type".to_string(),
+                    field_type: FieldType::UserBankType {
+                        options: bank_type.iter().map(|bt| bt.to_string()).collect(),
+                    },
+                    value: None,
+                },
+            ),
+            Self::EftDebitOrderBankAccountHolderName => (
+                "payment_method_data.bank_debit.eft_debit_order.bank_account_holder_name"
+                    .to_string(),
+                RequiredFieldInfo {
+                    required_field:
+                        "payment_method_data.bank_debit.eft_debit_order.bank_account_holder_name"
+                            .to_string(),
+                    display_name: "bank_account_holder_name".to_string(),
+                    field_type: FieldType::UserBankAccountHolderName,
+                    value: None,
+                },
+            ),
+            Self::EftDebitOrderBankName => (
+                "payment_method_data.bank_debit.eft_debit_order.bank_name".to_string(),
+                RequiredFieldInfo {
+                    required_field: "payment_method_data.bank_debit.eft_debit_order.bank_name"
+                        .to_string(),
+                    display_name: "bank_name".to_string(),
+                    field_type: FieldType::UserBank,
                     value: None,
                 },
             ),
@@ -3701,6 +3749,26 @@ fn get_bank_debit_required_fields() -> HashMap<enums::PaymentMethodType, Connect
                     },
                 ),
             ]),
+        ),
+        (
+            enums::PaymentMethodType::EftDebitOrder,
+            connectors(vec![(
+                Connector::Sanlam,
+                RequiredFieldFinal {
+                    mandate: HashMap::new(),
+                    non_mandate: HashMap::new(),
+                    common: HashMap::from([
+                        RequiredField::EftDebitOrderAccountNumber.to_tuple(),
+                        RequiredField::EftDebitOrderBankName.to_tuple(),
+                        RequiredField::EftDebitOrderBankAccountHolderName.to_tuple(),
+                        RequiredField::EftDebitOrderBankType(vec![
+                            enums::BankType::Checking,
+                            enums::BankType::Savings,
+                        ])
+                        .to_tuple(),
+                    ]),
+                },
+            )]),
         ),
     ])
 }

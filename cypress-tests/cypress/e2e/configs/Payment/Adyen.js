@@ -918,6 +918,53 @@ export const connectorDetails = {
         },
       },
     },
+    ConnectorTestingData: {
+      Request: {
+        currency: "USD",
+        connector_metadata: {
+          adyen: {
+            testing: {
+              holder_name: "Test Holder Name Override",
+            },
+          },
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+        },
+      },
+    },
+    ConnectorTestingDataConfirm: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: {
+            card_number: "4111111111111111",
+            card_exp_month: "12",
+            card_exp_year: "2030",
+            card_cvc: "123",
+            card_holder_name: "Original Card Holder",
+          },
+        },
+        connector_metadata: {
+          adyen: {
+            testing: {
+              holder_name: "Test Holder Name Override",
+            },
+          },
+        },
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "failed",
+        },
+      },
+    },
   },
   bank_transfer_pm: {
     Pix: {

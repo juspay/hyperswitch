@@ -2570,6 +2570,7 @@ pub enum PaymentMethodDataType {
     OnlineBankingFpx,
     OnlineBankingThailand,
     AchBankDebit,
+    EftDebitOrder,
     SepaBankDebit,
     SepaGuarenteedDebit,
     BecsBankDebit,
