@@ -1831,6 +1831,7 @@ impl From<PaymentMethodType> for PaymentMethod {
             PaymentMethodType::Fps => Self::RealTimePayment,
             PaymentMethodType::DuitNow => Self::RealTimePayment,
             PaymentMethodType::Eft => Self::BankRedirect,
+            PaymentMethodType::EftDebitOrder => Self::BankDebit,
             PaymentMethodType::Eps => Self::BankRedirect,
             PaymentMethodType::Evoucher => Self::Reward,
             PaymentMethodType::Giropay => Self::BankRedirect,
