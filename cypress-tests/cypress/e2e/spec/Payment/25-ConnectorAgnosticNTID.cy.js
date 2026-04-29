@@ -140,11 +140,7 @@ describe("Connector Agnostic Tests", () => {
         ]["SaveCardUseNo3DSAutoCaptureOffSession"];
 
         cy.confirmCallTest(fixtures.confirmBody, data, true, globalState);
-        cy.then(() => {
-          const ntid = globalState.get("networkTransactionId");
-          expect(ntid, "network_transaction_id").to.exist;
-          expect(ntid, "network_transaction_id").to.not.be.empty;
-        });
+        cy.assertNetworkTransactionId(globalState);
 
         if (shouldContinue)
           shouldContinue = utils.should_continue_further(data);
@@ -333,11 +329,7 @@ describe("Connector Agnostic Tests", () => {
         ]["SaveCardUseNo3DSAutoCaptureOffSession"];
 
         cy.confirmCallTest(fixtures.confirmBody, data, true, globalState);
-        cy.then(() => {
-          const ntid = globalState.get("networkTransactionId");
-          expect(ntid, "network_transaction_id").to.exist;
-          expect(ntid, "network_transaction_id").to.not.be.empty;
-        });
+        cy.assertNetworkTransactionId(globalState);
 
         if (shouldContinue)
           shouldContinue = utils.should_continue_further(data);
@@ -514,11 +506,7 @@ describe("Connector Agnostic Tests", () => {
         ]["SaveCardUseNo3DSAutoCaptureOffSession"];
 
         cy.confirmCallTest(fixtures.confirmBody, data, true, globalState);
-        cy.then(() => {
-          const ntid = globalState.get("networkTransactionId");
-          expect(ntid, "network_transaction_id").to.exist;
-          expect(ntid, "network_transaction_id").to.not.be.empty;
-        });
+        cy.assertNetworkTransactionId(globalState);
 
         if (shouldContinue)
           shouldContinue = utils.should_continue_further(data);
@@ -694,11 +682,7 @@ describe("Connector Agnostic Tests", () => {
       ]["SaveCardUseNo3DSAutoCaptureOffSession"];
 
       cy.confirmCallTest(fixtures.confirmBody, data, true, globalState);
-      cy.then(() => {
-        const ntid = globalState.get("networkTransactionId");
-        expect(ntid, "network_transaction_id").to.exist;
-        expect(ntid, "network_transaction_id").to.not.be.empty;
-      });
+      cy.assertNetworkTransactionId(globalState);
 
       if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
