@@ -50,8 +50,9 @@ pub struct RedisSettings {
     pub auto_pipeline: bool,
     pub disable_auto_backpressure: bool,
     /// Maximum number of in-flight commands before backpressure is applied.
-    /// Passed to `ConnectionManagerConfig::set_response_timeout` indirectly via command timeout.
-    pub max_in_flight_commands: u64,
+    /// Set to 0 to disable. Passed to `ConnectionManagerConfig::set_pipeline_buffer_size`
+    /// or `ClusterClientBuilder::connection_concurrency_limit`.
+    pub max_in_flight_commands: usize,
     /// Command timeout in seconds. Passed to `ConnectionManagerConfig::set_response_timeout`.
     pub default_command_timeout: u64,
     pub max_feed_count: u64,
@@ -60,7 +61,7 @@ pub struct RedisSettings {
     /// Capacity of the broadcast channel used for pub/sub message distribution.
     pub broadcast_channel_capacity: usize,
     /// Maximum duration (in seconds) that Redis can be unreachable before the server shuts down.
-    pub max_failure_threshold: u32,
+    pub max_failure_threshold_seconds: u32,
 }
 
 impl RedisSettings {
@@ -85,10 +86,124 @@ impl RedisSettings {
             || {
                 Err(errors::RedisError::InvalidConfiguration(
                     "Unresponsive timeout cannot be greater than the command timeout".into(),
-                )
-                .into())
+                ))
             },
-        )
+        )?;
+
+        when(
+            self.unresponsive_check_interval > self.max_failure_threshold_seconds.into(),
+            || {
+                Err(errors::RedisError::InvalidConfiguration(
+                    "Unresponsive check interval cannot be greater than the max failure threshold"
+                        .into(),
+                ))
+            },
+        )?;
+
+        Ok(())
+    }
+
+    // ── Connection-building helpers ────────────────────────────────────────
+
+    /// Normalize cluster URLs by prepending `"redis://"` if the scheme is missing.
+    #[cfg(feature = "redis-rs")]
+    pub fn normalize_cluster_urls(&self) -> Vec<String> {
+        self.cluster_urls
+            .iter()
+            .map(|url| {
+                if url.starts_with("redis://") {
+                    url.clone()
+                } else {
+                    format!("redis://{url}")
+                }
+            })
+            .collect()
+    }
+
+    /// Convert `max_in_flight_commands` to `Option<usize>`.
+    ///
+    /// Returns `None` when `max_in_flight_commands` is 0 (feature disabled).
+    #[cfg(feature = "redis-rs")]
+    pub fn max_in_flight_commands_as_usize(&self) -> Option<usize> {
+        (self.max_in_flight_commands > 0).then_some(self.max_in_flight_commands)
+    }
+
+    /// Convert `reconnect_max_attempts` to `usize`.
+    ///
+    /// Logs a warning and falls back to [`crate::constant::redis_rs_commands::DEFAULT_RECONNECT_MAX_ATTEMPTS`]
+    /// when the value overflows.
+    #[cfg(feature = "redis-rs")]
+    pub fn reconnect_max_attempts_as_usize(&self) -> usize {
+        usize::try_from(self.reconnect_max_attempts).unwrap_or_else(|_| {
+            tracing::warn!(
+                "reconnect_max_attempts ({}) exceeds usize, using default ({})",
+                self.reconnect_max_attempts,
+                crate::constant::redis_rs_commands::DEFAULT_RECONNECT_MAX_ATTEMPTS
+            );
+            crate::constant::redis_rs_commands::DEFAULT_RECONNECT_MAX_ATTEMPTS
+        })
+    }
+
+    /// Build a standalone [`redis::ConnectionInfo`] with RESP3 protocol from host and port.
+    #[cfg(feature = "redis-rs")]
+    pub fn build_standalone_connection_info(
+        &self,
+    ) -> CustomResult<redis::ConnectionInfo, errors::RedisError> {
+        use error_stack::ResultExt;
+        use redis::IntoConnectionInfo;
+
+        let connection_url = format!("redis://{}:{}", self.host, self.port);
+        let mut connection_info = connection_url
+            .as_str()
+            .into_connection_info()
+            .change_context(errors::RedisError::RedisConnectionError)?;
+
+        let redis_settings = connection_info
+            .redis_settings()
+            .clone()
+            .set_protocol(redis::ProtocolVersion::RESP3);
+        connection_info = connection_info.set_redis_settings(redis_settings);
+
+        Ok(connection_info)
+    }
+
+    /// Build the base [`redis::aio::ConnectionManagerConfig`] from these settings.
+    ///
+    /// Sets reconnection retries, minimum delay, and optional response timeout.
+    /// Callers can further customize (e.g. `set_pipeline_buffer_size`) before use.
+    #[cfg(feature = "redis-rs")]
+    pub fn build_connection_manager_config(&self) -> redis::aio::ConnectionManagerConfig {
+        let mut config = redis::aio::ConnectionManagerConfig::new()
+            .set_number_of_retries(self.reconnect_max_attempts_as_usize())
+            .set_min_delay(std::time::Duration::from_millis(u64::from(
+                self.reconnect_delay,
+            )));
+
+        if self.default_command_timeout > 0 {
+            config = config.set_response_timeout(Some(std::time::Duration::from_secs(
+                self.default_command_timeout,
+            )));
+        }
+
+        config
+    }
+
+    /// Build a base [`redis::cluster::ClusterClientBuilder`] with common configuration.
+    ///
+    /// Sets retries, retry wait, response timeout, and RESP3 protocol.
+    /// Callers can further customize (e.g. `push_sender`, `connection_concurrency_limit`).
+    #[cfg(feature = "redis-rs")]
+    pub fn build_cluster_client_builder(
+        &self,
+        nodes: Vec<String>,
+    ) -> redis::cluster::ClusterClientBuilder {
+        redis::cluster::ClusterClient::builder(nodes)
+            .retries(self.reconnect_max_attempts)
+            .min_retry_wait(u64::from(self.reconnect_delay))
+            .response_timeout(std::time::Duration::from_secs(
+                self.default_command_timeout.max(1),
+            ))
+            .use_protocol(redis::ProtocolVersion::RESP3)
     }
 }
 
@@ -114,7 +229,7 @@ impl Default for RedisSettings {
             unresponsive_timeout: 10,
             unresponsive_check_interval: 2,
             broadcast_channel_capacity: 32,
-            max_failure_threshold: 5,
+            max_failure_threshold_seconds: 5,
         }
     }
 }
@@ -339,7 +454,7 @@ mod tests {
         assert_eq!(settings.default_ttl, 300);
         assert_eq!(settings.default_hash_ttl, 900);
         assert_eq!(settings.broadcast_channel_capacity, 32);
-        assert_eq!(settings.max_failure_threshold, 5);
+        assert_eq!(settings.max_failure_threshold_seconds, 5);
     }
 
     #[test]

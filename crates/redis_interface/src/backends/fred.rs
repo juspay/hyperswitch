@@ -189,7 +189,7 @@ impl RedisConnectionPool {
             max_feed_count: conf.max_feed_count,
             backpressure: fred::types::BackpressureConfig {
                 disable_auto_backpressure: conf.disable_auto_backpressure,
-                max_in_flight_commands: conf.max_in_flight_commands,
+                max_in_flight_commands: conf.max_in_flight_commands as u64,
                 policy: fred::types::BackpressurePolicy::Drain,
             },
             broadcast_channel_capacity: conf.broadcast_channel_capacity,
@@ -313,9 +313,9 @@ pub struct RedisConfig {
     pub(crate) unresponsive_timeout: u64,
     #[allow(dead_code)]
     pub(crate) unresponsive_check_interval: u64,
-    // max_failure_threshold is present in RedisSettings but not used by fred-rs
+    // max_failure_threshold_seconds is present in RedisSettings but not used by fred-rs
     #[allow(dead_code)]
-    pub(crate) max_failure_threshold: u32,
+    pub(crate) max_failure_threshold_seconds: u32,
 }
 
 impl From<&crate::types::RedisSettings> for RedisConfig {
@@ -327,7 +327,7 @@ impl From<&crate::types::RedisSettings> for RedisConfig {
             cluster_enabled: config.cluster_enabled,
             unresponsive_timeout: config.unresponsive_timeout,
             unresponsive_check_interval: config.unresponsive_check_interval,
-            max_failure_threshold: config.max_failure_threshold,
+            max_failure_threshold_seconds: config.max_failure_threshold_seconds,
         }
     }
 }

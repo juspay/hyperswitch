@@ -23,19 +23,46 @@ impl RedisValue {
         }
     }
 
+    /// Extract bytes from the underlying redis value.
+    ///
+    /// Returns `Some` for string-like variants (`BulkString`, `SimpleString`,
+    /// `VerbatimString`) and `None` for all others.
     pub fn as_bytes(&self) -> Option<&[u8]> {
         match &self.inner {
             redis::Value::BulkString(bytes) => Some(bytes.as_slice()),
-            redis::Value::SimpleString(s) => Some(s.as_bytes()),
-            _ => None,
+            redis::Value::SimpleString(string) => Some(string.as_bytes()),
+            redis::Value::VerbatimString { text, .. } => Some(text.as_bytes()),
+            other => {
+                tracing::debug!(
+                    ?other,
+                    "as_bytes() called on non-string RedisValue variant, returning None"
+                );
+                None
+            }
         }
     }
 
+    /// Convert to string if the value has a meaningful string representation.
+    ///
+    /// Returns `Some` for string-like and scalar variants, `None` for aggregates
+    /// and `Nil`.
     pub fn as_string(&self) -> Option<String> {
         match &self.inner {
             redis::Value::BulkString(bytes) => String::from_utf8(bytes.clone()).ok(),
-            redis::Value::SimpleString(s) => Some(s.clone()),
-            _ => None,
+            redis::Value::SimpleString(string) => Some(string.clone()),
+            redis::Value::VerbatimString { text, .. } => Some(text.clone()),
+            redis::Value::Int(integer) => Some(integer.to_string()),
+            redis::Value::Double(double) => Some(double.to_string()),
+            redis::Value::Boolean(boolean) => Some(boolean.to_string()),
+            redis::Value::Okay => Some("OK".to_string()),
+            redis::Value::BigNumber(ref big_number) => Some(big_number.to_string()),
+            other => {
+                tracing::debug!(
+                    ?other,
+                    "as_string() called on non-string RedisValue variant, returning None"
+                );
+                None
+            }
         }
     }
 
@@ -64,8 +91,44 @@ impl redis::ToRedisArgs for RedisValue {
     {
         match &self.inner {
             redis::Value::BulkString(bytes) => bytes.write_redis_args(out),
-            redis::Value::SimpleString(s) => s.write_redis_args(out),
-            _ => Vec::<u8>::new().write_redis_args(out),
+            redis::Value::SimpleString(string) => string.write_redis_args(out),
+            redis::Value::VerbatimString { text, .. } => text.write_redis_args(out),
+            redis::Value::Int(integer) => integer.write_redis_args(out),
+            redis::Value::Double(double) => double.to_string().write_redis_args(out),
+            redis::Value::Boolean(boolean) => {
+                (if *boolean { 1i64 } else { 0i64 }).write_redis_args(out)
+            }
+            redis::Value::Okay => "OK".write_redis_args(out),
+            redis::Value::BigNumber(ref big_number) => big_number.to_string().write_redis_args(out),
+            redis::Value::Nil => {
+                // Nil cannot be meaningfully represented as a Redis command argument.
+                // Writing empty bytes would turn "null" into "empty string", which
+                // are semantically different. Skip the write so Redis sees a missing
+                // argument rather than an empty one.
+                tracing::warn!("Attempted to write Nil as a Redis command argument — skipping");
+            }
+            // Aggregate and error types cannot be serialized as a single Redis argument.
+            // These variants are only expected in Redis *responses*, not as command
+            // arguments. Writing empty bytes would silently corrupt data.
+            redis::Value::Array(_)
+            | redis::Value::Map(_)
+            | redis::Value::Set(_)
+            | redis::Value::Attribute { .. }
+            | redis::Value::Push { .. }
+            | redis::Value::ServerError(_) => {
+                tracing::warn!(
+                    variant = ?self.inner,
+                    "Attempted to write an aggregate/error Redis value as a command argument — skipping. \
+                     Aggregate types (Array, Map, Set, etc.) should not be used as command arguments."
+                );
+            }
+            // Catch-all for future variants added to the non-exhaustive enum
+            _ => {
+                tracing::warn!(
+                    variant = ?self.inner,
+                    "Attempted to write an unknown Redis value as a command argument — skipping"
+                );
+            }
         }
     }
 }
@@ -88,9 +151,9 @@ impl redis::ToRedisArgs for RedisEntryId {
 impl redis::FromRedisValue for SetnxReply {
     fn from_redis_value(v: redis::Value) -> Result<Self, redis::ParsingError> {
         match v {
+            // SET NX returns Okay on success
             redis::Value::Okay => Ok(Self::KeySet),
-            redis::Value::SimpleString(ref s) if s == "OK" => Ok(Self::KeySet),
-            redis::Value::BulkString(ref s) if s == b"OK" => Ok(Self::KeySet),
+            // Returns Nil if key already exists
             redis::Value::Nil => Ok(Self::KeyNotSet),
             _ => {
                 tracing::error!(received = ?v, "Unexpected SETNX command reply from Redis");
@@ -170,11 +233,31 @@ impl redis::FromRedisValue for SaddReply {
 // ─── Redis-rs-specific helpers ───────────────────────────────────────────────
 
 /// Converts a `redis::Value` to `Option<String>`.
+///
+/// - String-like variants (`BulkString`, `SimpleString`, `VerbatimString`) → decoded string
+/// - Scalar variants (`Int`, `Double`, `Boolean`, `Okay`, `BigNumber`) → string representation
+/// - `Nil` and aggregate types (`Array`, `Map`, `Set`, `Attribute`, `Push`, `ServerError`) → `None`
 pub fn redis_value_to_option_string(v: &redis::Value) -> Option<String> {
     match v {
-        redis::Value::BulkString(bytes) => std::str::from_utf8(bytes).ok().map(|s| s.to_string()),
-        redis::Value::SimpleString(s) => Some(s.clone()),
-        redis::Value::Int(i) => Some(i.to_string()),
+        redis::Value::BulkString(bytes) => std::str::from_utf8(bytes)
+            .ok()
+            .map(|utf8_str| utf8_str.to_string()),
+        redis::Value::SimpleString(string) => Some(string.clone()),
+        redis::Value::VerbatimString { text, .. } => Some(text.clone()),
+        redis::Value::Int(integer) => Some(integer.to_string()),
+        redis::Value::Double(double) => Some(double.to_string()),
+        redis::Value::Boolean(boolean) => Some(boolean.to_string()),
+        redis::Value::Okay => Some("OK".to_string()),
+        redis::Value::BigNumber(ref big_number) => Some(big_number.to_string()),
+        // Nil and aggregate types have no meaningful single-string representation
+        redis::Value::Nil
+        | redis::Value::Array(_)
+        | redis::Value::Map(_)
+        | redis::Value::Set(_)
+        | redis::Value::Attribute { .. }
+        | redis::Value::Push { .. }
+        | redis::Value::ServerError(_) => None,
+        // Catch-all for future variants added to the non-exhaustive enum
         _ => None,
     }
 }
@@ -218,8 +301,57 @@ mod tests {
     }
 
     #[test]
+    fn test_redis_value_as_bytes_verbatim_string() {
+        let rv = RedisValue::new(redis::Value::VerbatimString {
+            format: redis::VerbatimFormat::Text,
+            text: "verbatim content".to_string(),
+        });
+        assert_eq!(rv.as_bytes(), Some(b"verbatim content".as_slice()));
+    }
+
+    #[test]
     fn test_redis_value_as_string_non_string() {
-        let rv = RedisValue::new(redis::Value::Int(7));
+        // Int now returns Some — aggregates like Array still return None
+        let rv = RedisValue::new(redis::Value::Array(vec![]));
+        assert!(rv.as_string().is_none());
+    }
+
+    #[test]
+    fn test_redis_value_as_string_int() {
+        let rv = RedisValue::new(redis::Value::Int(42));
+        assert_eq!(rv.as_string(), Some("42".to_string()));
+    }
+
+    #[test]
+    fn test_redis_value_as_string_double() {
+        let rv = RedisValue::new(redis::Value::Double(1.5));
+        assert_eq!(rv.as_string(), Some("1.5".to_string()));
+    }
+
+    #[test]
+    fn test_redis_value_as_string_boolean() {
+        let rv = RedisValue::new(redis::Value::Boolean(true));
+        assert_eq!(rv.as_string(), Some("true".to_string()));
+    }
+
+    #[test]
+    fn test_redis_value_as_string_verbatim_string() {
+        let rv = RedisValue::new(redis::Value::VerbatimString {
+            format: redis::VerbatimFormat::Text,
+            text: "hello verbatim".to_string(),
+        });
+        assert_eq!(rv.as_string(), Some("hello verbatim".to_string()));
+    }
+
+    #[test]
+    fn test_redis_value_as_string_okay() {
+        let rv = RedisValue::new(redis::Value::Okay);
+        assert_eq!(rv.as_string(), Some("OK".to_string()));
+    }
+
+    #[test]
+    fn test_redis_value_as_string_nil() {
+        let rv = RedisValue::new(redis::Value::Nil);
         assert!(rv.as_string().is_none());
     }
 
@@ -240,11 +372,81 @@ mod tests {
     }
 
     #[test]
-    fn test_redis_value_to_redis_args_non_string_fallback() {
+    fn test_redis_value_to_redis_args_int() {
         let value = RedisValue::new(redis::Value::Int(42));
         let mut args = Vec::new();
         redis::ToRedisArgs::write_redis_args(&value, &mut args);
-        assert_eq!(args, vec![b"".as_slice()]);
+        assert_eq!(args, vec![b"42".as_slice()]);
+    }
+
+    #[test]
+    fn test_redis_value_to_redis_args_double() {
+        let value = RedisValue::new(redis::Value::Double(1.5));
+        let mut args = Vec::new();
+        redis::ToRedisArgs::write_redis_args(&value, &mut args);
+        assert_eq!(args, vec![b"1.5".as_slice()]);
+    }
+
+    #[test]
+    fn test_redis_value_to_redis_args_boolean_true() {
+        let value = RedisValue::new(redis::Value::Boolean(true));
+        let mut args = Vec::new();
+        redis::ToRedisArgs::write_redis_args(&value, &mut args);
+        assert_eq!(args, vec![b"1".as_slice()]);
+    }
+
+    #[test]
+    fn test_redis_value_to_redis_args_boolean_false() {
+        let value = RedisValue::new(redis::Value::Boolean(false));
+        let mut args = Vec::new();
+        redis::ToRedisArgs::write_redis_args(&value, &mut args);
+        assert_eq!(args, vec![b"0".as_slice()]);
+    }
+
+    #[test]
+    fn test_redis_value_to_redis_args_verbatim_string() {
+        let value = RedisValue::new(redis::Value::VerbatimString {
+            format: redis::VerbatimFormat::Text,
+            text: "verbatim".to_string(),
+        });
+        let mut args = Vec::new();
+        redis::ToRedisArgs::write_redis_args(&value, &mut args);
+        assert_eq!(args, vec![b"verbatim".as_slice()]);
+    }
+
+    #[test]
+    fn test_redis_value_to_redis_args_okay() {
+        let value = RedisValue::new(redis::Value::Okay);
+        let mut args = Vec::new();
+        redis::ToRedisArgs::write_redis_args(&value, &mut args);
+        assert_eq!(args, vec![b"OK".as_slice()]);
+    }
+
+    #[test]
+    fn test_redis_value_to_redis_args_nil_skips() {
+        // Nil should not write any arguments (skip), not empty bytes
+        let value = RedisValue::new(redis::Value::Nil);
+        let mut args = Vec::new();
+        redis::ToRedisArgs::write_redis_args(&value, &mut args);
+        assert!(
+            args.is_empty(),
+            "Nil should produce no arguments, got {args:?}"
+        );
+    }
+
+    #[test]
+    fn test_redis_value_to_redis_args_array_skips() {
+        // Aggregate types should not write any arguments (skip)
+        let value = RedisValue::new(redis::Value::Array(vec![
+            redis::Value::Int(1),
+            redis::Value::Int(2),
+        ]));
+        let mut args = Vec::new();
+        redis::ToRedisArgs::write_redis_args(&value, &mut args);
+        assert!(
+            args.is_empty(),
+            "Array should produce no arguments, got {args:?}"
+        );
     }
 
     #[test]
@@ -321,6 +523,53 @@ mod tests {
             super::redis_value_to_option_string(&redis::Value::Nil),
             None
         );
+    }
+
+    #[test]
+    fn test_redis_value_to_option_string_verbatim_string() {
+        let value = redis::Value::VerbatimString {
+            format: redis::VerbatimFormat::Text,
+            text: "hello verbatim".to_string(),
+        };
+        assert_eq!(
+            super::redis_value_to_option_string(&value),
+            Some("hello verbatim".to_string())
+        );
+    }
+
+    #[test]
+    fn test_redis_value_to_option_string_double() {
+        let value = redis::Value::Double(2.5);
+        assert_eq!(
+            super::redis_value_to_option_string(&value),
+            Some("2.5".to_string())
+        );
+    }
+
+    #[test]
+    fn test_redis_value_to_option_string_boolean() {
+        assert_eq!(
+            super::redis_value_to_option_string(&redis::Value::Boolean(true)),
+            Some("true".to_string())
+        );
+        assert_eq!(
+            super::redis_value_to_option_string(&redis::Value::Boolean(false)),
+            Some("false".to_string())
+        );
+    }
+
+    #[test]
+    fn test_redis_value_to_option_string_okay() {
+        assert_eq!(
+            super::redis_value_to_option_string(&redis::Value::Okay),
+            Some("OK".to_string())
+        );
+    }
+
+    #[test]
+    fn test_redis_value_to_option_string_array_returns_none() {
+        let value = redis::Value::Array(vec![redis::Value::Int(1)]);
+        assert_eq!(super::redis_value_to_option_string(&value), None);
     }
 
     #[test]

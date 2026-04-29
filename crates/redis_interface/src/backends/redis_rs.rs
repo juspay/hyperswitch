@@ -10,7 +10,7 @@ use std::sync::{atomic, Arc};
 
 use common_utils::errors::CustomResult;
 use error_stack::ResultExt;
-use redis::{AsyncCommands, IntoConnectionInfo};
+use redis::AsyncCommands;
 use tracing::Instrument;
 
 // ─── Cluster abstraction ────────────────────────────────────────────────────
@@ -85,11 +85,83 @@ pub struct PubSubMessage {
     pub value: crate::types::RedisValue,
 }
 
+impl PubSubMessage {
+    /// Attempts to extract a [`PubSubMessage`] from a RESP3 push info.
+    ///
+    /// Returns `None` if the push kind is not `Message`, or if the
+    /// channel name or payload cannot be extracted from the data.
+    fn from_push_info(push_info: &redis::PushInfo) -> Option<Self> {
+        if push_info.kind != redis::PushKind::Message {
+            return None;
+        }
+
+        // RESP3 pub/sub message format:
+        //   data[0] = channel name (string)
+        //   data[1] = message payload (any Value)
+        let channel_value = push_info.data.first()?;
+        let channel = match channel_value {
+            redis::Value::BulkString(bytes) => String::from_utf8_lossy(bytes).into_owned(),
+            redis::Value::SimpleString(string) => string.clone(),
+            redis::Value::VerbatimString { text, .. } => text.clone(),
+            // Non-string variants are not valid channel names in the RESP3
+            // pub/sub protocol. Reject the message rather than fabricating
+            // a default channel name.
+            redis::Value::Nil
+            | redis::Value::Int(_)
+            | redis::Value::Okay
+            | redis::Value::Double(_)
+            | redis::Value::Boolean(_)
+            | redis::Value::BigNumber(_)
+            | redis::Value::Array(_)
+            | redis::Value::Map(_)
+            | redis::Value::Set(_)
+            | redis::Value::Attribute { .. }
+            | redis::Value::Push { .. }
+            | redis::Value::ServerError(_) => {
+                tracing::warn!(
+                    ?channel_value,
+                    "Pub/sub channel name is not a string variant — malformed push data"
+                );
+                return None;
+            }
+            // Catch-all for future variants added to the non-exhaustive enum
+            _ => {
+                tracing::warn!(
+                    ?channel_value,
+                    "Unknown Value variant in pub/sub channel name — malformed push data"
+                );
+                return None;
+            }
+        };
+
+        if channel.is_empty() {
+            tracing::warn!("Pub/sub channel name is empty — malformed push data");
+            return None;
+        }
+
+        let payload = match push_info.data.get(1) {
+            Some(value) => value.clone(),
+            None => {
+                tracing::warn!(
+                    ?push_info,
+                    "Pub/sub message has no payload — malformed push data"
+                );
+                return None;
+            }
+        };
+
+        Some(Self {
+            channel,
+            value: crate::types::RedisValue::new(payload),
+        })
+    }
+}
+
 impl SubscriberClient {
     pub(crate) async fn new(
         conf: &crate::types::RedisSettings,
     ) -> CustomResult<Self, crate::errors::RedisError> {
-        let (push_sender, _) =
+        let (push_sender, push_receiver) =
             tokio::sync::broadcast::channel::<redis::PushInfo>(conf.broadcast_channel_capacity);
 
         let connection = match conf.cluster_enabled {
@@ -100,9 +172,7 @@ impl SubscriberClient {
         let (broadcast_sender, _) =
             tokio::sync::broadcast::channel(conf.broadcast_channel_capacity);
 
-        tokio::spawn(
-            Self::run(push_sender.subscribe(), broadcast_sender.clone()).in_current_span(),
-        );
+        tokio::spawn(Self::run(push_receiver, broadcast_sender.clone()).in_current_span());
 
         Ok(Self {
             connection,
@@ -115,22 +185,13 @@ impl SubscriberClient {
         conf: &crate::types::RedisSettings,
         push_sender: tokio::sync::broadcast::Sender<redis::PushInfo>,
     ) -> CustomResult<SubscriberBackend, crate::errors::RedisError> {
-        let connection_url = format!("redis://{}:{}", conf.host, conf.port);
-        let mut connection_info = connection_url
-            .as_str()
-            .into_connection_info()
-            .change_context(crate::errors::RedisError::RedisConnectionError)?;
-
-        let redis_settings = connection_info
-            .redis_settings()
-            .clone()
-            .set_protocol(redis::ProtocolVersion::RESP3);
-        connection_info = connection_info.set_redis_settings(redis_settings);
+        let connection_info = conf.build_standalone_connection_info()?;
 
         let redis_client = redis::Client::open(connection_info)
             .change_context(crate::errors::RedisError::RedisConnectionError)?;
 
-        let config = Self::build_connection_manager_config(conf)
+        let config = conf
+            .build_connection_manager_config()
             .set_push_sender(push_sender)
             .set_automatic_resubscription();
 
@@ -151,35 +212,13 @@ impl SubscriberClient {
         conf: &crate::types::RedisSettings,
         push_sender: tokio::sync::broadcast::Sender<redis::PushInfo>,
     ) -> CustomResult<SubscriberBackend, crate::errors::RedisError> {
-        let nodes: Vec<String> = conf
-            .cluster_urls
-            .iter()
-            .map(|url| {
-                if url.starts_with("redis://") {
-                    url.clone()
-                } else {
-                    format!("redis://{url}")
-                }
-            })
-            .collect();
+        let nodes = conf.normalize_cluster_urls();
 
-        let mut cluster_builder = redis::cluster::ClusterClient::builder(nodes)
-            .use_protocol(redis::ProtocolVersion::RESP3)
-            .push_sender(push_sender)
-            .retries(conf.reconnect_max_attempts)
-            .min_retry_wait(u64::from(conf.reconnect_delay))
-            .response_timeout(std::time::Duration::from_secs(
-                conf.default_command_timeout.max(1),
-            ));
+        let mut cluster_builder = conf
+            .build_cluster_client_builder(nodes)
+            .push_sender(push_sender);
 
-        if conf.max_in_flight_commands > 0 {
-            let limit = usize::try_from(conf.max_in_flight_commands).unwrap_or_else(|_| {
-                tracing::warn!(
-                    "max_in_flight_commands ({}) exceeds usize, using usize::MAX",
-                    conf.max_in_flight_commands
-                );
-                usize::MAX
-            });
+        if let Some(limit) = conf.max_in_flight_commands_as_usize() {
             cluster_builder = cluster_builder.connection_concurrency_limit(limit);
         }
 
@@ -193,34 +232,6 @@ impl SubscriberClient {
         Ok(SubscriberBackend::Cluster {
             connection: tokio::sync::Mutex::new(connection),
         })
-    }
-
-    fn build_connection_manager_config(
-        conf: &crate::types::RedisSettings,
-    ) -> redis::aio::ConnectionManagerConfig {
-        let reconnection_retries =
-            usize::try_from(conf.reconnect_max_attempts).unwrap_or_else(|_| {
-                tracing::warn!(
-                    "reconnect_max_attempts ({}) exceeds usize, using default ({})",
-                    conf.reconnect_max_attempts,
-                    crate::constant::DEFAULT_RECONNECT_MAX_ATTEMPTS
-                );
-                crate::constant::DEFAULT_RECONNECT_MAX_ATTEMPTS
-            });
-
-        let mut config = redis::aio::ConnectionManagerConfig::new()
-            .set_number_of_retries(reconnection_retries)
-            .set_min_delay(std::time::Duration::from_millis(u64::from(
-                conf.reconnect_delay,
-            )));
-
-        if conf.default_command_timeout > 0 {
-            config = config.set_response_timeout(Some(std::time::Duration::from_secs(
-                conf.default_command_timeout,
-            )));
-        }
-
-        config
     }
 
     pub async fn subscribe(&self, channel: &str) -> CustomResult<(), crate::errors::RedisError> {
@@ -281,40 +292,28 @@ impl SubscriberClient {
         }
     }
 
+    /// Parses a single push message and, if it is a pub/sub `Message`,
+    /// broadcasts it to all active receivers. Non-message push kinds
+    /// (e.g. `Subscribe`, `Unsubscribe`) are logged at trace level and ignored.
     fn handle_push_info(
         push_info: &redis::PushInfo,
         broadcast_sender: &tokio::sync::broadcast::Sender<PubSubMessage>,
     ) {
-        if push_info.kind != redis::PushKind::Message {
-            return;
-        }
-
-        let channel = push_info
-            .data
-            .first()
-            .map(|value| match value {
-                redis::Value::BulkString(bytes) => String::from_utf8_lossy(bytes).into_owned(),
-                redis::Value::SimpleString(s) => s.clone(),
-                other => {
-                    tracing::debug!(
-                        ?other,
-                        "Unexpected Value variant in push message channel name"
+        match PubSubMessage::from_push_info(push_info) {
+            Some(msg) => {
+                if let Err(error) = broadcast_sender.send(msg) {
+                    tracing::error!(
+                        ?error,
+                        "Failed to broadcast pub/sub message — no active receivers"
                     );
-                    String::new()
                 }
-            })
-            .unwrap_or_default();
-
-        let payload = push_info.data.get(1).cloned().unwrap_or(redis::Value::Nil);
-
-        if let Err(error) = broadcast_sender.send(PubSubMessage {
-            channel,
-            value: crate::types::RedisValue::new(payload),
-        }) {
-            tracing::warn!(
-                ?error,
-                "Failed to broadcast pub/sub message — no active receivers"
-            );
+            }
+            None => {
+                tracing::warn!(
+                    kind = ?push_info.kind,
+                    "Ignoring non-message push kind"
+                );
+            }
         }
     }
 }
@@ -361,37 +360,13 @@ impl RedisConnectionPool {
     ) -> CustomResult<Self, crate::errors::RedisError> {
         let (pool, subscriber, publisher) = match conf.cluster_enabled {
             true => {
-                let nodes: Vec<String> = conf
-                    .cluster_urls
-                    .iter()
-                    .map(|url| {
-                        if url.starts_with("redis://") {
-                            url.clone()
-                        } else {
-                            format!("redis://{url}")
-                        }
-                    })
-                    .collect();
+                let nodes = conf.normalize_cluster_urls();
 
-                let mut pool_builder = redis::cluster::ClusterClient::builder(nodes.clone())
-                    .retries(conf.reconnect_max_attempts)
-                    .min_retry_wait(u64::from(conf.reconnect_delay))
-                    .response_timeout(std::time::Duration::from_secs(
-                        conf.default_command_timeout.max(1),
-                    ));
+                let mut pool_builder = conf.build_cluster_client_builder(nodes.clone());
 
-                if conf.max_in_flight_commands > 0 {
-                    let limit = usize::try_from(conf.max_in_flight_commands).unwrap_or_else(|_| {
-                        tracing::warn!(
-                            "max_in_flight_commands ({}) exceeds usize, using usize::MAX",
-                            conf.max_in_flight_commands
-                        );
-                        usize::MAX
-                    });
+                if let Some(limit) = conf.max_in_flight_commands_as_usize() {
                     pool_builder = pool_builder.connection_concurrency_limit(limit);
                 }
-
-                pool_builder = pool_builder.use_protocol(redis::ProtocolVersion::RESP3);
 
                 let pool_conn = pool_builder
                     .build()
@@ -414,14 +389,7 @@ impl RedisConnectionPool {
 
                 let pool = RedisConn::Cluster(pool_conn);
 
-                let mut publisher_builder = redis::cluster::ClusterClient::builder(nodes.clone())
-                    .retries(conf.reconnect_max_attempts)
-                    .min_retry_wait(u64::from(conf.reconnect_delay))
-                    .response_timeout(std::time::Duration::from_secs(
-                        conf.default_command_timeout.max(1),
-                    ));
-
-                publisher_builder = publisher_builder.use_protocol(redis::ProtocolVersion::RESP3);
+                let publisher_builder = conf.build_cluster_client_builder(nodes);
 
                 let publisher_conn = publisher_builder
                     .build()
@@ -449,18 +417,7 @@ impl RedisConnectionPool {
                 (pool, subscriber, publisher)
             }
             false => {
-                let redis_connection_url = format!("redis://{}:{}", conf.host, conf.port);
-
-                let mut connection_info = redis_connection_url
-                    .as_str()
-                    .into_connection_info()
-                    .change_context(crate::errors::RedisError::RedisConnectionError)?;
-
-                let redis_settings = connection_info
-                    .redis_settings()
-                    .clone()
-                    .set_protocol(redis::ProtocolVersion::RESP3);
-                connection_info = connection_info.set_redis_settings(redis_settings);
+                let connection_info = conf.build_standalone_connection_info()?;
 
                 let client = redis::Client::open(connection_info)
                     .change_context(crate::errors::RedisError::RedisConnectionError)
@@ -471,37 +428,10 @@ impl RedisConnectionPool {
                         )
                     })?;
 
-                let reconnection_retries = usize::try_from(conf.reconnect_max_attempts)
-                    .unwrap_or_else(|_| {
-                        tracing::warn!(
-                            "reconnect_max_attempts ({}) exceeds usize, using default (5)",
-                            conf.reconnect_max_attempts
-                        );
-                        5
-                    });
-                let reconnection_min_delay =
-                    std::time::Duration::from_millis(u64::from(conf.reconnect_delay));
+                let mut pool_config = conf.build_connection_manager_config();
 
-                let mut pool_config = redis::aio::ConnectionManagerConfig::new()
-                    .set_number_of_retries(reconnection_retries)
-                    .set_min_delay(reconnection_min_delay);
-
-                if conf.default_command_timeout > 0 {
-                    pool_config = pool_config.set_response_timeout(Some(
-                        std::time::Duration::from_secs(conf.default_command_timeout),
-                    ));
-                }
-
-                if conf.max_in_flight_commands > 0 {
-                    let pipeline_buffer_size = usize::try_from(conf.max_in_flight_commands)
-                        .unwrap_or_else(|_| {
-                            tracing::warn!(
-                                "max_in_flight_commands ({}) exceeds usize, using usize::MAX",
-                                conf.max_in_flight_commands
-                            );
-                            usize::MAX
-                        });
-                    pool_config = pool_config.set_pipeline_buffer_size(pipeline_buffer_size);
+                if let Some(buffer_size) = conf.max_in_flight_commands_as_usize() {
+                    pool_config = pool_config.set_pipeline_buffer_size(buffer_size);
                 }
 
                 let conn = redis::aio::ConnectionManager::new_with_config(client, pool_config)
@@ -513,16 +443,7 @@ impl RedisConnectionPool {
 
                 let pool = RedisConn::Standalone(conn);
 
-                let mut base_connection_info = redis_connection_url
-                    .as_str()
-                    .into_connection_info()
-                    .change_context(crate::errors::RedisError::RedisConnectionError)?;
-
-                let redis_settings = base_connection_info
-                    .redis_settings()
-                    .clone()
-                    .set_protocol(redis::ProtocolVersion::RESP3);
-                base_connection_info = base_connection_info.set_redis_settings(redis_settings);
+                let base_connection_info = conf.build_standalone_connection_info()?;
 
                 let base_client = redis::Client::open(base_connection_info)
                     .change_context(crate::errors::RedisError::RedisConnectionError)
@@ -575,11 +496,14 @@ impl RedisConnectionPool {
     }
 
     /// Monitor for connection errors.
-    /// When Redis is unreachable for longer than `max_failure_threshold` seconds,
+    /// When Redis is unreachable for longer than `max_failure_threshold_seconds` seconds,
     /// signals via the oneshot sender and marks redis as unavailable.
     pub async fn on_error(&self, tx: tokio::sync::oneshot::Sender<()>) {
-        let check_interval = self.config.unresponsive_check_interval.max(1);
-        let max_unreachable_secs = self.config.max_failure_threshold;
+        let check_interval = self
+            .config
+            .unresponsive_check_interval
+            .max(crate::constant::redis_rs_commands::MIN_ERROR_CHECK_INTERVAL_SECS);
+        let max_unreachable_secs = self.config.max_failure_threshold_seconds;
         let mut first_failure_at: Option<std::time::Instant> = None;
 
         loop {
@@ -630,37 +554,6 @@ impl RedisConnectionPool {
         }
     }
 
-    /// Monitor for unresponsive Redis servers by periodically sending PING
-    /// and logging warnings if the response is slow.
-    pub async fn on_unresponsive(&self) {
-        let check_interval = self.config.unresponsive_check_interval.max(2);
-        let max_timeout = self.config.unresponsive_timeout.max(5);
-
-        loop {
-            tokio::time::sleep(std::time::Duration::from_secs(check_interval)).await;
-            let mut conn = self.pool.clone();
-            let result = tokio::time::timeout(
-                std::time::Duration::from_secs(max_timeout),
-                conn.ping::<String>(),
-            )
-            .await;
-
-            match result {
-                Ok(Ok(_)) => {}
-                Ok(Err(e)) => {
-                    tracing::warn!(?e, "Redis PING failed");
-                }
-                Err(_) => {
-                    tracing::warn!("Redis server is unresponsive (PING timed out)");
-                }
-            }
-        }
-    }
-
-    /// Get an atomic pipeline for transaction support
-    pub fn get_pipeline(&self) -> redis::Pipeline {
-        redis::pipe().atomic().clone()
-    }
 }
 
 pub struct RedisConfig {
@@ -670,7 +563,7 @@ pub struct RedisConfig {
     pub(crate) cluster_enabled: bool,
     pub(crate) unresponsive_timeout: u64,
     pub(crate) unresponsive_check_interval: u64,
-    pub(crate) max_failure_threshold: u32,
+    pub(crate) max_failure_threshold_seconds: u32,
 }
 
 impl From<&crate::types::RedisSettings> for RedisConfig {
@@ -682,7 +575,7 @@ impl From<&crate::types::RedisSettings> for RedisConfig {
             cluster_enabled: config.cluster_enabled,
             unresponsive_timeout: config.unresponsive_timeout,
             unresponsive_check_interval: config.unresponsive_check_interval,
-            max_failure_threshold: config.max_failure_threshold,
+            max_failure_threshold_seconds: config.max_failure_threshold_seconds,
         }
     }
 }

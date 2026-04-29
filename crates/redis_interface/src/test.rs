@@ -1965,7 +1965,7 @@ async fn test_subscriber_unsubscribe() {
     assert!(is_success);
 }
 
-// ─── on_error / max_failure_threshold ─────────────────────────────────────────
+// ─── on_error / max_failure_threshold_seconds ─────────────────────────────────
 
 #[tokio::test]
 async fn test_on_error_triggers_shutdown_when_redis_unreachable() {
@@ -1973,7 +1973,7 @@ async fn test_on_error_triggers_shutdown_when_redis_unreachable() {
         host: "192.0.2.1".to_string(), // RFC 5737 test address, guaranteed unreachable
         port: 1,
         unresponsive_check_interval: 1,
-        max_failure_threshold: 2,
+        max_failure_threshold_seconds: 2,
         reconnect_max_attempts: 1,
         default_command_timeout: 1,
         ..RedisSettings::default()
@@ -2026,7 +2026,7 @@ async fn test_on_error_marks_unavailable_after_threshold() {
         host: "192.0.2.1".to_string(),
         port: 1,
         unresponsive_check_interval: 1,
-        max_failure_threshold: 2,
+        max_failure_threshold_seconds: 2,
         reconnect_max_attempts: 1,
         default_command_timeout: 1,
         ..RedisSettings::default()
