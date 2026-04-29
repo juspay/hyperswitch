@@ -281,6 +281,8 @@ impl ConnectorValidation for Adyen {
                 | PaymentMethodType::Oxxo
                 | PaymentMethodType::PaySafeCard
                 | PaymentMethodType::Pix
+                | PaymentMethodType::PixKey
+                | PaymentMethodType::PixEmv
                 | PaymentMethodType::Swish
                 | PaymentMethodType::TouchNGo
                 | PaymentMethodType::Trustly
@@ -329,6 +331,7 @@ impl ConnectorValidation for Adyen {
                 | PaymentMethodType::Przelewy24
                 | PaymentMethodType::Becs
                 | PaymentMethodType::Eft
+                | PaymentMethodType::EftDebitOrder
                 | PaymentMethodType::ClassicReward
                 | PaymentMethodType::Pse
                 | PaymentMethodType::LocalBankTransfer

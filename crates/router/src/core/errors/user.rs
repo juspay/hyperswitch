@@ -118,6 +118,14 @@ pub enum UserErrors {
     InvalidEmbeddedOperation(String),
     #[error("Invalid Platform Operation")]
     InvalidPlatformOperation,
+    #[error("MaxSavedViewsReached")]
+    MaxSavedViewsReached,
+    #[error("SavedViewNameAlreadyExists")]
+    SavedViewNameAlreadyExists,
+    #[error("SavedViewNotFound")]
+    SavedViewNotFound,
+    #[error("InvalidSavedViewName")]
+    InvalidSavedViewName,
 }
 
 impl common_utils::errors::ErrorSwitch<api_models::errors::types::ApiErrorResponse> for UserErrors {
@@ -308,6 +316,18 @@ impl common_utils::errors::ErrorSwitch<api_models::errors::types::ApiErrorRespon
             Self::InvalidPlatformOperation => {
                 AER::BadRequest(ApiError::new(sub_code, 61, self.get_error_message(), None))
             }
+            Self::MaxSavedViewsReached => {
+                AER::BadRequest(ApiError::new(sub_code, 62, self.get_error_message(), None))
+            }
+            Self::SavedViewNameAlreadyExists => {
+                AER::BadRequest(ApiError::new(sub_code, 63, self.get_error_message(), None))
+            }
+            Self::SavedViewNotFound => {
+                AER::NotFound(ApiError::new(sub_code, 64, self.get_error_message(), None))
+            }
+            Self::InvalidSavedViewName => {
+                AER::BadRequest(ApiError::new(sub_code, 65, self.get_error_message(), None))
+            }
         }
     }
 }
@@ -388,6 +408,16 @@ impl UserErrors {
                 format!("Invalid Embedded Operation: {error_message}")
             }
             Self::InvalidPlatformOperation => "Invalid Platform Operation".to_string(),
+            Self::MaxSavedViewsReached => {
+                "Maximum number of saved views reached (limit: 5)".to_string()
+            }
+            Self::SavedViewNameAlreadyExists => {
+                "A saved view with this name already exists".to_string()
+            }
+            Self::SavedViewNotFound => "Saved view not found".to_string(),
+            Self::InvalidSavedViewName => {
+                "The saved view name cannot be empty or contain only whitespace".to_string()
+            }
         }
     }
 }
