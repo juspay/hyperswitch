@@ -1341,40 +1341,15 @@ export const connectorDetails = {
       Request: {
         amount_to_capture: 6000,
       },
-    }),
-    Refund: getCustomExchange({
-      Request: {
-        amount: 6000,
-      },
       Response: {
-        status: 200,
+        status: 400,
         body: {
-          status: "pending",
-        },
-      },
-      ResponseCustom: {
-        status: 200,
-        body: {
-          status: "succeeded",
-        },
-      },
-    }),
-    PartialRefund: getCustomExchange({
-      Request: {
-        amount: 2000,
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "pending",
-        },
-      },
-    }),
-    SyncRefund: getCustomExchange({
-      Response: {
-        status: 200,
-        body: {
-          status: "succeeded",
+          error: {
+            type: "invalid_request",
+            code: "IR_14",
+            message:
+              "This Payment could not be captured because it has a payment.status of requires_customer_action. The expected state is requires_capture, partially_captured_and_capturable, processing",
+          },
         },
       },
     }),
