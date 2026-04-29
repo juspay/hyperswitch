@@ -13,8 +13,6 @@ use hyperswitch_domain_models::router_flow_types::PoCreate;
 #[cfg(feature = "payouts")]
 use hyperswitch_domain_models::types::{PayoutsResponseData, PayoutsRouterData};
 use hyperswitch_interfaces::errors::ConnectorError;
-#[cfg(feature = "payouts")]
-use hyperswitch_masking::ExposeInterface;
 use hyperswitch_masking::Secret;
 use serde::{Deserialize, Serialize};
 
@@ -48,7 +46,7 @@ pub struct EbanxPayoutCreateRequest {
     amount: FloatMajorUnit,
     currency: Currency,
     target: EbanxPayoutType,
-    target_account: Secret<String>,
+    target_account: Option<Secret<String>>,
     payee: EbanxPayoutDetails,
 }
 
@@ -68,7 +66,7 @@ pub struct EbanxPayoutDetails {
     email: Option<Email>,
     document: Option<Secret<String>>,
     document_type: Option<EbanxDocumentType>,
-    bank_info: EbanxBankDetails,
+    bank_info: Option<EbanxBankDetails>,
 }
 
 #[cfg(feature = "payouts")]
@@ -102,31 +100,16 @@ impl TryFrom<&EbanxRouterData<&PayoutsRouterData<PoCreate>>> for EbanxPayoutCrea
     fn try_from(item: &EbanxRouterData<&PayoutsRouterData<PoCreate>>) -> Result<Self, Self::Error> {
         let ebanx_auth_type = EbanxAuthType::try_from(&item.router_data.connector_auth_type)?;
         match item.router_data.get_payout_method_data()? {
-            PayoutMethodData::BankTransfer(BankTransfer::Pix(pix_data)) => {
-                let bank_info = EbanxBankDetails {
-                    bank_account: Some(pix_data.bank_account_number),
-                    bank_branch: pix_data.bank_branch,
-                    bank_name: pix_data.bank_name,
-                    account_type: Some(EbanxBankAccountType::CheckingAccount),
-                };
-
+            PayoutMethodData::BankTransfer(BankTransfer::PixKey(pix_data)) => {
                 let billing_address = item.router_data.get_billing_address()?;
                 let customer_details = item.router_data.request.get_customer_details()?;
-
-                let document_type = pix_data.tax_id.clone().map(|tax_id| {
-                    if tax_id.clone().expose().len() == 11 {
-                        EbanxDocumentType::NaturalPersonsRegister
-                    } else {
-                        EbanxDocumentType::NationalRegistryOfLegalEntities
-                    }
-                });
 
                 let payee = EbanxPayoutDetails {
                     name: billing_address.get_full_name()?,
                     email: customer_details.email.clone(),
-                    bank_info,
-                    document_type,
-                    document: pix_data.tax_id.to_owned(),
+                    bank_info: None,
+                    document_type: None,
+                    document: None,
                 };
                 Ok(Self {
                     amount: item.amount,
@@ -135,7 +118,7 @@ impl TryFrom<&EbanxRouterData<&PayoutsRouterData<PoCreate>>> for EbanxPayoutCrea
                     currency: item.router_data.request.source_currency,
                     external_reference: item.router_data.connector_request_reference_id.to_owned(),
                     target: EbanxPayoutType::PixKey,
-                    target_account: pix_data.pix_key,
+                    target_account: Some(pix_data.pix_key.to_owned()),
                     payee,
                 })
             }

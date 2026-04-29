@@ -15,15 +15,15 @@ pub trait FileMetadataInterface {
         file: storage::FileMetadataNew,
     ) -> CustomResult<storage::FileMetadata, errors::StorageError>;
 
-    async fn find_file_metadata_by_merchant_id_file_id(
+    async fn find_file_metadata_by_processor_merchant_id_file_id(
         &self,
-        merchant_id: &common_utils::id_type::MerchantId,
+        processor_merchant_id: &common_utils::id_type::MerchantId,
         file_id: &str,
     ) -> CustomResult<storage::FileMetadata, errors::StorageError>;
 
-    async fn delete_file_metadata_by_merchant_id_file_id(
+    async fn delete_file_metadata_by_processor_merchant_id_file_id(
         &self,
-        merchant_id: &common_utils::id_type::MerchantId,
+        processor_merchant_id: &common_utils::id_type::MerchantId,
         file_id: &str,
     ) -> CustomResult<bool, errors::StorageError>;
 
@@ -48,27 +48,77 @@ impl FileMetadataInterface for Store {
     }
 
     #[instrument(skip_all)]
-    async fn find_file_metadata_by_merchant_id_file_id(
+    async fn find_file_metadata_by_processor_merchant_id_file_id(
         &self,
-        merchant_id: &common_utils::id_type::MerchantId,
+        processor_merchant_id: &common_utils::id_type::MerchantId,
         file_id: &str,
     ) -> CustomResult<storage::FileMetadata, errors::StorageError> {
         let conn = connection::pg_connection_read(self).await?;
-        storage::FileMetadata::find_by_merchant_id_file_id(&conn, merchant_id, file_id)
-            .await
-            .map_err(|error| report!(errors::StorageError::from(error)))
+        // Stagger release fallback: first try processor_merchant_id, if not found fallback to merchant_id
+        // For old records processor_merchant_id is NULL, so we use merchant_id (which has the same value)
+        let result = storage::FileMetadata::find_by_processor_merchant_id_file_id(
+            &conn,
+            processor_merchant_id,
+            file_id,
+        )
+        .await;
+
+        match result {
+            Ok(file) => Ok(file),
+            Err(error) => {
+                if matches!(
+                    error.current_context(),
+                    diesel_models::errors::DatabaseError::NotFound
+                ) {
+                    storage::FileMetadata::find_by_merchant_id_file_id(
+                        &conn,
+                        processor_merchant_id,
+                        file_id,
+                    )
+                    .await
+                    .map_err(|error| report!(errors::StorageError::from(error)))
+                } else {
+                    Err(report!(errors::StorageError::from(error)))
+                }
+            }
+        }
     }
 
     #[instrument(skip_all)]
-    async fn delete_file_metadata_by_merchant_id_file_id(
+    async fn delete_file_metadata_by_processor_merchant_id_file_id(
         &self,
-        merchant_id: &common_utils::id_type::MerchantId,
+        processor_merchant_id: &common_utils::id_type::MerchantId,
         file_id: &str,
     ) -> CustomResult<bool, errors::StorageError> {
         let conn = connection::pg_connection_write(self).await?;
-        storage::FileMetadata::delete_by_merchant_id_file_id(&conn, merchant_id, file_id)
-            .await
-            .map_err(|error| report!(errors::StorageError::from(error)))
+        // Stagger release fallback: first try processor_merchant_id, if not found fallback to merchant_id
+        // For old records processor_merchant_id is NULL, so we use merchant_id (which has the same value)
+        let result = storage::FileMetadata::delete_by_processor_merchant_id_file_id(
+            &conn,
+            processor_merchant_id,
+            file_id,
+        )
+        .await;
+
+        match result {
+            Ok(success) => Ok(success),
+            Err(error) => {
+                if matches!(
+                    error.current_context(),
+                    diesel_models::errors::DatabaseError::NotFound
+                ) {
+                    storage::FileMetadata::delete_by_merchant_id_file_id(
+                        &conn,
+                        processor_merchant_id,
+                        file_id,
+                    )
+                    .await
+                    .map_err(|error| report!(errors::StorageError::from(error)))
+                } else {
+                    Err(report!(errors::StorageError::from(error)))
+                }
+            }
+        }
     }
 
     #[instrument(skip_all)]
@@ -94,18 +144,18 @@ impl FileMetadataInterface for MockDb {
         Err(errors::StorageError::MockDbError)?
     }
 
-    async fn find_file_metadata_by_merchant_id_file_id(
+    async fn find_file_metadata_by_processor_merchant_id_file_id(
         &self,
-        _merchant_id: &common_utils::id_type::MerchantId,
+        _processor_merchant_id: &common_utils::id_type::MerchantId,
         _file_id: &str,
     ) -> CustomResult<storage::FileMetadata, errors::StorageError> {
         // TODO: Implement function for `MockDb`
         Err(errors::StorageError::MockDbError)?
     }
 
-    async fn delete_file_metadata_by_merchant_id_file_id(
+    async fn delete_file_metadata_by_processor_merchant_id_file_id(
         &self,
-        _merchant_id: &common_utils::id_type::MerchantId,
+        _processor_merchant_id: &common_utils::id_type::MerchantId,
         _file_id: &str,
     ) -> CustomResult<bool, errors::StorageError> {
         // TODO: Implement function for `MockDb`
