@@ -1,4 +1,5 @@
-use common_utils::pii::Email;
+use common_utils::{ext_traits::OptionExt, pii::Email};
+use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     router_data::{ConnectorAuthType, RouterData},
     router_flow_types::vault::ExternalVaultCreateFlow,
@@ -82,7 +83,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, HyperswitchVaultCreateResponse, T, Vaul
 
 #[derive(Default, Debug, Serialize)]
 pub struct HyperswitchVaultCustomerCreateRequest {
-    name: Option<Secret<String>>,
+    name: Secret<String>,
     email: Option<Email>,
 }
 
@@ -90,7 +91,14 @@ impl TryFrom<&ConnectorCustomerRouterData> for HyperswitchVaultCustomerCreateReq
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(item: &ConnectorCustomerRouterData) -> Result<Self, Self::Error> {
         Ok(Self {
-            name: item.request.name.clone(),
+            name: item
+                .request
+                .name
+                .clone()
+                .get_required_value("customer name")
+                .change_context(errors::ConnectorError::MissingRequiredField {
+                    field_name: "customer name",
+                })?,
             email: item.request.email.clone(),
         })
     }
