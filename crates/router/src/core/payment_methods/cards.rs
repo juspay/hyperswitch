@@ -4743,6 +4743,8 @@ pub async fn list_customer_payment_method(
         .and_then(|business_profile| business_profile.is_connector_agnostic_mit_enabled)
         .unwrap_or(false);
 
+    let mut prefetched_mcas: Option<domain::MerchantConnectorAccounts> = None;
+
     for pm in resp.into_iter() {
         let parent_payment_method_token = generate_id(consts::ID_LENGTH, "token");
 
@@ -4798,6 +4800,7 @@ pub async fn list_customer_payment_method(
             is_connector_agnostic_mit_enabled,
             Some(connector_mandate_details),
             pm.network_transaction_id.as_ref(),
+            &mut prefetched_mcas,
         )
         .await?;
 
@@ -5055,22 +5058,35 @@ pub async fn get_mca_status(
     is_connector_agnostic_mit_enabled: bool,
     connector_mandate_details: Option<CommonMandateReference>,
     network_transaction_id: Option<&String>,
+    prefetched_mcas: &mut Option<domain::MerchantConnectorAccounts>,
 ) -> errors::RouterResult<Option<bool>> {
     if is_connector_agnostic_mit_enabled && network_transaction_id.is_some() {
         return Ok(Some(true));
     }
     if let Some(connector_mandate_details) = connector_mandate_details {
-        let mcas = state
-            .store
-            .find_merchant_connector_account_by_merchant_id_and_disabled_list(
-                merchant_id,
-                true,
-                key_store,
-            )
-            .await
-            .change_context(errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
-                id: merchant_id.get_string_repr().to_owned(),
-            })?;
+        // Lazy fetch: Only query DB on first call with mandate_details
+        if prefetched_mcas.is_none() {
+            logger::debug!("MCA_DB_FETCH: Fetching merchant connector accounts from DB (first call with mandate_details)");
+            *prefetched_mcas = Some(
+                state
+                    .store
+                    .find_merchant_connector_account_by_merchant_id_and_disabled_list(
+                        merchant_id,
+                        true,
+                        key_store,
+                    )
+                    .await
+                    .change_context(
+                        errors::ApiErrorResponse::MerchantConnectorAccountNotFound {
+                            id: merchant_id.get_string_repr().to_owned(),
+                        },
+                    )?,
+            );
+        } else {
+            logger::debug!("MCA_DB_FETCH: Reusing previously fetched merchant connector accounts");
+        }
+
+        let mcas = prefetched_mcas.as_ref().unwrap();
 
         return Ok(Some(
             mcas.is_merchant_connector_account_id_in_connector_mandate_details(
