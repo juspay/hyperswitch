@@ -5678,32 +5678,22 @@ impl
     }
 }
 
-/// Inputs for building an `EventServiceHandleRequest`: the raw request plus the
-/// post-ParseEvent context (webhook secrets resolved from the MCA, optional
-/// event context, and the stable merchant event id).
-pub struct HandleEventInputs<'a> {
-    pub request_details: &'a hyperswitch_interfaces::webhooks::IncomingWebhookRequestDetails<'a>,
-    pub webhook_secrets: Option<payments_grpc::WebhookSecrets>,
-    pub event_context: Option<payments_grpc::EventContext>,
-    pub merchant_event_id: String,
-}
-
-impl<'a> transformers::ForeignTryFrom<HandleEventInputs<'a>> for EventServiceHandleRequest {
-    type Error = error_stack::Report<UnifiedConnectorServiceError>;
-
-    fn foreign_try_from(inputs: HandleEventInputs<'a>) -> Result<Self, Self::Error> {
-        let request_details_grpc =
-            <payments_grpc::RequestDetails as transformers::ForeignTryFrom<_>>::foreign_try_from(
-                inputs.request_details,
-            )?;
-        Ok(Self {
-            merchant_event_id: Some(inputs.merchant_event_id),
-            request_details: Some(request_details_grpc),
-            webhook_secrets: inputs.webhook_secrets,
-            access_token: None,
-            event_context: inputs.event_context,
-        })
-    }
+pub fn build_handle_event_request(
+    request_details: &hyperswitch_interfaces::webhooks::IncomingWebhookRequestDetails<'_>,
+    webhook_secrets: Option<payments_grpc::WebhookSecrets>,
+    event_context: Option<payments_grpc::EventContext>,
+    merchant_event_id: String,
+) -> Result<EventServiceHandleRequest, error_stack::Report<UnifiedConnectorServiceError>> {
+    let request_details_grpc = <payments_grpc::RequestDetails as transformers::ForeignTryFrom<
+        _,
+    >>::foreign_try_from(request_details)?;
+    Ok(EventServiceHandleRequest {
+        merchant_event_id: Some(merchant_event_id),
+        request_details: Some(request_details_grpc),
+        webhook_secrets,
+        access_token: None,
+        event_context,
+    })
 }
 
 // ============================================================================
