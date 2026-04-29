@@ -408,6 +408,7 @@ impl TryFrom<&BankNames> for MultisafepayBankNames {
             | BankNames::RoyalBankOfScotland
             | BankNames::Starling
             | BankNames::TsbBank
+            | BankNames::Absa
             | BankNames::TescoBank
             | BankNames::UlsterBank => Err(Into::into(errors::ConnectorError::NotSupported {
                 message: String::from("BankRedirect"),

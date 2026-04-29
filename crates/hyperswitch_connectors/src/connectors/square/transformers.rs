@@ -30,6 +30,7 @@ impl TryFrom<(&types::TokenizationRouterData, BankDebitData)> for SquareTokenReq
             | BankDebitData::SepaBankDebit { .. }
             | BankDebitData::BecsBankDebit { .. }
             | BankDebitData::BacsBankDebit { .. }
+            | BankDebitData::EftDebitOrder { .. }
             | BankDebitData::SepaGuarenteedBankDebit { .. } => {
                 Err(errors::ConnectorError::NotImplemented(
                     utils::get_unimplemented_payment_method_error_message("Square"),

@@ -1356,6 +1356,7 @@ impl TryFrom<&common_enums::BankNames> for OpenBankingUKIssuer {
             | common_enums::BankNames::TheSiamCommercialBank
             | common_enums::BankNames::Yoursafe
             | common_enums::BankNames::N26
+            | common_enums::BankNames::Absa
             | common_enums::BankNames::NationaleNederlanden
             | common_enums::BankNames::KasikornBank => {
                 Err(errors::ConnectorError::NotImplemented(
@@ -2359,12 +2360,12 @@ impl TryFrom<(&BankDebitData, &PaymentsAuthorizeRouterData)> for AdyenPaymentMet
                 )))
             }
 
-            BankDebitData::BecsBankDebit { .. } | BankDebitData::SepaGuarenteedBankDebit { .. } => {
-                Err(errors::ConnectorError::NotImplemented(
-                    utils::get_unimplemented_payment_method_error_message("Adyen"),
-                )
-                .into())
-            }
+            BankDebitData::BecsBankDebit { .. }
+            | BankDebitData::SepaGuarenteedBankDebit { .. }
+            | BankDebitData::EftDebitOrder { .. } => Err(errors::ConnectorError::NotImplemented(
+                utils::get_unimplemented_payment_method_error_message("Adyen"),
+            )
+            .into()),
         }
     }
 }

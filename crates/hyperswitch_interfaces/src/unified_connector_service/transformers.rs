@@ -764,22 +764,14 @@ impl ForeignTryFrom<payments_grpc::BankType> for common_enums::BankType {
         match bank_type {
             payments_grpc::BankType::Checking => Ok(Self::Checking),
             payments_grpc::BankType::Savings => Ok(Self::Savings),
-            payments_grpc::BankType::Unspecified => Err(error_stack::Report::new(
+            payments_grpc::BankType::Bond
+            | payments_grpc::BankType::Transmission
+            | payments_grpc::BankType::Current
+            | payments_grpc::BankType::SubscriptionShare
+            | payments_grpc::BankType::Unspecified => Err(error_stack::Report::new(
                 UnifiedConnectorServiceError::ResponseDeserializationFailed,
             )
-            .attach_printable("BankType unspecified")),
-            // Variants present in the UCS proto but not modelled in `common_enums::BankType`
-            // yet. Enumerated explicitly so any future addition to the UCS enum forces this
-            // match to be updated (and the corresponding HS-side variant decided) rather
-            // than silently falling through a catch-all.
-            payments_grpc::BankType::Transmission
-            | payments_grpc::BankType::Current
-            | payments_grpc::BankType::Bond
-            | payments_grpc::BankType::SubscriptionShare => Err(error_stack::Report::new(
-                UnifiedConnectorServiceError::NotImplemented(format!(
-                    "UCS BankType variant not yet mapped to HS: {bank_type:?}"
-                )),
-            )),
+            .attach_printable("BankType unsupported")),
         }
     }
 }
