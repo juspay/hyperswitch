@@ -1325,7 +1325,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                     .await?
                     .try_into_scan();
                     let diesel_payment_attempt = kv_result.and_then(|mut payment_attempts| {
-                        payment_attempts.sort_by(|a, b| b.modified_at.cmp(&a.modified_at));
+                        payment_attempts.sort_by_key(|x| std::cmp::Reverse(x.modified_at));
                         payment_attempts
                             .iter()
                             .find(|&pa| pa.status == api_models::enums::AttemptStatus::Charged)
@@ -1398,7 +1398,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                     .await?
                     .try_into_scan();
                     let diesel_payment_attempt = kv_result.and_then(|mut payment_attempts| {
-                        payment_attempts.sort_by(|a, b| b.modified_at.cmp(&a.modified_at));
+                        payment_attempts.sort_by_key(|x| std::cmp::Reverse(x.modified_at));
                         payment_attempts
                             .iter()
                             .find(|&pa| {
@@ -1471,7 +1471,7 @@ impl<T: DatabaseStore> PaymentAttemptInterface for KVRouterStore<T> {
                     .try_into_scan();
 
                     let payment_attempt = kv_result.and_then(|mut payment_attempts| {
-                        payment_attempts.sort_by(|a, b| b.modified_at.cmp(&a.modified_at));
+                        payment_attempts.sort_by_key(|x| std::cmp::Reverse(x.modified_at));
                         payment_attempts
                             .iter()
                             .find(|&pa| {
