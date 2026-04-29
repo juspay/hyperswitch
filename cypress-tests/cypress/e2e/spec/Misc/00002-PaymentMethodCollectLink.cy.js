@@ -16,13 +16,10 @@ describe("Payment Method Collect Link", () => {
 
   context("Happy Path Flow", () => {
     it("should create merchant, customer, payment method collect link, and render form", () => {
-      let shouldContinue = true;
+      const shouldContinue = true;
 
       cy.step("Create merchant account", () => {
-        cy.merchantCreateCallTest(
-          fixtures.merchantCreateBody,
-          globalState
-        );
+        cy.merchantCreateCallTest(fixtures.merchantCreateBody, globalState);
       });
 
       cy.step("Create merchant API key", () => {
@@ -43,7 +40,10 @@ describe("Payment Method Collect Link", () => {
 
       cy.step("Initiate Payment Method Collect Link", () => {
         if (!shouldContinue) {
-          cy.task("cli_log", "Skipping step: Initiate Payment Method Collect Link");
+          cy.task(
+            "cli_log",
+            "Skipping step: Initiate Payment Method Collect Link"
+          );
           return;
         }
         const data = {
@@ -54,12 +54,19 @@ describe("Payment Method Collect Link", () => {
             status: 200,
           },
         };
-        cy.paymentMethodCollectLinkCreate(fixtures.pmCollectLinkBody, data, globalState);
+        cy.paymentMethodCollectLinkCreate(
+          fixtures.pmCollectLinkBody,
+          data,
+          globalState
+        );
       });
 
       cy.step("Render Payment Method Collect Form", () => {
         if (!shouldContinue) {
-          cy.task("cli_log", "Skipping step: Render Payment Method Collect Form");
+          cy.task(
+            "cli_log",
+            "Skipping step: Render Payment Method Collect Form"
+          );
           return;
         }
         const data = {
@@ -74,13 +81,10 @@ describe("Payment Method Collect Link", () => {
 
   context("Edge Cases", () => {
     it("should handle render with invalid collect id", () => {
-      let shouldContinue = true;
+      const shouldContinue = true;
 
       cy.step("Create merchant account", () => {
-        cy.merchantCreateCallTest(
-          fixtures.merchantCreateBody,
-          globalState
-        );
+        cy.merchantCreateCallTest(fixtures.merchantCreateBody, globalState);
       });
 
       cy.step("Create merchant API key", () => {
@@ -93,7 +97,10 @@ describe("Payment Method Collect Link", () => {
 
       cy.step("Set invalid collect id and attempt render", () => {
         if (!shouldContinue) {
-          cy.task("cli_log", "Skipping step: Set invalid collect id and attempt render");
+          cy.task(
+            "cli_log",
+            "Skipping step: Set invalid collect id and attempt render"
+          );
           return;
         }
         globalState.set("pmCollectId", "invalid_collect_id_12345");

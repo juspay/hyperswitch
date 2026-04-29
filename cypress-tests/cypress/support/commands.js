@@ -7081,8 +7081,8 @@ Cypress.Commands.add(
           globalState.set("pmCollectId", response.body.pm_collect_link_id);
           globalState.set("pmCollectLink", response.body.link);
 
-          expect(response.body).to.have.property("pm_collect_link_id").and.not.be
-            .empty;
+          expect(response.body).to.have.property("pm_collect_link_id").and.not
+            .be.empty;
           expect(response.body).to.have.property("link").and.not.be.empty;
           expect(response.body).to.have.property("customer_id").and.not.be
             .empty;
