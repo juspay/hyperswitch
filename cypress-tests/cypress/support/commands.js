@@ -5060,7 +5060,10 @@ Cypress.Commands.add("ListMcaByMid", (globalState) => {
       globalState.set("stripeMcaId", response.body[0].merchant_connector_id);
       globalState.set("adyenMcaId", response.body[1].merchant_connector_id);
       if (response.body[3]) {
-        globalState.set("bluesnapMcaId", response.body[3].merchant_connector_id);
+        globalState.set(
+          "bluesnapMcaId",
+          response.body[3].merchant_connector_id
+        );
       }
     });
   });
