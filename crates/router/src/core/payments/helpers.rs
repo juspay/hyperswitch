@@ -79,6 +79,8 @@ use super::{
     CustomerDetails, PaymentData,
 };
 #[cfg(feature = "v1")]
+use crate::core::mandate::helpers::MandateGenericData;
+#[cfg(feature = "v1")]
 use crate::core::{
     payments::{OperationSessionGetters, OperationSessionSetters},
     utils as core_utils,
@@ -94,7 +96,6 @@ use crate::{
         authentication,
         configs::dimension_state,
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
-        mandate::helpers::MandateGenericData,
         payment_methods::{
             self,
             cards::{self},
@@ -508,12 +509,11 @@ pub async fn get_token_pm_type_mandate_details(
 ) -> RouterResult<MandateGenericData> {
     let mandate_data = request.mandate_data.clone().map(MandateData::foreign_from);
     let feature_config = core_utils::get_feature_config(state, platform, dimensions).await;
-    let is_payment_method_modular_allowed = bool::foreign_from((
-        &feature_config,
+    let is_payment_method_modular_allowed = feature_config.is_modular_with_pm_version(
         pm_info
             .as_ref()
-            .map(|pm_wrapper| &pm_wrapper.payment_method),
-    ));
+            .map(|pm_wrapper| pm_wrapper.payment_method.version),
+    );
     let (
         payment_token,
         payment_method,

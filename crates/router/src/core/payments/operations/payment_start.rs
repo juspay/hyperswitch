@@ -20,7 +20,6 @@ use crate::{
         api::{self, PaymentIdTypeExt},
         domain,
         storage::{self, enums as storage_enums},
-        transformers::ForeignFrom,
     },
     utils::OptionExt,
 };
@@ -134,7 +133,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsStartReq
         let token_data = {
             let feature_config = utils::get_feature_config(state, platform, dimensions).await;
             let should_use_modular_payment_method_flow =
-                bool::foreign_from((&feature_config, None));
+                feature_config.is_modular_with_pm_version(None);
             match (
                 payment_attempt.payment_token.clone(),
                 should_use_modular_payment_method_flow,

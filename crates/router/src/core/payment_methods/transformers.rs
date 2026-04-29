@@ -46,33 +46,11 @@ use crate::{
     pii::Secret,
     routes,
     services::{api as services, encryption, EncryptionAlgorithm},
-    types::{api, domain},
+    types::{api, domain, transformers},
     utils::OptionExt,
 };
-#[cfg(feature = "v1")]
-impl
-    crate::types::transformers::ForeignFrom<(
-        &crate::core::utils::FeatureConfig,
-        Option<&domain::PaymentMethod>,
-    )> for bool
-{
-    fn foreign_from(
-        (feature_config, payment_method): (
-            &crate::core::utils::FeatureConfig,
-            Option<&domain::PaymentMethod>,
-        ),
-    ) -> Self {
-        feature_config.is_payment_method_modular_allowed
-            || payment_method.is_some_and(|payment_method| {
-                payment_method.version == common_enums::ApiVersion::V2
-            })
-    }
-}
 #[cfg(feature = "v2")]
-use crate::{
-    consts,
-    types::{payment_methods as pm_types, transformers},
-};
+use crate::{consts, types::payment_methods as pm_types};
 
 #[derive(Debug, Serialize)]
 #[serde(untagged)]
@@ -1768,7 +1746,7 @@ impl TryFrom<CreatePaymentMethodResponse> for DomainPaymentMethodWrapper {
 
 #[cfg(feature = "v1")]
 impl<'a>
-    crate::types::transformers::ForeignTryFrom<
+    transformers::ForeignTryFrom<
         &'a hyperswitch_domain_models::payment_method_data::CardWithOptionalCVC,
     > for domain::CardDetailsForNetworkTransactionId
 {
@@ -1795,7 +1773,7 @@ impl<'a>
 
 #[cfg(feature = "v1")]
 impl<'a>
-    crate::types::transformers::ForeignTryFrom<
+    transformers::ForeignTryFrom<
         &'a hyperswitch_domain_models::payment_method_data::CardWithOptionalCVC,
     > for domain::PaymentMethodData
 {

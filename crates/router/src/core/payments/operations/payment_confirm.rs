@@ -92,7 +92,6 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
     ) -> RouterResult<operations::GetTrackerResponse<'a, F, api::PaymentsRequest, PaymentData<F>>>
     {
         let processor_merchant_id = platform.get_processor().get_account().get_id();
-        let mut payment_method_with_raw_data = payment_method_with_raw_data;
         let storage_scheme = platform.get_processor().get_account().storage_scheme;
         let (currency, amount);
 
@@ -667,53 +666,56 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         //fetch for repeat cit using payment token
 
         let feature_config = core_utils::get_feature_config(state, platform, dimensions).await;
-        let is_modular_payment_method_flow = bool::foreign_from((
-            &feature_config,
+        let is_modular_payment_method_flow = feature_config.is_modular_with_pm_version(
             payment_method_info
                 .as_ref()
-                .map(|payment_method_info| &payment_method_info.payment_method),
-        ));
+                .map(|payment_method_info| payment_method_info.payment_method.version),
+        );
         let modular_fetch_context =
             helpers::build_modular_fetch_context(state, platform, &profile_id);
 
-        let (token_data, payment_method_info) = if is_modular_payment_method_flow {
-            (
-                None,
-                payment_method_with_raw_data
-                    .clone()
-                    .map(|pm| pm.payment_method),
-            )
-        } else if let Some(token) = token.clone() {
-            let token_data = helpers::retrieve_payment_token_data(
-                state,
-                token,
-                payment_method.or(payment_attempt.payment_method),
-            )
-            .await?;
-
-            let payment_method_with_raw_data_from_token =
-                helpers::retrieve_payment_method_from_db_with_token_data(
+        let (token_data, payment_method_with_raw_data, payment_method_info) =
+            if is_modular_payment_method_flow {
+                let payment_method_info = payment_method_with_raw_data
+                    .as_ref()
+                    .map(|payment_method_wrapper| payment_method_wrapper.payment_method.clone());
+                (None, payment_method_with_raw_data, payment_method_info)
+            } else if let Some(token) = token.clone() {
+                let token_data = helpers::retrieve_payment_token_data(
                     state,
-                    platform.get_provider().get_key_store(),
-                    &token_data,
-                    storage_scheme,
-                    &modular_fetch_context,
+                    token,
+                    payment_method.or(payment_attempt.payment_method),
                 )
                 .await?;
-            let payment_method_info = payment_method_with_raw_data_from_token
-                .as_ref()
-                .map(|payment_method_wrapper| payment_method_wrapper.payment_method.clone());
 
-            payment_method_with_raw_data = payment_method_with_raw_data
-                .or_else(|| payment_method_with_raw_data_from_token.clone());
+                let payment_method_with_raw_data_from_token =
+                    helpers::retrieve_payment_method_from_db_with_token_data(
+                        state,
+                        platform.get_provider().get_key_store(),
+                        &token_data,
+                        storage_scheme,
+                        &modular_fetch_context,
+                    )
+                    .await?;
+                let resolved_payment_method_with_raw_data = payment_method_with_raw_data
+                    .or_else(|| payment_method_with_raw_data_from_token.clone());
+                let resolved_payment_method_info = payment_method_with_raw_data_from_token
+                    .as_ref()
+                    .map(|payment_method_wrapper| payment_method_wrapper.payment_method.clone());
 
-            (Some(token_data), payment_method_info)
-        } else {
-            (
-                None,
-                payment_method_info.map(|payment_method_info| payment_method_info.payment_method),
-            )
-        };
+                (
+                    Some(token_data),
+                    resolved_payment_method_with_raw_data,
+                    resolved_payment_method_info,
+                )
+            } else {
+                (
+                    None,
+                    payment_method_with_raw_data,
+                    payment_method_info
+                        .map(|payment_method_info| payment_method_info.payment_method),
+                )
+            };
         let additional_pm_data_from_locker = if let Some(ref pm) = payment_method_info {
             let card_detail_from_locker: Option<api::CardDetailFromLocker> = pm
                 .payment_method_data

@@ -73,6 +73,16 @@ pub struct FeatureConfig {
     pub is_payment_method_modular_allowed: bool,
 }
 
+impl FeatureConfig {
+    pub fn is_modular_with_pm_version(
+        &self,
+        payment_method_version: Option<common_enums::ApiVersion>,
+    ) -> bool {
+        self.is_payment_method_modular_allowed
+            || payment_method_version == Some(common_enums::ApiVersion::V2)
+    }
+}
+
 pub async fn get_feature_config(
     state: &SessionState,
     platform: &domain::Platform,

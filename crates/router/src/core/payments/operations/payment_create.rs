@@ -86,7 +86,6 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
     ) -> RouterResult<operations::GetTrackerResponse<'a, F, api::PaymentsRequest, PaymentData<F>>>
     {
         let db = &*state.store;
-        let mut payment_method_with_raw_data = payment_method_with_raw_data;
         let money @ (amount, currency) = payments_create_request_validation(request)?;
 
         let payment_id = payment_id
@@ -169,7 +168,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             mandate_data,
             recurring_mandate_payment_data,
             mandate_connector,
-            mut payment_method_info,
+            payment_method_info,
         } = helpers::get_token_pm_type_mandate_details(
             state,
             request,
@@ -183,7 +182,8 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         )
         .await?;
 
-        if let Some(token) = token.clone() {
+        let (payment_method_with_raw_data, payment_method_info) = if let Some(token) = token.clone()
+        {
             let token_data =
                 helpers::retrieve_payment_token_data(state, token, payment_method).await?;
             let payment_method_with_raw_data_from_token =
@@ -196,10 +196,17 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                 )
                 .await?;
 
-            payment_method_with_raw_data = payment_method_with_raw_data
-                .or_else(|| payment_method_with_raw_data_from_token.clone());
-            payment_method_info = payment_method_info.or(payment_method_with_raw_data_from_token);
-        }
+            let resolved_payment_method_with_raw_data =
+                payment_method_with_raw_data.or(payment_method_with_raw_data_from_token);
+            let resolved_payment_method_info =
+                payment_method_info.or(resolved_payment_method_with_raw_data.as_ref().cloned());
+            (
+                resolved_payment_method_with_raw_data,
+                resolved_payment_method_info,
+            )
+        } else {
+            (payment_method_with_raw_data, payment_method_info)
+        };
         let payment_method_info = payment_method_info.map(|pm_wrapper| pm_wrapper.payment_method);
 
         helpers::validate_allowed_payment_method_types_request(
