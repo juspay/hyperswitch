@@ -764,9 +764,6 @@ export const connectorDetails = {
           status: "requires_payment_method",
         },
       },
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
     }),
     ManualCapture: getCustomExchange({
       Request: {
@@ -778,9 +775,6 @@ export const connectorDetails = {
         body: {
           status: "requires_payment_method",
         },
-      },
-      Configs: {
-        TRIGGER_SKIP: true,
       },
     }),
     Klarna: getCustomExchange({
@@ -810,9 +804,6 @@ export const connectorDetails = {
         body: {
           status: "requires_customer_action",
         },
-      },
-      Configs: {
-        TRIGGER_SKIP: true,
       },
     }),
     Capture: getCustomExchange({

@@ -37,8 +37,11 @@ export const connectorDetails = {
           },
         ],
       },
-      Configs: {
-        TRIGGER_SKIP: true,
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
       },
     }),
     Capture: getCustomExchange({

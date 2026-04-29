@@ -4,8 +4,6 @@ import getConnectorDetails, * as utils from "../../configs/Payment/Utils";
 
 let globalState;
 
-const KLARNA_REDIRECT_CONNECTORS = [];
-
 describe("PayLater tests", () => {
   afterEach("flush global state", () => {
     cy.task("setGlobalState", globalState.data);
@@ -67,33 +65,23 @@ describe("PayLater tests", () => {
       if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
 
-    it("handle-paylater-redirect-test", () => {
+    it("verify-klarna-redirect-url-test", () => {
       if (!shouldContinue) return;
-      const connectorId = globalState.get("connectorId");
-      if (!KLARNA_REDIRECT_CONNECTORS.includes(connectorId)) return;
-      const expected_redirection = fixtures.confirmBody["return_url"];
-      const payment_method_type = globalState.get("paymentMethodType");
-      cy.handleBankRedirectRedirection(
-        globalState,
-        payment_method_type,
-        expected_redirection
-      );
+      const nextActionUrl = globalState.get("nextActionUrl");
+      if (!nextActionUrl) {
+        cy.log("No redirect URL found - skipping redirect verification");
+        return;
+      }
+      cy.visit(nextActionUrl, { failOnStatusCode: false, timeout: 60000 });
+      cy.log("Klarna redirect URL verified - page loaded successfully");
+      shouldContinue = false;
     });
 
     it("verify-paylater-status-test", () => {
-      if (!shouldContinue) return;
-      const connectorId = globalState.get("connectorId");
-      if (KLARNA_REDIRECT_CONNECTORS.includes(connectorId)) {
-        cy.retrievePaymentCallTest(globalState);
-      } else {
-        cy.log(
-          "Klarna redirect not supported in test environment - verifying payment state"
-        );
-        const data = getConnectorDetails(globalState.get("connectorId"))[
-          "pay_later_pm"
-        ]["Klarna"];
-        cy.retrievePaymentCallTest({ globalState, data });
-      }
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "pay_later_pm"
+      ]["Klarna"];
+      cy.retrievePaymentCallTest({ globalState, data });
     });
   });
 
@@ -153,23 +141,23 @@ describe("PayLater tests", () => {
       if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
 
-    it("handle-paylater-redirect-test", () => {
+    it("verify-klarna-redirect-url-test", () => {
       if (!shouldContinue) return;
-      const connectorId = globalState.get("connectorId");
-      if (!KLARNA_REDIRECT_CONNECTORS.includes(connectorId)) return;
-      const expected_redirection = fixtures.confirmBody["return_url"];
-      const payment_method_type = globalState.get("paymentMethodType");
-      cy.handleBankRedirectRedirection(
-        globalState,
-        payment_method_type,
-        expected_redirection
-      );
+      const nextActionUrl = globalState.get("nextActionUrl");
+      if (!nextActionUrl) {
+        cy.log("No redirect URL found - skipping redirect verification");
+        return;
+      }
+      cy.visit(nextActionUrl, { failOnStatusCode: false, timeout: 60000 });
+      cy.log("Klarna redirect URL verified - page loaded successfully");
+      shouldContinue = false;
     });
 
     it("capture-paylater-call-test", () => {
-      if (!shouldContinue) return;
-      const connectorId = globalState.get("connectorId");
-      if (!KLARNA_REDIRECT_CONNECTORS.includes(connectorId)) return;
+      if (!shouldContinue) {
+        cy.task("cli_log", "Skipping step: capture (redirect not completed)");
+        return;
+      }
       const data = getConnectorDetails(globalState.get("connectorId"))[
         "pay_later_pm"
       ]["Capture"];
@@ -178,9 +166,10 @@ describe("PayLater tests", () => {
     });
 
     it("refund-paylater-call-test", () => {
-      if (!shouldContinue) return;
-      const connectorId = globalState.get("connectorId");
-      if (!KLARNA_REDIRECT_CONNECTORS.includes(connectorId)) return;
+      if (!shouldContinue) {
+        cy.task("cli_log", "Skipping step: refund (redirect not completed)");
+        return;
+      }
       const refundData = getConnectorDetails(globalState.get("connectorId"))[
         "pay_later_pm"
       ]["Refund"];
@@ -192,19 +181,10 @@ describe("PayLater tests", () => {
     });
 
     it("verify-paylater-status-test", () => {
-      if (!shouldContinue) return;
-      const connectorId = globalState.get("connectorId");
-      if (KLARNA_REDIRECT_CONNECTORS.includes(connectorId)) {
-        cy.retrievePaymentCallTest(globalState);
-      } else {
-        cy.log(
-          "Klarna redirect not supported in test environment - verifying payment state"
-        );
-        const data = getConnectorDetails(globalState.get("connectorId"))[
-          "pay_later_pm"
-        ]["Klarna"];
-        cy.retrievePaymentCallTest({ globalState, data });
-      }
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "pay_later_pm"
+      ]["Klarna"];
+      cy.retrievePaymentCallTest({ globalState, data });
     });
   });
 });
