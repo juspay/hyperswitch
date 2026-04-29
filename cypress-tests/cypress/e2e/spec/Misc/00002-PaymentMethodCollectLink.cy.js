@@ -106,7 +106,7 @@ describe("Payment Method Collect Link", () => {
             body: {
               error: {
                 type: "invalid_request",
-                code: "IR_22",
+                code: "IR_37",
                 message: "Resource not found",
               },
             },
