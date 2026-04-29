@@ -29,6 +29,7 @@ use strum::IntoEnumIterator;
 use crate::{
     consts,
     core::{
+        configs::dimension_state,
         errors::{self, ConnectorErrorExt, RouterResponse, RouterResult, StorageErrorExt},
         payments::{
             self, access_token, gateway::context as gateway_context, helpers,
@@ -99,6 +100,11 @@ pub async fn refund_create_core(
                 .attach_printable("refund amount validation against payment intent failed")
         })?;
 
+    let dimensions = dimension_state::Dimensions::new()
+        .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id())
+        .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
+        .with_organization_id(payment_intent.organization_id.clone());
+
     payment_intent.prevent_refund_after_post_capture_void()?;
 
     // Amount is not passed in request refer from payment intent.
@@ -147,6 +153,7 @@ pub async fn refund_create_core(
         amount,
         req,
         creds_identifier,
+        dimensions,
     ))
     .await
     .map(services::ApplicationResponse::Json)
@@ -1287,6 +1294,7 @@ pub async fn validate_and_create_refund(
     refund_amount: MinorUnit,
     req: refunds::RefundRequest,
     creds_identifier: Option<String>,
+    dimensions: dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndOrgId,
 ) -> RouterResult<refunds::RefundResponse> {
     let db = &*state.store;
     let split_refunds = core_utils::get_split_refunds(SplitRefundInput {
@@ -1335,14 +1343,20 @@ pub async fn validate_and_create_refund(
 
     let currency = payment_attempt.currency.get_required_value("currency")?;
 
+    let customer_id = &payment_intent.customer_id;
+    let refund_config = dimensions
+        .get_refund(
+            state.store.as_ref(),
+            state.superposition_service.as_ref(),
+            customer_id.as_ref(),
+        )
+        .await;
+
     //[#249]: Add Connector Based Validation here.
-    validator::validate_payment_order_age(&payment_intent.created_at, state.conf.refund.max_age)
+    validator::validate_payment_order_age(&payment_intent.created_at, refund_config.max_age)
         .change_context(errors::ApiErrorResponse::InvalidDataFormat {
             field_name: "created_at".to_string(),
-            expected_format: format!(
-                "created_at not older than {} days",
-                state.conf.refund.max_age
-            ),
+            expected_format: format!("created_at not older than {} days", refund_config.max_age),
         })?;
 
     let total_amount_captured = payment_intent
@@ -1358,7 +1372,7 @@ pub async fn validate_and_create_refund(
 
     validator::validate_maximum_refund_against_payment_attempt(
         &all_refunds,
-        state.conf.refund.max_attempts,
+        refund_config.max_attempts,
     )
     .change_context(errors::ApiErrorResponse::MaximumRefundCount)?;
 

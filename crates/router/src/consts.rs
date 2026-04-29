@@ -357,6 +357,12 @@ pub mod superposition {
     pub const REQUIRES_CVV: &str = "requires_cvv";
     /// implicit customer update configuration key
     pub const IMPLICIT_CUSTOMER_UPDATE: &str = "implicit_customer_update";
+    /// installment config key
+    pub const INSTALLMENT_CONFIG_SUPPORTED: &str = "installment_config_supported";
+    /// Refund configuration key
+    pub const REFUND: &str = "refund";
+    /// Ephemeral key validity configuration key
+    pub const EPHEMERAL_KEY: &str = "eph_key_validity";
     /// GSM (Global Status Map) call configuration key
     pub const SHOULD_CALL_GSM: &str = "should_call_gsm";
     /// Eligibility check configuration key

@@ -36,9 +36,9 @@ pub use hyperswitch_interfaces::{
 use hyperswitch_masking::{Maskable, Secret};
 pub use payment_methods::configs::settings::{
     BankRedirectConfig, BanksVector, ConnectorBankNames, ConnectorFields, EligiblePaymentMethods,
-    InstallmentConfig, Installments, Mandates, PaymentMethodAuth, PaymentMethodType,
-    RequiredFieldFinal, RequiredFields, SupportedConnectorsForMandate,
-    SupportedPaymentMethodTypesForMandate, SupportedPaymentMethodsForMandate, ZeroMandates,
+    Installments, Mandates, PaymentMethodAuth, PaymentMethodType, RequiredFieldFinal,
+    RequiredFields, SupportedConnectorsForMandate, SupportedPaymentMethodTypesForMandate,
+    SupportedPaymentMethodsForMandate, ZeroMandates,
 };
 use payment_methods::configs::MicroServicesConfig;
 use rand::seq::IteratorRandom;
@@ -46,7 +46,7 @@ use redis_interface::RedisSettings;
 pub use router_env::config::{Log, LogConsole, LogFile, LogTelemetry};
 use rust_decimal::Decimal;
 use scheduler::SchedulerSettings;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use storage_impl::config::QueueStrategy;
 
 #[cfg(feature = "olap")]
@@ -92,8 +92,6 @@ pub struct Settings<S: SecretState> {
     pub key_manager: SecretStateContainer<KeyManagerConfig, S>,
     pub connectors: Connectors,
     pub forex_api: SecretStateContainer<ForexApi, S>,
-    pub refund: Refund,
-    pub eph_key: EphemeralConfig,
     pub scheduler: Option<SchedulerSettings>,
     #[cfg(feature = "kv_store")]
     pub drainer: DrainerSettings,
@@ -118,7 +116,6 @@ pub struct Settings<S: SecretState> {
     pub mandates: Mandates,
     pub zero_mandates: ZeroMandates,
     pub installments: Installments,
-    pub installment_config: InstallmentConfig,
     pub network_transaction_id_supported_connectors: NetworkTransactionIdSupportedConnectors,
     pub card_only_mit_supported_connectors: CardOnlyMitSupportedConnectors,
     pub notify_iframe_exit_and_redirect: NotifyIframeExitAndRedirectConnectors,
@@ -803,17 +800,30 @@ pub enum DecryptionScheme {
     RsaOaep256,
 }
 
-#[derive(Debug, Deserialize, Clone)]
-#[serde(default)]
+#[derive(Debug, Deserialize, Clone, Serialize)]
 pub struct Refund {
     pub max_attempts: usize,
     pub max_age: i64,
 }
 
-#[derive(Debug, Deserialize, Clone)]
-#[serde(default)]
+impl Default for Refund {
+    fn default() -> Self {
+        Self {
+            max_attempts: 100,
+            max_age: 3650,
+        }
+    }
+}
+
+#[derive(Debug, Deserialize, Clone, Serialize)]
 pub struct EphemeralConfig {
     pub validity: i64,
+}
+
+impl Default for EphemeralConfig {
+    fn default() -> Self {
+        Self { validity: 1 }
+    }
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]

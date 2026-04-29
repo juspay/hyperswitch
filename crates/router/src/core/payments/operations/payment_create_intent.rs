@@ -167,7 +167,7 @@ impl<F: Send + Clone + Sync>
 
         let client_secret = helpers::create_client_secret(
             state,
-            platform.get_processor().get_account().get_id(),
+            platform.clone(),
             authentication::ResourceId::Payment(payment_id.clone()),
         )
         .await

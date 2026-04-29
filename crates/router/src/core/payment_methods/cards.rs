@@ -44,6 +44,7 @@ use euclid::{
     dssa::graph::{AnalysisContext, CgraphExt},
     frontend::dir,
 };
+use futures::StreamExt;
 use hyperswitch_constraint_graph as cgraph;
 #[cfg(feature = "v1")]
 use hyperswitch_domain_models::customer::CustomerUpdate;
@@ -4044,19 +4045,54 @@ pub async fn list_payment_methods(
         .as_ref()
         .map(|payment_intent| payment_intent.customer_id.is_none())
         .unwrap_or(true);
-    let connector_supports_installments = currency.is_some_and(|cur| {
-        filtered_mcas.iter().any(|mca| {
-            mca.connector_name
-                .parse::<api_enums::Connector>()
-                .ok()
-                .is_some_and(|connector| {
-                    state
-                        .conf
-                        .installment_config
-                        .is_connector_currency_supported(&connector, cur)
-                })
-        })
-    });
+    let installment_customer_id = payment_intent
+        .as_ref()
+        .and_then(|pi| pi.customer_id.as_ref());
+    let connector_supports_installments = match currency {
+        None => false,
+        Some(cur) => {
+            futures::stream::iter(filtered_mcas.iter().filter_map(|mca| {
+                mca.connector_name
+                    .parse::<api_enums::Connector>()
+                    .inspect_err(|&e| {
+                        logger::error!(
+                            connector_name = %mca.connector_name,
+                            error = ?e,
+                            "Failed to parse connector name, skipping"
+                        );
+                    })
+                    .ok()
+            }))
+            .any(|connector| {
+                let platform = platform.clone();
+                let store = state.store.clone();
+                let superposition_service = state.superposition_service.clone();
+                async move {
+                    let dimensions = dimension_state::Dimensions::new()
+                        .with_provider_merchant_id(
+                            platform.get_provider().get_provider_merchant_id(),
+                        )
+                        .with_processor_merchant_id(
+                            platform.get_processor().get_processor_merchant_id(),
+                        )
+                        .with_organization_id(
+                            platform.get_processor().get_account().get_org_id().clone(),
+                        )
+                        .with_connector(connector)
+                        .with_currency(cur);
+                    let is_installment_supported = dimensions
+                        .get_installment_config_supported(
+                            store.as_ref(),
+                            superposition_service.as_ref(),
+                            installment_customer_id,
+                        )
+                        .await;
+                    is_installment_supported
+                }
+            })
+            .await
+        }
+    };
 
     let merchant_surcharge_configs = if let Some((payment_attempt, payment_intent)) =
         payment_attempt.as_ref().zip(payment_intent.clone())
