@@ -7,7 +7,7 @@ use crate::routes;
         contact(
             name = "Hyperswitch Support",
             url = "https://hyperswitch.io",
-            email = "hyperswitch@juspay.in"
+            email = "support.global@juspay.io"
         ),
         // terms_of_service = "https://www.juspay.io/terms",
         description = r#"
@@ -362,6 +362,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::admin::InternalNetworkTokenizationCredentials,
         api_models::admin::PaymentMethodBlockingConfig,
         api_models::admin::CardBlockingConfig,
+        api_models::admin::WalletBlockingConfig,
         api_models::merchant_connector_webhook_management::ConnectorWebhookRegisterRequest,
         api_models::merchant_connector_webhook_management::RegisterConnectorWebhookResponse,
         api_models::merchant_connector_webhook_management::ConnectorWebhookResponse,
@@ -612,6 +613,9 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::PaymentsSessionResponse,
         api_models::payments::PazeWalletData,
         api_models::payments::SessionToken,
+        api_models::payments::VaultSessionDetails,
+        api_models::payments::VgsSessionDetails,
+        api_models::payments::HyperswitchVaultSessionDetails,
         api_models::payments::ApplePaySessionResponse,
         api_models::payments::NullObject,
         api_models::payments::ThirdPartySdkSessionResponse,
@@ -809,6 +813,9 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payouts::BacsBankTransfer,
         api_models::payouts::SepaBankTransfer,
         api_models::payouts::PixBankTransfer,
+        api_models::payouts::PixAccountBankTransfer,
+        api_models::payouts::PixKeyBankTransfer,
+        api_models::payouts::PixEmvBankTransfer,
         api_models::payouts::TrustlyBankTransfer,
         api_models::payouts::TrustlyBankTransferData,
         api_models::payouts::PayoutsCreateRequest,
@@ -950,6 +957,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::additional_info::CardTokenAdditionalData,
         api_models::payments::additional_info::BankDebitAdditionalData,
         api_models::payments::additional_info::AchBankDebitAdditionalData,
+        api_models::payments::additional_info::EftDebitOrderAdditionalData,
         api_models::payments::additional_info::BacsBankDebitAdditionalData,
         api_models::payments::additional_info::BecsBankDebitAdditionalData,
         api_models::payments::additional_info::SepaBankDebitAdditionalData,

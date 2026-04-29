@@ -231,6 +231,7 @@ pub async fn trigger_refund_to_gateway(
             None, // No previous gateway information required for refunds
             payments::CallConnectorAction::Trigger,
             None,
+            common_enums::TransactionType::Payment,
         )
         .await?;
 
@@ -637,55 +638,44 @@ async fn execute_refund_execute_via_direct_with_ucs_shadow(
     let ucs_platform = platform.clone();
     let ucs_state = state.clone();
 
-    // Clone direct result for comparison (if successful)
-    let direct_router_data_for_comparison = direct_result.as_ref().ok().cloned();
+    // Capture direct result for comparison (Ok or Err) so the diff is sent in both cases.
+    let direct_for_compare: Result<types::RefundExecuteRouterData, String> = direct_result
+        .as_ref()
+        .map(|rd| rd.clone())
+        .map_err(|e| format!("{:?}", e));
+    let connector_name = router_data.connector.clone();
 
     tokio::spawn(
-        (
-            async move {
-                let ucs_result =
-                    unified_connector_service::call_unified_connector_service_for_refund_execute(
-                        &ucs_state,
-                        ucs_platform.get_processor(),
-                        ucs_router_data,
-                        ExecutionMode::Shadow,
-                        merchant_connector_account
-                    ).await;
+        (async move {
+            let ucs_result =
+                unified_connector_service::call_unified_connector_service_for_refund_execute(
+                    &ucs_state,
+                    ucs_platform.get_processor(),
+                    ucs_router_data,
+                    ExecutionMode::Shadow,
+                    merchant_connector_account,
+                )
+                .await;
 
-                match (ucs_result, direct_router_data_for_comparison) {
-                    (Ok(ucs_router_data), Some(direct_router_data)) => {
-                        Box::pin(
-                            unified_connector_service::serialize_router_data_and_send_to_comparison_service(
-                                &ucs_state,
-                                direct_router_data,
-                                ucs_router_data
-                            )
-                        ).await
-                            .inspect_err(|e| {
-                                router_env::logger::debug!(
-                                    "Shadow UCS refund execute comparison failed: {:?}",
-                                    e
-                                );
-                            })
-                            .ok();
-                    }
-                    (Err(e), _) => {
-                        router_env::logger::debug!(
-                            "Skipping refund execute comparison - UCS shadow execute failed: {:?}",
-                            e
-                        );
-                    }
-                    (_, None) => {
-                        router_env::logger::debug!(
-                            "Skipping refund execute comparison - direct execute failed"
-                        );
-                    }
-                }
+            if let Err(e) = &ucs_result {
+                router_env::logger::debug!("Shadow UCS refund execute failed: {:?}", e);
             }
-        ).instrument(tracing::Span::current())
+            let ucs_for_compare = ucs_result.map_err(|e| format!("{:?}", e));
+
+            Box::pin(
+                hyperswitch_interfaces::helpers::serialize_comparison_results_and_send(
+                    &ucs_state,
+                    connector_name,
+                    direct_for_compare,
+                    ucs_for_compare,
+                ),
+            )
+            .await;
+        })
+        .instrument(tracing::Span::current()),
     );
 
-    // Return PRIMARY result (Direct connector response)
+    // Return PRIMARY result (Direct connector response) — UCS shadow cannot affect this.
     direct_result
 }
 
@@ -835,15 +825,14 @@ fn should_call_refund(
     // doesn't exist
     let predicate1 = refund.connector_refund_id.is_some();
 
-    // This allows refund sync at connector level if all_keys_required or force_sync is enabled, or
-    // checks if the refund has failed
+    // This allows refund sync at connector level if all_keys_required or force_sync is enabled for non terminal refund statuses (i.e. not success or failure)
     let predicate2 = all_keys_required
-        || force_sync
-        || !matches!(
-            refund.refund_status,
-            diesel_models::enums::RefundStatus::Failure
-                | diesel_models::enums::RefundStatus::Success
-        );
+        || (force_sync
+            && !matches!(
+                refund.refund_status,
+                diesel_models::enums::RefundStatus::Failure
+                    | diesel_models::enums::RefundStatus::Success
+            ));
 
     predicate1 && predicate2
 }
@@ -919,6 +908,7 @@ pub async fn sync_refund_with_gateway(
             None, // No previous gateway information required for refunds
             payments::CallConnectorAction::Trigger,
             None,
+            common_enums::TransactionType::Payment,
         )
         .await?;
 
@@ -1206,50 +1196,40 @@ async fn execute_refund_sync_via_direct_with_ucs_shadow(
     let state = state.clone();
     let processor = processor.clone();
     let merchant_connector_account = merchant_connector_account.clone();
-    let direct_router_data_for_comparison = direct_result.as_ref().ok().cloned();
+    let direct_for_compare: Result<types::RefundSyncRouterData, String> = direct_result
+        .as_ref()
+        .map(|rd| rd.clone())
+        .map_err(|e| format!("{:?}", e));
+    let connector_name = router_data.connector.clone();
 
     tokio::spawn(
-        (
-            async move {
-                let ucs_result =
-                    unified_connector_service::call_unified_connector_service_for_refund_sync(
-                        &state,
-                        &processor,
-                        router_data,
-                        ExecutionMode::Shadow,
-                        merchant_connector_account
-                    ).await;
+        (async move {
+            let ucs_result =
+                unified_connector_service::call_unified_connector_service_for_refund_sync(
+                    &state,
+                    &processor,
+                    router_data,
+                    ExecutionMode::Shadow,
+                    merchant_connector_account,
+                )
+                .await;
 
-                match (ucs_result, direct_router_data_for_comparison) {
-                    (Ok(ucs_router_data), Some(direct_router_data)) => {
-                        Box::pin(
-                            unified_connector_service::serialize_router_data_and_send_to_comparison_service(
-                                &state,
-                                direct_router_data,
-                                ucs_router_data
-                            )
-                        ).await
-                            .inspect_err(|e| {
-                                router_env::logger::debug!(
-                                    "Shadow UCS sync comparison failed: {:?}",
-                                    e
-                                );
-                            })
-                            .ok();
-                    }
-                    (Err(_), _) => {
-                        router_env::logger::debug!(
-                            "Skipping refund sync comparison - UCS shadow sync failed"
-                        );
-                    }
-                    (_, None) => {
-                        router_env::logger::debug!(
-                            "Skipping refund sync comparison - direct sync failed"
-                        );
-                    }
-                }
+            if let Err(e) = &ucs_result {
+                router_env::logger::debug!("Shadow UCS refund sync failed: {:?}", e);
             }
-        ).instrument(tracing::Span::current())
+            let ucs_for_compare = ucs_result.map_err(|e| format!("{:?}", e));
+
+            Box::pin(
+                hyperswitch_interfaces::helpers::serialize_comparison_results_and_send(
+                    &state,
+                    connector_name,
+                    direct_for_compare,
+                    ucs_for_compare,
+                ),
+            )
+            .await;
+        })
+        .instrument(tracing::Span::current()),
     );
 
     direct_result
@@ -1264,7 +1244,7 @@ pub async fn refund_update_core(
 ) -> RouterResponse<refunds::RefundResponse> {
     let db = state.store.as_ref();
     let refund = db
-        .find_refund_by_merchant_id_refund_id(
+        .find_refund_by_processor_merchant_id_refund_id(
             platform.get_processor().get_account().get_id(),
             &req.refund_id,
             platform.get_processor().get_account().storage_scheme,
@@ -1345,7 +1325,7 @@ pub async fn validate_and_create_refund(
         })?;
 
     let all_refunds = db
-        .find_refund_by_merchant_id_connector_transaction_id(
+        .find_refund_by_processor_merchant_id_connector_transaction_id(
             platform.get_processor().get_account().get_id(),
             &connector_transaction_id,
             platform.get_processor().get_account().storage_scheme,
@@ -1605,7 +1585,7 @@ pub async fn refund_retrieve_core_with_internal_reference_id(
     let merchant_id = platform.get_processor().get_account().get_id();
 
     let refund = db
-        .find_refund_by_internal_reference_id_merchant_id(
+        .find_refund_by_internal_reference_id_processor_merchant_id(
             &refund_internal_request_id,
             merchant_id,
             platform.get_processor().get_account().storage_scheme,
@@ -1646,7 +1626,7 @@ pub async fn refund_retrieve_core_with_refund_id(
     let merchant_id = platform.get_processor().get_account().get_id();
 
     let refund = db
-        .find_refund_by_merchant_id_refund_id(
+        .find_refund_by_processor_merchant_id_refund_id(
             merchant_id,
             refund_id.as_str(),
             platform.get_processor().get_account().storage_scheme,
@@ -1687,7 +1667,7 @@ pub async fn refund_manual_update(
         .attach_printable("Error while fetching the merchant_account by merchant_id")?;
     let refund = state
         .store
-        .find_refund_by_merchant_id_refund_id(
+        .find_refund_by_processor_merchant_id_refund_id(
             merchant_account.get_id(),
             &req.refund_id,
             merchant_account.storage_scheme,
@@ -2122,7 +2102,7 @@ pub async fn trigger_refund_execute_workflow(
     let processor_storage_scheme = platform.get_processor().get_account().storage_scheme;
 
     let refund = db
-        .find_refund_by_internal_reference_id_merchant_id(
+        .find_refund_by_internal_reference_id_processor_merchant_id(
             &refund_core.refund_internal_reference_id,
             &refund_core.merchant_id,
             processor_storage_scheme,

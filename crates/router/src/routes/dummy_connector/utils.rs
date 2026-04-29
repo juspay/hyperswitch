@@ -160,7 +160,7 @@ pub fn get_authorize_page(
                     div.border_vertical {}
                     div.contact_item.email {
                         p { "Or email us at" }
-                        a href="mailto:hyperswitch@juspay.in" { "hyperswitch@juspay.in" }
+                        a href="mailto:support.global@juspay.io" { "support.global@juspay.io" }
                     }
                 }
             }
@@ -199,7 +199,7 @@ pub fn get_expired_page(dummy_connector_conf: &settings::DummyConnector) -> Stri
                     div.border_vertical {}
                     div.contact_item.email {
                         p { "Or email us at" }
-                        a href="mailto:hyperswitch@juspay.in" { "hyperswitch@juspay.in" }
+                        a href="mailto:support.global@juspay.io" { "support.global@juspay.io" }
                     }
                 }
             }

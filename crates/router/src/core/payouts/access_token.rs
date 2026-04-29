@@ -1,11 +1,14 @@
 use common_utils::ext_traits::AsyncExt;
 use error_stack::ResultExt;
-use hyperswitch_interfaces::{api::ConnectorCommon, consts};
+use hyperswitch_interfaces::{
+    api::{gateway, ConnectorCommon, ConnectorValidation},
+    consts,
+};
 
 use crate::{
     core::{
         errors::{self, RouterResult},
-        payments,
+        payments::{self, gateway::context as gateway_context},
     },
     routes::{metrics, SessionState},
     services,
@@ -22,10 +25,17 @@ pub async fn create_access_token<F: Clone + 'static>(
     platform: &domain::Platform,
     router_data: &mut types::PayoutsRouterData<F>,
     payout_type: Option<enums::PayoutType>,
+    gateway_context: &gateway_context::RouterGatewayContext,
 ) -> RouterResult<()> {
-    let connector_access_token =
-        add_access_token_for_payout(state, connector_data, platform, router_data, payout_type)
-            .await?;
+    let connector_access_token = add_access_token_for_payout(
+        state,
+        connector_data,
+        platform,
+        router_data,
+        gateway_context,
+        payout_type,
+    )
+    .await?;
 
     if connector_access_token.connector_supports_access_token {
         match connector_access_token.access_token_result {
@@ -47,6 +57,7 @@ pub async fn add_access_token_for_payout<F: Clone + 'static>(
     connector: &api_types::ConnectorData,
     platform: &domain::Platform,
     router_data: &types::PayoutsRouterData<F>,
+    gateway_context: &gateway_context::RouterGatewayContext,
     payout_type: Option<enums::PayoutType>,
 ) -> RouterResult<types::AddAccessTokenResult> {
     if connector
@@ -57,7 +68,13 @@ pub async fn add_access_token_for_payout<F: Clone + 'static>(
 
         let key = connector
             .connector
-            .get_access_token_key(router_data, connector.connector.id().to_string(), None)
+            .get_access_token_key(
+                &router_data.merchant_id,
+                connector.connector.id().to_string(),
+                None,
+                None,
+                None,
+            )
             .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
         let old_access_token = store
@@ -91,21 +108,27 @@ pub async fn add_access_token_for_payout<F: Clone + 'static>(
                     refresh_token_request_data,
                     refresh_token_response_data,
                 );
-                refresh_connector_auth(state, connector, platform, &refresh_token_router_data)
-                    .await?
-                    .async_map(|access_token| async {
-                        //Store the access token in db
-                        let store = &*state.store;
-                        // This error should not be propagated, we don't want payments to fail once we have
-                        // the access token, the next request will create new access token
-                        let _ = store
-                            .set_access_token(key, access_token.clone())
-                            .await
-                            .change_context(errors::ApiErrorResponse::InternalServerError)
-                            .attach_printable("DB error when setting the access token");
-                        Some(access_token)
-                    })
-                    .await
+                refresh_connector_auth(
+                    state,
+                    connector,
+                    platform,
+                    &refresh_token_router_data,
+                    gateway_context,
+                )
+                .await?
+                .async_map(|access_token| async {
+                    //Store the access token in db
+                    let store = &*state.store;
+                    // This error should not be propagated, we don't want payments to fail once we have
+                    // the access token, the next request will create new access token
+                    let _ = store
+                        .set_access_token(key, access_token.clone())
+                        .await
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable("DB error when setting the access token");
+                    Some(access_token)
+                })
+                .await
             }
         };
 
@@ -131,6 +154,7 @@ pub async fn refresh_connector_auth(
         types::AccessTokenRequestData,
         types::AccessToken,
     >,
+    gateway_context: &gateway_context::RouterGatewayContext,
 ) -> RouterResult<Result<types::AccessToken, types::ErrorResponse>> {
     let connector_integration: services::BoxedAccessTokenConnectorIntegrationInterface<
         api_types::AccessTokenAuth,
@@ -138,13 +162,14 @@ pub async fn refresh_connector_auth(
         types::AccessToken,
     > = connector.connector.get_connector_integration();
 
-    let access_token_router_data_result = services::execute_connector_processing_step(
+    let access_token_router_data_result = gateway::execute_payment_gateway(
         state,
         connector_integration,
         router_data,
         payments::CallConnectorAction::Trigger,
         None,
         None,
+        gateway_context.clone(),
     )
     .await;
 

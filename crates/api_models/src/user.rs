@@ -450,6 +450,12 @@ pub struct ListUsersInternalRequest {
     pub user_ids: Vec<String>,
 }
 
+#[cfg(feature = "v1")]
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct ListMembersQueryParam {
+    pub access_level: EntityType,
+}
+
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct UserTransferKeyResponse {
     pub total_transferred: usize,
@@ -501,4 +507,10 @@ pub struct GetUserInternalDetailsResponse {
 #[derive(Debug, serde::Serialize)]
 pub struct ListUsersInternalResponse {
     pub users: Vec<GetUserInternalDetailsResponse>,
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct AuthorizeTokenRequest {
+    pub token: Secret<String>,
+    pub permission: String,
 }

@@ -19,7 +19,10 @@ use router_env::logger;
 
 use crate::{
     core::errors::{StorageErrorExt, UserErrors, UserResponse},
-    db::user_role::{ListUserRolesByOrgIdPayload, ListUserRolesByUserIdPayload},
+    db::{
+        domain::role::get_accessible_product_categories,
+        user_role::{ListUserRolesByOrgIdPayload, ListUserRolesByUserIdPayload},
+    },
     routes::{app::ReqState, SessionState},
     services::{
         authentication as auth,
@@ -117,26 +120,34 @@ pub async fn get_parent_group_info(
         ));
     }
 
-    let parent_groups =
-        ParentGroup::get_descriptions_for_groups(entity_type, PermissionGroup::iter().collect())
-            .unwrap_or_default()
-            .into_iter()
-            .map(
-                |(parent_group, description)| role_api::ParentGroupDescription {
-                    name: parent_group.clone(),
-                    description,
-                    scopes: PermissionGroup::iter()
-                        .filter_map(|group| {
-                            (group.parent() == parent_group).then_some(group.scope())
-                        })
-                        // TODO: Remove this hashset conversion when merchant access
-                        // and organization access groups are removed
-                        .collect::<HashSet<_>>()
-                        .into_iter()
-                        .collect(),
-                },
-            )
-            .collect::<Vec<_>>();
+    let permission_groups = if let Some(product_type) = request.product_type {
+        let accessible_product_categories = get_accessible_product_categories(product_type);
+        PermissionGroup::iter()
+            .filter(|group| {
+                accessible_product_categories.contains(&group.get_role_product_category())
+            })
+            .collect()
+    } else {
+        PermissionGroup::iter().collect()
+    };
+
+    let parent_groups = ParentGroup::get_descriptions_for_groups(entity_type, permission_groups)
+        .unwrap_or_default()
+        .into_iter()
+        .map(
+            |(parent_group, description)| role_api::ParentGroupDescription {
+                name: parent_group.clone(),
+                description,
+                scopes: PermissionGroup::iter()
+                    .filter_map(|group| (group.parent() == parent_group).then_some(group.scope()))
+                    // TODO: Remove this hashset conversion when merchant access
+                    // and organization access groups are removed
+                    .collect::<HashSet<_>>()
+                    .into_iter()
+                    .collect(),
+            },
+        )
+        .collect::<Vec<_>>();
 
     Ok(ApplicationResponse::Json(parent_groups))
 }
@@ -807,6 +818,7 @@ pub async fn list_users_in_lineage(
                     org_id: &user_from_token.org_id,
                     merchant_id: None,
                     profile_id: None,
+                    entity_type: None,
                     version: None,
                     limit: None,
                 },
@@ -849,6 +861,7 @@ pub async fn list_users_in_lineage(
                     org_id: &user_from_token.org_id,
                     merchant_id: None,
                     profile_id: None,
+                    entity_type: None,
                     version: None,
                     limit: None,
                 },
@@ -868,6 +881,7 @@ pub async fn list_users_in_lineage(
                     org_id: &user_from_token.org_id,
                     merchant_id: Some(&user_from_token.merchant_id),
                     profile_id: None,
+                    entity_type: None,
                     version: None,
                     limit: None,
                 },
@@ -887,6 +901,7 @@ pub async fn list_users_in_lineage(
                     org_id: &user_from_token.org_id,
                     merchant_id: Some(&user_from_token.merchant_id),
                     profile_id: Some(&user_from_token.profile_id),
+                    entity_type: None,
                     version: None,
                     limit: None,
                 },

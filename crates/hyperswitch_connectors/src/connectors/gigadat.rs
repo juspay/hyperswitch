@@ -1033,7 +1033,7 @@ impl webhooks::IncomingWebhook for Gigadat {
 
 lazy_static! {
     static ref GIGADAT_SUPPORTED_PAYMENT_METHODS: SupportedPaymentMethods = {
-        let supported_capture_methods = vec![enums::CaptureMethod::Automatic];
+        let supported_capture_methods = vec![enums::CaptureMethod::Automatic, enums::CaptureMethod::Manual,];
 
         let mut gigadat_supported_payment_methods = SupportedPaymentMethods::new();
         gigadat_supported_payment_methods.add(

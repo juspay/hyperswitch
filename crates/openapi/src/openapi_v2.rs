@@ -9,7 +9,7 @@ use crate::routes;
         contact(
             name = "Hyperswitch Support",
             url = "https://hyperswitch.io",
-            email = "hyperswitch@juspay.in"
+            email = "support.global@juspay.io"
         ),
         // terms_of_service = "https://www.juspay.io/terms",
         description = r#"
@@ -311,9 +311,12 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payment_methods::PaymentMethodUpdateData,
         api_models::payment_methods::CardDetailFromLocker,
         api_models::payment_methods::PaymentMethodCreateData,
+        api_models::payment_methods::BankDebitDetail,
+        api_models::payment_methods::BankDebitDetailsPaymentMethod,
         api_models::payment_methods::ProxyCardDetails,
         api_models::payment_methods::CardDetail,
         api_models::payment_methods::CardDetailUpdate,
+        api_models::payment_methods::BankDebitDetailUpdate,
         api_models::payment_methods::CardType,
         api_models::payment_methods::RequestPaymentMethodTypes,
         api_models::payment_methods::CardType,
@@ -323,6 +326,8 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payment_methods::NetworkTokenStatusCheckFailureResponse,
         api_models::payment_methods::PaymentMethodGetTokenDetailsResponse,
         api_models::payment_methods::RawCardWithNTDetails,
+        api_models::payment_methods::PaymentMethodDataWalletInfo,
+        api_models::payment_methods::WalletPaymentMethodData,
         api_models::enums::TokenStatus,
         api_models::poll::PollResponse,
         api_models::poll::PollStatus,
@@ -744,6 +749,9 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payouts::BacsBankTransfer,
         api_models::payouts::SepaBankTransfer,
         api_models::payouts::PixBankTransfer,
+        api_models::payouts::PixAccountBankTransfer,
+        api_models::payouts::PixKeyBankTransfer,
+        api_models::payouts::PixEmvBankTransfer,
         api_models::payouts::TrustlyBankTransfer,
         api_models::payouts::TrustlyBankTransferData,
         api_models::payouts::PayoutRequest,
@@ -884,6 +892,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::additional_info::CardTokenAdditionalData,
         api_models::payments::additional_info::BankDebitAdditionalData,
         api_models::payments::additional_info::AchBankDebitAdditionalData,
+        api_models::payments::additional_info::EftDebitOrderAdditionalData,
         api_models::payments::additional_info::BacsBankDebitAdditionalData,
         api_models::payments::additional_info::BecsBankDebitAdditionalData,
         api_models::payments::additional_info::SepaBankDebitAdditionalData,

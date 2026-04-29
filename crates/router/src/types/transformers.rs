@@ -363,6 +363,7 @@ impl ForeignFrom<api_enums::PaymentMethodType> for api_enums::PaymentMethod {
             | api_enums::PaymentMethodType::Sepa
             | api_enums::PaymentMethodType::SepaGuarenteedDebit
             | api_enums::PaymentMethodType::Bacs
+            | api_enums::PaymentMethodType::EftDebitOrder
             | api_enums::PaymentMethodType::Becs => Self::BankDebit,
             api_enums::PaymentMethodType::Credit | api_enums::PaymentMethodType::Debit => {
                 Self::Card
@@ -402,6 +403,8 @@ impl ForeignFrom<api_enums::PaymentMethodType> for api_enums::PaymentMethod {
             | api_enums::PaymentMethodType::IndonesianBankTransfer
             | api_enums::PaymentMethodType::PixAutomaticoPush
             | api_enums::PaymentMethodType::PixAutomaticoQr
+            | api_enums::PaymentMethodType::PixKey
+            | api_enums::PaymentMethodType::PixEmv
             | api_enums::PaymentMethodType::Pix => Self::BankTransfer,
             api_enums::PaymentMethodType::Givex
             | api_enums::PaymentMethodType::PaySafeCard
@@ -1362,6 +1365,8 @@ impl ForeignFrom<&api_models::payouts::BankTransfer> for api_enums::PaymentMetho
             api_models::payouts::BankTransfer::Bacs(_) => Self::Bacs,
             api_models::payouts::BankTransfer::Sepa(_) => Self::SepaBankTransfer,
             api_models::payouts::BankTransfer::Pix(_) => Self::Pix,
+            api_models::payouts::BankTransfer::PixKey(_) => Self::PixKey,
+            api_models::payouts::BankTransfer::PixEmv(_) => Self::PixEmv,
             api_models::payouts::BankTransfer::Trustly(_) => Self::Trustly,
         }
     }
@@ -2251,6 +2256,7 @@ impl ForeignFrom<api_models::admin::PaymentMethodBlockingConfig>
     fn foreign_from(item: api_models::admin::PaymentMethodBlockingConfig) -> Self {
         Self {
             card: item.card.map(|c| c.foreign_into()),
+            wallet: item.wallet.map(|w| w.foreign_into()),
         }
     }
 }
@@ -2269,12 +2275,23 @@ impl ForeignFrom<api_models::admin::CardBlockingConfig>
     }
 }
 
+impl ForeignFrom<api_models::admin::WalletBlockingConfig>
+    for diesel_models::business_profile::WalletBlockingConfig
+{
+    fn foreign_from(item: api_models::admin::WalletBlockingConfig) -> Self {
+        Self {
+            card_types: item.card_types,
+        }
+    }
+}
+
 impl ForeignFrom<diesel_models::business_profile::PaymentMethodBlockingConfig>
     for api_models::admin::PaymentMethodBlockingConfig
 {
     fn foreign_from(item: diesel_models::business_profile::PaymentMethodBlockingConfig) -> Self {
         Self {
             card: item.card.map(|c| c.foreign_into()),
+            wallet: item.wallet.map(|w| w.foreign_into()),
         }
     }
 }
@@ -2289,6 +2306,16 @@ impl ForeignFrom<diesel_models::business_profile::CardBlockingConfig>
             card_subtypes: item.card_subtypes,
             issuers: item.issuers,
             block_if_bin_info_unavailable: item.block_if_bin_info_unavailable,
+        }
+    }
+}
+
+impl ForeignFrom<diesel_models::business_profile::WalletBlockingConfig>
+    for api_models::admin::WalletBlockingConfig
+{
+    fn foreign_from(item: diesel_models::business_profile::WalletBlockingConfig) -> Self {
+        Self {
+            card_types: item.card_types,
         }
     }
 }

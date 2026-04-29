@@ -20,6 +20,7 @@ utoipa = { version = "4.2.3", features = ["preserve_order", "preserve_path_order
 time = { version = "0.3.35", features = ["serde", "serde-well-known", "std"] }
 error-stack = "0.4.1"
 cpf_cnpj = "0.3"
+rust_decimal = { version = "1.37", features = ["maths"] }
 
 common_enums = { version = "0.1.0", path = "../common_enums" }
 common_utils = { version = "0.1.0", path = "../common_utils"}

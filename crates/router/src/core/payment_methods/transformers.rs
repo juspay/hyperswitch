@@ -1,7 +1,10 @@
 pub use ::payment_methods::controller::{DataDuplicationCheck, DeleteCardResp};
 use api_models::payment_methods::Card;
 #[cfg(feature = "v2")]
-use api_models::{enums as api_enums, payment_methods::PaymentMethodResponseItem};
+use api_models::{
+    enums as api_enums,
+    payment_methods::{PaymentMethodResponseItem, WalletPaymentMethodData},
+};
 use common_enums::CardNetwork;
 #[cfg(feature = "v1")]
 use common_utils::{crypto::Encryptable, request::Headers, types::keymanager::KeyManagerState};
@@ -34,7 +37,8 @@ use crate::{
     configs::settings,
     core::{
         errors::{self, CustomResult},
-        payment_methods::cards::{call_vault_service, create_encrypted_data},
+        payment_methods::cards::call_vault_service,
+        utils::create_encrypted_data,
     },
     headers,
     pii::Secret,
@@ -572,6 +576,33 @@ pub fn generate_pm_vaulting_req_from_update_request(
             nick_name: update_card.nick_name.or(card_create.nick_name),
             card_cvc: None,
         })),
+        (
+            domain::PaymentMethodVaultingData::BankDebit(bank_debit_create),
+            api::PaymentMethodUpdateData::BankDebit(api::BankDebitDetailUpdate::Ach {
+                bank_account_holder_name: updated_bank_account_holder_name,
+            }),
+        ) => {
+            let payment_method_data::BankDebitDetail::Ach {
+                account_number,
+                routing_number,
+                bank_account_holder_name,
+                bank_type,
+                bank_holder_type,
+                bank_name,
+            } = bank_debit_create;
+
+            Ok(domain::PaymentMethodVaultingData::BankDebit(
+                payment_method_data::BankDebitDetail::Ach {
+                    account_number,
+                    routing_number,
+                    bank_account_holder_name: updated_bank_account_holder_name
+                        .or(bank_account_holder_name),
+                    bank_type,
+                    bank_holder_type,
+                    bank_name,
+                },
+            ))
+        }
         _ => Err(errors::VaultError::PaymentMethodNotSupported)
             .attach_printable("Payment method type not supported for update"),
     }
@@ -594,8 +625,31 @@ pub fn generate_payment_method_response(
         .clone()
         .map(|data| data.into_inner())
         .and_then(|data| match data {
-            api::PaymentMethodsData::Card(card) => {
-                Some(api::PaymentMethodResponseData::Card(card.into()))
+            payment_method_data::PaymentMethodsData::Card(card) => Some(
+                api::PaymentMethodResponseData::Card(Box::new(card.to_card_details_from_locker())),
+            ),
+            payment_method_data::PaymentMethodsData::BankDebit(bank_debit) => {
+                Some(api::PaymentMethodResponseData::BankDebit(bank_debit.into()))
+            }
+            payment_method_data::PaymentMethodsData::WalletDetails(info) => {
+                match payment_method.payment_method_subtype {
+                    Some(common_enums::PaymentMethodType::ApplePay) => {
+                        Some(api::PaymentMethodResponseData::Wallet(
+                            WalletPaymentMethodData::ApplePay(Box::new(info)),
+                        ))
+                    }
+                    Some(common_enums::PaymentMethodType::GooglePay) => {
+                        Some(api::PaymentMethodResponseData::Wallet(
+                            WalletPaymentMethodData::GooglePay(Box::new(info)),
+                        ))
+                    }
+                    Some(common_enums::PaymentMethodType::Paypal) => Some(
+                        api::PaymentMethodResponseData::Wallet(WalletPaymentMethodData::PayPal(
+                            Box::new(api_models::payments::PaypalRedirection { email: info.email }),
+                        )),
+                    ),
+                    _ => None,
+                }
             }
             _ => None,
         });
@@ -870,16 +924,42 @@ impl transformers::ForeignTryFrom<(domain::PaymentMethod, String)>
         let payment_method_data = item
             .payment_method_data
             .map(|payment_method_data| payment_method_data.into_inner())
-            .map(|payment_method_data| match payment_method_data {
-                api_models::payment_methods::PaymentMethodsData::Card(
-                    card_details_payment_method,
-                ) => {
-                    let card_details = api::CardDetailFromLocker::from(card_details_payment_method);
-                    api_models::payment_methods::PaymentMethodListData::Card(card_details)
+            .and_then(|payment_method_data| match payment_method_data {
+                payment_method_data::PaymentMethodsData::Card(card_details_payment_method) => {
+                    let card_details = card_details_payment_method.to_card_details_from_locker();
+                    Some(api_models::payment_methods::PaymentMethodListData::Card(
+                        card_details,
+                    ))
                 }
-                api_models::payment_methods::PaymentMethodsData::BankDetails(..) => todo!(),
-                api_models::payment_methods::PaymentMethodsData::BankDebit(..) => todo!(),
-                api_models::payment_methods::PaymentMethodsData::WalletDetails(..) => {
+                payment_method_data::PaymentMethodsData::BankDetails(..) => todo!(),
+                payment_method_data::PaymentMethodsData::BankDebit(bank_debit_details) => Some(
+                    api_models::payment_methods::PaymentMethodListData::BankDebit(
+                        bank_debit_details.into(),
+                    ),
+                ),
+                payment_method_data::PaymentMethodsData::WalletDetails(info) => {
+                    match payment_method_subtype {
+                        api_enums::PaymentMethodType::ApplePay => {
+                            Some(api_models::payment_methods::PaymentMethodListData::Wallet(
+                                WalletPaymentMethodData::ApplePay(Box::new(info)),
+                            ))
+                        }
+                        api_enums::PaymentMethodType::GooglePay => {
+                            Some(api_models::payment_methods::PaymentMethodListData::Wallet(
+                                WalletPaymentMethodData::GooglePay(Box::new(info)),
+                            ))
+                        }
+                        api_enums::PaymentMethodType::Paypal => {
+                            Some(api_models::payment_methods::PaymentMethodListData::Wallet(
+                                WalletPaymentMethodData::PayPal(Box::new(
+                                    api_models::payments::PaypalRedirection { email: info.email },
+                                )),
+                            ))
+                        }
+                        _ => None,
+                    }
+                }
+                payment_method_data::PaymentMethodsData::NetworkToken(_) => {
                     todo!()
                 }
             });
@@ -937,16 +1017,42 @@ impl transformers::ForeignTryFrom<domain::PaymentMethod> for PaymentMethodRespon
         let payment_method_data = item
             .payment_method_data
             .map(|payment_method_data| payment_method_data.into_inner())
-            .map(|payment_method_data| match payment_method_data {
-                api_models::payment_methods::PaymentMethodsData::Card(
-                    card_details_payment_method,
-                ) => {
-                    let card_details = api::CardDetailFromLocker::from(card_details_payment_method);
-                    api_models::payment_methods::PaymentMethodListData::Card(card_details)
+            .and_then(|payment_method_data| match payment_method_data {
+                payment_method_data::PaymentMethodsData::Card(card_details_payment_method) => {
+                    let card_details = card_details_payment_method.to_card_details_from_locker();
+                    Some(api_models::payment_methods::PaymentMethodListData::Card(
+                        card_details,
+                    ))
                 }
-                api_models::payment_methods::PaymentMethodsData::BankDetails(..) => todo!(),
-                api_models::payment_methods::PaymentMethodsData::BankDebit(..) => todo!(),
-                api_models::payment_methods::PaymentMethodsData::WalletDetails(..) => {
+                payment_method_data::PaymentMethodsData::BankDetails(..) => todo!(),
+                payment_method_data::PaymentMethodsData::BankDebit(bank_debit_details) => Some(
+                    api_models::payment_methods::PaymentMethodListData::BankDebit(
+                        bank_debit_details.into(),
+                    ),
+                ),
+                payment_method_data::PaymentMethodsData::WalletDetails(info) => {
+                    match payment_method_subtype {
+                        api_enums::PaymentMethodType::ApplePay => {
+                            Some(api_models::payment_methods::PaymentMethodListData::Wallet(
+                                WalletPaymentMethodData::ApplePay(Box::new(info)),
+                            ))
+                        }
+                        api_enums::PaymentMethodType::GooglePay => {
+                            Some(api_models::payment_methods::PaymentMethodListData::Wallet(
+                                WalletPaymentMethodData::GooglePay(Box::new(info)),
+                            ))
+                        }
+                        api_enums::PaymentMethodType::Paypal => {
+                            Some(api_models::payment_methods::PaymentMethodListData::Wallet(
+                                WalletPaymentMethodData::PayPal(Box::new(
+                                    api_models::payments::PaypalRedirection { email: info.email },
+                                )),
+                            ))
+                        }
+                        _ => None,
+                    }
+                }
+                payment_method_data::PaymentMethodsData::NetworkToken(_) => {
                     todo!()
                 }
             });
@@ -1235,6 +1341,7 @@ impl DomainPaymentMethodWrapper {
                     key_manager_state,
                     platform.get_provider().get_key_store(),
                     address.clone(),
+                    common_utils::type_name!(diesel_models::payment_method::PaymentMethod),
                 )
             })
             .await
@@ -1357,6 +1464,7 @@ impl DomainPaymentMethodWrapper {
                     key_manager_state,
                     platform.get_provider().get_key_store(),
                     address.clone(),
+                    common_utils::type_name!(diesel_models::payment_method::PaymentMethod),
                 )
             })
             .await
@@ -1562,6 +1670,27 @@ impl
                             },
                     }),
                 )))
+            }
+            payment_methods::types::RawPaymentMethodData::BankDebit(bank_debit_detail) => {
+                match bank_debit_detail {
+                    payment_methods::types::BankDebitDetail::Ach {
+                        account_number,
+                        routing_number,
+                        bank_account_holder_name,
+                        bank_type,
+                        bank_holder_type,
+                        bank_name,
+                    } => Ok(Self(domain::PaymentMethodData::BankDebit(
+                        hyperswitch_domain_models::payment_method_data::BankDebitData::AchBankDebit {
+                            account_number,
+                            routing_number,
+                            bank_account_holder_name,
+                            bank_name,
+                            bank_type,
+                            bank_holder_type,
+                        },
+                    ))),
+                }
             }
         }
     }

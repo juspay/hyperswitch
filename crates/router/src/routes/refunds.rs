@@ -66,12 +66,12 @@ pub async fn refunds_create(
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
-                allow_connected_scope_operation: false,
+                allow_connected_scope_operation: true,
                 allow_platform_self_operation: false,
             }),
             &auth::JWTAuth {
                 permission: Permission::ProfileRefundWrite,
-                allow_connected: false,
+                allow_connected: true,
                 allow_platform: false,
             },
             req.headers(),
@@ -175,12 +175,12 @@ pub async fn refunds_retrieve(
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
-                allow_connected_scope_operation: false,
+                allow_connected_scope_operation: true,
                 allow_platform_self_operation: false,
             }),
             &auth::JWTAuth {
                 permission: Permission::ProfileRefundRead,
-                allow_connected: false,
+                allow_connected: true,
                 allow_platform: false,
             },
             req.headers(),
@@ -333,7 +333,7 @@ pub async fn refunds_retrieve_with_body(
             )
         },
         &auth::HeaderAuth(auth::ApiKeyAuth {
-            allow_connected_scope_operation: false,
+            allow_connected_scope_operation: true,
             allow_platform_self_operation: false,
         }),
         api_locking::LockAction::NotApplicable,
@@ -365,7 +365,7 @@ pub async fn refunds_update(
             refund_update_core(state, auth.platform, req)
         },
         &auth::HeaderAuth(auth::ApiKeyAuth {
-            allow_connected_scope_operation: false,
+            allow_connected_scope_operation: true,
             allow_platform_self_operation: false,
         }),
         api_locking::LockAction::NotApplicable,
@@ -433,7 +433,7 @@ pub async fn refunds_list(
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
-                allow_connected_scope_operation: false,
+                allow_connected_scope_operation: true,
                 allow_platform_self_operation: false,
             }),
             &auth::JWTAuth {
@@ -512,7 +512,7 @@ pub async fn refunds_list_profile(
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
-                allow_connected_scope_operation: false,
+                allow_connected_scope_operation: true,
                 allow_platform_self_operation: false,
             }),
             &auth::JWTAuth {
@@ -548,7 +548,7 @@ pub async fn refunds_filter_list(
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
-                allow_connected_scope_operation: false,
+                allow_connected_scope_operation: true,
                 allow_platform_self_operation: false,
             }),
             &auth::JWTAuth {
@@ -580,7 +580,7 @@ pub async fn get_refunds_filters(state: web::Data<AppState>, req: HttpRequest) -
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
-                allow_connected_scope_operation: false,
+                allow_connected_scope_operation: true,
                 allow_platform_self_operation: false,
             }),
             &auth::JWTAuth {
@@ -619,7 +619,7 @@ pub async fn get_refunds_filters_profile(
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
-                allow_connected_scope_operation: false,
+                allow_connected_scope_operation: true,
                 allow_platform_self_operation: false,
             }),
             &auth::JWTAuth {
@@ -653,7 +653,7 @@ pub async fn get_refunds_aggregates(
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
-                allow_connected_scope_operation: false,
+                allow_connected_scope_operation: true,
                 allow_platform_self_operation: false,
             }),
             &auth::JWTAuth {
@@ -715,7 +715,7 @@ pub async fn get_refunds_aggregate_profile(
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
-                allow_connected_scope_operation: false,
+                allow_connected_scope_operation: true,
                 allow_platform_self_operation: false,
             }),
             &auth::JWTAuth {

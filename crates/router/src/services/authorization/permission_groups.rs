@@ -4,12 +4,14 @@ use common_enums::{EntityType, ParentGroup, PermissionGroup, PermissionScope, Re
 use strum::IntoEnumIterator;
 
 use super::permissions;
+use crate::db::domain::role::RoleProductCategory;
 
 pub trait PermissionGroupExt {
     fn scope(&self) -> PermissionScope;
     fn parent(&self) -> ParentGroup;
     fn resources(&self) -> Vec<Resource>;
     fn accessible_groups(&self) -> Vec<PermissionGroup>;
+    fn get_role_product_category(&self) -> RoleProductCategory;
 }
 
 impl PermissionGroupExt for PermissionGroup {
@@ -21,19 +23,23 @@ impl PermissionGroupExt for PermissionGroup {
             | Self::AnalyticsView
             | Self::UsersView
             | Self::AccountView
-            | Self::ReconOpsView
-            | Self::ReconReportsView
-            | Self::ThemeView => PermissionScope::Read,
+            | Self::ThemeView
+            | Self::ReconSourcesView
+            | Self::ReconTransactionsView
+            | Self::ReconExceptionsView
+            | Self::ReconRulesView => PermissionScope::Read,
 
             Self::OperationsManage
             | Self::ConnectorsManage
             | Self::WorkflowsManage
             | Self::UsersManage
             | Self::AccountManage
-            | Self::ReconOpsManage
-            | Self::ReconReportsManage
             | Self::InternalManage
-            | Self::ThemeManage => PermissionScope::Write,
+            | Self::ThemeManage
+            | Self::ReconSourcesManage
+            | Self::ReconExceptionsManage
+            | Self::ReconTransactionsManage
+            | Self::ReconRulesManage => PermissionScope::Write,
         }
     }
 
@@ -47,9 +53,13 @@ impl PermissionGroupExt for PermissionGroup {
             Self::AccountView | Self::AccountManage => ParentGroup::Account,
 
             Self::ThemeView | Self::ThemeManage => ParentGroup::Theme,
-            Self::ReconOpsView | Self::ReconOpsManage => ParentGroup::ReconOps,
-            Self::ReconReportsView | Self::ReconReportsManage => ParentGroup::ReconReports,
             Self::InternalManage => ParentGroup::Internal,
+            Self::ReconSourcesView | Self::ReconSourcesManage => ParentGroup::ReconSources,
+            Self::ReconExceptionsView | Self::ReconExceptionsManage => ParentGroup::ReconExceptions,
+            Self::ReconTransactionsView | Self::ReconTransactionsManage => {
+                ParentGroup::ReconTransactions
+            }
+            Self::ReconRulesView | Self::ReconRulesManage => ParentGroup::ReconRules,
         }
     }
 
@@ -83,18 +93,78 @@ impl PermissionGroupExt for PermissionGroup {
                 vec![Self::UsersView, Self::UsersManage]
             }
 
-            Self::ReconOpsView => vec![Self::ReconOpsView],
-            Self::ReconOpsManage => vec![Self::ReconOpsView, Self::ReconOpsManage],
-
-            Self::ReconReportsView => vec![Self::ReconReportsView],
-            Self::ReconReportsManage => vec![Self::ReconReportsView, Self::ReconReportsManage],
-
             Self::AccountView => vec![Self::AccountView],
             Self::AccountManage => vec![Self::AccountView, Self::AccountManage],
 
             Self::InternalManage => vec![Self::InternalManage],
             Self::ThemeView => vec![Self::ThemeView, Self::AccountView],
             Self::ThemeManage => vec![Self::ThemeManage, Self::AccountView],
+
+            Self::ReconSourcesView => vec![
+                Self::ReconSourcesView,
+                Self::ReconTransactionsView,
+                Self::ReconRulesView,
+            ],
+            Self::ReconSourcesManage => vec![
+                Self::ReconSourcesManage,
+                Self::ReconSourcesView,
+                Self::ReconTransactionsView,
+                Self::ReconRulesView,
+            ],
+            Self::ReconExceptionsView => vec![
+                Self::ReconExceptionsView,
+                Self::ReconTransactionsView,
+                Self::ReconRulesView,
+            ],
+            Self::ReconExceptionsManage => vec![
+                Self::ReconExceptionsManage,
+                Self::ReconExceptionsView,
+                Self::ReconTransactionsView,
+                Self::ReconRulesView,
+            ],
+            Self::ReconTransactionsView => vec![Self::ReconTransactionsView, Self::ReconRulesView],
+            Self::ReconTransactionsManage => vec![
+                Self::ReconTransactionsManage,
+                Self::ReconTransactionsView,
+                Self::ReconRulesView,
+            ],
+            Self::ReconRulesView => vec![Self::ReconRulesView, Self::ReconTransactionsView],
+            Self::ReconRulesManage => vec![
+                Self::ReconRulesManage,
+                Self::ReconRulesView,
+                Self::ReconTransactionsView,
+            ],
+        }
+    }
+
+    fn get_role_product_category(&self) -> RoleProductCategory {
+        match self {
+            // Common across every product — not validated against the merchant's category.
+            Self::UsersView | Self::UsersManage => RoleProductCategory::Dashboard,
+
+            // Orchestration-only groups.
+            Self::OperationsView
+            | Self::OperationsManage
+            | Self::ConnectorsView
+            | Self::ConnectorsManage
+            | Self::WorkflowsView
+            | Self::WorkflowsManage
+            | Self::AnalyticsView
+            | Self::AccountView
+            | Self::AccountManage
+            | Self::InternalManage
+            | Self::ThemeView
+            | Self::ThemeManage => RoleProductCategory::Orchestration,
+
+            // Recon-only groups.
+            Self::ReconSourcesView
+            | Self::ReconSourcesManage
+            | Self::ReconExceptionsView
+            | Self::ReconExceptionsManage
+            | Self::ReconTransactionsView
+            | Self::ReconTransactionsManage
+            | Self::ReconRulesView
+            | Self::ReconRulesManage => RoleProductCategory::Recon,
         }
     }
 }
@@ -117,10 +187,12 @@ impl ParentGroupExt for ParentGroup {
             Self::Analytics => ANALYTICS.to_vec(),
             Self::Users => USERS.to_vec(),
             Self::Account => ACCOUNT.to_vec(),
-            Self::ReconOps => RECON_OPS.to_vec(),
-            Self::ReconReports => RECON_REPORTS.to_vec(),
             Self::Internal => INTERNAL.to_vec(),
             Self::Theme => THEME.to_vec(),
+            Self::ReconSources => RECON_SOURCES.to_vec(),
+            Self::ReconExceptions => RECON_EXCEPTIONS.to_vec(),
+            Self::ReconTransactions => RECON_TRANSACTIONS.to_vec(),
+            Self::ReconRules => RECON_RULES.to_vec(),
         }
     }
 
@@ -187,24 +259,22 @@ pub static USERS: [Resource; 2] = [Resource::User, Resource::Account];
 
 pub static ACCOUNT: [Resource; 3] = [Resource::Account, Resource::ApiKey, Resource::WebhookEvent];
 
-pub static RECON_OPS: [Resource; 8] = [
-    Resource::ReconToken,
-    Resource::ReconFiles,
-    Resource::ReconUpload,
-    Resource::RunRecon,
-    Resource::ReconConfig,
-    Resource::ReconAndSettlementAnalytics,
-    Resource::ReconReports,
-    Resource::Account,
-];
-
 pub static INTERNAL: [Resource; 1] = [Resource::InternalConnector];
 
-pub static RECON_REPORTS: [Resource; 4] = [
-    Resource::ReconToken,
-    Resource::ReconAndSettlementAnalytics,
-    Resource::ReconReports,
+pub static THEME: [Resource; 1] = [Resource::Theme];
+
+pub static RECON_SOURCES: [Resource; 3] = [
+    Resource::ReconIngestion,
+    Resource::ReconTransformation,
     Resource::Account,
 ];
 
-pub static THEME: [Resource; 1] = [Resource::Theme];
+pub static RECON_EXCEPTIONS: [Resource; 2] = [Resource::ReconException, Resource::Account];
+
+pub static RECON_TRANSACTIONS: [Resource; 3] = [
+    Resource::ReconStagingEntry,
+    Resource::ReconTransaction,
+    Resource::Account,
+];
+
+pub static RECON_RULES: [Resource; 2] = [Resource::ReconRule, Resource::Account];

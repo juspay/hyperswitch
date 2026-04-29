@@ -125,6 +125,7 @@ pub enum Connector {
     // Hyperwallet, added as template code for future usage
     Inespay,
     Iatapay,
+    Imerchantsolutions,
     Itaubank,
     Jpmorgan,
     Juspaythreedsserver,
@@ -167,6 +168,7 @@ pub enum Connector {
     Recurly,
     Redsys,
     Revolv3,
+    Sanlam,
     Santander,
     Shift4,
     Silverflow,
@@ -221,6 +223,7 @@ impl Connector {
                 | (Self::Trustly, _)
                 | (Self::Worldpay, Some(PayoutType::Wallet))
                 | (Self::Worldpayxml, Some(PayoutType::Wallet))
+                | (Self::Itaubank, Some(PayoutType::Bank))
         )
     }
     #[cfg(feature = "payouts")]
@@ -242,7 +245,7 @@ impl Connector {
     pub fn supports_access_token_for_payout(self, payout_method: Option<PayoutType>) -> bool {
         matches!(
             (self, payout_method),
-            (Self::Paypal, _) | (Self::Truelayer, _)
+            (Self::Paypal, _) | (Self::Truelayer, _) | (Self::Itaubank, _)
         )
     }
     #[cfg(feature = "payouts")]
@@ -389,6 +392,7 @@ impl Connector {
             | Self::Recurly
             | Self::Redsys
             | Self::Revolv3
+            | Self::Sanlam
             | Self::Santander
             | Self::Shift4
             | Self::Silverflow
@@ -434,7 +438,8 @@ impl Connector {
             | Self::Paytm
             | Self::Payjustnow
             | Self::Payjustnowinstore
-            | Self::Phonepe => false,
+            | Self::Phonepe
+            | Self::Imerchantsolutions => false,
             Self::Stripe | Self::Checkout | Self::Zift | Self::Nmi | Self::Braintree|
             Self::Cybersource | Self::Archipel | Self::Nuvei | Self::Adyen => true,
         }

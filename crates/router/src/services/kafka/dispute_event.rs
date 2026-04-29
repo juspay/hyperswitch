@@ -1,6 +1,6 @@
 use common_utils::{
     ext_traits::StringExt,
-    types::{AmountConvertor, MinorUnit, StringMinorUnitForConnector},
+    types::{AmountConvertor, CreatedBy, MinorUnit, StringMinorUnitForConnector},
 };
 use diesel_models::enums as storage_enums;
 use hyperswitch_masking::Secret;
@@ -38,6 +38,8 @@ pub struct KafkaDisputeEvent<'a> {
     pub profile_id: Option<&'a common_utils::id_type::ProfileId>,
     pub merchant_connector_id: Option<&'a common_utils::id_type::MerchantConnectorAccountId>,
     pub organization_id: &'a common_utils::id_type::OrganizationId,
+    pub processor_merchant_id: Option<&'a common_utils::id_type::MerchantId>,
+    pub created_by: Option<CreatedBy>,
 }
 
 impl<'a> KafkaDisputeEvent<'a> {
@@ -80,6 +82,11 @@ impl<'a> KafkaDisputeEvent<'a> {
             profile_id: dispute.profile_id.as_ref(),
             merchant_connector_id: dispute.merchant_connector_id.as_ref(),
             organization_id: &dispute.organization_id,
+            processor_merchant_id: dispute.processor_merchant_id.as_ref(),
+            created_by: dispute
+                .created_by
+                .as_ref()
+                .and_then(|created_by| created_by.parse::<CreatedBy>().ok()),
         }
     }
 }

@@ -221,6 +221,9 @@ impl FeatureMatrixConnectorData {
                 enums::Connector::Iatapay => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Iatapay::new())))
                 }
+                enums::Connector::Imerchantsolutions => Ok(ConnectorEnum::Old(Box::new(
+                    connector::Imerchantsolutions::new(),
+                ))),
                 enums::Connector::Inespay => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Inespay::new())))
                 }
@@ -389,6 +392,9 @@ impl FeatureMatrixConnectorData {
                 }
                 enums::Connector::Truelayer => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Truelayer::new())))
+                }
+                enums::Connector::Sanlam => {
+                    Ok(ConnectorEnum::Old(Box::new(connector::Sanlam::new())))
                 }
                 enums::Connector::Trustly => {
                     Ok(ConnectorEnum::Old(Box::new(connector::Trustly::new())))

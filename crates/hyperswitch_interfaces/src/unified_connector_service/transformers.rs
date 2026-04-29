@@ -165,6 +165,34 @@ pub enum UnifiedConnectorServiceError {
     /// Failed to perform Payment Incremental Authorization from gRPC Server
     #[error("Failed to perform Payment Incremental Authorization from gRPC Server")]
     PaymentIncrementalAuthorizationFailure,
+
+    /// Failed to perform Payout Create from gRPC Server
+    #[error("Failed to perform Payout Create from gRPC Server")]
+    PayoutCreateFailure,
+
+    /// Failed to perform Payout Transfer from gRPC Server
+    #[error("Failed to perform Payout Transfer from gRPC Server")]
+    PayoutTransferFailure,
+
+    /// Failed to perform Payout Get from gRPC Server
+    #[error("Failed to perform Payout Get from gRPC Server")]
+    PayoutGetFailure,
+
+    /// Failed to perform Payout Void from gRPC Server
+    #[error("Failed to perform Payout Void from gRPC Server")]
+    PayoutVoidFailure,
+
+    /// Failed to perform Payout Stage from gRPC Server
+    #[error("Failed to perform Payout Stage from gRPC Server")]
+    PayoutStageFailure,
+
+    /// Failed to perform Payout Create Recipient from gRPC Server
+    #[error("Failed to perform Payout Create Recipient from gRPC Server")]
+    PayoutCreateRecipientFailure,
+
+    /// Failed to perform Payout Enroll Disburse Account from gRPC Server
+    #[error("Failed to perform Payout Enroll Disburse Account from gRPC Server")]
+    PayoutEnrollDisburseAccountFailure,
 }
 
 /// UCS Webhook transformation status
@@ -549,9 +577,6 @@ impl ForeignTryFrom<payments_grpc::Ach>
                     })?
                     .expose(),
             ),
-            card_holder_name: ach
-                .card_holder_name
-                .map(|s| hyperswitch_masking::Secret::new(s.expose())),
             bank_account_holder_name: ach
                 .bank_account_holder_name
                 .map(|s| hyperswitch_masking::Secret::new(s.expose())),
@@ -646,10 +671,14 @@ impl ForeignTryFrom<payments_grpc::BankType> for common_enums::BankType {
         match bank_type {
             payments_grpc::BankType::Checking => Ok(Self::Checking),
             payments_grpc::BankType::Savings => Ok(Self::Savings),
-            payments_grpc::BankType::Unspecified => Err(error_stack::Report::new(
+            payments_grpc::BankType::Bond
+            | payments_grpc::BankType::Transmission
+            | payments_grpc::BankType::Current
+            | payments_grpc::BankType::SubscriptionShare
+            | payments_grpc::BankType::Unspecified => Err(error_stack::Report::new(
                 UnifiedConnectorServiceError::ResponseDeserializationFailed,
             )
-            .attach_printable("BankType unspecified")),
+            .attach_printable("BankType unsupported")),
         }
     }
 }

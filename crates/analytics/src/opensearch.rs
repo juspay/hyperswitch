@@ -795,8 +795,9 @@ impl OpenSearchQueryBuilder {
                 AuthInfo::MerchantLevel {
                     org_id,
                     merchant_ids,
+                    processor_merchant_ids,
                 } => {
-                    let must_clauses = vec![
+                    let mut must_clauses = vec![
                         json!({
                             "term": {
                                 "organization_id.keyword": {
@@ -811,6 +812,14 @@ impl OpenSearchQueryBuilder {
                         }),
                     ];
 
+                    if let Some(processor_mids) = processor_merchant_ids {
+                        must_clauses.push(json!({
+                            "terms": {
+                                "processor_merchant_id.keyword": processor_mids
+                            }
+                        }));
+                    }
+
                     json!({
                         "bool": {
                             "must": must_clauses
@@ -821,8 +830,9 @@ impl OpenSearchQueryBuilder {
                     org_id,
                     merchant_id,
                     profile_ids,
+                    processor_merchant_id,
                 } => {
-                    let must_clauses = vec![
+                    let mut must_clauses = vec![
                         json!({
                             "term": {
                                 "organization_id.keyword": {
@@ -843,6 +853,16 @@ impl OpenSearchQueryBuilder {
                             }
                         }),
                     ];
+
+                    if let Some(processor_mid) = processor_merchant_id {
+                        must_clauses.push(json!({
+                            "term": {
+                                "processor_merchant_id.keyword": {
+                                    "value": processor_mid
+                                }
+                            }
+                        }));
+                    }
 
                     json!({
                         "bool": {

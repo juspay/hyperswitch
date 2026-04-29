@@ -47,17 +47,6 @@ describe("Payment Webhook Tests", () => {
   it("Create merchant connector account", () => {
     const connectorBody = structuredClone(fixtures.createConnectorBody);
 
-    // If connector requires webhook signature verification (e.g. WorldPay),
-    // set connector_webhook_details with the test secret during connector creation
-    const webhookConfig = getConnectorDetails(globalState.get("connectorId"))[
-      "webhook"
-    ];
-    if (webhookConfig?.webhookSecret) {
-      connectorBody.connector_webhook_details = {
-        merchant_secret: webhookConfig.webhookSecret,
-      };
-    }
-
     cy.createConnectorCallTest(
       "payment_processor",
       connectorBody,
