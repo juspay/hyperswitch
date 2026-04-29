@@ -11822,7 +11822,6 @@ pub async fn payments_manual_update(
 
     // Validate amount_captured constraints
     if let Some(amount_captured) = amount_captured {
-        // amount_captured is only valid for terminal statuses involving captured funds
         if let Some(status) = attempt_status {
             utils::when(
                 !matches!(
@@ -11841,7 +11840,6 @@ pub async fn payments_manual_update(
             )?;
         }
 
-        // amount_captured cannot exceed the total amount (unless overcapture is enabled)
         let is_overcapture_enabled = payment_attempt
             .is_overcapture_enabled
             .map(|v| *v.deref())
@@ -11859,8 +11857,6 @@ pub async fn payments_manual_update(
             )?;
         }
 
-        // If amount_capturable is provided, amount_captured + amount_capturable should not exceed total amount
-        // (unless overcapture is enabled, in which case amount_captured can exceed total)
         if let Some(amount_capturable) = amount_capturable {
             if !is_overcapture_enabled {
                 let total_processed = amount_captured + amount_capturable;
