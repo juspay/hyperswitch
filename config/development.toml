@@ -1562,3 +1562,4 @@ backup_file_path = "./config/superposition_seed.toml" # Path to a local file for
 [micro_services]
 payment_methods_base_url = "http://localhost:8082"
 payment_methods_prefix = "v2"
+use_legacy_locker = false

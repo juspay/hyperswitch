@@ -17,6 +17,8 @@ use hyperswitch_domain_models::{
     router_data_v2::flow_common_types::VaultConnectorFlowData, types::VaultRouterData,
 };
 use hyperswitch_masking::PeekInterface;
+#[cfg(feature = "v2")]
+use payment_methods::controller::DeleteCardResp;
 use router_env::{instrument, tracing};
 use scheduler::{types::process_data, utils as process_tracker_utils};
 
@@ -43,7 +45,7 @@ use crate::{
 use crate::{
     core::{
         errors::StorageErrorExt,
-        payment_methods::{cards as pm_cards, utils},
+        payment_methods::{cards as pm_cards, utils, LockerOperations, LockerType},
         payments::{self as payments_core, helpers as payment_helpers},
         utils::create_encrypted_data,
     },
@@ -1982,26 +1984,18 @@ pub async fn retrieve_payment_method_from_vault_internal(
     platform: &domain::Platform,
     vault_id: &domain::VaultId,
     customer_id: &id_type::GlobalCustomerId,
+    payment_method_type: Option<enums::PaymentMethod>,
 ) -> CustomResult<pm_types::VaultRetrieveResponse, errors::VaultError> {
-    let payload = pm_types::VaultRetrieveRequest {
-        entity_id: customer_id.to_owned(),
-        vault_id: vault_id.to_owned(),
-    }
-    .encode_to_vec()
-    .change_context(errors::VaultError::RequestEncodingFailed)
-    .attach_printable("Failed to encode VaultRetrieveRequest")?;
-
-    let resp = call_to_vault::<pm_types::VaultRetrieve>(state, payload, None)
+    let locker = LockerType::from_micro_services_config(&state.conf.micro_services);
+    locker
+        .retrieve_payment_method_from_locker(
+            state,
+            platform,
+            vault_id,
+            customer_id,
+            payment_method_type,
+        )
         .await
-        .change_context(errors::VaultError::VaultAPIError)
-        .attach_printable("Call to vault failed")?;
-
-    let stored_pm_resp: pm_types::VaultRetrieveResponse = resp
-        .parse_struct("VaultRetrieveResponse")
-        .change_context(errors::VaultError::ResponseDeserializationFailed)
-        .attach_printable("Failed to parse data into VaultRetrieveResponse")?;
-
-    Ok(stored_pm_resp)
 }
 
 #[cfg(all(feature = "v2", feature = "tokenization_v2"))]
@@ -2469,10 +2463,17 @@ pub async fn retrieve_payment_method_from_vault(
                 .customer_id
                 .clone()
                 .get_required_value("GlobalCustomerId")?;
-            retrieve_payment_method_from_vault_internal(state, platform, &vault_id, &customer_id)
-                .await
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Failed to retrieve payment method from vault")
+
+            retrieve_payment_method_from_vault_internal(
+                state,
+                platform,
+                &vault_id,
+                &customer_id,
+                pm.payment_method_type,
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to retrieve payment method from vault")
         }
     }
 }
@@ -2484,25 +2485,10 @@ pub async fn delete_payment_method_data_from_vault_internal(
     vault_id: domain::VaultId,
     customer_id: &id_type::GlobalCustomerId,
 ) -> CustomResult<pm_types::VaultDeleteResponse, errors::VaultError> {
-    let payload = pm_types::VaultDeleteRequest {
-        entity_id: customer_id.to_owned(),
-        vault_id,
-    }
-    .encode_to_vec()
-    .change_context(errors::VaultError::RequestEncodingFailed)
-    .attach_printable("Failed to encode VaultDeleteRequest")?;
-
-    let resp = call_to_vault::<pm_types::VaultDelete>(state, payload, None)
+    let locker = LockerType::from_micro_services_config(&state.conf.micro_services);
+    locker
+        .delete_payment_method_from_locker(state, platform, vault_id, customer_id)
         .await
-        .change_context(errors::VaultError::VaultAPIError)
-        .attach_printable("Call to vault failed")?;
-
-    let stored_pm_resp: pm_types::VaultDeleteResponse = resp
-        .parse_struct("VaultDeleteResponse")
-        .change_context(errors::VaultError::ResponseDeserializationFailed)
-        .attach_printable("Failed to parse data into VaultDeleteResponse")?;
-
-    Ok(stored_pm_resp)
 }
 
 #[cfg(feature = "v2")]
