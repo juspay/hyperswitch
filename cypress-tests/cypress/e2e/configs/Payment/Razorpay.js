@@ -1,42 +1,34 @@
-const successfulNo3DSCardDetails = {
-  card_number: "5267 3181 8797 5449",
-  card_exp_month: "10",
-  card_exp_year: "30",
-  card_holder_name: "Joseph Doe",
-  card_cvc: "999",
-};
+import { customerAcceptance } from "./Commons";
 
 export const connectorDetails = {
-  card_pm: {
+  upi_pm: {
     PaymentIntent: {
       Request: {
-        currency: "USD",
-        customer_acceptance: null,
-        setup_future_usage: "on_session",
+        currency: "INR",
       },
       Response: {
         status: 200,
         body: {
           status: "requires_payment_method",
-          setup_future_usage: "on_session",
         },
       },
     },
-    No3DSAutoCapture: {
+    UpiCollect: {
       Request: {
-        payment_method: "card",
+        payment_method: "upi",
+        payment_method_type: "upi_collect",
         payment_method_data: {
-          card: successfulNo3DSCardDetails,
+          upi: {
+            upi_collect: {
+              vpa_id: "success@razorpay",
+            },
+          },
         },
-        currency: "USD",
-        customer_acceptance: null,
-        setup_future_usage: "on_session",
       },
       Response: {
         status: 200,
         body: {
-          status: "succeeded",
-          payment_method: "card",
+          status: "requires_customer_action",
         },
       },
     },
@@ -44,7 +36,7 @@ export const connectorDetails = {
   order_create_pm: {
     OrderCreate: {
       Request: {
-        currency: "USD",
+        currency: "INR",
         amount: 6000,
         order_details: [
           {
@@ -64,11 +56,16 @@ export const connectorDetails = {
     },
     OrderCreateConfirm: {
       Request: {
-        payment_method: "card",
+        payment_method: "upi",
+        payment_method_type: "upi_collect",
         payment_method_data: {
-          card: successfulNo3DSCardDetails,
+          upi: {
+            upi_collect: {
+              vpa_id: "success@razorpay",
+            },
+          },
         },
-        currency: "USD",
+        currency: "INR",
         amount: 6000,
         order_details: [
           {
@@ -77,15 +74,13 @@ export const connectorDetails = {
             amount: 6000,
           },
         ],
-        customer_acceptance: null,
-        setup_future_usage: "on_session",
       },
       Response: {
         status: 200,
         body: {
-          status: "succeeded",
+          status: "requires_customer_action",
           amount: 6000,
-          payment_method: "card",
+          payment_method: "upi",
         },
       },
     },
