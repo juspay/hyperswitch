@@ -11809,6 +11809,17 @@ pub async fn payments_manual_update(
             "Error while fetching the payment_attempt by payment_id, merchant_id and attempt_id",
         )?;
 
+    if let Some(amount_capturable) = amount_capturable {
+        utils::when(
+            amount_capturable > payment_attempt.net_amount.get_total_amount(),
+            || {
+                Err(errors::ApiErrorResponse::InvalidRequestData {
+                    message: "amount_capturable should be less than or equal to amount".to_string(),
+                })
+            },
+        )?;
+    }
+    
     let payment_intent = state
         .store
         .find_payment_intent_by_payment_id_processor_merchant_id(
