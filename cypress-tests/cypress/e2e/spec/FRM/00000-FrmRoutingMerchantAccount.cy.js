@@ -1,6 +1,5 @@
 import * as fixtures from "../../../fixtures/imports";
 import State from "../../../utils/State";
-import * as RequestBodyUtils from "../../../utils/RequestBodyUtils";
 
 let globalState;
 
@@ -64,12 +63,10 @@ describe("FRM Routing Algorithm - Merchant Account Tests", () => {
         JSON.stringify(fixtures.merchantCreateBody)
       );
 
-      cy.merchantCreateWithFrmCallTest(
-        createBody,
-        null,
-        globalState,
-        { merchantIdStateKey: "frmUpdateMerchantId", verifyFrmInResponse: false }
-      );
+      cy.merchantCreateWithFrmCallTest(createBody, null, globalState, {
+        merchantIdStateKey: "frmUpdateMerchantId",
+        verifyFrmInResponse: false,
+      });
     });
 
     it("should update merchant account with frm_routing_algorithm", () => {
@@ -93,11 +90,9 @@ describe("FRM Routing Algorithm - Merchant Account Tests", () => {
         JSON.stringify(fixtures.merchantCreateBody)
       );
 
-      cy.merchantCreateWithoutFrmTest(
-        createBody,
-        globalState,
-        { merchantIdStateKey: "frmNoRoutingMerchantId" }
-      );
+      cy.merchantCreateWithoutFrmTest(createBody, globalState, {
+        merchantIdStateKey: "frmNoRoutingMerchantId",
+      });
     });
   });
 
