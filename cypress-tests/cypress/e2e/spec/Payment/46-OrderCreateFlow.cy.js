@@ -16,7 +16,6 @@ after("flush global state", () => {
 });
 
 describe("Order Create Flow Tests", () => {
-  let shouldContinue = true;
   let connector;
 
   before("seed global state and check connector", function () {
