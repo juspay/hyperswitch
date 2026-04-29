@@ -13,19 +13,28 @@ use crate::{
 
 pub async fn files_create_core(
     state: SessionState,
-    processor: domain::Processor,
+    platform: domain::Platform,
     create_file_request: api::CreateFileRequest,
 ) -> RouterResponse<files::CreateFileResponse> {
-    helpers::validate_file_upload(&state, processor.clone(), create_file_request.clone()).await?;
+    helpers::validate_file_upload(
+        &state,
+        platform.get_processor().clone(),
+        create_file_request.clone(),
+    )
+    .await?;
     let file_id = common_utils::generate_id(consts::ID_LENGTH, "file");
     let file_key = format!(
         "{}/{}",
-        processor.get_account().get_id().get_string_repr(),
+        platform
+            .get_processor()
+            .get_account()
+            .get_id()
+            .get_string_repr(),
         file_id
     );
     let file_new: diesel_models::FileMetadataNew = diesel_models::file::FileMetadataNew {
         file_id: file_id.clone(),
-        merchant_id: processor.get_account().get_id().clone(),
+        merchant_id: platform.get_provider().get_account().get_id().clone(),
         file_name: create_file_request.file_name.clone(),
         file_size: create_file_request.file_size,
         file_type: create_file_request.file_type.to_string(),
@@ -35,6 +44,11 @@ pub async fn files_create_core(
         connector_label: None,
         profile_id: None,
         merchant_connector_id: None,
+        processor_merchant_id: Some(platform.get_processor().get_account().get_id().clone()),
+        created_by: platform
+            .get_initiator()
+            .and_then(|initiator| initiator.to_created_by())
+            .map(|created_by| created_by.to_string()),
     };
 
     let file_metadata_object = state
@@ -46,7 +60,7 @@ pub async fn files_create_core(
     let (provider_file_id, file_upload_provider, profile_id, merchant_connector_id) = Box::pin(
         helpers::upload_and_get_provider_provider_file_id_profile_id(
             &state,
-            &processor,
+            platform.get_processor(),
             &create_file_request,
             file_key.clone(),
         ),
@@ -84,7 +98,10 @@ pub async fn files_delete_core(
     state
         .store
         .as_ref()
-        .delete_file_metadata_by_merchant_id_file_id(processor.get_account().get_id(), &req.file_id)
+        .delete_file_metadata_by_processor_merchant_id_file_id(
+            processor.get_account().get_id(),
+            &req.file_id,
+        )
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Unable to delete file_metadata")?;
@@ -99,7 +116,10 @@ pub async fn files_retrieve_core(
     let file_metadata_object = state
         .store
         .as_ref()
-        .find_file_metadata_by_merchant_id_file_id(processor.get_account().get_id(), &req.file_id)
+        .find_file_metadata_by_processor_merchant_id_file_id(
+            processor.get_account().get_id(),
+            &req.file_id,
+        )
         .await
         .change_context(errors::ApiErrorResponse::FileNotFound)
         .attach_printable("Unable to retrieve file_metadata")?;
