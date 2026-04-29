@@ -5255,9 +5255,14 @@ Cypress.Commands.add(
     const merchantId = globalState.get("merchantId");
     const profileId = globalState.get("profileId");
 
+    const dynamicRoutingUrl =
+      routingType === "contracts"
+        ? `${globalState.get("baseUrl")}/account/${merchantId}/business_profile/${profileId}/dynamic_routing/contracts/toggle?enable=none`
+        : `${globalState.get("baseUrl")}/account/${merchantId}/business_profile/${profileId}/dynamic_routing/${routingType}/create?enable=none`;
+
     cy.request({
       method: "POST",
-      url: `${globalState.get("baseUrl")}/account/${merchantId}/business_profile/${profileId}/dynamic_routing/${routingType}/create?enable=none`,
+      url: dynamicRoutingUrl,
       headers: {
         "api-key": globalState.get("apiKey"),
         "Content-Type": "application/json",
