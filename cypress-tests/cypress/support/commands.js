@@ -134,9 +134,49 @@ function createIndividualRolloutConfig(
                     success: false,
                     flow: methodFlow,
                     error: errorMsg,
-                  });
-                });
-              });
+     });
+  });
+});
+
+/**
+ * Verifies that a business profile has the expected merchant category code.
+ * Makes a GET request to retrieve the profile and validates the MCC field.
+ * @param {Object} globalState - The global state object
+ * @param {string} profileId - The profile ID to verify (uses globalState.get("profileId") if not provided)
+ * @param {string} expectedMcc - The expected merchant category code value
+ */
+Cypress.Commands.add(
+  "verifyBusinessProfileMcc",
+  (globalState, profileId, expectedMcc) => {
+    const apiKey = globalState.get("apiKey");
+    const baseUrl = globalState.get("baseUrl");
+    const merchantId = globalState.get("merchantId");
+    const targetProfileId = profileId || globalState.get("profileId");
+    const url = `${baseUrl}/account/${merchantId}/business_profile/${targetProfileId}`;
+
+    cy.request({
+      method: "GET",
+      url: url,
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json",
+        "api-key": apiKey,
+      },
+      failOnStatusCode: false,
+    }).then((response) => {
+      logRequestId(response.headers["x-request-id"]);
+
+      cy.wrap(response).then(() => {
+        expect(response.status).to.equal(200);
+        expect(response.body).to.have.property("profile_id", targetProfileId);
+        expect(response.body).to.have.property(
+          "merchant_category_code",
+          expectedMcc
+        );
+      });
+    });
+  }
+);
           });
       }
     });

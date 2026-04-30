@@ -3,11 +3,20 @@
     "profile_name": "default"
   },
 
+  "bpCreateWithMcc": {
+    "profile_name": "mcc_test_profile",
+    "merchant_category_code": "5411"
+  },
+
   "bpUpdate": {
     "is_connector_agnostic_mit_enabled": true,
     "collect_shipping_details_from_wallet_connector": true,
     "collect_billing_details_from_wallet_connector": true,
     "always_collect_billing_details_from_wallet_connector": true,
     "always_collect_shipping_details_from_wallet_connector": true
+  },
+
+  "bpUpdateWithMcc": {
+    "merchant_category_code": "8111"
   }
 }
