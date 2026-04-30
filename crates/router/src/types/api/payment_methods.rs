@@ -7,14 +7,14 @@ pub use api_models::payment_methods::{
     ListCountriesCurrenciesRequest, MigrateCardDetail, NetworkTokenDetailsPaymentMethod,
     NetworkTokenDetailsResponse, NetworkTokenEligibilityRequest, NetworkTokenResponse,
     PaymentMethodCollectLinkRenderRequest, PaymentMethodCollectLinkRequest, PaymentMethodCreate,
-    PaymentMethodCreateData, PaymentMethodDeleteResponse, PaymentMethodId,
-    PaymentMethodIntentConfirm, PaymentMethodIntentCreate, PaymentMethodListData,
+    PaymentMethodCreateData, PaymentMethodDeleteResponse, PaymentMethodDetailsResponse,
+    PaymentMethodId, PaymentMethodIntentConfirm, PaymentMethodIntentCreate, PaymentMethodListData,
     PaymentMethodListResponseForSession, PaymentMethodMigrate, PaymentMethodMigrateResponse,
-    PaymentMethodOlapResponse, PaymentMethodResponse, PaymentMethodResponseData,
-    PaymentMethodUpdate, PaymentMethodUpdateData, PaymentMethodsData, ProxyCardDetails,
-    RequestPaymentMethodTypes, TokenDataResponse, TokenDetailsResponse, TokenizePayloadEncrypted,
-    TokenizePayloadRequest, TokenizedCardValue1, TokenizedCardValue2, TokenizedWalletValue1,
-    TokenizedWalletValue2, TotalPaymentMethodCountResponse,
+    PaymentMethodResponse, PaymentMethodResponseData, PaymentMethodUpdate, PaymentMethodUpdateData,
+    PaymentMethodsData, ProxyCardDetails, RequestPaymentMethodTypes, TokenDataResponse,
+    TokenDetailsResponse, TokenizePayloadEncrypted, TokenizePayloadRequest, TokenizedCardValue1,
+    TokenizedCardValue2, TokenizedWalletValue1, TokenizedWalletValue2,
+    TotalPaymentMethodCountResponse,
 };
 #[cfg(feature = "v1")]
 pub use api_models::payment_methods::{

@@ -4035,7 +4035,7 @@ pub async fn retrieve_payment_method_olap(
     pm: api::PaymentMethodId,
     profile: domain::Profile,
     platform: domain::Platform,
-) -> RouterResponse<api::PaymentMethodOlapResponse> {
+) -> RouterResponse<api::PaymentMethodDetailsResponse> {
     let response = retrieve_payment_method(
         state,
         pm,
@@ -4050,7 +4050,7 @@ pub async fn retrieve_payment_method_olap(
     .attach_printable("Failed to get payment method response body")?;
 
     Ok(services::ApplicationResponse::Json(
-        api::PaymentMethodOlapResponse::from(response),
+        api::PaymentMethodDetailsResponse::from(response),
     ))
 }
 
