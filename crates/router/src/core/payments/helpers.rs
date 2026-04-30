@@ -83,7 +83,8 @@ use crate::core::{
 };
 use crate::{
     configs::settings::{
-        ConnectorRequestReferenceIdConfig, MerchantAdviceCodeLookupConfig, TempLockerEnableConfig,
+        ConnectorRequestReferenceIdConfig, MerchantAdviceCodeConfig,
+        MerchantAdviceCodeLookupConfig, TempLockerEnableConfig,
     },
     connector,
     consts::{self, BASE64_ENGINE},
@@ -456,6 +457,7 @@ pub async fn get_address_by_id(
 }
 
 #[cfg(feature = "v1")]
+#[allow(clippy::too_many_arguments)]
 pub async fn get_token_pm_type_mandate_details(
     state: &SessionState,
     request: &api::PaymentsRequest,
@@ -464,12 +466,13 @@ pub async fn get_token_pm_type_mandate_details(
     payment_method_id: Option<String>,
     payment_intent_customer_id: Option<&id_type::CustomerId>,
     pm_info: Option<domain::PaymentMethod>,
+    dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
 ) -> RouterResult<MandateGenericData> {
     let mandate_data = request.mandate_data.clone().map(MandateData::foreign_from);
-    #[cfg(feature = "pm_modular")]
-    let is_payment_method_modular_allowed = core_utils::get_feature_config(state, platform)
-        .await
-        .is_payment_method_modular_allowed;
+    let is_payment_method_modular_allowed =
+        core_utils::get_feature_config(state, platform, dimensions)
+            .await
+            .is_payment_method_modular_allowed;
     let (
         payment_token,
         payment_method,
@@ -752,7 +755,6 @@ pub async fn get_token_pm_type_mandate_details(
             }
         }
         None => {
-            #[cfg(feature = "pm_modular")]
             let payment_method_info = if is_payment_method_modular_allowed {
                 pm_info
             } else {
@@ -771,21 +773,6 @@ pub async fn get_token_pm_type_mandate_details(
                     .await
                     .transpose()?
             };
-            #[cfg(not(feature = "pm_modular"))]
-            let payment_method_info = payment_method_id
-                .async_map(|payment_method_id| async move {
-                    state
-                        .store
-                        .find_payment_method(
-                            platform.get_provider().get_key_store(),
-                            &payment_method_id,
-                            platform.get_provider().get_account().storage_scheme,
-                        )
-                        .await
-                        .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)
-                })
-                .await
-                .transpose()?;
             let resolved_payment_method = request.payment_method.or_else(|| {
                 payment_method_info
                     .as_ref()
@@ -808,6 +795,7 @@ pub async fn get_token_pm_type_mandate_details(
             )
         }
     };
+
     Ok(MandateGenericData {
         token: payment_token,
         payment_method,
@@ -3403,6 +3391,13 @@ impl<'a>
                     co_badged_card_data: card_details.co_badged_card_data.clone(),
                 }))
             }
+            // Wallet MIT via PSP token (ConnectorMandateId)
+            (
+                Some(domain::PaymentMethodData::Wallet(_)),
+                Some(&api_models::payments::MandateReferenceId::ConnectorMandateId(_)),
+            ) => Some(domain::PaymentMethodData::MandatePayment),
+            // Wallet CIT flow - pass through as-is
+            (Some(domain::PaymentMethodData::Wallet(_)), _) => payment_method_data.cloned(),
             // Keep data as-is, otherwise.
             (Some(payment_method_data), _) => Some(payment_method_data.clone()),
             // Preserve empty input.
@@ -6042,13 +6037,14 @@ pub async fn get_additional_payment_data(
                     apple_pay: None,
                     google_pay: Some(Box::new(
                         payment_additional_types::WalletAdditionalDataForCard {
-                            last4: google_pay_pm_data.info.card_details.clone(),
-                            card_network: google_pay_pm_data.info.card_network.clone(),
+                            last4: Some(google_pay_pm_data.info.card_details.clone()),
+                            card_network: Some(google_pay_pm_data.info.card_network.clone()),
                             card_type: Some(google_pay_pm_data.pm_type.clone()),
                             card_exp_month,
                             card_exp_year,
                             // These are filled after calling the processor / connector
                             auth_code: None,
+                            email: None,
                         },
                     )),
                     samsung_pay: None,
@@ -6060,19 +6056,24 @@ pub async fn get_additional_payment_data(
                     google_pay: None,
                     samsung_pay: Some(Box::new(
                         payment_additional_types::WalletAdditionalDataForCard {
-                            last4: samsung_pay_pm_data
-                                .payment_credential
-                                .card_last_four_digits
-                                .clone(),
-                            card_network: samsung_pay_pm_data
-                                .payment_credential
-                                .card_brand
-                                .to_string(),
+                            last4: Some(
+                                samsung_pay_pm_data
+                                    .payment_credential
+                                    .card_last_four_digits
+                                    .clone(),
+                            ),
+                            card_network: Some(
+                                samsung_pay_pm_data
+                                    .payment_credential
+                                    .card_brand
+                                    .to_string(),
+                            ),
                             card_type: None,
                             card_exp_month: None,
                             card_exp_year: None,
                             // These are filled after calling the processor / connector
                             auth_code: None,
+                            email: None,
                         },
                     )),
                 }))
@@ -9138,32 +9139,34 @@ where
     }
 }
 
-/// Lookup recommended action from merchant advice codes configuration.
-pub fn get_merchant_advice_code_recommended_action(
+/// Lookup merchant advice code configuration for MIT transactions.
+pub fn get_merchant_advice_code_config(
     config: &MerchantAdviceCodeLookupConfig,
     off_session: Option<bool>,
-    network: Option<&common_enums::CardNetwork>,
-    advice_code: Option<&str>,
-) -> Option<common_enums::RecommendedAction> {
+    network: Option<common_enums::CardNetwork>,
+    advice_code: Option<String>,
+) -> Option<&MerchantAdviceCodeConfig> {
     match (off_session, network, advice_code) {
-        (Some(true), Some(network), Some(advice_code)) => config
-            .get_config(network, advice_code)
-            .map(|config| config.recommended_action)
-            .or_else(|| {
-                metrics::MERCHANT_ADVICE_CODE_CONFIG_MISS.add(
-                    1,
-                    router_env::metric_attributes!(
-                        ("network", network.to_string()),
-                        ("advice_code", advice_code.to_owned()),
-                    ),
-                );
-                logger::warn!(
-                    network = %network,
-                    advice_code = %advice_code,
-                    "No merchant advice code config found"
-                );
-                None
-            }),
+        (Some(true), Some(network), Some(advice_code)) => {
+            match config.get_config(&network, &advice_code) {
+                Some(config) => Some(config),
+                None => {
+                    metrics::MERCHANT_ADVICE_CODE_CONFIG_MISS.add(
+                        1,
+                        router_env::metric_attributes!(
+                            ("network", network.to_string()),
+                            ("advice_code", advice_code.clone()),
+                        ),
+                    );
+                    logger::warn!(
+                        network = %network,
+                        advice_code = %advice_code,
+                        "No merchant advice code config found"
+                    );
+                    None
+                }
+            }
+        }
         _ => None,
     }
 }

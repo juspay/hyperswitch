@@ -53,8 +53,6 @@ pub mod poll;
 pub mod profile_acquirer;
 #[cfg(feature = "v2")]
 pub mod proxy;
-#[cfg(feature = "recon")]
-pub mod recon;
 #[cfg(feature = "v1")]
 pub mod refunds;
 #[cfg(feature = "v2")]

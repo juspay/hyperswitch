@@ -130,7 +130,9 @@ export const connectorDetails = {
       },
     },
     MITManualCapture: {
-      Request: {},
+      Request: {
+        mit_category: "installment",
+      },
       Response: {
         status: 200,
         body: {
@@ -585,7 +587,9 @@ export const connectorDetails = {
       },
     },
     MITAutoCapture: {
-      Request: {},
+      Request: {
+        mit_category: "installment",
+      },
       Response: {
         status: 200,
         body: {
@@ -667,6 +671,109 @@ export const connectorDetails = {
           message:
             "You cannot confirm this payment using `manual_retry` because the allowed duration has expired",
           code: "IR_16",
+        },
+      },
+    },
+    PaymentIntentWithBillingDescriptor: {
+      Request: {
+        currency: "USD",
+        billing_descriptor: {
+          name: "Juspay",
+          city: "San Francisco",
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+        },
+      },
+    },
+    PaymentConfirmWithBillingDescriptor: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+          billing_descriptor: {
+            name: "Juspay",
+            city: "San Francisco",
+            phone: null,
+            statement_descriptor: null,
+            statement_descriptor_suffix: null,
+            reference: null,
+          },
+        },
+      },
+    },
+    PartnerMerchantIdentifier: {
+      Request: {
+        currency: "USD",
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+        billing: {
+          address: {
+            line1: "1467",
+            line2: "Harrison Street",
+            line3: "Harrison Street",
+            city: "San Francisco",
+            state: "California",
+            zip: "94122",
+            country: "US",
+            first_name: "joseph",
+            last_name: "Doe",
+          },
+        },
+        partner_merchant_identifier_details: {
+          partner_details: {
+            name: "TestPartner",
+            version: "1.0.0",
+            integrator: "TestIntegrator123",
+          },
+          merchant_details: {
+            name: "TestMerchantApp",
+            version: "2.0.0",
+          },
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+          partner_merchant_identifier_details: {
+            partner_details: {
+              name: "TestPartner",
+              version: "1.0.0",
+              integrator: "TestIntegrator123",
+            },
+            merchant_details: {
+              name: "TestMerchantApp",
+              version: "2.0.0",
+            },
+          },
+        },
+      },
+    },
+    PartnerMerchantIdentifierConfirm: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
         },
       },
     },

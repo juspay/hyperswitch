@@ -42,7 +42,7 @@ const payment_method_data_no3ds = {
     last4: "1111",
     card_type: "DEBIT",
     card_network: "Visa",
-    card_issuer: "Conotoxia Sp Z Oo",
+    card_issuer: "CONOTOXIA SP Z O.O.",
     card_issuing_country: "POLAND",
     card_isin: "411111",
     card_extended_bin: null,
@@ -692,6 +692,37 @@ export const connectorDetails = {
           message:
             "You cannot confirm this payment using `manual_retry` because the allowed duration has expired",
           code: "IR_16",
+        },
+      },
+    },
+    PaymentIntentWithBillingDescriptor: {
+      Request: {
+        currency: "USD",
+        amount: 6540,
+        authentication_type: "no_three_ds",
+        capture_method: "automatic",
+        billing_descriptor: {
+          statement_descriptor: "QA-BillingDesc",
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+        },
+      },
+    },
+    PaymentConfirmWithBillingDescriptor: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: { card: successfulNo3DSCardDetails },
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
         },
       },
     },

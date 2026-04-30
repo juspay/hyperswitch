@@ -41,8 +41,6 @@ pub mod process_tracker;
 pub mod profile_acquirer;
 #[cfg(feature = "v2")]
 pub mod proxy;
-#[cfg(feature = "recon")]
-pub mod recon;
 pub mod refunds;
 pub mod relay;
 #[cfg(feature = "v2")]

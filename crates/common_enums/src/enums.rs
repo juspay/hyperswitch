@@ -675,6 +675,31 @@ pub enum BlocklistDataKind {
     ExtendedCardBin,
 }
 
+/// Reasons for blocking a payment method.
+#[derive(Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum BlockReason {
+    BlockedBin,
+    BlockedCardType(CardType),
+    BlockedCardSubtype,
+    BlockedIssuerCountry,
+    BlockedIssuer,
+}
+
+impl BlockReason {
+    pub fn error_message(&self) -> String {
+        match self {
+            Self::BlockedBin => "We're unable to accept this card, please try another card or a different payment method".to_string(),
+            Self::BlockedCardType(card_type) => {
+                format!("{} cards are not accepted for this transaction, please try a different card", card_type.title_case())
+            }
+            Self::BlockedCardSubtype => "This card is not accepted for this transaction, please try a different card".to_string(),
+            Self::BlockedIssuerCountry => "Cards issued in your region aren't supported for this transaction, please try a different card".to_string(),
+            Self::BlockedIssuer => "We can't process payments from this bank, please try another card or a different payment method".to_string(),
+        }
+    }
+}
+
 /// Specifies how the payment is captured.
 /// - `automatic`: Funds are captured immediately after successful authorization. This is the default behavior if the field is omitted.
 /// - `manual`: Funds are authorized but not captured. A separate request to the `/payments/{payment_id}/capture` endpoint is required to capture the funds.
@@ -2332,6 +2357,7 @@ pub enum PaymentMethodType {
     DuitNow,
     Efecty,
     Eft,
+    EftDebitOrder,
     Eps,
     Flexiti,
     Fps,
@@ -2369,6 +2395,8 @@ pub enum PaymentMethodType {
     Paypal,
     Paze,
     Pix,
+    PixKey,
+    PixEmv,
     PixAutomaticoQr,
     PixAutomaticoPush,
     PaySafeCard,
@@ -2463,6 +2491,7 @@ impl PaymentMethodType {
             Self::DuitNow => "DuitNow",
             Self::Efecty => "Efecty",
             Self::Eft => "EFT",
+            Self::EftDebitOrder => "EFT Debit Order",
             Self::Eps => "EPS",
             Self::Flexiti => "Flexiti",
             Self::Fps => "FPS",
@@ -2504,6 +2533,8 @@ impl PaymentMethodType {
             Self::Paypal => "PayPal",
             Self::Paze => "Paze",
             Self::Pix => "Pix",
+            Self::PixKey => "Pix Key",
+            Self::PixEmv => "Pix EMV",
             Self::PixAutomaticoQr => "Pix Automático QR",
             Self::PixAutomaticoPush => "Pix Automático Push",
             Self::PaySafeCard => "PaySafeCard",
@@ -3204,6 +3235,15 @@ pub enum PanOrToken {
 pub enum CardType {
     Credit,
     Debit,
+}
+
+impl CardType {
+    pub fn title_case(&self) -> &'static str {
+        match self {
+            Self::Credit => "Credit",
+            Self::Debit => "Debit",
+        }
+    }
 }
 
 // TODO: This enum will be updated with all card subtype values
@@ -9521,10 +9561,6 @@ pub enum PermissionGroup {
     UsersManage,
     AccountView,
     AccountManage,
-    ReconReportsView,
-    ReconReportsManage,
-    ReconOpsView,
-    ReconOpsManage,
     InternalManage,
     ThemeView,
     ThemeManage,
@@ -9547,8 +9583,6 @@ pub enum ParentGroup {
     Workflows,
     Analytics,
     Users,
-    ReconOps,
-    ReconReports,
     Account,
     Internal,
     Theme,
@@ -9577,13 +9611,6 @@ pub enum Resource {
     WebhookEvent,
     Payout,
     Report,
-    ReconToken,
-    ReconFiles,
-    ReconAndSettlementAnalytics,
-    ReconUpload,
-    ReconReports,
-    RunRecon,
-    ReconConfig,
     RevenueRecovery,
     Subscription,
     InternalConnector,
@@ -9624,6 +9651,7 @@ pub enum PermissionScope {
 #[serde(rename_all = "snake_case")]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub enum BankNames {
+    Absa,
     AmericanExpress,
     AffinBank,
     AgroBank,
@@ -9946,8 +9974,9 @@ pub enum EntityType {
     Profile = 0,
 }
 
-#[derive(Clone, Debug, serde::Serialize)]
+#[derive(Clone, Debug, serde::Serialize, strum::Display)]
 #[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
 pub enum PayoutRetryType {
     SingleConnector,
     MultiConnector,
@@ -10675,6 +10704,7 @@ pub enum ProcessTrackerRunner {
     OutgoingWebhookRetryWorkflow,
     AttachPayoutAccountWorkflow,
     PaymentMethodStatusUpdateWorkflow,
+    PaymentMethodModularForwardCompatWorkflow,
     PassiveRecoveryWorkflow,
     ProcessDisputeWorkflow,
     DisputeListWorkflow,
@@ -11293,4 +11323,21 @@ impl PostCaptureVoidStatus {
             Self::Pending | Self::Succeeded => false,
         }
     }
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    PartialEq,
+    serde::Serialize,
+    strum::Display,
+    serde::Deserialize,
+    ToSchema,
+)]
+#[serde(rename_all = "snake_case")]
+pub enum VaultEnv {
+    Sandbox,
+    Live,
 }

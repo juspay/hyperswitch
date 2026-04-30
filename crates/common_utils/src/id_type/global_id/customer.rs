@@ -69,6 +69,12 @@ impl TryFrom<GlobalCustomerId> for crate::id_type::CustomerId {
     }
 }
 
+impl crate::id_type::TargetingKey for GlobalCustomerId {
+    fn targeting_key_value(&self) -> &str {
+        self.get_string_repr()
+    }
+}
+
 impl crate::events::ApiEventMetric for GlobalCustomerId {
     fn get_api_event_type(&self) -> Option<crate::events::ApiEventsType> {
         Some(crate::events::ApiEventsType::Customer {
