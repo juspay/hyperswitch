@@ -8,7 +8,7 @@ use std::{collections::HashMap, str::FromStr};
 use common_enums::{connector_enums::Connector, enums::Currency};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::router_data::ConnectorAuthType;
-use hyperswitch_masking::Secret;
+use hyperswitch_masking::{PeekInterface, Secret};
 use serde::Serialize;
 
 use crate::{
@@ -513,6 +513,15 @@ pub enum ConnectorSpecificConfig {
     Itaubank {
         client_id: Secret<String>,
         client_secret: Secret<String>,
+        certificates: Option<Secret<String>>,
+        private_key: Option<Secret<String>>,
+    },
+    /// Imerchantsolutions connector configuration
+    Imerchantsolutions { api_key: Secret<String> },
+    /// Sanlam connector configuration
+    Sanlam {
+        api_key: Secret<String>,
+        merchant_id: String,
     },
 }
 
@@ -1338,7 +1347,6 @@ impl ForeignTryFrom<(Connector, &ConnectorAuthType, Option<&serde_json::Value>)>
                 }),
                 _ => Err(err("Payload requires CurrencyAuthKey auth type")),
             },
-
             Connector::Worldpayvantiv => match auth {
                 ConnectorAuthType::SignatureKey {
                     api_key,
@@ -1363,7 +1371,6 @@ impl ForeignTryFrom<(Connector, &ConnectorAuthType, Option<&serde_json::Value>)>
                     "Worldpayvantiv requires SignatureKey or MultiAuthKey auth type",
                 )),
             },
-
             Connector::Payme => match auth {
                 ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Payme {
                     seller_payme_id: api_key.clone(),
@@ -1391,13 +1398,38 @@ impl ForeignTryFrom<(Connector, &ConnectorAuthType, Option<&serde_json::Value>)>
                 }),
                 _ => Err(err("Trustly requires SignatureKey auth type")),
             },
-
             Connector::Itaubank => match auth {
                 ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Itaubank {
                     client_secret: api_key.clone(),
                     client_id: key1.clone(),
+                    certificates: None,
+                    private_key: None,
+                }),
+                ConnectorAuthType::MultiAuthKey {
+                    api_key,
+                    key1,
+                    api_secret,
+                    key2,
+                } => Ok(Self::Itaubank {
+                    client_secret: api_key.clone(),
+                    client_id: key1.clone(),
+                    certificates: Some(api_secret.clone()),
+                    private_key: Some(key2.clone()),
                 }),
                 _ => Err(err("Itaubank requires BodyKey auth type")),
+            },
+            Connector::Imerchantsolutions => match auth {
+                ConnectorAuthType::HeaderKey { api_key } => Ok(Self::Imerchantsolutions {
+                    api_key: api_key.clone(),
+                }),
+                _ => Err(err("Imerchantsolutions requires HeaderKey auth type")),
+            },
+            Connector::Sanlam => match auth {
+                ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Sanlam {
+                    api_key: api_key.clone(),
+                    merchant_id: key1.peek().clone(),
+                }),
+                _ => Err(err("Sanlam requires BodyKey auth type")),
             },
             // --- Unsupported connectors ---
             _ => Err(

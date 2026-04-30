@@ -61,6 +61,7 @@ impl ForeignTryFrom<api_enums::Connector> for euclid::enums::RoutableConnectors 
             api_enums::Connector::Ebanx => Self::Ebanx,
             api_enums::Connector::Elavon => Self::Elavon,
             api_enums::Connector::Envoy => Self::Envoy,
+            api_enums::Connector::Sanlam => Self::Sanlam,
             api_enums::Connector::Facilitapay => Self::Facilitapay,
             api_enums::Connector::Finix => Self::Finix,
             api_enums::Connector::Fiserv => Self::Fiserv,
@@ -88,6 +89,7 @@ impl ForeignTryFrom<api_enums::Connector> for euclid::enums::RoutableConnectors 
                 })?
             }
             api_enums::Connector::Iatapay => Self::Iatapay,
+            api_enums::Connector::Imerchantsolutions => Self::Imerchantsolutions,
             api_enums::Connector::Inespay => Self::Inespay,
             api_enums::Connector::Itaubank => Self::Itaubank,
             api_enums::Connector::Jpmorgan => Self::Jpmorgan,

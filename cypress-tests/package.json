@@ -12,6 +12,7 @@
     "cypress:payment-method-list": "cypress run --headless --spec 'cypress/e2e/spec/PaymentMethodList/**/*'",
     "cypress:payments": "cypress run --headless --spec 'cypress/e2e/spec/Payment/**/*'",
     "cypress:payouts": "cypress run --headless --spec 'cypress/e2e/spec/Payout/**/*'",
+    "cypress:platform": "cypress run --headless --spec 'cypress/e2e/spec/Platform/**/*'",
     "cypress:routing": "cypress run --headless --spec 'cypress/e2e/spec/Routing/**/*'",
     "report:generate": "node scripts/report-generator.js",
     "report:open": "open dashboard/index.html || start dashboard/index.html || xdg-open dashboard/index.html",
