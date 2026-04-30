@@ -732,7 +732,7 @@ export const connectorDetails = {
         },
       },
     },
-     No3DSFailPayment: {
+    No3DSFailPayment: {
       Request: {
         payment_method: "card",
         payment_method_data: {
