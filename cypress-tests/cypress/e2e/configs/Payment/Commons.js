@@ -539,6 +539,22 @@ export const payment_methods_enabled = [
     ],
   },
   {
+    payment_method: "gift_card",
+    payment_method_types: [
+      {
+        payment_method_type: "givex",
+        payment_experience: null,
+        card_networks: null,
+        accepted_currencies: null,
+        accepted_countries: null,
+        minimum_amount: 1,
+        maximum_amount: 68607706,
+        recurring_enabled: false,
+        installment_payment_enabled: false,
+      },
+    ],
+  },
+  {
     payment_method: "crypto",
     payment_method_types: [
       {
@@ -2583,6 +2599,127 @@ export const connectorDetails = {
       },
     }),
   },
+  auth_service_eligibility: {
+    OrgEnabledMerchantEnabled: getCustomExchange({
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulThreeDSTestCardDetails,
+        },
+        currency: "USD",
+        amount: 6500,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+          authentication_type: "three_ds",
+        },
+      },
+    }),
+    OrgEnabledMerchantDisabled: getCustomExchange({
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulThreeDSTestCardDetails,
+        },
+        currency: "USD",
+        amount: 6500,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+          authentication_type: "three_ds",
+        },
+      },
+    }),
+    OrgDisabledMerchantEnabled: getCustomExchange({
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "USD",
+        amount: 6500,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+          authentication_type: "no_three_ds",
+        },
+      },
+    }),
+    OrgDisabledMerchantDisabled: getCustomExchange({
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "USD",
+        amount: 6500,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+          authentication_type: "no_three_ds",
+        },
+      },
+    }),
+    MerchantOnlyEnabled: getCustomExchange({
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulThreeDSTestCardDetails,
+        },
+        currency: "USD",
+        amount: 6500,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+          authentication_type: "three_ds",
+        },
+      },
+    }),
+    MerchantOnlyDisabled: getCustomExchange({
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "USD",
+        amount: 6500,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+          authentication_type: "no_three_ds",
+        },
+      },
+    }),
+    NoConfigDefault: getCustomExchange({
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulThreeDSTestCardDetails,
+        },
+        currency: "USD",
+        amount: 6500,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+          authentication_type: "three_ds",
+        },
+      },
+    }),
+  },
   Dispute: {
     ListDisputes: {
       Response: {
@@ -2782,6 +2919,56 @@ export const connectorDetails = {
         },
       },
       Response: blockedPaymentErrorBodyForBinUnavailable,
+    }),
+  },
+  gift_card_pm: {
+    GivexGiftCard: getCustomExchange({
+      Request: {
+        payment_method: "gift_card",
+        payment_method_type: "givex",
+        payment_method_data: {
+          gift_card: {
+            givex: {
+              number: "6036280000000000000",
+              cvc: "122222",
+            },
+          },
+        },
+        currency: "EUR",
+        customer_acceptance: null,
+      },
+    }),
+    GivexGiftCardInsufficientBalance: getCustomExchange({
+      Request: {
+        payment_method: "gift_card",
+        payment_method_type: "givex",
+        payment_method_data: {
+          gift_card: {
+            givex: {
+              number: "6036280000000000000",
+              cvc: "122222",
+            },
+          },
+        },
+        currency: "EUR",
+        customer_acceptance: null,
+      },
+    }),
+    GivexGiftCardCurrencyMismatch: getCustomExchange({
+      Request: {
+        payment_method: "gift_card",
+        payment_method_type: "givex",
+        payment_method_data: {
+          gift_card: {
+            givex: {
+              number: "6036280000000000000",
+              cvc: "122222",
+            },
+          },
+        },
+        currency: "USD",
+        customer_acceptance: null,
+      },
     }),
   },
 };
