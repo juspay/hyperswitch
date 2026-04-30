@@ -646,19 +646,13 @@ impl
     }
 }
 
-impl
-    transformers::ForeignTryFrom<(
-        &RouterData<PSync, PaymentsSyncData, PaymentsResponseData>,
-        common_enums::CallConnectorAction,
-    )> for payments_grpc::PaymentServiceGetRequest
+impl transformers::ForeignTryFrom<&RouterData<PSync, PaymentsSyncData, PaymentsResponseData>>
+    for payments_grpc::PaymentServiceGetRequest
 {
     type Error = error_stack::Report<UnifiedConnectorServiceError>;
 
     fn foreign_try_from(
-        (router_data, call_connector_action): (
-            &RouterData<PSync, PaymentsSyncData, PaymentsResponseData>,
-            common_enums::CallConnectorAction,
-        ),
+        router_data: &RouterData<PSync, PaymentsSyncData, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         let connector_transaction_id = router_data
             .request
@@ -678,20 +672,6 @@ impl
         let merchant_transaction_id = Some(router_data.connector_request_reference_id.clone());
 
         let currency = payments_grpc::Currency::foreign_try_from(router_data.request.currency)?;
-
-        match call_connector_action {
-            common_enums::CallConnectorAction::Trigger
-            | common_enums::CallConnectorAction::HandleResponseWithoutBuildRequest => {}
-            common_enums::CallConnectorAction::HandleResponse(_)
-            | common_enums::CallConnectorAction::UCSConsumeResponse(_)
-            | common_enums::CallConnectorAction::Avoid
-            | common_enums::CallConnectorAction::StatusUpdate { .. } => Err(
-                UnifiedConnectorServiceError::RequestEncodingFailedWithReason(
-                    "Invalid CallConnectorAction for payment sync call via UCS Gateway system"
-                        .to_string(),
-                ),
-            )?,
-        };
 
         let capture_method = router_data
             .request
