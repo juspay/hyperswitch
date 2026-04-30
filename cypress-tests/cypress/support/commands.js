@@ -3705,7 +3705,8 @@ Cypress.Commands.add(
                   response.body.setup_future_usage === "off_session" &&
                   //Added this check to ensure mandate_id is null so that will get connector_mandate_id
                   response.body.mandate_id === null &&
-                  response.body.status === "succeeded"
+                  response.body.status === "succeeded" &&
+                  globalState.get("connectorId") !== "peachpayments"  // Peach Payments does not support psp mandate flow 
                 ) {
                   expect(
                     response.body.connector_mandate_id,
