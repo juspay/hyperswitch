@@ -51,4 +51,19 @@ export const connectorDetails = {
       body: {},
     },
   },
+  defaultRouting: {
+    Request: {
+      name: "default routing",
+      description: "default routing config",
+      algorithm: {
+        type: "priority",
+        data: [],
+      },
+      profile_id: "{{profile_id}}",
+    },
+    Response: {
+      status: 200,
+      body: {},
+    },
+  },
 };
