@@ -223,6 +223,8 @@ pub enum BankTransferType {
     MandiriVa,
     PermataBankTransfer,
     Pix,
+    PixKey,
+    PixEmv,
     PixAutomaticoPush,
     PixAutomaticoQr,
     Pse,
@@ -394,6 +396,7 @@ pub enum UpiType {
 #[strum(serialize_all = "snake_case")]
 pub enum BankDebitType {
     Ach,
+    EftDebitOrder,
     Sepa,
     SepaGuarenteedDebit,
     Bacs,

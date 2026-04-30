@@ -950,6 +950,53 @@ export const connectorDetails = {
         },
       },
     },
+    ConnectorTestingData: {
+      Request: {
+        currency: "USD",
+        connector_metadata: {
+          adyen: {
+            testing: {
+              holder_name: "Test Holder Name Override",
+            },
+          },
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+        },
+      },
+    },
+    ConnectorTestingDataConfirm: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: {
+            card_number: "4111111111111111",
+            card_exp_month: "12",
+            card_exp_year: "2030",
+            card_cvc: "123",
+            card_holder_name: "Original Card Holder",
+          },
+        },
+        connector_metadata: {
+          adyen: {
+            testing: {
+              holder_name: "Test Holder Name Override",
+            },
+          },
+        },
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "failed",
+        },
+      },
+    },
   },
   bank_transfer_pm: {
     Pix: {
@@ -1200,6 +1247,80 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "requires_customer_action",
+        },
+      },
+    }),
+  },
+
+  gift_card_pm: {
+    GivexGiftCard: getCustomExchange({
+      Request: {
+        payment_method: "gift_card",
+        payment_method_type: "givex",
+        payment_method_data: {
+          gift_card: {
+            givex: {
+              number: "6006490000000000",
+              cvc: "737",
+            },
+          },
+        },
+        amount: 1100,
+        currency: "EUR",
+        customer_acceptance: null,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    }),
+    GivexGiftCardInsufficientBalance: getCustomExchange({
+      Request: {
+        payment_method: "gift_card",
+        payment_method_type: "givex",
+        payment_method_data: {
+          gift_card: {
+            givex: {
+              number: "6006490000000000",
+              cvc: "737",
+            },
+          },
+        },
+        amount: 14100,
+        currency: "EUR",
+        customer_acceptance: null,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "failed",
+          error_message: "Insufficient balance in the payment method",
+        },
+      },
+    }),
+    GivexGiftCardCurrencyMismatch: getCustomExchange({
+      Request: {
+        payment_method: "gift_card",
+        payment_method_type: "givex",
+        payment_method_data: {
+          gift_card: {
+            givex: {
+              number: "6006490000000000",
+              cvc: "737",
+            },
+          },
+        },
+        currency: "USD",
+        customer_acceptance: null,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "failed",
+          error_message:
+            "Payment Method currency does not match the payment currency",
         },
       },
     }),
