@@ -4,6 +4,18 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.04.30.1
+
+### Testing
+
+- **cypress:**
+  - Add authentication service eligibility test cases ([#12005](https://github.com/juspay/hyperswitch/pull/12005)) ([`ce161f5`](https://github.com/juspay/hyperswitch/commit/ce161f5c594408c980946f8403c9b9cff96502cb))
+  - Add network_transaction_id validation in CIT flows ([#12002](https://github.com/juspay/hyperswitch/pull/12002)) ([`1493503`](https://github.com/juspay/hyperswitch/commit/1493503d5b4ecfb38abd67baa7676c84950cb471))
+
+**Full Changelog:** [`2026.04.30.0...2026.04.30.1`](https://github.com/juspay/hyperswitch/compare/2026.04.30.0...2026.04.30.1)
+
+- - -
+
 ## 2026.04.30.0
 
 ### Features
