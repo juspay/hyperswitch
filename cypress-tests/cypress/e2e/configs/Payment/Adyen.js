@@ -965,6 +965,21 @@ export const connectorDetails = {
         },
       },
     },
+    IncrementalAuth: {
+      Request: {
+        amount: 8000,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "processing",
+          amount: 8000,
+          amount_capturable: 8000,
+          amount_received: null,
+          request_extended_authorization: true,
+        },
+      },
+    },
   },
   bank_transfer_pm: {
     Pix: {
