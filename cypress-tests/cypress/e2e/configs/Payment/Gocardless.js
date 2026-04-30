@@ -36,6 +36,9 @@ const paymentMethodDataResponse = {
 export const connectorDetails = {
   card_pm: {
     PaymentIntent: getCustomExchange({
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
       Request: {
         currency: "USD",
         customer_acceptance: null,
@@ -49,6 +52,9 @@ export const connectorDetails = {
       },
     }),
     No3DSAutoCapture: getCustomExchange({
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
       Request: {
         payment_method: "card",
         payment_method_data: {
