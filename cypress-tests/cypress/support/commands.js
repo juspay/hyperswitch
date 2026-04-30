@@ -256,7 +256,7 @@ function createUcsConfigs(globalState, flow, type) {
 }
 
 Cypress.Commands.add("deleteBusinessProfileTest", (globalState) => {
-  const apiKey = globalState.get("apiKey");
+  const adminApiKey = globalState.get("adminApiKey");
   const baseUrl = globalState.get("baseUrl");
   const profileId = globalState.get("profileId");
   const merchantId = globalState.get("merchantId");
@@ -273,7 +273,7 @@ Cypress.Commands.add("deleteBusinessProfileTest", (globalState) => {
     headers: {
       Accept: "application/json",
       "Content-Type": "application/json",
-      "api-key": apiKey,
+      "api-key": adminApiKey,
     },
     failOnStatusCode: false,
   }).then((response) => {
@@ -2328,6 +2328,17 @@ Cypress.Commands.add(
             "connectorTransactionID",
             response.body.connector_transaction_id
           );
+          globalState.set(
+            "networkTransactionId",
+            response.body.network_transaction_id
+          );
+          const ntid = response.body.network_transaction_id;
+          if (ntid !== undefined && ntid !== null) {
+            expect(
+              ntid,
+              "network_transaction_id should not be empty when present"
+            ).to.not.be.empty;
+          }
           globalState.set("paymentIntentStatus", response.body.status);
           // Compare connector with backend connector name (handles stripeconnect -> stripe mapping)
           const expectedConnector = getOriginalConnectorName(
@@ -3366,6 +3377,11 @@ Cypress.Commands.add(
             // Whenever, CIT Confirmations gets a payment status of `processing`, it does not yield the `payment_method_id` and hence the `paymentMethodId` in the `globalState` gets the value of `null`. And hence while confirming MIT, it yields an `error.message` of `"Json deserialize error: invalid type: null, expected a string at line 1 column 182"` which is basically because of the `null` value in `recurring_details.data` with `recurring_details.type` as `payment_method_id`. However, we get the `payment_method_id` while PSync, so we can assign it to the `globalState` here.
             globalState.set("paymentMethodId", response.body.payment_method_id);
 
+            globalState.set(
+              "networkTransactionId",
+              response.body.network_transaction_id
+            );
+
             const allowedActiveStatuses = [
               "succeeded",
               "requires_capture",
@@ -3705,7 +3721,8 @@ Cypress.Commands.add(
                   response.body.setup_future_usage === "off_session" &&
                   //Added this check to ensure mandate_id is null so that will get connector_mandate_id
                   response.body.mandate_id === null &&
-                  response.body.status === "succeeded"
+                  response.body.status === "succeeded" &&
+                  globalState.get("connectorId") !== "peachpayments" // Peach Payments does not support psp mandate flow
                 ) {
                   expect(
                     response.body.connector_mandate_id,
@@ -5077,7 +5094,12 @@ Cypress.Commands.add("ListMcaByMid", (globalState) => {
       globalState.set("profileId", response.body[0].profile_id);
       globalState.set("stripeMcaId", response.body[0].merchant_connector_id);
       globalState.set("adyenMcaId", response.body[1].merchant_connector_id);
-      globalState.set("bluesnapMcaId", response.body[3].merchant_connector_id);
+      if (response.body[3]) {
+        globalState.set(
+          "bluesnapMcaId",
+          response.body[3].merchant_connector_id
+        );
+      }
     });
   });
 });
@@ -5099,7 +5121,7 @@ Cypress.Commands.add(
       method: "POST",
       url: `${globalState.get("baseUrl")}/routing`,
       headers: {
-        Authorization: `Bearer ${globalState.get("userInfoToken")}`,
+        "api-key": globalState.get("apiKey"),
         "Content-Type": "application/json",
       },
       failOnStatusCode: false,
@@ -5132,9 +5154,10 @@ Cypress.Commands.add("activateRoutingConfig", (data, globalState) => {
     method: "POST",
     url: `${globalState.get("baseUrl")}/routing/${routing_config_id}/activate`,
     headers: {
-      Authorization: `Bearer ${globalState.get("userInfoToken")}`,
+      "api-key": globalState.get("apiKey"),
       "Content-Type": "application/json",
     },
+    body: {},
     failOnStatusCode: false,
   }).then((response) => {
     logRequestId(response.headers["x-request-id"]);
@@ -5162,7 +5185,7 @@ Cypress.Commands.add("retrieveRoutingConfig", (data, globalState) => {
     method: "GET",
     url: `${globalState.get("baseUrl")}/routing/${routing_config_id}`,
     headers: {
-      Authorization: `Bearer ${globalState.get("userInfoToken")}`,
+      "api-key": globalState.get("apiKey"),
       "Content-Type": "application/json",
     },
     failOnStatusCode: false,
@@ -7062,3 +7085,19 @@ Cypress.Commands.add("blocklistToggle", (status, globalState) => {
     });
   });
 });
+
+Cypress.Commands.add(
+  "assertNetworkTransactionId",
+  (globalState, shouldExist = true) => {
+    const ntid = globalState.get("networkTransactionId");
+    if (shouldExist) {
+      expect(ntid, "network_transaction_id").to.exist;
+      expect(ntid, "network_transaction_id").to.not.be.empty;
+    } else {
+      expect(
+        ntid === undefined || ntid === null,
+        "network_transaction_id should not exist for excluded connector"
+      ).to.be.true;
+    }
+  }
+);
