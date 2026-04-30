@@ -89,12 +89,15 @@ describe("Card - Partial Authorization flow test", () => {
 
       cy.step("Retrieve Payment after Partial Auth", () => {
         if (!shouldContinue) {
-          cy.task("cli_log", "Skipping step: Retrieve Payment after Partial Auth");
+          cy.task(
+            "cli_log",
+            "Skipping step: Retrieve Payment after Partial Auth"
+          );
           return;
         }
-        const confirmData = getConnectorDetails(
-          globalState.get("connectorId")
-        )["card_pm"]["PartialAuth"];
+        const confirmData = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["PartialAuth"];
 
         cy.retrievePaymentCallTest({ globalState, data: confirmData });
       });
@@ -125,7 +128,10 @@ describe("Card - Partial Authorization flow test", () => {
 
       cy.step("Retrieve Payment after Partial Auth", () => {
         if (!shouldContinue) {
-          cy.task("cli_log", "Skipping step: Retrieve Payment after Partial Auth");
+          cy.task(
+            "cli_log",
+            "Skipping step: Retrieve Payment after Partial Auth"
+          );
           return;
         }
         const data = getConnectorDetails(globalState.get("connectorId"))[
