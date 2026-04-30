@@ -359,18 +359,18 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
             // request_details.body (get_dispute_details, get_webhook_mandate_details,
             // etc.) receive the structured payload they expect.
             // UCS path leaves decoded_body as None and uses the raw request body.
-            let biz_req;
+            let decoded_request_details;
             let request_for_biz: &IncomingWebhookRequestDetails<'_> = match decoded_body.as_deref()
             {
                 Some(body) => {
-                    biz_req = IncomingWebhookRequestDetails {
+                    decoded_request_details = IncomingWebhookRequestDetails {
                         method: request_details.method.clone(),
                         uri: request_details.uri.clone(),
                         headers: request_details.headers,
                         query_params: request_details.query_params.clone(),
                         body,
                     };
-                    &biz_req
+                    &decoded_request_details
                 }
                 None => &request_details,
             };

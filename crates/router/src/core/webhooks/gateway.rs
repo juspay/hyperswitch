@@ -251,7 +251,7 @@ impl IncomingWebhookGateway for DirectIncomingWebhookGateway {
                             "Could not find object reference id in incoming webhook body",
                         )
                 })?;
-                let mca = resolve_mca(ctx, Some(&reference)).await?;
+                let mca = resolve_mca(ctx, &reference).await?;
                 let source_verified =
                     verify_webhook_source_via_connector(ctx, &decoded_request, &mca).await?;
                 let resource_object = ctx
@@ -358,7 +358,7 @@ impl IncomingWebhookGateway for UcsIncomingWebhookGateway {
                             "UCS ParseEvent produced no object reference for a non-filtered event",
                         )
                 })?;
-                let mca = resolve_mca(ctx, Some(&reference)).await?;
+                let mca = resolve_mca(ctx, &reference).await?;
                 #[cfg(feature = "v1")]
                 let webhook_secrets = build_webhook_secrets_from_merchant_connector_account(
                     &MerchantConnectorAccountType::DbVal(Box::new(mca.clone())),
@@ -378,7 +378,7 @@ impl IncomingWebhookGateway for UcsIncomingWebhookGateway {
                     "Failed to resolve webhook secrets from merchant connector account",
                 )?;
 
-                let event_context = build_event_context(ctx, Some(&reference)).await;
+                let event_context = build_event_context(ctx, &reference).await;
 
                 let handle_request = build_handle_event_request(
                     request,
@@ -630,23 +630,19 @@ async fn report_shadow_diff(
 
 async fn resolve_mca(
     ctx: &WebhookGatewayContext,
-    reference: Option<&ObjectReferenceId>,
+    reference: &ObjectReferenceId,
 ) -> RouterResult<domain::MerchantConnectorAccount> {
-    match (ctx.merchant_connector_account.as_ref(), reference) {
-        (Some(mca), _) => Ok(mca.clone()),
-        (None, Some(reference)) => Box::pin(helper_utils::get_mca_from_object_reference_id(
-            &ctx.state,
-            reference.clone(),
-            &ctx.platform,
-            &ctx.connector_name,
-        ))
-        .await,
-        (None, None) => Err(error_stack::report!(
-            errors::ApiErrorResponse::WebhookResourceNotFound
-        )
-        .attach_printable(
-            "Webhook URL did not include a merchant-connector id and the event carries no resource reference",
-        )),
+    match ctx.merchant_connector_account.as_ref() {
+        Some(mca) => Ok(mca.clone()),
+        None => {
+            Box::pin(helper_utils::get_mca_from_object_reference_id(
+                &ctx.state,
+                reference.clone(),
+                &ctx.platform,
+                &ctx.connector_name,
+            ))
+            .await
+        }
     }
 }
 
@@ -888,10 +884,10 @@ fn event_reference_to_object_ref(
 
 async fn build_event_context(
     ctx: &WebhookGatewayContext,
-    reference: Option<&ObjectReferenceId>,
+    reference: &ObjectReferenceId,
 ) -> Option<payments_grpc::EventContext> {
     let payment_attempt = match reference {
-        Some(reference @ ObjectReferenceId::PaymentId(_)) => {
+        reference @ ObjectReferenceId::PaymentId(_) => {
             get_payment_attempt_from_object_reference_id(
                 &ctx.state,
                 reference.clone(),

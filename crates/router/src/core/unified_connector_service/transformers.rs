@@ -679,10 +679,6 @@ impl
 
         let currency = payments_grpc::Currency::foreign_try_from(router_data.request.currency)?;
 
-        // `handle_response` was removed from PaymentServiceGetRequest upstream along with
-        // the incomplete-transformation webhook flow. Validate the CallConnectorAction
-        // variant is still something PSync-over-UCS supports, then drop the value on the
-        // floor — the proto no longer carries it.
         match call_connector_action {
             common_enums::CallConnectorAction::Trigger
             | common_enums::CallConnectorAction::HandleResponseWithoutBuildRequest => {}
