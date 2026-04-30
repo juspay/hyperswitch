@@ -296,6 +296,15 @@ export const connectorDetails = {
         },
       },
     },
+    ExtendAuthorization: {
+      Request: {},
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_capture",
+        },
+      },
+    },
     ZeroAuthMandate: {
       Request: {
         payment_method: "card",

@@ -980,6 +980,15 @@ export const connectorDetails = {
         },
       },
     },
+    ExtendAuthorization: {
+      Request: {},
+      Response: {
+        status: 200,
+        body: {
+          status: "processing",
+        },
+      },
+    },
   },
   bank_transfer_pm: {
     Pix: {
