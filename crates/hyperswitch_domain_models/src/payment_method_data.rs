@@ -1778,18 +1778,12 @@ impl TryFrom<payment_methods::PaymentMethodCreateData> for PaymentMethodData {
                 bank_holder_type,
             })),
             payment_methods::PaymentMethodCreateData::BankRedirect(
-                payment_methods::BankRedirectDetail::BancontactCard {
-                    card_number,
-                    card_exp_month,
-                    card_exp_year,
-                    card_holder_name,
-                    billing_details: _,
-                },
+                payment_methods::BankRedirectDetail::BancontactCard {},
             ) => Ok(Self::BankRedirect(BankRedirectData::BancontactCard {
-                card_number,
-                card_exp_month,
-                card_exp_year,
-                card_holder_name,
+                card_number: None,
+                card_exp_month: None,
+                card_exp_year: None,
+                card_holder_name: None,
             })),
             payment_methods::PaymentMethodCreateData::ProxyCard(_) => Err(
                 common_utils::errors::ValidationError::IncorrectValueProvided {

@@ -629,22 +629,7 @@ pub enum WalletPaymentMethodData {
 #[serde(deny_unknown_fields)]
 #[serde(rename_all = "snake_case")]
 pub enum BankRedirectDetail {
-    BancontactCard {
-        #[schema(value_type = String, example = "4242424242424242")]
-        card_number: Option<CardNumber>,
-
-        #[schema(value_type = String, example = "24")]
-        card_exp_month: Option<hyperswitch_masking::Secret<String>>,
-
-        #[schema(value_type = String, example = "24")]
-        card_exp_year: Option<hyperswitch_masking::Secret<String>>,
-
-        #[schema(value_type = String, example = "John Test")]
-        card_holder_name: Option<hyperswitch_masking::Secret<String>>,
-
-        #[schema(value_type = Option<BankRedirectBilling>)]
-        billing_details: Option<payments::BankRedirectBilling>,
-    },
+    BancontactCard {},
 }
 
 #[cfg(feature = "v2")]

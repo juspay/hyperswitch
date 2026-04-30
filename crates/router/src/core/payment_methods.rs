@@ -1294,7 +1294,7 @@ pub async fn create_persistent_payment_method_core(
             )
             .await
         }
-        api::PaymentMethodCreateData::BankRedirect(bank_redirect_data) => {
+        api::PaymentMethodCreateData::BankRedirect(_) => {
             create_payment_method_bank_redirect_core(
                 state,
                 req,
@@ -2150,24 +2150,54 @@ pub async fn create_payment_method_bank_redirect_core(
     payment_method_id: id_type::GlobalPaymentMethodId,
     billing_address: Option<Encryptable<hyperswitch_domain_models::address::Address>>,
 ) -> RouterResult<(api::PaymentMethodResponse, domain::PaymentMethod)> {
-    let payment_method = create_payment_method_for_confirm(
-        state,
-        customer_id,
-        payment_method_id,
-        None,
-        merchant_id,
-        platform.get_provider().get_key_store(),
-        platform.get_provider().get_account().storage_scheme,
-        req.payment_method_type,
-        req.payment_method_subtype,
-        billing_address,
-        None,
-        None,
-        None,
-        platform.get_initiator(),
-        enums::PaymentMethodStatus::New,
-    )
-    .await?;
+    let db = &*state.store;
+
+    let existing_payment_methods = db
+        .find_payment_method_by_global_customer_id_merchant_id_statuses(
+            platform.get_provider().get_key_store(),
+            customer_id,
+            merchant_id,
+            vec![
+                enums::PaymentMethodStatus::Active,
+                enums::PaymentMethodStatus::New,
+            ],
+            None,
+            platform.get_provider().get_account().storage_scheme,
+        )
+        .await;
+
+    let existing_wallet_pm = existing_payment_methods.ok().and_then(|pms| {
+        pms.into_iter()
+            .find(|pm| pm.get_payment_method_subtype() == req.payment_method_subtype)
+    });
+
+    let payment_method = match existing_wallet_pm {
+        Some(existing_pm) => {
+            logger::debug!("Payment method is duplicate, returning existing payment method record");
+            existing_pm
+        }
+        None => {
+            logger::debug!("Payment method is new, creating a new payment method record");
+            create_payment_method_for_confirm(
+                state,
+                customer_id,
+                payment_method_id,
+                None,
+                merchant_id,
+                platform.get_provider().get_key_store(),
+                platform.get_provider().get_account().storage_scheme,
+                req.payment_method_type,
+                req.payment_method_subtype,
+                billing_address,
+                None,
+                None,
+                None,
+                platform.get_initiator(),
+                enums::PaymentMethodStatus::New,
+            )
+            .await?
+        }
+    };
 
     let payment_method_response = pm_transforms::generate_payment_method_response(
         &payment_method,

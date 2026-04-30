@@ -180,18 +180,12 @@ impl TryFrom<PaymentMethodData> for PaymentMethodCreateData {
             },
             PaymentMethodData::BankRedirect(bank_redirect) => match bank_redirect {
                 BankRedirectData::BancontactCard {
-                    card_number,
-                    card_exp_month,
-                    card_exp_year,
-                    card_holder_name,
+                    card_number: _,
+                    card_exp_month: _,
+                    card_exp_year: _,
+                    card_holder_name: _,
                 } => {
-                    let bank_redirect_detail = BankRedirectDetail::BancontactCard {
-                        card_number,
-                        card_exp_month,
-                        card_exp_year,
-                        card_holder_name,
-                        billing_details: None,
-                    };
+                    let bank_redirect_detail = BankRedirectDetail::BancontactCard {};
                     Ok(Self::BankRedirect(bank_redirect_detail))
                 }
                 _ => Err(MicroserviceClientError {
