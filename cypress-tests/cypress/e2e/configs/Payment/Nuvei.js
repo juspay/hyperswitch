@@ -17,6 +17,15 @@ const successfulThreeDSCardDetails = {
   card_cvc: "123",
 };
 
+// Card that triggers PartiallyApproved response in Nuvei sandbox (from PR #8985)
+const partialAuthCardDetails = {
+  card_number: "4531739335817394",
+  card_exp_month: "01",
+  card_exp_year: "26",
+  card_holder_name: "John Smith",
+  card_cvc: "100",
+};
+
 const failedNo3DSCardDetails = {
   card_number: "4008370896662369",
   card_exp_month: "01",
@@ -807,7 +816,7 @@ export const connectorDetails = {
       Request: {
         payment_method: "card",
         payment_method_data: {
-          card: successfulNo3DSCardDetails,
+          card: partialAuthCardDetails,
         },
         enable_partial_authorization: true,
         customer_acceptance: null,
@@ -816,7 +825,7 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "succeeded",
+          status: "partially_captured",
           payment_method: "card",
           attempt_count: 1,
         },
