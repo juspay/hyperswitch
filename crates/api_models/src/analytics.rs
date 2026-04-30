@@ -163,6 +163,7 @@ pub struct GenerateReportRequest {
     pub merchant_id: Option<common_utils::id_type::MerchantId>,
     pub auth: AuthInfo,
     pub email: Email,
+    pub payment_response_hash_key: Option<String>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
