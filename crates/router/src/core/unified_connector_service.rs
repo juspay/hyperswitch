@@ -2780,7 +2780,7 @@ where
 #[allow(clippy::too_many_arguments)]
 #[instrument(skip_all, fields(connector_name, flow_type))]
 pub async fn ucs_webhook_logging_wrapper<F, Fut, GrpcReq, GrpcResp>(
-    state: &SessionState,
+    _state: &SessionState,
     connector_name: String,
     flow: &'static str,
     grpc_request: GrpcReq,

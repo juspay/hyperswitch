@@ -81,7 +81,7 @@ pub enum WebhookOutcome {
         /// Pre-fetched resource data (e.g. PaymentAttempt for payment events).
         /// Carried forward so downstream flows can reuse it instead of
         /// issuing an additional DB round-trip.
-        webhook_resource_data: Option<WebhookResourceData>,
+        webhook_resource_data: Box<Option<WebhookResourceData>>,
         masked_log_payload: common_utils::pii::SecretSerdeValue,
         merchant_connector_account: Box<domain::MerchantConnectorAccount>,
         ack_response: services::ApplicationResponse<serde_json::Value>,
@@ -277,7 +277,7 @@ impl IncomingWebhookGateway for DirectIncomingWebhookGateway {
                     source_verified,
                     content: WebhookContent::Direct(bytes),
                     decoded_body: Some(decoded_body.to_vec()),
-                    webhook_resource_data,
+                    webhook_resource_data: Box::new(webhook_resource_data),
                     masked_log_payload,
                     merchant_connector_account: Box::new(mca),
                     ack_response,
@@ -311,7 +311,6 @@ impl IncomingWebhookGateway for UcsIncomingWebhookGateway {
             .clone();
 
         let connector_name = ctx.connector_name.clone();
-        let merchant_id = ctx.platform.get_processor().get_account().get_id().clone();
         let merchant_event_id = build_merchant_event_id(ctx);
 
         let parse_request = payments_grpc::EventServiceParseRequest::foreign_try_from(request)
@@ -441,7 +440,7 @@ impl IncomingWebhookGateway for UcsIncomingWebhookGateway {
                     decoded_body: None,
                     // UCS path does not pre-fetch resource data; the downstream
                     // flow will fetch it on demand.
-                    webhook_resource_data: None,
+                    webhook_resource_data: Box::new(None),
                     masked_log_payload,
                     merchant_connector_account: Box::new(mca),
                     ack_response,

@@ -388,7 +388,7 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
                 is_relay_webhook,
                 reference,
                 *processed_mca,
-                webhook_resource_data,
+                *webhook_resource_data,
             ))
             .await
             {
@@ -2960,7 +2960,7 @@ pub async fn process_uas_incoming_webhook<'a>(
         // request_details.body receive the correct structured payload.
         decoded_body: Some(body_bytes),
         // UAS path does not pre-fetch resource data here.
-        webhook_resource_data: None,
+        webhook_resource_data: Box::new(None),
         masked_log_payload,
         merchant_connector_account: Box::new(mca),
         ack_response,
