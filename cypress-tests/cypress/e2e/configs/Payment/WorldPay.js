@@ -912,6 +912,27 @@ export const connectorDetails = {
         },
       },
     },
+    PartialAuth: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNoThreeDsCardDetailsRequest,
+        },
+        enable_partial_authorization: true,
+        billing: billing,
+        currency: "USD",
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+          payment_method: "card",
+          attempt_count: 1,
+        },
+      },
+    },
   },
   pm_list: {
     PmListResponse: {

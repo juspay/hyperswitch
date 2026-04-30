@@ -1333,6 +1333,17 @@ export const connectorDetails = {
       },
     }),
     SyncRefund: getCustomExchange({}),
+    PartialAuth: getCustomExchange({
+      Request: {
+        enable_partial_authorization: true,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    }),
     MandateSingleUse3DSAutoCapture: getCustomExchange({
       Request: {
         payment_method: "card",

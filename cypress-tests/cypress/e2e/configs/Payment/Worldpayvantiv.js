@@ -608,5 +608,32 @@ export const connectorDetails = {
         },
       },
     },
+    PartialAuth: {
+      Configs: {
+        DELAY: {
+          STATUS: true,
+          TIMEOUT: 5000,
+        },
+      },
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        amount: 5000,
+        enable_partial_authorization: true,
+        currency: "USD",
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+          amount: 5000,
+          amount_received: 5000,
+        },
+      },
+    },
   },
 };

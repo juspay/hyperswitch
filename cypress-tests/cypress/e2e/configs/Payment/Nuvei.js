@@ -803,6 +803,25 @@ export const connectorDetails = {
         },
       },
     },
+    PartialAuth: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        enable_partial_authorization: true,
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+          payment_method: "card",
+          attempt_count: 1,
+        },
+      },
+    },
   },
   // Bank redirect payment methods
   bank_redirect_pm: {
