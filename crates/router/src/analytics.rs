@@ -1815,13 +1815,14 @@ pub mod routes {
                 };
 
                 let auth_info = auth.platform.to_merchant_level_auth_info();
-                
+
                 let hash_key = crate::utils::get_payment_response_hash_key(
                     state.store.as_ref(),
                     auth.platform.get_processor().get_key_store(),
                     &auth_info,
                     &payload.return_url,
-                ).await?;
+                )
+                .await?;
 
                 let lambda_req = GenerateReportRequest {
                     request: payload,
@@ -1919,7 +1920,8 @@ pub mod routes {
                     auth.platform.get_processor().get_key_store(),
                     &auth_info,
                     &payload.return_url,
-                ).await?;
+                )
+                .await?;
 
                 let lambda_req = GenerateReportRequest {
                     request: payload,
@@ -2024,7 +2026,8 @@ pub mod routes {
                     auth.platform.get_processor().get_key_store(),
                     &auth_info,
                     &payload.return_url,
-                ).await?;
+                )
+                .await?;
 
                 let lambda_req = GenerateReportRequest {
                     request: payload,
@@ -2121,7 +2124,8 @@ pub mod routes {
                     auth.platform.get_processor().get_key_store(),
                     &auth_info,
                     &payload.return_url,
-                ).await?;
+                )
+                .await?;
 
                 let lambda_req = GenerateReportRequest {
                     request: payload,
@@ -2218,7 +2222,8 @@ pub mod routes {
                     auth.platform.get_processor().get_key_store(),
                     &auth_info,
                     &payload.return_url,
-                ).await?;
+                )
+                .await?;
 
                 let lambda_req = GenerateReportRequest {
                     request: payload,
@@ -2322,7 +2327,8 @@ pub mod routes {
                     auth.platform.get_processor().get_key_store(),
                     &auth_info,
                     &payload.return_url,
-                ).await?;
+                )
+                .await?;
 
                 let lambda_req = GenerateReportRequest {
                     request: payload,
@@ -2420,7 +2426,8 @@ pub mod routes {
                     auth.platform.get_processor().get_key_store(),
                     &auth_info,
                     &payload.return_url,
-                ).await?;
+                )
+                .await?;
 
                 let lambda_req = GenerateReportRequest {
                     request: payload,
@@ -2518,7 +2525,8 @@ pub mod routes {
                     auth.platform.get_processor().get_key_store(),
                     &auth_info,
                     &payload.return_url,
-                ).await?;
+                )
+                .await?;
 
                 let lambda_req = GenerateReportRequest {
                     request: payload,
@@ -2621,7 +2629,8 @@ pub mod routes {
                     auth.platform.get_processor().get_key_store(),
                     &auth_info,
                     &payload.return_url,
-                ).await?;
+                )
+                .await?;
 
                 let lambda_req = GenerateReportRequest {
                     request: payload,
@@ -2718,7 +2727,8 @@ pub mod routes {
                     auth.platform.get_processor().get_key_store(),
                     &auth_info,
                     &payload.return_url,
-                ).await?;
+                )
+                .await?;
 
                 let lambda_req = GenerateReportRequest {
                     request: payload,
@@ -2815,7 +2825,8 @@ pub mod routes {
                     auth.platform.get_processor().get_key_store(),
                     &auth_info,
                     &payload.return_url,
-                ).await?;
+                )
+                .await?;
 
                 let lambda_req = GenerateReportRequest {
                     request: payload,
@@ -2926,7 +2937,8 @@ pub mod routes {
                     auth.platform.get_processor().get_key_store(),
                     &auth_info,
                     &payload.return_url,
-                ).await?;
+                )
+                .await?;
 
                 let lambda_req = GenerateReportRequest {
                     request: payload,
@@ -3024,7 +3036,8 @@ pub mod routes {
                     auth.platform.get_processor().get_key_store(),
                     &auth_info,
                     &payload.return_url,
-                ).await?;
+                )
+                .await?;
 
                 let lambda_req = GenerateReportRequest {
                     request: payload,
@@ -3122,7 +3135,8 @@ pub mod routes {
                     auth.platform.get_processor().get_key_store(),
                     &auth_info,
                     &payload.return_url,
-                ).await?;
+                )
+                .await?;
 
                 let lambda_req = GenerateReportRequest {
                     request: payload,
@@ -3225,7 +3239,8 @@ pub mod routes {
                     auth.platform.get_processor().get_key_store(),
                     &auth_info,
                     &payload.return_url,
-                ).await?;
+                )
+                .await?;
 
                 let lambda_req = GenerateReportRequest {
                     request: payload,
