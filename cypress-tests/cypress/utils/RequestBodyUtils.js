@@ -22,13 +22,24 @@ export const setApiKey = (requestBody, apiKey) => {
 };
 
 export const generateRandomString = (prefix = "cyMerchant") => {
-  const uuidPart = "xxxxxxxx";
+  let randomBytes;
 
-  const randomString = uuidPart.replace(/[xy]/g, function (c) {
-    const r = (Math.random() * 16) | 0;
-    const v = c === "x" ? r : (r & 0x3) | 0x8;
-    return v.toString(16);
-  });
+  if (
+    typeof globalThis !== "undefined" &&
+    globalThis.crypto &&
+    typeof globalThis.crypto.getRandomValues === "function"
+  ) {
+    randomBytes = new Uint8Array(4);
+    globalThis.crypto.getRandomValues(randomBytes);
+  } else {
+    // Fallback for Node environments where Web Crypto may not be available.
+    // eslint-disable-next-line global-require
+    randomBytes = require("crypto").randomBytes(4);
+  }
+
+  const randomString = Array.from(randomBytes, (b) =>
+    b.toString(16).padStart(2, "0")
+  ).join("");
 
   return `${prefix}_${randomString}`;
 };

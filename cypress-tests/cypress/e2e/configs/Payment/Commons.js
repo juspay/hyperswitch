@@ -209,6 +209,22 @@ export const billingRequiredField = {};
 
 export const payment_methods_enabled = [
   {
+  payment_method: "pay_later",
+  payment_method_types: [
+    {
+      payment_method_type: "affirm",
+      payment_experience: null,
+      card_networks: null,
+      accepted_currencies: null,
+      accepted_countries: null,
+      minimum_amount: 1,
+      maximum_amount: 68607706,
+      recurring_enabled: false,
+      installment_payment_enabled: true,
+    }
+  ],
+},
+  {
     payment_method: "bank_redirect",
     payment_method_types: [
       {
