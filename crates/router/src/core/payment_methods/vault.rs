@@ -17,6 +17,8 @@ use hyperswitch_domain_models::{
     router_data_v2::flow_common_types::VaultConnectorFlowData, types::VaultRouterData,
 };
 use hyperswitch_masking::PeekInterface;
+#[cfg(feature = "v2")]
+use payment_methods::controller::DeleteCardResp;
 use router_env::{instrument, tracing};
 use scheduler::{types::process_data, utils as process_tracker_utils};
 
@@ -43,7 +45,7 @@ use crate::{
 use crate::{
     core::{
         errors::StorageErrorExt,
-        payment_methods::{cards as pm_cards, utils},
+        payment_methods::{cards as pm_cards, utils, LockerOperations, LockerType},
         payments::{self as payments_core, helpers as payment_helpers},
         utils::create_encrypted_data,
     },
@@ -694,6 +696,7 @@ pub struct TokenizedBankSensitiveValues {
     pub bank_sort_code: Option<hyperswitch_masking::Secret<String>>,
     pub iban: Option<hyperswitch_masking::Secret<String>>,
     pub pix_key: Option<hyperswitch_masking::Secret<String>>,
+    pub emv: Option<hyperswitch_masking::Secret<String>>,
     pub tax_id: Option<hyperswitch_masking::Secret<String>>,
     pub bank_number: Option<hyperswitch_masking::Secret<String>>,
 }
@@ -724,6 +727,7 @@ impl Vaultable for api::BankPayout {
                 pix_key: None,
                 tax_id: None,
                 bank_number: None,
+                emv: None,
             },
             Self::Bacs(b) => TokenizedBankSensitiveValues {
                 bank_account_number: Some(b.bank_account_number.to_owned()),
@@ -734,6 +738,7 @@ impl Vaultable for api::BankPayout {
                 pix_key: None,
                 tax_id: None,
                 bank_number: None,
+                emv: None,
             },
             Self::Sepa(b) => TokenizedBankSensitiveValues {
                 bank_account_number: None,
@@ -744,16 +749,18 @@ impl Vaultable for api::BankPayout {
                 pix_key: None,
                 tax_id: None,
                 bank_number: None,
+                emv: None,
             },
             Self::Pix(bank_details) => TokenizedBankSensitiveValues {
-                bank_account_number: Some(bank_details.bank_account_number.to_owned()),
+                bank_account_number: bank_details.bank_account_number.to_owned(),
                 bank_routing_number: None,
                 bic: None,
                 bank_sort_code: None,
                 iban: None,
-                pix_key: Some(bank_details.pix_key.to_owned()),
+                pix_key: bank_details.pix_key.to_owned(),
                 tax_id: bank_details.tax_id.to_owned(),
                 bank_number: None,
+                emv: None,
             },
             Self::Trustly(bank_details) => TokenizedBankSensitiveValues {
                 bank_account_number: bank_details.account_number.to_owned(),
@@ -764,6 +771,7 @@ impl Vaultable for api::BankPayout {
                 pix_key: None,
                 tax_id: None,
                 bank_number: bank_details.bank_number.to_owned(),
+                emv: None,
             },
         };
 
@@ -900,11 +908,12 @@ impl Vaultable for api::BankPayout {
             }
             (Some(ban), None, None, None, None, Some(pix_key), tax_id, _, _) => {
                 Self::Pix(payouts::PixBankTransfer {
-                    bank_account_number: ban,
+                    bank_account_number: Some(ban),
                     bank_branch: bank_insensitive_data.bank_branch,
                     bank_name: bank_insensitive_data.bank_name,
-                    pix_key,
+                    pix_key: Some(pix_key),
                     tax_id,
+                    emv: bank_sensitive_data.emv,
                 })
             }
             _ => Err(errors::VaultError::ResponseDeserializationFailed)?,
@@ -935,6 +944,7 @@ impl Vaultable for api::BankTransferPayout {
                 pix_key: None,
                 tax_id: None,
                 bank_number: None,
+                emv: None,
             },
             Self::Bacs(b) => TokenizedBankSensitiveValues {
                 bank_account_number: Some(b.bank_account_number.to_owned()),
@@ -945,6 +955,7 @@ impl Vaultable for api::BankTransferPayout {
                 pix_key: None,
                 tax_id: None,
                 bank_number: None,
+                emv: None,
             },
             Self::Sepa(b) => TokenizedBankSensitiveValues {
                 bank_account_number: None,
@@ -955,6 +966,7 @@ impl Vaultable for api::BankTransferPayout {
                 pix_key: None,
                 tax_id: None,
                 bank_number: None,
+                emv: None,
             },
             Self::Pix(bank_details) => TokenizedBankSensitiveValues {
                 bank_account_number: Some(bank_details.bank_account_number.to_owned()),
@@ -962,9 +974,32 @@ impl Vaultable for api::BankTransferPayout {
                 bic: None,
                 bank_sort_code: None,
                 iban: None,
-                pix_key: Some(bank_details.pix_key.to_owned()),
+                pix_key: None,
                 tax_id: bank_details.tax_id.to_owned(),
                 bank_number: None,
+                emv: None,
+            },
+            Self::PixKey(pix_key_details) => TokenizedBankSensitiveValues {
+                bank_account_number: None,
+                bank_routing_number: None,
+                bic: None,
+                bank_sort_code: None,
+                iban: None,
+                pix_key: Some(pix_key_details.pix_key.to_owned()),
+                tax_id: None,
+                bank_number: None,
+                emv: None,
+            },
+            Self::PixEmv(pix_emv_details) => TokenizedBankSensitiveValues {
+                bank_account_number: None,
+                bank_routing_number: None,
+                bic: None,
+                bank_sort_code: None,
+                iban: None,
+                pix_key: None,
+                tax_id: None,
+                bank_number: None,
+                emv: Some(pix_emv_details.emv.to_owned()),
             },
             Self::Trustly(bank_details) => TokenizedBankSensitiveValues {
                 bank_account_number: bank_details.bank_account_number.to_owned(),
@@ -975,6 +1010,7 @@ impl Vaultable for api::BankTransferPayout {
                 pix_key: None,
                 tax_id: None,
                 bank_number: bank_details.bank_number.to_owned(),
+                emv: None,
             },
         };
 
@@ -1020,6 +1056,22 @@ impl Vaultable for api::BankTransferPayout {
                 bank_city: None,
                 bank_branch: bank_details.bank_branch.to_owned(),
                 payout_method_type: Some(PaymentMethodType::Pix),
+            },
+            Self::PixKey(_) => TokenizedBankInsensitiveValues {
+                customer_id,
+                bank_name: None,
+                bank_country_code: None,
+                bank_city: None,
+                bank_branch: None,
+                payout_method_type: Some(PaymentMethodType::PixKey),
+            },
+            Self::PixEmv(_) => TokenizedBankInsensitiveValues {
+                customer_id,
+                bank_name: None,
+                bank_country_code: None,
+                bank_city: None,
+                bank_branch: None,
+                payout_method_type: Some(PaymentMethodType::PixEmv),
             },
             Self::Trustly(bank_details) => TokenizedBankInsensitiveValues {
                 customer_id,
@@ -1101,7 +1153,7 @@ impl Vaultable for api::BankTransferPayout {
                 bank_country_code: bank_insensitive_data.bank_country_code,
                 bank_city: bank_insensitive_data.bank_city,
             }),
-            Some(PaymentMethodType::Pix) => Self::Pix(payouts::PixBankTransfer {
+            Some(PaymentMethodType::Pix) => Self::Pix(payouts::PixAccountBankTransfer {
                 bank_account_number: bank_sensitive_data.bank_account_number.ok_or(
                     errors::VaultError::MissingRequiredField {
                         field_name: "bank_account_number",
@@ -1109,12 +1161,19 @@ impl Vaultable for api::BankTransferPayout {
                 )?,
                 bank_branch: bank_insensitive_data.bank_branch,
                 bank_name: bank_insensitive_data.bank_name,
+                tax_id: bank_sensitive_data.tax_id,
+            }),
+            Some(PaymentMethodType::PixKey) => Self::PixKey(payouts::PixKeyBankTransfer {
                 pix_key: bank_sensitive_data.pix_key.ok_or(
                     errors::VaultError::MissingRequiredField {
                         field_name: "pix_key",
                     },
                 )?,
-                tax_id: bank_sensitive_data.tax_id,
+            }),
+            Some(PaymentMethodType::PixEmv) => Self::PixEmv(payouts::PixEmvBankTransfer {
+                emv: bank_sensitive_data
+                    .emv
+                    .ok_or(errors::VaultError::MissingRequiredField { field_name: "emv" })?,
             }),
             _ => Err(errors::VaultError::ResponseDeserializationFailed)?,
         };
@@ -1925,26 +1984,18 @@ pub async fn retrieve_payment_method_from_vault_internal(
     platform: &domain::Platform,
     vault_id: &domain::VaultId,
     customer_id: &id_type::GlobalCustomerId,
+    payment_method_type: Option<enums::PaymentMethod>,
 ) -> CustomResult<pm_types::VaultRetrieveResponse, errors::VaultError> {
-    let payload = pm_types::VaultRetrieveRequest {
-        entity_id: customer_id.to_owned(),
-        vault_id: vault_id.to_owned(),
-    }
-    .encode_to_vec()
-    .change_context(errors::VaultError::RequestEncodingFailed)
-    .attach_printable("Failed to encode VaultRetrieveRequest")?;
-
-    let resp = call_to_vault::<pm_types::VaultRetrieve>(state, payload, None)
+    let locker = LockerType::from_micro_services_config(&state.conf.micro_services);
+    locker
+        .retrieve_payment_method_from_locker(
+            state,
+            platform,
+            vault_id,
+            customer_id,
+            payment_method_type,
+        )
         .await
-        .change_context(errors::VaultError::VaultAPIError)
-        .attach_printable("Call to vault failed")?;
-
-    let stored_pm_resp: pm_types::VaultRetrieveResponse = resp
-        .parse_struct("VaultRetrieveResponse")
-        .change_context(errors::VaultError::ResponseDeserializationFailed)
-        .attach_printable("Failed to parse data into VaultRetrieveResponse")?;
-
-    Ok(stored_pm_resp)
 }
 
 #[cfg(all(feature = "v2", feature = "tokenization_v2"))]
@@ -2412,10 +2463,17 @@ pub async fn retrieve_payment_method_from_vault(
                 .customer_id
                 .clone()
                 .get_required_value("GlobalCustomerId")?;
-            retrieve_payment_method_from_vault_internal(state, platform, &vault_id, &customer_id)
-                .await
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable("Failed to retrieve payment method from vault")
+
+            retrieve_payment_method_from_vault_internal(
+                state,
+                platform,
+                &vault_id,
+                &customer_id,
+                pm.payment_method_type,
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to retrieve payment method from vault")
         }
     }
 }
@@ -2427,25 +2485,10 @@ pub async fn delete_payment_method_data_from_vault_internal(
     vault_id: domain::VaultId,
     customer_id: &id_type::GlobalCustomerId,
 ) -> CustomResult<pm_types::VaultDeleteResponse, errors::VaultError> {
-    let payload = pm_types::VaultDeleteRequest {
-        entity_id: customer_id.to_owned(),
-        vault_id,
-    }
-    .encode_to_vec()
-    .change_context(errors::VaultError::RequestEncodingFailed)
-    .attach_printable("Failed to encode VaultDeleteRequest")?;
-
-    let resp = call_to_vault::<pm_types::VaultDelete>(state, payload, None)
+    let locker = LockerType::from_micro_services_config(&state.conf.micro_services);
+    locker
+        .delete_payment_method_from_locker(state, platform, vault_id, customer_id)
         .await
-        .change_context(errors::VaultError::VaultAPIError)
-        .attach_printable("Call to vault failed")?;
-
-    let stored_pm_resp: pm_types::VaultDeleteResponse = resp
-        .parse_struct("VaultDeleteResponse")
-        .change_context(errors::VaultError::ResponseDeserializationFailed)
-        .attach_printable("Failed to parse data into VaultDeleteResponse")?;
-
-    Ok(stored_pm_resp)
 }
 
 #[cfg(feature = "v2")]

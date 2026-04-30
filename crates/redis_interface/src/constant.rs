@@ -2,8 +2,6 @@
 //!
 //! Backend-specific command string constants live in each backend's module.
 
-
-
 /// Redis commands used in redis::cmd() and pipe.cmd() calls (redis-rs backend)
 #[cfg(feature = "redis-rs")]
 pub mod redis_rs_commands {
