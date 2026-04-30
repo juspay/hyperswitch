@@ -458,6 +458,7 @@ export const CONNECTOR_LISTS = {
       // "stripe",
     ],
     DDC_RACE_CONDITION: ["worldpay"],
+    CONNECTOR_TESTING_DATA: ["adyen"],
     // ucs connectors
     UCS_CONNECTORS: ["authorizedotnet"],
     OVERCAPTURE: ["adyen"],
@@ -542,6 +543,8 @@ export const CONNECTOR_LISTS = {
     EXTERNAL_THREE_DS: ["stripe"],
     BANK_DEBIT: ["novalnet"],
     PARTNER_MERCHANT_IDENTIFIER: ["adyen", "checkout"],
+    GIFT_CARD: ["adyen"],
+    AUTH_SERVICE_ELIGIBILITY: ["stripe", "cybersource"],
     // Add more inclusion lists
   },
 };
