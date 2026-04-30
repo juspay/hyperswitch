@@ -908,4 +908,53 @@ export const connectorDetails = {
       source: "paymentAttemptID",
     },
   },
+  order_create_pm: {
+    OrderCreate: {
+      Request: {
+        currency: "USD",
+        amount: 6000,
+        order_details: [
+          {
+            product_name: "Test Product",
+            quantity: 1,
+            amount: 6000,
+          },
+        ],
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+          amount: 6000,
+        },
+      },
+    },
+    OrderCreateConfirm: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "USD",
+        amount: 6000,
+        order_details: [
+          {
+            product_name: "Test Product",
+            quantity: 1,
+            amount: 6000,
+          },
+        ],
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+          amount: 6000,
+          payment_method: "card",
+        },
+      },
+    },
+  },
 };
