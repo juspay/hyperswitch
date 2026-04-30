@@ -518,6 +518,17 @@ Cypress.Commands.add("healthCheck", (globalState) => {
   });
 });
 
+/**
+ * Creates a merchant account and optionally validates response fields.
+ * @param {Object} merchantCreateBody - The merchant creation request body
+ * @param {Object} globalState - The global state object
+ * @param {Object} options - Options for merchant creation
+ * @param {string|null} [options.expectedMerchantAccountType=null] - Expected merchant_account_type to validate (optional)
+ * @param {string|null} [options.expectedProductType=null] - Expected product_type to validate (optional, null means no validation)
+ * @param {string} [options.merchantIdStateKey="merchantId"] - Key to store merchant ID in global state
+ * @param {string} [options.profileIdStateKey="profileId"] - Key to store profile ID in global state
+ * @param {string} [options.publishableKeyStateKey="publishableKey"] - Key to store publishable key in global state
+ */
 Cypress.Commands.add(
   "merchantCreateCallTest",
   (merchantCreateBody, globalState, options = {}) => {
@@ -604,6 +615,42 @@ Cypress.Commands.add("merchantRetrieveCall", (globalState) => {
     });
   });
 });
+
+/**
+ * Retrieves a merchant account and optionally validates the product_type field.
+ * @param {Object} globalState - The global state object containing baseUrl and adminApiKey
+ * @param {Object} options - Options for the retrieval
+ * @param {string} [options.merchantId] - The merchant ID to retrieve (defaults to globalState.merchantId)
+ * @param {string|null} [options.expectedProductType=null] - Expected product_type value to validate
+ */
+Cypress.Commands.add(
+  "merchantRetrieveCallTest",
+  (globalState, options = {}) => {
+    const { expectedProductType = null, merchantId = null } = options;
+
+    const merchant_id = merchantId ?? globalState.get("merchantId");
+
+    cy.request({
+      method: "GET",
+      url: `${globalState.get("baseUrl")}/accounts/${merchant_id}`,
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json",
+        "api-key": globalState.get("adminApiKey"),
+      },
+      failOnStatusCode: false,
+    }).then((response) => {
+      logRequestId(response.headers["x-request-id"]);
+
+      if (expectedProductType) {
+        expect(response.body).to.have.property(
+          "product_type",
+          expectedProductType
+        );
+      }
+    });
+  }
+);
 
 Cypress.Commands.add("merchantDeleteCall", (globalState) => {
   const merchant_id = globalState.get("merchantId");

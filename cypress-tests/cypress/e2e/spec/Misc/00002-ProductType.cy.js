@@ -28,19 +28,7 @@ describe("Merchant Account Product Type Tests", () => {
       });
 
       // Verify product_type persists on retrieve
-      const merchant_id_val = globalState.get("merchantId");
-      cy.request({
-        method: "GET",
-        url: `${globalState.get("baseUrl")}/accounts/${merchant_id_val}`,
-        headers: {
-          Accept: "application/json",
-          "Content-Type": "application/json",
-          "api-key": globalState.get("adminApiKey"),
-        },
-        failOnStatusCode: false,
-      }).then((response) => {
-        expect(response.body).to.have.property("product_type", "vault");
-      });
+      cy.merchantRetrieveCallTest(globalState, { expectedProductType: "vault" });
 
       // Cleanup merchant
       cy.merchantDeleteCall(globalState);
@@ -59,19 +47,7 @@ describe("Merchant Account Product Type Tests", () => {
         expectedProductType: "recon",
       });
 
-      const merchant_id_val = globalState.get("merchantId");
-      cy.request({
-        method: "GET",
-        url: `${globalState.get("baseUrl")}/accounts/${merchant_id_val}`,
-        headers: {
-          Accept: "application/json",
-          "Content-Type": "application/json",
-          "api-key": globalState.get("adminApiKey"),
-        },
-        failOnStatusCode: false,
-      }).then((response) => {
-        expect(response.body).to.have.property("product_type", "recon");
-      });
+      cy.merchantRetrieveCallTest(globalState, { expectedProductType: "recon" });
 
       cy.merchantDeleteCall(globalState);
     });
@@ -89,19 +65,7 @@ describe("Merchant Account Product Type Tests", () => {
         expectedProductType: "recovery",
       });
 
-      const merchant_id_val = globalState.get("merchantId");
-      cy.request({
-        method: "GET",
-        url: `${globalState.get("baseUrl")}/accounts/${merchant_id_val}`,
-        headers: {
-          Accept: "application/json",
-          "Content-Type": "application/json",
-          "api-key": globalState.get("adminApiKey"),
-        },
-        failOnStatusCode: false,
-      }).then((response) => {
-        expect(response.body).to.have.property("product_type", "recovery");
-      });
+      cy.merchantRetrieveCallTest(globalState, { expectedProductType: "recovery" });
 
       cy.merchantDeleteCall(globalState);
     });
@@ -119,19 +83,7 @@ describe("Merchant Account Product Type Tests", () => {
         expectedProductType: "cost_observability",
       });
 
-      const merchant_id_val = globalState.get("merchantId");
-      cy.request({
-        method: "GET",
-        url: `${globalState.get("baseUrl")}/accounts/${merchant_id_val}`,
-        headers: {
-          Accept: "application/json",
-          "Content-Type": "application/json",
-          "api-key": globalState.get("adminApiKey"),
-        },
-        failOnStatusCode: false,
-      }).then((response) => {
-        expect(response.body).to.have.property("product_type", "cost_observability");
-      });
+      cy.merchantRetrieveCallTest(globalState, { expectedProductType: "cost_observability" });
 
       cy.merchantDeleteCall(globalState);
     });
@@ -149,19 +101,7 @@ describe("Merchant Account Product Type Tests", () => {
         expectedProductType: "dynamic_routing",
       });
 
-      const merchant_id_val = globalState.get("merchantId");
-      cy.request({
-        method: "GET",
-        url: `${globalState.get("baseUrl")}/accounts/${merchant_id_val}`,
-        headers: {
-          Accept: "application/json",
-          "Content-Type": "application/json",
-          "api-key": globalState.get("adminApiKey"),
-        },
-        failOnStatusCode: false,
-      }).then((response) => {
-        expect(response.body).to.have.property("product_type", "dynamic_routing");
-      });
+      cy.merchantRetrieveCallTest(globalState, { expectedProductType: "dynamic_routing" });
 
       cy.merchantDeleteCall(globalState);
     });
@@ -175,19 +115,7 @@ describe("Merchant Account Product Type Tests", () => {
         expectedProductType: "orchestration",
       });
 
-      const merchant_id_val = globalState.get("merchantId");
-      cy.request({
-        method: "GET",
-        url: `${globalState.get("baseUrl")}/accounts/${merchant_id_val}`,
-        headers: {
-          Accept: "application/json",
-          "Content-Type": "application/json",
-          "api-key": globalState.get("adminApiKey"),
-        },
-        failOnStatusCode: false,
-      }).then((response) => {
-        expect(response.body).to.have.property("product_type", "orchestration");
-      });
+      cy.merchantRetrieveCallTest(globalState, { expectedProductType: "orchestration" });
 
       cy.merchantDeleteCall(globalState);
     });
