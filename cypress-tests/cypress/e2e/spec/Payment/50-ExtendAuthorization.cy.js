@@ -89,7 +89,7 @@ describe("[Payment] Extend Authorization", () => {
     });
 
     it("[Payment] Retrieve Payment Status", () => {
-      cy.retrievePaymentCallTest(globalState);
+      cy.retrievePaymentCallTest({ globalState });
     });
   });
 });
