@@ -732,6 +732,22 @@ export const connectorDetails = {
         },
       },
     },
+     No3DSFailPayment: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulThreeDSTestCardDetails,
+        },
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action", // Noon doesn't have fail scenario for card payments, it goes to requires_customer_action.
+        },
+      },
+    },
   },
   webhook: {
     TransactionIdConfig: {
