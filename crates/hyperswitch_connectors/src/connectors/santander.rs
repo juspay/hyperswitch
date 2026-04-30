@@ -1233,11 +1233,11 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for San
             );
 
         if is_journey_2_cit {
-            let mandate_id = req.request.connector_reference_id.as_ref().ok_or(
-                errors::ConnectorError::MissingRequiredField {
-                    field_name: "connector_reference_id for Journey 2 CIT",
-                },
-            )?;
+            let mandate_id = req
+                .request
+                .connector_mandate_id
+                .clone()
+                .ok_or(errors::ConnectorError::MissingConnectorMandateID)?;
             // Journey 2 CIT flow
             Ok(format!(
                 "{}api/v1/rec/{}",
@@ -1276,14 +1276,8 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for San
                             None => {
                                 let mandate_id = req
                                     .request
-                                    .mandate_id
-                                    .as_ref()
-                                    .and_then(|ids| match &ids.mandate_reference_id {
-                                        Some(api_models::payments::MandateReferenceId::ConnectorMandateId(
-                                            connector_mandate_ids,
-                                        )) => connector_mandate_ids.get_connector_mandate_id(),
-                                        _ => None,
-                                    })
+                                    .connector_mandate_id
+                                    .clone()
                                     .ok_or(errors::ConnectorError::MissingConnectorMandateID)?;
                                 Ok(format!(
                                     "{}api/v1/rec/{}",
@@ -1297,7 +1291,7 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for San
                     Some(enums::PaymentMethodType::PixAutomaticoPush) => {
                         let mandate_id = req
                             .request
-                            .connector_reference_id
+                            .connector_mandate_id
                             .clone()
                             .ok_or(errors::ConnectorError::MissingConnectorMandateID)?;
                         Ok(format!(
