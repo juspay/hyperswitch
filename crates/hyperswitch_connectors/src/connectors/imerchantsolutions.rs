@@ -43,7 +43,7 @@ use hyperswitch_interfaces::{
     types::{self, Response},
     webhooks,
 };
-use hyperswitch_masking::{ExposeInterface, Mask};
+use hyperswitch_masking::Mask;
 use transformers as imerchantsolutions;
 
 use crate::{constants::headers, types::ResponseRouterData, utils};
@@ -124,10 +124,20 @@ impl ConnectorCommon for Imerchantsolutions {
     {
         let auth = imerchantsolutions::ImerchantsolutionsAuthType::try_from(auth_type)
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
-        Ok(vec![(
+
+        let mut auth_header = vec![(
             headers::AUTHORIZATION.to_string(),
-            auth.api_key.expose().into_masked(),
-        )])
+            auth.api_key.into_masked(),
+        )];
+
+        if let Some(merchant_id) = auth.merchant_id {
+            auth_header.push((
+                headers::X_MERCHANT_ID.to_string(),
+                merchant_id.into_masked(),
+            ));
+        }
+
+        Ok(auth_header)
     }
 
     fn build_error_response(
