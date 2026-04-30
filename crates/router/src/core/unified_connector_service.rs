@@ -46,7 +46,8 @@ use crate::{
         errors::{self, RouterResult},
         payments::{
             helpers::{
-                is_ucs_enabled, should_execute_based_on_rollout, MerchantConnectorAccountType,
+                is_ucs_enabled, should_execute_based_on_rollout_with_precedence,
+                MerchantConnectorAccountType,
                 ProxyOverride,
             },
             OperationSessionGetters, OperationSessionSetters,
@@ -304,6 +305,7 @@ where
 {
     // Extract context information
     let merchant_id = processor.get_account().get_id().get_string_repr();
+    let org_id = processor.get_account().get_org_id().get_string_repr();
 
     let connector_name = &router_data.connector;
     let connector_enum = Connector::from_str(connector_name)
@@ -315,9 +317,12 @@ where
     // Check UCS availability using idiomatic helper
     let ucs_availability = check_ucs_availability(state).await;
 
-    let rollout_key = match transaction_type {
+    // Build rollout keys in ascending precedence order:
+    // [org, org+merchant, org+merchant+connector, merchant+connector (existing)]
+    let rollout_keys = match transaction_type {
         common_enums::TransactionType::Payment
         | common_enums::TransactionType::ThreeDsAuthentication => build_rollout_keys(
+            org_id,
             merchant_id,
             connector_name,
             &flow_name,
@@ -325,6 +330,7 @@ where
             router_data.payment_method_type,
         ),
         common_enums::TransactionType::Payout => build_rollout_keys_for_payouts(
+            org_id,
             merchant_id,
             connector_name,
             &flow_name,
@@ -336,8 +342,8 @@ where
     let connector_integration_type =
         determine_connector_integration_type(state, connector_enum).await?;
 
-    // Check rollout key availability and shadow key presence (optimized to reduce DB calls)
-    let rollout_result = should_execute_based_on_rollout(state, &rollout_key).await?;
+    // Try keys highest → lowest precedence, use first match found
+    let rollout_result = should_execute_based_on_rollout_with_precedence(state, &rollout_keys).await?;
 
     // Single decision point using pattern matching
     let (gateway_system, mut execution_path) = if ucs_availability == UcsAvailability::Disabled {
@@ -527,44 +533,40 @@ fn decide_execution_path(
 }
 
 /// Build rollout keys based on flow type - include payment method for payments, skip for refunds
+/// Builds rollout config keys in ascending precedence order:
+/// 1. `ucs_rollout_config_<org_id>`                                    — org level (lowest)
+/// 2. `ucs_rollout_config_<org_id>_<merchant_id>`                      — org + merchant
+/// 3. `ucs_rollout_config_<org_id>_<merchant_id>_<connector>_...`      — org + merchant + connector
+/// 4. `ucs_rollout_config_<merchant_id>_<connector>_...`               — existing key (highest)
+///
+/// The caller should try keys from highest → lowest and use the first one found.
 fn build_rollout_keys(
+    org_id: &str,
     merchant_id: &str,
     connector_name: &str,
     flow_name: &str,
     payment_method: common_enums::PaymentMethod,
     payment_method_type: Option<PaymentMethodType>,
-) -> String {
+) -> Vec<String> {
+    let prefix = consts::UCS_ROLLOUT_PERCENT_CONFIG_PREFIX;
+
     // Detect if this is a refund flow based on flow name
     let is_refund_flow = matches!(flow_name, "Execute" | "RSync");
 
-    if is_refund_flow {
-        // Refund flows: UCS_merchant_connector_flow (e.g., UCS_merchant123_stripe_Execute)
-        format!(
-            "{}_{}_{}_{}",
-            consts::UCS_ROLLOUT_PERCENT_CONFIG_PREFIX,
-            merchant_id,
-            connector_name,
-            flow_name
-        )
+    let connector_specific_key = if is_refund_flow {
+        // Refund flows: prefix_merchant_connector_flow
+        format!("{prefix}_{merchant_id}_{connector_name}_{flow_name}")
     } else {
         match payment_method {
             common_enums::PaymentMethod::Wallet
             | common_enums::PaymentMethod::BankRedirect
             | common_enums::PaymentMethod::Voucher
             | common_enums::PaymentMethod::PayLater => {
-                let payment_method_str = payment_method.to_string();
-                let payment_method_type_str = payment_method_type
-                    .map(|pmt| pmt.to_string())
+                let pm = payment_method.to_string();
+                let pmt = payment_method_type
+                    .map(|t| t.to_string())
                     .unwrap_or_else(|| "unknown".to_string());
-                format!(
-                    "{}_{}_{}_{}_{}_{}",
-                    consts::UCS_ROLLOUT_PERCENT_CONFIG_PREFIX,
-                    merchant_id,
-                    connector_name,
-                    payment_method_str,
-                    payment_method_type_str,
-                    flow_name
-                )
+                format!("{prefix}_{merchant_id}_{connector_name}_{pm}_{pmt}_{flow_name}")
             }
             common_enums::PaymentMethod::Card
             | common_enums::PaymentMethod::CardRedirect
@@ -578,40 +580,62 @@ fn build_rollout_keys(
             | common_enums::PaymentMethod::MobilePayment
             | common_enums::PaymentMethod::NetworkToken
             | common_enums::PaymentMethod::OpenBanking => {
-                // For other payment methods, use a generic format without specific payment method type details
-                let payment_method_str = payment_method.to_string();
-                format!(
-                    "{}_{}_{}_{}_{}",
-                    consts::UCS_ROLLOUT_PERCENT_CONFIG_PREFIX,
-                    merchant_id,
-                    connector_name,
-                    payment_method_str,
-                    flow_name
-                )
+                let pm = payment_method.to_string();
+                format!("{prefix}_{merchant_id}_{connector_name}_{pm}_{flow_name}")
             }
         }
-    }
+    };
+
+    let org_merchant_connector_key = if is_refund_flow {
+        format!("{prefix}_{org_id}_{merchant_id}_{connector_name}_{flow_name}")
+    } else {
+        match payment_method {
+            common_enums::PaymentMethod::Wallet
+            | common_enums::PaymentMethod::BankRedirect
+            | common_enums::PaymentMethod::Voucher
+            | common_enums::PaymentMethod::PayLater => {
+                let pm = payment_method.to_string();
+                let pmt = payment_method_type
+                    .map(|t| t.to_string())
+                    .unwrap_or_else(|| "unknown".to_string());
+                format!("{prefix}_{org_id}_{merchant_id}_{connector_name}_{pm}_{pmt}_{flow_name}")
+            }
+            _ => {
+                let pm = payment_method.to_string();
+                format!("{prefix}_{org_id}_{merchant_id}_{connector_name}_{pm}_{flow_name}")
+            }
+        }
+    };
+
+    // Ascending precedence: org → org+merchant → org+merchant+connector → merchant+connector
+    vec![
+        format!("{prefix}_{org_id}"),
+        format!("{prefix}_{org_id}_{merchant_id}"),
+        org_merchant_connector_key,
+        connector_specific_key,
+    ]
 }
 
-/// Build rollout keys based on flow type - include payment method type for payouts
+/// Build rollout keys for payouts in ascending precedence order.
+/// Same hierarchy as payments: org → org+merchant → org+merchant+connector → merchant+connector
 fn build_rollout_keys_for_payouts(
+    org_id: &str,
     merchant_id: &str,
     connector_name: &str,
     flow_name: &str,
     payment_method_type: Option<PaymentMethodType>,
-) -> String {
-    let payment_method_type_str = payment_method_type
-        .map(|data| data.to_string())
+) -> Vec<String> {
+    let prefix = consts::UCS_ROLLOUT_PERCENT_CONFIG_PREFIX;
+    let pmt = payment_method_type
+        .map(|t| t.to_string())
         .unwrap_or_else(|| "unknown".to_string());
 
-    format!(
-        "{}_{}_{}_{}_{}",
-        consts::UCS_ROLLOUT_PERCENT_CONFIG_PREFIX,
-        merchant_id,
-        connector_name,
-        payment_method_type_str,
-        flow_name
-    )
+    vec![
+        format!("{prefix}_{org_id}"),
+        format!("{prefix}_{org_id}_{merchant_id}"),
+        format!("{prefix}_{org_id}_{merchant_id}_{connector_name}_{pmt}_{flow_name}"),
+        format!("{prefix}_{merchant_id}_{connector_name}_{pmt}_{flow_name}"),
+    ]
 }
 
 /// Extracts the gateway system from the payment intent's feature metadata
@@ -686,6 +710,7 @@ pub async fn should_call_unified_connector_service_for_webhooks(
 ) -> RouterResult<ExecutionPath> {
     // Extract context information
     let merchant_id = processor.get_account().get_id().get_string_repr();
+    let org_id = processor.get_account().get_org_id().get_string_repr();
 
     let connector_enum = Connector::from_str(connector_name)
         .change_context(errors::ApiErrorResponse::IncorrectConnectorNameGiven)
@@ -700,14 +725,13 @@ pub async fn should_call_unified_connector_service_for_webhooks(
         .map(|id| id.get_string_repr().to_owned())
         .unwrap_or_else(|| connector_name.to_string());
 
-    // Build rollout keys - webhooks don't use payment method, so use a simplified key format
-    let rollout_key = format!(
-        "{}_{}_{}_{}",
-        consts::UCS_ROLLOUT_PERCENT_CONFIG_PREFIX,
-        merchant_id,
-        connector_key,
-        flow_name
-    );
+    // Build rollout keys in ascending precedence: org → org+merchant → org+merchant+connector → merchant+connector
+    let rollout_keys = vec![
+        format!("{}_{}", consts::UCS_ROLLOUT_PERCENT_CONFIG_PREFIX, org_id),
+        format!("{}_{}_{}", consts::UCS_ROLLOUT_PERCENT_CONFIG_PREFIX, org_id, merchant_id),
+        format!("{}_{}_{}_{}_{}",consts::UCS_ROLLOUT_PERCENT_CONFIG_PREFIX, org_id, merchant_id, connector_key, flow_name),
+        format!("{}_{}_{}_{}",consts::UCS_ROLLOUT_PERCENT_CONFIG_PREFIX, merchant_id, connector_key, flow_name),
+    ];
 
     // Determine connector integration type
     let connector_integration_type =
@@ -716,8 +740,8 @@ pub async fn should_call_unified_connector_service_for_webhooks(
     // For webhooks, there is no previous gateway system to consider (webhooks are stateless)
     let previous_gateway = None;
 
-    // Check both rollout keys to determine priority based on shadow percentage
-    let rollout_result = should_execute_based_on_rollout(state, &rollout_key).await?;
+    // Try keys highest → lowest precedence, use first match found
+    let rollout_result = should_execute_based_on_rollout_with_precedence(state, &rollout_keys).await?;
 
     // Use the same decision logic as payments, with no call_connector_action to consider
     let (gateway_system, execution_path) = if ucs_availability == UcsAvailability::Disabled {
