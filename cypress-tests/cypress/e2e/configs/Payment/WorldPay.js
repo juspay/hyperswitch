@@ -918,6 +918,9 @@ export const connectorDetails = {
         payment_method_data: {
           card: successfulNoThreeDsCardDetailsRequest,
         },
+        // Magic amount per WorldPay Access API docs: amount 1706 triggers partial authorization
+        // with totalAuthorized = 123 (see: docs.worldpay.com/access/products/card-payments/features/partial-authorizations)
+        amount: 1706,
         enable_partial_authorization: true,
         billing: billing,
         currency: "USD",
@@ -927,9 +930,9 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "succeeded",
-          payment_method: "card",
-          attempt_count: 1,
+          status: "partially_captured",
+          amount: 1706,
+          amount_received: 123,
         },
       },
     },
