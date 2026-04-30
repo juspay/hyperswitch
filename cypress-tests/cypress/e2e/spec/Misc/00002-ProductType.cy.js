@@ -151,20 +151,9 @@ describe("Merchant Account Product Type Tests", () => {
         product_type: "invalid_product_type",
       };
 
-      cy.request({
-        method: "POST",
-        url: `${globalState.get("baseUrl")}/accounts`,
-        headers: {
-          Accept: "application/json",
-          "Content-Type": "application/json",
-          "api-key": globalState.get("adminApiKey"),
-        },
-        body: merchantCreateBody,
-        failOnStatusCode: false,
-      }).then((response) => {
-        expect(response.status).to.equal(400);
-        expect(response.body).to.have.property("error");
-        expect(response.body.error.code).to.equal("IR_06");
+      cy.merchantCreateFailCall(merchantCreateBody, globalState, {
+        expectedStatus: 400,
+        expectedErrorCode: "IR_06",
       });
     });
   });

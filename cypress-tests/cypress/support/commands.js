@@ -672,6 +672,45 @@ Cypress.Commands.add("merchantDeleteCall", (globalState) => {
   });
 });
 
+/**
+ * Attempts to create a merchant with invalid data and validates the error response.
+ * Used for negative test cases (e.g., invalid product_type).
+ * @param {Object} merchantCreateBody - The invalid merchant creation request body
+ * @param {Object} globalState - The global state object
+ * @param {Object} options - Options for error validation
+ * @param {number} [options.expectedStatus=400] - Expected HTTP status code
+ * @param {string} [options.expectedErrorCode="IR_06"] - Expected error code in response
+ */
+Cypress.Commands.add(
+  "merchantCreateFailCall",
+  (merchantCreateBody, globalState, options = {}) => {
+    const { expectedStatus = 400, expectedErrorCode = "IR_06" } = options;
+
+    const merchantId = RequestBodyUtils.generateRandomString();
+    RequestBodyUtils.setMerchantId(merchantCreateBody, merchantId);
+
+    cy.request({
+      method: "POST",
+      url: `${globalState.get("baseUrl")}/accounts`,
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json",
+        "api-key": globalState.get("adminApiKey"),
+      },
+      body: merchantCreateBody,
+      failOnStatusCode: false,
+    }).then((response) => {
+      logRequestId(response.headers["x-request-id"]);
+
+      cy.wrap(response).then(() => {
+        expect(response.status).to.equal(expectedStatus);
+        expect(response.body).to.have.property("error");
+        expect(response.body.error.code).to.equal(expectedErrorCode);
+      });
+    });
+  }
+);
+
 Cypress.Commands.add("ListConnectorsFeatureMatrixCall", (globalState) => {
   const baseUrl = globalState.get("baseUrl");
   const url = `${baseUrl}/feature_matrix`;
