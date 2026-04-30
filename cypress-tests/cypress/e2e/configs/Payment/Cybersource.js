@@ -1081,6 +1081,113 @@ export const connectorDetails = {
       },
     },
   },
+  auth_service_eligibility: {
+    OrgEnabledMerchantEnabled: getCustomExchange({
+      Request: {
+        payment_method: "card",
+        payment_method_data: { card: successfulThreeDSTestCardDetails },
+        currency: "USD",
+        amount: 6500,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+          authentication_type: "three_ds",
+        },
+      },
+    }),
+    OrgEnabledMerchantDisabled: getCustomExchange({
+      Request: {
+        payment_method: "card",
+        payment_method_data: { card: successfulThreeDSTestCardDetails },
+        currency: "USD",
+        amount: 6500,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+          authentication_type: "three_ds",
+        },
+      },
+    }),
+    OrgDisabledMerchantEnabled: getCustomExchange({
+      Request: {
+        payment_method: "card",
+        payment_method_data: { card: successfulNo3DSCardDetails },
+        currency: "USD",
+        amount: 6500,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+          authentication_type: "no_three_ds",
+        },
+      },
+    }),
+    OrgDisabledMerchantDisabled: getCustomExchange({
+      Request: {
+        payment_method: "card",
+        payment_method_data: { card: successfulNo3DSCardDetails },
+        currency: "USD",
+        amount: 6500,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+          authentication_type: "no_three_ds",
+        },
+      },
+    }),
+    MerchantOnlyEnabled: getCustomExchange({
+      Request: {
+        payment_method: "card",
+        payment_method_data: { card: successfulThreeDSTestCardDetails },
+        currency: "USD",
+        amount: 6500,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+          authentication_type: "three_ds",
+        },
+      },
+    }),
+    MerchantOnlyDisabled: getCustomExchange({
+      Request: {
+        payment_method: "card",
+        payment_method_data: { card: successfulNo3DSCardDetails },
+        currency: "USD",
+        amount: 6500,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+          authentication_type: "no_three_ds",
+        },
+      },
+    }),
+    NoConfigDefault: getCustomExchange({
+      Request: {
+        payment_method: "card",
+        payment_method_data: { card: successfulThreeDSTestCardDetails },
+        currency: "USD",
+        amount: 6500,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+          authentication_type: "three_ds",
+        },
+      },
+    }),
+  },
   pm_list: {
     PmListResponse: {
       PmListNull: {
