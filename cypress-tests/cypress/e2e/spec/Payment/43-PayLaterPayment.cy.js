@@ -20,10 +20,7 @@ describe("Pay Later - Affirm Payment Flow", () => {
 
         // Skip if connector is not in the PAY_LATER include list
         if (
-          shouldIncludeConnector(
-            connector,
-            CONNECTOR_LISTS.INCLUDE.PAY_LATER
-          )
+          shouldIncludeConnector(connector, CONNECTOR_LISTS.INCLUDE.PAY_LATER)
         ) {
           skip = true;
           return;
