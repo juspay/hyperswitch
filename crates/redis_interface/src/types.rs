@@ -7,6 +7,29 @@ use redis::{IntoConnectionInfo, Value, Value as RedisCrateValue};
 
 use crate::{constant, errors, RedisConnectionPool};
 
+/// Returns the variant name of a `redis::Value` without any inner data.
+/// Used for logging to avoid printing potentially large payloads.
+fn value_variant_name(value: &Value) -> &'static str {
+    match value {
+        Value::Nil => "Nil",
+        Value::Int(_) => "Int",
+        Value::BulkString(_) => "BulkString",
+        Value::Array(_) => "Array",
+        Value::Push { .. } => "Push",
+        Value::Okay => "Okay",
+        Value::SimpleString(_) => "SimpleString",
+        Value::Map(_) => "Map",
+        Value::Attribute { .. } => "Attribute",
+        Value::Set(_) => "Set",
+        Value::Double(_) => "Double",
+        Value::Boolean(_) => "Boolean",
+        Value::VerbatimString { .. } => "VerbatimString",
+        Value::BigNumber(_) => "BigNumber",
+        Value::ServerError(_) => "ServerError",
+        _ => "Unknown",
+    }
+}
+
 pub struct RedisValue {
     inner: RedisCrateValue,
 }
@@ -49,7 +72,7 @@ impl RedisValue {
             RedisCrateValue::VerbatimString { text, .. } => Some(text.as_bytes()),
             other => {
                 tracing::debug!(
-                    ?other,
+                    variant = value_variant_name(other),
                     "as_bytes() called on non-string RedisValue variant, returning None"
                 );
                 None
@@ -77,7 +100,7 @@ impl RedisValue {
             RedisCrateValue::BigNumber(ref big_number) => Some(big_number.to_string()),
             other => {
                 tracing::debug!(
-                    ?other,
+                    variant = value_variant_name(other),
                     "as_string() called on non-string RedisValue variant, returning None"
                 );
                 None
