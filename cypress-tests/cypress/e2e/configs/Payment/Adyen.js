@@ -321,6 +321,7 @@ export const connectorDetails = {
           extended_authorization_expires_at: null, // Set dynamically by backend
         },
       },
+      TRIGGER_SKIP: true, // Adyen connector does not support Extend Authorization feature
     },
     ExtendAuthorizationInvalidStatus: {
       Request: {
