@@ -357,6 +357,12 @@ impl TryFrom<payment_methods::PaymentMethodCreateData> for PaymentMethodVaulting
                 }
                 .into(),
             ),
+            payment_methods::PaymentMethodCreateData::BankRedirect(_) => Err(
+                errors::api_error_response::ApiErrorResponse::UnprocessableEntity {
+                    message: "BankRedirect for PaymentMethodCreateData".to_string(),
+                }
+                .into(),
+            ),
         }
     }
 }

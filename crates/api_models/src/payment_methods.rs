@@ -534,6 +534,12 @@ impl PaymentMethodCreate {
             api_enums::PaymentMethod::Wallet => {
                 matches!(payment_method_data, PaymentMethodCreateData::Wallet(_))
             }
+            api_enums::PaymentMethod::BankRedirect => {
+                matches!(
+                    payment_method_data,
+                    PaymentMethodCreateData::BankRedirect(_)
+                )
+            }
             _ => false,
         }
     }
@@ -619,6 +625,28 @@ pub enum WalletPaymentMethodData {
     PayPal(Box<payments::PaypalRedirection>),
 }
 
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
+#[serde(deny_unknown_fields)]
+#[serde(rename_all = "snake_case")]
+pub enum BankRedirectDetail {
+    BancontactCard {
+        #[schema(value_type = String, example = "4242424242424242")]
+        card_number: Option<CardNumber>,
+
+        #[schema(value_type = String, example = "24")]
+        card_exp_month: Option<hyperswitch_masking::Secret<String>>,
+
+        #[schema(value_type = String, example = "24")]
+        card_exp_year: Option<hyperswitch_masking::Secret<String>>,
+
+        #[schema(value_type = String, example = "John Test")]
+        card_holder_name: Option<hyperswitch_masking::Secret<String>>,
+
+        #[schema(value_type = Option<BankRedirectBilling>)]
+        billing_details: Option<payments::BankRedirectBilling>,
+    },
+}
+
 #[cfg(feature = "v2")]
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
 #[serde(deny_unknown_fields)]
@@ -629,6 +657,7 @@ pub enum PaymentMethodCreateData {
     ProxyCard(ProxyCardDetails),
     BankDebit(BankDebitDetail),
     Wallet(WalletPaymentMethodData),
+    BankRedirect(BankRedirectDetail),
 }
 
 #[cfg(feature = "v2")]

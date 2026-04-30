@@ -424,7 +424,8 @@ impl
                 },
             )),
             payment_methods::PaymentMethodCreateData::ProxyCard(_)
-            | payment_methods::PaymentMethodCreateData::Wallet(_) => None,
+            | payment_methods::PaymentMethodCreateData::Wallet(_)
+            | payment_methods::PaymentMethodCreateData::BankRedirect(_) => None,
         };
 
         Self {
