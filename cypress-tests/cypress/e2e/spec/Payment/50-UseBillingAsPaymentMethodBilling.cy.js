@@ -15,89 +15,96 @@ describe("Card - Use Billing As Payment Method Billing", () => {
     cy.task("setGlobalState", globalState.data);
   });
 
-  context("Enable use_billing_as_payment_method_billing and create payment", () => {
-    let shouldContinue = true;
+  context(
+    "Enable use_billing_as_payment_method_billing and create payment",
+    () => {
+      let shouldContinue = true;
 
-    beforeEach(function () {
-      if (!shouldContinue) {
-        this.skip();
-      }
-    });
+      beforeEach(function () {
+        if (!shouldContinue) {
+          this.skip();
+        }
+      });
 
-    it("enable-use-billing-as-payment-method-billing", () => {
-      cy.UpdateBusinessProfileTest(
-        fixtures.businessProfile.bpUpdate,
-        false,
-        false,
-        false,
-        false,
-        false,
-        globalState,
-        "profile",
-        true
-      );
-    });
+      it("enable-use-billing-as-payment-method-billing", () => {
+        cy.UpdateBusinessProfileTest(
+          fixtures.businessProfile.bpUpdate,
+          false,
+          false,
+          false,
+          false,
+          false,
+          globalState,
+          "profile",
+          true
+        );
+      });
 
-    it("create-confirm-payment-with-billing-flag-enabled", () => {
-      const data = getConnectorDetails(globalState.get("connectorId"))[
-        "card_pm"
-      ]["UseBillingAsPaymentMethodBilling"];
+      it("create-confirm-payment-with-billing-flag-enabled", () => {
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["UseBillingAsPaymentMethodBilling"];
 
-      cy.createConfirmPaymentTest(
-        fixtures.createConfirmPaymentBody,
-        data,
-        "no_three_ds",
-        "automatic",
-        globalState
-      );
+        cy.createConfirmPaymentTest(
+          fixtures.createConfirmPaymentBody,
+          data,
+          "no_three_ds",
+          "automatic",
+          globalState
+        );
 
-      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
-    });
+        if (shouldContinue)
+          shouldContinue = utils.should_continue_further(data);
+      });
 
-    it("retrieve-payment-call-test", () => {
-      const data = getConnectorDetails(globalState.get("connectorId"))[
-        "card_pm"
-      ]["UseBillingAsPaymentMethodBilling"];
+      it("retrieve-payment-call-test", () => {
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["UseBillingAsPaymentMethodBilling"];
 
-      cy.retrievePaymentCallTest({ globalState, data });
-    });
-  });
+        cy.retrievePaymentCallTest({ globalState, data });
+      });
+    }
+  );
 
-  context("Disable use_billing_as_payment_method_billing and create payment", () => {
-    let shouldContinue = true;
+  context(
+    "Disable use_billing_as_payment_method_billing and create payment",
+    () => {
+      const shouldContinue = true;
 
-    beforeEach(function () {
-      if (!shouldContinue) {
-        this.skip();
-      }
-    });
+      beforeEach(function () {
+        if (!shouldContinue) {
+          this.skip();
+        }
+      });
 
-    it("disable-use-billing-as-payment-method-billing", () => {
-      cy.UpdateBusinessProfileTest(
-        fixtures.businessProfile.bpUpdate,
-        false,
-        false,
-        false,
-        false,
-        false,
-        globalState,
-        "profile",
-        false
-      );
-    });
+      it("disable-use-billing-as-payment-method-billing", () => {
+        cy.UpdateBusinessProfileTest(
+          fixtures.businessProfile.bpUpdate,
+          false,
+          false,
+          false,
+          false,
+          false,
+          globalState,
+          "profile",
+          false
+        );
+      });
 
-    it("create-confirm-payment-with-billing-flag-disabled", () => {
-      const data = getConnectorDetails(globalState.get("connectorId"))[
-        "card_pm"
-      ]["UseBillingAsPaymentMethodBillingDisabled"];
+      it("create-confirm-payment-with-billing-flag-disabled", () => {
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["UseBillingAsPaymentMethodBillingDisabled"];
 
-      cy.createConfirmPaymentTest(
-        fixtures.createConfirmPaymentBody,
-        data,
-        "no_three_ds",
-        "automatic",
-        globalState
-      );
-    });
-  });
+        cy.createConfirmPaymentTest(
+          fixtures.createConfirmPaymentBody,
+          data,
+          "no_three_ds",
+          "automatic",
+          globalState
+        );
+      });
+    }
+  );
 });
