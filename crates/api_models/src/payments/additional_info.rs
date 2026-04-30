@@ -1,5 +1,6 @@
 use common_utils::new_type::{
-    MaskedBankAccount, MaskedIban, MaskedRoutingNumber, MaskedSortCode, MaskedUpiVpaId,
+    MaskedBankAccount, MaskedBranchCode, MaskedIban, MaskedRoutingNumber, MaskedSortCode,
+    MaskedUpiVpaId,
 };
 use hyperswitch_masking::Secret;
 use smithy::SmithyModel;
@@ -22,6 +23,8 @@ pub enum BankDebitAdditionalData {
     #[smithy(value_type = "SepaBankDebitAdditionalData")]
     Sepa(Box<SepaBankDebitAdditionalData>),
     SepaGuarenteedDebit(Box<SepaBankDebitAdditionalData>),
+    #[smithy(value_type = "EftDebitOrderAdditionalData")]
+    EftDebitOrder(Box<EftDebitOrderAdditionalData>),
 }
 
 #[derive(
@@ -116,6 +119,37 @@ pub struct SepaBankDebitAdditionalData {
     #[schema(value_type = Option<String>, example = "John Doe")]
     #[smithy(value_type = "Option<String>")]
     pub bank_account_holder_name: Option<Secret<String>>,
+}
+
+#[derive(
+    Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel,
+)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+pub struct EftDebitOrderAdditionalData {
+    /// Partially masked account number for eft bank debit payment
+    #[schema(value_type = String, example = "0001****3456")]
+    #[smithy(value_type = "String")]
+    pub account_number: MaskedBankAccount,
+
+    /// Partially masked branch code for eft bank debit payment
+    #[schema(value_type = Option<String>, example = "110***000")]
+    #[smithy(value_type = "Option<String>")]
+    pub branch_code: Option<MaskedBranchCode>,
+
+    /// Bank account's owner name
+    #[schema(value_type = Option<String>, example = "John Doe")]
+    #[smithy(value_type = "Option<String>")]
+    pub bank_account_holder_name: Option<Secret<String>>,
+
+    /// Name of the bank
+    #[schema(value_type = Option<BankNames>, example = "absa")]
+    #[smithy(value_type = "Option<BankNames>")]
+    pub bank_name: Option<common_enums::BankNames>,
+
+    /// Bank account type
+    #[schema(value_type = Option<BankType>, example = "savings")]
+    #[smithy(value_type = "Option<BankType>")]
+    pub bank_type: Option<common_enums::BankType>,
 }
 
 #[derive(

@@ -182,7 +182,11 @@ pub struct SepaBankTransferAdditionalData {
 pub struct PixBankTransferAdditionalData {
     /// Partially masked unique key for pix transfer
     #[schema(value_type = String, example = "a1f4102e ****** 6fa48899c1d1")]
-    pub pix_key: MaskedBankAccount,
+    pub pix_key: Option<MaskedBankAccount>,
+
+    /// Partially masked string formatted QR code for pix payout
+    #[schema(value_type = String, example = "0002**************************************************I63041D3D")]
+    pub emv: Option<MaskedBankAccount>,
 
     /// Partially masked CPF - CPF is a Brazilian tax identification number
     #[schema(value_type = Option<String>, example = "**** 124689")]
@@ -190,7 +194,7 @@ pub struct PixBankTransferAdditionalData {
 
     /// Bank account number is an unique identifier assigned by a bank to a customer.
     #[schema(value_type = String, example = "**** 23456")]
-    pub bank_account_number: MaskedBankAccount,
+    pub bank_account_number: Option<MaskedBankAccount>,
 
     /// Bank name
     #[schema(value_type = Option<String>, example = "Deutsche Bank")]
