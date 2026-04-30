@@ -4976,14 +4976,14 @@ pub async fn retrieve_payment_method_olap(
     profile: domain::Profile,
     platform: domain::Platform,
 ) -> RouterResponse<api::PaymentMethodDetailsResponse> {
-    let response = retrieve_payment_method(
+    let response = Box::pin(retrieve_payment_method(
         state,
         pm,
         profile,
         platform,
         enums::ApiKeyType::External,
         false,
-    )
+    ))
     .await?
     .get_json_body()
     .change_context(errors::ApiErrorResponse::InternalServerError)
