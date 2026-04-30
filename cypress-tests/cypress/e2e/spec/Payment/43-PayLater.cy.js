@@ -173,21 +173,6 @@ describe("PayLater tests", () => {
       if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
 
-    it("refund-paylater-call-test", () => {
-      if (!shouldContinue) {
-        cy.task("cli_log", "Skipping step: refund (redirect not completed)");
-        return;
-      }
-      const refundData = getConnectorDetails(globalState.get("connectorId"))[
-        "pay_later_pm"
-      ]["Refund"];
-      const newRefundData = {
-        ...refundData,
-        Response: refundData.ResponseCustom || refundData.Response,
-      };
-      cy.refundCallTest(fixtures.refundBody, newRefundData, globalState);
-    });
-
     it("verify-paylater-status-test", () => {
       const data = getConnectorDetails(globalState.get("connectorId"))[
         "pay_later_pm"

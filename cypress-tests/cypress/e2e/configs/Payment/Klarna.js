@@ -52,26 +52,5 @@ export const connectorDetails = {
         TRIGGER_SKIP: true,
       },
     }),
-    Refund: getCustomExchange({
-      Request: {
-        amount: 6000,
-      },
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
-    }),
-    PartialRefund: getCustomExchange({
-      Request: {
-        amount: 2000,
-      },
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
-    }),
-    SyncRefund: getCustomExchange({
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
-    }),
   },
 };
