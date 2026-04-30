@@ -1814,11 +1814,21 @@ pub mod routes {
                     ..payload
                 };
 
+                let auth_info = auth.platform.to_merchant_level_auth_info();
+                
+                let hash_key = crate::utils::get_payment_response_hash_key(
+                    state.store.as_ref(),
+                    auth.platform.get_processor().get_key_store(),
+                    &auth_info,
+                    &payload.return_url,
+                ).await?;
+
                 let lambda_req = GenerateReportRequest {
                     request: payload,
                     merchant_id: Some(auth.platform.get_processor().get_account().get_id().clone()),
-                    auth: auth.platform.to_merchant_level_auth_info(),
+                    auth: auth_info,
                     email: user_email,
+                    payment_response_hash_key: hash_key,
                 };
 
                 let json_bytes =
@@ -1903,11 +1913,20 @@ pub mod routes {
                     ..payload
                 };
 
+                let auth_info = auth.platform.to_org_level_auth_info();
+                let hash_key = crate::utils::get_payment_response_hash_key(
+                    state.store.as_ref(),
+                    auth.platform.get_processor().get_key_store(),
+                    &auth_info,
+                    &payload.return_url,
+                ).await?;
+
                 let lambda_req = GenerateReportRequest {
                     request: payload,
                     merchant_id: None,
-                    auth: auth.platform.to_org_level_auth_info(),
+                    auth: auth_info,
                     email: user_email,
+                    payment_response_hash_key: hash_key,
                 };
 
                 let json_bytes =
@@ -1998,11 +2017,21 @@ pub mod routes {
                     .change_context(AnalyticsError::AccessForbiddenError)?
                     .get_id()
                     .clone();
+
+                let auth_info = auth.platform.to_profile_level_auth_info(profile_id);
+                let hash_key = crate::utils::get_payment_response_hash_key(
+                    state.store.as_ref(),
+                    auth.platform.get_processor().get_key_store(),
+                    &auth_info,
+                    &payload.return_url,
+                ).await?;
+
                 let lambda_req = GenerateReportRequest {
                     request: payload,
                     merchant_id: Some(auth.platform.get_processor().get_account().get_id().clone()),
-                    auth: auth.platform.to_profile_level_auth_info(profile_id),
+                    auth: auth_info,
                     email: user_email,
+                    payment_response_hash_key: hash_key,
                 };
 
                 let json_bytes =
@@ -2086,11 +2115,20 @@ pub mod routes {
                     ..payload
                 };
 
+                let auth_info = auth.platform.to_merchant_level_auth_info();
+                let hash_key = crate::utils::get_payment_response_hash_key(
+                    state.store.as_ref(),
+                    auth.platform.get_processor().get_key_store(),
+                    &auth_info,
+                    &payload.return_url,
+                ).await?;
+
                 let lambda_req = GenerateReportRequest {
                     request: payload,
                     merchant_id: Some(auth.platform.get_processor().get_account().get_id().clone()),
-                    auth: auth.platform.to_merchant_level_auth_info(),
+                    auth: auth_info,
                     email: user_email,
+                    payment_response_hash_key: hash_key,
                 };
 
                 let json_bytes =
@@ -2174,11 +2212,20 @@ pub mod routes {
                     ..payload
                 };
 
+                let auth_info = auth.platform.to_org_level_auth_info();
+                let hash_key = crate::utils::get_payment_response_hash_key(
+                    state.store.as_ref(),
+                    auth.platform.get_processor().get_key_store(),
+                    &auth_info,
+                    &payload.return_url,
+                ).await?;
+
                 let lambda_req = GenerateReportRequest {
                     request: payload,
                     merchant_id: None,
-                    auth: auth.platform.to_org_level_auth_info(),
+                    auth: auth_info,
                     email: user_email,
+                    payment_response_hash_key: hash_key,
                 };
 
                 let json_bytes =
@@ -2269,11 +2316,20 @@ pub mod routes {
                     .change_context(AnalyticsError::AccessForbiddenError)?
                     .get_id()
                     .clone();
+                let auth_info = auth.platform.to_profile_level_auth_info(profile_id);
+                let hash_key = crate::utils::get_payment_response_hash_key(
+                    state.store.as_ref(),
+                    auth.platform.get_processor().get_key_store(),
+                    &auth_info,
+                    &payload.return_url,
+                ).await?;
+
                 let lambda_req = GenerateReportRequest {
                     request: payload,
                     merchant_id: Some(auth.platform.get_processor().get_account().get_id().clone()),
-                    auth: auth.platform.to_profile_level_auth_info(profile_id),
+                    auth: auth_info,
                     email: user_email,
+                    payment_response_hash_key: hash_key,
                 };
 
                 let json_bytes =
@@ -2358,11 +2414,20 @@ pub mod routes {
                     ..payload
                 };
 
+                let auth_info = auth.platform.to_merchant_level_auth_info();
+                let hash_key = crate::utils::get_payment_response_hash_key(
+                    state.store.as_ref(),
+                    auth.platform.get_processor().get_key_store(),
+                    &auth_info,
+                    &payload.return_url,
+                ).await?;
+
                 let lambda_req = GenerateReportRequest {
                     request: payload,
                     merchant_id: Some(auth.platform.get_processor().get_account().get_id().clone()),
-                    auth: auth.platform.to_merchant_level_auth_info(),
+                    auth: auth_info,
                     email: user_email,
+                    payment_response_hash_key: hash_key,
                 };
 
                 let json_bytes =
@@ -2447,11 +2512,20 @@ pub mod routes {
                     ..payload
                 };
 
+                let auth_info = auth.platform.to_org_level_auth_info();
+                let hash_key = crate::utils::get_payment_response_hash_key(
+                    state.store.as_ref(),
+                    auth.platform.get_processor().get_key_store(),
+                    &auth_info,
+                    &payload.return_url,
+                ).await?;
+
                 let lambda_req = GenerateReportRequest {
                     request: payload,
                     merchant_id: None,
-                    auth: auth.platform.to_org_level_auth_info(),
+                    auth: auth_info,
                     email: user_email,
+                    payment_response_hash_key: hash_key,
                 };
 
                 let json_bytes =
@@ -2541,11 +2615,20 @@ pub mod routes {
                     .change_context(AnalyticsError::AccessForbiddenError)?
                     .get_id()
                     .clone();
+                let auth_info = auth.platform.to_profile_level_auth_info(profile_id);
+                let hash_key = crate::utils::get_payment_response_hash_key(
+                    state.store.as_ref(),
+                    auth.platform.get_processor().get_key_store(),
+                    &auth_info,
+                    &payload.return_url,
+                ).await?;
+
                 let lambda_req = GenerateReportRequest {
                     request: payload,
                     merchant_id: Some(auth.platform.get_processor().get_account().get_id().clone()),
-                    auth: auth.platform.to_profile_level_auth_info(profile_id),
+                    auth: auth_info,
                     email: user_email,
+                    payment_response_hash_key: hash_key,
                 };
 
                 let json_bytes =
@@ -2629,11 +2712,20 @@ pub mod routes {
                     ..payload
                 };
 
+                let auth_info = auth.platform.to_merchant_level_auth_info();
+                let hash_key = crate::utils::get_payment_response_hash_key(
+                    state.store.as_ref(),
+                    auth.platform.get_processor().get_key_store(),
+                    &auth_info,
+                    &payload.return_url,
+                ).await?;
+
                 let lambda_req = GenerateReportRequest {
                     request: payload,
                     merchant_id: Some(auth.platform.get_processor().get_account().get_id().clone()),
-                    auth: auth.platform.to_merchant_level_auth_info(),
+                    auth: auth_info,
                     email: user_email,
+                    payment_response_hash_key: hash_key,
                 };
 
                 let json_bytes =
@@ -2717,11 +2809,20 @@ pub mod routes {
                     ..payload
                 };
 
+                let auth_info = auth.platform.to_org_level_auth_info();
+                let hash_key = crate::utils::get_payment_response_hash_key(
+                    state.store.as_ref(),
+                    auth.platform.get_processor().get_key_store(),
+                    &auth_info,
+                    &payload.return_url,
+                ).await?;
+
                 let lambda_req = GenerateReportRequest {
                     request: payload,
                     merchant_id: None,
-                    auth: auth.platform.to_org_level_auth_info(),
+                    auth: auth_info,
                     email: user_email,
+                    payment_response_hash_key: hash_key,
                 };
 
                 let json_bytes =
@@ -2818,11 +2919,21 @@ pub mod routes {
                         auth.profile.get_id().clone()
                     }
                 };
+
+                let auth_info = auth.platform.to_profile_level_auth_info(profile_id);
+                let hash_key = crate::utils::get_payment_response_hash_key(
+                    state.store.as_ref(),
+                    auth.platform.get_processor().get_key_store(),
+                    &auth_info,
+                    &payload.return_url,
+                ).await?;
+
                 let lambda_req = GenerateReportRequest {
                     request: payload,
                     merchant_id: Some(auth.platform.get_processor().get_account().get_id().clone()),
-                    auth: auth.platform.to_profile_level_auth_info(profile_id),
+                    auth: auth_info,
                     email: user_email,
+                    payment_response_hash_key: hash_key,
                 };
 
                 let json_bytes =
@@ -2907,11 +3018,20 @@ pub mod routes {
                     ..payload
                 };
 
+                let auth_info = auth.platform.to_merchant_level_auth_info();
+                let hash_key = crate::utils::get_payment_response_hash_key(
+                    state.store.as_ref(),
+                    auth.platform.get_processor().get_key_store(),
+                    &auth_info,
+                    &payload.return_url,
+                ).await?;
+
                 let lambda_req = GenerateReportRequest {
                     request: payload,
                     merchant_id: Some(auth.platform.get_processor().get_account().get_id().clone()),
-                    auth: auth.platform.to_merchant_level_auth_info(),
+                    auth: auth_info,
                     email: user_email,
+                    payment_response_hash_key: hash_key,
                 };
 
                 let json_bytes =
@@ -2996,11 +3116,20 @@ pub mod routes {
                     ..payload
                 };
 
+                let auth_info = auth.platform.to_org_level_auth_info();
+                let hash_key = crate::utils::get_payment_response_hash_key(
+                    state.store.as_ref(),
+                    auth.platform.get_processor().get_key_store(),
+                    &auth_info,
+                    &payload.return_url,
+                ).await?;
+
                 let lambda_req = GenerateReportRequest {
                     request: payload,
                     merchant_id: None,
-                    auth: auth.platform.to_org_level_auth_info(),
+                    auth: auth_info,
                     email: user_email,
+                    payment_response_hash_key: hash_key,
                 };
 
                 let json_bytes =
@@ -3090,11 +3219,20 @@ pub mod routes {
                     .change_context(AnalyticsError::AccessForbiddenError)?
                     .get_id()
                     .clone();
+                let auth_info = auth.platform.to_profile_level_auth_info(profile_id);
+                let hash_key = crate::utils::get_payment_response_hash_key(
+                    state.store.as_ref(),
+                    auth.platform.get_processor().get_key_store(),
+                    &auth_info,
+                    &payload.return_url,
+                ).await?;
+
                 let lambda_req = GenerateReportRequest {
                     request: payload,
                     merchant_id: Some(auth.platform.get_processor().get_account().get_id().clone()),
-                    auth: auth.platform.to_profile_level_auth_info(profile_id),
+                    auth: auth_info,
                     email: user_email,
+                    payment_response_hash_key: hash_key,
                 };
 
                 let json_bytes =
