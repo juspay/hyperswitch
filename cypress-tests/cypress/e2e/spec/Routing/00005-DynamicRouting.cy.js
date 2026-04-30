@@ -125,58 +125,19 @@ describe("Dynamic Routing Test", () => {
 
     it("payment-routing-test", () => {
       if (!shouldContinue) return;
-      const body = { ...fixtures.createConfirmPaymentBody };
-      body.authentication_type = "no_three_ds";
-      body.capture_method = "automatic";
-      body.profile_id = globalState.get("profileId");
-      body.customer_id = globalState.get("customerId");
-      const adyenData =
+      const data =
         utils.getConnectorDetails("adyen")["card_pm"]["No3DSAutoCapture"];
-      for (const key in (adyenData.Request || {})) {
-        body[key] = adyenData.Request[key];
-      }
-
-      cy.request({
-        method: "POST",
-        url: `${globalState.get("baseUrl")}/payments`,
-        headers: {
-          "Content-Type": "application/json",
-          "api-key": globalState.get("apiKey"),
-        },
-        failOnStatusCode: false,
-        body: body,
-      }).then((response) => {
-        expect(response.status).to.equal(200);
-        expect(response.body.status).to.equal("succeeded");
-        const routedConnector = response.body.connector;
-        globalState.set("connectorId", routedConnector);
-        globalState.set("paymentID", response.body.payment_id);
-        globalState.set("clientSecret", response.body.client_secret);
-        globalState.set("paymentAmount", body.amount);
-        if (routedConnector === "adyen") {
-          globalState.set("merchantConnectorId", globalState.get("adyenMcaId"));
-        } else {
-          globalState.set("merchantConnectorId", globalState.get("stripeMcaId"));
-        }
-      });
+      cy.createConfirmPaymentDynamicRouting(
+        fixtures.createConfirmPaymentBody,
+        data,
+        "no_three_ds",
+        "automatic",
+        globalState
+      );
     });
 
     it("retrieve-payment-call-test", () => {
-      const payment_id = globalState.get("paymentID");
-      cy.request({
-        method: "GET",
-        url: `${globalState.get("baseUrl")}/payments/${payment_id}?force_sync=true`,
-        headers: {
-          "Content-Type": "application/json",
-          "api-key": globalState.get("apiKey"),
-        },
-        failOnStatusCode: false,
-      }).then((response) => {
-        expect(response.status).to.equal(200);
-        expect(response.body.payment_id).to.equal(payment_id);
-        expect(response.body.status).to.equal("succeeded");
-        expect(response.body.connector).to.equal(globalState.get("connectorId"));
-      });
+      cy.retrievePaymentDynamicRoutingTest({ globalState });
     });
   });
 
@@ -236,36 +197,25 @@ describe("Dynamic Routing Test", () => {
     });
   });
 
-  context("Success-based toggle endpoint (404 - endpoint not registered)", () => {
-    before("seed global state", () => {
-      cy.task("getGlobalState").then((state) => {
-        globalState = new State(state);
+  context(
+    "Success-based toggle endpoint (404 - endpoint not registered)",
+    () => {
+      before("seed global state", () => {
+        cy.task("getGlobalState").then((state) => {
+          globalState = new State(state);
+        });
       });
-    });
 
-    afterEach("flush global state", () => {
-      cy.task("setGlobalState", globalState.data);
-    });
-
-    xit("toggle-success-based-dynamic-routing", () => {
-      const data = utils.getConnectorDetails("common")["toggleRouting"];
-      const merchantId = globalState.get("merchantId");
-      const profileId = globalState.get("profileId");
-
-      cy.request({
-        method: "POST",
-        url: `${globalState.get("baseUrl")}/account/${merchantId}/business_profile/${profileId}/dynamic_routing/success_based/toggle?enable=dynamic_connector_selection`,
-        headers: {
-          "api-key": globalState.get("apiKey"),
-          "Content-Type": "application/json",
-        },
-        failOnStatusCode: false,
-        body: {},
-      }).then((response) => {
-        expect(response.status).to.equal(200);
+      afterEach("flush global state", () => {
+        cy.task("setGlobalState", globalState.data);
       });
-    });
-  });
+
+      xit("toggle-success-based-dynamic-routing", () => {
+        const data = utils.getConnectorDetails("common")["toggleRouting"];
+        cy.toggleDynamicRoutingByType("success_based", data, globalState);
+      });
+    }
+  );
 
   context("Elimination toggle endpoint (404 - endpoint not registered)", () => {
     before("seed global state", () => {
@@ -280,21 +230,7 @@ describe("Dynamic Routing Test", () => {
 
     xit("toggle-elimination-dynamic-routing", () => {
       const data = utils.getConnectorDetails("common")["toggleRouting"];
-      const merchantId = globalState.get("merchantId");
-      const profileId = globalState.get("profileId");
-
-      cy.request({
-        method: "POST",
-        url: `${globalState.get("baseUrl")}/account/${merchantId}/business_profile/${profileId}/dynamic_routing/elimination/toggle?enable=dynamic_connector_selection`,
-        headers: {
-          "api-key": globalState.get("apiKey"),
-          "Content-Type": "application/json",
-        },
-        failOnStatusCode: false,
-        body: {},
-      }).then((response) => {
-        expect(response.status).to.equal(200);
-      });
+      cy.toggleDynamicRoutingByType("elimination", data, globalState);
     });
   });
 
@@ -310,19 +246,8 @@ describe("Dynamic Routing Test", () => {
     });
 
     xit("update-contract-based-dynamic-routing-config", () => {
-      const routingConfigId = globalState.get("routingConfigId");
-      const merchantId = globalState.get("merchantId");
-      const profileId = globalState.get("profileId");
-
-      cy.request({
-        method: "PATCH",
-        url: `${globalState.get("baseUrl")}/account/${merchantId}/business_profile/${profileId}/dynamic_routing/contracts/config/${routingConfigId}`,
-        headers: {
-          "api-key": globalState.get("apiKey"),
-          "Content-Type": "application/json",
-        },
-        failOnStatusCode: false,
-        body: {
+      const data = {
+        Request: {
           algorithm_for: "payment",
           connectors: [
             {
@@ -331,9 +256,12 @@ describe("Dynamic Routing Test", () => {
             },
           ],
         },
-      }).then((response) => {
-        expect(response.status).to.equal(200);
-      });
+        Response: {
+          status: 200,
+          body: {},
+        },
+      };
+      cy.updateContractDynamicRoutingConfig(data, globalState);
     });
   });
 
