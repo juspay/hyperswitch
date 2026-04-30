@@ -4,6 +4,27 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.04.28.0
+
+### Features
+
+- **payments:** Add payment_token support to eligibility check ([#11851](https://github.com/juspay/hyperswitch/pull/11851)) ([`d6654ba`](https://github.com/juspay/hyperswitch/commit/d6654ba81c90c487ce96c1cf0d89e691bd896b20))
+- Send error response to validation service for comparison of error case ([#11817](https://github.com/juspay/hyperswitch/pull/11817)) ([`68230c3`](https://github.com/juspay/hyperswitch/commit/68230c330c6a8ee2c82b34dacd6c3e55f1957f92))
+
+### Bug Fixes
+
+- **connector:** [Nmi] add first name and last name for payments ([#11986](https://github.com/juspay/hyperswitch/pull/11986)) ([`e3f7a44`](https://github.com/juspay/hyperswitch/commit/e3f7a448cb985722d97c7d62ef44af513f774468))
+
+### Testing
+
+- **cypress:**
+  - PartnerMerchantIdentifier for adyen and checkout ([#11928](https://github.com/juspay/hyperswitch/pull/11928)) ([`79b5f19`](https://github.com/juspay/hyperswitch/commit/79b5f196d3960b0e5e0bdd41dc1c980ad7e869b6))
+  - Add dispute test cases for Stripe ([#11926](https://github.com/juspay/hyperswitch/pull/11926)) ([`3476a0e`](https://github.com/juspay/hyperswitch/commit/3476a0eb854fb3da650d545683e8cd06be63a076))
+
+**Full Changelog:** [`2026.04.27.0...2026.04.28.0`](https://github.com/juspay/hyperswitch/compare/2026.04.27.0...2026.04.28.0)
+
+- - -
+
 ## 2026.04.27.0
 
 ### Features
