@@ -832,12 +832,12 @@ impl super::RedisConnectionPool {
     {
         let mut conn = self.pool.clone();
         conn.xadd_map::<_, _, _, ()>(
-                stream.tenant_aware_key(self),
-                entry_id.to_stream_id(),
-                fields,
-            )
-            .await
-            .change_context(errors::RedisError::StreamAppendFailed)?;
+            stream.tenant_aware_key(self),
+            entry_id.to_stream_id(),
+            fields,
+        )
+        .await
+        .change_context(errors::RedisError::StreamAppendFailed)?;
         Ok(())
     }
 
@@ -1087,9 +1087,13 @@ impl super::RedisConnectionPool {
         }
 
         let mut conn = self.pool.clone();
-        conn.xgroup_create_mkstream::<_, _, _, ()>(stream.tenant_aware_key(self), group, id.to_stream_id())
-            .await
-            .change_context(errors::RedisError::ConsumerGroupCreateFailed)?;
+        conn.xgroup_create_mkstream::<_, _, _, ()>(
+            stream.tenant_aware_key(self),
+            group,
+            id.to_stream_id(),
+        )
+        .await
+        .change_context(errors::RedisError::ConsumerGroupCreateFailed)?;
         Ok(())
     }
 
