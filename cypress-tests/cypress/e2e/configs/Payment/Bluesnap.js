@@ -280,7 +280,8 @@ export const connectorDetails = {
         body: {
           status: "failed",
           error_code: "14002",
-          error_message:"Transaction failed  because of payment processing failure.: DECLINE - Default BlueSnapTestProcessor [DECLINE] message",
+          error_message:
+            "Transaction failed  because of payment processing failure.: DECLINE - Default BlueSnapTestProcessor [DECLINE] message",
         },
       },
     },
