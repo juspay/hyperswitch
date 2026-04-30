@@ -183,7 +183,7 @@ export const connectorDetails = {
     },
     Capture: {
       Request: {
-        amount_to_capture: 4000,
+        amount_to_capture: 6000,
       },
       Response: {
         status: 200,
@@ -192,6 +192,15 @@ export const connectorDetails = {
           amount: 6000,
           amount_capturable: 0,
           amount_received: 6000,
+        },
+      },
+      ResponseCustom: {
+        status: 200,
+        body: {
+          status: "succeeded",
+          amount: 8000,
+          amount_capturable: 0,
+          amount_received: 8000,
         },
       },
     },
