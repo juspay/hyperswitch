@@ -2323,6 +2323,24 @@ export const connectorDetails = {
         },
       },
     }),
+    UseBillingAsPaymentMethodBilling: getCustomExchange({
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "USD",
+      },
+    }),
+    UseBillingAsPaymentMethodBillingDisabled: getCustomExchange({
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "USD",
+      },
+    }),
   },
   upi_pm: {
     PaymentIntent: getCustomExchange({
