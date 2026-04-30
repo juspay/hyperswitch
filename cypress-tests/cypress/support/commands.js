@@ -4531,6 +4531,24 @@ Cypress.Commands.add(
   }
 );
 
+Cypress.Commands.add(
+  "handlePayLaterRedirection",
+  (globalState, paymentMethodType, expected_redirection) => {
+    const connectorId = globalState.get("connectorId");
+    const nextActionUrl = globalState.get("nextActionUrl");
+
+    const expectedUrl = new URL(expected_redirection);
+    const redirectionUrl = new URL(nextActionUrl);
+
+    handleRedirection(
+      "pay_later",
+      { redirectionUrl, expectedUrl },
+      connectorId,
+      paymentMethodType
+    );
+  }
+);
+
 Cypress.Commands.add("listCustomerPMCallTest", (globalState, order = 0) => {
   const apiKey = globalState.get("apiKey");
   const baseUrl = globalState.get("baseUrl");
