@@ -8386,7 +8386,7 @@
           {
             "allOf": [
               {
-                "$ref": "#/components/schemas/PixBankTransfer"
+                "$ref": "#/components/schemas/PixAccountBankTransfer"
               },
               {
                 "type": "object",
@@ -8398,6 +8398,48 @@
                     "type": "string",
                     "enum": [
                       "pix"
+                    ]
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PixKeyBankTransfer"
+              },
+              {
+                "type": "object",
+                "required": [
+                  "payout_method_type"
+                ],
+                "properties": {
+                  "payout_method_type": {
+                    "type": "string",
+                    "enum": [
+                      "pix_key"
+                    ]
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PixEmvBankTransfer"
+              },
+              {
+                "type": "object",
+                "required": [
+                  "payout_method_type"
+                ],
+                "properties": {
+                  "payout_method_type": {
+                    "type": "string",
+                    "enum": [
+                      "pix_emv"
                     ]
                   }
                 }
@@ -22765,6 +22807,8 @@
           "paypal",
           "paze",
           "pix",
+          "pix_key",
+          "pix_emv",
           "pix_automatico_qr",
           "pix_automatico_push",
           "pay_safe_card",
@@ -26235,6 +26279,37 @@
           }
         }
       },
+      "PixAccountBankTransfer": {
+        "type": "object",
+        "required": [
+          "bank_account_number"
+        ],
+        "properties": {
+          "bank_name": {
+            "type": "string",
+            "description": "Bank name",
+            "example": "Deutsche Bank",
+            "nullable": true
+          },
+          "bank_branch": {
+            "type": "string",
+            "description": "Bank branch",
+            "example": "3707",
+            "nullable": true
+          },
+          "bank_account_number": {
+            "type": "string",
+            "description": "Bank account number is an unique identifier assigned by a bank to a customer.",
+            "example": "000123456"
+          },
+          "tax_id": {
+            "type": "string",
+            "description": "Individual taxpayer identification number",
+            "example": "000123456",
+            "nullable": true
+          }
+        }
+      },
       "PixAdditionalDetails": {
         "oneOf": [
           {
@@ -26383,7 +26458,8 @@
         "type": "object",
         "required": [
           "bank_account_number",
-          "pix_key"
+          "pix_key",
+          "emv"
         ],
         "properties": {
           "bank_name": {
@@ -26413,6 +26489,11 @@
             "description": "Individual taxpayer identification number",
             "example": "000123456",
             "nullable": true
+          },
+          "emv": {
+            "type": "string",
+            "description": "String formatted QR code for pix payout",
+            "example": "00020126580014br.gov.bcb.pix0114000123456785204000053039865802BR5925John Doe6009Sao Paulo61080540900062070503***63041D3D"
           }
         }
       },
@@ -26455,6 +26536,19 @@
             "description": "The expiration date and time for the Pix QR code in ISO 8601 format",
             "example": "2025-09-10T10:11:12Z",
             "nullable": true
+          }
+        }
+      },
+      "PixEmvBankTransfer": {
+        "type": "object",
+        "required": [
+          "emv"
+        ],
+        "properties": {
+          "emv": {
+            "type": "string",
+            "description": "String formatted QR code for pix payout",
+            "example": "00020126580014br.gov.bcb.pix0114000123456785204000053039865802BR5925John Doe6009Sao Paulo61080540900062070503***63041D3D"
           }
         }
       },
@@ -26553,6 +26647,19 @@
         ],
         "discriminator": {
           "propertyName": "type"
+        }
+      },
+      "PixKeyBankTransfer": {
+        "type": "object",
+        "required": [
+          "pix_key"
+        ],
+        "properties": {
+          "pix_key": {
+            "type": "string",
+            "description": "Unique key for pix customer",
+            "example": "000123456"
+          }
         }
       },
       "PollConfig": {

@@ -9274,8 +9274,8 @@ pub async fn revenue_recovery_list_payments(
 
             let data: Vec<api_models::payments::RecoveryPaymentsListResponseItem> = list
                 .into_iter()
-                .zip(workflow_results.into_iter())
-                .zip(billing_connector_results.into_iter())
+                .zip(workflow_results)
+                .zip(billing_connector_results)
                 .map(
                     |(
                         ((payment_intent, payment_attempt), workflow_result),

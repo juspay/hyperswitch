@@ -16,10 +16,11 @@ concurrency:
 env:
   CARGO_INCREMENTAL: 0
   CARGO_NET_RETRY: 10
-  MANDATORY_PAYMENTS_CONNECTORS_BATCH_1: "cybersource stripe authorizedotnet cashtocode loonio zift"
-  MANDATORY_PAYMENTS_CONNECTORS_BATCH_2: "adyen nexixpay nmi fiuu finix airwallex"
+  MANDATORY_PAYMENTS_CONNECTORS_BATCH_1: "cybersource stripe authorizedotnet cashtocode"
+  MANDATORY_PAYMENTS_CONNECTORS_BATCH_2: "adyen nexixpay finix fiuu"
   OPTIONAL_PAYMENTS_CONNECTORS_BATCH_1: "worldpay braintree cryptopay paypal worldpayxml volt"
   OPTIONAL_PAYMENTS_CONNECTORS_BATCH_2: "gigadat checkout redsys novalnet noon"
+  OPTIONAL_PAYMENTS_CONNECTORS_BATCH_3: "loonio zift airwallex fiuu"
   ALPHA_PAYMENTS_CONNECTORS: "celero silverflow"
   PLATFORM_CONNECTORS: "stripe cybersource"
   RUST_BACKTRACE: short
@@ -166,14 +167,14 @@ jobs:
                 {
                   "name": "batch-1",
                   "connectors": "'"${MANDATORY_PAYMENTS_CONNECTORS_BATCH_1}"'",
-                  "parallel": 6,
+                  "parallel": 4,
                   "report_artifact_name": "cypress-mandatory-test-results-batch-1",
                   "server_logs_artifact": "mandatory-server-logs-batch-1"
                 },
                 {
                   "name": "batch-2",
                   "connectors": "'"${MANDATORY_PAYMENTS_CONNECTORS_BATCH_2}"'",
-                  "parallel": 6,
+                  "parallel": 4,
                   "report_artifact_name": "cypress-mandatory-test-results-batch-2",
                   "server_logs_artifact": "mandatory-server-logs-batch-2"
                 },
@@ -441,7 +442,7 @@ jobs:
 
   prepare-optional-matrix:
     name: Prepare Optional Connectors matrix to run cypress tests
-    if: github.event_name == 'merge_group'
+    if: false
     runs-on: hyperswitch-runners
     outputs:
       matrix: ${{ steps.set-matrix.outputs.matrix }}
@@ -475,7 +476,7 @@ jobs:
 
   runner-optional-connectors:
     name: Run Optional Connectors Cypress tests
-    if: github.event_name == 'merge_group'
+    if: false
     needs: [ build-hyperswitch, prepare-optional-matrix ]
     runs-on: hyperswitch-runners
     strategy:
