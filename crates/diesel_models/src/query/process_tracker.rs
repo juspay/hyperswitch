@@ -115,7 +115,7 @@ impl ProcessTracker {
             None,
         )
         .await?;
-        x.sort_by(|a, b| a.schedule_time.cmp(&b.schedule_time));
+        x.sort_by_key(|a| a.schedule_time);
         x.truncate(limit);
         Ok(x)
     }

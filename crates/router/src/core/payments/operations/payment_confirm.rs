@@ -607,9 +607,10 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         let m_request = request.clone();
 
         let payment_intent_customer_id = payment_intent.customer_id.clone();
-        let payment_method_info_from_modular = payment_method_with_raw_data
+        let prefetched_payment_method_info = payment_method_with_raw_data
             .as_ref()
             .map(|payment_method_wrapper| payment_method_wrapper.payment_method.clone());
+        let m_payment_method_info = prefetched_payment_method_info.clone();
 
         let mandate_details_fut = tokio::spawn(
             async move {
@@ -620,7 +621,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                     &m_platform,
                     None,
                     payment_intent_customer_id.as_ref(),
-                    payment_method_info_from_modular,
+                    m_payment_method_info,
                 ))
                 .await
             }
@@ -645,20 +646,6 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             mandate_connector,
             payment_method_info,
         } = mandate_details;
-        let (payment_method_info_from_raw_data, payment_method_with_raw_data) =
-            match payment_method_with_raw_data {
-                Some(payment_method_wrapper) => {
-                    if payment_method_wrapper.raw_payment_method_data.is_some() {
-                        (
-                            Some(payment_method_wrapper.payment_method.clone()),
-                            Some(payment_method_wrapper),
-                        )
-                    } else {
-                        (Some(payment_method_wrapper.payment_method), None)
-                    }
-                }
-                None => (None, None),
-            };
 
         let token = token.or_else(|| payment_attempt.payment_token.clone());
 
@@ -676,38 +663,33 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
 
         //fetch for repeat cit using payment token
 
-        let payment_method_info = payment_method_info.or(payment_method_info_from_raw_data);
+        let payment_method_info = payment_method_info.or(prefetched_payment_method_info);
         let feature_config = core_utils::get_feature_config(state, platform, dimensions).await;
         let payment_method_version = payment_method_info.as_ref().map(|pm| pm.version);
         let is_modular_payment_method_flow =
             feature_config.is_modular_with_pm_version(payment_method_version);
-        let (token_data, payment_method_with_raw_data, payment_method_info) =
-            if is_modular_payment_method_flow {
-                (None, payment_method_with_raw_data, payment_method_info)
-            } else if let (true, Some(token)) = (payment_method_info.is_none(), token.clone()) {
-                let token_data = helpers::retrieve_payment_token_data(
-                    state,
-                    token,
-                    payment_method.or(payment_attempt.payment_method),
-                )
-                .await?;
+        let (token_data, payment_method_info) = if is_modular_payment_method_flow {
+            (None, payment_method_info)
+        } else if let (true, Some(token)) = (payment_method_info.is_none(), token.clone()) {
+            let token_data = helpers::retrieve_payment_token_data(
+                state,
+                token,
+                payment_method.or(payment_attempt.payment_method),
+            )
+            .await?;
 
-                let payment_method_info = helpers::retrieve_payment_method_from_db_with_token_data(
-                    state,
-                    platform.get_provider().get_key_store(),
-                    &token_data,
-                    storage_scheme,
-                )
-                .await?;
+            let payment_method_info = helpers::retrieve_payment_method_from_db_with_token_data(
+                state,
+                platform.get_provider().get_key_store(),
+                &token_data,
+                storage_scheme,
+            )
+            .await?;
 
-                (
-                    Some(token_data),
-                    payment_method_with_raw_data,
-                    payment_method_info,
-                )
-            } else {
-                (None, payment_method_with_raw_data, payment_method_info)
-            };
+            (Some(token_data), payment_method_info)
+        } else {
+            (None, payment_method_info)
+        };
         let additional_pm_data_from_locker = if let Some(ref pm) = payment_method_info {
             let card_detail_from_locker: Option<api::CardDetailFromLocker> = pm
                 .payment_method_data

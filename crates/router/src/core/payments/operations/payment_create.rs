@@ -157,7 +157,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             reason: "Expected one out of recurring_details and mandate_data but got both".into(),
         })?;
 
-        let payment_method_info_from_modular = payment_method_with_raw_data
+        let prefetched_payment_method_info = payment_method_with_raw_data
             .as_ref()
             .map(|payment_method_wrapper| payment_method_wrapper.payment_method.clone());
         let m_helpers::MandateGenericData {
@@ -175,7 +175,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             platform,
             None,
             None,
-            payment_method_info_from_modular,
+            prefetched_payment_method_info,
         )
         .await?;
 
@@ -1313,7 +1313,7 @@ impl<F: Send + Clone + Sync> ValidateRequest<F, api::PaymentsRequest, PaymentDat
 
 impl PaymentCreate {
     /// Determines the payment method reference for modular payment flows.
-    fn get_payment_method_reference<'a>(&self, req: &'a api::PaymentsRequest) -> Option<&'a str> {
+    fn get_payment_method_reference<'a>(self, req: &'a api::PaymentsRequest) -> Option<&'a str> {
         match (req.off_session, req.recurring_details.as_ref()) {
             // Payment using off_session MITs using PM ID
             (Some(true), Some(RecurringDetails::PaymentMethodId(payment_method_id))) => {
