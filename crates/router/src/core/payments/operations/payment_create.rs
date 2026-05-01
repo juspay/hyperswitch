@@ -1313,7 +1313,7 @@ impl<F: Send + Clone + Sync> ValidateRequest<F, api::PaymentsRequest, PaymentDat
 
 impl PaymentCreate {
     /// Determines the payment method reference for modular payment flows.
-    fn get_payment_method_reference<'a>(self, req: &'a api::PaymentsRequest) -> Option<&'a str> {
+    fn get_payment_method_reference(self, req: &api::PaymentsRequest) -> Option<&str> {
         match (req.off_session, req.recurring_details.as_ref()) {
             // Payment using off_session MITs using PM ID
             (Some(true), Some(RecurringDetails::PaymentMethodId(payment_method_id))) => {

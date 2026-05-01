@@ -6,12 +6,9 @@ use diesel_models::Mandate;
 use error_stack::ResultExt;
 use hyperswitch_domain_models::mandates::MandateData;
 
+use crate::{core::errors, types::api};
 #[cfg(feature = "v1")]
-use crate::{
-    core::{errors, payments},
-    routes::SessionState,
-    types::{api, domain},
-};
+use crate::{core::payments, routes::SessionState, types::domain};
 
 #[cfg(feature = "v1")]
 pub async fn get_profile_id_for_mandate(

@@ -309,7 +309,6 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             .map(From::from);
         let pm_pmd_billing = payment_method_with_raw_data.as_ref().and_then(|pm| {
             pm.payment_method
-                .0
                 .payment_method_billing_address
                 .clone()
                 .and_then(|decrypted_data| {
