@@ -4,6 +4,18 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## Unreleased
+
+### Features
+
+- **connector:** [Razorpay] Implement webhook source verification, event mapping, object reference extraction, and typed webhook payload parsing for payments and refunds.
+
+### Testing
+
+- **connector:** Add Razorpay webhook unit tests for event mapping, refund reference resolution, and signature decoding.
+
+- - -
+
 ## 2026.05.01.0
 
 ### Features
