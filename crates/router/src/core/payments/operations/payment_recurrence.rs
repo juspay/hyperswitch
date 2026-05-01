@@ -191,16 +191,14 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         let m_mandate_type = mandate_type;
         let m_platform = platform.clone();
         let m_request = request.clone();
-        let m_profile_id = profile_id.clone();
 
         let payment_intent_customer_id = payment_intent.customer_id.clone();
 
-        let m_pm_wrapper = payment_method_with_raw_data.clone();
-        let mandate_dimensions = dimensions.clone();
+        let m_payment_method_info = payment_method_with_raw_data
+            .as_ref()
+            .map(|payment_method_wrapper| payment_method_wrapper.payment_method.clone());
         let mandate_details_fut = tokio::spawn(
             async move {
-                let modular_fetch_context =
-                    helpers::build_modular_fetch_context(&m_state, &m_platform, &m_profile_id);
                 Box::pin(helpers::get_token_pm_type_mandate_details(
                     &m_state,
                     &m_request,
@@ -208,9 +206,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                     &m_platform,
                     None,
                     payment_intent_customer_id.as_ref(),
-                    m_pm_wrapper,
-                    &mandate_dimensions,
-                    &modular_fetch_context,
+                    m_payment_method_info,
                 ))
                 .await
             }

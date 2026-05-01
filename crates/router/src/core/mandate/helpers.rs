@@ -5,9 +5,8 @@ use common_utils::errors::CustomResult;
 use diesel_models::Mandate;
 use error_stack::ResultExt;
 use hyperswitch_domain_models::mandates::MandateData;
-#[cfg(feature = "v1")]
-use hyperswitch_domain_models::payment_methods::PaymentMethodWithRawData;
 
+#[cfg(feature = "v1")]
 use crate::{
     core::{errors, payments},
     routes::SessionState,
@@ -97,5 +96,5 @@ pub struct MandateGenericData {
     pub recurring_mandate_payment_data:
         Option<hyperswitch_domain_models::router_data::RecurringMandatePaymentData>,
     pub mandate_connector: Option<payments::MandateConnectorDetails>,
-    pub payment_method_info: Option<PaymentMethodWithRawData>,
+    pub payment_method_info: Option<domain::PaymentMethod>,
 }

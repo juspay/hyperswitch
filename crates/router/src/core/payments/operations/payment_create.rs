@@ -157,10 +157,9 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             reason: "Expected one out of recurring_details and mandate_data but got both".into(),
         })?;
 
-        let payment_method_info_from_modular = payment_method_with_raw_data.clone();
-        let modular_fetch_context =
-            helpers::build_modular_fetch_context(state, platform, &profile_id);
-
+        let payment_method_info_from_modular = payment_method_with_raw_data
+            .as_ref()
+            .map(|payment_method_wrapper| payment_method_wrapper.payment_method.clone());
         let m_helpers::MandateGenericData {
             token,
             payment_method,
@@ -177,12 +176,8 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             None,
             None,
             payment_method_info_from_modular,
-            dimensions,
-            &modular_fetch_context,
         )
         .await?;
-
-        let payment_method_info = payment_method_info.map(|pm_wrapper| pm_wrapper.payment_method);
 
         helpers::validate_allowed_payment_method_types_request(
             state,
@@ -913,7 +908,27 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
         platform: &domain::Platform,
         feature_config: &core_utils::FeatureConfig,
     ) -> RouterResult<Option<PaymentMethodWithRawData>> {
-        match feature_config.is_payment_method_modular_allowed {
+        let payment_method_reference = self.get_payment_method_reference(req);
+        let payment_method_info = match (req.off_session, req.recurring_details.as_ref()) {
+            (Some(true), Some(RecurringDetails::PaymentMethodId(payment_method_id))) => Some(
+                state
+                    .store
+                    .find_payment_method(
+                        platform.get_provider().get_key_store(),
+                        payment_method_id,
+                        platform.get_provider().get_account().storage_scheme,
+                    )
+                    .await
+                    .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?,
+            ),
+            _ => None,
+        };
+
+        let payment_method_version = payment_method_info
+            .as_ref()
+            .map(|payment_method| payment_method.version);
+
+        match feature_config.is_modular_with_pm_version(payment_method_version) {
             true => {
                 logger::info!("Organization is eligible for PM Modular Service, fetching payment method if payment_token is provided.");
                 utils::when(
@@ -936,8 +951,6 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                         .get_default_profile()
                         .clone())
                     .get_required_value("profile_id")?;
-
-                let payment_method_reference = self.get_payment_method_reference(req);
 
                 let pm_info = if let Some(payment_method_ref) = payment_method_reference {
                     // Fetch payment method using PM Modular Service
@@ -968,7 +981,12 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
             }
             false => {
                 logger::info!("Organization is not eligible for PM Modular Service, skipping fetch payment method.");
-                Ok(None)
+                Ok(
+                    payment_method_info.map(|payment_method| PaymentMethodWithRawData {
+                        payment_method,
+                        raw_payment_method_data: None,
+                    }),
+                )
             }
         }
     }
@@ -1295,14 +1313,14 @@ impl<F: Send + Clone + Sync> ValidateRequest<F, api::PaymentsRequest, PaymentDat
 
 impl PaymentCreate {
     /// Determines the payment method reference for modular payment flows.
-    fn get_payment_method_reference(self, req: &api::PaymentsRequest) -> Option<&String> {
+    fn get_payment_method_reference<'a>(&self, req: &'a api::PaymentsRequest) -> Option<&'a str> {
         match (req.off_session, req.recurring_details.as_ref()) {
             // Payment using off_session MITs using PM ID
             (Some(true), Some(RecurringDetails::PaymentMethodId(payment_method_id))) => {
-                Some(payment_method_id)
+                Some(payment_method_id.as_str())
             }
             // All other cases
-            _ => req.payment_token.as_ref(),
+            _ => req.payment_token.as_deref(),
         }
     }
 

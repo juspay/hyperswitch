@@ -673,12 +673,10 @@ where
         .validate_request(&req, platform.get_processor())?;
 
     let feature_config = core_utils::get_feature_config(state, platform, dimensions).await;
-
-    let payment_method_info = operation
+    let payment_method_with_raw_data = operation
         .to_domain()?
         .fetch_payment_method(state, &req, platform, &feature_config)
         .await?;
-
     tracing::Span::current().record("payment_id", format!("{}", validate_result.payment_id));
 
     // get profile from headers
@@ -697,7 +695,7 @@ where
             platform,
             auth_flow,
             &header_payload,
-            payment_method_info,
+            payment_method_with_raw_data,
             dimensions,
         )
         .await?;
@@ -8780,14 +8778,8 @@ impl PaymentEligibilityData {
                 .map(domain::EligibilityPaymentMethodData::from))
         } else {
             // Legacy path: resolve via Redis token → DB → locker.
-            Self::resolve_payment_token_via_db(
-                state,
-                platform,
-                profile_id,
-                payment_token,
-                payment_method_type,
-            )
-            .await
+            Self::resolve_payment_token_via_db(state, platform, payment_token, payment_method_type)
+                .await
         }
     }
 
@@ -8795,7 +8787,6 @@ impl PaymentEligibilityData {
     async fn resolve_payment_token_via_db(
         state: &SessionState,
         platform: &domain::Platform,
-        profile_id: &id_type::ProfileId,
         payment_token: &Secret<String>,
         payment_method_type: common_enums::PaymentMethod,
     ) -> CustomResult<Option<domain::EligibilityPaymentMethodData>, errors::ApiErrorResponse> {
@@ -8810,14 +8801,11 @@ impl PaymentEligibilityData {
         })
         .attach_printable("Failed to retrieve payment token data from storage")?;
 
-        let modular_fetch_context =
-            helpers::build_modular_fetch_context(state, platform, profile_id);
         let payment_method_record = helpers::retrieve_payment_method_from_db_with_token_data(
             state,
             platform.get_provider().get_key_store(),
             &token_data,
             platform.get_processor().get_account().storage_scheme,
-            &modular_fetch_context,
         )
         .await
         .attach_printable("Failed to retrieve payment method from DB")?;
@@ -8833,7 +8821,6 @@ impl PaymentEligibilityData {
                     )?;
 
                 let customer_id = pm_record
-                    .payment_method
                     .customer_id
                     .clone()
                     .get_required_value("customer_id")
@@ -8851,7 +8838,7 @@ impl PaymentEligibilityData {
                     locker_id,
                     None, // no CardToken CVC for eligibility
                     None, // no co-badged data needed
-                    pm_record.payment_method.clone(),
+                    pm_record.clone(),
                 ))
                 .await
                 .change_context(errors::ApiErrorResponse::PaymentMethodNotFound)
