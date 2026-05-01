@@ -297,6 +297,9 @@ export const connectorDetails = {
       },
     },
     ExtendAuthorization: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
       Request: {},
       Response: {
         status: 200,
