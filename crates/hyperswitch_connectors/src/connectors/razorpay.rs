@@ -3,12 +3,13 @@ pub mod transformers;
 use base64::Engine;
 use common_enums::enums;
 use common_utils::{
+    crypto,
     errors::CustomResult,
     ext_traits::BytesExt,
     request::{Method, Request, RequestBuilder, RequestContent},
     types::{AmountConvertor, MinorUnit, MinorUnitForConnector},
 };
-use error_stack::{report, Report, ResultExt};
+use error_stack::{Report, ResultExt};
 use hyperswitch_domain_models::{
     payment_method_data::PaymentMethodData,
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
@@ -53,7 +54,7 @@ use transformers as razorpay;
 use crate::{
     constants::headers,
     types::ResponseRouterData,
-    utils::{convert_amount, handle_json_response_deserialization_failure},
+    utils::{convert_amount, get_header_key_value, handle_json_response_deserialization_failure},
 };
 
 #[derive(Clone)]
@@ -768,29 +769,84 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Razorpay 
 //     }
 // }
 
+fn parse_razorpay_webhook_payload(
+    request: &IncomingWebhookRequestDetails<'_>,
+) -> CustomResult<razorpay::RazorpayWebhookPayload, errors::ConnectorError> {
+    request
+        .body
+        .parse_struct("RazorpayWebhookPayload")
+        .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)
+}
+
 #[async_trait::async_trait]
 impl IncomingWebhook for Razorpay {
-    fn get_webhook_object_reference_id(
+    fn get_webhook_source_verification_algorithm(
         &self,
         _request: &IncomingWebhookRequestDetails<'_>,
+    ) -> CustomResult<Box<dyn crypto::VerifySignature + Send>, errors::ConnectorError> {
+        Ok(Box::new(crypto::HmacSha256))
+    }
+
+    fn get_webhook_source_verification_signature(
+        &self,
+        request: &IncomingWebhookRequestDetails<'_>,
+        _connector_webhook_secrets: &api_models::webhooks::ConnectorWebhookSecrets,
+    ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
+        let signature = get_header_key_value("x-razorpay-signature", request.headers)
+            .change_context(errors::ConnectorError::WebhookSignatureNotFound)?;
+
+        hex::decode(signature)
+            .change_context(errors::ConnectorError::WebhookVerificationSecretInvalid)
+    }
+
+    fn get_webhook_source_verification_message(
+        &self,
+        request: &IncomingWebhookRequestDetails<'_>,
+        _merchant_id: &common_utils::id_type::MerchantId,
+        _connector_webhook_secrets: &api_models::webhooks::ConnectorWebhookSecrets,
+    ) -> CustomResult<Vec<u8>, errors::ConnectorError> {
+        Ok(request.body.to_vec())
+    }
+
+    fn get_webhook_object_reference_id(
+        &self,
+        request: &IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api_models::webhooks::ObjectReferenceId, errors::ConnectorError> {
-        Err(report!(errors::ConnectorError::WebhooksNotImplemented))
+        let payload = parse_razorpay_webhook_payload(request)?;
+
+        if let Some(refund_data) = payload.payload.refund {
+            return Ok(api_models::webhooks::ObjectReferenceId::RefundId(
+                api_models::webhooks::RefundIdType::ConnectorRefundId(refund_data.entity.id),
+            ));
+        }
+
+        payload
+            .payload
+            .payment
+            .map(|payment| {
+                api_models::webhooks::ObjectReferenceId::PaymentId(
+                    api_models::payments::PaymentIdType::ConnectorTransactionId(payment.entity.id),
+                )
+            })
+            .ok_or(errors::ConnectorError::WebhookReferenceIdNotFound.into())
     }
 
     fn get_webhook_event_type(
         &self,
-        _request: &IncomingWebhookRequestDetails<'_>,
+        request: &IncomingWebhookRequestDetails<'_>,
         _context: Option<&WebhookContext>,
     ) -> CustomResult<api_models::webhooks::IncomingWebhookEvent, errors::ConnectorError> {
-        Ok(api_models::webhooks::IncomingWebhookEvent::EventNotSupported)
+        let payload = parse_razorpay_webhook_payload(request)?;
+        api_models::webhooks::IncomingWebhookEvent::try_from(payload.event).map_err(Into::into)
     }
 
     fn get_webhook_resource_object(
         &self,
-        _request: &IncomingWebhookRequestDetails<'_>,
+        request: &IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<Box<dyn hyperswitch_masking::ErasedMaskSerialize>, errors::ConnectorError>
     {
-        Err(report!(errors::ConnectorError::WebhooksNotImplemented))
+        let payload = parse_razorpay_webhook_payload(request)?;
+        Ok(Box::new(payload))
     }
 }
 
@@ -850,5 +906,183 @@ impl ConnectorSpecifications for Razorpay {
             .as_ref()
             .map(|id| id.get_string_repr().to_owned())
             .unwrap_or_else(|| uuid::Uuid::now_v7().to_string())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use actix_web::http::header::{HeaderMap, HeaderName, HeaderValue};
+    use common_utils::crypto::{HmacSha256, SignMessage};
+    use hyperswitch_interfaces::webhooks::IncomingWebhookRequestDetails;
+
+    use super::*;
+
+    fn build_request<'a>(
+        headers: &'a HeaderMap,
+        body: &'a [u8],
+    ) -> IncomingWebhookRequestDetails<'a> {
+        IncomingWebhookRequestDetails {
+            method: http::Method::POST,
+            uri: http::Uri::from_static("/webhooks/razorpay"),
+            headers,
+            body,
+            query_params: String::new(),
+        }
+    }
+
+    #[test]
+    fn razorpay_webhook_maps_payment_event() {
+        let connector = Razorpay::new();
+        let body = br#"{"event":"payment.captured","payload":{"payment":{"entity":{"id":"pay_123","status":"captured"}}}}"#;
+        let headers = HeaderMap::new();
+        let request = build_request(&headers, body);
+
+        let event = connector
+            .get_webhook_event_type(&request, None)
+            .expect("event mapping should work");
+
+        assert_eq!(
+            event,
+            api_models::webhooks::IncomingWebhookEvent::PaymentIntentSuccess
+        );
+    }
+
+    #[test]
+    fn razorpay_webhook_prefers_refund_reference_id() {
+        let connector = Razorpay::new();
+        // Entity status is the plain refund status ("processed"), NOT the event type string.
+        let body = br#"{"event":"refund.processed","payload":{"refund":{"entity":{"id":"rfnd_123","status":"processed"}},"payment":{"entity":{"id":"pay_123","status":"captured"}}}}"#;
+        let headers = HeaderMap::new();
+        let request = build_request(&headers, body);
+
+        let object_ref = connector
+            .get_webhook_object_reference_id(&request)
+            .expect("refund webhook should map reference id");
+
+        assert_eq!(
+            object_ref,
+            api_models::webhooks::ObjectReferenceId::RefundId(
+                api_models::webhooks::RefundIdType::ConnectorRefundId("rfnd_123".to_string())
+            )
+        );
+    }
+
+    #[test]
+    fn razorpay_webhook_verification_signature_decodes_hex() {
+        let connector = Razorpay::new();
+        let secret = b"secret_key";
+        let body = br#"{"event":"payment.failed","payload":{"payment":{"entity":{"id":"pay_456","status":"failed"}}}}"#;
+
+        let expected_signature = HmacSha256
+            .sign_message(secret, body)
+            .expect("hmac signing should work");
+        let signature_hex = hex::encode(&expected_signature);
+
+        let mut headers = HeaderMap::new();
+        headers.insert(
+            HeaderName::from_static("x-razorpay-signature"),
+            HeaderValue::from_str(&signature_hex).expect("signature header should be valid"),
+        );
+
+        let request = build_request(&headers, body);
+        let connector_secrets = api_models::webhooks::ConnectorWebhookSecrets {
+            secret: secret.to_vec(),
+            additional_secret: None,
+        };
+
+        let parsed_signature = connector
+            .get_webhook_source_verification_signature(&request, &connector_secrets)
+            .expect("hex signature should decode");
+
+        assert_eq!(parsed_signature, expected_signature);
+    }
+
+    #[test]
+    fn razorpay_webhook_missing_signature_header_returns_error() {
+        let connector = Razorpay::new();
+        let body = br#"{"event":"payment.captured","payload":{"payment":{"entity":{"id":"pay_789","status":"captured"}}}}"#;
+        let headers = HeaderMap::new(); // no signature header
+        let request = build_request(&headers, body);
+        let connector_secrets = api_models::webhooks::ConnectorWebhookSecrets {
+            secret: b"secret".to_vec(),
+            additional_secret: None,
+        };
+
+        let result =
+            connector.get_webhook_source_verification_signature(&request, &connector_secrets);
+        assert!(
+            result.is_err(),
+            "missing signature header should return an error"
+        );
+    }
+
+    #[test]
+    fn razorpay_webhook_invalid_hex_signature_returns_error() {
+        let connector = Razorpay::new();
+        let body = br#"{"event":"payment.captured","payload":{"payment":{"entity":{"id":"pay_789","status":"captured"}}}}"#;
+        let mut headers = HeaderMap::new();
+        headers.insert(
+            HeaderName::from_static("x-razorpay-signature"),
+            HeaderValue::from_static("not_valid_hex!!"),
+        );
+        let request = build_request(&headers, body);
+        let connector_secrets = api_models::webhooks::ConnectorWebhookSecrets {
+            secret: b"secret".to_vec(),
+            additional_secret: None,
+        };
+
+        let result =
+            connector.get_webhook_source_verification_signature(&request, &connector_secrets);
+        assert!(
+            result.is_err(),
+            "non-hex signature header should return an error"
+        );
+    }
+
+    #[test]
+    fn razorpay_webhook_no_payment_or_refund_in_payload_returns_error() {
+        let connector = Razorpay::new();
+        // Payload body has neither "payment" nor "refund" fields.
+        let body = br#"{"event":"payment.authorized","payload":{}}"#;
+        let headers = HeaderMap::new();
+        let request = build_request(&headers, body);
+
+        let result = connector.get_webhook_object_reference_id(&request);
+        assert!(
+            result.is_err(),
+            "payload with no payment or refund should return WebhookReferenceIdNotFound"
+        );
+    }
+
+    #[test]
+    fn razorpay_webhook_refund_created_maps_to_event_not_supported() {
+        let connector = Razorpay::new();
+        let body = br#"{"event":"refund.created","payload":{"refund":{"entity":{"id":"rfnd_999","status":"pending"}},"payment":{"entity":{"id":"pay_999","status":"authorized"}}}}"#;
+        let headers = HeaderMap::new();
+        let request = build_request(&headers, body);
+
+        let event = connector
+            .get_webhook_event_type(&request, None)
+            .expect("refund.created event should parse without error");
+        assert_eq!(
+            event,
+            api_models::webhooks::IncomingWebhookEvent::EventNotSupported
+        );
+    }
+
+    #[test]
+    fn razorpay_webhook_refund_speed_change_maps_to_event_not_supported() {
+        let connector = Razorpay::new();
+        let body = br#"{"event":"refund.speed_change","payload":{"refund":{"entity":{"id":"rfnd_888","status":"processed"}},"payment":{"entity":{"id":"pay_888","status":"captured"}}}}"#;
+        let headers = HeaderMap::new();
+        let request = build_request(&headers, body);
+
+        let event = connector
+            .get_webhook_event_type(&request, None)
+            .expect("refund.speed_change event should parse without error");
+        assert_eq!(
+            event,
+            api_models::webhooks::IncomingWebhookEvent::EventNotSupported
+        );
     }
 }
