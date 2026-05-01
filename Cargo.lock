@@ -9636,7 +9636,7 @@ dependencies = [
 [[package]]
 name = "tokio"
 version = "1.48.0"
-source = "git+https://github.com/hrithikesh026/tokio-hrithikesh.git?rev=1d0f8656e5da214b9e37bff607a8956e26f17800#1d0f8656e5da214b9e37bff607a8956e26f17800"
+source = "git+https://github.com/hrithikesh026/tokio-hrithikesh.git?rev=13fcc0fdb44dc60e9dae717ee52c408017a2cc96#13fcc0fdb44dc60e9dae717ee52c408017a2cc96"
 dependencies = [
  "bytes 1.10.1",
  "libc",
@@ -9705,7 +9705,7 @@ dependencies = [
 [[package]]
 name = "tokio-macros"
 version = "2.6.0"
-source = "git+https://github.com/hrithikesh026/tokio-hrithikesh.git?rev=1d0f8656e5da214b9e37bff607a8956e26f17800#1d0f8656e5da214b9e37bff607a8956e26f17800"
+source = "git+https://github.com/hrithikesh026/tokio-hrithikesh.git?rev=13fcc0fdb44dc60e9dae717ee52c408017a2cc96#13fcc0fdb44dc60e9dae717ee52c408017a2cc96"
 dependencies = [
  "proc-macro2",
  "quote",

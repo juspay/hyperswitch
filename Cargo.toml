@@ -6,7 +6,7 @@ package.rust-version = "1.85.0"
 package.license = "Apache-2.0"
 
 [workspace.dependencies]
-tokio = { git = "https://github.com/hrithikesh026/tokio-hrithikesh.git", rev = "1d0f8656e5da214b9e37bff607a8956e26f17800" }
+tokio = { git = "https://github.com/hrithikesh026/tokio-hrithikesh.git", rev = "13fcc0fdb44dc60e9dae717ee52c408017a2cc96" }
 tracing = { version = "0.1.41" }
 
 # Most of the lint configuration is based on https://github.com/EmbarkStudios/rust-ecosystem/blob/main/lints.toml
@@ -48,7 +48,7 @@ wildcard_dependencies = "warn"
 option_map_unit_fn = "allow"
 
 [patch.crates-io]
-tokio = { git = "https://github.com/hrithikesh026/tokio-hrithikesh.git", rev = "1d0f8656e5da214b9e37bff607a8956e26f17800" }
+tokio = { git = "https://github.com/hrithikesh026/tokio-hrithikesh.git", rev = "13fcc0fdb44dc60e9dae717ee52c408017a2cc96" }
 
 [profile.release]
 strip = true
