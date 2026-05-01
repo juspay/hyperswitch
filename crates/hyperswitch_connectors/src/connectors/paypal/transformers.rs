@@ -1285,6 +1285,8 @@ impl TryFrom<&PaypalRouterData<&PaymentsAuthorizeRouterData>> for PaypalPayments
                     | enums::PaymentMethodType::OpenBankingUk
                     | enums::PaymentMethodType::PayBright
                     | enums::PaymentMethodType::Pix
+                    | enums::PaymentMethodType::PixKey
+                    | enums::PaymentMethodType::PixEmv
                     | enums::PaymentMethodType::PixAutomaticoPush
                     | enums::PaymentMethodType::PixAutomaticoQr
                     | enums::PaymentMethodType::PaySafeCard

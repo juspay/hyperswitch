@@ -513,6 +513,8 @@ pub enum ConnectorSpecificConfig {
     Itaubank {
         client_id: Secret<String>,
         client_secret: Secret<String>,
+        certificates: Option<Secret<String>>,
+        private_key: Option<Secret<String>>,
     },
     /// Imerchantsolutions connector configuration
     Imerchantsolutions { api_key: Secret<String> },
@@ -1400,6 +1402,19 @@ impl ForeignTryFrom<(Connector, &ConnectorAuthType, Option<&serde_json::Value>)>
                 ConnectorAuthType::BodyKey { api_key, key1 } => Ok(Self::Itaubank {
                     client_secret: api_key.clone(),
                     client_id: key1.clone(),
+                    certificates: None,
+                    private_key: None,
+                }),
+                ConnectorAuthType::MultiAuthKey {
+                    api_key,
+                    key1,
+                    api_secret,
+                    key2,
+                } => Ok(Self::Itaubank {
+                    client_secret: api_key.clone(),
+                    client_id: key1.clone(),
+                    certificates: Some(api_secret.clone()),
+                    private_key: Some(key2.clone()),
                 }),
                 _ => Err(err("Itaubank requires BodyKey auth type")),
             },

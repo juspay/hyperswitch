@@ -83,6 +83,7 @@ where
             enums::PaymentMethod::Card
                 | enums::PaymentMethod::BankDebit
                 | enums::PaymentMethod::Wallet
+                | enums::PaymentMethod::BankRedirect
         )
     );
 

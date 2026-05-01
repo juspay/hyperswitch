@@ -47,7 +47,7 @@ const payment_method_data_3ds = {
     last4: "1091",
     card_type: "CREDIT",
     card_network: "Visa",
-    card_issuer: "Intl Hdqtrs Center Owned",
+    card_issuer: "INTL HDQTRS CENTER OWNED",
     card_issuing_country: "UNITED STATES OF AMERICA",
     card_isin: "400000",
     card_extended_bin: null,
@@ -729,6 +729,22 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "requires_customer_action",
+        },
+      },
+    },
+    No3DSFailPayment: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulThreeDSTestCardDetails,
+        },
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action", // Noon doesn't have fail scenario for card payments, it goes to requires_customer_action.
         },
       },
     },
