@@ -81,10 +81,15 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         platform: &domain::Platform,
         _auth_flow: services::AuthFlow,
         header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
-        payment_method_with_raw_data: Option<PaymentMethodWithRawData>,
+        payment_method_fetch_data: operations::PaymentMethodFetchData,
         dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
     ) -> RouterResult<operations::GetTrackerResponse<'a, F, api::PaymentsRequest, PaymentData<F>>>
     {
+        let operations::PaymentMethodFetchData {
+            payment_method_info: prefetched_payment_method_info,
+            payment_method_with_raw_data,
+            ..
+        } = payment_method_fetch_data;
         let db = &*state.store;
         let money @ (amount, currency) = payments_create_request_validation(request)?;
 
@@ -157,9 +162,6 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
             reason: "Expected one out of recurring_details and mandate_data but got both".into(),
         })?;
 
-        let prefetched_payment_method_info = payment_method_with_raw_data
-            .as_ref()
-            .map(|payment_method_wrapper| payment_method_wrapper.payment_method.clone());
         let m_helpers::MandateGenericData {
             token,
             payment_method,
@@ -907,88 +909,77 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
         req: &api::PaymentsRequest,
         platform: &domain::Platform,
         feature_config: &core_utils::FeatureConfig,
-    ) -> RouterResult<Option<PaymentMethodWithRawData>> {
+    ) -> RouterResult<operations::PaymentMethodFetchData> {
         let payment_method_reference = self.get_payment_method_reference(req);
-        let payment_method_info = match (req.off_session, req.recurring_details.as_ref()) {
-            (Some(true), Some(RecurringDetails::PaymentMethodId(payment_method_id))) => Some(
-                state
-                    .store
-                    .find_payment_method(
-                        platform.get_provider().get_key_store(),
-                        payment_method_id,
-                        platform.get_provider().get_account().storage_scheme,
-                    )
-                    .await
-                    .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?,
-            ),
-            _ => None,
-        };
 
-        let payment_method_version = payment_method_info
-            .as_ref()
-            .map(|payment_method| payment_method.version);
+        let payment_method_fetch_data = if feature_config.is_payment_method_modular_allowed {
+            logger::info!("Organization is eligible for PM Modular Service, fetching payment method if payment_token is provided.");
+            utils::when(
+                req.off_session == Some(true) && req.recurring_details.is_none(),
+                || {
+                    Err(error_stack::report!(
+                        errors::ApiErrorResponse::PreconditionFailed {
+                            message: "off_session requires recurring_details".into(),
+                        }
+                    ))
+                },
+            )?;
 
-        match feature_config.is_modular_with_pm_version(payment_method_version) {
-            true => {
-                logger::info!("Organization is eligible for PM Modular Service, fetching payment method if payment_token is provided.");
-                utils::when(
-                    req.off_session == Some(true) && req.recurring_details.is_none(),
-                    || {
-                        Err(error_stack::report!(
-                            errors::ApiErrorResponse::PreconditionFailed {
-                                message: "off_session requires recurring_details".into(),
-                            }
-                        ))
-                    },
-                )?;
-
-                let profile_id = req
-                    .profile_id
-                    .clone()
-                    .or(platform
-                        .get_processor()
-                        .get_account()
-                        .get_default_profile()
-                        .clone())
-                    .get_required_value("profile_id")?;
-
-                let pm_info = if let Some(payment_method_ref) = payment_method_reference {
-                    // Fetch payment method using PM Modular Service
-                    let pm_info = pm_transformers::fetch_payment_method_from_modular_service(
+            if let Some(payment_method_ref) = payment_method_reference {
+                let pm_info = self
+                    .fetch_payment_method_from_modular_service(
                         state,
+                        req,
                         platform,
-                        &profile_id,
                         payment_method_ref,
-                        None, // CVC token data is not passed in create api
                     )
                     .await?;
-                    logger::info!("Payment method fetched from PM Modular Service.");
 
-                    utils::when(
-                        pm_info.payment_method.customer_id.as_ref() != req.get_customer_id(),
-                        || {
-                            logger::info!("Payment method id does not belong to the customer id provided in the request.");
-                            Err(errors::ApiErrorResponse::PaymentMethodNotFound)
-                        },
-                    )?;
-
-                    Some(pm_info)
-                } else {
-                    None
-                };
-
-                Ok(pm_info)
+                operations::PaymentMethodFetchData::from_modular(pm_info)
+            } else {
+                operations::PaymentMethodFetchData::default()
             }
-            false => {
-                logger::info!("Organization is not eligible for PM Modular Service, skipping fetch payment method.");
-                Ok(
-                    payment_method_info.map(|payment_method| PaymentMethodWithRawData {
-                        payment_method,
-                        raw_payment_method_data: None,
-                    }),
-                )
+        } else {
+            let payment_method_info = match (req.off_session, req.recurring_details.as_ref()) {
+                (Some(true), Some(RecurringDetails::PaymentMethodId(payment_method_id))) => Some(
+                    state
+                        .store
+                        .find_payment_method(
+                            platform.get_provider().get_key_store(),
+                            payment_method_id,
+                            platform.get_provider().get_account().storage_scheme,
+                        )
+                        .await
+                        .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?,
+                ),
+                _ => None,
+            };
+
+            match payment_method_info {
+                Some(payment_method)
+                    if feature_config.is_modular_with_pm_version(Some(payment_method.version)) =>
+                {
+                    let payment_method_id = payment_method.get_id().to_owned();
+                    let pm_info = self
+                        .fetch_payment_method_from_modular_service(
+                            state,
+                            req,
+                            platform,
+                            &payment_method_id,
+                        )
+                        .await?;
+
+                    operations::PaymentMethodFetchData::from_modular(pm_info)
+                }
+                Some(payment_method) => {
+                    logger::info!("Organization is not eligible for PM Modular Service, skipping fetch payment method.");
+                    operations::PaymentMethodFetchData::from_legacy(payment_method, None)
+                }
+                None => operations::PaymentMethodFetchData::default(),
             }
-        }
+        };
+
+        Ok(payment_method_fetch_data)
     }
 
     #[instrument(skip_all)]
@@ -1312,6 +1303,46 @@ impl<F: Send + Clone + Sync> ValidateRequest<F, api::PaymentsRequest, PaymentDat
 }
 
 impl PaymentCreate {
+    async fn fetch_payment_method_from_modular_service(
+        &self,
+        state: &SessionState,
+        req: &api::PaymentsRequest,
+        platform: &domain::Platform,
+        payment_method_ref: &str,
+    ) -> RouterResult<PaymentMethodWithRawData> {
+        let profile_id = req
+            .profile_id
+            .clone()
+            .or(platform
+                .get_processor()
+                .get_account()
+                .get_default_profile()
+                .clone())
+            .get_required_value("profile_id")?;
+
+        let pm_info = pm_transformers::fetch_payment_method_from_modular_service(
+            state,
+            platform,
+            &profile_id,
+            payment_method_ref,
+            None, // CVC token data is not passed in create api
+        )
+        .await?;
+        logger::info!("Payment method fetched from PM Modular Service.");
+
+        utils::when(
+            pm_info.payment_method.customer_id.as_ref() != req.get_customer_id(),
+            || {
+                logger::info!(
+                    "Payment method id does not belong to the customer id provided in the request."
+                );
+                Err(errors::ApiErrorResponse::PaymentMethodNotFound)
+            },
+        )?;
+
+        Ok(pm_info)
+    }
+
     /// Determines the payment method reference for modular payment flows.
     fn get_payment_method_reference(self, req: &api::PaymentsRequest) -> Option<&str> {
         match (req.off_session, req.recurring_details.as_ref()) {

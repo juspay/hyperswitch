@@ -673,7 +673,7 @@ where
         .validate_request(&req, platform.get_processor())?;
 
     let feature_config = core_utils::get_feature_config(state, platform, dimensions).await;
-    let payment_method_with_raw_data = operation
+    let payment_method_fetch_data = operation
         .to_domain()?
         .fetch_payment_method(state, &req, platform, &feature_config)
         .await?;
@@ -695,7 +695,7 @@ where
             platform,
             auth_flow,
             &header_payload,
-            payment_method_with_raw_data,
+            payment_method_fetch_data,
             dimensions,
         )
         .await?;
@@ -1545,7 +1545,7 @@ where
             &platform,
             auth_flow,
             &header_payload,
-            None,
+            operations::PaymentMethodFetchData::default(),
             dimensions,
         )
         .await?;

@@ -46,11 +46,41 @@ use crate::{
     pii::Secret,
     routes,
     services::{api as services, encryption, EncryptionAlgorithm},
-    types::{api, domain, transformers},
+    types::{api, domain, storage, transformers},
     utils::OptionExt,
 };
 #[cfg(feature = "v2")]
 use crate::{consts, types::payment_methods as pm_types};
+
+#[cfg(feature = "v1")]
+#[derive(Default)]
+pub struct PaymentMethodFetchData {
+    pub payment_method_info: Option<domain::PaymentMethod>,
+    pub payment_method_with_raw_data: Option<PaymentMethodWithRawData>,
+    pub token_data: Option<storage::PaymentTokenData>,
+}
+
+#[cfg(feature = "v1")]
+impl PaymentMethodFetchData {
+    pub fn from_modular(payment_method_with_raw_data: PaymentMethodWithRawData) -> Self {
+        Self {
+            payment_method_info: Some(payment_method_with_raw_data.payment_method.clone()),
+            payment_method_with_raw_data: Some(payment_method_with_raw_data),
+            token_data: None,
+        }
+    }
+
+    pub fn from_legacy(
+        payment_method_info: domain::PaymentMethod,
+        token_data: Option<storage::PaymentTokenData>,
+    ) -> Self {
+        Self {
+            payment_method_info: Some(payment_method_info),
+            payment_method_with_raw_data: None,
+            token_data,
+        }
+    }
+}
 
 #[derive(Debug, Serialize)]
 #[serde(untagged)]

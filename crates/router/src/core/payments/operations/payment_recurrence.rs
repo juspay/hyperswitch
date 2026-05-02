@@ -5,7 +5,6 @@ use async_trait::async_trait;
 use common_utils::ext_traits::{AsyncExt, ValueExt};
 use error_stack::{report, ResultExt};
 use futures::FutureExt;
-use hyperswitch_domain_models::payment_methods::PaymentMethodWithRawData;
 use hyperswitch_masking::ExposeInterface;
 use router_derive::PaymentOperation;
 use router_env::{instrument, tracing};
@@ -51,10 +50,15 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         platform: &domain::Platform,
         _auth_flow: services::AuthFlow,
         _header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
-        payment_method_with_raw_data: Option<PaymentMethodWithRawData>,
+        payment_method_fetch_data: operations::PaymentMethodFetchData,
         dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
     ) -> RouterResult<operations::GetTrackerResponse<'a, F, api::PaymentsRequest, PaymentData<F>>>
     {
+        let operations::PaymentMethodFetchData {
+            payment_method_info: prefetched_payment_method_info,
+            payment_method_with_raw_data,
+            ..
+        } = payment_method_fetch_data;
         let processor_merchant_id = platform.get_processor().get_account().get_id();
         let storage_scheme = platform.get_processor().get_account().storage_scheme;
         let (currency, amount);
@@ -216,9 +220,11 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
 
         let payment_intent_customer_id = payment_intent.customer_id.clone();
 
-        let m_payment_method_info = payment_method_with_raw_data
-            .as_ref()
-            .map(|payment_method_wrapper| payment_method_wrapper.payment_method.clone());
+        let m_payment_method_info = prefetched_payment_method_info.or_else(|| {
+            payment_method_with_raw_data
+                .as_ref()
+                .map(|payment_method_wrapper| payment_method_wrapper.payment_method.clone())
+        });
         let mandate_details_fut = tokio::spawn(
             async move {
                 Box::pin(helpers::get_token_pm_type_mandate_details(
