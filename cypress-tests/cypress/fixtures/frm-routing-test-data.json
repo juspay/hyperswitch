@@ -1,0 +1,25 @@
+{
+  "valid_single_routing": {
+    "type": "single",
+    "data": "signifyd"
+  },
+  "valid_priority_routing": {
+    "type": "priority",
+    "data": ["signifyd", "riskified"]
+  },
+  "valid_single_routing_alt": {
+    "type": "single",
+    "data": "riskified"
+  },
+  "invalid_routing_missing_type": {
+    "data": "signifyd"
+  },
+  "invalid_routing_missing_data": {
+    "type": "single"
+  },
+  "invalid_routing_empty_object": {},
+  "invalid_routing_unknown_type": {
+    "type": "unknown_algorithm",
+    "data": "some_frm"
+  }
+}
