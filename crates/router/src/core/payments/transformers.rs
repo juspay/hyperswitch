@@ -810,11 +810,13 @@ pub async fn construct_external_vault_proxy_payment_router_data_v1<'a>(
         &merchant_connector_account_id_or_connector_name,
     ));
 
-    let router_return_url = payment_data
-        .payment_attempt
-        .payment_id
-        .get_string_repr()
-        .to_owned();
+    let router_return_url = Some(helpers::create_redirect_url(
+            &state.base_url,
+            attempt,
+            connector_id,
+            payment_data.creds_identifier.as_deref(),
+        ));
+
 
     let amount = payment_data.payment_attempt.get_total_amount();
 
@@ -879,7 +881,7 @@ pub async fn construct_external_vault_proxy_payment_router_data_v1<'a>(
         enrolled_for_3ds: true,
         related_transaction_id: None,
         payment_method_type: payment_data.payment_attempt.payment_method_type,
-        router_return_url: Some(router_return_url),
+        router_return_url: router_return_url,
         webhook_url,
         complete_authorize_url,
         customer_id: customer_id.clone(),
