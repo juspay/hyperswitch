@@ -2648,6 +2648,10 @@ pub struct PaymentMethodListResponse {
 
     /// Payment intent details associated with this payment method list request
     pub intent_data: Option<PaymentMethodListIntentData>,
+
+    /// The capture method for the payment
+    #[schema(value_type = Option<CaptureMethod>)]
+    pub capture_method: Option<api_enums::CaptureMethod>,
 }
 
 /// Intent-only payment details returned as part of the Payment Method List response
