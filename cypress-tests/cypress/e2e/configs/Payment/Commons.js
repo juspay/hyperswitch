@@ -2981,5 +2981,21 @@ export const connectorDetails = {
         customer_acceptance: null,
       },
     }),
+    ConnectorTestingData: getCustomExchange({
+      Configs: { TRIGGER_SKIP: true },
+      Request: {},
+      Response: {
+        status: 200,
+        body: { status: "failed" },
+      },
+    }),
+    ConnectorTestingDataConfirm: getCustomExchange({
+      Configs: { TRIGGER_SKIP: true },
+      Request: {},
+      Response: {
+        status: 200,
+        body: { status: "failed" },
+      },
+    }),
   },
 };
