@@ -67,16 +67,13 @@ describe("PayLater tests", () => {
 
     it("verify-klarna-redirect-url-test", () => {
       if (!shouldContinue) return;
-      const data = getConnectorDetails(globalState.get("connectorId"))[
-        "pay_later_pm"
-      ]["Klarna"];
       const nextActionUrl = globalState.get("nextActionUrl");
       if (!nextActionUrl) {
         cy.log("No redirect URL found - skipping redirect verification");
         return;
       }
-      // Use the pay_later redirection handler to verify navigation to Klarna
-      const expected_redirection = globalState.get("baseUrl") + "/payments/completion";
+      const expected_redirection =
+        globalState.get("baseUrl") + "/payments/completion";
       cy.handlePayLaterRedirection(globalState, "klarna", expected_redirection);
       shouldContinue = false;
     });
@@ -147,16 +144,13 @@ describe("PayLater tests", () => {
 
     it("verify-klarna-redirect-url-test", () => {
       if (!shouldContinue) return;
-      const data = getConnectorDetails(globalState.get("connectorId"))[
-        "pay_later_pm"
-      ]["Klarna"];
       const nextActionUrl = globalState.get("nextActionUrl");
       if (!nextActionUrl) {
         cy.log("No redirect URL found - skipping redirect verification");
         return;
       }
-      // Use the pay_later redirection handler to verify navigation to Klarna
-      const expected_redirection = globalState.get("baseUrl") + "/payments/completion";
+      const expected_redirection =
+        globalState.get("baseUrl") + "/payments/completion";
       cy.handlePayLaterRedirection(globalState, "klarna", expected_redirection);
       shouldContinue = false;
     });
