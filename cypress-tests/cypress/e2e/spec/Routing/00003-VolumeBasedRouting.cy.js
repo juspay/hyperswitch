@@ -339,7 +339,8 @@ describe("Volume Based Routing Test", () => {
           return_url: "https://example.com",
           browser_info: {
             ip_address: "129.0.0.1",
-            user_agent: "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
+            user_agent:
+              "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
             accept_header: "text/html",
             language: "en-US",
           },
@@ -349,12 +350,15 @@ describe("Volume Based Routing Test", () => {
         const actualConnector = response.body.connector;
         // Accept either stripe or adyen for 50/50 routing
         expect(actualConnector).to.be.oneOf(["stripe", "adyen"]);
-        
+
         // Set the connectorId to match what the server actually routed to
         globalState.set("connectorId", actualConnector);
         // Set the merchant connector id based on which connector was used
         if (actualConnector === "stripe") {
-          globalState.set("merchantConnectorId", globalState.get("stripeMcaId"));
+          globalState.set(
+            "merchantConnectorId",
+            globalState.get("stripeMcaId")
+          );
         } else {
           globalState.set("merchantConnectorId", globalState.get("adyenMcaId"));
         }
