@@ -774,20 +774,6 @@ export const connectorDetails = {
       },
       ...commonConnectorDetails.card_pm.MITAutoCapture,
     }),
-    MITWithLimitedCardData: getCustomExchange({
-      Configs: {
-        CONNECTOR_CREDENTIAL: {
-          value: "connector_1",
-        },
-      },
-      Request: {},
-      Response: {
-        status: 200,
-        body: {
-          status: "succeeded",
-        },
-      },
-    }),
     MITManualCapture: {
       Configs: {
         CONNECTOR_CREDENTIAL: {
