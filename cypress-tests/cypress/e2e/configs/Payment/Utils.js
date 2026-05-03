@@ -518,6 +518,7 @@ export const CONNECTOR_LISTS = {
       "finix",
     ],
     BILLING_DESCRIPTOR_INVALID_PHONE: ["nuvei"],
+    FEATURE_METADATA: ["bankofamerica"],
     AUTO_RETRY: [
       "cybersource",
       "checkout",
