@@ -1333,6 +1333,17 @@ export const connectorDetails = {
       },
     }),
     SyncRefund: getCustomExchange({}),
+    PartialAuth: getCustomExchange({
+      Request: {
+        enable_partial_authorization: true,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    }),
     MandateSingleUse3DSAutoCapture: getCustomExchange({
       Request: {
         payment_method: "card",
@@ -2968,6 +2979,22 @@ export const connectorDetails = {
         },
         currency: "USD",
         customer_acceptance: null,
+      },
+    }),
+    ConnectorTestingData: getCustomExchange({
+      Configs: { TRIGGER_SKIP: true },
+      Request: {},
+      Response: {
+        status: 200,
+        body: { status: "failed" },
+      },
+    }),
+    ConnectorTestingDataConfirm: getCustomExchange({
+      Configs: { TRIGGER_SKIP: true },
+      Request: {},
+      Response: {
+        status: 200,
+        body: { status: "failed" },
       },
     }),
   },

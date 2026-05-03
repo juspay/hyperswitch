@@ -458,7 +458,7 @@ export const CONNECTOR_LISTS = {
       // "stripe",
     ],
     DDC_RACE_CONDITION: ["worldpay"],
-    CONNECTOR_TESTING_DATA: ["adyen"],
+    CONNECTOR_TESTING_DATA: ["adyen", "noon", "airwallex", "braintree"],
     // ucs connectors
     UCS_CONNECTORS: ["authorizedotnet"],
     OVERCAPTURE: ["adyen"],
@@ -532,7 +532,6 @@ export const CONNECTOR_LISTS = {
       "globalpay",
       "nexinets",
       "nmi",
-      "nuvei",
       "paypal",
       "powertranz",
       "shift4",
@@ -545,6 +544,7 @@ export const CONNECTOR_LISTS = {
     PARTNER_MERCHANT_IDENTIFIER: ["adyen", "checkout"],
     GIFT_CARD: ["adyen"],
     AUTH_SERVICE_ELIGIBILITY: ["stripe", "cybersource"],
+    PARTIAL_AUTH: ["nuvei", "checkout", "worldpay", "worldpayvantiv"],
     // Add more inclusion lists
   },
 };
