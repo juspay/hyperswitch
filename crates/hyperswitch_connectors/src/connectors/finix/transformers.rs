@@ -8,7 +8,7 @@ use base64::Engine;
 use common_enums::{
     enums, AttemptStatus, CaptureMethod, CountryAlpha2, CountryAlpha3, DisputeStage,
 };
-use common_utils::{errors::CustomResult, ext_traits::ValueExt, types::MinorUnit};
+use common_utils::{errors::CustomResult, types::MinorUnit};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     payment_method_data::{PaymentMethodData, WalletData},
@@ -205,13 +205,13 @@ impl TryFrom<&FinixRouterData<'_, Authorize, PaymentsAuthorizeData, PaymentsResp
             .billing_descriptor
             .clone()
             .and_then(|billing_descriptor| billing_descriptor.statement_descriptor);
-        let fraud_session_id: Option<String> =
-            item.router_data.frm_metadata.clone().and_then(|metadata| {
-                metadata
-                    .parse_value::<FinixFrmMetadata>("FinixFrmMetadata")
-                    .ok()
-                    .and_then(|parsed| parsed.finix_fraud_session_id)
-            });
+        let fraud_session_id: Option<String> = item
+            .router_data
+            .request
+            .feature_metadata
+            .as_ref()
+            .and_then(|metadata| metadata.finix_additional_details.as_ref())
+            .and_then(|finix_details| finix_details.fraud_session_id.clone());
         Ok(Self {
             amount: item.amount,
             currency: item.router_data.request.currency,
@@ -570,8 +570,8 @@ pub(crate) fn convert_to_additional_payment_method_connector_response(
         payment_checks.insert("address_verification".to_string(), serde_json::json!(code));
     }
 
-    let card_network = network_details.and_then(|nd| nd.brand.clone());
-    let auth_code = network_details.and_then(|nd| nd.authorization_code.clone());
+    let card_network = network_details.and_then(|details| details.brand.clone());
+    let auth_code = network_details.and_then(|details| details.authorization_code.clone());
 
     Some(AdditionalPaymentMethodConnectorResponse::Card {
         authentication_data: None,
