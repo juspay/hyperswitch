@@ -1362,7 +1362,7 @@ impl DomainPaymentMethodWrapper {
                             token_detail.connector_id.clone(),
                             hyperswitch_domain_models::mandates::PaymentsMandateReferenceRecord {
                                 connector_mandate_id: token_detail.token.clone().expose(),
-                                payment_method_type: None,
+                                payment_method_type: Some(response.payment_method_type),
                                 original_payment_authorized_amount: token_detail
                                     .original_payment_authorized_amount
                                     .map(|amount| amount.get_amount_as_i64()),

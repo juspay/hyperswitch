@@ -4,6 +4,31 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.05.01.1
+
+### Features
+
+- **payment_method:** Add OLAP payment method retrieve endpoint for dashboard ([#12070](https://github.com/juspay/hyperswitch/pull/12070)) ([`bbc6ed0`](https://github.com/juspay/hyperswitch/commit/bbc6ed030822550b284205ea64e5fc78aa33d360))
+
+**Full Changelog:** [`2026.05.01.0...2026.05.01.1`](https://github.com/juspay/hyperswitch/compare/2026.05.01.0...2026.05.01.1)
+
+- - -
+
+## 2026.05.01.0
+
+### Features
+
+- **connector:** [ACI] Add Apple Pay and Google Pay wallet support ([#11425](https://github.com/juspay/hyperswitch/pull/11425)) ([`984b33b`](https://github.com/juspay/hyperswitch/commit/984b33bdd7fa7651a547b57661dce61101611b52))
+- **payment-methods:** Add BankRedirect payment method BancontactCard support in modular payment method ([#12052](https://github.com/juspay/hyperswitch/pull/12052)) ([`5e1990e`](https://github.com/juspay/hyperswitch/commit/5e1990efc49b63ec394a69d077d826eccdfc7702))
+
+### Bug Fixes
+
+- **core:** Propagate address in payment recurrence flow ([#11945](https://github.com/juspay/hyperswitch/pull/11945)) ([`61b4815`](https://github.com/juspay/hyperswitch/commit/61b48150f52f7c323186efbd9a39f242ed823338))
+
+**Full Changelog:** [`2026.04.30.1...2026.05.01.0`](https://github.com/juspay/hyperswitch/compare/2026.04.30.1...2026.05.01.0)
+
+- - -
+
 ## 2026.04.30.1
 
 ### Testing
