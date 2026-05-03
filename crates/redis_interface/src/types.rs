@@ -5,7 +5,7 @@ use common_utils::{errors::CustomResult, ext_traits::ConfigExt, fp_utils::when};
 use error_stack::ResultExt;
 use redis::{IntoConnectionInfo, Value, Value as RedisCrateValue};
 
-use crate::{constant, errors, RedisConnectionPool};
+use crate::{errors, RedisConnectionPool};
 
 /// Returns the variant name of a `redis::Value` without any inner data.
 /// Used for logging to avoid printing potentially large payloads.
@@ -64,12 +64,20 @@ impl RedisValue {
     /// Extract bytes from the underlying redis value.
     ///
     /// Returns `Some` for string-like variants (`BulkString`, `SimpleString`,
-    /// `VerbatimString`) and `None` for all others.
+    /// `VerbatimString`). Returns `None` for all others — numeric and boolean
+    /// variants have no borrowed byte representation (use `as_string()` instead).
     pub fn as_bytes(&self) -> Option<&[u8]> {
         match &self.inner {
             RedisCrateValue::BulkString(bytes) => Some(bytes.as_slice()),
             RedisCrateValue::SimpleString(string) => Some(string.as_bytes()),
             RedisCrateValue::VerbatimString { text, .. } => Some(text.as_bytes()),
+            // Numeric/boolean variants don't have a borrowed byte representation.
+            // Use as_string() if you need these as strings.
+            RedisCrateValue::Int(_)
+            | RedisCrateValue::Double(_)
+            | RedisCrateValue::Boolean(_)
+            | RedisCrateValue::Okay
+            | RedisCrateValue::BigNumber(_) => None,
             other => {
                 tracing::debug!(
                     variant = value_variant_name(other),
@@ -181,8 +189,9 @@ pub struct RedisSettings {
     /// Passed to `ConnectionManagerConfig::set_number_of_retries`.
     pub pool_size: usize,
     /// Maximum number of connection retry attempts (default: 5).
-    /// Passed to `ConnectionManagerConfig::set_number_of_retries`.
-    pub reconnect_max_attempts: u32,
+    /// Passed to `ConnectionManagerConfig::set_number_of_retries`
+    /// or `ClusterClientBuilder::retries`.
+    pub reconnect_max_attempts: usize,
     /// Initial delay in milliseconds between reconnection attempts (default: 5).
     /// Passed to `ConnectionManagerConfig::set_min_delay`.
     pub reconnect_delay: u32,
@@ -268,21 +277,6 @@ impl RedisSettings {
         (self.max_in_flight_commands > 0).then_some(self.max_in_flight_commands)
     }
 
-    /// Convert `reconnect_max_attempts` to `usize`.
-    ///
-    /// Logs a warning and falls back to [`constant::DEFAULT_RECONNECT_MAX_ATTEMPTS`]
-    /// when the value overflows.
-    pub fn reconnect_max_attempts_as_usize(&self) -> usize {
-        usize::try_from(self.reconnect_max_attempts).unwrap_or_else(|_| {
-            tracing::warn!(
-                "reconnect_max_attempts ({}) exceeds usize, using default ({})",
-                self.reconnect_max_attempts,
-                constant::DEFAULT_RECONNECT_MAX_ATTEMPTS
-            );
-            constant::DEFAULT_RECONNECT_MAX_ATTEMPTS
-        })
-    }
-
     /// Build a standalone [`redis::ConnectionInfo`] with RESP3 protocol from host and port.
     pub fn build_standalone_connection_info(
         &self,
@@ -308,7 +302,7 @@ impl RedisSettings {
     /// Callers can further customize (e.g. `set_pipeline_buffer_size`) before use.
     pub fn build_connection_manager_config(&self) -> redis::aio::ConnectionManagerConfig {
         let mut config = redis::aio::ConnectionManagerConfig::new()
-            .set_number_of_retries(self.reconnect_max_attempts_as_usize())
+            .set_number_of_retries(self.reconnect_max_attempts)
             .set_min_delay(std::time::Duration::from_millis(u64::from(
                 self.reconnect_delay,
             )));
@@ -331,7 +325,7 @@ impl RedisSettings {
         nodes: Vec<String>,
     ) -> redis::cluster::ClusterClientBuilder {
         redis::cluster::ClusterClient::builder(nodes)
-            .retries(self.reconnect_max_attempts)
+            .retries(u32::try_from(self.reconnect_max_attempts).unwrap_or(u32::MAX))
             .min_retry_wait(u64::from(self.reconnect_delay))
             .response_timeout(std::time::Duration::from_secs(
                 self.default_command_timeout.max(1),
@@ -613,6 +607,7 @@ impl std::fmt::Display for StreamTrimThresholdError {
 impl std::error::Error for StreamTrimThresholdError {}
 
 #[derive(Debug, Eq, PartialEq)]
+/// Reply type for delete operations, indicating whether the key was actually deleted or not.
 pub enum DelReply {
     KeyDeleted,
     KeyNotDeleted, // Key not found
@@ -640,6 +635,56 @@ impl redis::FromRedisValue for DelReply {
                     value
                 )))
             }
+        }
+    }
+}
+
+/// Reply type for `XGROUP DESTROY`, indicating whether the group was destroyed or not found.
+#[derive(Debug, Clone, Copy, Eq, PartialEq)]
+pub enum ConsumerGroupDestroyReply {
+    Destroyed,
+    NotFound,
+}
+
+impl redis::FromRedisValue for ConsumerGroupDestroyReply {
+    fn from_redis_value(value: Value) -> Result<Self, redis::ParsingError> {
+        match value {
+            Value::Int(1) => Ok(Self::Destroyed),
+            Value::Int(0) => Ok(Self::NotFound),
+            _ => {
+                tracing::error!(
+                    received = ?value,
+                    "Unexpected XGROUP DESTROY reply from Redis"
+                );
+                Err(redis::ParsingError::from(format!(
+                    "Unexpected XGROUP DESTROY reply: {:?}",
+                    value
+                )))
+            }
+        }
+    }
+}
+
+/// Redis key types for use with the `SCAN` command's `TYPE` option.
+#[derive(Debug, Clone, Copy, Eq, PartialEq)]
+pub enum RedisScanType {
+    String,
+    List,
+    Set,
+    Zset,
+    Hash,
+    Stream,
+}
+
+impl AsRef<str> for RedisScanType {
+    fn as_ref(&self) -> &str {
+        match self {
+            Self::String => "STRING",
+            Self::List => "LIST",
+            Self::Set => "SET",
+            Self::Zset => "ZSET",
+            Self::Hash => "HASH",
+            Self::Stream => "STREAM",
         }
     }
 }

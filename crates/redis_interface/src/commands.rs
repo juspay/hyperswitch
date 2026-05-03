@@ -4,6 +4,7 @@
 //! and deserialization while calling redis.
 //! It also includes instruments to provide tracing.
 
+use std::collections::HashMap;
 use std::fmt::Debug;
 
 use common_utils::{
@@ -25,8 +26,9 @@ use crate::{
     },
     errors,
     types::{
-        redis_value_to_option_string, DelReply, HsetnxReply, MsetnxReply, RedisEntryId, RedisKey,
-        SaddReply, SetGetReply, SetnxReply, StreamEntries, StreamReadResult, StreamTrimConfig,
+        redis_value_to_option_string, ConsumerGroupDestroyReply, DelReply, HsetnxReply,
+        MsetnxReply, RedisEntryId, RedisKey, RedisScanType, SaddReply, SetGetReply, SetnxReply,
+        StreamEntries, StreamReadResult, StreamTrimConfig,
     },
 };
 
@@ -605,6 +607,12 @@ impl super::RedisConnectionPool {
         Ok(values_after_increment)
     }
 
+    /// Manually builds the HSCAN command because `redis-rs` does not provide a
+    /// high-level HSCAN method that returns field-value pairs. The built-in
+    /// methods only iterate over keys or use cursors, so we construct the command
+    /// directly to extract field-value pairs.
+    ///
+    /// Tested via integration tests against a live Redis instance (`test_hscan_*`).
     #[instrument(level = "DEBUG", skip(self))]
     pub async fn hscan(
         &self,
@@ -662,7 +670,7 @@ impl super::RedisConnectionPool {
         &self,
         pattern: &RedisKey,
         count: Option<u32>,
-        scan_type: Option<&str>,
+        scan_type: Option<RedisScanType>,
     ) -> CustomResult<Vec<String>, errors::RedisError> {
         let mut conn = self.pool.clone();
 
@@ -681,7 +689,7 @@ impl super::RedisConnectionPool {
             }
 
             if let Some(scan_type_value) = scan_type {
-                command.arg(REDIS_ARG_TYPE).arg(scan_type_value);
+                command.arg(REDIS_ARG_TYPE).arg(scan_type_value.as_ref());
             }
 
             let reply: (u64, Vec<String>) = command
@@ -954,7 +962,7 @@ impl super::RedisConnectionPool {
                     .ids
                     .into_iter()
                     .map(|id| {
-                        let fields: std::collections::HashMap<String, String> = id
+                        let fields: HashMap<String, String> = id
                             .map
                             .into_iter()
                             .filter_map(|(field_name, redis_value)| {
@@ -1102,17 +1110,13 @@ impl super::RedisConnectionPool {
         &self,
         stream: &RedisKey,
         group: &str,
-    ) -> CustomResult<usize, errors::RedisError> {
+    ) -> CustomResult<ConsumerGroupDestroyReply, errors::RedisError> {
         let mut conn = self.pool.clone();
-        let destroyed: bool = conn
+        let reply: ConsumerGroupDestroyReply = conn
             .xgroup_destroy(stream.tenant_aware_key(self), group)
             .await
             .change_context(errors::RedisError::ConsumerGroupDestroyFailed)?;
-        // XGROUP DESTROY returns true (1) if the group was destroyed,
-        // false (0) if the group did not exist. The usize return type
-        // preserves the numeric result for compatibility with callers
-        // that compare against 0.
-        Ok(if destroyed { 1 } else { 0 })
+        Ok(reply)
     }
 
     // the number of pending messages that the consumer had before it was deleted
@@ -1283,7 +1287,7 @@ impl super::RedisConnectionPool {
             .change_context(errors::RedisError::SetFailed)
             .attach_printable("Failed to convert from redis value")?;
 
-        // Check if SET NX succeeded or failed using the existing SetnxReply type
+        // Check if SET NX succeeded or failed
         let setnx_reply = SetnxReply::from_redis_value(set_result)
             .change_context(errors::RedisError::SetFailed)
             .attach_printable("Unexpected result from SET NX operation")?;
@@ -1295,13 +1299,13 @@ impl super::RedisConnectionPool {
     }
 }
 
-/// Custom reply types for delete and set operations to indicate whether the key was actually deleted/set or not.
 #[cfg(test)]
 mod tests {
     use crate::{
-        errors::RedisError, RedisConnectionPool, RedisEntryId, RedisSettings, StreamCapKind,
-        StreamCapTrim, StreamTrimConfig,
+        errors::RedisError, ConsumerGroupDestroyReply, RedisConnectionPool, RedisEntryId,
+        RedisSettings, StreamCapKind, StreamCapTrim, StreamTrimConfig,
     };
+    use std::collections::HashMap;
 
     /// Generate a unique ID for test key isolation.
     /// Uses thread ID + nanoseconds to avoid collisions in parallel test runs.
@@ -1318,60 +1322,61 @@ mod tests {
         format!("{pid}_{millis}_{counter}")
     }
 
-    /// Create a cluster RedisConnectionPool if `REDIS_CLUSTER_URLS` env var is set.
-    /// Returns `None` if no cluster is configured (test should skip, not fail).
-    async fn cluster_pool() -> Option<RedisConnectionPool> {
-        let cluster_urls_str = std::env::var("REDIS_CLUSTER_URLS").ok()?;
-        let cluster_urls: Vec<String> = cluster_urls_str
-            .split(',')
-            .map(|url| url.trim().to_string())
-            .filter(|url| !url.is_empty())
-            .collect();
+    /// Build `RedisSettings` from environment variables.
+    ///
+    /// If `REDIS_CLUSTER_URLS` is set, creates cluster settings (comma-separated URLs).
+    /// Otherwise falls back to standalone using `RedisSettings::default()`
+    /// (which connects to `localhost:6379`).
+    fn redis_settings_from_env() -> RedisSettings {
+        if let Ok(cluster_urls_str) = std::env::var("REDIS_CLUSTER_URLS") {
+            let cluster_urls: Vec<String> = cluster_urls_str
+                .split(',')
+                .map(|url| url.trim().to_string())
+                .filter(|url| !url.is_empty())
+                .collect();
 
-        if cluster_urls.is_empty() {
-            return None;
+            if let Some(first_url) = cluster_urls.first() {
+                let (host, port) = if first_url.starts_with("redis://") {
+                    let without_scheme = first_url.trim_start_matches("redis://");
+                    let parts: Vec<&str> = without_scheme.split(':').collect();
+                    (
+                        parts.first().unwrap_or(&"127.0.0.1").to_string(),
+                        parts
+                            .get(1)
+                            .and_then(|p| p.parse::<u16>().ok())
+                            .unwrap_or(6379),
+                    )
+                } else {
+                    let parts: Vec<&str> = first_url.split(':').collect();
+                    (
+                        parts.first().unwrap_or(&"127.0.0.1").to_string(),
+                        parts
+                            .get(1)
+                            .and_then(|p| p.parse::<u16>().ok())
+                            .unwrap_or(6379),
+                    )
+                };
+
+                return RedisSettings {
+                    host,
+                    port,
+                    cluster_enabled: true,
+                    cluster_urls,
+                    ..RedisSettings::default()
+                };
+            }
         }
 
-        // Use the first cluster URL's host:port as the primary,
-        // so `RedisConnectionPool::new` doesn't prepend `127.0.0.1:6379`.
-        let first_url = cluster_urls.first()?;
-        let (host, port) = if first_url.starts_with("redis://") {
-            let without_scheme = first_url.trim_start_matches("redis://");
-            let parts: Vec<&str> = without_scheme.split(':').collect();
-            (
-                parts.first()?.to_string(),
-                parts.get(1)?.parse::<u16>().ok()?,
-            )
-        } else {
-            let parts: Vec<&str> = first_url.split(':').collect();
-            (
-                parts.first()?.to_string(),
-                parts.get(1)?.parse::<u16>().ok()?,
-            )
-        };
-
-        let settings = RedisSettings {
-            host,
-            port,
-            cluster_enabled: true,
-            cluster_urls,
-            ..RedisSettings::default()
-        };
-
-        RedisConnectionPool::new(&settings).await.ok()
+        RedisSettings::default()
     }
 
-    /// Helper: get a cluster pool or skip the test.
-    /// Prints a message when skipping so it's visible in test output.
-    async fn get_cluster_pool_or_skip() -> Option<RedisConnectionPool> {
-        let pool = cluster_pool().await;
-        if pool.is_none() {
-            eprintln!(
-                "SKIP: Cluster test skipped — set REDIS_CLUSTER_URLS to enable. \
-                 Example: REDIS_CLUSTER_URLS=redis://localhost:7000,redis://localhost:7001"
-            );
-        }
-        pool
+    /// Create a `RedisConnectionPool` from environment configuration.
+    ///
+    /// Uses cluster settings if `REDIS_CLUSTER_URLS` is set, otherwise standalone.
+    /// Returns `None` if the connection could not be established.
+    async fn redis_pool() -> Option<RedisConnectionPool> {
+        let settings = redis_settings_from_env();
+        RedisConnectionPool::new(&settings).await.ok()
     }
 
     #[tokio::test]
@@ -1464,7 +1469,7 @@ mod tests {
                 end
                 return
                 "#;
-                let mut keys_and_values = std::collections::HashMap::new();
+                let mut keys_and_values = HashMap::new();
                 for i in 0..10 {
                     keys_and_values.insert(format!("key{i}"), i);
                 }
@@ -2252,7 +2257,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_connection_with_custom_config() {
+    async fn test_connection_with_custom_reconnect_settings() {
         let is_success = tokio::task::spawn_blocking(move || {
             futures::executor::block_on(async {
                 // Arrange — custom config with non-default reconnect settings
@@ -2507,8 +2512,8 @@ mod tests {
                 // Act — destroy the group
                 let destroy_result = pool.consumer_group_destroy(&stream, &group).await;
 
-                // Assert — returns 1 (destroyed)
-                matches!(destroy_result, Ok(1))
+                // Assert — group was destroyed
+                matches!(destroy_result, Ok(ConsumerGroupDestroyReply::Destroyed))
             })
         })
         .await
@@ -2541,7 +2546,7 @@ mod tests {
                 let get_result: Result<String, _> = pool.get_hash_field(&key, "field1").await;
 
                 // Get all fields
-                let all_fields: Result<std::collections::HashMap<String, String>, _> =
+                let all_fields: Result<HashMap<String, String>, _> =
                     pool.get_hash_fields(&key).await;
 
                 match (set_result, dup_result, get_result, all_fields) {
@@ -3551,20 +3556,20 @@ mod tests {
         assert!(is_success);
     }
 
-    // ─── Cluster-mode tests ─────────────────────────────────────────────────
-    // These tests run only when `REDIS_CLUSTER_URLS` env var is set.
-    // Example: REDIS_CLUSTER_URLS=redis://localhost:7000,redis://localhost:7001,redis://localhost:7002
+    // ─── Multi-mode tests (cluster or standalone) ──────────────────────────────
+    // These tests use `redis_pool()` which connects to cluster if
+    // `REDIS_CLUSTER_URLS` is set, otherwise falls back to standalone.
 
-    /// Helper: get a cluster pool + unique ID or skip the test.
-    async fn get_cluster_pool_with_uid() -> Option<(RedisConnectionPool, String)> {
-        let pool = get_cluster_pool_or_skip().await?;
+    /// Helper: get a pool + unique ID or skip the test.
+    async fn get_redis_pool_with_uid() -> Option<(RedisConnectionPool, String)> {
+        let pool = redis_pool().await?;
         let unique_id = unique_test_id();
         Some((pool, unique_id))
     }
 
     #[tokio::test]
-    async fn test_cluster_set_get_delete() {
-        let (pool, uid) = match get_cluster_pool_with_uid().await {
+    async fn test_redis_set_get_delete() {
+        let (pool, uid) = match get_redis_pool_with_uid().await {
             Some(result) => result,
             None => return, // skip if no cluster
         };
@@ -3593,8 +3598,8 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_cluster_hash_operations() {
-        let (pool, uid) = match get_cluster_pool_with_uid().await {
+    async fn test_redis_hash_operations() {
+        let (pool, uid) = match get_redis_pool_with_uid().await {
             Some(result) => result,
             None => return,
         };
@@ -3622,7 +3627,7 @@ mod tests {
                 let hget_result: Result<String, _> = pool.get_hash_field(&key, "field1").await;
 
                 // HGETALL
-                let hgetall_result: Result<std::collections::HashMap<String, String>, _> =
+                let hgetall_result: Result<HashMap<String, String>, _> =
                     pool.get_hash_fields(&key).await;
 
                 match (
@@ -3650,8 +3655,8 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_cluster_stream_operations() {
-        let (pool, uid) = match get_cluster_pool_with_uid().await {
+    async fn test_redis_stream_operations() {
+        let (pool, uid) = match get_redis_pool_with_uid().await {
             Some(result) => result,
             None => return,
         };
@@ -3722,8 +3727,8 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_cluster_set_key_if_not_exists_and_get_value() {
-        let (pool, uid) = match get_cluster_pool_with_uid().await {
+    async fn test_redis_set_key_if_not_exists_and_get_value() {
+        let (pool, uid) = match get_redis_pool_with_uid().await {
             Some(result) => result,
             None => return,
         };
@@ -3758,8 +3763,8 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_cluster_scan() {
-        let (pool, uid) = match get_cluster_pool_with_uid().await {
+    async fn test_redis_scan() {
+        let (pool, uid) = match get_redis_pool_with_uid().await {
             Some(result) => result,
             None => return,
         };
@@ -3790,8 +3795,8 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_cluster_pubsub() {
-        let (pool, uid) = match get_cluster_pool_with_uid().await {
+    async fn test_redis_pubsub() {
+        let (pool, uid) = match get_redis_pool_with_uid().await {
             Some(result) => result,
             None => return,
         };

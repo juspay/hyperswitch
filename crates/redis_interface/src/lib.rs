@@ -313,7 +313,7 @@ impl SubscriberClient {
 
     /// Parses a single push message and, if it is a pub/sub `Message`,
     /// broadcasts it to all active receivers. Non-message push kinds
-    /// (e.g. `Subscribe`, `Unsubscribe`) are logged at trace level and ignored.
+    /// (e.g. `Subscribe`, `Unsubscribe`) are logged at warn level and ignored.
     fn handle_push_info(
         push_info: &redis::PushInfo,
         broadcast_sender: &tokio::sync::broadcast::Sender<PubSubMessage>,
@@ -553,7 +553,12 @@ impl RedisConnectionPool {
                         unreachable_secs,
                         max_unreachable_secs
                     );
-                    let _ = tx.send(());
+                    if let Err(error) = tx.send(()) {
+                        tracing::warn!(
+                            ?error,
+                            "Failed to send shutdown signal — receiver already dropped"
+                        );
+                    }
                     self.is_redis_available
                         .store(false, atomic::Ordering::SeqCst);
                     break;

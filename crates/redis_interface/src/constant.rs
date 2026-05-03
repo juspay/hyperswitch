@@ -13,8 +13,5 @@ pub const REDIS_ARG_MATCH: &str = "MATCH";
 pub const REDIS_ARG_COUNT: &str = "COUNT";
 pub const REDIS_ARG_TYPE: &str = "TYPE";
 
-/// Default reconnect max attempts, matching RedisSettings::default().reconnect_max_attempts
-pub const DEFAULT_RECONNECT_MAX_ATTEMPTS: usize = 5;
-
 /// Minimum error check interval in seconds (used in `on_error`).
 pub const MIN_ERROR_CHECK_INTERVAL_SECS: u64 = 1;
