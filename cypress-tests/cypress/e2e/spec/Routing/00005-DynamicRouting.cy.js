@@ -125,6 +125,8 @@ describe("Dynamic Routing Test", () => {
 
     it("payment-routing-test", () => {
       if (!shouldContinue) return;
+      // Dynamic routing can route to either stripe or adyen
+      // The connector field validation is handled in commands.js
       const data =
         utils.getConnectorDetails("adyen")["card_pm"]["No3DSAutoCapture"];
       cy.createConfirmPaymentDynamicRouting(

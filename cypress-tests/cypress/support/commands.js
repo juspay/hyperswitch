@@ -7226,7 +7226,12 @@ Cypress.Commands.add(
           }
 
           for (const key in resData.body) {
-            expect(resData.body[key], [key]).to.deep.equal(response.body[key]);
+            // Skip connector comparison for dynamic routing - either stripe or adyen is valid
+            if (key === "connector") {
+              expect(response.body[key]).to.be.oneOf(["adyen", "stripe"]);
+            } else {
+              expect(resData.body[key], [key]).to.deep.equal(response.body[key]);
+            }
           }
         } else {
           defaultErrorHandler(response, resData);
