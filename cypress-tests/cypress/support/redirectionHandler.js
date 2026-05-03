@@ -187,7 +187,9 @@ function payLaterRedirection(
           case "klarna":
           case "aci":
             // Klarna via various connectors - verify we land on Klarna page
-            cy.log(`Handling ${connectorId} ${paymentMethodType} pay_later flow`);
+            cy.log(
+              `Handling ${connectorId} ${paymentMethodType} pay_later flow`
+            );
 
             // Verify the page loaded by checking for Klarna-specific content
             // Klarna playground shows payment forms or consent pages
