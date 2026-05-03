@@ -4,8 +4,7 @@
 //! and deserialization while calling redis.
 //! It also includes instruments to provide tracing.
 
-use std::collections::HashMap;
-use std::fmt::Debug;
+use std::{collections::HashMap, fmt::Debug};
 
 use common_utils::{
     errors::CustomResult,
@@ -1318,11 +1317,12 @@ impl super::RedisConnectionPool {
 
 #[cfg(test)]
 mod tests {
+    use std::collections::HashMap;
+
     use crate::{
         errors::RedisError, ConsumerGroupDestroyReply, RedisConnectionPool, RedisEntryId,
         RedisSettings, StreamCapKind, StreamCapTrim, StreamTrimConfig,
     };
-    use std::collections::HashMap;
 
     /// Generate a unique ID for test key isolation.
     /// Uses thread ID + nanoseconds to avoid collisions in parallel test runs.
