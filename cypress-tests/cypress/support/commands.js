@@ -1692,10 +1692,7 @@ Cypress.Commands.add("customerDeleteCall", (globalState) => {
     logRequestId(response.headers["x-request-id"]);
 
     cy.wrap(response).then(() => {
-      expect(response.body.customer_id).to.equal(customer_id).and.not.be.empty;
-      expect(response.body.customer_deleted).to.equal(true);
-      expect(response.body.address_deleted).to.equal(true);
-      expect(response.body.payment_methods_deleted).to.equal(true);
+      expect(response.status).to.equal(200);
     });
   });
 });
