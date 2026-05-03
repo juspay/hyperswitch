@@ -31,6 +31,15 @@ const failedNo3DSCardDetails = {
   card_cvc: "737",
 };
 
+// Checkout.com partial authorization test card (provided via sandbox dashboard)
+const partialAuthCardDetails = {
+  card_number: "5518207720770101",
+  card_exp_month: "12",
+  card_exp_year: "2027",
+  card_holder_name: "CL-BRW2",
+  card_cvc: "152",
+};
+
 const singleUseMandateData = {
   customer_acceptance: customerAcceptance,
   mandate_type: {
@@ -781,7 +790,7 @@ export const connectorDetails = {
       Request: {
         payment_method: "card",
         payment_method_data: {
-          card: successfulNo3DSCardDetails,
+          card: partialAuthCardDetails,
         },
         enable_partial_authorization: true,
         customer_acceptance: null,
@@ -790,7 +799,7 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "succeeded",
+          status: "partially_captured",
         },
       },
     },
