@@ -7230,7 +7230,9 @@ Cypress.Commands.add(
             if (key === "connector") {
               expect(response.body[key]).to.be.oneOf(["adyen", "stripe"]);
             } else {
-              expect(resData.body[key], [key]).to.deep.equal(response.body[key]);
+              expect(resData.body[key], [key]).to.deep.equal(
+                response.body[key]
+              );
             }
           }
         } else {
