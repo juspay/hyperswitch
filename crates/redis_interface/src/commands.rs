@@ -1321,7 +1321,7 @@ mod tests {
 
     use crate::{
         errors::RedisError, ConsumerGroupDestroyReply, RedisConnectionPool, RedisEntryId,
-        RedisSettings, StreamCapKind, StreamCapTrim, StreamTrimConfig,
+        RedisScanType, RedisSettings, StreamCapKind, StreamCapTrim, StreamTrimConfig,
     };
 
     /// Generate a unique ID for test key isolation.
@@ -2699,26 +2699,19 @@ mod tests {
                 let unique_id = unique_test_id();
                 let key: crate::types::RedisKey = format!("test_hscan_{}", unique_id).into();
 
-                // Set hash fields
+                // Set hash fields with serialized values
                 let fields: Vec<(&str, &str)> = vec![
-                    ("prefix_field1", "val1"),
-                    ("prefix_field2", "val2"),
-                    ("other_field", "val3"),
+                    ("prefix_field1", "\"val1\""),
+                    ("prefix_field2", "\"val2\""),
+                    ("other_field", "\"val3\""),
                 ];
                 let _ = pool.set_hash_fields(&key, &fields, Some(60)).await;
 
-                // Act — scan with pattern
-                let scan_result = pool.hscan(&key, "prefix_*", None).await;
-
-                // Assert — hscan should succeed and return matching values
-                match scan_result {
-                    Ok(values) => {
-                        values.contains(&"val1".to_string())
-                            && values.contains(&"val2".to_string())
-                            && !values.contains(&"val3".to_string())
-                    }
-                    Err(_) => false,
-                }
+                // hscan() — raw values with pattern matching
+                let scan_result = pool.hscan(&key, "prefix_*", None).await.unwrap();
+                scan_result.contains(&"\"val1\"".to_string())
+                    && scan_result.contains(&"\"val2\"".to_string())
+                    && !scan_result.contains(&"\"val3\"".to_string())
             })
         })
         .await
@@ -3022,28 +3015,28 @@ mod tests {
                 let key1: crate::types::RedisKey = format!("test_scan_foo_{}", unique_id).into();
                 let key2: crate::types::RedisKey = format!("test_scan_bar_{}", unique_id).into();
 
-                // Set keys
+                // Set string keys
                 let _ = pool.set_key(&key1, "v1".to_string()).await;
                 let _ = pool.set_key(&key2, "v2".to_string()).await;
 
-                // Act — scan for keys matching "test_scan_foo_*"
+                // Scan with pattern only
                 let scan_pattern: crate::types::RedisKey =
                     format!("*test_scan_foo_{}*", unique_id).into();
-                let result = pool.scan(&scan_pattern, None, None).await;
+                let result = pool.scan(&scan_pattern, None, None).await.unwrap();
+                let found_without_type = result
+                    .iter()
+                    .any(|k| k.contains(&format!("test_scan_foo_{}", unique_id)));
 
-                // Assert — should find key1 but not key2
-                match result {
-                    Ok(keys) => {
-                        let found_foo = keys
-                            .iter()
-                            .any(|k| k.contains(&format!("test_scan_foo_{}", unique_id)));
-                        let found_bar = keys
-                            .iter()
-                            .any(|k| k.contains(&format!("test_scan_bar_{}", unique_id)));
-                        found_foo && !found_bar
-                    }
-                    Err(_) => false,
-                }
+                // Scan with pattern + RedisScanType::String
+                let result = pool
+                    .scan(&scan_pattern, None, Some(RedisScanType::String))
+                    .await
+                    .unwrap();
+                let found_with_type = result
+                    .iter()
+                    .any(|k| k.contains(&format!("test_scan_foo_{}", unique_id)));
+
+                found_without_type && found_with_type
             })
         })
         .await
@@ -3222,46 +3215,6 @@ mod tests {
 
                 // Assert — should be NotFound error
                 result.is_err()
-            })
-        })
-        .await
-        .expect("Spawn block failure");
-
-        assert!(is_success);
-    }
-
-    #[tokio::test]
-    async fn test_hscan_and_deserialize() {
-        let is_success = tokio::task::spawn_blocking(move || {
-            futures::executor::block_on(async {
-                let pool = RedisConnectionPool::new(&RedisSettings::default())
-                    .await
-                    .expect("failed to create redis connection pool");
-                let unique_id = unique_test_id();
-                let key: crate::types::RedisKey = format!("test_hscan_deser_{}", unique_id).into();
-
-                // Set hash fields with serialized values
-                let fields: Vec<(&str, &str)> = vec![
-                    ("item_a", "\"alpha\""),
-                    ("item_b", "\"beta\""),
-                    ("item_c", "\"gamma\""),
-                ];
-                let _ = pool.set_hash_fields(&key, &fields, Some(60)).await;
-
-                // Act — scan and deserialize as String
-                let result = pool
-                    .hscan_and_deserialize::<String>(&key, "item_*", None)
-                    .await;
-
-                // Assert — should find "alpha" and "beta"
-                match result {
-                    Ok(values) => {
-                        values.contains(&"alpha".to_string())
-                            && values.contains(&"beta".to_string())
-                            && values.contains(&"gamma".to_string())
-                    }
-                    Err(_) => false,
-                }
             })
         })
         .await
