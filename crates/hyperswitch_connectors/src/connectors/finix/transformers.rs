@@ -248,7 +248,7 @@ fn get_billing_address_as_finix_address<Flow, Req, Res>(
             line1: billing_address.get_optional_line1(),
             line2: billing_address.get_optional_line2(),
             city: billing_address.get_optional_city(),
-            region: billing_address.get_optional_state(),
+            region: billing_address.to_state_code_as_optional().ok().flatten(),
             postal_code: billing_address.get_optional_zip(),
             country: billing_address
                 .get_optional_country()
