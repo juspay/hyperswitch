@@ -1294,6 +1294,19 @@ pub async fn create_persistent_payment_method_core(
             )
             .await
         }
+        api::PaymentMethodCreateData::BankRedirect(_) => {
+            create_payment_method_bank_redirect_core(
+                state,
+                req,
+                platform,
+                profile,
+                merchant_id,
+                &customer_id,
+                payment_method_id,
+                payment_method_billing_address,
+            )
+            .await
+        }
     }
 }
 
@@ -1376,6 +1389,11 @@ pub async fn create_volatile_payment_method_core(
         api::PaymentMethodCreateData::Wallet(_) => {
             Err(report!(errors::ApiErrorResponse::UnprocessableEntity {
                 message: "Wallet payment method cannot be created as volatile".to_string()
+            }))
+        }
+        api::PaymentMethodCreateData::BankRedirect(_) => {
+            Err(report!(errors::ApiErrorResponse::UnprocessableEntity {
+                message: "Bank redirect payment method cannot be created as volatile".to_string()
             }))
         }
     }
@@ -2118,6 +2136,81 @@ async fn create_or_fetch_payment_method_core(
         billing_address,
     ))
     .await
+}
+
+#[cfg(feature = "v2")]
+#[allow(clippy::too_many_arguments)]
+pub async fn create_payment_method_bank_redirect_core(
+    state: &SessionState,
+    req: api::PaymentMethodCreate,
+    platform: &domain::Platform,
+    profile: &domain::Profile,
+    merchant_id: &id_type::MerchantId,
+    customer_id: &id_type::GlobalCustomerId,
+    payment_method_id: id_type::GlobalPaymentMethodId,
+    billing_address: Option<Encryptable<hyperswitch_domain_models::address::Address>>,
+) -> RouterResult<(api::PaymentMethodResponse, domain::PaymentMethod)> {
+    let db = &*state.store;
+
+    let existing_payment_methods = db
+        .find_payment_method_by_global_customer_id_merchant_id_statuses(
+            platform.get_provider().get_key_store(),
+            customer_id,
+            merchant_id,
+            vec![
+                enums::PaymentMethodStatus::Active,
+                enums::PaymentMethodStatus::New,
+            ],
+            None,
+            platform.get_provider().get_account().storage_scheme,
+        )
+        .await;
+
+    let existing_wallet_pm = existing_payment_methods.ok().and_then(|pms| {
+        pms.into_iter()
+            .find(|pm| pm.get_payment_method_subtype() == req.payment_method_subtype)
+    });
+
+    let payment_method = match existing_wallet_pm {
+        Some(existing_pm) => {
+            logger::debug!("Payment method is duplicate, returning existing payment method record");
+            existing_pm
+        }
+        None => {
+            logger::debug!("Payment method is new, creating a new payment method record");
+            create_payment_method_for_confirm(
+                state,
+                customer_id,
+                payment_method_id,
+                None,
+                merchant_id,
+                platform.get_provider().get_key_store(),
+                platform.get_provider().get_account().storage_scheme,
+                req.payment_method_type,
+                req.payment_method_subtype,
+                billing_address,
+                None,
+                None,
+                None,
+                platform.get_initiator(),
+                enums::PaymentMethodStatus::New,
+            )
+            .await?
+        }
+    };
+
+    let payment_method_response = pm_transforms::generate_payment_method_response(
+        &payment_method,
+        &None,
+        req.storage_type,
+        None,
+        req.customer_id,
+        None,
+        None,
+        None,
+    )?;
+
+    Ok((payment_method_response, payment_method))
 }
 
 #[cfg(feature = "v2")]
@@ -3177,6 +3270,12 @@ impl PaymentMethodExt for payment_methods::PaymentMethodCreateData {
                     ))
                 }
             },
+            Self::BankRedirect(bank_redirect_data) => {
+                Err(report!(errors::ApiErrorResponse::UnprocessableEntity {
+                    message: "Bank redirect payment method data is not supported".to_string()
+                }))
+                .attach_printable("Bank redirect payment method data is not supported")
+            }
         }
     }
 
@@ -3185,7 +3284,7 @@ impl PaymentMethodExt for payment_methods::PaymentMethodCreateData {
             Self::ProxyCard(card_details) => Some(payment_methods::ExternalVaultTokenData {
                 tokenized_card_number: card_details.card_number,
             }),
-            Self::Card(_) | Self::BankDebit(_) | Self::Wallet(_) => None,
+            Self::Card(_) | Self::BankDebit(_) | Self::Wallet(_) | Self::BankRedirect(_) => None,
         }
     }
 }
@@ -4968,6 +5067,32 @@ pub async fn retrieve_payment_method(
     .map(services::ApplicationResponse::Json)
 }
 
+#[cfg(all(feature = "v2", feature = "olap"))]
+#[instrument(skip_all)]
+pub async fn retrieve_payment_method_olap(
+    state: SessionState,
+    pm: api::PaymentMethodId,
+    profile: domain::Profile,
+    platform: domain::Platform,
+) -> RouterResponse<api::PaymentMethodDetailsResponse> {
+    let response = Box::pin(retrieve_payment_method(
+        state,
+        pm,
+        profile,
+        platform,
+        enums::ApiKeyType::External,
+        false,
+    ))
+    .await?
+    .get_json_body()
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable("Failed to get payment method response body")?;
+
+    Ok(services::ApplicationResponse::Json(
+        api::PaymentMethodDetailsResponse::from(response),
+    ))
+}
+
 #[cfg(feature = "v2")]
 #[instrument(skip_all)]
 pub async fn fetch_payment_method_by_storage(
@@ -5178,11 +5303,13 @@ impl RawPaymentMethodFetchAccess {
             }
 
             Self::Allowed => {
-                let is_wallet =
-                    payment_method.payment_method_type == Some(enums::PaymentMethod::Wallet);
+                let should_skip_vault_fetch = matches!(
+                    payment_method.payment_method_type,
+                    Some(enums::PaymentMethod::Wallet) | Some(enums::PaymentMethod::BankRedirect)
+                );
 
-                if is_wallet {
-                    logger::debug!("Skipping raw payment method fetch for wallet payment method");
+                if should_skip_vault_fetch {
+                    logger::debug!("Skipping raw payment method fetch for wallet or bank redirect payment method");
                     Ok(None)
                 } else {
                     let vault_data = vault::retrieve_payment_method_data_from_storage(
