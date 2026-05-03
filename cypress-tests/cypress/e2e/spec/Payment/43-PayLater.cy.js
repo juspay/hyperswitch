@@ -5,173 +5,152 @@ import getConnectorDetails, * as utils from "../../configs/Payment/Utils";
 let globalState;
 
 describe("PayLater tests", () => {
+  before("seed global state", () => {
+    cy.task("getGlobalState").then((state) => {
+      globalState = new State(state);
+    });
+  });
+
   afterEach("flush global state", () => {
     cy.task("setGlobalState", globalState.data);
   });
 
-  context("Klarna PayLater - Auto Capture flow test", function () {
-    let shouldContinue = true;
+  context("Klarna PayLater - Auto Capture flow test", () => {
+    it("Create Payment Intent -> List Merchant Payment Methods -> Confirm Payment -> Handle PayLater Redirection", () => {
+      let shouldContinue = true;
 
-    before(function () {
-      cy.task("getGlobalState")
-        .then((state) => {
-          globalState = new State(state);
-          if (
-            utils.shouldIncludeConnector(
-              globalState.get("connectorId"),
-              utils.CONNECTOR_LISTS.INCLUDE.PAY_LATER
-            )
-          ) {
-            shouldContinue = false;
-          }
-        })
-        .then(() => {
-          if (!shouldContinue) {
-            this.skip();
-          }
-        });
-    });
+      cy.step("Create Payment Intent", () => {
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "pay_later_pm"
+        ]["AutoCapture"];
+        cy.createPaymentIntentTest(
+          fixtures.createPaymentBody,
+          data,
+          "three_ds",
+          "automatic",
+          globalState
+        );
+        if (!utils.should_continue_further(data)) {
+          shouldContinue = false;
+        }
+      });
 
-    it("create-payment-call-test", () => {
-      const data = getConnectorDetails(globalState.get("connectorId"))[
-        "pay_later_pm"
-      ]["AutoCapture"];
-      cy.createPaymentIntentTest(
-        fixtures.createPaymentBody,
-        data,
-        "three_ds",
-        "automatic",
-        globalState
-      );
-      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
-    });
+      cy.step("List Merchant Payment Methods", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: List Merchant Payment Methods");
+          return;
+        }
+        cy.paymentMethodsCallTest(globalState);
+      });
 
-    it("payment_methods-call-test", () => {
-      if (!shouldContinue) return;
-      cy.paymentMethodsCallTest(globalState);
-    });
+      cy.step("Confirm Payment", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: Confirm Payment");
+          return;
+        }
+        const confirmData = getConnectorDetails(globalState.get("connectorId"))[
+          "pay_later_pm"
+        ]["Klarna"];
+        cy.confirmBankRedirectCallTest(
+          fixtures.confirmBody,
+          confirmData,
+          true,
+          globalState
+        );
+        if (!utils.should_continue_further(confirmData)) {
+          shouldContinue = false;
+        }
+      });
 
-    it("confirm-paylater-redirect-test", () => {
-      if (!shouldContinue) return;
-      const data = getConnectorDetails(globalState.get("connectorId"))[
-        "pay_later_pm"
-      ]["Klarna"];
-      cy.confirmBankRedirectCallTest(
-        fixtures.confirmBody,
-        data,
-        true,
-        globalState
-      );
-      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
-    });
-
-    it("verify-klarna-redirect-url-test", () => {
-      if (!shouldContinue) return;
-      const nextActionUrl = globalState.get("nextActionUrl");
-      if (!nextActionUrl) {
-        cy.log("No redirect URL found - skipping redirect verification");
-        return;
-      }
-      const expected_redirection =
-        globalState.get("baseUrl") + "/payments/completion";
-      cy.handlePayLaterRedirection(globalState, "klarna", expected_redirection);
-      shouldContinue = false;
-    });
-
-    it("verify-paylater-status-test", () => {
-      const data = getConnectorDetails(globalState.get("connectorId"))[
-        "pay_later_pm"
-      ]["Klarna"];
-      cy.retrievePaymentCallTest({ globalState, data });
+      cy.step("Handle PayLater Redirection", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: Handle PayLater Redirection");
+          return;
+        }
+        const expected_redirection =
+          globalState.get("baseUrl") + "/payments/completion";
+        const payment_method_type = globalState.get("paymentMethodType");
+        cy.handlePayLaterRedirection(
+          globalState,
+          payment_method_type,
+          expected_redirection
+        );
+      });
     });
   });
 
-  context("Klarna PayLater - Manual Capture flow test", function () {
-    let shouldContinue = true;
+  context("Klarna PayLater - Manual Capture flow test", () => {
+    it("Create Payment Intent -> List Merchant Payment Methods -> Confirm Payment -> Handle PayLater Redirection -> Capture Payment", () => {
+      let shouldContinue = true;
 
-    before(function () {
-      cy.task("getGlobalState")
-        .then((state) => {
-          globalState = new State(state);
-          if (
-            utils.shouldIncludeConnector(
-              globalState.get("connectorId"),
-              utils.CONNECTOR_LISTS.INCLUDE.PAY_LATER
-            )
-          ) {
-            shouldContinue = false;
-          }
-        })
-        .then(() => {
-          if (!shouldContinue) {
-            this.skip();
-          }
-        });
-    });
+      cy.step("Create Payment Intent", () => {
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "pay_later_pm"
+        ]["ManualCapture"];
+        cy.createPaymentIntentTest(
+          fixtures.createPaymentBody,
+          data,
+          "three_ds",
+          "manual",
+          globalState
+        );
+        if (!utils.should_continue_further(data)) {
+          shouldContinue = false;
+        }
+      });
 
-    it("create-payment-call-test", () => {
-      const data = getConnectorDetails(globalState.get("connectorId"))[
-        "pay_later_pm"
-      ]["ManualCapture"];
-      cy.createPaymentIntentTest(
-        fixtures.createPaymentBody,
-        data,
-        "three_ds",
-        "manual",
-        globalState
-      );
-      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
-    });
+      cy.step("List Merchant Payment Methods", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: List Merchant Payment Methods");
+          return;
+        }
+        cy.paymentMethodsCallTest(globalState);
+      });
 
-    it("payment_methods-call-test", () => {
-      if (!shouldContinue) return;
-      cy.paymentMethodsCallTest(globalState);
-    });
+      cy.step("Confirm Payment", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: Confirm Payment");
+          return;
+        }
+        const confirmData = getConnectorDetails(globalState.get("connectorId"))[
+          "pay_later_pm"
+        ]["Klarna"];
+        cy.confirmBankRedirectCallTest(
+          fixtures.confirmBody,
+          confirmData,
+          true,
+          globalState
+        );
+        if (!utils.should_continue_further(confirmData)) {
+          shouldContinue = false;
+        }
+      });
 
-    it("confirm-paylater-redirect-test", () => {
-      if (!shouldContinue) return;
-      const data = getConnectorDetails(globalState.get("connectorId"))[
-        "pay_later_pm"
-      ]["Klarna"];
-      cy.confirmBankRedirectCallTest(
-        fixtures.confirmBody,
-        data,
-        true,
-        globalState
-      );
-      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
-    });
+      cy.step("Handle PayLater Redirection", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: Handle PayLater Redirection");
+          return;
+        }
+        const expected_redirection =
+          globalState.get("baseUrl") + "/payments/completion";
+        const payment_method_type = globalState.get("paymentMethodType");
+        cy.handlePayLaterRedirection(
+          globalState,
+          payment_method_type,
+          expected_redirection
+        );
+      });
 
-    it("verify-klarna-redirect-url-test", () => {
-      if (!shouldContinue) return;
-      const nextActionUrl = globalState.get("nextActionUrl");
-      if (!nextActionUrl) {
-        cy.log("No redirect URL found - skipping redirect verification");
-        return;
-      }
-      const expected_redirection =
-        globalState.get("baseUrl") + "/payments/completion";
-      cy.handlePayLaterRedirection(globalState, "klarna", expected_redirection);
-      shouldContinue = false;
-    });
-
-    it("capture-paylater-call-test", () => {
-      if (!shouldContinue) {
-        cy.task("cli_log", "Skipping step: capture (redirect not completed)");
-        return;
-      }
-      const data = getConnectorDetails(globalState.get("connectorId"))[
-        "pay_later_pm"
-      ]["Capture"];
-      cy.captureCallTest(fixtures.captureBody, data, globalState);
-      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
-    });
-
-    it("verify-paylater-status-test", () => {
-      const data = getConnectorDetails(globalState.get("connectorId"))[
-        "pay_later_pm"
-      ]["Klarna"];
-      cy.retrievePaymentCallTest({ globalState, data });
+      cy.step("Capture Payment", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: Capture Payment");
+          return;
+        }
+        const captureData = getConnectorDetails(globalState.get("connectorId"))[
+          "pay_later_pm"
+        ]["Capture"];
+        cy.captureCallTest(fixtures.captureBody, captureData, globalState);
+      });
     });
   });
 });
