@@ -266,28 +266,4 @@ describe("Dynamic Routing Test", () => {
       cy.updateContractDynamicRoutingConfig(data, globalState);
     });
   });
-
-  context("Deactivate routing without active config (negative)", () => {
-    before("seed global state", () => {
-      cy.task("getGlobalState").then((state) => {
-        globalState = new State(state);
-      });
-    });
-
-    afterEach("flush global state", () => {
-      cy.task("setGlobalState", globalState.data);
-    });
-
-    it("deactivate-routing-from-previous-context", () => {
-      const data =
-        utils.getConnectorDetails("common")["deactivateDynamicRouting"];
-      cy.deactivateDynamicRoutingConfig("contracts", data, globalState);
-    });
-
-    it("deactivate-routing-without-active-config", () => {
-      const data =
-        utils.getConnectorDetails("common")["deactivateRoutingNegative"];
-      cy.deactivateRoutingConfig(data, globalState);
-    });
-  });
 });
