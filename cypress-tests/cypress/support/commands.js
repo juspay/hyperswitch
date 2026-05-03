@@ -7127,7 +7127,7 @@ Cypress.Commands.add(
 Cypress.Commands.add(
   "listCardIssuers",
   (query, limit, globalState) => {
-    const apiKey = globalState.get("adminApiKey");
+    const apiKey = globalState.get("apiKey");
     const baseUrl = globalState.get("baseUrl");
     const queryParams = [];
     if (query) queryParams.push(`query=${encodeURIComponent(query)}`);
