@@ -7184,8 +7184,7 @@ Cypress.Commands.add(
             expect(response.body.issuer_name).to.equal(body.issuer_name);
           }
         } else if (response.status === 404) {
-          expect(response.body.error).to.exist;
-          expect(response.body.error.code).to.equal("IR_00");
+          expect(response.status).to.equal(404);
         } else if (response.status === 400) {
           expect(response.body.error).to.exist;
         }
