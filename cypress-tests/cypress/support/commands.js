@@ -5315,6 +5315,35 @@ Cypress.Commands.add("incrementalAuth", (globalState, data) => {
   });
 });
 
+Cypress.Commands.add("extendAuthorization", (globalState, data) => {
+  const { Request: reqData, Response: resData } = data || {};
+
+  const baseUrl = globalState.get("baseUrl");
+  const paymentId = globalState.get("paymentID");
+  const apiKey = globalState.get("apiKey");
+  const url = `${baseUrl}/payments/${paymentId}/extend_authorization`;
+
+  cy.request({
+    method: "POST",
+    url: url,
+    headers: {
+      "api-key": apiKey,
+      "Content-Type": "application/json",
+    },
+    body: reqData || {},
+    failOnStatusCode: false,
+  }).then((response) => {
+    logRequestId(response.headers["x-request-id"]);
+
+    cy.wrap(response).then(() => {
+      if (response.status === 200) {
+        expect(response.body.payment_id, "payment_id").to.equal(paymentId);
+        expect(response.body.status, "status").to.equal(resData.body.status);
+      }
+    });
+  });
+});
+
 Cypress.Commands.add("setConfigs", (globalState, key, value, requestType) => {
   if (!key || !requestType) {
     throw new Error("Key and requestType are required parameters");

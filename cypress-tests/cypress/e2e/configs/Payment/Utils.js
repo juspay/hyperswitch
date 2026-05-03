@@ -453,6 +453,7 @@ export const CONNECTOR_LISTS = {
     MANDATES_USING_NTID_PROXY: ["cybersource", "checkout"],
     INCREMENTAL_AUTH: [
       "archipel",
+      "adyen",
       // "cybersource",    // issues with MULTIPLE_CONNECTORS handling
       "paypal",
       // "stripe",
@@ -544,6 +545,7 @@ export const CONNECTOR_LISTS = {
     PARTNER_MERCHANT_IDENTIFIER: ["adyen", "checkout"],
     GIFT_CARD: ["adyen"],
     AUTH_SERVICE_ELIGIBILITY: ["stripe", "cybersource"],
+    EXTEND_AUTHORIZATION: ["adyen", "paypal"],
     // Add more inclusion lists
   },
 };
