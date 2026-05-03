@@ -11518,7 +11518,7 @@ pub struct FeatureMetadata {
     pub boleto_additional_details: Option<BoletoAdditionalDetails>,
     /// Pix Automatico additional details for Push and QR flows
     pub pix_automatico_additional_details: Option<PixAutomaticoAdditionalDetails>,
-    /// Extra information for Finix connector
+    /// Extra information for Finix connector for fraud checks and risk evaluation
     pub finix_additional_details: Option<FinixAdditionalDetails>,
 }
 
@@ -11630,7 +11630,7 @@ pub struct FeatureMetadata {
     /// Pix Automatico additional details for Push Notification and QR based flows
     #[smithy(value_type = "Option<PixAutomaticoAdditionalDetails>")]
     pub pix_automatico_additional_details: Option<PixAutomaticoAdditionalDetails>,
-    /// Extra information for Finix connector
+    /// Extra information for Finix connector for fraud checks and risk evaluation
     #[smithy(value_type = "Option<FinixAdditionalDetails>")]
     pub finix_additional_details: Option<FinixAdditionalDetails>,
 }
