@@ -748,6 +748,42 @@ export const connectorDetails = {
         },
       },
     },
+    PaymentIntentWithFeatureMetadata: {
+      Request: {
+        currency: "USD",
+        amount: 6540,
+        feature_metadata: {
+          search_tags: ["qa-test", "feature-metadata-test", "automated"],
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+        },
+      },
+    },
+    PaymentWithFeatureMetadata: {
+      Request: {
+        currency: "USD",
+        amount: 6540,
+        feature_metadata: {
+          search_tags: ["qa-test", "feature-metadata-test"],
+        },
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    },
   },
   pm_list: {
     PmListResponse: {
