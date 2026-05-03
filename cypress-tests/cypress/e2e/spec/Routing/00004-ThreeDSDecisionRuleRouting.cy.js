@@ -332,129 +332,126 @@ describe("3DS Decision Rule Based Routing Test", () => {
     }
   );
 
-  context(
-    "3DS Decision Rule - three_ds manual capture flow via Stripe",
-    () => {
-      before("seed global state", () => {
-        cy.task("getGlobalState").then((state) => {
-          globalState = new State(state);
-        });
+  context("3DS Decision Rule - three_ds manual capture flow via Stripe", () => {
+    before("seed global state", () => {
+      cy.task("getGlobalState").then((state) => {
+        globalState = new State(state);
       });
+    });
 
-      after("flush global state", () => {
-        cy.task("setGlobalState", globalState.data);
-      });
+    after("flush global state", () => {
+      cy.task("setGlobalState", globalState.data);
+    });
 
-      it("retrieve-mca", () => {
-        cy.ListMcaByMid(globalState);
-      });
+    it("retrieve-mca", () => {
+      cy.ListMcaByMid(globalState);
+    });
 
-      it("api-key-create-call-test", () => {
-        cy.apiKeyCreateTest(fixtures.apiKeyCreateBody, globalState);
-      });
+    it("api-key-create-call-test", () => {
+      cy.apiKeyCreateTest(fixtures.apiKeyCreateBody, globalState);
+    });
 
-      it("customer-create-call-test", () => {
-        cy.createCustomerCallTest(fixtures.customerCreateBody, globalState);
-      });
+    it("customer-create-call-test", () => {
+      cy.createCustomerCallTest(fixtures.customerCreateBody, globalState);
+    });
 
-      it("add-routing-config", () => {
-        const data = utils.getConnectorDetails("common")["ruleBasedRouting"];
-        const routing_data = {
-          defaultSelection: {
-            type: "priority",
-            data: [
-              {
-                connector: "adyen",
-                merchant_connector_id: globalState.get("adyenMcaId"),
-              },
-            ],
-          },
-          metadata: {},
-          rules: [
+    it("add-routing-config", () => {
+      const data = utils.getConnectorDetails("common")["ruleBasedRouting"];
+      const routing_data = {
+        defaultSelection: {
+          type: "priority",
+          data: [
             {
-              name: "rule_1",
-              connectorSelection: {
-                type: "priority",
-                data: [
-                  {
-                    connector: "stripe",
-                    merchant_connector_id: globalState.get("stripeMcaId"),
-                  },
-                ],
-              },
-              statements: [
+              connector: "adyen",
+              merchant_connector_id: globalState.get("adyenMcaId"),
+            },
+          ],
+        },
+        metadata: {},
+        rules: [
+          {
+            name: "rule_1",
+            connectorSelection: {
+              type: "priority",
+              data: [
                 {
-                  condition: [
-                    {
-                      lhs: "authentication_type",
-                      comparison: "equal",
-                      value: {
-                        type: "enum_variant",
-                        value: "three_ds",
-                      },
-                      metadata: {},
-                    },
-                  ],
+                  connector: "stripe",
+                  merchant_connector_id: globalState.get("stripeMcaId"),
                 },
               ],
             },
-          ],
-        };
+            statements: [
+              {
+                condition: [
+                  {
+                    lhs: "authentication_type",
+                    comparison: "equal",
+                    value: {
+                      type: "enum_variant",
+                      value: "three_ds",
+                    },
+                    metadata: {},
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      };
 
-        cy.addRoutingConfig(
-          fixtures.routingConfigBody,
-          data,
-          "advanced",
-          routing_data,
-          globalState
-        );
-      });
+      cy.addRoutingConfig(
+        fixtures.routingConfigBody,
+        data,
+        "advanced",
+        routing_data,
+        globalState
+      );
+    });
 
-      it("retrieve-routing-call-test", () => {
-        const data = utils.getConnectorDetails("common")["ruleBasedRouting"];
-        cy.retrieveRoutingConfig(data, globalState);
-      });
+    it("retrieve-routing-call-test", () => {
+      const data = utils.getConnectorDetails("common")["ruleBasedRouting"];
+      cy.retrieveRoutingConfig(data, globalState);
+    });
 
-      it("activate-routing-call-test", () => {
-        const data = utils.getConnectorDetails("common")["ruleBasedRouting"];
-        cy.activateRoutingConfig(data, globalState);
-      });
+    it("activate-routing-call-test", () => {
+      const data = utils.getConnectorDetails("common")["ruleBasedRouting"];
+      cy.activateRoutingConfig(data, globalState);
+    });
 
-      it("create-payment-call-test-three-ds-manual-capture", () => {
-        const data =
-          utils.getConnectorDetails("stripe")["card_pm"]["PaymentIntent"];
+    it("create-payment-call-test-three-ds-manual-capture", () => {
+      const data =
+        utils.getConnectorDetails("stripe")["card_pm"]["PaymentIntent"];
 
-        cy.createPaymentIntentTest(
-          fixtures.createPaymentBody,
-          data,
-          "three_ds",
-          "manual",
-          globalState
-        );
-      });
+      cy.createPaymentIntentTest(
+        fixtures.createPaymentBody,
+        data,
+        "three_ds",
+        "manual",
+        globalState
+      );
+    });
 
-      it("confirm-three-ds-manual-capture", () => {
-        const data =
-          utils.getConnectorDetails("stripe")["card_pm"]["3DSManualCapture"];
+    it("confirm-three-ds-manual-capture", () => {
+      const data =
+        utils.getConnectorDetails("stripe")["card_pm"]["3DSManualCapture"];
 
-        cy.confirmCallTest(fixtures.confirmBody, data, true, globalState);
-      });
+      cy.confirmCallTest(fixtures.confirmBody, data, true, globalState);
+    });
 
-      it("handle-three-ds-redirection-manual-capture", () => {
-        const expected_redirection = fixtures.confirmBody["return_url"];
-        cy.handleRedirection(globalState, expected_redirection);
-      });
+    it("handle-three-ds-redirection-manual-capture", () => {
+      const expected_redirection = fixtures.confirmBody["return_url"];
+      cy.handleRedirection(globalState, expected_redirection);
+    });
 
-      it("capture-three-ds-payment", () => {
-        const data = utils.getConnectorDetails("stripe")["card_pm"]["Capture"];
-        cy.captureCallTest(fixtures.captureBody, data, globalState);
-      });
+    it("capture-three-ds-payment", () => {
+      const data = utils.getConnectorDetails("stripe")["card_pm"]["Capture"];
+      cy.captureCallTest(fixtures.captureBody, data, globalState);
+    });
 
-      it("retrieve-three-ds-manual-capture-payment", () => {
-        cy.retrievePaymentCallTest({ globalState });
-      });
-    }
-  );
+    it("retrieve-three-ds-manual-capture-payment", () => {
+      cy.retrievePaymentCallTest({ globalState });
+    });
+  });
 
   context(
     "3DS Decision Rule - combined authentication_type and payment_method conditions",
