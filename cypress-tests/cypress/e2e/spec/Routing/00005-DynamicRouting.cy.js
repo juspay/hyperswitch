@@ -24,21 +24,12 @@ describe("Dynamic Routing Test", () => {
 
     it("add-success-based-dynamic-routing-config", () => {
       const data = utils.getConnectorDetails("common")["dynamicRouting"];
-      const routing_data = [
-        {
-          connector: "stripe",
-          merchant_connector_id: globalState.get("stripeMcaId"),
-        },
-        {
-          connector: "adyen",
-          merchant_connector_id: globalState.get("adyenMcaId"),
-        },
-      ];
+      // Success-based dynamic routing uses decision_engine_configs, not connectors array
       cy.addDynamicRoutingConfig(
         fixtures.routingConfigBody,
         data,
         "success_based",
-        routing_data,
+        null,
         globalState
       );
       if (shouldContinue) shouldContinue = utils.should_continue_further(data);
@@ -96,21 +87,12 @@ describe("Dynamic Routing Test", () => {
 
     it("add-elimination-dynamic-routing-config", () => {
       const data = utils.getConnectorDetails("common")["dynamicRouting"];
-      const routing_data = [
-        {
-          connector: "adyen",
-          merchant_connector_id: globalState.get("adyenMcaId"),
-        },
-        {
-          connector: "stripe",
-          merchant_connector_id: globalState.get("stripeMcaId"),
-        },
-      ];
+      // Elimination dynamic routing uses decision_engine_configs, not connectors array
       cy.addDynamicRoutingConfig(
         fixtures.routingConfigBody,
         data,
         "elimination",
-        routing_data,
+        null,
         globalState
       );
       if (shouldContinue) shouldContinue = utils.should_continue_further(data);
@@ -167,8 +149,15 @@ describe("Dynamic Routing Test", () => {
     });
 
     it("add-contract-based-dynamic-routing-config", () => {
-      const data = utils.getConnectorDetails("common")["toggleRouting"];
-      cy.toggleDynamicRoutingConfig(data, globalState);
+      const data = utils.getConnectorDetails("common")["dynamicRouting"];
+      // Contract-based dynamic routing uses decision_engine_configs, not connectors array
+      cy.addDynamicRoutingConfig(
+        fixtures.routingConfigBody,
+        data,
+        "contracts",
+        null,
+        globalState
+      );
       if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
 

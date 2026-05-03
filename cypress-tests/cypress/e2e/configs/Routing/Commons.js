@@ -68,8 +68,10 @@ export const connectorDetails = {
   },
   dynamicRouting: {
     Request: {
-      algorithm_for: "payment",
-      connectors: [],
+      decision_engine_configs: {
+        defaultBucketSize: 200,
+        defaultHedgingPercent: 5,
+      },
     },
     Response: {
       status: 200,

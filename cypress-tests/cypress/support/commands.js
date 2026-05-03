@@ -5179,9 +5179,9 @@ Cypress.Commands.add(
     const merchantId = globalState.get("merchantId");
     const profileId = globalState.get("profileId");
 
+    // Success-based dynamic routing uses decision_engine_configs
+    // Volume-based routing uses algorithm_for and connectors
     const body = { ...dynamicRoutingBody, ...reqData };
-    body.algorithm_for = reqData?.algorithm_for || "payment";
-    body.connectors = routing_data;
 
     cy.request({
       method: "POST",
