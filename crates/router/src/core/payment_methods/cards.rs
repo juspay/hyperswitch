@@ -4118,8 +4118,10 @@ pub async fn list_payment_methods(
                 .to_owned(),
             payment_type,
             payment_methods: payment_method_responses,
-            mandate_payment: payment_attempt.and_then(|inner| inner.mandate_details).map(
-                |d| match d {
+            mandate_payment: payment_attempt
+                .as_ref()
+                .and_then(|inner| inner.mandate_details.clone())
+                .map(|d| match d {
                     hyperswitch_domain_models::mandates::MandateDataType::SingleUse(i) => {
                         api::MandateType::SingleUse(api::MandateAmountData {
                             amount: i.amount,
@@ -4141,8 +4143,7 @@ pub async fn list_payment_methods(
                     hyperswitch_domain_models::mandates::MandateDataType::MultiUse(None) => {
                         api::MandateType::MultiUse(None)
                     }
-                },
-            ),
+                }),
             show_surcharge_breakup_screen: merchant_surcharge_configs
                 .show_surcharge_breakup_screen
                 .unwrap_or_default(),
@@ -4154,6 +4155,7 @@ pub async fn list_payment_methods(
             sdk_next_action,
             is_guest_customer,
             intent_data,
+            capture_method: payment_attempt.as_ref().and_then(|pa| pa.capture_method),
         },
     ))
 }
