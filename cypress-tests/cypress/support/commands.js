@@ -7260,3 +7260,63 @@ Cypress.Commands.add("updateCardIssuer", (id, body, globalState) => {
     });
   });
 });
+
+Cypress.Commands.add(
+  "toggleExtendedCardInfoTest",
+  (enabled, globalState) => {
+    const adminApiKey = globalState.get("adminApiKey");
+    const baseUrl = globalState.get("baseUrl");
+    const merchantId = globalState.get("merchantId");
+    const profileId = globalState.get("profileId");
+
+    cy.request({
+      method: "POST",
+      url: `${baseUrl}/account/${merchantId}/business_profile/${profileId}/toggle_extended_card_info`,
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json",
+        "api-key": adminApiKey,
+      },
+      body: { enabled },
+      failOnStatusCode: false,
+    }).then((response) => {
+      logRequestId(response.headers["x-request-id"]);
+
+      cy.wrap(response).then(() => {
+        expect(response.status, "status_code").to.equal(200);
+        expect(response.body.extended_card_info_config, "extended_card_info_config").to.not.be.null;
+        globalState.set("extendedCardInfoEnabled", enabled);
+      });
+    });
+  }
+);
+
+Cypress.Commands.add(
+  "retrieveExtendedCardInfoTest",
+  (expectedStatus, globalState) => {
+    const apiKey = globalState.get("apiKey");
+    const baseUrl = globalState.get("baseUrl");
+    const paymentId = globalState.get("paymentID");
+
+    cy.request({
+      method: "GET",
+      url: `${baseUrl}/payments/${paymentId}/extended_card_info`,
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json",
+        "api-key": apiKey,
+      },
+      failOnStatusCode: false,
+    }).then((response) => {
+      logRequestId(response.headers["x-request-id"]);
+
+      cy.wrap(response).then(() => {
+        expect(response.status, "status_code").to.equal(expectedStatus);
+        if (response.status === 200) {
+          expect(response.body, "response body").to.have.property("payload");
+          expect(response.body.payload, "payload").to.be.a("string").and.to.not.be.empty;
+        }
+      });
+    });
+  }
+);
