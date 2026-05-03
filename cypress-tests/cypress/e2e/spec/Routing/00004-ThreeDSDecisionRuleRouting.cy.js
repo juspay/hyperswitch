@@ -3,49 +3,9 @@ import State from "../../../utils/State";
 import * as utils from "../../configs/Routing/Utils";
 
 let globalState;
+let shouldContinue = true;
 
 describe("3DS Decision Rule Based Routing Test", () => {
-  beforeEach(() => {
-    cy.session("login", () => {
-      if (!globalState.get("email") || !globalState.get("password")) {
-        throw new Error("Missing login credentials in global state");
-      }
-
-      cy.userLogin(globalState)
-        .then(() => cy.terminate2Fa(globalState))
-        .then(() => cy.userInfo(globalState))
-        .then(() => {
-          const requiredKeys = [
-            "userInfoToken",
-            "merchantId",
-            "organizationId",
-            "profileId",
-          ];
-          requiredKeys.forEach((key) => {
-            if (!globalState.get(key)) {
-              throw new Error(`Missing required key after login: ${key}`);
-            }
-          });
-        });
-    });
-  });
-
-  context("Get merchant info", () => {
-    before("seed global state", () => {
-      cy.task("getGlobalState").then((state) => {
-        globalState = new State(state);
-      });
-    });
-
-    after("flush global state", () => {
-      cy.task("setGlobalState", globalState.data);
-    });
-
-    it("merchant retrieve call", () => {
-      cy.merchantRetrieveCall(globalState);
-    });
-  });
-
   context(
     "3DS Decision Rule - authentication_type is three_ds routes to Stripe, else to Adyen",
     () => {
