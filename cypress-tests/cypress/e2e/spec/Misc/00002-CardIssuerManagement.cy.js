@@ -40,7 +40,11 @@ describe("Card Issuer Management", () => {
 
     it("should update an existing card issuer", () => {
       const newName = `Updated Issuer ${Date.now()}`;
-      cy.updateCardIssuer(globalState.get("cardIssuerId"), { issuer_name: newName }, globalState);
+      cy.updateCardIssuer(
+        globalState.get("cardIssuerId"),
+        { issuer_name: newName },
+        globalState
+      );
     });
 
     it("should list card issuers with query filter", () => {
@@ -55,7 +59,8 @@ describe("Card Issuer Management", () => {
     });
 
     it("should fail to create issuer with duplicate name", () => {
-      const issuerName = globalState.get("cardIssuerName") || `Duplicate Test ${Date.now()}`;
+      const issuerName =
+        globalState.get("cardIssuerName") || `Duplicate Test ${Date.now()}`;
       cy.createCardIssuer({ issuer_name: issuerName }, globalState);
     });
   });
@@ -70,7 +75,11 @@ describe("Card Issuer Management", () => {
     });
 
     it("should fail to update non-existent issuer", () => {
-      cy.updateCardIssuer("non-existent-id-12345", { issuer_name: "New Name" }, globalState);
+      cy.updateCardIssuer(
+        "non-existent-id-12345",
+        { issuer_name: "New Name" },
+        globalState
+      );
     });
   });
 });

@@ -7088,107 +7088,98 @@ Cypress.Commands.add(
 // Card Issuer Management Commands
 // ============================================
 
-Cypress.Commands.add(
-  "createCardIssuer",
-  (body, globalState) => {
-    const apiKey = globalState.get("adminApiKey");
-    const baseUrl = globalState.get("baseUrl");
+Cypress.Commands.add("createCardIssuer", (body, globalState) => {
+  const apiKey = globalState.get("adminApiKey");
+  const baseUrl = globalState.get("baseUrl");
 
-    cy.request({
-      method: "POST",
-      url: `${baseUrl}/card_issuers`,
-      headers: {
-        "Content-Type": "application/json",
-        "api-key": apiKey,
-      },
-      body: body,
-      failOnStatusCode: false,
-    }).then((response) => {
-      logRequestId(response.headers["x-request-id"]);
+  cy.request({
+    method: "POST",
+    url: `${baseUrl}/card_issuers`,
+    headers: {
+      "Content-Type": "application/json",
+      "api-key": apiKey,
+    },
+    body: body,
+    failOnStatusCode: false,
+  }).then((response) => {
+    logRequestId(response.headers["x-request-id"]);
 
-      cy.wrap(response).then(() => {
-        if (response.status === 200) {
-          globalState.set("cardIssuerId", response.body.id);
-          globalState.set("cardIssuerName", response.body.issuer_name);
-          expect(response.body).to.have.property("id");
-          expect(response.body).to.have.property("issuer_name");
+    cy.wrap(response).then(() => {
+      if (response.status === 200) {
+        globalState.set("cardIssuerId", response.body.id);
+        globalState.set("cardIssuerName", response.body.issuer_name);
+        expect(response.body).to.have.property("id");
+        expect(response.body).to.have.property("issuer_name");
+        expect(response.body.issuer_name).to.equal(body.issuer_name);
+      } else if (response.status === 400) {
+        expect(response.body.error).to.exist;
+      } else if (response.status === 409) {
+        expect(response.body.error).to.exist;
+        expect(response.body.error.code).to.equal("IR_00");
+      }
+    });
+  });
+});
+
+Cypress.Commands.add("listCardIssuers", (query, limit, globalState) => {
+  const apiKey = globalState.get("apiKey");
+  const baseUrl = globalState.get("baseUrl");
+  const queryParams = [];
+  if (query) queryParams.push(`query=${encodeURIComponent(query)}`);
+  if (limit) queryParams.push(`limit=${limit}`);
+  const queryString = queryParams.length > 0 ? `?${queryParams.join("&")}` : "";
+
+  cy.request({
+    method: "GET",
+    url: `${baseUrl}/card_issuers${queryString}`,
+    headers: {
+      "Content-Type": "application/json",
+      "api-key": apiKey,
+    },
+    failOnStatusCode: false,
+  }).then((response) => {
+    logRequestId(response.headers["x-request-id"]);
+
+    cy.wrap(response).then(() => {
+      expect(response.status).to.equal(200);
+      if (response.body.data) {
+        expect(Array.isArray(response.body.data)).to.be.true;
+        if (limit && response.body.data.length > 0) {
+          expect(response.body.data.length).to.be.at.most(limit);
+        }
+      }
+    });
+  });
+});
+
+Cypress.Commands.add("updateCardIssuer", (id, body, globalState) => {
+  const apiKey = globalState.get("adminApiKey");
+  const baseUrl = globalState.get("baseUrl");
+
+  cy.request({
+    method: "PUT",
+    url: `${baseUrl}/card_issuers/${id}`,
+    headers: {
+      "Content-Type": "application/json",
+      "api-key": apiKey,
+    },
+    body: body,
+    failOnStatusCode: false,
+  }).then((response) => {
+    logRequestId(response.headers["x-request-id"]);
+
+    cy.wrap(response).then(() => {
+      if (response.status === 200) {
+        expect(response.body).to.have.property("id", id);
+        expect(response.body).to.have.property("issuer_name");
+        if (body.issuer_name) {
           expect(response.body.issuer_name).to.equal(body.issuer_name);
-        } else if (response.status === 400) {
-          expect(response.body.error).to.exist;
-        } else if (response.status === 409) {
-          expect(response.body.error).to.exist;
-          expect(response.body.error.code).to.equal("IR_00");
         }
-      });
+      } else if (response.status === 404) {
+        expect(response.status).to.equal(404);
+      } else if (response.status === 400) {
+        expect(response.body.error).to.exist;
+      }
     });
-  }
-);
-
-Cypress.Commands.add(
-  "listCardIssuers",
-  (query, limit, globalState) => {
-    const apiKey = globalState.get("apiKey");
-    const baseUrl = globalState.get("baseUrl");
-    const queryParams = [];
-    if (query) queryParams.push(`query=${encodeURIComponent(query)}`);
-    if (limit) queryParams.push(`limit=${limit}`);
-    const queryString = queryParams.length > 0 ? `?${queryParams.join("&")}` : "";
-
-    cy.request({
-      method: "GET",
-      url: `${baseUrl}/card_issuers${queryString}`,
-      headers: {
-        "Content-Type": "application/json",
-        "api-key": apiKey,
-      },
-      failOnStatusCode: false,
-    }).then((response) => {
-      logRequestId(response.headers["x-request-id"]);
-
-      cy.wrap(response).then(() => {
-        expect(response.status).to.equal(200);
-        if (response.body.data) {
-          expect(Array.isArray(response.body.data)).to.be.true;
-          if (limit && response.body.data.length > 0) {
-            expect(response.body.data.length).to.be.at.most(limit);
-          }
-        }
-      });
-    });
-  }
-);
-
-Cypress.Commands.add(
-  "updateCardIssuer",
-  (id, body, globalState) => {
-    const apiKey = globalState.get("adminApiKey");
-    const baseUrl = globalState.get("baseUrl");
-
-    cy.request({
-      method: "PUT",
-      url: `${baseUrl}/card_issuers/${id}`,
-      headers: {
-        "Content-Type": "application/json",
-        "api-key": apiKey,
-      },
-      body: body,
-      failOnStatusCode: false,
-    }).then((response) => {
-      logRequestId(response.headers["x-request-id"]);
-
-      cy.wrap(response).then(() => {
-        if (response.status === 200) {
-          expect(response.body).to.have.property("id", id);
-          expect(response.body).to.have.property("issuer_name");
-          if (body.issuer_name) {
-            expect(response.body.issuer_name).to.equal(body.issuer_name);
-          }
-        } else if (response.status === 404) {
-          expect(response.status).to.equal(404);
-        } else if (response.status === 400) {
-          expect(response.body.error).to.exist;
-        }
-      });
-    });
-  }
-);
+  });
+});
