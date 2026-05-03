@@ -7321,3 +7321,91 @@ Cypress.Commands.add(
     });
   }
 );
+
+Cypress.Commands.add(
+  "enableExtendedCardBinTest",
+  (enabled, globalState) => {
+    const adminApiKey = globalState.get("adminApiKey");
+    const baseUrl = globalState.get("baseUrl");
+    const profileId = globalState.get("profileId");
+    const configKey = `${profileId}_enable_extended_card_bin`;
+
+    if (enabled) {
+      cy.request({
+        method: "POST",
+        url: `${baseUrl}/configs/`,
+        headers: {
+          Accept: "application/json",
+          "Content-Type": "application/json",
+          "api-key": adminApiKey,
+        },
+        body: { key: configKey, value: "true" },
+        failOnStatusCode: false,
+      }).then((response) => {
+        logRequestId(response.headers["x-request-id"]);
+
+        cy.wrap(response).then(() => {
+          expect(response.status, "status_code").to.equal(200);
+          expect(response.body.key, "config_key").to.equal(configKey);
+          expect(response.body.value, "config_value").to.equal("true");
+          globalState.set("extendedCardBinEnabled", true);
+          globalState.set("extendedCardBinConfigKey", configKey);
+        });
+      });
+    } else {
+      cy.request({
+        method: "DELETE",
+        url: `${baseUrl}/configs/${configKey}`,
+        headers: {
+          Accept: "application/json",
+          "api-key": adminApiKey,
+        },
+        failOnStatusCode: false,
+      }).then((response) => {
+        logRequestId(response.headers["x-request-id"]);
+
+        cy.wrap(response).then(() => {
+          if (response.status === 200) {
+            globalState.set("extendedCardBinEnabled", false);
+            globalState.set("extendedCardBinConfigKey", null);
+          }
+        });
+      });
+    }
+  }
+);
+
+Cypress.Commands.add(
+  "retrievePaymentAndVerifyExtendedBinTest",
+  (expectExtendedBin, globalState) => {
+    const apiKey = globalState.get("apiKey");
+    const baseUrl = globalState.get("baseUrl");
+    const paymentId = globalState.get("paymentID");
+
+    cy.request({
+      method: "GET",
+      url: `${baseUrl}/payments/${paymentId}?force_sync=true`,
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json",
+        "api-key": apiKey,
+      },
+      failOnStatusCode: false,
+    }).then((response) => {
+      logRequestId(response.headers["x-request-id"]);
+
+      cy.wrap(response).then(() => {
+        expect(response.status, "status_code").to.equal(200);
+        expect(response.body, "response body").to.have.property("payment_method_data");
+        expect(response.body.payment_method_data, "payment_method_data").to.have.property("card");
+        
+        if (expectExtendedBin) {
+          expect(response.body.payment_method_data.card, "card_extended_bin").to.have.property("card_extended_bin");
+          expect(response.body.payment_method_data.card.card_extended_bin, "card_extended_bin value").to.equal("42424242");
+        } else {
+          expect(response.body.payment_method_data.card, "card_extended_bin absent").to.not.have.property("card_extended_bin");
+        }
+      });
+    });
+  }
+);

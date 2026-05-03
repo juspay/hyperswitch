@@ -145,4 +145,116 @@ describe("Extended Card Info Tests", () => {
       });
     }
   );
+
+  context(
+    "Extended Card BIN - Enable config, confirm payment, verify 8-digit BIN in response",
+    () => {
+      let shouldContinue = true;
+
+      beforeEach(function () {
+        if (!shouldContinue) {
+          this.skip();
+        }
+      });
+
+      after("Cleanup Extended Card BIN config", () => {
+        if (globalState.get("extendedCardBinEnabled")) {
+          cy.enableExtendedCardBinTest(false, globalState);
+        }
+      });
+
+      it("Enable Extended Card BIN via configs API", () => {
+        cy.enableExtendedCardBinTest(true, globalState);
+      });
+
+      it("Create Payment Intent", () => {
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["PaymentIntent"];
+
+        cy.createPaymentIntentTest(
+          fixtures.createPaymentBody,
+          data,
+          "no_three_ds",
+          "automatic",
+          globalState
+        );
+
+        if (!utils.should_continue_further(data)) {
+          shouldContinue = false;
+        }
+      });
+
+      it("Payment Methods Call", () => {
+        cy.paymentMethodsCallTest(globalState);
+      });
+
+      it("Confirm Payment with card (No3DS auto capture)", () => {
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["ExtendedCardInfo"];
+
+        cy.confirmCallTest(fixtures.confirmBody, data, true, globalState);
+
+        if (!utils.should_continue_further(data)) {
+          shouldContinue = false;
+        }
+      });
+
+      it("Retrieve Payment and verify extended BIN (8 digits) is present", () => {
+        cy.retrievePaymentAndVerifyExtendedBinTest(true, globalState);
+      });
+    }
+  );
+
+  context(
+    "Extended Card BIN - Without config, confirm payment, verify extended BIN is absent",
+    () => {
+      let shouldContinue = true;
+
+      beforeEach(function () {
+        if (!shouldContinue) {
+          this.skip();
+        }
+      });
+
+      it("Create Payment Intent", () => {
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["PaymentIntent"];
+
+        cy.createPaymentIntentTest(
+          fixtures.createPaymentBody,
+          data,
+          "no_three_ds",
+          "automatic",
+          globalState
+        );
+
+        if (!utils.should_continue_further(data)) {
+          shouldContinue = false;
+        }
+      });
+
+      it("Payment Methods Call", () => {
+        cy.paymentMethodsCallTest(globalState);
+      });
+
+      it("Confirm Payment with card (No3DS auto capture)", () => {
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["ExtendedCardInfo"];
+
+        cy.confirmCallTest(fixtures.confirmBody, data, true, globalState);
+
+        if (!utils.should_continue_further(data)) {
+          shouldContinue = false;
+        }
+      });
+
+      it("Retrieve Payment and verify extended BIN is absent", () => {
+        cy.retrievePaymentAndVerifyExtendedBinTest(false, globalState);
+      });
+    }
+  );
 });
