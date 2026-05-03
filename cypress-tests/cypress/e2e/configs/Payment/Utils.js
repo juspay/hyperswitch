@@ -52,11 +52,13 @@ import { connectorDetails as novalnetConnectorDetails } from "./Novalnet.js";
 import { connectorDetails as nuveiConnectorDetails } from "./Nuvei.js";
 import { connectorDetails as payboxConnectorDetails } from "./Paybox.js";
 import { connectorDetails as payloadConnectorDetails } from "./Payload.js";
+import { connectorDetails as placetopayConnectorDetails } from "./Placetopay.js";
 import { connectorDetails as paypalConnectorDetails } from "./Paypal.js";
 import { connectorDetails as paysafeConnectorDetails } from "./Paysafe.js";
 import { connectorDetails as payuConnectorDetails } from "./Payu.js";
 import { connectorDetails as peachpaymentsConnectorDetails } from "./Peachpayments.js";
 import { connectorDetails as powertranzConnectorDetails } from "./PowerTranz.js";
+import { connectorDetails as rapydConnectorDetails } from "./Rapyd.js";
 import { connectorDetails as redsysConnectorDetails } from "./Redsys.js";
 import { connectorDetails as shift4ConnectorDetails } from "./Shift4.js";
 import { connectorDetails as silverflowConnectorDetails } from "./Silverflow.js";
@@ -129,7 +131,9 @@ const connectorDetails = {
   paysafe: paysafeConnectorDetails,
   payu: payuConnectorDetails,
   peachpayments: peachpaymentsConnectorDetails,
+  placetopay: placetopayConnectorDetails,
   powertranz: powertranzConnectorDetails,
+  rapyd: rapydConnectorDetails,
   redsys: redsysConnectorDetails,
   shift4: shift4ConnectorDetails,
   silverflow: silverflowConnectorDetails,
