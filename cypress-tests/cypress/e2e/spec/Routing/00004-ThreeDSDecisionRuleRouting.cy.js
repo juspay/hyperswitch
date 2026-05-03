@@ -111,6 +111,7 @@ describe("3DS Decision Rule Based Routing Test", () => {
         const data =
           utils.getConnectorDetails("stripe")["card_pm"]["3DSAutoCapture"];
 
+        globalState.set("merchantConnectorId", globalState.get("stripeMcaId"));
         cy.confirmCallTest(fixtures.confirmBody, data, true, globalState);
       });
 
@@ -140,6 +141,7 @@ describe("3DS Decision Rule Based Routing Test", () => {
         const data =
           utils.getConnectorDetails("adyen")["card_pm"]["No3DSAutoCapture"];
 
+        globalState.set("merchantConnectorId", globalState.get("adyenMcaId"));
         cy.confirmCallTest(fixtures.confirmBody, data, true, globalState);
       });
 
@@ -254,6 +256,7 @@ describe("3DS Decision Rule Based Routing Test", () => {
         const data =
           utils.getConnectorDetails("stripe")["card_pm"]["3DSAutoCapture"];
 
+        globalState.set("merchantConnectorId", globalState.get("stripeMcaId"));
         cy.confirmCallTest(fixtures.confirmBody, data, true, globalState);
       });
 
@@ -283,6 +286,7 @@ describe("3DS Decision Rule Based Routing Test", () => {
         const data =
           utils.getConnectorDetails("adyen")["card_pm"]["No3DSAutoCapture"];
 
+        globalState.set("merchantConnectorId", globalState.get("adyenMcaId"));
         cy.confirmCallTest(fixtures.confirmBody, data, true, globalState);
       });
 
@@ -395,6 +399,7 @@ describe("3DS Decision Rule Based Routing Test", () => {
       const data =
         utils.getConnectorDetails("stripe")["card_pm"]["3DSManualCapture"];
 
+      globalState.set("merchantConnectorId", globalState.get("stripeMcaId"));
       cy.confirmCallTest(fixtures.confirmBody, data, true, globalState);
     });
 
@@ -527,6 +532,7 @@ describe("3DS Decision Rule Based Routing Test", () => {
         const data =
           utils.getConnectorDetails("stripe")["card_pm"]["3DSAutoCapture"];
 
+        globalState.set("merchantConnectorId", globalState.get("stripeMcaId"));
         cy.confirmCallTest(fixtures.confirmBody, data, true, globalState);
       });
 
@@ -556,6 +562,7 @@ describe("3DS Decision Rule Based Routing Test", () => {
         const data =
           utils.getConnectorDetails("adyen")["card_pm"]["No3DSAutoCapture"];
 
+        globalState.set("merchantConnectorId", globalState.get("adyenMcaId"));
         cy.confirmCallTest(fixtures.confirmBody, data, true, globalState);
       });
 
