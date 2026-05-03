@@ -15,3 +15,7 @@ pub const REDIS_ARG_TYPE: &str = "TYPE";
 
 /// Minimum error check interval in seconds (used in `on_error`).
 pub const MIN_ERROR_CHECK_INTERVAL_SECS: u64 = 1;
+
+/// Safety limit for HSCAN/SCAN iterations to guard against a corrupted cursor
+/// that never returns to 0. 1000 iterations × default COUNT(100) = ~100K entries.
+pub const MAX_SCAN_ITERATIONS: u32 = 1000;

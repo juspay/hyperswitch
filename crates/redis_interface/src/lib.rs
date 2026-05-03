@@ -229,8 +229,9 @@ impl SubscriberClient {
             .build_cluster_client_builder(nodes)
             .push_sender(push_sender);
 
-        if let Some(limit) = conf.max_in_flight_commands_as_usize() {
-            cluster_builder = cluster_builder.connection_concurrency_limit(limit);
+        if conf.max_in_flight_commands > 0 {
+            cluster_builder =
+                cluster_builder.connection_concurrency_limit(conf.max_in_flight_commands);
         }
 
         let connection = cluster_builder
@@ -381,8 +382,9 @@ impl RedisConnectionPool {
 
                 let mut pool_builder = conf.build_cluster_client_builder(nodes.clone());
 
-                if let Some(limit) = conf.max_in_flight_commands_as_usize() {
-                    pool_builder = pool_builder.connection_concurrency_limit(limit);
+                if conf.max_in_flight_commands > 0 {
+                    pool_builder =
+                        pool_builder.connection_concurrency_limit(conf.max_in_flight_commands);
                 }
 
                 let pool_conn = pool_builder
@@ -447,8 +449,9 @@ impl RedisConnectionPool {
 
                 let mut pool_config = conf.build_connection_manager_config();
 
-                if let Some(buffer_size) = conf.max_in_flight_commands_as_usize() {
-                    pool_config = pool_config.set_pipeline_buffer_size(buffer_size);
+                if conf.max_in_flight_commands > 0 {
+                    pool_config =
+                        pool_config.set_pipeline_buffer_size(conf.max_in_flight_commands);
                 }
 
                 let conn = redis::aio::ConnectionManager::new_with_config(client, pool_config)

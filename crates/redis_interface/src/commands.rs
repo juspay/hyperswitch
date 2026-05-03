@@ -21,8 +21,9 @@ use tracing::instrument;
 
 use crate::{
     constant::{
-        REDIS_ARG_COUNT, REDIS_ARG_EX, REDIS_ARG_MATCH, REDIS_ARG_NX, REDIS_ARG_TYPE,
-        REDIS_COMMAND_GET, REDIS_COMMAND_HSCAN, REDIS_COMMAND_SCAN, REDIS_COMMAND_SET,
+        MAX_SCAN_ITERATIONS, REDIS_ARG_COUNT, REDIS_ARG_EX, REDIS_ARG_MATCH, REDIS_ARG_NX,
+        REDIS_ARG_TYPE, REDIS_COMMAND_GET, REDIS_COMMAND_HSCAN, REDIS_COMMAND_SCAN,
+        REDIS_COMMAND_SET,
     },
     errors,
     types::{
@@ -624,8 +625,16 @@ impl super::RedisConnectionPool {
 
         let mut results: Vec<String> = Vec::new();
         let mut cursor: u64 = 0;
+        let mut iterations: u32 = 0;
 
         loop {
+            // Guard against a corrupted cursor that never returns to 0
+            iterations += 1;
+            if iterations > MAX_SCAN_ITERATIONS {
+                tracing::warn!(key = ?key, iterations, "HSCAN exceeded max iterations — returning partial results");
+                break;
+            }
+
             // Build HSCAN command: HSCAN key cursor MATCH pattern [COUNT count]
             let mut command = redis::cmd(REDIS_COMMAND_HSCAN);
             command
@@ -676,8 +685,16 @@ impl super::RedisConnectionPool {
 
         let mut results: Vec<String> = Vec::new();
         let mut cursor: u64 = 0;
+        let mut iterations: u32 = 0;
 
         loop {
+            // Guard against a corrupted cursor that never returns to 0
+            iterations += 1;
+            if iterations > MAX_SCAN_ITERATIONS {
+                tracing::warn!(pattern = ?pattern, iterations, "SCAN exceeded max iterations — returning partial results");
+                break;
+            }
+
             let mut command = redis::cmd(REDIS_COMMAND_SCAN);
             command
                 .arg(cursor)

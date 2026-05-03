@@ -270,13 +270,6 @@ impl RedisSettings {
             .collect()
     }
 
-    /// Convert `max_in_flight_commands` to `Option<usize>`.
-    ///
-    /// Returns `None` when `max_in_flight_commands` is 0 (feature disabled).
-    pub fn max_in_flight_commands_as_usize(&self) -> Option<usize> {
-        (self.max_in_flight_commands > 0).then_some(self.max_in_flight_commands)
-    }
-
     /// Build a standalone [`redis::ConnectionInfo`] with RESP3 protocol from host and port.
     pub fn build_standalone_connection_info(
         &self,
