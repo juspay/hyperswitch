@@ -458,7 +458,7 @@ export const CONNECTOR_LISTS = {
       // "stripe",
     ],
     DDC_RACE_CONDITION: ["worldpay"],
-    CONNECTOR_TESTING_DATA: ["adyen"],
+    CONNECTOR_TESTING_DATA: ["adyen", "noon", "airwallex", "braintree"],
     // ucs connectors
     UCS_CONNECTORS: ["authorizedotnet"],
     OVERCAPTURE: ["adyen"],
