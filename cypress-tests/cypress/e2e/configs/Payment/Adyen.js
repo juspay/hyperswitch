@@ -1556,9 +1556,25 @@ export const connectorDetails = {
   },
   bank_debit_pm: {
     PaymentIntent: (paymentMethodType) => {
+      if (paymentMethodType === "Ach") {
+        return {
+          Configs: {
+            TRIGGER_SKIP: true,
+          },
+          Request: {
+            currency: "USD",
+            setup_future_usage: "off_session",
+          },
+          Response: {
+            status: 200,
+            body: {
+              status: "requires_payment_method",
+            },
+          },
+        };
+      }
       const currencyMap = {
         Sepa: "EUR",
-        Ach: "USD",
         Becs: "AUD",
         Bacs: "GBP",
       };
