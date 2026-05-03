@@ -846,6 +846,46 @@ export const connectorDetails = {
         },
       },
     },
+    ConnectorTestingData: {
+      Request: {
+        currency: "USD",
+        connector_metadata: {
+          airwallex: { payload: "test_payload_string" },
+        },
+        customer_acceptance: null,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+        },
+      },
+    },
+    ConnectorTestingDataConfirm: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: {
+            card_number: "4111111111111111",
+            card_exp_month: "01",
+            card_exp_year: "2030",
+            card_cvc: "999",
+            card_holder_name: "joseph Doe",
+          },
+        },
+        connector_metadata: {
+          airwallex: { payload: "test_payload_string" },
+        },
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    },
   },
   bank_redirect_pm: {
     Trustly: {

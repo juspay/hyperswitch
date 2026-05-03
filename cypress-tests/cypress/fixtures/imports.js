@@ -26,6 +26,7 @@ import voidBody from "./void-payment-body.json";
 import ntidConfirmBody from "./create-ntid-mit.json";
 import blocklistCreateBody from "./blocklist-create-body.json";
 import disputeEvidenceBody from "./dispute-evidence-body.json";
+import cardLimitedDataMITBody from "./create-card-limited-data-mit.json";
 import eligibilityCheckBody from "./eligibility-check-body.json";
 import * as IncomingWebhookBody from "./webhooks/import";
 import customerCreate from "./modularPmService/modularPmServiceCustomerCreate.json";
@@ -41,6 +42,7 @@ export {
   blocklistCreateBody,
   businessProfile,
   captureBody,
+  cardLimitedDataMITBody,
   citConfirmBody,
   configs,
   confirmBody,

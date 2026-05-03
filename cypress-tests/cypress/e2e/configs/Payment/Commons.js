@@ -1992,6 +1992,15 @@ export const connectorDetails = {
         },
       },
     }),
+    MITWithLimitedCardData: getCustomExchange({
+      Request: {},
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    }),
     PartnerMerchantIdentifier: getCustomExchange({
       Request: {
         currency: "USD",
@@ -3012,6 +3021,22 @@ export const connectorDetails = {
         },
         currency: "USD",
         customer_acceptance: null,
+      },
+    }),
+    ConnectorTestingData: getCustomExchange({
+      Configs: { TRIGGER_SKIP: true },
+      Request: {},
+      Response: {
+        status: 200,
+        body: { status: "failed" },
+      },
+    }),
+    ConnectorTestingDataConfirm: getCustomExchange({
+      Configs: { TRIGGER_SKIP: true },
+      Request: {},
+      Response: {
+        status: 200,
+        body: { status: "failed" },
       },
     }),
   },
