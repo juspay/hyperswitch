@@ -602,5 +602,50 @@ export const connectorDetails = {
         },
       },
     },
+    ConnectorTestingData: {
+      Request: {
+        currency: "USD",
+        connector_metadata: {
+          braintree: {
+            merchant_account_id: "juspay",
+            merchant_config_currency: "USD",
+          },
+        },
+        customer_acceptance: null,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+        },
+      },
+    },
+    ConnectorTestingDataConfirm: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: {
+            card_number: "4242424242424242",
+            card_exp_month: "01",
+            card_exp_year: "2030",
+            card_cvc: "123",
+            card_holder_name: "joseph Doe",
+          },
+        },
+        connector_metadata: {
+          braintree: {
+            merchant_account_id: "juspay",
+            merchant_config_currency: "USD",
+          },
+        },
+        customer_acceptance: null,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    },
   },
 };

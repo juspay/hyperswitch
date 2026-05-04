@@ -154,6 +154,8 @@ pub enum Flow {
     PaymentMethodCollectLink,
     /// Payment methods retrieve flow.
     PaymentMethodsRetrieve,
+    /// Payment methods retrieve OLAP flow.
+    PaymentMethodsRetrieveOlap,
     /// Payment methods update flow.
     PaymentMethodsUpdate,
     /// Payment methods delete flow.
