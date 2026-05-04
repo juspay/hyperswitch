@@ -7,27 +7,10 @@ let globalState;
 
 describe("[Payment] Extend Authorization", () => {
   before(function () {
-    let skip = false;
-
     cy.task("getGlobalState")
       .then((state) => {
         globalState = new State(state);
         connector = globalState.get("connectorId");
-
-        // Skip the test if the connector is not in the inclusion list
-        if (
-          utils.shouldIncludeConnector(
-            connector,
-            utils.CONNECTOR_LISTS.INCLUDE.EXTEND_AUTHORIZATION
-          )
-        ) {
-          skip = true;
-        }
-      })
-      .then(() => {
-        if (skip) {
-          this.skip();
-        }
       });
   });
 
