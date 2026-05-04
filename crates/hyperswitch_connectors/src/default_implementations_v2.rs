@@ -19,12 +19,12 @@ use hyperswitch_domain_models::{
         mandate_revoke::MandateRevoke,
         merchant_connector_webhook_management::ConnectorWebhookRegister,
         payments::{
-            Approve, Authorize, AuthorizeSessionToken, CalculateTax, Capture, CompleteAuthorize,
-            CreateConnectorCustomer, CreateOrder, ExtendAuthorization, ExternalVaultProxy,
-            GenerateQr, GiftCardBalanceCheck, IncrementalAuthorization, PSync, PaymentMethodToken,
-            PostCaptureVoid, PostProcessing, PostSessionTokens, PreProcessing, PushNotification,
-            Reject, SdkSessionUpdate, Session, SettlementSplitCreate, SetupMandate, UpdateMetadata,
-            Void,
+            Approve, Authorize, AuthorizeSessionToken, CalculateSurcharge, CalculateTax, Capture,
+            CompleteAuthorize, CompleteSurcharge, CreateConnectorCustomer, CreateOrder,
+            ExtendAuthorization, ExternalVaultProxy, GenerateQr, GiftCardBalanceCheck,
+            IncrementalAuthorization, PSync, PaymentMethodToken, PostCaptureVoid, PostProcessing,
+            PostSessionTokens, PreProcessing, PushNotification, RefundSurcharge, Reject,
+            SdkSessionUpdate, Session, SettlementSplitCreate, SetupMandate, UpdateMetadata, Void,
         },
         refunds::{Execute, RSync},
         revenue_recovery::{
@@ -48,14 +48,16 @@ use hyperswitch_domain_models::{
         ExternalVaultProxyPaymentsData, FetchDisputesRequestData, GenerateQrRequestData,
         GiftCardBalanceCheckRequestData, MandateRevokeRequestData, PaymentMethodTokenizationData,
         PaymentsApproveData, PaymentsAuthenticateData, PaymentsAuthorizeData, PaymentsCancelData,
-        PaymentsCancelPostCaptureData, PaymentsCaptureData, PaymentsExtendAuthorizationData,
-        PaymentsIncrementalAuthorizationData, PaymentsPostAuthenticateData,
-        PaymentsPostProcessingData, PaymentsPostSessionTokensData, PaymentsPreAuthenticateData,
-        PaymentsPreProcessingData, PaymentsRejectData, PaymentsSessionData, PaymentsSyncData,
-        PaymentsTaxCalculationData, PaymentsUpdateMetadataData, PushNotificationRequestData,
-        RefundsData, RetrieveFileRequestData, SdkPaymentsSessionUpdateData,
-        SettlementSplitRequestData, SetupMandateRequestData, SubmitEvidenceRequestData,
-        UploadFileRequestData, VaultRequestData, VerifyWebhookSourceRequestData,
+        PaymentsCancelPostCaptureData, PaymentsCaptureData, PaymentsCompleteSurchargeData,
+        PaymentsExtendAuthorizationData, PaymentsIncrementalAuthorizationData,
+        PaymentsPostAuthenticateData, PaymentsPostProcessingData, PaymentsPostSessionTokensData,
+        PaymentsPreAuthenticateData, PaymentsPreProcessingData, PaymentsRefundSurchargeData,
+        PaymentsRejectData, PaymentsSessionData, PaymentsSurchargeCalculationData,
+        PaymentsSyncData, PaymentsTaxCalculationData, PaymentsUpdateMetadataData,
+        PushNotificationRequestData, RefundsData, RetrieveFileRequestData,
+        SdkPaymentsSessionUpdateData, SettlementSplitRequestData, SetupMandateRequestData,
+        SubmitEvidenceRequestData, UploadFileRequestData, VaultRequestData,
+        VerifyWebhookSourceRequestData,
     },
     router_response_types::{
         merchant_connector_webhook_management::ConnectorWebhookRegisterResponse,
@@ -63,11 +65,12 @@ use hyperswitch_domain_models::{
             BillingConnectorInvoiceSyncResponse, BillingConnectorPaymentsSyncResponse,
             InvoiceRecordBackResponse,
         },
-        AcceptDisputeResponse, AuthenticationResponseData, DefendDisputeResponse,
-        DisputeSyncResponse, FetchDisputesResponse, GiftCardBalanceCheckResponseData,
-        MandateRevokeResponseData, PaymentsResponseData, RefundsResponseData, RetrieveFileResponse,
-        SubmitEvidenceResponse, TaxCalculationResponseData, UploadFileResponse, VaultResponseData,
-        VerifyWebhookSourceResponseData,
+        AcceptDisputeResponse, AuthenticationResponseData, CompleteSurchargeResponseData,
+        DefendDisputeResponse, DisputeSyncResponse, FetchDisputesResponse,
+        GiftCardBalanceCheckResponseData, MandateRevokeResponseData, PaymentsResponseData,
+        RefundSurchargeResponseData, RefundsResponseData, RetrieveFileResponse,
+        SubmitEvidenceResponse, SurchargeCalculationResponseData, TaxCalculationResponseData,
+        UploadFileResponse, VaultResponseData, VerifyWebhookSourceResponseData,
     },
 };
 #[cfg(feature = "frm")]
@@ -115,15 +118,16 @@ use hyperswitch_interfaces::{
             ConfigureConnectorWebhookV2, WebhookRegisterV2,
         },
         payments_v2::{
-            ConnectorCustomerV2, ExternalVaultProxyPaymentsCreate, MandateSetupV2,
-            PaymentApproveV2, PaymentAuthorizeSessionTokenV2, PaymentAuthorizeV2, PaymentCaptureV2,
-            PaymentCreateOrderV2, PaymentExtendAuthorizationV2, PaymentIncrementalAuthorizationV2,
-            PaymentPostCaptureVoidV2, PaymentPostSessionTokensV2, PaymentRejectV2,
-            PaymentSessionUpdateV2, PaymentSessionV2, PaymentSyncV2, PaymentTokenV2,
-            PaymentUpdateMetadataV2, PaymentV2, PaymentVoidV2, PaymentsAuthenticateV2,
-            PaymentsCompleteAuthorizeV2, PaymentsGenerateQrV2, PaymentsGiftCardBalanceCheckV2,
-            PaymentsPostAuthenticateV2, PaymentsPostProcessingV2, PaymentsPreAuthenticateV2,
-            PaymentsPreProcessingV2, PaymentsPushNotificationV2, PaymentsSettlementSplitCreate,
+            CompleteSurchargeV2, ConnectorCustomerV2, ExternalVaultProxyPaymentsCreate,
+            MandateSetupV2, PaymentApproveV2, PaymentAuthorizeSessionTokenV2, PaymentAuthorizeV2,
+            PaymentCaptureV2, PaymentCreateOrderV2, PaymentExtendAuthorizationV2,
+            PaymentIncrementalAuthorizationV2, PaymentPostCaptureVoidV2,
+            PaymentPostSessionTokensV2, PaymentRejectV2, PaymentSessionUpdateV2, PaymentSessionV2,
+            PaymentSyncV2, PaymentTokenV2, PaymentUpdateMetadataV2, PaymentV2, PaymentVoidV2,
+            PaymentsAuthenticateV2, PaymentsCompleteAuthorizeV2, PaymentsGenerateQrV2,
+            PaymentsGiftCardBalanceCheckV2, PaymentsPostAuthenticateV2, PaymentsPostProcessingV2,
+            PaymentsPreAuthenticateV2, PaymentsPreProcessingV2, PaymentsPushNotificationV2,
+            PaymentsSettlementSplitCreate, RefundSurchargeV2, SurchargeCalculationV2,
             TaxCalculationV2,
         },
         refunds_v2::{RefundExecuteV2, RefundSyncV2, RefundV2},
@@ -172,6 +176,9 @@ macro_rules! default_imp_for_new_connector_integration_payment {
             impl PaymentsPushNotificationV2 for $path::$connector{}
             impl PaymentsGenerateQrV2 for $path::$connector{}
             impl TaxCalculationV2 for $path::$connector{}
+            impl SurchargeCalculationV2 for $path::$connector{}
+            impl CompleteSurchargeV2 for $path::$connector{}
+            impl RefundSurchargeV2 for $path::$connector{}
             impl PaymentSessionUpdateV2 for $path::$connector{}
             impl PaymentPostSessionTokensV2 for $path::$connector{}
             impl PaymentUpdateMetadataV2 for $path::$connector{}
@@ -291,6 +298,24 @@ macro_rules! default_imp_for_new_connector_integration_payment {
             PaymentFlowData,
             PaymentsTaxCalculationData,
             TaxCalculationResponseData,
+            > for $path::$connector{}
+        impl ConnectorIntegrationV2<
+            CalculateSurcharge,
+            PaymentFlowData,
+            PaymentsSurchargeCalculationData,
+            SurchargeCalculationResponseData,
+            > for $path::$connector{}
+        impl ConnectorIntegrationV2<
+            CompleteSurcharge,
+            PaymentFlowData,
+            PaymentsCompleteSurchargeData,
+            CompleteSurchargeResponseData,
+            > for $path::$connector{}
+        impl ConnectorIntegrationV2<
+            RefundSurcharge,
+            PaymentFlowData,
+            PaymentsRefundSurchargeData,
+            RefundSurchargeResponseData,
             > for $path::$connector{}
         impl ConnectorIntegrationV2<
             SdkSessionUpdate,

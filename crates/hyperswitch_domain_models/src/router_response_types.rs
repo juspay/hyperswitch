@@ -133,6 +133,43 @@ pub struct TaxCalculationResponseData {
     pub order_tax_amount: MinorUnit,
 }
 
+/// Response data for external surcharge calculation from InterPayments
+#[derive(Debug, Clone)]
+pub struct SurchargeCalculationResponseData {
+    /// Transaction fee amount in minor units
+    pub transaction_fee: MinorUnit,
+    /// Transaction ID from InterPayments (sTxId)
+    pub external_transaction_id: String,
+    /// Transaction fee percentage (consumed by backend, NOT sent to SDK)
+    pub transaction_fee_percent: Option<
+        common_utils::types::Percentage<
+            { common_utils::consts::SURCHARGE_PERCENTAGE_PRECISION_LENGTH },
+        >,
+    >,
+    /// Reason code if calculation failed or returned 0
+    pub reason_code: Option<String>,
+    /// Additional reason codes
+    pub reason_codes: Option<String>,
+    /// Additional details from InterPayments
+    pub details: Option<serde_json::Value>,
+}
+
+/// Response data for completing surcharge (sale notification)
+#[derive(Debug, Clone)]
+pub struct CompleteSurchargeResponseData {
+    /// New transaction ID from InterPayments after sale
+    pub new_external_transaction_id: String,
+}
+
+/// Response data for refunding surcharge
+#[derive(Debug, Clone)]
+pub struct RefundSurchargeResponseData {
+    /// Surcharge amount that was refunded
+    pub refund_amount: MinorUnit,
+    /// Transaction ID for the refund
+    pub external_transaction_id: String,
+}
+
 #[derive(Serialize, Debug, Clone, serde::Deserialize)]
 pub struct MandateReference {
     pub connector_mandate_id: Option<String>,
