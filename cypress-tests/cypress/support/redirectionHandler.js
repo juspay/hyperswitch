@@ -156,7 +156,9 @@ function payLaterRedirection(
   connectorId,
   paymentMethodType
 ) {
-  let verifyUrl = true;
+  // Pay later flows (Affirm, Klarna, Afterpay) redirect to external checkout
+  // and don't redirect back to merchant return_url automatically
+  const verifyUrl = false;
 
   if (redirectionUrl && redirectionUrl.href) {
     cy.visit(redirectionUrl.href);
@@ -193,7 +195,6 @@ function payLaterRedirection(
     );
   } else {
     cy.log("Skipping pay later redirection - no valid redirect URL provided");
-    verifyUrl = false;
   }
 
   cy.then(() => {
