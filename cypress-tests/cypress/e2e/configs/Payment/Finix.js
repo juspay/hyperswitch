@@ -36,25 +36,26 @@ const failedNo3DSCardDetails = {
   card_cvc: "123",
 };
 
+// auth code is dynamic hence ignoring intest cases
 // Payment method data for non-3DS
-const payment_method_data_no3ds = {
-  card: {
-    last4: "1111",
-    card_type: "DEBIT",
-    card_network: "Visa",
-    card_issuer: "CONOTOXIA SP Z O.O.",
-    card_issuing_country: "POLAND",
-    card_isin: "411111",
-    card_extended_bin: null,
-    card_exp_month: "10",
-    card_exp_year: "2050",
-    card_holder_name: "Test User",
-    payment_checks: null,
-    authentication_data: null,
-    auth_code: null,
-  },
-  billing: null,
-};
+// const payment_method_data_no3ds = {
+//   card: {
+//     last4: "1111",
+//     card_type: "DEBIT",
+//     card_network: "Visa",
+//     card_issuer: "CONOTOXIA SP Z O.O.",
+//     card_issuing_country: "POLAND",
+//     card_isin: "411111",
+//     card_extended_bin: null,
+//     card_exp_month: "10",
+//     card_exp_year: "2050",
+//     card_holder_name: "Test User",
+//     payment_checks: { address_verification: "POSTAL_CODE_AND_STREET_MATCH" },
+//     authentication_data: null,
+//     auth_code: "826685",
+//   },
+//   billing: null,
+// };
 
 const requiredFields = {
   payment_methods: [
@@ -149,7 +150,7 @@ export const connectorDetails = {
           status: "requires_capture",
           payment_method: "card",
           attempt_count: 1,
-          payment_method_data: payment_method_data_no3ds,
+          // payment_method_data: payment_method_data_no3ds,
         },
       },
     },
@@ -466,7 +467,7 @@ export const connectorDetails = {
           status: "succeeded",
           payment_method: "card",
           attempt_count: 1,
-          payment_method_data: payment_method_data_no3ds,
+          // payment_method_data: payment_method_data_no3ds,
         },
       },
     },
