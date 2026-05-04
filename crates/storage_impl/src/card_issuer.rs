@@ -39,6 +39,17 @@ impl<T: DatabaseStore> CardIssuersInterface for RouterStore<T> {
     }
 
     #[instrument(skip_all)]
+    async fn delete_card_issuer(
+        &self,
+        id: id_type::CardIssuerId,
+    ) -> CustomResult<bool, StorageError> {
+        let conn = pg_connection_write(self).await?;
+        CardIssuer::delete_by_id(&conn, id)
+            .await
+            .map_err(|error| report!(StorageError::from(error)))
+    }
+
+    #[instrument(skip_all)]
     async fn list_card_issuers(
         &self,
         query: Option<String>,
@@ -85,6 +96,17 @@ impl<T: DatabaseStore> CardIssuersInterface for KVRouterStore<T> {
     ) -> CustomResult<CardIssuer, StorageError> {
         let conn = pg_connection_write(self).await?;
         CardIssuer::update(&conn, id, update)
+            .await
+            .map_err(|error| report!(StorageError::from(error)))
+    }
+
+    #[instrument(skip_all)]
+    async fn delete_card_issuer(
+        &self,
+        id: id_type::CardIssuerId,
+    ) -> CustomResult<bool, StorageError> {
+        let conn = pg_connection_write(self).await?;
+        CardIssuer::delete_by_id(&conn, id)
             .await
             .map_err(|error| report!(StorageError::from(error)))
     }
@@ -147,6 +169,21 @@ impl CardIssuersInterface for MockDb {
         card_issuer.issuer_name = update.issuer_name;
         card_issuer.last_modified_at = update.last_modified_at;
         Ok(card_issuer.clone())
+    }
+
+    async fn delete_card_issuer(
+        &self,
+        id: id_type::CardIssuerId,
+    ) -> CustomResult<bool, StorageError> {
+        let mut card_issuers = self.card_issuers.lock().await;
+        let card_issuer_index = card_issuers
+            .iter()
+            .position(|card_issuer| card_issuer.id == id)
+            .ok_or(StorageError::ValueNotFound(format!(
+                "No card issuer found for id = {id:?}"
+            )))?;
+        card_issuers.remove(card_issuer_index);
+        Ok(true)
     }
 
     async fn list_card_issuers(
