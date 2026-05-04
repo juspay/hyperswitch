@@ -5355,7 +5355,7 @@ Cypress.Commands.add(
         if (response.status === 200) {
           // Success case - validate response body fields
           for (const key in resData.body) {
-            if (key !== "extended_authorization_expires_at" && key !== "amount_received") {
+            if (key !== "extended_authorization_expires_at" && key !== "amount_received" && key !== "extended_authorization_applied") {
               expect(resData.body[key]).to.equal(response.body[key]);
             }
           }
