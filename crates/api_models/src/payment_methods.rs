@@ -534,6 +534,12 @@ impl PaymentMethodCreate {
             api_enums::PaymentMethod::Wallet => {
                 matches!(payment_method_data, PaymentMethodCreateData::Wallet(_))
             }
+            api_enums::PaymentMethod::BankRedirect => {
+                matches!(
+                    payment_method_data,
+                    PaymentMethodCreateData::BankRedirect(_)
+                )
+            }
             _ => false,
         }
     }
@@ -619,6 +625,13 @@ pub enum WalletPaymentMethodData {
     PayPal(Box<payments::PaypalRedirection>),
 }
 
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
+#[serde(deny_unknown_fields)]
+#[serde(rename_all = "snake_case")]
+pub enum BankRedirectDetail {
+    BancontactCard {},
+}
+
 #[cfg(feature = "v2")]
 #[derive(Debug, serde::Deserialize, serde::Serialize, Clone, ToSchema)]
 #[serde(deny_unknown_fields)]
@@ -629,6 +642,7 @@ pub enum PaymentMethodCreateData {
     ProxyCard(ProxyCardDetails),
     BankDebit(BankDebitDetail),
     Wallet(WalletPaymentMethodData),
+    BankRedirect(BankRedirectDetail),
 }
 
 #[cfg(feature = "v2")]
@@ -1405,6 +1419,98 @@ pub struct PaymentMethodResponse {
     /// The acknowledgement status of the payment method update
     #[schema(value_type = Option<AcknowledgementStatus>)]
     pub acknowledgement_status: Option<common_enums::AcknowledgementStatus>,
+}
+
+#[cfg(feature = "v2")]
+#[derive(Debug, serde::Serialize, serde::Deserialize, ToSchema, Clone)]
+pub struct PaymentMethodDetailsResponse {
+    /// The unique identifier of the Payment method
+    #[schema(value_type = String, example = "12345_pm_01926c58bc6e77c09e809964e72af8c8")]
+    pub id: id_type::GlobalPaymentMethodId,
+
+    /// Unique identifier for a merchant
+    #[schema(value_type = String, example = "merchant_1671528864")]
+    pub merchant_id: id_type::MerchantId,
+
+    /// The unique identifier of the customer.
+    #[schema(
+        min_length = 32,
+        max_length = 64,
+        example = "12345_cus_01926c58bc6e77c09e809964e72af8c8",
+        value_type = String
+    )]
+    pub customer_id: Option<id_type::GlobalCustomerId>,
+
+    /// The type of payment method use for the payment.
+    #[schema(value_type = PaymentMethod, example = "card")]
+    pub payment_method_type: Option<api_enums::PaymentMethod>,
+
+    /// This is a sub-category of payment method.
+    #[schema(value_type = Option<PaymentMethodType>, example = "credit")]
+    pub payment_method_subtype: Option<api_enums::PaymentMethodType>,
+
+    /// Indicates whether the payment method supports recurring payments. Optional.
+    #[schema(example = true)]
+    pub recurring_enabled: Option<bool>,
+
+    /// A timestamp (ISO 8601 code) that determines when the payment method was created
+    #[schema(value_type = Option<PrimitiveDateTime>, example = "2023-01-18T11:04:09.922Z")]
+    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
+    pub created: Option<time::PrimitiveDateTime>,
+
+    /// A timestamp (ISO 8601 code) that determines when the payment method was last used
+    #[schema(value_type = Option<PrimitiveDateTime>, example = "2024-02-24T11:04:09.922Z")]
+    #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
+    pub last_used_at: Option<time::PrimitiveDateTime>,
+
+    /// The payment method details related to the payment method
+    pub payment_method_data: Option<PaymentMethodResponseData>,
+
+    /// The connector token details if available
+    pub connector_tokens: Option<Vec<ConnectorTokenDetails>>,
+
+    /// Network token details if available
+    pub network_token: Option<NetworkTokenResponse>,
+
+    /// The storage type for the payment method
+    #[schema(value_type = StorageType)]
+    pub storage_type: common_enums::StorageType,
+
+    /// The network transaction ID provided by the card network during a Customer Initiated Transaction (CIT)
+    /// when `setup_future_usage` is set to `off_session`.
+    #[schema(value_type = String)]
+    pub network_transaction_id: Option<hyperswitch_masking::Secret<String>>,
+
+    /// Billing details of the payment method
+    #[schema(value_type = Option<Address>)]
+    pub billing: Option<payments::Address>,
+
+    /// The acknowledgement status of the payment method update
+    #[schema(value_type = Option<AcknowledgementStatus>)]
+    pub acknowledgement_status: Option<common_enums::AcknowledgementStatus>,
+}
+
+#[cfg(feature = "v2")]
+impl From<PaymentMethodResponse> for PaymentMethodDetailsResponse {
+    fn from(resp: PaymentMethodResponse) -> Self {
+        Self {
+            id: resp.id,
+            merchant_id: resp.merchant_id,
+            customer_id: resp.customer_id,
+            payment_method_type: resp.payment_method_type,
+            payment_method_subtype: resp.payment_method_subtype,
+            recurring_enabled: resp.recurring_enabled,
+            created: resp.created,
+            last_used_at: resp.last_used_at,
+            payment_method_data: resp.payment_method_data,
+            connector_tokens: resp.connector_tokens,
+            network_token: resp.network_token,
+            storage_type: resp.storage_type,
+            network_transaction_id: resp.network_transaction_id,
+            billing: resp.billing,
+            acknowledgement_status: resp.acknowledgement_status,
+        }
+    }
 }
 
 #[cfg(feature = "v2")]
