@@ -1933,7 +1933,13 @@ Cypress.Commands.add(
     }
     createPaymentBody.authentication_type = authentication_type;
     createPaymentBody.capture_method = capture_method;
-    createPaymentBody.customer_id = globalState.get("customerId");
+    const customerId = globalState.get("customerId");
+    if (customerId !== undefined) {
+      createPaymentBody.customer_id = customerId;
+    } else {
+      delete createPaymentBody.customer_id;
+      delete createPaymentBody.setup_future_usage;
+    }
     createPaymentBody.profile_id = profile_id;
 
     const headers = {
@@ -2010,14 +2016,15 @@ Cypress.Commands.add(
           expect(createPaymentBody.email, "customer.email").to.equal(
             response.body.customer.email
           );
-          expect(createPaymentBody.customer_id, "customer.id").to.equal(
-            response.body.customer.id
-          );
+          expect(
+            createPaymentBody.customer_id ?? null,
+            "customer.id"
+          ).to.equal(response.body.customer.id);
           expect(createPaymentBody.metadata, "metadata").to.deep.equal(
             response.body.metadata
           );
           expect(
-            createPaymentBody.setup_future_usage,
+            createPaymentBody.setup_future_usage ?? null,
             "setup_future_usage"
           ).to.equal(response.body.setup_future_usage);
           // If 'shipping_cost' is not included in the request, the 'amount' in 'createPaymentBody' should match the 'amount_capturable' in the response.
@@ -2139,7 +2146,13 @@ Cypress.Commands.add("paymentMethodsCallTest", (globalState, data = null) => {
 Cypress.Commands.add("createPaymentMethodTest", (globalState, data) => {
   const { Request: reqData, Response: resData } = data || {};
 
-  reqData.customer_id = globalState.get("customerId");
+  const customerIdPM = globalState.get("customerId");
+  if (customerIdPM !== undefined) {
+    reqData.customer_id = customerIdPM;
+  } else {
+    delete reqData.customer_id;
+    delete reqData.setup_future_usage;
+  }
   const merchant_id = globalState.get("merchantId");
 
   cy.request({
@@ -2171,9 +2184,10 @@ Cypress.Commands.add("createPaymentMethodTest", (globalState, data) => {
           response.body.payment_method
         );
         expect(response.body.last_used_at, "last_used_at").to.not.be.null;
-        expect(reqData.customer_id, "customer_id").to.equal(
-          response.body.customer_id
-        );
+        expect(
+          reqData.customer_id ?? null,
+          "customer_id"
+        ).to.equal(response.body.customer_id);
         globalState.set("paymentMethodId", response.body.payment_method_id);
       } else {
         defaultErrorHandler(response, resData);
@@ -2283,6 +2297,10 @@ Cypress.Commands.add(
       if (key !== "split_payments") {
         confirmBody[key] = reqData[key];
       }
+    }
+
+    if (!reqData?.setup_future_usage && confirmBody.setup_future_usage) {
+      delete confirmBody.setup_future_usage;
     }
 
     if (reqData?.split_payments && isStripeConnect(globalState)) {
@@ -3114,7 +3132,7 @@ Cypress.Commands.add(
                 );
               }
               expect(response.body.customer_id).to.equal(
-                globalState.get("customerId")
+                globalState.get("customerId") ?? null
               );
               if (
                 [
@@ -3160,7 +3178,7 @@ Cypress.Commands.add(
                 );
               }
               expect(response.body.customer_id).to.equal(
-                globalState.get("customerId")
+                globalState.get("customerId") ?? null
               );
             } else {
               // Handle other authentication types as needed
@@ -3625,7 +3643,13 @@ Cypress.Commands.add(
     requestBody.amount = amount;
     requestBody.capture_method = capture_method;
     requestBody.confirm = confirm;
-    requestBody.customer_id = globalState.get("customerId");
+    const custId1 = globalState.get("customerId");
+    if (custId1 !== undefined) {
+      requestBody.customer_id = custId1;
+    } else {
+      delete requestBody.customer_id;
+      delete requestBody.setup_future_usage;
+    }
     requestBody.payment_type = payment_type;
     requestBody.profile_id = profile_id;
 
@@ -3823,7 +3847,13 @@ Cypress.Commands.add(
     requestBody.amount = amount;
     requestBody.confirm = confirm;
     requestBody.capture_method = capture_method;
-    requestBody.customer_id = globalState.get("customerId");
+    const custId2 = globalState.get("customerId");
+    if (custId2 !== undefined) {
+      requestBody.customer_id = custId2;
+    } else {
+      delete requestBody.customer_id;
+      delete requestBody.setup_future_usage;
+    }
     requestBody.mandate_id = globalState.get("mandateId");
     requestBody.profile_id = profile_id;
 
@@ -4745,7 +4775,12 @@ Cypress.Commands.add(
     }
     createConfirmPayoutBody.auto_fulfill = auto_fulfill;
     createConfirmPayoutBody.confirm = confirm;
-    createConfirmPayoutBody.customer_id = globalState.get("customerId");
+    const payoutCustId1 = globalState.get("customerId");
+    if (payoutCustId1 !== undefined) {
+      createConfirmPayoutBody.customer_id = payoutCustId1;
+    } else {
+      delete createConfirmPayoutBody.customer_id;
+    }
 
     cy.request({
       method: "POST",
@@ -4783,7 +4818,12 @@ Cypress.Commands.add(
     for (const key in reqData) {
       createConfirmPayoutBody[key] = reqData[key];
     }
-    createConfirmPayoutBody.customer_id = globalState.get("customerId");
+    const payoutCustId2 = globalState.get("customerId");
+    if (payoutCustId2 !== undefined) {
+      createConfirmPayoutBody.customer_id = payoutCustId2;
+    } else {
+      delete createConfirmPayoutBody.customer_id;
+    }
     createConfirmPayoutBody.payout_token = globalState.get("paymentToken");
     createConfirmPayoutBody.auto_fulfill = auto_fulfill;
     createConfirmPayoutBody.confirm = confirm;
@@ -4825,7 +4865,12 @@ Cypress.Commands.add(
     for (const key in reqData) {
       createConfirmPayoutBody[key] = reqData[key];
     }
-    createConfirmPayoutBody.customer_id = globalState.get("customerId");
+    const payoutCustId3 = globalState.get("customerId");
+    if (payoutCustId3 !== undefined) {
+      createConfirmPayoutBody.customer_id = payoutCustId3;
+    } else {
+      delete createConfirmPayoutBody.customer_id;
+    }
     createConfirmPayoutBody.auto_fulfill = auto_fulfill;
     createConfirmPayoutBody.confirm = confirm;
     createConfirmPayoutBody.payout_method_id = globalState.data.paymentMethodId;

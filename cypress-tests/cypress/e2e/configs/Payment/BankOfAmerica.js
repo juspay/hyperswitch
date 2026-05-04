@@ -784,6 +784,117 @@ export const connectorDetails = {
         },
       },
     },
+    CardTestingGuard: {
+      FailConfirm: {
+        Request: {
+          payment_method: "card",
+          payment_method_data: {
+            billing: {
+              address: {
+                city: "sakilmostak",
+                country: "US",
+                line1: "here",
+                line2: "there",
+                line3: "anywhere",
+                zip: "560090",
+                state: "Washingtonr",
+                first_name: "One",
+                last_name: "Two",
+              },
+              phone: {
+                number: "1234567890",
+                country_code: "+1",
+              },
+              email: "guest@example.com",
+            },
+            card: successfulNo3DSCardDetails,
+          },
+          customer_acceptance: null,
+          setup_future_usage: "on_session",
+          billing: billing_with_newline,
+        },
+        Response: {
+          status: 200,
+          body: {
+            status: "failed",
+          },
+        },
+      },
+      GuestFailConfirm: {
+        Request: {
+          payment_method: "card",
+          payment_method_data: {
+            billing: {
+              address: {
+                city: "sakilmostak",
+                country: "US",
+                line1: "here",
+                line2: "there",
+                line3: "anywhere",
+                zip: "560090",
+                state: "Washingtonr",
+                first_name: "One",
+                last_name: "Two",
+              },
+              phone: {
+                number: "1234567890",
+                country_code: "+1",
+              },
+              email: "guest@example.com",
+            },
+            card: successfulNo3DSCardDetails,
+          },
+          customer_acceptance: null,
+          billing: billing_with_newline,
+        },
+        Response: {
+          status: 200,
+          expectBlockedPayment: true,
+          body: {
+            status: "failed",
+          },
+        },
+      },
+      BlockedConfirm: {
+        Request: {
+          payment_method: "card",
+          payment_method_data: {
+            card: successfulNo3DSCardDetails,
+          },
+          customer_acceptance: null,
+          setup_future_usage: "on_session",
+        },
+        Response: {
+          status: 400,
+          body: {
+            error: {
+              type: "invalid_request",
+              code: "IR_16",
+              message: "Blocked due to suspicious activity",
+            },
+          },
+        },
+      },
+      GuestBlockedConfirm: {
+        Request: {
+          payment_method: "card",
+          payment_method_data: {
+            card: successfulNo3DSCardDetails,
+          },
+          customer_acceptance: null,
+        },
+        Response: {
+          status: 400,
+          body: {
+            error: {
+              type: "invalid_request",
+              code: "IR_16",
+              message: "Blocked due to suspicious activity",
+            },
+          },
+        },
+      },
+    },
   },
   pm_list: {
     PmListResponse: {

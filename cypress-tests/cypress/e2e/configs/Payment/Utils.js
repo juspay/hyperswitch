@@ -550,6 +550,7 @@ export const CONNECTOR_LISTS = {
     AUTH_SERVICE_ELIGIBILITY: ["stripe", "cybersource"],
     PARTIAL_AUTH: ["nuvei", "checkout", "worldpay", "worldpayvantiv"],
     MIT_WITH_LIMITED_CARD_DATA: ["peachpayments"],
+    CARD_TESTING_GUARD: ["bankofamerica"],
     // Add more inclusion lists
   },
 };
