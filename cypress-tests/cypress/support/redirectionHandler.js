@@ -166,15 +166,15 @@ function payLaterRedirection(
       redirectionUrl,
       expectedUrl,
       connectorId,
-      ({ connectorId, paymentMethodType }) => {
+      ({ connectorId, paymentMethodType, constants }) => {
         switch (connectorId) {
           case "affirm":
             cy.log("Affirm pay later flow - waiting for auto-approval");
-            cy.wait(CONSTANTS.WAIT_TIME / 2);
+            cy.wait(constants.WAIT_TIME / 2);
             break;
           case "klarna":
             cy.log("Klarna pay later flow - handling approval");
-            cy.get("body", { timeout: CONSTANTS.TIMEOUT }).then(($body) => {
+            cy.get("body", { timeout: constants.TIMEOUT }).then(($body) => {
               if ($body.find('button:contains("Approve")').length > 0) {
                 cy.contains("button", "Approve").click();
               }
@@ -182,11 +182,11 @@ function payLaterRedirection(
             break;
           case "afterpay":
             cy.log("Afterpay pay later flow");
-            cy.wait(CONSTANTS.WAIT_TIME / 2);
+            cy.wait(constants.WAIT_TIME / 2);
             break;
           default:
             cy.log(`Generic pay later flow for ${connectorId}`);
-            cy.wait(CONSTANTS.WAIT_TIME / 2);
+            cy.wait(constants.WAIT_TIME / 2);
         }
       },
       { paymentMethodType }
