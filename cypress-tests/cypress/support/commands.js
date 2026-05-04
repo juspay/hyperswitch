@@ -5799,77 +5799,74 @@ Cypress.Commands.add("diffCheckResult", (globalState) => {
   });
 });
 
-Cypress.Commands.add(
-  "manualPaymentStatusUpdateTest",
-  (globalState, data) => {
-    const merchantId = globalState.get("merchantId");
-    const paymentId = globalState.get("paymentID");
-    const completeUrl = `${Cypress.env("BASEURL")}/payments/${paymentId}/manual-update`;
-    const adminApiKey = globalState.get("adminApiKey");
+Cypress.Commands.add("manualPaymentStatusUpdateTest", (globalState, data) => {
+  const merchantId = globalState.get("merchantId");
+  const paymentId = globalState.get("paymentID");
+  const completeUrl = `${Cypress.env("BASEURL")}/payments/${paymentId}/manual-update`;
+  const adminApiKey = globalState.get("adminApiKey");
 
-    const manualUpdateBody = {
-      merchant_id: merchantId,
-      attempt_id: `${paymentId}_1`,
-      attempt_status: data.Request.attempt_status,
-    };
+  const manualUpdateBody = {
+    merchant_id: merchantId,
+    attempt_id: `${paymentId}_1`,
+    attempt_status: data.Request.attempt_status,
+  };
 
-    if (data.Request.error_code) {
-      manualUpdateBody.error_code = data.Request.error_code;
-    }
+  if (data.Request.error_code) {
+    manualUpdateBody.error_code = data.Request.error_code;
+  }
 
-    if (data.Request.error_message) {
-      manualUpdateBody.error_message = data.Request.error_message;
-    }
+  if (data.Request.error_message) {
+    manualUpdateBody.error_message = data.Request.error_message;
+  }
 
-    cy.request({
-      method: "PUT",
-      url: completeUrl,
-      headers: {
-        "Content-Type": "application/json",
-        "api-key": adminApiKey,
-        "X-Merchant-Id": merchantId,
-      },
-      body: manualUpdateBody,
-      failOnStatusCode: false,
-    }).then((response) => {
-      logRequestId(response.headers["x-request-id"]);
+  cy.request({
+    method: "PUT",
+    url: completeUrl,
+    headers: {
+      "Content-Type": "application/json",
+      "api-key": adminApiKey,
+      "X-Merchant-Id": merchantId,
+    },
+    body: manualUpdateBody,
+    failOnStatusCode: false,
+  }).then((response) => {
+    logRequestId(response.headers["x-request-id"]);
 
-      cy.wrap(response).then(() => {
-        expect(response.headers["content-type"]).to.include("application/json");
+    cy.wrap(response).then(() => {
+      expect(response.headers["content-type"]).to.include("application/json");
 
-        const expectedStatus = data.Response.status || 200;
-        expect(response.status).to.eq(expectedStatus);
+      const expectedStatus = data.Response.status || 200;
+      expect(response.status).to.eq(expectedStatus);
 
-        if (response.status === 200) {
-          expect(response.body.payment_id).to.equal(paymentId);
-          expect(response.body.merchant_id).to.equal(merchantId);
+      if (response.status === 200) {
+        expect(response.body.payment_id).to.equal(paymentId);
+        expect(response.body.merchant_id).to.equal(merchantId);
 
-          if (data.Response.body && data.Response.body.attempt_status) {
-            expect(response.body.attempt_status).to.equal(
-              data.Response.body.attempt_status
-            );
-          }
-
-          if (data.Response.body && data.Response.body.error_code) {
-            expect(response.body.error_code).to.equal(
-              data.Response.body.error_code
-            );
-          }
-
-          if (data.Response.body && data.Response.body.error_message) {
-            expect(response.body.error_message).to.equal(
-              data.Response.body.error_message
-            );
-          }
-        } else {
-          throw new Error(
-            `Payment Update Call Failed with error code "${response.body.error.code}" error message "${response.body.error.message}"`
+        if (data.Response.body && data.Response.body.attempt_status) {
+          expect(response.body.attempt_status).to.equal(
+            data.Response.body.attempt_status
           );
         }
-      });
+
+        if (data.Response.body && data.Response.body.error_code) {
+          expect(response.body.error_code).to.equal(
+            data.Response.body.error_code
+          );
+        }
+
+        if (data.Response.body && data.Response.body.error_message) {
+          expect(response.body.error_message).to.equal(
+            data.Response.body.error_message
+          );
+        }
+      } else {
+        throw new Error(
+          `Payment Update Call Failed with error code "${response.body.error.code}" error message "${response.body.error.message}"`
+        );
+      }
     });
-  }
-);
+  });
+});
 
 Cypress.Commands.add(
   "manualPaymentUpdateNegativeTest",
@@ -5901,36 +5898,31 @@ Cypress.Commands.add(
   }
 );
 
-Cypress.Commands.add(
-  "retrievePaymentPersistenceTest",
-  (globalState, data) => {
-    const paymentId = globalState.get("paymentID");
+Cypress.Commands.add("retrievePaymentPersistenceTest", (globalState, data) => {
+  const paymentId = globalState.get("paymentID");
 
-    cy.request({
-      method: "GET",
-      url: `${Cypress.env("BASEURL")}/payments/${paymentId}`,
-      headers: {
-        "Content-Type": "application/json",
-        "api-key": globalState.get("apiKey"),
-        "X-Merchant-Id": globalState.get("merchantId"),
-      },
-    }).then((response) => {
-      expect(response.status).to.eq(200);
+  cy.request({
+    method: "GET",
+    url: `${Cypress.env("BASEURL")}/payments/${paymentId}`,
+    headers: {
+      "Content-Type": "application/json",
+      "api-key": globalState.get("apiKey"),
+      "X-Merchant-Id": globalState.get("merchantId"),
+    },
+  }).then((response) => {
+    expect(response.status).to.eq(200);
 
-      if (data.Response.body && data.Response.body.error_code) {
-        expect(response.body.error_code).to.equal(
-          data.Response.body.error_code
-        );
-      }
+    if (data.Response.body && data.Response.body.error_code) {
+      expect(response.body.error_code).to.equal(data.Response.body.error_code);
+    }
 
-      if (data.Response.body && data.Response.body.error_message) {
-        expect(response.body.error_message).to.equal(
-          data.Response.body.error_message
-        );
-      }
-    });
-  }
-);
+    if (data.Response.body && data.Response.body.error_message) {
+      expect(response.body.error_message).to.equal(
+        data.Response.body.error_message
+      );
+    }
+  });
+});
 
 Cypress.Commands.add(
   "manualRefundStatusUpdateTest",
