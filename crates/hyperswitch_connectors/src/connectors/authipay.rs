@@ -133,7 +133,6 @@ where
                     .into(),
             ),
             ("Client-Request-Id".to_string(), client_request_id.into()),
-            ("Auth-Token-Type".to_string(), "HMAC".to_string().into()),
             (headers::TIMESTAMP.to_string(), timestamp.to_string().into()),
             ("Message-Signature".to_string(), hmac.into_masked()),
         ];

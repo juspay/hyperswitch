@@ -65,6 +65,8 @@ pub struct Card {
     number: cards::CardNumber,
     security_code: Secret<String>,
     expiry_date: ExpiryDate,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    holder: Option<Secret<String>>,
 }
 
 #[derive(Default, Debug, Serialize, PartialEq)]
@@ -82,12 +84,19 @@ pub struct SplitShipment {
 
 #[derive(Debug, Serialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
+pub struct AuthipayOrder {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    order_id: Option<String>,
+}
+
+#[derive(Debug, Serialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
 pub struct AuthipayPaymentsRequest {
     request_type: &'static str,
     transaction_amount: Amount,
     payment_method: PaymentMethod,
-    // split_shipment: Option<SplitShipment>,
-    // incremental_flag: Option<bool>,
+    merchant_transaction_id: String,
+    order: AuthipayOrder,
 }
 
 impl TryFrom<&AuthipayRouterData<&PaymentsAuthorizeRouterData>> for AuthipayPaymentsRequest {
@@ -117,6 +126,7 @@ impl TryFrom<&AuthipayRouterData<&PaymentsAuthorizeRouterData>> for AuthipayPaym
                     number: req_card.card_number.clone(),
                     security_code: req_card.card_cvc.clone(),
                     expiry_date,
+                    holder: req_card.card_holder_name.clone(),
                 };
 
                 let payment_method = PaymentMethod { payment_card: card };
@@ -143,10 +153,19 @@ impl TryFrom<&AuthipayRouterData<&PaymentsAuthorizeRouterData>> for AuthipayPaym
                     None => "PaymentCardSaleTransaction", // Default when not specified
                 };
 
+                let merchant_transaction_id =
+                    item.router_data.connector_request_reference_id.clone();
+
+                let order = AuthipayOrder {
+                    order_id: item.router_data.request.merchant_order_reference_id.clone(),
+                };
+
                 let request = Self {
                     request_type,
                     transaction_amount,
                     payment_method,
+                    merchant_transaction_id,
+                    order,
                 };
 
                 Ok(request)
@@ -398,12 +417,19 @@ impl<F, T> TryFrom<ResponseRouterData<F, AuthipayPaymentsResponse, T, PaymentsRe
         // Get gateway response (like Fiserv pattern)
         let gateway_resp = item.response.gateway_response();
 
-        // Store order_id in connector_metadata for void operations (like Fiserv)
         let mut metadata = std::collections::HashMap::new();
         metadata.insert(
             "order_id".to_string(),
             serde_json::Value::String(gateway_resp.transaction_processing_details.order_id.clone()),
         );
+        if let Some(ref token) = item.response.payment_token {
+            if let Some(reusable) = token.reusable {
+                metadata.insert(
+                    "token_reusable".to_string(),
+                    serde_json::Value::Bool(reusable),
+                );
+            }
+        }
         let connector_metadata = Some(serde_json::Value::Object(serde_json::Map::from_iter(
             metadata,
         )));
@@ -420,7 +446,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, AuthipayPaymentsResponse, T, PaymentsRe
                 redirection_data: Box::new(None),
                 mandate_reference: Box::new(None),
                 connector_metadata,
-                network_txn_id: None,
+                network_txn_id: item.response.scheme_transaction_id.clone(),
                 connector_response_reference_id: Some(
                     gateway_resp.transaction_processing_details.order_id.clone(),
                 ),
