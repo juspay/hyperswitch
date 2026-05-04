@@ -778,7 +778,16 @@ pub async fn payouts_fulfill_core(
             payout_data
                 .customer_details
                 .as_ref()
-                .map(|customer| customer.customer_id.clone()),
+                .map(|customer| {
+                    #[cfg(feature = "v1")]
+                    {
+                        customer.customer_id.clone()
+                    }
+                    #[cfg(not(feature = "v1"))]
+                    {
+                        customer.id.clone()
+                    }
+                }),
             platform.get_processor().get_key_store(),
         )
         .await?;
@@ -1216,7 +1225,16 @@ pub async fn call_connector_payout(
             payout_data
                 .customer_details
                 .as_ref()
-                .map(|customer| customer.customer_id.clone()),
+                .map(|customer| {
+                    #[cfg(feature = "v1")]
+                    {
+                        customer.customer_id.clone()
+                    }
+                    #[cfg(not(feature = "v1"))]
+                    {
+                        customer.id.clone()
+                    }
+                }),
             platform.get_processor().get_key_store(),
         )
         .await?;

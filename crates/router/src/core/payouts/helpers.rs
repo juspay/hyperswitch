@@ -217,6 +217,7 @@ impl SourceBankDataOperation {
         common_utils::generate_id_with_default_len("temporary_token")
     }
 
+    #[cfg(feature = "v1")]
     pub async fn get_source_bank_data(
         state: &SessionState,
         source_bank_data_token: Option<String>,
@@ -249,6 +250,16 @@ impl SourceBankDataOperation {
             }
             None => Ok(None),
         }
+    }
+
+    #[cfg(not(feature = "v1"))]
+    pub async fn get_source_bank_data(
+        state: &SessionState,
+        source_bank_data_token: Option<String>,
+        customer_id: Option<id_type::GlobalCustomerId>,
+        merchant_key_store: &domain::MerchantKeyStore,
+    ) -> RouterResult<Option<payouts::BankTransfer>> {
+        todo!()
     }
 
     pub async fn temp_store_source_bank_data(
