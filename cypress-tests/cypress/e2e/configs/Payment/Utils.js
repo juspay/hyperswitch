@@ -545,6 +545,7 @@ export const CONNECTOR_LISTS = {
     GIFT_CARD: ["adyen"],
     AUTH_SERVICE_ELIGIBILITY: ["stripe", "cybersource"],
     PARTIAL_AUTH: ["nuvei", "checkout", "worldpay", "worldpayvantiv"],
+    USE_BILLING_AS_PAYMENT_METHOD_BILLING: ["bankofamerica"],
     // Add more inclusion lists
   },
 };
