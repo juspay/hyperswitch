@@ -257,6 +257,13 @@ export const connectorDetails = {
         },
       },
     },
+    ManualRefundUpdate: {
+      Request: {},
+      Response: {
+        status: 200,
+        body: {},
+      },
+    },
     SyncRefund: {
       Response: {
         status: 200,

@@ -1465,6 +1465,13 @@ export const connectorDetails = {
         },
       },
     }),
+    ManualRefundUpdate: getCustomExchange({
+      Request: {},
+      Response: {
+        status: 200,
+        body: {},
+      },
+    }),
     PartialRefund: getCustomExchange({
       Request: {
         amount: 2000,
