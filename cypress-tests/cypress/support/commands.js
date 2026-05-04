@@ -2734,6 +2734,22 @@ Cypress.Commands.add(
                 }
 
                 break;
+              case "affirm":
+              case "klarna":
+              case "afterpay":
+              case "pay_later":
+                // Pay later methods typically have redirect_to_url in next_action
+                if (response.body.next_action?.redirect_to_url) {
+                  globalState.set(
+                    "nextActionUrl",
+                    response.body.next_action.redirect_to_url
+                  );
+                  globalState.set("nextActionType", "redirect_to_url");
+                } else if (response.body.next_action?.url) {
+                  globalState.set("nextActionUrl", response.body.next_action.url);
+                  globalState.set("nextActionType", "redirect_to_url");
+                }
+                break;
               default:
                 expect(response.body)
                   .to.have.property("next_action")
@@ -4365,6 +4381,24 @@ Cypress.Commands.add(
 
     handleRedirection(
       "bank_redirect",
+      { redirectionUrl, expectedUrl },
+      connectorId,
+      paymentMethodType
+    );
+  }
+);
+
+Cypress.Commands.add(
+  "handlePayLaterRedirection",
+  (globalState, paymentMethodType, expectedRedirection) => {
+    const connectorId = globalState.get("connectorId");
+    const nextActionUrl = globalState.get("nextActionUrl");
+
+    const expectedUrl = new URL(expectedRedirection);
+    const redirectionUrl = new URL(nextActionUrl);
+
+    handleRedirection(
+      "pay_later",
       { redirectionUrl, expectedUrl },
       connectorId,
       paymentMethodType

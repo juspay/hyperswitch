@@ -88,6 +88,14 @@ export function handleRedirection(
         paymentMethodType
       );
       break;
+    case "pay_later":
+      payLaterRedirection(
+        urls.redirectionUrl,
+        urls.expectedUrl,
+        resolvedConnectorId,
+        paymentMethodType
+      );
+      break;
     default:
       throw new Error(`Unknown redirection type: ${redirectionType}`);
   }
@@ -135,6 +143,57 @@ function cryptoRedirection(
     );
   } else {
     cy.log("Skipping crypto redirection - no valid redirect URL provided");
+  }
+
+  cy.then(() => {
+    verifyReturnUrl(redirectionUrl, expectedUrl, verifyUrl);
+  });
+}
+
+function payLaterRedirection(
+  redirectionUrl,
+  expectedUrl,
+  connectorId,
+  paymentMethodType
+) {
+  let verifyUrl = true;
+
+  if (redirectionUrl && redirectionUrl.href) {
+    cy.visit(redirectionUrl.href);
+    waitForRedirect(redirectionUrl.href);
+
+    handleFlow(
+      redirectionUrl,
+      expectedUrl,
+      connectorId,
+      ({ connectorId, paymentMethodType }) => {
+        switch (connectorId) {
+          case "affirm":
+            cy.log("Affirm pay later flow - waiting for auto-approval");
+            cy.wait(CONSTANTS.WAIT_TIME / 2);
+            break;
+          case "klarna":
+            cy.log("Klarna pay later flow - handling approval");
+            cy.get("body", { timeout: CONSTANTS.TIMEOUT }).then(($body) => {
+              if ($body.find('button:contains("Approve")').length > 0) {
+                cy.contains("button", "Approve").click();
+              }
+            });
+            break;
+          case "afterpay":
+            cy.log("Afterpay pay later flow");
+            cy.wait(CONSTANTS.WAIT_TIME / 2);
+            break;
+          default:
+            cy.log(`Generic pay later flow for ${connectorId}`);
+            cy.wait(CONSTANTS.WAIT_TIME / 2);
+        }
+      },
+      { paymentMethodType }
+    );
+  } else {
+    cy.log("Skipping pay later redirection - no valid redirect URL provided");
+    verifyUrl = false;
   }
 
   cy.then(() => {
