@@ -2273,7 +2273,10 @@ impl PaymentConfirm {
         payment_method_info: Option<domain::PaymentMethod>,
         token: Option<String>,
         payment_method: Option<common_enums::enums::PaymentMethod>,
-    ) -> RouterResult<(Option<storage::PaymentTokenData>, Option<domain::PaymentMethod>)> {
+    ) -> RouterResult<(
+        Option<storage::PaymentTokenData>,
+        Option<domain::PaymentMethod>,
+    )> {
         if prefetched_token_data.is_some() && payment_method_info.is_some() {
             Ok((prefetched_token_data, payment_method_info))
         } else if let Some(token) = token {

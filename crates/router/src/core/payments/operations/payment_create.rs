@@ -939,28 +939,27 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                 operations::PaymentMethodFetchData::default()
             }
         } else {
-            let payment_method_info =
-                if let Some(payment_method_id) = self.get_recurring_payment_method_id(req) {
-                    logger::debug!("Non-modular payment method DB lookup branch selected");
-                    Some(
-                        state
-                            .store
-                            .find_payment_method(
-                                platform.get_provider().get_key_store(),
-                                payment_method_id,
-                                platform.get_provider().get_account().storage_scheme,
-                            )
-                            .await
-                            .to_not_found_response(
-                                errors::ApiErrorResponse::PaymentMethodNotFound,
-                            )?,
-                    )
-                } else {
-                    logger::debug!(
-                        "No recurring payment method id found, skipping payment method DB lookup"
-                    );
-                    None
-                };
+            let payment_method_info = if let Some(payment_method_id) =
+                self.get_recurring_payment_method_id(req)
+            {
+                logger::debug!("Non-modular payment method DB lookup branch selected");
+                Some(
+                    state
+                        .store
+                        .find_payment_method(
+                            platform.get_provider().get_key_store(),
+                            payment_method_id,
+                            platform.get_provider().get_account().storage_scheme,
+                        )
+                        .await
+                        .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?,
+                )
+            } else {
+                logger::debug!(
+                    "No recurring payment method id found, skipping payment method DB lookup"
+                );
+                None
+            };
 
             if let Some(payment_method) = payment_method_info {
                 if feature_config.is_modular_with_pm_version(Some(payment_method.version)) {
