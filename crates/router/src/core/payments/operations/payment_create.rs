@@ -910,10 +910,8 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
         platform: &domain::Platform,
         feature_config: &core_utils::FeatureConfig,
     ) -> RouterResult<operations::PaymentMethodFetchData> {
-        let payment_method_reference = self.get_payment_method_reference(req);
-
         let payment_method_fetch_data = if feature_config.is_payment_method_modular_allowed {
-            logger::info!("Organization is eligible for PM Modular Service, fetching payment method if payment_token is provided.");
+            logger::debug!("PM Modular Service branch selected for payment method fetch");
             utils::when(
                 req.off_session == Some(true) && req.recurring_details.is_none(),
                 || {
@@ -925,7 +923,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                 },
             )?;
 
-            if let Some(payment_method_ref) = payment_method_reference {
+            if let Some(payment_method_ref) = self.get_payment_method_reference(req) {
                 let pm_info = self
                     .fetch_payment_method_from_modular_service(
                         state,
@@ -937,28 +935,38 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
 
                 operations::PaymentMethodFetchData::from_modular(pm_info)
             } else {
+                logger::debug!("No payment method reference found, skipping payment method fetch");
                 operations::PaymentMethodFetchData::default()
             }
         } else {
-            let payment_method_info = match (req.off_session, req.recurring_details.as_ref()) {
-                (Some(true), Some(RecurringDetails::PaymentMethodId(payment_method_id))) => Some(
-                    state
-                        .store
-                        .find_payment_method(
-                            platform.get_provider().get_key_store(),
-                            payment_method_id,
-                            platform.get_provider().get_account().storage_scheme,
-                        )
-                        .await
-                        .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)?,
-                ),
-                _ => None,
-            };
+            let payment_method_info =
+                if let Some(payment_method_id) = self.get_recurring_payment_method_id(req) {
+                    logger::debug!("Non-modular payment method DB lookup branch selected");
+                    Some(
+                        state
+                            .store
+                            .find_payment_method(
+                                platform.get_provider().get_key_store(),
+                                payment_method_id,
+                                platform.get_provider().get_account().storage_scheme,
+                            )
+                            .await
+                            .to_not_found_response(
+                                errors::ApiErrorResponse::PaymentMethodNotFound,
+                            )?,
+                    )
+                } else {
+                    logger::debug!(
+                        "No recurring payment method id found, skipping payment method DB lookup"
+                    );
+                    None
+                };
 
-            match payment_method_info {
-                Some(payment_method)
-                    if feature_config.is_modular_with_pm_version(Some(payment_method.version)) =>
-                {
+            if let Some(payment_method) = payment_method_info {
+                if feature_config.is_modular_with_pm_version(Some(payment_method.version)) {
+                    logger::debug!(
+                        "Payment method version is V2, fetching payment method from PM Modular Service"
+                    );
                     let payment_method_id = payment_method.get_id().to_owned();
                     let pm_info = self
                         .fetch_payment_method_from_modular_service(
@@ -970,12 +978,12 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                         .await?;
 
                     operations::PaymentMethodFetchData::from_modular(pm_info)
-                }
-                Some(payment_method) => {
-                    logger::info!("Organization is not eligible for PM Modular Service, skipping fetch payment method.");
+                } else {
+                    logger::debug!("Using legacy DB payment method branch");
                     operations::PaymentMethodFetchData::from_legacy(payment_method, None)
                 }
-                None => operations::PaymentMethodFetchData::default(),
+            } else {
+                operations::PaymentMethodFetchData::default()
             }
         };
 
@@ -1345,13 +1353,17 @@ impl PaymentCreate {
 
     /// Determines the payment method reference for modular payment flows.
     fn get_payment_method_reference(self, req: &api::PaymentsRequest) -> Option<&str> {
-        match (req.off_session, req.recurring_details.as_ref()) {
-            // Payment using off_session MITs using PM ID
-            (Some(true), Some(RecurringDetails::PaymentMethodId(payment_method_id))) => {
-                Some(payment_method_id.as_str())
-            }
-            // All other cases
-            _ => req.payment_token.as_deref(),
+        self.get_recurring_payment_method_id(req)
+            .or(req.payment_token.as_deref())
+    }
+
+    fn get_recurring_payment_method_id(self, req: &api::PaymentsRequest) -> Option<&str> {
+        if let Some(RecurringDetails::PaymentMethodId(payment_method_id)) =
+            req.recurring_details.as_ref()
+        {
+            Some(payment_method_id.as_str())
+        } else {
+            None
         }
     }
 

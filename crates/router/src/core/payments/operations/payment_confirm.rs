@@ -673,33 +673,15 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         let (token_data, payment_method_info) = if is_modular_payment_method_flow {
             (None, payment_method_info)
         } else {
-            // Only forward prefetched token data when the matching DB PM is known.
-            match (prefetched_token_data, payment_method_info, token.clone()) {
-                (Some(token_data), Some(payment_method_info), _) => {
-                    (Some(token_data), Some(payment_method_info))
-                }
-                (_, payment_method_info, Some(token)) => {
-                    let token_data = helpers::retrieve_payment_token_data(
-                        state,
-                        token,
-                        payment_method.or(payment_attempt.payment_method),
-                    )
-                    .await?;
-
-                    let payment_method_info =
-                        helpers::retrieve_payment_method_from_db_with_token_data(
-                            state,
-                            platform.get_provider().get_key_store(),
-                            &token_data,
-                            storage_scheme,
-                        )
-                        .await?
-                        .or(payment_method_info);
-
-                    (Some(token_data), payment_method_info)
-                }
-                (_, payment_method_info, None) => (None, payment_method_info),
-            }
+            self.resolve_legacy_token_payment_method_context(
+                state,
+                platform,
+                prefetched_token_data,
+                payment_method_info,
+                token.clone(),
+                payment_method.or(payment_attempt.payment_method),
+            )
+            .await?
         };
         let additional_pm_data_from_locker = if let Some(ref pm) = payment_method_info {
             let card_detail_from_locker: Option<api::CardDetailFromLocker> = pm
@@ -1307,6 +1289,9 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                 Some(payment_method)
                     if feature_config.is_modular_with_pm_version(Some(payment_method.version)) =>
                 {
+                    logger::debug!(
+                        "Payment method version is V2, fetching payment method from PM Modular Service"
+                    );
                     let payment_method_id = payment_method.get_id().to_owned();
                     let pm_info = self
                         .fetch_payment_method_from_modular_service(
@@ -2280,6 +2265,36 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
 }
 
 impl PaymentConfirm {
+    async fn resolve_legacy_token_payment_method_context(
+        self,
+        state: &SessionState,
+        platform: &domain::Platform,
+        prefetched_token_data: Option<storage::PaymentTokenData>,
+        payment_method_info: Option<domain::PaymentMethod>,
+        token: Option<String>,
+        payment_method: Option<common_enums::enums::PaymentMethod>,
+    ) -> RouterResult<(Option<storage::PaymentTokenData>, Option<domain::PaymentMethod>)> {
+        if prefetched_token_data.is_some() && payment_method_info.is_some() {
+            Ok((prefetched_token_data, payment_method_info))
+        } else if let Some(token) = token {
+            let token_data =
+                helpers::retrieve_payment_token_data(state, token, payment_method).await?;
+
+            let payment_method_info = helpers::retrieve_payment_method_from_db_with_token_data(
+                state,
+                platform.get_provider().get_key_store(),
+                &token_data,
+                platform.get_processor().get_account().storage_scheme,
+            )
+            .await?
+            .or(payment_method_info);
+
+            Ok((Some(token_data), payment_method_info))
+        } else {
+            Ok((None, payment_method_info))
+        }
+    }
+
     async fn fetch_payment_method_from_modular_service(
         &self,
         state: &SessionState,
