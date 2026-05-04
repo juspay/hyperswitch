@@ -95,6 +95,7 @@ CREATE TABLE observability_events_flat
     request_latency_ms      UInt32                   DEFAULT 0,
     service_name            LowCardinality(String)   DEFAULT '',
     endpoint                String                   DEFAULT '' CODEC(ZSTD(1)),
+    ext_method              LowCardinality(String)   DEFAULT '',
     ext_status_code         UInt16                   DEFAULT 0,
     success                 Bool                     DEFAULT true,
     call_latency_ms         UInt64                   DEFAULT 0,
@@ -103,9 +104,8 @@ CREATE TABLE observability_events_flat
     url_path                String                   DEFAULT '' CODEC(ZSTD(1)),
     ip_addr                 String                   DEFAULT '' CODEC(ZSTD(1)),
     user_agent              String                   DEFAULT '' CODEC(ZSTD(1)),
-    INDEX idx_service       service_name             TYPE bloom_filter GRANULARITY 1,
     INDEX idx_flow          api_flow                 TYPE bloom_filter GRANULARITY 1,
-    INDEX idx_success       success                  TYPE bloom_filter GRANULARITY 1,
+    INDEX idx_endpoint      endpoint                 TYPE bloom_filter GRANULARITY 1,
     INDEX idx_ext_status    ext_status_code          TYPE bloom_filter GRANULARITY 1
 )
 ENGINE = MergeTree()
@@ -189,6 +189,7 @@ SELECT
     toUInt32(latency / 1000)        AS request_latency_ms,
     ext.1                           AS service_name,
     ext.2                           AS endpoint,
+    ext.3                           AS ext_method,
     toUInt16(ext.4)                 AS ext_status_code,
     ext.5                           AS success,
     toUInt64(ext.6)                 AS call_latency_ms,
