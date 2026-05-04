@@ -3887,7 +3887,7 @@ impl
                             original_payment_authorized_amount: record.original_transaction_amount,
                             original_payment_authorized_currency: record
                                 .original_transaction_currency,
-                            connector_customer_id: None,
+                            connector_customer_id: record.connector_customer_id.clone(),
                             connector_mandate_request_reference_id: record
                                 .connector_mandate_request_reference_id
                                 .clone(),
