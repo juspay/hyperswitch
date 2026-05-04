@@ -2754,10 +2754,6 @@ pub struct PaymentMethodListResponse {
 
     /// Payment intent details associated with this payment method list request
     pub intent_data: Option<PaymentMethodListIntentData>,
-
-    /// The capture method for the payment
-    #[schema(value_type = Option<CaptureMethod>)]
-    pub capture_method: Option<api_enums::CaptureMethod>,
 }
 
 /// Intent-only payment details returned as part of the Payment Method List response
@@ -2830,6 +2826,10 @@ pub struct PaymentMethodListIntentData {
 
     /// Installment options available for this payment
     pub installment_options: Option<Vec<PaymentMethodListInstallmentOption>>,
+
+    /// The capture method for the payment
+    #[schema(value_type = Option<CaptureMethod>)]
+    pub capture_method: Option<api_enums::CaptureMethod>,
 }
 
 /// Installment options for a payment method, as returned in the payment method list response

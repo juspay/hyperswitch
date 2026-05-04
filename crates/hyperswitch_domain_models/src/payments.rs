@@ -476,6 +476,7 @@ impl PaymentIntent {
         self,
         net_amount: MinorUnit,
         show_installments: bool,
+        capture_method: Option<common_enums::CaptureMethod>,
     ) -> CustomResult<PaymentMethodListIntentData, errors::api_error_response::ApiErrorResponse>
     {
         let billing: Option<Address> = self
@@ -540,6 +541,7 @@ impl PaymentIntent {
             merchant_order_reference_id: self.merchant_order_reference_id,
             attempt_count: self.attempt_count,
             installment_options,
+            capture_method,
         })
     }
 
