@@ -412,7 +412,7 @@ impl<F>
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct HelcimMetaData {
-    pub preauth_transaction_id: u64,
+    pub preauth_transaction_id: String,
 }
 
 impl TryFrom<PaymentsResponseRouterData<HelcimPaymentsResponse>> for PaymentsAuthorizeRouterData {
@@ -430,7 +430,7 @@ impl TryFrom<PaymentsResponseRouterData<HelcimPaymentsResponse>> for PaymentsAut
         };
         let connector_metadata = if !item.data.request.is_auto_capture()? {
             Some(serde_json::json!(HelcimMetaData {
-                preauth_transaction_id: item.response.transaction_id,
+                preauth_transaction_id: item.response.transaction_id.to_string(),
             }))
         } else {
             None

@@ -88,7 +88,7 @@ impl Helcim {
         connector_meta: Option<&serde_json::Value>,
     ) -> CustomResult<Option<String>, errors::ConnectorError> {
         let meta: helcim::HelcimMetaData = to_connector_meta(connector_meta.cloned())?;
-        Ok(Some(meta.preauth_transaction_id.to_string()))
+        Ok(Some(meta.preauth_transaction_id))
     }
 }
 
