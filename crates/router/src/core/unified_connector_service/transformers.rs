@@ -2632,7 +2632,8 @@ impl
                 status_code,
                 attempt_status,
                 connector_transaction_id: connector_transaction_id.get_optional_response_id(),
-                connector_response_reference_id: None,
+                connector_response_reference_id: Some(response.merchant_recurring_payment_id.clone())
+                    .filter(|s| !s.is_empty()),
                 network_decline_code: error_info.issuer_details.as_ref().and_then(|id| {
                     id.network_details
                         .as_ref()
@@ -2682,7 +2683,8 @@ impl
                     connector_metadata,
                     network_txn_id: response.network_transaction_id,
                     network_txn_link_id: None,
-                    connector_response_reference_id: None,
+                    connector_response_reference_id: Some(response.merchant_recurring_payment_id.clone())
+                        .filter(|s| !s.is_empty()),
                     incremental_authorization_allowed: response.incremental_authorization_allowed,
                     authentication_data: None,
                     charges: None,
