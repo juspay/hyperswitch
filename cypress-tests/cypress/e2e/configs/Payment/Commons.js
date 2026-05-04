@@ -2499,6 +2499,21 @@ export const connectorDetails = {
         currency: "USD",
       },
     }),
+    ManualPaymentUpdate: getCustomExchange({
+      Request: {
+        attempt_status: "pending",
+        error_code: "TEST_ERROR",
+        error_message: "Manual test error message",
+      },
+      Response: {
+        status: 200,
+        body: {
+          attempt_status: "pending",
+          error_code: "TEST_ERROR",
+          error_message: "Manual test error message",
+        },
+      },
+    }),
   },
   upi_pm: {
     PaymentIntent: getCustomExchange({

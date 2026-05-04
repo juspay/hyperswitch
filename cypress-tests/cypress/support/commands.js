@@ -3306,6 +3306,9 @@ Cypress.Commands.add(
     attempt = 1,
     expectedIntentStatus,
     connectedMerchantId,
+    forceSync = true,
+    skipNullBilling = false,
+    unconfirmedPayment = false,
   }) => {
     const { Configs: configs = {} } = data || {};
 
@@ -3324,9 +3327,16 @@ Cypress.Commands.add(
       headers["x-connected-merchant-id"] = connectedMerchantId;
     }
 
+    const queryParams = [];
+    if (forceSync) {
+      queryParams.push("force_sync=true");
+    }
+    queryParams.push("expand_attempts=true");
+    const queryString = queryParams.join("&");
+
     cy.request({
       method: "GET",
-      url: `${globalState.get("baseUrl")}/payments/${payment_id}?force_sync=true&expand_attempts=true`,
+      url: `${globalState.get("baseUrl")}/payments/${payment_id}?${queryString}`,
       headers: headers,
       failOnStatusCode: false,
     }).then((response) => {
@@ -3343,7 +3353,11 @@ Cypress.Commands.add(
             globalState.get("paymentAmount")
           );
           expect(response.body.profile_id, "profile_id").to.not.be.null;
-          expect(response.body.billing, "billing_address").to.not.be.null;
+          if (skipNullBilling || unconfirmedPayment) {
+            expect(response.body.billing, "billing_address").to.not.be.undefined;
+          } else {
+            expect(response.body.billing, "billing_address").to.not.be.null;
+          }
           expect(response.body.customer, "customer").to.not.be.empty;
 
           if (expectedIntentStatus) {
@@ -3354,6 +3368,7 @@ Cypress.Commands.add(
           }
 
           if (
+            !unconfirmedPayment &&
             ["succeeded", "processing", "requires_customer_action"].includes(
               response.body.status
             )
@@ -5785,7 +5800,7 @@ Cypress.Commands.add("diffCheckResult", (globalState) => {
 
 Cypress.Commands.add(
   "manualPaymentStatusUpdateTest",
-  (globalState, PaymentsManualUpdateRequestBody) => {
+  (globalState, PaymentsManualUpdateRequestBody, data) => {
     const merchantId = globalState.get("merchantId");
     const paymentId = globalState.get("paymentID");
     const completeUrl = `${Cypress.env("BASEURL")}/payments/${paymentId}/manual-update`;
@@ -5806,17 +5821,55 @@ Cypress.Commands.add(
 
       cy.wrap(response).then(() => {
         expect(response.headers["content-type"]).to.include("application/json");
-        if (response.status === 200) {
-          expect(response.status).to.eq(200);
-          expect(response.body.payment_id).to.equal(paymentId);
-          expect(response.body.merchant_id).to.equal(merchantId);
-          expect(response.body.attempt_status).to.equal(
-            PaymentsManualUpdateRequestBody.attempt_status
-          );
+        
+        // If data is provided, use data-driven validation
+        if (data && data.Response) {
+          const expectedStatus = data.Response.status || 200;
+          expect(response.status).to.eq(expectedStatus);
+          
+          if (response.status === 200) {
+            expect(response.body.payment_id).to.equal(paymentId);
+            expect(response.body.merchant_id).to.equal(merchantId);
+            
+            // Validate attempt_status if present in expected response
+            if (data.Response.body && data.Response.body.attempt_status) {
+              expect(response.body.attempt_status).to.equal(
+                data.Response.body.attempt_status
+              );
+            }
+            
+            // Validate error_code if present in expected response
+            if (data.Response.body && data.Response.body.error_code) {
+              expect(response.body.error_code).to.equal(
+                data.Response.body.error_code
+              );
+            }
+            
+            // Validate error_message if present in expected response
+            if (data.Response.body && data.Response.body.error_message) {
+              expect(response.body.error_message).to.equal(
+                data.Response.body.error_message
+              );
+            }
+          } else {
+            throw new Error(
+              `Payment Update Call Failed with error code "${response.body.error.code}" error message "${response.body.error.message}"`
+            );
+          }
         } else {
-          throw new Error(
-            `Payment Update Call Failed with error code "${response.body.error.code}" error message "${response.body.error.message}"`
-          );
+          // Legacy mode: fallback to original validation for backward compatibility
+          if (response.status === 200) {
+            expect(response.status).to.eq(200);
+            expect(response.body.payment_id).to.equal(paymentId);
+            expect(response.body.merchant_id).to.equal(merchantId);
+            expect(response.body.attempt_status).to.equal(
+              PaymentsManualUpdateRequestBody.attempt_status
+            );
+          } else {
+            throw new Error(
+              `Payment Update Call Failed with error code "${response.body.error.code}" error message "${response.body.error.message}"`
+            );
+          }
         }
       });
     });
