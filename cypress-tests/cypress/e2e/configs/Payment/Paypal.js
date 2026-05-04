@@ -307,8 +307,8 @@ export const connectorDetails = {
           amount: 6000,
           amount_capturable: 6000,
           amount_received: null,
-          extended_authorization_applied: true,
-          extended_authorization_expires_at: null, // Set dynamically by backend
+          request_extended_authorization: true,
+          expires_on: null, // Set dynamically by backend
         },
       },
     },
