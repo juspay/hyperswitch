@@ -20441,6 +20441,14 @@
               }
             ],
             "nullable": true
+          },
+          "finix_additional_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/FinixAdditionalDetails"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -20936,6 +20944,17 @@
           }
         ],
         "description": "Possible field type of required fields in payment_method_data"
+      },
+      "FinixAdditionalDetails": {
+        "type": "object",
+        "properties": {
+          "fraud_session_id": {
+            "type": "string",
+            "description": "The fraud session ID used for Finix fraud detection",
+            "example": "1234567890abcdef",
+            "nullable": true
+          }
+        }
       },
       "FlexibleAmountDetails": {
         "type": "object",
