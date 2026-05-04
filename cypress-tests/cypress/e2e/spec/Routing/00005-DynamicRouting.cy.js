@@ -161,5 +161,4 @@ describe("Dynamic Routing Test", () => {
       cy.toggleDynamicRoutingByType("elimination", data, globalState);
     });
   });
-
 });
