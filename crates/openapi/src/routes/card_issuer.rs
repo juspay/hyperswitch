@@ -41,6 +41,25 @@ pub async fn add_card_issuer() {}
 )]
 pub async fn update_card_issuer() {}
 
+/// Card Issuer - Delete
+///
+/// Deletes an existing card issuer entry
+#[utoipa::path(
+    delete,
+    path = "/card_issuers/{id}",
+    params(
+        ("id" = String, Path, description = "The unique identifier for the card issuer"),
+    ),
+    responses(
+        (status = 200, description = "Card issuer deleted", body = CardIssuerDeleteResponse),
+        (status = 404, description = "Card issuer not found"),
+    ),
+    tag = "Card Issuer",
+    operation_id = "Delete Card Issuer",
+    security(("admin_api_key" = [])),
+)]
+pub async fn delete_card_issuer() {}
+
 /// Card Issuer - List
 ///
 /// Lists card issuers with optional search filter

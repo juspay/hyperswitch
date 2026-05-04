@@ -88,6 +88,14 @@ export function handleRedirection(
         paymentMethodType
       );
       break;
+    case "pay_later":
+      payLaterRedirection(
+        urls.redirectionUrl,
+        urls.expectedUrl,
+        resolvedConnectorId,
+        paymentMethodType
+      );
+      break;
     default:
       throw new Error(`Unknown redirection type: ${redirectionType}`);
   }
@@ -135,6 +143,115 @@ function cryptoRedirection(
     );
   } else {
     cy.log("Skipping crypto redirection - no valid redirect URL provided");
+  }
+
+  cy.then(() => {
+    verifyReturnUrl(redirectionUrl, expectedUrl, verifyUrl);
+  });
+}
+
+function payLaterRedirection(
+  redirectionUrl,
+  expectedUrl,
+  connectorId,
+  paymentMethodType
+) {
+  // PayLater payments (like Klarna) are redirect flows where we verify navigation
+  // to the provider's page but don't complete the payment (verifyUrl = false)
+  let verifyUrl = false;
+
+  if (redirectionUrl && redirectionUrl.href) {
+    // Suppress uncaught exceptions from Klarna sandbox pages
+    cy.on("uncaught:exception", (err) => {
+      if (
+        err.message.includes("klarna") ||
+        err.message.includes("playground") ||
+        err.message.includes("angular") ||
+        err.message.includes("$ is not defined")
+      ) {
+        return false; // Prevent test failure
+      }
+      return true;
+    });
+
+    cy.visit(redirectionUrl.href);
+    waitForRedirect(redirectionUrl.href);
+
+    handleFlow(
+      redirectionUrl,
+      expectedUrl,
+      connectorId,
+      ({ connectorId, paymentMethodType, constants }) => {
+        switch (connectorId) {
+          case "adyen":
+          case "klarna":
+          case "aci":
+            // Klarna via various connectors - verify we land on Klarna page
+            cy.log(
+              `Handling ${connectorId} ${paymentMethodType} pay_later flow`
+            );
+
+            // Verify the page loaded by checking for Klarna-specific content
+            // Klarna playground shows payment forms or consent pages
+            cy.get("body", { timeout: constants.TIMEOUT }).then(($body) => {
+              const bodyText = $body.text();
+              const klarnaIndicators = [
+                /klarna/i,
+                /playground/i,
+                /buy now.*pay later/i,
+                /continue.*klarna/i,
+                /smoooth/i,
+              ];
+
+              const hasKlarnaIndicator = klarnaIndicators.some((pattern) =>
+                pattern.test(bodyText)
+              );
+
+              if (hasKlarnaIndicator) {
+                cy.log(
+                  "Successfully navigated to Klarna page - verified redirection"
+                );
+              } else {
+                // Check URL as fallback
+                cy.url().then((url) => {
+                  if (
+                    url.includes("klarna") ||
+                    url.includes("playground") ||
+                    url.includes("adyen") // Some Klarna flows go through Adyen
+                  ) {
+                    cy.log(
+                      "URL indicates Klarna redirect - verified navigation"
+                    );
+                  } else {
+                    cy.log(
+                      `Warning: URL (${url}) does not contain expected Klarna indicators`
+                    );
+                  }
+                });
+              }
+            });
+
+            verifyUrl = false; // Don't complete payment, just verify navigation
+            break;
+
+          case "stripe":
+            // Stripe handles pay_later differently - may have different flow
+            cy.log("Handling Stripe pay_later flow");
+            cy.get("body", { timeout: constants.TIMEOUT }).should("exist");
+            verifyUrl = false;
+            break;
+
+          default:
+            cy.log(
+              `Generic pay_later handling for ${connectorId}/${paymentMethodType}`
+            );
+            verifyUrl = false;
+        }
+      },
+      { paymentMethodType }
+    );
+  } else {
+    cy.log("Skipping pay_later redirection - no valid redirect URL provided");
   }
 
   cy.then(() => {

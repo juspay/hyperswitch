@@ -45,6 +45,13 @@ impl CardIssuer {
     ) -> StorageResult<Self> {
         generics::generic_update_by_id::<<Self as HasTable>::Table, _, _, _>(conn, id, data).await
     }
+
+    pub async fn delete_by_id(
+        conn: &PgPooledConn,
+        id: id_type::CardIssuerId,
+    ) -> StorageResult<bool> {
+        generics::generic_delete::<<Self as HasTable>::Table, _>(conn, dsl::id.eq(id)).await
+    }
 }
 
 impl NewCardIssuer {
