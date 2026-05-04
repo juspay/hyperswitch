@@ -162,34 +162,4 @@ describe("Dynamic Routing Test", () => {
     });
   });
 
-  context("Contract config PATCH endpoint (500 - server bug)", () => {
-    before("seed global state", () => {
-      cy.task("getGlobalState").then((state) => {
-        globalState = new State(state);
-      });
-    });
-
-    afterEach("flush global state", () => {
-      cy.task("setGlobalState", globalState.data);
-    });
-
-    xit("update-contract-based-dynamic-routing-config", () => {
-      const data = {
-        Request: {
-          algorithm_for: "payment",
-          connectors: [
-            {
-              connector: "stripe",
-              merchant_connector_id: globalState.get("stripeMcaId"),
-            },
-          ],
-        },
-        Response: {
-          status: 200,
-          body: {},
-        },
-      };
-      cy.updateContractDynamicRoutingConfig(data, globalState);
-    });
-  });
 });
