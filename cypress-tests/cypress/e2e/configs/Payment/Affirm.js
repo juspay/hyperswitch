@@ -50,8 +50,9 @@ export const connectorDetails = {
     Affirm: getCustomExchange({
       Request: {
         payment_method: "pay_later",
-        payment_method_type: "affirm",
+        payment_method_type: "affirm_redirect",
         payment_experience: "redirect_to_url",
+        customer_acceptance: null,
         payment_method_data: {
           pay_later: {
             affirm: {
