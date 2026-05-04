@@ -5212,39 +5212,6 @@ Cypress.Commands.add(
   }
 );
 
-Cypress.Commands.add("toggleDynamicRoutingConfig", (data, globalState) => {
-  const { Response: resData } = data || {};
-  const merchantId = globalState.get("merchantId");
-  const profileId = globalState.get("profileId");
-
-  cy.request({
-    method: "POST",
-    url: `${globalState.get("baseUrl")}/account/${merchantId}/business_profile/${profileId}/dynamic_routing/contracts/toggle?enable=dynamic_connector_selection`,
-    headers: {
-      "api-key": globalState.get("apiKey"),
-      "Content-Type": "application/json",
-    },
-    failOnStatusCode: false,
-    body: {},
-  }).then((response) => {
-    logRequestId(response.headers["x-request-id"]);
-
-    cy.wrap(response).then(() => {
-      expect(response.headers["content-type"]).to.include("application/json");
-
-      if (response.status === 200) {
-        expect(response.body).to.have.property("id");
-        globalState.set("routingConfigId", response.body.id);
-        for (const key in resData.body) {
-          expect(resData.body[key]).to.equal(response.body[key]);
-        }
-      } else {
-        defaultErrorHandler(response, resData);
-      }
-    });
-  });
-});
-
 Cypress.Commands.add(
   "deactivateDynamicRoutingConfig",
   (routingType, data, globalState) => {
@@ -5252,10 +5219,7 @@ Cypress.Commands.add(
     const merchantId = globalState.get("merchantId");
     const profileId = globalState.get("profileId");
 
-    const dynamicRoutingUrl =
-      routingType === "contracts"
-        ? `${globalState.get("baseUrl")}/account/${merchantId}/business_profile/${profileId}/dynamic_routing/contracts/toggle?enable=none`
-        : `${globalState.get("baseUrl")}/account/${merchantId}/business_profile/${profileId}/dynamic_routing/${routingType}/create?enable=none`;
+    const dynamicRoutingUrl = `${globalState.get("baseUrl")}/account/${merchantId}/business_profile/${profileId}/dynamic_routing/${routingType}/create?enable=none`;
 
     cy.request({
       method: "POST",
@@ -7281,41 +7245,6 @@ Cypress.Commands.add(
       },
       failOnStatusCode: false,
       body: {},
-    }).then((response) => {
-      logRequestId(response.headers["x-request-id"]);
-
-      cy.wrap(response).then(() => {
-        expect(response.headers["content-type"]).to.include("application/json");
-
-        if (response.status === 200) {
-          for (const key in resData.body) {
-            expect(resData.body[key]).to.equal(response.body[key]);
-          }
-        } else {
-          defaultErrorHandler(response, resData);
-        }
-      });
-    });
-  }
-);
-
-Cypress.Commands.add(
-  "updateContractDynamicRoutingConfig",
-  (data, globalState) => {
-    const { Request: reqData, Response: resData } = data || {};
-    const routingConfigId = globalState.get("routingConfigId");
-    const merchantId = globalState.get("merchantId");
-    const profileId = globalState.get("profileId");
-
-    cy.request({
-      method: "PATCH",
-      url: `${globalState.get("baseUrl")}/account/${merchantId}/business_profile/${profileId}/dynamic_routing/contracts/config/${routingConfigId}`,
-      headers: {
-        "api-key": globalState.get("apiKey"),
-        "Content-Type": "application/json",
-      },
-      failOnStatusCode: false,
-      body: reqData,
     }).then((response) => {
       logRequestId(response.headers["x-request-id"]);
 
