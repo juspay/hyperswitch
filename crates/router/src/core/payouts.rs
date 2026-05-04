@@ -775,19 +775,16 @@ pub async fn payouts_fulfill_core(
         payout_data.source_bank_data = helpers::SourceBankDataOperation::get_source_bank_data(
             &state,
             payout_data.payout_attempt.source_bank_data_token.clone(),
-            payout_data
-                .customer_details
-                .as_ref()
-                .map(|customer| {
-                    #[cfg(feature = "v1")]
-                    {
-                        customer.customer_id.clone()
-                    }
-                    #[cfg(not(feature = "v1"))]
-                    {
-                        customer.id.clone()
-                    }
-                }),
+            payout_data.customer_details.as_ref().map(|customer| {
+                #[cfg(feature = "v1")]
+                {
+                    customer.customer_id.clone()
+                }
+                #[cfg(not(feature = "v1"))]
+                {
+                    customer.id.clone()
+                }
+            }),
             platform.get_processor().get_key_store(),
         )
         .await?;
@@ -1222,19 +1219,16 @@ pub async fn call_connector_payout(
         payout_data.source_bank_data = helpers::SourceBankDataOperation::get_source_bank_data(
             state,
             payout_data.payout_attempt.source_bank_data_token.clone(),
-            payout_data
-                .customer_details
-                .as_ref()
-                .map(|customer| {
-                    #[cfg(feature = "v1")]
-                    {
-                        customer.customer_id.clone()
-                    }
-                    #[cfg(not(feature = "v1"))]
-                    {
-                        customer.id.clone()
-                    }
-                }),
+            payout_data.customer_details.as_ref().map(|customer| {
+                #[cfg(feature = "v1")]
+                {
+                    customer.customer_id.clone()
+                }
+                #[cfg(not(feature = "v1"))]
+                {
+                    customer.id.clone()
+                }
+            }),
             platform.get_processor().get_key_store(),
         )
         .await?;
