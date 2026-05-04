@@ -14,12 +14,6 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  # Toggle between iteration mode and production mode.
-  #   'always'           : run on PR + merge_group (use while iterating on this workflow itself)
-  #   'merge-queue-only' : run only on merge_group; PR triggers exit instantly with no work
-  # Once this workflow is stable, flip to 'merge-queue-only'.
-  RUN_MODE: 'always'
-
   CARGO_INCREMENTAL: 0
   CARGO_NET_RETRY: 10
   PAYMENTS_CONNECTORS_BATCH_1: "stripe cybersource adyen authorizedotnet bluesnap"
@@ -35,11 +29,34 @@ env:
   RUST_MIN_STACK: 11534336
 
 jobs:
+  configure:
+    name: Configure run
+    runs-on: ubuntu-latest
+    outputs:
+      should_run: ${{ steps.gate.outputs.should_run }}
+    steps:
+      - name: Decide whether to run
+        id: gate
+        shell: bash
+        env:
+          # Toggle between iteration mode and production mode.
+          #   'always'           : run on PR + merge_group (use while iterating on this workflow itself)
+          #   'merge-queue-only' : run only on merge_group; PR triggers exit instantly with no work
+          # Once this workflow is stable, flip to 'merge-queue-only'.
+          RUN_MODE: 'always'
+          EVENT_NAME: ${{ github.event_name }}
+        run: |
+          if [[ "$EVENT_NAME" == "merge_group" ]] || \
+             [[ "$EVENT_NAME" == "pull_request" && "$RUN_MODE" == "always" ]]; then
+            echo "should_run=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "should_run=false" >> "$GITHUB_OUTPUT"
+          fi
+
   build-hyperswitch:
     name: Build hyperswitch server
-    if: |
-      github.event_name == 'merge_group' ||
-      (github.event_name == 'pull_request' && env.RUN_MODE == 'always')
+    needs: configure
+    if: needs.configure.outputs.should_run == 'true'
     runs-on: hyperswitch-runners
     env:
       # Use `sccache` for caching compilation artifacts
@@ -95,9 +112,8 @@ jobs:
 
   prepare-matrix:
     name: Prepare extended connector matrix
-    if: |
-      github.event_name == 'merge_group' ||
-      (github.event_name == 'pull_request' && env.RUN_MODE == 'always')
+    needs: configure
+    if: needs.configure.outputs.should_run == 'true'
     runs-on: hyperswitch-runners
     outputs:
       matrix: ${{ steps.set-matrix.outputs.matrix }}
@@ -171,10 +187,8 @@ jobs:
 
   cypress-tests:
     name: Run Extended Cypress tests
-    needs: [build-hyperswitch, prepare-matrix]
-    if: |
-      github.event_name == 'merge_group' ||
-      (github.event_name == 'pull_request' && env.RUN_MODE == 'always')
+    needs: [configure, build-hyperswitch, prepare-matrix]
+    if: needs.configure.outputs.should_run == 'true'
     permissions:
       pull-requests: write
     runs-on: hyperswitch-runners
@@ -381,11 +395,9 @@ jobs:
 
   consolidated-result:
     name: Extended Cypress — Consolidated Result
-    needs: [cypress-tests]
+    needs: [configure, cypress-tests]
     runs-on: ubuntu-latest
-    if: |
-      (github.event_name == 'merge_group' ||
-      (github.event_name == 'pull_request' && env.RUN_MODE == 'always')) && !cancelled()
+    if: needs.configure.outputs.should_run == 'true' && !cancelled()
     permissions:
       pull-requests: write
     steps:
