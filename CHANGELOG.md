@@ -4,6 +4,22 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.05.04.0
+
+### Features
+
+- **ucs:** Default to shadow mode when no rollout config is present ([#12039](https://github.com/juspay/hyperswitch/pull/12039)) ([`7091315`](https://github.com/juspay/hyperswitch/commit/70913156ae592d4e25f113c8815dffa34c7be7fb))
+
+### Testing
+
+- **cypress:**
+  - Add PartialAuthorization coverage for nuvei, checkout, worldpay, worldpayvantiv ([#12061](https://github.com/juspay/hyperswitch/pull/12061)) ([`14117df`](https://github.com/juspay/hyperswitch/commit/14117dfaf2c793a204f82cb1c4eea0af9ac961fb))
+  - Add ConnectorMetadata testcases for noon, airwallex, braintree ([#12079](https://github.com/juspay/hyperswitch/pull/12079)) ([`94bf523`](https://github.com/juspay/hyperswitch/commit/94bf523b6f771b1b9e7c3033f57a6ebbcb17e1ce))
+
+**Full Changelog:** [`2026.05.01.1...2026.05.04.0`](https://github.com/juspay/hyperswitch/compare/2026.05.01.1...2026.05.04.0)
+
+- - -
+
 ## 2026.05.01.1
 
 ### Features
