@@ -322,8 +322,8 @@ export const connectorDetails = {
           error: {
             type: "invalid_request",
             message:
-              "Extended authorization cannot be requested for this payment because it has a status of succeeded. The expected state is requires_capture.",
-            code: "IR_14",
+              "You cannot extend authorization this payment because it has status succeeded",
+            code: "IR_16",
           },
         },
       },

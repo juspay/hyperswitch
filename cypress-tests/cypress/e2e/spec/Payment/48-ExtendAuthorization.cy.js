@@ -35,65 +35,148 @@ describe("[Payment] Extend Authorization", () => {
     cy.task("setGlobalState", globalState.data);
   });
 
-  context("[Payment] Extend Authorization - Happy Path", () => {
-    let shouldContinue = true;
+  context(
+    "[Payment] Extend Authorization - Happy Path - Adyen (Async)",
+    () => {
+      let shouldContinue = true;
 
-    it("[Payment] Create Payment Intent", () => {
-      const data = getConnectorDetails(globalState.get("connectorId"))[
-        "card_pm"
-      ]["PaymentIntent"];
+      beforeEach(function () {
+        if (!shouldContinue || connector !== "adyen") {
+          this.skip();
+        }
+      });
 
-      const newData = {
-        ...data,
-        Request: {
-          ...data.Request,
-          request_extended_authorization: true,
-        },
-      };
+      it("[Payment] Create Payment Intent", () => {
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["PaymentIntent"];
 
-      cy.createPaymentIntentTest(
-        fixtures.createPaymentBody,
-        newData,
-        "no_three_ds",
-        "manual",
-        globalState
-      );
+        const newData = {
+          ...data,
+          Request: {
+            ...data.Request,
+            request_extended_authorization: true,
+          },
+        };
 
-      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
-    });
+        cy.createPaymentIntentTest(
+          fixtures.createPaymentBody,
+          newData,
+          "no_three_ds",
+          "manual",
+          globalState
+        );
 
-    it("[Payment] Confirm Payment Intent", () => {
-      const data = getConnectorDetails(globalState.get("connectorId"))[
-        "card_pm"
-      ]["No3DSManualCapture"];
+        if (shouldContinue) shouldContinue = utils.should_continue_further(data);
+      });
 
-      cy.confirmCallTest(fixtures.confirmBody, data, true, globalState);
+      it("[Payment] Confirm Payment Intent", () => {
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["No3DSManualCapture"];
 
-      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
-    });
+        cy.confirmCallTest(fixtures.confirmBody, data, true, globalState);
 
-    it("[Payment] Extend Authorization", () => {
-      const data = getConnectorDetails(globalState.get("connectorId"))[
-        "card_pm"
-      ]["ExtendAuthorizationNo3DSManual"];
+        if (shouldContinue) shouldContinue = utils.should_continue_further(data);
+      });
 
-      cy.extendAuthorizationCallTest(
-        fixtures.extendAuthBody,
-        data,
-        globalState
-      );
+      it("[Payment] Extend Authorization (Async - becomes processing)", () => {
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["ExtendAuthorizationNo3DSManual"];
 
-      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
-    });
+        cy.extendAuthorizationCallTest(
+          fixtures.extendAuthBody,
+          data,
+          globalState
+        );
 
-    it("[Payment] Retrieve Payment Intent", () => {
-      const data = getConnectorDetails(globalState.get("connectorId"))[
-        "card_pm"
-      ]["ExtendAuthorizationNo3DSManual"];
+        if (shouldContinue) shouldContinue = utils.should_continue_further(data);
+      });
 
-      cy.retrievePaymentCallTest({ globalState, data });
-    });
-  });
+      // Skip capture for Adyen - Extend Authorization is async and becomes processing
+      // Cannot capture while payment is in processing state
+      it("[Payment] Retrieve Payment Intent (Adyen - Skip Capture)", () => {
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["ExtendAuthorizationNo3DSManual"];
+
+        cy.retrievePaymentCallTest({ globalState, data });
+      });
+    }
+  );
+
+  context(
+    "[Payment] Extend Authorization - Happy Path - PayPal (Sync)",
+    () => {
+      let shouldContinue = true;
+
+      beforeEach(function () {
+        if (!shouldContinue || connector !== "paypal") {
+          this.skip();
+        }
+      });
+
+      it("[Payment] Create Payment Intent", () => {
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["PaymentIntent"];
+
+        const newData = {
+          ...data,
+          Request: {
+            ...data.Request,
+            request_extended_authorization: true,
+          },
+        };
+
+        cy.createPaymentIntentTest(
+          fixtures.createPaymentBody,
+          newData,
+          "no_three_ds",
+          "manual",
+          globalState
+        );
+
+        if (shouldContinue) shouldContinue = utils.should_continue_further(data);
+      });
+
+      it("[Payment] Confirm Payment Intent", () => {
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["No3DSManualCapture"];
+
+        cy.confirmCallTest(fixtures.confirmBody, data, true, globalState);
+
+        if (shouldContinue) shouldContinue = utils.should_continue_further(data);
+      });
+
+      it("[Payment] Extend Authorization (Sync - stays requires_capture)", () => {
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["ExtendAuthorizationNo3DSManual"];
+
+        cy.extendAuthorizationCallTest(
+          fixtures.extendAuthBody,
+          data,
+          globalState
+        );
+
+        if (shouldContinue) shouldContinue = utils.should_continue_further(data);
+      });
+
+      // PayPal supports capture after sync extend authorization
+      it("[Payment] Capture Payment Intent (PayPal - Can Capture)", () => {
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["Capture"];
+
+        cy.captureCallTest(fixtures.captureBody, data, globalState);
+
+        if (shouldContinue) shouldContinue = utils.should_continue_further(data);
+      });
+    }
+  );
 
   context(
     "[Payment] Extend Authorization - Negative Case - Invalid Status",

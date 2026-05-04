@@ -313,7 +313,7 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "requires_capture",
+          status: "processing", // Adyen: Extend Authorization is async, returns processing
           amount: 6000,
           amount_capturable: 6000,
           amount_received: null,
@@ -321,7 +321,7 @@ export const connectorDetails = {
           extended_authorization_expires_at: null, // Set dynamically by backend
         },
       },
-      TRIGGER_SKIP: true, // Adyen connector does not support Extend Authorization feature
+      // Adyen: Extend Authorization is async (processing), capture is skipped
     },
     ExtendAuthorizationInvalidStatus: {
       Request: {
@@ -333,8 +333,8 @@ export const connectorDetails = {
           error: {
             type: "invalid_request",
             message:
-              "You cannot extend authorization this payment because it has status requires_payment_method",
-            code: "IR_14",
+              "You cannot extend authorization this payment because it has status succeeded",
+            code: "IR_16",
           },
         },
       },
