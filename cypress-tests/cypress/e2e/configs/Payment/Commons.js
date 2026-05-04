@@ -1959,6 +1959,15 @@ export const connectorDetails = {
         },
       },
     }),
+    MITWithLimitedCardData: getCustomExchange({
+      Request: {},
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    }),
     PartnerMerchantIdentifier: getCustomExchange({
       Request: {
         currency: "USD",
