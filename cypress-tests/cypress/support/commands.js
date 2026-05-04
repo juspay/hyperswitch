@@ -5190,6 +5190,100 @@ Cypress.Commands.add("retrieveRoutingConfig", (data, globalState) => {
 });
 
 Cypress.Commands.add(
+  "createSurchargeDSLConfig",
+  (surchargeBody, data, globalState) => {
+    const { Response: resData } = data || {};
+    const profileId = globalState.get("profileId");
+
+    if (surchargeBody && surchargeBody.program) {
+      surchargeBody.program.profile_id = profileId;
+    }
+
+    cy.request({
+      method: "PUT",
+      url: `${globalState.get("baseUrl")}/routing/decision/surcharge`,
+      headers: {
+        "api-key": globalState.get("apiKey"),
+        "Content-Type": "application/json",
+      },
+      body: surchargeBody,
+      failOnStatusCode: false,
+    }).then((response) => {
+      logRequestId(response.headers["x-request-id"]);
+
+      cy.wrap(response).then(() => {
+        expect(response.headers["content-type"]).to.include("application/json");
+
+        if (response.status === 200) {
+          globalState.set("surchargeDSLConfig", response.body);
+          for (const key in resData.body) {
+            expect(resData.body[key]).to.deep.equal(response.body[key]);
+          }
+        } else {
+          defaultErrorHandler(response, resData);
+        }
+      });
+    });
+  }
+);
+
+Cypress.Commands.add("retrieveSurchargeDSLConfig", (data, globalState) => {
+  const { Response: resData } = data || {};
+
+  cy.request({
+    method: "GET",
+    url: `${globalState.get("baseUrl")}/routing/decision/surcharge`,
+    headers: {
+      "api-key": globalState.get("apiKey"),
+      "Content-Type": "application/json",
+    },
+    failOnStatusCode: false,
+  }).then((response) => {
+    logRequestId(response.headers["x-request-id"]);
+
+    cy.wrap(response).then(() => {
+      expect(response.headers["content-type"]).to.include("application/json");
+
+      if (response.status === 200) {
+        for (const key in resData.body) {
+          expect(resData.body[key]).to.deep.equal(response.body[key]);
+        }
+      } else {
+        defaultErrorHandler(response, resData);
+      }
+    });
+  });
+});
+
+Cypress.Commands.add("deleteSurchargeDSLConfig", (data, globalState) => {
+  const { Response: resData } = data || {};
+
+  cy.request({
+    method: "DELETE",
+    url: `${globalState.get("baseUrl")}/routing/decision/surcharge`,
+    headers: {
+      "api-key": globalState.get("apiKey"),
+      "Content-Type": "application/json",
+    },
+    failOnStatusCode: false,
+  }).then((response) => {
+    logRequestId(response.headers["x-request-id"]);
+
+    cy.wrap(response).then(() => {
+      expect(response.headers["content-type"]).to.include("application/json");
+
+      if (response.status === 200) {
+        for (const key in resData.body) {
+          expect(resData.body[key]).to.deep.equal(response.body[key]);
+        }
+      } else {
+        defaultErrorHandler(response, resData);
+      }
+    });
+  });
+});
+
+Cypress.Commands.add(
   "updateGsmConfig",
   (gsmBody, globalState, step_up_possible) => {
     gsmBody.step_up_possible = step_up_possible;
