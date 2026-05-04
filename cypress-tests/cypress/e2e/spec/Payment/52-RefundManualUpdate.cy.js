@@ -78,7 +78,10 @@ describe("Refund Manual Update Tests", () => {
 
       cy.step("Manual Update Refund Status to Failed", () => {
         if (!shouldContinue) {
-          cy.task("cli_log", "Skipping step: Manual Update Refund Status to Failed");
+          cy.task(
+            "cli_log",
+            "Skipping step: Manual Update Refund Status to Failed"
+          );
           return;
         }
         const merchantId = globalState.get("merchantId");
@@ -100,7 +103,10 @@ describe("Refund Manual Update Tests", () => {
 
       cy.step("Retrieve Refund to Verify Status Update", () => {
         if (!shouldContinue) {
-          cy.task("cli_log", "Skipping step: Retrieve Refund to Verify Status Update");
+          cy.task(
+            "cli_log",
+            "Skipping step: Retrieve Refund to Verify Status Update"
+          );
           return;
         }
         // Manual update changes refund status - verify the updated state
@@ -121,119 +127,130 @@ describe("Refund Manual Update Tests", () => {
     });
   });
 
-  context("Manual Update - Error Code and Error Message with SetOrUnset", () => {
-    it("Create Payment Intent -> Confirm Payment -> Create Refund -> Manual Update Error Code/Message -> Retrieve Refund to Verify", () => {
-      let shouldContinue = true;
+  context(
+    "Manual Update - Error Code and Error Message with SetOrUnset",
+    () => {
+      it("Create Payment Intent -> Confirm Payment -> Create Refund -> Manual Update Error Code/Message -> Retrieve Refund to Verify", () => {
+        let shouldContinue = true;
 
-      cy.step("Create Payment Intent", () => {
-        const data = getConnectorDetails(globalState.get("connectorId"))[
-          "card_pm"
-        ]["PaymentIntent"];
-        cy.createPaymentIntentTest(
-          fixtures.createPaymentBody,
-          data,
-          "no_three_ds",
-          "automatic",
-          globalState
-        );
-        if (!utils.should_continue_further(data)) {
-          shouldContinue = false;
-        }
-      });
+        cy.step("Create Payment Intent", () => {
+          const data = getConnectorDetails(globalState.get("connectorId"))[
+            "card_pm"
+          ]["PaymentIntent"];
+          cy.createPaymentIntentTest(
+            fixtures.createPaymentBody,
+            data,
+            "no_three_ds",
+            "automatic",
+            globalState
+          );
+          if (!utils.should_continue_further(data)) {
+            shouldContinue = false;
+          }
+        });
 
-      cy.step("Payment Methods Call", () => {
-        if (!shouldContinue) {
-          cy.task("cli_log", "Skipping step: Payment Methods Call");
-          return;
-        }
-        cy.paymentMethodsCallTest(globalState);
-      });
+        cy.step("Payment Methods Call", () => {
+          if (!shouldContinue) {
+            cy.task("cli_log", "Skipping step: Payment Methods Call");
+            return;
+          }
+          cy.paymentMethodsCallTest(globalState);
+        });
 
-      cy.step("Confirm Payment Intent", () => {
-        if (!shouldContinue) {
-          cy.task("cli_log", "Skipping step: Confirm Payment Intent");
-          return;
-        }
-        const confirmData = getConnectorDetails(globalState.get("connectorId"))[
-          "card_pm"
-        ]["No3DSAutoCapture"];
-        cy.confirmCallTest(
-          fixtures.confirmBody,
-          confirmData,
-          true,
-          globalState
-        );
-        if (!utils.should_continue_further(confirmData)) {
-          shouldContinue = false;
-        }
-      });
+        cy.step("Confirm Payment Intent", () => {
+          if (!shouldContinue) {
+            cy.task("cli_log", "Skipping step: Confirm Payment Intent");
+            return;
+          }
+          const confirmData = getConnectorDetails(
+            globalState.get("connectorId")
+          )["card_pm"]["No3DSAutoCapture"];
+          cy.confirmCallTest(
+            fixtures.confirmBody,
+            confirmData,
+            true,
+            globalState
+          );
+          if (!utils.should_continue_further(confirmData)) {
+            shouldContinue = false;
+          }
+        });
 
-      cy.step("Create Refund", () => {
-        if (!shouldContinue) {
-          cy.task("cli_log", "Skipping step: Create Refund");
-          return;
-        }
-        const refundData = getConnectorDetails(globalState.get("connectorId"))[
-          "card_pm"
-        ]["Refund"];
-        cy.refundCallTest(fixtures.refundBody, refundData, globalState);
-        if (!utils.should_continue_further(refundData)) {
-          shouldContinue = false;
-        }
-      });
+        cy.step("Create Refund", () => {
+          if (!shouldContinue) {
+            cy.task("cli_log", "Skipping step: Create Refund");
+            return;
+          }
+          const refundData = getConnectorDetails(
+            globalState.get("connectorId")
+          )["card_pm"]["Refund"];
+          cy.refundCallTest(fixtures.refundBody, refundData, globalState);
+          if (!utils.should_continue_further(refundData)) {
+            shouldContinue = false;
+          }
+        });
 
-      cy.step("Manual Update Error Code and Error Message", () => {
-        if (!shouldContinue) {
-          cy.task("cli_log", "Skipping step: Manual Update Error Code and Error Message");
-          return;
-        }
-        const merchantId = globalState.get("merchantId");
-        const refundManualUpdateRequestBody = {
-          merchant_id: merchantId,
-          status: "failed",
-          error_code: {
-            set: "TEST_ERROR_CODE",
-          },
-          error_message: {
-            set: "Test error message for manual update",
-          },
-        };
-        const manualUpdateData = getConnectorDetails(
-          globalState.get("connectorId")
-        )["card_pm"]["ManualRefundUpdate"];
-        cy.manualRefundStatusUpdateTest(
-          globalState,
-          refundManualUpdateRequestBody
-        );
-        if (!utils.should_continue_further(manualUpdateData)) {
-          shouldContinue = false;
-        }
-      });
+        cy.step("Manual Update Error Code and Error Message", () => {
+          if (!shouldContinue) {
+            cy.task(
+              "cli_log",
+              "Skipping step: Manual Update Error Code and Error Message"
+            );
+            return;
+          }
+          const merchantId = globalState.get("merchantId");
+          const refundManualUpdateRequestBody = {
+            merchant_id: merchantId,
+            status: "failed",
+            error_code: {
+              set: "TEST_ERROR_CODE",
+            },
+            error_message: {
+              set: "Test error message for manual update",
+            },
+          };
+          const manualUpdateData = getConnectorDetails(
+            globalState.get("connectorId")
+          )["card_pm"]["ManualRefundUpdate"];
+          cy.manualRefundStatusUpdateTest(
+            globalState,
+            refundManualUpdateRequestBody
+          );
+          if (!utils.should_continue_further(manualUpdateData)) {
+            shouldContinue = false;
+          }
+        });
 
-      cy.step("Retrieve Refund to Verify Error Code and Message", () => {
-        if (!shouldContinue) {
-          cy.task("cli_log", "Skipping step: Retrieve Refund to Verify Error Code and Message");
-          return;
-        }
-        // Manual update sets error fields - verify they were applied
-        const refundId = globalState.get("refundId");
-        cy.request({
-          method: "GET",
-          url: `${globalState.get("baseUrl")}/refunds/${refundId}`,
-          headers: {
-            "Content-Type": "application/json",
-            "api-key": globalState.get("apiKey"),
-          },
-          failOnStatusCode: false,
-        }).then((response) => {
-          expect(response.status).to.eq(200);
-          expect(response.body.status).to.eq("failed");
-          expect(response.body.error_code).to.eq("TEST_ERROR_CODE");
-          expect(response.body.error_message).to.eq("Test error message for manual update");
+        cy.step("Retrieve Refund to Verify Error Code and Message", () => {
+          if (!shouldContinue) {
+            cy.task(
+              "cli_log",
+              "Skipping step: Retrieve Refund to Verify Error Code and Message"
+            );
+            return;
+          }
+          // Manual update sets error fields - verify they were applied
+          const refundId = globalState.get("refundId");
+          cy.request({
+            method: "GET",
+            url: `${globalState.get("baseUrl")}/refunds/${refundId}`,
+            headers: {
+              "Content-Type": "application/json",
+              "api-key": globalState.get("apiKey"),
+            },
+            failOnStatusCode: false,
+          }).then((response) => {
+            expect(response.status).to.eq(200);
+            expect(response.body.status).to.eq("failed");
+            expect(response.body.error_code).to.eq("TEST_ERROR_CODE");
+            expect(response.body.error_message).to.eq(
+              "Test error message for manual update"
+            );
+          });
         });
       });
-    });
-  });
+    }
+  );
 
   context("Manual Update - Partial Refund Status Update", () => {
     it("Create Payment Intent -> Confirm Payment -> Create Partial Refund -> Manual Update Status -> Retrieve Refund to Verify", () => {
@@ -298,7 +315,10 @@ describe("Refund Manual Update Tests", () => {
 
       cy.step("Manual Update Partial Refund Status to Failed", () => {
         if (!shouldContinue) {
-          cy.task("cli_log", "Skipping step: Manual Update Partial Refund Status to Failed");
+          cy.task(
+            "cli_log",
+            "Skipping step: Manual Update Partial Refund Status to Failed"
+          );
           return;
         }
         const merchantId = globalState.get("merchantId");
@@ -326,7 +346,10 @@ describe("Refund Manual Update Tests", () => {
 
       cy.step("Retrieve Partial Refund to Verify Status Update", () => {
         if (!shouldContinue) {
-          cy.task("cli_log", "Skipping step: Retrieve Partial Refund to Verify Status Update");
+          cy.task(
+            "cli_log",
+            "Skipping step: Retrieve Partial Refund to Verify Status Update"
+          );
           return;
         }
         // Manual update changes partial refund status - verify the updated state
@@ -343,7 +366,9 @@ describe("Refund Manual Update Tests", () => {
           expect(response.status).to.eq(200);
           expect(response.body.status).to.eq("failed");
           expect(response.body.error_code).to.eq("PARTIAL_REFUND_FAILED");
-          expect(response.body.error_message).to.eq("Partial refund failed via manual update");
+          expect(response.body.error_message).to.eq(
+            "Partial refund failed via manual update"
+          );
         });
       });
     });
@@ -412,7 +437,10 @@ describe("Refund Manual Update Tests", () => {
 
       cy.step("Manual Update 1 - Set Error Code and Message", () => {
         if (!shouldContinue) {
-          cy.task("cli_log", "Skipping step: Manual Update 1 - Set Error Code and Message");
+          cy.task(
+            "cli_log",
+            "Skipping step: Manual Update 1 - Set Error Code and Message"
+          );
           return;
         }
         const merchantId = globalState.get("merchantId");
@@ -440,7 +468,10 @@ describe("Refund Manual Update Tests", () => {
 
       cy.step("Manual Update 2 - Same Data (Idempotency Check)", () => {
         if (!shouldContinue) {
-          cy.task("cli_log", "Skipping step: Manual Update 2 - Same Data (Idempotency Check)");
+          cy.task(
+            "cli_log",
+            "Skipping step: Manual Update 2 - Same Data (Idempotency Check)"
+          );
           return;
         }
         const merchantId = globalState.get("merchantId");
@@ -468,7 +499,10 @@ describe("Refund Manual Update Tests", () => {
 
       cy.step("Retrieve Refund to Verify Idempotency", () => {
         if (!shouldContinue) {
-          cy.task("cli_log", "Skipping step: Retrieve Refund to Verify Idempotency");
+          cy.task(
+            "cli_log",
+            "Skipping step: Retrieve Refund to Verify Idempotency"
+          );
           return;
         }
         // Manual update was called twice with same data - verify idempotent behavior
@@ -485,7 +519,9 @@ describe("Refund Manual Update Tests", () => {
           expect(response.status).to.eq(200);
           expect(response.body.status).to.eq("failed");
           expect(response.body.error_code).to.eq("IDEMPOTENCY_TEST");
-          expect(response.body.error_message).to.eq("First manual update for idempotency test");
+          expect(response.body.error_message).to.eq(
+            "First manual update for idempotency test"
+          );
         });
       });
     });
@@ -554,7 +590,10 @@ describe("Refund Manual Update Tests", () => {
 
       cy.step("Manual Update with Error Code and Message", () => {
         if (!shouldContinue) {
-          cy.task("cli_log", "Skipping step: Manual Update with Error Code and Message");
+          cy.task(
+            "cli_log",
+            "Skipping step: Manual Update with Error Code and Message"
+          );
           return;
         }
         const merchantId = globalState.get("merchantId");
@@ -582,7 +621,10 @@ describe("Refund Manual Update Tests", () => {
 
       cy.step("Unset Error Code and Error Message", () => {
         if (!shouldContinue) {
-          cy.task("cli_log", "Skipping step: Unset Error Code and Error Message");
+          cy.task(
+            "cli_log",
+            "Skipping step: Unset Error Code and Error Message"
+          );
           return;
         }
         const merchantId = globalState.get("merchantId");
@@ -609,7 +651,10 @@ describe("Refund Manual Update Tests", () => {
 
       cy.step("Retrieve Refund to Verify Unset Fields", () => {
         if (!shouldContinue) {
-          cy.task("cli_log", "Skipping step: Retrieve Refund to Verify Unset Fields");
+          cy.task(
+            "cli_log",
+            "Skipping step: Retrieve Refund to Verify Unset Fields"
+          );
           return;
         }
         // Manual update unset error fields - verify they were cleared
