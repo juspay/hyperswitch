@@ -1616,7 +1616,6 @@ export const connectorDetails = {
             last_name: "Doe",
           },
         },
-        currency: "EUR",
         customer_acceptance: customerAcceptance,
         mandate_data: {
           customer_acceptance: customerAcceptance,
@@ -1666,7 +1665,6 @@ export const connectorDetails = {
             last_name: "Doe",
           },
         },
-        currency: "USD",
         customer_acceptance: customerAcceptance,
         mandate_data: {
           customer_acceptance: customerAcceptance,
@@ -1712,7 +1710,6 @@ export const connectorDetails = {
             last_name: "Doe",
           },
         },
-        currency: "GBP",
         customer_acceptance: customerAcceptance,
         mandate_data: {
           customer_acceptance: customerAcceptance,
