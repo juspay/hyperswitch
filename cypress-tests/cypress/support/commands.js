@@ -7403,7 +7403,8 @@ Cypress.Commands.add(
           expect(response.body.payment_method_data.card, "card_extended_bin").to.have.property("card_extended_bin");
           expect(response.body.payment_method_data.card.card_extended_bin, "card_extended_bin value").to.equal("42424242");
         } else {
-          expect(response.body.payment_method_data.card, "card_extended_bin absent").to.not.have.property("card_extended_bin");
+          // card_extended_bin is null (not absent) when feature is disabled — CardResponse serializes None as null
+          expect(response.body.payment_method_data.card.card_extended_bin, "card_extended_bin should be null").to.be.null;
         }
       });
     });
