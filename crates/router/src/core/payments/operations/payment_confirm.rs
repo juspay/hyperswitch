@@ -2330,7 +2330,7 @@ impl PaymentConfirm {
         Ok(pm_info)
     }
 
-    fn get_payment_method_reference<'a>(self, req: &'a api::PaymentsRequest) -> Option<&'a str> {
+    fn get_payment_method_reference(self, req: &api::PaymentsRequest) -> Option<&str> {
         req.payment_token
             .as_deref()
             .or(match req.recurring_details.as_ref() {
