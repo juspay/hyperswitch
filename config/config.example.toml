@@ -1420,3 +1420,4 @@ backup_file_path = "./config/superposition_seed.toml" # Path to a local file for
 # Base URLs for modular microservices
 # (e.g., payment-methods, customers, routing, etc.)
 payment_methods_base_url = "http://localhost:8082"
+use_legacy_locker = false           # Boolean to enable legacy locker
