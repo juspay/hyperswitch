@@ -4,6 +4,59 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.05.04.0
+
+### Features
+
+- **ucs:** Default to shadow mode when no rollout config is present ([#12039](https://github.com/juspay/hyperswitch/pull/12039)) ([`7091315`](https://github.com/juspay/hyperswitch/commit/70913156ae592d4e25f113c8815dffa34c7be7fb))
+
+### Testing
+
+- **cypress:**
+  - Add PartialAuthorization coverage for nuvei, checkout, worldpay, worldpayvantiv ([#12061](https://github.com/juspay/hyperswitch/pull/12061)) ([`14117df`](https://github.com/juspay/hyperswitch/commit/14117dfaf2c793a204f82cb1c4eea0af9ac961fb))
+  - Add ConnectorMetadata testcases for noon, airwallex, braintree ([#12079](https://github.com/juspay/hyperswitch/pull/12079)) ([`94bf523`](https://github.com/juspay/hyperswitch/commit/94bf523b6f771b1b9e7c3033f57a6ebbcb17e1ce))
+
+**Full Changelog:** [`2026.05.01.1...2026.05.04.0`](https://github.com/juspay/hyperswitch/compare/2026.05.01.1...2026.05.04.0)
+
+- - -
+
+## 2026.05.01.1
+
+### Features
+
+- **payment_method:** Add OLAP payment method retrieve endpoint for dashboard ([#12070](https://github.com/juspay/hyperswitch/pull/12070)) ([`bbc6ed0`](https://github.com/juspay/hyperswitch/commit/bbc6ed030822550b284205ea64e5fc78aa33d360))
+
+**Full Changelog:** [`2026.05.01.0...2026.05.01.1`](https://github.com/juspay/hyperswitch/compare/2026.05.01.0...2026.05.01.1)
+
+- - -
+
+## 2026.05.01.0
+
+### Features
+
+- **connector:** [ACI] Add Apple Pay and Google Pay wallet support ([#11425](https://github.com/juspay/hyperswitch/pull/11425)) ([`984b33b`](https://github.com/juspay/hyperswitch/commit/984b33bdd7fa7651a547b57661dce61101611b52))
+- **payment-methods:** Add BankRedirect payment method BancontactCard support in modular payment method ([#12052](https://github.com/juspay/hyperswitch/pull/12052)) ([`5e1990e`](https://github.com/juspay/hyperswitch/commit/5e1990efc49b63ec394a69d077d826eccdfc7702))
+
+### Bug Fixes
+
+- **core:** Propagate address in payment recurrence flow ([#11945](https://github.com/juspay/hyperswitch/pull/11945)) ([`61b4815`](https://github.com/juspay/hyperswitch/commit/61b48150f52f7c323186efbd9a39f242ed823338))
+
+**Full Changelog:** [`2026.04.30.1...2026.05.01.0`](https://github.com/juspay/hyperswitch/compare/2026.04.30.1...2026.05.01.0)
+
+- - -
+
+## 2026.04.30.1
+
+### Testing
+
+- **cypress:**
+  - Add authentication service eligibility test cases ([#12005](https://github.com/juspay/hyperswitch/pull/12005)) ([`ce161f5`](https://github.com/juspay/hyperswitch/commit/ce161f5c594408c980946f8403c9b9cff96502cb))
+  - Add network_transaction_id validation in CIT flows ([#12002](https://github.com/juspay/hyperswitch/pull/12002)) ([`1493503`](https://github.com/juspay/hyperswitch/commit/1493503d5b4ecfb38abd67baa7676c84950cb471))
+
+**Full Changelog:** [`2026.04.30.0...2026.04.30.1`](https://github.com/juspay/hyperswitch/compare/2026.04.30.0...2026.04.30.1)
+
+- - -
+
 ## 2026.04.30.0
 
 ### Features

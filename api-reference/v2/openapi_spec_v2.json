@@ -8248,6 +8248,21 @@
           }
         ]
       },
+      "BankRedirectDetail": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "bancontact_card"
+            ],
+            "properties": {
+              "bancontact_card": {
+                "type": "object"
+              }
+            }
+          }
+        ]
+      },
       "BankRedirectDetails": {
         "oneOf": [
           {
@@ -21426,6 +21441,17 @@
             "properties": {
               "wallet": {
                 "$ref": "#/components/schemas/WalletPaymentMethodData"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "bank_redirect"
+            ],
+            "properties": {
+              "bank_redirect": {
+                "$ref": "#/components/schemas/BankRedirectDetail"
               }
             }
           }
