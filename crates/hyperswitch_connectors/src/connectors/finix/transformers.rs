@@ -608,12 +608,14 @@ pub(crate) fn get_finix_response<F, T>(
                     .response
                     .failure_code
                     .unwrap_or(consts::NO_ERROR_CODE.to_string()),
-                message: router_data
-                    .response
-                    .failure_message
-                    .unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
-
-                reason: router_data.response.messages.map(|msg| msg.join(",")),
+                message: router_data.response.failure_message.unwrap_or(
+                    router_data
+                        .response
+                        .messages
+                        .map(|msg| msg.join(","))
+                        .unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
+                ),
+                reason: None,
                 status_code: router_data.http_code,
                 attempt_status: Some(status),
                 connector_transaction_id: Some(router_data.response.id.clone()),
