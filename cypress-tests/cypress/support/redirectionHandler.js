@@ -441,6 +441,21 @@ function bankRedirectRedirection(
                 cy.get('[value="authorised"]').click();
                 verifyUrl = true;
                 break;
+              case "benefit":
+                cy.get("h1").should("contain.text", "Acquirer Simulator");
+                cy.get('[value="authorised"]').click();
+                verifyUrl = true;
+                break;
+              case "knet":
+                cy.get("h1").should("contain.text", "Acquirer Simulator");
+                cy.get('[value="authorised"]').click();
+                verifyUrl = true;
+                break;
+              case "momo_atm":
+                cy.get("h1").should("contain.text", "Acquirer Simulator");
+                cy.get('[value="authorised"]').click();
+                verifyUrl = true;
+                break;
               // The 'ideal' case is handled outside handleFlow
               default:
                 throw new Error(

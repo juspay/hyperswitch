@@ -1220,6 +1220,125 @@ export const connectorDetails = {
     }),
   },
 
+  card_redirect_pm: {
+    PaymentIntent: (paymentMethodType) =>
+      getCustomExchange({
+        Request: {
+          currency: getCurrency(paymentMethodType),
+        },
+        Response: {
+          status: 200,
+          body: {
+            status: "requires_payment_method",
+          },
+        },
+      }),
+    Benefit: getCustomExchange({
+      Request: {
+        payment_method: "card_redirect",
+        payment_method_type: "benefit",
+        payment_method_data: {
+          card_redirect: {
+            benefit: {},
+          },
+        },
+        billing: {
+          address: {
+            line1: "123 Test St",
+            city: "Manama",
+            zip: "317",
+            country: "BH",
+            first_name: "Test",
+            last_name: "Customer",
+          },
+          phone: {
+            number: "1234567890",
+            country_code: "+973",
+          },
+          email: "test@example.com",
+        },
+        currency: "BHD",
+      },
+      Response: {
+        status: 400,
+        body: {
+          error_code: "IR_39",
+          error_message:
+            "No eligible connector was found for the current payment method configuration",
+        },
+      },
+    }),
+    Knet: getCustomExchange({
+      Request: {
+        payment_method: "card_redirect",
+        payment_method_type: "knet",
+        payment_method_data: {
+          card_redirect: {
+            knet: {},
+          },
+        },
+        billing: {
+          address: {
+            line1: "123 Test St",
+            city: "Kuwait City",
+            zip: "10001",
+            country: "KW",
+            first_name: "Test",
+            last_name: "Customer",
+          },
+          phone: {
+            number: "1234567890",
+            country_code: "+965",
+          },
+          email: "test@example.com",
+        },
+        currency: "KWD",
+      },
+      Response: {
+        status: 400,
+        body: {
+          error_code: "IR_39",
+          error_message:
+            "No eligible connector was found for the current payment method configuration",
+        },
+      },
+    }),
+    MomoAtm: getCustomExchange({
+      Request: {
+        payment_method: "card_redirect",
+        payment_method_type: "momo_atm",
+        payment_method_data: {
+          card_redirect: {
+            momo_atm: {},
+          },
+        },
+        billing: {
+          address: {
+            line1: "123 Test St",
+            city: "Ho Chi Minh City",
+            zip: "700000",
+            country: "VN",
+            first_name: "Test",
+            last_name: "Customer",
+          },
+          phone: {
+            number: "1234567890",
+            country_code: "+84",
+          },
+          email: "test@example.com",
+        },
+        currency: "VND",
+      },
+      Response: {
+        status: 400,
+        body: {
+          error_code: "IR_39",
+          error_message:
+            "No eligible connector was found for the current payment method configuration",
+        },
+      },
+    }),
+  },
   gift_card_pm: {
     GivexGiftCard: getCustomExchange({
       Request: {
@@ -1293,7 +1412,6 @@ export const connectorDetails = {
       },
     }),
   },
-
   pm_list: {
     PmListResponse: {
       PmListNull: {
