@@ -387,7 +387,7 @@ impl TryFrom<PaymentsResponseRouterData<HipayPaymentsResponse>> for PaymentsAuth
                 mandate_reference: Box::new(None),
                 connector_metadata: None,
                 network_txn_id: None,
-                connector_response_reference_id: None,
+                connector_response_reference_id: Some(item.response.order.id.clone()),
                 incremental_authorization_allowed: None,
                 authentication_data: None,
                 charges: None,
@@ -666,8 +666,15 @@ pub struct Reason {
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum HipaySyncResponse {
-    Response { status: i32, reason: Reason },
-    Error { message: String, code: u32 },
+    Response {
+        id: i64,
+        status: i32,
+        reason: Reason,
+    },
+    Error {
+        message: String,
+        code: u32,
+    },
 }
 fn get_sync_status(state: i32) -> enums::AttemptStatus {
     match state {
@@ -734,7 +741,7 @@ impl TryFrom<PaymentsSyncResponseRouterData<HipaySyncResponse>> for PaymentsSync
                     ..item.data
                 })
             }
-            HipaySyncResponse::Response { status, reason } => {
+            HipaySyncResponse::Response { id, status, reason } => {
                 let status = get_sync_status(status);
                 let response = if status == enums::AttemptStatus::Failure {
                     let error_code = reason
@@ -759,7 +766,7 @@ impl TryFrom<PaymentsSyncResponseRouterData<HipaySyncResponse>> for PaymentsSync
                     })
                 } else {
                     Ok(PaymentsResponseData::TransactionResponse {
-                        resource_id: ResponseId::NoResponseId,
+                        resource_id: ResponseId::ConnectorTransactionId(id.to_string()),
                         redirection_data: Box::new(None),
                         mandate_reference: Box::new(None),
                         connector_metadata: None,
