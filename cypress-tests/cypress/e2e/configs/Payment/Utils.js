@@ -453,6 +453,10 @@ export const CONNECTOR_LISTS = {
     MANDATES_USING_NTID_PROXY: ["cybersource", "checkout"],
     INCREMENTAL_AUTH: [
       "wellsfargo",
+      "archipel",
+      // "cybersource",    // issues with MULTIPLE_CONNECTORS handling
+      "paypal",
+      // "stripe",
     ],
     DDC_RACE_CONDITION: ["worldpay"],
     CONNECTOR_TESTING_DATA: ["adyen"],
