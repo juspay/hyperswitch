@@ -904,19 +904,18 @@ impl TryFrom<&CheckoutRouterData<&PaymentsAuthorizeRouterData>> for PaymentsRequ
                     _ => CheckoutPaymentType::Unscheduled,
                 };
 
-                let payment_source =
-                    PaymentSource::NetworkToken(Box::new(NetworkTokenSource {
-                        source_type: "network_token".to_string(),
-                        token: cards::CardNumber::from(token_data.network_token),
-                        expiry_month: token_data.token_exp_month,
-                        expiry_year: token_data.token_exp_year,
-                        token_type,
-                        cryptogram: None,
-                        eci: token_data.eci,
-                        stored: Some(true),
-                        store_for_future_use: None,
-                        billing_address: billing_details,
-                    }));
+                let payment_source = PaymentSource::NetworkToken(Box::new(NetworkTokenSource {
+                    source_type: "network_token".to_string(),
+                    token: cards::CardNumber::from(token_data.network_token),
+                    expiry_month: token_data.token_exp_month,
+                    expiry_year: token_data.token_exp_year,
+                    token_type,
+                    cryptogram: None,
+                    eci: token_data.eci,
+                    stored: Some(true),
+                    store_for_future_use: None,
+                    billing_address: billing_details,
+                }));
 
                 Ok((payment_source, previous_id, Some(true), p_type, None))
             }
