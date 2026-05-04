@@ -2389,6 +2389,23 @@ Cypress.Commands.add(
                 );
               }
             } else if (response.body.authentication_type === "no_three_ds") {
+              // Debug logging for Affirm/pay later
+              cy.log("DEBUG: status=", response.body.status);
+              cy.log("DEBUG: next_action=", JSON.stringify(response.body.next_action));
+              // Handle pay later methods that still require redirect (Affirm, Klarna, etc.)
+              if (
+                response.body.status === "requires_customer_action" &&
+                response.body.next_action?.redirect_to_url
+              ) {
+                globalState.set(
+                  "nextActionUrl",
+                  response.body.next_action.redirect_to_url
+                );
+                globalState.set("nextActionType", "redirect_to_url");
+                cy.log("DEBUG: Set nextActionUrl=", response.body.next_action.redirect_to_url);
+              } else {
+                cy.log("DEBUG: Skipping nextActionUrl - conditions not met");
+              }
               for (const key in resData.body) {
                 expect(resData.body[key], [key]).to.deep.equal(
                   response.body[key]
