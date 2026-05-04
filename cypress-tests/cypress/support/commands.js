@@ -3354,7 +3354,8 @@ Cypress.Commands.add(
           );
           expect(response.body.profile_id, "profile_id").to.not.be.null;
           if (skipNullBilling || unconfirmedPayment) {
-            expect(response.body.billing, "billing_address").to.not.be.undefined;
+            expect(response.body.billing, "billing_address").to.not.be
+              .undefined;
           } else {
             expect(response.body.billing, "billing_address").to.not.be.null;
           }
@@ -5821,30 +5822,30 @@ Cypress.Commands.add(
 
       cy.wrap(response).then(() => {
         expect(response.headers["content-type"]).to.include("application/json");
-        
+
         // If data is provided, use data-driven validation
         if (data && data.Response) {
           const expectedStatus = data.Response.status || 200;
           expect(response.status).to.eq(expectedStatus);
-          
+
           if (response.status === 200) {
             expect(response.body.payment_id).to.equal(paymentId);
             expect(response.body.merchant_id).to.equal(merchantId);
-            
+
             // Validate attempt_status if present in expected response
             if (data.Response.body && data.Response.body.attempt_status) {
               expect(response.body.attempt_status).to.equal(
                 data.Response.body.attempt_status
               );
             }
-            
+
             // Validate error_code if present in expected response
             if (data.Response.body && data.Response.body.error_code) {
               expect(response.body.error_code).to.equal(
                 data.Response.body.error_code
               );
             }
-            
+
             // Validate error_message if present in expected response
             if (data.Response.body && data.Response.body.error_message) {
               expect(response.body.error_message).to.equal(

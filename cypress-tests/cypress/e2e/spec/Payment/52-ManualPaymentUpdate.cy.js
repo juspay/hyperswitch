@@ -45,10 +45,7 @@ describe("Payment Manual Update Tests", () => {
 
       cy.step("Manual Update Payment Attempt", () => {
         if (!shouldContinue) {
-          cy.task(
-            "cli_log",
-            "Skipping step: Manual Update Payment Attempt"
-          );
+          cy.task("cli_log", "Skipping step: Manual Update Payment Attempt");
           return;
         }
 
@@ -83,7 +80,11 @@ describe("Payment Manual Update Tests", () => {
           return;
         }
 
-        cy.retrievePaymentCallTest({ globalState, forceSync: false, unconfirmedPayment: true });
+        cy.retrievePaymentCallTest({
+          globalState,
+          forceSync: false,
+          unconfirmedPayment: true,
+        });
       });
     });
   });
@@ -146,7 +147,11 @@ describe("Payment Manual Update Tests", () => {
           return;
         }
 
-        cy.retrievePaymentCallTest({ globalState, forceSync: false, unconfirmedPayment: true });
+        cy.retrievePaymentCallTest({
+          globalState,
+          forceSync: false,
+          unconfirmedPayment: true,
+        });
       });
     });
   });
@@ -287,7 +292,11 @@ describe("Payment Manual Update Tests", () => {
 
         // First retrieval — forceSync disabled because the payment was never
         // confirmed (no connector), so force_sync=true would trigger IR_39
-        cy.retrievePaymentCallTest({ globalState, forceSync: false, unconfirmedPayment: true }).then(() => {
+        cy.retrievePaymentCallTest({
+          globalState,
+          forceSync: false,
+          unconfirmedPayment: true,
+        }).then(() => {
           const paymentId = globalState.get("paymentID");
 
           // Second retrieval to confirm persistence
@@ -300,14 +309,14 @@ describe("Payment Manual Update Tests", () => {
             },
           }).then((response) => {
             expect(response.status).to.eq(200);
-            
+
             // Verify error_code and error_message persist across retrievals
             if (data.Response.body.error_code) {
               expect(response.body.error_code).to.equal(
                 data.Response.body.error_code
               );
             }
-            
+
             if (data.Response.body.error_message) {
               expect(response.body.error_message).to.equal(
                 data.Response.body.error_message
