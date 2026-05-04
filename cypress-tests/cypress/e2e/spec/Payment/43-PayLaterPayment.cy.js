@@ -49,7 +49,7 @@ describe("Pay Later - Affirm Payment Flow", () => {
           fixtures.createPaymentBody,
           data,
           "no_three_ds",
-          "automatic",
+          "manual",
           globalState
         );
         if (!utils.should_continue_further(data)) {
@@ -90,7 +90,8 @@ describe("Pay Later - Affirm Payment Flow", () => {
           return;
         }
         const expected_redirection = fixtures.confirmBody["return_url"];
-        cy.handleRedirection(globalState, expected_redirection);
+        cy.handlePayLaterRedirection(globalState, "affirm", expected_redirection);
+        cy.task("cli_log", "Affirm redirection handler completed");
       });
 
       cy.step("Retrieve Payment after Confirmation", () => {
@@ -106,6 +107,20 @@ describe("Pay Later - Affirm Payment Flow", () => {
         ]["AffirmAutoCapture"];
         cy.retrievePaymentCallTest({ globalState, data: confirmData });
         if (!utils.should_continue_further(confirmData)) {
+          shouldContinue = false;
+        }
+      });
+
+      cy.step("Capture Payment", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: Capture Payment");
+          return;
+        }
+        const captureData = getConnectorDetails(globalState.get("connectorId"))[
+          "pay_later_pm"
+        ]["Capture"];
+        cy.captureCallTest(fixtures.captureBody, captureData, globalState);
+        if (!utils.should_continue_further(captureData)) {
           shouldContinue = false;
         }
       });
@@ -149,7 +164,7 @@ describe("Pay Later - Affirm Payment Flow", () => {
           fixtures.createPaymentBody,
           data,
           "no_three_ds",
-          "automatic",
+          "manual",
           globalState
         );
         if (!utils.should_continue_further(data)) {
@@ -206,6 +221,20 @@ describe("Pay Later - Affirm Payment Flow", () => {
         ]["AffirmAutoCapture"];
         cy.retrievePaymentCallTest({ globalState, data: confirmData });
         if (!utils.should_continue_further(confirmData)) {
+          shouldContinue = false;
+        }
+      });
+
+      cy.step("Capture Payment", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: Capture Payment");
+          return;
+        }
+        const captureData = getConnectorDetails(globalState.get("connectorId"))[
+          "pay_later_pm"
+        ]["Capture"];
+        cy.captureCallTest(fixtures.captureBody, captureData, globalState);
+        if (!utils.should_continue_further(captureData)) {
           shouldContinue = false;
         }
       });

@@ -93,7 +93,8 @@ export function handleRedirection(
         urls.redirectionUrl,
         urls.expectedUrl,
         resolvedConnectorId,
-        paymentMethodType
+        paymentMethodType,
+        handlerMetadata?.globalState
       );
       break;
     default:
@@ -154,7 +155,8 @@ function payLaterRedirection(
   redirectionUrl,
   expectedUrl,
   connectorId,
-  paymentMethodType
+  paymentMethodType,
+  globalState
 ) {
   // Pay later flows (Affirm, Klarna, Afterpay) redirect to external checkout
   // and don't redirect back to merchant return_url automatically
@@ -162,43 +164,313 @@ function payLaterRedirection(
 
   if (redirectionUrl && redirectionUrl.href) {
     cy.visit(redirectionUrl.href);
-    waitForRedirect(redirectionUrl.href);
+    if (connectorId === "affirm") {
+      cy.log("Affirm flow - waiting for redirect to affirm.com");
+      cy.location("host", { timeout: CONSTANTS.TIMEOUT }).should("include", "affirm");
 
-    handleFlow(
-      redirectionUrl,
-      expectedUrl,
-      connectorId,
-      ({ connectorId, paymentMethodType, constants }) => {
-        switch (connectorId) {
-          case "affirm":
-            cy.log("Affirm pay later flow - waiting for auto-approval");
-            cy.wait(constants.WAIT_TIME / 2);
-            break;
-          case "klarna":
-            cy.log("Klarna pay later flow - handling approval");
-            cy.get("body", { timeout: constants.TIMEOUT }).then(($body) => {
-              if ($body.find('button:contains("Approve")').length > 0) {
-                cy.contains("button", "Approve").click();
+      cy.url().then((initialUrl) => {
+        const affirmOrigin = new URL(initialUrl).origin;
+        cy.log("Affirm pay later flow - handling on origin: " + affirmOrigin);
+        cy.origin(
+          affirmOrigin,
+          { args: { waitTime: CONSTANTS.WAIT_TIME, timeout: CONSTANTS.TIMEOUT } },
+          ({ waitTime, timeout }) => {
+            const handleAffirmStep = () => {
+              cy.wait(waitTime / 5);
+
+              cy.document().then((doc) => {
+                const bodyText = doc.body.innerText.toLowerCase();
+                const pageTitle = doc.title || 'No title';
+                const currentUrl = doc.location?.href || 'Unknown URL';
+
+                cy.log(`Affirm Page: ${pageTitle}`);
+                cy.log(`URL: ${currentUrl}`);
+                cy.log(`Page content preview: ${bodyText.substring(0, 200)}...`);
+
+                if (bodyText.includes('phone') || bodyText.includes('mobile') || bodyText.includes('cell')) {
+                  cy.get('body').then(($body) => {
+                    const phoneInputs = $body.find('input[type="tel"]:visible, input[autocomplete="tel"]:visible, input[name*="phone"]:visible');
+                    if (phoneInputs.length > 0) {
+                      cy.wrap(phoneInputs.first()).clear().type('4155551234');
+                      cy.log('Entered phone number');
+
+                      const sendBtn = $body.find('button:visible').filter((i, btn) => /send|submit|continue|next/i.test(btn.innerText.toLowerCase()));
+                      if (sendBtn.length > 0) {
+                        cy.wrap(sendBtn.first()).click({ force: true });
+                        cy.log('Clicked send/submit after phone');
+                      }
+                    }
+                  });
+                }
+
+                if (bodyText.includes('code') || bodyText.includes('pin') || bodyText.includes('verification') || bodyText.includes('verify') || bodyText.includes('texted you')) {
+                  cy.get('body').then(($body) => {
+                    const pinInput = $body.find('input[data-testid="phone-pin-field"]:visible, input[placeholder="000000"]:visible, input[autocomplete="one-time-code"]:visible, input[inputmode="numeric"]:visible').first();
+
+                    if (pinInput.length > 0) {
+                      cy.wrap(pinInput).clear().type('123456', { delay: 100 });
+                      cy.log('Entered PIN 123456 into phone-pin-field');
+
+                      cy.wait(1000);
+
+                      const verifyBtn = $body.find('button:visible').filter((i, btn) => /verify|confirm|continue/i.test(btn.innerText.toLowerCase()));
+                      if (verifyBtn.length > 0) {
+                        cy.wrap(verifyBtn.first()).click({ force: true });
+                        cy.log('Clicked verify/continue after PIN');
+
+                        cy.wait(2000);
+                        cy.log('Waiting for plan selection page to load after PIN verification');
+                      }
+                    } else {
+                      cy.log('PIN input not found - looking for phone-pin-field or placeholder 000000');
+                    }
+                  });
+                }
+
+                if (bodyText.includes('continue to plans')) {
+                  cy.get('body').then(($body) => {
+                    const continueBtn = $body.find('button:visible').filter((i, btn) => /continue to plans/i.test(btn.innerText.toLowerCase()));
+                    if (continueBtn.length > 0) {
+                      cy.wrap(continueBtn.first()).click({ force: true });
+                      cy.log('Clicked Continue to plans');
+                    }
+                  });
+                }
+
+                if (bodyText.includes('social') || bodyText.includes('ssn') || bodyText.includes('last 4')) {
+                  cy.get('body').then(($body) => {
+                    const ssnInputs = $body.find('input[type="password"][maxlength="4"]:visible, input[name*="ssn"]:visible, input[placeholder*="last 4"]:visible');
+                    if (ssnInputs.length > 0) {
+                      cy.wrap(ssnInputs.first()).clear().type('5678');
+                      cy.log('Entered SSN last 4');
+
+                      const continueBtn = $body.find('button:visible').filter((i, btn) => /continue|next|submit/i.test(btn.innerText.toLowerCase()));
+                      if (continueBtn.length > 0) {
+                        cy.wrap(continueBtn.first()).click({ force: true });
+                        cy.log('Clicked continue after SSN');
+                      }
+                    }
+                  });
+                }
+
+                if (bodyText.includes('first name') || bodyText.includes('legal name')) {
+                  cy.get('body').then(($body) => {
+                    const firstNameInputs = $body.find('input[name*="first"]:visible, input[id*="first"]:visible, input[autocomplete*="given-name"]:visible');
+                    if (firstNameInputs.length > 0) {
+                      cy.wrap(firstNameInputs.first()).clear().invoke('val', 'Joseph').trigger('input');
+                      cy.log('Entered first name Joseph');
+                    }
+                  });
+                }
+
+                if (bodyText.includes('last name') || bodyText.includes('surname')) {
+                  cy.get('body').then(($body) => {
+                    const lastNameInputs = $body.find('input[name*="last"]:visible, input[id*="last"]:visible, input[autocomplete*="family-name"]:visible');
+                    if (lastNameInputs.length > 0) {
+                      cy.wrap(lastNameInputs.first()).clear().invoke('val', 'Doe').trigger('input');
+                      cy.log('Entered last name Doe');
+                    }
+                  });
+                }
+
+                if (bodyText.includes('date of birth') || bodyText.includes('birthday') || bodyText.includes('dob') || bodyText.includes('birth date')) {
+                  cy.get('body').then(($body) => {
+                    const dobInputs = $body.find('input[data-testid*="dob"]:visible, input[aria-label*="Birth"]:visible, input[placeholder*="mm"]:visible, input[name*="dob"]:visible, input[name*="birth"]:visible');
+                    if (dobInputs.length > 0) {
+                      cy.wrap(dobInputs.first()).click().clear().type('01/01/1990', { delay: 50 });
+                      cy.log('Entered DOB 01/01/1990');
+                    }
+                  });
+                }
+
+                if (bodyText.includes('email') || bodyText.includes('e-mail')) {
+                  cy.get('body').then(($body) => {
+                    const emailInputs = $body.find('input[data-testid*="email"]:visible, input[type="email"]:visible, input[autocomplete="email"]:visible');
+                    if (emailInputs.length > 0) {
+                      cy.wrap(emailInputs.first()).click().clear().type('venkat@gmail.com', { delay: 50 });
+                      cy.log('Entered email venkat@gmail.com');
+                    }
+                  });
+                }
+
+                if (bodyText.includes('continue to plans') || (bodyText.includes('creating an account') && bodyText.includes('agree'))) {
+                  cy.get('body').then(($body) => {
+                    const consentCheckbox = $body.find('input[type="checkbox"]:not(:checked):visible').first();
+                    if (consentCheckbox.length > 0) {
+                      cy.wrap(consentCheckbox).click({ force: true });
+                      cy.log('Checked consent checkbox');
+                    }
+
+                    const continueBtn = $body.find('button:visible').filter((i, btn) => /continue to plans/i.test(btn.innerText.toLowerCase()));
+                    if (continueBtn.length > 0) {
+                      cy.wrap(continueBtn.first()).click({ force: true });
+                      cy.log('Clicked Continue to plans');
+                    }
+                  });
+                }
+
+                const hasPlanPage = bodyText.includes('pick a plan') ||
+                  bodyText.includes('choose a payment plan') ||
+                  bodyText.includes('payment plan') ||
+                  bodyText.includes('choose this plan') ||
+                  bodyText.includes('every month') ||
+                  bodyText.includes('total of payments');
+
+                if (hasPlanPage) {
+                  cy.get('body').then(($body) => {
+                    cy.log('Detected plan selection page');
+
+                    let choosePlanBtn = $body.find('button:visible').filter((i, btn) => {
+                      const txt = btn.innerText.toLowerCase();
+                      return /choose this plan/i.test(txt);
+                    });
+
+                    if (choosePlanBtn.length === 0) {
+                      choosePlanBtn = $body.find('a[role="button"]:visible, [data-testid*="plan"]:visible, .plan-button:visible').filter((i, btn) => {
+                        const txt = btn.innerText.toLowerCase();
+                        return /choose this plan|select plan/i.test(txt);
+                      });
+                    }
+
+                    if (choosePlanBtn.length === 0) {
+                      choosePlanBtn = $body.find('[role="button"]:visible, button:visible, a:visible').filter((i, el) => {
+                        const txt = el.innerText.toLowerCase();
+                        return txt.includes('choose this plan') || txt.includes('choose plan');
+                      });
+                    }
+
+                    if (choosePlanBtn.length > 0) {
+                      cy.wrap(choosePlanBtn.first()).click({ force: true });
+                      cy.log('Clicked Choose this plan button');
+                    } else {
+                      cy.log('Choose this plan button not found, trying fallback');
+                      const fallbackBtn = $body.find('button:visible').filter((i, btn) => {
+                        const txt = btn.innerText.toLowerCase();
+                        return /continue|select|confirm|next/i.test(txt);
+                      });
+                      if (fallbackBtn.length > 0) {
+                        cy.wrap(fallbackBtn.first()).click({ force: true });
+                        cy.log('Clicked fallback button on plan page');
+                      }
+                    }
+                  });
+                }
+
+                if (bodyText.includes('review') || bodyText.includes('confirm') || bodyText.includes('autopay') || bodyText.includes('terms')) {
+                  cy.get('body').then(($body) => {
+                    const disclosureCheckbox = $body.find('[data-testid*="disclosure-checkbox"]:visible');
+                    if (disclosureCheckbox.length > 0) {
+                      cy.wrap(disclosureCheckbox.first()).click({ force: true });
+                      cy.log('Clicked disclosure checkbox');
+                    }
+
+                    const allCheckboxes = $body.find('input[type="checkbox"]:visible, input[data-testid*="terms"]:visible, input[data-testid*="agreement"]:visible');
+                    if (allCheckboxes.length > 0) {
+                      allCheckboxes.each((index, el) => {
+                        if (!el.checked) {
+                          cy.wrap(el).click({ force: true });
+                          cy.log(`Clicked checkbox ${index}`);
+                        }
+                      });
+                    }
+                  });
+                }
+
+                cy.get('body').then(($body) => {
+                  const buttons = $body.find('button:visible');
+                  for (let i = 0; i < buttons.length; i++) {
+                    const btnText = buttons[i].innerText.toLowerCase();
+                    if (/continue|submit|verify|next|pay|confirm|agree/i.test(btnText)) {
+                      cy.wrap(buttons[i]).click({ force: true });
+                      cy.log('Clicked button: ' + btnText);
+                      break;
+                    }
+                  }
+                });
+              });
+            };
+
+            function runUntilComplete(maxSteps, delay, expectedUrl) {
+              if (maxSteps <= 0) {
+                cy.log("Max steps reached, stopping");
+                return;
               }
-            });
-            break;
-          case "afterpay":
-            cy.log("Afterpay pay later flow");
-            cy.wait(constants.WAIT_TIME / 2);
-            break;
-          default:
-            cy.log(`Generic pay later flow for ${connectorId}`);
-            cy.wait(constants.WAIT_TIME / 2);
-        }
-      },
-      { paymentMethodType }
-    );
+
+              cy.location("href").then((currentUrl) => {
+                // 🛑 STOP immediately if we reached final redirect
+                if (currentUrl.includes(expectedUrl)) {
+                  cy.log(`Flow completed at ${currentUrl}`);
+                  return;
+                }
+
+                cy.log(`Step remaining: ${maxSteps} | Current URL: ${currentUrl}`);
+
+                // Continue only if not completed
+                handleAffirmStep();
+
+                cy.wait(delay).then(() => {
+                  runUntilComplete(maxSteps - 1, delay, expectedUrl);
+                });
+              });
+            }
+
+            runUntilComplete(3, 6000, "example.com");
+          }
+        );
+      });
+      cy.wait(CONSTANTS.WAIT_TIME);
+    } else {
+      handleFlow(
+        redirectionUrl,
+        expectedUrl,
+        connectorId,
+        ({ connectorId, paymentMethodType, constants }) => {
+          switch (connectorId) {
+            case "klarna":
+              cy.log("Klarna pay later flow - handling approval");
+              cy.get("body", { timeout: constants.TIMEOUT }).then(($body) => {
+                if ($body.find('button:contains("Approve")').length > 0) {
+                  cy.contains("button", "Approve").click();
+                }
+              });
+              break;
+            case "afterpay":
+              cy.log("Afterpay pay later flow");
+              cy.wait(constants.WAIT_TIME / 2);
+              break;
+            default:
+              cy.log(`Generic pay later flow for ${connectorId}`);
+              cy.wait(constants.WAIT_TIME / 2);
+          }
+        },
+        { paymentMethodType }
+      );
+    }
   } else {
     cy.log("Skipping pay later redirection - no valid redirect URL provided");
   }
 
   cy.then(() => {
     verifyReturnUrl(redirectionUrl, expectedUrl, verifyUrl);
+
+    if (globalState) {
+      cy.url().then((currentUrl) => {
+        try {
+          const urlObj = new URL(currentUrl);
+          const urlParams = new URLSearchParams(urlObj.search);
+          const paymentId = urlParams.get("payment_id");
+
+          if (paymentId) {
+            cy.log(`Extracted payment_id from return URL: ${paymentId}`);
+            globalState.set("paymentID", paymentId);
+          } else {
+            cy.log("No payment_id found in return URL - using existing paymentID from globalState");
+          }
+        } catch (error) {
+          cy.log(`Error extracting payment_id from URL: ${error.message}`);
+        }
+      });
+    }
   });
 }
 

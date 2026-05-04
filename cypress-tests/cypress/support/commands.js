@@ -4424,7 +4424,8 @@ Cypress.Commands.add(
       "pay_later",
       { redirectionUrl, expectedUrl },
       connectorId,
-      paymentMethodType
+      paymentMethodType,
+      { globalState }
     );
   }
 );
