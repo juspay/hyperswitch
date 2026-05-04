@@ -5355,15 +5355,13 @@ Cypress.Commands.add(
         if (response.status === 200) {
           // Success case - validate response body fields
           for (const key in resData.body) {
-            if (key !== "extended_authorization_expires_at" ) {
+            if (key !== "extended_authorization_expires_at") {
               expect(resData.body[key]).to.equal(response.body[key]);
             }
           }
           // Verify extended authorization was applied
           expect(response.body.request_extended_authorization).to.equal(true);
-          expect(response.body).to.have.property(
-            "expires_on"
-          );
+          expect(response.body).to.have.property("expires_on");
         } else {
           defaultErrorHandler(response, resData);
         }
