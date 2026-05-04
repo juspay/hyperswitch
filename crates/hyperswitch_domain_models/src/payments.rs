@@ -1545,6 +1545,9 @@ where
             pix_automatico_additional_details: payment_intent_feature_metadata
                 .as_ref()
                 .and_then(|data| data.pix_automatico_additional_details.clone()),
+            finix_additional_details: payment_intent_feature_metadata
+                .as_ref()
+                .and_then(|data| data.finix_additional_details.clone()),
         }))
     }
 }
