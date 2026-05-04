@@ -9,7 +9,7 @@ use base64::Engine;
 use common_enums::enums as storage_enums;
 #[cfg(feature = "payouts")]
 use common_utils::pii::Email;
-use common_utils::{consts, errors::CustomResult, request::Method, types::StringMajorUnit};
+use common_utils::{consts, errors::CustomResult, request::Method, types::{MinorUnit, StringMajorUnit}};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     payment_method_data::{
@@ -3254,6 +3254,7 @@ impl TryFrom<PaymentsCaptureResponseRouterData<PaypalCaptureResponse>>
                 charges: None,
             }),
             amount_captured: Some(amount_captured),
+            minor_amount_captured: Some(MinorUnit::new(amount_captured)),
             ..item.data
         })
     }
