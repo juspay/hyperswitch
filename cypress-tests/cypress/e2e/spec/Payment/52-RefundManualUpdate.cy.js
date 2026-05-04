@@ -103,10 +103,20 @@ describe("Refund Manual Update Tests", () => {
           cy.task("cli_log", "Skipping step: Retrieve Refund to Verify Status Update");
           return;
         }
-        const syncRefundData = getConnectorDetails(
-          globalState.get("connectorId")
-        )["card_pm"]["SyncRefund"];
-        cy.syncRefundCallTest(syncRefundData, globalState);
+        // Manual update changes refund status - verify the updated state
+        const refundId = globalState.get("refundId");
+        cy.request({
+          method: "GET",
+          url: `${globalState.get("baseUrl")}/refunds/${refundId}`,
+          headers: {
+            "Content-Type": "application/json",
+            "api-key": globalState.get("apiKey"),
+          },
+          failOnStatusCode: false,
+        }).then((response) => {
+          expect(response.status).to.eq(200);
+          expect(response.body.status).to.eq("failed");
+        });
       });
     });
   });
@@ -205,10 +215,22 @@ describe("Refund Manual Update Tests", () => {
           cy.task("cli_log", "Skipping step: Retrieve Refund to Verify Error Code and Message");
           return;
         }
-        const syncRefundData = getConnectorDetails(
-          globalState.get("connectorId")
-        )["card_pm"]["SyncRefund"];
-        cy.syncRefundCallTest(syncRefundData, globalState);
+        // Manual update sets error fields - verify they were applied
+        const refundId = globalState.get("refundId");
+        cy.request({
+          method: "GET",
+          url: `${globalState.get("baseUrl")}/refunds/${refundId}`,
+          headers: {
+            "Content-Type": "application/json",
+            "api-key": globalState.get("apiKey"),
+          },
+          failOnStatusCode: false,
+        }).then((response) => {
+          expect(response.status).to.eq(200);
+          expect(response.body.status).to.eq("failed");
+          expect(response.body.error_code).to.eq("TEST_ERROR_CODE");
+          expect(response.body.error_message).to.eq("Test error message for manual update");
+        });
       });
     });
   });
@@ -307,10 +329,22 @@ describe("Refund Manual Update Tests", () => {
           cy.task("cli_log", "Skipping step: Retrieve Partial Refund to Verify Status Update");
           return;
         }
-        const syncRefundData = getConnectorDetails(
-          globalState.get("connectorId")
-        )["card_pm"]["SyncRefund"];
-        cy.syncRefundCallTest(syncRefundData, globalState);
+        // Manual update changes partial refund status - verify the updated state
+        const refundId = globalState.get("refundId");
+        cy.request({
+          method: "GET",
+          url: `${globalState.get("baseUrl")}/refunds/${refundId}`,
+          headers: {
+            "Content-Type": "application/json",
+            "api-key": globalState.get("apiKey"),
+          },
+          failOnStatusCode: false,
+        }).then((response) => {
+          expect(response.status).to.eq(200);
+          expect(response.body.status).to.eq("failed");
+          expect(response.body.error_code).to.eq("PARTIAL_REFUND_FAILED");
+          expect(response.body.error_message).to.eq("Partial refund failed via manual update");
+        });
       });
     });
   });
@@ -437,10 +471,22 @@ describe("Refund Manual Update Tests", () => {
           cy.task("cli_log", "Skipping step: Retrieve Refund to Verify Idempotency");
           return;
         }
-        const syncRefundData = getConnectorDetails(
-          globalState.get("connectorId")
-        )["card_pm"]["SyncRefund"];
-        cy.syncRefundCallTest(syncRefundData, globalState);
+        // Manual update was called twice with same data - verify idempotent behavior
+        const refundId = globalState.get("refundId");
+        cy.request({
+          method: "GET",
+          url: `${globalState.get("baseUrl")}/refunds/${refundId}`,
+          headers: {
+            "Content-Type": "application/json",
+            "api-key": globalState.get("apiKey"),
+          },
+          failOnStatusCode: false,
+        }).then((response) => {
+          expect(response.status).to.eq(200);
+          expect(response.body.status).to.eq("failed");
+          expect(response.body.error_code).to.eq("IDEMPOTENCY_TEST");
+          expect(response.body.error_message).to.eq("First manual update for idempotency test");
+        });
       });
     });
   });
@@ -566,10 +612,22 @@ describe("Refund Manual Update Tests", () => {
           cy.task("cli_log", "Skipping step: Retrieve Refund to Verify Unset Fields");
           return;
         }
-        const syncRefundData = getConnectorDetails(
-          globalState.get("connectorId")
-        )["card_pm"]["SyncRefund"];
-        cy.syncRefundCallTest(syncRefundData, globalState);
+        // Manual update unset error fields - verify they were cleared
+        const refundId = globalState.get("refundId");
+        cy.request({
+          method: "GET",
+          url: `${globalState.get("baseUrl")}/refunds/${refundId}`,
+          headers: {
+            "Content-Type": "application/json",
+            "api-key": globalState.get("apiKey"),
+          },
+          failOnStatusCode: false,
+        }).then((response) => {
+          expect(response.status).to.eq(200);
+          // After unsetting, error fields should be null or undefined
+          expect(response.body.error_code).to.be.oneOf([null, undefined]);
+          expect(response.body.error_message).to.be.oneOf([null, undefined]);
+        });
       });
     });
   });
