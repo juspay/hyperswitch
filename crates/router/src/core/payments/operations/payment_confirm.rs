@@ -1235,6 +1235,9 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
             )?;
 
             if let Some(payment_method_ref) = self.get_payment_method_reference(req) {
+                logger::debug!(
+                        "Organization is enabled for modular service, fetching payment method from PM Modular Service"
+                    );
                 let pm_info = self
                     .fetch_payment_method_from_modular_service(
                         state,
@@ -2277,8 +2280,12 @@ impl PaymentConfirm {
         Option<storage::PaymentTokenData>,
         Option<domain::PaymentMethod>,
     )> {
+        // Case - payment_token was sent in the request
+        // token_data was fetched from redis
+        // payment_method was fetched from DB
         if prefetched_token_data.is_some() && payment_method_info.is_some() {
             Ok((prefetched_token_data, payment_method_info))
+        // Case - payment_token was sent in the request but token_data or payment_method could not be fetched
         } else if let Some(token) = token {
             let token_data =
                 helpers::retrieve_payment_token_data(state, token, payment_method).await?;
@@ -2293,6 +2300,7 @@ impl PaymentConfirm {
             .or(payment_method_info);
 
             Ok((Some(token_data), payment_method_info))
+        // Case - payment_token was not sent in the request
         } else {
             Ok((None, payment_method_info))
         }
