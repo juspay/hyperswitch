@@ -318,7 +318,6 @@ export const connectorDetails = {
           amount_capturable: 6000,
           amount_received: null,
           request_extended_authorization: true,
-          expires_on: null, // Set dynamically by backend
         },
       },
       // Adyen: Extend Authorization is async (processing), capture is skipped
