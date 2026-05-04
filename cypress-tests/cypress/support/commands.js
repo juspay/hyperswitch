@@ -5316,103 +5316,75 @@ Cypress.Commands.add("incrementalAuth", (globalState, data) => {
 });
 
 Cypress.Commands.add(
+  "extendAuthorizationCallTest",
 
-"extendAuthorizationCallTest",
+  (requestBody, data, globalState) => {
+    const {
+      Configs: configs = {},
 
-(requestBody, data, globalState) => {
+      Response: resData,
 
-const {
+      Request: reqData,
+    } = data || {};
 
-Configs: configs = {},
+    const configInfo = execConfig(validateConfig(configs));
 
-Response: resData,
+    const payment_id = globalState.get("paymentID");
 
-Request: reqData,
+    const profile_id = globalState.get(`${configInfo.profilePrefix}Id`);
 
-} = data || {};
+    requestBody.profile_id = profile_id;
 
-const configInfo = execConfig(validateConfig(configs));
+    // Apply connector-specific request data
 
-const payment_id = globalState.get("paymentID");
+    for (const key in reqData) {
+      requestBody[key] = reqData[key];
+    }
 
-const profile_id = globalState.get(`${configInfo.profilePrefix}Id`);
+    const headers = {
+      "Content-Type": "application/json",
 
-requestBody.profile_id = profile_id;
+      "api-key": globalState.get("apiKey"),
+    };
 
-// Apply connector-specific request data
+    cy.request({
+      method: "POST",
 
-for (const key in reqData) {
+      url: `${globalState.get("baseUrl")}/payments/${payment_id}/extend_authorization`,
 
-requestBody[key] = reqData[key];
+      headers,
 
-}
+      failOnStatusCode: false,
 
-const headers = {
+      body: requestBody,
+    }).then((response) => {
+      logRequestId(response.headers["x-request-id"]);
 
-"Content-Type": "application/json",
+      storeRequestId(response.headers["x-request-id"], globalState);
 
-"api-key": globalState.get("apiKey"),
+      cy.wrap(response).then(() => {
+        expect(response.headers["content-type"]).to.include("application/json");
 
-};
+        if (response.status === 200) {
+          // Success case - validate response body fields
 
-cy.request({
+          for (const key in resData.body) {
+            if (key !== "extended_authorization_expires_at") {
+              expect(resData.body[key]).to.equal(response.body[key]);
+            }
+          }
 
-method: "POST",
+          // Verify extended authorization was applied
 
-url: `${globalState.get("baseUrl")}/payments/${payment_id}/extend_authorization`,
+          expect(response.body.request_extended_authorization).to.equal(true);
 
-headers,
-
-failOnStatusCode: false,
-
-body: requestBody,
-
-}).then((response) => {
-
-logRequestId(response.headers["x-request-id"]);
-
-storeRequestId(response.headers["x-request-id"], globalState);
-
-cy.wrap(response).then(() => {
-
-expect(response.headers["content-type"]).to.include("application/json");
-
-if (response.status === 200) {
-
-// Success case - validate response body fields
-
-for (const key in resData.body) {
-
-if (key !== "extended_authorization_expires_at" ) {
-
-expect(resData.body[key]).to.equal(response.body[key]);
-
-}
-
-}
-
-// Verify extended authorization was applied
-
-expect(response.body.request_extended_authorization).to.equal(true);
-
-expect(response.body).to.have.property(
-
-"expires_on"
-
-);
-
-} else {
-
-defaultErrorHandler(response, resData);
-
-}
-
-});
-
-});
-
-}
-
+          expect(response.body).to.have.property("expires_on");
+        } else {
+          defaultErrorHandler(response, resData);
+        }
+      });
+    });
+  }
 );
 
 Cypress.Commands.add("setConfigs", (globalState, key, value, requestType) => {
