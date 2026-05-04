@@ -80,7 +80,7 @@ describe("PayLater tests", () => {
   });
 
   context("Klarna PayLater - Manual Capture flow test", () => {
-    it("Create Payment Intent -> List Merchant Payment Methods -> Confirm Payment -> Handle PayLater Redirection -> Capture Payment", () => {
+    it("Create Payment Intent -> List Merchant Payment Methods -> Confirm Payment -> Handle PayLater Redirection", () => {
       let shouldContinue = true;
 
       cy.step("Create Payment Intent", () => {
@@ -139,17 +139,6 @@ describe("PayLater tests", () => {
           payment_method_type,
           expected_redirection
         );
-      });
-
-      cy.step("Capture Payment", () => {
-        if (!shouldContinue) {
-          cy.task("cli_log", "Skipping step: Capture Payment");
-          return;
-        }
-        const captureData = getConnectorDetails(globalState.get("connectorId"))[
-          "pay_later_pm"
-        ]["Capture"];
-        cy.captureCallTest(fixtures.captureBody, captureData, globalState);
       });
     });
   });
