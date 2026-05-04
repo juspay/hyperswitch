@@ -720,6 +720,12 @@ impl transformers::ForeignTryFrom<&RouterData<PSync, PaymentsSyncData, PaymentsR
                 .payment_experience
                 .map(payments_grpc::PaymentExperience::foreign_from)
                 .map(Into::into),
+            payment_method_type: router_data
+                .request
+                .payment_method_type
+                .map(payments_grpc::PaymentMethodType::foreign_try_from)
+                .transpose()?
+                .map(|pm_type| pm_type.into()),
         })
     }
 }
