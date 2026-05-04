@@ -745,6 +745,12 @@ impl
                 .payment_experience
                 .map(payments_grpc::PaymentExperience::foreign_from)
                 .map(Into::into),
+            payment_method_type: router_data
+                .request
+                .payment_method_type
+                .map(payments_grpc::PaymentMethodType::foreign_try_from)
+                .transpose()?
+                .map(|pm_type| pm_type.into()),
         })
     }
 }
@@ -2645,7 +2651,8 @@ impl
                 status_code,
                 attempt_status,
                 connector_transaction_id: connector_transaction_id.get_optional_response_id(),
-                connector_response_reference_id: None,
+                connector_response_reference_id: Some(response.merchant_recurring_payment_id.clone())
+                    .filter(|s| !s.is_empty()),
                 network_decline_code: error_info.issuer_details.as_ref().and_then(|id| {
                     id.network_details
                         .as_ref()
@@ -2694,7 +2701,8 @@ impl
                     mandate_reference: Box::new(response.mandate_reference.map(hyperswitch_domain_models::router_response_types::MandateReference::foreign_try_from).transpose()?),
                     connector_metadata,
                     network_txn_id: response.network_transaction_id,
-                    connector_response_reference_id: None,
+                    connector_response_reference_id: Some(response.merchant_recurring_payment_id.clone())
+                        .filter(|s| !s.is_empty()),
                     incremental_authorization_allowed: response.incremental_authorization_allowed,
                     authentication_data: None,
                     charges: None,
