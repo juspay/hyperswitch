@@ -1581,7 +1581,7 @@ pub struct ExternalSurchargeDetails {
     /// sTxId from InterPayments (the last one received before confirm)
     pub external_surcharge_id: String,
     /// Surcharge amount in minor units
-    pub external_surcharge_amount: i64,
+    pub external_surcharge_amount: MinorUnit,
     /// Whether /v1/ch/sale has been successfully called
     pub sale_notified: bool,
 }

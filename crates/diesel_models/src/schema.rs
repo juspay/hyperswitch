@@ -302,8 +302,7 @@ diesel::table! {
         network_tokenization_credentials -> Nullable<Bytea>,
         payment_method_blocking -> Nullable<Jsonb>,
         default_fallback_routing -> Nullable<Jsonb>,
-        #[max_length = 64]
-        surcharge_connector_id -> Nullable<Varchar>,
+        surcharge_connector_details -> Nullable<Jsonb>,
     }
 }
 

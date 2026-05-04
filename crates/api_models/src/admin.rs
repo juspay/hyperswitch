@@ -342,6 +342,13 @@ pub struct ExternalVaultConnectorDetails {
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, ToSchema)]
+pub struct SurchargeConnectorDetails {
+    /// The surcharge connector ID for calculating external surcharge
+    #[schema(value_type = Option<String>)]
+    pub surcharge_connector_id: Option<id_type::MerchantConnectorAccountId>,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize, ToSchema)]
 pub struct VaultTokenField {
     /// Type of field to be tokenized in
     #[schema(value_type = Option<VaultTokenType>)]
@@ -2350,9 +2357,8 @@ pub struct ProfileCreate {
     #[schema(value_type = Option<String>)]
     pub billing_processor_id: Option<id_type::MerchantConnectorAccountId>,
 
-    /// The surcharge connector ID for calculating external surcharge
-    #[schema(value_type = Option<String>)]
-    pub surcharge_connector_id: Option<id_type::MerchantConnectorAccountId>,
+    /// The surcharge connector details for calculating external surcharge
+    pub surcharge_connector_details: Option<SurchargeConnectorDetails>,
 
     /// Flag to enable Level 2 and Level 3 processing data for card transactions
     #[schema(value_type = Option<bool>)]
@@ -2526,9 +2532,8 @@ pub struct ProfileCreate {
     #[schema(value_type = Option<String>)]
     pub billing_processor_id: Option<id_type::MerchantConnectorAccountId>,
 
-    /// The surcharge connector ID for calculating external surcharge
-    #[schema(value_type = Option<String>)]
-    pub surcharge_connector_id: Option<id_type::MerchantConnectorAccountId>,
+    /// The surcharge connector details for calculating external surcharge
+    pub surcharge_connector_details: Option<SurchargeConnectorDetails>,
 
     /// Flag to enable Level 2 and Level 3 processing data for card transactions
     #[schema(value_type = Option<bool>)]
@@ -2738,9 +2743,8 @@ pub struct ProfileResponse {
     #[schema(value_type = Option<String>)]
     pub billing_processor_id: Option<id_type::MerchantConnectorAccountId>,
 
-    /// The surcharge connector ID for calculating external surcharge
-    #[schema(value_type = Option<String>)]
-    pub surcharge_connector_id: Option<id_type::MerchantConnectorAccountId>,
+    /// The surcharge connector details for calculating external surcharge
+    pub surcharge_connector_details: Option<SurchargeConnectorDetails>,
 
     /// Flag to enable Level 2 and Level 3 processing data for card transactions
     #[schema(value_type = Option<bool>)]
@@ -2927,9 +2931,8 @@ pub struct ProfileResponse {
     #[schema(value_type = Option<String>)]
     pub billing_processor_id: Option<id_type::MerchantConnectorAccountId>,
 
-    /// The surcharge connector ID for calculating external surcharge
-    #[schema(value_type = Option<String>)]
-    pub surcharge_connector_id: Option<id_type::MerchantConnectorAccountId>,
+    /// The surcharge connector details for calculating external surcharge
+    pub surcharge_connector_details: Option<SurchargeConnectorDetails>,
 
     /// Flag to enable Level 2 and Level 3 processing data for card transactions
     #[schema(value_type = Option<bool>)]
@@ -3129,8 +3132,8 @@ pub struct ProfileUpdate {
     #[schema(value_type = Option<String>)]
     pub billing_processor_id: Option<id_type::MerchantConnectorAccountId>,
 
-    /// The surcharge connector ID for calculating external surcharge
-    pub surcharge_connector_id: Option<id_type::MerchantConnectorAccountId>,
+    /// The surcharge connector details for calculating external surcharge
+    pub surcharge_connector_details: Option<SurchargeConnectorDetails>,
 
     /// Flag to enable Level 2 and Level 3 processing data for card transactions
     #[schema(value_type = Option<bool>)]
@@ -3298,8 +3301,8 @@ pub struct ProfileUpdate {
     #[schema(value_type = Option<String>)]
     pub billing_processor_id: Option<id_type::MerchantConnectorAccountId>,
 
-    /// The surcharge connector ID for calculating external surcharge
-    pub surcharge_connector_id: Option<id_type::MerchantConnectorAccountId>,
+    /// The surcharge connector details for calculating external surcharge
+    pub surcharge_connector_details: Option<SurchargeConnectorDetails>,
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]

@@ -3683,7 +3683,9 @@ impl ProfileCreateBridge for api::ProfileCreate {
             network_tokenization_credentials,
             payment_method_blocking: self.payment_method_blocking.map(ForeignInto::foreign_into),
             default_fallback_routing: None,
-            surcharge_connector_id: None,
+            surcharge_connector_details: self
+                .surcharge_connector_details
+                .map(ForeignInto::foreign_into),
         }))
     }
 
@@ -3841,7 +3843,9 @@ impl ProfileCreateBridge for api::ProfileCreate {
             merchant_country_code: self.merchant_country_code,
             split_txns_enabled: self.split_txns_enabled.unwrap_or_default(),
             billing_processor_id: self.billing_processor_id,
-            surcharge_connector_id: None,
+            surcharge_connector_details: self
+                .surcharge_connector_details
+                .map(ForeignInto::foreign_into),
         }))
     }
 }
@@ -4210,7 +4214,9 @@ impl ProfileUpdateBridge for api::ProfileUpdate {
                 payment_method_blocking: self
                     .payment_method_blocking
                     .map(ForeignInto::foreign_into),
-                surcharge_connector_id: self.surcharge_connector_id,
+                surcharge_connector_details: self
+                    .surcharge_connector_details
+                    .map(ForeignInto::foreign_into),
             },
         )))
     }
@@ -4362,7 +4368,9 @@ impl ProfileUpdateBridge for api::ProfileUpdate {
                 revenue_recovery_retry_algorithm_type,
                 split_txns_enabled: self.split_txns_enabled,
                 billing_processor_id: self.billing_processor_id,
-                surcharge_connector_id: self.surcharge_connector_id,
+                surcharge_connector_details: self
+                    .surcharge_connector_details
+                    .map(ForeignInto::foreign_into),
             },
         )))
     }

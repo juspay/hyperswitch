@@ -282,6 +282,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::admin::BusinessPayoutLinkConfig,
         api_models::admin::MerchantConnectorAccountFeatureMetadata,
         api_models::admin::RevenueRecoveryMetadata,
+        api_models::admin::SurchargeConnectorDetails,
         api_models::customers::CustomerRequest,
         api_models::customers::CustomerUpdateRequest,
         api_models::customers::CustomerDeleteResponse,

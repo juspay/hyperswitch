@@ -16,7 +16,7 @@ use diesel_models::business_profile::RevenueRecoveryAlgorithmData;
 use diesel_models::business_profile::{
     self as storage_types, AuthenticationConnectorDetails, BusinessPaymentLinkConfig,
     BusinessPayoutLinkConfig, CardTestingGuardConfig, ExternalVaultConnectorDetails,
-    PaymentMethodBlockingConfig, ProfileUpdateInternal, WebhookDetails,
+    PaymentMethodBlockingConfig, ProfileUpdateInternal, SurchargeConnectorDetails, WebhookDetails,
 };
 use error_stack::ResultExt;
 use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
@@ -91,7 +91,7 @@ pub struct Profile {
     pub always_enable_overcapture: Option<primitive_wrappers::AlwaysEnableOvercaptureBool>,
     pub external_vault_details: ExternalVaultDetails,
     pub billing_processor_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
-    pub surcharge_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
+    pub surcharge_connector_details: Option<SurchargeConnectorDetails>,
     pub network_tokenization_credentials: OptionalEncryptableValue,
     pub payment_method_blocking: Option<PaymentMethodBlockingConfig>,
     pub default_fallback_routing: Option<pii::SecretSerdeValue>,
@@ -253,7 +253,7 @@ pub struct ProfileSetter {
     pub always_enable_overcapture: Option<primitive_wrappers::AlwaysEnableOvercaptureBool>,
     pub external_vault_details: ExternalVaultDetails,
     pub billing_processor_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
-    pub surcharge_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
+    pub surcharge_connector_details: Option<SurchargeConnectorDetails>,
     pub network_tokenization_credentials: OptionalEncryptableValue,
     pub payment_method_blocking: Option<PaymentMethodBlockingConfig>,
     pub default_fallback_routing: Option<pii::SecretSerdeValue>,
@@ -325,7 +325,7 @@ impl From<ProfileSetter> for Profile {
             always_enable_overcapture: value.always_enable_overcapture,
             external_vault_details: value.external_vault_details,
             billing_processor_id: value.billing_processor_id,
-            surcharge_connector_id: value.surcharge_connector_id,
+            surcharge_connector_details: value.surcharge_connector_details,
             network_tokenization_credentials: value.network_tokenization_credentials,
             payment_method_blocking: value.payment_method_blocking,
             default_fallback_routing: value.default_fallback_routing,
@@ -400,7 +400,7 @@ pub struct ProfileGeneralUpdate {
     pub is_external_vault_enabled: Option<common_enums::ExternalVaultEnabled>,
     pub external_vault_connector_details: Option<ExternalVaultConnectorDetails>,
     pub billing_processor_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
-    pub surcharge_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
+    pub surcharge_connector_details: Option<SurchargeConnectorDetails>,
     pub network_tokenization_credentials: OptionalEncryptableValue,
     pub payment_method_blocking: Option<PaymentMethodBlockingConfig>,
 }
@@ -496,7 +496,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                     is_external_vault_enabled,
                     external_vault_connector_details,
                     billing_processor_id,
-                    surcharge_connector_id,
+                    surcharge_connector_details,
                     network_tokenization_credentials,
                     payment_method_blocking,
                 } = *update;
@@ -566,7 +566,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                     is_external_vault_enabled,
                     external_vault_connector_details,
                     billing_processor_id,
-                    surcharge_connector_id,
+                    surcharge_connector_details,
                     network_tokenization_credentials: network_tokenization_credentials
                         .map(Encryption::from),
                     payment_method_blocking,
@@ -632,7 +632,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 is_external_vault_enabled: None,
                 external_vault_connector_details: None,
                 billing_processor_id: None,
-                surcharge_connector_id: None,
+                surcharge_connector_details: None,
                 is_l2_l3_enabled: None,
                 network_tokenization_credentials: None,
                 payment_method_blocking: None,
@@ -695,7 +695,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 is_external_vault_enabled: None,
                 external_vault_connector_details: None,
                 billing_processor_id: None,
-                surcharge_connector_id: None,
+                surcharge_connector_details: None,
                 is_l2_l3_enabled: None,
                 network_tokenization_credentials: None,
                 payment_method_blocking: None,
@@ -758,7 +758,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 is_external_vault_enabled: None,
                 external_vault_connector_details: None,
                 billing_processor_id: None,
-                surcharge_connector_id: None,
+                surcharge_connector_details: None,
                 is_l2_l3_enabled: None,
                 network_tokenization_credentials: None,
                 payment_method_blocking: None,
@@ -821,7 +821,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 is_external_vault_enabled: None,
                 external_vault_connector_details: None,
                 billing_processor_id: None,
-                surcharge_connector_id: None,
+                surcharge_connector_details: None,
                 is_l2_l3_enabled: None,
                 network_tokenization_credentials: None,
                 payment_method_blocking: None,
@@ -885,7 +885,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 is_external_vault_enabled: None,
                 external_vault_connector_details: None,
                 billing_processor_id: None,
-                surcharge_connector_id: None,
+                surcharge_connector_details: None,
                 is_l2_l3_enabled: None,
                 network_tokenization_credentials: network_tokenization_credentials
                     .map(Encryption::from),
@@ -949,7 +949,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 is_external_vault_enabled: None,
                 external_vault_connector_details: None,
                 billing_processor_id: None,
-                surcharge_connector_id: None,
+                surcharge_connector_details: None,
                 is_l2_l3_enabled: None,
                 network_tokenization_credentials: None,
                 payment_method_blocking: None,
@@ -1012,7 +1012,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 is_external_vault_enabled: None,
                 external_vault_connector_details: None,
                 billing_processor_id: None,
-                surcharge_connector_id: None,
+                surcharge_connector_details: None,
                 is_l2_l3_enabled: None,
                 network_tokenization_credentials: None,
                 payment_method_blocking: None,
@@ -1075,7 +1075,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 is_external_vault_enabled: None,
                 external_vault_connector_details: None,
                 billing_processor_id: None,
-                surcharge_connector_id: None,
+                surcharge_connector_details: None,
                 is_l2_l3_enabled: None,
                 payment_method_blocking: None,
                 default_fallback_routing,
@@ -1162,7 +1162,7 @@ impl Conversion for Profile {
             is_external_vault_enabled,
             external_vault_connector_details,
             billing_processor_id: self.billing_processor_id,
-            surcharge_connector_id: self.surcharge_connector_id,
+            surcharge_connector_details: self.surcharge_connector_details,
             network_tokenization_credentials: self
                 .network_tokenization_credentials
                 .map(|name| name.into()),
@@ -1313,7 +1313,7 @@ impl Conversion for Profile {
             always_enable_overcapture: item.always_enable_overcapture,
             external_vault_details,
             billing_processor_id: item.billing_processor_id,
-            surcharge_connector_id: item.surcharge_connector_id,
+            surcharge_connector_details: item.surcharge_connector_details,
             network_tokenization_credentials,
             payment_method_blocking: item.payment_method_blocking,
             default_fallback_routing: item.default_fallback_routing,
@@ -1386,7 +1386,7 @@ impl Conversion for Profile {
             is_external_vault_enabled,
             external_vault_connector_details,
             billing_processor_id: self.billing_processor_id,
-            surcharge_connector_id: self.surcharge_connector_id,
+            surcharge_connector_details: self.surcharge_connector_details,
             network_tokenization_credentials: self
                 .network_tokenization_credentials
                 .map(|name| name.into()),
@@ -1455,7 +1455,7 @@ pub struct Profile {
     pub merchant_country_code: Option<common_types::payments::MerchantCountryCode>,
     pub split_txns_enabled: common_enums::SplitTxnsEnabled,
     pub billing_processor_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
-    pub surcharge_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
+    pub surcharge_connector_details: Option<SurchargeConnectorDetails>,
 }
 
 #[cfg(feature = "v2")]
@@ -1515,7 +1515,7 @@ pub struct ProfileSetter {
     pub merchant_country_code: Option<common_types::payments::MerchantCountryCode>,
     pub split_txns_enabled: common_enums::SplitTxnsEnabled,
     pub billing_processor_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
-    pub surcharge_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
+    pub surcharge_connector_details: Option<SurchargeConnectorDetails>,
 }
 
 #[cfg(feature = "v2")]
@@ -1580,7 +1580,7 @@ impl From<ProfileSetter> for Profile {
             merchant_country_code: value.merchant_country_code,
             split_txns_enabled: value.split_txns_enabled,
             billing_processor_id: value.billing_processor_id,
-            surcharge_connector_id: value.surcharge_connector_id,
+            surcharge_connector_details: value.surcharge_connector_details,
         }
     }
 }
@@ -1832,7 +1832,7 @@ pub struct ProfileGeneralUpdate {
     pub revenue_recovery_retry_algorithm_type: Option<common_enums::RevenueRecoveryAlgorithmType>,
     pub split_txns_enabled: Option<common_enums::SplitTxnsEnabled>,
     pub billing_processor_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
-    pub surcharge_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
+    pub surcharge_connector_details: Option<SurchargeConnectorDetails>,
 }
 
 #[cfg(feature = "v2")]
@@ -1916,7 +1916,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                     revenue_recovery_retry_algorithm_type,
                     split_txns_enabled,
                     billing_processor_id,
-                    surcharge_connector_id,
+                    surcharge_connector_details,
                 } = *update;
                 Self {
                     profile_name,
@@ -1973,7 +1973,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                     merchant_country_code,
                     split_txns_enabled,
                     billing_processor_id,
-                    surcharge_connector_id,
+                    surcharge_connector_details,
                 }
             }
             ProfileUpdate::RoutingAlgorithmUpdate {
@@ -2033,7 +2033,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 merchant_country_code: None,
                 split_txns_enabled: None,
                 billing_processor_id: None,
-                surcharge_connector_id: None,
+                surcharge_connector_details: None,
             },
             ProfileUpdate::ExtendedCardInfoUpdate {
                 is_extended_card_info_enabled,
@@ -2091,7 +2091,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 merchant_country_code: None,
                 split_txns_enabled: None,
                 billing_processor_id: None,
-                surcharge_connector_id: None,
+                surcharge_connector_details: None,
             },
             ProfileUpdate::ConnectorAgnosticMitUpdate {
                 is_connector_agnostic_mit_enabled,
@@ -2149,7 +2149,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 merchant_country_code: None,
                 split_txns_enabled: None,
                 billing_processor_id: None,
-                surcharge_connector_id: None,
+                surcharge_connector_details: None,
             },
             ProfileUpdate::DefaultRoutingFallbackUpdate {
                 default_fallback_routing,
@@ -2207,7 +2207,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 merchant_country_code: None,
                 split_txns_enabled: None,
                 billing_processor_id: None,
-                surcharge_connector_id: None,
+                surcharge_connector_details: None,
             },
             ProfileUpdate::NetworkTokenizationUpdate {
                 is_network_tokenization_enabled,
@@ -2265,7 +2265,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 merchant_country_code: None,
                 split_txns_enabled: None,
                 billing_processor_id: None,
-                surcharge_connector_id: None,
+                surcharge_connector_details: None,
             },
             ProfileUpdate::CollectCvvDuringPaymentUpdate {
                 should_collect_cvv_during_payment,
@@ -2323,7 +2323,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 merchant_country_code: None,
                 split_txns_enabled: None,
                 billing_processor_id: None,
-                surcharge_connector_id: None,
+                surcharge_connector_details: None,
             },
             ProfileUpdate::DecisionManagerRecordUpdate {
                 three_ds_decision_manager_config,
@@ -2381,7 +2381,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 merchant_country_code: None,
                 split_txns_enabled: None,
                 billing_processor_id: None,
-                surcharge_connector_id: None,
+                surcharge_connector_details: None,
             },
             ProfileUpdate::CardTestingSecretKeyUpdate {
                 card_testing_secret_key,
@@ -2439,7 +2439,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 merchant_country_code: None,
                 split_txns_enabled: None,
                 billing_processor_id: None,
-                surcharge_connector_id: None,
+                surcharge_connector_details: None,
             },
             ProfileUpdate::RevenueRecoveryAlgorithmUpdate {
                 revenue_recovery_retry_algorithm_type,
@@ -2498,7 +2498,7 @@ impl From<ProfileUpdate> for ProfileUpdateInternal {
                 merchant_country_code: None,
                 split_txns_enabled: None,
                 billing_processor_id: None,
-                surcharge_connector_id: None,
+                surcharge_connector_details: None,
             },
         }
     }
@@ -2583,7 +2583,7 @@ impl Conversion for Profile {
             is_l2_l3_enabled: None,
             always_enable_overcapture: None,
             billing_processor_id: self.billing_processor_id,
-            surcharge_connector_id: self.surcharge_connector_id,
+            surcharge_connector_details: self.surcharge_connector_details,
             network_tokenization_credentials: None,
             payment_method_blocking: None,
         })
@@ -2683,7 +2683,7 @@ impl Conversion for Profile {
                 merchant_country_code: item.merchant_country_code,
                 split_txns_enabled: item.split_txns_enabled.unwrap_or_default(),
                 billing_processor_id: item.billing_processor_id,
-                surcharge_connector_id: item.surcharge_connector_id,
+                surcharge_connector_details: item.surcharge_connector_details,
             })
         }
         .await
@@ -2757,7 +2757,7 @@ impl Conversion for Profile {
             merchant_country_code: self.merchant_country_code,
             split_txns_enabled: Some(self.split_txns_enabled),
             billing_processor_id: self.billing_processor_id,
-            surcharge_connector_id: self.surcharge_connector_id,
+            surcharge_connector_details: self.surcharge_connector_details,
             payment_method_blocking: None,
         })
     }

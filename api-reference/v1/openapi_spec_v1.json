@@ -20098,9 +20098,7 @@
             "description": "sTxId from InterPayments (the last one received before confirm)"
           },
           "external_surcharge_amount": {
-            "type": "integer",
-            "format": "int64",
-            "description": "Surcharge amount in minor units"
+            "$ref": "#/components/schemas/MinorUnit"
           },
           "sale_notified": {
             "type": "boolean",
@@ -36799,9 +36797,12 @@
             "description": "Merchant Connector id to be stored for billing_processor connector",
             "nullable": true
           },
-          "surcharge_connector_id": {
-            "type": "string",
-            "description": "The surcharge connector ID for calculating external surcharge",
+          "surcharge_connector_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SurchargeConnectorDetails"
+              }
+            ],
             "nullable": true
           },
           "is_l2_l3_enabled": {
@@ -37186,9 +37187,12 @@
             "description": "Merchant Connector id to be stored for billing_processor connector",
             "nullable": true
           },
-          "surcharge_connector_id": {
-            "type": "string",
-            "description": "The surcharge connector ID for calculating external surcharge",
+          "surcharge_connector_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SurchargeConnectorDetails"
+              }
+            ],
             "nullable": true
           },
           "is_l2_l3_enabled": {
@@ -40972,6 +40976,16 @@
             }
           }
         ]
+      },
+      "SurchargeConnectorDetails": {
+        "type": "object",
+        "properties": {
+          "surcharge_connector_id": {
+            "type": "string",
+            "description": "The surcharge connector ID for calculating external surcharge",
+            "nullable": true
+          }
+        }
       },
       "SurchargeDetailsResponse": {
         "type": "object",
