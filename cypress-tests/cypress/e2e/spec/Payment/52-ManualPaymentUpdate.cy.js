@@ -24,14 +24,8 @@ describe("Payment Manual Update Tests", () => {
           "card_pm"
         ]["PaymentIntent"];
 
-        // Create payment intent with manual capture method
-        const paymentBody = {
-          ...fixtures.createPaymentBody,
-          capture_method: "manual",
-        };
-
         cy.createPaymentIntentTest(
-          paymentBody,
+          fixtures.createPaymentBody,
           data,
           "no_three_ds",
           "manual",
@@ -53,18 +47,7 @@ describe("Payment Manual Update Tests", () => {
           "card_pm"
         ]["ManualPaymentUpdate"];
 
-        const merchantId = globalState.get("merchantId");
-        const paymentId = globalState.get("paymentID");
-
-        const manualUpdateBody = {
-          merchant_id: merchantId,
-          attempt_id: `${paymentId}_1`,
-          attempt_status: data.Request.attempt_status,
-          error_code: data.Request.error_code,
-          error_message: data.Request.error_message,
-        };
-
-        cy.manualPaymentStatusUpdateTest(globalState, manualUpdateBody, data);
+        cy.manualPaymentStatusUpdateTest(globalState, data);
 
         if (!utils.should_continue_further(data)) {
           shouldContinue = false;
@@ -98,13 +81,8 @@ describe("Payment Manual Update Tests", () => {
           "card_pm"
         ]["PaymentIntent"];
 
-        const paymentBody = {
-          ...fixtures.createPaymentBody,
-          capture_method: "manual",
-        };
-
         cy.createPaymentIntentTest(
-          paymentBody,
+          fixtures.createPaymentBody,
           data,
           "no_three_ds",
           "manual",
@@ -125,17 +103,19 @@ describe("Payment Manual Update Tests", () => {
           return;
         }
 
-        const merchantId = globalState.get("merchantId");
-        const paymentId = globalState.get("paymentID");
-
-        const manualUpdateBody = {
-          merchant_id: merchantId,
-          attempt_id: `${paymentId}_1`,
-          attempt_status: "pending",
+        const data = {
+          Request: {
+            attempt_status: "pending",
+          },
+          Response: {
+            status: 200,
+            body: {
+              attempt_status: "pending",
+            },
+          },
         };
 
-        // Legacy mode test - without data parameter
-        cy.manualPaymentStatusUpdateTest(globalState, manualUpdateBody);
+        cy.manualPaymentStatusUpdateTest(globalState, data);
       });
 
       cy.step("Retrieve Payment to Verify Status Update", () => {
@@ -165,13 +145,8 @@ describe("Payment Manual Update Tests", () => {
           "card_pm"
         ]["PaymentIntent"];
 
-        const paymentBody = {
-          ...fixtures.createPaymentBody,
-          capture_method: "manual",
-        };
-
         cy.createPaymentIntentTest(
-          paymentBody,
+          fixtures.createPaymentBody,
           data,
           "no_three_ds",
           "manual",
@@ -192,29 +167,7 @@ describe("Payment Manual Update Tests", () => {
           return;
         }
 
-        const merchantId = globalState.get("merchantId");
-        const paymentId = globalState.get("paymentID");
-
-        const manualUpdateBody = {
-          merchant_id: merchantId,
-          attempt_id: "invalid_attempt_id",
-          attempt_status: "pending",
-        };
-
-        cy.request({
-          method: "PUT",
-          url: `${Cypress.env("BASEURL")}/payments/${paymentId}/manual-update`,
-          headers: {
-            "Content-Type": "application/json",
-            "api-key": globalState.get("adminApiKey"),
-            "X-Merchant-Id": merchantId,
-          },
-          body: manualUpdateBody,
-          failOnStatusCode: false,
-        }).then((response) => {
-          // Expect 400 or 404 for invalid attempt_id
-          expect(response.status).to.be.oneOf([400, 404]);
-        });
+        cy.manualPaymentUpdateNegativeTest(globalState, "invalid_attempt_id");
       });
     });
   });
@@ -228,13 +181,8 @@ describe("Payment Manual Update Tests", () => {
           "card_pm"
         ]["PaymentIntent"];
 
-        const paymentBody = {
-          ...fixtures.createPaymentBody,
-          capture_method: "manual",
-        };
-
         cy.createPaymentIntentTest(
-          paymentBody,
+          fixtures.createPaymentBody,
           data,
           "no_three_ds",
           "manual",
@@ -259,18 +207,7 @@ describe("Payment Manual Update Tests", () => {
           "card_pm"
         ]["ManualPaymentUpdate"];
 
-        const merchantId = globalState.get("merchantId");
-        const paymentId = globalState.get("paymentID");
-
-        const manualUpdateBody = {
-          merchant_id: merchantId,
-          attempt_id: `${paymentId}_1`,
-          attempt_status: data.Request.attempt_status,
-          error_code: data.Request.error_code,
-          error_message: data.Request.error_message,
-        };
-
-        cy.manualPaymentStatusUpdateTest(globalState, manualUpdateBody, data);
+        cy.manualPaymentStatusUpdateTest(globalState, data);
 
         if (!utils.should_continue_further(data)) {
           shouldContinue = false;
@@ -290,39 +227,12 @@ describe("Payment Manual Update Tests", () => {
           "card_pm"
         ]["ManualPaymentUpdate"];
 
-        // First retrieval — forceSync disabled because the payment was never
-        // confirmed (no connector), so force_sync=true would trigger IR_39
         cy.retrievePaymentCallTest({
           globalState,
           forceSync: false,
           unconfirmedPayment: true,
         }).then(() => {
-          const paymentId = globalState.get("paymentID");
-
-          // Second retrieval to confirm persistence
-          cy.request({
-            method: "GET",
-            url: `${Cypress.env("BASEURL")}/payments/${paymentId}`,
-            headers: {
-              "Content-Type": "application/json",
-              "api-key": globalState.get("apiKey"),
-            },
-          }).then((response) => {
-            expect(response.status).to.eq(200);
-
-            // Verify error_code and error_message persist across retrievals
-            if (data.Response.body.error_code) {
-              expect(response.body.error_code).to.equal(
-                data.Response.body.error_code
-              );
-            }
-
-            if (data.Response.body.error_message) {
-              expect(response.body.error_message).to.equal(
-                data.Response.body.error_message
-              );
-            }
-          });
+          cy.retrievePaymentPersistenceTest(globalState, data);
         });
       });
     });
