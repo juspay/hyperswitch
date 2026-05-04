@@ -1,4 +1,10 @@
-import { customerAcceptance } from "./Commons";
+import {
+  customerAcceptance,
+  blockedPaymentErrorBodyForIssuingCountry,
+  blockedPaymentErrorBodyForDebitCard,
+  blockedPaymentErrorBodyForCardSubtype,
+  blockedPaymentErrorBodyForBinUnavailable,
+} from "./Commons";
 
 const successfulNo3DSCardDetails = {
   card_number: "5204740000001002",
@@ -14,19 +20,6 @@ const failedNo3DSCardDetails = {
   card_exp_year: "30",
   card_holder_name: "joseph Doe",
   card_cvc: "123",
-};
-
-const blockedPaymentErrorBody = {
-  status: 200,
-  expectBlockedPayment: true,
-  body: {
-    error: {
-      type: "blocked",
-      message: "This payment method is blocked",
-      code: "HE_03",
-      reason: "Blocked",
-    },
-  },
 };
 
 const billingAddress = {
@@ -755,7 +748,7 @@ export const connectorDetails = {
         billing: billingAddress,
         currency: "EUR",
       },
-      Response: blockedPaymentErrorBody,
+      Response: blockedPaymentErrorBodyForIssuingCountry,
     },
     BlockCardType: {
       Request: {
@@ -773,7 +766,7 @@ export const connectorDetails = {
         billing: billingAddress,
         currency: "EUR",
       },
-      Response: blockedPaymentErrorBody,
+      Response: blockedPaymentErrorBodyForDebitCard,
     },
     BlockCardSubtype: {
       Request: {
@@ -791,7 +784,7 @@ export const connectorDetails = {
         currency: "EUR",
         billing: billingAddress,
       },
-      Response: blockedPaymentErrorBody,
+      Response: blockedPaymentErrorBodyForCardSubtype,
     },
     BlockIfBinInfoUnavailable: {
       Request: {
@@ -809,7 +802,7 @@ export const connectorDetails = {
         billing: billingAddress,
         currency: "EUR",
       },
-      Response: blockedPaymentErrorBody,
+      Response: blockedPaymentErrorBodyForBinUnavailable,
     },
   },
 };

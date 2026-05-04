@@ -39,6 +39,12 @@ payment_method_type = "UnionPay"
 payment_method_type = "ali_pay"
 [[aci.wallet]]
 payment_method_type = "mb_way"
+[[aci.wallet]]
+payment_method_type = "apple_pay"
+[[aci.wallet]]
+payment_method_type = "google_pay"
+[[aci.wallet]]
+payment_method_type = "samsung_pay"
 [[aci.bank_redirect]]
 payment_method_type = "ideal"
 [[aci.bank_redirect]]
@@ -58,6 +64,150 @@ api_key = "API Key"
 key1 = "Entity ID"
 [aci.connector_webhook_details]
 merchant_secret = "Source verification key"
+[[aci.metadata.apple_pay]]
+name = "certificate"
+label = "Merchant Certificate (Base64 Encoded)"
+placeholder = "Enter Merchant Certificate (Base64 Encoded)"
+required = true
+type = "Text"
+[[aci.metadata.apple_pay]]
+name = "certificate_keys"
+label = "Merchant PrivateKey (Base64 Encoded)"
+placeholder = "Enter Merchant PrivateKey (Base64 Encoded)"
+required = true
+type = "Text"
+[[aci.metadata.apple_pay]]
+name = "merchant_identifier"
+label = "Apple Merchant Identifier"
+placeholder = "Enter Apple Merchant Identifier"
+required = true
+type = "Text"
+[[aci.metadata.apple_pay]]
+name = "display_name"
+label = "Display Name"
+placeholder = "Enter Display Name"
+required = true
+type = "Text"
+[[aci.metadata.apple_pay]]
+name = "initiative"
+label = "Domain"
+placeholder = "Enter Domain"
+required = true
+type = "Text"
+[[aci.metadata.apple_pay]]
+name = "initiative_context"
+label = "Domain Name"
+placeholder = "Enter Domain Name"
+required = true
+type = "Text"
+[[aci.metadata.apple_pay]]
+name = "merchant_business_country"
+label = "Merchant Business Country"
+placeholder = "Enter Merchant Business Country"
+required = true
+type = "Select"
+options = []
+[[aci.metadata.apple_pay]]
+name = "payment_processing_details_at"
+label = "Payment Processing Details At"
+placeholder = "Enter Payment Processing Details At"
+required = true
+type = "Radio"
+options = ["Connector", "Hyperswitch"]
+[[aci.metadata.google_pay]]
+name = "merchant_name"
+label = "Google Pay Merchant Name"
+placeholder = "Enter Google Pay Merchant Name"
+required = true
+type = "Text"
+[[aci.metadata.google_pay]]
+name = "merchant_id"
+label = "Google Pay Merchant Id"
+placeholder = "Enter Google Pay Merchant Id"
+required = true
+type = "Text"
+[[aci.metadata.google_pay]]
+name = "gateway_merchant_id"
+label = "Google Pay Merchant Key"
+placeholder = "Enter Google Pay Merchant Key"
+required = true
+type = "Text"
+[[aci.metadata.google_pay]]
+name = "allowed_auth_methods"
+label = "Allowed Auth Methods"
+placeholder = "Enter Allowed Auth Methods"
+required = true
+type = "MultiSelect"
+options = ["PAN_ONLY", "CRYPTOGRAM_3DS"]
+[[aci.connector_wallets_details.google_pay]]
+name = "merchant_name"
+label = "Google Pay Merchant Name"
+placeholder = "Enter Google Pay Merchant Name"
+required = true
+type = "Text"
+[[aci.connector_wallets_details.google_pay]]
+name = "merchant_id"
+label = "Google Pay Merchant Id"
+placeholder = "Enter Google Pay Merchant Id"
+required = true
+type = "Text"
+[[aci.connector_wallets_details.google_pay]]
+name = "gateway_merchant_id"
+label = "Google Pay Merchant Key"
+placeholder = "Enter Google Pay Merchant Key"
+required = true
+type = "Text"
+[[aci.connector_wallets_details.google_pay]]
+name = "public_key"
+label = "Google Pay Public Key"
+placeholder = "Enter Google Pay Public Key"
+required = true
+type = "Text"
+[[aci.connector_wallets_details.google_pay]]
+name = "private_key"
+label = "Google Pay Private Key"
+placeholder = "Enter Google Pay Private Key"
+required = true
+type = "Text"
+[[aci.connector_wallets_details.google_pay]]
+name = "recipient_id"
+label = "Recipient Id"
+placeholder = "Enter Recipient Id"
+required = true
+type = "Text"
+[[aci.connector_wallets_details.google_pay]]
+name = "allowed_auth_methods"
+label = "Allowed Auth Methods"
+placeholder = "Enter Allowed Auth Methods"
+required = true
+type = "MultiSelect"
+options = ["PAN_ONLY", "CRYPTOGRAM_3DS"]
+[[aci.connector_wallets_details.samsung_pay]]
+name = "service_id"
+label = "Samsung Pay Service Id"
+placeholder = "Enter Samsung Pay Service Id"
+required = true
+type = "Text"
+[[aci.connector_wallets_details.samsung_pay]]
+name = "merchant_display_name"
+label = "Display Name"
+placeholder = "Enter Display Name"
+required = true
+type = "Text"
+[[aci.connector_wallets_details.samsung_pay]]
+name = "merchant_business_country"
+label = "Merchant Business Country"
+placeholder = "Enter Merchant Business Country"
+required = true
+type = "Select"
+options = []
+[[aci.connector_wallets_details.samsung_pay]]
+name = "allowed_brands"
+label = "Allowed Brands"
+placeholder = "Enter Allowed Brands"
+required = true
+type = "MultiSelect"
+options = ["visa", "masterCard", "amex", "discover"]
 
 
 [adyen]
@@ -8376,3 +8526,12 @@ payment_method_type = "JCB"
 payment_method_type = "Discover"
 [[imerchantsolutions.debit]]
 payment_method_type = "UnionPay"
+
+[sanlam]
+[sanlam.connector_auth.BodyKey]
+api_key = "API Key"
+key1 = "Merchant Id"
+[[sanlam.bank_debit]]
+payment_method_type = "eft_debit_order"
+[sanlam.connector_webhook_details]
+merchant_secret="Source verification key"

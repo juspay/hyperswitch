@@ -23,6 +23,14 @@ const singleUseMandateData = {
   },
 };
 
+const failedNo3DSCardDetails = {
+  card_number: "4000000000000002",
+  card_exp_month: "01",
+  card_exp_year: "35",
+  card_holder_name: "joseph Doe",
+  card_cvc: "200",
+};
+
 const multiUseMandateData = {
   customer_acceptance: customerAcceptance,
   mandate_type: {
@@ -264,6 +272,22 @@ export const connectorDetails = {
         },
       },
     },
+    No3DSFailPayment: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: failedNo3DSCardDetails,
+        },
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded", // Braintree returns succeeded status for all failure test cards
+        },
+      },
+    },
     "3DSManualCapture": {
       Request: {
         payment_method: "card",
@@ -392,7 +416,6 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "requires_capture",
-          payment_method_data: paymentMethodDataNo3DSResponse,
         },
       },
     },
@@ -576,6 +599,51 @@ export const connectorDetails = {
         body: {
           status: "requires_customer_action",
           payment_method_data: paymentMethodData3DSResponse,
+        },
+      },
+    },
+    ConnectorTestingData: {
+      Request: {
+        currency: "USD",
+        connector_metadata: {
+          braintree: {
+            merchant_account_id: "juspay",
+            merchant_config_currency: "USD",
+          },
+        },
+        customer_acceptance: null,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+        },
+      },
+    },
+    ConnectorTestingDataConfirm: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: {
+            card_number: "4242424242424242",
+            card_exp_month: "01",
+            card_exp_year: "2030",
+            card_cvc: "123",
+            card_holder_name: "joseph Doe",
+          },
+        },
+        connector_metadata: {
+          braintree: {
+            merchant_account_id: "juspay",
+            merchant_config_currency: "USD",
+          },
+        },
+        customer_acceptance: null,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
         },
       },
     },
