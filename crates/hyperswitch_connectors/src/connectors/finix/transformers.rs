@@ -89,7 +89,7 @@ impl
         >,
     ) -> Result<Self, Self::Error> {
         let customer_data: &ConnectorCustomerData = &item.router_data.request;
-        let personal_address = get_billing_address_as_finix_address(&item.router_data);
+        let personal_address = get_billing_address_as_finix_address(item.router_data);
         let entity = FinixIdentityEntity {
             phone: customer_data.phone.clone(),
             first_name: item.router_data.get_optional_billing_first_name(),
@@ -420,7 +420,7 @@ impl
             item.merchant_identity_id.clone(),
             item.router_data.get_connector_customer_id()?,
             item.router_data.get_optional_billing_full_name(),
-            &item.router_data,
+            item.router_data,
         )
     }
 }
@@ -498,7 +498,7 @@ impl
             item.merchant_identity_id.clone(),
             item.router_data.get_connector_customer_id()?,
             item.router_data.get_optional_billing_full_name(),
-            &item.router_data,
+            item.router_data,
         )
     }
 }
