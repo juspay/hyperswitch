@@ -28994,6 +28994,14 @@
             },
             "description": "Installment options available for this payment",
             "nullable": true
+          },
+          "capture_method": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CaptureMethod"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -29075,14 +29083,6 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/PaymentMethodListIntentData"
-              }
-            ],
-            "nullable": true
-          },
-          "capture_method": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/CaptureMethod"
               }
             ],
             "nullable": true
