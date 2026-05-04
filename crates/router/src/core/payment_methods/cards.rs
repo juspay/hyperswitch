@@ -4023,6 +4023,7 @@ pub async fn list_payment_methods(
         });
     }
     let currency = payment_intent.as_ref().and_then(|pi| pi.currency);
+    let capture_method = payment_attempt.as_ref().and_then(|pa| pa.capture_method);
     let skip_external_tax_calculation = payment_intent
         .as_ref()
         .and_then(|intent| intent.skip_external_tax_calculation)
@@ -4102,7 +4103,11 @@ pub async fn list_payment_methods(
                 .as_ref()
                 .map(|pa| pa.net_amount.get_total_amount())
                 .unwrap_or(pi.amount);
-            pi.into_payment_method_list_intent_data(net_amount, connector_supports_installments)
+            pi.into_payment_method_list_intent_data(
+                net_amount,
+                connector_supports_installments,
+                capture_method,
+            )
         })
         .transpose()
         .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -4155,7 +4160,7 @@ pub async fn list_payment_methods(
             sdk_next_action,
             is_guest_customer,
             intent_data,
-            capture_method: payment_attempt.as_ref().and_then(|pa| pa.capture_method),
+            capture_method,
         },
     ))
 }
