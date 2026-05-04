@@ -748,6 +748,37 @@ export const connectorDetails = {
         },
       },
     },
+    UseBillingAsPaymentMethodBilling: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "USD",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    },
+    UseBillingAsPaymentMethodBillingDisabled: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "USD",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "failed",
+          error_code: "MISSING_FIELD",
+        },
+      },
+    },
     PaymentIntentWithFeatureMetadata: {
       Request: {
         currency: "USD",
