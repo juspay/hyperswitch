@@ -897,7 +897,7 @@ pub mod core {
             );
 
             {
-                let headers_peeked: std::collections::HashMap<&String, &str> = vault_proxy_request
+                let headers_peeked: HashMap<&String, &str> = vault_proxy_request
                     .headers
                     .iter()
                     .map(|(k, v)| (k, v.peek().as_str()))

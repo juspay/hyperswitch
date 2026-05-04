@@ -1581,12 +1581,12 @@ pub async fn payment_methods_session_create(
         &req,
         payload,
         |state, auth: auth::AuthenticationData, request, _| async move {
-            payment_methods_routes::payment_methods_session_create(
+            Box::pin(payment_methods_routes::payment_methods_session_create(
                 state,
                 auth.platform,
                 auth.profile,
                 request,
-            )
+            ))
             .await
         },
         &auth::V2ApiKeyAuth {
