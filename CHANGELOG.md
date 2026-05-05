@@ -4,6 +4,66 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.05.05.0
+
+### Features
+
+- **card-issuer:** Add delete card issuer functionality ([#11987](https://github.com/juspay/hyperswitch/pull/11987)) ([`7d70345`](https://github.com/juspay/hyperswitch/commit/7d7034579b199114a58733e3a4611870daf7664b))
+
+### Testing
+
+- **cypress:**
+  - Add client secret session expiry coverage ([#12090](https://github.com/juspay/hyperswitch/pull/12090)) ([`4908dcc`](https://github.com/juspay/hyperswitch/commit/4908dcce3e4400975499aa9e5e239bd523ca1e60))
+  - Add feature_metadata coverage for bankofamerica ([#12082](https://github.com/juspay/hyperswitch/pull/12082)) ([`2be42f4`](https://github.com/juspay/hyperswitch/commit/2be42f499096c1369d9912d19bf581c2a4daa05d))
+  - PayLater for Klarna ([#11971](https://github.com/juspay/hyperswitch/pull/11971)) ([`39ef124`](https://github.com/juspay/hyperswitch/commit/39ef124480f7b101ece799fe5aea74c014faab65))
+  - Card Issuer Management Tests ([#12087](https://github.com/juspay/hyperswitch/pull/12087)) ([`d680004`](https://github.com/juspay/hyperswitch/commit/d680004035619df445612a0738b5edbd60b8f8bb))
+  - Add use_billing_as_payment_method_billing coverage for bankofamerica ([#12051](https://github.com/juspay/hyperswitch/pull/12051)) ([`963802f`](https://github.com/juspay/hyperswitch/commit/963802f2a2de6346eb7f3919f6122a89624fdbd4))
+
+**Full Changelog:** [`2026.05.04.0...2026.05.05.0`](https://github.com/juspay/hyperswitch/compare/2026.05.04.0...2026.05.05.0)
+
+- - -
+
+## 2026.05.04.0
+
+### Features
+
+- **ucs:** Default to shadow mode when no rollout config is present ([#12039](https://github.com/juspay/hyperswitch/pull/12039)) ([`7091315`](https://github.com/juspay/hyperswitch/commit/70913156ae592d4e25f113c8815dffa34c7be7fb))
+
+### Testing
+
+- **cypress:**
+  - Add PartialAuthorization coverage for nuvei, checkout, worldpay, worldpayvantiv ([#12061](https://github.com/juspay/hyperswitch/pull/12061)) ([`14117df`](https://github.com/juspay/hyperswitch/commit/14117dfaf2c793a204f82cb1c4eea0af9ac961fb))
+  - Add ConnectorMetadata testcases for noon, airwallex, braintree ([#12079](https://github.com/juspay/hyperswitch/pull/12079)) ([`94bf523`](https://github.com/juspay/hyperswitch/commit/94bf523b6f771b1b9e7c3033f57a6ebbcb17e1ce))
+
+**Full Changelog:** [`2026.05.01.1...2026.05.04.0`](https://github.com/juspay/hyperswitch/compare/2026.05.01.1...2026.05.04.0)
+
+- - -
+
+## 2026.05.01.1
+
+### Features
+
+- **payment_method:** Add OLAP payment method retrieve endpoint for dashboard ([#12070](https://github.com/juspay/hyperswitch/pull/12070)) ([`bbc6ed0`](https://github.com/juspay/hyperswitch/commit/bbc6ed030822550b284205ea64e5fc78aa33d360))
+
+**Full Changelog:** [`2026.05.01.0...2026.05.01.1`](https://github.com/juspay/hyperswitch/compare/2026.05.01.0...2026.05.01.1)
+
+- - -
+
+## 2026.05.01.0
+
+### Features
+
+- **connector:** [ACI] Add Apple Pay and Google Pay wallet support ([#11425](https://github.com/juspay/hyperswitch/pull/11425)) ([`984b33b`](https://github.com/juspay/hyperswitch/commit/984b33bdd7fa7651a547b57661dce61101611b52))
+- **payment-methods:** Add BankRedirect payment method BancontactCard support in modular payment method ([#12052](https://github.com/juspay/hyperswitch/pull/12052)) ([`5e1990e`](https://github.com/juspay/hyperswitch/commit/5e1990efc49b63ec394a69d077d826eccdfc7702))
+
+### Bug Fixes
+
+- **core:** Propagate address in payment recurrence flow ([#11945](https://github.com/juspay/hyperswitch/pull/11945)) ([`61b4815`](https://github.com/juspay/hyperswitch/commit/61b48150f52f7c323186efbd9a39f242ed823338))
+
+**Full Changelog:** [`2026.04.30.1...2026.05.01.0`](https://github.com/juspay/hyperswitch/compare/2026.04.30.1...2026.05.01.0)
+
+- - -
+
 ## 2026.04.30.1
 
 ### Testing
