@@ -1676,7 +1676,6 @@ export const connectorDetails = {
             },
           },
         },
-        payment_type: "new_mandate",
       },
       Response: {
         status: 200,
