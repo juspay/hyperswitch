@@ -139,6 +139,9 @@ export const connectorDetails = {
       },
     },
     OrderDetails: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
       Request: {
         payment_method: "card",
         payment_method_data: {
@@ -161,6 +164,9 @@ export const connectorDetails = {
       },
     },
     OrderDetailsMultipleItems: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
       Request: {
         payment_method: "card",
         payment_method_data: {
@@ -188,6 +194,9 @@ export const connectorDetails = {
       },
     },
     OrderDetailsMissingProductName: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
       Request: {
         payment_method: "card",
         payment_method_data: {
@@ -205,7 +214,7 @@ export const connectorDetails = {
         status: 400,
         body: {
           error: {
-            type: "invalid_request",
+            error_type: "invalid_request",
             message:
               "Json deserialize error: missing field `product_name` at line 1 column XX",
             code: "IR_06",

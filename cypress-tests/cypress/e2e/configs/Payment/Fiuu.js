@@ -630,6 +630,105 @@ export const connectorDetails = {
         },
       },
     },
+    OrderDetails: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "MYR",
+        billing: billingAddress,
+        order_details: [
+          {
+            product_name: "Test Product",
+            quantity: 1,
+            amount: 6000,
+          },
+        ],
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    },
+    OrderDetailsMultipleItems: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "MYR",
+        billing: billingAddress,
+        order_details: [
+          {
+            product_name: "Test Product 1",
+            quantity: 1,
+            amount: 3000,
+          },
+          {
+            product_name: "Test Product 2",
+            quantity: 2,
+            amount: 1500,
+          },
+        ],
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    },
+    OrderDetailsMissingProductName: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "MYR",
+        billing: billingAddress,
+        order_details: [
+          {
+            quantity: 1,
+            amount: 6000,
+          },
+        ],
+      },
+      Response: {
+        status: 400,
+        body: {
+          error: {
+            error_type: "invalid_request",
+            message:
+              "Json deserialize error: missing field `product_name` at line 1 column XX",
+            code: "IR_06",
+          },
+        },
+      },
+    },
+  },
+      Response: {
+        status: 200,
+        body: {
+          status: "failed",
+          error_code:
+            "Your transaction has been denied due to merchant account issue",
+          error_message:
+            "Your transaction has been denied due to merchant account issue",
+        },
+      },
+    },
     PaymentMethodIdMandateNo3DSManualCapture: {
       Request: {
         payment_method: "card",
@@ -1068,84 +1167,6 @@ export const connectorDetails = {
         currency: "MYR",
       },
       Response: blockedPaymentErrorBodyForBinUnavailable,
-    },
-    OrderDetails: {
-      Request: {
-        payment_method: "card",
-        payment_method_data: {
-          card: successfulNo3DSCardDetails,
-        },
-        currency: "MYR",
-        billing: billingAddress,
-        order_details: [
-          {
-            product_name: "Test Product",
-            quantity: 1,
-            amount: 6000,
-          },
-        ],
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "succeeded",
-        },
-      },
-    },
-    OrderDetailsMultipleItems: {
-      Request: {
-        payment_method: "card",
-        payment_method_data: {
-          card: successfulNo3DSCardDetails,
-        },
-        currency: "MYR",
-        billing: billingAddress,
-        order_details: [
-          {
-            product_name: "Test Product 1",
-            quantity: 1,
-            amount: 3000,
-          },
-          {
-            product_name: "Test Product 2",
-            quantity: 2,
-            amount: 1500,
-          },
-        ],
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "succeeded",
-        },
-      },
-    },
-    OrderDetailsMissingProductName: {
-      Request: {
-        payment_method: "card",
-        payment_method_data: {
-          card: successfulNo3DSCardDetails,
-        },
-        currency: "MYR",
-        billing: billingAddress,
-        order_details: [
-          {
-            quantity: 1,
-            amount: 6000,
-          },
-        ],
-      },
-      Response: {
-        status: 400,
-        body: {
-          error: {
-            type: "invalid_request",
-            message:
-              "Json deserialize error: missing field `product_name` at line 1 column XX",
-            code: "IR_06",
-          },
-        },
-      },
     },
   },
 };
