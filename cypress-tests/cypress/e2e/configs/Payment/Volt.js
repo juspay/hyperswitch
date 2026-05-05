@@ -1,5 +1,3 @@
-import { standardBillingAddress } from "./Commons";
-
 const zeroAuthResponse = {
   status: 501,
   body: {
@@ -44,184 +42,6 @@ const listRevokeMandate = {
 };
 
 export const connectorDetails = {
-  card_pm: {
-    PaymentIntent: {
-      Request: {
-        currency: "USD",
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "requires_payment_method",
-        },
-      },
-    },
-    No3DSAutoCapture: {
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
-      Request: {
-        payment_method: "card",
-        payment_method_data: {
-          card: {
-            card_number: "4111111111111111",
-            card_exp_month: "08",
-            card_exp_year: "30",
-            card_holder_name: "joseph Doe",
-            card_cvc: "999",
-          },
-        },
-        currency: "USD",
-        customer_acceptance: null,
-        setup_future_usage: "on_session",
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "succeeded",
-        },
-      },
-    },
-    No3DSManualCapture: {
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
-      Request: {
-        payment_method: "card",
-        payment_method_data: {
-          card: {
-            card_number: "4111111111111111",
-            card_exp_month: "08",
-            card_exp_year: "30",
-            card_holder_name: "joseph Doe",
-            card_cvc: "999",
-          },
-        },
-        currency: "USD",
-        customer_acceptance: null,
-        setup_future_usage: "on_session",
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "requires_capture",
-        },
-      },
-    },
-    Capture: {
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
-      Request: {
-        amount_to_capture: 6000,
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "succeeded",
-        },
-      },
-    },
-    PartialCapture: {
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
-      Request: {
-        amount_to_capture: 2000,
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "partially_captured",
-        },
-      },
-    },
-    Refund: {
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
-      Request: {
-        amount: 6000,
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "pending",
-        },
-      },
-    },
-    PartialRefund: {
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
-      Request: {
-        amount: 2000,
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "pending",
-        },
-      },
-    },
-    manualPaymentRefund: {
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
-      Request: {
-        amount: 6000,
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "pending",
-        },
-      },
-    },
-    manualPaymentPartialRefund: {
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
-      Request: {
-        amount: 2000,
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "pending",
-        },
-      },
-    },
-    SyncRefund: {
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "pending",
-        },
-      },
-    },
-    ZeroAuthPaymentIntent: {
-      Request: {
-        amount: 0,
-        setup_future_usage: "off_session",
-        currency: "USD",
-        payment_type: "setup_mandate",
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "requires_payment_method",
-          setup_future_usage: "off_session",
-        },
-      },
-    },
-    ZeroAuthConfirmPayment: zeroAuthConfirmPayment,
-    ZeroAuthMandate: zeroAuthMandate,
-    ListRevokeMandate: listRevokeMandate,
-  },
   bank_redirect_pm: {
     OpenBankingUk: {
       Request: {
@@ -237,7 +57,23 @@ export const connectorDetails = {
             },
           },
         },
-        billing: standardBillingAddress,
+        billing: {
+          address: {
+            line1: "1467",
+            line2: "Harrison Street",
+            line3: "Harrison Street",
+            city: "San Fransico",
+            state: "California",
+            zip: "94122",
+            country: "GB",
+            first_name: "John",
+            last_name: "Doe",
+          },
+          phone: {
+            number: "9123456789",
+            country_code: "+44",
+          },
+        },
       },
       Response: {
         status: 200,
