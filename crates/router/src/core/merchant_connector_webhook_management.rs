@@ -106,7 +106,7 @@ pub async fn register_connector_webhook(
 
     let should_update_db = matches!(
         connector_webhook_registration_details,
-        MerchantConnectorAccountUpdate::ConnectorWebhookRegistrationUpdate {
+        MerchantConnectorAccountUpdate::ConnectorWebhookRegisterationUpdate {
             connector_webhook_registration_details: Some(_)
         }
     );

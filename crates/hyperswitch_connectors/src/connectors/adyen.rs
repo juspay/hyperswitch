@@ -1746,7 +1746,7 @@ impl ConnectorIntegration<PoFulfill, PayoutsData, PayoutsResponseData> for Adyen
             enums::PayoutType::Card => "payout",
             enums::PayoutType::BankRedirect => {
                 return Err(errors::ConnectorError::NotImplemented(
-                    "bank redirect payouts not supported by adyen".to_string(),
+                    "bank redirect payouts not supoorted by adyen".to_string(),
                 )
                 .into())
             }

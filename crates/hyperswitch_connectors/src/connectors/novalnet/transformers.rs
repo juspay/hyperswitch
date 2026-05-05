@@ -107,7 +107,7 @@ pub struct NovalnetPaymentsRequestCustomer {
     mobile: Option<Secret<String>>,
     billing: Option<NovalnetPaymentsRequestBilling>,
     no_nc: i64,
-    birth_date: Option<String>, // Mandatory for SEPA Guarantee Payment
+    birth_date: Option<String>, // Mandatory for SEPA Guarentee Payment
 }
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
 pub struct NovalnetCard {

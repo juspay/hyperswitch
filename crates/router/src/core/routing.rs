@@ -182,7 +182,7 @@ pub async fn retrieve_merchant_routing_dictionary(
         let mut de_result: Vec<routing_types::RoutingDictionaryRecord> = vec![];
         // DE_TODO: need to replace this with batch API call to reduce the number of network calls
         for profile_id in &profile_ids {
-            let list_request = ListRoutingAlgorithmsRequest {
+            let list_request = ListRountingAlgorithmsRequest {
                 created_by: profile_id.get_string_repr().to_string(),
             };
             list_de_euclid_routing_algorithms(&state, list_request)

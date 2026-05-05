@@ -620,7 +620,7 @@ pub enum Flow {
     #[cfg(feature = "payouts")]
     /// Manually update the payout details like status, error code, error message etc.
     PayoutsManualUpdate,
-    /// Dynamic Tax Calculation
+    /// Dynamic Tax Calcultion
     SessionUpdateTaxCalculation,
     ProxyConfirmIntent,
     /// Payments post session tokens flow

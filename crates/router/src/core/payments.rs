@@ -12089,7 +12089,7 @@ impl EligibilityCheck for BlockListCheck {
     }
 }
 
-// Perform Card Testing Guard Check
+// Perform Card Testing Gaurd Check
 #[cfg(feature = "v1")]
 struct CardTestingCheck;
 
