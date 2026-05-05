@@ -126,11 +126,16 @@ pub struct ConfigContext {
 }
 
 impl SuperpositionClientConfig {
-    /// Create and return a Superposition client
+    /// Create and return a Superposition client.
+    ///
+    /// `service_name` identifies the calling service in audit metadata for write
+    /// operations. Callers should pass `env!("CARGO_PKG_NAME")` so the value is
+    /// resolved at compile time of the binary that owns this client.
     pub async fn get_superposition_client(
         &self,
+        service_name: &'static str,
     ) -> CustomResult<Arc<SuperpositionClient>, SuperpositionError> {
-        let client = SuperpositionClient::new(self.clone())
+        let client = SuperpositionClient::new(self.clone(), service_name)
             .await
             .change_context(SuperpositionError::ClientInitError(
                 "Failed to create Superposition client".to_string(),

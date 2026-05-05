@@ -77,7 +77,7 @@ pub fn create_merchant_publishable_key() -> String {
 /// Insert merchant configs using Superposition for fingerprint_secret
 pub async fn insert_merchant_configs_with_superposition(
     state: &SessionState,
-    dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
+    dimensions: &dimension_state::DimensionsWithProcessorMerchantId,
 ) -> RouterResult<()> {
     let fingerprint_secret = utils::generate_id(consts::FINGERPRINT_SECRET_LENGTH, "fs");
 
@@ -398,7 +398,6 @@ pub async fn create_merchant_account(
     );
 
     let dimensions = dimension_state::Dimensions::new()
-        .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id())
         .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id());
 
     add_publishable_key_to_decision_service(&state, &platform);

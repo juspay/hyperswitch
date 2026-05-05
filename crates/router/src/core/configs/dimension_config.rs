@@ -192,7 +192,7 @@ config! {
     superposition_key = FINGERPRINT_SECRET,
     output = String,
     default = String::new(),
-    requires = dimension_state::DimensionsWithProcessorAndProviderMerchantId,
+    requires = dimension_state::DimensionsWithProcessorMerchantId,
     targeting_key = id_type::MerchantId
 }
 
@@ -302,7 +302,7 @@ impl DatabaseBackedConfig for EnableExtendedCardBin {
 writable_config! {
     superposition_key = FINGERPRINT_SECRET,
     input = String,
-    requires = dimension_state::DimensionsWithProcessorAndProviderMerchantId
+    requires = dimension_state::DimensionsWithProcessorMerchantId
 }
 
 config! {

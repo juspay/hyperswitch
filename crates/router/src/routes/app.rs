@@ -512,7 +512,7 @@ impl AppState {
             let superposition_service = conf
                 .superposition
                 .get_inner()
-                .get_superposition_client()
+                .get_superposition_client(env!("CARGO_PKG_NAME"))
                 .await
                 .expect("Failed to initialize superposition client");
             Self {

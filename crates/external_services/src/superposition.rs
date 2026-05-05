@@ -131,11 +131,20 @@ pub struct SuperpositionClient {
     org_id: String,
     /// Workspace ID for write operations
     workspace_id: String,
+    /// Name of the service performing writes, attached to audit metadata
+    service_name: &'static str,
 }
 
 impl SuperpositionClient {
-    /// Create a new Superposition client
-    pub async fn new(config: SuperpositionClientConfig) -> CustomResult<Self, SuperpositionError> {
+    /// Create a new Superposition client.
+    ///
+    /// `service_name` is recorded on every write so the Superposition audit trail
+    /// can attribute config changes to the originating service. Callers should pass
+    /// `env!("CARGO_PKG_NAME")` from the binary/service so it's locked at compile time.
+    pub async fn new(
+        config: SuperpositionClientConfig,
+        service_name: &'static str,
+    ) -> CustomResult<Self, SuperpositionError> {
         let token_value = config.token.expose();
 
         let refresh_strategy = superposition_provider::RefreshStrategy::Polling(
@@ -217,6 +226,7 @@ impl SuperpositionClient {
             provider,
             org_id: config.org_id,
             workspace_id: config.workspace_id,
+            service_name,
         })
     }
 
@@ -359,7 +369,11 @@ impl SuperpositionClient {
         builder = builder
             .r#override(T::SUPERPOSITION_KEY, value.to_document())
             .change_reason(change_reason)
-            .description(format!("Config update for {}", T::SUPERPOSITION_KEY));
+            .description(format!(
+                "[{}] Config update for {}",
+                self.service_name,
+                T::SUPERPOSITION_KEY
+            ));
 
         let context_put = builder.build().map_err(|e| {
             report!(SuperpositionError::ClientError(format!(
