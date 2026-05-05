@@ -575,11 +575,8 @@ pub(crate) fn convert_to_additional_payment_method_connector_response(
 
     Some(AdditionalPaymentMethodConnectorResponse::Card {
         authentication_data: None,
-        payment_checks: if payment_checks.is_empty() {
-            None
-        } else {
-            Some(serde_json::Value::Object(payment_checks))
-        },
+        payment_checks: (!payment_checks.is_empty())
+    .then(|| serde_json::Value::Object(payment_checks)),
         card_network,
         domestic_network: None,
         auth_code,
