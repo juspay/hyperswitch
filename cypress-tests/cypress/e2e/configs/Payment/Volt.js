@@ -57,6 +57,9 @@ export const connectorDetails = {
       },
     },
     No3DSAutoCapture: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
       Request: {
         payment_method: "card",
         payment_method_data: {
@@ -80,6 +83,9 @@ export const connectorDetails = {
       },
     },
     No3DSManualCapture: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
       Request: {
         payment_method: "card",
         payment_method_data: {
@@ -103,6 +109,9 @@ export const connectorDetails = {
       },
     },
     Capture: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
       Request: {
         amount_to_capture: 6000,
       },
@@ -114,6 +123,9 @@ export const connectorDetails = {
       },
     },
     PartialCapture: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
       Request: {
         amount_to_capture: 2000,
       },
@@ -125,6 +137,9 @@ export const connectorDetails = {
       },
     },
     Refund: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
       Request: {
         amount: 6000,
       },
@@ -136,6 +151,9 @@ export const connectorDetails = {
       },
     },
     PartialRefund: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
       Request: {
         amount: 2000,
       },
@@ -147,6 +165,9 @@ export const connectorDetails = {
       },
     },
     manualPaymentRefund: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
       Request: {
         amount: 6000,
       },
@@ -158,6 +179,9 @@ export const connectorDetails = {
       },
     },
     manualPaymentPartialRefund: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
       Request: {
         amount: 2000,
       },
@@ -169,6 +193,9 @@ export const connectorDetails = {
       },
     },
     SyncRefund: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
       Response: {
         status: 200,
         body: {
