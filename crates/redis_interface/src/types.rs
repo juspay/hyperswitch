@@ -87,7 +87,6 @@ impl RedisValue {
             }
         }
     }
-
 }
 
 impl From<RedisValue> for RedisCrateValue {
