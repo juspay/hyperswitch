@@ -6,25 +6,6 @@ const successfulNo3DSCardDetails = {
   card_cvc: "999",
 };
 
-const paymentMethodData = {
-  card: {
-    last4: "1111",
-    card_type: "CREDIT",
-    card_network: "Visa",
-    card_issuer: null,
-    card_issuing_country: null,
-    card_isin: "411111",
-    card_extended_bin: null,
-    card_exp_month: "08",
-    card_exp_year: "30",
-    card_holder_name: "joseph Doe",
-    payment_checks: null,
-    authentication_data: null,
-    auth_code: null,
-  },
-  billing: null,
-};
-
 export const connectorDetails = {
   card_pm: {
     PaymentIntent: {

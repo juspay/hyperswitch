@@ -1,5 +1,10 @@
 /* eslint-disable no-console */
-const config_fields = ["CONNECTOR_CREDENTIAL", "DELAY", "TRIGGER_SKIP", "SKIP_BILLING_VALIDATION"];
+const config_fields = [
+  "CONNECTOR_CREDENTIAL",
+  "DELAY",
+  "TRIGGER_SKIP",
+  "SKIP_BILLING_VALIDATION",
+];
 
 const DEFAULT_CONNECTOR = "connector_1";
 
