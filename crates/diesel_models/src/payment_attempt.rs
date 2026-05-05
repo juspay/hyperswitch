@@ -37,6 +37,9 @@ impl ConnectorMandateReferenceId {
     pub fn is_connector_mandate_id_present(&self) -> bool {
         self.connector_mandate_id.is_some()
     }
+    pub fn get_connector_mandate_id(&self) -> Option<String> {
+        self.connector_mandate_id.clone()
+    }
 }
 common_utils::impl_to_sql_from_sql_json!(NetworkDetails);
 #[derive(
