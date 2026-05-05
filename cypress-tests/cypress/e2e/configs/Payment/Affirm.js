@@ -14,7 +14,7 @@ export const connectorDetails = {
         },
       },
     },
-    AffirmAutoCapture: {
+    AffirmManualCapture: {
       Request: {
         payment_method: "pay_later",
         payment_method_type: "affirm",
@@ -63,7 +63,19 @@ export const connectorDetails = {
         },
       },
     },
-    Refund: {
+    Capture: {
+      Request: {
+        amount_to_capture: 6000,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+          amount_received: 6000,
+        },
+      },
+    },
+    Refund:
       Request: {
         amount: 6000,
       },

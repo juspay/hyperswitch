@@ -72,7 +72,7 @@ describe("Pay Later - Affirm Payment Flow", () => {
         }
         const confirmData = getConnectorDetails(globalState.get("connectorId"))[
           "pay_later_pm"
-        ]["AffirmAutoCapture"];
+        ]["AffirmManualCapture"];
         cy.confirmCallTest(
           fixtures.confirmBody,
           confirmData,
@@ -104,7 +104,7 @@ describe("Pay Later - Affirm Payment Flow", () => {
         }
         const confirmData = getConnectorDetails(globalState.get("connectorId"))[
           "pay_later_pm"
-        ]["AffirmAutoCapture"];
+        ]["AffirmManualCapture"];
         cy.retrievePaymentCallTest({ globalState, data: confirmData });
         if (!utils.should_continue_further(confirmData)) {
           shouldContinue = false;
@@ -187,7 +187,7 @@ describe("Pay Later - Affirm Payment Flow", () => {
         }
         const confirmData = getConnectorDetails(globalState.get("connectorId"))[
           "pay_later_pm"
-        ]["AffirmAutoCapture"];
+        ]["AffirmManualCapture"];
         cy.confirmCallTest(
           fixtures.confirmBody,
           confirmData,
@@ -205,7 +205,7 @@ describe("Pay Later - Affirm Payment Flow", () => {
           return;
         }
         const expected_redirection = fixtures.confirmBody["return_url"];
-        cy.handleRedirection(globalState, expected_redirection);
+        cy.handlePayLaterRedirection(globalState, "affirm", expected_redirection);
       });
 
       cy.step("Retrieve Payment after Confirmation", () => {
@@ -218,7 +218,7 @@ describe("Pay Later - Affirm Payment Flow", () => {
         }
         const confirmData = getConnectorDetails(globalState.get("connectorId"))[
           "pay_later_pm"
-        ]["AffirmAutoCapture"];
+        ]["AffirmManualCapture"];
         cy.retrievePaymentCallTest({ globalState, data: confirmData });
         if (!utils.should_continue_further(confirmData)) {
           shouldContinue = false;
