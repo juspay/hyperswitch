@@ -446,11 +446,7 @@ jobs:
     name: Prepare Extended Connectors matrix to run cypress tests
     # Single toggle for the extended cypress chain — extended-cypress-tests and
     # its consolidated-result cascade off this job via `needs:`.
-    #   iteration  : runs on trusted PRs + merge_group (current value)
-    #   production : github.event_name == 'merge_group'
-    if: |
-      github.event_name == 'merge_group' ||
-      (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name)
+    if: github.event_name == 'merge_group'
     runs-on: ubuntu-latest
     outputs:
       extended-matrix: ${{ steps.set-extended-matrix.outputs.matrix }}
