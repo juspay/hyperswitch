@@ -259,8 +259,7 @@ impl IncomingWebhookGateway for DirectIncomingWebhookGateway {
                     .get_webhook_resource_object(&decoded_request)
                     .switch()
                     .attach_printable("Failed to extract webhook resource object")?;
-                let bytes = resource_object
-                    .encode_to_vec()
+                let bytes = serde_json::to_vec(&resource_object)
                     .change_context(errors::ApiErrorResponse::InternalServerError)
                     .attach_printable("Failed to encode webhook resource object")?;
                 let masked_log_payload =
