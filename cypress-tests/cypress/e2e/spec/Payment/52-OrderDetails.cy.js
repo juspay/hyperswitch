@@ -89,8 +89,6 @@ describe("Card - Order Details payment flow test", () => {
 
   context("Create and confirm payment with missing required order_details field", () => {
     it("Create and Confirm Payment with missing product_name -> Expect validation error IR_06", () => {
-      let shouldContinue = true;
-
       cy.step("Create and Confirm Payment with missing product_name", () => {
         const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
@@ -103,10 +101,6 @@ describe("Card - Order Details payment flow test", () => {
           "automatic",
           globalState
         );
-
-        if (!utils.should_continue_further(data)) {
-          shouldContinue = false;
-        }
       });
     });
   });
