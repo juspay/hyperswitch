@@ -65,6 +65,12 @@ export const connectorDetails = {
           },
         },
         billing: billingAddress,
+        customer: {
+          customer_document_details: {
+            document_type: "CPF",
+            document_number: "86665623580",
+          },
+        },
         pix_additional_details: {
           cpf: "86665623580",
         },
@@ -88,6 +94,12 @@ export const connectorDetails = {
           },
         },
         billing: billingAddress,
+        customer: {
+          customer_document_details: {
+            document_type: "CPF",
+            document_number: "86665623580",
+          },
+        },
       },
       Response: {
         status: 200,
@@ -110,6 +122,12 @@ export const connectorDetails = {
           },
         },
         billing: billingAddress,
+        customer: {
+          customer_document_details: {
+            document_type: "CPF",
+            document_number: "86665623580",
+          },
+        },
         connector_intent_metadata: connectorIntentMetadata,
       },
       Response: {
