@@ -703,6 +703,40 @@ export const connectorDetails = {
         currency: "PLN",
       },
     }),
+    Boleto: getCustomExchange({
+      Request: {
+        payment_method: "bank_transfer",
+        payment_method_type: "boleto",
+        payment_method_data: {
+          bank_transfer: {
+            boleto: {},
+          },
+        },
+        billing: {
+          address: {
+            country: "BR",
+          },
+        },
+        currency: "BRL",
+      },
+    }),
+    PixAutomatico: getCustomExchange({
+      Request: {
+        payment_method: "bank_transfer",
+        payment_method_type: "pix_automatico",
+        payment_method_data: {
+          bank_transfer: {
+            pix_automatico: {},
+          },
+        },
+        billing: {
+          address: {
+            country: "BR",
+          },
+        },
+        currency: "BRL",
+      },
+    }),
   },
   bank_redirect_pm: {
     PaymentIntent: (paymentMethodType) =>

@@ -118,6 +118,8 @@ const CURRENCY_MAP = {
 
   // Brazilian payment methods
   Pix: "BRL",
+  Boleto: "BRL",
+  PixAutomatico: "BRL",
 
   // European payment methods (EUR)
   Bluecode: "EUR",

@@ -24,7 +24,34 @@ const connectorIntentMetadata = {
   },
 };
 
+const cardSkipConfig = getCustomExchange({
+  Configs: { TRIGGER_SKIP: true },
+  Request: {},
+  Response: {},
+});
+
 export const connectorDetails = {
+  // Santander does not support card payments — all card flows skipped
+  card_pm: {
+    PaymentIntent: cardSkipConfig,
+    PaymentIntentOffSession: cardSkipConfig,
+    PaymentIntentWithShippingCost: cardSkipConfig,
+    PaymentConfirmWithShippingCost: cardSkipConfig,
+    "3DSManualCapture": cardSkipConfig,
+    "3DSAutoCapture": cardSkipConfig,
+    No3DSManualCapture: cardSkipConfig,
+    No3DSAutoCapture: cardSkipConfig,
+    Capture: cardSkipConfig,
+    PartialCapture: cardSkipConfig,
+    Void: cardSkipConfig,
+    VoidAfterConfirm: cardSkipConfig,
+    Refund: cardSkipConfig,
+    PartialRefund: cardSkipConfig,
+    SyncRefund: cardSkipConfig,
+    manualPaymentRefund: cardSkipConfig,
+    manualPaymentPartialRefund: cardSkipConfig,
+    ConnectorMetadata: cardSkipConfig,
+  },
   bank_transfer_pm: {
     Pix: getCustomExchange({
       Request: {
@@ -38,6 +65,9 @@ export const connectorDetails = {
           },
         },
         billing: billingAddress,
+        pix_additional_details: {
+          cpf: "86665623580",
+        },
       },
       Response: {
         status: 200,
