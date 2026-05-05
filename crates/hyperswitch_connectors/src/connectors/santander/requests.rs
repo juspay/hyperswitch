@@ -188,13 +188,13 @@ pub struct SantanderPixAutomaticCalendarRequest {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SantanderPixAutomaticDestinationRequest {
-    pub agencia: String,
-    pub conta: String,
+    pub agencia: Secret<String>,
+    pub conta: Secret<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub cpf: Option<Secret<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub cnpj: Option<Secret<String>>,
-    pub ispb_participante: String,
+    pub ispb_participante: Secret<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
