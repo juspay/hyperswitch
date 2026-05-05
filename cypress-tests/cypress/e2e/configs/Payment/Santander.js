@@ -1,4 +1,4 @@
-import { getCustomExchange } from "./Modifiers";
+import { getCustomExchange, getCurrency } from "./Modifiers";
 
 const billingAddress = {
   address: {
@@ -18,41 +18,129 @@ const billingAddress = {
   },
 };
 
-const connectorIntentMetadata = {
-  santander: {
-    max_mandate_amount: 10000,
+const customerDocumentDetails = {
+  customer_document_details: {
+    document_type: "CPF",
+    document_number: "86665623580",
   },
 };
 
-const cardSkipConfig = getCustomExchange({
+const connectorMetadata = {
+  santander: {
+    pix_automatico: {
+      cit: {
+        mandate_details: {
+          start_date: "2026-06-01",
+          end_date: "2027-06-01",
+          periodicity: "mensal",
+          max_mandate_amount: 10000,
+        },
+        retry_policy: false,
+      },
+    },
+  },
+};
+
+const cardCreateSkipConfig = getCustomExchange({
   Configs: { TRIGGER_SKIP: true },
-  Request: {},
-  Response: {},
+  Request: { currency: "BRL" },
+  Response: {
+    status: 200,
+    body: {
+      status: "requires_payment_method",
+    },
+  },
 });
 
+const cardConfirmSkipConfig = getCustomExchange({
+  Configs: { TRIGGER_SKIP: true },
+  Request: { currency: "BRL" },
+  Response: {
+    status: 500,
+    body: {
+      error: {
+        type: "api",
+        message: "Something went wrong",
+        code: "HE_00",
+      },
+    },
+  },
+});
+
+const bankTransferSkipConfigs = {
+  InstantBankTransferFinland: getCustomExchange({
+    Configs: { TRIGGER_SKIP: true },
+    Request: { currency: "EUR" },
+    Response: {
+      status: 200,
+      body: {
+        status: "requires_payment_method",
+      },
+    },
+  }),
+  InstantBankTransferPoland: getCustomExchange({
+    Configs: { TRIGGER_SKIP: true },
+    Request: { currency: "PLN" },
+    Response: {
+      status: 200,
+      body: {
+        status: "requires_payment_method",
+      },
+    },
+  }),
+  Ach: getCustomExchange({
+    Configs: { TRIGGER_SKIP: true },
+    Request: { currency: "BRL" },
+    Response: {
+      status: 200,
+      body: {
+        status: "requires_payment_method",
+      },
+    },
+  }),
+};
+
 export const connectorDetails = {
-  // Santander does not support card payments — all card flows skipped
   card_pm: {
-    PaymentIntent: cardSkipConfig,
-    PaymentIntentOffSession: cardSkipConfig,
-    PaymentIntentWithShippingCost: cardSkipConfig,
-    PaymentConfirmWithShippingCost: cardSkipConfig,
-    "3DSManualCapture": cardSkipConfig,
-    "3DSAutoCapture": cardSkipConfig,
-    No3DSManualCapture: cardSkipConfig,
-    No3DSAutoCapture: cardSkipConfig,
-    Capture: cardSkipConfig,
-    PartialCapture: cardSkipConfig,
-    Void: cardSkipConfig,
-    VoidAfterConfirm: cardSkipConfig,
-    Refund: cardSkipConfig,
-    PartialRefund: cardSkipConfig,
-    SyncRefund: cardSkipConfig,
-    manualPaymentRefund: cardSkipConfig,
-    manualPaymentPartialRefund: cardSkipConfig,
-    ConnectorMetadata: cardSkipConfig,
+    PaymentIntent: cardCreateSkipConfig,
+    PaymentIntentOffSession: cardCreateSkipConfig,
+    PaymentIntentWithShippingCost: cardCreateSkipConfig,
+    PaymentConfirmWithShippingCost: cardConfirmSkipConfig,
+    "3DSManualCapture": cardConfirmSkipConfig,
+    "3DSAutoCapture": cardConfirmSkipConfig,
+    No3DSManualCapture: cardConfirmSkipConfig,
+    No3DSAutoCapture: cardConfirmSkipConfig,
+    Capture: cardConfirmSkipConfig,
+    PartialCapture: cardConfirmSkipConfig,
+    Void: cardConfirmSkipConfig,
+    VoidAfterConfirm: cardConfirmSkipConfig,
+    Refund: cardConfirmSkipConfig,
+    PartialRefund: cardConfirmSkipConfig,
+    SyncRefund: cardConfirmSkipConfig,
+    manualPaymentRefund: cardConfirmSkipConfig,
+    manualPaymentPartialRefund: cardConfirmSkipConfig,
+    ConnectorMetadata: cardConfirmSkipConfig,
   },
   bank_transfer_pm: {
+    PaymentIntent: (paymentMethodType) => {
+      const unsupportedMethods = [
+        "InstantBankTransferFinland",
+        "InstantBankTransferPoland",
+        "Ach",
+      ];
+      if (unsupportedMethods.includes(paymentMethodType)) {
+        return bankTransferSkipConfigs[paymentMethodType];
+      }
+      return getCustomExchange({
+        Request: { currency: getCurrency(paymentMethodType) },
+        Response: {
+          status: 200,
+          body: {
+            status: "requires_payment_method",
+          },
+        },
+      });
+    },
     Pix: getCustomExchange({
       Request: {
         payment_method: "bank_transfer",
@@ -65,14 +153,13 @@ export const connectorDetails = {
           },
         },
         billing: billingAddress,
-        customer: {
-          customer_document_details: {
-            document_type: "CPF",
-            document_number: "86665623580",
+        customer: customerDocumentDetails,
+        feature_metadata: {
+          pix_additional_details: {
+            immediate: {
+              time: 3600,
+            },
           },
-        },
-        pix_additional_details: {
-          cpf: "86665623580",
         },
       },
       Response: {
@@ -94,10 +181,10 @@ export const connectorDetails = {
           },
         },
         billing: billingAddress,
-        customer: {
-          customer_document_details: {
-            document_type: "CPF",
-            document_number: "86665623580",
+        customer: customerDocumentDetails,
+        feature_metadata: {
+          boleto_additional_details: {
+            due_date: "2030-12-31",
           },
         },
       },
@@ -108,8 +195,6 @@ export const connectorDetails = {
         },
       },
     }),
-    // PixAutomatico requires connector_intent_metadata for mandate setup (CIT flow)
-    // see transformers.rs: SetupMandate -> connector_intent_metadata.santander.pix_automatico.cit
     PixAutomatico: getCustomExchange({
       Request: {
         payment_method: "bank_transfer",
@@ -122,13 +207,9 @@ export const connectorDetails = {
           },
         },
         billing: billingAddress,
-        customer: {
-          customer_document_details: {
-            document_type: "CPF",
-            document_number: "86665623580",
-          },
-        },
-        connector_intent_metadata: connectorIntentMetadata,
+        customer: customerDocumentDetails,
+        connector_metadata: connectorMetadata,
+        setup_future_usage: "off_session",
       },
       Response: {
         status: 200,
@@ -137,59 +218,30 @@ export const connectorDetails = {
         },
       },
     }),
-    // PixAutomaticoPush skipped: requires MIT connector_intent_metadata with receiver_details
+    // PixAutomaticoPush skipped: requires MIT connector_metadata with receiver_details
     // (branch_code, account_number, account_type) not available in test environment
     PixAutomaticoPush: getCustomExchange({
       Configs: {
         TRIGGER_SKIP: true,
       },
       Request: {
-        payment_method: "bank_transfer",
-        payment_method_type: "pix_automatico_push",
-        payment_method_data: {
-          bank_transfer: {
-            pix_automatico_push: {
-              cpf: "86665623580",
-              customer_email: "test@example.com",
-            },
-          },
-        },
-        billing: billingAddress,
-        connector_intent_metadata: connectorIntentMetadata,
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "requires_customer_action",
-        },
+        currency: "BRL",
       },
     }),
-    // PixAutomaticoQr skipped: requires MIT connector_intent_metadata with receiver_details
+    // PixAutomaticoQr skipped: requires MIT connector_metadata with receiver_details
     // (branch_code, account_number, account_type) not available in test environment
     PixAutomaticoQr: getCustomExchange({
       Configs: {
         TRIGGER_SKIP: true,
       },
       Request: {
-        payment_method: "bank_transfer",
-        payment_method_type: "pix_automatico_qr",
-        payment_method_data: {
-          bank_transfer: {
-            pix_automatico_qr: {
-              cpf: "86665623580",
-              customer_email: "test@example.com",
-            },
-          },
-        },
-        billing: billingAddress,
-        connector_intent_metadata: connectorIntentMetadata,
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "requires_customer_action",
-        },
+        currency: "BRL",
       },
     }),
+    InstantBankTransferFinland:
+      bankTransferSkipConfigs.InstantBankTransferFinland,
+    InstantBankTransferPoland:
+      bankTransferSkipConfigs.InstantBankTransferPoland,
+    Ach: bankTransferSkipConfigs.Ach,
   },
 };
