@@ -218,7 +218,7 @@ impl SourceBankDataOperation {
     }
 
     #[cfg(feature = "v1")]
-    pub async fn get_source_bank_data(
+    pub async fn get_temp_source_bank_data(
         state: &SessionState,
         source_bank_data_token: Option<String>,
         customer_id: Option<id_type::CustomerId>,
@@ -253,7 +253,7 @@ impl SourceBankDataOperation {
     }
 
     #[cfg(not(feature = "v1"))]
-    pub async fn get_source_bank_data(
+    pub async fn get_temp_source_bank_data(
         state: &SessionState,
         source_bank_data_token: Option<String>,
         customer_id: Option<id_type::GlobalCustomerId>,

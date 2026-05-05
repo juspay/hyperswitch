@@ -772,7 +772,7 @@ pub async fn payouts_fulfill_core(
 
     // Fetch source_bank_data if not present
     if payout_data.source_bank_data.is_none() {
-        payout_data.source_bank_data = helpers::SourceBankDataOperation::get_source_bank_data(
+        payout_data.source_bank_data = helpers::SourceBankDataOperation::get_temp_source_bank_data(
             &state,
             payout_data.payout_attempt.source_bank_data_token.clone(),
             payout_data.customer_details.as_ref().map(|customer| {
@@ -1216,7 +1216,7 @@ pub async fn call_connector_payout(
     }
     // Fetch source_bank_data if not present
     if payout_data.source_bank_data.is_none() {
-        payout_data.source_bank_data = helpers::SourceBankDataOperation::get_source_bank_data(
+        payout_data.source_bank_data = helpers::SourceBankDataOperation::get_temp_source_bank_data(
             state,
             payout_data.payout_attempt.source_bank_data_token.clone(),
             payout_data.customer_details.as_ref().map(|customer| {
@@ -3414,7 +3414,7 @@ pub async fn make_payout_data(
                             .map(|cd| cd.customer_id.to_owned())
                             .get_required_value("customer_id when payout_token is sent")?;
                         let source_bank_data =
-                            helpers::SourceBankDataOperation::get_source_bank_data(
+                            helpers::SourceBankDataOperation::get_temp_source_bank_data(
                                 state,
                                 Some(source_bank_data_token),
                                 Some(customer_id),
