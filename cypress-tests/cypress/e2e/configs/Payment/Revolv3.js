@@ -105,8 +105,8 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "processing",
-          amount: 6540,
-          amount_capturable: 6540,
+          amount: 6000,
+          amount_capturable: 6000,
         },
       },
     },
@@ -126,8 +126,8 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "processing",
-          amount: 6540,
-          amount_capturable: 6540,
+          amount: 6000,
+          amount_capturable: 6000,
         },
       },
     },
@@ -148,7 +148,7 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "processing",
-          amount: 10000,
+          amount: 6000,
         },
       },
     },
@@ -168,8 +168,8 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "processing",
-          amount: 5000,
-          amount_capturable: 5000,
+          amount: 6000,
+          amount_capturable: 6000,
         },
       },
     },
