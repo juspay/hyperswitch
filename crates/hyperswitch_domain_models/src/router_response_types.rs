@@ -137,21 +137,19 @@ pub struct TaxCalculationResponseData {
 #[derive(Debug, Clone)]
 pub struct SurchargeCalculationResponseData {
     /// Transaction fee amount in minor units
-    pub transaction_fee: MinorUnit,
-    /// Transaction ID from InterPayments (sTxId)
-    pub external_transaction_id: String,
+    pub surcharge_amount: MinorUnit,
+    /// Transaction ID from surcharge calculator connector
+    pub external_surcharge_transaction_id: String,
     /// Transaction fee percentage (consumed by backend, NOT sent to SDK)
-    pub transaction_fee_percent: Option<
+    pub surcharge_fee_percent: Option<
         common_utils::types::Percentage<
             { common_utils::consts::SURCHARGE_PERCENTAGE_PRECISION_LENGTH },
         >,
     >,
-    /// Reason code if calculation failed or returned 0
-    pub reason_code: Option<String>,
-    /// Additional reason codes
-    pub reason_codes: Option<String>,
-    /// Additional details from InterPayments
-    pub details: Option<serde_json::Value>,
+    /// Error code if calculation failed or returned 0
+    pub error_code: Option<String>,
+    /// Additional error codes
+    pub error_message: Option<String>,
 }
 
 /// Response data for completing surcharge (sale notification)
