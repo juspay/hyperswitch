@@ -339,6 +339,9 @@ impl ProcessTrackerWorkflows<routes::SessionState> for WorkflowRunner {
                 storage::ProcessTrackerRunner::PayoutSyncWorkFlow => {
                     Ok(Box::new(workflows::payout_sync::PayoutSyncWorkFlow))
                 }
+                storage::ProcessTrackerRunner::BatchBlocklistUpload => Ok(Box::new(
+                    workflows::batch_blocklist_upload::BatchBlocklistUploadWorkflow,
+                )),
             }
         };
 

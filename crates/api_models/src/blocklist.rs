@@ -85,3 +85,71 @@ impl ApiEventMetric for GenerateFingerprintRequest {}
 impl ApiEventMetric for ToggleBlocklistQuery {}
 impl ApiEventMetric for GenerateFingerprintResponsePayload {}
 impl ApiEventMetric for Card {}
+
+// ---- Batch Blocklist Upload types ----
+
+/// A single validation error found in a batch-upload CSV row.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
+pub struct BatchBlocklistRowError {
+    /// 0-based row index in the CSV (excluding header).
+    pub row_index: usize,
+    #[schema(value_type = BlocklistDataKind)]
+    pub r#type: enums::BlocklistDataKind,
+    pub data: String,
+    pub reason: String,
+}
+
+/// Response body when a batch-upload request fails per-row validation.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
+pub struct BatchBlocklistValidationError {
+    pub errors: Vec<BatchBlocklistRowError>,
+}
+
+/// Response returned on a successful `POST /blocklist/batch`.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
+pub struct BatchBlocklistUploadResponse {
+    pub job_id: String,
+    pub total_rows: u32,
+    pub status: enums::BatchBlocklistJobStatus,
+}
+
+/// Response for `GET /blocklist/batch/{job_id}`.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
+pub struct BatchBlocklistJobStatusResponse {
+    pub job_id: String,
+    pub merchant_id: String,
+    pub status: enums::BatchBlocklistJobStatus,
+    pub total_rows: i32,
+    pub succeeded_rows: i32,
+    pub failed_rows: i32,
+    #[serde(with = "common_utils::custom_serde::iso8601")]
+    pub created_at: time::PrimitiveDateTime,
+    #[serde(with = "common_utils::custom_serde::iso8601")]
+    pub updated_at: time::PrimitiveDateTime,
+}
+
+/// Query parameters for listing batch blocklist jobs.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
+pub struct ListBatchBlocklistJobsQuery {
+    #[serde(default = "default_batch_list_limit")]
+    pub limit: u16,
+    #[serde(default)]
+    pub offset: u32,
+}
+
+fn default_batch_list_limit() -> u16 {
+    10
+}
+
+/// Response for `GET /blocklist/batch`.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
+pub struct ListBatchBlocklistJobsResponse {
+    pub count: usize,
+    pub total_count: usize,
+    pub data: Vec<BatchBlocklistJobStatusResponse>,
+}
+
+impl ApiEventMetric for BatchBlocklistUploadResponse {}
+impl ApiEventMetric for BatchBlocklistJobStatusResponse {}
+impl ApiEventMetric for ListBatchBlocklistJobsQuery {}
+impl ApiEventMetric for ListBatchBlocklistJobsResponse {}

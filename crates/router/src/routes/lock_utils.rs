@@ -105,6 +105,9 @@ impl From<Flow> for ApiIdentifier {
             Flow::DeleteFromBlocklist => Self::Blocklist,
             Flow::ListBlocklist => Self::Blocklist,
             Flow::ToggleBlocklistGuard => Self::Blocklist,
+            Flow::BatchBlocklistUpload => Self::Blocklist,
+            Flow::GetBatchBlocklistJobStatus => Self::Blocklist,
+            Flow::ListBatchBlocklistJobs => Self::Blocklist,
             Flow::MerchantConnectorsCreate
             | Flow::MerchantConnectorsRetrieve
             | Flow::MerchantConnectorsUpdate

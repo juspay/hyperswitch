@@ -656,6 +656,7 @@ impl PaymentResourceUpdateStatus {
 
 #[derive(
     Clone,
+    Copy,
     Debug,
     PartialEq,
     Eq,
@@ -10710,6 +10711,7 @@ pub enum ProcessTrackerRunner {
     DisputeListWorkflow,
     InvoiceSyncflow,
     PayoutSyncWorkFlow,
+    BatchBlocklistUpload,
 }
 
 #[derive(
@@ -11340,4 +11342,25 @@ impl PostCaptureVoidStatus {
 pub enum VaultEnv {
     Sandbox,
     Live,
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    PartialEq,
+    serde::Deserialize,
+    serde::Serialize,
+    strum::Display,
+    strum::EnumString,
+)]
+#[router_derive::diesel_enum(storage_type = "text")]
+#[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+pub enum BatchBlocklistJobStatus {
+    Initiated,
+    Processing,
+    Completed,
+    Failed,
 }

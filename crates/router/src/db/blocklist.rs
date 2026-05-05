@@ -47,6 +47,14 @@ pub trait BlocklistInterface {
         merchant_id: &common_utils::id_type::MerchantId,
         data_kind: common_enums::BlocklistDataKind,
     ) -> CustomResult<usize, errors::StorageError>;
+
+    /// Bulk insert entries with `ON CONFLICT DO NOTHING`.
+    /// Returns the number of rows *newly* inserted.
+    /// Rows already present are silently skipped (not an error).
+    async fn bulk_insert_blocklist_entries(
+        &self,
+        entries: Vec<storage::BlocklistNew>,
+    ) -> CustomResult<usize, errors::StorageError>;
 }
 
 #[async_trait::async_trait]
@@ -133,6 +141,17 @@ impl BlocklistInterface for Store {
             .await
             .map_err(|error| report!(errors::StorageError::from(error)))
     }
+
+    #[instrument(skip_all)]
+    async fn bulk_insert_blocklist_entries(
+        &self,
+        entries: Vec<storage::BlocklistNew>,
+    ) -> CustomResult<usize, errors::StorageError> {
+        let conn = connection::pg_connection_write(self).await?;
+        storage::BlocklistNew::bulk_insert_on_conflict_do_nothing(&conn, entries)
+            .await
+            .map_err(|error| report!(errors::StorageError::from(error)))
+    }
 }
 
 #[async_trait::async_trait]
@@ -183,6 +202,13 @@ impl BlocklistInterface for MockDb {
         _merchant_id: &common_utils::id_type::MerchantId,
         _fingerprint_id: &str,
     ) -> CustomResult<storage::Blocklist, errors::StorageError> {
+        Err(errors::StorageError::MockDbError)?
+    }
+
+    async fn bulk_insert_blocklist_entries(
+        &self,
+        _entries: Vec<storage::BlocklistNew>,
+    ) -> CustomResult<usize, errors::StorageError> {
         Err(errors::StorageError::MockDbError)?
     }
 }
@@ -250,6 +276,16 @@ impl BlocklistInterface for KafkaStore {
     ) -> CustomResult<Vec<storage::Blocklist>, errors::StorageError> {
         self.diesel_store
             .list_blocklist_entries_by_merchant_id(merchant_id)
+            .await
+    }
+
+    #[instrument(skip_all)]
+    async fn bulk_insert_blocklist_entries(
+        &self,
+        entries: Vec<storage::BlocklistNew>,
+    ) -> CustomResult<usize, errors::StorageError> {
+        self.diesel_store
+            .bulk_insert_blocklist_entries(entries)
             .await
     }
 }
