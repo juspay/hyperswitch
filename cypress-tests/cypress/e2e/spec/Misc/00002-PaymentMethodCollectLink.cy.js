@@ -1,5 +1,6 @@
 import * as fixtures from "../../../fixtures/imports";
 import State from "../../../utils/State";
+import { connectorDetails } from "../../configs/Misc/Commons";
 
 let globalState;
 
@@ -46,17 +47,9 @@ describe("Payment Method Collect Link", () => {
           );
           return;
         }
-        const data = {
-          Request: {
-            return_url: "https://example.com/return",
-          },
-          Response: {
-            status: 200,
-          },
-        };
         cy.paymentMethodCollectLinkCreate(
           fixtures.pmCollectLinkBody,
-          data,
+          connectorDetails.pmCollectLinkCreate,
           globalState
         );
       });
@@ -69,12 +62,10 @@ describe("Payment Method Collect Link", () => {
           );
           return;
         }
-        const data = {
-          Response: {
-            status: 200,
-          },
-        };
-        cy.paymentMethodCollectLinkRender(data, globalState);
+        cy.paymentMethodCollectLinkRender(
+          connectorDetails.pmCollectLinkRender,
+          globalState
+        );
       });
     });
   });
@@ -104,19 +95,10 @@ describe("Payment Method Collect Link", () => {
           return;
         }
         globalState.set("pmCollectId", "invalid_collect_id_12345");
-        const data = {
-          Response: {
-            status: 404,
-            body: {
-              error: {
-                type: "invalid_request",
-                code: "IR_37",
-                message: "payment method collect link not found",
-              },
-            },
-          },
-        };
-        cy.paymentMethodCollectLinkRender(data, globalState);
+        cy.paymentMethodCollectLinkRender(
+          connectorDetails.pmCollectLinkRenderNotFound,
+          globalState
+        );
       });
     });
   });
