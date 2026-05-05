@@ -37,6 +37,7 @@ import { connectorDetails as getnetConnectorDetails } from "./Getnet.js";
 import { connectorDetails as gigadatConnectorDetails } from "./Gigadat.js";
 import { connectorDetails as globalpayConnectorDetails } from "./Globalpay.js";
 import { connectorDetails as hipayConnectorDetails } from "./Hipay.js";
+import { connectorDetails as inespayConnectorDetails } from "./Inespay.js";
 import { connectorDetails as iatapayConnectorDetails } from "./Iatapay.js";
 import { connectorDetails as itaubankConnectorDetails } from "./ItauBank.js";
 import { connectorDetails as jpmorganConnectorDetails } from "./Jpmorgan.js";
@@ -111,6 +112,7 @@ const connectorDetails = {
   gigadat: gigadatConnectorDetails,
   globalpay: globalpayConnectorDetails,
   hipay: hipayConnectorDetails,
+  inespay: inespayConnectorDetails,
   iatapay: iatapayConnectorDetails,
   itaubank: itaubankConnectorDetails,
   jpmorgan: jpmorganConnectorDetails,
@@ -544,6 +546,7 @@ export const CONNECTOR_LISTS = {
     PARTNER_MERCHANT_IDENTIFIER: ["adyen", "checkout"],
     GIFT_CARD: ["adyen"],
     AUTH_SERVICE_ELIGIBILITY: ["stripe", "cybersource"],
+    INESPAY_REFUND: ["inespay"],
     // Add more inclusion lists
   },
 };
