@@ -1623,8 +1623,20 @@ export const connectorDetails = {
           },
         };
       }
+      if (paymentMethodType === "Sepa") {
+        return {
+          Request: {
+            currency: "EUR",
+          },
+          Response: {
+            status: 200,
+            body: {
+              status: "requires_payment_method",
+            },
+          },
+        };
+      }
       const currencyMap = {
-        Sepa: "EUR",
         Becs: "AUD",
         Bacs: "GBP",
       };
@@ -1667,15 +1679,6 @@ export const connectorDetails = {
           },
         },
         customer_acceptance: customerAcceptance,
-        mandate_data: {
-          customer_acceptance: customerAcceptance,
-          mandate_type: {
-            multi_use: {
-              amount: 8000,
-              currency: "EUR",
-            },
-          },
-        },
       },
       Response: {
         status: 200,
