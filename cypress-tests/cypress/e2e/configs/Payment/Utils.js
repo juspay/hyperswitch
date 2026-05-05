@@ -547,6 +547,7 @@ export const CONNECTOR_LISTS = {
     PARTNER_MERCHANT_IDENTIFIER: ["adyen", "checkout"],
     EXTEND_AUTHORIZATION: ["adyen", "paypal"],
     GIFT_CARD: ["adyen"],
+    RELAY_OPERATIONS: ["bankofamerica"],
     PAY_LATER: ["klarna", "adyen", "aci", "stripe"],
     AUTH_SERVICE_ELIGIBILITY: ["stripe", "cybersource"],
     PARTIAL_AUTH: ["nuvei", "checkout", "worldpay", "worldpayvantiv"],

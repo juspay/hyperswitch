@@ -29,6 +29,7 @@ import disputeEvidenceBody from "./dispute-evidence-body.json";
 import cardLimitedDataMITBody from "./create-card-limited-data-mit.json";
 import eligibilityCheckBody from "./eligibility-check-body.json";
 import extendAuthBody from "./extend-auth-body.json";
+import relayBody from "./relay-body.json";
 import * as IncomingWebhookBody from "./webhooks/import";
 import customerCreate from "./modularPmService/modularPmServiceCustomerCreate.json";
 import paymentMethodCreate from "./modularPmService/modular-pm-service-pm-create.json";
@@ -64,6 +65,7 @@ export {
   ntidConfirmBody,
   pmIdConfirmBody,
   refundBody,
+  relayBody,
   routingConfigBody,
   saveCardConfirmBody,
   sessionTokenBody,

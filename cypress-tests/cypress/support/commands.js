@@ -7465,3 +7465,140 @@ Cypress.Commands.add("updateCardIssuer", (id, body, globalState) => {
     });
   });
 });
+
+Cypress.Commands.add("relayCallTest", (requestBody, data, globalState) => {
+  const {
+    Configs: configs = {},
+    Request: reqData,
+    Response: resData,
+  } = data || {};
+
+  const configInfo = execConfig(validateConfig(configs));
+  const profileId = globalState.get(`${configInfo.profilePrefix}Id`);
+
+  requestBody.connector_resource_id = globalState.get("connectorTransactionID");
+  requestBody.connector_id = globalState.get("merchantConnectorId");
+
+  for (const key in reqData) {
+    requestBody[key] = reqData[key];
+  }
+
+  cy.request({
+    method: "POST",
+    url: `${globalState.get("baseUrl")}/relay`,
+    headers: {
+      "Content-Type": "application/json",
+      "api-key": globalState.get("apiKey"),
+      "X-Profile-Id": profileId,
+      "X-Idempotency-Key": `relay_${Date.now()}`,
+    },
+    failOnStatusCode: false,
+    body: requestBody,
+  }).then((response) => {
+    logRequestId(response.headers["x-request-id"]);
+    cy.wrap(response).then(() => {
+      expect(response.headers["content-type"]).to.include("application/json");
+      if (response.status === 200) {
+        globalState.set("relayId", response.body.id);
+        for (const key in resData.body) {
+          expect(resData.body[key], key).to.deep.equal(response.body[key]);
+        }
+      } else {
+        defaultErrorHandler(response, resData);
+      }
+    });
+  });
+});
+
+Cypress.Commands.add(
+  "retrieveRelayCallTest",
+  (data, globalState, forceSync = false) => {
+    const { Configs: configs = {}, Response: resData } = data || {};
+
+    const configInfo = execConfig(validateConfig(configs));
+    const profileId = globalState.get(`${configInfo.profilePrefix}Id`);
+    const relayId = globalState.get("relayId");
+
+    const url = forceSync
+      ? `${globalState.get("baseUrl")}/relay/${relayId}?force_sync=true`
+      : `${globalState.get("baseUrl")}/relay/${relayId}`;
+
+    cy.request({
+      method: "GET",
+      url,
+      headers: {
+        "Content-Type": "application/json",
+        "api-key": globalState.get("apiKey"),
+        "X-Profile-Id": profileId,
+      },
+      failOnStatusCode: false,
+    }).then((response) => {
+      logRequestId(response.headers["x-request-id"]);
+      cy.wrap(response).then(() => {
+        expect(response.headers["content-type"]).to.include("application/json");
+        if (response.status === 200) {
+          expect(response.body.id).to.equal(relayId);
+          for (const key in resData.body) {
+            expect(resData.body[key], key).to.deep.equal(response.body[key]);
+          }
+        } else {
+          defaultErrorHandler(response, resData);
+        }
+      });
+    });
+  }
+);
+
+Cypress.Commands.add("relayErrorCallTest", (data, globalState) => {
+  const { Configs: configs = {}, Request: reqData, Response: resData } =
+    data || {};
+
+  const configInfo = execConfig(validateConfig(configs));
+  const profileId = globalState.get(`${configInfo.profilePrefix}Id`);
+
+  cy.request({
+    method: "POST",
+    url: `${globalState.get("baseUrl")}/relay`,
+    headers: {
+      "Content-Type": "application/json",
+      "api-key": globalState.get("apiKey"),
+      "X-Profile-Id": profileId,
+      "X-Idempotency-Key": `relay_err_${Date.now()}`,
+    },
+    failOnStatusCode: false,
+    body: reqData || {},
+  }).then((response) => {
+    logRequestId(response.headers["x-request-id"]);
+    cy.wrap(response).then(() => {
+      expect(response.headers["content-type"]).to.include("application/json");
+      defaultErrorHandler(response, resData);
+    });
+  });
+});
+
+Cypress.Commands.add(
+  "retrieveRelayErrorCallTest",
+  (relayId, data, globalState) => {
+    const { Configs: configs = {}, Response: resData } = data || {};
+
+    const configInfo = execConfig(validateConfig(configs));
+    const profileId = globalState.get(`${configInfo.profilePrefix}Id`);
+
+    cy.request({
+      method: "GET",
+      url: `${globalState.get("baseUrl")}/relay/${relayId}`,
+      headers: {
+        "Content-Type": "application/json",
+        "api-key": globalState.get("apiKey"),
+        "X-Profile-Id": profileId,
+      },
+      failOnStatusCode: false,
+    }).then((response) => {
+      logRequestId(response.headers["x-request-id"]);
+      cy.wrap(response).then(() => {
+        expect(response.headers["content-type"]).to.include("application/json");
+        defaultErrorHandler(response, resData);
+      });
+    });
+  }
+);
