@@ -1,4 +1,3 @@
-import * as fixtures from "../../../fixtures/imports";
 import State from "../../../utils/State";
 import * as utils from "../../configs/Routing/Utils";
 
