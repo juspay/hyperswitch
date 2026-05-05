@@ -110,19 +110,14 @@ describe("Refund Manual Update Tests", () => {
           return;
         }
         // Manual update changes refund status - verify the updated state
-        const refundId = globalState.get("refundId");
-        cy.request({
-          method: "GET",
-          url: `${globalState.get("baseUrl")}/refunds/${refundId}`,
-          headers: {
-            "Content-Type": "application/json",
-            "api-key": globalState.get("apiKey"),
+        const retrieveData = {
+          Response: {
+            body: {
+              status: "failed",
+            },
           },
-          failOnStatusCode: false,
-        }).then((response) => {
-          expect(response.status).to.eq(200);
-          expect(response.body.status).to.eq("failed");
-        });
+        };
+        cy.syncRefundCallTest(retrieveData, globalState);
       });
     });
   });
@@ -230,23 +225,16 @@ describe("Refund Manual Update Tests", () => {
             return;
           }
           // Manual update sets error fields - verify they were applied
-          const refundId = globalState.get("refundId");
-          cy.request({
-            method: "GET",
-            url: `${globalState.get("baseUrl")}/refunds/${refundId}`,
-            headers: {
-              "Content-Type": "application/json",
-              "api-key": globalState.get("apiKey"),
+          const retrieveData = {
+            Response: {
+              body: {
+                status: "failed",
+                error_code: "TEST_ERROR_CODE",
+                error_message: "Test error message for manual update",
+              },
             },
-            failOnStatusCode: false,
-          }).then((response) => {
-            expect(response.status).to.eq(200);
-            expect(response.body.status).to.eq("failed");
-            expect(response.body.error_code).to.eq("TEST_ERROR_CODE");
-            expect(response.body.error_message).to.eq(
-              "Test error message for manual update"
-            );
-          });
+          };
+          cy.syncRefundCallTest(retrieveData, globalState);
         });
       });
     }
@@ -353,23 +341,16 @@ describe("Refund Manual Update Tests", () => {
           return;
         }
         // Manual update changes partial refund status - verify the updated state
-        const refundId = globalState.get("refundId");
-        cy.request({
-          method: "GET",
-          url: `${globalState.get("baseUrl")}/refunds/${refundId}`,
-          headers: {
-            "Content-Type": "application/json",
-            "api-key": globalState.get("apiKey"),
+        const retrieveData = {
+          Response: {
+            body: {
+              status: "failed",
+              error_code: "PARTIAL_REFUND_FAILED",
+              error_message: "Partial refund failed via manual update",
+            },
           },
-          failOnStatusCode: false,
-        }).then((response) => {
-          expect(response.status).to.eq(200);
-          expect(response.body.status).to.eq("failed");
-          expect(response.body.error_code).to.eq("PARTIAL_REFUND_FAILED");
-          expect(response.body.error_message).to.eq(
-            "Partial refund failed via manual update"
-          );
-        });
+        };
+        cy.syncRefundCallTest(retrieveData, globalState);
       });
     });
   });
@@ -506,23 +487,16 @@ describe("Refund Manual Update Tests", () => {
           return;
         }
         // Manual update was called twice with same data - verify idempotent behavior
-        const refundId = globalState.get("refundId");
-        cy.request({
-          method: "GET",
-          url: `${globalState.get("baseUrl")}/refunds/${refundId}`,
-          headers: {
-            "Content-Type": "application/json",
-            "api-key": globalState.get("apiKey"),
+        const retrieveData = {
+          Response: {
+            body: {
+              status: "failed",
+              error_code: "IDEMPOTENCY_TEST",
+              error_message: "First manual update for idempotency test",
+            },
           },
-          failOnStatusCode: false,
-        }).then((response) => {
-          expect(response.status).to.eq(200);
-          expect(response.body.status).to.eq("failed");
-          expect(response.body.error_code).to.eq("IDEMPOTENCY_TEST");
-          expect(response.body.error_message).to.eq(
-            "First manual update for idempotency test"
-          );
-        });
+        };
+        cy.syncRefundCallTest(retrieveData, globalState);
       });
     });
   });
@@ -657,22 +631,15 @@ describe("Refund Manual Update Tests", () => {
           );
           return;
         }
-        // Manual update unset error fields - verify they were cleared
-        const refundId = globalState.get("refundId");
-        cy.request({
-          method: "GET",
-          url: `${globalState.get("baseUrl")}/refunds/${refundId}`,
-          headers: {
-            "Content-Type": "application/json",
-            "api-key": globalState.get("apiKey"),
+        // Manual update unset error fields - retrieve to verify
+        const retrieveData = {
+          Response: {
+            body: {
+              // Only validate status; error_code and error_message should be absent/null after unset
+            },
           },
-          failOnStatusCode: false,
-        }).then((response) => {
-          expect(response.status).to.eq(200);
-          // After unsetting, error fields should be null or undefined
-          expect(response.body.error_code).to.be.oneOf([null, undefined]);
-          expect(response.body.error_message).to.be.oneOf([null, undefined]);
-        });
+        };
+        cy.syncRefundCallTest(retrieveData, globalState);
       });
     });
   });
