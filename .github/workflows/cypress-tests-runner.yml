@@ -29,10 +29,6 @@ env:
   RUST_BACKTRACE: short
   RUSTUP_MAX_RETRIES: 10
   RUN_TESTS: ${{ ((github.event_name == 'pull_request') && (github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name)) || (github.event_name == 'merge_group')}}
-  # Toggle the gating for extended cypress jobs:
-  #   iteration mode  : same as RUN_TESTS — runs on trusted PRs + merge_group while iterating
-  #   production mode : ${{ github.event_name == 'merge_group' }} — merge_group only
-  RUN_EXTENDED_TESTS: ${{ ((github.event_name == 'pull_request') && (github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name)) || (github.event_name == 'merge_group')}}
   DEBUG: cypress:cli
   RUST_MIN_STACK: 11534336
 
@@ -448,7 +444,13 @@ jobs:
 
   prepare-extended-matrix:
     name: Prepare Extended Connectors matrix to run cypress tests
-    if: env.RUN_EXTENDED_TESTS == 'true'
+    # Single toggle for the extended cypress chain — extended-cypress-tests and
+    # its consolidated-result cascade off this job via `needs:`.
+    #   iteration  : runs on trusted PRs + merge_group (current value)
+    #   production : github.event_name == 'merge_group'
+    if: |
+      github.event_name == 'merge_group' ||
+      (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name)
     runs-on: ubuntu-latest
     outputs:
       extended-matrix: ${{ steps.set-extended-matrix.outputs.matrix }}
@@ -493,7 +495,6 @@ jobs:
   extended-cypress-tests:
     name: Run extended Cypress tests
     needs: [build-hyperswitch, prepare-extended-matrix]
-    if: env.RUN_EXTENDED_TESTS == 'true'
     runs-on: hyperswitch-runners
     strategy:
       fail-fast: false
@@ -683,18 +684,11 @@ jobs:
         shell: bash
         run: |
           RESULT="${{ needs.extended-cypress-tests.result }}"
-          RUN_EXTENDED_TESTS_VAL="${{ env.RUN_EXTENDED_TESTS }}"
 
           echo "extended-cypress-tests result: $RESULT"
-          echo "Run extended tests env: $RUN_EXTENDED_TESTS_VAL"
 
-          if [ "$RUN_EXTENDED_TESTS_VAL" == "false" ]; then
-            echo "Extended tests were skipped. Marking as success."
-            exit 0
-          fi
-
-          if [ "$RESULT" == "success" ]; then
-            echo "All extended cypress tests passed."
+          if [ "$RESULT" == "success" ] || [ "$RESULT" == "skipped" ]; then
+            echo "Extended cypress tests passed (or skipped upstream)."
             exit 0
           else
             echo "Extended cypress tests failed."
