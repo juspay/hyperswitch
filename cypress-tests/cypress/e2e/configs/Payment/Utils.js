@@ -17,6 +17,7 @@ import { connectorDetails as bluesnapConnectorDetails } from "./Bluesnap.js";
 import { connectorDetails as braintreeConnectorDetails } from "./Braintree.js";
 import { connectorDetails as calidaConnectorDetails } from "./Calida.js";
 import { connectorDetails as cashtocodeConnectorDetails } from "./Cashtocode.js";
+import { connectorDetails as celeroConnectorDetails } from "./Celero.js";
 import { connectorDetails as checkbookConnectorDetails } from "./Checkbook.js";
 import { connectorDetails as checkoutConnectorDetails } from "./Checkout.js";
 import { connectorDetails as commonConnectorDetails } from "./Commons.js";
@@ -27,10 +28,12 @@ import { connectorDetails as deutschebankConnectorDetails } from "./Deutschebank
 import { connectorDetails as dlocalConnectorDetails } from "./Dlocal.js";
 import { connectorDetails as elavonConnectorDetails } from "./Elavon.js";
 import { connectorDetails as finixConnectorDetails } from "./Finix.js";
+import { connectorDetails as facilitapayConnectorDetails } from "./Facilitapay.js";
 import { connectorDetails as fiservConnectorDetails } from "./Fiserv.js";
 import { connectorDetails as fiservemeaConnectorDetails } from "./Fiservemea.js";
 import { connectorDetails as fiuuConnectorDetails } from "./Fiuu.js";
 import { connectorDetails as forteConnectorDetails } from "./Forte.js";
+import { connectorDetails as gigadatConnectorDetails } from "./Gigadat.js";
 import { connectorDetails as getnetConnectorDetails } from "./Getnet.js";
 import { connectorDetails as globalpayConnectorDetails } from "./Globalpay.js";
 import { connectorDetails as hipayConnectorDetails } from "./Hipay.js";
@@ -45,6 +48,7 @@ import { connectorDetails as multisafepayConnectorDetails } from "./Multisafepay
 import { connectorDetails as nexinetsConnectorDetails } from "./Nexinets.js";
 import { connectorDetails as nexixpayConnectorDetails } from "./Nexixpay.js";
 import { connectorDetails as nmiConnectorDetails } from "./Nmi.js";
+import { connectorDetails as noonConnectorDetails } from "./Noon.js";
 import { connectorDetails as novalnetConnectorDetails } from "./Novalnet.js";
 import { connectorDetails as nuveiConnectorDetails } from "./Nuvei.js";
 import { connectorDetails as payboxConnectorDetails } from "./Paybox.js";
@@ -88,6 +92,7 @@ const connectorDetails = {
   braintree: braintreeConnectorDetails,
   calida: calidaConnectorDetails,
   cashtocode: cashtocodeConnectorDetails,
+  celero: celeroConnectorDetails,
   checkout: checkoutConnectorDetails,
   checkbook: checkbookConnectorDetails,
   commons: commonConnectorDetails,
@@ -97,12 +102,14 @@ const connectorDetails = {
   datatrans: datatransConnectorDetails,
   deutschebank: deutschebankConnectorDetails,
   elavon: elavonConnectorDetails,
+  facilitapay: facilitapayConnectorDetails,
   fiserv: fiservConnectorDetails,
   fiservemea: fiservemeaConnectorDetails,
   fiuu: fiuuConnectorDetails,
   finix: finixConnectorDetails,
   forte: forteConnectorDetails,
   getnet: getnetConnectorDetails,
+  gigadat: gigadatConnectorDetails,
   globalpay: globalpayConnectorDetails,
   hipay: hipayConnectorDetails,
   iatapay: iatapayConnectorDetails,
@@ -115,6 +122,7 @@ const connectorDetails = {
   nexinets: nexinetsConnectorDetails,
   nexixpay: nexixpayConnectorDetails,
   nmi: nmiConnectorDetails,
+  noon: noonConnectorDetails,
   novalnet: novalnetConnectorDetails,
   nuvei: nuveiConnectorDetails,
   paybox: payboxConnectorDetails,
@@ -420,6 +428,7 @@ export const CONNECTOR_LISTS = {
       "bankofamerica",
       "billwerk",
       "braintree",
+      "facilitapay",
       "fiserv",
       "fiuu",
       "forte",
@@ -478,6 +487,7 @@ export const CONNECTOR_LISTS = {
       "worldpayxml",
     ],
     PAYMENTS_WEBHOOK: [
+      "noon",
       "stripe",
       "authorizedotnet",
       "airwallex",
