@@ -5420,7 +5420,10 @@ Cypress.Commands.add(
   (fixtures, globalState) => {
     const connector = globalState.get("connectorId");
     if (connector === "adyen") {
-      const data = getConnectorDetails(connector)["card_pm"]["ExtendAuthorizationNo3DSManual"];
+      const data =
+        getConnectorDetails(connector)["card_pm"][
+          "ExtendAuthorizationNo3DSManual"
+        ];
       cy.retrievePaymentCallTest({ globalState, data });
     } else if (connector === "paypal") {
       const data = getConnectorDetails(connector)["card_pm"]["Capture"];
