@@ -543,7 +543,7 @@ export const CONNECTOR_LISTS = {
       "worldpayvantiv",
     ],
     EXTERNAL_THREE_DS: ["stripe"],
-    BANK_DEBIT: ["novalnet"],
+    BANK_DEBIT: ["novalnet", "mollie"],
     PARTNER_MERCHANT_IDENTIFIER: ["adyen", "checkout"],
     GIFT_CARD: ["adyen"],
     PAY_LATER: ["klarna", "adyen", "aci", "stripe"],
