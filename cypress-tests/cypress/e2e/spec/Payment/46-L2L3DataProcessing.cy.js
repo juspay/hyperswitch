@@ -11,7 +11,7 @@ describe("L2/L3 Data Processing Tests", () => {
     });
   });
 
-  after("flush global state", () => {
+  afterEach("flush global state", () => {
     cy.task("setGlobalState", globalState.data);
   });
 
@@ -20,8 +20,13 @@ describe("L2/L3 Data Processing Tests", () => {
       let shouldContinue = true;
 
       cy.step("Update Business Profile (L2/L3 enabled)", () => {
-        cy.businessProfileUpdate(
+        cy.UpdateBusinessProfileTest(
           fixtures.businessProfile.bpUpdate,
+          true,
+          true,
+          true,
+          true,
+          true,
           globalState
         );
       });
@@ -61,16 +66,18 @@ describe("L2/L3 Data Processing Tests", () => {
           "card_pm"
         ]["L2L3Data"];
 
+        if (!utils.should_continue_further(confirmData)) {
+          shouldContinue = false;
+          cy.task("cli_log", "Skipping step: Confirm Payment with L2/L3 Data (TRIGGER_SKIP)");
+          return;
+        }
+
         cy.confirmCallTest(
           fixtures.confirmBody,
           confirmData,
           true,
           globalState
         );
-
-        if (!utils.should_continue_further(confirmData)) {
-          shouldContinue = false;
-        }
       });
 
       cy.step("Retrieve Payment", () => {
@@ -92,22 +99,28 @@ describe("L2/L3 Data Processing Tests", () => {
       let shouldContinue = true;
 
       cy.step("Update Business Profile (L2/L3 disabled)", () => {
-        // Create a profile update payload with L2/L3 disabled
-        const bpDisabled = {
-          is_connector_agnostic_mit_enabled: true,
-          collect_shipping_details_from_wallet_connector: true,
-          collect_billing_details_from_wallet_connector: true,
-          always_collect_billing_details_from_wallet_connector: true,
-          always_collect_shipping_details_from_wallet_connector: true,
-          is_l2_l3_enabled: false,
-        };
-        cy.businessProfileUpdate(bpDisabled, globalState);
+        const bpDisabled = { ...fixtures.businessProfile.bpUpdate };
+        bpDisabled.is_l2_l3_enabled = false;
+        cy.UpdateBusinessProfileTest(
+          bpDisabled,
+          true,
+          true,
+          true,
+          true,
+          true,
+          globalState
+        );
       });
 
       cy.step("Create and Confirm Payment with L2/L3 fields", () => {
         const data = getConnectorDetails(globalState.get("connectorId"))[
           "card_pm"
         ]["L2L3Data"];
+
+        if (!utils.should_continue_further(data)) {
+          shouldContinue = false;
+          return;
+        }
 
         cy.createConfirmPaymentTest(
           fixtures.createConfirmPaymentBody,

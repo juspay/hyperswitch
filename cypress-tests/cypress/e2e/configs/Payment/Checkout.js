@@ -731,9 +731,13 @@ export const connectorDetails = {
         },
         order_tax_amount: 500,
         shipping_cost: 100,
-        order_details: {
-          po_number: "PO-12345",
-        },
+        order_details: [
+          {
+            product_name: "Test Product",
+            quantity: 1,
+            amount: 6000,
+          },
+        ],
         customer_acceptance: null,
         setup_future_usage: "on_session",
       },
