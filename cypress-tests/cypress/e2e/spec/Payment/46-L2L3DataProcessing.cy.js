@@ -68,7 +68,10 @@ describe("L2/L3 Data Processing Tests", () => {
 
         if (!utils.should_continue_further(confirmData)) {
           shouldContinue = false;
-          cy.task("cli_log", "Skipping step: Confirm Payment with L2/L3 Data (TRIGGER_SKIP)");
+          cy.task(
+            "cli_log",
+            "Skipping step: Confirm Payment with L2/L3 Data (TRIGGER_SKIP)"
+          );
           return;
         }
 
