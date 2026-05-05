@@ -17,9 +17,9 @@ env:
   CARGO_INCREMENTAL: 0
   CARGO_NET_RETRY: 10
   PAYMENTS_CONNECTORS_BATCH_1: "stripe cybersource adyen authorizedotnet bluesnap"
-  PAYMENTS_CONNECTORS_BATCH_2: "calida finix fiuu gigadat iatapay"
-  PAYMENTS_CONNECTORS_BATCH_3: "loonio nexixpay nmi noon"
-  PAYMENTS_CONNECTORS_BATCH_4: "paypal peachpayments redsys zift"
+  PAYMENTS_CONNECTORS_BATCH_2: "finix fiuu gigadat"
+  PAYMENTS_CONNECTORS_BATCH_3: "loonio nexixpay nmi"
+  PAYMENTS_CONNECTORS_BATCH_4: "paypal redsys zift"
   PAYOUTS_CONNECTORS:  "adyenplatform wise"
   PLATFORM_CONNECTORS: "stripe cybersource"
   RUST_BACKTRACE: short
