@@ -47,6 +47,10 @@ describe("Extended Card Info Tests", () => {
         cy.createCustomerCallTest(fixtures.customerCreateBody, globalState);
       });
 
+      it("Set Extended Card Info config with RSA public key", () => {
+        cy.setExtendedCardInfoConfigTest(globalState);
+      });
+
       it("Enable Extended Card Info on business profile", () => {
         cy.toggleExtendedCardInfoTest(true, globalState);
       });
