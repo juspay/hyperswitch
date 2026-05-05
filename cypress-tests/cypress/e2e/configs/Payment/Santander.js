@@ -2,19 +2,19 @@ import { getCustomExchange } from "./Modifiers";
 
 const billingAddress = {
   address: {
-    line1: "1467",
-    line2: "Harrison Street",
-    line3: "Harrison Street",
-    city: "San Fransico",
-    state: "California",
-    zip: "94122",
+    line1: "Rua Augusta",
+    line2: "2000",
+    line3: "Consolação",
+    city: "São Paulo",
+    state: "SP",
+    zip: "01412-000",
     country: "BR",
     first_name: "joseph",
     last_name: "Doe",
   },
   phone: {
-    number: "9123456789",
-    country_code: "+91",
+    number: "11991234567",
+    country_code: "+55",
   },
 };
 
@@ -66,6 +66,8 @@ export const connectorDetails = {
         },
       },
     }),
+    // PixAutomatico requires connector_intent_metadata for mandate setup (CIT flow)
+    // see transformers.rs: SetupMandate -> connector_intent_metadata.santander.pix_automatico.cit
     PixAutomatico: getCustomExchange({
       Request: {
         payment_method: "bank_transfer",
@@ -87,6 +89,8 @@ export const connectorDetails = {
         },
       },
     }),
+    // PixAutomaticoPush skipped: requires MIT connector_intent_metadata with receiver_details
+    // (branch_code, account_number, account_type) not available in test environment
     PixAutomaticoPush: getCustomExchange({
       Configs: {
         TRIGGER_SKIP: true,
@@ -112,6 +116,8 @@ export const connectorDetails = {
         },
       },
     }),
+    // PixAutomaticoQr skipped: requires MIT connector_intent_metadata with receiver_details
+    // (branch_code, account_number, account_type) not available in test environment
     PixAutomaticoQr: getCustomExchange({
       Configs: {
         TRIGGER_SKIP: true,
@@ -123,6 +129,7 @@ export const connectorDetails = {
           bank_transfer: {
             pix_automatico_qr: {
               cpf: "86665623580",
+              customer_email: "test@example.com",
             },
           },
         },
