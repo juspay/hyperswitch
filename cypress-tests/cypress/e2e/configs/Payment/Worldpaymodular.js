@@ -10,7 +10,8 @@ export const connectorDetails = {
     PaymentIntent: getCustomExchange({
       Configs: {
         TRIGGER_SKIP: true,
-        SKIP_REASON: "Wallet payment test implementation pending. Connector supports Apple Pay, Google Pay, and Mandates but automated test configs need to be developed.",
+        SKIP_REASON:
+          "Wallet payment test implementation pending. Connector supports Apple Pay, Google Pay, and Mandates but automated test configs need to be developed.",
       },
       Request: {
         currency: "USD",

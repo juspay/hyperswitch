@@ -11,7 +11,8 @@ export const connectorDetails = {
     PaymentIntent: {
       Configs: {
         TRIGGER_SKIP: true,
-        SKIP_REASON: "HIGH severity bug: Card payments fail with HE_00 error - payments stuck in processing state. Likely invalid connector credentials or platform bug.",
+        SKIP_REASON:
+          "HIGH severity bug: Card payments fail with HE_00 error - payments stuck in processing state. Likely invalid connector credentials or platform bug.",
       },
       Request: {
         currency: "USD",
@@ -68,7 +69,8 @@ export const connectorDetails = {
     Capture: {
       Configs: {
         TRIGGER_SKIP: true,
-        SKIP_REASON: "HIGH severity bug: Card payments fail with HE_00 error - capture cannot succeed without successful payment",
+        SKIP_REASON:
+          "HIGH severity bug: Card payments fail with HE_00 error - capture cannot succeed without successful payment",
       },
       Request: {
         amount_to_capture: 6000,
@@ -98,7 +100,8 @@ export const connectorDetails = {
     Refund: {
       Configs: {
         TRIGGER_SKIP: true,
-        SKIP_REASON: "HIGH severity bug: Card payments fail with HE_00 error - refund cannot succeed without successful payment",
+        SKIP_REASON:
+          "HIGH severity bug: Card payments fail with HE_00 error - refund cannot succeed without successful payment",
       },
       Request: {
         amount: 6000,
