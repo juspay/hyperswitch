@@ -1146,7 +1146,8 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                     {
                         Some(api_models::payments::PaymentMethodData::Card(_))
                         | Some(api_models::payments::PaymentMethodData::BankDebit(_))
-                        | Some(api_models::payments::PaymentMethodData::Wallet(_)) => {
+                        | Some(api_models::payments::PaymentMethodData::Wallet(_))
+                        | Some(api_models::payments::PaymentMethodData::BankRedirect(_)) => {
                             let should_create = match req
                                 .payment_method_data
                                 .as_ref()
@@ -1157,7 +1158,10 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
                                         .or(payment_data.payment_intent.setup_future_usage)
                                         == Some(common_enums::FutureUsage::OffSession)
                                 }
-                                Some(api_models::payments::PaymentMethodData::Card(_)) => true,
+                                Some(api_models::payments::PaymentMethodData::Card(_))
+                                | Some(api_models::payments::PaymentMethodData::BankRedirect(_)) => {
+                                    true
+                                }
                                 _ => false,
                             };
 
