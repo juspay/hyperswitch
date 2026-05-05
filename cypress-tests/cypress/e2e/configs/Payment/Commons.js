@@ -1466,10 +1466,117 @@ export const connectorDetails = {
       },
     }),
     ManualRefundUpdate: getCustomExchange({
-      Request: {},
+      Request: {
+        status: "failed",
+      },
       Response: {
         status: 200,
         body: {},
+      },
+    }),
+    ManualRefundUpdateErrorCode: getCustomExchange({
+      Request: {
+        status: "failed",
+        error_code: {
+          set: "TEST_ERROR_CODE",
+        },
+        error_message: {
+          set: "Test error message for manual update",
+        },
+      },
+      Response: {
+        status: 200,
+        body: {},
+      },
+    }),
+    ManualRefundUpdatePartialRefund: getCustomExchange({
+      Request: {
+        status: "failed",
+        error_code: {
+          set: "PARTIAL_REFUND_FAILED",
+        },
+        error_message: {
+          set: "Partial refund failed via manual update",
+        },
+      },
+      Response: {
+        status: 200,
+        body: {},
+      },
+    }),
+    ManualRefundUpdateIdempotency: getCustomExchange({
+      Request: {
+        status: "failed",
+        error_code: {
+          set: "IDEMPOTENCY_TEST",
+        },
+        error_message: {
+          set: "First manual update for idempotency test",
+        },
+      },
+      Response: {
+        status: 200,
+        body: {},
+      },
+    }),
+    ManualRefundUpdateUnset: getCustomExchange({
+      Request: {
+        error_code: {
+          unset: null,
+        },
+        error_message: {
+          unset: null,
+        },
+      },
+      Response: {
+        status: 200,
+        body: {},
+      },
+    }),
+    SyncRefundManualUpdateFailed: getCustomExchange({
+      Response: {
+        status: 200,
+        body: {
+          status: "failed",
+        },
+      },
+    }),
+    SyncRefundManualUpdateErrorCode: getCustomExchange({
+      Response: {
+        status: 200,
+        body: {
+          status: "failed",
+          error_code: "TEST_ERROR_CODE",
+          error_message: "Test error message for manual update",
+        },
+      },
+    }),
+    SyncRefundManualUpdatePartialRefund: getCustomExchange({
+      Response: {
+        status: 200,
+        body: {
+          status: "failed",
+          error_code: "PARTIAL_REFUND_FAILED",
+          error_message: "Partial refund failed via manual update",
+        },
+      },
+    }),
+    SyncRefundManualUpdateIdempotency: getCustomExchange({
+      Response: {
+        status: 200,
+        body: {
+          status: "failed",
+          error_code: "IDEMPOTENCY_TEST",
+          error_message: "First manual update for idempotency test",
+        },
+      },
+    }),
+    SyncRefundManualUpdateUnset: getCustomExchange({
+      Response: {
+        status: 200,
+        body: {
+          status: "failed",
+        },
       },
     }),
     PartialRefund: getCustomExchange({

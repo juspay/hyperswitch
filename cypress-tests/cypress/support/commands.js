@@ -5823,39 +5823,44 @@ Cypress.Commands.add(
   }
 );
 
-Cypress.Commands.add(
-  "manualRefundStatusUpdateTest",
-  (globalState, refundManualUpdateRequestBody) => {
-    const merchantId = globalState.get("merchantId");
-    const refundId = globalState.get("refundId");
-    const completeUrl = `${Cypress.env("BASEURL")}/refunds/${refundId}/manual-update`;
-    const adminApiKey = globalState.get("adminApiKey");
+Cypress.Commands.add("manualRefundStatusUpdateTest", (data, globalState) => {
+  const {
+    Configs: configs = {},
+    Request: reqData,
+    Response: resData,
+  } = data || {};
 
-    cy.request({
-      method: "PUT",
-      url: completeUrl,
-      headers: {
-        "Content-Type": "application/json",
-        "api-key": adminApiKey,
-        "X-Merchant-Id": merchantId,
-      },
-      body: refundManualUpdateRequestBody,
-      failOnStatusCode: false,
-    }).then((response) => {
-      logRequestId(response.headers["x-request-id"]);
+  const merchantId = globalState.get("merchantId");
+  const refundId = globalState.get("refundId");
+  const completeUrl = `${Cypress.env("BASEURL")}/refunds/${refundId}/manual-update`;
+  const adminApiKey = globalState.get("adminApiKey");
 
-      cy.wrap(response).then(() => {
-        if (response.status === 200) {
-          expect(response.status).to.eq(200);
-        } else {
-          throw new Error(
-            `Refund Manual Update Call Failed with error code "${response.body?.error?.code}" error message "${response.body?.error?.message}"`
-          );
-        }
-      });
+  execConfig(validateConfig(configs));
+
+  const requestBody = { ...reqData, merchant_id: merchantId };
+
+  cy.request({
+    method: "PUT",
+    url: completeUrl,
+    headers: {
+      "Content-Type": "application/json",
+      "api-key": adminApiKey,
+      "X-Merchant-Id": merchantId,
+    },
+    body: requestBody,
+    failOnStatusCode: false,
+  }).then((response) => {
+    logRequestId(response.headers["x-request-id"]);
+
+    cy.wrap(response).then(() => {
+      if (response.status === 200) {
+        expect(response.status).to.eq(resData?.status || 200);
+      } else {
+        defaultErrorHandler(response, resData);
+      }
     });
-  }
-);
+  });
+});
 
 Cypress.Commands.add(
   "IncomingWebhookTest",

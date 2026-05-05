@@ -258,7 +258,9 @@ export const connectorDetails = {
       },
     },
     ManualRefundUpdate: {
-      Request: {},
+      Request: {
+        status: "failed",
+      },
       Response: {
         status: 200,
         body: {},

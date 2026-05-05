@@ -13,7 +13,6 @@ describe("Refund Manual Update Tests", () => {
         globalState = new State(state);
         const connector = globalState.get("connectorId");
 
-        // Skip the test if the connector is not in the inclusion list
         if (
           utils.shouldIncludeConnector(
             connector,
@@ -103,19 +102,11 @@ describe("Refund Manual Update Tests", () => {
           );
           return;
         }
-        const merchantId = globalState.get("merchantId");
-        const refundManualUpdateRequestBody = {
-          merchant_id: merchantId,
-          status: "failed",
-        };
-        const manualUpdateData = getConnectorDetails(
-          globalState.get("connectorId")
-        )["card_pm"]["ManualRefundUpdate"];
-        cy.manualRefundStatusUpdateTest(
-          globalState,
-          refundManualUpdateRequestBody
-        );
-        if (!utils.should_continue_further(manualUpdateData)) {
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["ManualRefundUpdate"];
+        cy.manualRefundStatusUpdateTest(data, globalState);
+        if (!utils.should_continue_further(data)) {
           shouldContinue = false;
         }
       });
@@ -128,15 +119,10 @@ describe("Refund Manual Update Tests", () => {
           );
           return;
         }
-        // Manual update changes refund status - verify the updated state
-        const retrieveData = {
-          Response: {
-            body: {
-              status: "failed",
-            },
-          },
-        };
-        cy.syncRefundCallTest(retrieveData, globalState);
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["SyncRefundManualUpdateFailed"];
+        cy.syncRefundCallTest(data, globalState);
       });
     });
   });
@@ -212,25 +198,11 @@ describe("Refund Manual Update Tests", () => {
             );
             return;
           }
-          const merchantId = globalState.get("merchantId");
-          const refundManualUpdateRequestBody = {
-            merchant_id: merchantId,
-            status: "failed",
-            error_code: {
-              set: "TEST_ERROR_CODE",
-            },
-            error_message: {
-              set: "Test error message for manual update",
-            },
-          };
-          const manualUpdateData = getConnectorDetails(
-            globalState.get("connectorId")
-          )["card_pm"]["ManualRefundUpdate"];
-          cy.manualRefundStatusUpdateTest(
-            globalState,
-            refundManualUpdateRequestBody
-          );
-          if (!utils.should_continue_further(manualUpdateData)) {
+          const data = getConnectorDetails(globalState.get("connectorId"))[
+            "card_pm"
+          ]["ManualRefundUpdateErrorCode"];
+          cy.manualRefundStatusUpdateTest(data, globalState);
+          if (!utils.should_continue_further(data)) {
             shouldContinue = false;
           }
         });
@@ -243,17 +215,10 @@ describe("Refund Manual Update Tests", () => {
             );
             return;
           }
-          // Manual update sets error fields - verify they were applied
-          const retrieveData = {
-            Response: {
-              body: {
-                status: "failed",
-                error_code: "TEST_ERROR_CODE",
-                error_message: "Test error message for manual update",
-              },
-            },
-          };
-          cy.syncRefundCallTest(retrieveData, globalState);
+          const data = getConnectorDetails(globalState.get("connectorId"))[
+            "card_pm"
+          ]["SyncRefundManualUpdateErrorCode"];
+          cy.syncRefundCallTest(data, globalState);
         });
       });
     }
@@ -328,25 +293,11 @@ describe("Refund Manual Update Tests", () => {
           );
           return;
         }
-        const merchantId = globalState.get("merchantId");
-        const refundManualUpdateRequestBody = {
-          merchant_id: merchantId,
-          status: "failed",
-          error_code: {
-            set: "PARTIAL_REFUND_FAILED",
-          },
-          error_message: {
-            set: "Partial refund failed via manual update",
-          },
-        };
-        const manualUpdateData = getConnectorDetails(
-          globalState.get("connectorId")
-        )["card_pm"]["ManualRefundUpdate"];
-        cy.manualRefundStatusUpdateTest(
-          globalState,
-          refundManualUpdateRequestBody
-        );
-        if (!utils.should_continue_further(manualUpdateData)) {
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["ManualRefundUpdatePartialRefund"];
+        cy.manualRefundStatusUpdateTest(data, globalState);
+        if (!utils.should_continue_further(data)) {
           shouldContinue = false;
         }
       });
@@ -359,17 +310,10 @@ describe("Refund Manual Update Tests", () => {
           );
           return;
         }
-        // Manual update changes partial refund status - verify the updated state
-        const retrieveData = {
-          Response: {
-            body: {
-              status: "failed",
-              error_code: "PARTIAL_REFUND_FAILED",
-              error_message: "Partial refund failed via manual update",
-            },
-          },
-        };
-        cy.syncRefundCallTest(retrieveData, globalState);
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["SyncRefundManualUpdatePartialRefund"];
+        cy.syncRefundCallTest(data, globalState);
       });
     });
   });
@@ -443,25 +387,11 @@ describe("Refund Manual Update Tests", () => {
           );
           return;
         }
-        const merchantId = globalState.get("merchantId");
-        const refundManualUpdateRequestBody = {
-          merchant_id: merchantId,
-          status: "failed",
-          error_code: {
-            set: "IDEMPOTENCY_TEST",
-          },
-          error_message: {
-            set: "First manual update for idempotency test",
-          },
-        };
-        const manualUpdateData = getConnectorDetails(
-          globalState.get("connectorId")
-        )["card_pm"]["ManualRefundUpdate"];
-        cy.manualRefundStatusUpdateTest(
-          globalState,
-          refundManualUpdateRequestBody
-        );
-        if (!utils.should_continue_further(manualUpdateData)) {
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["ManualRefundUpdateIdempotency"];
+        cy.manualRefundStatusUpdateTest(data, globalState);
+        if (!utils.should_continue_further(data)) {
           shouldContinue = false;
         }
       });
@@ -474,25 +404,11 @@ describe("Refund Manual Update Tests", () => {
           );
           return;
         }
-        const merchantId = globalState.get("merchantId");
-        const refundManualUpdateRequestBody = {
-          merchant_id: merchantId,
-          status: "failed",
-          error_code: {
-            set: "IDEMPOTENCY_TEST",
-          },
-          error_message: {
-            set: "First manual update for idempotency test",
-          },
-        };
-        const manualUpdateData = getConnectorDetails(
-          globalState.get("connectorId")
-        )["card_pm"]["ManualRefundUpdate"];
-        cy.manualRefundStatusUpdateTest(
-          globalState,
-          refundManualUpdateRequestBody
-        );
-        if (!utils.should_continue_further(manualUpdateData)) {
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["ManualRefundUpdateIdempotency"];
+        cy.manualRefundStatusUpdateTest(data, globalState);
+        if (!utils.should_continue_further(data)) {
           shouldContinue = false;
         }
       });
@@ -505,17 +421,10 @@ describe("Refund Manual Update Tests", () => {
           );
           return;
         }
-        // Manual update was called twice with same data - verify idempotent behavior
-        const retrieveData = {
-          Response: {
-            body: {
-              status: "failed",
-              error_code: "IDEMPOTENCY_TEST",
-              error_message: "First manual update for idempotency test",
-            },
-          },
-        };
-        cy.syncRefundCallTest(retrieveData, globalState);
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["SyncRefundManualUpdateIdempotency"];
+        cy.syncRefundCallTest(data, globalState);
       });
     });
   });
@@ -589,25 +498,11 @@ describe("Refund Manual Update Tests", () => {
           );
           return;
         }
-        const merchantId = globalState.get("merchantId");
-        const refundManualUpdateRequestBody = {
-          merchant_id: merchantId,
-          status: "failed",
-          error_code: {
-            set: "UNSET_TEST",
-          },
-          error_message: {
-            set: "This error will be unset",
-          },
-        };
-        const manualUpdateData = getConnectorDetails(
-          globalState.get("connectorId")
-        )["card_pm"]["ManualRefundUpdate"];
-        cy.manualRefundStatusUpdateTest(
-          globalState,
-          refundManualUpdateRequestBody
-        );
-        if (!utils.should_continue_further(manualUpdateData)) {
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["ManualRefundUpdateErrorCode"];
+        cy.manualRefundStatusUpdateTest(data, globalState);
+        if (!utils.should_continue_further(data)) {
           shouldContinue = false;
         }
       });
@@ -620,24 +515,11 @@ describe("Refund Manual Update Tests", () => {
           );
           return;
         }
-        const merchantId = globalState.get("merchantId");
-        const refundManualUpdateRequestBody = {
-          merchant_id: merchantId,
-          error_code: {
-            unset: null,
-          },
-          error_message: {
-            unset: null,
-          },
-        };
-        const manualUpdateData = getConnectorDetails(
-          globalState.get("connectorId")
-        )["card_pm"]["ManualRefundUpdate"];
-        cy.manualRefundStatusUpdateTest(
-          globalState,
-          refundManualUpdateRequestBody
-        );
-        if (!utils.should_continue_further(manualUpdateData)) {
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["ManualRefundUpdateUnset"];
+        cy.manualRefundStatusUpdateTest(data, globalState);
+        if (!utils.should_continue_further(data)) {
           shouldContinue = false;
         }
       });
@@ -650,15 +532,10 @@ describe("Refund Manual Update Tests", () => {
           );
           return;
         }
-        // Manual update unset error fields - retrieve to verify
-        const retrieveData = {
-          Response: {
-            body: {
-              // Only validate status; error_code and error_message should be absent/null after unset
-            },
-          },
-        };
-        cy.syncRefundCallTest(retrieveData, globalState);
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["SyncRefundManualUpdateUnset"];
+        cy.syncRefundCallTest(data, globalState);
       });
     });
   });
