@@ -837,7 +837,7 @@ pub async fn construct_external_vault_proxy_payment_router_data_v1<'a>(
             customer_details_encrypted
                 .into_inner()
                 .expose()
-                .parse_value::<hyperswitch_domain_models::payments::payment_intent::CustomerData>("CustomerData")
+                .parse_value::<CustomerData>("CustomerData")
         })
         .transpose()
         .change_context(errors::StorageError::DeserializationFailed)
@@ -873,7 +873,7 @@ pub async fn construct_external_vault_proxy_payment_router_data_v1<'a>(
         currency: payment_data.currency,
         browser_info,
         email,
-        customer_name: None,
+        customer_name: customer_details.and_then(|customer| customer.name.clone()),
         payment_experience: None,
         order_details: None,
         order_category: None,
