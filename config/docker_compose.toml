@@ -103,7 +103,7 @@ disable_auto_backpressure = false
 max_in_flight_commands = 5000
 default_command_timeout = 30
 unresponsive_timeout = 10
-unresponsive_check_interval = 2   # The frequency at which the client checks for unresponsive connections. In seconds. This value should usually be less than half of `unresponsive_timeout` and always more than 1 ms.
+unresponsive_check_interval = 1   # The frequency at which the client checks for unresponsive connections. In seconds. This value should usually be less than half of `unresponsive_timeout` and always more than 1 ms.
 max_feed_count = 200
 
 [key_manager]
