@@ -918,6 +918,53 @@ export const connectorDetails = {
         },
       },
     },
+    ConnectorTestingData: {
+      Request: {
+        currency: "USD",
+        connector_metadata: {
+          adyen: {
+            testing: {
+              holder_name: "Test Holder Name Override",
+            },
+          },
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+        },
+      },
+    },
+    ConnectorTestingDataConfirm: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: {
+            card_number: "4111111111111111",
+            card_exp_month: "12",
+            card_exp_year: "2030",
+            card_cvc: "123",
+            card_holder_name: "Original Card Holder",
+          },
+        },
+        connector_metadata: {
+          adyen: {
+            testing: {
+              holder_name: "Test Holder Name Override",
+            },
+          },
+        },
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "failed",
+        },
+      },
+    },
   },
   bank_transfer_pm: {
     Pix: {
@@ -1243,6 +1290,56 @@ export const connectorDetails = {
           error_message:
             "Payment Method currency does not match the payment currency",
         },
+      },
+    }),
+  },
+
+  pay_later_pm: {
+    Klarna: getCustomExchange({
+      Request: {
+        payment_method: "pay_later",
+        payment_method_type: "klarna",
+        payment_experience: "redirect_to_url",
+        payment_method_data: {
+          pay_later: {
+            klarna_redirect: {
+              billing_email: "guest@juspay.in",
+              billing_country: "DE",
+            },
+          },
+        },
+        billing: {
+          email: "guest@juspay.in",
+          address: {
+            line1: "1467",
+            line2: "Harrison Street",
+            line3: "Harrison Street",
+            city: "San Fransico",
+            state: "California",
+            zip: "94122",
+            country: "DE",
+            first_name: "joseph",
+            last_name: "Doe",
+          },
+        },
+        order_details: [
+          {
+            product_name: "Test Product",
+            quantity: 1,
+            amount: 6000,
+          },
+        ],
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+    }),
+    Capture: getCustomExchange({
+      Request: {
+        amount_to_capture: 6000,
       },
     }),
   },

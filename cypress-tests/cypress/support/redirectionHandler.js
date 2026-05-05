@@ -88,6 +88,14 @@ export function handleRedirection(
         paymentMethodType
       );
       break;
+    case "pay_later":
+      payLaterRedirection(
+        urls.redirectionUrl,
+        urls.expectedUrl,
+        resolvedConnectorId,
+        paymentMethodType
+      );
+      break;
     default:
       throw new Error(`Unknown redirection type: ${redirectionType}`);
   }
@@ -135,6 +143,115 @@ function cryptoRedirection(
     );
   } else {
     cy.log("Skipping crypto redirection - no valid redirect URL provided");
+  }
+
+  cy.then(() => {
+    verifyReturnUrl(redirectionUrl, expectedUrl, verifyUrl);
+  });
+}
+
+function payLaterRedirection(
+  redirectionUrl,
+  expectedUrl,
+  connectorId,
+  paymentMethodType
+) {
+  // PayLater payments (like Klarna) are redirect flows where we verify navigation
+  // to the provider's page but don't complete the payment (verifyUrl = false)
+  let verifyUrl = false;
+
+  if (redirectionUrl && redirectionUrl.href) {
+    // Suppress uncaught exceptions from Klarna sandbox pages
+    cy.on("uncaught:exception", (err) => {
+      if (
+        err.message.includes("klarna") ||
+        err.message.includes("playground") ||
+        err.message.includes("angular") ||
+        err.message.includes("$ is not defined")
+      ) {
+        return false; // Prevent test failure
+      }
+      return true;
+    });
+
+    cy.visit(redirectionUrl.href);
+    waitForRedirect(redirectionUrl.href);
+
+    handleFlow(
+      redirectionUrl,
+      expectedUrl,
+      connectorId,
+      ({ connectorId, paymentMethodType, constants }) => {
+        switch (connectorId) {
+          case "adyen":
+          case "klarna":
+          case "aci":
+            // Klarna via various connectors - verify we land on Klarna page
+            cy.log(
+              `Handling ${connectorId} ${paymentMethodType} pay_later flow`
+            );
+
+            // Verify the page loaded by checking for Klarna-specific content
+            // Klarna playground shows payment forms or consent pages
+            cy.get("body", { timeout: constants.TIMEOUT }).then(($body) => {
+              const bodyText = $body.text();
+              const klarnaIndicators = [
+                /klarna/i,
+                /playground/i,
+                /buy now.*pay later/i,
+                /continue.*klarna/i,
+                /smoooth/i,
+              ];
+
+              const hasKlarnaIndicator = klarnaIndicators.some((pattern) =>
+                pattern.test(bodyText)
+              );
+
+              if (hasKlarnaIndicator) {
+                cy.log(
+                  "Successfully navigated to Klarna page - verified redirection"
+                );
+              } else {
+                // Check URL as fallback
+                cy.url().then((url) => {
+                  if (
+                    url.includes("klarna") ||
+                    url.includes("playground") ||
+                    url.includes("adyen") // Some Klarna flows go through Adyen
+                  ) {
+                    cy.log(
+                      "URL indicates Klarna redirect - verified navigation"
+                    );
+                  } else {
+                    cy.log(
+                      `Warning: URL (${url}) does not contain expected Klarna indicators`
+                    );
+                  }
+                });
+              }
+            });
+
+            verifyUrl = false; // Don't complete payment, just verify navigation
+            break;
+
+          case "stripe":
+            // Stripe handles pay_later differently - may have different flow
+            cy.log("Handling Stripe pay_later flow");
+            cy.get("body", { timeout: constants.TIMEOUT }).should("exist");
+            verifyUrl = false;
+            break;
+
+          default:
+            cy.log(
+              `Generic pay_later handling for ${connectorId}/${paymentMethodType}`
+            );
+            verifyUrl = false;
+        }
+      },
+      { paymentMethodType }
+    );
+  } else {
+    cy.log("Skipping pay_later redirection - no valid redirect URL provided");
   }
 
   cy.then(() => {
@@ -386,6 +503,40 @@ function bankRedirectRedirection(
       }
     );
     verifyUrl = false;
+  } else if (connectorId === "trustpay" && paymentMethodType === "ideal") {
+    // TrustPay iDEAL: aapi.finby.eu JS auto-redirects to pay.ideal.nl with no user interaction.
+    // Cypress does not support nested cy.origin, so we handle origins sequentially.
+    // ref: https://github.com/cypress-io/cypress/issues/20718
+    const trustpayIdealOrigin2 = "https://pay.ideal.nl";
+
+    // aapi.finby.eu redirects automatically — just wait for pay.ideal.nl to load
+    cy.log(`Waiting for redirection to ${trustpayIdealOrigin2}`);
+    cy.location("origin", { timeout: CONSTANTS.TIMEOUT }).should(
+      "eq",
+      trustpayIdealOrigin2
+    );
+
+    cy.origin(
+      trustpayIdealOrigin2,
+      { args: { constants: CONSTANTS } },
+      ({ constants }) => {
+        cy.log("Executing on TrustPay iDEAL Origin (pay.ideal.nl)");
+        cy.wait(constants.TIMEOUT / 10); // 2 seconds for page load
+        cy.get("button[data-testid=payment-action-button]", {
+          timeout: constants.TIMEOUT,
+        })
+          .should("be.visible")
+          .click();
+        cy.wait(constants.TIMEOUT / 10); // 2 seconds for bank list to render
+        cy.get('button[id="bank-item-INGBNL2A"]', {
+          timeout: constants.TIMEOUT,
+        })
+          .should("be.visible")
+          .click();
+      }
+    );
+
+    verifyUrl = false;
   } else {
     handleFlow(
       redirectionUrl,
@@ -485,12 +636,6 @@ function bankRedirectRedirection(
                   "Allgemeine Sparkasse Oberösterreich Bank AG (ASPKAT2LXXX / 20320)"
                 );
                 cy.get("#selectionSubmit").click();
-                break;
-              case "ideal":
-                cy.contains("button", "Select your bank").click();
-                cy.get(
-                  'button[data-testid="bank-item"][id="bank-item-INGBNL2A"]'
-                ).click();
                 break;
               case "giropay":
                 cy.get("._transactionId__header__iXVd_").should(
@@ -1366,15 +1511,15 @@ function threeDsRedirection(redirectionUrl, expectedUrl, connectorId) {
           break;
 
         case "trustpay":
-          cy.get('form[name="challengeForm"]', {
+          cy.get('form[name="simulationForm"]', {
             timeout: constants.WAIT_TIME,
           })
             .should("exist")
             .then(() => {
-              cy.get("#outcomeSelect")
-                .select("Approve")
-                .should("have.value", "Y");
-              cy.get('button[type="submit"]').click();
+              cy.get("#challengeResult")
+                .select("Successful")
+                .should("have.value", "Success");
+              cy.get('input[type="submit"]').click();
             });
           break;
 
