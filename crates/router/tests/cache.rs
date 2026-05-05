@@ -14,6 +14,7 @@ async fn invalidate_existing_cache_success() {
         Settings::default(),
         tx,
         Box::new(services::MockApiClient),
+        env!("CARGO_PKG_NAME"),
     ))
     .await;
     let state = Arc::new(app_state)

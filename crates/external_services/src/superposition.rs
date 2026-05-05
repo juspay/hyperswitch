@@ -137,10 +137,6 @@ pub struct SuperpositionClient {
 
 impl SuperpositionClient {
     /// Create a new Superposition client.
-    ///
-    /// `service_name` is recorded on every write so the Superposition audit trail
-    /// can attribute config changes to the originating service. Callers should pass
-    /// `env!("CARGO_PKG_NAME")` from the binary/service so it's locked at compile time.
     pub async fn new(
         config: SuperpositionClientConfig,
         service_name: &'static str,

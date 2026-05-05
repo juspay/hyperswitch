@@ -1010,6 +1010,7 @@ mod tests {
             StorageImpl::PostgresqlTest,
             tx,
             Box::new(services::MockApiClient),
+            env!("CARGO_PKG_NAME"),
         ))
         .await;
         let app_state_arc = Arc::new(app_state);
@@ -1124,6 +1125,7 @@ mod tests {
             StorageImpl::PostgresqlTest,
             tx,
             Box::new(services::MockApiClient),
+            env!("CARGO_PKG_NAME"),
         ))
         .await;
         let state = &Arc::new(app_state)
@@ -1234,6 +1236,7 @@ mod tests {
             StorageImpl::PostgresqlTest,
             tx,
             Box::new(services::MockApiClient),
+            env!("CARGO_PKG_NAME"),
         ))
         .await;
 

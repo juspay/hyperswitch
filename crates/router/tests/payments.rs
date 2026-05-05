@@ -284,6 +284,7 @@ async fn payments_create_core() {
         StorageImpl::PostgresqlTest,
         tx,
         Box::new(services::MockApiClient),
+        env!("CARGO_PKG_NAME"),
     ))
     .await;
 
@@ -586,6 +587,7 @@ async fn payments_create_core_adyen_no_redirect() {
         StorageImpl::PostgresqlTest,
         tx,
         Box::new(services::MockApiClient),
+        env!("CARGO_PKG_NAME"),
     ))
     .await;
     let state = Arc::new(app_state)
