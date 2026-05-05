@@ -37,7 +37,7 @@ describe("Inespay - Refund flow", () => {
 
       cy.step("Create Payment Intent", () => {
         const data = getConnectorDetails(globalState.get("connectorId"))[
-          "bank_debit_pm"
+          "bank_transfer_pm"
         ]["PaymentIntent"];
         cy.createPaymentIntentTest(
           fixtures.createPaymentBody,
@@ -58,7 +58,7 @@ describe("Inespay - Refund flow", () => {
         }
         const confirmData = getConnectorDetails(
           globalState.get("connectorId")
-        )["bank_debit_pm"]["No3DSAutoCapture"];
+        )["bank_transfer_pm"]["No3DSAutoCapture"];
         cy.confirmCallTest(
           fixtures.confirmBody,
           confirmData,
@@ -77,7 +77,7 @@ describe("Inespay - Refund flow", () => {
         }
         const confirmData = getConnectorDetails(
           globalState.get("connectorId")
-        )["bank_debit_pm"]["No3DSAutoCapture"];
+        )["bank_transfer_pm"]["No3DSAutoCapture"];
         cy.retrievePaymentCallTest({ globalState, data: confirmData });
         if (!should_continue_further(confirmData)) {
           shouldContinue = false;
@@ -90,7 +90,7 @@ describe("Inespay - Refund flow", () => {
           return;
         }
         const refundData = getConnectorDetails(globalState.get("connectorId"))[
-          "bank_debit_pm"
+          "bank_transfer_pm"
         ]["Refund"];
         cy.refundCallTest(fixtures.refundBody, refundData, globalState);
         if (!should_continue_further(refundData)) {
@@ -105,7 +105,7 @@ describe("Inespay - Refund flow", () => {
         }
         const syncRefundData = getConnectorDetails(
           globalState.get("connectorId")
-        )["bank_debit_pm"]["SyncRefund"];
+        )["bank_transfer_pm"]["SyncRefund"];
         cy.syncRefundCallTest(syncRefundData, globalState);
       });
     });
@@ -119,7 +119,7 @@ describe("Inespay - Refund flow", () => {
 
         cy.step("Create Payment Intent", () => {
           const data = getConnectorDetails(globalState.get("connectorId"))[
-            "bank_debit_pm"
+            "bank_transfer_pm"
           ]["PaymentIntent"];
           cy.createPaymentIntentTest(
             fixtures.createPaymentBody,
@@ -133,15 +133,15 @@ describe("Inespay - Refund flow", () => {
           }
         });
 
-        cy.step("Confirm Payment Intent", () => {
-          if (!shouldContinue) {
-            cy.task("cli_log", "Skipping step: Confirm Payment Intent");
-            return;
-          }
-          const confirmData = getConnectorDetails(
-            globalState.get("connectorId")
-          )["bank_debit_pm"]["No3DSAutoCapture"];
-          cy.confirmCallTest(
+      cy.step("Confirm Payment Intent", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: Confirm Payment Intent");
+          return;
+        }
+        const confirmData = getConnectorDetails(
+          globalState.get("connectorId")
+        )["bank_transfer_pm"]["No3DSAutoCapture"];
+        cy.confirmCallTest(
             fixtures.confirmBody,
             confirmData,
             true,
@@ -159,7 +159,7 @@ describe("Inespay - Refund flow", () => {
           }
           const confirmData = getConnectorDetails(
             globalState.get("connectorId")
-          )["bank_debit_pm"]["No3DSAutoCapture"];
+          )["bank_transfer_pm"]["No3DSAutoCapture"];
           cy.retrievePaymentCallTest({ globalState, data: confirmData });
           if (!should_continue_further(confirmData)) {
             shouldContinue = false;
@@ -173,7 +173,7 @@ describe("Inespay - Refund flow", () => {
           }
           const refundData = getConnectorDetails(
             globalState.get("connectorId")
-          )["bank_debit_pm"]["PartialRefund"];
+          )["bank_transfer_pm"]["PartialRefund"];
           cy.refundCallTest(fixtures.refundBody, refundData, globalState);
           if (!should_continue_further(refundData)) {
             shouldContinue = false;
@@ -187,7 +187,7 @@ describe("Inespay - Refund flow", () => {
           }
           const syncRefundData = getConnectorDetails(
             globalState.get("connectorId")
-          )["bank_debit_pm"]["SyncRefund"];
+          )["bank_transfer_pm"]["SyncRefund"];
           cy.syncRefundCallTest(syncRefundData, globalState);
         });
       });
@@ -200,7 +200,7 @@ describe("Inespay - Refund flow", () => {
 
       cy.step("Create Payment Intent", () => {
         const data = getConnectorDetails(globalState.get("connectorId"))[
-          "bank_debit_pm"
+          "bank_transfer_pm"
         ]["PaymentIntent"];
         cy.createPaymentIntentTest(
           fixtures.createPaymentBody,
@@ -221,7 +221,7 @@ describe("Inespay - Refund flow", () => {
         }
         const confirmData = getConnectorDetails(
           globalState.get("connectorId")
-        )["bank_debit_pm"]["No3DSAutoCapture"];
+        )["bank_transfer_pm"]["No3DSAutoCapture"];
         cy.confirmCallTest(
           fixtures.confirmBody,
           confirmData,
@@ -239,7 +239,7 @@ describe("Inespay - Refund flow", () => {
           return;
         }
         const refundData = getConnectorDetails(globalState.get("connectorId"))[
-          "bank_debit_pm"
+          "bank_transfer_pm"
         ]["Refund"];
         cy.refundCallTest(fixtures.refundBody, refundData, globalState);
         if (!should_continue_further(refundData)) {
@@ -254,7 +254,7 @@ describe("Inespay - Refund flow", () => {
         }
         const syncRefundData = getConnectorDetails(
           globalState.get("connectorId")
-        )["bank_debit_pm"]["SyncRefund"];
+        )["bank_transfer_pm"]["SyncRefund"];
         cy.syncRefundCallTest(syncRefundData, globalState);
       });
     });

@@ -1,13 +1,13 @@
 import { getCustomExchange } from "./Modifiers";
 
-// Inespay uses SEPA bank debit for payments with Spanish IBAN
-const sepaBankDebitData = {
+// Inespay uses SEPA bank transfer for payments with Spanish IBAN
+const sepaBankTransferData = {
   iban: "ES9121000418450200051332",
   bank_account_holder_name: "John Doe",
 };
 
 export const connectorDetails = {
-  bank_debit_pm: {
+  bank_transfer_pm: {
     PaymentIntent: getCustomExchange({
       Request: {
         currency: "EUR",
@@ -22,14 +22,14 @@ export const connectorDetails = {
       },
     }),
 
-    // Auto-capture SEPA bank debit payment
-    No3DSAutoCapture: getCustomExchange({
+    // Auto-capture SEPA bank transfer payment
+    SepaBankTransfer: getCustomExchange({
       Request: {
-        payment_method: "bank_debit",
-        payment_method_type: "sepa",
+        payment_method: "bank_transfer",
+        payment_method_type: "sepa_bank_transfer",
         payment_method_data: {
-          bank_debit: {
-            sepa: sepaBankDebitData,
+          bank_transfer: {
+            sepa_bank_transfer: sepaBankTransferData,
           },
         },
         currency: "EUR",
@@ -54,6 +54,41 @@ export const connectorDetails = {
       },
     }),
 
+    // No3DSAutoCapture alias for compatibility
+    No3DSAutoCapture: getCustomExchange({
+      Request: {
+        payment_method: "bank_transfer",
+        payment_method_type: "sepa_bank_transfer",
+        payment_method_data: {
+          bank_transfer: {
+            sepa_bank_transfer: sepaBankTransferData,
+          },
+        },
+        currency: "EUR",
+        billing: {
+          address: {
+            line1: "1467",
+            line2: "Harrison Street",
+            city: "San Francisco",
+            state: "California",
+            zip: "94122",
+            country: "ES",
+            first_name: "john",
+            last_name: "doe",
+          },
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+    }),
+  },
+
+  // Refund configurations remain unchanged
+  bank_debit_pm: {
     // Full refund
     Refund: getCustomExchange({
       Request: {
