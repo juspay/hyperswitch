@@ -1,11 +1,8 @@
 import * as fixtures from "../../../fixtures/imports";
-
 import State from "../../../utils/State";
-
 import getConnectorDetails, * as utils from "../../configs/Payment/Utils";
 
 let connector;
-
 let globalState;
 
 describe("[Payment] Extend Authorization", () => {
@@ -13,25 +10,19 @@ describe("[Payment] Extend Authorization", () => {
     let skip = false;
 
     cy.task("getGlobalState")
-
       .then((state) => {
         globalState = new State(state);
-
         connector = globalState.get("connectorId");
-
         // Skip the test if the connector is not in the inclusion list
-
         if (
           utils.shouldIncludeConnector(
             connector,
-
             utils.CONNECTOR_LISTS.INCLUDE.EXTEND_AUTHORIZATION
           )
         ) {
           skip = true;
         }
       })
-
       .then(() => {
         if (skip) {
           this.skip();
@@ -59,23 +50,17 @@ describe("[Payment] Extend Authorization", () => {
 
       const newData = {
         ...data,
-
         Request: {
           ...data.Request,
-
           request_extended_authorization: true,
         },
       };
 
       cy.createPaymentIntentTest(
         fixtures.createPaymentBody,
-
         newData,
-
         "no_three_ds",
-
         "manual",
-
         globalState
       );
 
@@ -103,9 +88,7 @@ describe("[Payment] Extend Authorization", () => {
 
       cy.extendAuthorizationCallTest(
         fixtures.extendAuthBody,
-
         data,
-
         globalState
       );
 
@@ -121,7 +104,6 @@ describe("[Payment] Extend Authorization", () => {
 
   context(
     "[Payment] Extend Authorization - Negative Case - Invalid Status",
-
     () => {
       let shouldContinue = true;
 
@@ -138,23 +120,17 @@ describe("[Payment] Extend Authorization", () => {
 
         const newData = {
           ...data,
-
           Request: {
             ...data.Request,
-
             request_extended_authorization: true,
           },
         };
 
         cy.createPaymentIntentTest(
           fixtures.createPaymentBody,
-
           newData,
-
           "no_three_ds",
-
           "automatic",
-
           globalState
         );
 
@@ -182,9 +158,7 @@ describe("[Payment] Extend Authorization", () => {
 
         cy.extendAuthorizationCallTest(
           fixtures.extendAuthBody,
-
           data,
-
           globalState
         );
       });
