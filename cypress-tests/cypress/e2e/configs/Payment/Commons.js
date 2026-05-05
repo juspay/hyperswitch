@@ -1734,6 +1734,86 @@ export const connectorDetails = {
         customer_acceptance: customerAcceptance,
       },
     }),
+    OrderDetails: getCustomExchange({
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "USD",
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+        order_details: [
+          {
+            product_name: "Test Product",
+            quantity: 1,
+            amount: 6000,
+          },
+        ],
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    }),
+    OrderDetailsMultipleItems: getCustomExchange({
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "USD",
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+        order_details: [
+          {
+            product_name: "Test Product 1",
+            quantity: 1,
+            amount: 3000,
+          },
+          {
+            product_name: "Test Product 2",
+            quantity: 2,
+            amount: 1500,
+          },
+        ],
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    }),
+    OrderDetailsMissingProductName: getCustomExchange({
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "USD",
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+        order_details: [
+          {
+            quantity: 1,
+            amount: 6000,
+          },
+        ],
+      },
+      Response: {
+        status: 400,
+        body: {
+          error: {
+            error_type: "invalid_request",
+            message: "Json deserialize error: missing field 'product_name'",
+            code: "IR_06",
+          },
+        },
+      },
+    }),
     InvalidCardNumber: {
       Request: {
         currency: "USD",
@@ -2497,6 +2577,74 @@ export const connectorDetails = {
           card: successfulNo3DSCardDetails,
         },
         currency: "USD",
+      },
+    }),
+    OrderDetails: getCustomExchange({
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "USD",
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+        order_details: [
+          {
+            product_name: "Test Product",
+            quantity: 1,
+            amount: 6000,
+          },
+        ],
+      },
+    }),
+    OrderDetailsMultipleItems: getCustomExchange({
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "USD",
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+        order_details: [
+          {
+            product_name: "Test Product 1",
+            quantity: 1,
+            amount: 3000,
+          },
+          {
+            product_name: "Test Product 2",
+            quantity: 2,
+            amount: 1500,
+          },
+        ],
+      },
+    }),
+    OrderDetailsMissingProductName: getCustomExchange({
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "USD",
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+        order_details: [
+          {
+            quantity: 1,
+            amount: 6000,
+          },
+        ],
+      },
+      Response: {
+        status: 400,
+        body: {
+          error: {
+            error_type: "invalid_request",
+            message: "Json deserialize error: missing field 'product_name'",
+            code: "IR_06",
+          },
+        },
       },
     }),
   },

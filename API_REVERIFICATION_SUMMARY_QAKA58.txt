@@ -1,0 +1,33 @@
+API_REVERIFICATION_SUMMARY:
+  ParentIssue: QAKA-56
+  LoopIteration: 1
+  RootCause: SPEC_DRIFT
+  FailedStep: OrderDetailsMissingProductName - All connectors
+  LiveBehaviorChanged: YES
+  KeyDiff:
+    - Field: Response.body.error.message
+      ConfigExpected: "Missing required field: product_name in order_details"
+      LiveActual: "Json deserialize error: missing field `product_name` at line 23 column 5"
+    - Field: Response.body.error.error_type
+      ConfigExpected: "invalid_request" (via error_type field)
+      LiveActual: "invalid_request" (matches - already corrected in configs)
+    - Field: Response.body.error.code
+      ConfigExpected: "IR_06"
+      LiveActual: "IR_06" (matches)
+  Recommendation: |
+    The Cypress Feasibility Agent (Mode 2) should update the expected error message
+    in all connector configs from "Missing required field: product_name in order_details"
+    to "Json deserialize error: missing field `product_name` at line X column Y".
+    Note that the line/column numbers may vary slightly depending on JSON serialization.
+    Consider using a partial string match or regex for the message assertion.
+    
+    Files to update:
+    - cypress/e2e/configs/Payment/Stripe.js (Line ~955)
+    - cypress/e2e/configs/Payment/Finix.js (Line ~775)
+    - cypress/e2e/configs/Payment/Fiuu.js (Line ~1052)
+    - cypress/e2e/configs/Payment/Adyen.js (Line ~757)
+    - cypress/e2e/configs/Payment/Authorizedotnet.js (Line ~918)
+    - cypress/e2e/configs/Payment/Cybersource.js (Line ~1173)
+    - cypress/e2e/configs/Payment/Commons.js (Lines ~1811, ~2623)
+  Verdict: READY
+  BlockedReason: NONE

@@ -749,9 +749,6 @@ export const connectorDetails = {
       },
     },
     OrderDetailsMissingProductName: {
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
       Request: {
         payment_method: "card",
         payment_method_data: {
@@ -772,7 +769,7 @@ export const connectorDetails = {
         body: {
           error: {
             error_type: "invalid_request",
-            message: "Missing required field: product_name in order_details",
+            message: "Json deserialize error: missing field 'product_name'",
             code: "IR_06",
           },
         },

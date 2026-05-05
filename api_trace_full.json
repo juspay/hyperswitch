@@ -1,0 +1,205 @@
+{
+  "trace": [
+    {
+      "step": 1,
+      "label": "Create Merchant Account",
+      "method": "POST",
+      "url": "http://localhost:8080/accounts",
+      "request_headers": {
+        "api-key": "<redacted>",
+        "Content-Type": "application/json"
+      },
+      "request_body": {
+        "merchant_id": "test_merchant_1778001211",
+        "locker_id": "m0010",
+        "merchant_name": "Test Merchant"
+      },
+      "response_status": 200,
+      "response_body": {
+        "merchant_id": "test_merchant_1778001211",
+        "merchant_name": "Test Merchant",
+        "return_url": "https://example.com/",
+        "publishable_key": "pk_dev_06e5d605397d4d428765712927299522",
+        "default_profile": "pro_8efv54iiNjthTqBANZmu"
+      }
+    },
+    {
+      "step": 2,
+      "label": "Create Merchant API Key",
+      "method": "POST",
+      "url": "http://localhost:8080/api_keys/test_merchant_1778001211",
+      "request_headers": {
+        "api-key": "<redacted>",
+        "Content-Type": "application/json"
+      },
+      "request_body": {
+        "name": "Test API Key",
+        "description": "Test key for QA pipeline",
+        "expiration": "2030-01-01T00:00:00Z"
+      },
+      "response_status": 200,
+      "response_body": {
+        "key_id": "dev_887zeoIisKQB0qhhJw7m",
+        "merchant_id": "test_merchant_1778001211",
+        "name": "Test API Key",
+        "api_key": "dev_0g2SEeHbf4Lixk3UmfLVYjUFtiV8GA9FudPKZgAROlyhr6C7wtXtBVUofzU4Pxz2"
+      }
+    },
+    {
+      "step": 3,
+      "label": "Create Customer",
+      "method": "POST",
+      "url": "http://localhost:8080/customers",
+      "request_headers": {
+        "api-key": "<redacted>",
+        "Content-Type": "application/json"
+      },
+      "request_body": {
+        "email": "test@example.com",
+        "name": "Test Customer"
+      },
+      "response_status": 200,
+      "response_body": {
+        "customer_id": "cus_DfSzF8GOfpMObB0oIXyI",
+        "email": "test@example.com",
+        "name": "Test Customer"
+      }
+    },
+    {
+      "step": 4,
+      "label": "Create and Confirm Payment with Single Order Details",
+      "method": "POST",
+      "url": "http://localhost:8080/payments",
+      "request_headers": {
+        "api-key": "<redacted>",
+        "Content-Type": "application/json"
+      },
+      "request_body": {
+        "amount": 6000,
+        "currency": "USD",
+        "confirm": true,
+        "capture_method": "automatic",
+        "customer_id": "cus_DfSzF8GOfpMObB0oIXyI",
+        "payment_method": "card",
+        "payment_method_type": "credit",
+        "authentication_type": "no_three_ds",
+        "payment_method_data": {
+          "card": {
+            "card_number": "4111111111111111",
+            "card_exp_month": "03",
+            "card_exp_year": "30",
+            "card_holder_name": "John Doe",
+            "card_cvc": "737"
+          }
+        },
+        "order_details": [
+          {
+            "product_name": "Test Product",
+            "quantity": 1,
+            "amount": 6000
+          }
+        ]
+      },
+      "response_status": 200,
+      "response_body": {
+        "error": {
+          "type": "invalid_request",
+          "message": "No eligible connector was found for the current payment method configuration",
+          "code": "IR_39"
+        }
+      }
+    },
+    {
+      "step": 5,
+      "label": "Create and Confirm Payment with Multiple Order Details",
+      "method": "POST",
+      "url": "http://localhost:8080/payments",
+      "request_headers": {
+        "api-key": "<redacted>",
+        "Content-Type": "application/json"
+      },
+      "request_body": {
+        "amount": 10000,
+        "currency": "USD",
+        "confirm": true,
+        "capture_method": "automatic",
+        "customer_id": "cus_DfSzF8GOfpMObB0oIXyI",
+        "payment_method": "card",
+        "payment_method_type": "credit",
+        "authentication_type": "no_three_ds",
+        "payment_method_data": {
+          "card": {
+            "card_number": "4111111111111111",
+            "card_exp_month": "03",
+            "card_exp_year": "30",
+            "card_holder_name": "John Doe",
+            "card_cvc": "737"
+          }
+        },
+        "order_details": [
+          {
+            "product_name": "Test Product 1",
+            "quantity": 2,
+            "amount": 5000
+          },
+          {
+            "product_name": "Test Product 2",
+            "quantity": 1,
+            "amount": 5000
+          }
+        ]
+      },
+      "response_status": 200,
+      "response_body": {
+        "error": {
+          "type": "invalid_request",
+          "message": "No eligible connector was found for the current payment method configuration",
+          "code": "IR_39"
+        }
+      }
+    },
+    {
+      "step": 6,
+      "label": "Create and Confirm Payment with Missing product_name (Validation Test)",
+      "method": "POST",
+      "url": "http://localhost:8080/payments",
+      "request_headers": {
+        "api-key": "<redacted>",
+        "Content-Type": "application/json"
+      },
+      "request_body": {
+        "amount": 6000,
+        "currency": "USD",
+        "confirm": true,
+        "capture_method": "automatic",
+        "customer_id": "cus_DfSzF8GOfpMObB0oIXyI",
+        "payment_method": "card",
+        "payment_method_type": "credit",
+        "authentication_type": "no_three_ds",
+        "payment_method_data": {
+          "card": {
+            "card_number": "4111111111111111",
+            "card_exp_month": "03",
+            "card_exp_year": "30",
+            "card_holder_name": "John Doe",
+            "card_cvc": "737"
+          }
+        },
+        "order_details": [
+          {
+            "quantity": 1,
+            "amount": 6000
+          }
+        ]
+      },
+      "response_status": 400,
+      "response_body": {
+        "error": {
+          "error_type": "invalid_request",
+          "message": "Json deserialize error: missing field `product_name` at line 23 column 7",
+          "code": "IR_06"
+        }
+      }
+    }
+  ]
+}

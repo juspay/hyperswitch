@@ -1,0 +1,243 @@
+{
+  "trace": [
+    {
+      "step": 1,
+      "label": "OrderDetailsMissingProductName - stripe",
+      "method": "POST",
+      "url": "http://localhost:8080/payments",
+      "request_headers": {
+        "Content-Type": "application/json",
+        "api-key": "<redacted>"
+      },
+      "request_body": {
+  "amount": 6000,
+  "currency": "USD",
+  "confirm": true,
+  "capture_method": "automatic",
+  "customer_id": "cus_DfSzF8GOfpMObB0oIXyI",
+  "payment_method": "card",
+  "payment_method_type": "credit",
+  "authentication_type": "no_three_ds",
+  "payment_method_data": {
+    "card": {
+      "card_number": "4111111111111111",
+      "card_exp_month": "03",
+      "card_exp_year": "30",
+      "card_holder_name": "Test User",
+      "card_cvc": "737"
+    }
+  },
+  "order_details": [
+    {
+      "quantity": 1,
+      "amount": 6000
+    }
+  ]
+},
+      "response_status": 400,
+      "response_body": {"error":{"error_type":"invalid_request","message":"Json deserialize error: missing field `product_name` at line 23 column 5","code":"IR_06"}},
+      "connector": "stripe"
+    }
+,
+    {
+      "step": 2,
+      "label": "OrderDetailsMissingProductName - finix",
+      "method": "POST",
+      "url": "http://localhost:8080/payments",
+      "request_headers": {
+        "Content-Type": "application/json",
+        "api-key": "<redacted>"
+      },
+      "request_body": {
+  "amount": 6000,
+  "currency": "USD",
+  "confirm": true,
+  "capture_method": "automatic",
+  "customer_id": "cus_DfSzF8GOfpMObB0oIXyI",
+  "payment_method": "card",
+  "payment_method_type": "credit",
+  "authentication_type": "no_three_ds",
+  "payment_method_data": {
+    "card": {
+      "card_number": "4111111111111111",
+      "card_exp_month": "03",
+      "card_exp_year": "30",
+      "card_holder_name": "Test User",
+      "card_cvc": "737"
+    }
+  },
+  "order_details": [
+    {
+      "quantity": 1,
+      "amount": 6000
+    }
+  ]
+},
+      "response_status": 400,
+      "response_body": {"error":{"error_type":"invalid_request","message":"Json deserialize error: missing field `product_name` at line 23 column 5","code":"IR_06"}},
+      "connector": "finix"
+    }
+,
+    {
+      "step": 3,
+      "label": "OrderDetailsMissingProductName - fiuu",
+      "method": "POST",
+      "url": "http://localhost:8080/payments",
+      "request_headers": {
+        "Content-Type": "application/json",
+        "api-key": "<redacted>"
+      },
+      "request_body": {
+  "amount": 6000,
+  "currency": "USD",
+  "confirm": true,
+  "capture_method": "automatic",
+  "customer_id": "cus_DfSzF8GOfpMObB0oIXyI",
+  "payment_method": "card",
+  "payment_method_type": "credit",
+  "authentication_type": "no_three_ds",
+  "payment_method_data": {
+    "card": {
+      "card_number": "4111111111111111",
+      "card_exp_month": "03",
+      "card_exp_year": "30",
+      "card_holder_name": "Test User",
+      "card_cvc": "737"
+    }
+  },
+  "order_details": [
+    {
+      "quantity": 1,
+      "amount": 6000
+    }
+  ]
+},
+      "response_status": 400,
+      "response_body": {"error":{"error_type":"invalid_request","message":"Json deserialize error: missing field `product_name` at line 23 column 5","code":"IR_06"}},
+      "connector": "fiuu"
+    }
+,
+    {
+      "step": 4,
+      "label": "OrderDetailsMissingProductName - adyen",
+      "method": "POST",
+      "url": "http://localhost:8080/payments",
+      "request_headers": {
+        "Content-Type": "application/json",
+        "api-key": "<redacted>"
+      },
+      "request_body": {
+  "amount": 6000,
+  "currency": "USD",
+  "confirm": true,
+  "capture_method": "automatic",
+  "customer_id": "cus_DfSzF8GOfpMObB0oIXyI",
+  "payment_method": "card",
+  "payment_method_type": "credit",
+  "authentication_type": "no_three_ds",
+  "payment_method_data": {
+    "card": {
+      "card_number": "4111111111111111",
+      "card_exp_month": "03",
+      "card_exp_year": "30",
+      "card_holder_name": "Test User",
+      "card_cvc": "737"
+    }
+  },
+  "order_details": [
+    {
+      "quantity": 1,
+      "amount": 6000
+    }
+  ]
+},
+      "response_status": 400,
+      "response_body": {"error":{"error_type":"invalid_request","message":"Json deserialize error: missing field `product_name` at line 23 column 5","code":"IR_06"}},
+      "connector": "adyen"
+    }
+,
+    {
+      "step": 5,
+      "label": "OrderDetailsMissingProductName - authorizedotnet",
+      "method": "POST",
+      "url": "http://localhost:8080/payments",
+      "request_headers": {
+        "Content-Type": "application/json",
+        "api-key": "<redacted>"
+      },
+      "request_body": {
+  "amount": 6000,
+  "currency": "USD",
+  "confirm": true,
+  "capture_method": "automatic",
+  "customer_id": "cus_DfSzF8GOfpMObB0oIXyI",
+  "payment_method": "card",
+  "payment_method_type": "credit",
+  "authentication_type": "no_three_ds",
+  "payment_method_data": {
+    "card": {
+      "card_number": "4111111111111111",
+      "card_exp_month": "03",
+      "card_exp_year": "30",
+      "card_holder_name": "Test User",
+      "card_cvc": "737"
+    }
+  },
+  "order_details": [
+    {
+      "quantity": 1,
+      "amount": 6000
+    }
+  ]
+},
+      "response_status": 400,
+      "response_body": {"error":{"error_type":"invalid_request","message":"Json deserialize error: missing field `product_name` at line 23 column 5","code":"IR_06"}},
+      "connector": "authorizedotnet"
+    }
+,
+    {
+      "step": 6,
+      "label": "OrderDetailsMissingProductName - cybersource",
+      "method": "POST",
+      "url": "http://localhost:8080/payments",
+      "request_headers": {
+        "Content-Type": "application/json",
+        "api-key": "<redacted>"
+      },
+      "request_body": {
+  "amount": 6000,
+  "currency": "USD",
+  "confirm": true,
+  "capture_method": "automatic",
+  "customer_id": "cus_DfSzF8GOfpMObB0oIXyI",
+  "payment_method": "card",
+  "payment_method_type": "credit",
+  "authentication_type": "no_three_ds",
+  "payment_method_data": {
+    "card": {
+      "card_number": "4111111111111111",
+      "card_exp_month": "03",
+      "card_exp_year": "30",
+      "card_holder_name": "Test User",
+      "card_cvc": "737"
+    }
+  },
+  "order_details": [
+    {
+      "quantity": 1,
+      "amount": 6000
+    }
+  ]
+},
+      "response_status": 400,
+      "response_body": {"error":{"error_type":"invalid_request","message":"Json deserialize error: missing field `product_name` at line 23 column 5","code":"IR_06"}},
+      "connector": "cybersource"
+    }
+
+  ],
+  "summary": {
+    "test": "OrderDetailsMissingProductName",
+    "connectors_tested": ["stripe", "finix", "fiuu", "adyen", "authorizedotnet", "cybersource"],
+    "timestamp": "2026-05-05T18:25:41Z"
+  }
+}

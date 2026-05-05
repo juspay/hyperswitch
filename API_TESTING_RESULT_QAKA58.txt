@@ -1,0 +1,35 @@
+API_TESTING_RESULT:
+  Flow: OrderDetailsMissingProductName
+  NewCypressFlow: FALSE
+  PaymentMethodSection: card_pm
+  ConfigKeys:
+    - OrderDetailsMissingProductName: ResponseCustom=NOT_REQUIRED
+  APISequence:
+    1. POST /payments - Create and confirm payment with missing product_name
+  Issues: |
+    SPEC_DRIFT - Error message mismatch detected across all 6 connectors.
+    
+    Current API behavior returns:
+      Status: 400
+      body.error.error_type: "invalid_request"
+      body.error.code: "IR_06"
+      body.error.message: "Json deserialize error: missing field `product_name` at line 23 column 5"
+    
+    Config expectation was:
+      Status: 400
+      body.error.type: "invalid_request"
+      body.error.code: "IR_06"
+      body.error.message: "Missing required field: product_name in order_details"
+    
+    Key differences:
+      1. error.error_type vs error.type (already fixed in configs per TEST_GENERATION_RESULT)
+      2. Message content differs: "Json deserialize error..." vs "Missing required field..."
+  AutomationReadiness: READY
+  BlockedReason: NONE
+  Notes: |
+    All 6 failing connectors (stripe, finix, fiuu, adyen, authorizedotnet, cybersource) 
+    exhibit IDENTICAL API behavior. The live API consistently returns IR_06 with 
+    "Json deserialize error" message format, NOT "Missing required field" format.
+    
+    The Cypress specs already have the correct error_type path. The remaining 
+    discrepancy is the error message content expectation in the test assertions.

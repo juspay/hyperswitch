@@ -952,7 +952,7 @@ export const connectorDetails = {
         body: {
           error: {
             error_type: "invalid_request",
-            message: "Missing required field: product_name in order_details",
+            message: "Json deserialize error: missing field 'product_name'",
             code: "IR_06",
           },
         },

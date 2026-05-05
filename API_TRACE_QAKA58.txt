@@ -1,0 +1,258 @@
+API_TRACE:
+  - Step: 1
+    Label: OrderDetailsMissingProductName - Stripe
+    Method: POST
+    URL: http://localhost:8080/payments
+    RequestHeaders:
+      Content-Type: application/json
+      api-key: <redacted>
+    RequestBody: |
+      {
+        "amount": 6000,
+        "currency": "USD",
+        "confirm": true,
+        "capture_method": "automatic",
+        "customer_id": "cus_DfSzF8GOfpMObB0oIXyI",
+        "payment_method": "card",
+        "payment_method_type": "credit",
+        "authentication_type": "no_three_ds",
+        "payment_method_data": {
+          "card": {
+            "card_number": "4111111111111111",
+            "card_exp_month": "03",
+            "card_exp_year": "30",
+            "card_holder_name": "Test User",
+            "card_cvc": "737"
+          }
+        },
+        "order_details": [
+          {
+            "quantity": 1,
+            "amount": 6000
+          }
+        ]
+      }
+    ResponseStatus: 400
+    ResponseBody: |
+      {
+        "error": {
+          "error_type": "invalid_request",
+          "message": "Json deserialize error: missing field `product_name` at line 23 column 5",
+          "code": "IR_06"
+        }
+      }
+
+  - Step: 2
+    Label: OrderDetailsMissingProductName - Finix
+    Method: POST
+    URL: http://localhost:8080/payments
+    RequestHeaders:
+      Content-Type: application/json
+      api-key: <redacted>
+    RequestBody: |
+      {
+        "amount": 6000,
+        "currency": "USD",
+        "confirm": true,
+        "capture_method": "automatic",
+        "customer_id": "cus_DfSzF8GOfpMObB0oIXyI",
+        "payment_method": "card",
+        "payment_method_type": "credit",
+        "authentication_type": "no_three_ds",
+        "payment_method_data": {
+          "card": {
+            "card_number": "4111111111111111",
+            "card_exp_month": "03",
+            "card_exp_year": "30",
+            "card_holder_name": "Test User",
+            "card_cvc": "737"
+          }
+        },
+        "order_details": [
+          {
+            "quantity": 1,
+            "amount": 6000
+          }
+        ]
+      }
+    ResponseStatus: 400
+    ResponseBody: |
+      {
+        "error": {
+          "error_type": "invalid_request",
+          "message": "Json deserialize error: missing field `product_name` at line 23 column 5",
+          "code": "IR_06"
+        }
+      }
+
+  - Step: 3
+    Label: OrderDetailsMissingProductName - Fiuu
+    Method: POST
+    URL: http://localhost:8080/payments
+    RequestHeaders:
+      Content-Type: application/json
+      api-key: <redacted>
+    RequestBody: |
+      {
+        "amount": 6000,
+        "currency": "USD",
+        "confirm": true,
+        "capture_method": "automatic",
+        "customer_id": "cus_DfSzF8GOfpMObB0oIXyI",
+        "payment_method": "card",
+        "payment_method_type": "credit",
+        "authentication_type": "no_three_ds",
+        "payment_method_data": {
+          "card": {
+            "card_number": "4111111111111111",
+            "card_exp_month": "03",
+            "card_exp_year": "30",
+            "card_holder_name": "Test User",
+            "card_cvc": "737"
+          }
+        },
+        "order_details": [
+          {
+            "quantity": 1,
+            "amount": 6000
+          }
+        ]
+      }
+    ResponseStatus: 400
+    ResponseBody: |
+      {
+        "error": {
+          "error_type": "invalid_request",
+          "message": "Json deserialize error: missing field `product_name` at line 23 column 5",
+          "code": "IR_06"
+        }
+      }
+
+  - Step: 4
+    Label: OrderDetailsMissingProductName - Adyen
+    Method: POST
+    URL: http://localhost:8080/payments
+    RequestHeaders:
+      Content-Type: application/json
+      api-key: <redacted>
+    RequestBody: |
+      {
+        "amount": 6000,
+        "currency": "USD",
+        "confirm": true,
+        "capture_method": "automatic",
+        "customer_id": "cus_DfSzF8GOfpMObB0oIXyI",
+        "payment_method": "card",
+        "payment_method_type": "credit",
+        "authentication_type": "no_three_ds",
+        "payment_method_data": {
+          "card": {
+            "card_number": "4111111111111111",
+            "card_exp_month": "03",
+            "card_exp_year": "30",
+            "card_holder_name": "Test User",
+            "card_cvc": "737"
+          }
+        },
+        "order_details": [
+          {
+            "quantity": 1,
+            "amount": 6000
+          }
+        ]
+      }
+    ResponseStatus: 400
+    ResponseBody: |
+      {
+        "error": {
+          "error_type": "invalid_request",
+          "message": "Json deserialize error: missing field `product_name` at line 23 column 5",
+          "code": "IR_06"
+        }
+      }
+
+  - Step: 5
+    Label: OrderDetailsMissingProductName - Authorizedotnet
+    Method: POST
+    URL: http://localhost:8080/payments
+    RequestHeaders:
+      Content-Type: application/json
+      api-key: <redacted>
+    RequestBody: |
+      {
+        "amount": 6000,
+        "currency": "USD",
+        "confirm": true,
+        "capture_method": "automatic",
+        "customer_id": "cus_DfSzF8GOfpMObB0oIXyI",
+        "payment_method": "card",
+        "payment_method_type": "credit",
+        "authentication_type": "no_three_ds",
+        "payment_method_data": {
+          "card": {
+            "card_number": "4111111111111111",
+            "card_exp_month": "03",
+            "card_exp_year": "30",
+            "card_holder_name": "Test User",
+            "card_cvc": "737"
+          }
+        },
+        "order_details": [
+          {
+            "quantity": 1,
+            "amount": 6000
+          }
+        ]
+      }
+    ResponseStatus: 400
+    ResponseBody: |
+      {
+        "error": {
+          "error_type": "invalid_request",
+          "message": "Json deserialize error: missing field `product_name` at line 23 column 5",
+          "code": "IR_06"
+        }
+      }
+
+  - Step: 6
+    Label: OrderDetailsMissingProductName - Cybersource
+    Method: POST
+    URL: http://localhost:8080/payments
+    RequestHeaders:
+      Content-Type: application/json
+      api-key: <redacted>
+    RequestBody: |
+      {
+        "amount": 6000,
+        "currency": "USD",
+        "confirm": true,
+        "capture_method": "automatic",
+        "customer_id": "cus_DfSzF8GOfpMObB0oIXyI",
+        "payment_method": "card",
+        "payment_method_type": "credit",
+        "authentication_type": "no_three_ds",
+        "payment_method_data": {
+          "card": {
+            "card_number": "4111111111111111",
+            "card_exp_month": "03",
+            "card_exp_year": "30",
+            "card_holder_name": "Test User",
+            "card_cvc": "737"
+          }
+        },
+        "order_details": [
+          {
+            "quantity": 1,
+            "amount": 6000
+          }
+        ]
+      }
+    ResponseStatus: 400
+    ResponseBody: |
+      {
+        "error": {
+          "error_type": "invalid_request",
+          "message": "Json deserialize error: missing field `product_name` at line 23 column 5",
+          "code": "IR_06"
+        }
+      }
