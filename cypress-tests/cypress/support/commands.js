@@ -5230,12 +5230,28 @@ Cypress.Commands.add(
     cy.request({
       method: "PUT",
       url: `${globalState.get("baseUrl")}/routing/decision/surcharge`,
+  "evaluateRoutingRule",
+  (data, evaluate_params, globalState) => {
+    const { Response: resData } = data || {};
+    const profileId = globalState.get("profileId");
+    // expectedConnector is passed via evaluate_params to avoid mutating the shared data object
+    const expectedConnector = evaluate_params.expectedConnector;
+
+    cy.request({
+      method: "POST",
+      url: `${globalState.get("baseUrl")}/routing/rule/evaluate`,
       headers: {
         "api-key": globalState.get("apiKey"),
         "Content-Type": "application/json",
       },
       body: surchargeBody,
       failOnStatusCode: false,
+      failOnStatusCode: false,
+      body: {
+        created_by: profileId,
+        parameters: evaluate_params.parameters,
+        fallback_output: evaluate_params.fallback_output || [],
+      },
     }).then((response) => {
       logRequestId(response.headers["x-request-id"]);
 
@@ -5247,6 +5263,19 @@ Cypress.Commands.add(
           for (const key in resData.body) {
             expect(resData.body[key]).to.deep.equal(response.body[key]);
           }
+          expect(response.body).to.have.property("status", "success");
+          expect(response.body).to.have.property("evaluated_output");
+          expect(response.body).to.have.property("eligible_connectors");
+          expect(response.body.evaluated_output).to.be.an("array");
+
+          if (expectedConnector) {
+            const connectors = response.body.evaluated_output.map(
+              (c) => c.connector
+            );
+            expect(connectors).to.include(expectedConnector);
+          }
+
+          globalState.set("routingEvaluateResult", response.body);
         } else {
           defaultErrorHandler(response, resData);
         }
