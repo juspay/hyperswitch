@@ -1120,6 +1120,7 @@ pub struct PaymentsSyncData {
     pub connector_reference_id: Option<String>,
     pub setup_future_usage: Option<storage_enums::FutureUsage>,
     pub feature_metadata: Option<api_models::payments::FeatureMetadata>,
+    pub connector_mandate_id: Option<String>,
 }
 
 #[derive(Debug, Default, Clone, Serialize)]

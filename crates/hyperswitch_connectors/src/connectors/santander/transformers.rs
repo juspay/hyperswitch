@@ -159,12 +159,14 @@ impl
             .unwrap_or(AttemptStatus::Pending);
         let resource_id =
             ResponseId::ConnectorTransactionId(item.data.connector_request_reference_id.clone());
-        let connector_response_reference_id = Some(item.response.id_rec.clone().expose());
+        let connector_response_reference_id = Some(item.response.id_solic_rec.clone().expose());
         let mandate_reference = Some(MandateReference {
             connector_mandate_id: Some(item.response.id_rec.clone().expose()),
             payment_method_id: None,
             mandate_metadata: None,
-            connector_mandate_request_reference_id: Some(item.response.id_solic_rec.expose()),
+            connector_mandate_request_reference_id: Some(
+                item.response.id_solic_rec.clone().expose(),
+            ),
         });
 
         Ok(Self {
@@ -232,7 +234,6 @@ impl
         }));
         let resource_id =
             ResponseId::ConnectorTransactionId(item.data.connector_request_reference_id.clone());
-        let connector_response_reference_id = Some(item.response.id_rec.clone().expose());
 
         Ok(Self {
             status,
@@ -242,7 +243,7 @@ impl
                 mandate_reference,
                 connector_metadata,
                 network_txn_id: None,
-                connector_response_reference_id,
+                connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
                 authentication_data: None,
                 charges: None,
@@ -1219,21 +1220,36 @@ impl<F, T> TryFrom<ResponseRouterData<F, SantanderPaymentsSyncResponse, T, Payme
                                     .change_context(errors::ConnectorError::ParsingFailed)
                             })
                             .transpose()?;
-                        Ok(Self {
-                            status: AttemptStatus::from(pix_data.status),
-                            response: Ok(PaymentsResponseData::TransactionResponse {
+                        // Preserve existing `TransactionResponse` fields and only update `resource_id` and `connector_metadata`
+                        let response = match item.data.response.clone() {
+                            Ok(PaymentsResponseData::TransactionResponse {
+                                redirection_data,
+                                mandate_reference,
+                                network_txn_id,
+                                connector_response_reference_id,
+                                incremental_authorization_allowed,
+                                authentication_data,
+                                charges,
+                                ..
+                            }) => Ok(PaymentsResponseData::TransactionResponse {
                                 resource_id: ResponseId::ConnectorTransactionId(
                                     pix_data.txid.clone(),
                                 ),
-                                redirection_data: Box::new(None),
-                                mandate_reference: Box::new(None),
+                                redirection_data,
+                                mandate_reference,
                                 connector_metadata,
-                                network_txn_id: None,
-                                connector_response_reference_id: None,
-                                incremental_authorization_allowed: None,
-                                authentication_data: None,
-                                charges: None,
+                                network_txn_id,
+                                connector_response_reference_id,
+                                incremental_authorization_allowed,
+                                authentication_data,
+                                charges,
                             }),
+                            other => other,
+                        };
+
+                        Ok(Self {
+                            status: AttemptStatus::from(pix_data.status),
+                            response,
                             ..item.data
                         })
                     }
@@ -1454,7 +1470,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, SantanderPaymentsResponse, T, PaymentsR
                         })),
                         connector_metadata: None,
                         network_txn_id: None,
-                        connector_response_reference_id: Some(cobr_data.id_rec.clone().expose()),
+                        connector_response_reference_id: None,
                         incremental_authorization_allowed: None,
                         authentication_data: None,
                         charges: None,
@@ -2278,12 +2294,6 @@ impl<F>
             PaymentsResponseData,
         >,
     ) -> Result<Self, Self::Error> {
-        if !matches!(router_env::env::which(), router_env::env::Env::Production) {
-            router_env::logger::info!(
-                "Santander Recurrence Id: {:?}",
-                item.response.id_rec.clone().expose()
-            );
-        }
         Ok(Self {
             status: AttemptStatus::from(item.response.status.clone()),
             response: Ok(PaymentsResponseData::TransactionResponse {
