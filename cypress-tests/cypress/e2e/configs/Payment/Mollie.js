@@ -846,6 +846,9 @@ export const connectorDetails = {
       };
     },
     SepaDebit: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
       Request: {
         payment_method: "bank_debit",
         payment_method_type: "sepa",
@@ -868,7 +871,8 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "succeeded",
+          status: "failed",
+          error_message: "webhookUrl",
         },
       },
     },
