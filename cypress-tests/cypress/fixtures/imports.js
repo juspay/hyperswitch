@@ -27,6 +27,7 @@ import ntidConfirmBody from "./create-ntid-mit.json";
 import blocklistCreateBody from "./blocklist-create-body.json";
 import pmCollectLinkBody from "./pm-collect-link-body.json";
 import disputeEvidenceBody from "./dispute-evidence-body.json";
+import cardLimitedDataMITBody from "./create-card-limited-data-mit.json";
 import eligibilityCheckBody from "./eligibility-check-body.json";
 import * as IncomingWebhookBody from "./webhooks/import";
 import customerCreate from "./modularPmService/modularPmServiceCustomerCreate.json";
@@ -34,7 +35,7 @@ import paymentMethodCreate from "./modularPmService/modular-pm-service-pm-create
 import paymentMethodUpdate from "./modularPmService/modular-pm-service-pm-update.json";
 import paymentMethodSessionCreate from "./modularPmService/modular-pm-service-pms-create.json";
 import paymentMethodSessionUpdate from "./modularPmService/modular-pm-service-update-pms-saved-pm.json";
-import paymentMethodSessionConfirm from "./modularPmService/modular-pm-service-pms-confim.json";
+import paymentMethodSessionConfirm from "./modularPmService/modular-pm-service-pms-confirm.json";
 import modularPmServicePaymentsCall from "./modularPmService/modular-pm-service-payments-call.json";
 export {
   apiKeyCreateBody,
@@ -42,6 +43,7 @@ export {
   blocklistCreateBody,
   businessProfile,
   captureBody,
+  cardLimitedDataMITBody,
   citConfirmBody,
   configs,
   confirmBody,
