@@ -16,7 +16,10 @@ describe("Surcharge DSL Configuration Test", () => {
 
   context("Surcharge DSL with rate-based default selection", () => {
     it("create-surcharge-dsl-config-rate", () => {
-      const data = utils.getConnectorDetails("common")["SurchargeDecisionManager"]["Create"];
+      const data =
+        utils.getConnectorDetails("common")["SurchargeDecisionManager"][
+          "Create"
+        ];
       const surchargeBody = {
         name: "surcharge_config_rate",
         merchant_surcharge_configs: {},
@@ -35,19 +38,28 @@ describe("Surcharge DSL Configuration Test", () => {
     });
 
     it("retrieve-surcharge-dsl-config", () => {
-      const data = utils.getConnectorDetails("common")["SurchargeDecisionManager"]["Retrieve"];
+      const data =
+        utils.getConnectorDetails("common")["SurchargeDecisionManager"][
+          "Retrieve"
+        ];
 
       cy.retrieveSurchargeDSLConfig(data, globalState);
     });
 
     it("delete-surcharge-dsl-config", () => {
-      const data = utils.getConnectorDetails("common")["SurchargeDecisionManager"]["Delete"];
+      const data =
+        utils.getConnectorDetails("common")["SurchargeDecisionManager"][
+          "Delete"
+        ];
 
       cy.deleteSurchargeDSLConfig(data, globalState);
     });
 
     it("verify-delete-by-retrieve-empty", () => {
-      const data = utils.getConnectorDetails("common")["SurchargeDecisionManager"]["Retrieve"];
+      const data =
+        utils.getConnectorDetails("common")["SurchargeDecisionManager"][
+          "Retrieve"
+        ];
 
       cy.retrieveSurchargeDSLConfig(data, globalState);
     });
@@ -55,7 +67,10 @@ describe("Surcharge DSL Configuration Test", () => {
 
   context("Surcharge DSL with fixed amount default selection", () => {
     it("create-surcharge-dsl-config-fixed", () => {
-      const data = utils.getConnectorDetails("common")["SurchargeDecisionManager"]["Create"];
+      const data =
+        utils.getConnectorDetails("common")["SurchargeDecisionManager"][
+          "Create"
+        ];
       const surchargeBody = {
         name: "surcharge_config_fixed",
         merchant_surcharge_configs: {},
@@ -74,13 +89,19 @@ describe("Surcharge DSL Configuration Test", () => {
     });
 
     it("retrieve-surcharge-dsl-config-fixed", () => {
-      const data = utils.getConnectorDetails("common")["SurchargeDecisionManager"]["Retrieve"];
+      const data =
+        utils.getConnectorDetails("common")["SurchargeDecisionManager"][
+          "Retrieve"
+        ];
 
       cy.retrieveSurchargeDSLConfig(data, globalState);
     });
 
     it("delete-surcharge-dsl-config-fixed", () => {
-      const data = utils.getConnectorDetails("common")["SurchargeDecisionManager"]["Delete"];
+      const data =
+        utils.getConnectorDetails("common")["SurchargeDecisionManager"][
+          "Delete"
+        ];
 
       cy.deleteSurchargeDSLConfig(data, globalState);
     });
@@ -88,7 +109,10 @@ describe("Surcharge DSL Configuration Test", () => {
 
   context("Surcharge DSL with conditional rules", () => {
     it("create-surcharge-dsl-config-with-rules", () => {
-      const data = utils.getConnectorDetails("common")["SurchargeDecisionManager"]["Create"];
+      const data =
+        utils.getConnectorDetails("common")["SurchargeDecisionManager"][
+          "Create"
+        ];
       const surchargeBody = {
         name: "surcharge_config_rules",
         merchant_surcharge_configs: {},
@@ -130,13 +154,19 @@ describe("Surcharge DSL Configuration Test", () => {
     });
 
     it("retrieve-surcharge-dsl-config-with-rules", () => {
-      const data = utils.getConnectorDetails("common")["SurchargeDecisionManager"]["Retrieve"];
+      const data =
+        utils.getConnectorDetails("common")["SurchargeDecisionManager"][
+          "Retrieve"
+        ];
 
       cy.retrieveSurchargeDSLConfig(data, globalState);
     });
 
     it("delete-surcharge-dsl-config-with-rules", () => {
-      const data = utils.getConnectorDetails("common")["SurchargeDecisionManager"]["Delete"];
+      const data =
+        utils.getConnectorDetails("common")["SurchargeDecisionManager"][
+          "Delete"
+        ];
 
       cy.deleteSurchargeDSLConfig(data, globalState);
     });
