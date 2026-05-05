@@ -444,7 +444,7 @@ jobs:
 
   prepare-extended-matrix:
     name: Prepare Extended Connectors matrix to run cypress tests
-    if: github.event_name == 'merge_group'
+    if: env.RUN_TESTS == 'true'
     runs-on: ubuntu-latest
     outputs:
       extended-matrix: ${{ steps.set-extended-matrix.outputs.matrix }}
@@ -489,7 +489,7 @@ jobs:
   extended-cypress-tests:
     name: Run extended Cypress tests
     needs: [build-hyperswitch, prepare-extended-matrix]
-    if: github.event_name == 'merge_group'
+    if: env.RUN_TESTS == 'true'
     runs-on: hyperswitch-runners
     strategy:
       fail-fast: false
@@ -673,14 +673,21 @@ jobs:
     name: Extended Cypress Tests — Consolidated Result
     needs: [extended-cypress-tests]
     runs-on: ubuntu-latest
-    if: ${{ github.event_name == 'merge_group' && !cancelled() }}
+    if: ${{ !cancelled() }}
     steps:
       - name: Evaluate Matrix Results
         shell: bash
         run: |
           RESULT="${{ needs.extended-cypress-tests.result }}"
+          RUN_TESTS_VAL="${{ env.RUN_TESTS }}"
 
           echo "extended-cypress-tests result: $RESULT"
+          echo "Run tests env: $RUN_TESTS_VAL"
+
+          if [ "$RUN_TESTS_VAL" == "false" ]; then
+            echo "Tests were skipped (Fork PR). Marking as success."
+            exit 0
+          fi
 
           if [ "$RESULT" == "success" ]; then
             echo "All extended cypress tests passed."
