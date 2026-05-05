@@ -2605,10 +2605,9 @@ pub async fn should_execute_based_on_rollout(
 /// for the first key found in the config table. Falls back to default if none found.
 ///
 /// Key precedence (highest → lowest):
-/// 1. `ucs_rollout_config_<merchant_id>_<connector>_...`          — merchant + connector
-/// 2. `ucs_rollout_config_<org_id>_<merchant_id>_<connector>_...` — org + merchant + connector
-/// 3. `ucs_rollout_config_<org_id>_<merchant_id>`                  — org + merchant
-/// 4. `ucs_rollout_config_<org_id>`                                — org level
+/// 1. `ucs_rollout_config_<org_id>_<merchant_id>_<connector>_...` — org + merchant + connector
+/// 2. `ucs_rollout_config_<org_id>_<merchant_id>`                  — org + merchant
+/// 3. `ucs_rollout_config_<org_id>`                                — org level
 pub async fn should_execute_based_on_rollout_with_precedence(
     state: &SessionState,
     // Keys in ascending precedence order (lowest first, highest last)
@@ -2643,6 +2642,58 @@ pub async fn should_execute_based_on_rollout_with_precedence(
     // No key found at any level — caller will apply default execution mode
     logger::debug!("No rollout config found at any precedence level, using default execution mode");
     Ok(RolloutExecutionResult::default())
+}
+
+/// Valid execution modes for the global default config (`ucs_rollout_config_default`).
+/// Only `Shadow` and `NotApplicable` are accepted here — `Primary` is not a valid global default.
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum DefaultExecutionMode {
+    Shadow,
+    NotApplicable,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct DefaultExecutionModeConfig {
+    pub execution_mode: DefaultExecutionMode,
+}
+
+/// Looks up `ucs_rollout_config_default` from the config table.
+/// Returns the configured `ExecutionMode` if present and valid.
+/// Returns `None` if the key is absent — callers should then fall back to `NotApplicable`.
+pub async fn get_default_execution_mode(
+    state: &SessionState,
+) -> RouterResult<Option<ExecutionMode>> {
+    let key = crate::consts::UCS_DEFAULT_EXECUTION_MODE_KEY;
+    match state.store.find_config_by_key(key).await {
+        Ok(config_row) => {
+            match serde_json::from_str::<DefaultExecutionModeConfig>(&config_row.config) {
+                Ok(default_config) => {
+                    let mode = match default_config.execution_mode {
+                        DefaultExecutionMode::Shadow => ExecutionMode::Shadow,
+                        DefaultExecutionMode::NotApplicable => ExecutionMode::NotApplicable,
+                    };
+                    logger::info!(
+                        execution_mode = ?mode,
+                        "Using default execution mode from config table"
+                    );
+                    Ok(Some(mode))
+                }
+                Err(err) => {
+                    logger::error!(
+                        error = ?err,
+                        config = %config_row.config,
+                        "Failed to parse ucs_rollout_config_default. Falling back to NotApplicable."
+                    );
+                    Ok(None)
+                }
+            }
+        }
+        Err(_) => {
+            logger::debug!("ucs_rollout_config_default not set, falling back to NotApplicable");
+            Ok(None)
+        }
+    }
 }
 
 pub fn determine_standard_vault_action(

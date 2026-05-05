@@ -46,7 +46,8 @@ use crate::{
         errors::{self, RouterResult},
         payments::{
             helpers::{
-                is_ucs_enabled, should_execute_based_on_rollout_with_precedence,
+                get_default_execution_mode, is_ucs_enabled,
+                should_execute_based_on_rollout_with_precedence,
                 MerchantConnectorAccountType,
                 ProxyOverride,
             },
@@ -389,12 +390,15 @@ where
             | CallConnectorAction::HandleResponseWithoutBuildRequest
             | CallConnectorAction::Avoid
             | CallConnectorAction::StatusUpdate { .. } => {
-                // If a rollout config key exists use its execution mode,
-                // otherwise default to Shadow so all traffic mirrors through UCS.
+                // If a rollout config key exists, use its execution mode.
+                // Otherwise look up `ucs_rollout_config_default`; if that is also absent,
+                // fall back to NotApplicable (UCS skipped).
                 let execution_mode = if rollout_result.should_execute {
                     rollout_result.execution_mode
                 } else {
-                    ExecutionMode::Shadow
+                    get_default_execution_mode(state)
+                        .await?
+                        .unwrap_or(ExecutionMode::NotApplicable)
                 };
                 decide_execution_path(connector_integration_type, previous_gateway, execution_mode)?
             }

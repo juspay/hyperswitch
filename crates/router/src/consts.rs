@@ -330,6 +330,9 @@ pub const PSD2_COUNTRIES: [Country; 27] = [
 // Rollout percentage config prefix
 pub const UCS_ROLLOUT_PERCENT_CONFIG_PREFIX: &str = "ucs_rollout_config";
 
+// Global default execution mode config key — used when no merchant/connector rollout config is found
+pub const UCS_DEFAULT_EXECUTION_MODE_KEY: &str = "ucs_rollout_config_default";
+
 // UCS feature enabled config
 pub const UCS_ENABLED: &str = "ucs_enabled";
 
