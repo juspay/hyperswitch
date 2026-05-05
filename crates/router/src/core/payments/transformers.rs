@@ -1583,6 +1583,7 @@ pub async fn construct_payment_router_data_for_setup_mandate<'a>(
         authentication_data: None,
         feature_metadata: None,
         connector_intent_metadata: None,
+        merchant_order_reference_id: None,
     };
     let connector_mandate_request_reference_id = payment_data
         .payment_attempt
@@ -6192,6 +6193,11 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::SetupMandateRequ
 
         let billing_descriptor = payment_data.payment_intent.get_billing_descriptor();
 
+        let merchant_order_reference_id = payment_data
+            .payment_intent
+            .merchant_order_reference_id
+            .clone();
+
         Ok(Self {
             currency: payment_data.currency,
             confirm: true,
@@ -6270,6 +6276,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::SetupMandateRequ
                         .attach_printable("Failed parsing ConnectorMetadata")
                 })
                 .transpose()?,
+            merchant_order_reference_id,
         })
     }
 }
