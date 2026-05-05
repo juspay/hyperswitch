@@ -2932,7 +2932,7 @@ pub async fn payout_create_db_entries(
     _locale: &str,
     _customer: Option<&domain::Customer>,
     _payment_method: Option<PaymentMethod>,
-    _dimesnions: &dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
+    _dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
 ) -> RouterResult<PayoutData> {
     todo!()
 }

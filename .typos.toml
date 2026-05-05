@@ -99,6 +99,24 @@ Corse-du-Sud = "Corse-du-Sud" # Is a state in France
 Haute-Corse = "Haute-Corse" # Is a state in France
 Fram = "Fram" # Is a state in Slovenia
 typ = "typ" # Token.io JWT header required parameter
+tak = "tak" # Thailand state abbreviation (lowercase)
+nd = "nd" # Rust closure variable abbreviation (short for network_details)
+fo = "fo" # Rust closure variable abbreviation (short for forward/result)
+iof = "iof" # Brazilian financial tax acronym (Imposto sobre Operações Financeiras)
+IOF = "IOF" # Brazilian financial tax acronym
+validade = "validade" # Portuguese field name (validity/expiry date) — Santander connector
+inicial = "inicial" # Portuguese field name (initial) — Santander connector
+participante = "participante" # Portuguese field name (participant) — Santander connector
+Anual = "Anual" # Portuguese for Annual — Santander mandate periodicity enum
+Correspondente = "Correspondente" # Portuguese for Correspondent — Santander connector
+threed = "threed" # ThreeD abbreviation (3D Secure) — WorldPay connector
+Threed = "Threed" # ThreeD abbreviation (3D Secure)
+Tansfer = "Tansfer" # Stripe internal enum variant (existing API contract)
+Eto = "Eto" # Gigadat-specific bank transfer type identifier
+ETO = "ETO" # Gigadat-specific bank transfer type identifier
+RTO = "RTO" # Gigadat-specific bank transfer type identifier
+UNSUPPORT = "UNSUPPORT" # PayPal API-specific status code prefix
+cutomer = "cutomer" # URL path parameter name in existing API route (connector_cutomer_id)
 
 
 [default.extend-words]
@@ -118,6 +136,15 @@ requestor = "requestor" #Used in external 3ds flows
 substituters = "substituters" # Present in `flake.nix`
 unsuccess = "unsuccess" # Used in cryptopay request
 automatico = "automatico" # Pix Automático (Portuguese for Automatic) - payment method name
+iof = "iof" # Brazilian financial tax acronym — appears in Santander/FacilitaPay API fields
+IOF = "IOF" # Brazilian financial tax acronym — appears in descriptions and comments
+Tansfer = "Tansfer" # Stripe enum variant (existing API contract, cannot rename without breaking serialization)
+Correspondente = "Correspondente" # Portuguese for Correspondent — Santander connector API field
+validade = "validade" # Portuguese word (validity/expiry) — Santander field name sub-word
+inicial = "inicial" # Portuguese word (initial) — Santander field name sub-word
+participante = "participante" # Portuguese word (participant) — Santander field name sub-word
+Anual = "Anual" # Portuguese for Annual — Santander enum variant
+threed = "threed" # ThreeD abbreviation for 3D Secure — WorldPay connector field names
 
 [files]
 extend-exclude = [

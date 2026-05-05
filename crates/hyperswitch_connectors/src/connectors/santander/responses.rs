@@ -935,7 +935,7 @@ pub struct SantanderPixAutomaticoDestinatario {
     /// Recipient's bank account number
     pub conta: Option<String>,
     /// ISPB code of the recipient's financial institution participant
-    pub ispb_participante: Option<String>,
+    pub ispb_participate: Option<String>,
     /// Recipient's bank branch/agency number
     pub agencia: Option<String>,
     /// Recipient's CPF (individual tax ID)
@@ -1044,7 +1044,7 @@ pub struct SantanderPixAutomaticRecResponse {
 #[serde(rename_all = "camelCase")]
 pub struct SantanderPixAutomaticoPagador {
     /// ISPB code of the payer's financial institution participant
-    pub ispb_participante: Option<String>,
+    pub ispb_participate: Option<String>,
     /// Municipality code where the payer is located
     pub cod_mun: Option<String>,
     /// Payer's CPF (individual tax ID)

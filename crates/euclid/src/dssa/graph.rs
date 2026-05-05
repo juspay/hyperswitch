@@ -879,7 +879,7 @@ mod test {
                 cgraph::Relation::Positive,
                 cgraph::Strength::Strong,
             ))
-            .expect("Memoization not workng");
+            .expect("Memoization not working");
         matches!(_answer, Ok(()));
     }
 

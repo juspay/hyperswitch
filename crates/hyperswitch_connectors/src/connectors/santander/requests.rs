@@ -194,7 +194,7 @@ pub struct SantanderPixAutomaticDestinationRequest {
     pub cpf: Option<Secret<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub cnpj: Option<Secret<String>>,
-    pub ispb_participante: String,
+    pub ispb_participate: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

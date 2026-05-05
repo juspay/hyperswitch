@@ -193,7 +193,7 @@ pub enum DirKeyKind {
     CryptoType,
     #[strum(
         serialize = "metadata",
-        detailed_message = "Aribitrary Key and value pair",
+        detailed_message = "Arbitrary Key and value pair",
         props(Category = "Metadata")
     )]
     #[serde(rename = "metadata")]

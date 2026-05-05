@@ -644,7 +644,7 @@ pub async fn perform_calculate_workflow(
                 "Found best available token, creating EXECUTE_WORKFLOW task"
             );
 
-            // reset active attmept id and payment connector transmission before going to execute workflow
+            // reset active attempt id and payment connector transmission before going to execute workflow
             let  _ = Box::pin(reset_connector_transmission_and_active_attempt_id_before_pushing_to_execute_workflow(
                 state,
                 payment_intent,

@@ -873,7 +873,7 @@ pub async fn link_de_euclid_routing_algorithm(
 
 pub async fn list_de_euclid_routing_algorithms(
     state: &SessionState,
-    routing_list_request: ListRountingAlgorithmsRequest,
+    routing_list_request: ListRoutingAlgorithmsRequest,
 ) -> RoutingResult<Vec<api_routing::RoutingDictionaryRecord>> {
     logger::debug!("decision_engine_euclid: list api call for euclid routing algorithms");
     let created_by = routing_list_request.created_by;
@@ -1003,7 +1003,7 @@ pub struct ActivateRoutingConfigRequest {
 }
 
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
-pub struct ListRountingAlgorithmsRequest {
+pub struct ListRoutingAlgorithmsRequest {
     pub created_by: String,
 }
 

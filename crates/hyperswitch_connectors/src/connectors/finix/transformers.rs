@@ -528,7 +528,7 @@ fn get_attempt_status(state: FinixState, flow: FinixFlow, is_void: Option<bool>)
         | (FinixFlow::Transfer, FinixState::CANCELED)
         | (FinixFlow::Transfer, FinixState::UNKNOWN) => AttemptStatus::Failure,
         (FinixFlow::Capture, FinixState::PENDING) => AttemptStatus::Pending,
-        (FinixFlow::Capture, FinixState::SUCCEEDED) => AttemptStatus::Pending, // Psync with Transfer id can determine actuall success
+        (FinixFlow::Capture, FinixState::SUCCEEDED) => AttemptStatus::Pending, // Psync with Transfer id can determine actual success
         (FinixFlow::Capture, FinixState::FAILED)
         | (FinixFlow::Capture, FinixState::CANCELED)
         | (FinixFlow::Capture, FinixState::UNKNOWN) => AttemptStatus::Failure,

@@ -190,7 +190,7 @@ pub async fn update_user_role(
             .attach_printable("User Changing their own role");
     }
 
-    let updator_role = roles::RoleInfo::from_role_id_org_id_tenant_id(
+    let updater_role = roles::RoleInfo::from_role_id_org_id_tenant_id(
         &state,
         &user_from_token.role_id,
         &user_from_token.org_id,
@@ -257,10 +257,10 @@ pub async fn update_user_role(
             ));
         }
 
-        if updator_role.get_entity_type() < role_to_be_updated.get_entity_type() {
+        if updater_role.get_entity_type() < role_to_be_updated.get_entity_type() {
             return Err(report!(UserErrors::InvalidRoleOperation)).attach_printable(format!(
                 "Invalid operation, update requestor = {} cannot update target = {}",
-                updator_role.get_entity_type(),
+                updater_role.get_entity_type(),
                 role_to_be_updated.get_entity_type()
             ));
         }
@@ -341,10 +341,10 @@ pub async fn update_user_role(
             ));
         }
 
-        if updator_role.get_entity_type() < role_to_be_updated.get_entity_type() {
+        if updater_role.get_entity_type() < role_to_be_updated.get_entity_type() {
             return Err(report!(UserErrors::InvalidRoleOperation)).attach_printable(format!(
                 "Invalid operation, update requestor = {} cannot update target = {}",
-                updator_role.get_entity_type(),
+                updater_role.get_entity_type(),
                 role_to_be_updated.get_entity_type()
             ));
         }

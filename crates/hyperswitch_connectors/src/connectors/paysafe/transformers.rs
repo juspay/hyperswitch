@@ -1076,7 +1076,7 @@ pub struct PaysafePaymentsRequest {
 pub struct PaysafeStoredCredential {
     #[serde(rename = "type")]
     stored_credential_type: PaysafeStoredCredentialType,
-    occurrence: MandateOccurence,
+    occurrence: MandateOccurrence,
     #[serde(skip_serializing_if = "Option::is_none")]
     initial_transaction_id: Option<String>,
 }
@@ -1085,14 +1085,14 @@ impl PaysafeStoredCredential {
     fn new_customer_initiated_transaction() -> Self {
         Self {
             stored_credential_type: PaysafeStoredCredentialType::Adhoc,
-            occurrence: MandateOccurence::Initial,
+            occurrence: MandateOccurrence::Initial,
             initial_transaction_id: None,
         }
     }
     fn new_merchant_initiated_transaction(initial_transaction_id: String) -> Self {
         Self {
             stored_credential_type: PaysafeStoredCredentialType::Topup,
-            occurrence: MandateOccurence::Subsequent,
+            occurrence: MandateOccurrence::Subsequent,
             initial_transaction_id: Some(initial_transaction_id),
         }
     }
@@ -1100,7 +1100,7 @@ impl PaysafeStoredCredential {
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "UPPERCASE")]
-pub enum MandateOccurence {
+pub enum MandateOccurrence {
     Initial,
     Subsequent,
 }

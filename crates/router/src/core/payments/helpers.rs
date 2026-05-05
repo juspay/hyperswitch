@@ -3147,7 +3147,7 @@ pub async fn retrieve_payment_method_from_db_with_token_data(
             .find_payment_method(merchant_key_store, &data.payment_method_id, storage_scheme)
             .await
             .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)
-            .attach_printable("error retrieveing payment method from DB")
+            .attach_printable("error retrieving payment method from DB")
             .map(Some),
 
         storage::PaymentTokenData::Temporary(_)
@@ -6414,7 +6414,7 @@ pub fn is_apple_pay_simplified_flow(
 }
 
 // This function will return the encrypted connector wallets details with Apple Pay certificates
-// Currently apple pay certifiactes are stored in the metadata which is not encrypted.
+// Currently apple pay certificates are stored in the metadata which is not encrypted.
 // In future we want those certificates to be encrypted and stored in the connector_wallets_details.
 // As part of migration fallback this function checks apple pay details are present in connector_wallets_details
 // If yes, it will encrypt connector_wallets_details and store it in the database.
@@ -6718,7 +6718,7 @@ pub async fn get_apple_pay_retryable_connectors(
             }
         }
         #[cfg(feature = "v1")]
-        let fallback_connetors_list = crate::core::routing::helpers::get_merchant_default_config(
+        let fallback_connectors_list = crate::core::routing::helpers::get_merchant_default_config(
             &*state.clone().store,
             profile_id.get_string_repr(),
             &api_enums::TransactionType::Payment,
@@ -6733,7 +6733,7 @@ pub async fn get_apple_pay_retryable_connectors(
             routing_connector_data_list.push(pre_val.connector_data.merchant_connector_id.clone())
         });
 
-        fallback_connetors_list.iter().for_each(|fallback_val| {
+        fallback_connectors_list.iter().for_each(|fallback_val| {
             routing_connector_data_list
                 .iter()
                 .all(|val| *val != fallback_val.merchant_connector_id)

@@ -50,7 +50,7 @@ where
         )
         .await
         .to_payment_failed_response()?;
-        let session_token_respone = resp
+        let session_token_response = resp
             .response
             .map_err(|error| {
                 logger::error!(session_token_create_error = error.reason);
@@ -62,7 +62,7 @@ where
                 "Failed to create session token for connector: {:?}",
                 connector.connector
             ))?;
-        let session_token = match session_token_respone {
+        let session_token = match session_token_response {
             types::PaymentsResponseData::SessionTokenResponse { session_token } => {
                 Ok(session_token)
             }
