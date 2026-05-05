@@ -547,7 +547,7 @@ export const CONNECTOR_LISTS = {
     EXTERNAL_THREE_DS: ["stripe"],
     BANK_DEBIT: ["novalnet"],
     PARTNER_MERCHANT_IDENTIFIER: ["adyen", "checkout"],
-    PAY_LATER: ["affirm"],
+    Affirm_PAY_LATER: ["affirm"],
     GIFT_CARD: ["adyen"],
     AUTH_SERVICE_ELIGIBILITY: ["stripe", "cybersource"],
     PARTIAL_AUTH: ["nuvei", "checkout", "worldpay", "worldpayvantiv"],
