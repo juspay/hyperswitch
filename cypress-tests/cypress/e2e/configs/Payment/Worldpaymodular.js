@@ -6,6 +6,25 @@ const successfulNo3DSCardDetails = {
   card_cvc: "999",
 };
 
+const paymentMethodData = {
+  card: {
+    last4: "1111",
+    card_type: "CREDIT",
+    card_network: "Visa",
+    card_issuer: null,
+    card_issuing_country: null,
+    card_isin: "411111",
+    card_extended_bin: null,
+    card_exp_month: "08",
+    card_exp_year: "30",
+    card_holder_name: "joseph Doe",
+    payment_checks: null,
+    authentication_data: null,
+    auth_code: null,
+  },
+  billing: null,
+};
+
 export const connectorDetails = {
   card_pm: {
     PaymentIntent: {
@@ -20,6 +39,9 @@ export const connectorDetails = {
       },
     },
     No3DSAutoCapture: {
+      Configs: {
+        SKIP_BILLING_VALIDATION: true,
+      },
       Request: {
         payment_method: "card",
         payment_method_data: {
@@ -37,6 +59,9 @@ export const connectorDetails = {
       },
     },
     No3DSManualCapture: {
+      Configs: {
+        SKIP_BILLING_VALIDATION: true,
+      },
       Request: {
         payment_method: "card",
         payment_method_data: {
@@ -54,6 +79,9 @@ export const connectorDetails = {
       },
     },
     Capture: {
+      Configs: {
+        SKIP_BILLING_VALIDATION: true,
+      },
       Request: {
         amount_to_capture: 6000,
       },
@@ -65,6 +93,9 @@ export const connectorDetails = {
       },
     },
     PartialCapture: {
+      Configs: {
+        SKIP_BILLING_VALIDATION: true,
+      },
       Request: {
         amount_to_capture: 2000,
       },
@@ -76,6 +107,9 @@ export const connectorDetails = {
       },
     },
     Refund: {
+      Configs: {
+        SKIP_BILLING_VALIDATION: true,
+      },
       Request: {
         amount: 6000,
       },
@@ -87,6 +121,9 @@ export const connectorDetails = {
       },
     },
     PartialRefund: {
+      Configs: {
+        SKIP_BILLING_VALIDATION: true,
+      },
       Request: {
         amount: 2000,
       },
@@ -98,6 +135,9 @@ export const connectorDetails = {
       },
     },
     manualPaymentRefund: {
+      Configs: {
+        SKIP_BILLING_VALIDATION: true,
+      },
       Request: {
         amount: 6000,
       },
@@ -109,6 +149,9 @@ export const connectorDetails = {
       },
     },
     manualPaymentPartialRefund: {
+      Configs: {
+        SKIP_BILLING_VALIDATION: true,
+      },
       Request: {
         amount: 2000,
       },
@@ -120,6 +163,9 @@ export const connectorDetails = {
       },
     },
     SyncRefund: {
+      Configs: {
+        SKIP_BILLING_VALIDATION: true,
+      },
       Response: {
         status: 200,
         body: {
