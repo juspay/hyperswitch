@@ -5,6 +5,8 @@ use common_utils::{crypto::Encryptable, errors::CustomResult, ext_traits::Option
 use error_stack::ResultExt;
 #[cfg(feature = "v2")]
 use hyperswitch_masking::PeekInterface;
+#[cfg(feature = "v2")]
+use router_env::logger;
 use serde::{Deserialize, Serialize};
 
 use crate::{errors, payment_method_data};
@@ -357,6 +359,12 @@ impl TryFrom<payment_methods::PaymentMethodCreateData> for PaymentMethodVaulting
                 }
                 .into(),
             ),
+            payment_methods::PaymentMethodCreateData::BankRedirect(_) => Err(
+                errors::api_error_response::ApiErrorResponse::UnprocessableEntity {
+                    message: "BankRedirect for PaymentMethodCreateData".to_string(),
+                }
+                .into(),
+            ),
         }
     }
 }
@@ -412,6 +420,69 @@ impl TryFrom<PaymentMethodVaultingData> for PaymentMethodCustomVaultingData {
                     ),
                 },
             )?,
+        }
+    }
+}
+
+#[cfg(feature = "v2")]
+impl From<payment_methods::Card> for PaymentMethodVaultingData {
+    fn from(card: payment_methods::Card) -> Self {
+        let card_network = card.card_brand.and_then(|brand| {
+            brand
+                .parse()
+                .inspect_err(|e| {
+                    logger::warn!(
+                        "Failed to parse card brand '{}' to CardNetwork: {:?}",
+                        brand,
+                        e
+                    );
+                })
+                .ok()
+        });
+
+        Self::Card(payment_methods::CardDetail {
+            card_number: card.card_number,
+            card_exp_month: card.card_exp_month,
+            card_exp_year: card.card_exp_year,
+            card_holder_name: card.name_on_card,
+            card_cvc: None,
+            card_network,
+            nick_name: card.nick_name.map(hyperswitch_masking::Secret::new),
+            card_issuing_country: None,
+            card_issuer: None,
+            card_type: None,
+        })
+    }
+}
+
+#[cfg(feature = "v2")]
+impl From<payment_methods::Card> for payment_method_data::NetworkTokenDetails {
+    fn from(card: payment_methods::Card) -> Self {
+        let card_network = card.card_brand.and_then(|brand| {
+            brand
+                .parse()
+                .inspect_err(|e| {
+                    logger::warn!(
+                        "Failed to parse card brand '{}' to CardNetwork: {:?}",
+                        brand,
+                        e
+                    );
+                })
+                .ok()
+        });
+
+        Self {
+            network_token: card.card_number.into(),
+            network_token_exp_month: card.card_exp_month,
+            network_token_exp_year: card.card_exp_year,
+            cryptogram: None,
+            card_issuer: None,
+            card_network,
+            card_type: None,
+            card_issuing_country: None,
+            card_holder_name: card.name_on_card,
+            nick_name: card.nick_name.map(hyperswitch_masking::Secret::new),
+            par: None,
         }
     }
 }

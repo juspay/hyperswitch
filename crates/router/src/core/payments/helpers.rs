@@ -83,7 +83,8 @@ use crate::core::{
 };
 use crate::{
     configs::settings::{
-        ConnectorRequestReferenceIdConfig, MerchantAdviceCodeLookupConfig, TempLockerEnableConfig,
+        ConnectorRequestReferenceIdConfig, MerchantAdviceCodeConfig,
+        MerchantAdviceCodeLookupConfig, TempLockerEnableConfig,
     },
     connector,
     consts::{self, BASE64_ENGINE},
@@ -2523,14 +2524,17 @@ fn create_proxy_override(
 // Helper function to execute rollout logic or return default
 impl From<RolloutConfig> for RolloutExecutionResult {
     fn from(config: RolloutConfig) -> Self {
-        // Validate both rollout_percent bounds and execution_mode
         let is_valid_percent = (0.0..=1.0).contains(&config.rollout_percent);
-        let is_valid_execution_mode =
-            !matches!(config.execution_mode, ExecutionMode::NotApplicable);
 
-        match (is_valid_percent, is_valid_execution_mode) {
-            (true, true) => {
-                // Calculate probability to determine if request should execute
+        match is_valid_percent {
+            false => {
+                logger::warn!(
+                    is_valid_percent = is_valid_percent,
+                    "Invalid rollout percent in rollout config. Defaulting to should_execute false."
+                );
+                Self::default()
+            }
+            true => {
                 let sampled_value: f64 = rand::thread_rng().gen_range(0.0..1.0);
                 let should_execute = sampled_value < config.rollout_percent;
 
@@ -2547,7 +2551,6 @@ impl From<RolloutConfig> for RolloutExecutionResult {
                         let proxy_override =
                             create_proxy_override(config.http_url, config.https_url);
                         logger::info!(
-                            should_execute = should_execute,
                             execution_mode = ?config.execution_mode,
                             "Rollout will be executed with proxy override"
                         );
@@ -2559,36 +2562,12 @@ impl From<RolloutConfig> for RolloutExecutionResult {
                     }
                     false => {
                         logger::info!(
-                            should_execute = should_execute,
                             execution_mode = ?config.execution_mode,
                             "Rollout will not be executed"
                         );
                         Self::default()
                     }
                 }
-            }
-            (true, false) => {
-                logger::warn!(
-                is_valid_percent = is_valid_percent,
-                is_valid_execution_mode = is_valid_execution_mode,
-                "Invalid execution mode in rollout config. Defaulting to NotApplicable and should execute false."
-            );
-                Self::default()
-            }
-            (false, true) => {
-                logger::warn!(
-                is_valid_percent = is_valid_percent,
-                "Invalid rollout percent in rollout config. Defaulting to should execute false."
-            );
-                Self::default()
-            }
-            (false, false) => {
-                logger::warn!(
-                is_valid_percent = is_valid_percent,
-                is_valid_execution_mode = is_valid_execution_mode,
-                "Invalid rollout percent and execution mode in rollout config. Defaulting to should execute false and NotApplicable."
-            );
-                Self::default()
             }
         }
     }
@@ -9138,32 +9117,34 @@ where
     }
 }
 
-/// Lookup recommended action from merchant advice codes configuration.
-pub fn get_merchant_advice_code_recommended_action(
+/// Lookup merchant advice code configuration for MIT transactions.
+pub fn get_merchant_advice_code_config(
     config: &MerchantAdviceCodeLookupConfig,
     off_session: Option<bool>,
-    network: Option<&common_enums::CardNetwork>,
-    advice_code: Option<&str>,
-) -> Option<common_enums::RecommendedAction> {
+    network: Option<common_enums::CardNetwork>,
+    advice_code: Option<String>,
+) -> Option<&MerchantAdviceCodeConfig> {
     match (off_session, network, advice_code) {
-        (Some(true), Some(network), Some(advice_code)) => config
-            .get_config(network, advice_code)
-            .map(|config| config.recommended_action)
-            .or_else(|| {
-                metrics::MERCHANT_ADVICE_CODE_CONFIG_MISS.add(
-                    1,
-                    router_env::metric_attributes!(
-                        ("network", network.to_string()),
-                        ("advice_code", advice_code.to_owned()),
-                    ),
-                );
-                logger::warn!(
-                    network = %network,
-                    advice_code = %advice_code,
-                    "No merchant advice code config found"
-                );
-                None
-            }),
+        (Some(true), Some(network), Some(advice_code)) => {
+            match config.get_config(&network, &advice_code) {
+                Some(config) => Some(config),
+                None => {
+                    metrics::MERCHANT_ADVICE_CODE_CONFIG_MISS.add(
+                        1,
+                        router_env::metric_attributes!(
+                            ("network", network.to_string()),
+                            ("advice_code", advice_code.clone()),
+                        ),
+                    );
+                    logger::warn!(
+                        network = %network,
+                        advice_code = %advice_code,
+                        "No merchant advice code config found"
+                    );
+                    None
+                }
+            }
+        }
         _ => None,
     }
 }

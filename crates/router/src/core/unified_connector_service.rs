@@ -10,21 +10,13 @@ use common_enums::{
 #[cfg(feature = "v2")]
 use common_utils::consts::BASE64_ENGINE;
 use common_utils::{
-    consts::{X_CONNECTOR_NAME, X_FLOW_NAME, X_SUB_FLOW_NAME},
-    errors::CustomResult,
-    ext_traits::ValueExt,
-    id_type,
-    request::{Method, RequestBuilder, RequestContent},
-    ucs_types,
+    errors::CustomResult, ext_traits::ValueExt, id_type, request::Method, ucs_types,
 };
 use diesel_models::types::FeatureMetadata;
 use error_stack::ResultExt;
-use external_services::{
-    grpc_client::{
-        unified_connector_service::{ConnectorAuthMetadata, UnifiedConnectorServiceError},
-        LineageIds,
-    },
-    http_client,
+use external_services::grpc_client::{
+    unified_connector_service::{ConnectorAuthMetadata, UnifiedConnectorServiceError},
+    LineageIds,
 };
 use hyperswitch_connectors::utils::CardData;
 #[cfg(feature = "v2")]
@@ -62,7 +54,6 @@ use crate::{
         utils::get_flow_name,
     },
     events::connector_api_logs::ConnectorEvent,
-    headers::{CONTENT_TYPE, X_REQUEST_ID},
     routes::SessionState,
     types::{
         transformers::{ForeignFrom, ForeignTryFrom},
@@ -392,12 +383,14 @@ where
             | CallConnectorAction::HandleResponseWithoutBuildRequest
             | CallConnectorAction::Avoid
             | CallConnectorAction::StatusUpdate { .. } => {
-                // UCS is enabled, call decide function
-                decide_execution_path(
-                    connector_integration_type,
-                    previous_gateway,
-                    rollout_result.execution_mode,
-                )?
+                // If a rollout config key exists use its execution mode,
+                // otherwise default to Shadow so all traffic mirrors through UCS.
+                let execution_mode = if rollout_result.should_execute {
+                    rollout_result.execution_mode
+                } else {
+                    ExecutionMode::Shadow
+                };
+                decide_execution_path(connector_integration_type, previous_gateway, execution_mode)?
             }
         }
     };
@@ -1057,16 +1050,12 @@ pub fn build_unified_connector_service_payment_method(
             hyperswitch_domain_models::payment_method_data::BankRedirectData::Eft {
                 provider
             } => {
-                let eft = payments_grpc::Eft {
-                    account_number: Some(Secret::new(provider)),
-                    branch_code: None,
-                    bank_account_holder_name: None,
-                    bank_name: Default::default(),
-                    bank_type: Default::default(),
+                let eft = payments_grpc::EftBankRedirect {
+                    provider,
                 };
 
                 Ok(payments_grpc::PaymentMethod {
-                    payment_method: Some(PaymentMethod::Eft(eft)),
+                    payment_method: Some(PaymentMethod::EftBankRedirect(eft)),
                 })
             }
             hyperswitch_domain_models::payment_method_data::BankRedirectData::BancontactCard {
@@ -1568,6 +1557,33 @@ pub fn build_unified_connector_service_payment_method(
 
                 Ok(payments_grpc::PaymentMethod {
                     payment_method: Some(PaymentMethod::SepaGuaranteedDebit(sepa_guaranteed_debit)),
+                })
+            }
+            hyperswitch_domain_models::payment_method_data::BankDebitData::EftDebitOrder {
+                account_number,
+                branch_code,
+                bank_account_holder_name,
+                bank_name,
+                bank_type,
+            } => {
+                let bank_name = bank_name
+                    .map(payments_grpc::BankNames::foreign_try_from)
+                    .transpose()?;
+                let bank_type = bank_type
+                    .map(payments_grpc::BankType::foreign_try_from)
+                    .transpose()?;
+
+                let eft = payments_grpc::Eft {
+                    account_number: Some(account_number.expose().into()),
+                    branch_code: branch_code.map(|code| code.expose().into()),
+                    bank_account_holder_name: bank_account_holder_name
+                        .map(|name| name.expose().into()),
+                    bank_name: bank_name.map(Into::into).unwrap_or_default(),
+                    bank_type: bank_type.map(Into::into).unwrap_or_default(),
+                };
+
+                Ok(payments_grpc::PaymentMethod {
+                    payment_method: Some(PaymentMethod::Eft(eft)),
                 })
             }
         },
@@ -2889,111 +2905,6 @@ where
             Some(router_data.0.external_latency.unwrap_or(0) + external_latency);
         router_data
     })
-}
-
-#[derive(serde::Serialize)]
-pub struct ComparisonData {
-    pub hyperswitch_data: Secret<serde_json::Value>,
-    pub unified_connector_service_data: Secret<serde_json::Value>,
-}
-
-/// Generic function to serialize router data and send comparison to external service
-/// Works for both payments and refunds
-#[cfg(feature = "v1")]
-pub async fn serialize_router_data_and_send_to_comparison_service<F, RouterDReq, RouterDResp>(
-    state: &SessionState,
-    hyperswitch_router_data: RouterData<F, RouterDReq, RouterDResp>,
-    unified_connector_service_router_data: RouterData<F, RouterDReq, RouterDResp>,
-) -> RouterResult<()>
-where
-    F: Send + Clone + Sync + 'static,
-    RouterDReq: Send + Sync + Clone + 'static + serde::Serialize,
-    RouterDResp: Send + Sync + Clone + 'static + serde::Serialize,
-{
-    logger::info!("Simulating UCS call for shadow mode comparison");
-
-    let connector_name = hyperswitch_router_data.connector.clone();
-    let sub_flow_name = get_flow_name::<F>().ok();
-
-    let [hyperswitch_data, unified_connector_service_data] = [
-        (hyperswitch_router_data, "hyperswitch"),
-        (unified_connector_service_router_data, "ucs"),
-    ]
-    .map(|(data, source)| {
-        serde_json::to_value(data)
-            .map(Secret::new)
-            .unwrap_or_else(|e| {
-                Secret::new(serde_json::json!({
-                    "error": e.to_string(),
-                    "source": source
-                }))
-            })
-    });
-
-    let comparison_data = ComparisonData {
-        hyperswitch_data,
-        unified_connector_service_data,
-    };
-    let _ = send_comparison_data(state, comparison_data, connector_name, sub_flow_name)
-        .await
-        .map_err(|e| {
-            logger::debug!("Failed to send comparison data: {:?}", e);
-        });
-    Ok(())
-}
-
-/// Sends router data comparison to external service
-pub async fn send_comparison_data(
-    state: &SessionState,
-    comparison_data: ComparisonData,
-    connector_name: String,
-    sub_flow_name: Option<String>,
-) -> RouterResult<()> {
-    // Check if comparison service is enabled
-    let comparison_config = match state.conf.comparison_service.as_ref() {
-        Some(comparison_config) => comparison_config,
-        None => {
-            tracing::warn!(
-                "Comparison service configuration missing, skipping comparison data send"
-            );
-            return Ok(());
-        }
-    };
-
-    let mut request = RequestBuilder::new()
-        .method(Method::Post)
-        .url(comparison_config.url.get_string_repr())
-        .header(CONTENT_TYPE, "application/json")
-        .header(X_FLOW_NAME, "router-data")
-        .set_body(RequestContent::Json(Box::new(comparison_data)))
-        .build();
-
-    request.add_header(
-        X_CONNECTOR_NAME,
-        hyperswitch_masking::Maskable::Normal(connector_name),
-    );
-
-    if let Some(sub_flow_name) = sub_flow_name.filter(|name| !name.is_empty()) {
-        request.add_header(
-            X_SUB_FLOW_NAME,
-            hyperswitch_masking::Maskable::Normal(sub_flow_name),
-        );
-    }
-
-    if let Some(req_id) = &state.request_id {
-        request.add_header(
-            X_REQUEST_ID,
-            hyperswitch_masking::Maskable::Normal(req_id.to_string()),
-        );
-    }
-
-    let _ = http_client::send_request(&state.conf.proxy, request, comparison_config.timeout_secs)
-        .await
-        .map_err(|e| {
-            tracing::debug!("Error sending comparison data: {:?}", e);
-        });
-
-    Ok(())
 }
 
 // ============================================================================

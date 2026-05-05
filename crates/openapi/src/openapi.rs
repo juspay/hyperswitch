@@ -252,6 +252,7 @@ Never share your secret api keys. Keep them guarded and secure.
         // Routes for card issuers
         routes::card_issuer::add_card_issuer,
         routes::card_issuer::update_card_issuer,
+        routes::card_issuer::delete_card_issuer,
         routes::card_issuer::list_card_issuers,
     ),
     components(schemas(
@@ -503,6 +504,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::card_issuer::CardIssuerRequest,
         api_models::card_issuer::CardIssuerResponse,
         api_models::card_issuer::CardIssuerUpdateRequest,
+        api_models::card_issuer::CardIssuerDeleteResponse,
         api_models::card_issuer::CardIssuerListQuery,
         api_models::card_issuer::CardIssuerListResponse,
         api_models::gsm::GsmCreateRequest,
@@ -813,6 +815,9 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payouts::BacsBankTransfer,
         api_models::payouts::SepaBankTransfer,
         api_models::payouts::PixBankTransfer,
+        api_models::payouts::PixAccountBankTransfer,
+        api_models::payouts::PixKeyBankTransfer,
+        api_models::payouts::PixEmvBankTransfer,
         api_models::payouts::TrustlyBankTransfer,
         api_models::payouts::TrustlyBankTransferData,
         api_models::payouts::PayoutsCreateRequest,
@@ -954,6 +959,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::additional_info::CardTokenAdditionalData,
         api_models::payments::additional_info::BankDebitAdditionalData,
         api_models::payments::additional_info::AchBankDebitAdditionalData,
+        api_models::payments::additional_info::EftDebitOrderAdditionalData,
         api_models::payments::additional_info::BacsBankDebitAdditionalData,
         api_models::payments::additional_info::BecsBankDebitAdditionalData,
         api_models::payments::additional_info::SepaBankDebitAdditionalData,

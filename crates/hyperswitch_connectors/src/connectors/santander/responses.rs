@@ -533,11 +533,25 @@ pub struct SantanderTime {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct SantanderPixAutomaticoErrorResponse {
+pub struct SantanderPixAutomaticoErrorItem {
     pub code: i32,
     pub message: String,
     pub level: String,
     pub description: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SantanderPixAutomaticoErrorVariant1 {
+    pub errors: Vec<SantanderPixAutomaticoErrorItem>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum SantanderPixAutomaticoErrorResponse {
+    // Pix Automatico API returns errors in an array format
+    PixAutomaticoVariant1(SantanderPixAutomaticoErrorVariant1),
+    // Pix Automatico API returns 401 Unauthorized when access token is expired (single object)
+    PixAutomaticoVariant2(SantanderPixAutomaticoErrorItem),
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -545,7 +559,7 @@ pub struct SantanderPixAutomaticoErrorResponse {
 pub enum SantanderErrorResponse {
     PixQrCode(SantanderPixQRCodeErrorResponse),
     Boleto(SantanderBoletoErrorResponse),
-    // Pix Automatico API returns 401 Unauthorized when access token is expired
+    // Pix Automatico API error responses
     PixAutomatico(SantanderPixAutomaticoErrorResponse),
     Generic(SantanderGenericErrorResponse),
 }

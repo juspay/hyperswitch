@@ -5,7 +5,7 @@ use std::sync::LazyLock;
 use common_enums::enums;
 use common_utils::{
     errors::CustomResult,
-    ext_traits::BytesExt,
+    ext_traits::{ByteSliceExt, BytesExt},
     request::{Method, Request, RequestBuilder, RequestContent},
     types::{AmountConvertor, MinorUnit, MinorUnitForConnector},
 };
@@ -43,7 +43,7 @@ use hyperswitch_interfaces::{
     types::{self, Response},
     webhooks,
 };
-use hyperswitch_masking::{ExposeInterface, Mask};
+use hyperswitch_masking::Mask;
 use transformers as imerchantsolutions;
 
 use crate::{constants::headers, types::ResponseRouterData, utils};
@@ -124,10 +124,20 @@ impl ConnectorCommon for Imerchantsolutions {
     {
         let auth = imerchantsolutions::ImerchantsolutionsAuthType::try_from(auth_type)
             .change_context(errors::ConnectorError::FailedToObtainAuthType)?;
-        Ok(vec![(
+
+        let mut auth_header = vec![(
             headers::AUTHORIZATION.to_string(),
-            auth.api_key.expose().into_masked(),
-        )])
+            auth.api_key.into_masked(),
+        )];
+
+        if let Some(merchant_id) = auth.merchant_id {
+            auth_header.push((
+                headers::X_MERCHANT_ID.to_string(),
+                merchant_id.into_masked(),
+            ));
+        }
+
+        Ok(auth_header)
     }
 
     fn build_error_response(
@@ -606,9 +616,31 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Imerchant
 impl webhooks::IncomingWebhook for Imerchantsolutions {
     fn get_webhook_object_reference_id(
         &self,
-        _request: &webhooks::IncomingWebhookRequestDetails<'_>,
+        request: &webhooks::IncomingWebhookRequestDetails<'_>,
     ) -> CustomResult<api_models::webhooks::ObjectReferenceId, errors::ConnectorError> {
-        Err(report!(errors::ConnectorError::WebhooksNotImplemented))
+        let webhook_body: transformers::ImerchantsolutionsWebhookData = request
+            .body
+            .parse_struct("ImerchantsolutionsWebhookData")
+            .change_context(errors::ConnectorError::WebhookBodyDecodingFailed)?;
+
+        match webhook_body.event_type {
+            transformers::ImerchantsolutionsWebhookEventType::PaymentCompleted
+            | transformers::ImerchantsolutionsWebhookEventType::PaymentCancelled
+            | transformers::ImerchantsolutionsWebhookEventType::PaymentFailed => {
+                Ok(api_models::webhooks::ObjectReferenceId::PaymentId(
+                    api_models::payments::PaymentIdType::ConnectorTransactionId(
+                        webhook_body.psp_reference,
+                    ),
+                ))
+            }
+            transformers::ImerchantsolutionsWebhookEventType::PaymentRefunded => {
+                Ok(api_models::webhooks::ObjectReferenceId::RefundId(
+                    api_models::webhooks::RefundIdType::ConnectorRefundId(
+                        webhook_body.psp_reference,
+                    ),
+                ))
+            }
+        }
     }
 
     fn get_webhook_event_type(
@@ -695,7 +727,8 @@ static IMERCHANTSOLUTIONS_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
     integration_status: enums::ConnectorIntegrationStatus::Alpha,
 };
 
-static IMERCHANTSOLUTIONS_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 0] = [];
+static IMERCHANTSOLUTIONS_SUPPORTED_WEBHOOK_FLOWS: [enums::EventClass; 2] =
+    [enums::EventClass::Payments, enums::EventClass::Refunds];
 
 impl ConnectorSpecifications for Imerchantsolutions {
     fn get_connector_about(&self) -> Option<&'static ConnectorInfo> {
