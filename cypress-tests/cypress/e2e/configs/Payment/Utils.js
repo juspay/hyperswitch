@@ -71,7 +71,7 @@ import { connectorDetails as trustpaymentsConnectorDetails } from "./TrustPaymen
 import { connectorDetails as tsysConnectorDetails } from "./Tsys.js";
 import { connectorDetails as voltConnectorDetails } from "./Volt.js";
 import { connectorDetails as wellsfargoConnectorDetails } from "./WellsFargo.js";
-import { connectorDetails as worldlineConnectorDetails } from "./Worldline.js";
+// import { connectorDetails as worldlineConnectorDetails } from "./Worldline.js"; // DISABLED: Credential issues - HE_00 error
 import { connectorDetails as worldpayConnectorDetails } from "./WorldPay.js";
 import { connectorDetails as worldpaymodularConnectorDetails } from "./Worldpaymodular.js";
 import { connectorDetails as worldpayvantivConnectorDetails } from "./Worldpayvantiv.js";
@@ -147,7 +147,7 @@ const connectorDetails = {
   tsys: tsysConnectorDetails,
   volt: voltConnectorDetails,
   wellsfargo: wellsfargoConnectorDetails,
-  worldline: worldlineConnectorDetails,
+  // worldline: worldlineConnectorDetails, // DISABLED: Credential issues - HE_00 error
   worldpay: worldpayConnectorDetails,
   worldpaymodular: worldpaymodularConnectorDetails,
   worldpayvantiv: worldpayvantivConnectorDetails,
