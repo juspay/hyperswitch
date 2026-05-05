@@ -726,6 +726,18 @@ export const connectorDetails = {
         },
       },
     },
+    L2L3Data: getCustomExchange({
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+      Request: {},
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    }),
   },
   pm_list: {
     PmListResponse: {

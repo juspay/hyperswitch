@@ -6,6 +6,7 @@ import {
   blockedPaymentErrorBodyForCardSubtype,
   blockedPaymentErrorBodyForBinUnavailable,
 } from "./Commons";
+import { getCustomExchange } from "./Modifiers";
 
 const successfulNo3DSCardDetails = {
   card_number: "5105105105105100",
@@ -969,6 +970,18 @@ export const connectorDetails = {
         },
       },
     },
+    L2L3Data: getCustomExchange({
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+      Request: {},
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    }),
   },
   pm_list: {
     PmListResponse: {
