@@ -1309,11 +1309,13 @@ impl super::RedisConnectionPool {
 #[cfg(test)]
 mod tests {
     use std::collections::HashMap;
+
     use redis::AsyncCommands;
+
     use crate::{
-        constant::MAX_SCAN_ITERATIONS,
-        errors::RedisError, ConsumerGroupDestroyReply, RedisConnectionPool, RedisEntryId,
-        RedisScanType, RedisSettings, StreamCapKind, StreamCapTrim, StreamTrimConfig,
+        constant::MAX_SCAN_ITERATIONS, errors::RedisError, ConsumerGroupDestroyReply,
+        RedisConnectionPool, RedisEntryId, RedisScanType, RedisSettings, StreamCapKind,
+        StreamCapTrim, StreamTrimConfig,
     };
 
     /// Generate a unique ID for test key isolation.
@@ -3416,7 +3418,7 @@ mod tests {
             );
         }
     }
-    
+
     #[tokio::test]
     async fn test_hscan_iteration_guard() {
         let result = tokio::task::spawn_blocking(move || {
@@ -3466,6 +3468,9 @@ mod tests {
         .await
         .expect("Spawn block failure");
 
-        assert!(result, "HSCAN iteration guard should have triggered — partial results expected");
+        assert!(
+            result,
+            "HSCAN iteration guard should have triggered — partial results expected"
+        );
     }
 }
