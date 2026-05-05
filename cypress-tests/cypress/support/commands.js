@@ -564,7 +564,7 @@ Cypress.Commands.add("healthCheck", (globalState) => {
  * @param {Object} globalState - The global state object
  * @param {Object} options - Options for merchant creation
  * @param {string|null} [options.expectedMerchantAccountType=null] - Expected merchant_account_type to validate (optional)
- * @param {string|null} [options.expectedProductType=null] - Expected product_type to validate (optional, null means no validation)
+ * @param {string|null} [options.expectedProductType=null] - Expected product_type to validate. Pass a string value like "vault", "recon", "recovery", etc. to validate the response contains this product_type. Pass null or omit to skip validation (useful when product_type is not the focus of the test).
  * @param {string} [options.merchantIdStateKey="merchantId"] - Key to store merchant ID in global state
  * @param {string} [options.profileIdStateKey="profileId"] - Key to store profile ID in global state
  * @param {string} [options.publishableKeyStateKey="publishableKey"] - Key to store publishable key in global state
