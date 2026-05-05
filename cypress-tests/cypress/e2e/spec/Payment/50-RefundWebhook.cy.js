@@ -110,29 +110,20 @@ describe("Refund Webhook Tests", () => {
   });
 
   context("Refund Webhook Processing - Status Update & Retrieval", function () {
-    let merchantId;
-
     before(function () {
       connector = globalState.get("connectorId");
-      merchantId = globalState.get("merchantId");
 
-      // Skip this context if connectorRefundId is not available
-      // (sandbox connectors may not return it)
       if (!globalState.get("connectorRefundId")) {
         this.skip();
       }
     });
 
     it("Update-refund_status", () => {
-      const refundManualUpdateRequestBody = {
-        merchant_id: merchantId,
-        status: "pending",
-      };
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "card_pm"
+      ]["ManualRefundUpdate"];
 
-      cy.manualRefundStatusUpdateTest(
-        globalState,
-        refundManualUpdateRequestBody
-      );
+      cy.manualRefundStatusUpdateTest(data, globalState);
     });
 
     it("send-refund-webhook", () => {

@@ -284,9 +284,6 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "succeeded",
-          payment_method: "card",
-          attempt_count: 1,
-          payment_method_data: payment_method_data_no3ds,
         },
       },
     },
@@ -388,6 +385,15 @@ export const connectorDetails = {
         body: {
           status: "succeeded",
         },
+      },
+    },
+    ManualRefundUpdate: {
+      Request: {
+        status: "pending",
+      },
+      Response: {
+        status: 200,
+        body: {},
       },
     },
     SyncRefund: {
