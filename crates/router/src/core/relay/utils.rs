@@ -648,6 +648,7 @@ pub async fn construct_relay_payments_retrieve_router_data(
             connector_reference_id: None,
             setup_future_usage: None,
             feature_metadata: None,
+            connector_mandate_id: None,
         },
 
         response: Err(ErrorResponse::default()),
