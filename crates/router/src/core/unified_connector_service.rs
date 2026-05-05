@@ -47,8 +47,7 @@ use crate::{
         payments::{
             helpers::{
                 get_default_execution_mode, is_ucs_enabled,
-                should_execute_based_on_rollout_with_precedence,
-                MerchantConnectorAccountType,
+                should_execute_based_on_rollout_with_precedence, MerchantConnectorAccountType,
                 ProxyOverride,
             },
             OperationSessionGetters, OperationSessionSetters,
@@ -344,7 +343,8 @@ where
         determine_connector_integration_type(state, connector_enum).await?;
 
     // Try keys highest → lowest precedence, use first match found
-    let rollout_result = should_execute_based_on_rollout_with_precedence(state, &rollout_keys).await?;
+    let rollout_result =
+        should_execute_based_on_rollout_with_precedence(state, &rollout_keys).await?;
 
     // Single decision point using pattern matching
     let (gateway_system, mut execution_path) = if ucs_availability == UcsAvailability::Disabled {
@@ -732,9 +732,27 @@ pub async fn should_call_unified_connector_service_for_webhooks(
     // Build rollout keys in ascending precedence: org → org+merchant → org+merchant+connector → merchant+connector
     let rollout_keys = vec![
         format!("{}_{}", consts::UCS_ROLLOUT_PERCENT_CONFIG_PREFIX, org_id),
-        format!("{}_{}_{}", consts::UCS_ROLLOUT_PERCENT_CONFIG_PREFIX, org_id, merchant_id),
-        format!("{}_{}_{}_{}_{}",consts::UCS_ROLLOUT_PERCENT_CONFIG_PREFIX, org_id, merchant_id, connector_key, flow_name),
-        format!("{}_{}_{}_{}",consts::UCS_ROLLOUT_PERCENT_CONFIG_PREFIX, merchant_id, connector_key, flow_name),
+        format!(
+            "{}_{}_{}",
+            consts::UCS_ROLLOUT_PERCENT_CONFIG_PREFIX,
+            org_id,
+            merchant_id
+        ),
+        format!(
+            "{}_{}_{}_{}_{}",
+            consts::UCS_ROLLOUT_PERCENT_CONFIG_PREFIX,
+            org_id,
+            merchant_id,
+            connector_key,
+            flow_name
+        ),
+        format!(
+            "{}_{}_{}_{}",
+            consts::UCS_ROLLOUT_PERCENT_CONFIG_PREFIX,
+            merchant_id,
+            connector_key,
+            flow_name
+        ),
     ];
 
     // Determine connector integration type
@@ -745,7 +763,8 @@ pub async fn should_call_unified_connector_service_for_webhooks(
     let previous_gateway = None;
 
     // Try keys highest → lowest precedence, use first match found
-    let rollout_result = should_execute_based_on_rollout_with_precedence(state, &rollout_keys).await?;
+    let rollout_result =
+        should_execute_based_on_rollout_with_precedence(state, &rollout_keys).await?;
 
     // Use the same decision logic as payments, with no call_connector_action to consider
     let (gateway_system, execution_path) = if ucs_availability == UcsAvailability::Disabled {
