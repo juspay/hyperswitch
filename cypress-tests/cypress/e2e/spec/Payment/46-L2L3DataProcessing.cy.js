@@ -20,8 +20,12 @@ describe("L2/L3 Data Processing Tests", () => {
       let shouldContinue = true;
 
       cy.step("Update Business Profile (L2/L3 enabled)", () => {
+        const bpUpdate = {
+          ...fixtures.businessProfile.bpUpdate,
+          is_l2_l3_enabled: true,
+        };
         cy.UpdateBusinessProfileTest(
-          fixtures.businessProfile.bpUpdate,
+          bpUpdate,
           true,
           true,
           true,
@@ -102,10 +106,12 @@ describe("L2/L3 Data Processing Tests", () => {
       let shouldContinue = true;
 
       cy.step("Update Business Profile (L2/L3 disabled)", () => {
-        const bpDisabled = { ...fixtures.businessProfile.bpUpdate };
-        bpDisabled.is_l2_l3_enabled = false;
+        const bpUpdate = {
+          ...fixtures.businessProfile.bpUpdate,
+          is_l2_l3_enabled: false,
+        };
         cy.UpdateBusinessProfileTest(
-          bpDisabled,
+          bpUpdate,
           true,
           true,
           true,
