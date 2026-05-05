@@ -95,7 +95,7 @@ impl From<RedisValue> for RedisCrateValue {
     }
 }
 
-/// Allows conversion from RedisValue to bytes for use with ToRedisArgs
+/// Allows conversion from RedisValue to bytes for usce with ToRedisArgs
 impl redis::ToRedisArgs for RedisValue {
     fn write_redis_args<W>(&self, out: &mut W)
     where
@@ -129,7 +129,7 @@ impl redis::ToRedisArgs for RedisValue {
             | RedisCrateValue::Push { .. }
             | RedisCrateValue::ServerError(_) => {
                 tracing::warn!(
-                    variant = ?self.inner,
+                    variant = value_variant_name(&self.inner),
                     "Attempted to write an aggregate/error Redis value as a command argument — skipping. \
                      Aggregate types (Array, Map, Set, etc.) should not be used as command arguments."
                 );
@@ -137,7 +137,7 @@ impl redis::ToRedisArgs for RedisValue {
             // Catch-all for future variants added to the non-exhaustive enum
             _ => {
                 tracing::warn!(
-                    variant = ?self.inner,
+                    variant = value_variant_name(&self.inner),
                     "Attempted to write an unknown Redis value as a command argument — skipping"
                 );
             }

@@ -29,7 +29,7 @@ impl PubSubInterface for std::sync::Arc<redis_interface::RedisConnectionPool> {
     #[inline]
     async fn subscribe(&self, channel: &str) -> error_stack::Result<(), redis_errors::RedisError> {
         self.subscriber.subscribe(channel).await?;
-
+        logger::debug!(channel_name=?channel, "Subscribed to channel");
         // Spawn only one thread handling all the published messages to different channels
         if self
             .subscriber
@@ -66,7 +66,7 @@ impl PubSubInterface for std::sync::Arc<redis_interface::RedisConnectionPool> {
             kind: key,
             tenant: self.key_prefix.clone(),
         };
-
+        logger::debug!(channel_name=?channel, cache_kind=?key.kind, tenant=?key.tenant, "Publishing message to channel");
         self.publisher
             .publish(
                 channel,
