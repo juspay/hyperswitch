@@ -40,6 +40,7 @@ import { connectorDetails as hipayConnectorDetails } from "./Hipay.js";
 import { connectorDetails as iatapayConnectorDetails } from "./Iatapay.js";
 import { connectorDetails as itaubankConnectorDetails } from "./ItauBank.js";
 import { connectorDetails as jpmorganConnectorDetails } from "./Jpmorgan.js";
+import { connectorDetails as klarnaConnectorDetails } from "./Klarna.js";
 import { connectorDetails as loonioConnectorDetails } from "./Loonio.js";
 import { connectorDetails as mollieConnectorDetails } from "./Mollie.js";
 import { connectorDetails as monerisConnectorDetails } from "./Moneris.js";
@@ -114,6 +115,7 @@ const connectorDetails = {
   iatapay: iatapayConnectorDetails,
   itaubank: itaubankConnectorDetails,
   jpmorgan: jpmorganConnectorDetails,
+  klarna: klarnaConnectorDetails,
   mollie: mollieConnectorDetails,
   moneris: monerisConnectorDetails,
   multisafepay: multisafepayConnectorDetails,
@@ -458,6 +460,7 @@ export const CONNECTOR_LISTS = {
       // "stripe",
     ],
     DDC_RACE_CONDITION: ["worldpay"],
+    CONNECTOR_TESTING_DATA: ["adyen", "noon", "airwallex", "braintree"],
     // ucs connectors
     UCS_CONNECTORS: ["authorizedotnet"],
     OVERCAPTURE: ["adyen"],
@@ -517,6 +520,7 @@ export const CONNECTOR_LISTS = {
       "finix",
     ],
     BILLING_DESCRIPTOR_INVALID_PHONE: ["nuvei"],
+    FEATURE_METADATA: ["bankofamerica"],
     AUTO_RETRY: [
       "cybersource",
       "checkout",
@@ -531,7 +535,6 @@ export const CONNECTOR_LISTS = {
       "globalpay",
       "nexinets",
       "nmi",
-      "nuvei",
       "paypal",
       "powertranz",
       "shift4",
@@ -542,6 +545,12 @@ export const CONNECTOR_LISTS = {
     EXTERNAL_THREE_DS: ["stripe"],
     BANK_DEBIT: ["novalnet"],
     PARTNER_MERCHANT_IDENTIFIER: ["adyen", "checkout"],
+    GIFT_CARD: ["adyen"],
+    PAY_LATER: ["klarna", "adyen", "aci", "stripe"],
+    AUTH_SERVICE_ELIGIBILITY: ["stripe", "cybersource"],
+    PARTIAL_AUTH: ["nuvei", "checkout", "worldpay", "worldpayvantiv"],
+    USE_BILLING_AS_PAYMENT_METHOD_BILLING: ["bankofamerica"],
+    MIT_WITH_LIMITED_CARD_DATA: ["peachpayments"],
     // Add more inclusion lists
   },
 };

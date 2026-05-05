@@ -424,7 +424,8 @@ impl
                 },
             )),
             payment_methods::PaymentMethodCreateData::ProxyCard(_)
-            | payment_methods::PaymentMethodCreateData::Wallet(_) => None,
+            | payment_methods::PaymentMethodCreateData::Wallet(_)
+            | payment_methods::PaymentMethodCreateData::BankRedirect(_) => None,
         };
 
         Self {
@@ -1089,7 +1090,6 @@ pub trait PaymentMethodInterface {
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<PaymentMethod, Self::Error>;
 
-    #[cfg(feature = "v1")]
     async fn find_payment_method_by_locker_id(
         &self,
         key_store: &MerchantKeyStore,
