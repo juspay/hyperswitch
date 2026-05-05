@@ -4,6 +4,25 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.05.05.0
+
+### Features
+
+- **card-issuer:** Add delete card issuer functionality ([#11987](https://github.com/juspay/hyperswitch/pull/11987)) ([`7d70345`](https://github.com/juspay/hyperswitch/commit/7d7034579b199114a58733e3a4611870daf7664b))
+
+### Testing
+
+- **cypress:**
+  - Add client secret session expiry coverage ([#12090](https://github.com/juspay/hyperswitch/pull/12090)) ([`4908dcc`](https://github.com/juspay/hyperswitch/commit/4908dcce3e4400975499aa9e5e239bd523ca1e60))
+  - Add feature_metadata coverage for bankofamerica ([#12082](https://github.com/juspay/hyperswitch/pull/12082)) ([`2be42f4`](https://github.com/juspay/hyperswitch/commit/2be42f499096c1369d9912d19bf581c2a4daa05d))
+  - PayLater for Klarna ([#11971](https://github.com/juspay/hyperswitch/pull/11971)) ([`39ef124`](https://github.com/juspay/hyperswitch/commit/39ef124480f7b101ece799fe5aea74c014faab65))
+  - Card Issuer Management Tests ([#12087](https://github.com/juspay/hyperswitch/pull/12087)) ([`d680004`](https://github.com/juspay/hyperswitch/commit/d680004035619df445612a0738b5edbd60b8f8bb))
+  - Add use_billing_as_payment_method_billing coverage for bankofamerica ([#12051](https://github.com/juspay/hyperswitch/pull/12051)) ([`963802f`](https://github.com/juspay/hyperswitch/commit/963802f2a2de6346eb7f3919f6122a89624fdbd4))
+
+**Full Changelog:** [`2026.05.04.0...2026.05.05.0`](https://github.com/juspay/hyperswitch/compare/2026.05.04.0...2026.05.05.0)
+
+- - -
+
 ## 2026.05.04.0
 
 ### Features
