@@ -1851,10 +1851,21 @@ fn get_bank_redirect_required_fields(
         ),
         (
             enums::PaymentMethodType::OpenBanking,
-            connectors(vec![(
-                Connector::Volt,
-                fields(vec![], billing_name(), vec![]),
-            )]),
+            connectors(vec![
+                (Connector::Volt, fields(vec![], billing_name(), vec![])),
+                (
+                    Connector::Truelayer,
+                    fields(
+                        vec![],
+                        vec![
+                            RequiredField::Email,
+                            RequiredField::BillingUserFirstName,
+                            RequiredField::BillingUserLastName,
+                        ],
+                        vec![],
+                    ),
+                ),
+            ]),
         ),
         (
             enums::PaymentMethodType::Trustly,
@@ -1875,6 +1886,17 @@ fn get_bank_redirect_required_fields(
                         ]),
                         common: HashMap::new(),
                     },
+                ),
+                (
+                    Connector::Trustly,
+                    fields(
+                        vec![],
+                        vec![
+                            RequiredField::BillingAddressCountries(vec!["ALL"]),
+                            RequiredField::Email,
+                        ],
+                        vec![],
+                    ),
                 ),
             ]),
         ),
