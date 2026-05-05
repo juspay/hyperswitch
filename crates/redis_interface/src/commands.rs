@@ -53,8 +53,7 @@ impl super::RedisConnectionPool {
             .with_expiration(SetExpiry::EX(u64::from(self.config.default_ttl)));
         conn.set_options::<_, _, ()>(key.tenant_aware_key(self), value, options)
             .await
-            .change_context(errors::RedisError::SetFailed)?;
-        Ok(())
+            .change_context(errors::RedisError::SetFailed)
     }
 
     pub async fn set_key_without_modifying_ttl<V>(
@@ -69,8 +68,7 @@ impl super::RedisConnectionPool {
         let options = SetOptions::default().with_expiration(SetExpiry::KEEPTTL);
         conn.set_options::<_, _, ()>(key.tenant_aware_key(self), value, options)
             .await
-            .change_context(errors::RedisError::SetFailed)?;
-        Ok(())
+            .change_context(errors::RedisError::SetFailed)
     }
 
     pub async fn set_multiple_keys_if_not_exist<K, V>(
@@ -157,8 +155,7 @@ impl super::RedisConnectionPool {
         ));
         conn.set_options::<_, _, ()>(key.tenant_aware_key(self), serialized.as_slice(), options)
             .await
-            .change_context(errors::RedisError::SetExFailed)?;
-        Ok(())
+            .change_context(errors::RedisError::SetExFailed)
     }
 
     #[instrument(level = "DEBUG", skip(self))]
@@ -418,8 +415,7 @@ impl super::RedisConnectionPool {
         ));
         conn.set_options::<_, _, ()>(key.tenant_aware_key(self), value, options)
             .await
-            .change_context(errors::RedisError::SetExFailed)?;
-        Ok(())
+            .change_context(errors::RedisError::SetExFailed)
     }
 
     #[instrument(level = "DEBUG", skip(self))]
@@ -607,12 +603,9 @@ impl super::RedisConnectionPool {
         Ok(values_after_increment)
     }
 
-    /// Manually builds the HSCAN command because `redis-rs` does not provide a
-    /// high-level HSCAN method that returns field-value pairs. The built-in
-    /// methods only iterate over keys or use cursors, so we construct the command
-    /// directly to extract field-value pairs.
-    ///
-    /// Tested via integration tests against a live Redis instance (`test_hscan_*`).
+    /// Manually builds the HSCAN command because redis-rs's `hscan` / `hscan_match`
+    /// helpers don't expose the `COUNT` argument. We need `MATCH` + `COUNT` together
+    /// to bound per-iteration server work on large hashes.
     #[instrument(level = "DEBUG", skip(self))]
     pub async fn hscan(
         &self,
@@ -861,8 +854,7 @@ impl super::RedisConnectionPool {
             fields,
         )
         .await
-        .change_context(errors::RedisError::StreamAppendFailed)?;
-        Ok(())
+        .change_context(errors::RedisError::StreamAppendFailed)
     }
 
     #[instrument(level = "DEBUG", skip(self))]
@@ -1117,8 +1109,7 @@ impl super::RedisConnectionPool {
             id.to_stream_id(),
         )
         .await
-        .change_context(errors::RedisError::ConsumerGroupCreateFailed)?;
-        Ok(())
+        .change_context(errors::RedisError::ConsumerGroupCreateFailed)
     }
 
     #[instrument(level = "DEBUG", skip(self))]

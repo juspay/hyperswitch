@@ -61,18 +61,18 @@ impl RedisValue {
         }
     }
 
-    /// Extract bytes from the underlying redis value.
+    /// Borrow the underlying bytes if the value is a string-like variant.
     ///
-    /// Returns `Some` for string-like variants (`BulkString`, `SimpleString`,
-    /// `VerbatimString`). Returns `None` for all others — numeric and boolean
-    /// variants have no borrowed byte representation (use `as_string()` instead).
+    /// Returns `None` for numeric/boolean/Nil/aggregate variants — these have
+    /// no borrowed byte representation in `redis::Value`. For a stringified
+    /// form of numerics, use `redis_value_to_option_string` instead.
     pub fn as_bytes(&self) -> Option<&[u8]> {
         match &self.inner {
             RedisCrateValue::BulkString(bytes) => Some(bytes.as_slice()),
             RedisCrateValue::SimpleString(string) => Some(string.as_bytes()),
             RedisCrateValue::VerbatimString { text, .. } => Some(text.as_bytes()),
             // Numeric/boolean variants don't have a borrowed byte representation.
-            // Use as_string() if you need these as strings.
+            // Use redis_value_to_option_string() if you need these as strings.
             RedisCrateValue::Int(_)
             | RedisCrateValue::Double(_)
             | RedisCrateValue::Boolean(_)
@@ -88,33 +88,6 @@ impl RedisValue {
         }
     }
 
-    /// Convert to string if the value has a meaningful string representation.
-    ///
-    /// Returns `Some` for string-like and scalar variants, `None` for aggregates
-    /// and `Nil`.
-    pub fn as_string(&self) -> Option<String> {
-        match &self.inner {
-            RedisCrateValue::BulkString(bytes) => String::from_utf8(bytes.clone())
-                .inspect_err(|error| {
-                    tracing::warn!(?error, "BulkString contains invalid UTF-8 in as_string()");
-                })
-                .ok(),
-            RedisCrateValue::SimpleString(string) => Some(string.clone()),
-            RedisCrateValue::VerbatimString { text, .. } => Some(text.clone()),
-            RedisCrateValue::Int(integer) => Some(integer.to_string()),
-            RedisCrateValue::Double(double) => Some(double.to_string()),
-            RedisCrateValue::Boolean(boolean) => Some(boolean.to_string()),
-            RedisCrateValue::Okay => Some("OK".to_string()),
-            RedisCrateValue::BigNumber(ref big_number) => Some(big_number.to_string()),
-            other => {
-                tracing::debug!(
-                    variant = value_variant_name(other),
-                    "as_string() called on non-string RedisValue variant, returning None"
-                );
-                None
-            }
-        }
-    }
 }
 
 impl From<RedisValue> for RedisCrateValue {
@@ -135,9 +108,7 @@ impl redis::ToRedisArgs for RedisValue {
             RedisCrateValue::VerbatimString { text, .. } => text.write_redis_args(out),
             RedisCrateValue::Int(integer) => integer.write_redis_args(out),
             RedisCrateValue::Double(double) => double.to_string().write_redis_args(out),
-            RedisCrateValue::Boolean(boolean) => {
-                (if *boolean { 1i64 } else { 0i64 }).write_redis_args(out)
-            }
+            RedisCrateValue::Boolean(boolean) => boolean.write_redis_args(out),
             RedisCrateValue::Okay => "OK".write_redis_args(out),
             RedisCrateValue::BigNumber(ref big_number) => {
                 big_number.to_string().write_redis_args(out)
@@ -191,7 +162,7 @@ pub struct RedisSettings {
     /// Maximum number of connection retry attempts (default: 5).
     /// Passed to `ConnectionManagerConfig::set_number_of_retries`
     /// or `ClusterClientBuilder::retries`.
-    pub reconnect_max_attempts: usize,
+    pub reconnect_max_attempts: u32,
     /// Initial delay in milliseconds between reconnection attempts (default: 5).
     /// Passed to `ConnectionManagerConfig::set_min_delay`.
     pub reconnect_delay: u32,
@@ -294,8 +265,11 @@ impl RedisSettings {
     /// Sets reconnection retries, minimum delay, and optional response timeout.
     /// Callers can further customize (e.g. `set_pipeline_buffer_size`) before use.
     pub fn build_connection_manager_config(&self) -> redis::aio::ConnectionManagerConfig {
+        // u32 → usize is lossless on all supported platforms (usize ≥ 32 bits)
+        #[allow(clippy::as_conversions)]
+        let retries = self.reconnect_max_attempts as usize;
         let mut config = redis::aio::ConnectionManagerConfig::new()
-            .set_number_of_retries(self.reconnect_max_attempts)
+            .set_number_of_retries(retries)
             .set_min_delay(std::time::Duration::from_millis(u64::from(
                 self.reconnect_delay,
             )));
@@ -318,7 +292,7 @@ impl RedisSettings {
         nodes: Vec<String>,
     ) -> redis::cluster::ClusterClientBuilder {
         redis::cluster::ClusterClient::builder(nodes)
-            .retries(u32::try_from(self.reconnect_max_attempts).unwrap_or(u32::MAX))
+            .retries(self.reconnect_max_attempts)
             .min_retry_wait(u64::from(self.reconnect_delay))
             .response_timeout(std::time::Duration::from_secs(
                 self.default_command_timeout.max(1),
@@ -832,13 +806,11 @@ mod tests {
     fn test_redis_value_from_bytes() {
         let rv = RedisValue::from_bytes(b"hello".to_vec());
         assert_eq!(rv.as_bytes(), Some(&b"hello"[..]));
-        assert_eq!(rv.as_string(), Some("hello".to_string()));
     }
 
     #[test]
     fn test_redis_value_from_string() {
         let rv = RedisValue::from_string("world".to_string());
-        assert_eq!(rv.as_string(), Some("world".to_string()));
         assert_eq!(rv.as_bytes(), Some(b"world".as_slice()));
     }
 
@@ -846,12 +818,6 @@ mod tests {
     fn test_redis_value_as_bytes_non_string() {
         let rv = RedisValue::new(Value::Int(7));
         assert!(rv.as_bytes().is_none());
-    }
-
-    #[test]
-    fn test_redis_value_as_string_non_string() {
-        let rv = RedisValue::new(Value::Int(7));
-        assert_eq!(rv.as_string(), Some("7".to_string()));
     }
 
     // ── RedisSettings::validate ────────────────────────────────────────────
