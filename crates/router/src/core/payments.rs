@@ -13103,7 +13103,7 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentConfirmData<F> {
     }
 
     fn get_setup_mandate(&self) -> Option<&MandateData> {
-        todo!()
+        None
     }
 
     fn get_poll_config(&self) -> Option<router_types::PollConfig> {
@@ -13138,7 +13138,7 @@ impl<F: Clone> OperationSessionGetters<F> for PaymentConfirmData<F> {
     }
 
     fn get_recurring_details(&self) -> Option<&RecurringDetails> {
-        todo!()
+        self.recurring_details.as_ref()
     }
 
     fn get_payment_intent_profile_id(&self) -> Option<&id_type::ProfileId> {

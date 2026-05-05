@@ -8088,7 +8088,7 @@ pub struct ProxyPaymentsRequest {
 
     pub amount: AmountDetails,
 
-    pub recurring_details: mandates::ProcessorPaymentToken,
+    pub recurring_details: mandates::RecurringDetails,
 
     pub shipping: Option<Address>,
 

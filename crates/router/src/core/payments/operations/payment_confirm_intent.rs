@@ -281,6 +281,8 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentConfirmData<F>, PaymentsConfir
                 .webhook_url
                 .as_ref()
                 .map(|url| url.get_string_repr().to_string()),
+
+            recurring_details: None,
         };
 
         let get_trackers_response = operations::GetTrackerResponse { payment_data };
@@ -411,6 +413,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentConfirmData<F>, PaymentsConfir
                 .webhook_url
                 .as_ref()
                 .map(|url| url.get_string_repr().to_string()),
+            recurring_details: None,
         };
 
         let get_trackers_response = operations::GetTrackerResponse { payment_data };

@@ -1,10 +1,11 @@
 use api_models::payments::ProxyPaymentsRequest;
 use async_trait::async_trait;
 use common_enums::enums;
-use common_utils::types::keymanager::ToEncryptable;
+use common_utils::{ext_traits::Encode, types::keymanager::ToEncryptable};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
-    payment_method_data::PaymentMethodData, payments::PaymentConfirmData,
+    payment_method_data::{PaymentMethodData, RecurringDetails as DomainRecurringDetails},
+    payments::PaymentConfirmData,
 };
 use hyperswitch_interfaces::api::ConnectorSpecifications;
 use hyperswitch_masking::PeekInterface;
@@ -229,7 +230,49 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentConfirmData<F>, ProxyPaymentsR
             }
         };
 
-        let processor_payment_token = request.recurring_details.processor_payment_token.clone();
+        let (mandate_data_input, payment_method_data) = match &request.recurring_details {
+            api_models::mandates::RecurringDetails::ProcessorPaymentToken(token) => {
+                let mandate_ids = api_models::payments::MandateIds {
+                    mandate_id: None,
+                    mandate_reference_id: Some(
+                        api_models::payments::MandateReferenceId::ConnectorMandateId(
+                            api_models::payments::ConnectorMandateReferenceId::new(
+                                Some(token.processor_payment_token.clone()),
+                                None,
+                                None,
+                                None,
+                                None,
+                                None,
+                            ),
+                        ),
+                    ),
+                };
+                (Some(mandate_ids), Some(PaymentMethodData::MandatePayment))
+            }
+            api_models::mandates::RecurringDetails::CardWithLimitedData(_)
+            | api_models::mandates::RecurringDetails::NetworkTransactionIdAndCardDetails(_)
+            | api_models::mandates::RecurringDetails::NetworkTransactionIdAndNetworkTokenDetails(_)
+            | api_models::mandates::RecurringDetails::NetworkTransactionIdAndDecryptedWalletTokenDetails(_) => {
+                let (mandate_reference_id, pmd) =
+                    DomainRecurringDetails::from(request.recurring_details.clone())
+                        .get_mandate_reference_id_and_payment_method_data_for_proxy_flow()
+                        .ok_or(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable("Failed to get mandate reference id for proxy flow")?;
+                let mandate_ids = api_models::payments::MandateIds {
+                    mandate_id: None,
+                    mandate_reference_id: Some(mandate_reference_id),
+                };
+                (Some(mandate_ids), Some(pmd))
+            }
+            api_models::mandates::RecurringDetails::MandateId(_)
+            | api_models::mandates::RecurringDetails::PaymentMethodId(_) => {
+                return Err(error_stack::Report::new(
+                    errors::ApiErrorResponse::NotSupported {
+                        message: "Recurring flow via Proxy not supported for MandateId or PaymentMethodId".to_string(),
+                    },
+                ))
+            }
+        };
 
         let payment_address = hyperswitch_domain_models::payment_address::PaymentAddress::new(
             payment_intent
@@ -246,33 +289,19 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentConfirmData<F>, ProxyPaymentsR
                 .map(|address| address.into_inner()),
             Some(true),
         );
-        let mandate_data_input = api_models::payments::MandateIds {
-            mandate_id: None,
-            mandate_reference_id: Some(
-                api_models::payments::MandateReferenceId::ConnectorMandateId(
-                    api_models::payments::ConnectorMandateReferenceId::new(
-                        Some(processor_payment_token),
-                        None,
-                        None,
-                        None,
-                        None,
-                        None,
-                    ),
-                ),
-            ),
-        };
 
         let payment_data = PaymentConfirmData {
             flow: std::marker::PhantomData,
             payment_intent,
             payment_attempt,
-            payment_method_data: Some(PaymentMethodData::MandatePayment),
+            payment_method_data,
             payment_address,
-            mandate_data: Some(mandate_data_input),
+            mandate_data: mandate_data_input,
             payment_method: None,
             merchant_connector_details: None,
             external_vault_pmd: None,
             webhook_url: None,
+            recurring_details: Some(request.recurring_details.clone()),
         };
 
         let get_trackers_response = operations::GetTrackerResponse { payment_data };
@@ -333,17 +362,86 @@ impl<F: Clone + Send + Sync> Domain<F, ProxyPaymentsRequest, PaymentConfirmData<
 
     async fn perform_routing<'a>(
         &'a self,
-        _platform: &domain::Platform,
-        _business_profile: &domain::Profile,
+        platform: &domain::Platform,
+        business_profile: &domain::Profile,
         state: &SessionState,
         payment_data: &mut PaymentConfirmData<F>,
     ) -> CustomResult<ConnectorCallType, errors::ApiErrorResponse> {
-        let connector_name = payment_data.get_payment_attempt_connector();
+        let connector_name = payment_data.get_payment_attempt_connector().map(|s| s.to_owned());
+
         if let Some(connector_name) = connector_name {
             let merchant_connector_id = payment_data.get_merchant_connector_id_in_attempt();
+
+            // If ProcessorPaymentToken is used, allow it only when CardWithLimitedData is disabled
+            let is_processor_payment_token_flow = matches!(
+                payment_data.get_recurring_details(),
+                Some(api_models::mandates::RecurringDetails::ProcessorPaymentToken(_))
+            );
+
+            if is_processor_payment_token_flow {
+                let dimensions = dimension_state::Dimensions::new()
+                    .with_processor_merchant_id(
+                        platform.get_processor().get_processor_merchant_id(),
+                    )
+                    .with_provider_merchant_id(
+                        platform.get_provider().get_provider_merchant_id(),
+                    )
+                    .with_profile_id(business_profile.get_id().clone());
+
+                let is_mit_with_limited_card_data_enabled = dimensions
+                    .get_should_enable_mit_with_limited_card_data(
+                        state.store.as_ref(),
+                        state.superposition_service.as_ref(),
+                        None,
+                    )
+                    .await;
+
+                if is_mit_with_limited_card_data_enabled {
+                    return Err(error_stack::Report::new(
+                        errors::ApiErrorResponse::NotSupported {
+                            message: "ProcessorPaymentToken cannot be used when MIT with limited card data is enabled. Use CardWithLimitedData instead.".to_string(),
+                        },
+                    ));
+                }
+
+                // CardWithLimitedData is not enabled — allow ProcessorPaymentToken as fallback
+                let connector_data = api::ConnectorData::get_connector_by_name(
+                    &state.conf.connectors,
+                    &connector_name,
+                    api::GetToken::Connector,
+                    merchant_connector_id,
+                )?;
+                payment_data.set_connector_in_payment_attempt(Some(connector_name));
+                return Ok(ConnectorCallType::PreDetermined(connector_data.into()));
+            }
+
+            let routable_connector = connector_name
+                .parse::<euclid::enums::RoutableConnectors>()
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to parse connector name as RoutableConnectors")?;
+            let routable_choice = api_models::routing::RoutableConnectorChoice {
+                choice_kind: api_models::routing::RoutableChoiceKind::FullStruct,
+                connector: routable_connector,
+                merchant_connector_id: merchant_connector_id.clone(),
+            };
+            let straight_through =
+                api_models::routing::StraightThroughAlgorithm::Single(Box::new(routable_choice));
+            let val = straight_through
+                .encode_to_value()
+                .change_context(errors::ApiErrorResponse::InternalServerError)?;
+            let connector_choice = api::ConnectorChoice::StraightThrough(val);
+            let _connector =
+                crate::core::payments::set_eligible_connector_for_proxy_in_payment_data(
+                    state,
+                    &business_profile,
+                    platform.get_processor().get_key_store(),
+                    payment_data,
+                    connector_choice,
+                )
+                .await?;
             let connector_data = api::ConnectorData::get_connector_by_name(
                 &state.conf.connectors,
-                connector_name,
+                &connector_name,
                 api::GetToken::Connector,
                 merchant_connector_id,
             )?;

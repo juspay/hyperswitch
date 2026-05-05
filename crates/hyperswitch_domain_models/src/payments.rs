@@ -1302,6 +1302,7 @@ where
     pub external_vault_pmd: Option<payment_method_data::ExternalVaultPaymentMethodData>,
     /// The webhook url of the merchant, to which the connector will send the webhook.
     pub webhook_url: Option<String>,
+    pub recurring_details: Option<api_models::mandates::RecurringDetails>,
 }
 
 #[cfg(feature = "v2")]
