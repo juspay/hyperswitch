@@ -5823,12 +5823,26 @@ Cypress.Commands.add(
   }
 );
 
-Cypress.Commands.add("manualRefundStatusUpdateTest", (data, globalState) => {
-  const {
-    Configs: configs = {},
-    Request: reqData,
-    Response: resData,
-  } = data || {};
+Cypress.Commands.add("manualRefundStatusUpdateTest", (firstArg, secondArg) => {
+  let globalState;
+  let requestBody;
+  let resData = null;
+  let configs = {};
+
+  if (typeof secondArg?.get === "function") {
+    globalState = secondArg;
+    const {
+      Configs: cfg = {},
+      Request: reqData,
+      Response: rData,
+    } = firstArg || {};
+    configs = cfg;
+    resData = rData;
+    requestBody = { ...reqData, merchant_id: globalState.get("merchantId") };
+  } else {
+    globalState = firstArg;
+    requestBody = secondArg;
+  }
 
   const merchantId = globalState.get("merchantId");
   const refundId = globalState.get("refundId");
@@ -5836,8 +5850,6 @@ Cypress.Commands.add("manualRefundStatusUpdateTest", (data, globalState) => {
   const adminApiKey = globalState.get("adminApiKey");
 
   execConfig(validateConfig(configs));
-
-  const requestBody = { ...reqData, merchant_id: merchantId };
 
   cy.request({
     method: "PUT",
@@ -5854,9 +5866,19 @@ Cypress.Commands.add("manualRefundStatusUpdateTest", (data, globalState) => {
 
     cy.wrap(response).then(() => {
       if (response.status === 200) {
-        expect(response.status).to.eq(resData?.status || 200);
+        if (resData) {
+          expect(response.status).to.eq(resData?.status || 200);
+        } else {
+          expect(response.status).to.eq(200);
+        }
       } else {
-        defaultErrorHandler(response, resData);
+        if (resData) {
+          defaultErrorHandler(response, resData);
+        } else {
+          throw new Error(
+            `Refund Manual Update Call Failed with error code "${response.body?.error?.code}" error message "${response.body?.error?.message}"`
+          );
+        }
       }
     });
   });
