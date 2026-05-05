@@ -997,6 +997,7 @@ pub async fn construct_router_data_for_psync<'a>(
         connector_reference_id: attempt.connector_response_reference_id.clone(),
         setup_future_usage: Some(payment_intent.setup_future_usage),
         feature_metadata: None,
+        connector_mandate_id: None,
     };
 
     // TODO: evaluate the fields in router data, if they are required or not
@@ -1582,6 +1583,7 @@ pub async fn construct_payment_router_data_for_setup_mandate<'a>(
         authentication_data: None,
         feature_metadata: None,
         connector_intent_metadata: None,
+        merchant_order_reference_id: None,
     };
     let connector_mandate_request_reference_id = payment_data
         .payment_attempt
@@ -5274,6 +5276,11 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::PaymentsSyncData
                 .setup_future_usage_applied
                 .or(payment_data.payment_intent.setup_future_usage),
             feature_metadata,
+            connector_mandate_id: payment_data
+                .payment_attempt
+                .connector_mandate_detail
+                .as_ref()
+                .and_then(|d| d.get_connector_mandate_id()),
         })
     }
 }
@@ -6186,6 +6193,11 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::SetupMandateRequ
 
         let billing_descriptor = payment_data.payment_intent.get_billing_descriptor();
 
+        let merchant_order_reference_id = payment_data
+            .payment_intent
+            .merchant_order_reference_id
+            .clone();
+
         Ok(Self {
             currency: payment_data.currency,
             confirm: true,
@@ -6264,6 +6276,7 @@ impl<F: Clone> TryFrom<PaymentAdditionalData<'_, F>> for types::SetupMandateRequ
                         .attach_printable("Failed parsing ConnectorMetadata")
                 })
                 .transpose()?,
+            merchant_order_reference_id,
         })
     }
 }

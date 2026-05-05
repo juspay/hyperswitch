@@ -18,6 +18,16 @@ const failurefulNo3DSCardDetails = {
   card_cvc: "123",
 };
 
+// Vantiv certification test card for partial authorization (Table 2.1.10)
+// Returns PartiallyApproved (response code 010) at 80% of requested amount
+const partialAuthCardDetails = {
+  card_number: "4457010140000141",
+  card_exp_month: "09",
+  card_exp_year: "27",
+  card_holder_name: "AUTHORISED",
+  card_cvc: "123",
+};
+
 const singleUseMandateData = {
   customer_acceptance: customerAcceptance,
   mandate_type: {
@@ -605,6 +615,33 @@ export const connectorDetails = {
         body: {
           status: "requires_payment_method",
           setup_future_usage: "off_session",
+        },
+      },
+    },
+    PartialAuth: {
+      Configs: {
+        DELAY: {
+          STATUS: true,
+          TIMEOUT: 5000,
+        },
+      },
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: partialAuthCardDetails,
+        },
+        amount: 5000,
+        enable_partial_authorization: true,
+        currency: "USD",
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "partially_captured",
+          amount: 5000,
+          amount_received: 4000,
         },
       },
     },
