@@ -47,7 +47,7 @@ describe("[Payment] Extend Authorization", () => {
     let shouldContinue = true;
 
     beforeEach(function () {
-      if (!shouldContinue || !["adyen", "paypal"].includes(connector)) {
+      if (!shouldContinue) {
         this.skip();
       }
     });
@@ -115,35 +115,7 @@ describe("[Payment] Extend Authorization", () => {
     });
 
     it("[Payment] Connector Specific Behavior", () => {
-      if (connector === "adyen") {
-        // Adyen: Extend Authorization is async
-
-        // Payment moves to processing state
-
-        // Capture should be skipped
-
-        const data = getConnectorDetails(globalState.get("connectorId"))[
-          "card_pm"
-        ]["ExtendAuthorizationNo3DSManual"];
-
-        cy.retrievePaymentCallTest({ globalState, data });
-      } else if (connector === "paypal") {
-        // PayPal: Extend Authorization is sync
-
-        // Payment remains requires_capture
-
-        // Capture can be executed
-
-        const data = getConnectorDetails(globalState.get("connectorId"))[
-          "card_pm"
-        ]["Capture"];
-
-        cy.captureCallTest(fixtures.captureBody, data, globalState);
-
-        if (shouldContinue) {
-          shouldContinue = utils.should_continue_further(data);
-        }
-      }
+      cy.extendAuthorizationPostCallTest(fixtures, globalState);
     });
   });
 

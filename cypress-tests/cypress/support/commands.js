@@ -24,12 +24,13 @@
 // -- This will overwrite an existing command --
 // Cypress.Commands.overwrite('visit', (originalFn, url, options) => { ... })
 // commands.js or your custom support file
-import {
+import getConnectorDetails, {
   defaultErrorHandler,
   extractIntegerAtEnd,
   getOriginalConnectorName,
   getValueByKey,
   setNormalizedValue,
+  should_continue_further,
 } from "../e2e/configs/Payment/Utils";
 import { execConfig, validateConfig } from "../utils/featureFlags";
 import * as RequestBodyUtils from "../utils/RequestBodyUtils";
@@ -5412,6 +5413,20 @@ Cypress.Commands.add(
         }
       });
     });
+  }
+);
+
+Cypress.Commands.add(
+  "extendAuthorizationPostCallTest",
+  (fixtures, globalState) => {
+    const connector = globalState.get("connectorId");
+    if (connector === "adyen") {
+      const data = getConnectorDetails(connector)["card_pm"]["ExtendAuthorizationNo3DSManual"];
+      cy.retrievePaymentCallTest({ globalState, data });
+    } else if (connector === "paypal") {
+      const data = getConnectorDetails(connector)["card_pm"]["Capture"];
+      cy.captureCallTest(fixtures.captureBody, data, globalState);
+    }
   }
 );
 
