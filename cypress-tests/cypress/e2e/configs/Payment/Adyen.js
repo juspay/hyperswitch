@@ -1626,7 +1626,7 @@ export const connectorDetails = {
             },
           },
         },
-        payment_type: "setup_mandate",
+        payment_type: "new_mandate",
       },
       Response: {
         status: 200,
@@ -1675,7 +1675,7 @@ export const connectorDetails = {
             },
           },
         },
-        payment_type: "setup_mandate",
+        payment_type: "new_mandate",
       },
       Response: {
         status: 200,
@@ -1720,7 +1720,7 @@ export const connectorDetails = {
             },
           },
         },
-        payment_type: "setup_mandate",
+        payment_type: "new_mandate",
       },
       Response: {
         status: 200,
