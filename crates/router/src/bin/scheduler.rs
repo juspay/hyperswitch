@@ -339,9 +339,21 @@ impl ProcessTrackerWorkflows<routes::SessionState> for WorkflowRunner {
                 storage::ProcessTrackerRunner::PayoutSyncWorkFlow => {
                     Ok(Box::new(workflows::payout_sync::PayoutSyncWorkFlow))
                 }
-                storage::ProcessTrackerRunner::BatchBlocklistUpload => Ok(Box::new(
-                    workflows::batch_blocklist_upload::BatchBlocklistUploadWorkflow,
-                )),
+                storage::ProcessTrackerRunner::BatchBlocklistUpload => {
+                    #[cfg(feature = "v1")]
+                    {
+                        Ok(Box::new(
+                            workflows::batch_blocklist_upload::BatchBlocklistUploadWorkflow,
+                        ))
+                    }
+                    #[cfg(not(feature = "v1"))]
+                    {
+                        Err(error_stack::report!(ProcessTrackerError::UnexpectedFlow))
+                            .attach_printable(
+                                "Cannot run batch blocklist upload workflow when v1 feature is disabled",
+                            )
+                    }
+                }
             }
         };
 

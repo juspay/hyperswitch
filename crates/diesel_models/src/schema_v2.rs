@@ -4,6 +4,25 @@ diesel::table! {
     use diesel::sql_types::*;
     use crate::enums::diesel_exports::*;
 
+    batch_blocklist_jobs (id) {
+        #[max_length = 64]
+        id -> Varchar,
+        #[max_length = 64]
+        merchant_id -> Varchar,
+        #[max_length = 32]
+        status -> Varchar,
+        total_rows -> Int4,
+        succeeded_rows -> Int4,
+        failed_rows -> Int4,
+        created_at -> Timestamp,
+        updated_at -> Timestamp,
+    }
+}
+
+diesel::table! {
+    use diesel::sql_types::*;
+    use crate::enums::diesel_exports::*;
+
     address (address_id) {
         #[max_length = 64]
         address_id -> Varchar,
@@ -1846,6 +1865,7 @@ diesel::allow_tables_to_appear_in_same_query!(
     address,
     api_keys,
     authentication,
+    batch_blocklist_jobs,
     blocklist,
     blocklist_fingerprint,
     blocklist_lookup,

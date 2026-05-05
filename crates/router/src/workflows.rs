@@ -22,4 +22,5 @@ pub mod invoice_sync;
 #[cfg(feature = "payouts")]
 pub mod payout_sync;
 
+#[cfg(feature = "v1")]
 pub mod batch_blocklist_upload;
