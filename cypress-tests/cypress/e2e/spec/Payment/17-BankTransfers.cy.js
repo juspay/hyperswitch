@@ -377,7 +377,10 @@ describe("Bank Transfers", () => {
 
       cy.step("Confirm Bank Transfer for PixAutomatico", () => {
         if (!shouldContinue) {
-          cy.task("cli_log", "Skipping step: Confirm Bank Transfer for PixAutomatico");
+          cy.task(
+            "cli_log",
+            "Skipping step: Confirm Bank Transfer for PixAutomatico"
+          );
           return;
         }
         const confirmData = getConnectorDetails(globalState.get("connectorId"))[
