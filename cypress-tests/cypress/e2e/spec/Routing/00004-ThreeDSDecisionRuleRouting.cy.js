@@ -3,7 +3,6 @@ import State from "../../../utils/State";
 import * as utils from "../../configs/Routing/Utils";
 
 let globalState;
-let shouldContinue = true;
 
 describe("3DS Decision Rule Based Routing Test", () => {
   context(
