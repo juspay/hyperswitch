@@ -177,10 +177,6 @@ Cypress.Commands.add(
     });
   }
 );
-          });
-      }
-    });
-}
 
 function parseMethodFlows(methodFlowInput) {
   if (!methodFlowInput) {
