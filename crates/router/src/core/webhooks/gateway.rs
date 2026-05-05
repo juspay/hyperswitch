@@ -3,7 +3,7 @@
 use api_models::webhooks::{IncomingWebhookEvent, ObjectReferenceId};
 use async_trait::async_trait;
 use common_enums::{ExecutionMode, ExecutionPath};
-use common_utils::errors::ReportSwitchExt;
+use common_utils::{errors::ReportSwitchExt, ext_traits::Encode};
 use error_stack::ResultExt;
 use external_services::grpc_client::LineageIds;
 use hyperswitch_interfaces::webhooks::{
@@ -259,7 +259,8 @@ impl IncomingWebhookGateway for DirectIncomingWebhookGateway {
                     .get_webhook_resource_object(&decoded_request)
                     .switch()
                     .attach_printable("Failed to extract webhook resource object")?;
-                let bytes = serde_json::to_vec(&resource_object)
+                let bytes = resource_object
+                    .encode_to_vec()
                     .change_context(errors::ApiErrorResponse::InternalServerError)
                     .attach_printable("Failed to encode webhook resource object")?;
                 let masked_log_payload =
@@ -414,7 +415,8 @@ impl IncomingWebhookGateway for UcsIncomingWebhookGateway {
                             "UCS HandleEvent returned no event_content for a non-filtered event",
                         )
                 })?;
-                let bytes = serde_json::to_vec(&event_content)
+                let bytes = event_content
+                    .encode_to_vec()
                     .change_context(errors::ApiErrorResponse::InternalServerError)
                     .attach_printable("Failed to encode unified event content")?;
                 let masked_log_payload =
