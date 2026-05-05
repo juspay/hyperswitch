@@ -43,7 +43,30 @@ pub struct CardIssuerUpdateRequest {
     pub issuer_name: CardIssuerName,
 }
 
+#[derive(Debug, serde::Serialize)]
+pub struct CardIssuerDeleteRequest {
+    pub id: CardIssuerId,
+}
+
+#[derive(Debug, serde::Serialize, ToSchema)]
+pub struct CardIssuerDeleteResponse {
+    #[schema(value_type = String)]
+    pub id: CardIssuerId,
+    #[schema(example = true)]
+    pub deleted: bool,
+}
+
 impl ApiEventMetric for CardIssuerUpdateRequest {
+    fn get_api_event_type(&self) -> Option<common_utils::events::ApiEventsType> {
+        Some(common_utils::events::ApiEventsType::CardIssuers)
+    }
+}
+impl ApiEventMetric for CardIssuerDeleteRequest {
+    fn get_api_event_type(&self) -> Option<common_utils::events::ApiEventsType> {
+        Some(common_utils::events::ApiEventsType::CardIssuers)
+    }
+}
+impl ApiEventMetric for CardIssuerDeleteResponse {
     fn get_api_event_type(&self) -> Option<common_utils::events::ApiEventsType> {
         Some(common_utils::events::ApiEventsType::CardIssuers)
     }
