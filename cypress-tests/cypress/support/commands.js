@@ -7118,6 +7118,46 @@ Cypress.Commands.add(
 );
 
 Cypress.Commands.add(
+  "createPaymentAndCaptureConnector",
+  (createConfirmPaymentBody, allowedConnectors, globalState) => {
+    const baseUrl = globalState.get("baseUrl");
+    const apiKey = globalState.get("apiKey");
+    const profileId = globalState.get("profileId");
+    const customerId = globalState.get("customerId");
+
+    cy.request({
+      method: "POST",
+      url: `${baseUrl}/payments`,
+      headers: {
+        "Content-Type": "application/json",
+        "api-key": apiKey,
+      },
+      failOnStatusCode: false,
+      body: {
+        ...createConfirmPaymentBody,
+        profile_id: profileId,
+        customer_id: customerId,
+      },
+    }).then((response) => {
+      logRequestId(response.headers["x-request-id"]);
+      storeRequestId(response.headers["x-request-id"], globalState);
+
+      cy.wrap(response).then(() => {
+        expect(response.status).to.eq(200);
+        const actualConnector = response.body.connector;
+        expect(actualConnector).to.be.oneOf(allowedConnectors);
+
+        globalState.set("connectorId", actualConnector);
+        const mcaKey = `${actualConnector}McaId`;
+        globalState.set("merchantConnectorId", globalState.get(mcaKey));
+        globalState.set("paymentID", response.body.payment_id);
+        globalState.set("paymentAmount", response.body.amount);
+      });
+    });
+  }
+);
+
+Cypress.Commands.add(
   "assertNetworkTransactionId",
   (globalState, shouldExist = true) => {
     const ntid = globalState.get("networkTransactionId");
