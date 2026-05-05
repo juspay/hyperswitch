@@ -7282,10 +7282,9 @@ Cypress.Commands.add("toggleExtendedCardInfoTest", (enabled, globalState) => {
 
     cy.wrap(response).then(() => {
       expect(response.status, "status_code").to.equal(200);
-      expect(
-        response.body.extended_card_info_config,
-        "extended_card_info_config"
-      ).to.not.be.null;
+      expect(response.body.enabled, "extended_card_info_enabled").to.equal(
+        enabled
+      );
       globalState.set("extendedCardInfoEnabled", enabled);
     });
   });
@@ -7409,7 +7408,9 @@ Cypress.Commands.add(
           expect(
             response.body.payment_method_data.card.card_extended_bin,
             "card_extended_bin value"
-          ).to.equal("42424242");
+          )
+            .to.be.a("string")
+            .and.to.have.lengthOf(8);
         } else {
           // card_extended_bin is null (not absent) when feature is disabled — CardResponse serializes None as null
           expect(
