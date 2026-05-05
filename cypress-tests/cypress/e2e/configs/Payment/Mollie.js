@@ -829,6 +829,54 @@ export const connectorDetails = {
       },
     },
   },
+  bank_debit_pm: {
+    PaymentIntent: (paymentMethodType) => {
+      const currencyMap = { Sepa: "EUR", Ach: "USD", Becs: "AUD", Bacs: "GBP" };
+      return {
+        Request: {
+          currency: currencyMap[paymentMethodType] || "USD",
+          setup_future_usage: "off_session",
+        },
+        Response: {
+          status: 200,
+          body: {
+            status: "requires_payment_method",
+          },
+        },
+      };
+    },
+    SepaDebit: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+      Request: {
+        payment_method: "bank_debit",
+        payment_method_type: "sepa",
+        payment_method_data: {
+          bank_debit: {
+            sepa_bank_debit: {
+              iban: "DE89370400440532013000",
+              bank_account_holder_name: "Test Account",
+            },
+          },
+        },
+        billing: {
+          address: {
+            country: "DE",
+          },
+          email: "test@example.com",
+        },
+        currency: "EUR",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "failed",
+          error_message: "webhookUrl",
+        },
+      },
+    },
+  },
   webhook: {
     TransactionIdConfig: {
       // Defines how to locate and parse the payment reference ID from connector-specific webhook payloads
