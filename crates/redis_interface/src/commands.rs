@@ -3454,7 +3454,7 @@ mod tests {
                         eprintln!("[TEST] HSCAN returned {} values out of {total_fields} total fields", values.len());
                         eprintln!("[TEST] MAX_SCAN_ITERATIONS = {MAX_SCAN_ITERATIONS}");
                         // If the guard triggered, we should have fewer values than total fields
-                        let guard_triggered = (values.len() as u64) < total_fields;
+                        let guard_triggered = u64::try_from(values.len()).unwrap_or(u64::MAX) < total_fields;
                         eprintln!("[TEST] Guard triggered: {guard_triggered}");
                         guard_triggered
                     }
