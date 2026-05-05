@@ -1,5 +1,4 @@
 export const connectorDetails = {
-  //Paylater for affirm
   pay_later_pm: {
     PaymentIntent: {
       Request: {
