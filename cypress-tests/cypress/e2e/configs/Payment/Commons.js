@@ -1193,6 +1193,8 @@ export const connectorDetails = {
     PaymentIntent: getCustomExchange({
       Request: {
         currency: "USD",
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
       },
       Response: {
         status: 200,
