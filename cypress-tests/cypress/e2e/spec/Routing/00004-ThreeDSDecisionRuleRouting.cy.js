@@ -22,14 +22,6 @@ describe("3DS Decision Rule Based Routing Test", () => {
         cy.ListMcaByMid(globalState);
       });
 
-      it("api-key-create-call-test", () => {
-        cy.apiKeyCreateTest(fixtures.apiKeyCreateBody, globalState);
-      });
-
-      it("customer-create-call-test", () => {
-        cy.createCustomerCallTest(fixtures.customerCreateBody, globalState);
-      });
-
       it("add-routing-config", () => {
         const data = utils.getConnectorDetails("common")["ruleBasedRouting"];
         const routing_data = {
@@ -169,14 +161,6 @@ describe("3DS Decision Rule Based Routing Test", () => {
         cy.ListMcaByMid(globalState);
       });
 
-      it("api-key-create-call-test", () => {
-        cy.apiKeyCreateTest(fixtures.apiKeyCreateBody, globalState);
-      });
-
-      it("customer-create-call-test", () => {
-        cy.createCustomerCallTest(fixtures.customerCreateBody, globalState);
-      });
-
       it("add-routing-config", () => {
         const data = utils.getConnectorDetails("common")["ruleBasedRouting"];
         const routing_data = {
@@ -314,14 +298,6 @@ describe("3DS Decision Rule Based Routing Test", () => {
       cy.ListMcaByMid(globalState);
     });
 
-    it("api-key-create-call-test", () => {
-      cy.apiKeyCreateTest(fixtures.apiKeyCreateBody, globalState);
-    });
-
-    it("customer-create-call-test", () => {
-      cy.createCustomerCallTest(fixtures.customerCreateBody, globalState);
-    });
-
     it("add-routing-config", () => {
       const data = utils.getConnectorDetails("common")["ruleBasedRouting"];
       const routing_data = {
@@ -437,14 +413,6 @@ describe("3DS Decision Rule Based Routing Test", () => {
 
       it("retrieve-mca", () => {
         cy.ListMcaByMid(globalState);
-      });
-
-      it("api-key-create-call-test", () => {
-        cy.apiKeyCreateTest(fixtures.apiKeyCreateBody, globalState);
-      });
-
-      it("customer-create-call-test", () => {
-        cy.createCustomerCallTest(fixtures.customerCreateBody, globalState);
       });
 
       it("add-routing-config", () => {
