@@ -1582,6 +1582,10 @@ pub async fn migrate_customers(
     platform: domain::Platform,
 ) -> errors::CustomerResponse<()> {
     for customer_migration in customers_migration {
+        // Keep copies for the backfill path when create_customer returns AlreadyExists.
+        let customer_request = customer_migration.customer.clone();
+        let connector_customer_details = customer_migration.connector_customer_details.clone();
+
         match create_customer(
             state.clone(),
             platform.get_provider().clone(),
@@ -1593,10 +1597,181 @@ pub async fn migrate_customers(
         {
             Ok(_) => (),
             Err(e) => match e.current_context() {
-                errors::CustomersErrorResponse::CustomerAlreadyExists => (),
+                // Customer already exists: create_customer is a no-op, so its
+                // connector_customer column won't be touched. Merge the new
+                // details into the existing record instead of silently dropping
+                // them.
+                errors::CustomersErrorResponse::CustomerAlreadyExists => {
+                    // Only backfill when CSV carries connector details.
+                    if let Some(details) = connector_customer_details {
+                        if !details.is_empty() {
+                            merge_connector_customer_for_existing_customer(
+                                &state,
+                                &platform,
+                                &customer_request,
+                                details,
+                            )
+                            .await?;
+                        }
+                    }
+                }
                 _ => return Err(e),
             },
         }
     }
+    Ok(services::ApplicationResponse::Json(()))
+}
+
+#[cfg(feature = "v1")]
+async fn merge_connector_customer_for_existing_customer(
+    state: &SessionState,
+    platform: &domain::Platform,
+    customer_request: &customers::CustomerRequest,
+    new_details: Vec<payment_methods_domain::ConnectorCustomerDetails>,
+) -> errors::CustomerResponse<()> {
+    let db = state.store.as_ref();
+    let provider = platform.get_provider();
+    let initiator = platform.get_initiator();
+
+    let customer_id = customer_request
+        .get_merchant_reference_id()
+        .ok_or(errors::CustomersErrorResponse::InternalServerError)
+        .attach_printable(
+            "Missing merchant_reference_id while merging connector_customer for existing customer",
+        )?;
+
+    let existing = db
+        .find_customer_by_customer_id_merchant_id(
+            &customer_id,
+            provider.get_account().get_id(),
+            provider.get_key_store(),
+            provider.get_account().storage_scheme,
+        )
+        .await
+        .switch()?;
+
+    // v1 stores connector_customer as SecretSerdeValue(JSON object).
+    let mut merged_map = existing
+        .connector_customer
+        .as_ref()
+        .and_then(|val| val.peek().as_object().cloned())
+        .unwrap_or_default();
+
+    let mut changed = false;
+    for detail in new_details {
+        if detail.connector_customer_id.trim().is_empty() {
+            continue;
+        }
+        let key = detail.merchant_connector_id.get_string_repr().to_string();
+        // Backfill only: never overwrite an existing entry for this MCA.
+        if let Some(existing_value) = merged_map.get(&key) {
+            if existing_value.as_str().is_some_and(|s| !s.is_empty()) {
+                continue;
+            }
+        }
+        merged_map.insert(key, serde_json::Value::String(detail.connector_customer_id));
+        changed = true;
+    }
+
+    // Avoid a no-op update when nothing was merged.
+    if !changed {
+        return Ok(services::ApplicationResponse::Json(()));
+    }
+
+    let last_modified_by = initiator.and_then(|initiator| {
+        initiator
+            .to_created_by()
+            .map(|last_modified_by| last_modified_by.to_string())
+    });
+
+    db.update_customer_by_customer_id_merchant_id(
+        customer_id,
+        provider.get_account().get_id().to_owned(),
+        existing,
+        domain::CustomerUpdate::ConnectorCustomer {
+            connector_customer: Some(pii::SecretSerdeValue::new(serde_json::Value::Object(
+                merged_map,
+            ))),
+            last_modified_by,
+        },
+        provider.get_key_store(),
+        provider.get_account().storage_scheme,
+    )
+    .await
+    .switch()?;
+
+    Ok(services::ApplicationResponse::Json(()))
+}
+
+#[cfg(feature = "v2")]
+async fn merge_connector_customer_for_existing_customer(
+    state: &SessionState,
+    platform: &domain::Platform,
+    customer_request: &customers::CustomerRequest,
+    new_details: Vec<payment_methods_domain::ConnectorCustomerDetails>,
+) -> errors::CustomerResponse<()> {
+    let db = state.store.as_ref();
+    let provider = platform.get_provider();
+    let initiator = platform.get_initiator();
+
+    let merchant_reference_id = customer_request
+        .get_merchant_reference_id()
+        .ok_or(errors::CustomersErrorResponse::InternalServerError)
+        .attach_printable(
+            "Missing merchant_reference_id while merging connector_customer for existing customer",
+        )?;
+
+    let existing = db
+        .find_customer_by_merchant_reference_id_merchant_id(
+            &merchant_reference_id,
+            provider.get_account().get_id(),
+            provider.get_key_store(),
+            provider.get_account().storage_scheme,
+        )
+        .await
+        .switch()?;
+
+    // v2 stores connector_customer as ConnectorCustomerMap.
+    let mut merged = existing.connector_customer.clone().unwrap_or_default();
+    let mut changed = false;
+    for detail in new_details {
+        if detail.connector_customer_id.trim().is_empty() {
+            continue;
+        }
+        // Backfill only: never overwrite an existing entry for this MCA.
+        if let Some(existing_value) = merged.get(&detail.merchant_connector_id) {
+            if !existing_value.is_empty() {
+                continue;
+            }
+        }
+        merged.insert(detail.merchant_connector_id, detail.connector_customer_id);
+        changed = true;
+    }
+
+    // Avoid a no-op update when nothing was merged.
+    if !changed {
+        return Ok(services::ApplicationResponse::Json(()));
+    }
+
+    let last_modified_by = initiator.and_then(|initiator| {
+        initiator
+            .to_created_by()
+            .map(|last_modified_by| last_modified_by.to_string())
+    });
+
+    let global_id = existing.id.clone();
+    db.update_customer_by_global_id(
+        &global_id,
+        existing,
+        domain::CustomerUpdate::ConnectorCustomer {
+            connector_customer: Some(merged),
+            last_modified_by,
+        },
+        provider.get_key_store(),
+        provider.get_account().storage_scheme,
+    )
+    .await
+    .switch()?;
+
     Ok(services::ApplicationResponse::Json(()))
 }
