@@ -5230,28 +5230,12 @@ Cypress.Commands.add(
     cy.request({
       method: "PUT",
       url: `${globalState.get("baseUrl")}/routing/decision/surcharge`,
-  "evaluateRoutingRule",
-  (data, evaluate_params, globalState) => {
-    const { Response: resData } = data || {};
-    const profileId = globalState.get("profileId");
-    // expectedConnector is passed via evaluate_params to avoid mutating the shared data object
-    const expectedConnector = evaluate_params.expectedConnector;
-
-    cy.request({
-      method: "POST",
-      url: `${globalState.get("baseUrl")}/routing/rule/evaluate`,
       headers: {
         "api-key": globalState.get("apiKey"),
         "Content-Type": "application/json",
       },
       body: surchargeBody,
       failOnStatusCode: false,
-      failOnStatusCode: false,
-      body: {
-        created_by: profileId,
-        parameters: evaluate_params.parameters,
-        fallback_output: evaluate_params.fallback_output || [],
-      },
     }).then((response) => {
       logRequestId(response.headers["x-request-id"]);
 
@@ -5263,6 +5247,41 @@ Cypress.Commands.add(
           for (const key in resData.body) {
             expect(resData.body[key]).to.deep.equal(response.body[key]);
           }
+        } else {
+          defaultErrorHandler(response, resData);
+        }
+      });
+    });
+  }
+);
+
+Cypress.Commands.add(
+  "evaluateRoutingRule",
+  (data, evaluate_params, globalState) => {
+    const { Response: resData } = data || {};
+    const profileId = globalState.get("profileId");
+    const expectedConnector = evaluate_params.expectedConnector;
+
+    cy.request({
+      method: "POST",
+      url: `${globalState.get("baseUrl")}/routing/rule/evaluate`,
+      headers: {
+        "api-key": globalState.get("apiKey"),
+        "Content-Type": "application/json",
+      },
+      body: {
+        created_by: profileId,
+        parameters: evaluate_params.parameters,
+        fallback_output: evaluate_params.fallback_output || [],
+      },
+      failOnStatusCode: false,
+    }).then((response) => {
+      logRequestId(response.headers["x-request-id"]);
+
+      cy.wrap(response).then(() => {
+        expect(response.headers["content-type"]).to.include("application/json");
+
+        if (response.status === 200) {
           expect(response.body).to.have.property("status", "success");
           expect(response.body).to.have.property("evaluated_output");
           expect(response.body).to.have.property("eligible_connectors");

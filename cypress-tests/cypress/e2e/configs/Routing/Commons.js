@@ -135,6 +135,8 @@ export const connectorDetails = {
           },
         },
       },
+    },
+  },
   routingEvaluate: {
     Request: {
       name: "routing evaluate",
