@@ -5265,10 +5265,16 @@ Cypress.Commands.add(
         if (response.status === 200) {
           globalState.set("surchargeDSLConfig", response.body);
           expect(response.body.name).to.equal(surchargeBody.name);
-          expect(response.body).to.have.property("created_at").that.is.a("number");
-          expect(response.body).to.have.property("modified_at").that.is.a("number");
-          expect(response.body).to.have.property("merchant_surcharge_configs").that.is.an("object");
-          
+          expect(response.body)
+            .to.have.property("created_at")
+            .that.is.a("number");
+          expect(response.body)
+            .to.have.property("modified_at")
+            .that.is.a("number");
+          expect(response.body)
+            .to.have.property("merchant_surcharge_configs")
+            .that.is.an("object");
+
           for (const key in resData.body) {
             if (key === "name" || key === "algorithm") continue;
             expect(resData.body[key]).to.deep.equal(response.body[key]);
@@ -5310,9 +5316,15 @@ Cypress.Commands.add("retrieveSurchargeDSLConfig", (data, globalState) => {
         if (storedConfig && storedConfig.name) {
           expect(response.body.name).to.equal(storedConfig.name);
         }
-        expect(response.body).to.have.property("created_at").that.is.a("number");
-        expect(response.body).to.have.property("modified_at").that.is.a("number");
-        expect(response.body).to.have.property("merchant_surcharge_configs").that.is.an("object");
+        expect(response.body)
+          .to.have.property("created_at")
+          .that.is.a("number");
+        expect(response.body)
+          .to.have.property("modified_at")
+          .that.is.a("number");
+        expect(response.body)
+          .to.have.property("merchant_surcharge_configs")
+          .that.is.an("object");
         for (const key in resData.body) {
           if (key === "name" || key === "algorithm") continue;
           expect(resData.body[key]).to.deep.equal(response.body[key]);
