@@ -4,31 +4,24 @@ import { payment_methods_enabled } from "../../configs/Payment/Commons";
 import getConnectorDetails, * as utils from "../../configs/Payment/Utils";
 
 let globalState;
+let specShouldSkip = false;
 
 describe("Extended Card Info Tests", () => {
-  before("seed global state", function () {
-    let skip = false;
+  before("seed global state", () => {
+    cy.task("getGlobalState").then((state) => {
+      globalState = new State(state);
+      const connectorId = globalState.get("connectorId");
+      specShouldSkip = utils.shouldIncludeConnector(
+        connectorId,
+        utils.CONNECTOR_LISTS.INCLUDE.EXTENDED_CARD_INFO
+      );
+    });
+  });
 
-    cy.task("getGlobalState")
-      .then((state) => {
-        globalState = new State(state);
-        const connectorId = globalState.get("connectorId");
-
-        if (
-          utils.shouldIncludeConnector(
-            connectorId,
-            utils.CONNECTOR_LISTS.INCLUDE.EXTENDED_CARD_INFO
-          )
-        ) {
-          skip = true;
-          return;
-        }
-      })
-      .then(() => {
-        if (skip) {
-          this.skip();
-        }
-      });
+  beforeEach(function () {
+    if (specShouldSkip) {
+      this.skip();
+    }
   });
 
   after("flush global state", () => {
