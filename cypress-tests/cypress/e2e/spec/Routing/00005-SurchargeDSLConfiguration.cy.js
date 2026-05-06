@@ -29,8 +29,10 @@ describe("Surcharge DSL Configuration Test", () => {
           defaultSelection: {
             surcharge_type: "rate",
             rate: 2.5,
+            metadata: {},
           },
           rules: [],
+          metadata: {},
         },
       };
 
@@ -58,10 +60,10 @@ describe("Surcharge DSL Configuration Test", () => {
     it("verify-delete-by-retrieve-empty", () => {
       const data =
         utils.getConnectorDetails("common")["SurchargeDecisionManager"][
-          "Retrieve"
+          "RetrieveDeleted"
         ];
 
-      cy.retrieveSurchargeDSLConfig(data, globalState);
+      cy.verifySurchargeDSLConfigDeleted(data, globalState);
     });
   });
 
@@ -80,8 +82,10 @@ describe("Surcharge DSL Configuration Test", () => {
           defaultSelection: {
             surcharge_type: "fixed",
             amount: 100,
+            metadata: {},
           },
           rules: [],
+          metadata: {},
         },
       };
 
@@ -122,13 +126,16 @@ describe("Surcharge DSL Configuration Test", () => {
           defaultSelection: {
             surcharge_type: "rate",
             rate: 2.5,
+            metadata: {},
           },
           rules: [
             {
               name: "card_surcharge_rule",
+              connectorSelection: {},
               surcharge_value: {
                 surcharge_type: "rate",
                 rate: 3.0,
+                metadata: {},
               },
               statements: [
                 {
@@ -147,6 +154,7 @@ describe("Surcharge DSL Configuration Test", () => {
               ],
             },
           ],
+          metadata: {},
         },
       };
 

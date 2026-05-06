@@ -85,15 +85,11 @@ export const connectorDetails = {
         status: 200,
         body: {
           name: "surcharge_config_rate",
-          merchant_surcharge_configs: {},
+          merchant_surcharge_configs: { show_surcharge_breakup_screen: null },
           algorithm: {
-            type: "rate",
-            rate: 2.5,
-            defaultSelection: {
-              surcharge_type: "rate",
-              rate: 2.5,
-            },
+            defaultSelection: { surcharge_details: null },
             rules: [],
+            metadata: {},
           },
         },
       },
@@ -104,15 +100,11 @@ export const connectorDetails = {
         status: 200,
         body: {
           name: "surcharge_config_rate",
-          merchant_surcharge_configs: {},
+          merchant_surcharge_configs: { show_surcharge_breakup_screen: null },
           algorithm: {
-            type: "rate",
-            rate: 2.5,
-            defaultSelection: {
-              surcharge_type: "rate",
-              rate: 2.5,
-            },
+            defaultSelection: { surcharge_details: null },
             rules: [],
+            metadata: {},
           },
         },
       },
@@ -121,17 +113,18 @@ export const connectorDetails = {
       Request: {},
       Response: {
         status: 200,
+        body: {},
+      },
+    },
+    RetrieveDeleted: {
+      Request: {},
+      Response: {
+        status: 404,
         body: {
-          name: "surcharge_config_rate",
-          merchant_surcharge_configs: {},
-          algorithm: {
-            type: "rate",
-            rate: 2.5,
-            defaultSelection: {
-              surcharge_type: "rate",
-              rate: 2.5,
-            },
-            rules: [],
+          error: {
+            type: "invalid_request",
+            message: "Resource ID does not exist in our records",
+            code: "HE_02",
           },
         },
       },
