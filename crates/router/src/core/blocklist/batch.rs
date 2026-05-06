@@ -30,14 +30,14 @@ pub(crate) fn input_chunk_key(merchant_id: &str, job_id: &str, chunk_idx: u32) -
 }
 
 #[derive(Debug, Clone)]
-pub(crate) struct BatchBlocklistRow {
+pub(crate) struct BlocklistRow {
     pub data_kind: common_enums::BlocklistDataKind,
     pub data: String,
     pub metadata: Option<serde_json::Value>,
 }
 
 #[derive(Debug, Deserialize)]
-struct BatchBlocklistCsvRecord {
+struct BlocklistCsvRecord {
     #[serde(rename = "type")]
     kind: String,
     data: String,
@@ -65,14 +65,14 @@ fn parse_metadata(s: &str) -> Option<serde_json::Value> {
     }
 }
 
-impl BatchBlocklistRow {
+impl BlocklistRow {
     fn build_row_error(
         row_index: usize,
         r#type: common_enums::BlocklistDataKind,
         data: String,
         reason: impl Into<String>,
-    ) -> api_blocklist::BatchBlocklistRowError {
-        api_blocklist::BatchBlocklistRowError {
+    ) -> api_blocklist::BlocklistRowError {
+        api_blocklist::BlocklistRowError {
             row_index,
             r#type,
             data,
@@ -91,8 +91,8 @@ impl BatchBlocklistRow {
 
     fn from_csv_record(
         row_index: usize,
-        record: BatchBlocklistCsvRecord,
-    ) -> Result<Self, api_blocklist::BatchBlocklistRowError> {
+        record: BlocklistCsvRecord,
+    ) -> Result<Self, api_blocklist::BlocklistRowError> {
         let kind = record.kind.to_lowercase();
         let data = record.data;
 
@@ -159,22 +159,22 @@ impl BatchBlocklistRow {
 
 fn parse_csv(
     csv_bytes: &[u8],
-) -> Result<Vec<BatchBlocklistRow>, api_blocklist::BatchBlocklistValidationError> {
+) -> Result<Vec<BlocklistRow>, api_blocklist::BlocklistValidationError> {
     let mut csv_reader = ReaderBuilder::new().trim(Trim::All).from_reader(csv_bytes);
 
     let mut rows = Vec::new();
-    let mut errors: Vec<api_blocklist::BatchBlocklistRowError> = Vec::new();
+    let mut errors: Vec<api_blocklist::BlocklistRowError> = Vec::new();
     for (row_index, result) in csv_reader
-        .deserialize::<BatchBlocklistCsvRecord>()
+        .deserialize::<BlocklistCsvRecord>()
         .enumerate()
         .take(MAX_BATCH_CSV_ROWS + 1)
     {
         match result {
-            Ok(record) => match BatchBlocklistRow::from_csv_record(row_index, record) {
+            Ok(record) => match BlocklistRow::from_csv_record(row_index, record) {
                 Ok(row) => rows.push(row),
                 Err(error) => errors.push(error),
             },
-            Err(error) => errors.push(BatchBlocklistRow::build_row_error(
+            Err(error) => errors.push(BlocklistRow::build_row_error(
                 row_index,
                 common_enums::BlocklistDataKind::CardBin,
                 String::new(),
@@ -184,13 +184,13 @@ fn parse_csv(
     }
 
     if !errors.is_empty() {
-        return Err(api_blocklist::BatchBlocklistValidationError { errors });
+        return Err(api_blocklist::BlocklistValidationError { errors });
     }
 
     Ok(rows)
 }
 
-fn rows_to_csv_bytes(rows: &[BatchBlocklistRow]) -> RouterResult<Vec<u8>> {
+fn rows_to_csv_bytes(rows: &[BlocklistRow]) -> RouterResult<Vec<u8>> {
     let mut writer = WriterBuilder::new()
         .has_headers(false)
         .from_writer(Vec::new());
@@ -233,22 +233,19 @@ fn rows_to_csv_bytes(rows: &[BatchBlocklistRow]) -> RouterResult<Vec<u8>> {
         .attach_printable("Failed to finalize batch blocklist input chunk CSV")
 }
 
-pub(crate) fn parse_chunk_csv(csv_bytes: &[u8]) -> RouterResult<Vec<BatchBlocklistRow>> {
+pub(crate) fn parse_chunk_csv(csv_bytes: &[u8]) -> RouterResult<Vec<BlocklistRow>> {
     let mut csv_reader = ReaderBuilder::new()
         .has_headers(false)
         .trim(Trim::All)
         .from_reader(csv_bytes);
     let mut rows = Vec::new();
 
-    for (row_index, result) in csv_reader
-        .deserialize::<BatchBlocklistCsvRecord>()
-        .enumerate()
-    {
+    for (row_index, result) in csv_reader.deserialize::<BlocklistCsvRecord>().enumerate() {
         let record = result
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to parse batch blocklist input chunk CSV")?;
 
-        let row = BatchBlocklistRow::from_csv_record(row_index, record).map_err(|error| {
+        let row = BlocklistRow::from_csv_record(row_index, record).map_err(|error| {
             report!(errors::ApiErrorResponse::InternalServerError).attach_printable(format!(
                 "Invalid batch blocklist input chunk row: {error:?}"
             ))
@@ -260,7 +257,7 @@ pub(crate) fn parse_chunk_csv(csv_bytes: &[u8]) -> RouterResult<Vec<BatchBlockli
     Ok(rows)
 }
 
-fn validate_csv(csv_bytes: &[u8]) -> RouterResult<Vec<BatchBlocklistRow>> {
+fn validate_csv(csv_bytes: &[u8]) -> RouterResult<Vec<BlocklistRow>> {
     if csv_bytes.len() > MAX_CSV_FILE_SIZE_BYTES {
         return Err(errors::ApiErrorResponse::InvalidRequestData {
             message: format!(
@@ -314,7 +311,7 @@ pub async fn initiate_batch_blocklist_upload(
     let job_id = common_utils::generate_id(crate::consts::ID_LENGTH, "blkbatch");
     let mid_str = merchant_id.get_string_repr().to_owned();
     let original_key = original_input_key(&mid_str, &job_id);
-    let chunks: Vec<&[BatchBlocklistRow]> = rows.chunks(CHUNK_SIZE).collect();
+    let chunks: Vec<&[BlocklistRow]> = rows.chunks(CHUNK_SIZE).collect();
     let chunk_total_count = u32::try_from(chunks.len())
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Chunk count exceeds u32::MAX")?;
@@ -337,9 +334,12 @@ pub async fn initiate_batch_blocklist_upload(
         .iter()
         .enumerate()
         .map(|(idx, chunk_rows)| {
-            let key = input_chunk_key(&mid_str, &job_id, u32::try_from(idx).unwrap_or(u32::MAX));
+            let chunk_idx =
+                u32::try_from(idx).change_context(errors::ApiErrorResponse::InternalServerError);
+            let key = chunk_idx.map(|ci| input_chunk_key(&mid_str, &job_id, ci));
             let fs = state.file_storage_client.clone();
             async move {
+                let key = key?;
                 let chunk_bytes = rows_to_csv_bytes(chunk_rows)?;
                 fs.upload_file(&key, chunk_bytes)
                     .await
@@ -423,7 +423,8 @@ pub async fn initiate_batch_blocklist_upload(
 
     Ok(api_blocklist::BatchBlocklistUploadResponse {
         job_id,
-        total_rows: u32::try_from(total_rows).unwrap_or(0),
+        total_rows: u32::try_from(total_rows)
+            .change_context(errors::ApiErrorResponse::InternalServerError)?,
         status: common_enums::BatchBlocklistJobStatus::Initiated,
     })
 }
@@ -432,7 +433,7 @@ pub(crate) async fn process_chunk(
     state: &SessionState,
     merchant_id: &id_type::MerchantId,
     chunk_idx: u32,
-    chunk_rows: Vec<BatchBlocklistRow>,
+    chunk_rows: Vec<BlocklistRow>,
 ) -> RouterResult<i32> {
     let now = date_time::now();
     let entries: Vec<storage::BlocklistNew> = chunk_rows
@@ -446,7 +447,8 @@ pub(crate) async fn process_chunk(
         })
         .collect();
 
-    let succeeded = i32::try_from(entries.len()).unwrap_or(0);
+    let succeeded = i32::try_from(entries.len())
+        .change_context(errors::ApiErrorResponse::InternalServerError)?;
 
     state
         .store
@@ -477,9 +479,12 @@ pub async fn get_batch_blocklist_job_status(
         job_id: job.id,
         merchant_id: job.merchant_id.get_string_repr().to_owned(),
         status: job.status,
-        total_rows: job.total_rows,
-        succeeded_rows: job.succeeded_rows,
-        failed_rows: job.failed_rows,
+        total_rows: u32::try_from(job.total_rows)
+            .change_context(errors::ApiErrorResponse::InternalServerError)?,
+        succeeded_rows: u32::try_from(job.succeeded_rows)
+            .change_context(errors::ApiErrorResponse::InternalServerError)?,
+        failed_rows: u32::try_from(job.failed_rows)
+            .change_context(errors::ApiErrorResponse::InternalServerError)?,
         created_at: job.created_at,
         updated_at: job.updated_at,
     })
@@ -511,17 +516,22 @@ pub async fn list_batch_blocklist_jobs(
     let count = jobs.len();
     let data = jobs
         .into_iter()
-        .map(|job| api_blocklist::BatchBlocklistJobStatusResponse {
-            job_id: job.id,
-            merchant_id: job.merchant_id.get_string_repr().to_owned(),
-            status: job.status,
-            total_rows: job.total_rows,
-            succeeded_rows: job.succeeded_rows,
-            failed_rows: job.failed_rows,
-            created_at: job.created_at,
-            updated_at: job.updated_at,
+        .map(|job| {
+            Ok(api_blocklist::BatchBlocklistJobStatusResponse {
+                job_id: job.id,
+                merchant_id: job.merchant_id.get_string_repr().to_owned(),
+                status: job.status,
+                total_rows: u32::try_from(job.total_rows)
+                    .change_context(errors::ApiErrorResponse::InternalServerError)?,
+                succeeded_rows: u32::try_from(job.succeeded_rows)
+                    .change_context(errors::ApiErrorResponse::InternalServerError)?,
+                failed_rows: u32::try_from(job.failed_rows)
+                    .change_context(errors::ApiErrorResponse::InternalServerError)?,
+                created_at: job.created_at,
+                updated_at: job.updated_at,
+            })
         })
-        .collect();
+        .collect::<RouterResult<Vec<_>>>()?;
 
     Ok(api_blocklist::ListBatchBlocklistJobsResponse {
         count,

@@ -90,7 +90,7 @@ impl ApiEventMetric for Card {}
 
 /// A single validation error found in a batch-upload CSV row.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
-pub struct BatchBlocklistRowError {
+pub struct BlocklistRowError {
     /// 0-based row index in the CSV (excluding header).
     pub row_index: usize,
     #[schema(value_type = BlocklistDataKind)]
@@ -101,8 +101,8 @@ pub struct BatchBlocklistRowError {
 
 /// Response body when a batch-upload request fails per-row validation.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema)]
-pub struct BatchBlocklistValidationError {
-    pub errors: Vec<BatchBlocklistRowError>,
+pub struct BlocklistValidationError {
+    pub errors: Vec<BlocklistRowError>,
 }
 
 /// Response returned on a successful `POST /blocklist/batch`.
@@ -119,9 +119,9 @@ pub struct BatchBlocklistJobStatusResponse {
     pub job_id: String,
     pub merchant_id: String,
     pub status: enums::BatchBlocklistJobStatus,
-    pub total_rows: i32,
-    pub succeeded_rows: i32,
-    pub failed_rows: i32,
+    pub total_rows: u32,
+    pub succeeded_rows: u32,
+    pub failed_rows: u32,
     #[serde(with = "common_utils::custom_serde::iso8601")]
     pub created_at: time::PrimitiveDateTime,
     #[serde(with = "common_utils::custom_serde::iso8601")]
