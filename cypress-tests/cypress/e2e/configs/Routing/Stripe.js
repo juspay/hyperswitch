@@ -143,6 +143,7 @@ export const connectorDetails = {
         },
         currency: "USD",
         customer_acceptance: null,
+        amount_to_capture: 1100,
       },
       Response: {
         status: 200,

@@ -98,23 +98,26 @@ describe("3DS Decision Rule Based Routing Test", () => {
         );
       });
 
-      it("confirm-three-ds-payment", () => {
-        const data =
-          utils.getConnectorDetails("stripe")["card_pm"]["3DSAutoCapture"];
-
-        globalState.set("connectorId", "stripe");
-        globalState.set("merchantConnectorId", globalState.get("stripeMcaId"));
-        cy.confirmCallTest(fixtures.confirmBody, data, true, globalState);
-      });
-
       it(
-        "handle-three-ds-redirection",
+        "confirm-three-ds-payment",
         { retries: { runMode: 3, openMode: 0 } },
         () => {
-          const expected_redirection = fixtures.confirmBody["return_url"];
-          cy.handleRedirection(globalState, expected_redirection);
+          const data =
+            utils.getConnectorDetails("stripe")["card_pm"]["3DSAutoCapture"];
+
+          globalState.set("connectorId", "stripe");
+          globalState.set(
+            "merchantConnectorId",
+            globalState.get("stripeMcaId")
+          );
+          cy.confirmCallTest(fixtures.confirmBody, data, true, globalState);
         }
       );
+
+      it("handle-three-ds-redirection", () => {
+        const expected_redirection = fixtures.confirmBody["return_url"];
+        cy.handleRedirection(globalState, expected_redirection);
+      });
 
       it("retrieve-payment-call-test-for-three-ds", () => {
         cy.retrievePaymentCallTest({ globalState });
@@ -135,7 +138,7 @@ describe("3DS Decision Rule Based Routing Test", () => {
 
       it("confirm-no-three-ds-payment", () => {
         const data =
-          utils.getConnectorDetails("adyen")["card_pm"]["No3DSAutoCapture"];
+          utils.getConnectorDetails("adyen")["card_pm"]["EURNo3DSAutoCapture"];
 
         globalState.set("connectorId", "adyen");
         globalState.set("merchantConnectorId", globalState.get("adyenMcaId"));
@@ -274,7 +277,7 @@ describe("3DS Decision Rule Based Routing Test", () => {
 
       it("confirm-no-three-ds-auto-capture", () => {
         const data =
-          utils.getConnectorDetails("adyen")["card_pm"]["No3DSAutoCapture"];
+          utils.getConnectorDetails("adyen")["card_pm"]["EURNo3DSAutoCapture"];
 
         globalState.set("connectorId", "adyen");
         globalState.set("merchantConnectorId", globalState.get("adyenMcaId"));
@@ -392,10 +395,14 @@ describe("3DS Decision Rule Based Routing Test", () => {
       cy.handleRedirection(globalState, expected_redirection);
     });
 
-    it("capture-three-ds-payment", () => {
-      const data = utils.getConnectorDetails("stripe")["card_pm"]["Capture"];
-      cy.captureCallTest(fixtures.captureBody, data, globalState);
-    });
+    it(
+      "capture-three-ds-payment",
+      { retries: { runMode: 3, openMode: 0 } },
+      () => {
+        const data = utils.getConnectorDetails("stripe")["card_pm"]["Capture"];
+        cy.captureCallTest(fixtures.captureBody, data, globalState);
+      }
+    );
 
     it("retrieve-three-ds-manual-capture-payment", () => {
       cy.retrievePaymentCallTest({ globalState });
@@ -537,7 +544,7 @@ describe("3DS Decision Rule Based Routing Test", () => {
 
       it("confirm-card-no-three-ds", () => {
         const data =
-          utils.getConnectorDetails("adyen")["card_pm"]["No3DSAutoCapture"];
+          utils.getConnectorDetails("adyen")["card_pm"]["EURNo3DSAutoCapture"];
 
         globalState.set("connectorId", "adyen");
         globalState.set("merchantConnectorId", globalState.get("adyenMcaId"));
