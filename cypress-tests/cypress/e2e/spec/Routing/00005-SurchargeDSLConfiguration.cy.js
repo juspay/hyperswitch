@@ -118,43 +118,55 @@ describe("Surcharge DSL Configuration Test", () => {
           "Create"
         ];
       const surchargeBody = {
-        name: "surcharge_config_rules",
-        merchant_surcharge_configs: {},
+        name: "surcharge_config_complex",
+        merchant_surcharge_configs: {
+          show_surcharge_breakup_screen: true,
+        },
         algorithm: {
-          type: "rate",
-          rate: 2.5,
+          type: "conditional",
           defaultSelection: {
-            surcharge_type: "rate",
-            rate: 2.5,
+            surcharge_type: "fixed",
+            amount: 50,
             metadata: {},
           },
           rules: [
             {
-              name: "card_surcharge_rule",
-              connectorSelection: {},
-              surcharge_value: {
+              conditions: [
+                {
+                  field: "payment_method_type",
+                  operator: "equals",
+                  value: "card",
+                },
+                {
+                  field: "card_network",
+                  operator: "in",
+                  value: ["visa", "mastercard"],
+                },
+              ],
+              action: {
                 surcharge_type: "rate",
                 rate: 3.0,
                 metadata: {},
               },
-              statements: [
+            },
+            {
+              conditions: [
                 {
-                  condition: [
-                    {
-                      lhs: "payment_method",
-                      comparison: "equal",
-                      value: {
-                        type: "enum_variant",
-                        value: "card",
-                      },
-                      metadata: {},
-                    },
-                  ],
+                  field: "payment_method_type",
+                  operator: "equals",
+                  value: "paypal",
                 },
               ],
+              action: {
+                surcharge_type: "fixed",
+                amount: 200,
+                metadata: {},
+              },
             },
           ],
-          metadata: {},
+          metadata: {
+            description: "Complex surcharge with payment method and card network conditions",
+          },
         },
       };
 
