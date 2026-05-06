@@ -250,19 +250,6 @@ impl redis::FromRedisValue for ConsumerGroupDestroyReply {
     }
 }
 
-/// Converts stream field values from `redis::Value` to `Option<String>`.
-///
-/// Useful for deserializing `XREAD`/`XRANGE` results where field values
-/// may be any Redis type.
-pub fn stream_fields_to_option_strings(
-    fields: std::collections::HashMap<String, redis::Value>,
-) -> std::collections::HashMap<String, Option<String>> {
-    fields
-        .into_iter()
-        .map(|(field_name, redis_value)| (field_name, redis_value_to_option_string(&redis_value)))
-        .collect()
-}
-
 // ─── Redis-rs-specific helpers ───────────────────────────────────────────────
 
 /// Converts a `redis::Value` to `Option<String>`.

@@ -442,7 +442,7 @@ impl StreamTrimConfig {
 
 /// Error returned when a `StreamTrimConfig` threshold cannot be parsed.
 #[derive(Debug)]
-pub struct StreamTrimThresholdError(pub String);
+pub struct StreamTrimThresholdError(String);
 
 impl std::fmt::Display for StreamTrimThresholdError {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
