@@ -115,9 +115,7 @@ describe("3DS Decision Rule Based Routing Test", () => {
             expect(
               globalState.get("nextActionUrl"),
               "nextActionUrl must be set by confirm-three-ds-payment"
-            )
-              .to.be.a("string")
-              .and.not.be.empty;
+            ).to.be.a("string").and.not.be.empty;
           });
         }
       );
@@ -149,7 +147,9 @@ describe("3DS Decision Rule Based Routing Test", () => {
         { retries: { runMode: 0, openMode: 0 } },
         () => {
           const data =
-            utils.getConnectorDetails("adyen")["card_pm"]["EURNo3DSAutoCapture"];
+            utils.getConnectorDetails("adyen")["card_pm"][
+              "EURNo3DSAutoCapture"
+            ];
 
           globalState.set("connectorId", "adyen");
           globalState.set("merchantConnectorId", globalState.get("adyenMcaId"));
@@ -292,7 +292,9 @@ describe("3DS Decision Rule Based Routing Test", () => {
         { retries: { runMode: 0, openMode: 0 } },
         () => {
           const data =
-            utils.getConnectorDetails("adyen")["card_pm"]["EURNo3DSAutoCapture"];
+            utils.getConnectorDetails("adyen")["card_pm"][
+              "EURNo3DSAutoCapture"
+            ];
 
           globalState.set("connectorId", "adyen");
           globalState.set("merchantConnectorId", globalState.get("adyenMcaId"));
@@ -563,7 +565,9 @@ describe("3DS Decision Rule Based Routing Test", () => {
         { retries: { runMode: 0, openMode: 0 } },
         () => {
           const data =
-            utils.getConnectorDetails("adyen")["card_pm"]["EURNo3DSAutoCapture"];
+            utils.getConnectorDetails("adyen")["card_pm"][
+              "EURNo3DSAutoCapture"
+            ];
 
           globalState.set("connectorId", "adyen");
           globalState.set("merchantConnectorId", globalState.get("adyenMcaId"));
