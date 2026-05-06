@@ -58,7 +58,10 @@ describe("Card - Step-Up Authentication flow test", () => {
 
       cy.step("confirm payment with step-up auth", () => {
         if (!shouldContinue) {
-          cy.task("cli_log", "Skipping step: confirm payment with step-up auth");
+          cy.task(
+            "cli_log",
+            "Skipping step: confirm payment with step-up auth"
+          );
           return;
         }
 
@@ -107,7 +110,10 @@ describe("Card - Step-Up Authentication flow test", () => {
 
       cy.step("confirm payment with step-up auth", () => {
         if (!shouldContinue) {
-          cy.task("cli_log", "Skipping step: confirm payment with step-up auth");
+          cy.task(
+            "cli_log",
+            "Skipping step: confirm payment with step-up auth"
+          );
           return;
         }
 
@@ -130,7 +136,9 @@ describe("Card - Step-Up Authentication flow test", () => {
 
         const status = globalState.get("paymentStatus");
         if (status !== "requires_customer_action") {
-          cy.log(`Skipping 3DS initiation — payment status is ${status} (sandbox bypassed 3DS)`);
+          cy.log(
+            `Skipping 3DS initiation — payment status is ${status} (sandbox bypassed 3DS)`
+          );
           shouldContinue = false;
         }
       });
