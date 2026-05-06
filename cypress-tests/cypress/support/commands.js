@@ -5218,6 +5218,100 @@ Cypress.Commands.add("retrieveRoutingConfig", (data, globalState) => {
 });
 
 Cypress.Commands.add(
+  "createSurchargeDSLConfig",
+  (surchargeBody, data, globalState) => {
+    const { Response: resData } = data || {};
+    const profileId = globalState.get("profileId");
+
+    if (surchargeBody && surchargeBody.program) {
+      surchargeBody.program.profile_id = profileId;
+    }
+
+    cy.request({
+      method: "PUT",
+      url: `${globalState.get("baseUrl")}/routing/decision/surcharge`,
+      headers: {
+        "api-key": globalState.get("apiKey"),
+        "Content-Type": "application/json",
+      },
+      body: surchargeBody,
+      failOnStatusCode: false,
+    }).then((response) => {
+      logRequestId(response.headers["x-request-id"]);
+
+      cy.wrap(response).then(() => {
+        expect(response.headers["content-type"]).to.include("application/json");
+
+        if (response.status === 200) {
+          globalState.set("surchargeDSLConfig", response.body);
+          for (const key in resData.body) {
+            expect(resData.body[key]).to.deep.equal(response.body[key]);
+          }
+        } else {
+          defaultErrorHandler(response, resData);
+        }
+      });
+    });
+  }
+);
+
+Cypress.Commands.add("retrieveSurchargeDSLConfig", (data, globalState) => {
+  const { Response: resData } = data || {};
+
+  cy.request({
+    method: "GET",
+    url: `${globalState.get("baseUrl")}/routing/decision/surcharge`,
+    headers: {
+      "api-key": globalState.get("apiKey"),
+      "Content-Type": "application/json",
+    },
+    failOnStatusCode: false,
+  }).then((response) => {
+    logRequestId(response.headers["x-request-id"]);
+
+    cy.wrap(response).then(() => {
+      expect(response.headers["content-type"]).to.include("application/json");
+
+      if (response.status === 200) {
+        for (const key in resData.body) {
+          expect(resData.body[key]).to.deep.equal(response.body[key]);
+        }
+      } else {
+        defaultErrorHandler(response, resData);
+      }
+    });
+  });
+});
+
+Cypress.Commands.add("deleteSurchargeDSLConfig", (data, globalState) => {
+  const { Response: resData } = data || {};
+
+  cy.request({
+    method: "DELETE",
+    url: `${globalState.get("baseUrl")}/routing/decision/surcharge`,
+    headers: {
+      "api-key": globalState.get("apiKey"),
+      "Content-Type": "application/json",
+    },
+    failOnStatusCode: false,
+  }).then((response) => {
+    logRequestId(response.headers["x-request-id"]);
+
+    cy.wrap(response).then(() => {
+      expect(response.headers["content-type"]).to.include("application/json");
+
+      if (response.status === 200) {
+        for (const key in resData.body) {
+          expect(resData.body[key]).to.deep.equal(response.body[key]);
+        }
+      } else {
+        defaultErrorHandler(response, resData);
+      }
+    });
+  });
+});
+
+Cypress.Commands.add(
   "updateGsmConfig",
   (gsmBody, globalState, step_up_possible) => {
     gsmBody.step_up_possible = step_up_possible;
@@ -7140,6 +7234,46 @@ Cypress.Commands.add(
         } else {
           defaultErrorHandler(response, resData);
         }
+      });
+    });
+  }
+);
+
+Cypress.Commands.add(
+  "createPaymentAndCaptureConnector",
+  (createConfirmPaymentBody, allowedConnectors, globalState) => {
+    const baseUrl = globalState.get("baseUrl");
+    const apiKey = globalState.get("apiKey");
+    const profileId = globalState.get("profileId");
+    const customerId = globalState.get("customerId");
+
+    cy.request({
+      method: "POST",
+      url: `${baseUrl}/payments`,
+      headers: {
+        "Content-Type": "application/json",
+        "api-key": apiKey,
+      },
+      failOnStatusCode: false,
+      body: {
+        ...createConfirmPaymentBody,
+        profile_id: profileId,
+        customer_id: customerId,
+      },
+    }).then((response) => {
+      logRequestId(response.headers["x-request-id"]);
+      storeRequestId(response.headers["x-request-id"], globalState);
+
+      cy.wrap(response).then(() => {
+        expect(response.status).to.eq(200);
+        const actualConnector = response.body.connector;
+        expect(actualConnector).to.be.oneOf(allowedConnectors);
+
+        globalState.set("connectorId", actualConnector);
+        const mcaKey = `${actualConnector}McaId`;
+        globalState.set("merchantConnectorId", globalState.get(mcaKey));
+        globalState.set("paymentID", response.body.payment_id);
+        globalState.set("paymentAmount", response.body.amount);
       });
     });
   }
