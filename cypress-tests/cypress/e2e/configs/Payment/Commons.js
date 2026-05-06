@@ -590,8 +590,21 @@ export const payment_methods_enabled = [
 
 export const connectorDetails = {
   bank_transfer_pm: {
-    PaymentIntent: (paymentMethodType) =>
-      getCustomExchange({
+    PaymentIntent: (paymentMethodType) => {
+      const unsupportedBankTransferMethods = ["Boleto", "PixAutomatico"];
+      if (unsupportedBankTransferMethods.includes(paymentMethodType)) {
+        return getCustomExchange({
+          Configs: { TRIGGER_SKIP: true },
+          Request: { currency: getCurrency(paymentMethodType) },
+          Response: {
+            status: 200,
+            body: {
+              status: "requires_payment_method",
+            },
+          },
+        });
+      }
+      return getCustomExchange({
         Request: {
           currency: getCurrency(paymentMethodType),
         },
@@ -601,7 +614,8 @@ export const connectorDetails = {
             status: "requires_payment_method",
           },
         },
-      }),
+      });
+    },
 
     Pix: getCustomExchange({
       Request: {
@@ -705,11 +719,15 @@ export const connectorDetails = {
     }),
     Boleto: getCustomExchange({
       Configs: { TRIGGER_SKIP: true },
-      Request: { currency: "BRL" },
+      Request: {
+        currency: "BRL",
+      },
     }),
     PixAutomatico: getCustomExchange({
       Configs: { TRIGGER_SKIP: true },
-      Request: { currency: "BRL" },
+      Request: {
+        currency: "BRL",
+      },
     }),
   },
   bank_redirect_pm: {
