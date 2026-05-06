@@ -2192,6 +2192,74 @@ Cypress.Commands.add("createPaymentMethodTest", (globalState, data) => {
   });
 });
 
+Cypress.Commands.add("deletePaymentMethodTest", (globalState) => {
+  const apiKey = globalState.get("apiKey");
+  const baseUrl = globalState.get("baseUrl");
+  const paymentMethodId = globalState.get("paymentMethodId");
+  const url = `${baseUrl}/payment_methods/${paymentMethodId}`;
+
+  cy.request({
+    method: "DELETE",
+    url: url,
+    headers: {
+      Accept: "application/json",
+      "api-key": apiKey,
+    },
+    failOnStatusCode: false,
+  }).then((response) => {
+    logRequestId(response.headers["x-request-id"]);
+
+    cy.wrap(response).then(() => {
+      expect(response.headers["content-type"]).to.include("application/json");
+      if (response.status === 200) {
+        expect(response.body.payment_method_id).to.equal(paymentMethodId);
+        expect(response.body.deleted).to.be.true;
+      } else if (response.status === 500 && baseUrl.includes("localhost")) {
+        // delete payment method api endpoint requires tartarus (hyperswitch card vault) to be set up since it makes a call to the locker service to delete the payment method
+        expect(response.body.error.code).to.include("HE_00");
+        expect(response.body.error.message).to.include("Something went wrong");
+      } else {
+        throw new Error(
+          `Payment Method Delete Call Failed with error message: ${response.body.error.message}`
+        );
+      }
+    });
+  });
+});
+
+Cypress.Commands.add("setDefaultPaymentMethodTest", (globalState) => {
+  const payment_method_id = globalState.get("paymentMethodId");
+  const customer_id = globalState.get("customerId");
+
+  cy.request({
+    method: "POST",
+    url: `${globalState.get("baseUrl")}/customers/${customer_id}/payment_methods/${payment_method_id}/default`,
+    headers: {
+      "api-key": globalState.get("apiKey"),
+    },
+    failOnStatusCode: false,
+  }).then((response) => {
+    logRequestId(response.headers["x-request-id"]);
+
+    cy.wrap(response).then(() => {
+      expect(response.headers["content-type"]).to.include("application/json");
+      if (response.status === 200) {
+        expect(response.body).to.have.property(
+          "default_payment_method_id",
+          payment_method_id
+        );
+        expect(response.body).to.have.property("customer_id", customer_id);
+      } else if (response.status === 400) {
+        expect(response.body.error.message).to.equal(
+          "Payment Method is already set as default"
+        );
+      } else {
+        defaultErrorHandler(response);
+      }
+    });
+  });
+});
+
 Cypress.Commands.add("verifySurchargeDSLConfigDeleted", (data, globalState) => {
   cy.request({
     method: "GET",
