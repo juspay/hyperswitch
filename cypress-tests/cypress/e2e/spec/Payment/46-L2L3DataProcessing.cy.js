@@ -5,10 +5,27 @@ import getConnectorDetails, * as utils from "../../configs/Payment/Utils";
 let globalState;
 
 describe("L2/L3 Data Processing Tests", () => {
-  before("seed global state", () => {
-    cy.task("getGlobalState").then((state) => {
-      globalState = new State(state);
-    });
+  before(function () {
+    let skip = false;
+
+    cy.task("getGlobalState")
+      .then((state) => {
+        globalState = new State(state);
+
+        if (
+          utils.shouldIncludeConnector(
+            globalState.get("connectorId"),
+            utils.CONNECTOR_LISTS.INCLUDE.L2L3DATA
+          )
+        ) {
+          skip = true;
+        }
+      })
+      .then(() => {
+        if (skip) {
+          this.skip();
+        }
+      });
   });
 
   afterEach("flush global state", () => {
