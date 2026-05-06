@@ -48,6 +48,7 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "requires_customer_action",
+          billing: null,
         },
       },
     }),

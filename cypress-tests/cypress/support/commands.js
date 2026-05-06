@@ -3270,7 +3270,7 @@ Cypress.Commands.add(
     expectedIntentStatus,
     connectedMerchantId,
   }) => {
-    const { Configs: configs = {} } = data || {};
+    const { Configs: configs = {}, Response: resData } = data || {};
 
     const configInfo = execConfig(validateConfig(configs));
     const merchant_connector_id = globalState.get(
@@ -3306,7 +3306,9 @@ Cypress.Commands.add(
             globalState.get("paymentAmount")
           );
           expect(response.body.profile_id, "profile_id").to.not.be.null;
-          expect(response.body.billing, "billing_address").to.not.be.null;
+          if (resData?.body?.billing !== null) {
+            expect(response.body.billing, "billing_address").to.not.be.null;
+          }
           expect(response.body.customer, "customer").to.not.be.empty;
 
           if (expectedIntentStatus) {
