@@ -1,6 +1,8 @@
 import * as fixtures from "../../../fixtures/imports";
 import State from "../../../utils/State";
-import { connectorDetails } from "../../configs/Misc/Commons";
+import { connectorDetails as paymentCommonDetails } from "../../../e2e/configs/Payment/Commons";
+
+const connectorDetails = paymentCommonDetails.pm_collect_link;
 
 let globalState;
 
