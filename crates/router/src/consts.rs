@@ -285,8 +285,8 @@ pub const IRRELEVANT_PAYMENT_ATTEMPT_ID: &str = "irrelevant_payment_attempt_id";
 
 pub static PROFILE_ID_UNAVAILABLE: sync::LazyLock<id_type::ProfileId> = sync::LazyLock::new(|| {
     #[allow(clippy::expect_used)]
-    id_type::ProfileId::from_str("PROFILE_ID_UNAVAIABLE")
-        .expect("Failed to parse PROFILE_ID_UNAVAIABLE")
+    id_type::ProfileId::from_str("PROFILE_ID_UNAVAILABLE")
+        .expect("Failed to parse PROFILE_ID_UNAVAILABLE")
 });
 
 /// Default payment attempt id
