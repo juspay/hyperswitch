@@ -97,39 +97,41 @@ describe("Payment Link - Hosted payment link generation", () => {
 
   context("Payment Link - Edge Cases", () => {
     it("Create Payment Intent without Payment Link -> Should not have payment_link in response", () => {
-      const profile_id = globalState.get("profileId") || globalState.get("defaultProfileId");
-      
-      const requestBody = {
-        ...fixtures.createPaymentBody,
-        currency: "USD",
-        amount: 6000,
-        description: "Test without Payment Link",
-        email: "test@example.com",
-        authentication_type: "no_three_ds",
-        capture_method: "automatic",
-        customer_id: globalState.get("customerId"),
-        profile_id: profile_id,
-        // Not setting payment_link: true
-      };
+      cy.wrap(null).then(() => {
+        const profile_id = globalState.get("profileId") || globalState.get("defaultProfileId");
+        
+        const requestBody = {
+          ...fixtures.createPaymentBody,
+          currency: "USD",
+          amount: 6000,
+          description: "Test without Payment Link",
+          email: "test@example.com",
+          authentication_type: "no_three_ds",
+          capture_method: "automatic",
+          customer_id: globalState.get("customerId"),
+          profile_id: profile_id,
+          // Not setting payment_link: true
+        };
 
-      const headers = {
-        "Content-Type": "application/json",
-        Accept: "application/json",
-        "api-key": globalState.get("apiKey"),
-      };
+        const headers = {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+          "api-key": globalState.get("apiKey"),
+        };
 
-      cy.request({
-        method: "POST",
-        url: `${globalState.get("baseUrl")}/payments`,
-        headers,
-        failOnStatusCode: false,
-        body: requestBody,
-      }).then((response) => {
-        expect(response.status).to.equal(200);
-        expect(response.body).to.have.property("payment_id");
-        expect(response.body).to.have.property("client_secret");
-        // Verify payment_link is null when not requested
-        expect(response.body.payment_link).to.be.null;
+        return cy.request({
+          method: "POST",
+          url: `${globalState.get("baseUrl")}/payments`,
+          headers,
+          failOnStatusCode: false,
+          body: requestBody,
+        }).then((response) => {
+          expect(response.status).to.equal(200);
+          expect(response.body).to.have.property("payment_id");
+          expect(response.body).to.have.property("client_secret");
+          // Verify payment_link is null when not requested
+          expect(response.body.payment_link).to.be.null;
+        });
       });
     });
   });
