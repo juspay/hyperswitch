@@ -98,7 +98,6 @@ ALTER TABLE payment_attempt DROP COLUMN attempt_id,
 
 
 ALTER TABLE payment_methods
-    DROP COLUMN IF EXISTS payment_method_id,
     DROP COLUMN IF EXISTS accepted_currency,
     DROP COLUMN IF EXISTS scheme,
     DROP COLUMN IF EXISTS token,

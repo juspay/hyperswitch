@@ -14,6 +14,7 @@ pub struct FinixPaymentsRequest {
     pub source: Secret<String>,
     pub merchant: Secret<String>,
     pub tags: Option<FinixTags>,
+    pub fraud_session_id: Option<String>,
     #[serde(rename = "3d_secure_authentication")]
     pub three_d_secure_authentication: Option<FinixThreeDSecure>,
     pub idempotency_id: Option<String>,

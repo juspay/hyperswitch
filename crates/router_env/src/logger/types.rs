@@ -154,6 +154,8 @@ pub enum Flow {
     PaymentMethodCollectLink,
     /// Payment methods retrieve flow.
     PaymentMethodsRetrieve,
+    /// Payment methods retrieve OLAP flow.
+    PaymentMethodsRetrieveOlap,
     /// Payment methods update flow.
     PaymentMethodsUpdate,
     /// Payment methods delete flow.
@@ -307,6 +309,8 @@ pub enum Flow {
     AddCardIssuer,
     /// Update a card issuer in the catalog
     UpdateCardIssuer,
+    /// Delete a card issuer from the catalog
+    DeleteCardIssuer,
     /// List card issuers from the catalog
     ListCardIssuers,
     /// Add record to blocklist

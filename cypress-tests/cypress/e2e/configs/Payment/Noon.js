@@ -748,6 +748,48 @@ export const connectorDetails = {
         },
       },
     },
+    ConnectorTestingData: {
+      Request: {
+        currency: "AED",
+        amount: 9000,
+        connector_metadata: {
+          noon: { order_category: "pay" },
+        },
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+        },
+      },
+    },
+    ConnectorTestingDataConfirm: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: {
+            card_number: "4242424242424242",
+            card_exp_month: "01",
+            card_exp_year: "2030",
+            card_cvc: "123",
+            card_holder_name: "joseph Doe",
+          },
+        },
+        connector_metadata: {
+          noon: { order_category: "pay" },
+        },
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "failed",
+        },
+      },
+    },
   },
   webhook: {
     TransactionIdConfig: {

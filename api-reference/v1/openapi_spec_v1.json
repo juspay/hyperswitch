@@ -8372,6 +8372,45 @@
             "admin_api_key": []
           }
         ]
+      },
+      "delete": {
+        "tags": [
+          "Card Issuer"
+        ],
+        "summary": "Card Issuer - Delete",
+        "description": "Deletes an existing card issuer entry",
+        "operationId": "Delete Card Issuer",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "description": "The unique identifier for the card issuer",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Card issuer deleted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CardIssuerDeleteResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Card issuer not found"
+          }
+        },
+        "security": [
+          {
+            "admin_api_key": []
+          }
+        ]
       }
     }
   },
@@ -12375,12 +12414,14 @@
             "properties": {
               "trustly": {
                 "type": "object",
-                "required": [
-                  "country"
-                ],
                 "properties": {
                   "country": {
-                    "$ref": "#/components/schemas/CountryAlpha2"
+                    "allOf": [
+                      {
+                        "$ref": "#/components/schemas/CountryAlpha2"
+                      }
+                    ],
+                    "nullable": true
                   }
                 }
               }
@@ -14665,6 +14706,22 @@
           "saved_card",
           "click_to_pay"
         ]
+      },
+      "CardIssuerDeleteResponse": {
+        "type": "object",
+        "required": [
+          "id",
+          "deleted"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "deleted": {
+            "type": "boolean",
+            "example": true
+          }
+        }
       },
       "CardIssuerListQuery": {
         "type": "object",
@@ -20386,6 +20443,14 @@
               }
             ],
             "nullable": true
+          },
+          "finix_additional_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/FinixAdditionalDetails"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -20881,6 +20946,17 @@
           }
         ],
         "description": "Possible field type of required fields in payment_method_data"
+      },
+      "FinixAdditionalDetails": {
+        "type": "object",
+        "properties": {
+          "fraud_session_id": {
+            "type": "string",
+            "description": "The fraud session ID used for Finix fraud detection",
+            "example": "1234567890abcdef",
+            "nullable": true
+          }
+        }
       },
       "FlexibleAmountDetails": {
         "type": "object",
@@ -28993,6 +29069,14 @@
               "$ref": "#/components/schemas/PaymentMethodListInstallmentOption"
             },
             "description": "Installment options available for this payment",
+            "nullable": true
+          },
+          "capture_method": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CaptureMethod"
+              }
+            ],
             "nullable": true
           }
         }
