@@ -53,10 +53,7 @@ describe("Merchant Category Code (MCC) Tests", () => {
       globalState.set("merchantId", globalState.get("standardMerchantId"));
       globalState.set("apiKey", globalState.get("apiKeySm"));
 
-      cy.retrieveBusinessProfileTest(
-        globalState,
-        "mccProfile"
-      );
+      cy.retrieveBusinessProfileTest(globalState, "mccProfile");
 
       cy.then(() => {
         globalState.set("merchantId", savedMerchantId);
@@ -119,7 +116,7 @@ describe("Merchant Category Code (MCC) Tests", () => {
       { code: "8111", name: "Legal Services" },
       { code: "7011", name: "Hotels" },
     ].forEach(({ code, name }) => {
-      it(`creates-profile-with-mcc-${code}-${name.replace(/\s+/g, '-').toLowerCase()}`, () => {
+      it(`creates-profile-with-mcc-${code}-${name.replace(/\s+/g, "-").toLowerCase()}`, () => {
         const savedMerchantId = globalState.get("merchantId");
         const savedApiKey = globalState.get("apiKey");
 
