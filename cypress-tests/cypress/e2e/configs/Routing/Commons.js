@@ -90,8 +90,7 @@ export const connectorDetails = {
             type: "rate",
             rate: 2.5,
             defaultSelection: {
-              surcharge_type: "rate",
-              rate: 2.5,
+              surcharge_details: null,
             },
             rules: [],
           },
@@ -109,8 +108,7 @@ export const connectorDetails = {
             type: "rate",
             rate: 2.5,
             defaultSelection: {
-              surcharge_type: "rate",
-              rate: 2.5,
+              surcharge_details: null,
             },
             rules: [],
           },
