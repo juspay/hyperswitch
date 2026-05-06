@@ -5,9 +5,7 @@ use std::{
 
 use api_models::{
     payments::RedirectionResponse,
-    user::{
-        self as user_api, InviteMultipleUserResponse, NameIdUnit, UserMerchantDetailsResponse,
-    },
+    user::{self as user_api, InviteMultipleUserResponse, NameIdUnit, UserMerchantDetailsResponse},
 };
 use common_enums::{connector_enums, EntityType, MerchantProductType, UserAuthType};
 use common_utils::{
