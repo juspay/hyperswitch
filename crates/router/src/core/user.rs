@@ -449,7 +449,6 @@ pub async fn get_merchant_account_details(
         .change_context(UserErrors::InternalServerError)?;
 
     Ok(ApplicationResponse::Json(MerchantAccountDetailsResponse {
-        recon_status: merchant_account.recon_status,
         product_type: merchant_account.product_type,
         merchant_account_type: merchant_account.merchant_account_type,
     }))

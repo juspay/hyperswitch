@@ -1261,7 +1261,7 @@ pub async fn authorize_token(
     .await
 }
 
-/// Retrieve merchant account details (recon_status, product_type, merchant_account_type).
+/// Retrieve merchant account details (product_type, merchant_account_type).
 pub async fn retrieve_merchant_account_details(
     state: web::Data<AppState>,
     req: HttpRequest,
