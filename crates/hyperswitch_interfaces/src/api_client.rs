@@ -247,7 +247,7 @@ where
                         Some(request) => match request {
                             RequestContent::Json(i)
                             | RequestContent::FormUrlEncoded(i)
-                            | RequestContent::Xml(i) => i
+                            | RequestContent::Xml(i, _) => i
                                 .masked_serialize()
                                 .unwrap_or(json!({ "error": "failed to mask serialize"})),
                             RequestContent::FormData((_, i)) => i

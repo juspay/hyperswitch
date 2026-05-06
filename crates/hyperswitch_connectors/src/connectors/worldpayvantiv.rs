@@ -7,7 +7,7 @@ use common_utils::{
     consts::BASE64_ENGINE,
     errors::CustomResult,
     ext_traits::BytesExt,
-    request::{Method, Request, RequestBuilder, RequestContent},
+    request::{Method, Request, RequestBuilder, RequestContent, XmlConfig},
     types::{AmountConvertor, MinorUnit, MinorUnitForConnector},
 };
 use error_stack::{report, ResultExt};
@@ -240,14 +240,16 @@ impl ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsRespons
         let connector_req_object = worldpayvantiv::CnpOnlineRequest::try_from(req)?;
 
         router_env::logger::info!(raw_connector_request=?connector_req_object);
-        let connector_req = connector_utils::XmlSerializer::serialize_to_xml_bytes(
-            &connector_req_object,
-            worldpayvantiv::worldpayvantiv_constants::XML_VERSION,
-            Some(worldpayvantiv::worldpayvantiv_constants::XML_ENCODING),
-            None,
-            None,
-        )?;
-        Ok(RequestContent::RawBytes(connector_req))
+        let xml_config = XmlConfig {
+            xml_version: worldpayvantiv::worldpayvantiv_constants::XML_VERSION.to_string(),
+            xml_encoding: Some(worldpayvantiv::worldpayvantiv_constants::XML_ENCODING.to_string()),
+            xml_standalone: None,
+            xml_doc_type: None,
+        };
+        Ok(RequestContent::Xml(
+            Box::new(connector_req_object),
+            Some(xml_config),
+        ))
     }
 
     fn build_request(
@@ -334,14 +336,16 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
             worldpayvantiv::CnpOnlineRequest::try_from(&connector_router_data)?;
 
         router_env::logger::info!(raw_connector_request=?connector_req_object);
-        let connector_req = connector_utils::XmlSerializer::serialize_to_xml_bytes(
-            &connector_req_object,
-            worldpayvantiv::worldpayvantiv_constants::XML_VERSION,
-            Some(worldpayvantiv::worldpayvantiv_constants::XML_ENCODING),
-            None,
-            None,
-        )?;
-        Ok(RequestContent::RawBytes(connector_req))
+        let xml_config = XmlConfig {
+            xml_version: worldpayvantiv::worldpayvantiv_constants::XML_VERSION.to_string(),
+            xml_encoding: Some(worldpayvantiv::worldpayvantiv_constants::XML_ENCODING.to_string()),
+            xml_standalone: None,
+            xml_doc_type: None,
+        };
+        Ok(RequestContent::Xml(
+            Box::new(connector_req_object),
+            Some(xml_config),
+        ))
     }
 
     fn build_request(
@@ -501,15 +505,16 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
         let connector_req_object =
             worldpayvantiv::CnpOnlineRequest::try_from(&connector_router_data)?;
         router_env::logger::info!(raw_connector_request=?connector_req_object);
-        let connector_req = connector_utils::XmlSerializer::serialize_to_xml_bytes(
-            &connector_req_object,
-            worldpayvantiv::worldpayvantiv_constants::XML_VERSION,
-            Some(worldpayvantiv::worldpayvantiv_constants::XML_ENCODING),
-            None,
-            None,
-        )?;
-
-        Ok(RequestContent::RawBytes(connector_req))
+        let xml_config = XmlConfig {
+            xml_version: worldpayvantiv::worldpayvantiv_constants::XML_VERSION.to_string(),
+            xml_encoding: Some(worldpayvantiv::worldpayvantiv_constants::XML_ENCODING.to_string()),
+            xml_standalone: None,
+            xml_doc_type: None,
+        };
+        Ok(RequestContent::Xml(
+            Box::new(connector_req_object),
+            Some(xml_config),
+        ))
     }
 
     fn build_request(
@@ -588,15 +593,16 @@ impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Wo
         let connector_req_object = worldpayvantiv::CnpOnlineRequest::try_from(req)?;
         router_env::logger::info!(raw_connector_request=?connector_req_object);
 
-        let connector_req = connector_utils::XmlSerializer::serialize_to_xml_bytes(
-            &connector_req_object,
-            worldpayvantiv::worldpayvantiv_constants::XML_VERSION,
-            Some(worldpayvantiv::worldpayvantiv_constants::XML_ENCODING),
-            None,
-            None,
-        )?;
-
-        Ok(RequestContent::RawBytes(connector_req))
+        let xml_config = XmlConfig {
+            xml_version: worldpayvantiv::worldpayvantiv_constants::XML_VERSION.to_string(),
+            xml_encoding: Some(worldpayvantiv::worldpayvantiv_constants::XML_ENCODING.to_string()),
+            xml_standalone: None,
+            xml_doc_type: None,
+        };
+        Ok(RequestContent::Xml(
+            Box::new(connector_req_object),
+            Some(xml_config),
+        ))
     }
 
     fn build_request(
@@ -675,15 +681,16 @@ impl ConnectorIntegration<PostCaptureVoid, PaymentsCancelPostCaptureData, Paymen
         let connector_req_object = worldpayvantiv::CnpOnlineRequest::try_from(req)?;
         router_env::logger::info!(raw_connector_request=?connector_req_object);
 
-        let connector_req = connector_utils::XmlSerializer::serialize_to_xml_bytes(
-            &connector_req_object,
-            worldpayvantiv::worldpayvantiv_constants::XML_VERSION,
-            Some(worldpayvantiv::worldpayvantiv_constants::XML_ENCODING),
-            None,
-            None,
-        )?;
-
-        Ok(RequestContent::RawBytes(connector_req))
+        let xml_config = XmlConfig {
+            xml_version: worldpayvantiv::worldpayvantiv_constants::XML_VERSION.to_string(),
+            xml_encoding: Some(worldpayvantiv::worldpayvantiv_constants::XML_ENCODING.to_string()),
+            xml_standalone: None,
+            xml_doc_type: None,
+        };
+        Ok(RequestContent::Xml(
+            Box::new(connector_req_object),
+            Some(xml_config),
+        ))
     }
 
     fn build_request(
@@ -772,15 +779,16 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Worldpa
         let connector_req_object =
             worldpayvantiv::CnpOnlineRequest::try_from(&connector_router_data)?;
         router_env::logger::info!(connector_request=?connector_req_object);
-        let connector_req = connector_utils::XmlSerializer::serialize_to_xml_bytes(
-            &connector_req_object,
-            worldpayvantiv::worldpayvantiv_constants::XML_VERSION,
-            Some(worldpayvantiv::worldpayvantiv_constants::XML_ENCODING),
-            None,
-            None,
-        )?;
-
-        Ok(RequestContent::RawBytes(connector_req))
+        let xml_config = XmlConfig {
+            xml_version: worldpayvantiv::worldpayvantiv_constants::XML_VERSION.to_string(),
+            xml_encoding: Some(worldpayvantiv::worldpayvantiv_constants::XML_ENCODING.to_string()),
+            xml_standalone: None,
+            xml_doc_type: None,
+        };
+        Ok(RequestContent::Xml(
+            Box::new(connector_req_object),
+            Some(xml_config),
+        ))
     }
 
     fn build_request(
@@ -1122,15 +1130,16 @@ impl ConnectorIntegration<Evidence, SubmitEvidenceRequestData, SubmitEvidenceRes
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let connector_req_object = worldpayvantiv::ChargebackUpdateRequest::from(req);
         router_env::logger::info!(raw_connector_request=?connector_req_object);
-        let connector_req = connector_utils::XmlSerializer::serialize_to_xml_bytes(
-            &connector_req_object,
-            worldpayvantiv::worldpayvantiv_constants::XML_VERSION,
-            Some(worldpayvantiv::worldpayvantiv_constants::XML_ENCODING),
-            None,
-            None,
-        )?;
-
-        Ok(RequestContent::RawBytes(connector_req))
+        let xml_config = XmlConfig {
+            xml_version: worldpayvantiv::worldpayvantiv_constants::XML_VERSION.to_string(),
+            xml_encoding: Some(worldpayvantiv::worldpayvantiv_constants::XML_ENCODING.to_string()),
+            xml_standalone: None,
+            xml_doc_type: None,
+        };
+        Ok(RequestContent::Xml(
+            Box::new(connector_req_object),
+            Some(xml_config),
+        ))
     }
 
     fn build_request(
@@ -1225,15 +1234,18 @@ impl ConnectorIntegration<Accept, AcceptDisputeRequestData, AcceptDisputeRespons
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let connector_req_object = worldpayvantiv::ChargebackUpdateRequest::from(req);
         router_env::logger::info!(raw_connector_request=?connector_req_object);
-        let connector_req = connector_utils::XmlSerializer::serialize_to_xml_bytes(
-            &connector_req_object,
-            worldpayvantiv::worldpayvantiv_constants::XML_VERSION,
-            Some(worldpayvantiv::worldpayvantiv_constants::XML_ENCODING),
-            Some(worldpayvantiv::worldpayvantiv_constants::XML_STANDALONE),
-            None,
-        )?;
-
-        Ok(RequestContent::RawBytes(connector_req))
+        let xml_config = XmlConfig {
+            xml_version: worldpayvantiv::worldpayvantiv_constants::XML_VERSION.to_string(),
+            xml_encoding: Some(worldpayvantiv::worldpayvantiv_constants::XML_ENCODING.to_string()),
+            xml_standalone: Some(
+                worldpayvantiv::worldpayvantiv_constants::XML_STANDALONE.to_string(),
+            ),
+            xml_doc_type: None,
+        };
+        Ok(RequestContent::Xml(
+            Box::new(connector_req_object),
+            Some(xml_config),
+        ))
     }
 
     fn build_request(
