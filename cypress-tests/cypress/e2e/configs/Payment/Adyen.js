@@ -247,6 +247,7 @@ export const connectorDetails = {
     Refund: {
       Request: {
         amount: 6000,
+        payment_method_type: "credit",
       },
       Response: {
         status: 200,
@@ -258,6 +259,7 @@ export const connectorDetails = {
     PartialRefund: {
       Request: {
         amount: 2000,
+        payment_method_type: "credit",
       },
       Response: {
         status: 200,
@@ -269,6 +271,7 @@ export const connectorDetails = {
     manualPaymentRefund: {
       Request: {
         amount: 6000,
+        payment_method_type: "credit",
       },
       Response: {
         status: 400,
@@ -285,6 +288,7 @@ export const connectorDetails = {
     manualPaymentPartialRefund: {
       Request: {
         amount: 2000,
+        payment_method_type: "credit",
       },
       Response: {
         status: 400,
@@ -299,6 +303,9 @@ export const connectorDetails = {
       },
     },
     SyncRefund: {
+      Request: {
+        payment_method_type: "credit",
+      },
       Response: {
         status: 200,
         body: {
