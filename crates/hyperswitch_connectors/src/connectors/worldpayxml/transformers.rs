@@ -973,8 +973,8 @@ impl
             Some(Action::Sale)
         };
 
-        let payment_method = if let Some(payment_method_token) = payment_method_token {
-            if let PaymentMethodToken::ApplePayDecrypt(apple_pay_decrypt_data) =
+        let payment_method =
+            if let Some(PaymentMethodToken::ApplePayDecrypt(apple_pay_decrypt_data)) =
                 payment_method_token
             {
                 let expiry_month = apple_pay_decrypt_data.application_expiration_month.clone();
@@ -1015,29 +1015,7 @@ impl
                     })?;
 
                 PaymentMethod::PayWithAppleSSL(apple_pay_token)
-            }
-        } else {
-            // Fall back to encrypted Apple Pay flow
-            let applepay_encrypt_data = apple_pay_wallet_data
-                .payment_data
-                .get_encrypted_apple_pay_payment_data_mandatory()
-                .change_context(errors::ConnectorError::MissingRequiredField {
-                    field_name: "Apple pay encrypted data",
-                })?;
-
-            let decoded_data = base64::prelude::BASE64_STANDARD
-                .decode(applepay_encrypt_data)
-                .change_context(errors::ConnectorError::InvalidDataFormat {
-                    field_name: "apple_pay_encrypted_data",
-                })?;
-
-            let apple_pay_token: ApplePayData = serde_json::from_slice(&decoded_data)
-                .change_context(errors::ConnectorError::InvalidDataFormat {
-                    field_name: "apple_pay_token_json",
-                })?;
-
-            PaymentMethod::PayWithAppleSSL(apple_pay_token)
-        };
+            };
 
         Ok(Self {
             action,
