@@ -829,14 +829,76 @@ export const connectorDetails = {
       },
     },
   },
+  pay_later_pm: {
+    AutoCapture: getCustomExchange({
+      Request: {
+        currency: "EUR",
+        capture_method: "automatic",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+        },
+      },
+    }),
+    ManualCapture: getCustomExchange({
+      Request: {
+        currency: "EUR",
+        capture_method: "manual",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+        },
+      },
+    }),
+    Klarna: getCustomExchange({
+      Request: {
+        payment_method: "pay_later",
+        payment_method_type: "klarna",
+        payment_experience: "redirect_to_url",
+        payment_method_data: {
+          pay_later: {
+            klarna_redirect: {
+              billing_email: "test@example.com",
+              billing_country: "NL",
+            },
+          },
+        },
+        billing: {
+          email: "test@example.com",
+          address: {
+            line1: "123 Test St",
+            city: "Amsterdam",
+            zip: "1012 WX",
+            country: "NL",
+            first_name: "Test",
+            last_name: "User",
+          },
+        },
+        order_details: [
+          {
+            product_name: "Test Product",
+            quantity: 1,
+            amount: 6000,
+          },
+        ],
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+    }),
+  },
   webhook: {
     TransactionIdConfig: {
-      // Defines how to locate and parse the payment reference ID from connector-specific webhook payloads
       path: "id",
-      // Type of payment reference ID
       type: "string",
     },
-    // Mollie webhook handler uses serde_qs (form-encoded), not JSON
     contentType: "application/x-www-form-urlencoded",
   },
 };
