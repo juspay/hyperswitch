@@ -7465,3 +7465,194 @@ Cypress.Commands.add("updateCardIssuer", (id, body, globalState) => {
     });
   });
 });
+
+// ============================================================================
+// Merchant Category Code (MCC) Test Commands
+// ============================================================================
+
+// Merchant Category Code (MCC) Test Commands
+// ============================================================================
+
+/**
+ * Creates a business profile with merchant category code (MCC) and verifies
+ * the MCC is returned in the response.
+ */
+Cypress.Commands.add(
+  "createBusinessProfileWithMccTest",
+  (createBusinessProfile, globalState, profilePrefix = "mccProfile") => {
+    const apiKey = globalState.get("apiKey");
+    const baseUrl = globalState.get("baseUrl");
+    const connectorId = globalState.get("connectorId");
+    const merchantId = globalState.get("merchantId");
+    const url = `${baseUrl}/account/${merchantId}/business_profile`;
+    const profileName = `mcc_${RequestBodyUtils.generateRandomString(connectorId)}`;
+
+    createBusinessProfile.profile_name = profileName;
+
+    cy.request({
+      method: "POST",
+      url: url,
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json",
+        "api-key": apiKey,
+      },
+      body: createBusinessProfile,
+      failOnStatusCode: false,
+    }).then((response) => {
+      logRequestId(response.headers["x-request-id"]);
+
+      cy.wrap(response).then(() => {
+        if (response.status === 200) {
+          globalState.set(`${profilePrefix}Id`, response.body.profile_id);
+          expect(response.body.profile_id).to.not.be.null;
+          expect(response.body).to.have.property("merchant_category_code");
+          expect(response.body.merchant_category_code).to.equal(
+            createBusinessProfile.merchant_category_code
+          );
+          cy.task(
+            "cli_log",
+            `PASS: Business profile created with MCC=${response.body.merchant_category_code}`
+          );
+        } else {
+          throw new Error(
+            `Business Profile call failed: ${response.body.error?.message || response.statusText}`
+          );
+        }
+      });
+    });
+  }
+);
+
+/**
+ * Retrieves a business profile and stores it in globalState.
+ */
+Cypress.Commands.add(
+  "retrieveBusinessProfileTest",
+  (globalState, profilePrefix = "profile") => {
+    const apiKey = globalState.get("apiKey");
+    const baseUrl = globalState.get("baseUrl");
+    const merchantId = globalState.get("merchantId");
+    const profileId = globalState.get(`${profilePrefix}Id`);
+    const url = `${baseUrl}/account/${merchantId}/business_profile/${profileId}`;
+
+    cy.request({
+      method: "GET",
+      url: url,
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json",
+        "api-key": apiKey,
+      },
+      failOnStatusCode: false,
+    }).then((response) => {
+      logRequestId(response.headers["x-request-id"]);
+
+      cy.wrap(response).then(() => {
+        if (response.status === 200) {
+          expect(response.body.profile_id).to.equal(profileId);
+          expect(response.body).to.have.property("merchant_category_code");
+          cy.task(
+            "cli_log",
+            `Retrieved business profile with MCC=${response.body.merchant_category_code}`
+          );
+        } else {
+          throw new Error(
+            `Retrieve Business Profile call failed: ${response.body.error?.message || response.statusText}`
+          );
+        }
+      });
+    });
+  }
+);
+
+/**
+ * Updates a business profile with merchant category code (MCC) and verifies
+ * the updated MCC is returned in the response.
+ */
+Cypress.Commands.add(
+  "updateBusinessProfileWithMccTest",
+  (updateBusinessProfileBody, globalState, profilePrefix = "mccProfile") => {
+    const apiKey = globalState.get("apiKey");
+    const baseUrl = globalState.get("baseUrl");
+    const merchantId = globalState.get("merchantId");
+    const profileId = globalState.get(`${profilePrefix}Id`);
+    const url = `${baseUrl}/account/${merchantId}/business_profile/${profileId}`;
+
+    cy.request({
+      method: "POST",
+      url: url,
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json",
+        "api-key": apiKey,
+      },
+      body: updateBusinessProfileBody,
+      failOnStatusCode: false,
+    }).then((response) => {
+      logRequestId(response.headers["x-request-id"]);
+
+      cy.wrap(response).then(() => {
+        if (response.status === 200) {
+          expect(response.body.profile_id).to.equal(profileId);
+          expect(response.body).to.have.property("merchant_category_code");
+          expect(response.body.merchant_category_code).to.equal(
+            updateBusinessProfileBody.merchant_category_code
+          );
+          cy.task(
+            "cli_log",
+            `PASS: Business profile updated with MCC=${response.body.merchant_category_code}`
+          );
+        } else {
+          throw new Error(
+            `Update Business Profile call failed: ${response.body.error?.message || response.statusText}`
+          );
+        }
+      });
+    });
+  }
+);
+
+/**
+ * Retrieves a business profile and verifies the merchant category code (MCC)
+ * matches the expected value.
+ */
+Cypress.Commands.add(
+  "retrieveAndVerifyBusinessProfileMccTest",
+  (globalState, profilePrefix = "mccProfile", expectedMcc) => {
+    const apiKey = globalState.get("apiKey");
+    const baseUrl = globalState.get("baseUrl");
+    const merchantId = globalState.get("merchantId");
+    const profileId = globalState.get(`${profilePrefix}Id`);
+    const url = `${baseUrl}/account/${merchantId}/business_profile/${profileId}`;
+
+    cy.request({
+      method: "GET",
+      url: url,
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json",
+        "api-key": apiKey,
+      },
+      failOnStatusCode: false,
+    }).then((response) => {
+      logRequestId(response.headers["x-request-id"]);
+
+      cy.wrap(response).then(() => {
+        if (response.status === 200) {
+          expect(response.body.profile_id).to.equal(profileId);
+          expect(response.body).to.have.property("merchant_category_code");
+          expect(response.body.merchant_category_code).to.equal(expectedMcc);
+          cy.task(
+            "cli_log",
+            `PASS: Verified MCC persisted correctly: ${expectedMcc}`
+          );
+        } else {
+          throw new Error(
+            `Retrieve Business Profile call failed: ${response.body.error?.message || response.statusText}`
+          );
+        }
+      });
+    });
+  }
+);
