@@ -221,7 +221,7 @@ impl HealthCheckInterface for Store {
                 ),
             )
             .await
-            .change_context(HealthCheckRedisError::StreamTrimFailed)?;
+        .change_context(HealthCheckRedisError::StreamTrimFailed)?;
         logger::debug!("Stream trim succeeded");
 
         Ok(())

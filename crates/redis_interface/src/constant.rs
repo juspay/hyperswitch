@@ -20,4 +20,7 @@ pub mod redis_rs_commands {
     pub const DEFAULT_RECONNECT_MAX_ATTEMPTS: usize = 5;
     /// Minimum error check interval in seconds (used in `on_error`).
     pub const MIN_ERROR_CHECK_INTERVAL_SECS: u64 = 1;
+    /// Safety limit for HSCAN/SCAN iterations to guard against a corrupted cursor
+    /// that never returns to 0. 1000 iterations × default COUNT(100) = ~100K entries.
+    pub const MAX_SCAN_ITERATIONS: u32 = 1000;
 }

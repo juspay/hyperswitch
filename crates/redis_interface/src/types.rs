@@ -307,6 +307,37 @@ pub enum SaddReply {
     KeyNotSet,
 }
 
+/// Reply from `XGROUP DESTROY`.
+#[derive(Debug, Eq, PartialEq)]
+pub enum ConsumerGroupDestroyReply {
+    Destroyed,
+    NotFound,
+}
+
+/// Redis key types used with the `TYPE` filter in `SCAN`.
+#[derive(Debug, Clone, Copy, Eq, PartialEq)]
+pub enum RedisScanType {
+    String,
+    List,
+    Set,
+    Zset,
+    Hash,
+    Stream,
+}
+
+impl AsRef<str> for RedisScanType {
+    fn as_ref(&self) -> &str {
+        match self {
+            Self::String => "STRING",
+            Self::List => "LIST",
+            Self::Set => "SET",
+            Self::Zset => "ZSET",
+            Self::Hash => "HASH",
+            Self::Stream => "STREAM",
+        }
+    }
+}
+
 #[derive(Debug)]
 pub enum SetGetReply<T> {
     ValueSet(T),    // Value was set and this is the value that was set
@@ -344,12 +375,12 @@ pub enum StreamCapTrim {
 
 // Trait impls for StreamCapKind/StreamCapTrim live in backends/fred/types.rs.
 
+// ─── Stream trim types ────────────────────────────────────────────────────────
+
 /// Configuration for trimming a Redis stream via `XTRIM`.
 ///
 /// Encapsulates the kind (MaxLen or MinID), precision (Exact or AlmostExact),
-/// and the numeric or ID threshold. Use [`StreamTrimConfig::to_trim_options`]
-/// (redis-rs backend) or the `From` impl in `backends/fred/types.rs` to convert
-/// to the backend-specific type.
+/// and the numeric or ID threshold.
 ///
 /// # Examples
 ///

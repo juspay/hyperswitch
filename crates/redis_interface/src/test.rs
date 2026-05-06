@@ -16,6 +16,7 @@ use std::collections::HashMap;
 use crate::{
     DelReply, HsetnxReply, MsetnxReply, RedisConnectionPool, RedisEntryId, RedisKey, RedisSettings,
     RedisValue, SaddReply, SetGetReply, SetnxReply, StreamCapKind, StreamCapTrim, StreamTrimConfig,
+    ConsumerGroupDestroyReply,
 };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -1644,7 +1645,7 @@ async fn test_consumer_group_destroy() {
 
             let destroy_result = pool.consumer_group_destroy(&stream, &group).await;
 
-            matches!(destroy_result, Ok(1))
+            matches!(destroy_result, Ok(ConsumerGroupDestroyReply::Destroyed))
         })
     })
     .await

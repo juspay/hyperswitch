@@ -17,7 +17,7 @@ use fred::{
     prelude::{LuaInterface, RedisErrorKind},
     types::{
         Expiration, FromRedis, MultipleIDs, MultipleKeys, MultipleOrderedPairs, MultipleStrings,
-        MultipleValues, RedisMap, RedisValue, ScanType, Scanner, SetOptions, XReadResponse,
+        MultipleValues, RedisMap, RedisValue, Scanner, SetOptions, XReadResponse,
     },
 };
 use tracing::instrument;
@@ -26,7 +26,7 @@ use crate::{
     errors,
     types::{
         DelReply, HsetnxReply, MsetnxReply, RedisEntryId, RedisKey, SaddReply, SetGetReply,
-        SetnxReply, StreamEntries, StreamReadResult, StreamTrimConfig,
+        SetnxReply, StreamEntries, StreamReadResult,
     },
 };
 
@@ -654,14 +654,16 @@ impl super::RedisConnectionPool {
         &self,
         pattern: &RedisKey,
         count: Option<u32>,
-        scan_type: Option<ScanType>,
+        scan_type: Option<crate::types::RedisScanType>,
     ) -> CustomResult<Vec<String>, errors::RedisError> {
         use futures::StreamExt;
+
+        let fred_scan_type = scan_type.map(fred::types::ScanType::from);
 
         Ok(self
             .pool
             .next()
-            .scan(pattern.tenant_aware_key(self), count, scan_type)
+            .scan(pattern.tenant_aware_key(self), count, fred_scan_type)
             .filter_map(|value| async move {
                 match value {
                     Ok(mut v) => {
@@ -856,7 +858,7 @@ impl super::RedisConnectionPool {
     pub async fn stream_trim_entries(
         &self,
         stream: &RedisKey,
-        config: StreamTrimConfig,
+        config: crate::types::StreamTrimConfig,
     ) -> CustomResult<usize, errors::RedisError> {
         let xcap: fred::types::XCap = config
             .try_into()
@@ -1062,11 +1064,17 @@ impl super::RedisConnectionPool {
         &self,
         stream: &RedisKey,
         group: &str,
-    ) -> CustomResult<usize, errors::RedisError> {
-        self.pool
+    ) -> CustomResult<crate::types::ConsumerGroupDestroyReply, errors::RedisError> {
+        let result: usize = self
+            .pool
             .xgroup_destroy(stream.tenant_aware_key(self), group)
             .await
-            .change_context(errors::RedisError::ConsumerGroupDestroyFailed)
+            .change_context(errors::RedisError::ConsumerGroupDestroyFailed)?;
+
+        Ok(match result {
+            1 => crate::types::ConsumerGroupDestroyReply::Destroyed,
+            _ => crate::types::ConsumerGroupDestroyReply::NotFound,
+        })
     }
 
     // the number of pending messages that the consumer had before it was deleted

@@ -5,8 +5,7 @@
 //! redis-rs is the primary backend; fred is the fallback.
 
 use crate::types::{
-    DelReply, HsetnxReply, MsetnxReply, RedisEntryId, RedisValue, SaddReply, SetnxReply,
-    StreamCapKind, StreamCapTrim, StreamTrimConfig,
+    DelReply, HsetnxReply, MsetnxReply, RedisEntryId, RedisScanType, RedisValue, SaddReply,SetnxReply, StreamCapKind, StreamCapTrim, StreamTrimConfig,
 };
 
 // ─── RedisValue impls ────────────────────────────────────────────────────────
@@ -190,5 +189,20 @@ impl TryFrom<StreamTrimConfig> for fred::types::XCap {
 
     fn try_from(config: StreamTrimConfig) -> Result<Self, Self::Error> {
         (config.kind, config.trim, config.threshold).try_into()
+    }
+}
+
+// ─── RedisScanType → fred ScanType ──────────────────────────────────────────
+
+impl From<RedisScanType> for fred::types::ScanType {
+    fn from(item: RedisScanType) -> Self {
+        match item {
+            RedisScanType::String => Self::String,
+            RedisScanType::List => Self::List,
+            RedisScanType::Set => Self::Set,
+            RedisScanType::Zset => Self::ZSet,
+            RedisScanType::Hash => Self::Hash,
+            RedisScanType::Stream => Self::Stream,
+        }
     }
 }

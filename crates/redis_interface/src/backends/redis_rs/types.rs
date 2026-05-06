@@ -1,7 +1,8 @@
 //! Redis-rs–specific trait implementations for the shared types.
 
 use crate::types::{
-    DelReply, HsetnxReply, MsetnxReply, RedisEntryId, RedisValue, SaddReply, SetnxReply,
+    ConsumerGroupDestroyReply, DelReply, HsetnxReply, MsetnxReply, RedisEntryId, RedisValue,
+    SaddReply, SetnxReply,
 };
 
 // ─── RedisValue impls ────────────────────────────────────────────────────────
@@ -228,6 +229,38 @@ impl redis::FromRedisValue for SaddReply {
             }
         }
     }
+}
+
+impl redis::FromRedisValue for ConsumerGroupDestroyReply {
+    fn from_redis_value(value: redis::Value) -> Result<Self, redis::ParsingError> {
+        match value {
+            redis::Value::Int(1) => Ok(Self::Destroyed),
+            redis::Value::Int(0) => Ok(Self::NotFound),
+            _ => {
+                tracing::error!(
+                    received = ?value,
+                    "Unexpected XGROUP DESTROY reply from Redis"
+                );
+                Err(redis::ParsingError::from(format!(
+                    "Unexpected XGROUP DESTROY reply: {:?}",
+                    value
+                )))
+            }
+        }
+    }
+}
+
+/// Converts stream field values from `redis::Value` to `Option<String>`.
+///
+/// Useful for deserializing `XREAD`/`XRANGE` results where field values
+/// may be any Redis type.
+pub fn stream_fields_to_option_strings(
+    fields: std::collections::HashMap<String, redis::Value>,
+) -> std::collections::HashMap<String, Option<String>> {
+    fields
+        .into_iter()
+        .map(|(field_name, redis_value)| (field_name, redis_value_to_option_string(&redis_value)))
+        .collect()
 }
 
 // ─── Redis-rs-specific helpers ───────────────────────────────────────────────

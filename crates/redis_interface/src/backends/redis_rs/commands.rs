@@ -682,14 +682,22 @@ impl super::RedisConnectionPool {
         &self,
         pattern: &RedisKey,
         count: Option<u32>,
-        scan_type: Option<&str>,
+        scan_type: Option<crate::types::RedisScanType>,
     ) -> CustomResult<Vec<String>, errors::RedisError> {
         let mut conn = self.pool.clone();
 
         let mut results: Vec<String> = Vec::new();
         let mut cursor: u64 = 0;
+        let mut iterations: u32 = 0;
 
         loop {
+            // Guard against a corrupted cursor that never returns to 0
+            iterations += 1;
+            if iterations > crate::constant::redis_rs_commands::MAX_SCAN_ITERATIONS {
+                tracing::warn!(pattern = ?pattern, iterations, "SCAN exceeded max iterations — returning partial results");
+                break;
+            }
+
             let mut command = redis::cmd(REDIS_COMMAND_SCAN);
             command
                 .arg(cursor)
@@ -701,7 +709,7 @@ impl super::RedisConnectionPool {
             }
 
             if let Some(scan_type_value) = scan_type {
-                command.arg(REDIS_ARG_TYPE).arg(scan_type_value);
+                command.arg(REDIS_ARG_TYPE).arg(scan_type_value.as_ref());
             }
 
             let reply: (u64, Vec<String>) = command
@@ -1139,17 +1147,13 @@ impl super::RedisConnectionPool {
         &self,
         stream: &RedisKey,
         group: &str,
-    ) -> CustomResult<usize, errors::RedisError> {
+    ) -> CustomResult<crate::types::ConsumerGroupDestroyReply, errors::RedisError> {
         let mut conn = self.pool.clone();
-        let destroyed: bool = conn
+        let reply: crate::types::ConsumerGroupDestroyReply = conn
             .xgroup_destroy(stream.tenant_aware_key(self), group)
             .await
             .change_context(errors::RedisError::ConsumerGroupDestroyFailed)?;
-        // XGROUP DESTROY returns true (1) if the group was destroyed,
-        // false (0) if the group did not exist. The usize return type
-        // preserves the numeric result for compatibility with callers
-        // that compare against 0.
-        Ok(if destroyed { 1 } else { 0 })
+        Ok(reply)
     }
 
     // the number of pending messages that the consumer had before it was deleted
