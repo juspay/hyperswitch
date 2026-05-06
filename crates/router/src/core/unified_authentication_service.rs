@@ -32,7 +32,9 @@ use hyperswitch_domain_models::{
     ext_traits::OptionExt,
     payment_method_data,
     router_request_types::{
-        authentication::{MessageCategory, PreAuthenticationData},
+        authentication::{
+            ConnectorAuthenticationCreateRequestData, MessageCategory, PreAuthenticationData,
+        },
         unified_authentication_service::{
             AuthenticationInfo, PaymentDetails, ServiceSessionIds, ThreeDsMetaData,
             TransactionDetails, UasAuthenticationRequestData, UasConfirmationRequestData,
@@ -293,6 +295,14 @@ impl UnifiedAuthenticationService for ClickToPay {
 #[cfg(feature = "v1")]
 #[async_trait::async_trait]
 impl UnifiedAuthenticationService for ExternalAuthentication {
+    fn get_authentication_create_request_data(
+        amount: common_utils::types::MinorUnit,
+        currency: common_enums::Currency,
+        billing_address: &hyperswitch_domain_models::address::Address,
+    ) -> RouterResult<ConnectorAuthenticationCreateRequestData> {
+        Ok(ConnectorAuthenticationCreateRequestData {})
+    }
+
     fn get_pre_authentication_request_data(
         payment_method_data: Option<&domain::PaymentMethodData>,
         _service_details: Option<payments::CtpServiceDetails>,
@@ -836,17 +846,18 @@ pub async fn authentication_create_core(
     .await?;
 
     if let Some(connector_name) = req.authentication_connector.clone().map(|c| c.to_string()) {
-        let merchant_connector_account = crate::core::payments::helpers::get_merchant_connector_account(
-            &state.clone(),
-            platform.get_processor(),
-            None,
-            &profile_id,
-            &connector_name,
-            None,
-        )
-        .await
-        .change_context(ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to fetch merchant connector account")?;
+        let merchant_connector_account =
+            crate::core::payments::helpers::get_merchant_connector_account(
+                &state.clone(),
+                platform.get_processor(),
+                None,
+                &profile_id,
+                &connector_name,
+                None,
+            )
+            .await
+            .change_context(ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to fetch merchant connector account")?;
 
         let request_data = hyperswitch_domain_models::router_request_types::authentication::ConnectorAuthenticationCreateRequestData {
             amount: Some(req.amount.get_amount_as_i64()),
@@ -878,7 +889,9 @@ pub async fn authentication_create_core(
             None,
         )?;
 
-        let modular_connector = hyperswitch_connectors::connectors::modular_authentication::ModularAuthentication::new();
+        let modular_connector =
+            hyperswitch_connectors::connectors::modular_authentication::ModularAuthentication::new(
+            );
 
         // Build and execute the request directly using ConnectorIntegration trait methods
         let connectors_config = state.conf.connectors.clone();
@@ -891,9 +904,11 @@ pub async fn authentication_create_core(
         .to_payment_failed_response()?;
 
         let response_router_data = if let Some(request) = connector_request {
-            let api_result = crate::services::api::call_connector_api(&state, request, "authentication_create").await
-                .change_context(ApiErrorResponse::InternalServerError)
-                .attach_printable("Failed to call authentication create connector API")?;
+            let api_result =
+                crate::services::api::call_connector_api(&state, request, "authentication_create")
+                    .await
+                    .change_context(ApiErrorResponse::InternalServerError)
+                    .attach_printable("Failed to call authentication create connector API")?;
 
             match api_result {
                 Ok(response) => {

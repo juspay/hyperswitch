@@ -413,6 +413,7 @@ pub struct ConnectorConfig {
     pub tesouro: Option<ConnectorTomlConfig>,
     pub ctp_mastercard: Option<ConnectorTomlConfig>,
     pub unified_authentication_service: Option<ConnectorTomlConfig>,
+    pub modular_authentication: Option<ConnectorTomlConfig>,
 }
 
 impl ConnectorConfig {
@@ -487,6 +488,9 @@ impl ConnectorConfig {
             }
             AuthenticationConnectors::Juspaythreedsserver => Ok(connector_data.juspaythreedsserver),
             AuthenticationConnectors::Cardinal => Ok(connector_data.cardinal),
+            AuthenticationConnectors::ModularAuthentication => {
+                Ok(connector_data.modular_authentication)
+            }
         }
     }
 

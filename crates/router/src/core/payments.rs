@@ -41,7 +41,9 @@ use api_models::{
     mandates::RecurringDetails,
     payments::{self as payments_api},
 };
-pub use common_enums::enums::{CallConnectorAction, ExecutionMode, ExecutionPath, GatewaySystem};
+pub use common_enums::enums::{
+    AuthenticationConnectors, CallConnectorAction, ExecutionMode, ExecutionPath, GatewaySystem,
+};
 use common_types::payments as common_payments_types;
 use common_utils::{
     ext_traits::{AsyncExt, StringExt},

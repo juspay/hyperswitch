@@ -67,6 +67,11 @@ pub async fn update_trackers<F: Clone, Req>(
     let key_manager_state = state.into();
     let authentication_update = match router_data.response {
         Ok(response) => match response {
+            AuthenticationResponseData::AuthenticationCreateResponse {
+                connector_authentication_id,
+            } => authentication::AuthenticationUpdate::AuthenticationCreateUpdate {
+                connector_authentication_id,
+            },
             AuthenticationResponseData::PreAuthNResponse {
                 threeds_server_transaction_id,
                 maximum_supported_3ds_version,

@@ -277,7 +277,7 @@ impl AuthenticationEligibilityRequest {
 }
 
 #[cfg(feature = "v1")]
-#[derive(Debug, Serialize, ToSchema)]
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
 pub struct AuthenticationEligibilityResponse {
     /// The unique identifier for this authentication.
     #[schema(value_type = String, example = "auth_mbabizu24mvu3mela5njyhpit4")]
@@ -317,6 +317,7 @@ pub struct AuthenticationEligibilityResponse {
     pub browser_information: Option<BrowserInformation>,
     /// Email
     #[schema(value_type = Option<String>)]
+    #[serde(skip_deserializing)]
     pub email: common_utils::crypto::OptionalEncryptableEmail,
     /// Acquirer details information.
     #[schema(value_type = Option<AcquirerDetails>)]
@@ -593,7 +594,7 @@ impl ApiEventMetric for AuthenticationAuthenticateResponse {
 }
 
 #[cfg(feature = "v1")]
-#[derive(Debug, Clone, Serialize, ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct AuthenticationSyncResponse {
     // Core Authentication Fields (from AuthenticationResponse)
     /// The unique identifier for this authentication.
@@ -702,6 +703,7 @@ pub struct AuthenticationSyncResponse {
 
     /// Email.
     #[schema(value_type = Option<String>)]
+    #[serde(skip_deserializing)]
     pub email: common_utils::crypto::OptionalEncryptableEmail,
 
     /// Indicates the transaction status.
@@ -747,7 +749,7 @@ pub struct AuthenticationSyncResponse {
     pub profile_acquirer_id: Option<id_type::ProfileAcquirerId>,
 }
 
-#[derive(Debug, Clone, Serialize, ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct AuthenticationDetails {
     // Three Ds Data after external authentication
     pub three_ds_data: Option<ExternalThreeDsData>,
@@ -785,7 +787,7 @@ pub enum Cryptogram {
 }
 
 #[cfg(feature = "v1")]
-#[derive(Debug, Clone, Serialize, ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum AuthenticationPaymentMethodDataResponse {
     CardData {
@@ -809,7 +811,7 @@ pub enum AuthenticationPaymentMethodDataResponse {
 }
 
 #[cfg(feature = "v1")]
-#[derive(Debug, Clone, Serialize, ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum AuthenticationVaultTokenData {
     CardData {

@@ -9214,6 +9214,7 @@ pub enum AuthenticationConnectors {
     Juspaythreedsserver,
     CtpVisa,
     Cardinal,
+    ModularAuthentication,
 }
 
 impl AuthenticationConnectors {
@@ -9225,7 +9226,8 @@ impl AuthenticationConnectors {
             | Self::UnifiedAuthenticationService
             | Self::Juspaythreedsserver
             | Self::CtpVisa
-            | Self::Cardinal => false,
+            | Self::Cardinal
+            | Self::ModularAuthentication => false,
             Self::Gpayments => true,
         }
     }
@@ -9238,7 +9240,8 @@ impl AuthenticationConnectors {
             | Self::UnifiedAuthenticationService
             | Self::Juspaythreedsserver
             | Self::CtpVisa
-            | Self::Gpayments => false,
+            | Self::Gpayments
+            | Self::ModularAuthentication => false,
             Self::Cardinal => true,
         }
     }

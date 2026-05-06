@@ -3,7 +3,7 @@ use common_enums::RoutingRegion;
 use hyperswitch_domain_models::{
     errors::api_error_response::{self as errors, NotImplementedMessage},
     router_request_types::{
-        authentication::MessageCategory,
+        authentication::{ConnectorAuthenticationCreateRequestData, MessageCategory},
         unified_authentication_service::{
             UasAuthenticationRequestData, UasPostAuthenticationRequestData,
             UasPreAuthenticationRequestData,
@@ -34,6 +34,19 @@ pub struct ExternalAuthentication;
 
 #[async_trait::async_trait]
 pub trait UnifiedAuthenticationService {
+    fn get_authentication_create_request_data(
+        _amount: common_utils::types::MinorUnit,
+        _currency: Option<common_enums::Currency>,
+        _billing_address: Option<&hyperswitch_domain_models::address::Address>,
+    ) -> RouterResult<ConnectorAuthenticationCreateRequestData> {
+        Err(errors::ApiErrorResponse::NotImplemented {
+            message: NotImplementedMessage::Reason(
+                "get_authentication_create_request_data".to_string(),
+            ),
+        }
+        .into())
+    }
+
     #[allow(clippy::too_many_arguments)]
     fn get_pre_authentication_request_data(
         _payment_method_data: Option<&domain::PaymentMethodData>,

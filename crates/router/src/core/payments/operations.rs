@@ -424,7 +424,35 @@ pub trait Domain<F: Clone, R, D>: Send + Sync {
     }
 
     #[allow(clippy::too_many_arguments)]
+    async fn call_modular_authentication_service<'a>(
+        &'a self,
+        _state: &SessionState,
+        _payment_data: &mut D,
+        _should_continue_confirm_transaction: &mut bool,
+        _connector_call_type: &ConnectorCallType,
+        _business_profile: &domain::Profile,
+        _platform: &domain::Platform,
+        _mandate_type: Option<api_models::payments::MandateTransactionType>,
+    ) -> CustomResult<(), errors::ApiErrorResponse> {
+        Ok(())
+    }
+
+    #[allow(clippy::too_many_arguments)]
     async fn call_unified_authentication_service_if_eligible<'a>(
+        &'a self,
+        _state: &SessionState,
+        _payment_data: &mut D,
+        _should_continue_confirm_transaction: &mut bool,
+        _connector_call_type: &ConnectorCallType,
+        _business_profile: &domain::Profile,
+        _platform: &domain::Platform,
+        _mandate_type: Option<api_models::payments::MandateTransactionType>,
+    ) -> CustomResult<(), errors::ApiErrorResponse> {
+        Ok(())
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    async fn call_modular_authentication_service<'a>(
         &'a self,
         _state: &SessionState,
         _payment_data: &mut D,

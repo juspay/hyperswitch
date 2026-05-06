@@ -659,6 +659,9 @@ pub enum AuthenticationResponseData {
     PreAuthVersionCallResponse {
         maximum_supported_3ds_version: common_utils::types::SemanticVersion,
     },
+    AuthenticationCreateResponse {
+        connector_authentication_id: String,
+    },
     PreAuthThreeDsMethodCallResponse {
         threeds_server_transaction_id: String,
         three_ds_method_data: Option<String>,

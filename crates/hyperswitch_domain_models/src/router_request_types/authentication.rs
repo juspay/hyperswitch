@@ -1,4 +1,4 @@
-use common_utils::{ext_traits::OptionExt, pii::Email};
+use common_utils::{ext_traits::OptionExt, pii::Email, types::MinorUnit};
 use error_stack::{Report, ResultExt};
 use serde::{Deserialize, Serialize};
 
@@ -11,7 +11,7 @@ use crate::{
 
 #[derive(Clone, Debug)]
 pub struct ConnectorAuthenticationCreateRequestData {
-    pub amount: Option<i64>,
+    pub amount: Option<MinorUnit>,
     pub currency: Option<common_enums::Currency>,
     pub return_url: Option<String>,
     pub authentication_id: Option<common_utils::id_type::AuthenticationId>,

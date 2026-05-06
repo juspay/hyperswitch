@@ -568,6 +568,7 @@ impl ApiEventMetric for PaymentsManualUpdateResponse {
     }
 }
 
+#[cfg(any(feature = "v1", feature = "v2"))]
 impl ApiEventMetric for PaymentsSessionResponse {
     fn get_api_event_type(&self) -> Option<ApiEventsType> {
         Some(ApiEventsType::Payment {
