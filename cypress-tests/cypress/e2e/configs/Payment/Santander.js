@@ -19,15 +19,15 @@ const billingAddress = {
 };
 
 const customerDocumentDetails = {
-  customer_document_details: {
-    document_type: "CPF",
+  document_details: {
+    document_type: "cpf",
     document_number: "86665623580",
   },
 };
 
 const connectorMetadata = {
   santander: {
-    pix_automatico: {
+    pix_automatico_qr: {
       cit: {
         mandate_details: {
           start_date: "2026-06-01",
@@ -236,12 +236,12 @@ export const connectorDetails = {
     }),
     Boleto: getCustomExchange({
       Request: {
-        payment_method: "bank_transfer",
+        payment_method: "voucher",
         payment_method_type: "boleto",
         payment_method_data: {
-          bank_transfer: {
+          voucher: {
             boleto: {
-              cpf: "86665623580",
+              social_security_number: "86665623580",
             },
           },
         },
@@ -263,10 +263,10 @@ export const connectorDetails = {
     PixAutomatico: getCustomExchange({
       Request: {
         payment_method: "bank_transfer",
-        payment_method_type: "pix_automatico",
+        payment_method_type: "pix_automatico_qr",
         payment_method_data: {
           bank_transfer: {
-            pix_automatico: {
+            pix_automatico_qr: {
               cpf: "86665623580",
             },
           },

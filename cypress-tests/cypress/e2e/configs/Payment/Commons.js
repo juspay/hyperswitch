@@ -365,6 +365,25 @@ export const payment_methods_enabled = [
         recurring_enabled: true,
         installment_payment_enabled: true,
       },
+      {
+        payment_method_type: "pix_automatico_qr",
+        minimum_amount: 0,
+        maximum_amount: 68607706,
+        recurring_enabled: true,
+        installment_payment_enabled: true,
+      },
+    ],
+  },
+  {
+    payment_method: "voucher",
+    payment_method_types: [
+      {
+        payment_method_type: "boleto",
+        minimum_amount: 0,
+        maximum_amount: 68607706,
+        recurring_enabled: false,
+        installment_payment_enabled: true,
+      },
     ],
   },
   {
@@ -591,7 +610,7 @@ export const payment_methods_enabled = [
 export const connectorDetails = {
   bank_transfer_pm: {
     PaymentIntent: (paymentMethodType) => {
-      const unsupportedBankTransferMethods = ["Boleto", "PixAutomatico"];
+      const unsupportedBankTransferMethods = [];
       if (unsupportedBankTransferMethods.includes(paymentMethodType)) {
         return getCustomExchange({
           Configs: { TRIGGER_SKIP: true },
@@ -718,14 +737,52 @@ export const connectorDetails = {
       },
     }),
     Boleto: getCustomExchange({
-      Configs: { TRIGGER_SKIP: true },
       Request: {
+        payment_method: "voucher",
+        payment_method_type: "boleto",
+        payment_method_data: {
+          voucher: {
+            boleto: {},
+          },
+        },
+        billing: {
+          address: {
+            line1: "1467",
+            line2: "Harrison Street",
+            line3: "Harrison Street",
+            city: "San Fransico",
+            state: "California",
+            zip: "94122",
+            country: "BR",
+            first_name: "john",
+            last_name: "doe",
+          },
+        },
         currency: "BRL",
       },
     }),
     PixAutomatico: getCustomExchange({
-      Configs: { TRIGGER_SKIP: true },
       Request: {
+        payment_method: "bank_transfer",
+        payment_method_type: "pix_automatico_qr",
+        payment_method_data: {
+          bank_transfer: {
+            pix_automatico_qr: {},
+          },
+        },
+        billing: {
+          address: {
+            line1: "1467",
+            line2: "Harrison Street",
+            line3: "Harrison Street",
+            city: "San Fransico",
+            state: "California",
+            zip: "94122",
+            country: "BR",
+            first_name: "john",
+            last_name: "doe",
+          },
+        },
         currency: "BRL",
       },
     }),
