@@ -213,6 +213,45 @@ impl PaymentMethodsController for PmCards<'_> {
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to add payment method in db")?;
 
+        let should_schedule_modular_forward_compat =
+            payment_method_utils::get_should_schedule_modular_forward_compat(
+                self.state,
+                &dimension_state::Dimensions::new()
+                    .with_provider_merchant_id(self.provider.get_provider_merchant_id()),
+                Some(customer_id),
+            )
+            .await;
+
+        if should_schedule_modular_forward_compat {
+            let res = super::add_payment_method_modular_forward_compat_task(
+                &*self.state.store,
+                &response,
+                merchant_id,
+                self.state.conf.application_source,
+                initiator,
+            )
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable(
+                "Failed to add payment method modular compatibility task in process tracker",
+            );
+
+            if let Err(err) = res {
+                logger::error!(
+                    ?err,
+                    payment_method_id=%response.payment_method_id,
+                    merchant_id=%merchant_id.get_string_repr(),
+                    "Failed to schedule modular forward compatibility PT; continuing payment method create flow"
+                );
+            }
+        } else {
+            logger::debug!(
+                payment_method_id=%response.payment_method_id,
+                merchant_id=%merchant_id.get_string_repr(),
+                "Skipping modular forward compatibility PT scheduling by config"
+            );
+        }
+
         if customer.default_payment_method_id.is_none() && req.payment_method.is_some() {
             let _ = self
                 .set_default_payment_method(
@@ -3984,6 +4023,7 @@ pub async fn list_payment_methods(
         });
     }
     let currency = payment_intent.as_ref().and_then(|pi| pi.currency);
+    let capture_method = payment_attempt.as_ref().and_then(|pa| pa.capture_method);
     let skip_external_tax_calculation = payment_intent
         .as_ref()
         .and_then(|intent| intent.skip_external_tax_calculation)
@@ -4063,7 +4103,11 @@ pub async fn list_payment_methods(
                 .as_ref()
                 .map(|pa| pa.net_amount.get_total_amount())
                 .unwrap_or(pi.amount);
-            pi.into_payment_method_list_intent_data(net_amount, connector_supports_installments)
+            pi.into_payment_method_list_intent_data(
+                net_amount,
+                connector_supports_installments,
+                capture_method,
+            )
         })
         .transpose()
         .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -4079,8 +4123,10 @@ pub async fn list_payment_methods(
                 .to_owned(),
             payment_type,
             payment_methods: payment_method_responses,
-            mandate_payment: payment_attempt.and_then(|inner| inner.mandate_details).map(
-                |d| match d {
+            mandate_payment: payment_attempt
+                .as_ref()
+                .and_then(|inner| inner.mandate_details.clone())
+                .map(|d| match d {
                     hyperswitch_domain_models::mandates::MandateDataType::SingleUse(i) => {
                         api::MandateType::SingleUse(api::MandateAmountData {
                             amount: i.amount,
@@ -4102,8 +4148,7 @@ pub async fn list_payment_methods(
                     hyperswitch_domain_models::mandates::MandateDataType::MultiUse(None) => {
                         api::MandateType::MultiUse(None)
                     }
-                },
-            ),
+                }),
             show_surcharge_breakup_screen: merchant_surcharge_configs
                 .show_surcharge_breakup_screen
                 .unwrap_or_default(),
@@ -5400,7 +5445,9 @@ pub async fn get_bank_from_vault(
                 .change_context(errors::ApiErrorResponse::InternalServerError)
                 .attach_printable("Error storing payout method data in temporary locker")?;
             }
-            let bank_data: api::BankTransferPayout = bank.to_owned().into();
+            let bank_data = api::BankTransferPayout::try_from(bank.to_owned())
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Error converting bank transfer data")?;
             Ok(bank_data)
         }
         api::PayoutMethodData::BankTransfer(bank) => {

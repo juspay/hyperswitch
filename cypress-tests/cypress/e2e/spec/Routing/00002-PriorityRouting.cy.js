@@ -3,53 +3,9 @@ import State from "../../../utils/State";
 import * as utils from "../../configs/Routing/Utils";
 
 let globalState;
+let shouldContinue = true;
 
 describe("Priority Based Routing Test", () => {
-  let shouldContinue = true;
-
-  beforeEach(() => {
-    cy.session("login", () => {
-      // Make sure we have credentials
-      if (!globalState.get("email") || !globalState.get("password")) {
-        throw new Error("Missing login credentials in global state");
-      }
-
-      cy.userLogin(globalState)
-        .then(() => cy.terminate2Fa(globalState))
-        .then(() => cy.userInfo(globalState))
-        .then(() => {
-          // Verify we have all necessary tokens and IDs
-          const requiredKeys = [
-            "userInfoToken",
-            "merchantId",
-            "organizationId",
-            "profileId",
-          ];
-          requiredKeys.forEach((key) => {
-            if (!globalState.get(key)) {
-              throw new Error(`Missing required key after login: ${key}`);
-            }
-          });
-        });
-    });
-  });
-
-  context("Get merchant info", () => {
-    before("seed global state", () => {
-      cy.task("getGlobalState").then((state) => {
-        globalState = new State(state);
-      });
-    });
-
-    after("flush global state", () => {
-      cy.task("setGlobalState", globalState.data);
-    });
-
-    it("merchant retrieve call", () => {
-      cy.merchantRetrieveCall(globalState);
-    });
-  });
-
   context("Routing with Stripe as top priority", () => {
     before("seed global state", () => {
       cy.task("getGlobalState").then((state) => {
@@ -57,20 +13,12 @@ describe("Priority Based Routing Test", () => {
       });
     });
 
-    after("flush global state", () => {
+    afterEach("flush global state", () => {
       cy.task("setGlobalState", globalState.data);
     });
 
     it("list-mca-by-mid", () => {
       cy.ListMcaByMid(globalState);
-    });
-
-    it("api-key-create-call-test", () => {
-      cy.apiKeyCreateTest(fixtures.apiKeyCreateBody, globalState);
-    });
-
-    it("customer-create-call-test", () => {
-      cy.createCustomerCallTest(fixtures.customerCreateBody, globalState);
     });
 
     it("add-routing-config", () => {
@@ -110,6 +58,8 @@ describe("Priority Based Routing Test", () => {
     });
 
     it("payment-routing-test", () => {
+      globalState.set("connectorId", "stripe");
+      globalState.set("merchantConnectorId", globalState.get("stripeMcaId"));
       const data =
         utils.getConnectorDetails("stripe")["card_pm"]["No3DSAutoCapture"];
 
@@ -136,20 +86,12 @@ describe("Priority Based Routing Test", () => {
       });
     });
 
-    after("flush global state", () => {
+    afterEach("flush global state", () => {
       cy.task("setGlobalState", globalState.data);
     });
 
     it("list-mca-by-mid", () => {
       cy.ListMcaByMid(globalState);
-    });
-
-    it("api-key-create-call-test", () => {
-      cy.apiKeyCreateTest(fixtures.apiKeyCreateBody, globalState);
-    });
-
-    it("customer-create-call-test", () => {
-      cy.createCustomerCallTest(fixtures.customerCreateBody, globalState);
     });
 
     it("add-routing-config", () => {
@@ -189,6 +131,8 @@ describe("Priority Based Routing Test", () => {
     });
 
     it("payment-routing-test", () => {
+      globalState.set("connectorId", "adyen");
+      globalState.set("merchantConnectorId", globalState.get("adyenMcaId"));
       const data =
         utils.getConnectorDetails("adyen")["card_pm"]["No3DSAutoCapture"];
 

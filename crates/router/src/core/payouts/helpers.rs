@@ -201,7 +201,11 @@ pub async fn make_payout_method_data(
             _ => Ok(None),
         };
 
-    let payout_method_data = data.map(|pmd| pmd.map(|p| p.normalize()))?;
+    let payout_method_data = data?
+        .map(|pmd| pmd.normalize())
+        .transpose()
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Error normalizing payout method data")?;
 
     Ok(payout_method_data)
 }

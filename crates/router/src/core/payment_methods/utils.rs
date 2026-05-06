@@ -825,6 +825,20 @@ pub async fn get_organization_eligibility_config_for_pm_modular_service(
         .await
 }
 
+pub async fn get_should_schedule_modular_forward_compat(
+    state: &SessionState,
+    dimensions: &dimension_state::DimensionsWithProviderMerchantId,
+    customer_id: Option<&common_utils::id_type::CustomerId>,
+) -> bool {
+    dimensions
+        .get_should_schedule_modular_forward_compat(
+            state.store.as_ref(),
+            state.superposition_service.as_ref(),
+            customer_id,
+        )
+        .await
+}
+
 pub async fn get_sdk_next_action_for_payment_method_list(
     state: &SessionState,
     dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId,

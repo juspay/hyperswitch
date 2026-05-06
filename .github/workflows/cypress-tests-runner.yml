@@ -16,14 +16,11 @@ concurrency:
 env:
   CARGO_INCREMENTAL: 0
   CARGO_NET_RETRY: 10
-  MANDATORY_PAYMENTS_CONNECTORS_BATCH_1: "cybersource stripe authorizedotnet"
-  MANDATORY_PAYMENTS_CONNECTORS_BATCH_2: "adyen nexixpay nmi"
-  OPTIONAL_PAYMENTS_CONNECTORS_BATCH_1: "cashtocode loonio fiuu"
-  OPTIONAL_PAYMENTS_CONNECTORS_BATCH_2: "gigadat zift resys"
-  OPTIONAL_PAYMENTS_CONNECTORS_BATCH_3: "worldpay braintree cryptopay"
-  OPTIONAL_PAYMENTS_CONNECTORS_BATCH_4: "finix airwallex checkout"
-  OPTIONAL_PAYMENTS_CONNECTORS_BATCH_5: "paypal worldpayxml volt"
-  OPTIONAL_PAYMENTS_CONNECTORS_BATCH_6: "novalnet noon"
+  MANDATORY_PAYMENTS_CONNECTORS_BATCH_1: "cybersource stripe authorizedotnet cashtocode"
+  MANDATORY_PAYMENTS_CONNECTORS_BATCH_2: "adyen nexixpay finix fiuu"
+  OPTIONAL_PAYMENTS_CONNECTORS_BATCH_1: "worldpay braintree cryptopay paypal worldpayxml volt"
+  OPTIONAL_PAYMENTS_CONNECTORS_BATCH_2: "gigadat checkout redsys novalnet noon"
+  OPTIONAL_PAYMENTS_CONNECTORS_BATCH_3: "loonio zift airwallex fiuu"
   ALPHA_PAYMENTS_CONNECTORS: "celero silverflow"
   PLATFORM_CONNECTORS: "stripe cybersource"
   RUST_BACKTRACE: short
@@ -170,14 +167,14 @@ jobs:
                 {
                   "name": "batch-1",
                   "connectors": "'"${MANDATORY_PAYMENTS_CONNECTORS_BATCH_1}"'",
-                  "parallel": 3,
+                  "parallel": 4,
                   "report_artifact_name": "cypress-mandatory-test-results-batch-1",
                   "server_logs_artifact": "mandatory-server-logs-batch-1"
                 },
                 {
                   "name": "batch-2",
                   "connectors": "'"${MANDATORY_PAYMENTS_CONNECTORS_BATCH_2}"'",
-                  "parallel": 3,
+                  "parallel": 4,
                   "report_artifact_name": "cypress-mandatory-test-results-batch-2",
                   "server_logs_artifact": "mandatory-server-logs-batch-2"
                 },
@@ -445,7 +442,7 @@ jobs:
 
   prepare-optional-matrix:
     name: Prepare Optional Connectors matrix to run cypress tests
-    if: github.event_name == 'merge_group'
+    if: false
     runs-on: hyperswitch-runners
     outputs:
       matrix: ${{ steps.set-matrix.outputs.matrix }}
@@ -461,44 +458,16 @@ jobs:
                 {
                   "name": "batch-1",
                   "connectors": "'"${OPTIONAL_PAYMENTS_CONNECTORS_BATCH_1}"'",
-                  "parallel": 3,
+                  "parallel": 6,
                   "report_artifact_name": "cypress-test-results-batch-1",
                   "server_logs_artifact": "optional-server-logs-batch-1"
                 },
                 {
                   "name": "batch-2",
                   "connectors": "'"${OPTIONAL_PAYMENTS_CONNECTORS_BATCH_2}"'",
-                  "parallel": 3,
+                  "parallel": 6,
                   "report_artifact_name": "cypress-test-results-batch-2",
                   "server_logs_artifact": "optional-server-logs-batch-2"
-                },
-                {
-                  "name": "batch-3",
-                  "connectors": "'"${OPTIONAL_PAYMENTS_CONNECTORS_BATCH_3}"'",
-                  "parallel": 3,
-                  "report_artifact_name": "cypress-test-results-batch-3",
-                  "server_logs_artifact": "optional-server-logs-batch-3"
-                },
-                {
-                  "name": "batch-4",
-                  "connectors": "'"${OPTIONAL_PAYMENTS_CONNECTORS_BATCH_4}"'",
-                  "parallel": 3,
-                  "report_artifact_name": "cypress-test-results-batch-4",
-                  "server_logs_artifact": "optional-server-logs-batch-4"
-                },
-                {
-                  "name": "batch-5",
-                  "connectors": "'"${OPTIONAL_PAYMENTS_CONNECTORS_BATCH_5}"'",
-                  "parallel": 3,
-                  "report_artifact_name": "cypress-test-results-batch-5",
-                  "server_logs_artifact": "optional-server-logs-batch-5"
-                },
-                {
-                  "name": "batch-6",
-                  "connectors": "'"${OPTIONAL_PAYMENTS_CONNECTORS_BATCH_6}"'",
-                  "parallel": 3,
-                  "report_artifact_name": "cypress-test-results-batch-6",
-                  "server_logs_artifact": "optional-server-logs-batch-6"
                 }
               ]
             }'
@@ -507,7 +476,7 @@ jobs:
 
   runner-optional-connectors:
     name: Run Optional Connectors Cypress tests
-    if: github.event_name == 'merge_group'
+    if: false
     needs: [ build-hyperswitch, prepare-optional-matrix ]
     runs-on: hyperswitch-runners
     strategy:

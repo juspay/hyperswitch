@@ -373,4 +373,12 @@ impl PaymentMethod {
         .change_context(errors::DatabaseError::Others)
         .attach_printable("Failed to get a count of payment methods")
     }
+
+    pub async fn find_by_locker_id(conn: &PgPooledConn, locker_id: &str) -> StorageResult<Self> {
+        generics::generic_find_one::<<Self as HasTable>::Table, _, _>(
+            conn,
+            dsl::locker_id.eq(locker_id.to_owned()),
+        )
+        .await
+    }
 }

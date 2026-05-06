@@ -158,6 +158,7 @@ jobs:
       # Use `sccache` for caching compilation artifacts
       # RUSTC_WRAPPER: sccache
       RUSTFLAGS: "-D warnings"
+      CARGO_BUILD_JOBS: 2
 
     strategy:
       fail-fast: true
@@ -220,7 +221,7 @@ jobs:
 
       - name: Run clippy
         shell: bash
-        run: just clippy --jobs 3
+        run: just clippy
 
       - name: Cargo hack
         if: ${{ github.event_name == 'push' }}

@@ -380,6 +380,9 @@ pub mod superposition {
         "should_return_raw_payment_method_details";
     /// Call PM modular service configuration key
     pub const SHOULD_CALL_PM_MODULAR_SERVICE: &str = "should_call_pm_modular_service";
+    /// Schedule PM modular forward compatibility PT configuration key
+    pub const SHOULD_SCHEDULE_MODULAR_FORWARD_COMPAT: &str =
+        "should_schedule_modular_forward_compat";
     /// dynamic fields configuration key for sdk config
     pub const DYNAMIC_FIELDS: &str = "dynamic_fields";
     /// payout sync tracker configuration key

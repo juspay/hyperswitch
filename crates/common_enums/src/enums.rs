@@ -2357,6 +2357,7 @@ pub enum PaymentMethodType {
     DuitNow,
     Efecty,
     Eft,
+    EftDebitOrder,
     Eps,
     Flexiti,
     Fps,
@@ -2394,6 +2395,8 @@ pub enum PaymentMethodType {
     Paypal,
     Paze,
     Pix,
+    PixKey,
+    PixEmv,
     PixAutomaticoQr,
     PixAutomaticoPush,
     PaySafeCard,
@@ -2488,6 +2491,7 @@ impl PaymentMethodType {
             Self::DuitNow => "DuitNow",
             Self::Efecty => "Efecty",
             Self::Eft => "EFT",
+            Self::EftDebitOrder => "EFT Debit Order",
             Self::Eps => "EPS",
             Self::Flexiti => "Flexiti",
             Self::Fps => "FPS",
@@ -2529,6 +2533,8 @@ impl PaymentMethodType {
             Self::Paypal => "PayPal",
             Self::Paze => "Paze",
             Self::Pix => "Pix",
+            Self::PixKey => "Pix Key",
+            Self::PixEmv => "Pix EMV",
             Self::PixAutomaticoQr => "Pix Automático QR",
             Self::PixAutomaticoPush => "Pix Automático Push",
             Self::PaySafeCard => "PaySafeCard",
@@ -9645,6 +9651,7 @@ pub enum PermissionScope {
 #[serde(rename_all = "snake_case")]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
 pub enum BankNames {
+    Absa,
     AmericanExpress,
     AffinBank,
     AgroBank,
@@ -10697,6 +10704,7 @@ pub enum ProcessTrackerRunner {
     OutgoingWebhookRetryWorkflow,
     AttachPayoutAccountWorkflow,
     PaymentMethodStatusUpdateWorkflow,
+    PaymentMethodModularForwardCompatWorkflow,
     PassiveRecoveryWorkflow,
     ProcessDisputeWorkflow,
     DisputeListWorkflow,
@@ -11315,4 +11323,21 @@ impl PostCaptureVoidStatus {
             Self::Pending | Self::Succeeded => false,
         }
     }
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    PartialEq,
+    serde::Serialize,
+    strum::Display,
+    serde::Deserialize,
+    ToSchema,
+)]
+#[serde(rename_all = "snake_case")]
+pub enum VaultEnv {
+    Sandbox,
+    Live,
 }
