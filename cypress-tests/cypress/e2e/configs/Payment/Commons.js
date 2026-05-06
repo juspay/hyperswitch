@@ -3309,5 +3309,51 @@ export const connectorDetails = {
         body: { status: "failed" },
       },
     }),
+    StepUpAuth_Create: getCustomExchange({
+      Request: {
+        currency: "USD",
+        authentication_type: "no_three_ds",
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+        },
+      },
+    }),
+    StepUpAuth_Confirm: getCustomExchange({
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: {
+            card_number: "4111111111111111",
+            card_exp_month: "10",
+            card_exp_year: "30",
+            card_holder_name: "joseph Doe",
+            card_cvc: "999",
+          },
+        },
+        currency: "USD",
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+        request_external_three_ds_authentication: true,
+      },
+      Response: {
+        status: 501,
+        body: {},
+      },
+    }),
+    StepUpAuth_Initiate: getCustomExchange({
+      Request: {
+        device_channel: "BRW",
+        threeds_method_comp_ind: "U",
+      },
+      Response: {
+        status: 501,
+        body: {},
+      },
+    }),
   },
 };

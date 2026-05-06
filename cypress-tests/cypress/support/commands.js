@@ -5616,6 +5616,37 @@ Cypress.Commands.add(
   }
 );
 
+Cypress.Commands.add("threeDsAuthenticationCallTest", (globalState, data) => {
+  const { Request: reqData, Response: resData } = data || {};
+
+  const baseUrl = globalState.get("baseUrl");
+  const paymentId = globalState.get("paymentID");
+  const apiKey = globalState.get("apiKey");
+  const url = `${baseUrl}/payments/${paymentId}/3ds/authentication`;
+
+  cy.request({
+    method: "POST",
+    url: url,
+    headers: {
+      "api-key": apiKey,
+      "Content-Type": "application/json",
+    },
+    body: reqData,
+    failOnStatusCode: false,
+  }).then((response) => {
+    logRequestId(response.headers["x-request-id"]);
+
+    cy.wrap(response).then(() => {
+      if (response.status === 200) {
+        expect(response.body.status).to.equal(resData.body.status);
+        expect(response.body.payment_id).to.equal(paymentId);
+      } else {
+        defaultErrorHandler(response, resData);
+      }
+    });
+  });
+});
+
 Cypress.Commands.add("setConfigs", (globalState, key, value, requestType) => {
   if (!key || !requestType) {
     throw new Error("Key and requestType are required parameters");

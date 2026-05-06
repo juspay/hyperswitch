@@ -1080,6 +1080,58 @@ export const connectorDetails = {
         },
       },
     },
+    StepUpAuth_Create: {
+      Request: {
+        currency: "USD",
+        authentication_type: "no_three_ds",
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+          setup_future_usage: "on_session",
+        },
+      },
+    },
+    StepUpAuth_Confirm: {
+      Configs: {
+        CONNECTOR_CREDENTIAL: {
+          value: "connector_1",
+        },
+      },
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulThreeDSTestCardDetails,
+        },
+        currency: "USD",
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+        request_external_three_ds_authentication: true,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+          payment_method: "card",
+          attempt_count: 1,
+        },
+      },
+    },
+    StepUpAuth_Initiate: {
+      Request: {
+        device_channel: "BRW",
+        threeds_method_comp_ind: "U",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "success",
+        },
+      },
+    },
   },
   auth_service_eligibility: {
     OrgEnabledMerchantEnabled: getCustomExchange({

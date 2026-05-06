@@ -646,6 +646,55 @@ export const connectorDetails = {
         },
       },
     },
+    StepUpAuth_Create: {
+      Request: {
+        currency: "USD",
+        amount: 6544,
+        authentication_type: "no_three_ds",
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+          setup_future_usage: "on_session",
+        },
+      },
+    },
+    StepUpAuth_Confirm: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulThreeDSTestCardDetails,
+        },
+        currency: "USD",
+        amount: 6544,
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+        request_external_three_ds_authentication: true,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+          payment_method: "card",
+          attempt_count: 1,
+        },
+      },
+    },
+    StepUpAuth_Initiate: {
+      Request: {
+        device_channel: "BRW",
+        threeds_method_comp_ind: "U",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "success",
+        },
+      },
+    },
     MITAutoCapture: {
       Configs: {
         TRIGGER_SKIP: true,
