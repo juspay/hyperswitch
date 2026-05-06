@@ -1258,6 +1258,27 @@ export const connectorDetails = {
         setup_future_usage: "on_session",
       },
     }),
+    IframeRedirection: getCustomExchange({
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulThreeDSTestCardDetails,
+        },
+        currency: "USD",
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+        is_iframe_redirection_enabled: true,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+          next_action: {
+            type: "redirect_to_url",
+          },
+        },
+      },
+    }),
     SessionToken: {
       Response: {
         status: 200,
