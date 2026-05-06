@@ -282,6 +282,28 @@ describe("Bank Transfers", () => {
   });
 
   context("Bank transfer - Boleto forward flow", () => {
+    before(function () {
+      let skip = false;
+
+      cy.task("getGlobalState")
+        .then((state) => {
+          globalState = new State(state);
+          if (
+            utils.shouldIncludeConnector(
+              globalState.get("connectorId"),
+              utils.CONNECTOR_LISTS.INCLUDE.BOLETO
+            )
+          ) {
+            skip = true;
+          }
+        })
+        .then(() => {
+          if (skip) {
+            this.skip();
+          }
+        });
+    });
+
     it("Create Payment Intent for Boleto -> List Merchant Payment Methods -> Confirm Bank Transfer for Boleto -> Handle Bank Transfer Redirection for Boleto", () => {
       let shouldContinue = true;
 
@@ -348,6 +370,28 @@ describe("Bank Transfers", () => {
   });
 
   context("Bank transfer - PixAutomatico forward flow", () => {
+    before(function () {
+      let skip = false;
+
+      cy.task("getGlobalState")
+        .then((state) => {
+          globalState = new State(state);
+          if (
+            utils.shouldIncludeConnector(
+              globalState.get("connectorId"),
+              utils.CONNECTOR_LISTS.INCLUDE.PIX_AUTOMATICO
+            )
+          ) {
+            skip = true;
+          }
+        })
+        .then(() => {
+          if (skip) {
+            this.skip();
+          }
+        });
+    });
+
     it("Create Payment Intent for PixAutomatico -> List Merchant Payment Methods -> Confirm Bank Transfer for PixAutomatico -> Handle Bank Transfer Redirection for PixAutomatico", () => {
       let shouldContinue = true;
 

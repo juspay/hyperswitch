@@ -546,6 +546,8 @@ export const CONNECTOR_LISTS = {
     ],
     EXTERNAL_THREE_DS: ["stripe", "finix"],
     BANK_DEBIT: ["novalnet"],
+    BOLETO: ["santander"],
+    PIX_AUTOMATICO: ["santander"],
     PARTNER_MERCHANT_IDENTIFIER: ["adyen", "checkout"],
     GIFT_CARD: ["adyen"],
     PAY_LATER: ["klarna", "adyen", "aci", "stripe"],

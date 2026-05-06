@@ -610,19 +610,6 @@ export const payment_methods_enabled = [
 export const connectorDetails = {
   bank_transfer_pm: {
     PaymentIntent: (paymentMethodType) => {
-      const unsupportedBankTransferMethods = [];
-      if (unsupportedBankTransferMethods.includes(paymentMethodType)) {
-        return getCustomExchange({
-          Configs: { TRIGGER_SKIP: true },
-          Request: { currency: getCurrency(paymentMethodType) },
-          Response: {
-            status: 200,
-            body: {
-              status: "requires_payment_method",
-            },
-          },
-        });
-      }
       return getCustomExchange({
         Request: {
           currency: getCurrency(paymentMethodType),
@@ -747,15 +734,15 @@ export const connectorDetails = {
         },
         billing: {
           address: {
-            line1: "1467",
-            line2: "Harrison Street",
-            line3: "Harrison Street",
-            city: "San Fransico",
-            state: "California",
-            zip: "94122",
+            line1: "Rua Augusta",
+            line2: "2000",
+            line3: "Consolação",
+            city: "São Paulo",
+            state: "SP",
+            zip: "01412-000",
             country: "BR",
-            first_name: "john",
-            last_name: "doe",
+            first_name: "joseph",
+            last_name: "Doe",
           },
         },
         currency: "BRL",
@@ -772,15 +759,15 @@ export const connectorDetails = {
         },
         billing: {
           address: {
-            line1: "1467",
-            line2: "Harrison Street",
-            line3: "Harrison Street",
-            city: "San Fransico",
-            state: "California",
-            zip: "94122",
+            line1: "Rua Augusta",
+            line2: "2000",
+            line3: "Consolação",
+            city: "São Paulo",
+            state: "SP",
+            zip: "01412-000",
             country: "BR",
-            first_name: "john",
-            last_name: "doe",
+            first_name: "joseph",
+            last_name: "Doe",
           },
         },
         currency: "BRL",
