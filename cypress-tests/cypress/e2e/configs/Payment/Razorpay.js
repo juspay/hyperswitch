@@ -1,4 +1,3 @@
-// UPI Collect test data for successful payment
 const upiCollectPaymentData = {
   vpa_id: "test@upi",
 };
@@ -29,7 +28,7 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "succeeded",
+          status: "requires_customer_action",
         },
       },
     },
@@ -47,55 +46,7 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "succeeded",
-        },
-      },
-    },
-    Refund: {
-      Request: {
-        amount: 6000,
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "succeeded",
-        },
-      },
-      ResponseCustom: {
-        status: 200,
-        body: {
-          status: "succeeded",
-        },
-      },
-    },
-    PartialRefund: {
-      Request: {
-        amount: 3000,
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "succeeded",
-        },
-      },
-      ResponseCustom: {
-        status: 200,
-        body: {
-          status: "succeeded",
-        },
-      },
-    },
-    SyncRefund: {
-      Response: {
-        status: 200,
-        body: {
-          status: "succeeded",
-        },
-      },
-      ResponseCustom: {
-        status: 200,
-        body: {
-          status: "succeeded",
+          status: "requires_customer_action",
         },
       },
     },
