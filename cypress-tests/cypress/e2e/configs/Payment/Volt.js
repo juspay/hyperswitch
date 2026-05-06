@@ -41,6 +41,74 @@ export const connectorDetails = {
           connector: "volt",
         },
       },
+      Refund: {
+        Request: {
+          amount: 6000,
+        },
+        Response: {
+          status: 200,
+          body: {
+            status: "succeeded",
+          },
+        },
+      },
+      PartialRefund: {
+        Request: {
+          amount: 2000,
+        },
+        Response: {
+          status: 200,
+          body: {
+            status: "succeeded",
+          },
+        },
+      },
+      manualPaymentRefund: {
+        Request: {
+          amount: 6000,
+        },
+        Response: {
+          status: 200,
+          body: {
+            status: "succeeded",
+          },
+        },
+      },
+      manualPaymentPartialRefund: {
+        Request: {
+          amount: 2000,
+        },
+        Response: {
+          status: 200,
+          body: {
+            status: "succeeded",
+          },
+        },
+      },
+      SyncRefund: {
+        Response: {
+          status: 200,
+          body: {
+            status: "succeeded",
+          },
+        },
+      },
+    },
+  },
+  card_pm: {
+    PaymentIntent: {
+      Request: {
+        currency: "EUR",
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+          setup_future_usage: "on_session",
+        },
+      },
     },
   },
 };

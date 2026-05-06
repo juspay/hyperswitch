@@ -3343,9 +3343,7 @@ Cypress.Commands.add(
             globalState.get("paymentAmount")
           );
           expect(response.body.profile_id, "profile_id").to.not.be.null;
-          if (configs?.SKIP_BILLING_VALIDATION !== true) {
-            expect(response.body.billing, "billing_address").to.not.be.null;
-          }
+          expect(response.body.billing, "billing_address").to.not.be.null;
           expect(response.body.customer, "customer").to.not.be.empty;
 
           if (expectedIntentStatus) {
