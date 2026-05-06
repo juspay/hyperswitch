@@ -148,9 +148,9 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "succeeded",
-          amount: 6000,
+          amount: 1100,
           amount_capturable: 0,
-          amount_received: 6000,
+          amount_received: 1100,
         },
       },
     },

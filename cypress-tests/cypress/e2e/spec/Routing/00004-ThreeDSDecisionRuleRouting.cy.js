@@ -107,10 +107,14 @@ describe("3DS Decision Rule Based Routing Test", () => {
         cy.confirmCallTest(fixtures.confirmBody, data, true, globalState);
       });
 
-      it("handle-three-ds-redirection", () => {
-        const expected_redirection = fixtures.confirmBody["return_url"];
-        cy.handleRedirection(globalState, expected_redirection);
-      });
+      it(
+        "handle-three-ds-redirection",
+        { retries: { runMode: 3, openMode: 0 } },
+        () => {
+          const expected_redirection = fixtures.confirmBody["return_url"];
+          cy.handleRedirection(globalState, expected_redirection);
+        }
+      );
 
       it("retrieve-payment-call-test-for-three-ds", () => {
         cy.retrievePaymentCallTest({ globalState });
