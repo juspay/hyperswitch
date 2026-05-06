@@ -5,27 +5,10 @@ import getConnectorDetails, * as utils from "../../configs/Payment/Utils";
 let globalState;
 
 describe("Card - Refund flow - No 3DS", () => {
-  before(function () {
-    let skip = false;
-
-    cy.task("getGlobalState")
-      .then((state) => {
-        globalState = new State(state);
-
-        if (
-          utils.shouldExcludeConnector(
-            globalState.get("connectorId"),
-            utils.CONNECTOR_LISTS.EXCLUDE.UPI_REFUND
-          )
-        ) {
-          skip = true;
-        }
-      })
-      .then(() => {
-        if (skip) {
-          this.skip();
-        }
-      });
+  before("seed global state", () => {
+    cy.task("getGlobalState").then((state) => {
+      globalState = new State(state);
+    });
   });
 
   afterEach("flush global state", () => {
@@ -667,6 +650,17 @@ describe("Card - Refund flow - No 3DS", () => {
           globalState.get("connectorId")
         )["card_pm"]["SyncRefund"];
         cy.syncRefundCallTest(syncRefundData, globalState);
+        if (!utils.should_continue_further(syncRefundData)) {
+          shouldContinue = false;
+        }
+      });
+
+      cy.step("List Refunds", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: List Refunds");
+          return;
+        }
+        cy.listRefundCallTest(fixtures.listRefundCall, globalState);
       });
     });
   });
@@ -943,27 +937,10 @@ describe("Card - Refund flow - No 3DS", () => {
 });
 
 describe("Card - Refund flow - 3DS", () => {
-  before(function () {
-    let skip = false;
-
-    cy.task("getGlobalState")
-      .then((state) => {
-        globalState = new State(state);
-
-        if (
-          utils.shouldExcludeConnector(
-            globalState.get("connectorId"),
-            utils.CONNECTOR_LISTS.EXCLUDE.UPI_REFUND
-          )
-        ) {
-          skip = true;
-        }
-      })
-      .then(() => {
-        if (skip) {
-          this.skip();
-        }
-      });
+  before("seed global state", () => {
+    cy.task("getGlobalState").then((state) => {
+      globalState = new State(state);
+    });
   });
 
   afterEach("flush global state", () => {

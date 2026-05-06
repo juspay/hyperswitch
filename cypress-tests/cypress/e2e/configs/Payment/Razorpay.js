@@ -50,53 +50,5 @@ export const connectorDetails = {
         },
       },
     },
-    Refund: {
-      Request: {
-        amount: 6000,
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "succeeded",
-        },
-      },
-      ResponseCustom: {
-        status: 200,
-        body: {
-          status: "succeeded",
-        },
-      },
-    },
-    PartialRefund: {
-      Request: {
-        amount: 3000,
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "succeeded",
-        },
-      },
-      ResponseCustom: {
-        status: 200,
-        body: {
-          status: "succeeded",
-        },
-      },
-    },
-    SyncRefund: {
-      Response: {
-        status: 200,
-        body: {
-          status: "succeeded",
-        },
-      },
-      ResponseCustom: {
-        status: 200,
-        body: {
-          status: "succeeded",
-        },
-      },
-    },
   },
 };
