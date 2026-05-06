@@ -87,9 +87,13 @@ export const connectorDetails = {
           name: "surcharge_config_rate",
           merchant_surcharge_configs: { show_surcharge_breakup_screen: null },
           algorithm: {
-            defaultSelection: { surcharge_details: null },
+            type: "rate",
+            rate: 2.5,
+            defaultSelection: {
+              surcharge_type: "rate",
+              rate: 2.5,
+            },
             rules: [],
-            metadata: {},
           },
         },
       },
@@ -102,9 +106,13 @@ export const connectorDetails = {
           name: "surcharge_config_rate",
           merchant_surcharge_configs: { show_surcharge_breakup_screen: null },
           algorithm: {
-            defaultSelection: { surcharge_details: null },
+            type: "rate",
+            rate: 2.5,
+            defaultSelection: {
+              surcharge_type: "rate",
+              rate: 2.5,
+            },
             rules: [],
-            metadata: {},
           },
         },
       },
