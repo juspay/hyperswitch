@@ -309,13 +309,6 @@ pub struct RedisConfig {
     pub(crate) default_stream_read_count: u64,
     pub(crate) default_hash_ttl: u32,
     pub(crate) cluster_enabled: bool,
-    #[allow(dead_code)]
-    pub(crate) unresponsive_timeout: u64,
-    #[allow(dead_code)]
-    pub(crate) unresponsive_check_interval: u64,
-    // max_failure_threshold_seconds is present in RedisSettings but not used by fred-rs
-    #[allow(dead_code)]
-    pub(crate) max_failure_threshold_seconds: u32,
 }
 
 impl From<&crate::types::RedisSettings> for RedisConfig {
@@ -325,9 +318,6 @@ impl From<&crate::types::RedisSettings> for RedisConfig {
             default_stream_read_count: config.stream_read_count,
             default_hash_ttl: config.default_hash_ttl,
             cluster_enabled: config.cluster_enabled,
-            unresponsive_timeout: config.unresponsive_timeout,
-            unresponsive_check_interval: config.unresponsive_check_interval,
-            max_failure_threshold_seconds: config.max_failure_threshold_seconds,
         }
     }
 }
