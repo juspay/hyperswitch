@@ -4,6 +4,22 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.04.02.0-hotfix7.1
+
+### Bug Fixes
+
+- **connector:** Add dynamic required fields for Truelayer and Trustly ([#12161](https://github.com/juspay/hyperswitch/pull/12161)) ([`2bf9a11`](https://github.com/juspay/hyperswitch/commit/2bf9a115a2ede42416c39ce7b57cde2196c35bbb))
+
+### Miscellaneous Tasks
+
+- chore: cherry-picked hotfixes ([#11952](https://github.com/juspay/hyperswitch/pull/11952)) ([`5ad1673`](https://github.com/juspay/hyperswitch/commit/5ad16731564ce4c9ffdb9abfb40c5603b6d154e1))
+- clippy changes ([`e91e225`](https://github.com/juspay/hyperswitch/commit/e91e225e11426ead0cffc53224b9ca0bdc236043))
+- Redis-rs movement ([`4cb8ed8`](https://github.com/juspay/hyperswitch/commit/4cb8ed8622c51f43cf4907b7dfe2f6a7c4eb8f47))
+
+**Full Changelog:** [`2026.04.02.0-hotfix7...2026.04.02.0-hotfix7.1`](https://github.com/juspay/hyperswitch/compare/2026.04.02.0-hotfix7...2026.04.02.0-hotfix7.1)
+
+- - -
+
 ## 2026.04.02.0-hotfix7
 
 ### Bug Fixes
