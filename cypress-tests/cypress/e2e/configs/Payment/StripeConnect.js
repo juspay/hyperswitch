@@ -260,7 +260,7 @@ export const connectorDetails = {
         },
       },
     },
-    "IframeRedirection": {
+    IframeRedirection: {
       Request: {
         payment_method: "card",
         payment_method_data: {

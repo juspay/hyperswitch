@@ -1,6 +1,8 @@
 import * as fixtures from "../../../fixtures/imports";
 import State from "../../../utils/State";
-import getConnectorDetails, { CONNECTOR_LISTS } from "../../configs/Payment/Utils";
+import getConnectorDetails, {
+  CONNECTOR_LISTS,
+} from "../../configs/Payment/Utils";
 import * as utils from "../../configs/Payment/Utils";
 
 let globalState;
@@ -17,32 +19,38 @@ describe("Iframe Redirection Payment Flow Tests", () => {
   });
 
   context("Happy Path - Create Payment with Iframe Redirection Enabled", () => {
-    it("Create Payment Intent with is_iframe_redirection_enabled -> Confirm Payment -> Verify Redirect Response -> Retrieve Payment", function() {
+    it("Create Payment Intent with is_iframe_redirection_enabled -> Confirm Payment -> Verify Redirect Response -> Retrieve Payment", function () {
       const connectorId = globalState.get("connectorId");
       if (!CONNECTOR_LISTS.INCLUDE.IFRAME_REDIRECTION.includes(connectorId)) {
-        cy.task("cli_log", `Skipping iframe redirection test - connector ${connectorId} not in supported list`);
+        cy.task(
+          "cli_log",
+          `Skipping iframe redirection test - connector ${connectorId} not in supported list`
+        );
         this.skip();
       }
 
       let shouldContinue = true;
 
-      cy.step("Create Payment Intent with is_iframe_redirection_enabled", () => {
-        const data = getConnectorDetails(globalState.get("connectorId"))[
-          "card_pm"
-        ]["PaymentIntent"];
+      cy.step(
+        "Create Payment Intent with is_iframe_redirection_enabled",
+        () => {
+          const data = getConnectorDetails(globalState.get("connectorId"))[
+            "card_pm"
+          ]["PaymentIntent"];
 
-        cy.createPaymentIntentTest(
-          fixtures.createPaymentBody,
-          data,
-          "three_ds",
-          "automatic",
-          globalState
-        );
+          cy.createPaymentIntentTest(
+            fixtures.createPaymentBody,
+            data,
+            "three_ds",
+            "automatic",
+            globalState
+          );
 
-        if (!utils.should_continue_further(data)) {
-          shouldContinue = false;
+          if (!utils.should_continue_further(data)) {
+            shouldContinue = false;
+          }
         }
-      });
+      );
 
       cy.step("Payment Methods Call", () => {
         if (!shouldContinue) {
@@ -61,12 +69,7 @@ describe("Iframe Redirection Payment Flow Tests", () => {
           "card_pm"
         ]["IframeRedirection"];
 
-        cy.confirmCallTest(
-          fixtures.confirmBody,
-          data,
-          true,
-          globalState
-        );
+        cy.confirmCallTest(fixtures.confirmBody, data, true, globalState);
 
         if (!utils.should_continue_further(data)) {
           shouldContinue = false;
@@ -79,7 +82,10 @@ describe("Iframe Redirection Payment Flow Tests", () => {
           return;
         }
 
-        cy.wrap(globalState.get("paymentIntentStatus")).should("equal", "requires_customer_action");
+        cy.wrap(globalState.get("paymentIntentStatus")).should(
+          "equal",
+          "requires_customer_action"
+        );
         cy.wrap(globalState.get("nextActionUrl")).should("not.be.null");
       });
 
@@ -101,23 +107,26 @@ describe("Iframe Redirection Payment Flow Tests", () => {
     it("Create Payment Intent without iframe redirection -> Confirm Payment -> Verify Standard Redirect", () => {
       let shouldContinue = true;
 
-      cy.step("Create Payment Intent without is_iframe_redirection_enabled", () => {
-        const data = getConnectorDetails(globalState.get("connectorId"))[
-          "card_pm"
-        ]["PaymentIntent"];
+      cy.step(
+        "Create Payment Intent without is_iframe_redirection_enabled",
+        () => {
+          const data = getConnectorDetails(globalState.get("connectorId"))[
+            "card_pm"
+          ]["PaymentIntent"];
 
-        cy.createPaymentIntentTest(
-          fixtures.createPaymentBody,
-          data,
-          "three_ds",
-          "automatic",
-          globalState
-        );
+          cy.createPaymentIntentTest(
+            fixtures.createPaymentBody,
+            data,
+            "three_ds",
+            "automatic",
+            globalState
+          );
 
-        if (!utils.should_continue_further(data)) {
-          shouldContinue = false;
+          if (!utils.should_continue_further(data)) {
+            shouldContinue = false;
+          }
         }
-      });
+      );
 
       cy.step("Payment Methods Call", () => {
         if (!shouldContinue) {
@@ -136,12 +145,7 @@ describe("Iframe Redirection Payment Flow Tests", () => {
           "card_pm"
         ]["3DSAutoCapture"];
 
-        cy.confirmCallTest(
-          fixtures.confirmBody,
-          data,
-          true,
-          globalState
-        );
+        cy.confirmCallTest(fixtures.confirmBody, data, true, globalState);
 
         if (!utils.should_continue_further(data)) {
           shouldContinue = false;
@@ -154,7 +158,10 @@ describe("Iframe Redirection Payment Flow Tests", () => {
           return;
         }
 
-        cy.wrap(globalState.get("paymentIntentStatus")).should("equal", "requires_customer_action");
+        cy.wrap(globalState.get("paymentIntentStatus")).should(
+          "equal",
+          "requires_customer_action"
+        );
         cy.wrap(globalState.get("nextActionUrl")).should("not.be.null");
       });
     });
@@ -192,12 +199,7 @@ describe("Iframe Redirection Payment Flow Tests", () => {
           "card_pm"
         ]["No3DSAutoCapture"];
 
-        cy.confirmCallTest(
-          fixtures.confirmBody,
-          data,
-          true,
-          globalState
-        );
+        cy.confirmCallTest(fixtures.confirmBody, data, true, globalState);
 
         if (!utils.should_continue_further(data)) {
           shouldContinue = false;
@@ -211,8 +213,12 @@ describe("Iframe Redirection Payment Flow Tests", () => {
         }
 
         const connectorId = globalState.get("connectorId");
-        const expectedStatus = connectorId === "worldpayxml" ? "processing" : "succeeded";
-        cy.wrap(globalState.get("paymentIntentStatus")).should("equal", expectedStatus);
+        const expectedStatus =
+          connectorId === "worldpayxml" ? "processing" : "succeeded";
+        cy.wrap(globalState.get("paymentIntentStatus")).should(
+          "equal",
+          expectedStatus
+        );
       });
     });
   });
