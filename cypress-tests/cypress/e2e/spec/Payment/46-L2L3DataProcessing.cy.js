@@ -43,11 +43,11 @@ describe("L2/L3 Data Processing Tests", () => {
         };
         cy.UpdateBusinessProfileTest(
           bpUpdate,
-          true,
-          true,
-          true,
-          true,
-          true,
+          true, // is_connector_agnostic_mit_enabled
+          true, // collect_billing_details_from_wallet_connector
+          true, // collect_shipping_details_from_wallet_connector
+          true, // always_collect_billing_details_from_wallet_connector
+          true, // always_collect_shipping_details_from_wallet_connector
           globalState
         );
       });
@@ -129,11 +129,11 @@ describe("L2/L3 Data Processing Tests", () => {
         };
         cy.UpdateBusinessProfileTest(
           bpUpdate,
-          true,
-          true,
-          true,
-          true,
-          true,
+          true, // is_connector_agnostic_mit_enabled
+          true, // collect_billing_details_from_wallet_connector
+          true, // collect_shipping_details_from_wallet_connector
+          true, // always_collect_billing_details_from_wallet_connector
+          true, // always_collect_shipping_details_from_wallet_connector
           globalState
         );
       });
