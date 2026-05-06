@@ -1280,6 +1280,7 @@ export const connectorDetails = {
           },
         },
       },
+      ResponseCustom: true,
     }),
     SessionToken: {
       Response: {
