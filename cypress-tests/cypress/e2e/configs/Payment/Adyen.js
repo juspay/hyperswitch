@@ -306,6 +306,38 @@ export const connectorDetails = {
         },
       },
     },
+    ExtendAuthorizationNo3DSManual: {
+      Request: {
+        extended_authorization_days: 7,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "processing", // Adyen: Extend Authorization is async, returns processing
+          amount: 6000,
+          amount_capturable: 6000,
+          amount_received: null,
+          request_extended_authorization: true,
+        },
+      },
+      // Adyen: Extend Authorization is async (processing), capture is skipped
+    },
+    ExtendAuthorizationInvalidStatus: {
+      Request: {
+        extended_authorization_days: 7,
+      },
+      Response: {
+        status: 400,
+        body: {
+          error: {
+            type: "invalid_request",
+            message:
+              "You cannot extend authorization this payment because it has status succeeded",
+            code: "IR_16",
+          },
+        },
+      },
+    },
     MandateSingleUse3DSAutoCapture: {
       Request: {
         payment_method: "card",
