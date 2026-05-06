@@ -740,6 +740,120 @@ export const connectorDetails = {
         },
       },
     },
+    Sofort: {
+      Configs: {
+        TRIGGER_SKIP: true,
+        TRIGGERS: ["800.900.300 auth error"]
+      },
+      Request: {
+        payment_method: "bank_redirect",
+        payment_method_type: "sofort",
+        payment_method_data: {
+          bank_redirect: {
+            sofort: {},
+          },
+        },
+        billing: {
+          address: {
+            line1: "1467",
+            line2: "Harrison Street",
+            line3: "Harrison Street",
+            city: "San Fransico",
+            state: "California",
+            zip: "94122",
+            country: "DE",
+            first_name: "joseph",
+            last_name: "Doe",
+          },
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "failed",
+          error_code: "800.900.300",
+          error_message: "invalid authentication information",
+        },
+      },
+    },
+    Giropay: {
+      Configs: {
+        TRIGGER_SKIP: true,
+        TRIGGERS: ["800.900.300 auth error"]
+      },
+      Request: {
+        payment_method: "bank_redirect",
+        payment_method_type: "giropay",
+        payment_method_data: {
+          bank_redirect: {
+            giropay: {
+              bank_name: "",
+              bank_account_bic: "",
+              bank_account_iban: "",
+            },
+          },
+        },
+        billing: {
+          address: {
+            line1: "1467",
+            line2: "Harrison Street",
+            line3: "Harrison Street",
+            city: "San Fransico",
+            state: "California",
+            zip: "94122",
+            country: "DE",
+            first_name: "joseph",
+            last_name: "Doe",
+          },
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "failed",
+          error_code: "800.900.300",
+          error_message: "invalid authentication information",
+        },
+      },
+    },
+    Eps: {
+      Configs: {
+        TRIGGER_SKIP: true,
+        TRIGGERS: ["800.900.300 auth error"]
+      },
+      Request: {
+        payment_method: "bank_redirect",
+        payment_method_type: "eps",
+        payment_method_data: {
+          bank_redirect: {
+            eps: {
+              bank_name: "ing",
+            },
+          },
+        },
+        billing: {
+          address: {
+            line1: "1467",
+            line2: "Harrison Street",
+            line3: "Harrison Street",
+            city: "San Fransico",
+            state: "California",
+            zip: "94122",
+            country: "AT",
+            first_name: "joseph",
+            last_name: "Doe",
+          },
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "failed",
+          error_code: "800.900.300",
+          error_message: "invalid authentication information",
+        },
+      },
+    },
   },
   pay_later_pm: {
     PaymentIntent: getCustomExchange({
