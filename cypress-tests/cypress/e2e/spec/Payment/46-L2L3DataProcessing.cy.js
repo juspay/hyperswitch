@@ -4,6 +4,31 @@ import getConnectorDetails, * as utils from "../../configs/Payment/Utils";
 
 let globalState;
 
+function updateL2L3Flag(isL2L3Enabled, globalState) {
+  const apiKey = globalState.get("apiKey");
+  const merchantId = globalState.get("merchantId");
+  const profileId = globalState.get("profileId");
+
+  cy.request({
+    method: "POST",
+    url: `${globalState.get("baseUrl")}/account/${merchantId}/business_profile/${profileId}`,
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json",
+      "api-key": apiKey,
+    },
+    body: {
+      is_l2_l3_enabled: isL2L3Enabled,
+    },
+    failOnStatusCode: false,
+  }).then((response) => {
+    if (response.headers["x-request-id"]) {
+      cy.task("cli_log", "x-request-id -> " + response.headers["x-request-id"]);
+    }
+    expect(response.status).to.equal(200);
+  });
+}
+
 describe("L2/L3 Data Processing Tests", () => {
   before(function () {
     let skip = false;
@@ -37,19 +62,7 @@ describe("L2/L3 Data Processing Tests", () => {
       let shouldContinue = true;
 
       cy.step("Update Business Profile (L2/L3 enabled)", () => {
-        const bpUpdate = {
-          ...fixtures.businessProfile.bpUpdate,
-          is_l2_l3_enabled: true,
-        };
-        cy.UpdateBusinessProfileTest(
-          bpUpdate,
-          true, // is_connector_agnostic_mit_enabled
-          true, // collect_billing_details_from_wallet_connector
-          true, // collect_shipping_details_from_wallet_connector
-          true, // always_collect_billing_details_from_wallet_connector
-          true, // always_collect_shipping_details_from_wallet_connector
-          globalState
-        );
+        updateL2L3Flag(true, globalState);
       });
 
       cy.step("Create Payment Intent", () => {
@@ -123,19 +136,7 @@ describe("L2/L3 Data Processing Tests", () => {
       let shouldContinue = true;
 
       cy.step("Update Business Profile (L2/L3 disabled)", () => {
-        const bpUpdate = {
-          ...fixtures.businessProfile.bpUpdate,
-          is_l2_l3_enabled: false,
-        };
-        cy.UpdateBusinessProfileTest(
-          bpUpdate,
-          true, // is_connector_agnostic_mit_enabled
-          true, // collect_billing_details_from_wallet_connector
-          true, // collect_shipping_details_from_wallet_connector
-          true, // always_collect_billing_details_from_wallet_connector
-          true, // always_collect_shipping_details_from_wallet_connector
-          globalState
-        );
+        updateL2L3Flag(false, globalState);
       });
 
       cy.step("Create and Confirm Payment with L2/L3 fields", () => {
