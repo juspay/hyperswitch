@@ -72,7 +72,6 @@ import { connectorDetails as tsysConnectorDetails } from "./Tsys.js";
 import { connectorDetails as voltConnectorDetails } from "./Volt.js";
 import { connectorDetails as wellsfargoConnectorDetails } from "./WellsFargo.js";
 import { connectorDetails as worldpayConnectorDetails } from "./WorldPay.js";
-import { connectorDetails as worldpaymodularConnectorDetails } from "./Worldpaymodular.js";
 import { connectorDetails as worldpayvantivConnectorDetails } from "./Worldpayvantiv.js";
 import { connectorDetails as worldpayxmlConnectorDetails } from "./Worldpayxml.js";
 import { connectorDetails as xenditConnectorDetails } from "./Xendit.js";
@@ -147,7 +146,6 @@ const connectorDetails = {
   volt: voltConnectorDetails,
   wellsfargo: wellsfargoConnectorDetails,
   worldpay: worldpayConnectorDetails,
-  worldpaymodular: worldpaymodularConnectorDetails,
   worldpayvantiv: worldpayvantivConnectorDetails,
   worldpayxml: worldpayxmlConnectorDetails,
   xendit: xenditConnectorDetails,
