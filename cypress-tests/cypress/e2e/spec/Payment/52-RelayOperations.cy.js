@@ -209,7 +209,11 @@ describe("Relay Operations", () => {
         "relay_pm"
       ]["RelayNotFound"];
 
-      cy.retrieveRelayErrorCallTest("relay_InvalidIdForTesting123", data, globalState);
+      cy.retrieveRelayErrorCallTest(
+        "relay_InvalidIdForTesting123",
+        data,
+        globalState
+      );
     });
   });
 });

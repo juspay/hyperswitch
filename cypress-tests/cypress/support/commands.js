@@ -7550,8 +7550,11 @@ Cypress.Commands.add(
 );
 
 Cypress.Commands.add("relayErrorCallTest", (data, globalState) => {
-  const { Configs: configs = {}, Request: reqData, Response: resData } =
-    data || {};
+  const {
+    Configs: configs = {},
+    Request: reqData,
+    Response: resData,
+  } = data || {};
 
   const configInfo = execConfig(validateConfig(configs));
   const profileId = globalState.get(`${configInfo.profilePrefix}Id`);
