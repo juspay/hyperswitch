@@ -72,9 +72,10 @@ const bankTransferSkipConfigs = {
     Configs: { TRIGGER_SKIP: true },
     Request: { currency: "EUR" },
     Response: {
-      status: 200,
       body: {
-        status: "requires_payment_method",
+        error: {
+          type: "api",
+        },
       },
     },
   }),
@@ -82,9 +83,10 @@ const bankTransferSkipConfigs = {
     Configs: { TRIGGER_SKIP: true },
     Request: { currency: "PLN" },
     Response: {
-      status: 200,
       body: {
-        status: "requires_payment_method",
+        error: {
+          type: "api",
+        },
       },
     },
   }),
@@ -92,9 +94,10 @@ const bankTransferSkipConfigs = {
     Configs: { TRIGGER_SKIP: true },
     Request: { currency: "USD" },
     Response: {
-      status: 200,
       body: {
-        status: "requires_payment_method",
+        error: {
+          type: "api",
+        },
       },
     },
   }),
@@ -247,6 +250,13 @@ export const connectorDetails = {
         },
         billing: billingAddress,
         customer: customerDocumentDetails,
+        connector_metadata: {
+          santander: {
+            boleto: {
+              document_kind: "NPC",
+            },
+          },
+        },
         feature_metadata: {
           boleto_additional_details: {
             due_date: "2030-12-31",
@@ -261,6 +271,7 @@ export const connectorDetails = {
       },
     }),
     PixAutomatico: getCustomExchange({
+      Configs: { TRIGGER_SKIP: true },
       Request: {
         payment_method: "bank_transfer",
         payment_method_type: "pix_automatico_qr",
@@ -274,12 +285,21 @@ export const connectorDetails = {
         billing: billingAddress,
         customer: customerDocumentDetails,
         connector_metadata: connectorMetadata,
+        feature_metadata: {
+          pix_additional_details: {
+            immediate: {
+              time: 3600,
+            },
+          },
+        },
         setup_future_usage: "off_session",
       },
       Response: {
-        status: 200,
+        status: 501,
         body: {
-          status: "requires_customer_action",
+          error: {
+            type: "api",
+          },
         },
       },
     }),
