@@ -14,9 +14,9 @@
 use std::collections::HashMap;
 
 use crate::{
-    DelReply, HsetnxReply, MsetnxReply, RedisConnectionPool, RedisEntryId, RedisKey, RedisSettings,
-    RedisValue, SaddReply, SetGetReply, SetnxReply, StreamCapKind, StreamCapTrim, StreamTrimConfig,
-    ConsumerGroupDestroyReply,
+    ConsumerGroupDestroyReply, DelReply, HsetnxReply, MsetnxReply, RedisConnectionPool,
+    RedisEntryId, RedisKey, RedisSettings, RedisValue, SaddReply, SetGetReply, SetnxReply,
+    StreamCapKind, StreamCapTrim, StreamTrimConfig,
 };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────

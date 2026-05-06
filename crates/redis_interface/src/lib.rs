@@ -36,8 +36,8 @@ pub use backends::fred::{
 };
 #[cfg(feature = "redis-rs")]
 pub use backends::redis_rs::{
-    PubSubMessage, PublisherClient, RedisConfig, RedisConn, RedisConnectionPool, SubscriberClient,
-    redis_value_to_option_string,
+    redis_value_to_option_string, PubSubMessage, PublisherClient, RedisConfig, RedisConn,
+    RedisConnectionPool, SubscriberClient,
 };
 
 pub use self::types::*;

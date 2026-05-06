@@ -6,14 +6,13 @@
 pub mod commands;
 pub mod types;
 
-pub use types::redis_value_to_option_string;
-
 use std::sync::{atomic, Arc};
 
 use common_utils::errors::CustomResult;
 use error_stack::ResultExt;
 use redis::AsyncCommands;
 use tracing::Instrument;
+pub use types::redis_value_to_option_string;
 
 // ─── Cluster abstraction ────────────────────────────────────────────────────
 
@@ -552,7 +551,6 @@ impl RedisConnectionPool {
             }
         }
     }
-
 }
 
 pub struct RedisConfig {
