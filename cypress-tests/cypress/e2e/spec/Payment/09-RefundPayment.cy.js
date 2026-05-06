@@ -5,10 +5,27 @@ import getConnectorDetails, * as utils from "../../configs/Payment/Utils";
 let globalState;
 
 describe("Card - Refund flow - No 3DS", () => {
-  before("seed global state", () => {
-    cy.task("getGlobalState").then((state) => {
-      globalState = new State(state);
-    });
+  before(function () {
+    let skip = false;
+
+    cy.task("getGlobalState")
+      .then((state) => {
+        globalState = new State(state);
+
+        if (
+          utils.shouldExcludeConnector(
+            globalState.get("connectorId"),
+            utils.CONNECTOR_LISTS.EXCLUDE.UPI_REFUND
+          )
+        ) {
+          skip = true;
+        }
+      })
+      .then(() => {
+        if (skip) {
+          this.skip();
+        }
+      });
   });
 
   afterEach("flush global state", () => {
@@ -655,7 +672,7 @@ describe("Card - Refund flow - No 3DS", () => {
   });
 });
 
-describe("Razorpay UPI - Refund flow", () => {
+describe("UPI Collect - Payment flow", () => {
   before("seed global state", () => {
     cy.task("getGlobalState").then((state) => {
       globalState = new State(state);
@@ -666,8 +683,8 @@ describe("Razorpay UPI - Refund flow", () => {
     cy.task("setGlobalState", globalState.data);
   });
 
-  context("Razorpay UPI - Full Refund flow test", () => {
-    it("Create Payment Intent -> Confirm Payment Intent -> Retrieve Payment after Confirmation -> Refund Payment -> Sync Refund Payment", () => {
+  context("UPI Collect - requires customer action", () => {
+    it("Create Payment Intent -> Confirm Payment Intent -> Handle UPI Redirection -> Retrieve Payment after Confirmation", () => {
       let shouldContinue = true;
 
       cy.step("Create Payment Intent", () => {
@@ -694,15 +711,24 @@ describe("Razorpay UPI - Refund flow", () => {
         const confirmData = getConnectorDetails(globalState.get("connectorId"))[
           "upi_pm"
         ]["UpiCollect"];
-        cy.confirmCallTest(
-          fixtures.confirmBody,
-          confirmData,
-          true,
-          globalState
-        );
+        cy.confirmUpiCall(fixtures.confirmBody, confirmData, true, globalState);
         if (!utils.should_continue_further(confirmData)) {
           shouldContinue = false;
         }
+      });
+
+      cy.step("Handle UPI Redirection", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: Handle UPI Redirection");
+          return;
+        }
+        const expected_redirection = fixtures.confirmBody["return_url"];
+        const payment_method_type = globalState.get("paymentMethodType");
+        cy.handleUpiRedirection(
+          globalState,
+          payment_method_type,
+          expected_redirection
+        );
       });
 
       cy.step("Retrieve Payment after Confirmation", () => {
@@ -717,277 +743,6 @@ describe("Razorpay UPI - Refund flow", () => {
           "upi_pm"
         ]["UpiCollect"];
         cy.retrievePaymentCallTest({ globalState, data: confirmData });
-        if (!utils.should_continue_further(confirmData)) {
-          shouldContinue = false;
-        }
-      });
-
-      cy.step("Refund Payment", () => {
-        if (!shouldContinue) {
-          cy.task("cli_log", "Skipping step: Refund Payment");
-          return;
-        }
-        const refundData = getConnectorDetails(globalState.get("connectorId"))[
-          "upi_pm"
-        ]["Refund"];
-        const newRefundData = {
-          ...refundData,
-          Response: refundData.ResponseCustom || refundData.Response,
-        };
-        cy.refundCallTest(fixtures.refundBody, newRefundData, globalState);
-        if (!utils.should_continue_further(refundData)) {
-          shouldContinue = false;
-        }
-      });
-
-      cy.step("Sync Refund Payment", () => {
-        if (!shouldContinue) {
-          cy.task("cli_log", "Skipping step: Sync Refund Payment");
-          return;
-        }
-        const syncRefundData = getConnectorDetails(
-          globalState.get("connectorId")
-        )["upi_pm"]["SyncRefund"];
-        const newSyncRefundData = {
-          ...syncRefundData,
-          Response: syncRefundData.ResponseCustom || syncRefundData.Response,
-        };
-        cy.syncRefundCallTest(newSyncRefundData, globalState);
-      });
-    });
-  });
-
-  context("Razorpay UPI - Partial Refund flow test", () => {
-    it("Create Payment Intent -> Confirm Payment Intent -> Retrieve Payment after Confirmation -> Partial Refund Payment -> Partial Refund Payment - 2nd Attempt -> Sync Refund Payment", () => {
-      let shouldContinue = true;
-
-      cy.step("Create Payment Intent", () => {
-        const data = getConnectorDetails(globalState.get("connectorId"))[
-          "upi_pm"
-        ]["PaymentIntent"];
-        cy.createPaymentIntentTest(
-          fixtures.createPaymentBody,
-          data,
-          "no_three_ds",
-          "automatic",
-          globalState
-        );
-        if (!utils.should_continue_further(data)) {
-          shouldContinue = false;
-        }
-      });
-
-      cy.step("Confirm Payment Intent", () => {
-        if (!shouldContinue) {
-          cy.task("cli_log", "Skipping step: Confirm Payment Intent");
-          return;
-        }
-        const confirmData = getConnectorDetails(globalState.get("connectorId"))[
-          "upi_pm"
-        ]["UpiCollect"];
-        cy.confirmCallTest(
-          fixtures.confirmBody,
-          confirmData,
-          true,
-          globalState
-        );
-        if (!utils.should_continue_further(confirmData)) {
-          shouldContinue = false;
-        }
-      });
-
-      cy.step("Retrieve Payment after Confirmation", () => {
-        if (!shouldContinue) {
-          cy.task(
-            "cli_log",
-            "Skipping step: Retrieve Payment after Confirmation"
-          );
-          return;
-        }
-        const confirmData = getConnectorDetails(globalState.get("connectorId"))[
-          "upi_pm"
-        ]["UpiCollect"];
-        cy.retrievePaymentCallTest({ globalState, data: confirmData });
-        if (!utils.should_continue_further(confirmData)) {
-          shouldContinue = false;
-        }
-      });
-
-      cy.step("Partial Refund Payment - 1st Attempt", () => {
-        if (!shouldContinue) {
-          cy.task(
-            "cli_log",
-            "Skipping step: Partial Refund Payment - 1st Attempt"
-          );
-          return;
-        }
-        const partialRefundData = getConnectorDetails(
-          globalState.get("connectorId")
-        )["upi_pm"]["PartialRefund"];
-        const newPartialRefundData = {
-          ...partialRefundData,
-          Response:
-            partialRefundData.ResponseCustom || partialRefundData.Response,
-        };
-        cy.refundCallTest(
-          fixtures.refundBody,
-          newPartialRefundData,
-          globalState
-        );
-        if (!utils.should_continue_further(partialRefundData)) {
-          shouldContinue = false;
-        }
-      });
-
-      cy.step("Partial Refund Payment - 2nd Attempt", () => {
-        if (!shouldContinue) {
-          cy.task(
-            "cli_log",
-            "Skipping step: Partial Refund Payment - 2nd Attempt"
-          );
-          return;
-        }
-        const partialRefundData = getConnectorDetails(
-          globalState.get("connectorId")
-        )["upi_pm"]["PartialRefund"];
-        const newPartialRefundData = {
-          ...partialRefundData,
-          Response:
-            partialRefundData.ResponseCustom || partialRefundData.Response,
-        };
-        cy.refundCallTest(
-          fixtures.refundBody,
-          newPartialRefundData,
-          globalState
-        );
-        if (!utils.should_continue_further(partialRefundData)) {
-          shouldContinue = false;
-        }
-      });
-
-      cy.step("Sync Refund Payment", () => {
-        if (!shouldContinue) {
-          cy.task("cli_log", "Skipping step: Sync Refund Payment");
-          return;
-        }
-        const syncRefundData = getConnectorDetails(
-          globalState.get("connectorId")
-        )["upi_pm"]["SyncRefund"];
-        const newSyncRefundData = {
-          ...syncRefundData,
-          Response: syncRefundData.ResponseCustom || syncRefundData.Response,
-        };
-        cy.syncRefundCallTest(newSyncRefundData, globalState);
-      });
-    });
-  });
-
-  context("Razorpay UPI - Refund Idempotency test", () => {
-    it("Create Payment Intent -> Confirm Payment Intent -> Retrieve Payment after Confirmation -> Refund Payment -> Duplicate Refund (Idempotency) -> Sync Refund Payment", () => {
-      let shouldContinue = true;
-
-      cy.step("Create Payment Intent", () => {
-        const data = getConnectorDetails(globalState.get("connectorId"))[
-          "upi_pm"
-        ]["PaymentIntent"];
-        cy.createPaymentIntentTest(
-          fixtures.createPaymentBody,
-          data,
-          "no_three_ds",
-          "automatic",
-          globalState
-        );
-        if (!utils.should_continue_further(data)) {
-          shouldContinue = false;
-        }
-      });
-
-      cy.step("Confirm Payment Intent", () => {
-        if (!shouldContinue) {
-          cy.task("cli_log", "Skipping step: Confirm Payment Intent");
-          return;
-        }
-        const confirmData = getConnectorDetails(globalState.get("connectorId"))[
-          "upi_pm"
-        ]["UpiCollect"];
-        cy.confirmCallTest(
-          fixtures.confirmBody,
-          confirmData,
-          true,
-          globalState
-        );
-        if (!utils.should_continue_further(confirmData)) {
-          shouldContinue = false;
-        }
-      });
-
-      cy.step("Retrieve Payment after Confirmation", () => {
-        if (!shouldContinue) {
-          cy.task(
-            "cli_log",
-            "Skipping step: Retrieve Payment after Confirmation"
-          );
-          return;
-        }
-        const confirmData = getConnectorDetails(globalState.get("connectorId"))[
-          "upi_pm"
-        ]["UpiCollect"];
-        cy.retrievePaymentCallTest({ globalState, data: confirmData });
-        if (!utils.should_continue_further(confirmData)) {
-          shouldContinue = false;
-        }
-      });
-
-      cy.step("Refund Payment", () => {
-        if (!shouldContinue) {
-          cy.task("cli_log", "Skipping step: Refund Payment");
-          return;
-        }
-        const refundData = getConnectorDetails(globalState.get("connectorId"))[
-          "upi_pm"
-        ]["Refund"];
-        const newRefundData = {
-          ...refundData,
-          Response: refundData.ResponseCustom || refundData.Response,
-        };
-        cy.refundCallTest(fixtures.refundBody, newRefundData, globalState);
-        if (!utils.should_continue_further(refundData)) {
-          shouldContinue = false;
-        }
-      });
-
-      cy.step("Duplicate Refund (Idempotency)", () => {
-        if (!shouldContinue) {
-          cy.task("cli_log", "Skipping step: Duplicate Refund (Idempotency)");
-          return;
-        }
-        // Re-use same idempotency key to test idempotency
-        const refundData = getConnectorDetails(globalState.get("connectorId"))[
-          "upi_pm"
-        ]["Refund"];
-        const newRefundData = {
-          ...refundData,
-          Response: refundData.ResponseCustom || refundData.Response,
-        };
-        cy.refundCallTest(fixtures.refundBody, newRefundData, globalState);
-        if (!utils.should_continue_further(refundData)) {
-          shouldContinue = false;
-        }
-      });
-
-      cy.step("Sync Refund Payment", () => {
-        if (!shouldContinue) {
-          cy.task("cli_log", "Skipping step: Sync Refund Payment");
-          return;
-        }
-        const syncRefundData = getConnectorDetails(
-          globalState.get("connectorId")
-        )["upi_pm"]["SyncRefund"];
-        const newSyncRefundData = {
-          ...syncRefundData,
-          Response: syncRefundData.ResponseCustom || syncRefundData.Response,
-        };
-        cy.syncRefundCallTest(newSyncRefundData, globalState);
       });
     });
   });
@@ -1264,10 +1019,27 @@ describe("Razorpay UPI - Refund flow", () => {
 });
 
 describe("Card - Refund flow - 3DS", () => {
-  before("seed global state", () => {
-    cy.task("getGlobalState").then((state) => {
-      globalState = new State(state);
-    });
+  before(function () {
+    let skip = false;
+
+    cy.task("getGlobalState")
+      .then((state) => {
+        globalState = new State(state);
+
+        if (
+          utils.shouldExcludeConnector(
+            globalState.get("connectorId"),
+            utils.CONNECTOR_LISTS.EXCLUDE.UPI_REFUND
+          )
+        ) {
+          skip = true;
+        }
+      })
+      .then(() => {
+        if (skip) {
+          this.skip();
+        }
+      });
   });
 
   afterEach("flush global state", () => {
