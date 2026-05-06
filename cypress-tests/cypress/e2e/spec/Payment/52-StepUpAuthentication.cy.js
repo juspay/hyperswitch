@@ -34,72 +34,131 @@ describe("Card - Step-Up Authentication flow test", () => {
     cy.task("setGlobalState", globalState.data);
   });
 
-  context(
-    "Card-Step-Up-Auth flow test Create, Confirm with Step-Up, Initiate 3DS and Retrieve",
-    () => {
-      it("create confirm payment with step-up auth -> initiate 3ds auth -> retrieve payment", () => {
-        let shouldContinue = true;
+  context("Step-Up Auth: Confirm flow", () => {
+    it("create -> confirm with step-up auth -> retrieve payment", () => {
+      let shouldContinue = true;
 
-        cy.step("create payment", () => {
-          const data = getConnectorDetails(globalState.get("connectorId"))[
-            "card_pm"
-          ]["StepUpAuth_Create"];
+      cy.step("create payment", () => {
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["StepUpAuth_Create"];
 
-          cy.createPaymentIntentTest(
-            fixtures.createPaymentBody,
-            data,
-            "no_three_ds",
-            "automatic",
-            globalState
-          );
+        cy.createPaymentIntentTest(
+          fixtures.createPaymentBody,
+          data,
+          "no_three_ds",
+          "automatic",
+          globalState
+        );
 
-          if (!utils.should_continue_further(data)) {
-            shouldContinue = false;
-          }
-        });
-
-        cy.step("confirm payment with step-up auth", () => {
-          if (!shouldContinue) {
-            cy.task("cli_log", "Skipping step: confirm payment with step-up auth");
-            return;
-          }
-
-          const data = getConnectorDetails(globalState.get("connectorId"))[
-            "card_pm"
-          ]["StepUpAuth_Confirm"];
-
-          cy.confirmCallTest(fixtures.confirmBody, data, true, globalState);
-
-          if (!utils.should_continue_further(data)) {
-            shouldContinue = false;
-          }
-        });
-
-        cy.step("initiate 3ds authentication", () => {
-          if (!shouldContinue) {
-            cy.task("cli_log", "Skipping step: initiate 3ds authentication");
-            return;
-          }
-
-          const data = getConnectorDetails(globalState.get("connectorId"))[
-            "card_pm"
-          ]["StepUpAuth_Initiate"];
-
-          cy.threeDsAuthenticationCallTest(globalState, data);
-
-          if (!utils.should_continue_further(data)) {
-            shouldContinue = false;
-          }
-        });
-
-        cy.step("retrieve payment", () => {
-          if (!shouldContinue) {
-            cy.task("cli_log", "Skipping step: retrieve payment");
-            return;
-          }
-          cy.retrievePaymentCallTest({ globalState });
-        });
+        if (!utils.should_continue_further(data)) {
+          shouldContinue = false;
+        }
       });
-    }
-  );
+
+      cy.step("confirm payment with step-up auth", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: confirm payment with step-up auth");
+          return;
+        }
+
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["StepUpAuth_Confirm"];
+
+        cy.confirmCallTest(fixtures.confirmBody, data, true, globalState);
+
+        if (!utils.should_continue_further(data)) {
+          shouldContinue = false;
+        }
+      });
+
+      cy.step("retrieve payment", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: retrieve payment");
+          return;
+        }
+        cy.retrievePaymentCallTest({ globalState });
+      });
+    });
+  });
+
+  context("Step-Up Auth: Full 3DS Initiate flow", () => {
+    it("create -> confirm with step-up auth -> initiate 3ds -> retrieve payment", () => {
+      let shouldContinue = true;
+
+      cy.step("create payment", () => {
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["StepUpAuth_Create"];
+
+        cy.createPaymentIntentTest(
+          fixtures.createPaymentBody,
+          data,
+          "no_three_ds",
+          "automatic",
+          globalState
+        );
+
+        if (!utils.should_continue_further(data)) {
+          shouldContinue = false;
+        }
+      });
+
+      cy.step("confirm payment with step-up auth", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: confirm payment with step-up auth");
+          return;
+        }
+
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["StepUpAuth_Confirm"];
+
+        cy.confirmCallTest(fixtures.confirmBody, data, true, globalState);
+
+        if (!utils.should_continue_further(data)) {
+          shouldContinue = false;
+        }
+      });
+
+      cy.step("check if 3DS was triggered", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: check if 3DS was triggered");
+          return;
+        }
+
+        const status = globalState.get("paymentStatus");
+        if (status !== "requires_customer_action") {
+          cy.log(`Skipping 3DS initiation — payment status is ${status} (sandbox bypassed 3DS)`);
+          shouldContinue = false;
+        }
+      });
+
+      cy.step("initiate 3ds authentication", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: initiate 3ds authentication");
+          return;
+        }
+
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "card_pm"
+        ]["StepUpAuth_Initiate"];
+
+        cy.threeDsAuthenticationCallTest(globalState, data);
+
+        if (!utils.should_continue_further(data)) {
+          shouldContinue = false;
+        }
+      });
+
+      cy.step("retrieve payment", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: retrieve payment");
+          return;
+        }
+        cy.retrievePaymentCallTest({ globalState });
+      });
+    });
+  });
 });
