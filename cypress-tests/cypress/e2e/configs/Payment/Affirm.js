@@ -75,7 +75,7 @@ export const connectorDetails = {
         },
       },
     },
-    Refund:
+    Refund: {
       Request: {
         amount: 6000,
       },
