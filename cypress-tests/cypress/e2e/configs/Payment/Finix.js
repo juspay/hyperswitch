@@ -49,6 +49,9 @@ const payment_method_data_no3ds = {
     card_exp_month: "10",
     card_exp_year: "2050",
     card_holder_name: "Test User",
+    payment_checks: null,
+    authentication_data: null,
+    auth_code: null,
   },
   billing: null,
 };
