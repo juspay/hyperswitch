@@ -2512,9 +2512,9 @@ impl From<api_models::payments::BankRedirectData> for BankRedirectData {
                 country,
                 preferred_language,
             },
-            api_models::payments::BankRedirectData::Trustly { country } => Self::Trustly {
-                country: Some(country),
-            },
+            api_models::payments::BankRedirectData::Trustly { country } => {
+                Self::Trustly { country }
+            }
             api_models::payments::BankRedirectData::OnlineBankingFpx { issuer } => {
                 Self::OnlineBankingFpx { issuer }
             }

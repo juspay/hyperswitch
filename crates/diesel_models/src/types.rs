@@ -77,6 +77,8 @@ pub struct FeatureMetadata {
     pub boleto_additional_details: Option<BoletoAdditionalDetails>,
     /// Pix Automatico additional details for Push and QR flows
     pub pix_automatico_additional_details: Option<PixAutomaticoAdditionalDetails>,
+    /// Extra information for Finix connector for fraud checks and risk evaluation
+    pub finix_additional_details: Option<FinixAdditionalDetails>,
 }
 
 #[derive(Debug, Default, Clone, PartialEq, Deserialize, Serialize, FromSqlRow, AsExpression)]
@@ -93,6 +95,13 @@ pub struct BoletoAdditionalDetails {
     pub covenant_code: Option<Secret<String>>,
     /// Pix identification details
     pub pix_key: Option<common_enums::enums::PixKey>,
+}
+
+#[derive(Debug, Default, Clone, PartialEq, Deserialize, Serialize, FromSqlRow, AsExpression)]
+#[diesel(sql_type = Json)]
+pub struct FinixAdditionalDetails {
+    /// The fraud session ID used for Finix fraud detection
+    pub fraud_session_id: Option<String>,
 }
 
 #[cfg(feature = "v2")]
@@ -140,6 +149,8 @@ pub struct FeatureMetadata {
     pub boleto_additional_details: Option<BoletoAdditionalDetails>,
     /// Pix Automatico additional details for Push and QR flows
     pub pix_automatico_additional_details: Option<PixAutomaticoAdditionalDetails>,
+    /// Extra information for Finix connector for fraud checks and risk evaluation
+    pub finix_additional_details: Option<FinixAdditionalDetails>,
 }
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize, FromSqlRow, AsExpression)]

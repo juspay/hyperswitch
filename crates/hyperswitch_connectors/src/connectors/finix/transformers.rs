@@ -12,7 +12,10 @@ use common_utils::{errors::CustomResult, types::MinorUnit};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     payment_method_data::{PaymentMethodData, WalletData},
-    router_data::{ConnectorAuthType, ErrorResponse, PaymentMethodToken, RouterData},
+    router_data::{
+        AdditionalPaymentMethodConnectorResponse, ConnectorAuthType, ConnectorResponseData,
+        ErrorResponse, PaymentMethodToken, RouterData,
+    },
     router_flow_types::{
         self as flows,
         refunds::{Execute, RSync},
@@ -86,19 +89,7 @@ impl
         >,
     ) -> Result<Self, Self::Error> {
         let customer_data: &ConnectorCustomerData = &item.router_data.request;
-        let personal_address = item.router_data.get_optional_billing().and_then(|address| {
-            let billing = address.address.as_ref();
-            billing.map(|billing_address| FinixAddress {
-                line1: billing_address.get_optional_line1(),
-                line2: billing_address.get_optional_line2(),
-                city: billing_address.get_optional_city(),
-                region: billing_address.get_optional_state(),
-                postal_code: billing_address.get_optional_zip(),
-                country: billing_address
-                    .get_optional_country()
-                    .map(CountryAlpha2::from_alpha2_to_alpha3),
-            })
-        });
+        let personal_address = get_billing_address_as_finix_address(item.router_data);
         let entity = FinixIdentityEntity {
             phone: customer_data.phone.clone(),
             first_name: item.router_data.get_optional_billing_first_name(),
@@ -214,10 +205,18 @@ impl TryFrom<&FinixRouterData<'_, Authorize, PaymentsAuthorizeData, PaymentsResp
             .billing_descriptor
             .clone()
             .and_then(|billing_descriptor| billing_descriptor.statement_descriptor);
+        let fraud_session_id: Option<String> = item
+            .router_data
+            .request
+            .feature_metadata
+            .as_ref()
+            .and_then(|metadata| metadata.finix_additional_details.as_ref())
+            .and_then(|finix_details| finix_details.fraud_session_id.clone());
         Ok(Self {
             amount: item.amount,
             currency: item.router_data.request.currency,
             source,
+            fraud_session_id,
             merchant: item.merchant_id.clone(),
             idempotency_id: Some(item.router_data.connector_request_reference_id.clone()),
             tags: None,
@@ -240,11 +239,30 @@ impl TryFrom<&FinixRouterData<'_, Capture, PaymentsCaptureData, PaymentsResponse
     }
 }
 
-fn get_token_request(
+fn get_billing_address_as_finix_address<Flow, Req, Res>(
+    router_data: &RouterData<Flow, Req, Res>,
+) -> Option<FinixAddress> {
+    router_data.get_optional_billing().and_then(|address| {
+        let billing = address.address.as_ref();
+        billing.map(|billing_address| FinixAddress {
+            line1: billing_address.get_optional_line1(),
+            line2: billing_address.get_optional_line2(),
+            city: billing_address.get_optional_city(),
+            region: billing_address.to_state_code_as_optional().ok().flatten(),
+            postal_code: billing_address.get_optional_zip(),
+            country: billing_address
+                .get_optional_country()
+                .map(CountryAlpha2::from_alpha2_to_alpha3),
+        })
+    })
+}
+
+fn get_token_request<Flow, Req, Res>(
     payment_method_data: PaymentMethodData,
     merchant_identity_id: Secret<String>,
     identity: String,
     customer_name: Option<Secret<String>>,
+    router_data: &RouterData<Flow, Req, Res>,
 ) -> Result<FinixCreatePaymentInstrumentRequest, error_stack::Report<ConnectorError>> {
     match &payment_method_data {
         PaymentMethodData::Card(card_data) => {
@@ -257,7 +275,7 @@ fn get_token_request(
                 expiration_year: Some(card_data.get_expiry_year_as_4_digit_i32()?),
                 identity: identity.clone(), // This would come from a previously created identity
                 tags: None,
-                address: None,
+                address: get_billing_address_as_finix_address(router_data),
                 card_brand: None, // Finix determines this from the card number
                 card_type: None,  // Finix determines this from the card number
                 additional_data: None,
@@ -282,7 +300,7 @@ fn get_token_request(
                     expiration_month: None,
                     expiration_year: None,
                     tags: None,
-                    address: None,
+                    address: get_billing_address_as_finix_address(router_data),
                     card_brand: None,
                     card_type: None,
                     additional_data: None,
@@ -358,7 +376,7 @@ fn get_token_request(
                     expiration_year: None,
                     identity: identity.clone(),
                     tags: None,
-                    address: None,
+                    address: get_billing_address_as_finix_address(router_data),
                     card_brand: None,
                     card_type: None,
                     additional_data: None,
@@ -402,6 +420,7 @@ impl
             item.merchant_identity_id.clone(),
             item.router_data.get_connector_customer_id()?,
             item.router_data.get_optional_billing_full_name(),
+            item.router_data,
         )
     }
 }
@@ -479,6 +498,7 @@ impl
             item.merchant_identity_id.clone(),
             item.router_data.get_connector_customer_id()?,
             item.router_data.get_optional_billing_full_name(),
+            item.router_data,
         )
     }
 }
@@ -528,11 +548,39 @@ fn get_attempt_status(state: FinixState, flow: FinixFlow, is_void: Option<bool>)
         | (FinixFlow::Transfer, FinixState::CANCELED)
         | (FinixFlow::Transfer, FinixState::UNKNOWN) => AttemptStatus::Failure,
         (FinixFlow::Capture, FinixState::PENDING) => AttemptStatus::Pending,
-        (FinixFlow::Capture, FinixState::SUCCEEDED) => AttemptStatus::Pending, // Psync with Transfer id can determine actuall success
+        (FinixFlow::Capture, FinixState::SUCCEEDED) => AttemptStatus::Pending, // Psync with Transfer id can determine actual success
         (FinixFlow::Capture, FinixState::FAILED)
         | (FinixFlow::Capture, FinixState::CANCELED)
         | (FinixFlow::Capture, FinixState::UNKNOWN) => AttemptStatus::Failure,
     }
+}
+
+pub(crate) fn convert_to_additional_payment_method_connector_response(
+    finix_payments_response: &FinixPaymentsResponse,
+) -> Option<AdditionalPaymentMethodConnectorResponse> {
+    let address_verification_check = finix_payments_response.address_verification.as_ref();
+    let network_details = finix_payments_response.network_details.as_ref();
+
+    if address_verification_check.is_none() && network_details.is_none() {
+        return None;
+    }
+
+    let mut payment_checks = serde_json::Map::new();
+    if let Some(code) = address_verification_check {
+        payment_checks.insert("address_verification".to_string(), serde_json::json!(code));
+    }
+
+    let card_network = network_details.and_then(|details| details.brand.clone());
+    let auth_code = network_details.and_then(|details| details.authorization_code.clone());
+
+    Some(AdditionalPaymentMethodConnectorResponse::Card {
+        authentication_data: None,
+        payment_checks: (!payment_checks.is_empty())
+            .then(|| serde_json::Value::Object(payment_checks)),
+        card_network,
+        domestic_network: None,
+        auth_code,
+    })
 }
 
 pub(crate) fn get_finix_response<F, T>(
@@ -544,6 +592,11 @@ pub(crate) fn get_finix_response<F, T>(
         finix_flow,
         router_data.response.is_void,
     );
+
+    let connector_response_data =
+        convert_to_additional_payment_method_connector_response(&router_data.response)
+            .map(ConnectorResponseData::with_additional_payment_method_data);
+
     Ok(RouterData {
         status,
         response: if router_data.response.state.is_failure() {
@@ -552,11 +605,14 @@ pub(crate) fn get_finix_response<F, T>(
                     .response
                     .failure_code
                     .unwrap_or(consts::NO_ERROR_CODE.to_string()),
-                message: router_data
-                    .response
-                    .messages
-                    .map_or(consts::NO_ERROR_MESSAGE.to_string(), |msg| msg.join(",")),
-                reason: router_data.response.failure_message,
+                message: router_data.response.failure_message.unwrap_or(
+                    router_data
+                        .response
+                        .messages
+                        .map(|msg| msg.join(","))
+                        .unwrap_or(consts::NO_ERROR_MESSAGE.to_string()),
+                ),
+                reason: None,
                 status_code: router_data.http_code,
                 attempt_status: Some(status),
                 connector_transaction_id: Some(router_data.response.id.clone()),
@@ -589,6 +645,7 @@ pub(crate) fn get_finix_response<F, T>(
                 charges: None,
             })
         },
+        connector_response: connector_response_data,
         ..router_data.data
     })
 }
