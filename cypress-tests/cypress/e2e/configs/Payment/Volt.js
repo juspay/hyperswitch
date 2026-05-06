@@ -95,20 +95,4 @@ export const connectorDetails = {
       },
     },
   },
-  card_pm: {
-    PaymentIntent: {
-      Request: {
-        currency: "EUR",
-        customer_acceptance: null,
-        setup_future_usage: "on_session",
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "requires_payment_method",
-          setup_future_usage: "on_session",
-        },
-      },
-    },
-  },
 };
