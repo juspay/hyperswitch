@@ -469,7 +469,7 @@ pub struct ListOrgsForUserResponse {
 }
 
 #[derive(Clone, Debug, serde::Serialize)]
-pub struct MerchantAccountDetailsResponse {
+pub struct UserMerchantDetailsResponse {
     pub product_type: Option<common_enums::MerchantProductType>,
     pub merchant_account_type: common_enums::MerchantAccountType,
 }

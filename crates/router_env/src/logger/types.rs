@@ -74,8 +74,6 @@ pub enum Flow {
     MerchantsAccountCreate,
     /// Merchants account retrieve flow.
     MerchantsAccountRetrieve,
-    /// Merchants account details retrieve flow.
-    MerchantsAccountDetailsRetrieve,
     /// Merchants account update flow.
     MerchantsAccountUpdate,
     /// Merchants account delete flow.
@@ -567,6 +565,8 @@ pub enum Flow {
     ListOrgForUser,
     /// List Merchants for user in org
     ListMerchantsForUserInOrg,
+    /// Get merchant account details for the user (product_type, merchant_account_type)
+    GetUserMerchantDetails,
     /// List Profile for user in org and merchant
     ListProfileForUserInOrgAndMerchant,
     /// List Users in Org

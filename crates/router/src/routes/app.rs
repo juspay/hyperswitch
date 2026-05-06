@@ -2738,7 +2738,7 @@ impl User {
         );
         route = route.service(
             web::resource("/merchant-details")
-                .route(web::get().to(user::retrieve_merchant_account_details)),
+                .route(web::get().to(user::get_user_merchant_details)),
         );
         route = route.service(
             web::scope("/list")
@@ -2801,7 +2801,7 @@ impl User {
             )
             .service(
                 web::resource("/merchant_details")
-                    .route(web::get().to(user::retrieve_merchant_account_details)),
+                    .route(web::get().to(user::get_user_merchant_details)),
             )
             // TODO: To be deprecated
             .service(

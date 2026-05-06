@@ -60,7 +60,6 @@ impl From<Flow> for ApiIdentifier {
         match flow {
             Flow::MerchantsAccountCreate
             | Flow::MerchantsAccountRetrieve
-            | Flow::MerchantsAccountDetailsRetrieve
             | Flow::MerchantsAccountUpdate
             | Flow::MerchantsAccountDelete
             | Flow::MerchantTransferKey
@@ -302,6 +301,7 @@ impl From<Flow> for ApiIdentifier {
             | Flow::OidcToken
             | Flow::ListOrgForUser
             | Flow::ListMerchantsForUserInOrg
+            | Flow::GetUserMerchantDetails
             | Flow::ListProfileForUserInOrgAndMerchant
             | Flow::ListInvitationsForUser
             | Flow::AuthSelect

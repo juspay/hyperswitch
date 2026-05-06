@@ -6,7 +6,7 @@ use std::{
 use api_models::{
     payments::RedirectionResponse,
     user::{
-        self as user_api, InviteMultipleUserResponse, MerchantAccountDetailsResponse, NameIdUnit,
+        self as user_api, InviteMultipleUserResponse, NameIdUnit, UserMerchantDetailsResponse,
     },
 };
 use common_enums::{connector_enums, EntityType, MerchantProductType, UserAuthType};
@@ -429,10 +429,10 @@ pub async fn connect_account(
     }
 }
 
-pub async fn get_merchant_account_details(
+pub async fn get_user_merchant_details(
     state: SessionState,
     user_from_token: auth::UserFromToken,
-) -> UserResponse<MerchantAccountDetailsResponse> {
+) -> UserResponse<UserMerchantDetailsResponse> {
     let key_store = state
         .store
         .get_merchant_key_store_by_merchant_id(
@@ -448,7 +448,7 @@ pub async fn get_merchant_account_details(
         .await
         .change_context(UserErrors::InternalServerError)?;
 
-    Ok(ApplicationResponse::Json(MerchantAccountDetailsResponse {
+    Ok(ApplicationResponse::Json(UserMerchantDetailsResponse {
         product_type: merchant_account.product_type,
         merchant_account_type: merchant_account.merchant_account_type,
     }))
