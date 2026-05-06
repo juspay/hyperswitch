@@ -25,6 +25,8 @@ pub struct PaymentLink {
     pub description: Option<String>,
     pub profile_id: Option<common_utils::id_type::ProfileId>,
     pub secure_link: Option<String>,
+    pub processor_merchant_id: Option<common_utils::id_type::MerchantId>,
+    pub created_by: Option<String>,
 }
 
 #[derive(
@@ -56,4 +58,6 @@ pub struct PaymentLinkNew {
     pub description: Option<String>,
     pub profile_id: Option<common_utils::id_type::ProfileId>,
     pub secure_link: Option<String>,
+    pub processor_merchant_id: Option<common_utils::id_type::MerchantId>,
+    pub created_by: Option<String>,
 }
