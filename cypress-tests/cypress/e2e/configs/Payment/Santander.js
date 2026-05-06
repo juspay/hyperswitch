@@ -1,5 +1,46 @@
 import { getCustomExchange, getCurrency } from "./Modifiers";
 
+const billingAddress = {
+  address: {
+    line1: "Rua Augusta",
+    line2: "2000",
+    line3: "Consolação",
+    city: "São Paulo",
+    state: "SP",
+    zip: "01412-000",
+    country: "BR",
+    first_name: "joseph",
+    last_name: "Doe",
+  },
+  phone: {
+    number: "11991234567",
+    country_code: "+55",
+  },
+};
+
+const customerDocumentDetails = {
+  customer_document_details: {
+    document_type: "CPF",
+    document_number: "86665623580",
+  },
+};
+
+const connectorMetadata = {
+  santander: {
+    pix_automatico: {
+      cit: {
+        mandate_details: {
+          start_date: "2026-06-01",
+          end_date: "2027-06-01",
+          periodicity: "mensal",
+          max_mandate_amount: 10000,
+        },
+        retry_policy: false,
+      },
+    },
+  },
+};
+
 const cardCreateSkipConfig = getCustomExchange({
   Configs: { TRIGGER_SKIP: true },
   Request: { currency: "BRL" },
@@ -148,24 +189,12 @@ export const connectorDetails = {
   bank_transfer_pm: {
     PaymentIntent: (paymentMethodType) => {
       const unsupportedMethods = [
-        "Pix",
-        "Boleto",
-        "PixAutomatico",
         "InstantBankTransferFinland",
         "InstantBankTransferPoland",
         "Ach",
       ];
       if (unsupportedMethods.includes(paymentMethodType)) {
-        return getCustomExchange({
-          Configs: { TRIGGER_SKIP: true },
-          Request: { currency: getCurrency(paymentMethodType) },
-          Response: {
-            status: 200,
-            body: {
-              status: "requires_payment_method",
-            },
-          },
-        });
+        return bankTransferSkipConfigs[paymentMethodType];
       }
       return getCustomExchange({
         Request: { currency: getCurrency(paymentMethodType) },
@@ -178,38 +207,79 @@ export const connectorDetails = {
       });
     },
     Pix: getCustomExchange({
-      Configs: { TRIGGER_SKIP: true },
       Request: {
-        currency: "BRL",
+        payment_method: "bank_transfer",
+        payment_method_type: "pix",
+        payment_method_data: {
+          bank_transfer: {
+            pix: {
+              cpf: "86665623580",
+            },
+          },
+        },
+        billing: billingAddress,
+        customer: customerDocumentDetails,
+        feature_metadata: {
+          pix_additional_details: {
+            immediate: {
+              time: 3600,
+            },
+          },
+        },
       },
       Response: {
         status: 200,
         body: {
-          status: "requires_payment_method",
+          status: "requires_customer_action",
         },
       },
     }),
     Boleto: getCustomExchange({
-      Configs: { TRIGGER_SKIP: true },
       Request: {
-        currency: "BRL",
+        payment_method: "bank_transfer",
+        payment_method_type: "boleto",
+        payment_method_data: {
+          bank_transfer: {
+            boleto: {
+              cpf: "86665623580",
+            },
+          },
+        },
+        billing: billingAddress,
+        customer: customerDocumentDetails,
+        feature_metadata: {
+          boleto_additional_details: {
+            due_date: "2030-12-31",
+          },
+        },
       },
       Response: {
         status: 200,
         body: {
-          status: "requires_payment_method",
+          status: "requires_customer_action",
         },
       },
     }),
     PixAutomatico: getCustomExchange({
-      Configs: { TRIGGER_SKIP: true },
       Request: {
-        currency: "BRL",
+        payment_method: "bank_transfer",
+        payment_method_type: "pix_automatico",
+        payment_method_data: {
+          bank_transfer: {
+            pix_automatico: {
+              cpf: "86665623580",
+            },
+          },
+        },
+        billing: billingAddress,
+        customer: customerDocumentDetails,
+        connector_metadata: connectorMetadata,
+        setup_future_usage: "off_session",
       },
       Response: {
         status: 200,
         body: {
-          status: "requires_payment_method",
+          status: "requires_customer_action",
         },
       },
     }),
@@ -250,98 +320,5 @@ export const connectorDetails = {
     InstantBankTransferPoland:
       bankTransferSkipConfigs.InstantBankTransferPoland,
     Ach: bankTransferSkipConfigs.Ach,
-  },
-  bank_redirect_pm: {
-    PaymentIntent: (paymentMethodType) =>
-      getCustomExchange({
-        Configs: { TRIGGER_SKIP: true },
-        Request: { currency: getCurrency(paymentMethodType) },
-        Response: {
-          status: 200,
-          body: {
-            status: "requires_payment_method",
-          },
-        },
-      }),
-    Blik: getCustomExchange({
-      Configs: { TRIGGER_SKIP: true },
-      Request: { currency: "PLN" },
-      Response: {
-        status: 200,
-        body: {
-          status: "requires_payment_method",
-        },
-      },
-    }),
-    Eps: getCustomExchange({
-      Configs: { TRIGGER_SKIP: true },
-      Request: { currency: "EUR" },
-      Response: {
-        status: 200,
-        body: {
-          status: "requires_payment_method",
-        },
-      },
-    }),
-    Ideal: getCustomExchange({
-      Configs: { TRIGGER_SKIP: true },
-      Request: { currency: "EUR" },
-      Response: {
-        status: 200,
-        body: {
-          status: "requires_payment_method",
-        },
-      },
-    }),
-    Sofort: getCustomExchange({
-      Configs: { TRIGGER_SKIP: true },
-      Request: { currency: "EUR" },
-      Response: {
-        status: 200,
-        body: {
-          status: "requires_payment_method",
-        },
-      },
-    }),
-    Przelewy24: getCustomExchange({
-      Configs: { TRIGGER_SKIP: true },
-      Request: { currency: "PLN" },
-      Response: {
-        status: 200,
-        body: {
-          status: "requires_payment_method",
-        },
-      },
-    }),
-    OpenBankingUk: getCustomExchange({
-      Configs: { TRIGGER_SKIP: true },
-      Request: { currency: "GBP" },
-      Response: {
-        status: 200,
-        body: {
-          status: "requires_payment_method",
-        },
-      },
-    }),
-    OnlineBankingFpx: getCustomExchange({
-      Configs: { TRIGGER_SKIP: true },
-      Request: { currency: "MYR" },
-      Response: {
-        status: 200,
-        body: {
-          status: "requires_payment_method",
-        },
-      },
-    }),
-    Interac: getCustomExchange({
-      Configs: { TRIGGER_SKIP: true },
-      Request: { currency: "CAD" },
-      Response: {
-        status: 200,
-        body: {
-          status: "requires_payment_method",
-        },
-      },
-    }),
   },
 };
