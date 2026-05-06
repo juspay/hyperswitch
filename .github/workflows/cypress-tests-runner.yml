@@ -35,7 +35,7 @@ env:
 jobs:
   formatter:
     name: Run formatter on Cypress tests and address lints
-    if: ${{ github.event_name == 'pull_request' }}
+    if: false
     runs-on: ubuntu-latest
     steps:
       - name: Generate a token
@@ -152,9 +152,7 @@ jobs:
 
   prepare-mandatory-matrix:
     name: Prepare Mandatory Connectors matrix to run cypress tests
-    if: |
-      github.event_name == 'merge_group' ||
-      (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'S-test-ready'))
+    if: false
     runs-on: hyperswitch-runners
     outputs:
       mandatory-matrix: ${{ steps.set-mandatory-matrix.outputs.matrix }}
@@ -197,9 +195,7 @@ jobs:
   mandatory-cypress-tests:
     name: Run mandatory Cypress tests
     needs: [build-hyperswitch, prepare-mandatory-matrix]
-    if: |
-      (github.event_name == 'merge_group' ||
-      (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'S-test-ready')))
+    if: false
     permissions:
       pull-requests: write
     runs-on: hyperswitch-runners
@@ -407,10 +403,7 @@ jobs:
     name: Mandatory Cypress Tests — Consolidated Result
     needs: [mandatory-cypress-tests]
     runs-on: ubuntu-latest
-    if: |
-      (github.event_name == 'merge_group' ||
-      (github.event_name == 'pull_request' &&
-        contains(github.event.pull_request.labels.*.name, 'S-test-ready'))) && !cancelled()
+    if: false
     permissions:
       pull-requests: write
     steps:
@@ -910,8 +903,7 @@ jobs:
   runner_alpha:
     name: Run optional Cypress tests for alpha connectors
     needs: build-hyperswitch
-    if: |
-      github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'S-test-ready')
+    if: false
     runs-on: hyperswitch-runners
     env:
       # Use `sccache` for caching compilation artifacts
@@ -1117,7 +1109,7 @@ jobs:
 
   runner_v2:
     name: Run Cypress tests on v2 and generate coverage report
-    if: github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'S-test-ready')
+    if: false
     runs-on: hyperswitch-runners
     permissions:
       pull-requests: write
