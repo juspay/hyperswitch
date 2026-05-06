@@ -7472,10 +7472,17 @@ Cypress.Commands.add("updateCardIssuer", (id, body, globalState) => {
 
 Cypress.Commands.add(
   "createPaymentIntentWithPaymentLinkTest",
-  (createPaymentBody, data, authentication_type, capture_method, globalState) => {
+  (
+    createPaymentBody,
+    data,
+    authentication_type,
+    capture_method,
+    globalState
+  ) => {
     const { Request: reqData = {}, Response: resData = {} } = data || {};
 
-    const profile_id = globalState.get("profileId") || globalState.get("defaultProfileId");
+    const profile_id =
+      globalState.get("profileId") || globalState.get("defaultProfileId");
 
     // Build request body - return_url is REQUIRED for payment_link
     const requestBody = {
@@ -7513,12 +7520,17 @@ Cypress.Commands.add(
           expect(response.body).to.have.property("client_secret");
           expect(response.body).to.have.property("payment_link");
           expect(response.body.payment_link).to.have.property("link");
-          expect(response.body.payment_link).to.have.property("payment_link_id");
+          expect(response.body.payment_link).to.have.property(
+            "payment_link_id"
+          );
 
           // Store in global state
           globalState.set("paymentID", response.body.payment_id);
           globalState.set("clientSecret", response.body.client_secret);
-          globalState.set("paymentLinkId", response.body.payment_link.payment_link_id);
+          globalState.set(
+            "paymentLinkId",
+            response.body.payment_link.payment_link_id
+          );
           globalState.set("paymentLinkUrl", response.body.payment_link.link);
 
           cy.task(
