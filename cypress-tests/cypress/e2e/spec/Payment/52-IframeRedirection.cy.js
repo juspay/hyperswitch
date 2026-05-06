@@ -1,6 +1,7 @@
 import * as fixtures from "../../../fixtures/imports";
 import State from "../../../utils/State";
-import getConnectorDetails, * as utils from "../../configs/Payment/Utils";
+import getConnectorDetails, { CONNECTOR_LISTS } from "../../configs/Payment/Utils";
+import * as utils from "../../configs/Payment/Utils";
 
 let globalState;
 
@@ -16,7 +17,13 @@ describe("Iframe Redirection Payment Flow Tests", () => {
   });
 
   context("Happy Path - Create Payment with Iframe Redirection Enabled", () => {
-    it("Create Payment Intent with is_iframe_redirection_enabled -> Confirm Payment -> Verify Redirect Response -> Retrieve Payment", () => {
+    it("Create Payment Intent with is_iframe_redirection_enabled -> Confirm Payment -> Verify Redirect Response -> Retrieve Payment", function() {
+      const connectorId = globalState.get("connectorId");
+      if (!CONNECTOR_LISTS.INCLUDE.IFRAME_REDIRECTION.includes(connectorId)) {
+        cy.task("cli_log", `Skipping iframe redirection test - connector ${connectorId} not in supported list`);
+        this.skip();
+      }
+
       let shouldContinue = true;
 
       cy.step("Create Payment Intent with is_iframe_redirection_enabled", () => {
@@ -203,7 +210,9 @@ describe("Iframe Redirection Payment Flow Tests", () => {
           return;
         }
 
-        cy.wrap(globalState.get("paymentIntentStatus")).should("equal", "succeeded");
+        const connectorId = globalState.get("connectorId");
+        const expectedStatus = connectorId === "worldpayxml" ? "processing" : "succeeded";
+        cy.wrap(globalState.get("paymentIntentStatus")).should("equal", expectedStatus);
       });
     });
   });

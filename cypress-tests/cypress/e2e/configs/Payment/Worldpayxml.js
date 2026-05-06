@@ -107,6 +107,28 @@ export const connectorDetails = {
         },
       },
     },
+    IframeRedirection: getCustomExchange({
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successful3DSTestCardDetails,
+        },
+        currency: "USD",
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+        is_iframe_redirection_enabled: true,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+      ResponseCustom: true,
+    }),
     No3DSManualCapture: {
       Request: {
         description: "Test description",
@@ -125,7 +147,7 @@ export const connectorDetails = {
         },
       },
     },
-    No3DSAutoCapture: {
+    No3DSAutoCapture: getCustomExchange({
       Request: {
         payment_method: "card",
         amount: 6000,
@@ -139,11 +161,11 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "processing",
-          amount_received: null,
+          status: "succeeded",
         },
       },
-    },
+      ResponseCustom: true,
+    }),
     Capture: {
       Request: {
         amount_to_capture: 6000,

@@ -260,6 +260,26 @@ export const connectorDetails = {
         },
       },
     },
+    "IframeRedirection": {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulThreeDSTestCardDetails,
+        },
+        currency: "USD",
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+        split_payments: stripeSplitPaymentData,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+          setup_future_usage: "on_session",
+          payment_method_data: payment_method_data_3ds,
+        },
+      },
+    },
     No3DSManualCapture: {
       Request: {
         payment_method: "card",
