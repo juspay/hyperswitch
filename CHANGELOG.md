@@ -4,6 +4,30 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.05.06.0
+
+### Features
+
+- **connector:**
+  - [iMerchant Solutions] Retrieve Webhook_Object_Reference_Id ([#12008](https://github.com/juspay/hyperswitch/pull/12008)) ([`4f5f7a0`](https://github.com/juspay/hyperswitch/commit/4f5f7a0c9e1d44d21c15c121e9e79aa1fef317ab))
+  - [SANTANDER] Send back `idSolicRec` as `reference_id` in Payments Response & skip PixAutomaticoPush in AuthorizeSessionToken call ([#11992](https://github.com/juspay/hyperswitch/pull/11992)) ([`fdb9cfd`](https://github.com/juspay/hyperswitch/commit/fdb9cfd5dca6200bc62aabea4b3ec3bc755b8d94))
+  - [SANTANDER] Added length validations and proper error message mapping ([#11832](https://github.com/juspay/hyperswitch/pull/11832)) ([`693d29d`](https://github.com/juspay/hyperswitch/commit/693d29d1aa89ced746aacb2ef48c7c132d0ffc84))
+- **payment_methods:** Send capture_method in payment method list api… ([#12084](https://github.com/juspay/hyperswitch/pull/12084)) ([`3f3071c`](https://github.com/juspay/hyperswitch/commit/3f3071c529acf6b2d63afddcf58af737e6fcb644))
+
+### Bug Fixes
+
+- **connector:** [Finix] Avs , Err msg , Fraud Session Id ([#12077](https://github.com/juspay/hyperswitch/pull/12077)) ([`ef73fad`](https://github.com/juspay/hyperswitch/commit/ef73fade19f26ff246ef026ffbf9417984af3d8c))
+
+### Testing
+
+- **cypress:**
+  - External 3DS for finix ([#11902](https://github.com/juspay/hyperswitch/pull/11902)) ([`37d0535`](https://github.com/juspay/hyperswitch/commit/37d0535dd313630421ff1f60a55caeaf4ad00a2d))
+  - Fix flaky VolumeBasedRouting and RuleBasedRouting tests ([#12097](https://github.com/juspay/hyperswitch/pull/12097)) ([`dacc03a`](https://github.com/juspay/hyperswitch/commit/dacc03a8b61bf4ac7f41b02963e2ecd9ae4fc35f))
+
+**Full Changelog:** [`2026.05.05.0...2026.05.06.0`](https://github.com/juspay/hyperswitch/compare/2026.05.05.0...2026.05.06.0)
+
+- - -
+
 ## 2026.05.05.0
 
 ### Features
