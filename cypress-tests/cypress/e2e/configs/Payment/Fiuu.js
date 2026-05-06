@@ -6,7 +6,6 @@ import {
   blockedPaymentErrorBodyForCardSubtype,
   blockedPaymentErrorBodyForBinUnavailable,
 } from "./Commons";
-import { getCustomExchange } from "./Modifiers";
 
 const successfulNo3DSCardDetails = {
   card_number: "5105105105105100",
