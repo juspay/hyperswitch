@@ -87,6 +87,7 @@ pub struct PaymentMethod {
     //customer_id should only be none in case of guest checkout flow as volatile pm are stored in redis, for all other cases it should be present to maintain the db persistency
     pub customer_id: Option<common_utils::id_type::GlobalCustomerId>,
     pub merchant_id: common_utils::id_type::MerchantId,
+    pub payment_method_id: Option<String>,
     pub created_at: PrimitiveDateTime,
     pub last_modified: PrimitiveDateTime,
     pub payment_method_data: Option<Encryption>,
@@ -184,6 +185,7 @@ pub struct PaymentMethodNew {
 pub struct PaymentMethodNew {
     pub customer_id: Option<common_utils::id_type::GlobalCustomerId>,
     pub merchant_id: common_utils::id_type::MerchantId,
+    pub payment_method_id: Option<String>,
     pub created_at: PrimitiveDateTime,
     pub last_modified: PrimitiveDateTime,
     pub payment_method_data: Option<Encryption>,
@@ -440,6 +442,7 @@ impl PaymentMethodUpdateInternal {
             payment_method_type_v2: payment_method_type_v2.or(source.payment_method_type_v2),
             payment_method_subtype: payment_method_subtype.or(source.payment_method_subtype),
             id: source.id,
+            payment_method_id: source.payment_method_id,
             version: source.version,
             network_token_requestor_reference_id: network_token_requestor_reference_id
                 .or(source.network_token_requestor_reference_id),
@@ -1209,6 +1212,7 @@ impl From<&PaymentMethodNew> for PaymentMethod {
             payment_method_type_v2: payment_method_new.payment_method_type_v2,
             payment_method_subtype: payment_method_new.payment_method_subtype,
             id: payment_method_new.id.clone(),
+            payment_method_id: payment_method_new.payment_method_id.clone(),
             version: payment_method_new.version,
             network_token_requestor_reference_id: payment_method_new
                 .network_token_requestor_reference_id
@@ -1240,7 +1244,6 @@ pub struct PaymentsMandateReferenceRecord {
     pub connector_customer_id: Option<String>,
 }
 
-#[cfg(feature = "v2")]
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct ConnectorTokenReferenceRecord {
     pub connector_token: String,
@@ -1274,14 +1277,12 @@ impl std::ops::DerefMut for PaymentsMandateReference {
     }
 }
 
-#[cfg(feature = "v2")]
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, diesel::AsExpression)]
 #[diesel(sql_type = diesel::sql_types::Jsonb)]
 pub struct PaymentsTokenReference(
     pub HashMap<common_utils::id_type::MerchantConnectorAccountId, ConnectorTokenReferenceRecord>,
 );
 
-#[cfg(feature = "v2")]
 impl std::ops::Deref for PaymentsTokenReference {
     type Target =
         HashMap<common_utils::id_type::MerchantConnectorAccountId, ConnectorTokenReferenceRecord>;
@@ -1291,7 +1292,6 @@ impl std::ops::Deref for PaymentsTokenReference {
     }
 }
 
-#[cfg(feature = "v2")]
 impl std::ops::DerefMut for PaymentsTokenReference {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.0
@@ -1410,6 +1410,75 @@ impl CommonMandateReference {
         Ok(payments)
     }
 
+    #[cfg(feature = "v1")]
+    fn parse_payments_reference_with_token_fallback(
+        payments_json: serde_json::Value,
+    ) -> CustomResult<PaymentsMandateReference, ParsingError> {
+        match serde_json::from_value::<PaymentsMandateReference>(payments_json.clone()) {
+            Ok(mandate_reference) => Ok(mandate_reference),
+            Err(mandate_err) => {
+                router_env::logger::warn!(
+                    "Failed to parse connector_mandate_details as PaymentsMandateReference: {}. Falling back to PaymentsTokenReference parser",
+                    mandate_err
+                );
+
+                let token_reference =
+                    serde_json::from_value::<PaymentsTokenReference>(payments_json)
+                        .inspect_err(|token_err| {
+                            router_env::logger::error!(
+                        "Failed to parse connector_mandate_details as PaymentsTokenReference: {}",
+                        token_err
+                    );
+                        })
+                        .change_context(ParsingError::StructParseFailure(
+                            "Failed to parse payments data",
+                        ))?;
+
+                let mandate_reference = PaymentsMandateReference(
+                    token_reference
+                        .0
+                        .into_iter()
+                        .map(|(mca_id, token_record)| {
+                            let connector_mandate_status = match token_record.connector_token_status
+                            {
+                                common_enums::ConnectorTokenStatus::Active => {
+                                    common_enums::ConnectorMandateStatus::Active
+                                }
+                                common_enums::ConnectorTokenStatus::Inactive => {
+                                    common_enums::ConnectorMandateStatus::Inactive
+                                }
+                            };
+
+                            (
+                                mca_id,
+                                PaymentsMandateReferenceRecord {
+                                    connector_mandate_id: token_record.connector_token,
+                                    payment_method_type: token_record.payment_method_subtype,
+                                    original_payment_authorized_amount: token_record
+                                        .original_payment_authorized_amount
+                                        .map(|amount| amount.get_amount_as_i64()),
+                                    original_payment_authorized_currency: token_record
+                                        .original_payment_authorized_currency,
+                                    mandate_metadata: token_record.metadata,
+                                    connector_mandate_status: Some(connector_mandate_status),
+                                    connector_mandate_request_reference_id: token_record
+                                        .connector_token_request_reference_id,
+                                    connector_customer_id: token_record.connector_customer_id,
+                                },
+                            )
+                        })
+                        .collect(),
+                );
+
+                router_env::logger::info!(
+                    "Parsed connector_mandate_details using token shape fallback"
+                );
+
+                Ok(mandate_reference)
+            }
+        }
+    }
+
     #[cfg(feature = "v2")]
     fn parse_payments_reference_with_legacy_fallback(
         payments_json: serde_json::Value,
@@ -1495,14 +1564,8 @@ where
             .map(|obj| {
                 obj.remove("payouts");
 
-                serde_json::from_value::<PaymentsMandateReference>(serde_json::Value::Object(
+                Self::parse_payments_reference_with_token_fallback(serde_json::Value::Object(
                     obj.clone(),
-                ))
-                .inspect_err(|err| {
-                    router_env::logger::error!("Failed to parse payments data: {}", err);
-                })
-                .change_context(ParsingError::StructParseFailure(
-                    "Failed to parse payments data",
                 ))
             })
             .transpose()?;

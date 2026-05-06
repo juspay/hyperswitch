@@ -306,6 +306,38 @@ export const connectorDetails = {
         },
       },
     },
+    ExtendAuthorizationNo3DSManual: {
+      Request: {
+        extended_authorization_days: 7,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "processing", // Adyen: Extend Authorization is async, returns processing
+          amount: 6000,
+          amount_capturable: 6000,
+          amount_received: null,
+          request_extended_authorization: true,
+        },
+      },
+      // Adyen: Extend Authorization is async (processing), capture is skipped
+    },
+    ExtendAuthorizationInvalidStatus: {
+      Request: {
+        extended_authorization_days: 7,
+      },
+      Response: {
+        status: 400,
+        body: {
+          error: {
+            type: "invalid_request",
+            message:
+              "You cannot extend authorization this payment because it has status succeeded",
+            code: "IR_16",
+          },
+        },
+      },
+    },
     MandateSingleUse3DSAutoCapture: {
       Request: {
         payment_method: "card",
@@ -1290,6 +1322,56 @@ export const connectorDetails = {
           error_message:
             "Payment Method currency does not match the payment currency",
         },
+      },
+    }),
+  },
+
+  pay_later_pm: {
+    Klarna: getCustomExchange({
+      Request: {
+        payment_method: "pay_later",
+        payment_method_type: "klarna",
+        payment_experience: "redirect_to_url",
+        payment_method_data: {
+          pay_later: {
+            klarna_redirect: {
+              billing_email: "guest@juspay.in",
+              billing_country: "DE",
+            },
+          },
+        },
+        billing: {
+          email: "guest@juspay.in",
+          address: {
+            line1: "1467",
+            line2: "Harrison Street",
+            line3: "Harrison Street",
+            city: "San Fransico",
+            state: "California",
+            zip: "94122",
+            country: "DE",
+            first_name: "joseph",
+            last_name: "Doe",
+          },
+        },
+        order_details: [
+          {
+            product_name: "Test Product",
+            quantity: 1,
+            amount: 6000,
+          },
+        ],
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+    }),
+    Capture: getCustomExchange({
+      Request: {
+        amount_to_capture: 6000,
       },
     }),
   },

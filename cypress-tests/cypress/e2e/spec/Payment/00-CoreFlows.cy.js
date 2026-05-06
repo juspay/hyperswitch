@@ -1,5 +1,6 @@
 import * as fixtures from "../../../fixtures/imports";
 import State from "../../../utils/State";
+import getConnectorDetails, * as utils from "../../configs/Payment/Utils";
 import { payment_methods_enabled } from "../../configs/Payment/Commons";
 
 let globalState;
@@ -154,6 +155,84 @@ describe("Core flows", () => {
 
     it("List connectors by MID", () => {
       cy.connectorListByMid(globalState);
+    });
+  });
+
+  context("Client Secret Session Expiry", () => {
+    const SESSION_EXPIRY_WAIT = 65000;
+    let shouldContinue = true;
+
+    before("seed global state", () => {
+      cy.task("getGlobalState").then((state) => {
+        globalState = new State(state);
+      });
+    });
+
+    afterEach("flush global state", () => {
+      cy.task("setGlobalState", globalState.data);
+    });
+
+    beforeEach(function () {
+      if (!shouldContinue) {
+        this.skip();
+      }
+    });
+
+    it("Update business profile with session_expiry", () => {
+      const updateBusinessProfileBody = {
+        session_expiry: 60,
+      };
+      cy.UpdateBusinessProfileTest(
+        updateBusinessProfileBody,
+        false,
+        false,
+        false,
+        false,
+        false,
+        globalState
+      );
+    });
+
+    it("Create payment - session expiry inherited from business profile", () => {
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "card_pm"
+      ]["PaymentIntent"];
+
+      cy.createPaymentIntentTest(
+        fixtures.createPaymentBody,
+        data,
+        "no_three_ds",
+        "automatic",
+        globalState
+      );
+
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
+    });
+
+    it("Confirm payment after session expiry - should fail with ClientSecretExpired", () => {
+      // eslint-disable-next-line cypress/no-unnecessary-waiting
+      cy.wait(SESSION_EXPIRY_WAIT);
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "card_pm"
+      ]["SessionExpiredConfirmPayment"];
+
+      cy.confirmCallTest(fixtures.confirmBody, data, true, globalState);
+    });
+
+    it("Create payment with session_expiry in request body", () => {
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "card_pm"
+      ]["PaymentIntentWithSessionExpiry"];
+
+      cy.createPaymentIntentTest(
+        fixtures.createPaymentBody,
+        data,
+        "no_three_ds",
+        "automatic",
+        globalState
+      );
+
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
     });
   });
 
