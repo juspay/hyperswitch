@@ -46,16 +46,15 @@ impl super::RedisConnectionPool {
         V: TryInto<RedisValue> + Debug + Send + Sync,
         V::Error: Into<fred::error::RedisError> + Send + Sync,
     {
-        self.pool
-            .set(
-                key.tenant_aware_key(self),
-                value,
-                Some(Expiration::EX(self.config.default_ttl.into())),
-                None,
-                false,
-            )
-            .await
-            .change_context(errors::RedisError::SetFailed)
+        self.with_timeout(self.pool.set(
+            key.tenant_aware_key(self),
+            value,
+            Some(Expiration::EX(self.config.default_ttl.into())),
+            None,
+            false,
+        ))
+        .await
+        .change_context(errors::RedisError::SetFailed)
     }
 
     pub async fn set_key_without_modifying_ttl<V>(
@@ -67,16 +66,15 @@ impl super::RedisConnectionPool {
         V: TryInto<RedisValue> + Debug + Send + Sync,
         V::Error: Into<fred::error::RedisError> + Send + Sync,
     {
-        self.pool
-            .set(
-                key.tenant_aware_key(self),
-                value,
-                Some(Expiration::KEEPTTL),
-                None,
-                false,
-            )
-            .await
-            .change_context(errors::RedisError::SetFailed)
+        self.with_timeout(self.pool.set(
+            key.tenant_aware_key(self),
+            value,
+            Some(Expiration::KEEPTTL),
+            None,
+            false,
+        ))
+        .await
+        .change_context(errors::RedisError::SetFailed)
     }
 
     pub async fn set_multiple_keys_if_not_exist<V>(
@@ -87,8 +85,7 @@ impl super::RedisConnectionPool {
         V: TryInto<RedisMap> + Debug + Send + Sync,
         V::Error: Into<fred::error::RedisError> + Send + Sync,
     {
-        self.pool
-            .msetnx(value)
+        self.with_timeout(self.pool.msetnx(value))
             .await
             .change_context(errors::RedisError::SetFailed)
     }
@@ -157,16 +154,15 @@ impl super::RedisConnectionPool {
             .encode_to_vec()
             .change_context(errors::RedisError::JsonSerializationFailed)?;
 
-        self.pool
-            .set(
-                key.tenant_aware_key(self),
-                serialized.as_slice(),
-                Some(Expiration::EX(seconds)),
-                None,
-                false,
-            )
-            .await
-            .change_context(errors::RedisError::SetExFailed)
+        self.with_timeout(self.pool.set(
+            key.tenant_aware_key(self),
+            serialized.as_slice(),
+            Some(Expiration::EX(seconds)),
+            None,
+            false,
+        ))
+        .await
+        .change_context(errors::RedisError::SetExFailed)
     }
 
     #[instrument(level = "DEBUG", skip(self))]
@@ -175,8 +171,7 @@ impl super::RedisConnectionPool {
         V: FromRedis + Unpin + Send + 'static,
     {
         match self
-            .pool
-            .get(key.tenant_aware_key(self))
+            .with_timeout(self.pool.get(key.tenant_aware_key(self)))
             .await
             .change_context(errors::RedisError::GetFailed)
         {
@@ -189,8 +184,7 @@ impl super::RedisConnectionPool {
 
                 #[cfg(feature = "multitenancy_fallback")]
                 {
-                    self.pool
-                        .get(key.tenant_unaware_key(self))
+                    self.with_timeout(self.pool.get(key.tenant_unaware_key(self)))
                         .await
                         .change_context(errors::RedisError::GetFailed)
                 }
@@ -212,8 +206,7 @@ impl super::RedisConnectionPool {
 
         let tenant_aware_keys: Vec<String> =
             keys.iter().map(|key| key.tenant_aware_key(self)).collect();
-        self.pool
-            .mget(tenant_aware_keys)
+        self.with_timeout(self.pool.mget(tenant_aware_keys))
             .await
             .change_context(errors::RedisError::GetFailed)
     }
@@ -234,7 +227,7 @@ impl super::RedisConnectionPool {
 
         let futures = tenant_aware_keys
             .iter()
-            .map(|redis_key| self.pool.get::<Option<V>, _>(redis_key));
+            .map(|redis_key| self.with_timeout(self.pool.get::<Option<V>, _>(redis_key)));
 
         let results = futures::future::try_join_all(futures)
             .await
@@ -301,8 +294,7 @@ impl super::RedisConnectionPool {
         V: Into<MultipleKeys> + Unpin + Send + 'static,
     {
         match self
-            .pool
-            .exists(key.tenant_aware_key(self))
+            .with_timeout(self.pool.exists(key.tenant_aware_key(self)))
             .await
             .change_context(errors::RedisError::GetFailed)
         {
@@ -315,8 +307,7 @@ impl super::RedisConnectionPool {
 
                 #[cfg(feature = "multitenancy_fallback")]
                 {
-                    self.pool
-                        .exists(key.tenant_unaware_key(self))
+                    self.with_timeout(self.pool.exists(key.tenant_unaware_key(self)))
                         .await
                         .change_context(errors::RedisError::GetFailed)
                 }
@@ -376,8 +367,7 @@ impl super::RedisConnectionPool {
     #[instrument(level = "DEBUG", skip(self))]
     pub async fn delete_key(&self, key: &RedisKey) -> CustomResult<DelReply, errors::RedisError> {
         match self
-            .pool
-            .del(key.tenant_aware_key(self))
+            .with_timeout(self.pool.del(key.tenant_aware_key(self)))
             .await
             .change_context(errors::RedisError::DeleteFailed)
         {
@@ -390,8 +380,7 @@ impl super::RedisConnectionPool {
 
                 #[cfg(feature = "multitenancy_fallback")]
                 {
-                    self.pool
-                        .del(key.tenant_unaware_key(self))
+                    self.with_timeout(self.pool.del(key.tenant_unaware_key(self)))
                         .await
                         .change_context(errors::RedisError::DeleteFailed)
                 }
@@ -424,16 +413,15 @@ impl super::RedisConnectionPool {
         V: TryInto<RedisValue> + Debug + Send + Sync,
         V::Error: Into<fred::error::RedisError> + Send + Sync,
     {
-        self.pool
-            .set(
-                key.tenant_aware_key(self),
-                value,
-                Some(Expiration::EX(seconds)),
-                None,
-                false,
-            )
-            .await
-            .change_context(errors::RedisError::SetExFailed)
+        self.with_timeout(self.pool.set(
+            key.tenant_aware_key(self),
+            value,
+            Some(Expiration::EX(seconds)),
+            None,
+            false,
+        ))
+        .await
+        .change_context(errors::RedisError::SetExFailed)
     }
 
     #[instrument(level = "DEBUG", skip(self))]
@@ -447,18 +435,17 @@ impl super::RedisConnectionPool {
         V: TryInto<RedisValue> + Debug + Send + Sync,
         V::Error: Into<fred::error::RedisError> + Send + Sync,
     {
-        self.pool
-            .set(
-                key.tenant_aware_key(self),
-                value,
-                Some(Expiration::EX(
-                    seconds.unwrap_or(self.config.default_ttl.into()),
-                )),
-                Some(SetOptions::NX),
-                false,
-            )
-            .await
-            .change_context(errors::RedisError::SetFailed)
+        self.with_timeout(self.pool.set(
+            key.tenant_aware_key(self),
+            value,
+            Some(Expiration::EX(
+                seconds.unwrap_or(self.config.default_ttl.into()),
+            )),
+            Some(SetOptions::NX),
+            false,
+        ))
+        .await
+        .change_context(errors::RedisError::SetFailed)
     }
 
     #[instrument(level = "DEBUG", skip(self))]
@@ -467,8 +454,7 @@ impl super::RedisConnectionPool {
         key: &RedisKey,
         seconds: i64,
     ) -> CustomResult<(), errors::RedisError> {
-        self.pool
-            .expire(key.tenant_aware_key(self), seconds)
+        self.with_timeout(self.pool.expire(key.tenant_aware_key(self), seconds))
             .await
             .change_context(errors::RedisError::SetExpiryFailed)
     }
@@ -479,16 +465,14 @@ impl super::RedisConnectionPool {
         key: &RedisKey,
         timestamp: i64,
     ) -> CustomResult<(), errors::RedisError> {
-        self.pool
-            .expire_at(key.tenant_aware_key(self), timestamp)
+        self.with_timeout(self.pool.expire_at(key.tenant_aware_key(self), timestamp))
             .await
             .change_context(errors::RedisError::SetExpiryFailed)
     }
 
     #[instrument(level = "DEBUG", skip(self))]
     pub async fn get_ttl(&self, key: &RedisKey) -> CustomResult<i64, errors::RedisError> {
-        self.pool
-            .ttl(key.tenant_aware_key(self))
+        self.with_timeout(self.pool.ttl(key.tenant_aware_key(self)))
             .await
             .change_context(errors::RedisError::GetFailed)
     }
@@ -505,8 +489,7 @@ impl super::RedisConnectionPool {
         V::Error: Into<fred::error::RedisError> + Send + Sync,
     {
         let output: Result<(), _> = self
-            .pool
-            .hset(key.tenant_aware_key(self), values)
+            .with_timeout(self.pool.hset(key.tenant_aware_key(self), values))
             .await
             .change_context(errors::RedisError::SetHashFailed);
         // setting expiry for the key
@@ -530,8 +513,7 @@ impl super::RedisConnectionPool {
         V::Error: Into<fred::error::RedisError> + Send + Sync,
     {
         let output: Result<HsetnxReply, _> = self
-            .pool
-            .hsetnx(key.tenant_aware_key(self), field, value)
+            .with_timeout(self.pool.hsetnx(key.tenant_aware_key(self), field, value))
             .await
             .change_context(errors::RedisError::SetHashFieldFailed);
 
@@ -595,10 +577,13 @@ impl super::RedisConnectionPool {
         let mut values_after_increment = Vec::with_capacity(fields_to_increment.len());
         for (field, increment) in fields_to_increment.iter() {
             values_after_increment.push(
-                self.pool
-                    .hincrby(key.tenant_aware_key(self), field.to_string(), *increment)
-                    .await
-                    .change_context(errors::RedisError::IncrementHashFieldFailed)?,
+                self.with_timeout(self.pool.hincrby(
+                    key.tenant_aware_key(self),
+                    field.to_string(),
+                    *increment,
+                ))
+                .await
+                .change_context(errors::RedisError::IncrementHashFieldFailed)?,
             )
         }
 
@@ -697,8 +682,7 @@ impl super::RedisConnectionPool {
         V: FromRedis + Unpin + Send + 'static,
     {
         match self
-            .pool
-            .hget(key.tenant_aware_key(self), field)
+            .with_timeout(self.pool.hget(key.tenant_aware_key(self), field))
             .await
             .change_context(errors::RedisError::GetHashFieldFailed)
         {
@@ -706,8 +690,7 @@ impl super::RedisConnectionPool {
             Err(_err) => {
                 #[cfg(feature = "multitenancy_fallback")]
                 {
-                    self.pool
-                        .hget(key.tenant_unaware_key(self), field)
+                    self.with_timeout(self.pool.hget(key.tenant_unaware_key(self), field))
                         .await
                         .change_context(errors::RedisError::GetHashFieldFailed)
                 }
@@ -726,8 +709,7 @@ impl super::RedisConnectionPool {
         V: FromRedis + Unpin + Send + 'static,
     {
         match self
-            .pool
-            .hgetall(key.tenant_aware_key(self))
+            .with_timeout(self.pool.hgetall(key.tenant_aware_key(self)))
             .await
             .change_context(errors::RedisError::GetHashFieldFailed)
         {
@@ -735,8 +717,7 @@ impl super::RedisConnectionPool {
             Err(_err) => {
                 #[cfg(feature = "multitenancy_fallback")]
                 {
-                    self.pool
-                        .hgetall(key.tenant_unaware_key(self))
+                    self.with_timeout(self.pool.hgetall(key.tenant_unaware_key(self)))
                         .await
                         .change_context(errors::RedisError::GetHashFieldFailed)
                 }
@@ -780,8 +761,7 @@ impl super::RedisConnectionPool {
         V: TryInto<MultipleValues> + Debug + Send,
         V::Error: Into<fred::error::RedisError> + Send,
     {
-        self.pool
-            .sadd(key.tenant_aware_key(self), members)
+        self.with_timeout(self.pool.sadd(key.tenant_aware_key(self), members))
             .await
             .change_context(errors::RedisError::SetAddMembersFailed)
     }
@@ -797,10 +777,15 @@ impl super::RedisConnectionPool {
         F: TryInto<MultipleOrderedPairs> + Debug + Send + Sync,
         F::Error: Into<fred::error::RedisError> + Send + Sync,
     {
-        self.pool
-            .xadd(stream.tenant_aware_key(self), false, None, entry_id, fields)
-            .await
-            .change_context(errors::RedisError::StreamAppendFailed)
+        self.with_timeout(self.pool.xadd(
+            stream.tenant_aware_key(self),
+            false,
+            None,
+            entry_id,
+            fields,
+        ))
+        .await
+        .change_context(errors::RedisError::StreamAppendFailed)
     }
 
     #[instrument(level = "DEBUG", skip(self))]
@@ -812,8 +797,7 @@ impl super::RedisConnectionPool {
     where
         Ids: Into<MultipleStrings> + Debug + Send + Sync,
     {
-        self.pool
-            .xdel(stream.tenant_aware_key(self), ids)
+        self.with_timeout(self.pool.xdel(stream.tenant_aware_key(self), ids))
             .await
             .change_context(errors::RedisError::StreamDeleteFailed)
     }
@@ -828,8 +812,7 @@ impl super::RedisConnectionPool {
         C: TryInto<XCap> + Debug + Send + Sync,
         C::Error: Into<fred::error::RedisError> + Send + Sync,
     {
-        self.pool
-            .xtrim(stream.tenant_aware_key(self), xcap)
+        self.with_timeout(self.pool.xtrim(stream.tenant_aware_key(self), xcap))
             .await
             .change_context(errors::RedisError::StreamTrimFailed)
     }
@@ -844,8 +827,7 @@ impl super::RedisConnectionPool {
     where
         Ids: Into<MultipleIDs> + Debug + Send + Sync,
     {
-        self.pool
-            .xack(stream.tenant_aware_key(self), group, ids)
+        self.with_timeout(self.pool.xack(stream.tenant_aware_key(self), group, ids))
             .await
             .change_context(errors::RedisError::StreamAcknowledgeFailed)
     }
@@ -855,8 +837,7 @@ impl super::RedisConnectionPool {
         &self,
         stream: &RedisKey,
     ) -> CustomResult<usize, errors::RedisError> {
-        self.pool
-            .xlen(stream.tenant_aware_key(self))
+        self.with_timeout(self.pool.xlen(stream.tenant_aware_key(self)))
             .await
             .change_context(errors::RedisError::GetLengthFailed)
     }
@@ -888,20 +869,19 @@ impl super::RedisConnectionPool {
         Ids: Into<MultipleIDs> + Debug + Send + Sync,
     {
         let strms = self.get_keys_with_prefix(streams);
-        self.pool
-            .xread_map(
-                Some(read_count.unwrap_or(self.config.default_stream_read_count)),
-                None,
-                strms,
-                ids,
-            )
-            .await
-            .map_err(|err| match err.kind() {
-                RedisErrorKind::NotFound | RedisErrorKind::Parse => {
-                    report!(err).change_context(errors::RedisError::StreamEmptyOrNotAvailable)
-                }
-                _ => report!(err).change_context(errors::RedisError::StreamReadFailed),
-            })
+        self.with_timeout(self.pool.xread_map(
+            Some(read_count.unwrap_or(self.config.default_stream_read_count)),
+            None,
+            strms,
+            ids,
+        ))
+        .await
+        .map_err(|err| match err.kind() {
+            RedisErrorKind::NotFound | RedisErrorKind::Parse => {
+                report!(err).change_context(errors::RedisError::StreamEmptyOrNotAvailable)
+            }
+            _ => report!(err).change_context(errors::RedisError::StreamReadFailed),
+        })
     }
 
     #[instrument(level = "DEBUG", skip(self))]
@@ -919,22 +899,25 @@ impl super::RedisConnectionPool {
     {
         match group {
             Some((group_name, consumer_name)) => {
-                self.pool
-                    .xreadgroup_map(
-                        group_name,
-                        consumer_name,
-                        count,
-                        block,
-                        false,
-                        self.get_keys_with_prefix(streams),
-                        ids,
-                    )
-                    .await
+                self.with_timeout(self.pool.xreadgroup_map(
+                    group_name,
+                    consumer_name,
+                    count,
+                    block,
+                    false,
+                    self.get_keys_with_prefix(streams),
+                    ids,
+                ))
+                .await
             }
             None => {
-                self.pool
-                    .xread_map(count, block, self.get_keys_with_prefix(streams), ids)
-                    .await
+                self.with_timeout(self.pool.xread_map(
+                    count,
+                    block,
+                    self.get_keys_with_prefix(streams),
+                    ids,
+                ))
+                .await
             }
         }
         .map_err(|err| match err.kind() {
@@ -955,8 +938,7 @@ impl super::RedisConnectionPool {
         V: TryInto<MultipleValues> + Debug + Send,
         V::Error: Into<fred::error::RedisError> + Send,
     {
-        self.pool
-            .rpush(key.tenant_aware_key(self), elements)
+        self.with_timeout(self.pool.rpush(key.tenant_aware_key(self), elements))
             .await
             .change_context(errors::RedisError::AppendElementsToListFailed)
     }
@@ -968,16 +950,14 @@ impl super::RedisConnectionPool {
         start: i64,
         stop: i64,
     ) -> CustomResult<Vec<String>, errors::RedisError> {
-        self.pool
-            .lrange(key.tenant_aware_key(self), start, stop)
+        self.with_timeout(self.pool.lrange(key.tenant_aware_key(self), start, stop))
             .await
             .change_context(errors::RedisError::GetListElementsFailed)
     }
 
     #[instrument(level = "DEBUG", skip(self))]
     pub async fn get_list_length(&self, key: &RedisKey) -> CustomResult<usize, errors::RedisError> {
-        self.pool
-            .llen(key.tenant_aware_key(self))
+        self.with_timeout(self.pool.llen(key.tenant_aware_key(self)))
             .await
             .change_context(errors::RedisError::GetListLengthFailed)
     }
@@ -988,8 +968,7 @@ impl super::RedisConnectionPool {
         key: &RedisKey,
         count: Option<usize>,
     ) -> CustomResult<Vec<String>, errors::RedisError> {
-        self.pool
-            .lpop(key.tenant_aware_key(self), count)
+        self.with_timeout(self.pool.lpop(key.tenant_aware_key(self), count))
             .await
             .change_context(errors::RedisError::PopListElementsFailed)
     }
@@ -1153,26 +1132,26 @@ impl super::RedisConnectionPool {
         let trx = self.get_transaction();
 
         // Try to set if not exists with expiry - queue the command
-        trx.set::<(), _, _>(
+        self.with_timeout(trx.set::<(), _, _>(
             &redis_key,
             value,
             Some(Expiration::EX(ttl_seconds)),
             Some(SetOptions::NX),
             false,
-        )
+        ))
         .await
         .change_context(errors::RedisError::SetFailed)
         .attach_printable("Failed to queue set command")?;
 
         // Always get the value after the SET attempt - queue the command
-        trx.get::<V, _>(&redis_key)
+        self.with_timeout(trx.get::<V, _>(&redis_key))
             .await
             .change_context(errors::RedisError::GetFailed)
             .attach_printable("Failed to queue get command")?;
 
         // Execute transaction
-        let mut results: Vec<RedisValue> = trx
-            .exec(true)
+        let mut results: Vec<RedisValue> = self
+            .with_timeout(trx.exec(true))
             .await
             .change_context(errors::RedisError::SetFailed)
             .attach_printable("Failed to execute the redis transaction")?;

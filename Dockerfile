@@ -1,4 +1,4 @@
-FROM rust:bookworm as builder
+FROM public.ecr.aws/docker/library/rust:bookworm as builder
 
 ARG EXTRA_FEATURES=""
 ARG VERSION_FEATURE_SET="v1"
@@ -29,6 +29,8 @@ ENV CARGO_NET_RETRY=10
 ENV RUSTUP_MAX_RETRIES=10
 # Don't emit giant backtraces in the CI logs.
 ENV RUST_BACKTRACE="short"
+# Enable tokio unstable features for tokio-console support
+ENV RUSTFLAGS="--cfg tokio_unstable"
 
 COPY . .
 RUN cargo build \
@@ -36,11 +38,12 @@ RUN cargo build \
     --no-default-features \
     --features release \
     --features ${VERSION_FEATURE_SET} \
+    --features router_env/tokio-console \
     ${EXTRA_FEATURES}
 
 
 
-FROM debian:bookworm
+FROM public.ecr.aws/docker/library/debian:bookworm
 
 # Placing config and binary executable in different directories
 ARG CONFIG_DIR=/local/config
@@ -63,6 +66,7 @@ RUN apt-get update \
     && apt-get install -y ca-certificates tzdata libpq-dev curl procps
 
 EXPOSE 8080
+EXPOSE 6669
 
 ENV TZ=Etc/UTC \
     RUN_ENV=${RUN_ENV} \

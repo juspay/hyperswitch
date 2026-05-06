@@ -67,6 +67,10 @@ pub fn setup(
         .with(StorageSubscription)
         .with(file_writer);
 
+    // Add tokio-console layer if the feature is enabled
+    #[cfg(feature = "tokio-console")]
+    let subscriber = subscriber.with(console_subscriber::spawn());
+
     // Setup console logging
     if config.console.enabled {
         let (console_writer, guard) = tracing_appender::non_blocking(std::io::stdout());

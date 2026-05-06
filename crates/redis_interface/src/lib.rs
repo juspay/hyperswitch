@@ -121,9 +121,14 @@ impl RedisConnectionPool {
         let mut config = fred::types::RedisConfig::from_url(&redis_connection_url)
             .change_context(errors::RedisError::RedisConnectionError)?;
 
+        // Set Fred's timeout based on strategy:
+        // - Library strategy: Use the configured default_command_timeout
+        // - Application strategy: Set to 0 (disabled) since we handle timeouts at application level
+        let fred_command_timeout = conf.get_fred_command_timeout_duration();
+
         let perf = fred::types::PerformanceConfig {
             auto_pipeline: conf.auto_pipeline,
-            default_command_timeout: std::time::Duration::from_secs(conf.default_command_timeout),
+            default_command_timeout: fred_command_timeout,
             max_feed_count: conf.max_feed_count,
             backpressure: fred::types::BackpressureConfig {
                 disable_auto_backpressure: conf.disable_auto_backpressure,
@@ -231,6 +236,39 @@ impl RedisConnectionPool {
     pub fn get_transaction(&self) -> Transaction {
         self.pool.next().multi()
     }
+
+    /// Wrap a Redis operation with application-level timeout if configured
+    ///
+    /// When `timeout_strategy` is `Application`, this wraps the future with tokio::time::timeout.
+    /// When `timeout_strategy` is `Library`, the future is executed without wrapping.
+    ///
+    /// # Example
+    /// ```rust,ignore
+    /// let result: Result<String, RedisError> = redis_pool
+    ///     .with_timeout(redis_pool.pool.get("mykey"))
+    ///     .await;
+    /// ```
+    pub async fn with_timeout<F, T>(&self, operation: F) -> Result<T, fred::error::RedisError>
+    where
+        F: std::future::Future<Output = Result<T, fred::error::RedisError>>,
+    {
+        match self.config.command_timeout() {
+            Some(timeout) => {
+                tracing::debug!(
+                    "applying application redis timeout of {:?} seconds",
+                    timeout
+                );
+                match tokio::time::timeout(timeout, operation).await {
+                    Ok(result) => result,
+                    Err(_) => Err(fred::error::RedisError::new(
+                        fred::error::RedisErrorKind::Timeout,
+                        "Redis command timed out",
+                    )),
+                }
+            }
+            None => operation.await,
+        }
+    }
 }
 
 pub struct RedisConfig {
@@ -238,6 +276,15 @@ pub struct RedisConfig {
     default_stream_read_count: u64,
     default_hash_ttl: u32,
     cluster_enabled: bool,
+    /// Application-level command timeout (None when using Library strategy)
+    command_timeout: Option<std::time::Duration>,
+}
+
+impl RedisConfig {
+    /// Returns the application-level command timeout if set
+    pub fn command_timeout(&self) -> Option<std::time::Duration> {
+        self.command_timeout
+    }
 }
 
 impl From<&RedisSettings> for RedisConfig {
@@ -247,6 +294,7 @@ impl From<&RedisSettings> for RedisConfig {
             default_stream_read_count: config.stream_read_count,
             default_hash_ttl: config.default_hash_ttl,
             cluster_enabled: config.cluster_enabled,
+            command_timeout: config.get_application_command_timeout_duration(),
         }
     }
 }
