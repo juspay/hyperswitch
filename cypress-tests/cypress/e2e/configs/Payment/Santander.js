@@ -15,9 +15,13 @@ const cardConfirmSkipConfig = getCustomExchange({
   Configs: { TRIGGER_SKIP: true },
   Request: { currency: "BRL" },
   Response: {
-    status: 200,
+    status: 500,
     body: {
-      status: "requires_payment_method",
+      error: {
+        type: "api",
+        message: "Something went wrong",
+        code: "HE_00",
+      },
     },
   },
 });
