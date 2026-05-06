@@ -542,7 +542,9 @@ impl<F> TryFrom<RawPaymentCounterparty<'_, F>>
                         message: "Bank transfer via Bacs is not supported".to_string(),
                         connector: "Adyenplatform",
                     })?,
-                    payouts::BankTransfer::Pix(..) => Err(ConnectorError::NotSupported {
+                    payouts::BankTransfer::Pix(..)
+                    | payouts::BankTransfer::PixKey(..)
+                    | payouts::BankTransfer::PixEmv(..) => Err(ConnectorError::NotSupported {
                         message: "Bank transfer via Pix is not supported".to_string(),
                         connector: "Adyenplatform",
                     })?,

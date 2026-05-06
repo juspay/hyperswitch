@@ -2048,8 +2048,8 @@ impl transformers::ForeignTryFrom<&RouterData<Session, PaymentsSessionData, Paym
                 phone_number: None,
                 phone_country_code: None,
             }),
-            metadata: None,
             return_url: None,
+            metadata: None,
         };
 
         Ok(Self {
@@ -3949,6 +3949,7 @@ impl transformers::ForeignTryFrom<common_enums::BankNames> for payments_grpc::Ba
             common_enums::BankNames::Yoursafe => Ok(Self::Yoursafe),
             common_enums::BankNames::N26 => Ok(Self::N26),
             common_enums::BankNames::NationaleNederlanden => Ok(Self::NationaleNederlanden),
+            common_enums::BankNames::Absa => Ok(Self::Absa),
         }
     }
 }
@@ -6835,6 +6836,18 @@ impl transformers::ForeignTryFrom<&api_models::payouts::PayoutMethodData>
                             ),
                         ))?
                     }
+                    api_models::payouts::BankTransfer::PixKey(_) => Err(error_stack::Report::new(
+                        UnifiedConnectorServiceError::RequestEncodingFailedWithReason(
+                            "Pix Key bank transfer not supported for Unified Connector Service"
+                                .to_string(),
+                        ),
+                    ))?,
+                    api_models::payouts::BankTransfer::PixEmv(_) => Err(error_stack::Report::new(
+                        UnifiedConnectorServiceError::RequestEncodingFailedWithReason(
+                            "Pix EMV bank transfer not supported for Unified Connector Service"
+                                .to_string(),
+                        ),
+                    ))?,
                 }
             }
             api_models::payouts::PayoutMethodData::Wallet(wallet) => match wallet {
@@ -6976,9 +6989,29 @@ impl transformers::ForeignTryFrom<&api_models::payouts::PixBankTransfer>
         Ok(Self {
             bank_name: None,
             bank_branch: item.bank_branch.clone(),
-            bank_account_number: Some(item.bank_account_number.clone()),
-            pix_key: Some(item.pix_key.clone()),
+            bank_account_number: item.bank_account_number.clone(),
+            pix_key: item.pix_key.clone(),
             tax_id: item.tax_id.clone(),
+            // TODO: pix_emv: item.pix_emv.clone(), to be added in future when UCS supports it
+        })
+    }
+}
+
+#[cfg(feature = "payouts")]
+impl transformers::ForeignTryFrom<&api_models::payouts::PixAccountBankTransfer>
+    for payments_grpc::PixBankTransferPayout
+{
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+
+    fn foreign_try_from(
+        item: &api_models::payouts::PixAccountBankTransfer,
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            bank_name: None,
+            bank_branch: item.bank_branch.clone(),
+            bank_account_number: Some(item.bank_account_number.clone()),
+            tax_id: item.tax_id.clone(),
+            pix_key: None,
         })
     }
 }

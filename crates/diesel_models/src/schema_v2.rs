@@ -621,6 +621,10 @@ diesel::table! {
         profile_id -> Nullable<Varchar>,
         #[max_length = 32]
         merchant_connector_id -> Nullable<Varchar>,
+        #[max_length = 64]
+        processor_merchant_id -> Nullable<Varchar>,
+        #[max_length = 255]
+        created_by -> Nullable<Varchar>,
     }
 }
 
@@ -1279,6 +1283,10 @@ diesel::table! {
         profile_id -> Nullable<Varchar>,
         #[max_length = 255]
         secure_link -> Nullable<Varchar>,
+        #[max_length = 64]
+        processor_merchant_id -> Nullable<Varchar>,
+        #[max_length = 255]
+        created_by -> Nullable<Varchar>,
     }
 }
 
@@ -1291,6 +1299,8 @@ diesel::table! {
         customer_id -> Nullable<Varchar>,
         #[max_length = 64]
         merchant_id -> Varchar,
+        #[max_length = 64]
+        payment_method_id -> Nullable<Varchar>,
         created_at -> Timestamp,
         last_modified -> Timestamp,
         payment_method_data -> Nullable<Bytea>,
