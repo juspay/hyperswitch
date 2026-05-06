@@ -111,6 +111,14 @@ describe("3DS Decision Rule Based Routing Test", () => {
             globalState.get("stripeMcaId")
           );
           cy.confirmCallTest(fixtures.confirmBody, data, true, globalState);
+          cy.then(() => {
+            expect(
+              globalState.get("nextActionUrl"),
+              "nextActionUrl must be set by confirm-three-ds-payment"
+            )
+              .to.be.a("string")
+              .and.not.be.empty;
+          });
         }
       );
 
@@ -136,14 +144,18 @@ describe("3DS Decision Rule Based Routing Test", () => {
         );
       });
 
-      it("confirm-no-three-ds-payment", () => {
-        const data =
-          utils.getConnectorDetails("adyen")["card_pm"]["EURNo3DSAutoCapture"];
+      it(
+        "confirm-no-three-ds-payment",
+        { retries: { runMode: 0, openMode: 0 } },
+        () => {
+          const data =
+            utils.getConnectorDetails("adyen")["card_pm"]["EURNo3DSAutoCapture"];
 
-        globalState.set("connectorId", "adyen");
-        globalState.set("merchantConnectorId", globalState.get("adyenMcaId"));
-        cy.confirmCallTest(fixtures.confirmBody, data, true, globalState);
-      });
+          globalState.set("connectorId", "adyen");
+          globalState.set("merchantConnectorId", globalState.get("adyenMcaId"));
+          cy.confirmCallTest(fixtures.confirmBody, data, true, globalState);
+        }
+      );
 
       it("retrieve-payment-call-test-for-no-three-ds", () => {
         cy.retrievePaymentCallTest({ globalState });
@@ -275,14 +287,18 @@ describe("3DS Decision Rule Based Routing Test", () => {
         );
       });
 
-      it("confirm-no-three-ds-auto-capture", () => {
-        const data =
-          utils.getConnectorDetails("adyen")["card_pm"]["EURNo3DSAutoCapture"];
+      it(
+        "confirm-no-three-ds-auto-capture",
+        { retries: { runMode: 0, openMode: 0 } },
+        () => {
+          const data =
+            utils.getConnectorDetails("adyen")["card_pm"]["EURNo3DSAutoCapture"];
 
-        globalState.set("connectorId", "adyen");
-        globalState.set("merchantConnectorId", globalState.get("adyenMcaId"));
-        cy.confirmCallTest(fixtures.confirmBody, data, true, globalState);
-      });
+          globalState.set("connectorId", "adyen");
+          globalState.set("merchantConnectorId", globalState.get("adyenMcaId"));
+          cy.confirmCallTest(fixtures.confirmBody, data, true, globalState);
+        }
+      );
 
       it("retrieve-no-three-ds-auto-capture-payment", () => {
         cy.retrievePaymentCallTest({ globalState });
@@ -542,14 +558,18 @@ describe("3DS Decision Rule Based Routing Test", () => {
         );
       });
 
-      it("confirm-card-no-three-ds", () => {
-        const data =
-          utils.getConnectorDetails("adyen")["card_pm"]["EURNo3DSAutoCapture"];
+      it(
+        "confirm-card-no-three-ds",
+        { retries: { runMode: 0, openMode: 0 } },
+        () => {
+          const data =
+            utils.getConnectorDetails("adyen")["card_pm"]["EURNo3DSAutoCapture"];
 
-        globalState.set("connectorId", "adyen");
-        globalState.set("merchantConnectorId", globalState.get("adyenMcaId"));
-        cy.confirmCallTest(fixtures.confirmBody, data, true, globalState);
-      });
+          globalState.set("connectorId", "adyen");
+          globalState.set("merchantConnectorId", globalState.get("adyenMcaId"));
+          cy.confirmCallTest(fixtures.confirmBody, data, true, globalState);
+        }
+      );
 
       it("retrieve-payment-call-test-card-no-three-ds", () => {
         cy.retrievePaymentCallTest({ globalState });
