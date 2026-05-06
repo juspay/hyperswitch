@@ -68,7 +68,7 @@ describe("Card - Step-Up Authentication flow test", () => {
             "card_pm"
           ]["StepUpAuth_Confirm"];
 
-          cy.confirmPaymentTest(data, globalState);
+          cy.confirmCallTest(fixtures.confirmBody, data, true, globalState);
 
           if (!utils.should_continue_further(data)) {
             shouldContinue = false;
