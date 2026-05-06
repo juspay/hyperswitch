@@ -906,7 +906,10 @@ impl webhooks::IncomingWebhook for Trustly {
 }
 
 static TRUSTLY_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> = LazyLock::new(|| {
-    let supported_capture_methods = vec![enums::CaptureMethod::Automatic];
+    let supported_capture_methods = vec![
+        enums::CaptureMethod::Automatic,
+        enums::CaptureMethod::Manual,
+    ];
 
     let mut trustly_supported_payment_methods = SupportedPaymentMethods::new();
     trustly_supported_payment_methods.add(
