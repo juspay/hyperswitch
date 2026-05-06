@@ -32,23 +32,5 @@ export const connectorDetails = {
         },
       },
     },
-    No3DSAutoCapture: {
-      Request: {
-        payment_method: "upi",
-        payment_method_type: "upi_collect",
-        payment_method_data: {
-          upi: {
-            upi_collect: upiCollectPaymentData,
-          },
-        },
-        currency: "INR",
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "requires_customer_action",
-        },
-      },
-    },
   },
 };
