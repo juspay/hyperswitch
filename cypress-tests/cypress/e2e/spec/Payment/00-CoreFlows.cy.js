@@ -282,6 +282,7 @@ describe("Core flows", () => {
 
   // Payment Link is a core platform feature — not connector specific
   // Endpoint: POST /payments (payment_link=true) + GET /payment_link/{id}
+  // Source: business_profile.rs:payment_link_config
   context("Payment Link core flows", () => {
     before("seed global state", () => {
       cy.task("getGlobalState").then((state) => {
