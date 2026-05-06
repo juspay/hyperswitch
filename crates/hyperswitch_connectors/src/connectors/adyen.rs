@@ -280,6 +280,8 @@ impl ConnectorValidation for Adyen {
                 | PaymentMethodType::Oxxo
                 | PaymentMethodType::PaySafeCard
                 | PaymentMethodType::Pix
+                | PaymentMethodType::PixKey
+                | PaymentMethodType::PixEmv
                 | PaymentMethodType::Swish
                 | PaymentMethodType::TouchNGo
                 | PaymentMethodType::Trustly
