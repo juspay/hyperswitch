@@ -1,8 +1,10 @@
 import * as fixtures from "../../../fixtures/imports";
 import State from "../../../utils/State";
-import getConnectorDetails, * as utils from "../../configs/Payment/Utils";
 
 let globalState;
+
+// Payment Link is a CORE PLATFORM FEATURE - not connector specific
+// This test verifies the Payment Link API functionality without relying on any specific connector
 
 describe("Payment Link - Hosted payment link generation", () => {
   before("seed global state", () => {
@@ -20,9 +22,17 @@ describe("Payment Link - Hosted payment link generation", () => {
       let shouldContinue = true;
 
       cy.step("Create Payment Intent with Payment Link", () => {
-        const data = getConnectorDetails(globalState.get("connectorId"))[
-          "card_pm"
-        ]["PaymentLink"];
+        const data = {
+          Request: {
+            currency: "USD",
+            amount: 6000,
+            description: "Test Payment Link",
+            email: "test@example.com",
+          },
+          Response: {
+            status: 200,
+          },
+        };
 
         cy.createPaymentIntentWithPaymentLinkTest(
           fixtures.createPaymentBody,
@@ -31,45 +41,20 @@ describe("Payment Link - Hosted payment link generation", () => {
           "automatic",
           globalState
         );
-
-        if (!utils.should_continue_further(data)) {
-          shouldContinue = false;
-        }
       });
 
       cy.step("Initiate Payment Link (Customer-Facing)", () => {
-        if (!shouldContinue) {
-          cy.task("cli_log", "Skipping step: Initiate Payment Link");
-          return;
-        }
-        const data = getConnectorDetails(globalState.get("connectorId"))[
-          "card_pm"
-        ]["PaymentLink"];
-
+        const data = {};
         cy.initiatePaymentLinkTest(data, globalState);
       });
 
       cy.step("Retrieve Payment Link (Merchant API)", () => {
-        if (!shouldContinue) {
-          cy.task("cli_log", "Skipping step: Retrieve Payment Link");
-          return;
-        }
-        const data = getConnectorDetails(globalState.get("connectorId"))[
-          "card_pm"
-        ]["PaymentLink"];
-
+        const data = {};
         cy.retrievePaymentLinkTest(data, globalState);
       });
 
       cy.step("List Payment Links", () => {
-        if (!shouldContinue) {
-          cy.task("cli_log", "Skipping step: List Payment Links");
-          return;
-        }
-        const data = getConnectorDetails(globalState.get("connectorId"))[
-          "card_pm"
-        ]["PaymentLink"];
-
+        const data = {};
         cy.listPaymentLinksTest(data, globalState);
       });
     });
@@ -77,12 +62,22 @@ describe("Payment Link - Hosted payment link generation", () => {
 
   context("Payment Link - With Metadata", () => {
     it("Create Payment Intent with Payment Link and metadata -> Initiate Payment Link", () => {
-      let shouldContinue = true;
-
       cy.step("Create Payment Intent with Payment Link and metadata", () => {
-        const data = getConnectorDetails(globalState.get("connectorId"))[
-          "card_pm"
-        ]["PaymentLinkWithMetadata"];
+        const data = {
+          Request: {
+            currency: "USD",
+            amount: 6500,
+            description: "Test Payment Link with Metadata",
+            email: "test@example.com",
+            metadata: {
+              order_id: "ORD-12345",
+              customer_tier: "premium",
+            },
+          },
+          Response: {
+            status: 200,
+          },
+        };
 
         cy.createPaymentIntentWithPaymentLinkTest(
           fixtures.createPaymentBody,
@@ -91,21 +86,10 @@ describe("Payment Link - Hosted payment link generation", () => {
           "automatic",
           globalState
         );
-
-        if (!utils.should_continue_further(data)) {
-          shouldContinue = false;
-        }
       });
 
       cy.step("Initiate Payment Link (Customer-Facing)", () => {
-        if (!shouldContinue) {
-          cy.task("cli_log", "Skipping step: Initiate Payment Link");
-          return;
-        }
-        const data = getConnectorDetails(globalState.get("connectorId"))[
-          "card_pm"
-        ]["PaymentLinkWithMetadata"];
-
+        const data = {};
         cy.initiatePaymentLinkTest(data, globalState);
       });
     });
@@ -113,20 +97,39 @@ describe("Payment Link - Hosted payment link generation", () => {
 
   context("Payment Link - Edge Cases", () => {
     it("Create Payment Intent without Payment Link -> Should not have payment_link in response", () => {
-      const data = getConnectorDetails(globalState.get("connectorId"))[
-        "card_pm"
-      ]["PaymentIntent"];
+      const profile_id = globalState.get("profileId") || globalState.get("defaultProfileId");
+      
+      const requestBody = {
+        ...fixtures.createPaymentBody,
+        currency: "USD",
+        amount: 6000,
+        description: "Test without Payment Link",
+        email: "test@example.com",
+        authentication_type: "no_three_ds",
+        capture_method: "automatic",
+        customer_id: globalState.get("customerId"),
+        profile_id: profile_id,
+        // Not setting payment_link: true
+      };
 
-      cy.createPaymentIntentTest(
-        fixtures.createPaymentBody,
-        data,
-        "no_three_ds",
-        "automatic",
-        globalState
-      );
+      const headers = {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+        "api-key": globalState.get("apiKey"),
+      };
 
-      cy.wrap(null).then(() => {
-        expect(globalState.get("paymentLinkId")).to.be.undefined;
+      cy.request({
+        method: "POST",
+        url: `${globalState.get("baseUrl")}/payments`,
+        headers,
+        failOnStatusCode: false,
+        body: requestBody,
+      }).then((response) => {
+        expect(response.status).to.equal(200);
+        expect(response.body).to.have.property("payment_id");
+        expect(response.body).to.have.property("client_secret");
+        // Verify payment_link is null when not requested
+        expect(response.body.payment_link).to.be.null;
       });
     });
   });
