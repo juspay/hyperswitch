@@ -3691,6 +3691,7 @@ impl PaymentRedirectFlow for PaymentRedirectCompleteAuthorize {
                 pix_additional_details: None,
                 boleto_additional_details: None,
                 pix_automatico_additional_details: None,
+                finix_additional_details: None,
             }),
             ..Default::default()
         };
@@ -4265,6 +4266,7 @@ impl PaymentRedirectFlow for PaymentAuthenticateCompleteAuthorize {
                     pix_additional_details: None,
                     boleto_additional_details: None,
                     pix_automatico_additional_details: None,
+                    finix_additional_details: None,
                 }),
                 ..Default::default()
             };
