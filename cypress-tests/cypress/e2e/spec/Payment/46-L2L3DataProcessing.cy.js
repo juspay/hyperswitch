@@ -4,31 +4,6 @@ import getConnectorDetails, * as utils from "../../configs/Payment/Utils";
 
 let globalState;
 
-function updateL2L3Flag(isL2L3Enabled, globalState) {
-  const apiKey = globalState.get("apiKey");
-  const merchantId = globalState.get("merchantId");
-  const profileId = globalState.get("profileId");
-
-  cy.request({
-    method: "POST",
-    url: `${globalState.get("baseUrl")}/account/${merchantId}/business_profile/${profileId}`,
-    headers: {
-      Accept: "application/json",
-      "Content-Type": "application/json",
-      "api-key": apiKey,
-    },
-    body: {
-      is_l2_l3_enabled: isL2L3Enabled,
-    },
-    failOnStatusCode: false,
-  }).then((response) => {
-    if (response.headers["x-request-id"]) {
-      cy.task("cli_log", "x-request-id -> " + response.headers["x-request-id"]);
-    }
-    expect(response.status).to.equal(200);
-  });
-}
-
 describe("L2/L3 Data Processing Tests", () => {
   before(function () {
     let skip = false;
@@ -62,7 +37,7 @@ describe("L2/L3 Data Processing Tests", () => {
       let shouldContinue = true;
 
       cy.step("Update Business Profile (L2/L3 enabled)", () => {
-        updateL2L3Flag(true, globalState);
+        cy.updateL2L3Flag(true, globalState);
       });
 
       cy.step("Create Payment Intent", () => {
@@ -136,7 +111,7 @@ describe("L2/L3 Data Processing Tests", () => {
       let shouldContinue = true;
 
       cy.step("Update Business Profile (L2/L3 disabled)", () => {
-        updateL2L3Flag(false, globalState);
+        cy.updateL2L3Flag(false, globalState);
       });
 
       cy.step("Create and Confirm Payment with L2/L3 fields", () => {

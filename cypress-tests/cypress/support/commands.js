@@ -7465,3 +7465,28 @@ Cypress.Commands.add("updateCardIssuer", (id, body, globalState) => {
     });
   });
 });
+
+Cypress.Commands.add(
+  "updateL2L3Flag",
+  (isL2L3Enabled, globalState, profilePrefix = "profile") => {
+    const apiKey = globalState.get("apiKey");
+    const merchantId = globalState.get("merchantId");
+    const profileId = globalState.get(`${profilePrefix}Id`);
+
+    cy.request({
+      method: "POST",
+      url: `${globalState.get("baseUrl")}/account/${merchantId}/business_profile/${profileId}`,
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json",
+        "api-key": apiKey,
+      },
+      body: {
+        is_l2_l3_enabled: isL2L3Enabled,
+      },
+      failOnStatusCode: false,
+    }).then((response) => {
+      expect(response.status).to.equal(200);
+    });
+  }
+);
