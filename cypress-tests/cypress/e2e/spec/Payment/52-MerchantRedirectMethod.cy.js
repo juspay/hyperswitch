@@ -58,7 +58,7 @@ describe("Merchant Redirect Method Tests", () => {
         cy.step("Create Payment Intent with POST redirect enabled", () => {
           const data = getConnectorDetails(globalState.get("connectorId"))[
             "card_pm"
-          ]["PaymentIntentOffSession"];
+          ]["PaymentIntent"];
 
           cy.createPaymentIntentTest(
             fixtures.createPaymentBody,
@@ -141,7 +141,7 @@ describe("Merchant Redirect Method Tests", () => {
         cy.step("Create Payment Intent with GET redirect enabled", () => {
           const data = getConnectorDetails(globalState.get("connectorId"))[
             "card_pm"
-          ]["PaymentIntentOffSession"];
+          ]["PaymentIntent"];
 
           cy.createPaymentIntentTest(
             fixtures.createPaymentBody,
@@ -223,7 +223,7 @@ describe("Merchant Redirect Method Tests", () => {
         cy.step("Create Payment Intent", () => {
           const data = getConnectorDetails(globalState.get("connectorId"))[
             "card_pm"
-          ]["PaymentIntentOffSession"];
+          ]["PaymentIntent"];
 
           cy.createPaymentIntentTest(
             fixtures.createPaymentBody,
