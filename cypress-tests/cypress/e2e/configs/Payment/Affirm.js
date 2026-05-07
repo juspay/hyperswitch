@@ -79,7 +79,11 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "succeeded",
+          error: {
+            type: "invalid_request",
+            message: "Refund is not implemented for this connector",
+            code: "IR_00",
+          },
         },
       },
     },
@@ -90,7 +94,11 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "succeeded",
+          error: {
+            type: "invalid_request",
+            message: "Refund is not implemented for this connector",
+            code: "IR_00",
+          },
         },
       },
     },
@@ -98,7 +106,11 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "succeeded",
+          error: {
+            type: "invalid_request",
+            message: "Sync Refund is not implemented for this connector",
+            code: "IR_00",
+          },
         },
       },
     },
