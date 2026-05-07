@@ -4,6 +4,7 @@ pub mod api_key_expiry;
 pub mod attach_payout_account_workflow;
 pub mod outgoing_webhook_retry;
 pub mod payment_method_modular_forward_compat;
+pub mod payment_method_modular_backward_compat;
 pub mod payment_method_status_update;
 pub mod payment_sync;
 

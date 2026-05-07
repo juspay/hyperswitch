@@ -111,6 +111,8 @@ const PAYMENT_METHOD_STATUS_UPDATE_TASK: &str = "PAYMENT_METHOD_STATUS_UPDATE";
 const PAYMENT_METHOD_STATUS_TAG: &str = "PAYMENT_METHOD_STATUS";
 const PAYMENT_METHOD_MODULAR_FORWARD_COMPAT_TASK: &str = "PAYMENT_METHOD_MODULAR_FORWARD_COMPAT";
 const PAYMENT_METHOD_MODULAR_FORWARD_COMPAT_TAG: &str = "PAYMENT_METHOD_MODULAR_FORWARD_COMPAT";
+const PAYMENT_METHOD_MODULAR_BACKWARD_COMPAT_TASK: &str = "PAYMENT_METHOD_MODULAR_BACKWARD_COMPAT";
+const PAYMENT_METHOD_MODULAR_BACKWARD_COMPAT_TAG: &str = "PAYMENT_METHOD_MODULAR_BACKWARD_COMPAT";
 #[cfg(feature = "v2")]
 const PAYMENT_METHOD_REDACTED_FINGERPRINT_ID: &str = "FINGERPRINT_ID_REDACTED";
 
@@ -576,6 +578,64 @@ pub async fn add_payment_method_modular_forward_compat_task(
             format!(
                 "Failed while inserting PAYMENT_METHOD_MODULAR_FORWARD_COMPAT task to process_tracker for payment_method_id: {}",
                 payment_method.payment_method_id
+            )
+        })?;
+
+    Ok(())
+}
+
+pub async fn add_payment_method_modular_backward_compat_task(
+    db: &dyn StorageInterface,
+    payment_method: &domain::PaymentMethod,
+    merchant_id: &id_type::MerchantId,
+    application_source: common_enums::ApplicationSource,
+    initiator: Option<&hyperswitch_domain_models::platform::Initiator>,
+) -> Result<(), ProcessTrackerError> {
+    #[cfg(feature = "v1")]
+    let payment_method_id = payment_method.get_id().to_owned();
+    #[cfg(feature = "v2")]
+    let payment_method_id = payment_method.get_id().get_string_repr().to_owned();
+
+    let tracking_data = storage::PaymentMethodModularCompatTrackingData {
+        payment_method_id: payment_method_id.clone(),
+        merchant_id: merchant_id.to_owned(),
+        last_modified_by: initiator
+            .and_then(|initiator| initiator.to_created_by())
+            .map(|last_modified_by| last_modified_by.to_string()),
+    };
+
+    let runner = storage::ProcessTrackerRunner::PaymentMethodModularBackwardCompatWorkflow;
+    let task = PAYMENT_METHOD_MODULAR_BACKWARD_COMPAT_TASK;
+    let tag = [PAYMENT_METHOD_MODULAR_BACKWARD_COMPAT_TAG];
+    let process_tracker_id = generate_task_id_for_payment_method_status_update_workflow(
+        &payment_method_id,
+        runner,
+        task,
+    );
+
+    let process_tracker_entry = storage::ProcessTrackerNew::new(
+        process_tracker_id,
+        task,
+        runner,
+        tag,
+        tracking_data,
+        None,
+        common_utils::date_time::now(),
+        common_types::consts::API_VERSION,
+        application_source,
+    )
+    .change_context(errors::ApiErrorResponse::InternalServerError)
+    .attach_printable(
+        "Failed to construct PAYMENT_METHOD_MODULAR_BACKWARD_COMPAT process tracker task",
+    )?;
+
+    db.insert_process(process_tracker_entry)
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable_lazy(|| {
+            format!(
+                "Failed while inserting PAYMENT_METHOD_MODULAR_BACKWARD_COMPAT task to process_tracker for payment_method_id: {}",
+                payment_method_id
             )
         })?;
 
@@ -2508,6 +2568,65 @@ async fn execute_payment_method_create(
                 payment_method_billing_address.map(|add| add.get_inner().clone().into()),
                 None,
             )?;
+
+            let merchant_id = platform.get_provider().get_account().get_id().to_owned();
+            if payment_method.get_payment_method_type() == Some(enums::PaymentMethod::Card)
+                && payment_method.locker_id.is_some()
+            {
+                let payment_method_customer_id =
+                    id_type::CustomerId::wrap(customer_id.get_string_repr().to_owned()).ok();
+                let should_schedule_modular_backward_compat =
+                    utils::get_should_schedule_modular_backward_compat(
+                        state,
+                        &dimension_state::Dimensions::new().with_provider_merchant_id(
+                            platform.get_provider().get_provider_merchant_id(),
+                        ),
+                        payment_method_customer_id.as_ref(),
+                    )
+                    .await;
+
+                if should_schedule_modular_backward_compat {
+                    let res = add_payment_method_modular_backward_compat_task(
+                        &*state.store,
+                        &payment_method,
+                        &merchant_id,
+                        state.conf.application_source,
+                        platform.get_initiator(),
+                    )
+                    .await
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable(
+                        "Failed to add payment method modular backward compatibility task in process tracker",
+                    );
+
+                    if let Err(err) = res {
+                        logger::error!(
+                            ?err,
+                            payment_method_id = %payment_method.get_id().get_string_repr(),
+                            merchant_id=%merchant_id.get_string_repr(),
+                            "Failed to schedule modular backward compatibility PT; continuing payment method create flow"
+                        );
+                    } else {
+                        logger::info!(
+                            payment_method_id = %payment_method.get_id().get_string_repr(),
+                            merchant_id=%merchant_id.get_string_repr(),
+                            "Scheduled payment method modular backward compatibility PT"
+                        );
+                    }
+                } else {
+                    logger::debug!(
+                        payment_method_id = %payment_method.get_id().get_string_repr(),
+                        merchant_id=%merchant_id.get_string_repr(),
+                        "Skipping modular backward compatibility PT scheduling by config"
+                    );
+                }
+            } else {
+                logger::debug!(
+                    payment_method_id = %payment_method.get_id().get_string_repr(),
+                    merchant_id=%merchant_id.get_string_repr(),
+                    "Skipping modular backward compatibility PT scheduling because non-card payment method or missing locker id"
+                );
+            }
 
             Ok((resp, payment_method))
         }
