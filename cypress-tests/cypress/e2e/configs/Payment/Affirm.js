@@ -44,6 +44,9 @@ export const connectorDetails = {
       },
     }),
     Affirm: getCustomExchange({
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
       Request: {
         payment_method: "pay_later",
         payment_method_type: "affirm",
@@ -82,6 +85,7 @@ export const connectorDetails = {
             last_name: "Doe",
           },
         },
+        customer_acceptance: null,
       },
       Response: {
         status: 200,
