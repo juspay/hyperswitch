@@ -292,7 +292,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
                 create_payment_link(
                     request,
                     payment_link_config,
-                    platform.get_processor(),
+                    platform,
                     payment_id.clone(),
                     db,
                     amount,
@@ -1041,6 +1041,7 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
         &'a self,
         _state: &SessionState,
         _processor: &domain::Processor,
+        _dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
         _payment_data: &mut PaymentData<F>,
         _business_profile: &domain::Profile,
     ) -> CustomResult<bool, errors::ApiErrorResponse> {
@@ -1977,7 +1978,7 @@ pub fn payments_create_request_validation(
 async fn create_payment_link(
     request: &api::PaymentsRequest,
     payment_link_config: api_models::admin::PaymentLinkConfig,
-    processor: &domain::Processor,
+    platform: &domain::Platform,
     payment_id: common_utils::id_type::PaymentId,
     db: &dyn StorageInterface,
     amount: api::Amount,
@@ -1990,11 +1991,11 @@ async fn create_payment_link(
     let created_at @ last_modified_at = Some(common_utils::date_time::now());
     let payment_link_id = utils::generate_id(consts::ID_LENGTH, "plink");
     let locale_str = locale.unwrap_or("en".to_owned());
-    let merchant_id = processor.get_account().get_id();
+    let processor_merchant_id = platform.get_processor().get_account().get_id();
     let open_payment_link = format!(
         "{}/payment_link/{}/{}?locale={}",
         domain_name,
-        merchant_id.get_string_repr(),
+        processor_merchant_id.get_string_repr(),
         payment_id.get_string_repr(),
         locale_str.clone(),
     );
@@ -2003,7 +2004,7 @@ async fn create_payment_link(
         format!(
             "{}/payment_link/s/{}/{}?locale={}",
             domain_name,
-            merchant_id.get_string_repr(),
+            processor_merchant_id.get_string_repr(),
             payment_id.get_string_repr(),
             locale_str,
         )
@@ -2018,7 +2019,7 @@ async fn create_payment_link(
     let payment_link_req = storage::PaymentLinkNew {
         payment_link_id: payment_link_id.clone(),
         payment_id: payment_id.clone(),
-        merchant_id: merchant_id.clone(),
+        merchant_id: platform.get_provider().get_account().get_id().clone(),
         link_to_pay: open_payment_link.clone(),
         amount: MinorUnit::from(amount),
         currency: request.currency,
@@ -2030,6 +2031,11 @@ async fn create_payment_link(
         payment_link_config: Some(payment_link_config_encoded_value),
         profile_id: Some(profile_id),
         secure_link,
+        processor_merchant_id: Some(processor_merchant_id.clone()),
+        created_by: platform
+            .get_initiator()
+            .and_then(|initiator| initiator.to_created_by())
+            .map(|created_by| created_by.to_string()),
     };
     let payment_link_db = db
         .insert_payment_link(payment_link_req)

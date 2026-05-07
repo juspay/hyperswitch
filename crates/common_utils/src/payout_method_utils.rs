@@ -93,6 +93,8 @@ pub enum BankAdditionalData {
     Pix(Box<PixBankTransferAdditionalData>),
 }
 
+crate::impl_to_sql_from_sql_json!(BankAdditionalData);
+
 /// Masked payout method details for ach bank transfer payout method
 #[derive(
     Eq, PartialEq, Clone, Debug, Deserialize, Serialize, FromSqlRow, AsExpression, ToSchema,
