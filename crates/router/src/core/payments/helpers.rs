@@ -77,6 +77,8 @@ use super::{
     CustomerDetails, PaymentData,
 };
 #[cfg(feature = "v1")]
+use crate::core::mandate::helpers::MandateGenericData;
+#[cfg(feature = "v1")]
 use crate::core::{
     payments::{OperationSessionGetters, OperationSessionSetters},
     utils as core_utils,
@@ -92,7 +94,6 @@ use crate::{
         authentication,
         configs::dimension_state,
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
-        mandate::helpers::MandateGenericData,
         payment_methods::{
             self,
             cards::{self},
@@ -466,13 +467,8 @@ pub async fn get_token_pm_type_mandate_details(
     payment_method_id: Option<String>,
     payment_intent_customer_id: Option<&id_type::CustomerId>,
     pm_info: Option<domain::PaymentMethod>,
-    dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
 ) -> RouterResult<MandateGenericData> {
     let mandate_data = request.mandate_data.clone().map(MandateData::foreign_from);
-    let is_payment_method_modular_allowed =
-        core_utils::get_feature_config(state, platform, dimensions)
-            .await
-            .is_payment_method_modular_allowed;
     let (
         payment_token,
         payment_method,
@@ -755,10 +751,9 @@ pub async fn get_token_pm_type_mandate_details(
             }
         }
         None => {
-            let payment_method_info = if is_payment_method_modular_allowed {
-                pm_info
-            } else {
-                payment_method_id
+            let payment_method_info = match pm_info {
+                Some(pm_info) => Some(pm_info),
+                None => payment_method_id
                     .async_map(|payment_method_id| async move {
                         state
                             .store
@@ -771,7 +766,7 @@ pub async fn get_token_pm_type_mandate_details(
                             .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)
                     })
                     .await
-                    .transpose()?
+                    .transpose()?,
             };
             let resolved_payment_method = request.payment_method.or_else(|| {
                 payment_method_info
@@ -3112,10 +3107,10 @@ pub async fn fetch_card_details_for_network_transaction_flow_from_locker(
 
 #[cfg(feature = "v2")]
 pub async fn retrieve_payment_method_from_db_with_token_data(
-    state: &SessionState,
-    merchant_key_store: &domain::MerchantKeyStore,
-    token_data: &storage::PaymentTokenData,
-    storage_scheme: storage::enums::MerchantStorageScheme,
+    _state: &SessionState,
+    _merchant_key_store: &domain::MerchantKeyStore,
+    _token_data: &storage::PaymentTokenData,
+    _storage_scheme: storage::enums::MerchantStorageScheme,
 ) -> RouterResult<Option<domain::PaymentMethod>> {
     todo!()
 }
