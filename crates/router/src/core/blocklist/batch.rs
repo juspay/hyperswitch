@@ -19,7 +19,6 @@ const CHUNK_SIZE: usize = 2_000;
 const BATCH_BLOCKLIST_TASK: &str = "BATCH_BLOCKLIST_UPLOAD";
 const BATCH_BLOCKLIST_TAGS: [&str; 2] = ["BLOCKLIST", "BATCH"];
 const MAX_BATCH_CSV_ROWS: usize = 100_000;
-pub(crate) const MAX_CSV_FILE_SIZE_BYTES: usize = 5 * 1024 * 1024;
 
 fn original_input_key(merchant_id: &str, job_id: &str) -> String {
     format!("blocklist/batch/{merchant_id}/{job_id}/original.csv")
@@ -68,13 +67,13 @@ fn parse_metadata(s: &str) -> Option<serde_json::Value> {
 impl BlocklistRow {
     fn build_row_error(
         row_index: usize,
-        r#type: common_enums::BlocklistDataKind,
+        data_kind: common_enums::BlocklistDataKind,
         data: String,
         reason: impl Into<String>,
     ) -> api_blocklist::BlocklistRowError {
         api_blocklist::BlocklistRowError {
             row_index,
-            r#type,
+            data_kind,
             data,
             reason: reason.into(),
         }
@@ -143,11 +142,21 @@ impl BlocklistRow {
             ));
         }
 
-        let metadata = record
-            .metadata
-            .as_deref()
-            .filter(|s| !s.is_empty())
-            .and_then(parse_metadata);
+        let metadata_raw = record.metadata.as_deref().filter(|s| !s.is_empty());
+        let metadata = match metadata_raw {
+            None => None,
+            Some(s) => match parse_metadata(s) {
+                Some(m) => Some(m),
+                None => {
+                    return Err(Self::build_row_error(
+                        row_index,
+                        parsed_kind,
+                        data.clone(),
+                        "metadata must be in key=value format, separated by semicolons (e.g. reason=fraud;source=manual)",
+                    ));
+                }
+            },
+        };
 
         Ok(Self {
             data_kind: parsed_kind,
@@ -157,34 +166,29 @@ impl BlocklistRow {
     }
 }
 
-fn parse_csv(
-    csv_bytes: &[u8],
-) -> Result<Vec<BlocklistRow>, api_blocklist::BlocklistValidationError> {
-    let mut csv_reader = ReaderBuilder::new().trim(Trim::All).from_reader(csv_bytes);
+fn parse_csv(csv_bytes: &[u8]) -> Result<Vec<BlocklistRow>, api_blocklist::BlocklistRowError> {
+    let mut csv_reader = ReaderBuilder::new()
+        .trim(Trim::All)
+        .flexible(true)
+        .from_reader(csv_bytes);
 
     let mut rows = Vec::new();
-    let mut errors: Vec<api_blocklist::BlocklistRowError> = Vec::new();
     for (row_index, result) in csv_reader
         .deserialize::<BlocklistCsvRecord>()
         .enumerate()
         .take(MAX_BATCH_CSV_ROWS + 1)
     {
         match result {
-            Ok(record) => match BlocklistRow::from_csv_record(row_index, record) {
-                Ok(row) => rows.push(row),
-                Err(error) => errors.push(error),
-            },
-            Err(error) => errors.push(BlocklistRow::build_row_error(
-                row_index,
-                common_enums::BlocklistDataKind::CardBin,
-                String::new(),
-                error.to_string(),
-            )),
+            Ok(record) => rows.push(BlocklistRow::from_csv_record(row_index, record)?),
+            Err(error) => {
+                return Err(BlocklistRow::build_row_error(
+                    row_index,
+                    common_enums::BlocklistDataKind::CardBin,
+                    String::new(),
+                    error.to_string(),
+                ))
+            }
         }
-    }
-
-    if !errors.is_empty() {
-        return Err(api_blocklist::BlocklistValidationError { errors });
     }
 
     Ok(rows)
@@ -258,25 +262,15 @@ pub(crate) fn parse_chunk_csv(csv_bytes: &[u8]) -> RouterResult<Vec<BlocklistRow
 }
 
 fn validate_csv(csv_bytes: &[u8]) -> RouterResult<Vec<BlocklistRow>> {
-    if csv_bytes.len() > MAX_CSV_FILE_SIZE_BYTES {
-        return Err(errors::ApiErrorResponse::InvalidRequestData {
-            message: format!(
-                "CSV file exceeds the maximum allowed size of {} MB",
-                MAX_CSV_FILE_SIZE_BYTES / (1024 * 1024)
-            ),
-        }
-        .into());
-    }
-
-    let rows = parse_csv(csv_bytes).map_err(|validation_err| {
+    let rows = parse_csv(csv_bytes).map_err(|row_err| {
         logger::warn!(
-            error_count = validation_err.errors.len(),
+            row_index = row_err.row_index,
             "Batch blocklist CSV validation failed"
         );
-        let errors_json = serde_json::to_string(&validation_err.errors)
-            .unwrap_or_else(|_| format!("{} validation error(s)", validation_err.errors.len()));
+        let error_json = serde_json::to_string(&row_err)
+            .unwrap_or_else(|_| format!("validation error at row {}", row_err.row_index));
         errors::ApiErrorResponse::InvalidRequestData {
-            message: errors_json,
+            message: error_json,
         }
     })?;
 
@@ -496,8 +490,8 @@ pub async fn list_batch_blocklist_jobs(
     merchant_id: &id_type::MerchantId,
     query: api_blocklist::ListBatchBlocklistJobsQuery,
 ) -> RouterResult<api_blocklist::ListBatchBlocklistJobsResponse> {
-    let limit = i64::from(query.limit);
-    let offset = i64::from(query.offset);
+    let limit = i64::from(query.limit.get());
+    let offset = i64::from(query.offset.get());
 
     let (jobs, total_count) = future::try_join(
         state.store.list_batch_blocklist_jobs_by_merchant_id(

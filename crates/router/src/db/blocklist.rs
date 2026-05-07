@@ -207,9 +207,26 @@ impl BlocklistInterface for MockDb {
 
     async fn bulk_insert_blocklist_entries(
         &self,
-        _entries: Vec<storage::BlocklistNew>,
+        entries: Vec<storage::BlocklistNew>,
     ) -> CustomResult<usize, errors::StorageError> {
-        Err(errors::StorageError::MockDbError)?
+        let mut blocklists = self.blocklists.lock().await;
+        let mut inserted = 0usize;
+        for entry in entries {
+            let already_exists = blocklists.iter().any(|b| {
+                b.merchant_id == entry.merchant_id && b.fingerprint_id == entry.fingerprint_id
+            });
+            if !already_exists {
+                blocklists.push(storage::Blocklist {
+                    merchant_id: entry.merchant_id,
+                    fingerprint_id: entry.fingerprint_id,
+                    data_kind: entry.data_kind,
+                    metadata: entry.metadata,
+                    created_at: entry.created_at,
+                });
+                inserted += 1;
+            }
+        }
+        Ok(inserted)
     }
 }
 

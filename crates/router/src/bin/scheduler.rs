@@ -346,7 +346,7 @@ impl ProcessTrackerWorkflows<routes::SessionState> for WorkflowRunner {
                             workflows::batch_blocklist_upload::BatchBlocklistUploadWorkflow,
                         ))
                     }
-                    #[cfg(not(feature = "v1"))]
+                    #[cfg(feature = "v2")]
                     {
                         Err(error_stack::report!(ProcessTrackerError::UnexpectedFlow))
                             .attach_printable(
