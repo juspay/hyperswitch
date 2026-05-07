@@ -854,7 +854,7 @@ export const connectorDetails = {
         },
       },
     }),
-    Klarna: getCustomExchange({
+    Klarna: {
       Request: {
         payment_method: "pay_later",
         payment_method_type: "klarna",
@@ -919,7 +919,7 @@ export const connectorDetails = {
           status: "requires_customer_action",
         },
       },
-    }),
+    },
   },
   webhook: {
     TransactionIdConfig: {
