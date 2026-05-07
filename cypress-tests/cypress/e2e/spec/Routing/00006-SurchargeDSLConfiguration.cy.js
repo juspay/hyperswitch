@@ -31,10 +31,12 @@ describe("Surcharge DSL Configuration Test", () => {
         merchant_surcharge_configs: {},
         algorithm: {
           defaultSelection: {
-            surchargeDetails: {
+            surcharge_details: {
               surcharge: {
                 type: "rate",
-                value: 2.5,
+                value: {
+                  percentage: 2.5,
+                },
               },
             },
           },
@@ -85,7 +87,7 @@ describe("Surcharge DSL Configuration Test", () => {
         merchant_surcharge_configs: {},
         algorithm: {
           defaultSelection: {
-            surchargeDetails: {
+            surcharge_details: {
               surcharge: {
                 type: "fixed",
                 value: {
@@ -134,10 +136,12 @@ describe("Surcharge DSL Configuration Test", () => {
         },
         algorithm: {
           defaultSelection: {
-            surchargeDetails: {
+            surcharge_details: {
               surcharge: {
                 type: "rate",
-                value: 2.5,
+                value: {
+                  percentage: 2.5,
+                },
               },
             },
           },
@@ -145,10 +149,12 @@ describe("Surcharge DSL Configuration Test", () => {
             {
               name: "Card Rule",
               connectorSelection: {
-                surchargeDetails: {
+                surcharge_details: {
                   surcharge: {
                     type: "rate",
-                    value: 3.0,
+                    value: {
+                      percentage: 3.0,
+                    },
                   },
                 },
               },
@@ -181,7 +187,7 @@ describe("Surcharge DSL Configuration Test", () => {
             {
               name: "PayPal Rule",
               connectorSelection: {
-                surchargeDetails: {
+                surcharge_details: {
                   surcharge: {
                     type: "fixed",
                     value: {

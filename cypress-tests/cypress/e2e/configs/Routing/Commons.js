@@ -110,10 +110,12 @@ export const connectorDetails = {
         merchant_surcharge_configs: {},
         algorithm: {
           defaultSelection: {
-            surchargeDetails: {
+            surcharge_details: {
               surcharge: {
                 type: "rate",
-                value: 2.5,
+                value: {
+                  percentage: 2.5,
+                },
               },
             },
           },
@@ -139,7 +141,7 @@ export const connectorDetails = {
         merchant_surcharge_configs: {},
         algorithm: {
           defaultSelection: {
-            surchargeDetails: {
+            surcharge_details: {
               surcharge: {
                 type: "fixed",
                 value: {
@@ -172,10 +174,12 @@ export const connectorDetails = {
         },
         algorithm: {
           defaultSelection: {
-            surchargeDetails: {
+            surcharge_details: {
               surcharge: {
                 type: "rate",
-                value: 2.5,
+                value: {
+                  percentage: 2.5,
+                },
               },
             },
           },
@@ -183,10 +187,12 @@ export const connectorDetails = {
             {
               name: "Card Rule",
               connectorSelection: {
-                surchargeDetails: {
+                surcharge_details: {
                   surcharge: {
                     type: "rate",
-                    value: 3.0,
+                    value: {
+                      percentage: 3.0,
+                    },
                   },
                 },
               },
@@ -219,7 +225,7 @@ export const connectorDetails = {
             {
               name: "PayPal Rule",
               connectorSelection: {
-                surchargeDetails: {
+                surcharge_details: {
                   surcharge: {
                     type: "fixed",
                     value: {
