@@ -107,10 +107,10 @@ export const connectorDetails = {
     CreateRate: {
       Request: {
         name: "surcharge_config_rate",
-        merchant_surcharge_configs: {},
+        merchantSurchargeConfigs: {},
         algorithm: {
-          default_selection: {
-            surcharge_details: {
+          defaultSelection: {
+            surchargeDetails: {
               surcharge: {
                 type: "rate",
                 value: {
@@ -138,10 +138,10 @@ export const connectorDetails = {
     CreateFixed: {
       Request: {
         name: "surcharge_config_fixed",
-        merchant_surcharge_configs: {},
+        merchantSurchargeConfigs: {},
         algorithm: {
-          default_selection: {
-            surcharge_details: {
+          defaultSelection: {
+            surchargeDetails: {
               surcharge: {
                 type: "fixed",
                 value: {
@@ -169,12 +169,12 @@ export const connectorDetails = {
     CreateConditional: {
       Request: {
         name: "surcharge_config_complex",
-        merchant_surcharge_configs: {
-          show_surcharge_breakup_screen: true,
+        merchantSurchargeConfigs: {
+          showSurchargeBreakupScreen: true,
         },
         algorithm: {
-          default_selection: {
-            surcharge_details: {
+          defaultSelection: {
+            surchargeDetails: {
               surcharge: {
                 type: "rate",
                 value: {
@@ -186,8 +186,8 @@ export const connectorDetails = {
           rules: [
             {
               name: "Card Rule",
-              connector_selection: {
-                surcharge_details: {
+              connectorSelection: {
+                surchargeDetails: {
                   surcharge: {
                     type: "rate",
                     value: {
@@ -215,8 +215,8 @@ export const connectorDetails = {
             },
             {
               name: "PayPal Rule",
-              connector_selection: {
-                surcharge_details: {
+              connectorSelection: {
+                surchargeDetails: {
                   surcharge: {
                     type: "fixed",
                     value: {

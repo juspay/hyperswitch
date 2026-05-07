@@ -28,10 +28,10 @@ describe("Surcharge DSL Configuration Test", () => {
         ];
       const surchargeBody = {
         name: "surcharge_config_rate",
-        merchant_surcharge_configs: {},
+        merchantSurchargeConfigs: {},
         algorithm: {
-          default_selection: {
-            surcharge_details: {
+          defaultSelection: {
+            surchargeDetails: {
               surcharge: {
                 type: "rate",
                 value: {
@@ -84,10 +84,10 @@ describe("Surcharge DSL Configuration Test", () => {
         ];
       const surchargeBody = {
         name: "surcharge_config_fixed",
-        merchant_surcharge_configs: {},
+        merchantSurchargeConfigs: {},
         algorithm: {
-          default_selection: {
-            surcharge_details: {
+          defaultSelection: {
+            surchargeDetails: {
               surcharge: {
                 type: "fixed",
                 value: {
@@ -131,12 +131,12 @@ describe("Surcharge DSL Configuration Test", () => {
         ];
       const surchargeBody = {
         name: "surcharge_config_complex",
-        merchant_surcharge_configs: {
-          show_surcharge_breakup_screen: true,
+        merchantSurchargeConfigs: {
+          showSurchargeBreakupScreen: true,
         },
         algorithm: {
-          default_selection: {
-            surcharge_details: {
+          defaultSelection: {
+            surchargeDetails: {
               surcharge: {
                 type: "rate",
                 value: {
@@ -148,8 +148,8 @@ describe("Surcharge DSL Configuration Test", () => {
           rules: [
             {
               name: "Card Rule",
-              connector_selection: {
-                surcharge_details: {
+              connectorSelection: {
+                surchargeDetails: {
                   surcharge: {
                     type: "rate",
                     value: {
@@ -177,8 +177,8 @@ describe("Surcharge DSL Configuration Test", () => {
             },
             {
               name: "PayPal Rule",
-              connector_selection: {
-                surcharge_details: {
+              connectorSelection: {
+                surchargeDetails: {
                   surcharge: {
                     type: "fixed",
                     value: {
