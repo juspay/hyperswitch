@@ -982,54 +982,118 @@ impl TryFrom<&SantanderRouterData<&PaymentsAuthorizeRouterData>>
         let mit_data = value
             .router_data
             .request
-            .connector_intent_metadata
+            .feature_metadata
             .clone()
-            .and_then(|m| m.santander)
-            .and_then(|santander| santander.pix_automatico)
+            .and_then(|metadata| metadata.pix_automatico_additional_details)
             .and_then(|pix_automatico| match pix_automatico {
-                api_models::payments::SantanderPixAutomaticoData::Mit(mit) => Some(mit),
+                api_models::payments::PixAutomaticoAdditionalDetails::Mit(mit) => Some(mit),
                 _ => None,
             })
             .ok_or(errors::ConnectorError::MissingRequiredField {
-                field_name: "connector_metadata.santander.pix_automatico.mit",
+                field_name: "feature_metadata.pix_automatico_additional_details.mit",
             })?;
 
-        let receiver_details =
-            mit_data
-                .receiver_details
-                .ok_or(errors::ConnectorError::MissingRequiredField {
-                    field_name: "connector_metadata.santander.pix_automatico.mit.receiver_details",
-                })?;
+        let santander_mca_metadata =
+            SantanderMetadataObject::try_from(&value.router_data.connector_meta_data)?;
 
-        let branch_code =
-            receiver_details
-                .branch_code
-                .clone()
-                .ok_or(errors::ConnectorError::MissingRequiredField {
-                field_name:
-                    "connector_metadata.santander.pix_automatico.mit.receiver_details.branch_code",
-            })?;
+        // Priority: feature_metadata.receiver_details > connector_meta_data
+        // Use connector_meta_data based on payment_method_type
+        let (branch_code, account_number, account_type) = match mit_data.receiver_details {
+            Some(receiver_details) => {
+                let branch = receiver_details.branch_code.clone();
+                let account = receiver_details.account_number.clone();
+                let acc_type = receiver_details.account_type;
 
-        let account_number = receiver_details
-            .account_number
-            .clone()
-            .ok_or(errors::ConnectorError::MissingRequiredField {
-            field_name:
-                "connector_metadata.santander.pix_automatico.mit.receiver_details.account_number",
-        })?;
+                match value.router_data.request.payment_method_type {
+                    Some(enums::PaymentMethodType::PixAutomaticoPush) => {
+                        let push_metadata = santander_mca_metadata
+                            .pix_automatico_push
+                            .ok_or(errors::ConnectorError::NoConnectorMetaData)?;
 
-        let account_type =
-            receiver_details
-                .account_type
-                .ok_or(errors::ConnectorError::MissingRequiredField {
-                field_name:
-                    "connector_metadata.santander.pix_automatico.mit.receiver_details.account_type",
-            })?;
+                        // branch_code is optional
+                        let final_branch = branch.or(push_metadata.branch_code);
+
+                        let final_account = account.unwrap_or(push_metadata.account_number);
+
+                        let final_account_type = acc_type
+                            .map(SantanderAccountType::from)
+                            .unwrap_or_else(|| push_metadata.account_type.into());
+
+                        (final_branch, final_account, final_account_type)
+                    }
+                    Some(enums::PaymentMethodType::PixAutomaticoQr) => {
+                        let qr_metadata = santander_mca_metadata
+                            .pix_automatico_qr
+                            .ok_or(errors::ConnectorError::NoConnectorMetaData)?;
+
+                        // branch_code is optional
+                        let final_branch = branch.or(qr_metadata.branch_code);
+
+                        let final_account = account.unwrap_or(qr_metadata.account_number);
+
+                        let final_account_type = acc_type
+                            .map(SantanderAccountType::from)
+                            .unwrap_or_else(|| qr_metadata.account_type.into());
+
+                        (final_branch, final_account, final_account_type)
+                    }
+                    _ => {
+                        return Err(errors::ConnectorError::NotSupported {
+                            message: format!(
+                                "Payment method type {:?} is not supported for mandates",
+                                value.router_data.request.payment_method_type
+                            ),
+                            connector: "Santander",
+                        }
+                        .into());
+                    }
+                }
+            }
+            None => {
+                // If receiver_details doesn't exist, use connector_meta_data entirely
+                match value.router_data.request.payment_method_type {
+                    Some(enums::PaymentMethodType::PixAutomaticoPush) => {
+                        let push_metadata = santander_mca_metadata
+                            .pix_automatico_push
+                            .ok_or(errors::ConnectorError::NoConnectorMetaData)?;
+
+                        // branch_code is optional
+                        (
+                            push_metadata.branch_code,
+                            push_metadata.account_number,
+                            push_metadata.account_type.into(),
+                        )
+                    }
+                    Some(enums::PaymentMethodType::PixAutomaticoQr) => {
+                        let qr_metadata = santander_mca_metadata
+                            .pix_automatico_qr
+                            .ok_or(errors::ConnectorError::NoConnectorMetaData)?;
+
+                        // branch_code is optional
+                        (
+                            qr_metadata.branch_code,
+                            qr_metadata.account_number,
+                            qr_metadata.account_type.into(),
+                        )
+                    }
+                    _ => {
+                        return Err(errors::ConnectorError::NotSupported {
+                            message: format!(
+                                "Payment method type {:?} is not supported for mandates",
+                                value.router_data.request.payment_method_type
+                            ),
+                            connector: "Santander",
+                        }
+                        .into());
+                    }
+                }
+            }
+        };
 
         let recebedor = SantanderPixAutomaticoRecebedor {
             agencia: branch_code,
             conta: account_number,
-            tipo_conta: Some(SantanderAccountType::from(account_type)),
+            tipo_conta: account_type,
         };
 
         let id_rec = value.router_data.request.get_connector_mandate_id()?;
@@ -1707,7 +1771,7 @@ fn convert_pix_data_to_value(
 
     let qr_code_info = QrCodeInformation::QrCodeUrl {
         image_data_url: image_data_url.clone(),
-        qr_code_url: image_data_url,
+        qr_code_url: None,
         display_to_timestamp: None,
         expiry_type: variant,
         raw_qr_data: Some(data),
@@ -2165,41 +2229,49 @@ fn get_boleto_additional_fields_from_connector_metadata(
 }
 
 impl
-    TryFrom<
+    TryFrom<(
         &SantanderRouterData<
             &RouterData<SetupMandate, SetupMandateRequestData, PaymentsResponseData>,
         >,
-    > for SantanderSetupMandateRequest
+        Option<StringMajorUnit>,
+    )> for SantanderSetupMandateRequest
 {
     type Error = error_stack::Report<errors::ConnectorError>;
 
     fn try_from(
-        value: &SantanderRouterData<
-            &RouterData<SetupMandate, SetupMandateRequestData, PaymentsResponseData>,
-        >,
+        value: (
+            &SantanderRouterData<
+                &RouterData<SetupMandate, SetupMandateRequestData, PaymentsResponseData>,
+            >,
+            Option<StringMajorUnit>,
+        ),
     ) -> Result<Self, Self::Error> {
-        let item = value.router_data;
-        let santander_meta = item
+        let item = value.0.router_data;
+        let min_rec_amount = value.1;
+        let pix_automatico_meta = item
             .request
-            .connector_intent_metadata
+            .feature_metadata
             .as_ref()
-            .and_then(|metadata| metadata.santander.as_ref())
+            .and_then(|metadata| metadata.pix_automatico_additional_details.as_ref())
             .ok_or(errors::ConnectorError::MissingRequiredField {
-                field_name: "connector_metadata.santander",
+                field_name: "feature_metadata.pix_automatico_additional_details",
             })?;
 
-        let pix_automatico_meta = santander_meta.pix_automatico.as_ref().ok_or(
-            errors::ConnectorError::MissingRequiredField {
-                field_name: "pix_automatico metadata",
-            },
-        )?;
-
         let cit_data = match pix_automatico_meta {
-            api_models::payments::SantanderPixAutomaticoData::Cit(cit) => cit,
+            api_models::payments::PixAutomaticoAdditionalDetails::Cit(cit) => cit,
             _ => {
                 return Err(errors::ConnectorError::MissingRequiredField {
-                    field_name: "connector_metadata.santander.pix_automatico.cit",
+                    field_name: "feature_metadata.pix_automatico_additional_details.cit",
                 })?;
+            }
+        };
+
+        let (retry_policy, mandate_details) = match cit_data {
+            api_models::payments::PixAutomaticoCitData::PixAutomaticoPush(push) => {
+                (&push.retry_policy, &push.mandate_details)
+            }
+            api_models::payments::PixAutomaticoCitData::PixAutomaticoQr(qr) => {
+                (&qr.retry_policy, &qr.mandate_details)
             }
         };
 
@@ -2209,7 +2281,7 @@ impl
             },
         )?;
 
-        let politica_retentativa = if cit_data.retry_policy.unwrap_or(false) {
+        let politica_retentativa = if retry_policy.unwrap_or(false) {
             RetryPolicy::Permite3r7d
         } else {
             RetryPolicy::NaoPermite
@@ -2262,9 +2334,7 @@ impl
             .as_ref()
             .and_then(|token| token.parse::<i64>().ok());
 
-        let mandate_details = cit_data.mandate_details.as_ref();
-
-        let data_inicial = match mandate_details.and_then(|md| md.start_date) {
+        let data_inicial = match mandate_details.as_ref().and_then(|md| md.start_date) {
             Some(start_date) => format_as_date_only(Some(start_date))?,
             None => time::OffsetDateTime::now_utc()
                 .date()
@@ -2273,20 +2343,28 @@ impl
         };
 
         let data_final = mandate_details
+            .as_ref()
             .and_then(|md| md.end_date)
             .map(|end_date| format_as_date_only(Some(end_date)))
             .transpose()?;
 
         let periodicidade = mandate_details
+            .as_ref()
             .and_then(|md| md.periodicity.as_ref())
             .map(|p| Periodicidade::from(p.clone()))
             .unwrap_or(Periodicidade::Semanal);
 
-        // either of valor or valor_minimo_recebedor can be passed at one time
-        let valor = Some(RecurrenceValue {
-            valor_rec: Some(value.amount.clone()),
-            valor_minimo_recebedor: None,
-        });
+        // either of valor_rec or valor_minimo_recebedor can be passed at one time, not both
+        let valor = match (value.0.amount.clone(), min_rec_amount.as_ref()) {
+            (_, Some(_)) => Some(RecurrenceValue {
+                valor_rec: None,
+                valor_minimo_recebedor: min_rec_amount,
+            }),
+            (fixed_amount, None) => Some(RecurrenceValue {
+                valor_rec: Some(fixed_amount),
+                valor_minimo_recebedor: None,
+            }),
+        };
 
         let is_immediate = item
             .request

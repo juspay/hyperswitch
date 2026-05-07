@@ -208,6 +208,50 @@ impl ApiModelToDieselModelConvertor<api_models::payments::FinixAdditionalDetails
     }
 }
 
+impl ApiModelToDieselModelConvertor<api_models::payments::SantanderMandatePeriodicity>
+    for diesel_models::types::SantanderMandatePeriodicity
+{
+    fn convert_from(from: api_models::payments::SantanderMandatePeriodicity) -> Self {
+        match from {
+            api_models::payments::SantanderMandatePeriodicity::Weekly => Self::Weekly,
+            api_models::payments::SantanderMandatePeriodicity::Monthly => Self::Monthly,
+            api_models::payments::SantanderMandatePeriodicity::Quarterly => Self::Quarterly,
+            api_models::payments::SantanderMandatePeriodicity::Semiannually => Self::Semiannually,
+            api_models::payments::SantanderMandatePeriodicity::Annually => Self::Annually,
+        }
+    }
+
+    fn convert_back(self) -> api_models::payments::SantanderMandatePeriodicity {
+        match self {
+            Self::Weekly => api_models::payments::SantanderMandatePeriodicity::Weekly,
+            Self::Monthly => api_models::payments::SantanderMandatePeriodicity::Monthly,
+            Self::Quarterly => api_models::payments::SantanderMandatePeriodicity::Quarterly,
+            Self::Semiannually => api_models::payments::SantanderMandatePeriodicity::Semiannually,
+            Self::Annually => api_models::payments::SantanderMandatePeriodicity::Annually,
+        }
+    }
+}
+
+impl ApiModelToDieselModelConvertor<api_models::payments::AccountType>
+    for diesel_models::types::AccountType
+{
+    fn convert_from(from: api_models::payments::AccountType) -> Self {
+        match from {
+            api_models::payments::AccountType::Current => Self::Current,
+            api_models::payments::AccountType::Savings => Self::Savings,
+            api_models::payments::AccountType::Payment => Self::Payment,
+        }
+    }
+
+    fn convert_back(self) -> api_models::payments::AccountType {
+        match self {
+            Self::Current => api_models::payments::AccountType::Current,
+            Self::Savings => api_models::payments::AccountType::Savings,
+            Self::Payment => api_models::payments::AccountType::Payment,
+        }
+    }
+}
+
 impl ApiModelToDieselModelConvertor<api_models::payments::PixAdditionalDetails>
     for diesel_models::types::PixAdditionalDetails
 {
@@ -253,9 +297,54 @@ impl ApiModelToDieselModelConvertor<api_models::payments::PixAutomaticoAdditiona
 {
     fn convert_from(from: api_models::payments::PixAutomaticoAdditionalDetails) -> Self {
         match from {
-            api_models::payments::PixAutomaticoAdditionalDetails::PixAutomaticoPush(v) => {
-                Self::PixAutomaticoPush(diesel_models::types::PixAutomaticoPushDetails {
-                    time: v.time,
+            api_models::payments::PixAutomaticoAdditionalDetails::Cit(cit) => {
+                Self::Cit(match cit {
+                    api_models::payments::PixAutomaticoCitData::PixAutomaticoPush(push) => {
+                        diesel_models::types::PixAutomaticoCitData::PixAutomaticoPush(
+                            diesel_models::types::PixAutomaticoPushData {
+                                time: push.time,
+                                retry_policy: push.retry_policy,
+                                mandate_details: push.mandate_details.map(|m| {
+                                    diesel_models::types::SantanderMandateDetails {
+                                        fixed_recurring_amount: m.fixed_recurring_amount,
+                                        min_recurring_amount: m.min_recurring_amount,
+                                        start_date: m.start_date,
+                                        end_date: m.end_date,
+                                        periodicity: m.periodicity.map(diesel_models::types::SantanderMandatePeriodicity::convert_from),
+                                    }
+                                }),
+                            },
+                        )
+                    }
+                    api_models::payments::PixAutomaticoCitData::PixAutomaticoQr(qr) => {
+                        diesel_models::types::PixAutomaticoCitData::PixAutomaticoQr(
+                            diesel_models::types::PixAutomaticoQrData {
+                                retry_policy: qr.retry_policy,
+                                mandate_details: qr.mandate_details.map(|m| {
+                                    diesel_models::types::SantanderMandateDetails {
+                                        fixed_recurring_amount: m.fixed_recurring_amount,
+                                        min_recurring_amount: m.min_recurring_amount,
+                                        start_date: m.start_date,
+                                        end_date: m.end_date,
+                                        periodicity: m.periodicity.map(diesel_models::types::SantanderMandatePeriodicity::convert_from),
+                                    }
+                                }),
+                            },
+                        )
+                    }
+                })
+            }
+            api_models::payments::PixAutomaticoAdditionalDetails::Mit(mit) => {
+                Self::Mit(diesel_models::types::PixAutomaticoMitData {
+                    receiver_details: mit.receiver_details.map(|r| {
+                        diesel_models::types::SantanderPixAutomaticoReceiverDetails {
+                            branch_code: r.branch_code,
+                            account_number: r.account_number,
+                            account_type: r.account_type.map(diesel_models::types::AccountType::convert_from),
+                        }
+                    }),
+                    mandate_execution_date: mit.mandate_execution_date,
+                    auto_adjust_date: mit.auto_adjust_date,
                 })
             }
         }
@@ -263,11 +352,56 @@ impl ApiModelToDieselModelConvertor<api_models::payments::PixAutomaticoAdditiona
 
     fn convert_back(self) -> api_models::payments::PixAutomaticoAdditionalDetails {
         match self {
-            Self::PixAutomaticoPush(v) => {
-                api_models::payments::PixAutomaticoAdditionalDetails::PixAutomaticoPush(
-                    api_models::payments::PixAutomaticoPushDetails { time: v.time },
-                )
+            Self::Cit(cit) => {
+                api_models::payments::PixAutomaticoAdditionalDetails::Cit(match cit {
+                    diesel_models::types::PixAutomaticoCitData::PixAutomaticoPush(push) => {
+                        api_models::payments::PixAutomaticoCitData::PixAutomaticoPush(
+                            api_models::payments::PixAutomaticoPushData {
+                                time: push.time,
+                                retry_policy: push.retry_policy,
+                                mandate_details: push.mandate_details.map(|m| {
+                                    api_models::payments::SantanderMandateDetails {
+                                        fixed_recurring_amount: m.fixed_recurring_amount,
+                                        min_recurring_amount: m.min_recurring_amount,
+                                        start_date: m.start_date,
+                                        end_date: m.end_date,
+                                        periodicity: m.periodicity.map(|p| p.convert_back()),
+                                    }
+                                }),
+                            },
+                        )
+                    }
+                    diesel_models::types::PixAutomaticoCitData::PixAutomaticoQr(qr) => {
+                        api_models::payments::PixAutomaticoCitData::PixAutomaticoQr(
+                            api_models::payments::PixAutomaticoQrData {
+                                retry_policy: qr.retry_policy,
+                                mandate_details: qr.mandate_details.map(|m| {
+                                    api_models::payments::SantanderMandateDetails {
+                                        fixed_recurring_amount: m.fixed_recurring_amount,
+                                        min_recurring_amount: m.min_recurring_amount,
+                                        start_date: m.start_date,
+                                        end_date: m.end_date,
+                                        periodicity: m.periodicity.map(|p| p.convert_back()),
+                                    }
+                                }),
+                            },
+                        )
+                    }
+                })
             }
+            Self::Mit(mit) => api_models::payments::PixAutomaticoAdditionalDetails::Mit(
+                api_models::payments::PixAutomaticoMitData {
+                    receiver_details: mit.receiver_details.map(|r| {
+                        api_models::payments::SantanderPixAutomaticoReceiverDetails {
+                            branch_code: r.branch_code,
+                            account_number: r.account_number,
+                            account_type: r.account_type.map(|a| a.convert_back()),
+                        }
+                    }),
+                    mandate_execution_date: mit.mandate_execution_date,
+                    auto_adjust_date: mit.auto_adjust_date,
+                },
+            ),
         }
     }
 }

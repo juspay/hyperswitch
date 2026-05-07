@@ -84,6 +84,7 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
     ) -> RouterResult<operations::GetTrackerResponse<'a, F, api::PaymentsRequest, PaymentData<F>>>
     {
+        println!("Entered get_trackers of Payments Create operation");
         let db = &*state.store;
         let money @ (amount, currency) = payments_create_request_validation(request)?;
 
@@ -373,6 +374,11 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         .to_duplicate_response(errors::ApiErrorResponse::DuplicatePayment {
             payment_id: payment_id.clone(),
         })?;
+
+        println!(
+            "Feature Metadata after inserting payment intent: {:?}",
+            payment_intent.feature_metadata
+        );
 
         if let Some(order_details) = &request.order_details {
             helpers::validate_order_details_amount(
@@ -671,6 +677,11 @@ impl<F: Send + Clone + Sync> GetTracker<F, PaymentData<F>, api::PaymentsRequest>
         } else {
             None
         };
+
+        println!(
+            "Feature Metadata during Payment Create: {:?}",
+            payment_intent.feature_metadata
+        );
 
         let payment_data = PaymentData {
             flow: PhantomData,
@@ -1117,6 +1128,11 @@ impl<F: Clone + Sync> UpdateTracker<F, PaymentData<F>, api::PaymentsRequest> for
         let customer_id = payment_data.payment_intent.customer_id.clone();
 
         let customer_details = payment_data.payment_intent.customer_details.clone();
+
+        println!(
+            "Feature Metadata during update_trackers: {:?}",
+            payment_data.payment_intent.feature_metadata
+        );
 
         payment_data.payment_intent = state
             .store
