@@ -7825,7 +7825,8 @@ Cypress.Commands.add("initiatePaymentLinkTest", (data, globalState) => {
   cy.get("body", { timeout: 30000 }).then(($body) => {
     const bodyText = $body.text() || "";
     const hasHyperLoader =
-      bodyText.includes("HyperLoader") || $body.find("#hyperloader-sdk").length > 0;
+      bodyText.includes("HyperLoader") ||
+      $body.find("#hyperloader-sdk").length > 0;
 
     if (hasHyperLoader) {
       cy.task("cli_log", "Payment Link page loaded with HyperLoader SDK");
