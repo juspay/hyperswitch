@@ -109,13 +109,16 @@ export const connectorDetails = {
         name: "surcharge_config_rate",
         merchant_surcharge_configs: {},
         algorithm: {
-          type: "rate",
-          rate: 2.5,
           defaultSelection: {
-            surcharge_type: "rate",
-            rate: 2.5,
+            surchargeDetails: {
+              surcharge: {
+                type: "rate",
+                value: 2.5,
+              },
+            },
           },
           rules: [],
+          metadata: {},
         },
       },
       Response: {
@@ -135,13 +138,18 @@ export const connectorDetails = {
         name: "surcharge_config_fixed",
         merchant_surcharge_configs: {},
         algorithm: {
-          type: "fixed",
-          amount: 100,
           defaultSelection: {
-            surcharge_type: "fixed",
-            amount: 100,
+            surchargeDetails: {
+              surcharge: {
+                type: "fixed",
+                value: {
+                  amount: 100,
+                },
+              },
+            },
           },
           rules: [],
+          metadata: {},
         },
       },
       Response: {
@@ -163,54 +171,86 @@ export const connectorDetails = {
           show_surcharge_breakup_screen: true,
         },
         algorithm: {
-          type: "conditional",
           defaultSelection: {
-            surcharge_type: "fixed",
-            amount: 50,
+            surchargeDetails: {
+              surcharge: {
+                type: "fixed",
+                value: {
+                  amount: 50,
+                },
+              },
+            },
           },
           rules: [
             {
               name: "Card Rule",
               connectorSelection: {
-                surcharge_type: "rate",
-                rate: 3.0,
-              },
-              conditions: [
-                {
-                  field: "payment_method_type",
-                  operator: "equals",
-                  value: "card",
+                surchargeDetails: {
+                  surcharge: {
+                    type: "rate",
+                    value: 3.0,
+                  },
                 },
+              },
+              statements: [
                 {
-                  field: "card_network",
-                  operator: "in",
-                  value: ["visa", "mastercard"],
+                  condition: [
+                    {
+                      lhs: "payment_method",
+                      comparison: "equal",
+                      value: {
+                        type: "enum_variant",
+                        value: "card",
+                      },
+                      metadata: {},
+                    },
+                    {
+                      lhs: "card_network",
+                      comparison: "equal",
+                      value: {
+                        type: "enum_variant_array",
+                        value: ["visa", "mastercard"],
+                      },
+                      metadata: {},
+                    },
+                  ],
+                  nested: null,
                 },
               ],
-              action: {
-                surcharge_type: "rate",
-                rate: 3.0,
-              },
             },
             {
               name: "PayPal Rule",
               connectorSelection: {
-                surcharge_type: "fixed",
-                amount: 200,
+                surchargeDetails: {
+                  surcharge: {
+                    type: "fixed",
+                    value: {
+                      amount: 200,
+                    },
+                  },
+                },
               },
-              conditions: [
+              statements: [
                 {
-                  field: "payment_method_type",
-                  operator: "equals",
-                  value: "paypal",
+                  condition: [
+                    {
+                      lhs: "payment_method",
+                      comparison: "equal",
+                      value: {
+                        type: "enum_variant",
+                        value: "paypal",
+                      },
+                      metadata: {},
+                    },
+                  ],
+                  nested: null,
                 },
               ],
-              action: {
-                surcharge_type: "fixed",
-                amount: 200,
-              },
             },
           ],
+          metadata: {
+            description: "Complex surcharge with payment method and card network conditions",
+          },
         },
       },
       Response: {
