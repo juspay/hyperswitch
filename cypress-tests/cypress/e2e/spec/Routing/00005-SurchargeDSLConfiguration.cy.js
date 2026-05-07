@@ -18,7 +18,7 @@ describe("Surcharge DSL Configuration Test", () => {
     it("create-surcharge-dsl-config-rate", () => {
       const data =
         utils.getConnectorDetails("common")["SurchargeDecisionManager"][
-          "Create"
+          "CreateRate"
         ];
       const surchargeBody = {
         name: "surcharge_config_rate",
@@ -39,16 +39,16 @@ describe("Surcharge DSL Configuration Test", () => {
       cy.createSurchargeDSLConfig(surchargeBody, data, globalState);
     });
 
-    it("retrieve-surcharge-dsl-config", () => {
+    it("retrieve-surcharge-dsl-config-rate", () => {
       const data =
         utils.getConnectorDetails("common")["SurchargeDecisionManager"][
-          "Retrieve"
+          "RetrieveRate"
         ];
 
       cy.retrieveSurchargeDSLConfig(data, globalState);
     });
 
-    it("delete-surcharge-dsl-config", () => {
+    it("delete-surcharge-dsl-config-rate", () => {
       const data =
         utils.getConnectorDetails("common")["SurchargeDecisionManager"][
           "Delete"
@@ -71,7 +71,7 @@ describe("Surcharge DSL Configuration Test", () => {
     it("create-surcharge-dsl-config-fixed", () => {
       const data =
         utils.getConnectorDetails("common")["SurchargeDecisionManager"][
-          "Create"
+          "CreateFixed"
         ];
       const surchargeBody = {
         name: "surcharge_config_fixed",
@@ -95,7 +95,7 @@ describe("Surcharge DSL Configuration Test", () => {
     it("retrieve-surcharge-dsl-config-fixed", () => {
       const data =
         utils.getConnectorDetails("common")["SurchargeDecisionManager"][
-          "Retrieve"
+          "RetrieveFixed"
         ];
 
       cy.retrieveSurchargeDSLConfig(data, globalState);
@@ -115,7 +115,7 @@ describe("Surcharge DSL Configuration Test", () => {
     it("create-surcharge-dsl-config-with-rules", () => {
       const data =
         utils.getConnectorDetails("common")["SurchargeDecisionManager"][
-          "Create"
+          "CreateConditional"
         ];
       const surchargeBody = {
         name: "surcharge_config_complex",
@@ -176,7 +176,7 @@ describe("Surcharge DSL Configuration Test", () => {
     it("retrieve-surcharge-dsl-config-with-rules", () => {
       const data =
         utils.getConnectorDetails("common")["SurchargeDecisionManager"][
-          "Retrieve"
+          "RetrieveConditional"
         ];
 
       cy.retrieveSurchargeDSLConfig(data, globalState);

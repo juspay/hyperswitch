@@ -104,7 +104,7 @@ export const connectorDetails = {
     },
   },
   SurchargeDecisionManager: {
-    Create: {
+    CreateRate: {
       Request: {
         name: "surcharge_config_rate",
         merchant_surcharge_configs: {},
@@ -134,7 +134,7 @@ export const connectorDetails = {
         },
       },
     },
-    Retrieve: {
+    RetrieveRate: {
       Request: {},
       Response: {
         status: 200,
@@ -148,6 +148,197 @@ export const connectorDetails = {
               surcharge_details: null,
             },
             rules: [],
+          },
+        },
+      },
+    },
+    CreateFixed: {
+      Request: {
+        name: "surcharge_config_fixed",
+        merchant_surcharge_configs: {},
+        algorithm: {
+          type: "fixed",
+          amount: 100,
+          defaultSelection: {
+            surcharge_type: "fixed",
+            amount: 100,
+          },
+          rules: [],
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          name: "surcharge_config_fixed",
+          merchant_surcharge_configs: { show_surcharge_breakup_screen: null },
+          algorithm: {
+            type: "fixed",
+            amount: 100,
+            defaultSelection: {
+              surcharge_details: null,
+            },
+            rules: [],
+          },
+        },
+      },
+    },
+    RetrieveFixed: {
+      Request: {},
+      Response: {
+        status: 200,
+        body: {
+          name: "surcharge_config_fixed",
+          merchant_surcharge_configs: { show_surcharge_breakup_screen: null },
+          algorithm: {
+            type: "fixed",
+            amount: 100,
+            defaultSelection: {
+              surcharge_details: null,
+            },
+            rules: [],
+          },
+        },
+      },
+    },
+    CreateConditional: {
+      Request: {
+        name: "surcharge_config_complex",
+        merchant_surcharge_configs: {
+          show_surcharge_breakup_screen: true,
+        },
+        algorithm: {
+          type: "conditional",
+          defaultSelection: {
+            surcharge_type: "fixed",
+            amount: 50,
+          },
+          rules: [
+            {
+              conditions: [
+                {
+                  field: "payment_method_type",
+                  operator: "equals",
+                  value: "card",
+                },
+                {
+                  field: "card_network",
+                  operator: "in",
+                  value: ["visa", "mastercard"],
+                },
+              ],
+              action: {
+                surcharge_type: "rate",
+                rate: 3.0,
+              },
+            },
+            {
+              conditions: [
+                {
+                  field: "payment_method_type",
+                  operator: "equals",
+                  value: "paypal",
+                },
+              ],
+              action: {
+                surcharge_type: "fixed",
+                amount: 200,
+              },
+            },
+          ],
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          name: "surcharge_config_complex",
+          merchant_surcharge_configs: { show_surcharge_breakup_screen: true },
+          algorithm: {
+            type: "conditional",
+            defaultSelection: {
+              surcharge_details: null,
+            },
+            rules: [
+              {
+                conditions: [
+                  {
+                    field: "payment_method_type",
+                    operator: "equals",
+                    value: "card",
+                  },
+                  {
+                    field: "card_network",
+                    operator: "in",
+                    value: ["visa", "mastercard"],
+                  },
+                ],
+                action: {
+                  surcharge_type: "rate",
+                  rate: 3.0,
+                },
+              },
+              {
+                conditions: [
+                  {
+                    field: "payment_method_type",
+                    operator: "equals",
+                    value: "paypal",
+                  },
+                ],
+                action: {
+                  surcharge_type: "fixed",
+                  amount: 200,
+                },
+              },
+            ],
+          },
+        },
+      },
+    },
+    RetrieveConditional: {
+      Request: {},
+      Response: {
+        status: 200,
+        body: {
+          name: "surcharge_config_complex",
+          merchant_surcharge_configs: { show_surcharge_breakup_screen: true },
+          algorithm: {
+            type: "conditional",
+            defaultSelection: {
+              surcharge_details: null,
+            },
+            rules: [
+              {
+                conditions: [
+                  {
+                    field: "payment_method_type",
+                    operator: "equals",
+                    value: "card",
+                  },
+                  {
+                    field: "card_network",
+                    operator: "in",
+                    value: ["visa", "mastercard"],
+                  },
+                ],
+                action: {
+                  surcharge_type: "rate",
+                  rate: 3.0,
+                },
+              },
+              {
+                conditions: [
+                  {
+                    field: "payment_method_type",
+                    operator: "equals",
+                    value: "paypal",
+                  },
+                ],
+                action: {
+                  surcharge_type: "fixed",
+                  amount: 200,
+                },
+              },
+            ],
           },
         },
       },
