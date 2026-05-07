@@ -189,7 +189,8 @@ impl RedisConnectionPool {
             max_feed_count: conf.max_feed_count,
             backpressure: fred::types::BackpressureConfig {
                 disable_auto_backpressure: conf.disable_auto_backpressure,
-                max_in_flight_commands: u64::try_from(conf.max_in_flight_commands).unwrap_or(u64::MAX),
+                max_in_flight_commands: u64::try_from(conf.max_in_flight_commands)
+                    .unwrap_or(u64::MAX),
                 policy: fred::types::BackpressurePolicy::Drain,
             },
             broadcast_channel_capacity: conf.broadcast_channel_capacity,
