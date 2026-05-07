@@ -104,10 +104,13 @@ describe("Iframe Redirection Payment Flow Tests", () => {
   });
 
   context("Edge Case - Iframe Redirection Disabled", () => {
-    it("Create Payment Intent without iframe redirection -> Confirm Payment -> Verify Standard Redirect", function() {
+    it("Create Payment Intent without iframe redirection -> Confirm Payment -> Verify Standard Redirect", function () {
       const connectorId = globalState.get("connectorId");
       if (!CONNECTOR_LISTS.INCLUDE.IFRAME_REDIRECTION.includes(connectorId)) {
-        cy.task("cli_log", `Skipping iframe redirection test - connector ${connectorId} not in supported list`);
+        cy.task(
+          "cli_log",
+          `Skipping iframe redirection test - connector ${connectorId} not in supported list`
+        );
         this.skip();
       }
 
@@ -174,10 +177,13 @@ describe("Iframe Redirection Payment Flow Tests", () => {
   });
 
   context("Negative Case - Invalid Payment Intent State", () => {
-    it("Attempt iframe redirection on invalid payment state -> Verify Error Response", function() {
+    it("Attempt iframe redirection on invalid payment state -> Verify Error Response", function () {
       const connectorId = globalState.get("connectorId");
       if (!CONNECTOR_LISTS.INCLUDE.IFRAME_REDIRECTION.includes(connectorId)) {
-        cy.task("cli_log", `Skipping iframe redirection test - connector ${connectorId} not in supported list`);
+        cy.task(
+          "cli_log",
+          `Skipping iframe redirection test - connector ${connectorId} not in supported list`
+        );
         this.skip();
       }
 
