@@ -878,6 +878,16 @@ export const connectorDetails = {
             last_name: "User",
           },
         },
+        shipping: {
+          address: {
+            line1: "123 Test St",
+            city: "Amsterdam",
+            zip: "1012 WX",
+            country: "NL",
+            first_name: "Test",
+            last_name: "User",
+          },
+        },
         order_details: [
           {
             product_name: "Test Product",
@@ -885,6 +895,18 @@ export const connectorDetails = {
             amount: 6000,
           },
         ],
+        browser_info: {
+          java_enabled: false,
+          java_script_enabled: true,
+          language: "en-US",
+          color_depth: 24,
+          screen_width: 1920,
+          screen_height: 1080,
+          time_zone: 3600,
+          user_agent: "Mozilla/5.0",
+          accept_header: "text/html",
+        },
+        return_url: "https://example.com",
       },
       Response: {
         status: 200,
