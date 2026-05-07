@@ -5,7 +5,8 @@
 //! redis-rs is the primary backend; fred is the fallback.
 
 use crate::types::{
-    DelReply, HsetnxReply, MsetnxReply, RedisEntryId, RedisScanType, RedisValue, SaddReply,SetnxReply, StreamCapKind, StreamCapTrim, StreamTrimConfig,
+    DelReply, HsetnxReply, MsetnxReply, RedisEntryId, RedisScanType, RedisValue, SaddReply,
+    SetnxReply, StreamCapKind, StreamCapTrim, StreamTrimConfig,
 };
 
 // ─── RedisValue impls ────────────────────────────────────────────────────────
