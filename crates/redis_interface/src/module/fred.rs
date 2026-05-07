@@ -12,7 +12,7 @@ use common_utils::errors::CustomResult;
 use error_stack::ResultExt;
 use fred::{
     clients::Transaction,
-    interfaces::{ClientLike, EventInterface,PubsubInterface},
+    interfaces::{ClientLike, EventInterface, PubsubInterface},
     prelude::TransactionInterface,
 };
 
@@ -45,7 +45,6 @@ impl RedisClient {
         channel: &str,
         message: RedisValue,
     ) -> CustomResult<usize, crate::errors::RedisError> {
-        
         self.inner
             .publish(channel, message.into_inner())
             .await
@@ -142,7 +141,6 @@ impl SubscriberClient {
     }
 
     pub async fn unsubscribe(&self, channel: &str) -> CustomResult<(), crate::errors::RedisError> {
-        
         self.inner
             .unsubscribe(channel)
             .await
