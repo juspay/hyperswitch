@@ -30,7 +30,7 @@ describe("Surcharge DSL Configuration Test", () => {
         name: "surcharge_config_rate",
         merchant_surcharge_configs: {},
         algorithm: {
-          defaultSelection: {
+          default_selection: {
             surcharge_details: {
               surcharge: {
                 type: "rate",
@@ -86,7 +86,7 @@ describe("Surcharge DSL Configuration Test", () => {
         name: "surcharge_config_fixed",
         merchant_surcharge_configs: {},
         algorithm: {
-          defaultSelection: {
+          default_selection: {
             surcharge_details: {
               surcharge: {
                 type: "fixed",
@@ -135,7 +135,7 @@ describe("Surcharge DSL Configuration Test", () => {
           show_surcharge_breakup_screen: true,
         },
         algorithm: {
-          defaultSelection: {
+          default_selection: {
             surcharge_details: {
               surcharge: {
                 type: "rate",
@@ -148,7 +148,7 @@ describe("Surcharge DSL Configuration Test", () => {
           rules: [
             {
               name: "Card Rule",
-              connectorSelection: {
+              connector_selection: {
                 surcharge_details: {
                   surcharge: {
                     type: "rate",
@@ -170,15 +170,6 @@ describe("Surcharge DSL Configuration Test", () => {
                       },
                       metadata: {},
                     },
-                    {
-                      lhs: "card_network",
-                      comparison: "equal",
-                      value: {
-                        type: "enum_variant_array",
-                        value: ["visa", "mastercard"],
-                      },
-                      metadata: {},
-                    },
                   ],
                   nested: null,
                 },
@@ -186,7 +177,7 @@ describe("Surcharge DSL Configuration Test", () => {
             },
             {
               name: "PayPal Rule",
-              connectorSelection: {
+              connector_selection: {
                 surcharge_details: {
                   surcharge: {
                     type: "fixed",
@@ -216,7 +207,7 @@ describe("Surcharge DSL Configuration Test", () => {
           ],
           metadata: {
             description:
-              "Complex surcharge with payment method and card network conditions",
+              "Complex surcharge with payment method conditions",
           },
         },
       };

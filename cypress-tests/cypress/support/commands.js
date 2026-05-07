@@ -5357,7 +5357,7 @@ Cypress.Commands.add(
           }
           if (response.body.algorithm) {
             expect(response.body.algorithm).to.have.property("metadata");
-            expect(response.body.algorithm.defaultSelection).to.have.property(
+            expect(response.body.algorithm.default_selection).to.have.property(
               "surcharge_details"
             );
             expect(response.body.algorithm.rules).to.be.an("array");
@@ -5439,7 +5439,7 @@ Cypress.Commands.add("retrieveSurchargeDSLConfig", (data, globalState) => {
         }
         if (response.body.algorithm) {
           expect(response.body.algorithm).to.have.property("metadata");
-          expect(response.body.algorithm.defaultSelection).to.have.property(
+          expect(response.body.algorithm.default_selection).to.have.property(
             "surcharge_details"
           );
           expect(response.body.algorithm.rules).to.be.an("array");

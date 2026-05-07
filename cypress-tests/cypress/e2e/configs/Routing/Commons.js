@@ -109,7 +109,7 @@ export const connectorDetails = {
         name: "surcharge_config_rate",
         merchant_surcharge_configs: {},
         algorithm: {
-          defaultSelection: {
+          default_selection: {
             surcharge_details: {
               surcharge: {
                 type: "rate",
@@ -140,7 +140,7 @@ export const connectorDetails = {
         name: "surcharge_config_fixed",
         merchant_surcharge_configs: {},
         algorithm: {
-          defaultSelection: {
+          default_selection: {
             surcharge_details: {
               surcharge: {
                 type: "fixed",
@@ -173,7 +173,7 @@ export const connectorDetails = {
           show_surcharge_breakup_screen: true,
         },
         algorithm: {
-          defaultSelection: {
+          default_selection: {
             surcharge_details: {
               surcharge: {
                 type: "rate",
@@ -186,7 +186,7 @@ export const connectorDetails = {
           rules: [
             {
               name: "Card Rule",
-              connectorSelection: {
+              connector_selection: {
                 surcharge_details: {
                   surcharge: {
                     type: "rate",
@@ -208,15 +208,6 @@ export const connectorDetails = {
                       },
                       metadata: {},
                     },
-                    {
-                      lhs: "card_network",
-                      comparison: "equal",
-                      value: {
-                        type: "enum_variant_array",
-                        value: ["visa", "mastercard"],
-                      },
-                      metadata: {},
-                    },
                   ],
                   nested: null,
                 },
@@ -224,7 +215,7 @@ export const connectorDetails = {
             },
             {
               name: "PayPal Rule",
-              connectorSelection: {
+              connector_selection: {
                 surcharge_details: {
                   surcharge: {
                     type: "fixed",
@@ -254,7 +245,7 @@ export const connectorDetails = {
           ],
           metadata: {
             description:
-              "Complex surcharge with payment method and card network conditions",
+              "Complex surcharge with payment method conditions",
           },
         },
       },
