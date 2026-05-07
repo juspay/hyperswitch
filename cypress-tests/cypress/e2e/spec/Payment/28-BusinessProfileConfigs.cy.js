@@ -378,14 +378,6 @@ describe("Config Tests", () => {
   );
 
   context("Outgoing Webhook Custom HTTP Headers", () => {
-    const shouldContinue = true;
-
-    beforeEach(function () {
-      if (!shouldContinue) {
-        this.skip();
-      }
-    });
-
     it("Create Business Profile", () => {
       cy.createBusinessProfileTest(
         fixtures.businessProfile.bpCreate,
@@ -404,10 +396,6 @@ describe("Config Tests", () => {
     });
 
     it("Update business profile with new custom webhook headers and verify updated masked response", () => {
-      if (!shouldContinue) {
-        cy.task("cli_log", "Skipping step: Update with new headers");
-        return;
-      }
       const webhookHeadersBody = JSON.parse(
         JSON.stringify(fixtures.businessProfile.bpUpdateWebhookHeadersUpdated)
       );
@@ -418,10 +406,6 @@ describe("Config Tests", () => {
     });
 
     it("Clear custom webhook headers with empty object", () => {
-      if (!shouldContinue) {
-        cy.task("cli_log", "Skipping step: Clear headers");
-        return;
-      }
       const webhookHeadersBody = JSON.parse(
         JSON.stringify(fixtures.businessProfile.bpUpdateWebhookHeadersClear)
       );

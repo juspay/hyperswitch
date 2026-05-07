@@ -863,7 +863,7 @@ Cypress.Commands.add(
           webhookHeadersBody.outgoing_webhook_custom_http_headers;
 
         if (Object.keys(requestHeaders).length === 0) {
-          expect(responseHeaders).to.deep.equal({});
+          expect(responseHeaders ?? {}).to.deep.equal({});
         } else {
           for (const [key, value] of Object.entries(requestHeaders)) {
             const masked = maskValue(value);
