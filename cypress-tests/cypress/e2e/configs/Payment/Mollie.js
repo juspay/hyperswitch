@@ -859,6 +859,7 @@ export const connectorDetails = {
         payment_method: "pay_later",
         payment_method_type: "klarna",
         payment_experience: "redirect_to_url",
+        description: "Test Order",
         payment_method_data: {
           pay_later: {
             klarna_redirect: {
