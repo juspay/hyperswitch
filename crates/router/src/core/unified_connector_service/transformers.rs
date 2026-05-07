@@ -745,6 +745,7 @@ impl
                 .payment_experience
                 .map(payments_grpc::PaymentExperience::foreign_from)
                 .map(Into::into),
+            attempt_status: Some(payments_grpc::PaymentStatus::foreign_from(router_data.status).into()),
         })
     }
 }
@@ -760,6 +761,41 @@ impl ForeignFrom<common_enums::PaymentExperience> for payments_grpc::PaymentExpe
             common_enums::PaymentExperience::InvokePaymentApp => Self::InvokePaymentApp,
             common_enums::PaymentExperience::DisplayWaitScreen => Self::DisplayWaitScreen,
             common_enums::PaymentExperience::CollectOtp => Self::CollectOtp,
+        }
+    }
+}
+
+impl ForeignFrom<AttemptStatus> for payments_grpc::PaymentStatus {
+    fn foreign_from(status: AttemptStatus) -> Self {
+        match status {
+            AttemptStatus::Charged => Self::Charged,
+            AttemptStatus::Pending => Self::Pending,
+            AttemptStatus::Failure => Self::Failure,
+            AttemptStatus::Authorized => Self::Authorized,
+            AttemptStatus::PartiallyAuthorized => Self::PartiallyAuthorized,
+            AttemptStatus::Started => Self::Started,
+            AttemptStatus::Expired => Self::Expired,
+            AttemptStatus::AuthenticationFailed => Self::AuthenticationFailed,
+            AttemptStatus::AuthenticationPending => Self::AuthenticationPending,
+            AttemptStatus::AuthenticationSuccessful => Self::AuthenticationSuccessful,
+            AttemptStatus::Authorizing => Self::Authorizing,
+            AttemptStatus::CaptureInitiated => Self::CaptureInitiated,
+            AttemptStatus::CaptureFailed => Self::CaptureFailed,
+            AttemptStatus::VoidInitiated => Self::VoidInitiated,
+            AttemptStatus::VoidFailed => Self::VoidFailed,
+            AttemptStatus::Voided => Self::Voided,
+            AttemptStatus::VoidedPostCharge => Self::VoidedPostCapture,
+            AttemptStatus::Unresolved => Self::Unresolved,
+            AttemptStatus::PaymentMethodAwaited => Self::PaymentMethodAwaited,
+            AttemptStatus::ConfirmationAwaited => Self::ConfirmationAwaited,
+            AttemptStatus::DeviceDataCollectionPending => Self::DeviceDataCollectionPending,
+            AttemptStatus::RouterDeclined => Self::RouterDeclined,
+            AttemptStatus::AuthorizationFailed => Self::AuthorizationFailed,
+            AttemptStatus::CodInitiated => Self::CodInitiated,
+            AttemptStatus::AutoRefunded => Self::AutoRefunded,
+            AttemptStatus::PartialCharged => Self::PartialCharged,
+            AttemptStatus::PartialChargedAndChargeable => Self::PartialChargedAndChargeable,
+            AttemptStatus::IntegrityFailure => Self::Failure,
         }
     }
 }
