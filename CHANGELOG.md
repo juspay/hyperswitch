@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.04.02.0-hotfix7.2
+
+### Miscellaneous Tasks
+
+- XML changes ([`3dfd08e`](https://github.com/juspay/hyperswitch/commit/3dfd08e7c9a757ec9d2310e37c478feff8ab3e82))
+
+**Full Changelog:** [`2026.04.02.0-hotfix7.1...2026.04.02.0-hotfix7.2`](https://github.com/juspay/hyperswitch/compare/2026.04.02.0-hotfix7.1...2026.04.02.0-hotfix7.2)
+
+- - -
+
 ## 2026.04.02.0-hotfix7.1
 
 ### Bug Fixes
