@@ -952,6 +952,9 @@ export const connectorDetails = {
       },
     }),
     Trustly: getCustomExchange({
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
       Request: {
         payment_method: "bank_redirect",
         payment_method_type: "trustly",

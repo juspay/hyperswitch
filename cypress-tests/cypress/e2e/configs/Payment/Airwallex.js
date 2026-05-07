@@ -889,6 +889,9 @@ export const connectorDetails = {
   },
   bank_redirect_pm: {
     Trustly: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
       Request: {
         payment_method: "bank_redirect",
         payment_method_type: "trustly",
