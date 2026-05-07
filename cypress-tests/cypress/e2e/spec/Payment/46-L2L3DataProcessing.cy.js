@@ -37,7 +37,19 @@ describe("L2/L3 Data Processing Tests", () => {
       let shouldContinue = true;
 
       cy.step("Update Business Profile (L2/L3 enabled)", () => {
-        cy.updateL2L3Flag(true, globalState);
+        const body = {
+          ...fixtures.businessProfile.bpUpdate,
+          is_l2_l3_enabled: true,
+        };
+        cy.UpdateBusinessProfileTest(
+          body,
+          body.is_connector_agnostic_mit_enabled,
+          body.collect_billing_details_from_wallet_connector,
+          body.collect_shipping_details_from_wallet_connector,
+          body.always_collect_billing_details_from_wallet_connector,
+          body.always_collect_shipping_details_from_wallet_connector,
+          globalState
+        );
       });
 
       cy.step("Create Payment Intent", () => {
@@ -111,7 +123,19 @@ describe("L2/L3 Data Processing Tests", () => {
       let shouldContinue = true;
 
       cy.step("Update Business Profile (L2/L3 disabled)", () => {
-        cy.updateL2L3Flag(false, globalState);
+        const body = {
+          ...fixtures.businessProfile.bpUpdate,
+          is_l2_l3_enabled: false,
+        };
+        cy.UpdateBusinessProfileTest(
+          body,
+          body.is_connector_agnostic_mit_enabled,
+          body.collect_billing_details_from_wallet_connector,
+          body.collect_shipping_details_from_wallet_connector,
+          body.always_collect_billing_details_from_wallet_connector,
+          body.always_collect_shipping_details_from_wallet_connector,
+          globalState
+        );
       });
 
       cy.step("Create and Confirm Payment with L2/L3 fields", () => {
