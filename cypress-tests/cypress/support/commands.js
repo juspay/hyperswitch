@@ -4718,14 +4718,18 @@ Cypress.Commands.add(
     const connectorId = globalState.get("connectorId");
     const nextActionUrl = globalState.get("nextActionUrl");
 
-    const expectedUrl = new URL(expected_redirection);
+    // Support calling with just globalState (defaults used when spec omits extra args)
+    const resolvedPaymentMethodType = paymentMethodType || globalState.get("paymentMethodType");
+    const resolvedExpectedRedirection = expected_redirection || "https://example.com";
+
+    const expectedUrl = new URL(resolvedExpectedRedirection);
     const redirectionUrl = new URL(nextActionUrl);
 
     handleRedirection(
       "pay_later",
       { redirectionUrl, expectedUrl },
       connectorId,
-      paymentMethodType,
+      resolvedPaymentMethodType,
       { globalState }
     );
   }

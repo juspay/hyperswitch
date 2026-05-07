@@ -202,7 +202,7 @@ describe("PayLater tests", () => {
         const confirmData = getConnectorDetails(globalState.get("connectorId"))[
           "pay_later_pm"
         ]["AffirmManualCapture"];
-        cy.confirmCallTest(
+        cy.confirmPayLaterCallTest(
           fixtures.confirmBody,
           confirmData,
           true,
@@ -317,7 +317,7 @@ describe("PayLater tests", () => {
         const confirmData = getConnectorDetails(globalState.get("connectorId"))[
           "pay_later_pm"
         ]["AffirmManualCapture"];
-        cy.confirmCallTest(
+        cy.confirmPayLaterCallTest(
           fixtures.confirmBody,
           confirmData,
           true,
