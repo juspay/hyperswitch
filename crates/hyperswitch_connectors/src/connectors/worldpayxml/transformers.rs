@@ -1313,7 +1313,7 @@ fn get_attempt_status(
     match last_event {
         LastEvent::Authorised => {
             if is_auto_capture {
-                Ok(common_enums::AttemptStatus::Pending)
+                Ok(common_enums::AttemptStatus::Charged)
             } else if previous_status == Some(&common_enums::AttemptStatus::CaptureInitiated)
                 && !is_auto_capture
             {
@@ -1357,11 +1357,10 @@ fn get_attempt_status_for_setup_mandate(
 
 fn get_refund_status(last_event: LastEvent) -> Result<enums::RefundStatus, errors::ConnectorError> {
     match last_event {
-        LastEvent::Refunded => Ok(enums::RefundStatus::Success),
-        LastEvent::SentForRefund
-        | LastEvent::RefundRequested
-        | LastEvent::SentForFastRefund
-        | LastEvent::RefundedByMerchant => Ok(enums::RefundStatus::Pending),
+        LastEvent::Refunded | LastEvent::RefundedByMerchant => Ok(enums::RefundStatus::Success),
+        LastEvent::SentForRefund | LastEvent::RefundRequested | LastEvent::SentForFastRefund => {
+            Ok(enums::RefundStatus::Pending)
+        }
         LastEvent::RefundFailed => Ok(enums::RefundStatus::Failure),
         LastEvent::Captured | LastEvent::Settled => Ok(enums::RefundStatus::Pending),
         _ => Err(errors::ConnectorError::UnexpectedResponseError(
