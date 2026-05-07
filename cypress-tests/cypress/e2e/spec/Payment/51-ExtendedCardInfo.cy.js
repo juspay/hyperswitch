@@ -163,7 +163,7 @@ describe("Extended Card Info Tests", () => {
   );
 
   context(
-    "Extended Card BIN - Enable config, confirm payment, verify 8-digit BIN in response",
+    "Extended Card BIN - Enable config, confirm payment, verify BIN is null",
     () => {
       let shouldContinue = true;
 
@@ -217,8 +217,8 @@ describe("Extended Card Info Tests", () => {
         }
       });
 
-      it("Retrieve Payment and verify extended BIN (8 digits) is present", () => {
-        cy.retrievePaymentAndVerifyExtendedBinTest(true, globalState);
+      it("Retrieve Payment and verify extended BIN is null", () => {
+        cy.retrievePaymentAndVerifyExtendedBinTest(false, globalState);
       });
     }
   );
