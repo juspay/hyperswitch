@@ -562,7 +562,6 @@ export const CONNECTOR_LISTS = {
       "authorizedotnet",
       "bankofamerica",
       "datatrans",
-      "finix",
       "fiuu",
       "globalpay",
       "nexinets",

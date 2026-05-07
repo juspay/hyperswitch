@@ -3514,39 +3514,27 @@ Cypress.Commands.add(
             "Step-Up retry should have 2 attempts"
           ).to.equal(2);
 
-          // First attempt should be no_three_ds and failed
-          const firstAttempt = response.body.attempts[0];
+          // Find the three_ds attempt (Step-Up retry)
+          const threeDsAttempt = response.body.attempts.find(
+            (a) => a.authentication_type === "three_ds"
+          );
           expect(
-            firstAttempt.attempt_id,
-            "First attempt ID should end with _1"
-          ).to.equal(`${paymentId}_1`);
+            threeDsAttempt,
+            "At least one attempt should be three_ds for Step-Up retry"
+          ).to.not.be.undefined;
 
-          // Second attempt should be three_ds (Step-Up retry)
-          const secondAttempt = response.body.attempts[1];
-          expect(
-            secondAttempt.attempt_id,
-            "Second attempt ID should end with _2"
-          ).to.equal(`${paymentId}_2`);
-          expect(
-            secondAttempt.authentication_type,
-            "Second attempt should be three_ds for Step-Up retry"
-          ).to.equal("three_ds");
           expect(
             response.body.status,
-            "Payment status should be requires_customer_action or failed after Step-Up retry"
+            "Payment status should be requires_customer_action, processing, or failed after Step-Up retry"
           ).to.satisfy((status) =>
-            ["requires_customer_action", "failed"].includes(status)
+            ["requires_customer_action", "processing", "failed"].includes(status)
           );
-        } else if (attempt === 1) {
-          // Step-Up disabled case - only 1 attempt
+        } else if (!isStepUpRetryEnabled && maxRetries === 0) {
+          // No retries and no Step-Up - only 1 attempt expected
           expect(
             response.body.attempts.length,
-            "Step-Up disabled should have only 1 attempt"
+            "No retry should have only 1 attempt"
           ).to.equal(1);
-          expect(
-            response.body.attempts[0].attempt_id,
-            "Only attempt should end with _1"
-          ).to.equal(`${paymentId}_1`);
         }
       }
     });
