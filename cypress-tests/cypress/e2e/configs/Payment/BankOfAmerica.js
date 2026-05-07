@@ -257,6 +257,15 @@ export const connectorDetails = {
         },
       },
     },
+    ManualRefundUpdate: {
+      Request: {
+        status: "failed",
+      },
+      Response: {
+        status: 200,
+        body: {},
+      },
+    },
     SyncRefund: {
       Response: {
         status: 200,
