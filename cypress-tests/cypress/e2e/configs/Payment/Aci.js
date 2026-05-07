@@ -696,6 +696,9 @@ export const connectorDetails = {
   },
   bank_redirect_pm: {
     Ideal: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
       Request: {
         payment_method: "bank_redirect",
         payment_method_type: "ideal",
@@ -712,6 +715,36 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "failed",
+          error_code: "800.900.300",
+          error_message: "invalid authentication information",
+        },
+      },
+    },
+    Giropay: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+      Request: {
+        payment_method: "bank_redirect",
+        payment_method_type: "giropay",
+        payment_method_data: {
+          bank_redirect: {
+            giropay: {
+              bank_name: "",
+              bank_account_bic: "",
+              bank_account_iban: "",
+              preferred_language: "en",
+              country: "DE",
+            },
+          },
+        },
+        billing: billingAddress,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "failed",
+          error_code: "800.900.300",
           error_message: "invalid authentication information",
         },
       },

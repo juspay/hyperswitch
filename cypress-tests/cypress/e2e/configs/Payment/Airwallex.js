@@ -903,7 +903,9 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "requires_customer_action",
+          status: "failed",
+          error_message:
+            "No eligible connector was found for the current payment method configuration",
         },
       },
     },

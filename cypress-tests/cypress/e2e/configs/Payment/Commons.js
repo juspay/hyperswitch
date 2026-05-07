@@ -964,6 +964,14 @@ export const connectorDetails = {
         },
         billing: standardBillingAddress,
       },
+      Response: {
+        status: 200,
+        body: {
+          status: "failed",
+          error_message:
+            "No eligible connector was found for the current payment method configuration",
+        },
+      },
     }),
   },
   bank_debit_pm: {
