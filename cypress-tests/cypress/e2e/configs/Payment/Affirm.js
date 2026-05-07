@@ -1,9 +1,11 @@
+import { customerAcceptance } from "./Commons";
+
 export const connectorDetails = {
   pay_later_pm: {
     PaymentIntent: {
       Request: {
         currency: "USD",
-        customer_acceptance: null,
+        customer_acceptance: customerAcceptance,
         setup_future_usage: "on_session",
       },
       Response: {
@@ -73,44 +75,41 @@ export const connectorDetails = {
       },
     },
     Refund: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
       Request: {
         amount: 6000,
       },
       Response: {
         status: 200,
         body: {
-          error: {
-            type: "invalid_request",
-            message: "Refund is not implemented for this connector",
-            code: "IR_00",
-          },
+          status: "succeeded",
         },
       },
     },
     PartialRefund: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
       Request: {
         amount: 2000,
       },
       Response: {
         status: 200,
         body: {
-          error: {
-            type: "invalid_request",
-            message: "Refund is not implemented for this connector",
-            code: "IR_00",
-          },
+          status: "succeeded",
         },
       },
     },
     SyncRefund: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
       Response: {
         status: 200,
         body: {
-          error: {
-            type: "invalid_request",
-            message: "Sync Refund is not implemented for this connector",
-            code: "IR_00",
-          },
+          status: "succeeded",
         },
       },
     },
