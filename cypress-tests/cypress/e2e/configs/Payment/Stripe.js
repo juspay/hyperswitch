@@ -191,7 +191,6 @@ export const connectorDetails = {
           connector_mandate_id: null,
         },
       },
-      },
     },
     PaymentConfirmWithShippingCost: {
       Request: {
