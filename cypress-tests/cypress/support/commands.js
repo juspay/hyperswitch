@@ -3527,7 +3527,9 @@ Cypress.Commands.add(
             response.body.status,
             "Payment status should be requires_customer_action, processing, or failed after Step-Up retry"
           ).to.satisfy((status) =>
-            ["requires_customer_action", "processing", "failed"].includes(status)
+            ["requires_customer_action", "processing", "failed"].includes(
+              status
+            )
           );
         } else if (!isStepUpRetryEnabled && maxRetries === 0) {
           // No retries and no Step-Up - only 1 attempt expected
