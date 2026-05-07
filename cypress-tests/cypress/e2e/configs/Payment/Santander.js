@@ -72,10 +72,9 @@ const bankTransferSkipConfigs = {
     Configs: { TRIGGER_SKIP: true },
     Request: { currency: "EUR" },
     Response: {
+      status: 200,
       body: {
-        error: {
-          type: "api",
-        },
+        status: "requires_payment_method",
       },
     },
   }),
@@ -83,10 +82,9 @@ const bankTransferSkipConfigs = {
     Configs: { TRIGGER_SKIP: true },
     Request: { currency: "PLN" },
     Response: {
+      status: 200,
       body: {
-        error: {
-          type: "api",
-        },
+        status: "requires_payment_method",
       },
     },
   }),
@@ -94,10 +92,9 @@ const bankTransferSkipConfigs = {
     Configs: { TRIGGER_SKIP: true },
     Request: { currency: "USD" },
     Response: {
+      status: 200,
       body: {
-        error: {
-          type: "api",
-        },
+        status: "requires_payment_method",
       },
     },
   }),
@@ -196,8 +193,23 @@ export const connectorDetails = {
         "InstantBankTransferPoland",
         "Ach",
       ];
+      const skipConfirmMethods = [
+        "Boleto",
+      ];
       if (unsupportedMethods.includes(paymentMethodType)) {
         return bankTransferSkipConfigs[paymentMethodType];
+      }
+      if (skipConfirmMethods.includes(paymentMethodType)) {
+        return getCustomExchange({
+          Configs: { TRIGGER_SKIP: true },
+          Request: { currency: getCurrency(paymentMethodType) },
+          Response: {
+            status: 200,
+            body: {
+              status: "requires_payment_method",
+            },
+          },
+        });
       }
       return getCustomExchange({
         Request: { currency: getCurrency(paymentMethodType) },
@@ -210,6 +222,7 @@ export const connectorDetails = {
       });
     },
     Pix: getCustomExchange({
+      Configs: { TRIGGER_SKIP: true },
       Request: {
         payment_method: "bank_transfer",
         payment_method_type: "pix",
@@ -298,7 +311,7 @@ export const connectorDetails = {
         status: 501,
         body: {
           error: {
-            type: "api",
+            type: "invalid_request",
           },
         },
       },
