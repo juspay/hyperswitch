@@ -25,6 +25,13 @@ pub enum FingerprintData {
     CardNumber(cards::CardNumber),
     BankDebit(FingerprintBankDebitData),
 }
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub enum ParentFingerprintData {
+    CardNumber(cards::CardNumber),
+    NetworkToken(cards::NetworkToken),
+    CardNumberData(cards::CardNumber),
+    BankDebit(hyperswitch_masking::Secret<String>),
+}
 
 #[derive(Debug, Default, Deserialize, Serialize, Clone)]
 pub struct FingerprintBankDebitData {
@@ -215,6 +222,24 @@ impl PaymentMethodVaultingData {
             Self::CardNumber(card_number) => FingerprintData::CardNumber(card_number.clone()),
             Self::BankDebit(bank_debit) => {
                 FingerprintData::BankDebit(Self::get_bank_debit_fingerprint_data(bank_debit))
+            }
+        }
+    }
+
+    #[cfg(feature = "v2")]
+
+    pub fn to_parent_fingerprint_data(&self) -> ParentFingerprintData {
+        match self {
+            Self::Card(card) => ParentFingerprintData::CardNumber(card.card_number.clone()),
+            Self::NetworkToken(nt) => ParentFingerprintData::NetworkToken(nt.network_token.clone()),
+            Self::CardNumber(card_number) => ParentFingerprintData::CardNumber(card_number.clone()),
+            Self::BankDebit(bank_debit) => {
+                let account_number = match bank_debit {
+                    payment_method_data::BankDebitDetail::Ach { account_number, .. } => {
+                        account_number.clone()
+                    }
+                };
+                ParentFingerprintData::BankDebit(account_number)
             }
         }
     }

@@ -114,6 +114,7 @@ pub struct PaymentMethod {
     pub payment_method_type_v2: Option<storage_enums::PaymentMethod>,
     pub payment_method_subtype: Option<storage_enums::PaymentMethodType>,
     pub external_vault_token_data: Option<Encryption>,
+    pub parent_fingerprint_id: Option<String>,
 }
 
 impl PaymentMethod {
@@ -202,6 +203,7 @@ pub struct PaymentMethodNew {
     pub network_token_payment_method_data: Option<Encryption>,
     pub external_vault_token_data: Option<Encryption>,
     pub locker_fingerprint_id: Option<String>,
+    pub parent_fingerprint_id: Option<String>,
     pub payment_method_type_v2: Option<storage_enums::PaymentMethod>,
     pub payment_method_subtype: Option<storage_enums::PaymentMethodType>,
     pub id: common_utils::id_type::GlobalPaymentMethodId,
@@ -453,6 +455,7 @@ impl PaymentMethodUpdateInternal {
             last_modified_by: last_modified_by.or(source.last_modified_by),
             customer_details: customer_details.or(source.customer_details),
             network_tokenization_data: source.network_tokenization_data,
+            parent_fingerprint_id: source.parent_fingerprint_id,
         }
     }
 }
@@ -1206,6 +1209,7 @@ impl From<&PaymentMethodNew> for PaymentMethod {
                 .payment_method_billing_address
                 .clone(),
             locker_fingerprint_id: payment_method_new.locker_fingerprint_id.clone(),
+            parent_fingerprint_id: payment_method_new.parent_fingerprint_id.clone(),
             payment_method_type_v2: payment_method_new.payment_method_type_v2,
             payment_method_subtype: payment_method_new.payment_method_subtype,
             id: payment_method_new.id.clone(),
