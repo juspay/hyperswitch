@@ -871,6 +871,7 @@ export const connectorDetails = {
           email: "test@example.com",
           address: {
             line1: "123 Test St",
+            line2: "",
             city: "Amsterdam",
             zip: "1012 WX",
             country: "NL",
@@ -881,6 +882,7 @@ export const connectorDetails = {
         shipping: {
           address: {
             line1: "123 Test St",
+            line2: "",
             city: "Amsterdam",
             zip: "1012 WX",
             country: "NL",
