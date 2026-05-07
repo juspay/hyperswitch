@@ -1,4 +1,5 @@
 import { getCustomExchange } from "./Modifiers";
+import { customerAcceptance } from "./Commons.js";
 
 export const connectorDetails = {
   pay_later_pm: {
@@ -85,7 +86,7 @@ export const connectorDetails = {
             last_name: "Doe",
           },
         },
-        customer_acceptance: null,
+        customer_acceptance: customerAcceptance,
       },
       Response: {
         status: 200,
