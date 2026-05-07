@@ -138,8 +138,8 @@ function createIndividualRolloutConfig(
                 });
               });
           });
-        }
-      });
+      }
+    });
 }
 
 /**
@@ -666,7 +666,8 @@ Cypress.Commands.add("merchantRetrieveCall", (globalState) => {
 Cypress.Commands.add(
   "merchantRetrieveCallTest",
   (globalState, options = {}) => {
-    const { expectedProductType = "orchestration", merchantId = null } = options;
+    const { expectedProductType = "orchestration", merchantId = null } =
+      options;
 
     const merchant_id = merchantId ?? globalState.get("merchantId");
 
