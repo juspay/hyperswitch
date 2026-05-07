@@ -574,7 +574,7 @@ export const CONNECTOR_LISTS = {
       "trustpay",
       "worldpay",
       "worldpayvantiv",
-    ],,
+    ],
     // Add more inclusion lists
   },
 };
