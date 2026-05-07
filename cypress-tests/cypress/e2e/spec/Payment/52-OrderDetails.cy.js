@@ -39,7 +39,10 @@ describe("Card - Order Details payment flow test", () => {
 
       cy.step("Retrieve Payment with order_details", () => {
         if (!shouldContinue) {
-          cy.task("cli_log", "Skipping step: Retrieve Payment with order_details");
+          cy.task(
+            "cli_log",
+            "Skipping step: Retrieve Payment with order_details"
+          );
           return;
         }
         const data = getConnectorDetails(globalState.get("connectorId"))[
@@ -51,57 +54,69 @@ describe("Card - Order Details payment flow test", () => {
     });
   });
 
-  context("Create and confirm payment with multiple order_details items", () => {
-    it("Create and Confirm Payment with multiple order_details -> Retrieve Payment with order_details", () => {
-      let shouldContinue = true;
+  context(
+    "Create and confirm payment with multiple order_details items",
+    () => {
+      it("Create and Confirm Payment with multiple order_details -> Retrieve Payment with order_details", () => {
+        let shouldContinue = true;
 
-      cy.step("Create and Confirm Payment with multiple order_details", () => {
-        const data = getConnectorDetails(globalState.get("connectorId"))[
-          "card_pm"
-        ]["OrderDetailsMultipleItems"];
+        cy.step(
+          "Create and Confirm Payment with multiple order_details",
+          () => {
+            const data = getConnectorDetails(globalState.get("connectorId"))[
+              "card_pm"
+            ]["OrderDetailsMultipleItems"];
 
-        cy.createConfirmPaymentTest(
-          fixtures.createConfirmPaymentBody,
-          data,
-          "no_three_ds",
-          "automatic",
-          globalState
+            cy.createConfirmPaymentTest(
+              fixtures.createConfirmPaymentBody,
+              data,
+              "no_three_ds",
+              "automatic",
+              globalState
+            );
+
+            if (!utils.should_continue_further(data)) {
+              shouldContinue = false;
+            }
+          }
         );
 
-        if (!utils.should_continue_further(data)) {
-          shouldContinue = false;
-        }
+        cy.step("Retrieve Payment with multiple order_details", () => {
+          if (!shouldContinue) {
+            cy.task(
+              "cli_log",
+              "Skipping step: Retrieve Payment with multiple order_details"
+            );
+            return;
+          }
+          const data = getConnectorDetails(globalState.get("connectorId"))[
+            "card_pm"
+          ]["OrderDetailsMultipleItems"];
+
+          cy.retrievePaymentCallTest({ globalState, data });
+        });
       });
+    }
+  );
 
-      cy.step("Retrieve Payment with multiple order_details", () => {
-        if (!shouldContinue) {
-          cy.task("cli_log", "Skipping step: Retrieve Payment with multiple order_details");
-          return;
-        }
-        const data = getConnectorDetails(globalState.get("connectorId"))[
-          "card_pm"
-        ]["OrderDetailsMultipleItems"];
+  context(
+    "Create and confirm payment with missing required order_details field",
+    () => {
+      it("Create and Confirm Payment with missing product_name -> Expect validation error IR_06", () => {
+        cy.step("Create and Confirm Payment with missing product_name", () => {
+          const data = getConnectorDetails(globalState.get("connectorId"))[
+            "card_pm"
+          ]["OrderDetailsMissingProductName"];
 
-        cy.retrievePaymentCallTest({ globalState, data });
+          cy.createConfirmPaymentTest(
+            fixtures.createConfirmPaymentBody,
+            data,
+            "no_three_ds",
+            "automatic",
+            globalState
+          );
+        });
       });
-    });
-  });
-
-  context("Create and confirm payment with missing required order_details field", () => {
-    it("Create and Confirm Payment with missing product_name -> Expect validation error IR_06", () => {
-      cy.step("Create and Confirm Payment with missing product_name", () => {
-        const data = getConnectorDetails(globalState.get("connectorId"))[
-          "card_pm"
-        ]["OrderDetailsMissingProductName"];
-
-        cy.createConfirmPaymentTest(
-          fixtures.createConfirmPaymentBody,
-          data,
-          "no_three_ds",
-          "automatic",
-          globalState
-        );
-      });
-    });
-  });
+    }
+  );
 });
