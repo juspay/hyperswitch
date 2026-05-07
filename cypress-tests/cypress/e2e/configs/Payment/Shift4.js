@@ -826,13 +826,34 @@ export const connectorDetails = {
         },
       },
     },
-    sofort: {
-      Request: {},
+    Sofort: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+      Request: {
+        payment_method: "bank_redirect",
+        payment_method_type: "sofort",
+        payment_method_data: {
+          bank_redirect: {
+            sofort: {
+              country: "DE",
+              preferred_language: "en",
+            },
+          },
+        },
+        billing: {
+          ...defaultBillingAddress,
+          address: {
+            ...defaultBillingAddress.address,
+            country: "DE",
+          },
+        },
+      },
       Response: {
         status: 200,
         body: {
-          status: "processing",
-          error_code: "500",
+          status: "failed",
+          error_message: "Payment method type sofort not supported",
         },
       },
     },

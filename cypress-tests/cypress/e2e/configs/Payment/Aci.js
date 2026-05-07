@@ -711,7 +711,57 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "requires_customer_action",
+          status: "failed",
+          error_message: "invalid authentication information",
+        },
+      },
+    },
+    Eps: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+      Request: {
+        payment_method: "bank_redirect",
+        payment_method_type: "eps",
+        payment_method_data: {
+          bank_redirect: {
+            eps: {
+              bank_name: "ing",
+            },
+          },
+        },
+        billing: billingAddress,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "failed",
+          error_message: "invalid authentication information",
+        },
+      },
+    },
+    Sofort: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+      Request: {
+        payment_method: "bank_redirect",
+        payment_method_type: "sofort",
+        payment_method_data: {
+          bank_redirect: {
+            sofort: {
+              country: "DE",
+              preferred_language: "en",
+            },
+          },
+        },
+        billing: billingAddress,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "failed",
+          error_message: "invalid authentication information",
         },
       },
     },
@@ -734,9 +784,34 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "failed",
-          error_code: "200.100.103",
+          error_code: "800.900.300",
           error_message:
             "invalid Request Message. The request contains structural errors",
+        },
+      },
+    },
+    Interac: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+      Request: {
+        payment_method: "bank_redirect",
+        payment_method_type: "interac",
+        payment_method_data: {
+          bank_redirect: {
+            interac: {
+              bank_name: "ing",
+            },
+          },
+        },
+        billing: billingAddress,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "failed",
+          error_message:
+            "Missing required param: payment_method_data.billing.email",
         },
       },
     },
