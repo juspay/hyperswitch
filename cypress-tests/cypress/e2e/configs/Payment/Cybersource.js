@@ -115,6 +115,7 @@ export const connectorDetails = {
         body: {
           status: "requires_payment_method",
           setup_future_usage: "on_session",
+          connector_mandate_id: null,
         },
       },
     },
@@ -287,6 +288,7 @@ export const connectorDetails = {
           payment_method: "card",
           attempt_count: 1,
           payment_method_data: payment_method_data_no3ds,
+          connector_mandate_id: null,
         },
       },
     },
