@@ -948,7 +948,10 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "requires_customer_action",
+          status: "failed",
+          error_code: "12000",
+          error_message:
+            "reason : Error while creating order. , message : No service provider found for the specified product!",
         },
       },
     },

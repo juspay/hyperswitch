@@ -822,7 +822,8 @@ function bankRedirectRedirection(
           case "nexinets":
             switch (paymentMethodType) {
               case "ideal":
-                // Nexinets iDEAL specific selector - click the Success link
+              case "giropay":
+                // Nexinets iDEAL/Giropay selector - click the Success link
                 cy.get("a.btn.btn-primary.btn-block")
                   .contains("Success")
                   .click();
