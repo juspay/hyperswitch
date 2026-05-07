@@ -227,7 +227,6 @@ impl PaymentMethodVaultingData {
     }
 
     #[cfg(feature = "v2")]
-
     pub fn to_parent_fingerprint_data(&self) -> ParentFingerprintData {
         match self {
             Self::Card(card) => ParentFingerprintData::CardNumber(card.card_number.clone()),

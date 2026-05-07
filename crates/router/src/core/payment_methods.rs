@@ -1479,6 +1479,7 @@ pub enum PaymentMethodResolution {
     },
 }
 
+#[cfg(feature = "v2")]
 pub struct FingerprintDetails {
     pub fingerprint_id: Option<String>,
     pub parent_fingerprint_id: Option<String>,
@@ -3810,7 +3811,7 @@ pub async fn create_payment_method_for_intent(
                 last_modified_by: initiator.and_then(|initiator| initiator.to_created_by()),
                 customer_details: None,
                 network_tokenization_data: None,
-                parent_fingerprint_id: parent_fingerprint_id,
+                parent_fingerprint_id,
             },
             storage_scheme,
         )
