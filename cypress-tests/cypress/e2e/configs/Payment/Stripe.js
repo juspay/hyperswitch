@@ -157,7 +157,6 @@ export const connectorDetails = {
         body: {
           status: "requires_payment_method",
           setup_future_usage: "off_session",
-          connector_mandate_id: null,
         },
       },
     },
