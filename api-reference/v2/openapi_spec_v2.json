@@ -26402,56 +26402,55 @@
       "PixAutomaticoAdditionalDetails": {
         "oneOf": [
           {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/PixAutomaticoPushDetails"
-              },
-              {
-                "type": "object",
-                "required": [
-                  "type"
-                ],
-                "properties": {
-                  "type": {
-                    "type": "string",
-                    "enum": [
-                      "pix_automatico_push"
-                    ]
-                  }
-                }
+            "type": "object",
+            "required": [
+              "cit"
+            ],
+            "properties": {
+              "cit": {
+                "$ref": "#/components/schemas/PixAutomaticoCitData"
               }
-            ]
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "mit"
+            ],
+            "properties": {
+              "mit": {
+                "$ref": "#/components/schemas/PixAutomaticoMitData"
+              }
+            }
           }
         ],
-        "discriminator": {
-          "propertyName": "type"
-        }
+        "description": "Represents the specific data for Santander Pix Automatico (recurring PIX payments)\nSplit into CIT (Customer Initiated Transaction) and MIT (Merchant Initiated Transaction) variants"
       },
       "PixAutomaticoCitData": {
-        "type": "object",
-        "description": "Data for Santander Pix Automatico CIT (Customer Initiated Transaction) - used during mandate setup",
-        "properties": {
-          "contract_id": {
-            "type": "string",
-            "description": "Contract ID to identify the recurring payment contract",
-            "example": "pm_16503867",
-            "nullable": true
-          },
-          "retry_policy": {
-            "type": "boolean",
-            "description": "Enable retry policy for failed payments (maps to PERMITE_3R_7D if true)",
-            "example": true,
-            "nullable": true
-          },
-          "mandate_details": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/SantanderMandateDetails"
-              }
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "pix_automatico_push"
             ],
-            "nullable": true
+            "properties": {
+              "pix_automatico_push": {
+                "$ref": "#/components/schemas/PixAutomaticoPushData"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "pix_automatico_qr"
+            ],
+            "properties": {
+              "pix_automatico_qr": {
+                "$ref": "#/components/schemas/PixAutomaticoQrData"
+              }
+            }
           }
-        }
+        ]
       },
       "PixAutomaticoMitData": {
         "type": "object",
@@ -26502,8 +26501,9 @@
           }
         }
       },
-      "PixAutomaticoPushDetails": {
+      "PixAutomaticoPushData": {
         "type": "object",
+        "description": "Data for PixAutomaticoPush Payment Method Type CIT (Customer Initiated Transaction) - used during mandate setup",
         "required": [
           "time"
         ],
@@ -26514,6 +26514,40 @@
             "description": "Time in seconds until which the push notification is valid",
             "example": 3600,
             "minimum": 0
+          },
+          "retry_policy": {
+            "type": "boolean",
+            "description": "Enable retry policy for failed payments (maps to PERMITE_3R_7D if true)",
+            "example": true,
+            "nullable": true
+          },
+          "mandate_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SantanderMandateDetails"
+              }
+            ],
+            "nullable": true
+          }
+        }
+      },
+      "PixAutomaticoQrData": {
+        "type": "object",
+        "description": "Data for PixAutomaticoQr Payment Method Type CIT (Customer Initiated Transaction) - used during mandate setup + non 0$ mandate setup",
+        "properties": {
+          "retry_policy": {
+            "type": "boolean",
+            "description": "Enable retry policy for failed payments (maps to PERMITE_3R_7D if true)",
+            "example": true,
+            "nullable": true
+          },
+          "mandate_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SantanderMandateDetails"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -29583,14 +29617,6 @@
               }
             ],
             "nullable": true
-          },
-          "pix_automatico": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/SantanderPixAutomaticoData"
-              }
-            ],
-            "nullable": true
           }
         }
       },
@@ -29607,10 +29633,18 @@
       "SantanderMandateDetails": {
         "type": "object",
         "properties": {
-          "amount": {
+          "fixed_recurring_amount": {
             "type": "integer",
             "format": "int64",
-            "description": "Maximum amount for each recurring charge",
+            "description": "Fixed amount for each recurring charge in minor units (e.g., cents). If not provided, the mandate will allow variable amounts.",
+            "example": 6540,
+            "nullable": true,
+            "minimum": 0
+          },
+          "min_recurring_amount": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Minimum amount for each recurring charge in minor units (e.g., cents). If not provided, there will be no minimum limit on the amount.",
             "example": 6540,
             "nullable": true,
             "minimum": 0
@@ -29670,33 +29704,6 @@
             "description": "A generic vector of discount tiers"
           }
         }
-      },
-      "SantanderPixAutomaticoData": {
-        "oneOf": [
-          {
-            "type": "object",
-            "required": [
-              "cit"
-            ],
-            "properties": {
-              "cit": {
-                "$ref": "#/components/schemas/PixAutomaticoCitData"
-              }
-            }
-          },
-          {
-            "type": "object",
-            "required": [
-              "mit"
-            ],
-            "properties": {
-              "mit": {
-                "$ref": "#/components/schemas/PixAutomaticoMitData"
-              }
-            }
-          }
-        ],
-        "description": "Represents the specific data for Santander Pix Automatico (recurring PIX payments)\nSplit into CIT (Customer Initiated Transaction) and MIT (Merchant Initiated Transaction) variants"
       },
       "SantanderPixAutomaticoReceiverDetails": {
         "type": "object",
