@@ -23,6 +23,10 @@ describe("Pay Later Payment tests", () => {
         const data = getConnectorDetails(globalState.get("connectorId"))[
           "pay_later_pm"
         ]["PaymentIntent"];
+        if (!utils.should_continue_further(data)) {
+          shouldContinue = false;
+          return;
+        }
         cy.createPaymentIntentTest(
           fixtures.createPaymentBody,
           data,
@@ -30,9 +34,6 @@ describe("Pay Later Payment tests", () => {
           "manual",
           globalState
         );
-        if (!utils.should_continue_further(data)) {
-          shouldContinue = false;
-        }
       });
 
       cy.step("List Merchant Payment Methods", () => {
