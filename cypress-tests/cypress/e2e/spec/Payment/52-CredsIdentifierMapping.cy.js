@@ -43,7 +43,8 @@ describe("MCA Credentials Identifier Mapping Tests", () => {
           globalState
         );
 
-        if (shouldContinue) shouldContinue = utils.should_continue_further(data);
+        if (shouldContinue)
+          shouldContinue = utils.should_continue_further(data);
       });
 
       it("Confirm Payment Intent with creds_identifier", () => {
@@ -53,7 +54,8 @@ describe("MCA Credentials Identifier Mapping Tests", () => {
 
         cy.confirmCallTest(fixtures.confirmBody, data, true, globalState);
 
-        if (shouldContinue) shouldContinue = utils.should_continue_further(data);
+        if (shouldContinue)
+          shouldContinue = utils.should_continue_further(data);
       });
 
       it("Create Refund with creds_identifier", () => {
@@ -63,7 +65,8 @@ describe("MCA Credentials Identifier Mapping Tests", () => {
 
         cy.refundCallTest(fixtures.refundBody, data, globalState);
 
-        if (shouldContinue) shouldContinue = utils.should_continue_further(data);
+        if (shouldContinue)
+          shouldContinue = utils.should_continue_further(data);
       });
 
       it("Retrieve Payment and verify refund attached", () => {
@@ -104,7 +107,8 @@ describe("MCA Credentials Identifier Mapping Tests", () => {
           globalState
         );
 
-        if (shouldContinue) shouldContinue = utils.should_continue_further(data);
+        if (shouldContinue)
+          shouldContinue = utils.should_continue_further(data);
       });
 
       it("Confirm Manual Capture Payment Intent with creds_identifier", () => {
@@ -140,7 +144,8 @@ describe("MCA Credentials Identifier Mapping Tests", () => {
 
         cy.captureCallTest(fixtures.captureBody, data, globalState);
 
-        if (shouldContinue) shouldContinue = utils.should_continue_further(data);
+        if (shouldContinue)
+          shouldContinue = utils.should_continue_further(data);
       });
 
       it("Create Refund for Manual Capture Payment", () => {
@@ -150,7 +155,8 @@ describe("MCA Credentials Identifier Mapping Tests", () => {
 
         cy.refundCallTest(fixtures.refundBody, data, globalState);
 
-        if (shouldContinue) shouldContinue = utils.should_continue_further(data);
+        if (shouldContinue)
+          shouldContinue = utils.should_continue_further(data);
       });
 
       it("Retrieve Payment after Refund", () => {
