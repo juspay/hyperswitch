@@ -631,9 +631,6 @@ export const connectorDetails = {
       },
     },
     OrderDetails: {
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
       Request: {
         payment_method: "card",
         payment_method_data: {
@@ -657,9 +654,6 @@ export const connectorDetails = {
       },
     },
     OrderDetailsMultipleItems: {
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
       Request: {
         payment_method: "card",
         payment_method_data: {
@@ -688,9 +682,6 @@ export const connectorDetails = {
       },
     },
     OrderDetailsMissingProductName: {
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
       Request: {
         payment_method: "card",
         payment_method_data: {
@@ -711,21 +702,9 @@ export const connectorDetails = {
           error: {
             error_type: "invalid_request",
             message:
-              "Json deserialize error: missing field `product_name` at line 1 column XX",
+              "Json deserialize error: missing field `product_name` at line 1 column 1786",
             code: "IR_06",
           },
-        },
-      },
-    },
-  },
-      Response: {
-        status: 200,
-        body: {
-          status: "failed",
-          error_code:
-            "Your transaction has been denied due to merchant account issue",
-          error_message:
-            "Your transaction has been denied due to merchant account issue",
         },
       },
     },

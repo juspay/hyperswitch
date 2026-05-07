@@ -96,358 +96,103 @@ export const connectorDetails = {
       Request: {
         currency: "USD",
         amount: 11500,
-        shipping_cost: 50,
+        shipping_cost: 1500,
       },
       Response: {
         status: 200,
         body: {
           status: "requires_payment_method",
-          shipping_cost: 50,
+          shipping_cost: 1500,
           amount: 11500,
         },
       },
     },
-    // Payment confirmation with shipping cost
-    PaymentConfirmWithShippingCost: {
-      Request: {
-        payment_method: "card",
-        payment_method_data: {
-          card: successfulNo3DSCardDetails,
-        },
-        customer_acceptance: null,
-        setup_future_usage: "on_session",
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "succeeded",
-        },
-      },
-    },
-    SessionToken: {
-      Response: {
-        status: 200,
-        body: {
-          session_token: [],
-        },
-      },
-    },
-    // Non-3DS Manual Capture - Card is authorized but requires explicit capture
-    No3DSManualCapture: {
-      Request: {
-        payment_method: "card",
-        payment_method_data: {
-          card: successfulNo3DSCardDetails,
-        },
-        currency: "USD",
-        customer_acceptance: null,
-        setup_future_usage: "on_session",
-        capture_method: "manual",
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "requires_capture",
-          payment_method: "card",
-          attempt_count: 1,
-          // payment_method_data: payment_method_data_no3ds,
-        },
-      },
-    },
-    // Non-3DS Auto Capture - Card is authorized and captured automatically
-    "3DSAutoCapture": {
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
-      Request: {
-        payment_method: "card", // not implemented
-        payment_method_data: {
-          card: successfulNo3DSCardDetails,
-        },
-        currency: "USD",
-      },
-      Response: {
-        status: 401,
-        body: {
-          status: "requires_customer_action",
-        },
-      },
-    },
-
-    MandateSingleUseNo3DSAutoCapture: getCustomExchange({
-      Request: {
-        payment_method: "card",
-        payment_method_data: {
-          card: successfulNo3DSCardDetails,
-        },
-        currency: "USD",
-        mandate_data: singleUseMandateData,
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "succeeded",
-        },
-      },
-    }),
-
-    MandateSingleUseNo3DSManualCapture: getCustomExchange({
-      Configs: {
-        TRIGGER_SKIP: true, // Skip if Authipay doesn't support mandates
-      },
-      Request: {
-        payment_method: "card",
-        payment_method_data: {
-          card: successfulNo3DSCardDetails,
-        },
-        currency: "USD",
-        mandate_data: singleUseMandateData,
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "requires_capture",
-        },
-      },
-    }),
-
-    MandateMultiUseNo3DSAutoCapture: getCustomExchange({
-      Request: {
-        payment_method: "card",
-        payment_method_data: {
-          card: successfulNo3DSCardDetails,
-        },
-        currency: "USD",
-        mandate_data: multiUseMandateData,
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "succeeded",
-        },
-      },
-    }),
-
-    MandateMultiUseNo3DSManualCapture: getCustomExchange({
-      Request: {
-        payment_method: "card",
-        payment_method_data: {
-          card: successfulNo3DSCardDetails,
-        },
-        currency: "USD",
-        mandate_data: multiUseMandateData,
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "requires_capture",
-        },
-      },
-    }),
-    MITManualCapture: {
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
+    PaymentIntentOffSession: {
       Request: {
         currency: "USD",
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "requires_capture",
-        },
-      },
-    },
-    MITAutoCapture: {
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
-      Request: {
-        currency: "USD",
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "succeeded",
-        },
-      },
-    },
-    PaymentMethodIdMandateNo3DSManualCapture: {
-      Request: {
-        payment_method: "card",
-        payment_method_data: {
-          card: successfulNo3DSCardDetails,
-        },
-        currency: "USD",
-        mandate_data: null,
-        customer_acceptance: customerAcceptance,
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "requires_capture",
-        },
-      },
-    },
-
-    // ===== SAVE CARD SCENARIOS =====
-    // Note: Authipay may not support save card, marked as TRIGGER_SKIP
-
-    SaveCardUseNo3DSAutoCapture: getCustomExchange({
-      Configs: {
-        TRIGGER_SKIP: true, // Skip if Authipay doesn't support save card
-      },
-      Request: {
-        payment_method: "card",
-        payment_method_data: {
-          card: successfulNo3DSCardDetails,
-        },
-        currency: "USD",
-        setup_future_usage: "on_session",
-        customer_acceptance: customerAcceptance,
-      },
-      Response: {
-        status: 400,
-        body: {
-          status: "succeeded",
-        },
-      },
-    }),
-    SaveCardUseNo3DSAutoCaptureOffSession: getCustomExchange({
-      Request: {
-        payment_method: "card",
-        payment_method_type: "debit",
-        payment_method_data: {
-          card: successfulNo3DSCardDetails,
-        },
         setup_future_usage: "off_session",
-        customer_acceptance: customerAcceptance,
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "succeeded",
-        },
-      },
-    }),
-    SaveCardConfirmAutoCaptureOffSession: {
-      Configs: {},
-      Request: {
-        setup_future_usage: "off_session",
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "succeeded",
-        },
-      },
-    },
-    SaveCardUseNo3DSManualCaptureOffSession: {
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
-      Request: {
-        payment_method: "card",
-        payment_method_data: {
-          card: successfulNo3DSCardDetails,
-        },
-        setup_future_usage: "off_session",
-        customer_acceptance: customerAcceptance,
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "requires_capture",
-        },
-      },
-    },
-    SaveCardUseNo3DSManualCapture: getCustomExchange({
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
-      Request: {
-        payment_method: "card",
-        payment_method_data: {
-          card: successfulNo3DSCardDetails,
-        },
-        currency: "USD",
-        setup_future_usage: "on_session",
-        customer_acceptance: customerAcceptance,
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "requires_capture",
-        },
-      },
-    }),
-    ZeroAuthPaymentIntent: {
-      Configs: {
-        TRIGGER_SKIP: true, // Skip if Authipay doesn't support save card
-      },
-      Request: {
-        amount: 0,
-        setup_future_usage: "off_session",
-        currency: "USD",
+        amount: 8000,
       },
       Response: {
         status: 200,
         body: {
           status: "requires_payment_method",
           setup_future_usage: "off_session",
+          amount: 8000,
         },
       },
     },
-    ZeroAuthConfirmPayment: {
+    SaveCardUseNo3DSAutoCapture: {
       Request: {
-        payment_type: "setup_mandate",
         payment_method: "card",
-        payment_method_type: "credit",
+        setup_future_usage: "on_session",
+        customer_acceptance: customerAcceptance,
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
-        mandate_data: null,
-        customer_acceptance: customerAcceptance,
       },
       Response: {
         status: 200,
         body: {
           status: "succeeded",
-          setup_future_usage: "off_session",
         },
       },
     },
-    ZeroAuthMandate: getCustomExchange({
+    SaveCardUseNo3DSManualCapture: {
       Request: {
         payment_method: "card",
+        setup_future_usage: "on_session",
+        customer_acceptance: customerAcceptance,
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
-        currency: "USD",
-        mandate_data: singleUseMandateData,
       },
       Response: {
-        status: 401,
+        status: 200,
+        body: {
+          status: "requires_capture",
+        },
+      },
+    },
+    ZeroAuthMandate: {
+      Request: {
+        payment_method: "card",
+        customer_acceptance: customerAcceptance,
+        mandate_data: singleUseMandateData.mandate_type,
+      },
+      Response: {
+        status: 200,
         body: {
           status: "succeeded",
+          mandate_id: "mandate_id_placeholder",
         },
       },
-    }),
-    "3DSManualCapture": {
-      Configs: {
-        TRIGGER_SKIP: true, // not implemented
-      },
+    },
+    ZeroAuthPaymentIntent: {
       Request: {
-        payment_method: "card",
-        payment_method_data: {
-          card: successfulNo3DSCardDetails,
-        },
+        amount: 0,
         currency: "USD",
+        setup_future_usage: "off_session",
       },
       Response: {
-        status: 401,
+        status: 200,
         body: {
-          status: "requires_customer_action",
+          status: "requires_payment_method",
+          setup_future_usage: "off_session",
+          amount: 0,
+        },
+      },
+    },
+    ZeroAuthConfirmPaymentIntent: {
+      Request: {
+        payment_method: "card",
+        customer_acceptance: customerAcceptance,
+        mandate_data: singleUseMandateData.mandate_type,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
         },
       },
     },
@@ -456,84 +201,50 @@ export const connectorDetails = {
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
+          billing: null,
         },
         currency: "USD",
         customer_acceptance: null,
+        amount: 8000,
         setup_future_usage: "on_session",
       },
       Response: {
         status: 200,
         body: {
           status: "succeeded",
-          payment_method: "card",
-          attempt_count: 1,
-          // payment_method_data: payment_method_data_no3ds,
+          amount: 8000,
+          amount_capturable: 8000,
         },
       },
     },
-    // Failed Non-3DS payment
-    No3DSFailPayment: {
-      Request: {
-        payment_method: "card",
-        payment_method_data: {
-          card: failedNo3DSCardDetails,
-        },
-        customer_acceptance: null,
-        setup_future_usage: "on_session",
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "failed",
-          error_code: "DO_NOT_HONOR",
-          error_message:
-            "The card was declined for an unknown reason. The cardholder needs to contact their issuing bank for more information.",
-          unified_code: "UE_9000",
-          unified_message: "Something went wrong",
-        },
-      },
-    },
-    // Capture a previously authorized payment
     Capture: {
       Request: {
-        amount_to_capture: 6000,
+        amount_to_capture: 8000,
       },
       Response: {
         status: 200,
         body: {
-          status: "processing", // capture takes 1-2 min to process
-          amount: 6000,
-          amount_capturable: 6000,
+          status: "succeeded",
+          amount: 8000,
+          amount_received: 8000,
         },
       },
     },
-    // Partial capture of an authorized payment
-    PartialCapture: {
-      Request: {
-        amount_to_capture: 2000,
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "processing",
-          amount: 6000,
-        },
-      },
-    },
-    // Void (cancel) an authorized payment
     Void: {
       Request: {},
       Response: {
         status: 200,
         body: {
           status: "cancelled",
+          amount: 8000,
+          amount_capturable: 0,
         },
       },
     },
-    // Full refund of a captured payment
     Refund: {
       Request: {
-        amount: 6000,
+        amount: 8000,
+        reason: "Customer request",
       },
       Response: {
         status: 200,
@@ -542,55 +253,111 @@ export const connectorDetails = {
         },
       },
     },
-    // Partial refund of a captured payment
     PartialRefund: {
       Request: {
-        amount: 2000,
+        amount: 4000,
+        reason: "Partial refund",
       },
       Response: {
         status: 200,
         body: {
           status: "pending",
+          amount: 4000,
         },
       },
     },
-    manualPaymentRefund: {
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
-      Request: {
-        amount: 6000,
-      },
+    SyncRefund: {
+      Request: {},
       Response: {
-        status: 400,
-
+        status: 200,
         body: {
-          type: "invalid_request",
-          message:
-            "This Payment could not be refund because it has a status of processing. The expected state is succeeded, partially_captured",
-          code: "IR_14",
+          status: "pending",
+          amount: 8000,
         },
       },
     },
-    PaymentIntentOffSession: {
-      Configs: {
-        CONNECTOR_CREDENTIAL: {
-          specName: ["connectorAgnosticNTID"],
-          value: "connector_2",
-        },
-      },
+    IncrementalAuthorization: {
       Request: {
-        currency: "USD",
-        customer_acceptance: null,
-        amount: 6000,
-        authentication_type: "no_three_ds",
-        setup_future_usage: "off_session",
+        amount: 10000,
+        reason: "Additional services",
       },
       Response: {
         status: 200,
         body: {
-          status: "requires_payment_method",
-          setup_future_usage: "off_session",
+          status: "processing",
+          amount: 10000,
+        },
+      },
+    },
+    MandateSingleUseNo3DSAutoCapture: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        mandate_data: singleUseMandateData.mandate_type,
+        customer_acceptance: customerAcceptance,
+        currency: "USD",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+          mandate_id: "mandate_id_placeholder",
+        },
+      },
+    },
+    MandateSingleUseNo3DSManualCapture: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        mandate_data: singleUseMandateData.mandate_type,
+        customer_acceptance: customerAcceptance,
+        currency: "USD",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_capture",
+          mandate_id: "mandate_id_placeholder",
+        },
+      },
+    },
+    MandateMultiUseNo3DSAutoCapture: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        mandate_data: multiUseMandateData.mandate_type,
+        customer_acceptance: customerAcceptance,
+        currency: "USD",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+          mandate_id: "mandate_id_placeholder",
+        },
+      },
+    },
+    MandateMultiUseNo3DSManualCapture: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        mandate_data: multiUseMandateData.mandate_type,
+        customer_acceptance: customerAcceptance,
+        currency: "USD",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_capture",
+          mandate_id: "mandate_id_placeholder",
         },
       },
     },
@@ -599,10 +366,67 @@ export const connectorDetails = {
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
+          billing: null,
+        },
+        mandate_data: multiUseMandateData.mandate_type,
+        customer_acceptance: customerAcceptance,
+        currency: "USD",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+          mandate_id: "mandate_id_placeholder",
+        },
+      },
+    },
+    PaymentMethodIdMandateNo3DSManualCapture: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+          billing: null,
+        },
+        mandate_data: multiUseMandateData.mandate_type,
+        customer_acceptance: customerAcceptance,
+        currency: "USD",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_capture",
+          mandate_id: "mandate_id_placeholder",
+        },
+      },
+    },
+    No3DSManualCapture: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+          billing: null,
         },
         currency: "USD",
-        mandate_data: null,
-        customer_acceptance: customerAcceptance,
+        customer_acceptance: null,
+        amount: 8000,
+        setup_future_usage: "on_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_capture",
+          amount: 8000,
+          amount_capturable: 8000,
+        },
+      },
+    },
+    Confirm: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "USD",
       },
       Response: {
         status: 200,
@@ -611,124 +435,146 @@ export const connectorDetails = {
         },
       },
     },
-    manualPaymentPartialRefund: {
+    "3DSAutoCapture": getCustomExchange({
       Configs: {
         TRIGGER_SKIP: true,
       },
       Request: {
-        amount: 2000,
-      },
-      Response: {
-        status: 400,
-        body: {
-          type: "invalid_request",
-          message:
-            "This Payment could not be refund because it has a status of processing. The expected state is succeeded, partially_captured",
-          code: "IR_14",
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
         },
+        currency: "USD",
       },
-    },
-    // Sync refund status (check refund status)
-    SyncRefund: {
-      Response: {
-        status: 200,
-        body: {
-          status: "pending",
-        },
+    }),
+    "3DSManualCapture": getCustomExchange({
+      Configs: {
+        TRIGGER_SKIP: true,
       },
-    },
-    ManualRetryPaymentDisabled: {
       Request: {
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
         currency: "USD",
-        customer_acceptance: null,
-        setup_future_usage: "on_session",
       },
-      Response: {
-        status: 400,
-        body: {
-          type: "invalid_request",
-          message:
-            "You cannot confirm this payment because it has status failed, you can enable `manual_retry` in profile to try this payment again",
-          code: "IR_16",
-        },
+    }),
+    "3DSConfirm": getCustomExchange({
+      Configs: {
+        TRIGGER_SKIP: true,
       },
-    },
-    ManualRetryPaymentEnabled: {
       Request: {
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
         currency: "USD",
-        customer_acceptance: null,
-        setup_future_usage: "on_session",
       },
-      Response: {
-        status: 200,
-        body: {
-          status: "succeeded",
-          payment_method: "card",
-          attempt_count: 2,
-        },
+    }),
+    "3DSRetrieve": getCustomExchange({
+      Configs: {
+        TRIGGER_SKIP: true,
       },
-    },
-    ManualRetryPaymentCutoffExpired: {
       Request: {
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
         currency: "USD",
-        customer_acceptance: null,
-        setup_future_usage: "on_session",
       },
-      Response: {
-        status: 400,
-        body: {
-          type: "invalid_request",
-          message:
-            "You cannot confirm this payment using `manual_retry` because the allowed duration has expired",
-          code: "IR_16",
-        },
+    }),
+    "3DSNotSupportedCard": getCustomExchange({
+      Configs: {
+        TRIGGER_SKIP: true,
       },
-    },
-    PaymentIntentWithBillingDescriptor: {
-      Request: {
-        currency: "USD",
-        amount: 6540,
-        authentication_type: "no_three_ds",
-        capture_method: "automatic",
-        billing_descriptor: {
-          statement_descriptor: "QA-BillingDesc",
-        },
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "requires_payment_method",
-        },
-      },
-    },
-    PaymentConfirmWithBillingDescriptor: {
       Request: {
         payment_method: "card",
-        payment_method_data: { card: successfulNo3DSCardDetails },
-        customer_acceptance: null,
-        setup_future_usage: "on_session",
+        payment_method_data: {
+          card: failedNo3DSCardDetails,
+        },
+        currency: "USD",
       },
-      Response: {
-        status: 200,
-        body: {
-          status: "succeeded",
+    }),
+    "3DSTimeout": getCustomExchange({
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "USD",
+      },
+    }),
+    NoThreedsConfirmRequest: {
+      Request: {
+        confirm: true,
+        payment_type: "normal",
+        payment_method: "card",
+        payment_method_type: "credit",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
         },
       },
     },
     OrderDetails: {
-    external_three_ds: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "USD",
+        order_details: [
+          {
+            product_name: "Test Product",
+            quantity: 1,
+            amount: 6000,
+          },
+        ],
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    },
+    OrderDetailsWithBilling: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+          billing: {
+            address: {
+              line1: "123 Main St",
+              city: "San Francisco",
+              state: "CA",
+              zip: "94102",
+              country: "US",
+              first_name: "John",
+              last_name: "Doe",
+            },
+            email: "john.doe@example.com",
+          },
+        },
+        currency: "USD",
+        order_details: [
+          {
+            product_name: "Test Product",
+            quantity: 1,
+            amount: 6000,
+          },
+        ],
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    },
+    OrderDetailsWithoutBilling: {
       Request: {
         payment_method: "card",
         payment_method_data: {
@@ -811,7 +657,7 @@ export const connectorDetails = {
           error: {
             error_type: "invalid_request",
             message:
-              "Json deserialize error: missing field `product_name` at line 1 column XX",
+              "Json deserialize error: missing field `product_name` at line 1 column 1755",
             code: "IR_06",
           },
           authentication_type: "no_three_ds",
