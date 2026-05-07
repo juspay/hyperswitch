@@ -1135,6 +1135,14 @@ export const connectorDetails = {
       pmListDynamicFieldWithEmail: requiredFields,
     },
   },
+  pay_later_pm: {
+    PaymentIntent: getCustomExchange({
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+      Request: {},
+    }),
+  },
   webhook: {
     TransactionIdConfig: {
       // Defines how to locate and parse the payment reference ID from connector-specific webhook payloads
