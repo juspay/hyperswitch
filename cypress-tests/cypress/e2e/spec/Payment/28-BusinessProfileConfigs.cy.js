@@ -378,7 +378,7 @@ describe("Config Tests", () => {
   );
 
   context("Outgoing Webhook Custom HTTP Headers", () => {
-    let shouldContinue = true;
+    const shouldContinue = true;
 
     beforeEach(function () {
       if (!shouldContinue) {
