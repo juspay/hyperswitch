@@ -193,9 +193,7 @@ export const connectorDetails = {
         "InstantBankTransferPoland",
         "Ach",
       ];
-      const skipConfirmMethods = [
-        "Boleto",
-      ];
+      const skipConfirmMethods = ["Boleto"];
       if (unsupportedMethods.includes(paymentMethodType)) {
         return bankTransferSkipConfigs[paymentMethodType];
       }
