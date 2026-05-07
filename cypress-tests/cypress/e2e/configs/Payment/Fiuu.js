@@ -702,7 +702,7 @@ export const connectorDetails = {
           error: {
             error_type: "invalid_request",
             message:
-              "Json deserialize error: missing field `product_name` at line 1 column 1786",
+              "Json deserialize error: missing field `product_name` at line 1 column 1867",
             code: "IR_06",
           },
         },
