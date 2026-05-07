@@ -5195,8 +5195,8 @@ Cypress.Commands.add(
     const { Response: resData } = data || {};
     const profileId = globalState.get("profileId");
 
-    if (surchargeBody && surchargeBody.program) {
-      surchargeBody.program.profile_id = profileId;
+    if (surchargeBody) {
+      surchargeBody.profile_id = profileId;
     }
 
     cy.request({
