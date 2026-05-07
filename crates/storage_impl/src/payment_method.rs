@@ -81,7 +81,6 @@ impl<T: DatabaseStore> PaymentMethodInterface for KVRouterStore<T> {
         .await
     }
 
-    #[cfg(feature = "v1")]
     #[instrument(skip_all)]
     async fn find_payment_method_by_locker_id(
         &self,
@@ -495,7 +494,6 @@ impl<T: DatabaseStore> PaymentMethodInterface for RouterStore<T> {
         .await
     }
 
-    #[cfg(feature = "v1")]
     #[instrument(skip_all)]
     async fn find_payment_method_by_locker_id(
         &self,
@@ -858,7 +856,6 @@ impl PaymentMethodInterface for MockDb {
         .await
     }
 
-    #[cfg(feature = "v1")]
     async fn find_payment_method_by_locker_id(
         &self,
         key_store: &MerchantKeyStore,

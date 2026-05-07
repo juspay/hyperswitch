@@ -16,7 +16,6 @@ use crate::{
         errors::{self, RouterResult, StorageErrorExt},
         payouts,
     },
-    db::StorageInterface,
     routes::{self, app, metrics},
     types::{api, domain, storage},
     utils,
@@ -295,6 +294,11 @@ pub async fn modify_trackers(
         payout_connector_metadata: None,
         processor_merchant_id: payout_data.payout_attempt.processor_merchant_id.clone(),
         created_by: payout_data.payout_attempt.created_by.clone(),
+        source_bank_data_token: payout_data.payout_attempt.source_bank_data_token.clone(),
+        additional_source_bank_data: payout_data
+            .payout_attempt
+            .additional_source_bank_data
+            .clone(),
     };
     payout_data.payout_attempt = db
         .insert_payout_attempt(
@@ -312,21 +316,19 @@ pub async fn modify_trackers(
 }
 
 pub async fn config_should_call_gsm_payout(
-    db: &dyn StorageInterface,
-    merchant_id: &common_utils::id_type::MerchantId,
+    state: &app::SessionState,
+    dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
     retry_type: PayoutRetryType,
+    customer_id: Option<&common_utils::id_type::CustomerId>,
 ) -> bool {
-    let key = merchant_id.get_should_call_gsm_payout_key(retry_type);
-    let config = db
-        .find_config_by_key_unwrap_or(key.as_str(), Some("false".to_string()))
-        .await;
-    match config {
-        Ok(conf) => conf.config == "true",
-        Err(error) => {
-            logger::error!(?error);
-            false
-        }
-    }
+    let dimensions = dimensions.with_payout_retry_type(retry_type);
+    dimensions
+        .get_gsm_payout_call(
+            state.store.as_ref(),
+            state.superposition_service.as_ref(),
+            customer_id,
+        )
+        .await
 }
 
 pub trait GsmValidation {

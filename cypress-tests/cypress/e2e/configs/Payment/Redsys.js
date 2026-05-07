@@ -1,4 +1,10 @@
 import { getCustomExchange } from "./Modifiers";
+import {
+  blockedPaymentErrorBodyForIssuingCountry,
+  blockedPaymentErrorBodyForDebitCard,
+  blockedPaymentErrorBodyForCardSubtype,
+  blockedPaymentErrorBodyForBinUnavailable,
+} from "./Commons";
 
 const ThreeDSChallengeTestCardDetails = {
   card_number: "4548817212493017",
@@ -14,19 +20,6 @@ const threeDSFrictionlessTestCardDetails = {
   card_exp_year: "30",
   card_holder_name: "Joseph",
   card_cvc: "123",
-};
-
-const blockedPaymentErrorBody = {
-  status: 200,
-  expectBlockedPayment: true,
-  body: {
-    error: {
-      type: "blocked",
-      message: "This payment method is blocked",
-      code: "HE_03",
-      reason: "Blocked",
-    },
-  },
 };
 
 const Address = {
@@ -554,7 +547,7 @@ export const connectorDetails = {
         shipping: Address,
         currency: "EUR",
       },
-      Response: blockedPaymentErrorBody,
+      Response: blockedPaymentErrorBodyForIssuingCountry,
     },
     BlockCardType: {
       Request: {
@@ -573,7 +566,7 @@ export const connectorDetails = {
         shipping: Address,
         currency: "EUR",
       },
-      Response: blockedPaymentErrorBody,
+      Response: blockedPaymentErrorBodyForDebitCard,
     },
     BlockCardSubtype: {
       Request: {
@@ -592,7 +585,7 @@ export const connectorDetails = {
         shipping: Address,
         currency: "EUR",
       },
-      Response: blockedPaymentErrorBody,
+      Response: blockedPaymentErrorBodyForCardSubtype,
     },
     BlockIfBinInfoUnavailable: {
       Request: {
@@ -611,7 +604,7 @@ export const connectorDetails = {
         shipping: Address,
         currency: "EUR",
       },
-      Response: blockedPaymentErrorBody,
+      Response: blockedPaymentErrorBodyForBinUnavailable,
     },
   },
 };

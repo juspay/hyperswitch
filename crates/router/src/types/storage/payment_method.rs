@@ -207,3 +207,10 @@ pub struct PaymentMethodStatusTrackingData {
     pub merchant_id: common_utils::id_type::MerchantId,
     pub last_modified_by: Option<String>,
 }
+
+#[derive(Debug, serde::Deserialize, serde::Serialize, Clone)]
+pub struct PaymentMethodModularCompatTrackingData {
+    pub payment_method_id: String,
+    pub merchant_id: common_utils::id_type::MerchantId,
+    pub last_modified_by: Option<String>,
+}

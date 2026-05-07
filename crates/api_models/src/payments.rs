@@ -3092,6 +3092,34 @@ pub enum BankDebitData {
         #[smithy(value_type = "Option<String>")]
         bank_account_holder_name: Option<Secret<String>>,
     },
+    #[smithy(nested_value_type)]
+    EftDebitOrder {
+        /// Billing details for bank debit
+        #[smithy(value_type = "Option<BankDebitBilling>")]
+        billing_details: Option<BankDebitBilling>,
+
+        /// Account number for eft bank debit payment
+        #[schema(value_type = String, example = "000123456789")]
+        #[smithy(value_type = "String")]
+        account_number: Secret<String>,
+
+        /// Branch code for eft bank debit payment
+        #[schema(value_type = Option<String>, example = "110000000")]
+        #[smithy(value_type = "Option<String>")]
+        branch_code: Option<Secret<String>>,
+
+        #[schema(value_type = Option<String>, example = "John Doe")]
+        #[smithy(value_type = "Option<String>")]
+        bank_account_holder_name: Option<Secret<String>>,
+
+        #[schema(value_type = Option<BankNames>, example = "absa")]
+        #[smithy(value_type = "Option<BankNames>")]
+        bank_name: Option<common_enums::BankNames>,
+
+        #[schema(value_type = Option<BankType>, example = "savings")]
+        #[smithy(value_type = "Option<BankType>")]
+        bank_type: Option<common_enums::BankType>,
+    },
 }
 
 impl GetAddressFromPaymentMethodData for BankDebitData {
@@ -3136,6 +3164,11 @@ impl GetAddressFromPaymentMethodData for BankDebitData {
                 ..
             }
             | Self::BacsBankDebit {
+                billing_details,
+                bank_account_holder_name,
+                ..
+            }
+            | Self::EftDebitOrder {
                 billing_details,
                 bank_account_holder_name,
                 ..
@@ -3813,6 +3846,7 @@ impl GetPaymentMethodType for BankDebitData {
             Self::SepaBankDebit { .. } => api_enums::PaymentMethodType::Sepa,
             Self::BecsBankDebit { .. } => api_enums::PaymentMethodType::Becs,
             Self::BacsBankDebit { .. } => api_enums::PaymentMethodType::Bacs,
+            Self::EftDebitOrder { .. } => api_enums::PaymentMethodType::EftDebitOrder,
             Self::SepaGuarenteedBankDebit { .. } => {
                 api_enums::PaymentMethodType::SepaGuarenteedDebit
             }
@@ -4379,9 +4413,9 @@ pub enum BankRedirectData {
     #[smithy(nested_value_type)]
     Trustly {
         /// The country for bank payment
-        #[schema(value_type = CountryAlpha2, example = "US")]
-        #[smithy(value_type = "CountryAlpha2")]
-        country: api_enums::CountryAlpha2,
+        #[schema(value_type = Option<CountryAlpha2>, example = "US")]
+        #[smithy(value_type = "Option<CountryAlpha2>")]
+        country: Option<api_enums::CountryAlpha2>,
     },
     #[smithy(nested_value_type)]
     OnlineBankingFpx {
@@ -4513,7 +4547,7 @@ impl GetAddressFromPaymentMethodData for BankRedirectData {
             Self::Przelewy24 {
                 billing_details, ..
             } => get_billing_address_inner(billing_details.as_ref(), None, None),
-            Self::Trustly { country } => get_billing_address_inner(None, Some(country), None),
+            Self::Trustly { country } => get_billing_address_inner(None, country.as_ref(), None),
             Self::OnlineBankingFpx { .. }
             | Self::LocalBankRedirect {}
             | Self::OnlineBankingThailand { .. }
@@ -9319,21 +9353,24 @@ impl From<AdditionalPaymentData> for PaymentMethodDataResponse {
                 (Some(apple_pay_pm), _, _) => Self::Wallet(Box::new(WalletResponse {
                     details: Some(WalletResponseData::ApplePay(Box::new(
                         WalletAdditionalDataForCard {
-                            last4: apple_pay_pm
-                                .display_name
-                                .clone()
-                                .chars()
-                                .rev()
-                                .take(4)
-                                .collect::<String>()
-                                .chars()
-                                .rev()
-                                .collect::<String>(),
-                            card_network: apple_pay_pm.network.clone(),
+                            last4: Some(
+                                apple_pay_pm
+                                    .display_name
+                                    .clone()
+                                    .chars()
+                                    .rev()
+                                    .take(4)
+                                    .collect::<String>()
+                                    .chars()
+                                    .rev()
+                                    .collect::<String>(),
+                            ),
+                            card_network: Some(apple_pay_pm.network.clone()),
                             card_type: Some(apple_pay_pm.pm_type.clone()),
                             card_exp_month: apple_pay_pm.card_exp_month,
                             card_exp_year: apple_pay_pm.card_exp_year,
                             auth_code: apple_pay_pm.auth_code,
+                            email: None,
                         },
                     ))),
                 })),
@@ -11071,6 +11108,8 @@ pub struct PaymentsSessionResponse {
     pub client_secret: Secret<String, pii::ClientSecret>,
     /// The list of session token object
     pub session_token: Vec<SessionToken>,
+    /// External vault session details
+    pub vault_details: Option<VaultSessionDetails>,
 }
 
 #[cfg(feature = "v2")]
@@ -11479,6 +11518,8 @@ pub struct FeatureMetadata {
     pub boleto_additional_details: Option<BoletoAdditionalDetails>,
     /// Pix Automatico additional details for Push and QR flows
     pub pix_automatico_additional_details: Option<PixAutomaticoAdditionalDetails>,
+    /// Extra information for Finix connector for fraud checks and risk evaluation
+    pub finix_additional_details: Option<FinixAdditionalDetails>,
 }
 
 #[cfg(feature = "v2")]
@@ -11521,6 +11562,7 @@ impl FeatureMetadata {
             pix_additional_details: self.pix_additional_details,
             boleto_additional_details: self.boleto_additional_details,
             pix_automatico_additional_details: self.pix_automatico_additional_details,
+            finix_additional_details: self.finix_additional_details,
         }
     }
     /// Extracts the Pix key and its secret value specifically from PixAdditionalDetails
@@ -11588,6 +11630,9 @@ pub struct FeatureMetadata {
     /// Pix Automatico additional details for Push Notification and QR based flows
     #[smithy(value_type = "Option<PixAutomaticoAdditionalDetails>")]
     pub pix_automatico_additional_details: Option<PixAutomaticoAdditionalDetails>,
+    /// Extra information for Finix connector for fraud checks and risk evaluation
+    #[smithy(value_type = "Option<FinixAdditionalDetails>")]
+    pub finix_additional_details: Option<FinixAdditionalDetails>,
 }
 #[cfg(feature = "v1")]
 impl FeatureMetadata {
@@ -11627,6 +11672,9 @@ impl FeatureMetadata {
                 pix_automatico_additional_details: self
                     .pix_automatico_additional_details
                     .or(other.pix_automatico_additional_details),
+                finix_additional_details: self
+                    .finix_additional_details
+                    .or(other.finix_additional_details),
             }
         } else {
             self
@@ -11716,6 +11764,13 @@ impl BoletoAdditionalDetails {
             (l, r) => l.or(r),
         }
     }
+}
+
+#[derive(Debug, Default, Clone, serde::Deserialize, serde::Serialize, ToSchema, PartialEq)]
+pub struct FinixAdditionalDetails {
+    /// The fraud session ID used for Finix fraud detection
+    #[schema(value_type = Option<String>, example = "1234567890abcdef")]
+    pub fraud_session_id: Option<String>,
 }
 
 #[derive(Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
@@ -12122,6 +12177,9 @@ pub struct RetrievePaymentLinkResponse {
     /// Identifier for Merchant
     #[schema(value_type = String)]
     pub merchant_id: id_type::MerchantId,
+    /// Identifier for the processor merchant
+    #[schema(value_type = Option<String>)]
+    pub processor_merchant_id: Option<id_type::MerchantId>,
     /// Open payment link (without any security checks and listing SPMs)
     pub link_to_pay: String,
     /// The payment amount. Amount for the payment in the lowest denomination of the currency
@@ -12408,11 +12466,39 @@ pub struct PaymentsEligibilityRequest {
     #[schema(value_type = Option<PaymentMethodType>)]
     pub payment_method_subtype: Option<api_enums::PaymentMethodType>,
     /// The payment instrument data for eligibility check
-    #[serde(with = "eligibility_payment_method_data_serde")]
-    pub payment_method_data: EligibilityPaymentMethodDataRequest,
+    #[serde(with = "eligibility_payment_method_data_serde", default)]
+    pub payment_method_data: Option<EligibilityPaymentMethodDataRequest>,
     /// The browser information for the payment
     #[schema(value_type = Option<BrowserInformation>)]
     pub browser_info: Option<BrowserInformation>,
+    /// The payment token to look up the saved payment method
+    /// When provided, the system will fetch the payment method data from the locker/vault
+    #[schema(value_type = String, example = "token_abc123xyz")]
+    pub payment_token: Option<Secret<String>>,
+}
+
+#[cfg(feature = "v1")]
+impl PaymentsEligibilityRequest {
+    /// Validates that either payment_token or payment_method_data is provided
+    pub fn validate_payment_method_input(
+        &self,
+    ) -> common_utils::errors::CustomResult<(), ValidationError> {
+        let has_payment_token = self.payment_token.is_some();
+        let has_payment_method_data = self
+            .payment_method_data
+            .as_ref()
+            .and_then(|pmd| pmd.payment_method_data.as_ref())
+            .is_some();
+
+        if !has_payment_token && !has_payment_method_data {
+            return Err(ValidationError::MissingRequiredField {
+                field_name: "Either payment_token or payment_method_data".to_string(),
+            }
+            .into());
+        }
+
+        Ok(())
+    }
 }
 
 /// Card data for eligibility check — only card_number is required, no CVV needed
@@ -12524,18 +12610,17 @@ pub enum EligibilityPaymentMethodData {
     NetworkToken(NetworkTokenData),
 }
 
-/// Custom deserializer for EligibilityPaymentMethodDataRequest.
+/// Custom deserializer for `Option<EligibilityPaymentMethodDataRequest>`.
 /// Required to catch deserialization errors: bare #[serde(flatten)] on
 /// Option<ExternallyTaggedEnum> uses FlatMapDeserializer which swallows all
-/// errors and returns None, hiding malformed card data. This mirrors the
-/// approach used by payment_method_data_serde for PaymentMethodDataRequest.
+/// errors and returns None, hiding malformed card data.
 #[cfg(feature = "v1")]
 mod eligibility_payment_method_data_serde {
     use super::*;
 
     pub fn deserialize<'de, D>(
         deserializer: D,
-    ) -> Result<EligibilityPaymentMethodDataRequest, D::Error>
+    ) -> Result<Option<EligibilityPaymentMethodDataRequest>, D::Error>
     where
         D: Deserializer<'de>,
     {
@@ -12549,9 +12634,14 @@ mod eligibility_payment_method_data_serde {
             payment_method_data: Option<serde_json::Value>,
         }
 
-        let parsed = __Inner::deserialize(deserializer)?;
+        let parsed = Option::<__Inner>::deserialize(deserializer)?;
 
-        let payment_method_data = if let Some(value) = parsed.payment_method_data {
+        let inner = match parsed {
+            None => return Ok(None),
+            Some(inner) => inner,
+        };
+
+        let payment_method_data = if let Some(value) = inner.payment_method_data {
             // Even when no payment method data is sent, flatten produces Some(Object {})
             if let serde_json::Value::Object(ref map) = value {
                 if map.is_empty() {
@@ -12569,10 +12659,15 @@ mod eligibility_payment_method_data_serde {
             None
         };
 
-        Ok(EligibilityPaymentMethodDataRequest {
+        // Return None if both billing and payment_method_data are absent
+        if payment_method_data.is_none() && inner.billing.is_none() {
+            return Ok(None);
+        }
+
+        Ok(Some(EligibilityPaymentMethodDataRequest {
             payment_method_data,
-            billing: parsed.billing,
-        })
+            billing: inner.billing,
+        }))
     }
 }
 

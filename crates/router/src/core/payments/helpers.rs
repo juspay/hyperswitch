@@ -77,13 +77,16 @@ use super::{
     CustomerDetails, PaymentData,
 };
 #[cfg(feature = "v1")]
+use crate::core::mandate::helpers::MandateGenericData;
+#[cfg(feature = "v1")]
 use crate::core::{
     payments::{OperationSessionGetters, OperationSessionSetters},
     utils as core_utils,
 };
 use crate::{
     configs::settings::{
-        ConnectorRequestReferenceIdConfig, MerchantAdviceCodeLookupConfig, TempLockerEnableConfig,
+        ConnectorRequestReferenceIdConfig, MerchantAdviceCodeConfig,
+        MerchantAdviceCodeLookupConfig, TempLockerEnableConfig,
     },
     connector,
     consts::{self, BASE64_ENGINE},
@@ -91,7 +94,6 @@ use crate::{
         authentication,
         configs::dimension_state,
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
-        mandate::helpers::MandateGenericData,
         payment_methods::{
             self,
             cards::{self},
@@ -456,6 +458,7 @@ pub async fn get_address_by_id(
 }
 
 #[cfg(feature = "v1")]
+#[allow(clippy::too_many_arguments)]
 pub async fn get_token_pm_type_mandate_details(
     state: &SessionState,
     request: &api::PaymentsRequest,
@@ -466,10 +469,6 @@ pub async fn get_token_pm_type_mandate_details(
     pm_info: Option<domain::PaymentMethod>,
 ) -> RouterResult<MandateGenericData> {
     let mandate_data = request.mandate_data.clone().map(MandateData::foreign_from);
-    #[cfg(feature = "pm_modular")]
-    let is_payment_method_modular_allowed = core_utils::get_feature_config(state, platform)
-        .await
-        .is_payment_method_modular_allowed;
     let (
         payment_token,
         payment_method,
@@ -752,11 +751,9 @@ pub async fn get_token_pm_type_mandate_details(
             }
         }
         None => {
-            #[cfg(feature = "pm_modular")]
-            let payment_method_info = if is_payment_method_modular_allowed {
-                pm_info
-            } else {
-                payment_method_id
+            let payment_method_info = match pm_info {
+                Some(pm_info) => Some(pm_info),
+                None => payment_method_id
                     .async_map(|payment_method_id| async move {
                         state
                             .store
@@ -769,23 +766,8 @@ pub async fn get_token_pm_type_mandate_details(
                             .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)
                     })
                     .await
-                    .transpose()?
+                    .transpose()?,
             };
-            #[cfg(not(feature = "pm_modular"))]
-            let payment_method_info = payment_method_id
-                .async_map(|payment_method_id| async move {
-                    state
-                        .store
-                        .find_payment_method(
-                            platform.get_provider().get_key_store(),
-                            &payment_method_id,
-                            platform.get_provider().get_account().storage_scheme,
-                        )
-                        .await
-                        .to_not_found_response(errors::ApiErrorResponse::PaymentMethodNotFound)
-                })
-                .await
-                .transpose()?;
             let resolved_payment_method = request.payment_method.or_else(|| {
                 payment_method_info
                     .as_ref()
@@ -808,6 +790,7 @@ pub async fn get_token_pm_type_mandate_details(
             )
         }
     };
+
     Ok(MandateGenericData {
         token: payment_token,
         payment_method,
@@ -2536,14 +2519,17 @@ fn create_proxy_override(
 // Helper function to execute rollout logic or return default
 impl From<RolloutConfig> for RolloutExecutionResult {
     fn from(config: RolloutConfig) -> Self {
-        // Validate both rollout_percent bounds and execution_mode
         let is_valid_percent = (0.0..=1.0).contains(&config.rollout_percent);
-        let is_valid_execution_mode =
-            !matches!(config.execution_mode, ExecutionMode::NotApplicable);
 
-        match (is_valid_percent, is_valid_execution_mode) {
-            (true, true) => {
-                // Calculate probability to determine if request should execute
+        match is_valid_percent {
+            false => {
+                logger::warn!(
+                    is_valid_percent = is_valid_percent,
+                    "Invalid rollout percent in rollout config. Defaulting to should_execute false."
+                );
+                Self::default()
+            }
+            true => {
                 let sampled_value: f64 = rand::thread_rng().gen_range(0.0..1.0);
                 let should_execute = sampled_value < config.rollout_percent;
 
@@ -2560,7 +2546,6 @@ impl From<RolloutConfig> for RolloutExecutionResult {
                         let proxy_override =
                             create_proxy_override(config.http_url, config.https_url);
                         logger::info!(
-                            should_execute = should_execute,
                             execution_mode = ?config.execution_mode,
                             "Rollout will be executed with proxy override"
                         );
@@ -2572,36 +2557,12 @@ impl From<RolloutConfig> for RolloutExecutionResult {
                     }
                     false => {
                         logger::info!(
-                            should_execute = should_execute,
                             execution_mode = ?config.execution_mode,
                             "Rollout will not be executed"
                         );
                         Self::default()
                     }
                 }
-            }
-            (true, false) => {
-                logger::warn!(
-                is_valid_percent = is_valid_percent,
-                is_valid_execution_mode = is_valid_execution_mode,
-                "Invalid execution mode in rollout config. Defaulting to NotApplicable and should execute false."
-            );
-                Self::default()
-            }
-            (false, true) => {
-                logger::warn!(
-                is_valid_percent = is_valid_percent,
-                "Invalid rollout percent in rollout config. Defaulting to should execute false."
-            );
-                Self::default()
-            }
-            (false, false) => {
-                logger::warn!(
-                is_valid_percent = is_valid_percent,
-                is_valid_execution_mode = is_valid_execution_mode,
-                "Invalid rollout percent and execution mode in rollout config. Defaulting to should execute false and NotApplicable."
-            );
-                Self::default()
             }
         }
     }
@@ -3146,10 +3107,10 @@ pub async fn fetch_card_details_for_network_transaction_flow_from_locker(
 
 #[cfg(feature = "v2")]
 pub async fn retrieve_payment_method_from_db_with_token_data(
-    state: &SessionState,
-    merchant_key_store: &domain::MerchantKeyStore,
-    token_data: &storage::PaymentTokenData,
-    storage_scheme: storage::enums::MerchantStorageScheme,
+    _state: &SessionState,
+    _merchant_key_store: &domain::MerchantKeyStore,
+    _token_data: &storage::PaymentTokenData,
+    _storage_scheme: storage::enums::MerchantStorageScheme,
 ) -> RouterResult<Option<domain::PaymentMethod>> {
     todo!()
 }
@@ -3403,6 +3364,13 @@ impl<'a>
                     co_badged_card_data: card_details.co_badged_card_data.clone(),
                 }))
             }
+            // Wallet MIT via PSP token (ConnectorMandateId)
+            (
+                Some(domain::PaymentMethodData::Wallet(_)),
+                Some(&api_models::payments::MandateReferenceId::ConnectorMandateId(_)),
+            ) => Some(domain::PaymentMethodData::MandatePayment),
+            // Wallet CIT flow - pass through as-is
+            (Some(domain::PaymentMethodData::Wallet(_)), _) => payment_method_data.cloned(),
             // Keep data as-is, otherwise.
             (Some(payment_method_data), _) => Some(payment_method_data.clone()),
             // Preserve empty input.
@@ -6042,13 +6010,14 @@ pub async fn get_additional_payment_data(
                     apple_pay: None,
                     google_pay: Some(Box::new(
                         payment_additional_types::WalletAdditionalDataForCard {
-                            last4: google_pay_pm_data.info.card_details.clone(),
-                            card_network: google_pay_pm_data.info.card_network.clone(),
+                            last4: Some(google_pay_pm_data.info.card_details.clone()),
+                            card_network: Some(google_pay_pm_data.info.card_network.clone()),
                             card_type: Some(google_pay_pm_data.pm_type.clone()),
                             card_exp_month,
                             card_exp_year,
                             // These are filled after calling the processor / connector
                             auth_code: None,
+                            email: None,
                         },
                     )),
                     samsung_pay: None,
@@ -6060,19 +6029,24 @@ pub async fn get_additional_payment_data(
                     google_pay: None,
                     samsung_pay: Some(Box::new(
                         payment_additional_types::WalletAdditionalDataForCard {
-                            last4: samsung_pay_pm_data
-                                .payment_credential
-                                .card_last_four_digits
-                                .clone(),
-                            card_network: samsung_pay_pm_data
-                                .payment_credential
-                                .card_brand
-                                .to_string(),
+                            last4: Some(
+                                samsung_pay_pm_data
+                                    .payment_credential
+                                    .card_last_four_digits
+                                    .clone(),
+                            ),
+                            card_network: Some(
+                                samsung_pay_pm_data
+                                    .payment_credential
+                                    .card_brand
+                                    .to_string(),
+                            ),
                             card_type: None,
                             card_exp_month: None,
                             card_exp_year: None,
                             // These are filled after calling the processor / connector
                             auth_code: None,
+                            email: None,
                         },
                     )),
                 }))
@@ -9138,32 +9112,34 @@ where
     }
 }
 
-/// Lookup recommended action from merchant advice codes configuration.
-pub fn get_merchant_advice_code_recommended_action(
+/// Lookup merchant advice code configuration for MIT transactions.
+pub fn get_merchant_advice_code_config(
     config: &MerchantAdviceCodeLookupConfig,
     off_session: Option<bool>,
-    network: Option<&common_enums::CardNetwork>,
-    advice_code: Option<&str>,
-) -> Option<common_enums::RecommendedAction> {
+    network: Option<common_enums::CardNetwork>,
+    advice_code: Option<String>,
+) -> Option<&MerchantAdviceCodeConfig> {
     match (off_session, network, advice_code) {
-        (Some(true), Some(network), Some(advice_code)) => config
-            .get_config(network, advice_code)
-            .map(|config| config.recommended_action)
-            .or_else(|| {
-                metrics::MERCHANT_ADVICE_CODE_CONFIG_MISS.add(
-                    1,
-                    router_env::metric_attributes!(
-                        ("network", network.to_string()),
-                        ("advice_code", advice_code.to_owned()),
-                    ),
-                );
-                logger::warn!(
-                    network = %network,
-                    advice_code = %advice_code,
-                    "No merchant advice code config found"
-                );
-                None
-            }),
+        (Some(true), Some(network), Some(advice_code)) => {
+            match config.get_config(&network, &advice_code) {
+                Some(config) => Some(config),
+                None => {
+                    metrics::MERCHANT_ADVICE_CODE_CONFIG_MISS.add(
+                        1,
+                        router_env::metric_attributes!(
+                            ("network", network.to_string()),
+                            ("advice_code", advice_code.clone()),
+                        ),
+                    );
+                    logger::warn!(
+                        network = %network,
+                        advice_code = %advice_code,
+                        "No merchant advice code config found"
+                    );
+                    None
+                }
+            }
+        }
         _ => None,
     }
 }
