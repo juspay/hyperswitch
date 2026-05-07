@@ -271,6 +271,13 @@ impl SubscriberClient {
         self.broadcast_sender.subscribe()
     }
 
+    /// Background task that reads RESP3 push messages from a broadcast receiver
+    /// and forwards them as [`PubSubMessage`]s to an internal broadcast channel.
+    ///
+    /// The loop exits when the push channel is closed (i.e. the underlying
+    /// Redis connection has dropped permanently). When that happens, the
+    /// subscriber's `broadcast_sender` remains functional — callers invoking
+    /// [`message_rx()`](Self::message_rx) will simply never receive new messages.
     async fn run(
         mut push_receiver: tokio::sync::broadcast::Receiver<redis::PushInfo>,
         broadcast_sender: tokio::sync::broadcast::Sender<PubSubMessage>,
@@ -287,11 +294,12 @@ impl SubscriberClient {
                 }
             }
         }
+        tracing::warn!("Subscriber handler task exiting — no further messages will be received");
     }
 
     /// Parses a single push message and, if it is a pub/sub `Message`,
     /// broadcasts it to all active receivers. Non-message push kinds
-    /// (e.g. `Subscribe`, `Unsubscribe`) are logged at trace level and ignored.
+    /// (e.g. `Subscribe`, `Unsubscribe`) are logged at warn level and ignored.
     fn handle_push_info(
         push_info: &redis::PushInfo,
         broadcast_sender: &tokio::sync::broadcast::Sender<PubSubMessage>,
@@ -533,7 +541,12 @@ impl RedisConnectionPool {
                         unreachable_secs,
                         max_unreachable_secs
                     );
-                    let _ = tx.send(());
+                    if let Err(error) = tx.send(()) {
+                        tracing::warn!(
+                            ?error,
+                            "Failed to send shutdown signal — receiver already dropped"
+                        );
+                    }
                     self.is_redis_available
                         .store(false, atomic::Ordering::SeqCst);
                     break;

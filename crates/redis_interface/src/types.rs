@@ -34,13 +34,10 @@ pub struct RedisSettings {
     pub cluster_urls: Vec<String>,
     pub use_legacy_version: bool,
     /// Number of reconnection attempts before giving up (default: 5).
-    /// Passed to `ConnectionManagerConfig::set_number_of_retries`.
     pub pool_size: usize,
     /// Maximum number of connection retry attempts (default: 5).
-    /// Passed to `ConnectionManagerConfig::set_number_of_retries`.
     pub reconnect_max_attempts: u32,
     /// Initial delay in milliseconds between reconnection attempts (default: 5).
-    /// Passed to `ConnectionManagerConfig::set_min_delay`.
     pub reconnect_delay: u32,
     /// TTL in seconds
     pub default_ttl: u32,
@@ -50,10 +47,9 @@ pub struct RedisSettings {
     pub auto_pipeline: bool,
     pub disable_auto_backpressure: bool,
     /// Maximum number of in-flight commands before backpressure is applied.
-    /// Set to 0 to disable. Passed to `ConnectionManagerConfig::set_pipeline_buffer_size`
-    /// or `ClusterClientBuilder::connection_concurrency_limit`.
+    /// Set to 0 to disable.
     pub max_in_flight_commands: usize,
-    /// Command timeout in seconds. Passed to `ConnectionManagerConfig::set_response_timeout`.
+    /// Command timeout in seconds.
     pub default_command_timeout: u64,
     pub max_feed_count: u64,
     pub unresponsive_timeout: u64,

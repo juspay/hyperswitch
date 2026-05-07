@@ -629,14 +629,14 @@ impl super::RedisConnectionPool {
             .hscan::<&str, &str>(&key.tenant_aware_key(self), pattern, count)
             .filter_map(|value| async move {
                 match value {
-                    Ok(mut v) => {
-                        let results = v.take_results();
-                        // Request the next page; without this fred closes the stream.
-                        let _: Result<(), fred::error::RedisError> = v.next();
-                        let v = results?;
-                        let v: Vec<String> =
-                            v.iter().filter_map(|(_, val)| val.as_string()).collect();
-                        Some(futures::stream::iter(v))
+            Ok(mut v) => {
+                let results = v.take_results();
+                // Request the next page; without this fred closes the stream.
+                let _: Result<(), fred::error::RedisError> = v.next();
+                let v = results?;
+                let v: Vec<String> =
+                    v.iter().filter_map(|(_field, value)| value.as_string()).collect();
+                Some(futures::stream::iter(v))
                     }
                     Err(err) => {
                         tracing::error!(redis_err=?err, "Redis error while executing hscan command");
@@ -1062,17 +1062,11 @@ impl super::RedisConnectionPool {
         &self,
         stream: &RedisKey,
         group: &str,
-    ) -> CustomResult<crate::types::ConsumerGroupDestroyReply, errors::RedisError> {
-        let result: usize = self
-            .pool
-            .xgroup_destroy(stream.tenant_aware_key(self), group)
+    ) -> CustomResult<usize, errors::RedisError> {
+        self.pool
+            .xgroup_destroy::<usize, _, _>(stream.tenant_aware_key(self), group)
             .await
-            .change_context(errors::RedisError::ConsumerGroupDestroyFailed)?;
-
-        Ok(match result {
-            1 => crate::types::ConsumerGroupDestroyReply::Destroyed,
-            _ => crate::types::ConsumerGroupDestroyReply::NotFound,
-        })
+            .change_context(errors::RedisError::ConsumerGroupDestroyFailed)
     }
 
     // the number of pending messages that the consumer had before it was deleted
@@ -1095,14 +1089,12 @@ impl super::RedisConnectionPool {
         stream: &RedisKey,
         group: &str,
         id: &RedisEntryId,
-    ) -> CustomResult<String, errors::RedisError> {
+    ) -> CustomResult<(), errors::RedisError> {
         let id_str = id.to_stream_id();
-        let _: String = self
-            .pool
-            .xgroup_setid(stream.tenant_aware_key(self), group, &id_str)
+        self.pool
+            .xgroup_setid::<(), _, _, _>(stream.tenant_aware_key(self), group, &id_str)
             .await
-            .change_context(errors::RedisError::ConsumerGroupSetIdFailed)?;
-        Ok(id_str)
+            .change_context(errors::RedisError::ConsumerGroupSetIdFailed)
     }
 
     #[instrument(level = "DEBUG", skip(self))]

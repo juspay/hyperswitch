@@ -625,6 +625,9 @@ impl super::RedisConnectionPool {
         Ok(values_after_increment)
     }
 
+    /// Manually builds the HSCAN command because redis-rs's `hscan` / `hscan_match`
+    /// helpers don't expose the `COUNT` argument. We need `MATCH` + `COUNT` together
+    /// to bound per-iteration server work on large hashes.
     #[instrument(level = "DEBUG", skip(self))]
     pub async fn hscan(
         &self,
@@ -636,8 +639,16 @@ impl super::RedisConnectionPool {
 
         let mut results: Vec<String> = Vec::new();
         let mut cursor: u64 = 0;
+        let mut iterations: u32 = 0;
 
         loop {
+            // Guard against a corrupted cursor that never returns to 0
+            iterations += 1;
+            if iterations > crate::constant::redis_rs_commands::MAX_SCAN_ITERATIONS {
+                tracing::warn!(key = ?key, iterations, "HSCAN exceeded max iterations — returning partial results");
+                break;
+            }
+
             // Build HSCAN command: HSCAN key cursor MATCH pattern [COUNT count]
             let mut command = redis::cmd(REDIS_COMMAND_HSCAN);
             command

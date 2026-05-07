@@ -15,6 +15,7 @@ use fred::{
     interfaces::{ClientLike, EventInterface, PubsubInterface},
     prelude::TransactionInterface,
 };
+use tracing::Instrument;
 
 use crate::types::RedisValue;
 
@@ -49,6 +50,13 @@ impl RedisClient {
             .publish(channel, message.into_inner())
             .await
             .change_context(crate::errors::RedisError::PublishError)
+    }
+}
+
+impl std::ops::Deref for RedisClient {
+    type Target = fred::prelude::RedisClient;
+    fn deref(&self) -> &Self::Target {
+        &self.inner
     }
 }
 
@@ -88,9 +96,12 @@ impl SubscriberClient {
         // PubSubMessage broadcast channel, so callers can use `message_rx()`.
         let fred_rx = client.message_rx();
         let sender = broadcast_sender.clone();
-        tokio::spawn(async move {
-            Self::forward_messages(fred_rx, sender).await;
-        });
+        tokio::spawn(
+            async move {
+                Self::forward_messages(fred_rx, sender).await;
+            }
+            .in_current_span(),
+        );
 
         Ok(Self {
             inner: client,
@@ -109,13 +120,10 @@ impl SubscriberClient {
             match fred_rx.recv().await {
                 Ok(msg) => {
                     let channel = msg.channel.to_string();
-                    let value = RedisValue::from_bytes(
-                        msg.value
-                            .as_bytes()
-                            .map(|b: &[u8]| b.to_vec())
-                            .unwrap_or_default(),
-                    );
-                    let _ = broadcast_sender.send(PubSubMessage { channel, value });
+                    let value = RedisValue::new(msg.value);
+                    if let Err(e) = broadcast_sender.send(PubSubMessage { channel, value }) {
+                        tracing::warn!(error = ?e, "Failed to broadcast pub/sub message");
+                    }
                 }
                 Err(tokio::sync::broadcast::error::RecvError::Closed) => break,
                 Err(tokio::sync::broadcast::error::RecvError::Lagged(n)) => {
@@ -145,6 +153,13 @@ impl SubscriberClient {
             .unsubscribe(channel)
             .await
             .change_context(crate::errors::RedisError::SubscribeError)
+    }
+}
+
+impl std::ops::Deref for SubscriberClient {
+    type Target = fred::clients::SubscriberClient;
+    fn deref(&self) -> &Self::Target {
+        &self.inner
     }
 }
 
