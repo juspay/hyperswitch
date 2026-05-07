@@ -118,7 +118,7 @@ pub struct PaymentMethod {
     pub payment_method_type: Option<storage_enums::PaymentMethod>,
     pub payment_method_subtype: Option<storage_enums::PaymentMethodType>,
     #[encrypt(ty = Value)]
-    pub payment_method_data: Option<Encryptable<PaymentMethodsData>>,
+    pub payment_method_data: Option<Encryptable<domain_payment_method_data::PaymentMethodsData>>,
     pub locker_id: Option<VaultId>,
     pub last_used_at: PrimitiveDateTime,
     pub connector_mandate_details: Option<CommonMandateReference>,
@@ -335,6 +335,7 @@ pub struct PaymentMethodUpdate {
     pub acknowledgement_status: Option<common_enums::AcknowledgementStatus>,
     pub network_tokenization: Option<common_types::payment_methods::NetworkTokenization>,
     pub source_payment_method_data: Option<crate::vault::PaymentMethodVaultingData>,
+    pub status: Option<common_enums::PaymentMethodStatus>,
 }
 
 #[cfg(feature = "v2")]
@@ -347,6 +348,7 @@ impl From<payment_methods::PaymentMethodUpdate> for PaymentMethodUpdate {
             acknowledgement_status: value.acknowledgement_status,
             network_tokenization: None,
             source_payment_method_data: None,
+            status: value.acknowledgement_status.map(|ack| ack.into()),
         }
     }
 }
@@ -367,7 +369,14 @@ impl PaymentMethodUpdate {
             Some(payment_methods::PaymentMethodUpdateData::Card(card_update)) => {
                 card_update.card_holder_name.is_some() || card_update.nick_name.is_some()
             }
-            _ => false,
+            Some(payment_methods::PaymentMethodUpdateData::BankDebit(bank_debit_update)) => {
+                match bank_debit_update {
+                    payment_methods::BankDebitDetailUpdate::Ach {
+                        bank_account_holder_name,
+                    } => bank_account_holder_name.is_some(),
+                }
+            }
+            None => false,
         }
     }
 
@@ -376,6 +385,7 @@ impl PaymentMethodUpdate {
             || self.connector_token_details.is_some()
             || self.network_transaction_id.is_some()
             || self.acknowledgement_status.is_some()
+            || self.status.is_some()
     }
 }
 
@@ -401,7 +411,21 @@ impl
                     card_cvc: card_data.card_cvc.clone(),
                 }),
             ),
-            payment_methods::PaymentMethodCreateData::ProxyCard(_) => None,
+            payment_methods::PaymentMethodCreateData::BankDebit(
+                payment_methods::BankDebitDetail::Ach {
+                    bank_account_holder_name,
+                    bank_type,
+                    bank_holder_type,
+                    ..
+                },
+            ) => Some(payment_methods::PaymentMethodUpdateData::BankDebit(
+                payment_methods::BankDebitDetailUpdate::Ach {
+                    bank_account_holder_name: bank_account_holder_name.clone(),
+                },
+            )),
+            payment_methods::PaymentMethodCreateData::ProxyCard(_)
+            | payment_methods::PaymentMethodCreateData::Wallet(_)
+            | payment_methods::PaymentMethodCreateData::BankRedirect(_) => None,
         };
 
         Self {
@@ -411,6 +435,7 @@ impl
             acknowledgement_status: None,
             network_tokenization: req.network_tokenization.clone(),
             source_payment_method_data: Some(source_payment_method_data),
+            status: None,
         }
     }
 }
@@ -471,6 +496,9 @@ impl super::behaviour::Conversion for PaymentMethod {
             customer_details: self.customer_details.map(|val| val.into()),
             locker_fingerprint_id: self.locker_fingerprint_id,
             network_tokenization_data: self.network_tokenization_data.map(|val| val.into()),
+            payment_method_type_v2: None,
+            payment_method_subtype: None,
+            id: None,
         })
     }
 
@@ -686,6 +714,7 @@ impl super::behaviour::Conversion for PaymentMethod {
             customer_details: self.customer_details.map(|val| val.into()),
             locker_fingerprint_id: self.locker_fingerprint_id,
             network_tokenization_data: self.network_tokenization_data.map(|val| val.into()),
+            id: None,
         })
     }
 }
@@ -696,10 +725,12 @@ impl super::behaviour::Conversion for PaymentMethod {
     type DstType = diesel_models::payment_method::PaymentMethod;
     type NewDstType = diesel_models::payment_method::PaymentMethodNew;
     async fn convert(self) -> CustomResult<Self::DstType, ValidationError> {
+        let payment_method_id = self.id.get_string_repr().to_owned();
         Ok(Self::DstType {
             customer_id: self.customer_id,
             merchant_id: self.merchant_id,
             id: self.id,
+            payment_method_id: Some(payment_method_id),
             created_at: self.created_at,
             last_modified: self.last_modified,
             payment_method_type_v2: self.payment_method_type,
@@ -881,10 +912,12 @@ impl super::behaviour::Conversion for PaymentMethod {
     }
 
     async fn construct_new(self) -> CustomResult<Self::NewDstType, ValidationError> {
+        let payment_method_id = self.id.get_string_repr().to_owned();
         Ok(Self::NewDstType {
             customer_id: self.customer_id,
             merchant_id: self.merchant_id,
             id: self.id,
+            payment_method_id: Some(payment_method_id),
             created_at: self.created_at,
             last_modified: self.last_modified,
             payment_method_type_v2: self.payment_method_type,
@@ -1042,6 +1075,13 @@ impl super::behaviour::Conversion for PaymentMethodSession {
     }
 }
 
+#[cfg(feature = "v1")]
+#[derive(Clone, Debug)]
+pub struct PaymentMethodWithRawData {
+    pub payment_method: PaymentMethod,
+    pub raw_payment_method_data: Option<domain_payment_method_data::PaymentMethodData>,
+}
+
 #[async_trait::async_trait]
 pub trait PaymentMethodInterface {
     type Error;
@@ -1061,7 +1101,6 @@ pub trait PaymentMethodInterface {
         storage_scheme: MerchantStorageScheme,
     ) -> CustomResult<PaymentMethod, Self::Error>;
 
-    #[cfg(feature = "v1")]
     async fn find_payment_method_by_locker_id(
         &self,
         key_store: &MerchantKeyStore,

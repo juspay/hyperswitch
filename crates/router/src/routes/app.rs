@@ -96,8 +96,6 @@ use crate::routes::feature_matrix;
 use crate::routes::fraud_check as frm_routes;
 #[cfg(all(feature = "olap", feature = "v1"))]
 use crate::routes::profile_acquirer;
-#[cfg(all(feature = "recon", feature = "olap"))]
-use crate::routes::recon as recon_routes;
 pub use crate::{
     configs::settings,
     db::{
@@ -1604,6 +1602,10 @@ impl PaymentMethods {
                         payment_methods::list_countries_currencies_for_connector_payment_method,
                     ),
                 ));
+            route = route.service(
+                web::resource("/{id}/details")
+                    .route(web::get().to(payment_methods::payment_method_retrieve_olap_api)),
+            );
         }
         #[cfg(feature = "oltp")]
         {
@@ -1801,29 +1803,6 @@ impl Tokenization {
     }
 }
 
-#[cfg(all(feature = "olap", feature = "recon", feature = "v1"))]
-pub struct Recon;
-
-#[cfg(all(feature = "olap", feature = "recon", feature = "v1"))]
-impl Recon {
-    pub fn server(state: AppState) -> Scope {
-        web::scope("/recon")
-            .app_data(web::Data::new(state))
-            .service(
-                web::resource("/{merchant_id}/update")
-                    .route(web::post().to(recon_routes::update_merchant)),
-            )
-            .service(web::resource("/token").route(web::get().to(recon_routes::get_recon_token)))
-            .service(
-                web::resource("/request").route(web::post().to(recon_routes::request_for_recon)),
-            )
-            .service(
-                web::resource("/verify_token")
-                    .route(web::get().to(recon_routes::verify_recon_token)),
-            )
-    }
-}
-
 pub struct Hypersense;
 
 impl Hypersense {
@@ -1893,7 +1872,11 @@ impl CardIssuers {
                     .route(web::post().to(card_issuer::add_card_issuer))
                     .route(web::get().to(card_issuer::list_card_issuers)),
             )
-            .service(web::resource("/{id}").route(web::put().to(card_issuer::update_card_issuer)))
+            .service(
+                web::resource("/{id}")
+                    .route(web::put().to(card_issuer::update_card_issuer))
+                    .route(web::delete().to(card_issuer::delete_card_issuer)),
+            )
     }
 }
 
@@ -3144,7 +3127,8 @@ impl User {
                 )
                 .service(
                     web::resource("/members").route(web::get().to(user::list_members_for_entity)),
-                ),
+                )
+                .service(web::resource("/authorize").route(web::post().to(user::authorize_token))),
         );
 
         route

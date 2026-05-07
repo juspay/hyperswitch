@@ -148,6 +148,16 @@ euclid-wasm features='dummy_connector':
         {{ source_directory() }}/crates/euclid_wasm \
         --features '{{ features }}'
 
+# Build the `payment_link` crate as WASM
+# Usage: just payment-link-wasm [features=''] [version='v1'] [environment='development']
+payment-link-wasm features='' version='v1' environment='development':
+    ENVIRONMENT={{ environment }} ~/.cargo/bin/wasm-pack build \
+        --target web \
+        --out-dir {{ source_directory() }}/wasm_output \
+        --out-name payment_link \
+        {{ source_directory() }}/crates/payment_link \
+        -- --features wasm,{{ version }},{{ features }}
+
 # Run pre-commit checks
 precommit: fmt clippy
 

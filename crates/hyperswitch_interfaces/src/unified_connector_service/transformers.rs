@@ -577,9 +577,6 @@ impl ForeignTryFrom<payments_grpc::Ach>
                     })?
                     .expose(),
             ),
-            card_holder_name: ach
-                .card_holder_name
-                .map(|s| hyperswitch_masking::Secret::new(s.expose())),
             bank_account_holder_name: ach
                 .bank_account_holder_name
                 .map(|s| hyperswitch_masking::Secret::new(s.expose())),
@@ -674,10 +671,14 @@ impl ForeignTryFrom<payments_grpc::BankType> for common_enums::BankType {
         match bank_type {
             payments_grpc::BankType::Checking => Ok(Self::Checking),
             payments_grpc::BankType::Savings => Ok(Self::Savings),
-            payments_grpc::BankType::Unspecified => Err(error_stack::Report::new(
+            payments_grpc::BankType::Bond
+            | payments_grpc::BankType::Transmission
+            | payments_grpc::BankType::Current
+            | payments_grpc::BankType::SubscriptionShare
+            | payments_grpc::BankType::Unspecified => Err(error_stack::Report::new(
                 UnifiedConnectorServiceError::ResponseDeserializationFailed,
             )
-            .attach_printable("BankType unspecified")),
+            .attach_printable("BankType unsupported")),
         }
     }
 }

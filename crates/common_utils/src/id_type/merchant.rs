@@ -216,22 +216,6 @@ impl MerchantId {
         )
     }
 
-    /// get_max_auto_single_connector_payout_retries_enabled_
-    pub fn get_max_auto_single_connector_payout_retries_enabled(
-        &self,
-        payout_retry_type: common_enums::PayoutRetryType,
-    ) -> String {
-        match payout_retry_type {
-            common_enums::PayoutRetryType::SingleConnector => format!(
-                "max_auto_single_connector_payout_retries_enabled_{}",
-                self.get_string_repr()
-            ),
-            common_enums::PayoutRetryType::MultiConnector => format!(
-                "max_auto_multiple_connector_payout_retries_enabled_{}",
-                self.get_string_repr()
-            ),
-        }
-    }
     /// get_authentication_service_eligible_key
     pub fn get_authentication_service_eligible_key(&self) -> String {
         format!("authentication_service_eligible_{}", self.get_string_repr())

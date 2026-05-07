@@ -296,6 +296,37 @@ export const connectorDetails = {
         },
       },
     },
+    ExtendAuthorizationNo3DSManual: {
+      Request: {
+        extended_authorization_days: 7,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_capture",
+          amount: 6000,
+          amount_capturable: 6000,
+          amount_received: null,
+          request_extended_authorization: true,
+        },
+      },
+    },
+    ExtendAuthorizationInvalidStatus: {
+      Request: {
+        extended_authorization_days: 7,
+      },
+      Response: {
+        status: 400,
+        body: {
+          error: {
+            type: "invalid_request",
+            message:
+              "You cannot extend authorization this payment because it has status succeeded",
+            code: "IR_16",
+          },
+        },
+      },
+    },
     ZeroAuthMandate: {
       Request: {
         payment_method: "card",
@@ -906,6 +937,11 @@ export const connectorDetails = {
   webhook: {
     TransactionIdConfig: {
       path: "resource.supplementary_data.related_ids.order_id",
+      type: "string",
+    },
+    RefundIdConfig: {
+      // PayPal refund webhooks use resource.id as the connector refund reference
+      path: "resource.id",
       type: "string",
     },
   },

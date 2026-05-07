@@ -154,6 +154,8 @@ pub enum Flow {
     PaymentMethodCollectLink,
     /// Payment methods retrieve flow.
     PaymentMethodsRetrieve,
+    /// Payment methods retrieve OLAP flow.
+    PaymentMethodsRetrieveOlap,
     /// Payment methods update flow.
     PaymentMethodsUpdate,
     /// Payment methods delete flow.
@@ -255,14 +257,6 @@ pub enum Flow {
     RefundsAggregate,
     // Retrieve forex flow.
     RetrieveForexFlow,
-    /// Toggles recon service for a merchant.
-    ReconMerchantUpdate,
-    /// Recon token request flow.
-    ReconTokenRequest,
-    /// Initial request for recon service.
-    ReconServiceRequest,
-    /// Recon token verification flow
-    ReconVerifyToken,
     /// Routing create flow,
     RoutingCreateConfig,
     /// Routing link config
@@ -315,6 +309,8 @@ pub enum Flow {
     AddCardIssuer,
     /// Update a card issuer in the catalog
     UpdateCardIssuer,
+    /// Delete a card issuer from the catalog
+    DeleteCardIssuer,
     /// List card issuers from the catalog
     ListCardIssuers,
     /// Add record to blocklist
@@ -743,6 +739,8 @@ pub enum Flow {
     ListUsersInternal,
     // List members for entity
     ListMembersForEntity,
+    /// Authorize external token
+    AuthorizeUserToken,
 }
 
 /// Trait for providing generic behaviour to flow metric

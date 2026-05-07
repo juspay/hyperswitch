@@ -33,9 +33,9 @@ use pm_auth::{
 use crate::{
     core::{
         errors::{self, ApiErrorResponse, RouterResponse, RouterResult, StorageErrorExt},
-        payment_methods::cards,
         payments::helpers as oss_helpers,
         pm_auth::helpers as pm_auth_helpers,
+        utils,
     },
     db::StorageInterface,
     logger,
@@ -462,10 +462,11 @@ async fn store_bank_details_in_payment_methods(
 
             let payment_method_data = payment_methods::PaymentMethodsData::BankDetails(pmd);
 
-            let encrypted_data = cards::create_encrypted_data(
+            let encrypted_data = utils::create_encrypted_data(
                 &key_manager_state,
                 platform.get_processor().get_key_store(),
                 payment_method_data,
+                common_utils::type_name!(diesel_models::payment_method::PaymentMethod),
             )
             .await
             .change_context(ApiErrorResponse::InternalServerError)
@@ -482,10 +483,11 @@ async fn store_bank_details_in_payment_methods(
             update_entries.push((pm.clone(), pm_update));
         } else {
             let payment_method_data = payment_methods::PaymentMethodsData::BankDetails(pmd);
-            let encrypted_data = cards::create_encrypted_data(
+            let encrypted_data = utils::create_encrypted_data(
                 &key_manager_state,
                 platform.get_processor().get_key_store(),
                 Some(payment_method_data),
+                common_utils::type_name!(diesel_models::payment_method::PaymentMethod),
             )
             .await
             .change_context(ApiErrorResponse::InternalServerError)
@@ -861,7 +863,6 @@ pub async fn retrieve_payment_method_from_auth_service(
                 bank_name: None,
                 bank_type,
                 bank_holder_type: None,
-                card_holder_name: None,
                 bank_account_holder_name: None,
             })
         }
