@@ -1,5 +1,6 @@
 use common_enums::{
-    EntityType, ParentGroup, PermissionGroup, PermissionScope, Resource, RoleScope,
+    EntityType, MerchantProductType, ParentGroup, PermissionGroup, PermissionScope, Resource,
+    RoleScope,
 };
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
@@ -91,6 +92,7 @@ pub struct ListRolesAtEntityLevelRequest {
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct GetParentGroupsInfoQueryParams {
     pub entity_type: Option<EntityType>,
+    pub product_type: Option<MerchantProductType>,
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]

@@ -37,8 +37,9 @@ use api_models::payment_methods::CountryCodeWithName;
 #[cfg(feature = "payouts")]
 use common_enums::PayoutStatus;
 use common_enums::{
-    CountryAlpha2, DisputeStatus, EventClass, EventType, IntentStatus, MandateStatus,
-    MerchantCategoryCode, MerchantCategoryCodeWithName, RefundStatus, SubscriptionStatus,
+    CardSubtype, CardType, CountryAlpha2, DisputeStatus, EventClass, EventType, IntentStatus,
+    MandateStatus, MerchantCategoryCode, MerchantCategoryCodeWithName, RefundStatus,
+    SubscriptionStatus,
 };
 use strum::IntoEnumIterator;
 
@@ -366,6 +367,7 @@ pub fn get_variant_values(key: &str) -> Result<JsValue, JsValue> {
             dir_enums::CustomerDeviceDisplaySize::VARIANTS
         }
         dir::DirKeyKind::NetworkTokenType => dir_enums::NetworkTokenType::VARIANTS,
+        dir::DirKeyKind::CardDiscovery => dir_enums::CardDiscovery::VARIANTS,
 
         dir::DirKeyKind::PaymentAmount
         | dir::DirKeyKind::Connector
@@ -521,6 +523,18 @@ pub fn get_payout_description_category() -> JsResult {
     }
 
     Ok(serde_wasm_bindgen::to_value(&category)?)
+}
+
+#[wasm_bindgen(js_name = getCardSubtypeValues)]
+pub fn get_card_subtype_values() -> JsResult {
+    let subtypes: Vec<CardSubtype> = CardSubtype::iter().collect();
+    Ok(serde_wasm_bindgen::to_value(&subtypes)?)
+}
+
+#[wasm_bindgen(js_name = getCardTypeValues)]
+pub fn get_card_type_values() -> JsResult {
+    let types: Vec<CardType> = CardType::iter().collect();
+    Ok(serde_wasm_bindgen::to_value(&types)?)
 }
 
 #[wasm_bindgen(js_name = getValidWebhookStatus)]

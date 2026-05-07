@@ -40,6 +40,7 @@ import { connectorDetails as hipayConnectorDetails } from "./Hipay.js";
 import { connectorDetails as iatapayConnectorDetails } from "./Iatapay.js";
 import { connectorDetails as itaubankConnectorDetails } from "./ItauBank.js";
 import { connectorDetails as jpmorganConnectorDetails } from "./Jpmorgan.js";
+import { connectorDetails as klarnaConnectorDetails } from "./Klarna.js";
 import { connectorDetails as loonioConnectorDetails } from "./Loonio.js";
 import { connectorDetails as mollieConnectorDetails } from "./Mollie.js";
 import { connectorDetails as monerisConnectorDetails } from "./Moneris.js";
@@ -63,6 +64,7 @@ import { connectorDetails as silverflowConnectorDetails } from "./Silverflow.js"
 import { connectorDetails as squareConnectorDetails } from "./Square.js";
 import { connectorDetails as staxConnectorDetails } from "./Stax.js";
 import { connectorDetails as stripeConnectorDetails } from "./Stripe.js";
+import { connectorDetails as stripeconnectConnectorDetails } from "./StripeConnect.js";
 import { connectorDetails as tesouroConnectorDetails } from "./Tesouro.js";
 import { connectorDetails as trustpayConnectorDetails } from "./Trustpay.js";
 import { connectorDetails as trustpaymentsConnectorDetails } from "./TrustPayments.js";
@@ -113,6 +115,7 @@ const connectorDetails = {
   iatapay: iatapayConnectorDetails,
   itaubank: itaubankConnectorDetails,
   jpmorgan: jpmorganConnectorDetails,
+  klarna: klarnaConnectorDetails,
   mollie: mollieConnectorDetails,
   moneris: monerisConnectorDetails,
   multisafepay: multisafepayConnectorDetails,
@@ -135,6 +138,7 @@ const connectorDetails = {
   square: squareConnectorDetails,
   stax: staxConnectorDetails,
   stripe: stripeConnectorDetails,
+  stripeconnect: stripeconnectConnectorDetails,
   trustpay: trustpayConnectorDetails,
   tesouro: tesouroConnectorDetails,
   trustpayments: trustpaymentsConnectorDetails,
@@ -149,9 +153,18 @@ const connectorDetails = {
   loonio: loonioConnectorDetails,
 };
 
+/**
+ * Get the backend connector name for a given connector ID
+ * Maps stripeconnect -> stripe for backend API calls
+ * @param {string} connectorId - The test connector ID
+ * @returns {string} - The backend connector name
+ */
+export function getOriginalConnectorName(connectorId) {
+  return connectorId === "stripeconnect" ? "stripe" : connectorId;
+}
+
 export default function getConnectorDetails(connectorId) {
-  const x = mergeDetails(connectorId);
-  return x;
+  return mergeDetails(connectorId);
 }
 
 export function getConnectorFlowDetails(connectorData, commonData, key) {
@@ -316,7 +329,11 @@ function getConnectorConfig(
   multipleConnector = { nextConnector: false }
 ) {
   const multipleConnectors = globalState.get("MULTIPLE_CONNECTORS");
-  const mcaConfig = getConnectorDetails(globalState.get("connectorId"));
+  // Use originalConnectorId if available, otherwise fallback to connectorId
+  // This ensures correct config is loaded for stripeconnect tests
+  const connectorId =
+    globalState.get("originalConnectorId") || globalState.get("connectorId");
+  const mcaConfig = getConnectorDetails(connectorId);
 
   return {
     CONNECTOR_CREDENTIAL:
@@ -422,12 +439,14 @@ export const CONNECTOR_LISTS = {
       "payload",
       "paypal",
       "stax",
+      "stripeconnect",
       "wellsfargo",
       "worldpayxml",
       "finix",
       "mollie",
       "zift",
     ],
+    MANDATE_ID_TEST: ["airwallex", "payload"],
     // Add more exclusion lists
   },
 
@@ -441,6 +460,7 @@ export const CONNECTOR_LISTS = {
       // "stripe",
     ],
     DDC_RACE_CONDITION: ["worldpay"],
+    CONNECTOR_TESTING_DATA: ["adyen", "noon", "airwallex", "braintree"],
     // ucs connectors
     UCS_CONNECTORS: ["authorizedotnet"],
     OVERCAPTURE: ["adyen"],
@@ -466,8 +486,73 @@ export const CONNECTOR_LISTS = {
       "worldpayvantiv",
       "worldpayxml",
     ],
-    PAYMENTS_WEBHOOK: ["noon", "stripe", "authorizedotnet"],
+    PAYMENTS_WEBHOOK: [
+      "noon",
+      "stripe",
+      "authorizedotnet",
+      "airwallex",
+      "finix",
+      "fiuu",
+      "mollie",
+      "nmi",
+      "novalnet",
+      "payload",
+      "paypal",
+      "trustpay",
+      "worldpay",
+    ],
+    REFUNDS_WEBHOOK: [
+      "airwallex",
+      "finix",
+      "fiuu",
+      "nmi",
+      "novalnet",
+      "paypal",
+      "stripe",
+    ],
+    BANK_DEBIT: ["adyen", "novalnet"],
     CARD_INSTALLMENTS: ["adyen"],
+    BILLING_DESCRIPTOR: [
+      "adyen",
+      "checkout",
+      "stripe",
+      "nuvei",
+      "trustpay",
+      "finix",
+    ],
+    BILLING_DESCRIPTOR_INVALID_PHONE: ["nuvei"],
+    FEATURE_METADATA: ["bankofamerica"],
+    AUTO_RETRY: [
+      "cybersource",
+      "checkout",
+      "stripe",
+      "adyen",
+      "airwallex",
+      "authorizedotnet",
+      "bankofamerica",
+      "datatrans",
+      "finix",
+      "fiuu",
+      "globalpay",
+      "nexinets",
+      "nmi",
+      "paypal",
+      "powertranz",
+      "shift4",
+      "trustpay",
+      "worldpay",
+      "worldpayvantiv",
+    ],
+    EXTERNAL_THREE_DS: ["stripe", "finix"],
+    PARTNER_MERCHANT_IDENTIFIER: ["adyen", "checkout"],
+    EXTEND_AUTHORIZATION: ["adyen", "paypal"],
+    GIFT_CARD: ["adyen"],
+    PAY_LATER: ["klarna", "adyen", "aci", "stripe"],
+    AUTH_SERVICE_ELIGIBILITY: ["stripe", "cybersource"],
+    PARTIAL_AUTH: ["nuvei", "checkout", "worldpay", "worldpayvantiv"],
+    USE_BILLING_AS_PAYMENT_METHOD_BILLING: ["bankofamerica"],
+    MIT_WITH_LIMITED_CARD_DATA: ["peachpayments"],
+    REFUND_MANUAL_UPDATE: ["bankofamerica", "cybersource"],
     // Add more inclusion lists
   },
 };

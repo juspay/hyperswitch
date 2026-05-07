@@ -39,8 +39,8 @@ use diesel_models::{
 };
 use error_stack::ResultExt;
 #[cfg(feature = "v2")]
-use masking::ExposeInterface;
-use masking::{PeekInterface, Secret};
+use hyperswitch_masking::ExposeInterface;
+use hyperswitch_masking::{PeekInterface, Secret};
 #[cfg(feature = "v1")]
 use router_env::logger;
 use rustc_hash::FxHashMap;
@@ -549,21 +549,21 @@ pub struct NetworkErrorDetails {
 #[cfg(feature = "v1")]
 impl NetworkErrorDetails {
     fn new(
-        network_details: Option<Option<NetworkDetails>>,
-        network_error_message: Option<Option<String>>,
+        network_advice_code: Option<Option<String>>,
+        advice_message: Option<Option<String>>,
         card_network: Option<storage_enums::CardNetwork>,
     ) -> Option<Option<Self>> {
-        if network_details.is_none() && network_error_message.is_none() {
+        if network_advice_code.is_none() && advice_message.is_none() {
             None
         } else {
-            let network_details_val = network_details.flatten();
-            let network_error_message_val = network_error_message.flatten();
+            let network_advice_code_val = network_advice_code.flatten();
+            let advice_message_val = advice_message.flatten();
 
-            if network_details_val.is_some() || network_error_message_val.is_some() {
+            if network_advice_code_val.is_some() || advice_message_val.is_some() {
                 Some(Some(Self {
                     name: card_network,
-                    advice_code: network_details_val.and_then(|n| n.network_advice_code),
-                    advice_message: network_error_message_val,
+                    advice_code: network_advice_code_val,
+                    advice_message: advice_message_val,
                 }))
             } else {
                 Some(None)
@@ -804,7 +804,7 @@ pub struct PaymentAttempt {
     /// The reference to the payment at the connector side
     pub connector_payment_id: Option<String>,
     /// The payment method subtype for the payment attempt.
-    pub payment_method_subtype: storage_enums::PaymentMethodType,
+    pub payment_method_subtype: Option<storage_enums::PaymentMethodType>,
     /// The authentication type that was applied for the payment attempt.
     pub authentication_applied: Option<common_enums::AuthenticationType>,
     /// A reference to the payment at connector side. This is returned by the connector
@@ -851,8 +851,7 @@ impl PaymentAttempt {
 
     #[cfg(feature = "v2")]
     pub fn get_payment_method_type(&self) -> Option<storage_enums::PaymentMethodType> {
-        // TODO: check if we can fix this
-        Some(self.payment_method_subtype)
+        self.payment_method_subtype
     }
 
     #[cfg(feature = "v1")]
@@ -1074,8 +1073,7 @@ impl PaymentAttempt {
                 .unwrap_or(common_enums::PaymentMethod::Card),
             payment_method_id: None,
             connector_payment_id: None,
-            payment_method_subtype: payment_method_subtype_data
-                .unwrap_or(common_enums::PaymentMethodType::Credit),
+            payment_method_subtype: payment_method_subtype_data,
             authentication_applied: None,
             external_reference_id: None,
             payment_method_billing_address,
@@ -1174,8 +1172,7 @@ impl PaymentAttempt {
                 .unwrap_or(common_enums::PaymentMethod::Card),
             payment_method_id: request.payment_method_id.clone(),
             connector_payment_id: None,
-            payment_method_subtype: payment_method_subtype_data
-                .unwrap_or(common_enums::PaymentMethodType::Credit),
+            payment_method_subtype: payment_method_subtype_data,
             authentication_applied: None,
             external_reference_id: None,
             payment_method_billing_address,
@@ -1295,7 +1292,7 @@ impl PaymentAttempt {
             payment_method_type: request.payment_method_type,
             payment_method_id: None,
             connector_payment_id,
-            payment_method_subtype: request.payment_method_subtype,
+            payment_method_subtype: Some(request.payment_method_subtype),
             authentication_applied: None,
             external_reference_id: None,
             payment_method_billing_address,
@@ -1678,22 +1675,23 @@ impl PaymentAttempt {
             match (self.payment_method_type, self.payment_method_subtype) {
                 (
                     storage_enums::PaymentMethod::Upi,
-                    storage_enums::PaymentMethodType::UpiIntent,
+                    Some(storage_enums::PaymentMethodType::UpiIntent),
                 ) => sdk_uri_opt
                     .zip(wait_screen_info)
                     .map(|(sdk_uri, wait_info)| {
                         api_models::payments::NextActionData::from_upi_intent(sdk_uri, wait_info)
                     }),
-                (storage_enums::PaymentMethod::Upi, storage_enums::PaymentMethodType::UpiQr) => {
-                    sdk_uri_opt
-                        .zip(wait_screen_info)
-                        .map(|(sdk_uri, wait_info)| {
-                            api_models::payments::NextActionData::from_upi_qr(sdk_uri, wait_info)
-                        })
-                }
                 (
                     storage_enums::PaymentMethod::Upi,
-                    storage_enums::PaymentMethodType::UpiCollect,
+                    Some(storage_enums::PaymentMethodType::UpiQr),
+                ) => sdk_uri_opt
+                    .zip(wait_screen_info)
+                    .map(|(sdk_uri, wait_info)| {
+                        api_models::payments::NextActionData::from_upi_qr(sdk_uri, wait_info)
+                    }),
+                (
+                    storage_enums::PaymentMethod::Upi,
+                    Some(storage_enums::PaymentMethodType::UpiCollect),
                 ) => wait_screen_info.map(api_models::payments::NextActionData::from_wait_screen),
                 _ => None,
             },
@@ -2031,6 +2029,7 @@ pub enum PaymentAttemptUpdate {
         issuer_error_message: Option<Option<String>>,
         network_details: Option<Option<NetworkDetails>>,
         network_error_message: Option<Option<String>>,
+        advice_message: Option<Option<String>>,
         recommended_action: Option<Option<storage_enums::RecommendedAction>>,
         card_network: Option<storage_enums::CardNetwork>,
     },
@@ -2071,6 +2070,7 @@ pub enum PaymentAttemptUpdate {
         issuer_error_message: Option<Option<String>>,
         network_details: Option<Option<NetworkDetails>>,
         network_error_message: Option<Option<String>>,
+        advice_message: Option<Option<String>>,
         recommended_action: Option<Option<storage_enums::RecommendedAction>>,
         card_network: Option<storage_enums::CardNetwork>,
     },
@@ -2126,6 +2126,14 @@ pub enum PaymentAttemptUpdate {
     PostSessionTokensUpdate {
         updated_by: String,
         connector_metadata: Option<Value>,
+    },
+    RecurrenceUpdate {
+        status: storage_enums::AttemptStatus,
+        error_code: Option<String>,
+        error_message: Option<String>,
+        error_reason: Option<String>,
+        updated_by: String,
+        connector_mandate_detail: Option<ConnectorMandateReferenceId>,
     },
 }
 
@@ -2371,7 +2379,8 @@ impl PaymentAttemptUpdate {
                 issuer_error_code,
                 issuer_error_message,
                 network_details,
-                network_error_message,
+                network_error_message: _,
+                advice_message,
                 recommended_action,
                 card_network,
             } => {
@@ -2388,11 +2397,10 @@ impl PaymentAttemptUpdate {
                     user_guidance_message.clone(),
                     recommended_action,
                 );
-                let network_error_details = NetworkErrorDetails::new(
-                    network_details,
-                    network_error_message.clone(),
-                    card_network,
-                );
+                let network_advice_code =
+                    network_details.map(|opt| opt.and_then(|n| n.network_advice_code));
+                let network_error_details =
+                    NetworkErrorDetails::new(network_advice_code, advice_message, card_network);
                 let issuer_details = IssuerErrorDetails::new(
                     issuer_error_code.clone(),
                     issuer_error_message.clone(),
@@ -2513,7 +2521,8 @@ impl PaymentAttemptUpdate {
                 issuer_error_code,
                 issuer_error_message,
                 network_details,
-                network_error_message,
+                network_error_message: _,
+                advice_message,
                 encrypted_payment_method_data,
                 recommended_action,
                 card_network,
@@ -2531,11 +2540,11 @@ impl PaymentAttemptUpdate {
                     user_guidance_message.clone(),
                     recommended_action,
                 );
-                let network_error_details = NetworkErrorDetails::new(
-                    network_details.clone(),
-                    network_error_message.clone(),
-                    card_network,
-                );
+                let network_advice_code = network_details
+                    .clone()
+                    .map(|opt| opt.and_then(|n| n.network_advice_code));
+                let network_error_details =
+                    NetworkErrorDetails::new(network_advice_code, advice_message, card_network);
                 let issuer_details = IssuerErrorDetails::new(
                     issuer_error_code.clone(),
                     issuer_error_message.clone(),
@@ -2680,6 +2689,21 @@ impl PaymentAttemptUpdate {
                 updated_by,
                 connector_metadata,
             },
+            Self::RecurrenceUpdate {
+                status,
+                error_code,
+                error_message,
+                error_reason,
+                updated_by,
+                connector_mandate_detail,
+            } => DieselPaymentAttemptUpdate::RecurrenceUpdate {
+                status,
+                error_code,
+                error_message,
+                error_reason,
+                updated_by,
+                connector_mandate_detail,
+            },
         }
     }
 
@@ -2708,7 +2732,8 @@ impl PaymentAttemptUpdate {
             | Self::IncrementalAuthorizationAmountUpdate { .. }
             | Self::AuthenticationUpdate { .. }
             | Self::ManualUpdate { .. }
-            | Self::PostSessionTokensUpdate { .. } => None,
+            | Self::PostSessionTokensUpdate { .. }
+            | Self::RecurrenceUpdate { .. } => None,
         }
     }
 }

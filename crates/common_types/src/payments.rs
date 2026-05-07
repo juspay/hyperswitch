@@ -18,13 +18,20 @@ use euclid::frontend::{
     ast::Program,
     dir::{DirKeyKind, EuclidDirFilter},
 };
-use masking::{ExposeInterface, PeekInterface, Secret};
+use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
+use rust_decimal::{
+    prelude::{FromPrimitive, ToPrimitive},
+    Decimal, MathematicalOps,
+};
 use serde::{Deserialize, Serialize};
 use smithy::SmithyModel;
 use time::PrimitiveDateTime;
 use utoipa::ToSchema;
 
-use crate::domain::{AdyenSplitData, PostCaptureVoidData, XenditSplitSubMerchantData};
+use crate::{
+    consts::PERCENTAGE_BASE,
+    domain::{AdyenSplitData, PostCaptureVoidData, XenditSplitSubMerchantData},
+};
 #[derive(
     Serialize,
     Deserialize,
@@ -85,6 +92,11 @@ pub struct StripeSplitPaymentRequest {
     /// Identifier for the reseller's account where the funds were transferred
     #[smithy(value_type = "String")]
     pub transfer_account_id: String,
+
+    /// The Stripe account ID that these funds are intended for
+    #[schema(value_type = Option<String>, example = "acct_1234567890")]
+    #[smithy(value_type = "Option<String>")]
+    pub on_behalf_of: Option<String>,
 }
 impl_to_sql_from_sql_json!(StripeSplitPaymentRequest);
 
@@ -255,7 +267,7 @@ impl CustomerAcceptance {
     }
 }
 
-impl masking::SerializableSecret for CustomerAcceptance {}
+impl hyperswitch_masking::SerializableSecret for CustomerAcceptance {}
 
 #[derive(
     Default,
@@ -364,6 +376,11 @@ pub struct StripeChargeResponseData {
     /// Identifier for the reseller's account where the funds were transferred
     #[smithy(value_type = "String")]
     pub transfer_account_id: String,
+
+    /// The Stripe account ID that these funds are intended for
+    #[schema(value_type = Option<String>, example = "acct_1234567890")]
+    #[smithy(value_type = "Option<String>")]
+    pub on_behalf_of: Option<String>,
 }
 impl_to_sql_from_sql_json!(StripeChargeResponseData);
 
@@ -1249,7 +1266,7 @@ pub struct NetworkTransactionIdAndDecryptedWalletTokenDetails {
 }
 
 /// Billing frequency for a card installment plan
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema, PartialEq, Eq)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema, PartialEq, Eq, Hash)]
 #[serde(rename_all = "snake_case")]
 pub enum BillingFrequency {
     /// Monthly billing
@@ -1311,35 +1328,49 @@ impl TryFrom<Vec<NonZeroU8>> for InstallmentCounts {
 pub struct InstallmentInterestRate(f64);
 
 impl InstallmentInterestRate {
-    /// apply the interest rate to amount and ceil the result
-    pub fn apply_and_ceil_result(
+    /// Calculate the total EMI interest for a given principal and number of installments
+    pub fn calculate_emi_interest(
         &self,
         amount: MinorUnit,
+        number_of_installments: NonZeroU8,
     ) -> errors::CustomResult<MinorUnit, errors::InstallmentInterestRateError> {
-        let max_amount = i64::MAX / 10000;
-        let amount = amount.get_amount_as_i64();
-        if amount > max_amount {
-            // value gets rounded off after i64::MAX/10000
-            Err(error_stack::report!(
-                errors::InstallmentInterestRateError::UnableToApplyInterestRate
-            ))
-            .attach_printable(format!(
-                "Cannot calculate interest rate for amount greater than {max_amount}",
-            ))
+        let amount_decimal = Decimal::from_i64(amount.get_amount_as_i64())
+            .ok_or(errors::InstallmentInterestRateError::UnableToApplyInterestRate)
+            .map_err(Report::from)
+            .attach_printable("Failed to convert amount to decimal")?;
+
+        let rate_decimal = Decimal::from_f64(self.0 / PERCENTAGE_BASE)
+            .ok_or(errors::InstallmentInterestRateError::UnableToApplyInterestRate)
+            .map_err(Report::from)
+            .attach_printable("Failed to convert interest rate to decimal")?;
+
+        let n_decimal = Decimal::from_u8(u8::from(number_of_installments))
+            .ok_or(errors::InstallmentInterestRateError::UnableToApplyInterestRate)
+            .map_err(Report::from)
+            .attach_printable("Failed to convert number of installments to decimal")?;
+        // Formula: Total Interest = (EMI × n) - P
+        // where:
+        //   EMI = (P × r × (1 + r)^n) / ((1 + r)^n - 1)
+        //   P = principal amount
+        //   r = interest rate
+        //   n = number of installments
+        let total_interest = if rate_decimal.is_zero() {
+            Decimal::ZERO
         } else {
-            let amount_f64 = amount
-                .to_string()
-                .parse::<f64>()
-                .change_context(errors::InstallmentInterestRateError::UnableToApplyInterestRate)
-                .attach_printable("Failed to parse amount as f64")?;
-            let ceiled = (amount_f64 * (self.0 / 100.0)).ceil();
-            let result = ceiled
-                .to_string()
-                .parse::<i64>()
-                .change_context(errors::InstallmentInterestRateError::UnableToApplyInterestRate)
-                .attach_printable("Failed to parse ceiled result as i64")?;
-            Ok(MinorUnit::new(result))
-        }
+            let one = Decimal::ONE;
+            let factor = (one + rate_decimal).powd(n_decimal);
+            let emi = (amount_decimal * rate_decimal * factor) / (factor - one);
+            emi * n_decimal - amount_decimal
+        };
+        // - ceil() ensures merchant always receives at least the calculated interest
+        let result = total_interest
+            .ceil()
+            .to_i64()
+            .ok_or(errors::InstallmentInterestRateError::UnableToApplyInterestRate)
+            .map_err(Report::from)
+            .attach_printable("Failed to convert interest result to i64")?;
+
+        Ok(MinorUnit::new(result))
     }
 
     fn is_valid_precision_length(value: &str) -> bool {
@@ -1396,6 +1427,81 @@ pub struct InstallmentOptionData {
     pub interest_rate: InstallmentInterestRate,
 }
 
+/// A validated list of installment entries with no duplicate counts per billing frequency.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq)]
+#[serde(try_from = "Vec<InstallmentOptionData>")]
+pub struct InstallmentEntries(Vec<InstallmentOptionData>);
+
+impl InstallmentEntries {
+    /// Validates that no installment count appears more than once for the same billing frequency
+    /// across all entries.
+    /// Uses two nested `try_fold`s because the data is two-dimensional:
+    /// - The **outer** `try_fold` iterates over each `InstallmentOptionData` entry, carrying a
+    ///   `HashMap<BillingFrequency, HashSet<count>>` as the accumulator to track all counts seen
+    ///   so far grouped by frequency.
+    /// - The **inner** `try_fold` iterates over the `number_of_installments` vec within a single
+    ///   entry, attempting to insert each count into the set for its frequency. If `insert` returns
+    ///   `false` (count already present), it short-circuits with a validation error.
+    fn validate_no_duplicate_counts_per_frequency(
+        installments: &[InstallmentOptionData],
+    ) -> Result<(), errors::ValidationError> {
+        installments
+            .iter()
+            .try_fold(
+                HashMap::<&BillingFrequency, HashSet<NonZeroU8>>::new(),
+                |mut seen, entry| {
+                    entry
+                        .number_of_installments
+                        .as_slice()
+                        .iter()
+                        .try_fold(&mut seen, |seen, &count| {
+                            seen.entry(&entry.billing_frequency)
+                                .or_default()
+                                .insert(count)
+                                .then_some(seen)
+                                .ok_or_else(|| {
+                                    error_stack::report!(
+                                        errors::ValidationError::InvalidValue {
+                                            message: format!(
+                                                "installment count {count} appears in multiple entries with the same billing frequency."
+                                            ),
+                                        }
+                                    )
+                                })
+                        })?;
+                    Ok(seen)
+                },
+            )
+            .map(|_| ())
+    }
+}
+
+impl TryFrom<Vec<InstallmentOptionData>> for InstallmentEntries {
+    type Error = Report<errors::ValidationError>;
+
+    fn try_from(entries: Vec<InstallmentOptionData>) -> Result<Self, errors::ValidationError> {
+        Self::validate_no_duplicate_counts_per_frequency(&entries)?;
+        Ok(Self(entries))
+    }
+}
+
+impl std::ops::Deref for InstallmentEntries {
+    type Target = Vec<InstallmentOptionData>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl IntoIterator for InstallmentEntries {
+    type Item = InstallmentOptionData;
+    type IntoIter = std::vec::IntoIter<InstallmentOptionData>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.into_iter()
+    }
+}
+
 /// Installment options grouped by payment method
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, ToSchema, PartialEq)]
 pub struct InstallmentOption {
@@ -1403,7 +1509,8 @@ pub struct InstallmentOption {
     #[schema(value_type = PaymentMethod)]
     pub payment_method: common_enums::PaymentMethod,
     /// List of available installment configurations
-    pub installments: Vec<InstallmentOptionData>,
+    #[schema(value_type = Vec<InstallmentOptionData>)]
+    pub installments: InstallmentEntries,
 }
 
 /// A list of installment options stored as a single JSONB column value.
