@@ -733,6 +733,11 @@ pub enum Flow {
     EmbeddedTokenInfo,
     /// Superposition SDK Config Get flow
     GetSuperpositionSdkConfig,
+    /// Superposition proxy flows
+    SuperpositionListContexts,
+    SuperpositionListDefaultConfigs,
+    SuperpositionListDimensions,
+    SuperpositionCreateContext,
     // Get user details internal
     GetUserDetailsInternal,
     // List users internal

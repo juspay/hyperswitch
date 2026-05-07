@@ -300,6 +300,106 @@ impl SuperpositionClient {
             }
         }
     }
+
+    /// Make a raw GET request to the Superposition admin API
+    pub async fn get_raw(
+        config: &SuperpositionClientConfig,
+        path: &str,
+        query_params: Vec<(String, String)>,
+    ) -> CustomResult<serde_json::Value, SuperpositionError> {
+        let url = format!("{}{}", config.endpoint, path);
+        let response = reqwest::Client::new()
+            .get(&url)
+            .query(&query_params)
+            .header("x-org-id", &config.org_id)
+            .header("x-workspace", &config.workspace_id)
+            .bearer_auth(config.token.clone().expose())
+            .send()
+            .await
+            .map_err(|e| {
+                report!(SuperpositionError::ClientError(format!(
+                    "GET {path} failed: {e}"
+                )))
+            })?;
+
+        let status = response.status();
+        let body = response.text().await.map_err(|e| {
+            report!(SuperpositionError::ClientError(format!(
+                "Failed to read GET {path} response body: {e}"
+            )))
+        })?;
+
+        if !status.is_success() {
+            router_env::logger::error!(
+                superposition_path = path,
+                status = %status,
+                response_body = %body,
+                "Superposition GET request failed"
+            );
+            let err_msg = format!("GET {path} returned {status}: {body}");
+            return if status.is_client_error() {
+                Err(report!(SuperpositionError::BadRequest(err_msg)))
+            } else {
+                Err(report!(SuperpositionError::ClientError(err_msg)))
+            };
+        }
+
+        serde_json::from_str(&body).map_err(|e| {
+            report!(SuperpositionError::ClientError(format!(
+                "Failed to parse GET {path} response: {e}, body: {body}"
+            )))
+        })
+    }
+
+    /// Make a raw PUT request to the Superposition admin API
+    pub async fn put_raw(
+        config: &SuperpositionClientConfig,
+        path: &str,
+        body: serde_json::Value,
+    ) -> CustomResult<serde_json::Value, SuperpositionError> {
+        let url = format!("{}{}", config.endpoint, path);
+        let response = reqwest::Client::new()
+            .put(&url)
+            .header("x-org-id", &config.org_id)
+            .header("x-workspace", &config.workspace_id)
+            .bearer_auth(config.token.clone().expose())
+            .json(&body)
+            .send()
+            .await
+            .map_err(|e| {
+                report!(SuperpositionError::ClientError(format!(
+                    "PUT {path} failed: {e}"
+                )))
+            })?;
+
+        let status = response.status();
+        let resp_body = response.text().await.map_err(|e| {
+            report!(SuperpositionError::ClientError(format!(
+                "Failed to read PUT {path} response body: {e}"
+            )))
+        })?;
+
+        if !status.is_success() {
+            router_env::logger::error!(
+                superposition_path = path,
+                status = %status,
+                response_body = %resp_body,
+                "Superposition PUT request failed"
+            );
+            let err_msg = format!("PUT {path} returned {status}: {resp_body}");
+            return if status.is_client_error() {
+                Err(report!(SuperpositionError::BadRequest(err_msg)))
+            } else {
+                Err(report!(SuperpositionError::ClientError(err_msg)))
+            };
+        }
+
+        serde_json::from_str(&resp_body).map_err(|e| {
+            report!(SuperpositionError::ClientError(format!(
+                "Failed to parse PUT {path} response: {e}, body: {resp_body}"
+            )))
+        })
+    }
 }
 
 /// Each config type implements this trait to define how its value should be

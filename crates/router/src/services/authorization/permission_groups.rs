@@ -27,7 +27,8 @@ impl PermissionGroupExt for PermissionGroup {
             | Self::ReconSourcesView
             | Self::ReconTransactionsView
             | Self::ReconExceptionsView
-            | Self::ReconRulesView => PermissionScope::Read,
+            | Self::ReconRulesView
+            | Self::SuperpositionView => PermissionScope::Read,
 
             Self::OperationsManage
             | Self::ConnectorsManage
@@ -39,7 +40,8 @@ impl PermissionGroupExt for PermissionGroup {
             | Self::ReconSourcesManage
             | Self::ReconExceptionsManage
             | Self::ReconTransactionsManage
-            | Self::ReconRulesManage => PermissionScope::Write,
+            | Self::ReconRulesManage
+            | Self::SuperpositionManage => PermissionScope::Write,
         }
     }
 
@@ -60,6 +62,7 @@ impl PermissionGroupExt for PermissionGroup {
                 ParentGroup::ReconTransactions
             }
             Self::ReconRulesView | Self::ReconRulesManage => ParentGroup::ReconRules,
+            Self::SuperpositionView | Self::SuperpositionManage => ParentGroup::Superposition,
         }
     }
 
@@ -134,6 +137,8 @@ impl PermissionGroupExt for PermissionGroup {
                 Self::ReconRulesView,
                 Self::ReconTransactionsView,
             ],
+            Self::SuperpositionView => vec![Self::SuperpositionView],
+            Self::SuperpositionManage => vec![Self::SuperpositionManage, Self::SuperpositionView],
         }
     }
 
@@ -154,7 +159,9 @@ impl PermissionGroupExt for PermissionGroup {
             | Self::AccountManage
             | Self::InternalManage
             | Self::ThemeView
-            | Self::ThemeManage => RoleProductCategory::Orchestration,
+            | Self::ThemeManage
+            | Self::SuperpositionView
+            | Self::SuperpositionManage => RoleProductCategory::Orchestration,
 
             // Recon-only groups.
             Self::ReconSourcesView
@@ -193,6 +200,7 @@ impl ParentGroupExt for ParentGroup {
             Self::ReconExceptions => RECON_EXCEPTIONS.to_vec(),
             Self::ReconTransactions => RECON_TRANSACTIONS.to_vec(),
             Self::ReconRules => RECON_RULES.to_vec(),
+            Self::Superposition => SUPERPOSITION.to_vec(),
         }
     }
 
@@ -278,3 +286,5 @@ pub static RECON_TRANSACTIONS: [Resource; 3] = [
 ];
 
 pub static RECON_RULES: [Resource; 2] = [Resource::ReconRule, Resource::Account];
+
+pub static SUPERPOSITION: [Resource; 1] = [Resource::SuperpositionConfig];

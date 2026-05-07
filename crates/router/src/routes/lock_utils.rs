@@ -391,6 +391,10 @@ impl From<Flow> for ApiIdentifier {
             | Flow::UpdateCardIssuer
             | Flow::DeleteCardIssuer
             | Flow::ListCardIssuers => Self::CardIssuers,
+            Flow::SuperpositionListContexts
+            | Flow::SuperpositionListDefaultConfigs
+            | Flow::SuperpositionListDimensions
+            | Flow::SuperpositionCreateContext => Self::Superposition,
         }
     }
 }

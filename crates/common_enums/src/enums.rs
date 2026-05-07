@@ -9572,6 +9572,8 @@ pub enum PermissionGroup {
     ReconTransactionsManage,
     ReconRulesView,
     ReconRulesManage,
+    SuperpositionView,
+    SuperpositionManage,
 }
 
 #[derive(
@@ -9590,6 +9592,7 @@ pub enum ParentGroup {
     ReconExceptions,
     ReconTransactions,
     ReconRules,
+    Superposition,
 }
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Hash, serde::Serialize, serde::Deserialize)]
@@ -9621,6 +9624,7 @@ pub enum Resource {
     ReconStagingEntry,
     ReconTransaction,
     ReconRule,
+    SuperpositionConfig,
 }
 
 #[derive(

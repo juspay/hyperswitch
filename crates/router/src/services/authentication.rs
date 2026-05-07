@@ -11,7 +11,7 @@ use api_models::payouts;
 use async_trait::async_trait;
 use base64::Engine;
 use common_enums::{MerchantAccountType, TokenPurpose};
-use common_utils::{date_time, fp_utils, id_type};
+use common_utils::{consts::ROLE_ID_ORGANIZATION_ADMIN, date_time, fp_utils, id_type};
 #[cfg(feature = "v2")]
 use diesel_models::ephemeral_key;
 use error_stack::{report, ResultExt};
@@ -342,6 +342,13 @@ pub struct UserFromToken {
     pub org_id: id_type::OrganizationId,
     pub profile_id: id_type::ProfileId,
     pub tenant_id: Option<id_type::TenantId>,
+}
+
+impl UserFromToken {
+    pub fn is_superposition_admin(&self) -> bool {
+        self.role_id == consts::user_role::ROLE_ID_MERCHANT_ADMIN
+            || self.role_id == ROLE_ID_ORGANIZATION_ADMIN
+    }
 }
 
 pub struct UserIdFromAuth {
