@@ -573,8 +573,7 @@ function payLaterRedirection(
               cy.log(`Generic pay later flow for ${connectorId}`);
               cy.wait(constants.WAIT_TIME / 2);
           }
-        },
-        { paymentMethodType }
+        }
       );
     }
   } else {
