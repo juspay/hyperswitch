@@ -36,15 +36,16 @@ use hyperswitch_domain_models::{
             ConnectorAuthenticationCreateRequestData, MessageCategory, PreAuthenticationData,
         },
         unified_authentication_service::{
-            AuthenticationInfo, PaymentDetails, ServiceSessionIds, ThreeDsMetaData,
-            TransactionDetails, UasAuthenticationRequestData, UasConfirmationRequestData,
-            UasPostAuthenticationRequestData, UasPreAuthenticationRequestData,
+            AuthenticationCreateRequestData, AuthenticationInfo, PaymentDetails, ServiceSessionIds,
+            ThreeDsMetaData, TransactionDetails, UasAuthenticationRequestData,
+            UasConfirmationRequestData, UasPostAuthenticationRequestData,
+            UasPreAuthenticationRequestData,
         },
         BrowserInformation,
     },
     types::{
-        UasAuthenticationRouterData, UasPostAuthenticationRouterData,
-        UasPreAuthenticationRouterData,
+        AuthenticationCreateRouterData, UasAuthenticationRouterData,
+        UasPostAuthenticationRouterData, UasPreAuthenticationRouterData,
     },
 };
 use hyperswitch_masking::{ExposeInterface, PeekInterface};
@@ -63,7 +64,7 @@ use crate::{
         payments::{helpers, validate_customer_details_for_click_to_pay},
         unified_authentication_service::types::{
             AuthSyncStrategy, ClickToPay, ExternalAuthentication, UnifiedAuthenticationService,
-            UNIFIED_AUTHENTICATION_SERVICE,
+            MODULAR_AUTHENTICATION, UNIFIED_AUTHENTICATION_SERVICE,
         },
         utils as core_utils,
     },
@@ -298,9 +299,73 @@ impl UnifiedAuthenticationService for ExternalAuthentication {
     fn get_authentication_create_request_data(
         amount: common_utils::types::MinorUnit,
         currency: common_enums::Currency,
-        billing_address: &hyperswitch_domain_models::address::Address,
-    ) -> RouterResult<ConnectorAuthenticationCreateRequestData> {
-        Ok(ConnectorAuthenticationCreateRequestData {})
+        profile_id: Option<common_utils::id_type::ProfileId>,
+        authentication_connector: String,
+        return_url: Option<String>,
+        force_3ds_challenge: Option<bool>,
+        psd2_sca_exemption_type: Option<common_enums::ScaExemptionType>,
+        profile_acquirer_id: Option<common_utils::id_type::ProfileAcquirerId>,
+        acquirer_details: Option<api_models::authentication::AcquirerDetails>,
+        customer_details: Option<api_models::payments::CustomerDetails>,
+    ) -> RouterResult<AuthenticationCreateRequestData> {
+        Ok(AuthenticationCreateRequestData {
+            amount,
+            currency,
+            profile_id,
+            authentication_connector,
+            return_url,
+            force_3ds_challenge,
+            psd2_sca_exemption_type,
+            profile_acquirer_id,
+            acquirer_details,
+            customer_details,
+        })
+    }
+
+    async fn authentication_create(
+        state: &SessionState,
+        authentication_connector: String,
+        amount: common_utils::types::MinorUnit,
+        currency: common_enums::Currency,
+        return_url: Option<String>,
+        force_3ds_challenge: Option<bool>,
+        psd2_sca_exemption_type: Option<common_enums::ScaExemptionType>,
+        profile_acquirer_id: Option<common_utils::id_type::ProfileAcquirerId>,
+        acquirer_details: Option<api_models::authentication::AcquirerDetails>,
+        customer_details: Option<api_models::payments::CustomerDetails>,
+    ) -> RouterResult<AuthenticationCreateRouterData> {
+        let authentication_create_request_data = Self::get_authentication_create_request_data(
+            amount,
+            currency,
+            profile_id,
+            authentication_connector,
+            return_url,
+            force_3ds_challenge,
+            psd2_sca_exemption_type,
+            profile_acquirer_id,
+            acquirer_details,
+            customer_details,
+        );
+
+        let auth_create_router_data: AuthenticationCreateRouterData =
+            utils::construct_uas_router_data(
+                state,
+                connector_name.to_string(),
+                payment_method,
+                merchant_id.clone(),
+                None,
+                authentication_create_request_data,
+                merchant_connector_account,
+                Some(authentication_id.to_owned()),
+                payment_id.cloned(),
+            )?;
+
+        Box::pin(utils::do_auth_connector_call(
+            state,
+            MODULAR_AUTHENTICATION.to_string(),
+            auth_create_router_data,
+        ))
+        .await
     }
 
     fn get_pre_authentication_request_data(
@@ -551,6 +616,8 @@ impl UnifiedAuthenticationService for ExternalAuthentication {
         _merchant_id: &common_utils::id_type::MerchantId,
         authentication: Option<&hyperswitch_domain_models::authentication::Authentication>,
         routing_region: Option<common_enums::RoutingRegion>,
+        enable_modular_auth: bool,
+        enable_modular_auth: bool,
     ) -> RouterResult<UasPostAuthenticationRouterData> {
         let authentication_data =
             <Self as UnifiedAuthenticationService>::get_post_authentication_request_data(
@@ -569,9 +636,15 @@ impl UnifiedAuthenticationService for ExternalAuthentication {
             payment_id.cloned(),
         )?;
 
+        let connector_name = if enable_modular_auth {
+            MODULAR_AUTHENTICATION.to_string()
+        } else {
+            UNIFIED_AUTHENTICATION_SERVICE.to_string()
+        };
+
         Box::pin(utils::do_auth_connector_call(
             state,
-            UNIFIED_AUTHENTICATION_SERVICE.to_string(),
+            connector_name,
             auth_router_data,
         ))
         .await

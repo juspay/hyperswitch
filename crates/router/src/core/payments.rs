@@ -899,7 +899,7 @@ where
         } else if is_eligible_for_uas {
             operation
                 .to_domain()?
-                .call_unified_authentication_service_if_eligible(
+                .call_modular_authentication_service(
                     state,
                     &mut payment_data,
                     &mut should_continue_transaction,
@@ -11604,6 +11604,7 @@ pub async fn payment_external_authentication<F: Clone + Sync>(
                     authentication.force_3ds_challenge,
                     authentication.psd2_sca_exemption_type,
                     Some(routing_region),
+                    false,
                 )
                 .await?;
             let authentication = Box::pin(external_authentication_update_trackers(

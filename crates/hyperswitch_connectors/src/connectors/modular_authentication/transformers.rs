@@ -1,10 +1,12 @@
+use std::str::FromStr;
+
 use api_models::authentication as api_authentication;
-use hyperswitch_domain_models::{
-    router_request_types::authentication::{
+use hyperswitch_domain_models::router_request_types::{
+    authentication::{
         ConnectorAuthenticationRequestData, ConnectorPostAuthenticationRequestData,
         PreAuthNRequestData,
     },
-    router_response_types::AuthenticationResponseData,
+    unified_authentication_service::UasAuthenticationResponseData,
 };
 use hyperswitch_interfaces::errors;
 
@@ -53,46 +55,30 @@ impl TryFrom<&hyperswitch_domain_models::router_data::ConnectorAuthType>
 // ----------------------------------------
 
 pub fn construct_authentication_create_request(
-    item: &types::RouterData<hyperswitch_domain_models::router_flow_types::authentication::AuthenticationCreate, hyperswitch_domain_models::router_request_types::authentication::ConnectorAuthenticationCreateRequestData, AuthenticationResponseData>,
+    item: &types::RouterData<hyperswitch_domain_models::router_flow_types::authentication::AuthenticationCreate, hyperswitch_domain_models::router_request_types::unified_authentication_service::AuthenticationCreateRequestData, UasAuthenticationResponseData>,
 ) -> Result<
     api_models::authentication::AuthenticationCreateRequest,
     error_stack::Report<errors::ConnectorError>,
 > {
-    let amount = item
-        .request
-        .amount
-        .ok_or(errors::ConnectorError::MissingRequiredField {
-            field_name: "amount",
-        })?;
-    let currency = item
-        .request
-        .currency
-        .ok_or(errors::ConnectorError::MissingRequiredField {
-            field_name: "currency",
-        })?;
-    let minor_amount = MinorUnit::new(amount);
-    let acquirer_details =
-        if item.request.acquirer_bin.is_some() || item.request.acquirer_merchant_id.is_some() {
-            Some(api_models::authentication::AcquirerDetails {
-                acquirer_bin: item.request.acquirer_bin.clone(),
-                acquirer_merchant_id: item.request.acquirer_merchant_id.clone(),
-                merchant_country_code: item.request.merchant_country_code.clone(),
-            })
-        } else {
-            None
-        };
+    let amount = item.request.amount;
+    let currency = item.request.currency;
+    let acquirer_details = item.request.acquirer_details.clone();
+    let connector = common_enums::AuthenticationConnectors::from_str(
+        item.request.authentication_connector.as_str(),
+    )
+    .map_err(|_| errors::ConnectorError::InvalidConnectorName)?;
     Ok(api_models::authentication::AuthenticationCreateRequest {
         authentication_id: None,
-        profile_id: None,
-        amount: minor_amount,
+        profile_id: item.request.profile_id.clone(),
+        amount,
         currency,
         return_url: item.request.return_url.clone(),
-        authentication_connector: item.request.authentication_connector,
+        authentication_connector: Some(connector),
         force_3ds_challenge: item.request.force_3ds_challenge,
         psd2_sca_exemption_type: item.request.psd2_sca_exemption_type,
         profile_acquirer_id: item.request.profile_acquirer_id.clone(),
         acquirer_details,
-        customer_details: None,
+        customer_details: item.request.customer_details.clone(),
     })
 }
 
@@ -102,9 +88,9 @@ impl<F, T>
             F,
             api_authentication::AuthenticationResponse,
             T,
-            AuthenticationResponseData,
+            UasAuthenticationResponseData,
         >,
-    > for types::RouterData<F, T, AuthenticationResponseData>
+    > for types::RouterData<F, T, UasAuthenticationResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
@@ -112,17 +98,19 @@ impl<F, T>
             F,
             api_authentication::AuthenticationResponse,
             T,
-            AuthenticationResponseData,
+            UasAuthenticationResponseData,
         >,
     ) -> Result<Self, Self::Error> {
         Ok(Self {
-            response: Ok(AuthenticationResponseData::AuthenticationCreateResponse {
-                connector_authentication_id: item
-                    .response
-                    .authentication_id
-                    .get_string_repr()
-                    .to_string(),
-            }),
+            response: Ok(
+                UasAuthenticationResponseData::AuthenticationCreateResponse {
+                    connector_authentication_id: item
+                        .response
+                        .authentication_id
+                        .get_string_repr()
+                        .to_string(),
+                },
+            ),
             ..item.data
         })
     }
@@ -177,9 +165,9 @@ impl<F>
             F,
             api_authentication::AuthenticationEligibilityResponse,
             PreAuthNRequestData,
-            AuthenticationResponseData,
+            UasAuthenticationResponseData,
         >,
-    > for types::RouterData<F, PreAuthNRequestData, AuthenticationResponseData>
+    > for types::RouterData<F, PreAuthNRequestData, UasAuthenticationResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
 
@@ -188,7 +176,7 @@ impl<F>
             F,
             api_authentication::AuthenticationEligibilityResponse,
             PreAuthNRequestData,
-            AuthenticationResponseData,
+            UasAuthenticationResponseData,
         >,
     ) -> Result<Self, Self::Error> {
         let eligibility_params =
@@ -213,7 +201,7 @@ impl<F>
                     }
                 });
         Ok(Self {
-            response: Ok(AuthenticationResponseData::PreAuthNResponse {
+            response: Ok(UasAuthenticationResponseData::PreAuthNResponse {
                 threeds_server_transaction_id: item
                     .response
                     .authentication_id
@@ -283,9 +271,9 @@ impl<F>
             F,
             api_authentication::AuthenticationAuthenticateResponse,
             ConnectorAuthenticationRequestData,
-            AuthenticationResponseData,
+            UasAuthenticationResponseData,
         >,
-    > for types::RouterData<F, ConnectorAuthenticationRequestData, AuthenticationResponseData>
+    > for types::RouterData<F, ConnectorAuthenticationRequestData, UasAuthenticationResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
 
@@ -294,7 +282,7 @@ impl<F>
             F,
             api_authentication::AuthenticationAuthenticateResponse,
             ConnectorAuthenticationRequestData,
-            AuthenticationResponseData,
+            UasAuthenticationResponseData,
         >,
     ) -> Result<Self, Self::Error> {
         Ok(item.data)
@@ -328,9 +316,10 @@ impl<F>
             F,
             api_authentication::AuthenticationSyncResponse,
             ConnectorPostAuthenticationRequestData,
-            AuthenticationResponseData,
+            UasAuthenticationResponseData,
         >,
-    > for types::RouterData<F, ConnectorPostAuthenticationRequestData, AuthenticationResponseData>
+    >
+    for types::RouterData<F, ConnectorPostAuthenticationRequestData, UasAuthenticationResponseData>
 {
     type Error = error_stack::Report<errors::ConnectorError>;
 
@@ -339,7 +328,7 @@ impl<F>
             F,
             api_authentication::AuthenticationSyncResponse,
             ConnectorPostAuthenticationRequestData,
-            AuthenticationResponseData,
+            UasAuthenticationResponseData,
         >,
     ) -> Result<Self, Self::Error> {
         Ok(item.data)

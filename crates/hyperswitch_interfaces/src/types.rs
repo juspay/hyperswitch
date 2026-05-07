@@ -23,7 +23,8 @@ use hyperswitch_domain_models::{
             SubscriptionCancel, SubscriptionCreate, SubscriptionPause, SubscriptionResume,
         },
         unified_authentication_service::{
-            Authenticate, AuthenticationConfirmation, PostAuthenticate, PreAuthenticate,
+            Authenticate, AuthenticationConfirmation, AuthenticationCreate, PostAuthenticate,
+            PreAuthenticate,
         },
         vault::{
             ExternalVaultCreateFlow, ExternalVaultDeleteFlow, ExternalVaultInsertFlow,
@@ -45,9 +46,10 @@ use hyperswitch_domain_models::{
             SubscriptionPauseRequest, SubscriptionResumeRequest,
         },
         unified_authentication_service::{
-            UasAuthenticationRequestData, UasAuthenticationResponseData,
-            UasConfirmationRequestData, UasPostAuthenticationRequestData,
-            UasPreAuthenticationRequestData, UasWebhookRequestData,
+            AuthenticationCreateRequestData, UasAuthenticationRequestData,
+            UasAuthenticationResponseData, UasConfirmationRequestData,
+            UasPostAuthenticationRequestData, UasPreAuthenticationRequestData,
+            UasWebhookRequestData,
         },
         AcceptDisputeRequestData, AccessTokenAuthenticationRequestData, AccessTokenRequestData,
         AuthorizeSessionTokenData, CompleteAuthorizeData, ConnectorCustomerData,
@@ -325,6 +327,13 @@ pub type DisputeSyncType = dyn ConnectorIntegration<Dsync, DisputeSyncData, Disp
 pub type UasPreAuthenticationType = dyn ConnectorIntegration<
     PreAuthenticate,
     UasPreAuthenticationRequestData,
+    UasAuthenticationResponseData,
+>;
+
+/// Type alias for `ConnectorIntegration<AuthenticationCreate, AuthenticationCreateRequestData, AuthenticationResponseData>`
+pub type AuthenticationCreateType = dyn ConnectorIntegration<
+    AuthenticationCreate,
+    AuthenticationCreateRequestData,
     UasAuthenticationResponseData,
 >;
 

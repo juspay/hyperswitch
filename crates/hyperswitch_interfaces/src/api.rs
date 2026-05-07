@@ -62,16 +62,17 @@ use hyperswitch_domain_models::{
     router_flow_types::{
         mandate_revoke::MandateRevoke,
         merchant_connector_webhook_management::ConnectorWebhookRegister, AccessTokenAuth,
-        AccessTokenAuthentication, Authenticate, AuthenticationConfirmation, PostAuthenticate,
-        PreAuthenticate, ProcessIncomingWebhook, VerifyWebhookSource,
+        AccessTokenAuthentication, Authenticate, AuthenticationConfirmation, AuthenticationCreate,
+        PostAuthenticate, PreAuthenticate, ProcessIncomingWebhook, VerifyWebhookSource,
     },
     router_request_types::{
         self,
         merchant_connector_webhook_management::ConnectorWebhookRegisterRequest,
         unified_authentication_service::{
-            UasAuthenticationRequestData, UasAuthenticationResponseData,
-            UasConfirmationRequestData, UasPostAuthenticationRequestData,
-            UasPreAuthenticationRequestData, UasWebhookRequestData,
+            AuthenticationCreateRequestData, UasAuthenticationRequestData,
+            UasAuthenticationResponseData, UasConfirmationRequestData,
+            UasPostAuthenticationRequestData, UasPreAuthenticationRequestData,
+            UasWebhookRequestData,
         },
         AccessTokenAuthenticationRequestData, AccessTokenRequestData, MandateRevokeRequestData,
         VerifyWebhookSourceRequestData,
@@ -707,6 +708,17 @@ pub trait UnifiedAuthenticationService:
     + UasAuthenticationConfirmation
     + UasAuthentication
     + UasProcessWebhook
+    + ModularAuthAuthenticationCreate
+{
+}
+
+///trait AuthenticationCreate
+pub trait ModularAuthAuthenticationCreate:
+    ConnectorIntegration<
+    AuthenticationCreate,
+    AuthenticationCreateRequestData,
+    UasAuthenticationResponseData,
+>
 {
 }
 
@@ -760,6 +772,17 @@ pub trait UnifiedAuthenticationServiceV2:
     + UasAuthenticationV2
     + UasAuthenticationConfirmationV2
     + UasProcessWebhookV2
+{
+}
+
+///trait AuthenticationCreateV2
+pub trait ModularAuthAuthenticationCreateV2:
+    ConnectorIntegrationV2<
+    AuthenticationCreate,
+    UasFlowData,
+    AuthenticationCreateRequestData,
+    UasAuthenticationResponseData,
+>
 {
 }
 

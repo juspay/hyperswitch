@@ -5,8 +5,8 @@ use hyperswitch_domain_models::{
     router_request_types::{
         authentication::{ConnectorAuthenticationCreateRequestData, MessageCategory},
         unified_authentication_service::{
-            UasAuthenticationRequestData, UasPostAuthenticationRequestData,
-            UasPreAuthenticationRequestData,
+            AuthenticationCreateRequestData, UasAuthenticationRequestData,
+            UasPostAuthenticationRequestData, UasPreAuthenticationRequestData,
         },
         BrowserInformation,
     },
@@ -28,6 +28,8 @@ pub const IRRELEVANT_ATTEMPT_ID_IN_AUTHENTICATION_FLOW: &str =
 pub const IRRELEVANT_CONNECTOR_REQUEST_REFERENCE_ID_IN_AUTHENTICATION_FLOW: &str =
     "irrelevant_connector_request_reference_id_in_AUTHENTICATION_flow";
 
+pub const MODULAR_AUTHENTICATION: &str = "modular_authentication";
+
 pub struct ClickToPay;
 
 pub struct ExternalAuthentication;
@@ -36,13 +38,39 @@ pub struct ExternalAuthentication;
 pub trait UnifiedAuthenticationService {
     fn get_authentication_create_request_data(
         _amount: common_utils::types::MinorUnit,
-        _currency: Option<common_enums::Currency>,
-        _billing_address: Option<&hyperswitch_domain_models::address::Address>,
-    ) -> RouterResult<ConnectorAuthenticationCreateRequestData> {
+        _currency: common_enums::Currency,
+        _profile_id: Option<common_utils::id_type::ProfileId>,
+        _authentication_connector: Option<common_enums::AuthenticationConnectors>,
+        _return_url: Option<String>,
+        _force_3ds_challenge: Option<bool>,
+        _psd2_sca_exemption_type: Option<common_enums::ScaExemptionType>,
+        _profile_acquirer_id: Option<common_utils::id_type::ProfileAcquirerId>,
+        _acquirer_details: Option<api_models::authentication::AcquirerDetails>,
+        _customer_details: Option<api_models::payments::CustomerDetails>,
+    ) -> RouterResult<AuthenticationCreateRequestData> {
         Err(errors::ApiErrorResponse::NotImplemented {
             message: NotImplementedMessage::Reason(
                 "get_authentication_create_request_data".to_string(),
             ),
+        }
+        .into())
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    async fn authentication_create(
+        _state: &SessionState,
+        _authentication_connector: Option<String>,
+        _amount: common_utils::types::MinorUnit,
+        _currency: Option<common_enums::Currency>,
+        _return_url: Option<String>,
+        _force_3ds_challenge: Option<bool>,
+        _psd2_sca_exemption_type: Option<common_enums::ScaExemptionType>,
+        _profile_acquirer_id: Option<common_utils::id_type::ProfileAcquirerId>,
+        _acquirer_details: Option<api_models::authentication::AcquirerDetails>,
+        _customer_details: Option<api_models::payments::CustomerDetails>,
+    ) -> RouterResult<hyperswitch_domain_models::types::AuthenticationCreateRouterData> {
+        Err(errors::ApiErrorResponse::NotImplemented {
+            message: NotImplementedMessage::Reason("authentication_create".to_string()),
         }
         .into())
     }

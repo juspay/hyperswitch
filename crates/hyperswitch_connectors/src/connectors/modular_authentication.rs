@@ -22,19 +22,24 @@ use hyperswitch_domain_models::{
     },
     router_request_types::{
         authentication::{
-            ConnectorAuthenticationCreateRequestData, ConnectorAuthenticationRequestData,
-            ConnectorPostAuthenticationRequestData, PreAuthNRequestData,
+            ConnectorAuthenticationRequestData, ConnectorPostAuthenticationRequestData,
+            PreAuthNRequestData,
         },
         unified_authentication_service::{
-            UasAuthenticationRequestData, UasAuthenticationResponseData,
-            UasConfirmationRequestData, UasPostAuthenticationRequestData,
-            UasPreAuthenticationRequestData, UasWebhookRequestData,
+            AuthenticationCreateRequestData, UasAuthenticationRequestData,
+            UasAuthenticationResponseData, UasConfirmationRequestData,
+            UasPostAuthenticationRequestData, UasPreAuthenticationRequestData,
+            UasWebhookRequestData,
         },
         AccessTokenRequestData, PaymentMethodTokenizationData, PaymentsAuthorizeData,
         PaymentsCancelData, PaymentsCaptureData, PaymentsSessionData, PaymentsSyncData,
         RefundsData, SetupMandateRequestData,
     },
-    router_response_types::{AuthenticationResponseData, PaymentsResponseData, RefundsResponseData},
+    router_response_types::{PaymentsResponseData, RefundsResponseData},
+    types::{
+        AuthenticationCreateRouterData, UasAuthenticationRouterData,
+        UasPostAuthenticationRouterData, UasPreAuthenticationRouterData,
+    },
 };
 use hyperswitch_interfaces::{
     api::{
@@ -44,12 +49,19 @@ use hyperswitch_interfaces::{
     configs::Connectors,
     errors,
     events::connector_api_logs::ConnectorEvent,
-    types::Response,
+    types::{
+        AuthenticationCreateType, Response, UasAuthenticationType, UasPostAuthenticationType,
+        UasPreAuthenticationType,
+    },
     webhooks,
 };
 use hyperswitch_masking::Mask;
 
-use crate::{constants::headers, types, types::ResponseRouterData};
+use crate::{
+    connectors::UnifiedAuthenticationService,
+    constants::headers,
+    types::{self, ResponseRouterData},
+};
 use transformers as modular_authentication;
 
 #[derive(Clone)]
@@ -114,10 +126,7 @@ impl ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsRespons
 {
 }
 
-impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData>
-    for ModularAuthentication
-{
-}
+impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for ModularAuthentication {}
 
 impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData>
     for ModularAuthentication
@@ -135,43 +144,24 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for ModularAu
 
 // ExternalAuthentication sub-traits (ConnectorAuthentication and ConnectorPreAuthentication
 // are already implemented above via the actual flow impls; we just need the marker impls)
-impl api::authentication::ConnectorAuthentication for ModularAuthentication {}
-impl api::authentication::ConnectorAuthenticationCreate for ModularAuthentication {}
-impl api::authentication::ConnectorPreAuthentication for ModularAuthentication {}
+// impl api::authentication::ConnectorAuthentication for ModularAuthentication {}
+// impl api::authentication::ConnectorAuthenticationCreate for ModularAuthentication {}
+// impl api::authentication::ConnectorPreAuthentication for ModularAuthentication {}
 
 impl
     ConnectorIntegration<
         PreAuthenticationVersionCall,
         PreAuthNRequestData,
-        AuthenticationResponseData,
+        UasAuthenticationResponseData,
     > for ModularAuthentication
 {
 }
-impl api::authentication::ConnectorPreAuthenticationVersionCall for ModularAuthentication {}
-impl api::authentication::ConnectorPostAuthentication for ModularAuthentication {}
-impl api::authentication::ExternalAuthentication for ModularAuthentication {}
+// impl api::authentication::ConnectorPreAuthenticationVersionCall for ModularAuthentication {}
+// impl api::authentication::ConnectorPostAuthentication for ModularAuthentication {}
+// impl api::authentication::ExternalAuthentication for ModularAuthentication {}
 
 // FraudCheck (empty trait when frm feature is disabled; also stub sub-traits when enabled)
 impl api::FraudCheck for ModularAuthentication {}
-
-// UnifiedAuthenticationService sub-traits: ConnectorIntegration impls for UAS-specific flows
-impl
-    ConnectorIntegration<
-        PreAuthenticate,
-        UasPreAuthenticationRequestData,
-        UasAuthenticationResponseData,
-    > for ModularAuthentication
-{
-}
-
-impl
-    ConnectorIntegration<
-        PostAuthenticate,
-        UasPostAuthenticationRequestData,
-        UasAuthenticationResponseData,
-    > for ModularAuthentication
-{
-}
 
 impl
     ConnectorIntegration<
@@ -179,12 +169,6 @@ impl
         UasConfirmationRequestData,
         UasAuthenticationResponseData,
     > for ModularAuthentication
-{
-}
-
-impl
-    ConnectorIntegration<Authenticate, UasAuthenticationRequestData, UasAuthenticationResponseData>
-    for ModularAuthentication
 {
 }
 
@@ -198,12 +182,13 @@ impl
 }
 
 // UnifiedAuthenticationService marker traits
+// impl api::ModularAuthAuthenticationCreate for ModularAuthentication {}
 impl api::UasPreAuthentication for ModularAuthentication {}
 impl api::UasPostAuthentication for ModularAuthentication {}
 impl api::UasAuthenticationConfirmation for ModularAuthentication {}
 impl api::UasAuthentication for ModularAuthentication {}
 impl api::UasProcessWebhook for ModularAuthentication {}
-impl api::UnifiedAuthenticationService for ModularAuthentication {}
+// impl api::UnifiedAuthenticationService for ModularAuthentication {}
 
 #[async_trait::async_trait]
 impl webhooks::IncomingWebhook for ModularAuthentication {
@@ -316,16 +301,16 @@ impl ConnectorValidation for ModularAuthentication {}
 impl
     ConnectorIntegration<
         AuthenticationCreate,
-        ConnectorAuthenticationCreateRequestData,
-        AuthenticationResponseData,
+        AuthenticationCreateRequestData,
+        UasAuthenticationResponseData,
     > for ModularAuthentication
 {
     fn get_headers(
         &self,
         req: &RouterData<
             AuthenticationCreate,
-            ConnectorAuthenticationCreateRequestData,
-            AuthenticationResponseData,
+            AuthenticationCreateRequestData,
+            UasAuthenticationResponseData,
         >,
         connectors: &Connectors,
     ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
@@ -341,8 +326,8 @@ impl
         &self,
         _req: &RouterData<
             AuthenticationCreate,
-            ConnectorAuthenticationCreateRequestData,
-            AuthenticationResponseData,
+            AuthenticationCreateRequestData,
+            UasAuthenticationResponseData,
         >,
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
@@ -353,8 +338,8 @@ impl
         &self,
         req: &RouterData<
             AuthenticationCreate,
-            ConnectorAuthenticationCreateRequestData,
-            AuthenticationResponseData,
+            AuthenticationCreateRequestData,
+            UasAuthenticationResponseData,
         >,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
@@ -366,22 +351,20 @@ impl
         &self,
         req: &RouterData<
             AuthenticationCreate,
-            ConnectorAuthenticationCreateRequestData,
-            AuthenticationResponseData,
+            AuthenticationCreateRequestData,
+            UasAuthenticationResponseData,
         >,
         connectors: &Connectors,
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         Ok(Some(
             RequestBuilder::new()
                 .method(Method::Post)
-                .url(&types::AuthenticationCreateType::get_url(
-                    self, req, connectors,
-                )?)
+                .url(&AuthenticationCreateType::get_url(self, req, connectors)?)
                 .attach_default_headers()
-                .headers(types::AuthenticationCreateType::get_headers(
+                .headers(AuthenticationCreateType::get_headers(
                     self, req, connectors,
                 )?)
-                .set_body(types::AuthenticationCreateType::get_request_body(
+                .set_body(AuthenticationCreateType::get_request_body(
                     self, req, connectors,
                 )?)
                 .build(),
@@ -392,16 +375,16 @@ impl
         &self,
         data: &RouterData<
             AuthenticationCreate,
-            ConnectorAuthenticationCreateRequestData,
-            AuthenticationResponseData,
+            AuthenticationCreateRequestData,
+            UasAuthenticationResponseData,
         >,
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
     ) -> CustomResult<
         RouterData<
             AuthenticationCreate,
-            ConnectorAuthenticationCreateRequestData,
-            AuthenticationResponseData,
+            AuthenticationCreateRequestData,
+            UasAuthenticationResponseData,
         >,
         errors::ConnectorError,
     > {
@@ -428,12 +411,16 @@ impl
 }
 
 // Add PreAuthentication
-impl ConnectorIntegration<PreAuthentication, PreAuthNRequestData, AuthenticationResponseData>
-    for ModularAuthentication
+impl
+    ConnectorIntegration<
+        PreAuthenticate,
+        UasPreAuthenticationRequestData,
+        UasAuthenticationResponseData,
+    > for ModularAuthentication
 {
     fn get_headers(
         &self,
-        req: &types::PreAuthNRouterData,
+        req: &UasPreAuthenticationRouterData,
         connectors: &Connectors,
     ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
     {
@@ -446,7 +433,7 @@ impl ConnectorIntegration<PreAuthentication, PreAuthNRequestData, Authentication
 
     fn get_url(
         &self,
-        req: &types::PreAuthNRouterData,
+        req: &UasPreAuthenticationRouterData,
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         let auth_id = req
@@ -464,7 +451,7 @@ impl ConnectorIntegration<PreAuthentication, PreAuthNRequestData, Authentication
 
     fn get_request_body(
         &self,
-        req: &types::PreAuthNRouterData,
+        req: &UasPreAuthenticationRouterData,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let connector_req = modular_authentication::construct_pre_auth_request(req)?;
@@ -473,20 +460,18 @@ impl ConnectorIntegration<PreAuthentication, PreAuthNRequestData, Authentication
 
     fn build_request(
         &self,
-        req: &types::PreAuthNRouterData,
+        req: &UasPreAuthenticationRouterData,
         connectors: &Connectors,
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         Ok(Some(
             RequestBuilder::new()
                 .method(Method::Post)
-                .url(&types::ConnectorPreAuthenticationType::get_url(
-                    self, req, connectors,
-                )?)
+                .url(&UasPreAuthenticationType::get_url(self, req, connectors)?)
                 .attach_default_headers()
-                .headers(types::ConnectorPreAuthenticationType::get_headers(
+                .headers(UasPreAuthenticationType::get_headers(
                     self, req, connectors,
                 )?)
-                .set_body(types::ConnectorPreAuthenticationType::get_request_body(
+                .set_body(UasPreAuthenticationType::get_request_body(
                     self, req, connectors,
                 )?)
                 .build(),
@@ -495,10 +480,10 @@ impl ConnectorIntegration<PreAuthentication, PreAuthNRequestData, Authentication
 
     fn handle_response(
         &self,
-        data: &types::PreAuthNRouterData,
+        data: &UasPreAuthenticationRouterData,
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
-    ) -> CustomResult<types::PreAuthNRouterData, errors::ConnectorError> {
+    ) -> CustomResult<UasPreAuthenticationRouterData, errors::ConnectorError> {
         let response: api_models::authentication::AuthenticationEligibilityResponse = res
             .response
             .parse_struct("ModularAuthentication AuthenticationEligibilityResponse")
@@ -523,16 +508,12 @@ impl ConnectorIntegration<PreAuthentication, PreAuthNRequestData, Authentication
 }
 
 // Add Authentication
-impl
-    ConnectorIntegration<
-        Authentication,
-        ConnectorAuthenticationRequestData,
-        AuthenticationResponseData,
-    > for ModularAuthentication
+impl ConnectorIntegration<Authenticate, UasAuthenticationRequestData, UasAuthenticationResponseData>
+    for ModularAuthentication
 {
     fn get_headers(
         &self,
-        req: &types::ConnectorAuthenticationRouterData,
+        req: &UasAuthenticationRouterData,
         connectors: &Connectors,
     ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
     {
@@ -545,7 +526,7 @@ impl
 
     fn get_url(
         &self,
-        req: &types::ConnectorAuthenticationRouterData,
+        req: &UasAuthenticationRouterData,
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         let authentication_id = req
@@ -561,7 +542,7 @@ impl
 
     fn get_request_body(
         &self,
-        req: &types::ConnectorAuthenticationRouterData,
+        req: &UasAuthenticationRouterData,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let connector_req = modular_authentication::construct_authentication_request(req)?;
@@ -570,20 +551,16 @@ impl
 
     fn build_request(
         &self,
-        req: &types::ConnectorAuthenticationRouterData,
+        req: &UasAuthenticationRouterData,
         connectors: &Connectors,
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         Ok(Some(
             RequestBuilder::new()
                 .method(Method::Post)
-                .url(&types::ConnectorAuthenticationType::get_url(
-                    self, req, connectors,
-                )?)
+                .url(&UasAuthenticationType::get_url(self, req, connectors)?)
                 .attach_default_headers()
-                .headers(types::ConnectorAuthenticationType::get_headers(
-                    self, req, connectors,
-                )?)
-                .set_body(types::ConnectorAuthenticationType::get_request_body(
+                .headers(UasAuthenticationType::get_headers(self, req, connectors)?)
+                .set_body(UasAuthenticationType::get_request_body(
                     self, req, connectors,
                 )?)
                 .build(),
@@ -592,10 +569,10 @@ impl
 
     fn handle_response(
         &self,
-        data: &types::ConnectorAuthenticationRouterData,
+        data: &UasAuthenticationRouterData,
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
-    ) -> CustomResult<types::ConnectorAuthenticationRouterData, errors::ConnectorError> {
+    ) -> CustomResult<UasAuthenticationRouterData, errors::ConnectorError> {
         let response: api_models::authentication::AuthenticationAuthenticateResponse = res
             .response
             .parse_struct("ModularAuthentication AuthenticationAuthenticateResponse")
@@ -622,14 +599,14 @@ impl
 // Add PostAuthentication
 impl
     ConnectorIntegration<
-        PostAuthentication,
-        ConnectorPostAuthenticationRequestData,
-        AuthenticationResponseData,
+        PostAuthenticate,
+        UasPostAuthenticationRequestData,
+        UasAuthenticationResponseData,
     > for ModularAuthentication
 {
     fn get_headers(
         &self,
-        req: &types::ConnectorPostAuthenticationRouterData,
+        req: &UasPostAuthenticationRouterData,
         connectors: &Connectors,
     ) -> CustomResult<Vec<(String, hyperswitch_masking::Maskable<String>)>, errors::ConnectorError>
     {
@@ -642,24 +619,25 @@ impl
 
     fn get_url(
         &self,
-        req: &types::ConnectorPostAuthenticationRouterData,
+        req: &UasPostAuthenticationRouterData,
         connectors: &Connectors,
     ) -> CustomResult<String, errors::ConnectorError> {
         let authentication_id = req
-            .authentication_id
+            .request
+            .connector_authentication_id
             .clone()
             .ok_or(errors::ConnectorError::MissingConnectorAuthenticationID)?;
         Ok(format!(
             "{}authentication/{}/{}/sync",
             self.base_url(connectors),
             req.merchant_id.get_string_repr(),
-            authentication_id.get_string_repr()
+            authentication_id
         ))
     }
 
     fn get_request_body(
         &self,
-        req: &types::ConnectorPostAuthenticationRouterData,
+        req: &UasPostAuthenticationRouterData,
         _connectors: &Connectors,
     ) -> CustomResult<RequestContent, errors::ConnectorError> {
         let connector_req = modular_authentication::construct_post_auth_request(req)?;
@@ -668,20 +646,18 @@ impl
 
     fn build_request(
         &self,
-        req: &types::ConnectorPostAuthenticationRouterData,
+        req: &UasPostAuthenticationRouterData,
         connectors: &Connectors,
     ) -> CustomResult<Option<Request>, errors::ConnectorError> {
         Ok(Some(
             RequestBuilder::new()
                 .method(Method::Post)
-                .url(&types::ConnectorPostAuthenticationType::get_url(
-                    self, req, connectors,
-                )?)
+                .url(&UasPostAuthenticationType::get_url(self, req, connectors)?)
                 .attach_default_headers()
-                .headers(types::ConnectorPostAuthenticationType::get_headers(
+                .headers(UasPostAuthenticationType::get_headers(
                     self, req, connectors,
                 )?)
-                .set_body(types::ConnectorPostAuthenticationType::get_request_body(
+                .set_body(UasPostAuthenticationType::get_request_body(
                     self, req, connectors,
                 )?)
                 .build(),
@@ -690,10 +666,10 @@ impl
 
     fn handle_response(
         &self,
-        data: &types::ConnectorPostAuthenticationRouterData,
+        data: &UasPostAuthenticationRouterData,
         event_builder: Option<&mut ConnectorEvent>,
         res: Response,
-    ) -> CustomResult<types::ConnectorPostAuthenticationRouterData, errors::ConnectorError> {
+    ) -> CustomResult<UasPostAuthenticationRouterData, errors::ConnectorError> {
         let response: api_models::authentication::AuthenticationSyncResponse = res
             .response
             .parse_struct("ModularAuthentication AuthenticationSyncResponse")

@@ -173,6 +173,9 @@ pub async fn external_authentication_update_trackers<F: Clone, Req>(
     let key_state = state.into();
     let authentication_update = match router_data.response {
         Ok(response) => match response {
+            // UasAuthenticationResponseData::AuthenticationCreate { connector_authentication_id } => {
+
+            // }
             UasAuthenticationResponseData::PreAuthentication {
                 authentication_details,
             } => {

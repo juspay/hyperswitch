@@ -7,6 +7,20 @@ use hyperswitch_masking::Secret;
 use crate::address::Address;
 
 #[derive(Clone, Debug)]
+pub struct AuthenticationCreateRequestData {
+    pub amount: MinorUnit,
+    pub currency: common_enums::Currency,
+    pub return_url: Option<String>,
+    pub authentication_connector: String,
+    pub force_3ds_challenge: Option<bool>,
+    pub psd2_sca_exemption_type: Option<common_enums::ScaExemptionType>,
+    pub profile_acquirer_id: Option<common_utils::id_type::ProfileAcquirerId>,
+    pub acquirer_details: Option<api_models::authentication::AcquirerDetails>,
+    pub customer_details: Option<api_models::payments::CustomerDetails>,
+    pub profile_id: Option<common_utils::id_type::ProfileId>,
+}
+
+#[derive(Clone, Debug)]
 pub struct UasPreAuthenticationRequestData {
     pub service_details: Option<CtpServiceDetails>,
     pub transaction_details: Option<TransactionDetails>,
@@ -99,6 +113,7 @@ pub struct TransactionDetails {
 pub struct UasPostAuthenticationRequestData {
     pub threeds_server_transaction_id: Option<String>,
     pub routing_region: Option<RoutingRegion>,
+    pub connector_authentication_id: Option<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -121,6 +136,9 @@ pub enum UasAuthenticationResponseData {
         authentication_id: Option<common_utils::id_type::AuthenticationId>,
         results_request: Option<common_utils::pii::SecretSerdeValue>,
         results_response: Option<common_utils::pii::SecretSerdeValue>,
+    },
+    AuthenticationCreate {
+        connector_authentication_id: String,
     },
 }
 

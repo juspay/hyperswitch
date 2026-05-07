@@ -75,7 +75,6 @@ impl api::Refund for Juspaythreedsserver {}
 impl api::RefundExecute for Juspaythreedsserver {}
 impl api::RefundSync for Juspaythreedsserver {}
 impl api::PaymentToken for Juspaythreedsserver {}
-impl api::UnifiedAuthenticationService for Juspaythreedsserver {}
 impl api::UasPreAuthentication for Juspaythreedsserver {}
 impl api::UasPostAuthentication for Juspaythreedsserver {}
 impl api::UasAuthenticationConfirmation for Juspaythreedsserver {}

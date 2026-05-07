@@ -12,7 +12,7 @@ use crate::{
             SubscriptionCancel, SubscriptionCreate, SubscriptionPause, SubscriptionResume,
         },
         AccessTokenAuth, AccessTokenAuthentication, Authenticate, AuthenticationConfirmation,
-        Authorize, AuthorizeSessionToken, BillingConnectorInvoiceSync,
+        AuthenticationCreate, Authorize, AuthorizeSessionToken, BillingConnectorInvoiceSync,
         BillingConnectorPaymentsSync, CalculateTax, Capture, CompleteAuthorize,
         CreateConnectorCustomer, CreateOrder, Execute, ExtendAuthorization, ExternalVaultProxy,
         GenerateQr, GiftCardBalanceCheck, IncrementalAuthorization, PSync, PaymentMethodToken,
@@ -32,9 +32,10 @@ use crate::{
             SubscriptionPauseRequest, SubscriptionResumeRequest,
         },
         unified_authentication_service::{
-            UasAuthenticationRequestData, UasAuthenticationResponseData,
-            UasConfirmationRequestData, UasPostAuthenticationRequestData,
-            UasPreAuthenticationRequestData, UasWebhookRequestData,
+            AuthenticationCreateRequestData, UasAuthenticationRequestData,
+            UasAuthenticationResponseData, UasConfirmationRequestData,
+            UasPostAuthenticationRequestData, UasPreAuthenticationRequestData,
+            UasWebhookRequestData,
         },
         AccessTokenAuthenticationRequestData, AccessTokenRequestData, AuthorizeSessionTokenData,
         CompleteAuthorizeData, ConnectorCustomerData, CreateOrderRequestData,
@@ -128,6 +129,12 @@ pub type UasPostAuthenticationRouterData =
     RouterData<PostAuthenticate, UasPostAuthenticationRequestData, UasAuthenticationResponseData>;
 pub type UasPreAuthenticationRouterData =
     RouterData<PreAuthenticate, UasPreAuthenticationRequestData, UasAuthenticationResponseData>;
+
+pub type AuthenticationCreateRouterData = RouterData<
+    AuthenticationCreate,
+    AuthenticationCreateRequestData,
+    UasAuthenticationResponseData,
+>;
 
 pub type UasAuthenticationConfirmationRouterData = RouterData<
     AuthenticationConfirmation,

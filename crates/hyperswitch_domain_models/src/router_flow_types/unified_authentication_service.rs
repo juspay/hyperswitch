@@ -12,3 +12,6 @@ pub struct Authenticate;
 
 #[derive(Debug, Clone)]
 pub struct ProcessIncomingWebhook;
+
+#[derive(Debug, Clone)]
+pub struct AuthenticationCreate;
