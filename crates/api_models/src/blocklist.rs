@@ -107,6 +107,7 @@ pub struct BlocklistRowError {
 pub struct BatchBlocklistUploadResponse {
     pub job_id: String,
     pub total_rows: u32,
+    #[schema(value_type = BatchBlocklistJobStatus)]
     pub status: enums::BatchBlocklistJobStatus,
 }
 
@@ -115,6 +116,7 @@ pub struct BatchBlocklistUploadResponse {
 pub struct BatchBlocklistJobStatusResponse {
     pub job_id: String,
     pub merchant_id: String,
+    #[schema(value_type = BatchBlocklistJobStatus)]
     pub status: enums::BatchBlocklistJobStatus,
     pub total_rows: u32,
     pub succeeded_rows: u32,
