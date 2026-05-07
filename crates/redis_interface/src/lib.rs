@@ -31,11 +31,11 @@ mod module {
 // and is never aware of which backend is active.
 
 #[cfg(not(feature = "redis-rs"))]
+pub use fred::interfaces::{EventInterface, PubsubInterface};
+#[cfg(not(feature = "redis-rs"))]
 pub use module::fred::{
     PubSubMessage, RedisClient, RedisConfig, RedisConnectionPool, SubscriberClient,
 };
-#[cfg(not(feature = "redis-rs"))]
-pub use fred::interfaces::{EventInterface, PubsubInterface};
 #[cfg(feature = "redis-rs")]
 pub use module::redis_rs::{
     redis_value_to_option_string, PubSubMessage, PublisherClient, RedisConfig, RedisConn,
