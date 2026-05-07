@@ -64,6 +64,14 @@ const billingAddress = {
   },
 };
 
+const billingAddressAT = {
+  ...billingAddress,
+  address: {
+    ...billingAddress.address,
+    country: "AT",
+  },
+};
+
 export const connectorDetails = {
   card_pm: {
     PaymentIntent: {
@@ -696,9 +704,6 @@ export const connectorDetails = {
   },
   bank_redirect_pm: {
     Ideal: {
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
       Request: {
         payment_method: "bank_redirect",
         payment_method_type: "ideal",
@@ -714,9 +719,7 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "failed",
-          error_code: "800.900.300",
-          error_message: "invalid authentication information",
+          status: "requires_customer_action",
         },
       },
     },
@@ -750,9 +753,6 @@ export const connectorDetails = {
       },
     },
     Eps: {
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
       Request: {
         payment_method: "bank_redirect",
         payment_method_type: "eps",
@@ -763,13 +763,12 @@ export const connectorDetails = {
             },
           },
         },
-        billing: billingAddress,
+        billing: billingAddressAT,
       },
       Response: {
         status: 200,
         body: {
-          status: "failed",
-          error_message: "invalid authentication information",
+          status: "requires_customer_action",
         },
       },
     },
@@ -824,9 +823,6 @@ export const connectorDetails = {
       },
     },
     Interac: {
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
       Request: {
         payment_method: "bank_redirect",
         payment_method_type: "interac",
@@ -837,14 +833,15 @@ export const connectorDetails = {
             },
           },
         },
-        billing: billingAddress,
+        billing: {
+          ...billingAddress,
+          email: "guest@juspay.in",
+        },
       },
       Response: {
         status: 200,
         body: {
-          status: "failed",
-          error_message:
-            "Missing required param: payment_method_data.billing.email",
+          status: "requires_customer_action",
         },
       },
     },

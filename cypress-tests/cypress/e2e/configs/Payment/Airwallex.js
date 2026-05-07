@@ -889,9 +889,6 @@ export const connectorDetails = {
   },
   bank_redirect_pm: {
     Trustly: {
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
       Request: {
         payment_method: "bank_redirect",
         payment_method_type: "trustly",
@@ -906,9 +903,7 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "failed",
-          error_message:
-            "No eligible connector was found for the current payment method configuration",
+          status: "requires_customer_action",
         },
       },
     },

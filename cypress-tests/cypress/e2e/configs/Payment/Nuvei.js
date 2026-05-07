@@ -931,13 +931,12 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "requires_customer_action",
+          error_code: null,
+          error_message: null,
         },
       },
     },
     Giropay: {
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
       Request: {
         payment_method: "bank_redirect",
         payment_method_type: "giropay",
@@ -970,8 +969,9 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "failed",
-          error_message: "System Error",
+          status: "requires_customer_action", // Bank redirect requires customer action
+          error_code: null,
+          error_message: null,
         },
       },
     },
@@ -1009,7 +1009,9 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "requires_customer_action",
+          status: "requires_customer_action", // Bank redirect requires customer action
+          error_code: null,
+          error_message: null,
         },
       },
     },

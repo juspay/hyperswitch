@@ -768,9 +768,6 @@ export const connectorDetails = {
       },
     },
     Giropay: {
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
       Request: {
         payment_method: "bank_redirect",
         payment_method_type: "giropay",
@@ -784,8 +781,7 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "failed",
-          error_message: "method",
+          status: "requires_customer_action",
         },
       },
     },
@@ -813,9 +809,6 @@ export const connectorDetails = {
       },
     },
     Przelewy24: {
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
       Request: {
         payment_method: "bank_redirect",
         payment_method_type: "przelewy24",
@@ -831,8 +824,7 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "failed",
-          error_message: "method",
+          status: "requires_customer_action",
         },
       },
     },
