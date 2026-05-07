@@ -66,6 +66,43 @@ export const connectorDetails = {
       body: {},
     },
   },
+  dynamicRouting: {
+    Request: {
+      decision_engine_configs: {
+        defaultBucketSize: 200,
+        defaultHedgingPercent: 5,
+      },
+    },
+    Response: {
+      status: 200,
+      body: {},
+    },
+  },
+  deactivateRouting: {
+    Request: {
+      profile_id: "{{profile_id}}",
+      algorithm_for: "payment",
+    },
+    Response: {
+      status: 200,
+      body: {},
+    },
+  },
+  deactivateRoutingNegative: {
+    Request: {
+      profile_id: "{{profile_id}}",
+      algorithm_for: "payment",
+    },
+    Response: {
+      status: 400,
+      body: {
+        error: {
+          message: "Algorithm is already inactive",
+          code: "IR_16",
+        },
+      },
+    },
+  },
   SurchargeDecisionManager: {
     Create: {
       Request: {
@@ -134,6 +171,22 @@ export const connectorDetails = {
             rules: [],
           },
         },
+      },
+    },
+  },
+  deactivateDynamicRouting: {
+    Request: {},
+    Response: {
+      status: 200,
+      body: {},
+    },
+  },
+  toggleRouting: {
+    Request: {},
+    Response: {
+      status: 200,
+      body: {
+        kind: "dynamic",
       },
     },
   },
