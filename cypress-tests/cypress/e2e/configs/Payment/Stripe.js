@@ -81,7 +81,7 @@ const payment_method_data_no3ds = {
     last4: "0005",
     card_type: "CREDIT",
     card_network: "AmericanExpress",
-    card_issuer: "American Express US Cars",
+    card_issuer: "American Express US Cards",
     card_issuing_country: "UNITED STATES OF AMERICA",
     card_isin: "378282",
     card_extended_bin: null,

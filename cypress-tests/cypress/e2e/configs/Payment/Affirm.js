@@ -3,6 +3,9 @@ import { getCustomExchange } from "./Modifiers";
 export const connectorDetails = {
   pay_later_pm: {
     PaymentIntent: getCustomExchange({
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
       Request: {
         currency: "USD",
         amount: 10000,
@@ -44,9 +47,6 @@ export const connectorDetails = {
       },
     }),
     Affirm: getCustomExchange({
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
       Request: {
         payment_method: "pay_later",
         payment_method_type: "affirm",
