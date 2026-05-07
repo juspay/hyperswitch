@@ -571,7 +571,6 @@ export const CONNECTOR_LISTS = {
       "powertranz",
       "shift4",
       "trustpay",
-      "worldpay",
       "worldpayvantiv",
     ],
     // Add more inclusion lists
