@@ -15,6 +15,11 @@ pub trait CardIssuersInterface {
         update: card_issuer::UpdateCardIssuer,
     ) -> errors::CustomResult<card_issuer::CardIssuer, Self::Error>;
 
+    async fn delete_card_issuer(
+        &self,
+        id: id_type::CardIssuerId,
+    ) -> errors::CustomResult<bool, Self::Error>;
+
     async fn list_card_issuers(
         &self,
         query: Option<String>,
