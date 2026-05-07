@@ -134,9 +134,13 @@ function createIndividualRolloutConfig(
                     success: false,
                     flow: methodFlow,
                     error: errorMsg,
-     });
-  });
-});
+                  });
+                });
+              });
+          });
+        }
+      });
+}
 
 /**
  * Verifies that a business profile has the expected merchant category code.
@@ -177,12 +181,6 @@ Cypress.Commands.add(
     });
   }
 );
-
-// Closing braces for createIndividualRolloutConfig function
-          });
-      }
-    });
-}
 
 function parseMethodFlows(methodFlowInput) {
   if (!methodFlowInput) {
