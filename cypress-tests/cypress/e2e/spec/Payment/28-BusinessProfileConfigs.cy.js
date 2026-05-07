@@ -376,4 +376,59 @@ describe("Config Tests", () => {
       });
     }
   );
+
+  context("Outgoing Webhook Custom HTTP Headers", () => {
+    let shouldContinue = true;
+
+    beforeEach(function () {
+      if (!shouldContinue) {
+        this.skip();
+      }
+    });
+
+    it("Create Business Profile", () => {
+      cy.createBusinessProfileTest(
+        fixtures.businessProfile.bpCreate,
+        globalState
+      );
+    });
+
+    it("Update business profile with custom webhook headers and verify masked response", () => {
+      const webhookHeadersBody = JSON.parse(
+        JSON.stringify(fixtures.businessProfile.bpUpdateWebhookHeaders)
+      );
+      cy.updateBusinessProfileWebhookCustomHeadersTest(
+        webhookHeadersBody,
+        globalState
+      );
+    });
+
+    it("Update business profile with new custom webhook headers and verify updated masked response", () => {
+      if (!shouldContinue) {
+        cy.task("cli_log", "Skipping step: Update with new headers");
+        return;
+      }
+      const webhookHeadersBody = JSON.parse(
+        JSON.stringify(fixtures.businessProfile.bpUpdateWebhookHeadersUpdated)
+      );
+      cy.updateBusinessProfileWebhookCustomHeadersTest(
+        webhookHeadersBody,
+        globalState
+      );
+    });
+
+    it("Clear custom webhook headers with empty object", () => {
+      if (!shouldContinue) {
+        cy.task("cli_log", "Skipping step: Clear headers");
+        return;
+      }
+      const webhookHeadersBody = JSON.parse(
+        JSON.stringify(fixtures.businessProfile.bpUpdateWebhookHeadersClear)
+      );
+      cy.updateBusinessProfileWebhookCustomHeadersTest(
+        webhookHeadersBody,
+        globalState
+      );
+    });
+  });
 });
