@@ -791,13 +791,6 @@ impl
                     .attach_printable("Failed to get pix mca metadata")?
                     .pix_key_value,
             ),
-            Some(enums::PaymentMethodType::PixAutomaticoPush) => Some(
-                santander_mca_metadata
-                    .pix_automatico_push
-                    .ok_or(errors::ConnectorError::NoConnectorMetaData)
-                    .attach_printable("Failed to get pix automatico push mca metadata")?
-                    .pix_key_value,
-            ),
             Some(enums::PaymentMethodType::PixAutomaticoQr) => Some(
                 santander_mca_metadata
                     .pix_automatico_qr
