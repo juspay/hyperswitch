@@ -81,7 +81,7 @@ const payment_method_data_no3ds = {
     last4: "0005",
     card_type: "CREDIT",
     card_network: "AmericanExpress",
-    card_issuer: "American Express US Cards",
+    card_issuer: "American Express US Cars",
     card_issuing_country: "UNITED STATES OF AMERICA",
     card_isin: "378282",
     card_extended_bin: null,
@@ -124,7 +124,7 @@ export const connectorDetails = {
     value: "connector_2",
   },
   card_pm: {
-    PaymentIntent: {
+    PaymentIntent: getCustomExchange({
       Request: {
         currency: "USD",
         customer_acceptance: null,
@@ -137,7 +137,7 @@ export const connectorDetails = {
           setup_future_usage: "on_session",
         },
       },
-    },
+    }),
     PaymentIntentOffSession: {
       Configs: {
         CONNECTOR_CREDENTIAL: {
