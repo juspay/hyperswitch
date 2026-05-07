@@ -23,6 +23,7 @@ use common_utils::{
     ext_traits::{AsyncExt, ValueExt},
     id_type::{self, GenerateId},
     link_utils::{GenericLinkStatus, GenericLinkUiConfig, PayoutLinkData, PayoutLinkStatus},
+    payout_method_utils,
     types::{MinorUnit, UnifiedCode, UnifiedMessage},
 };
 use diesel_models::{
@@ -94,6 +95,7 @@ pub struct PayoutData {
     pub payment_method: Option<PaymentMethod>,
     pub connector_transfer_method_id: Option<String>,
     pub browser_info: Option<domain_models::router_request_types::BrowserInformation>,
+    pub source_bank_data: Option<api_models::payouts::BankTransfer>,
 }
 
 // ********************************************** CORE FLOWS **********************************************
@@ -767,6 +769,27 @@ pub async fn payouts_fulfill_core(
     };
 
     helpers::fetch_payout_method_data(&state, &mut payout_data, &connector_data, &platform).await?;
+
+    // Fetch source_bank_data if not present
+    if payout_data.source_bank_data.is_none() {
+        payout_data.source_bank_data = helpers::SourceBankDataOperation::get_temp_source_bank_data(
+            &state,
+            payout_data.payout_attempt.source_bank_data_token.clone(),
+            payout_data.customer_details.as_ref().map(|customer| {
+                #[cfg(feature = "v1")]
+                {
+                    customer.customer_id.clone()
+                }
+                #[cfg(not(feature = "v1"))]
+                {
+                    customer.id.clone()
+                }
+            }),
+            platform.get_processor().get_key_store(),
+        )
+        .await?;
+    }
+
     Box::pin(fulfill_payout(
         &state,
         &platform,
@@ -1190,6 +1213,25 @@ pub async fn call_connector_payout(
     // Fetch / store payout_method_data
     if payout_data.payout_method_data.is_none() || payout_attempt.payout_token.is_none() {
         helpers::fetch_payout_method_data(state, payout_data, connector_data, platform).await?;
+    }
+    // Fetch source_bank_data if not present
+    if payout_data.source_bank_data.is_none() {
+        payout_data.source_bank_data = helpers::SourceBankDataOperation::get_temp_source_bank_data(
+            state,
+            payout_data.payout_attempt.source_bank_data_token.clone(),
+            payout_data.customer_details.as_ref().map(|customer| {
+                #[cfg(feature = "v1")]
+                {
+                    customer.customer_id.clone()
+                }
+                #[cfg(not(feature = "v1"))]
+                {
+                    customer.id.clone()
+                }
+            }),
+            platform.get_processor().get_key_store(),
+        )
+        .await?;
     }
     // Eligibility flow
     Box::pin(complete_payout_eligibility(
@@ -2873,6 +2915,7 @@ pub async fn response_handler(
         connector: payout_attempt.connector,
         payout_type: payouts.payout_type.to_owned(),
         payout_method_data,
+        source_bank_data: payout_attempt.additional_source_bank_data.clone(),
         billing,
         auto_fulfill: payouts.auto_fulfill,
         customer_id,
@@ -3118,6 +3161,20 @@ pub async fn payout_create_db_entries(
             })
         });
 
+    let source_bank_data_token = helpers::SourceBankDataOperation::temp_store_source_bank_data(
+        state,
+        req.source_bank_data.clone(),
+        customer_id.clone(),
+        business_profile.intent_fulfillment_time,
+        platform.get_processor().get_key_store(),
+    )
+    .await?;
+
+    let additional_source_bank_data = req
+        .source_bank_data
+        .clone()
+        .map(payout_method_utils::BankAdditionalData::from);
+
     let payout_attempt_req = storage::PayoutAttemptNew {
         payout_attempt_id: payout_attempt_id.to_string(),
         payout_id: payout_id.clone(),
@@ -3147,6 +3204,8 @@ pub async fn payout_create_db_entries(
         created_by: platform
             .get_initiator()
             .and_then(|initiator| initiator.to_created_by()),
+        source_bank_data_token,
+        additional_source_bank_data,
     };
     let payout_attempt = db
         .insert_payout_attempt(
@@ -3180,6 +3239,7 @@ pub async fn payout_create_db_entries(
         payment_method,
         connector_transfer_method_id: None,
         browser_info: req.browser_info.clone().map(Into::into),
+        source_bank_data: req.source_bank_data.clone(),
     })
 }
 
@@ -3322,6 +3382,54 @@ pub async fn make_payout_data(
         payouts::PayoutRequest::PayoutRetrieveRequest(_) => None,
     };
 
+    let (source_bank_data, updated_additional_source_bank_data, updated_source_bank_data_token) =
+        match req {
+            payouts::PayoutRequest::PayoutCreateRequest(req) => {
+                let source_bank_data_token =
+                    helpers::SourceBankDataOperation::temp_store_source_bank_data(
+                        state,
+                        req.source_bank_data.clone(),
+                        customer_id.cloned(),
+                        business_profile.intent_fulfillment_time,
+                        platform.get_processor().get_key_store(),
+                    )
+                    .await?;
+
+                let additional_source_bank_data = req
+                    .source_bank_data
+                    .clone()
+                    .map(payout_method_utils::BankAdditionalData::from);
+
+                (
+                    req.source_bank_data.to_owned(),
+                    additional_source_bank_data,
+                    source_bank_data_token,
+                )
+            }
+            payouts::PayoutRequest::PayoutActionRequest(_) => {
+                match payout_attempt.source_bank_data_token.to_owned() {
+                    Some(source_bank_data_token) => {
+                        let customer_id = customer_details
+                            .as_ref()
+                            .map(|cd| cd.customer_id.to_owned())
+                            .get_required_value("customer_id when payout_token is sent")?;
+                        let source_bank_data =
+                            helpers::SourceBankDataOperation::get_temp_source_bank_data(
+                                state,
+                                Some(source_bank_data_token),
+                                Some(customer_id),
+                                platform.get_processor().get_key_store(),
+                            )
+                            .await?;
+
+                        (source_bank_data, None, None)
+                    }
+                    None => (None, None, None),
+                }
+            }
+            payouts::PayoutRequest::PayoutRetrieveRequest(_) => (None, None, None),
+        };
+
     let dimensions = dimensions.with_profile_id(profile_id.clone());
     if let Some(payout_method_data) = payout_method_data_req.clone() {
         let additional_payout_method_data = helpers::get_additional_payout_data(
@@ -3333,8 +3441,10 @@ pub async fn make_payout_data(
         .await;
 
         let update_additional_payout_method_data =
-            storage::PayoutAttemptUpdate::AdditionalPayoutMethodDataUpdate {
+            storage::PayoutAttemptUpdate::AdditionalPayoutDataUpdate {
                 additional_payout_method_data,
+                additional_source_bank_data: updated_additional_source_bank_data,
+                source_bank_data_token: updated_source_bank_data_token,
             };
 
         payout_attempt = db
@@ -3413,6 +3523,7 @@ pub async fn make_payout_data(
         payment_method,
         connector_transfer_method_id: None,
         browser_info,
+        source_bank_data,
     })
 }
 
