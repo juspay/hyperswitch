@@ -18,18 +18,21 @@ export const connectorDetails = {
       Request: {
         payment_method: "pay_later",
         payment_method_type: "affirm",
+        payment_experience: "redirect_to_url",
         payment_method_data: {
           pay_later: {
-            affirm: {},
+            affirm_redirect: {
+              billing_email: "guest@juspay.in",
+              billing_country: "US",
+            },
           },
         },
-        currency: "USD",
-        customer_acceptance: null,
-        setup_future_usage: "on_session",
         billing: {
+          email: "guest@juspay.in",
           address: {
             line1: "1467",
             line2: "Harrison Street",
+            line3: "Harrison Street",
             city: "San Francisco",
             state: "California",
             zip: "94122",
@@ -41,8 +44,14 @@ export const connectorDetails = {
             number: "8056599999",
             country_code: "+1",
           },
-          email: "something@example.com",
         },
+        order_details: [
+          {
+            product_name: "Test Product",
+            quantity: 1,
+            amount: 6000,
+          },
+        ],
       },
       Response: {
         status: 200,
