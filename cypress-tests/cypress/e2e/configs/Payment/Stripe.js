@@ -127,7 +127,7 @@ export const connectorDetails = {
     PaymentIntent: getCustomExchange({
       Request: {
         currency: "USD",
-        customer_acceptance: null,
+        customer_acceptance: customerAcceptance,
         setup_future_usage: "on_session",
       },
       Response: {
