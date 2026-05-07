@@ -174,10 +174,8 @@ export const connectorDetails = {
           defaultSelection: {
             surchargeDetails: {
               surcharge: {
-                type: "fixed",
-                value: {
-                  amount: 50,
-                },
+                type: "rate",
+                value: 2.5,
               },
             },
           },
@@ -249,7 +247,8 @@ export const connectorDetails = {
             },
           ],
           metadata: {
-            description: "Complex surcharge with payment method and card network conditions",
+            description:
+              "Complex surcharge with payment method and card network conditions",
           },
         },
       },
