@@ -120,36 +120,14 @@ export const connectorDetails = {
       },
       Response: {
         status: 200,
-        body: {
-          name: "surcharge_config_rate",
-          merchant_surcharge_configs: { show_surcharge_breakup_screen: null },
-          algorithm: {
-            type: "rate",
-            rate: 2.5,
-            defaultSelection: {
-              surcharge_details: null,
-            },
-            rules: [],
-          },
-        },
+        body: {},
       },
     },
     RetrieveRate: {
       Request: {},
       Response: {
         status: 200,
-        body: {
-          name: "surcharge_config_rate",
-          merchant_surcharge_configs: { show_surcharge_breakup_screen: null },
-          algorithm: {
-            type: "rate",
-            rate: 2.5,
-            defaultSelection: {
-              surcharge_details: null,
-            },
-            rules: [],
-          },
-        },
+        body: {},
       },
     },
     CreateFixed: {
@@ -168,36 +146,14 @@ export const connectorDetails = {
       },
       Response: {
         status: 200,
-        body: {
-          name: "surcharge_config_fixed",
-          merchant_surcharge_configs: { show_surcharge_breakup_screen: null },
-          algorithm: {
-            type: "fixed",
-            amount: 100,
-            defaultSelection: {
-              surcharge_details: null,
-            },
-            rules: [],
-          },
-        },
+        body: {},
       },
     },
     RetrieveFixed: {
       Request: {},
       Response: {
         status: 200,
-        body: {
-          name: "surcharge_config_fixed",
-          merchant_surcharge_configs: { show_surcharge_breakup_screen: null },
-          algorithm: {
-            type: "fixed",
-            amount: 100,
-            defaultSelection: {
-              surcharge_details: null,
-            },
-            rules: [],
-          },
-        },
+        body: {},
       },
     },
     CreateConditional: {
@@ -214,6 +170,11 @@ export const connectorDetails = {
           },
           rules: [
             {
+              name: "Card Rule",
+              connectorSelection: {
+                surcharge_type: "rate",
+                rate: 3.0,
+              },
               conditions: [
                 {
                   field: "payment_method_type",
@@ -232,6 +193,11 @@ export const connectorDetails = {
               },
             },
             {
+              name: "PayPal Rule",
+              connectorSelection: {
+                surcharge_type: "fixed",
+                amount: 200,
+              },
               conditions: [
                 {
                   field: "payment_method_type",
@@ -249,98 +215,14 @@ export const connectorDetails = {
       },
       Response: {
         status: 200,
-        body: {
-          name: "surcharge_config_complex",
-          merchant_surcharge_configs: { show_surcharge_breakup_screen: true },
-          algorithm: {
-            type: "conditional",
-            defaultSelection: {
-              surcharge_details: null,
-            },
-            rules: [
-              {
-                conditions: [
-                  {
-                    field: "payment_method_type",
-                    operator: "equals",
-                    value: "card",
-                  },
-                  {
-                    field: "card_network",
-                    operator: "in",
-                    value: ["visa", "mastercard"],
-                  },
-                ],
-                action: {
-                  surcharge_type: "rate",
-                  rate: 3.0,
-                },
-              },
-              {
-                conditions: [
-                  {
-                    field: "payment_method_type",
-                    operator: "equals",
-                    value: "paypal",
-                  },
-                ],
-                action: {
-                  surcharge_type: "fixed",
-                  amount: 200,
-                },
-              },
-            ],
-          },
-        },
+        body: {},
       },
     },
     RetrieveConditional: {
       Request: {},
       Response: {
         status: 200,
-        body: {
-          name: "surcharge_config_complex",
-          merchant_surcharge_configs: { show_surcharge_breakup_screen: true },
-          algorithm: {
-            type: "conditional",
-            defaultSelection: {
-              surcharge_details: null,
-            },
-            rules: [
-              {
-                conditions: [
-                  {
-                    field: "payment_method_type",
-                    operator: "equals",
-                    value: "card",
-                  },
-                  {
-                    field: "card_network",
-                    operator: "in",
-                    value: ["visa", "mastercard"],
-                  },
-                ],
-                action: {
-                  surcharge_type: "rate",
-                  rate: 3.0,
-                },
-              },
-              {
-                conditions: [
-                  {
-                    field: "payment_method_type",
-                    operator: "equals",
-                    value: "paypal",
-                  },
-                ],
-                action: {
-                  surcharge_type: "fixed",
-                  amount: 200,
-                },
-              },
-            ],
-          },
-        },
+        body: {},
       },
     },
     Delete: {
@@ -354,13 +236,7 @@ export const connectorDetails = {
       Request: {},
       Response: {
         status: 404,
-        body: {
-          error: {
-            type: "invalid_request",
-            message: "Resource ID does not exist in our records",
-            code: "HE_02",
-          },
-        },
+        body: {},
       },
     },
   },

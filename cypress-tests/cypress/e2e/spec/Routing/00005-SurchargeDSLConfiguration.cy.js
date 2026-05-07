@@ -5,9 +5,15 @@ let globalState;
 
 describe("Surcharge DSL Configuration Test", () => {
   before("seed global state", () => {
-    cy.task("getGlobalState").then((state) => {
-      globalState = new State(state);
-    });
+    cy.task("getGlobalState")
+      .then((state) => {
+        globalState = new State(state);
+        return globalState;
+      })
+      .then(() => {
+        // Populate profileId and MCA info via prerequisite call
+        cy.ListMcaByMid(globalState);
+      });
   });
 
   afterEach("flush global state", () => {
@@ -131,6 +137,11 @@ describe("Surcharge DSL Configuration Test", () => {
           },
           rules: [
             {
+              name: "Card Rule",
+              connectorSelection: {
+                surcharge_type: "rate",
+                rate: 3.0,
+              },
               conditions: [
                 {
                   field: "payment_method_type",
@@ -150,6 +161,11 @@ describe("Surcharge DSL Configuration Test", () => {
               },
             },
             {
+              name: "PayPal Rule",
+              connectorSelection: {
+                surcharge_type: "fixed",
+                amount: 200,
+              },
               conditions: [
                 {
                   field: "payment_method_type",
