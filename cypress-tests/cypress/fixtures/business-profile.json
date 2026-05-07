@@ -9,5 +9,23 @@
     "collect_billing_details_from_wallet_connector": true,
     "always_collect_billing_details_from_wallet_connector": true,
     "always_collect_shipping_details_from_wallet_connector": true
+  },
+
+  "bpUpdateRedirectPost": {
+    "is_connector_agnostic_mit_enabled": true,
+    "collect_shipping_details_from_wallet_connector": false,
+    "collect_billing_details_from_wallet_connector": false,
+    "always_collect_billing_details_from_wallet_connector": false,
+    "always_collect_shipping_details_from_wallet_connector": false,
+    "redirect_to_merchant_with_http_post": true
+  },
+
+  "bpUpdateRedirectGet": {
+    "is_connector_agnostic_mit_enabled": true,
+    "collect_shipping_details_from_wallet_connector": false,
+    "collect_billing_details_from_wallet_connector": false,
+    "always_collect_billing_details_from_wallet_connector": false,
+    "always_collect_shipping_details_from_wallet_connector": false,
+    "redirect_to_merchant_with_http_post": false
   }
 }
