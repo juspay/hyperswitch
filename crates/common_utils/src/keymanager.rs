@@ -133,11 +133,6 @@ where
 {
     let url = format!("{}/{endpoint}", &state.url);
 
-    let tenant_id = request_body
-        .get_tenant_id(state)
-        .get_string_repr()
-        .to_owned();
-
     logger::info!(key_manager_request=?request_body);
     let mut header = vec![];
     header.push((
@@ -160,7 +155,7 @@ where
     header.push((
         HeaderName::from_str(TENANT_HEADER)
             .change_context(errors::KeyManagerClientError::FailedtoConstructHeader)?,
-        HeaderValue::from_str(&tenant_id)
+        HeaderValue::from_str(request_body.get_tenant_id(state).get_string_repr())
             .change_context(errors::KeyManagerClientError::FailedtoConstructHeader)?,
     ));
 
