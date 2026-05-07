@@ -515,20 +515,20 @@ function bankRedirectRedirection(
 
         cy.get("body", { timeout: constants.TIMEOUT }).then(($body) => {
           if (
-            $body.find('[data-testid="bank-item"], .bank-list li, [class*="bank"]')
-              .length > 0
-          ) {
-            cy.get(
+            $body.find(
               '[data-testid="bank-item"], .bank-list li, [class*="bank"]'
-            )
+            ).length > 0
+          ) {
+            cy.get('[data-testid="bank-item"], .bank-list li, [class*="bank"]')
               .first()
               .click();
           }
 
           cy.get("body").then(($innerBody) => {
             if (
-              $innerBody.find('button:contains("Continue"), button:contains("Confirm"), button:contains("Next")')
-                .length > 0
+              $innerBody.find(
+                'button:contains("Continue"), button:contains("Confirm"), button:contains("Next")'
+              ).length > 0
             ) {
               cy.contains("button", /Continue|Confirm|Next/i)
                 .should("be.visible")
@@ -893,8 +893,9 @@ function bankRedirectRedirection(
                   if ($body.find('button[type="submit"]').length > 0) {
                     cy.get('button[type="submit"]').first().click();
                   } else if (
-                    $body.find('[data-testid*="confirm"], [data-testid*="continue"]')
-                      .length > 0
+                    $body.find(
+                      '[data-testid*="confirm"], [data-testid*="continue"]'
+                    ).length > 0
                   ) {
                     cy.get(
                       '[data-testid*="confirm"], [data-testid*="continue"]'
