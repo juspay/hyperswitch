@@ -294,6 +294,11 @@ pub async fn modify_trackers(
         payout_connector_metadata: None,
         processor_merchant_id: payout_data.payout_attempt.processor_merchant_id.clone(),
         created_by: payout_data.payout_attempt.created_by.clone(),
+        source_bank_data_token: payout_data.payout_attempt.source_bank_data_token.clone(),
+        additional_source_bank_data: payout_data
+            .payout_attempt
+            .additional_source_bank_data
+            .clone(),
     };
     payout_data.payout_attempt = db
         .insert_payout_attempt(

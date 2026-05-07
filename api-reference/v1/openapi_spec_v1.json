@@ -12414,12 +12414,14 @@
             "properties": {
               "trustly": {
                 "type": "object",
-                "required": [
-                  "country"
-                ],
                 "properties": {
                   "country": {
-                    "$ref": "#/components/schemas/CountryAlpha2"
+                    "allOf": [
+                      {
+                        "$ref": "#/components/schemas/CountryAlpha2"
+                      }
+                    ],
+                    "nullable": true
                   }
                 }
               }
@@ -20441,6 +20443,14 @@
               }
             ],
             "nullable": true
+          },
+          "finix_additional_details": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/FinixAdditionalDetails"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -20936,6 +20946,17 @@
           }
         ],
         "description": "Possible field type of required fields in payment_method_data"
+      },
+      "FinixAdditionalDetails": {
+        "type": "object",
+        "properties": {
+          "fraud_session_id": {
+            "type": "string",
+            "description": "The fraud session ID used for Finix fraud detection",
+            "example": "1234567890abcdef",
+            "nullable": true
+          }
+        }
       },
       "FlexibleAmountDetails": {
         "type": "object",
@@ -29049,6 +29070,14 @@
             },
             "description": "Installment options available for this payment",
             "nullable": true
+          },
+          "capture_method": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CaptureMethod"
+              }
+            ],
+            "nullable": true
           }
         }
       },
@@ -34188,6 +34217,14 @@
             ],
             "nullable": true
           },
+          "source_bank_data": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/BankTransfer"
+              }
+            ],
+            "nullable": true
+          },
           "billing": {
             "allOf": [
               {
@@ -34490,6 +34527,14 @@
             "nullable": true
           },
           "payout_method_data": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PayoutMethodDataResponse"
+              }
+            ],
+            "nullable": true
+          },
+          "source_bank_data": {
             "allOf": [
               {
                 "$ref": "#/components/schemas/PayoutMethodDataResponse"
@@ -35235,6 +35280,14 @@
             ],
             "nullable": true
           },
+          "source_bank_data": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/BankTransfer"
+              }
+            ],
+            "nullable": true
+          },
           "billing": {
             "allOf": [
               {
@@ -35469,6 +35522,14 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/PayoutMethodData"
+              }
+            ],
+            "nullable": true
+          },
+          "source_bank_data": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/BankTransfer"
               }
             ],
             "nullable": true
@@ -38859,6 +38920,11 @@
           "merchant_id": {
             "type": "string",
             "description": "Identifier for Merchant"
+          },
+          "processor_merchant_id": {
+            "type": "string",
+            "description": "Identifier for the processor merchant",
+            "nullable": true
           },
           "link_to_pay": {
             "type": "string",

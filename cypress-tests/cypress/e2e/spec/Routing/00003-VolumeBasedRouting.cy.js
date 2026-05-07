@@ -301,15 +301,11 @@ describe("Volume Based Routing Test", () => {
     });
 
     it("payment-routing-test-2", () => {
-      globalState.set("connectorId", "adyen");
-      globalState.set("merchantConnectorId", globalState.get("adyenMcaId"));
-      const data =
-        utils.getConnectorDetails("adyen")["card_pm"]["No3DSAutoCapture"];
-      cy.createConfirmPaymentTest(
+      // For 50/50 routing, the connector is probabilistic.
+      // We capture the actual routed connector from the response, then use it for subsequent assertions.
+      cy.createPaymentAndCaptureConnector(
         fixtures.createConfirmPaymentBody,
-        data,
-        "no_three_ds",
-        "automatic",
+        ["stripe", "adyen"],
         globalState
       );
     });
