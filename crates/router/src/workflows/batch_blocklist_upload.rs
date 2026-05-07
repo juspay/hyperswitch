@@ -211,11 +211,11 @@ impl ProcessTrackerWorkflow<SessionState> for BatchBlocklistUploadWorkflow {
                     retry_count
                 );
 
-                let mapping = process_data::PaymentMethodsPTMapping::default();
+                let mapping = process_data::RetryMapping::default();
                 let time_delta = if retry_count == 0 {
-                    Some(mapping.default_mapping.start_after)
+                    Some(mapping.start_after)
                 } else {
-                    pt_utils::get_delay(retry_count + 1, &mapping.default_mapping.frequencies)
+                    pt_utils::get_delay(retry_count + 1, &mapping.frequencies)
                 };
                 let schedule_time = pt_utils::get_time_from_delta(time_delta);
 
