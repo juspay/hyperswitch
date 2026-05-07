@@ -2403,9 +2403,10 @@ Cypress.Commands.add(
               const nextAction = response.body.next_action;
               if (nextAction) {
                 // Try multiple possible field names
-                const redirectUrl = nextAction.redirect_to_url || 
-                                   nextAction.url || 
-                                   nextAction.redirect_url;
+                const redirectUrl =
+                  nextAction.redirect_to_url ||
+                  nextAction.url ||
+                  nextAction.redirect_url;
                 if (redirectUrl) {
                   globalState.set("nextActionUrl", redirectUrl);
                   globalState.set("nextActionType", "redirect_to_url");
@@ -2856,7 +2857,10 @@ Cypress.Commands.add(
                   );
                   globalState.set("nextActionType", "redirect_to_url");
                 } else if (response.body.next_action?.url) {
-                  globalState.set("nextActionUrl", response.body.next_action.url);
+                  globalState.set(
+                    "nextActionUrl",
+                    response.body.next_action.url
+                  );
                   globalState.set("nextActionType", "redirect_to_url");
                 }
                 break;
@@ -4692,24 +4696,6 @@ Cypress.Commands.add(
     );
   }
 );
-Cypress.Commands.add(
-  "handlePayLaterRedirection",
-  (globalState, paymentMethodType, expected_redirection) => {
-    const connectorId = globalState.get("connectorId");
-    const nextActionUrl = globalState.get("nextActionUrl");
-
-    const expectedUrl = new URL(expected_redirection);
-    const redirectionUrl = new URL(nextActionUrl);
-
-    handleRedirection(
-      "pay_later",
-      { redirectionUrl, expectedUrl },
-      connectorId,
-      paymentMethodType,
-      { globalState }
-    );
-  }
-);
 
 // Alias for handlePayLaterRedirection (shorter name used in some specs)
 Cypress.Commands.add(
@@ -4719,8 +4705,10 @@ Cypress.Commands.add(
     const nextActionUrl = globalState.get("nextActionUrl");
 
     // Support calling with just globalState (defaults used when spec omits extra args)
-    const resolvedPaymentMethodType = paymentMethodType || globalState.get("paymentMethodType");
-    const resolvedExpectedRedirection = expected_redirection || "https://example.com";
+    const resolvedPaymentMethodType =
+      paymentMethodType || globalState.get("paymentMethodType");
+    const resolvedExpectedRedirection =
+      expected_redirection || "https://example.com";
 
     const expectedUrl = new URL(resolvedExpectedRedirection);
     const redirectionUrl = new URL(nextActionUrl);

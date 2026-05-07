@@ -20,8 +20,14 @@ describe("PayLater tests", () => {
 
         // Skip if connector is not in any PAY_LATER include list
         if (
-          shouldIncludeConnector(connector, CONNECTOR_LISTS.INCLUDE.PAY_LATER) &&
-          shouldIncludeConnector(connector, CONNECTOR_LISTS.INCLUDE.Affirm_PAY_LATER)
+          shouldIncludeConnector(
+            connector,
+            CONNECTOR_LISTS.INCLUDE.PAY_LATER
+          ) &&
+          shouldIncludeConnector(
+            connector,
+            CONNECTOR_LISTS.INCLUDE.AFFIRM_PAY_LATER
+          )
         ) {
           skip = true;
           return;
@@ -219,7 +225,11 @@ describe("PayLater tests", () => {
           return;
         }
         const expected_redirection = fixtures.confirmBody["return_url"];
-        cy.handlePayLaterRedirection(globalState, "affirm", expected_redirection);
+        cy.handlePayLaterRedirection(
+          globalState,
+          "affirm",
+          expected_redirection
+        );
         cy.task("cli_log", "Affirm redirection handler completed");
       });
 
@@ -334,7 +344,11 @@ describe("PayLater tests", () => {
           return;
         }
         const expected_redirection = fixtures.confirmBody["return_url"];
-        cy.handlePayLaterRedirection(globalState, "affirm", expected_redirection);
+        cy.handlePayLaterRedirection(
+          globalState,
+          "affirm",
+          expected_redirection
+        );
       });
 
       cy.step("Retrieve Payment after Confirmation", () => {
