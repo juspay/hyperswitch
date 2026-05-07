@@ -98,8 +98,7 @@ describe("PayLater tests", () => {
         }
         const expected_redirection =
           globalState.get("baseUrl") + "/payments/completion";
-        const payment_method_type = globalState.get("paymentMethodType");
-        cy.handleRedirection(globalState, payment_method_type, expected_redirection);
+        cy.handleRedirection(globalState, expected_redirection);
       });
     });
   });
@@ -158,8 +157,7 @@ describe("PayLater tests", () => {
         }
         const expected_redirection =
           globalState.get("baseUrl") + "/payments/completion";
-        const payment_method_type = globalState.get("paymentMethodType");
-        cy.handleRedirection(globalState, payment_method_type, expected_redirection);
+        cy.handleRedirection(globalState, expected_redirection);
       });
     });
   });
