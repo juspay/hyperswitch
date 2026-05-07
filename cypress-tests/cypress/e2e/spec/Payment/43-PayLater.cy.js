@@ -99,11 +99,7 @@ describe("PayLater tests", () => {
         const expected_redirection =
           globalState.get("baseUrl") + "/payments/completion";
         const payment_method_type = globalState.get("paymentMethodType");
-        cy.handlePayLaterRedirection(
-          globalState,
-          payment_method_type,
-          expected_redirection
-        );
+        cy.handleRedirection(globalState, payment_method_type, expected_redirection);
       });
     });
   });
@@ -163,11 +159,7 @@ describe("PayLater tests", () => {
         const expected_redirection =
           globalState.get("baseUrl") + "/payments/completion";
         const payment_method_type = globalState.get("paymentMethodType");
-        cy.handlePayLaterRedirection(
-          globalState,
-          payment_method_type,
-          expected_redirection
-        );
+        cy.handleRedirection(globalState, payment_method_type, expected_redirection);
       });
     });
   });
@@ -208,7 +200,7 @@ describe("PayLater tests", () => {
         const confirmData = getConnectorDetails(globalState.get("connectorId"))[
           "pay_later_pm"
         ]["AffirmManualCapture"];
-        cy.confirmPayLaterCallTest(
+        cy.confirmCallTest(
           fixtures.confirmBody,
           confirmData,
           true,
@@ -225,11 +217,7 @@ describe("PayLater tests", () => {
           return;
         }
         const expected_redirection = fixtures.confirmBody["return_url"];
-        cy.handlePayLaterRedirection(
-          globalState,
-          "affirm",
-          expected_redirection
-        );
+        cy.handleRedirection(globalState, "affirm", expected_redirection);
         cy.task("cli_log", "Affirm redirection handler completed");
       });
 
@@ -327,7 +315,7 @@ describe("PayLater tests", () => {
         const confirmData = getConnectorDetails(globalState.get("connectorId"))[
           "pay_later_pm"
         ]["AffirmManualCapture"];
-        cy.confirmPayLaterCallTest(
+        cy.confirmCallTest(
           fixtures.confirmBody,
           confirmData,
           true,
@@ -344,11 +332,7 @@ describe("PayLater tests", () => {
           return;
         }
         const expected_redirection = fixtures.confirmBody["return_url"];
-        cy.handlePayLaterRedirection(
-          globalState,
-          "affirm",
-          expected_redirection
-        );
+        cy.handleRedirection(globalState, "affirm", expected_redirection);
       });
 
       cy.step("Retrieve Payment after Confirmation", () => {
