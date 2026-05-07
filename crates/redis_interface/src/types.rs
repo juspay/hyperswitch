@@ -21,7 +21,7 @@ pub struct RedisValue {
     pub(crate) inner: fred::types::RedisValue,
 }
 
-// Method impls are in backends/redis_rs/types.rs and backends/fred/types.rs.
+// Method impls are in module/redis_rs/types.rs and module/fred/types.rs.
 
 // ─── Shared configuration types ─────────────────────────────────────────────
 
@@ -160,7 +160,7 @@ impl RedisEntryId {
     }
 }
 
-// Trait impls live in backends/redis_rs/types.rs and backends/fred/types.rs.
+// Trait impls live in module/redis_rs/types.rs and module/fred/types.rs.
 
 // ─── Reply type enums ────────────────────────────────────────────────────────
 
@@ -270,7 +270,7 @@ pub enum StreamCapTrim {
     AlmostExact,
 }
 
-// Trait impls for StreamCapKind/StreamCapTrim live in backends/fred/types.rs.
+// Trait impls for StreamCapKind/StreamCapTrim live in module/fred/types.rs.
 
 // ─── Stream trim types ────────────────────────────────────────────────────────
 

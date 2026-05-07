@@ -2,7 +2,7 @@
 //!
 //! These tests exercise the **public API** only — `RedisConnectionPool`,
 //! `RedisKey`, `RedisEntryId`, `RedisValue`, etc. — and therefore
-//! validate both the `fred` and `redis-rs` backends with the same
+//! validate both the `fred` and `redis-rs` module with the same
 //! test suite.
 //!
 //! Run with fred (default):
@@ -36,7 +36,7 @@ fn unique_test_id() -> String {
 }
 
 /// Convert a `RedisValue` to `Option<String>`.
-/// Works for both backends because `RedisValue::as_string()` is a shared method.
+/// Works for both module because `RedisValue::as_string()` is a shared method.
 fn redis_value_to_option_string(v: &RedisValue) -> Option<String> {
     v.as_string()
 }

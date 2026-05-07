@@ -17,12 +17,12 @@ pub mod errors;
 pub mod types;
 
 #[cfg(not(feature = "redis-rs"))]
-mod backends {
+mod module {
     pub mod fred;
 }
 
 #[cfg(feature = "redis-rs")]
-mod backends {
+mod module {
     pub mod redis_rs;
 }
 
@@ -31,11 +31,11 @@ mod backends {
 // and is never aware of which backend is active.
 
 #[cfg(not(feature = "redis-rs"))]
-pub use backends::fred::{
+pub use module::fred::{
     PubSubMessage, RedisClient, RedisConfig, RedisConnectionPool, SubscriberClient,
 };
 #[cfg(feature = "redis-rs")]
-pub use backends::redis_rs::{
+pub use module::redis_rs::{
     redis_value_to_option_string, PubSubMessage, PublisherClient, RedisConfig, RedisConn,
     RedisConnectionPool, SubscriberClient,
 };
