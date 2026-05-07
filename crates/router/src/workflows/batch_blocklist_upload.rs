@@ -2,7 +2,9 @@ use common_utils::{ext_traits::ValueExt, id_type};
 use error_stack::ResultExt;
 use router_env::{instrument, tracing};
 use scheduler::{
-    consumer::types::process_data, utils as pt_utils, workflows::ProcessTrackerWorkflow,
+    consumer::{self, types::process_data},
+    utils as pt_utils,
+    workflows::ProcessTrackerWorkflow,
 };
 
 use crate::{
@@ -17,6 +19,7 @@ use crate::{
 
 pub struct BatchBlocklistUploadWorkflow;
 
+/// Processes all unfinished chunks for a batch blocklist job, inserting entries and updating progress after each chunk.
 async fn run_batch_job(
     state: &SessionState,
     process_id: &str,
@@ -111,6 +114,7 @@ async fn run_batch_job(
     Ok((total_succeeded, total_rows))
 }
 
+/// Deletes all input chunk files from file storage after a job completes.
 async fn delete_input_chunks(
     state: &SessionState,
     merchant_id: &id_type::MerchantId,
@@ -134,6 +138,7 @@ async fn delete_input_chunks(
 
 #[async_trait::async_trait]
 impl ProcessTrackerWorkflow<SessionState> for BatchBlocklistUploadWorkflow {
+    /// Deserializes tracking data, runs all pending chunks, then marks the job completed or schedules a retry on failure.
     #[instrument(skip_all, fields(flow = ?router_env::Flow::BatchBlocklistUpload))]
     async fn execute_workflow<'a>(
         &'a self,
@@ -261,13 +266,13 @@ impl ProcessTrackerWorkflow<SessionState> for BatchBlocklistUploadWorkflow {
         Ok(())
     }
 
+    /// Delegates to the standard consumer error handler to reschedule or mark the process as failed.
     async fn error_handler<'a>(
         &'a self,
-        _state: &'a SessionState,
+        state: &'a SessionState,
         process: storage::ProcessTracker,
-        _error: errors::ProcessTrackerError,
+        error: errors::ProcessTrackerError,
     ) -> errors::CustomResult<(), errors::ProcessTrackerError> {
-        error!(%process.id, "Failed while executing BatchBlocklistUploadWorkflow");
-        Ok(())
+        consumer::consumer_error_handler(state.store.as_scheduler(), process, error).await
     }
 }

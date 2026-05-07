@@ -20,10 +20,12 @@ const BATCH_BLOCKLIST_TASK: &str = "BATCH_BLOCKLIST_UPLOAD";
 const BATCH_BLOCKLIST_TAGS: [&str; 2] = ["BLOCKLIST", "BATCH"];
 const MAX_BATCH_CSV_ROWS: usize = 100_000;
 
+/// Returns the file storage key for the original uploaded CSV.
 fn original_input_key(merchant_id: &str, job_id: &str) -> String {
     format!("blocklist/batch/{merchant_id}/{job_id}/original.csv")
 }
 
+/// Returns the file storage key for a specific input chunk of a batch job.
 pub(crate) fn input_chunk_key(merchant_id: &str, job_id: &str, chunk_idx: u32) -> String {
     format!("blocklist/batch/{merchant_id}/{job_id}/input_chunks/{chunk_idx:03}.csv")
 }
@@ -166,6 +168,7 @@ impl BlocklistRow {
     }
 }
 
+/// Parses a user-uploaded CSV into blocklist rows, stopping at the first invalid row.
 fn parse_csv(csv_bytes: &[u8]) -> Result<Vec<BlocklistRow>, api_blocklist::BlocklistRowError> {
     let mut csv_reader = ReaderBuilder::new()
         .trim(Trim::All)
@@ -194,6 +197,7 @@ fn parse_csv(csv_bytes: &[u8]) -> Result<Vec<BlocklistRow>, api_blocklist::Block
     Ok(rows)
 }
 
+/// Serializes a slice of blocklist rows into headerless CSV bytes for chunk storage.
 fn rows_to_csv_bytes(rows: &[BlocklistRow]) -> RouterResult<Vec<u8>> {
     let mut writer = WriterBuilder::new()
         .has_headers(false)
@@ -237,6 +241,7 @@ fn rows_to_csv_bytes(rows: &[BlocklistRow]) -> RouterResult<Vec<u8>> {
         .attach_printable("Failed to finalize batch blocklist input chunk CSV")
 }
 
+/// Parses a stored input chunk CSV (no header) into blocklist rows.
 pub(crate) fn parse_chunk_csv(csv_bytes: &[u8]) -> RouterResult<Vec<BlocklistRow>> {
     let mut csv_reader = ReaderBuilder::new()
         .has_headers(false)
@@ -261,6 +266,7 @@ pub(crate) fn parse_chunk_csv(csv_bytes: &[u8]) -> RouterResult<Vec<BlocklistRow
     Ok(rows)
 }
 
+/// Validates CSV size and content, returning parsed rows or an error for the first invalid row.
 fn validate_csv(csv_bytes: &[u8]) -> RouterResult<Vec<BlocklistRow>> {
     let rows = parse_csv(csv_bytes).map_err(|row_err| {
         logger::warn!(
@@ -294,6 +300,7 @@ fn validate_csv(csv_bytes: &[u8]) -> RouterResult<Vec<BlocklistRow>> {
     Ok(rows)
 }
 
+/// Validates the CSV, splits it into chunks, uploads them to file storage, and enqueues a process tracker job.
 #[instrument(skip_all, fields(flow = ?router_env::Flow::BatchBlocklistUpload))]
 pub async fn initiate_batch_blocklist_upload(
     state: &SessionState,
@@ -423,6 +430,7 @@ pub async fn initiate_batch_blocklist_upload(
     })
 }
 
+/// Bulk-inserts all rows in a single chunk into the blocklist table, returning the count of inserted rows.
 pub(crate) async fn process_chunk(
     state: &SessionState,
     merchant_id: &id_type::MerchantId,
@@ -455,6 +463,8 @@ pub(crate) async fn process_chunk(
 
     Ok(succeeded)
 }
+
+/// Fetches the status and row counters for a specific batch blocklist job.
 #[instrument(skip_all, fields(flow = ?router_env::Flow::GetBatchBlocklistJobStatus))]
 pub async fn get_batch_blocklist_job_status(
     state: &SessionState,
@@ -484,6 +494,7 @@ pub async fn get_batch_blocklist_job_status(
     })
 }
 
+/// Returns a paginated list of batch blocklist jobs for a merchant along with the total count.
 #[instrument(skip_all, fields(flow = ?router_env::Flow::ListBatchBlocklistJobs))]
 pub async fn list_batch_blocklist_jobs(
     state: &SessionState,

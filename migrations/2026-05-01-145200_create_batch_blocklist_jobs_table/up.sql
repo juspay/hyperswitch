@@ -10,4 +10,4 @@ CREATE TABLE batch_blocklist_jobs (
 );
 
 CREATE INDEX batch_blocklist_jobs_merchant_id_created_at_idx
-    ON batch_blocklist_jobs (merchant_id, created_at DESC);
+    ON batch_blocklist_jobs (merchant_id);

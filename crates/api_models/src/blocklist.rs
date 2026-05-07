@@ -144,7 +144,12 @@ impl Default for BatchListLimit {
 impl<'de> serde::Deserialize<'de> for BatchListLimit {
     fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
         let val = u8::deserialize(deserializer)?;
-        Ok(Self(val.min(MAX_BATCH_LIST_LIMIT)))
+        if val > MAX_BATCH_LIST_LIMIT {
+            return Err(serde::de::Error::custom(format!(
+                "limit must not exceed {MAX_BATCH_LIST_LIMIT}"
+            )));
+        }
+        Ok(Self(val))
     }
 }
 
