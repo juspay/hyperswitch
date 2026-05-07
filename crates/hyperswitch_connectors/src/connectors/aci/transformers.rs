@@ -10,7 +10,6 @@ use hyperswitch_domain_models::{
         ApplePayWalletData, BankRedirectData, Card, GooglePayWalletData, NetworkTokenData,
         PayLaterData, PaymentMethodData, SamsungPayWalletData, WalletData,
     },
-    payment_methods::storage_enums::MitCategory,
     router_data::{ConnectorAuthType, ErrorResponse, PaymentMethodToken, RouterData},
     router_flow_types::SetupMandate,
     router_request_types::{
