@@ -895,6 +895,9 @@ export const connectorDetails = {
             product_name: "Test Product",
             quantity: 1,
             amount: 6000,
+            total_amount: 6000,
+            description: "Test Product Description",
+            product_img_link: "https://example.com/product.jpg",
           },
         ],
         browser_info: {
