@@ -546,7 +546,6 @@ export const CONNECTOR_LISTS = {
       "worldpayvantiv",
     ],
     EXTERNAL_THREE_DS: ["stripe", "finix"],
-    BANK_DEBIT: ["novalnet"],
     BOLETO: ["santander"],
     PIX_AUTOMATICO: ["santander"],
     PARTNER_MERCHANT_IDENTIFIER: ["adyen", "checkout"],
