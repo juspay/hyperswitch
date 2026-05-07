@@ -21,7 +21,7 @@ static SERVER: OnceCell<bool> = OnceCell::const_new();
 
 async fn spawn_server() -> bool {
     let conf = Settings::new().expect("invalid settings");
-    let server = Box::pin(router::start_server(conf))
+    let server = Box::pin(router::start_server(conf, env!("CARGO_PKG_NAME")))
         .await
         .expect("failed to create server");
 
@@ -55,6 +55,7 @@ pub async fn mk_service(
         router::db::StorageImpl::Mock,
         tx,
         Box::new(services::MockApiClient),
+        env!("CARGO_PKG_NAME"),
     ))
     .await;
     actix_web::test::init_service(router::mk_app(app_state, request_body_limit)).await

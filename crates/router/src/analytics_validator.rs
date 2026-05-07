@@ -1,5 +1,5 @@
 use analytics::errors::AnalyticsError;
-use api_models::analytics::AnalyticsRequest;
+use api_models::analytics::{AnalyticsRequest, ReportRequest};
 use common_utils::errors::CustomResult;
 use currency_conversion::types::ExchangeRates;
 use router_env::logger;
@@ -21,4 +21,13 @@ pub async fn request_validator(
     };
 
     Ok(ex_rates)
+}
+
+pub fn validate_report_request(request: &ReportRequest) -> Result<(), AnalyticsError> {
+    match request.return_url {
+        Some(ref return_url) => return_url
+            .verify_https_scheme()
+            .map_err(AnalyticsError::InvalidReturnUrl),
+        None => Ok(()),
+    }
 }

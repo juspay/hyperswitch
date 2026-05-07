@@ -19,6 +19,8 @@ pub struct FileMetadataNew {
     pub connector_label: Option<String>,
     pub profile_id: Option<common_utils::id_type::ProfileId>,
     pub merchant_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
+    pub processor_merchant_id: Option<common_utils::id_type::MerchantId>,
+    pub created_by: Option<String>,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, Identifiable, Queryable, Selectable)]
@@ -38,6 +40,8 @@ pub struct FileMetadata {
     pub connector_label: Option<String>,
     pub profile_id: Option<common_utils::id_type::ProfileId>,
     pub merchant_connector_id: Option<common_utils::id_type::MerchantConnectorAccountId>,
+    pub processor_merchant_id: Option<common_utils::id_type::MerchantId>,
+    pub created_by: Option<String>,
 }
 
 #[derive(Debug)]

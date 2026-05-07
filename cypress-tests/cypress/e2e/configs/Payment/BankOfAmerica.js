@@ -257,6 +257,15 @@ export const connectorDetails = {
         },
       },
     },
+    ManualRefundUpdate: {
+      Request: {
+        status: "failed",
+      },
+      Response: {
+        status: 200,
+        body: {},
+      },
+    },
     SyncRefund: {
       Response: {
         status: 200,
@@ -748,6 +757,73 @@ export const connectorDetails = {
         },
       },
     },
+    UseBillingAsPaymentMethodBilling: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "USD",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    },
+    UseBillingAsPaymentMethodBillingDisabled: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "USD",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "failed",
+          error_code: "MISSING_FIELD",
+        },
+      },
+    },
+    PaymentIntentWithFeatureMetadata: {
+      Request: {
+        currency: "USD",
+        amount: 6540,
+        feature_metadata: {
+          search_tags: ["qa-test", "feature-metadata-test", "automated"],
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+        },
+      },
+    },
+    PaymentWithFeatureMetadata: {
+      Request: {
+        currency: "USD",
+        amount: 6540,
+        feature_metadata: {
+          search_tags: ["qa-test", "feature-metadata-test"],
+        },
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    },
   },
   pm_list: {
     PmListResponse: {
@@ -887,7 +963,7 @@ export const connectorDetails = {
                         options: ["ALL"],
                       },
                     },
-                    value: "PL",
+                    value: "US",
                   },
                   "payment_method_data.card.card_exp_year": {
                     required_field: "payment_method_data.card.card_exp_year",

@@ -469,6 +469,8 @@ diesel::table! {
         #[max_length = 64]
         last_modified_by -> Varchar,
         last_modified_at -> Timestamp,
+        #[max_length = 64]
+        profile_id -> Nullable<Varchar>,
     }
 }
 
@@ -612,6 +614,10 @@ diesel::table! {
         profile_id -> Nullable<Varchar>,
         #[max_length = 32]
         merchant_connector_id -> Nullable<Varchar>,
+        #[max_length = 64]
+        processor_merchant_id -> Nullable<Varchar>,
+        #[max_length = 255]
+        created_by -> Nullable<Varchar>,
     }
 }
 
@@ -1320,6 +1326,10 @@ diesel::table! {
         profile_id -> Nullable<Varchar>,
         #[max_length = 255]
         secure_link -> Nullable<Varchar>,
+        #[max_length = 64]
+        processor_merchant_id -> Nullable<Varchar>,
+        #[max_length = 255]
+        created_by -> Nullable<Varchar>,
     }
 }
 
@@ -1393,6 +1403,12 @@ diesel::table! {
         #[max_length = 64]
         locker_fingerprint_id -> Nullable<Varchar>,
         network_tokenization_data -> Nullable<Bytea>,
+        #[max_length = 64]
+        id -> Nullable<Varchar>,
+        #[max_length = 64]
+        payment_method_type_v2 -> Nullable<Varchar>,
+        #[max_length = 64]
+        payment_method_subtype -> Nullable<Varchar>,
     }
 }
 
@@ -1444,6 +1460,9 @@ diesel::table! {
         processor_merchant_id -> Nullable<Varchar>,
         #[max_length = 255]
         created_by -> Nullable<Varchar>,
+        #[max_length = 64]
+        source_bank_data_token -> Nullable<Varchar>,
+        additional_source_bank_data -> Nullable<Jsonb>,
     }
 }
 
