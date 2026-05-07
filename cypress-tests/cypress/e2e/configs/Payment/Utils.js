@@ -447,6 +447,7 @@ export const CONNECTOR_LISTS = {
       "zift",
     ],
     MANDATE_ID_TEST: ["airwallex", "payload"],
+    UPI_REFUND: ["razorpay"],
     // Add more exclusion lists
   },
 
@@ -535,6 +536,7 @@ export const CONNECTOR_LISTS = {
     ],
     EXTERNAL_THREE_DS: ["stripe"],
     BANK_DEBIT: ["novalnet"],
+    UPI_REFUND: ["razorpay"],
     // Add more inclusion lists
   },
 };
