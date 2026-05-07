@@ -65,7 +65,7 @@ impl redis::aio::ConnectionLike for RedisConn {
 pub struct SubscriberClient {
     connection: SubscriberBackend,
     broadcast_sender: tokio::sync::broadcast::Sender<PubSubMessage>,
-    is_subscriber_handler_spawned: Arc<atomic::AtomicBool>,
+    pub is_subscriber_handler_spawned: Arc<atomic::AtomicBool>,
 }
 
 enum SubscriberBackend {
@@ -269,10 +269,6 @@ impl SubscriberClient {
 
     pub fn message_rx(&self) -> tokio::sync::broadcast::Receiver<PubSubMessage> {
         self.broadcast_sender.subscribe()
-    }
-
-    pub fn is_subscriber_handler_spawned(&self) -> &Arc<atomic::AtomicBool> {
-        &self.is_subscriber_handler_spawned
     }
 
     async fn run(

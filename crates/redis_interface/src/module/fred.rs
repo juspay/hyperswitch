@@ -12,7 +12,7 @@ use common_utils::errors::CustomResult;
 use error_stack::ResultExt;
 use fred::{
     clients::Transaction,
-    interfaces::{ClientLike, EventInterface},
+    interfaces::{ClientLike, EventInterface,PubsubInterface},
     prelude::TransactionInterface,
 };
 
@@ -45,7 +45,7 @@ impl RedisClient {
         channel: &str,
         message: RedisValue,
     ) -> CustomResult<usize, crate::errors::RedisError> {
-        use fred::interfaces::PubsubInterface;
+        
         self.inner
             .publish(channel, message.into_inner())
             .await
@@ -130,12 +130,11 @@ impl SubscriberClient {
         self.broadcast_sender.subscribe()
     }
 
-    pub fn is_subscriber_handler_spawned(&self) -> &Arc<atomic::AtomicBool> {
-        &self.is_subscriber_handler_spawned
-    }
-
     pub async fn subscribe(&self, channel: &str) -> CustomResult<(), crate::errors::RedisError> {
-        use fred::interfaces::PubsubInterface;
+        // Spawns a task that will automatically re-subscribe to any channels
+        // or channel patterns used by the client (fred-specific).
+        self.inner.manage_subscriptions();
+
         self.inner
             .subscribe(channel)
             .await
@@ -143,7 +142,7 @@ impl SubscriberClient {
     }
 
     pub async fn unsubscribe(&self, channel: &str) -> CustomResult<(), crate::errors::RedisError> {
-        use fred::interfaces::PubsubInterface;
+        
         self.inner
             .unsubscribe(channel)
             .await

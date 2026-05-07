@@ -33,7 +33,7 @@ impl PubSubInterface for std::sync::Arc<redis_interface::RedisConnectionPool> {
         // Spawn only one thread handling all the published messages to different channels
         if self
             .subscriber
-            .is_subscriber_handler_spawned()
+            .is_subscriber_handler_spawned
             .compare_exchange(
                 false,
                 true,
@@ -73,6 +73,7 @@ impl PubSubInterface for std::sync::Arc<redis_interface::RedisConnectionPool> {
                 RedisValue::try_from(key).change_context(redis_errors::RedisError::PublishError)?,
             )
             .await
+            .change_context(redis_errors::RedisError::SubscribeError)
     }
 
     #[inline]
@@ -80,7 +81,7 @@ impl PubSubInterface for std::sync::Arc<redis_interface::RedisConnectionPool> {
         logger::debug!("Started on message");
         let mut rx = self.subscriber.message_rx();
         while let Ok(message) = rx.recv().await {
-            let channel_name = message.channel.clone();
+            let channel_name = message.channel.to_string();
             logger::debug!("Received message on channel: {channel_name}");
 
             match channel_name.as_str() {
