@@ -2683,6 +2683,7 @@ export const connectorDetails = {
         },
       },
     }),
+    Refund: getCustomExchange({}),
   },
   reward_pm: {
     PaymentIntentUSD: getCustomExchange({

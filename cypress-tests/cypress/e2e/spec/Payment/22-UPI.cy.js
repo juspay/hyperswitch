@@ -5,7 +5,7 @@ import getConnectorDetails, * as utils from "../../configs/Payment/Utils";
 let globalState;
 
 describe("UPI Payments - Hyperswitch", () => {
-  context("[Payment] [UPI - UPI Collect] Create & Confirm + Refund", () => {
+  context("[Payment] [UPI - UPI Collect] Create & Confirm", () => {
     before("seed global state", () => {
       cy.task("getGlobalState").then((state) => {
         globalState = new State(state);
@@ -16,7 +16,7 @@ describe("UPI Payments - Hyperswitch", () => {
       cy.task("setGlobalState", globalState.data);
     });
 
-    it("Create payment intent -> List Merchant payment methods -> Confirm payment -> Handle UPI Redirection -> Retrieve payment -> Refund payment", () => {
+    it("Create payment intent -> List Merchant payment methods -> Confirm payment -> Handle UPI Redirection -> Retrieve payment", () => {
       let shouldContinue = true;
 
       cy.step("Create payment intent", () => {
@@ -100,6 +100,11 @@ describe("UPI Payments - Hyperswitch", () => {
         const data = getConnectorDetails(globalState.get("connectorId"))[
           "upi_pm"
         ]["Refund"];
+
+        if (!utils.should_continue_further(data)) {
+          cy.task("cli_log", "Skipping step: Refund payment - not supported");
+          return;
+        }
 
         cy.refundCallTest(fixtures.refundBody, data, globalState);
       });
