@@ -22,12 +22,15 @@ describe("Merchant Redirect Method Tests", () => {
       it("Create Business Profile → Create Connector → Create Customer → Enable POST redirect → Create Payment Intent → Confirm Payment → Retrieve Payment", () => {
         let shouldContinue = true;
 
-        cy.step("Create Business Profile with redirect_to_merchant_with_http_post enabled", () => {
-          cy.createBusinessProfileTest(
-            fixtures.businessProfile.bpCreate,
-            globalState
-          );
-        });
+        cy.step(
+          "Create Business Profile with redirect_to_merchant_with_http_post enabled",
+          () => {
+            cy.createBusinessProfileTest(
+              fixtures.businessProfile.bpCreate,
+              globalState
+            );
+          }
+        );
 
         cy.step("Create Connector", () => {
           cy.createConnectorCallTest(
@@ -73,20 +76,23 @@ describe("Merchant Redirect Method Tests", () => {
           }
         });
 
-        cy.step("Confirm Payment and verify redirect behavior with POST method", () => {
-          if (!shouldContinue) {
-            cy.task("cli_log", "Skipping step: Confirm Payment");
-            return;
-          }
-          const data = getConnectorDetails(globalState.get("connectorId"))[
-            "card_pm"
-          ]["No3DSAutoCapture"];
+        cy.step(
+          "Confirm Payment and verify redirect behavior with POST method",
+          () => {
+            if (!shouldContinue) {
+              cy.task("cli_log", "Skipping step: Confirm Payment");
+              return;
+            }
+            const data = getConnectorDetails(globalState.get("connectorId"))[
+              "card_pm"
+            ]["No3DSAutoCapture"];
 
-          cy.confirmCallTest(fixtures.confirmBody, data, true, globalState);
-          if (!utils.should_continue_further(data)) {
-            shouldContinue = false;
+            cy.confirmCallTest(fixtures.confirmBody, data, true, globalState);
+            if (!utils.should_continue_further(data)) {
+              shouldContinue = false;
+            }
           }
-        });
+        );
 
         cy.step("Retrieve Payment to verify status", () => {
           if (!shouldContinue) {
@@ -105,12 +111,15 @@ describe("Merchant Redirect Method Tests", () => {
       it("Create Business Profile → Create Connector → Create Customer → Disable POST redirect → Create Payment Intent → Confirm Payment → Retrieve Payment", () => {
         let shouldContinue = true;
 
-        cy.step("Create Business Profile with redirect_to_merchant_with_http_post disabled", () => {
-          cy.createBusinessProfileTest(
-            fixtures.businessProfile.bpCreate,
-            globalState
-          );
-        });
+        cy.step(
+          "Create Business Profile with redirect_to_merchant_with_http_post disabled",
+          () => {
+            cy.createBusinessProfileTest(
+              fixtures.businessProfile.bpCreate,
+              globalState
+            );
+          }
+        );
 
         cy.step("Create Connector", () => {
           cy.createConnectorCallTest(
@@ -156,20 +165,23 @@ describe("Merchant Redirect Method Tests", () => {
           }
         });
 
-        cy.step("Confirm Payment and verify redirect behavior with GET method", () => {
-          if (!shouldContinue) {
-            cy.task("cli_log", "Skipping step: Confirm Payment");
-            return;
-          }
-          const data = getConnectorDetails(globalState.get("connectorId"))[
-            "card_pm"
-          ]["No3DSAutoCapture"];
+        cy.step(
+          "Confirm Payment and verify redirect behavior with GET method",
+          () => {
+            if (!shouldContinue) {
+              cy.task("cli_log", "Skipping step: Confirm Payment");
+              return;
+            }
+            const data = getConnectorDetails(globalState.get("connectorId"))[
+              "card_pm"
+            ]["No3DSAutoCapture"];
 
-          cy.confirmCallTest(fixtures.confirmBody, data, true, globalState);
-          if (!utils.should_continue_further(data)) {
-            shouldContinue = false;
+            cy.confirmCallTest(fixtures.confirmBody, data, true, globalState);
+            if (!utils.should_continue_further(data)) {
+              shouldContinue = false;
+            }
           }
-        });
+        );
 
         cy.step("Retrieve Payment to verify status", () => {
           if (!shouldContinue) {
@@ -188,12 +200,15 @@ describe("Merchant Redirect Method Tests", () => {
       it("Create Business Profile → Create Connector → Create Customer → Enable POST redirect → Create Payment Intent → Toggle to GET → Confirm Payment → Retrieve Payment", () => {
         let shouldContinue = true;
 
-        cy.step("Create Business Profile with initial POST redirect setting", () => {
-          cy.createBusinessProfileTest(
-            fixtures.businessProfile.bpCreate,
-            globalState
-          );
-        });
+        cy.step(
+          "Create Business Profile with initial POST redirect setting",
+          () => {
+            cy.createBusinessProfileTest(
+              fixtures.businessProfile.bpCreate,
+              globalState
+            );
+          }
+        );
 
         cy.step("Create Connector", () => {
           cy.createConnectorCallTest(
@@ -208,17 +223,20 @@ describe("Merchant Redirect Method Tests", () => {
           cy.createCustomerCallTest(fixtures.customerCreateBody, globalState);
         });
 
-        cy.step("Set initial redirect_to_merchant_with_http_post to true", () => {
-          cy.UpdateBusinessProfileTest(
-            fixtures.businessProfile.bpUpdateRedirectPost,
-            true,
-            false,
-            false,
-            false,
-            false,
-            globalState
-          );
-        });
+        cy.step(
+          "Set initial redirect_to_merchant_with_http_post to true",
+          () => {
+            cy.UpdateBusinessProfileTest(
+              fixtures.businessProfile.bpUpdateRedirectPost,
+              true,
+              false,
+              false,
+              false,
+              false,
+              globalState
+            );
+          }
+        );
 
         cy.step("Create Payment Intent", () => {
           const data = getConnectorDetails(globalState.get("connectorId"))[
@@ -238,21 +256,24 @@ describe("Merchant Redirect Method Tests", () => {
           }
         });
 
-        cy.step("Toggle redirect_to_merchant_with_http_post to false mid-flow", () => {
-          if (!shouldContinue) {
-            cy.task("cli_log", "Skipping step: Toggle redirect setting");
-            return;
+        cy.step(
+          "Toggle redirect_to_merchant_with_http_post to false mid-flow",
+          () => {
+            if (!shouldContinue) {
+              cy.task("cli_log", "Skipping step: Toggle redirect setting");
+              return;
+            }
+            cy.UpdateBusinessProfileTest(
+              fixtures.businessProfile.bpUpdateRedirectGet,
+              true,
+              false,
+              false,
+              false,
+              false,
+              globalState
+            );
           }
-          cy.UpdateBusinessProfileTest(
-            fixtures.businessProfile.bpUpdateRedirectGet,
-            true,
-            false,
-            false,
-            false,
-            false,
-            globalState
-          );
-        });
+        );
 
         cy.step("Confirm Payment after toggling redirect method", () => {
           if (!shouldContinue) {
@@ -289,38 +310,41 @@ describe("Merchant Redirect Method Tests", () => {
         );
       });
 
-      cy.step("Attempt to update with invalid redirect_to_merchant_with_http_post value", () => {
-        const invalidBody = {
-          ...fixtures.businessProfile.bpUpdate,
-          is_connector_agnostic_mit_enabled: true,
-          collect_shipping_details_from_wallet_connector: false,
-          collect_billing_details_from_wallet_connector: false,
-          always_collect_billing_details_from_wallet_connector: false,
-          always_collect_shipping_details_from_wallet_connector: false,
-          redirect_to_merchant_with_http_post: "invalid_value",
-        };
+      cy.step(
+        "Attempt to update with invalid redirect_to_merchant_with_http_post value",
+        () => {
+          const invalidBody = {
+            ...fixtures.businessProfile.bpUpdate,
+            is_connector_agnostic_mit_enabled: true,
+            collect_shipping_details_from_wallet_connector: false,
+            collect_billing_details_from_wallet_connector: false,
+            always_collect_billing_details_from_wallet_connector: false,
+            always_collect_shipping_details_from_wallet_connector: false,
+            redirect_to_merchant_with_http_post: "invalid_value",
+          };
 
-        cy.request({
-          method: "POST",
-          url: `${globalState.get("baseUrl")}/account/${globalState.get(
-            "merchantId"
-          )}/business_profile/${globalState.get("profileId")}`,
-          headers: {
-            Accept: "application/json",
-            "Content-Type": "application/json",
-            "api-key": globalState.get("apiKey"),
-          },
-          body: invalidBody,
-          failOnStatusCode: false,
-        }).then((response) => {
-          if (response.status !== 200) {
-            cy.task(
-              "cli_log",
-              `Expected error for invalid redirect method value: ${response.status}`
-            );
-          }
-        });
-      });
+          cy.request({
+            method: "POST",
+            url: `${globalState.get("baseUrl")}/account/${globalState.get(
+              "merchantId"
+            )}/business_profile/${globalState.get("profileId")}`,
+            headers: {
+              Accept: "application/json",
+              "Content-Type": "application/json",
+              "api-key": globalState.get("apiKey"),
+            },
+            body: invalidBody,
+            failOnStatusCode: false,
+          }).then((response) => {
+            if (response.status !== 200) {
+              cy.task(
+                "cli_log",
+                `Expected error for invalid redirect method value: ${response.status}`
+              );
+            }
+          });
+        }
+      );
     });
   });
 });
