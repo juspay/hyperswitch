@@ -4413,9 +4413,9 @@ pub enum BankRedirectData {
     #[smithy(nested_value_type)]
     Trustly {
         /// The country for bank payment
-        #[schema(value_type = CountryAlpha2, example = "US")]
-        #[smithy(value_type = "CountryAlpha2")]
-        country: api_enums::CountryAlpha2,
+        #[schema(value_type = Option<CountryAlpha2>, example = "US")]
+        #[smithy(value_type = "Option<CountryAlpha2>")]
+        country: Option<api_enums::CountryAlpha2>,
     },
     #[smithy(nested_value_type)]
     OnlineBankingFpx {
@@ -4547,7 +4547,7 @@ impl GetAddressFromPaymentMethodData for BankRedirectData {
             Self::Przelewy24 {
                 billing_details, ..
             } => get_billing_address_inner(billing_details.as_ref(), None, None),
-            Self::Trustly { country } => get_billing_address_inner(None, Some(country), None),
+            Self::Trustly { country } => get_billing_address_inner(None, country.as_ref(), None),
             Self::OnlineBankingFpx { .. }
             | Self::LocalBankRedirect {}
             | Self::OnlineBankingThailand { .. }
@@ -12412,6 +12412,9 @@ pub struct RetrievePaymentLinkResponse {
     /// Identifier for Merchant
     #[schema(value_type = String)]
     pub merchant_id: id_type::MerchantId,
+    /// Identifier for the processor merchant
+    #[schema(value_type = Option<String>)]
+    pub processor_merchant_id: Option<id_type::MerchantId>,
     /// Open payment link (without any security checks and listing SPMs)
     pub link_to_pay: String,
     /// The payment amount. Amount for the payment in the lowest denomination of the currency

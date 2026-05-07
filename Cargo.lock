@@ -3371,6 +3371,7 @@ dependencies = [
  "serde_json",
  "serde_urlencoded",
  "superposition_provider",
+ "superposition_sdk",
  "superposition_types",
  "thiserror 1.0.69",
  "time 0.3.41",
