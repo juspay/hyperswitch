@@ -464,7 +464,7 @@ export const CONNECTOR_LISTS = {
     // ucs connectors
     UCS_CONNECTORS: ["authorizedotnet"],
     OVERCAPTURE: ["adyen"],
-    IFRAME_REDIRECTION: ["adyen", "worldpayxml"],
+    IFRAME_REDIRECTION: ["adyen", "worldpayxml", "stripe"],
     MANUAL_RETRY: [
       "cybersource",
       "checkout",
