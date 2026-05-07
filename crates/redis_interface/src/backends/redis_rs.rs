@@ -555,6 +555,105 @@ impl RedisConnectionPool {
 
 }
 
+// ─── RedisSettings helpers (redis-rs backend only) ────────────────────────────
+
+impl crate::types::RedisSettings {
+    /// Normalize cluster URLs by prepending `"redis://"` if the scheme is missing.
+    pub(crate) fn normalize_cluster_urls(&self) -> Vec<String> {
+        self.cluster_urls
+            .iter()
+            .map(|url| {
+                if url.starts_with("redis://") {
+                    url.clone()
+                } else {
+                    format!("redis://{url}")
+                }
+            })
+            .collect()
+    }
+
+    /// Convert `max_in_flight_commands` to `Option<usize>`.
+    ///
+    /// Returns `None` when `max_in_flight_commands` is 0 (feature disabled).
+    pub(crate) fn max_in_flight_commands_as_usize(&self) -> Option<usize> {
+        (self.max_in_flight_commands > 0).then_some(self.max_in_flight_commands)
+    }
+
+    /// Convert `reconnect_max_attempts` to `usize`.
+    ///
+    /// Logs a warning and falls back to [`crate::constant::redis_rs_commands::DEFAULT_RECONNECT_MAX_ATTEMPTS`]
+    /// when the value overflows.
+    pub(crate) fn reconnect_max_attempts_as_usize(&self) -> usize {
+        usize::try_from(self.reconnect_max_attempts).unwrap_or_else(|_| {
+            tracing::warn!(
+                "reconnect_max_attempts ({}) exceeds usize, using default ({})",
+                self.reconnect_max_attempts,
+                crate::constant::redis_rs_commands::DEFAULT_RECONNECT_MAX_ATTEMPTS
+            );
+            crate::constant::redis_rs_commands::DEFAULT_RECONNECT_MAX_ATTEMPTS
+        })
+    }
+
+    /// Build a standalone [`redis::ConnectionInfo`] with RESP3 protocol from host and port.
+    pub(crate) fn build_standalone_connection_info(
+        &self,
+    ) -> CustomResult<redis::ConnectionInfo, crate::errors::RedisError> {
+        use error_stack::ResultExt;
+        use redis::IntoConnectionInfo;
+
+        let connection_url = format!("redis://{}:{}", self.host, self.port);
+        let mut connection_info = connection_url
+            .as_str()
+            .into_connection_info()
+            .change_context(crate::errors::RedisError::RedisConnectionError)?;
+
+        let redis_settings = connection_info
+            .redis_settings()
+            .clone()
+            .set_protocol(redis::ProtocolVersion::RESP3);
+        connection_info = connection_info.set_redis_settings(redis_settings);
+
+        Ok(connection_info)
+    }
+
+    /// Build the base [`redis::aio::ConnectionManagerConfig`] from these settings.
+    ///
+    /// Sets reconnection retries, minimum delay, and optional response timeout.
+    /// Callers can further customize (e.g. `set_pipeline_buffer_size`) before use.
+    pub(crate) fn build_connection_manager_config(&self) -> redis::aio::ConnectionManagerConfig {
+        let mut config = redis::aio::ConnectionManagerConfig::new()
+            .set_number_of_retries(self.reconnect_max_attempts_as_usize())
+            .set_min_delay(std::time::Duration::from_millis(u64::from(
+                self.reconnect_delay,
+            )));
+
+        if self.default_command_timeout > 0 {
+            config = config.set_response_timeout(Some(std::time::Duration::from_secs(
+                self.default_command_timeout,
+            )));
+        }
+
+        config
+    }
+
+    /// Build a base [`redis::cluster::ClusterClientBuilder`] with common configuration.
+    ///
+    /// Sets retries, retry wait, response timeout, and RESP3 protocol.
+    /// Callers can further customize (e.g. `push_sender`, `connection_concurrency_limit`).
+    pub(crate) fn build_cluster_client_builder(
+        &self,
+        nodes: Vec<String>,
+    ) -> redis::cluster::ClusterClientBuilder {
+        redis::cluster::ClusterClient::builder(nodes)
+            .retries(self.reconnect_max_attempts)
+            .min_retry_wait(u64::from(self.reconnect_delay))
+            .response_timeout(std::time::Duration::from_secs(
+                self.default_command_timeout.max(1),
+            ))
+            .use_protocol(redis::ProtocolVersion::RESP3)
+    }
+}
+
 pub struct RedisConfig {
     pub(crate) default_ttl: u32,
     pub(crate) default_stream_read_count: u64,
