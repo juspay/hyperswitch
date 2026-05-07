@@ -73,6 +73,12 @@ schema = { type = "boolean" }
 description = "Whether client session validation is enabled for payments"
 change_reason = "Initial setup"
 
+[default-configs.fingerprint_secret]
+value = ""
+schema = { type = "string" }
+description = "Fingerprint secret used for payment card fingerprinting per merchant"
+change_reason = "Initial setup"
+
 [default-configs.should_call_gsm]
 value = false
 schema = { type = "boolean" }

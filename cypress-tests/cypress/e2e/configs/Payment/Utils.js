@@ -512,6 +512,7 @@ export const CONNECTOR_LISTS = {
       "paypal",
       "stripe",
     ],
+    BANK_DEBIT: ["adyen", "novalnet"],
     CARD_INSTALLMENTS: ["adyen"],
     BILLING_DESCRIPTOR: [
       "adyen",
@@ -545,7 +546,6 @@ export const CONNECTOR_LISTS = {
       "worldpayvantiv",
     ],
     EXTERNAL_THREE_DS: ["stripe", "finix"],
-    BANK_DEBIT: ["novalnet"],
     PARTNER_MERCHANT_IDENTIFIER: ["adyen", "checkout"],
     Affirm_PAY_LATER: ["affirm"],
     EXTEND_AUTHORIZATION: ["adyen", "paypal"],
@@ -555,6 +555,7 @@ export const CONNECTOR_LISTS = {
     PARTIAL_AUTH: ["nuvei", "checkout", "worldpay", "worldpayvantiv"],
     USE_BILLING_AS_PAYMENT_METHOD_BILLING: ["bankofamerica"],
     MIT_WITH_LIMITED_CARD_DATA: ["peachpayments"],
+    REFUND_MANUAL_UPDATE: ["bankofamerica", "cybersource"],
     // Add more inclusion lists
   },
 };

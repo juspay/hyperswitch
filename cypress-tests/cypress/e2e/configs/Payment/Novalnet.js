@@ -775,7 +775,7 @@ export const connectorDetails = {
         },
       };
     },
-    SepaDebit: {
+    Sepa: {
       Request: {
         payment_method: "bank_debit",
         payment_method_type: "sepa",

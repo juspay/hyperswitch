@@ -5274,6 +5274,82 @@ Cypress.Commands.add("retrieveRoutingConfig", (data, globalState) => {
 });
 
 Cypress.Commands.add(
+  "addDynamicRoutingConfig",
+  (dynamicRoutingBody, data, routingType, routing_data, globalState) => {
+    const { Request: reqData, Response: resData } = data || {};
+    const merchantId = globalState.get("merchantId");
+    const profileId = globalState.get("profileId");
+
+    // Success-based dynamic routing uses decision_engine_configs
+    // Volume-based routing uses algorithm_for and connectors
+    const body = { ...dynamicRoutingBody, ...reqData };
+
+    cy.request({
+      method: "POST",
+      url: `${globalState.get("baseUrl")}/account/${merchantId}/business_profile/${profileId}/dynamic_routing/${routingType}/create?enable=dynamic_connector_selection`,
+      headers: {
+        "api-key": globalState.get("apiKey"),
+        "Content-Type": "application/json",
+      },
+      failOnStatusCode: false,
+      body: body,
+    }).then((response) => {
+      logRequestId(response.headers["x-request-id"]);
+
+      cy.wrap(response).then(() => {
+        expect(response.headers["content-type"]).to.include("application/json");
+
+        if (response.status === 200) {
+          expect(response.body).to.have.property("id");
+          globalState.set("routingConfigId", response.body.id);
+          for (const key in resData.body) {
+            expect(resData.body[key]).to.deep.equal(response.body[key]);
+          }
+        } else {
+          defaultErrorHandler(response, resData);
+        }
+      });
+    });
+  }
+);
+
+Cypress.Commands.add(
+  "deactivateDynamicRoutingConfig",
+  (routingType, data, globalState) => {
+    const { Response: resData } = data || {};
+    const merchantId = globalState.get("merchantId");
+    const profileId = globalState.get("profileId");
+
+    const dynamicRoutingUrl = `${globalState.get("baseUrl")}/account/${merchantId}/business_profile/${profileId}/dynamic_routing/${routingType}/create?enable=none`;
+
+    cy.request({
+      method: "POST",
+      url: dynamicRoutingUrl,
+      headers: {
+        "api-key": globalState.get("apiKey"),
+        "Content-Type": "application/json",
+      },
+      failOnStatusCode: false,
+      body: {},
+    }).then((response) => {
+      logRequestId(response.headers["x-request-id"]);
+
+      cy.wrap(response).then(() => {
+        expect(response.headers["content-type"]).to.include("application/json");
+
+        if (response.status === 200) {
+          for (const key in resData.body) {
+            expect(resData.body[key]).to.deep.equal(response.body[key]);
+          }
+        } else {
+          defaultErrorHandler(response, resData);
+        }
+      });
+    });
+  }
+);
+
+Cypress.Commands.add(
   "createSurchargeDSLConfig",
   (surchargeBody, data, globalState) => {
     const { Response: resData } = data || {};
@@ -5310,6 +5386,38 @@ Cypress.Commands.add(
     });
   }
 );
+
+Cypress.Commands.add("deactivateRoutingConfig", (data, globalState) => {
+  const { Request: reqData, Response: resData } = data || {};
+
+  const body = { ...reqData };
+  body.profile_id = globalState.get("profileId");
+
+  cy.request({
+    method: "POST",
+    url: `${globalState.get("baseUrl")}/routing/deactivate`,
+    headers: {
+      "api-key": globalState.get("apiKey"),
+      "Content-Type": "application/json",
+    },
+    failOnStatusCode: false,
+    body: body,
+  }).then((response) => {
+    logRequestId(response.headers["x-request-id"]);
+
+    cy.wrap(response).then(() => {
+      expect(response.headers["content-type"]).to.include("application/json");
+
+      if (response.status === 200) {
+        for (const key in resData.body) {
+          expect(resData.body[key]).to.deep.equal(response.body[key]);
+        }
+      } else {
+        defaultErrorHandler(response, resData);
+      }
+    });
+  });
+});
 
 Cypress.Commands.add("retrieveSurchargeDSLConfig", (data, globalState) => {
   const { Response: resData } = data || {};
@@ -6044,39 +6152,66 @@ Cypress.Commands.add(
   }
 );
 
-Cypress.Commands.add(
-  "manualRefundStatusUpdateTest",
-  (globalState, refundManualUpdateRequestBody) => {
-    const merchantId = globalState.get("merchantId");
-    const refundId = globalState.get("refundId");
-    const completeUrl = `${Cypress.env("BASEURL")}/refunds/${refundId}/manual-update`;
-    const adminApiKey = globalState.get("adminApiKey");
+Cypress.Commands.add("manualRefundStatusUpdateTest", (firstArg, secondArg) => {
+  let globalState;
+  let requestBody;
+  let resData = null;
+  let configs = {};
 
-    cy.request({
-      method: "PUT",
-      url: completeUrl,
-      headers: {
-        "Content-Type": "application/json",
-        "api-key": adminApiKey,
-        "X-Merchant-Id": merchantId,
-      },
-      body: refundManualUpdateRequestBody,
-      failOnStatusCode: false,
-    }).then((response) => {
-      logRequestId(response.headers["x-request-id"]);
+  if (typeof secondArg?.get === "function") {
+    globalState = secondArg;
+    const {
+      Configs: cfg = {},
+      Request: reqData,
+      Response: rData,
+    } = firstArg || {};
+    configs = cfg;
+    resData = rData;
+    requestBody = { ...reqData, merchant_id: globalState.get("merchantId") };
+  } else {
+    globalState = firstArg;
+    requestBody = secondArg;
+  }
 
-      cy.wrap(response).then(() => {
-        if (response.status === 200) {
+  const merchantId = globalState.get("merchantId");
+  const refundId = globalState.get("refundId");
+  const completeUrl = `${Cypress.env("BASEURL")}/refunds/${refundId}/manual-update`;
+  const adminApiKey = globalState.get("adminApiKey");
+
+  execConfig(validateConfig(configs));
+
+  cy.request({
+    method: "PUT",
+    url: completeUrl,
+    headers: {
+      "Content-Type": "application/json",
+      "api-key": adminApiKey,
+      "X-Merchant-Id": merchantId,
+    },
+    body: requestBody,
+    failOnStatusCode: false,
+  }).then((response) => {
+    logRequestId(response.headers["x-request-id"]);
+
+    cy.wrap(response).then(() => {
+      if (response.status === 200) {
+        if (resData) {
+          expect(response.status).to.eq(resData?.status || 200);
+        } else {
           expect(response.status).to.eq(200);
+        }
+      } else {
+        if (resData) {
+          defaultErrorHandler(response, resData);
         } else {
           throw new Error(
             `Refund Manual Update Call Failed with error code "${response.body?.error?.code}" error message "${response.body?.error?.message}"`
           );
         }
-      });
+      }
     });
-  }
-);
+  });
+});
 
 Cypress.Commands.add(
   "IncomingWebhookTest",
@@ -7283,6 +7418,138 @@ Cypress.Commands.add(
               );
             }
           }
+        }
+      });
+    });
+  }
+);
+
+Cypress.Commands.add(
+  "createConfirmPaymentDynamicRouting",
+  (
+    createConfirmPaymentBody,
+    data,
+    authentication_type,
+    capture_method,
+    globalState
+  ) => {
+    const { Request: reqData, Response: resData } = data || {};
+
+    const profile_id = globalState.get("profileId");
+    const customer_id = globalState.get("customerId");
+
+    createConfirmPaymentBody.authentication_type = authentication_type;
+    createConfirmPaymentBody.capture_method = capture_method;
+    createConfirmPaymentBody.profile_id = profile_id;
+    createConfirmPaymentBody.customer_id = customer_id;
+
+    for (const key in reqData) {
+      createConfirmPaymentBody[key] = reqData[key];
+    }
+
+    cy.request({
+      method: "POST",
+      url: `${globalState.get("baseUrl")}/payments`,
+      headers: {
+        "Content-Type": "application/json",
+        "api-key": globalState.get("apiKey"),
+      },
+      failOnStatusCode: false,
+      body: createConfirmPaymentBody,
+    }).then((response) => {
+      logRequestId(response.headers["x-request-id"]);
+
+      cy.wrap(response).then(() => {
+        expect(response.headers["content-type"]).to.include("application/json");
+
+        if (response.status === 200) {
+          globalState.set("paymentAmount", createConfirmPaymentBody.amount);
+          globalState.set("paymentID", response.body.payment_id);
+          globalState.set("clientSecret", response.body.client_secret);
+
+          const routedConnector = response.body.connector;
+          globalState.set("connectorId", routedConnector);
+
+          if (routedConnector === "adyen") {
+            globalState.set(
+              "merchantConnectorId",
+              globalState.get("adyenMcaId")
+            );
+          } else {
+            globalState.set(
+              "merchantConnectorId",
+              globalState.get("stripeMcaId")
+            );
+          }
+
+          for (const key in resData.body) {
+            // Skip connector comparison for dynamic routing - either stripe or adyen is valid
+            if (key === "connector") {
+              expect(response.body[key]).to.be.oneOf(["adyen", "stripe"]);
+            } else {
+              expect(resData.body[key], [key]).to.deep.equal(
+                response.body[key]
+              );
+            }
+          }
+        } else {
+          defaultErrorHandler(response, resData);
+        }
+      });
+    });
+  }
+);
+
+Cypress.Commands.add("retrievePaymentDynamicRoutingTest", ({ globalState }) => {
+  const payment_id = globalState.get("paymentID");
+
+  cy.request({
+    method: "GET",
+    url: `${globalState.get("baseUrl")}/payments/${payment_id}?force_sync=true`,
+    headers: {
+      "Content-Type": "application/json",
+      "api-key": globalState.get("apiKey"),
+    },
+    failOnStatusCode: false,
+  }).then((response) => {
+    logRequestId(response.headers["x-request-id"]);
+
+    cy.wrap(response).then(() => {
+      expect(response.status).to.equal(200);
+      expect(response.body.payment_id).to.equal(payment_id);
+      expect(response.body.connector).to.equal(globalState.get("connectorId"));
+    });
+  });
+});
+
+Cypress.Commands.add(
+  "toggleDynamicRoutingByType",
+  (routingType, data, globalState) => {
+    const { Response: resData } = data || {};
+    const merchantId = globalState.get("merchantId");
+    const profileId = globalState.get("profileId");
+
+    cy.request({
+      method: "POST",
+      url: `${globalState.get("baseUrl")}/account/${merchantId}/business_profile/${profileId}/dynamic_routing/${routingType}/toggle?enable=dynamic_connector_selection`,
+      headers: {
+        "api-key": globalState.get("apiKey"),
+        "Content-Type": "application/json",
+      },
+      failOnStatusCode: false,
+      body: {},
+    }).then((response) => {
+      logRequestId(response.headers["x-request-id"]);
+
+      cy.wrap(response).then(() => {
+        expect(response.headers["content-type"]).to.include("application/json");
+
+        if (response.status === 200) {
+          for (const key in resData.body) {
+            expect(resData.body[key]).to.equal(response.body[key]);
+          }
+        } else {
+          defaultErrorHandler(response, resData);
         }
       });
     });
