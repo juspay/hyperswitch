@@ -616,35 +616,6 @@ Cypress.Commands.add("merchantDeleteCall", (globalState) => {
   });
 });
 
-Cypress.Commands.add("merchantReconCallTest", (globalState) => {
-  const merchant_id = globalState.get("merchantId");
-  cy.request({
-    method: "GET",
-    url: `${globalState.get("baseUrl")}/accounts/${merchant_id}`,
-    headers: {
-      Accept: "application/json",
-      "Content-Type": "application/json",
-      "api-key": globalState.get("adminApiKey"),
-    },
-    failOnStatusCode: false,
-  }).then((response) => {
-    logRequestId(response.headers["x-request-id"]);
-
-    cy.wrap(response).then(() => {
-      expect(response.headers["content-type"], "content_headers").to.include(
-        "application/json"
-      );
-      expect(response.body.merchant_id, "merchant_id").to.equal(merchant_id);
-      expect(response.body.is_recon_enabled, "is_recon_enabled").to.equal(
-        false
-      );
-      expect(response.body.recon_status, "recon_status").to.equal(
-        "not_requested"
-      );
-    });
-  });
-});
-
 Cypress.Commands.add("ListConnectorsFeatureMatrixCall", (globalState) => {
   const baseUrl = globalState.get("baseUrl");
   const url = `${baseUrl}/feature_matrix`;
