@@ -222,7 +222,7 @@ impl IntoDirValue for (api_enums::PaymentMethodType, api_enums::PaymentMethod) {
             api_enums::PaymentMethodType::MobilePay => Ok(dirval!(WalletType = MobilePay)),
             api_enums::PaymentMethodType::Cashapp => Ok(dirval!(WalletType = Cashapp)),
             api_enums::PaymentMethodType::Multibanco => Ok(dirval!(BankTransferType = Multibanco)),
-            api_enums::PaymentMethodType::PixQr => Ok(dirval!(BankTransferType = PixQr)),
+            api_enums::PaymentMethodType::Pix => Ok(dirval!(BankTransferType = Pix)),
             api_enums::PaymentMethodType::PixKey => Ok(dirval!(BankTransferType = PixKey)),
             api_enums::PaymentMethodType::PixEmv => Ok(dirval!(BankTransferType = PixEmv)),
             api_enums::PaymentMethodType::PixAutomaticoPush => {

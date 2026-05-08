@@ -43,7 +43,7 @@ impl Default for PayoutRequiredFields {
                     // Ebanx
                     get_connector_payment_method_type_fields(
                         PayoutConnectors::Ebanx,
-                        PaymentMethodType::PixQr,
+                        PaymentMethodType::Pix,
                     ),
                     // Wise
                     get_connector_payment_method_type_fields(
@@ -212,7 +212,7 @@ fn get_connector_payment_method_type_fields(
                 },
             )
         }
-        PaymentMethodType::PixQr => {
+        PaymentMethodType::Pix => {
             common_fields.extend(get_pix_bank_transfer_fields());
             (
                 payment_method_type,

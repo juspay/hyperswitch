@@ -161,7 +161,7 @@ impl TryFrom<&ZslRouterData<&types::PaymentsAuthorizeRouterData>> for ZslPayment
                 | BankTransferData::CimbVaBankTransfer { .. }
                 | BankTransferData::DanamonVaBankTransfer { .. }
                 | BankTransferData::MandiriVaBankTransfer { .. }
-                | BankTransferData::PixQr { .. }
+                | BankTransferData::Pix { .. }
                 | BankTransferData::PixAutomaticoPush { .. }
                 | BankTransferData::PixAutomaticoQr {}
                 | BankTransferData::Pse {}

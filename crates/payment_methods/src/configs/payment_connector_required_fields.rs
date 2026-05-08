@@ -903,19 +903,19 @@ impl RequiredField {
                 },
             ),
             Self::PixKey => (
-                "payment_method_data.bank_transfer.pix_qr.pix_key".to_string(),
+                "payment_method_data.bank_transfer.pix_emv.pix_key".to_string(),
                 RequiredFieldInfo {
-                    required_field: "payment_method_data.bank_transfer.pix_qr.pix_key".to_string(),
+                    required_field: "payment_method_data.bank_transfer.pix_emv.pix_key".to_string(),
                     display_name: "pix_key".to_string(),
                     field_type: FieldType::UserPixKey,
                     value: None,
                 },
             ),
             Self::PixSourceBankAccountId => (
-                "payment_method_data.bank_transfer.pix_qr.source_bank_account_id".to_string(),
+                "payment_method_data.bank_transfer.pix_emv.source_bank_account_id".to_string(),
                 RequiredFieldInfo {
                     required_field:
-                        "payment_method_data.bank_transfer.pix_qr.source_bank_account_id"
+                        "payment_method_data.bank_transfer.pix_emv.source_bank_account_id"
                             .to_string(),
                     display_name: "source_bank_account_id".to_string(),
                     field_type: FieldType::UserSourceBankAccountId,
@@ -3851,7 +3851,7 @@ fn get_bank_transfer_required_fields() -> HashMap<enums::PaymentMethodType, Conn
             )]),
         ),
         (
-            enums::PaymentMethodType::PixQr,
+            enums::PaymentMethodType::Pix,
             connectors(vec![
                 (
                     Connector::Itaubank,

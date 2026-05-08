@@ -1284,7 +1284,7 @@ impl TryFrom<&PaypalRouterData<&PaymentsAuthorizeRouterData>> for PaypalPayments
                     | enums::PaymentMethodType::PermataBankTransfer
                     | enums::PaymentMethodType::OpenBankingUk
                     | enums::PaymentMethodType::PayBright
-                    | enums::PaymentMethodType::PixQr
+                    | enums::PaymentMethodType::Pix
                     | enums::PaymentMethodType::PixKey
                     | enums::PaymentMethodType::PixEmv
                     | enums::PaymentMethodType::PixAutomaticoPush
@@ -1438,7 +1438,7 @@ impl TryFrom<&BankTransferData> for PaypalPaymentsRequest {
             | BankTransferData::CimbVaBankTransfer { .. }
             | BankTransferData::DanamonVaBankTransfer { .. }
             | BankTransferData::MandiriVaBankTransfer { .. }
-            | BankTransferData::PixQr { .. }
+            | BankTransferData::Pix { .. }
             | BankTransferData::PixAutomaticoPush { .. }
             | BankTransferData::PixAutomaticoQr {}
             | BankTransferData::Pse {}

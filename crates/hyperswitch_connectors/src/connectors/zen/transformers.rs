@@ -334,7 +334,7 @@ impl
             BankTransferData::MultibancoBankTransfer { .. } => {
                 ZenPaymentChannels::PclBoacompraMultibanco
             }
-            BankTransferData::PixQr { .. } => ZenPaymentChannels::PclBoacompraPix,
+            BankTransferData::Pix { .. } => ZenPaymentChannels::PclBoacompraPix,
             BankTransferData::Pse { .. } => ZenPaymentChannels::PclBoacompraPse,
             BankTransferData::SepaBankTransfer { .. }
             | BankTransferData::AchBankTransfer { .. }

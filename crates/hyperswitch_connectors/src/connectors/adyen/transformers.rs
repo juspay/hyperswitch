@@ -484,7 +484,7 @@ fn get_adyen_payment_status(
         | AdyenStatus::PresentToShopper => storage_enums::AttemptStatus::AuthenticationPending,
         AdyenStatus::Error | AdyenStatus::Refused => storage_enums::AttemptStatus::Failure,
         AdyenStatus::Pending => match pmt {
-            Some(common_enums::PaymentMethodType::PixQr) => {
+            Some(common_enums::PaymentMethodType::Pix) => {
                 storage_enums::AttemptStatus::AuthenticationPending
             }
             _ => storage_enums::AttemptStatus::Pending,
@@ -2962,7 +2962,7 @@ impl TryFrom<(&BankTransferData, &PaymentsAuthorizeRouterData)> for AdyenPayment
             BankTransferData::MandiriVaBankTransfer {} => Ok(AdyenPaymentMethod::MandiriVa(
                 Box::new(DokuBankData::try_from(item)?),
             )),
-            BankTransferData::PixQr { .. } => Ok(AdyenPaymentMethod::Pix),
+            BankTransferData::Pix { .. } => Ok(AdyenPaymentMethod::Pix),
             BankTransferData::AchBankTransfer { .. }
             | BankTransferData::SepaBankTransfer { .. }
             | BankTransferData::BacsBankTransfer { .. }
@@ -3699,7 +3699,7 @@ impl
             get_address_info(item.router_data.get_optional_shipping()).and_then(Result::ok);
         let telephone_number = item.router_data.get_optional_billing_phone_number();
         let (session_validity, social_security_number) = match bank_transfer_data {
-            BankTransferData::PixQr {
+            BankTransferData::Pix {
                 cpf,
                 cnpj,
                 expiry_date,

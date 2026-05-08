@@ -816,7 +816,7 @@ impl Vaultable for api::BankPayout {
                 bank_country_code: None,
                 bank_city: None,
                 bank_branch: bank_details.bank_branch.to_owned(),
-                payout_method_type: Some(PaymentMethodType::PixQr),
+                payout_method_type: Some(PaymentMethodType::Pix),
             },
             Self::Trustly(bank_details) => TokenizedBankInsensitiveValues {
                 customer_id,
@@ -1055,7 +1055,7 @@ impl Vaultable for api::BankTransferPayout {
                 bank_country_code: None,
                 bank_city: None,
                 bank_branch: bank_details.bank_branch.to_owned(),
-                payout_method_type: Some(PaymentMethodType::PixQr),
+                payout_method_type: Some(PaymentMethodType::Pix),
             },
             Self::PixKey(_) => TokenizedBankInsensitiveValues {
                 customer_id,
@@ -1153,7 +1153,7 @@ impl Vaultable for api::BankTransferPayout {
                 bank_country_code: bank_insensitive_data.bank_country_code,
                 bank_city: bank_insensitive_data.bank_city,
             }),
-            Some(PaymentMethodType::PixQr) => Self::Pix(payouts::PixAccountBankTransfer {
+            Some(PaymentMethodType::Pix) => Self::Pix(payouts::PixAccountBankTransfer {
                 bank_account_number: bank_sensitive_data.bank_account_number.ok_or(
                     errors::VaultError::MissingRequiredField {
                         field_name: "bank_account_number",

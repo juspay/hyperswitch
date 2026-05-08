@@ -946,7 +946,7 @@ lazy_static! {
 
         facilitapay_supported_payment_methods.add(
             enums::PaymentMethod::BankTransfer,
-            enums::PaymentMethodType::PixQr,
+            enums::PaymentMethodType::Pix,
             PaymentMethodDetails {
                 mandates: common_enums::FeatureStatus::NotSupported,
                 refunds: common_enums::FeatureStatus::Supported,

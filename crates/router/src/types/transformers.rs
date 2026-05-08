@@ -405,7 +405,7 @@ impl ForeignFrom<api_enums::PaymentMethodType> for api_enums::PaymentMethod {
             | api_enums::PaymentMethodType::PixAutomaticoQr
             | api_enums::PaymentMethodType::PixKey
             | api_enums::PaymentMethodType::PixEmv
-            | api_enums::PaymentMethodType::PixQr => Self::BankTransfer,
+            | api_enums::PaymentMethodType::Pix => Self::BankTransfer,
             api_enums::PaymentMethodType::Givex
             | api_enums::PaymentMethodType::PaySafeCard
             | api_enums::PaymentMethodType::BhnCardNetwork => Self::GiftCard,
@@ -1351,7 +1351,7 @@ impl ForeignFrom<&api_models::payouts::Bank> for api_enums::PaymentMethodType {
             api_models::payouts::Bank::Ach(_) => Self::Ach,
             api_models::payouts::Bank::Bacs(_) => Self::Bacs,
             api_models::payouts::Bank::Sepa(_) => Self::SepaBankTransfer,
-            api_models::payouts::Bank::Pix(_) => Self::PixQr,
+            api_models::payouts::Bank::Pix(_) => Self::Pix,
             api_models::payouts::Bank::Trustly(_) => Self::Trustly,
         }
     }
@@ -1364,7 +1364,7 @@ impl ForeignFrom<&api_models::payouts::BankTransfer> for api_enums::PaymentMetho
             api_models::payouts::BankTransfer::Ach(_) => Self::Ach,
             api_models::payouts::BankTransfer::Bacs(_) => Self::Bacs,
             api_models::payouts::BankTransfer::Sepa(_) => Self::SepaBankTransfer,
-            api_models::payouts::BankTransfer::Pix(_) => Self::PixQr,
+            api_models::payouts::BankTransfer::Pix(_) => Self::Pix,
             api_models::payouts::BankTransfer::PixKey(_) => Self::PixKey,
             api_models::payouts::BankTransfer::PixEmv(_) => Self::PixEmv,
             api_models::payouts::BankTransfer::Trustly(_) => Self::Trustly,

@@ -520,7 +520,7 @@ impl TryFrom<&BankTransferData> for Shift4PaymentMethod {
             | BankTransferData::CimbVaBankTransfer { .. }
             | BankTransferData::DanamonVaBankTransfer { .. }
             | BankTransferData::MandiriVaBankTransfer { .. }
-            | BankTransferData::PixQr { .. }
+            | BankTransferData::Pix { .. }
             | BankTransferData::PixAutomaticoPush { .. }
             | BankTransferData::PixAutomaticoQr {}
             | BankTransferData::Pse {}

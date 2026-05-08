@@ -61,7 +61,7 @@ pub struct PixTransactionRequest {
 pub enum FacilitapayTransactionRequest {
     #[allow(dead_code)]
     Card(CardTransactionRequest),
-    PixQr(PixTransactionRequest),
+    Pix(PixTransactionRequest),
 }
 
 #[derive(Debug, Serialize, PartialEq)]

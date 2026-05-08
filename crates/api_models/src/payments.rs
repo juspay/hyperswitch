@@ -3868,7 +3868,7 @@ impl GetPaymentMethodType for BankTransferData {
             Self::CimbVaBankTransfer { .. } => api_enums::PaymentMethodType::CimbVa,
             Self::DanamonVaBankTransfer { .. } => api_enums::PaymentMethodType::DanamonVa,
             Self::MandiriVaBankTransfer { .. } => api_enums::PaymentMethodType::MandiriVa,
-            Self::PixQr { .. } => api_enums::PaymentMethodType::PixQr,
+            Self::Pix { .. } => api_enums::PaymentMethodType::Pix,
             Self::PixAutomaticoQr {} => api_enums::PaymentMethodType::PixAutomaticoQr,
             Self::PixAutomaticoPush { .. } => api_enums::PaymentMethodType::PixAutomaticoPush,
             Self::Pse {} => api_enums::PaymentMethodType::Pse,
@@ -4886,7 +4886,7 @@ pub enum BankTransferData {
         billing_details: Option<DokuBillingDetails>,
     },
     #[smithy(nested_value_type)]
-    PixQr {
+    Pix {
         /// Unique key for pix transfer
         #[schema(value_type = Option<String>, example = "a1f4102e-a446-4a57-bcce-6fa48899c1d1")]
         #[smithy(value_type = "Option<String>")]
@@ -4907,7 +4907,7 @@ pub enum BankTransferData {
         #[schema(value_type = Option<String>, example = "********-****-460b-****-f23b4e71c97b", deprecated)]
         #[smithy(value_type = "Option<String>")]
         destination_bank_account_id: Option<MaskedBankAccount>,
-        /// The expiration date and time for the PixQr code in ISO 8601 format
+        /// The expiration date and time for the Pix QR code in ISO 8601 format
         #[schema(value_type = Option<String>, example = "2025-09-10T10:11:12Z")]
         #[serde(default, with = "common_utils::custom_serde::iso8601::option")]
         #[smithy(value_type = "Option<String>")]
@@ -5049,7 +5049,7 @@ impl GetAddressFromPaymentMethodData for BankTransferData {
                 })
             }
             Self::LocalBankTransfer { .. }
-            | Self::PixQr { .. }
+            | Self::Pix { .. }
             | Self::PixAutomaticoPush { .. }
             | Self::PixAutomaticoQr {}
             | Self::Pse {}
@@ -6716,7 +6716,7 @@ pub enum NextActionData {
         display_text: Option<String>,
         #[smithy(value_type = "Option<String>")]
         border_color: Option<String>,
-        /// The raw QR code data (EMV copy and paste) used for Brazilian payment methods like PixQr
+        /// The raw QR code data (EMV copy and paste) used for Brazilian payment methods like Pix
         #[smithy(value_type = "Option<String>")]
         #[schema(value_type = Option<String>)]
         raw_qr_data: Option<String>,
@@ -7000,11 +7000,11 @@ pub struct VoucherNextStepData {
     /// Machine-readable numeric code used to generate the barcode representation.
     #[smithy(value_type = "Option<String>")]
     pub barcode: Option<Secret<String>>,
-    /// The url for PixQr code given by the connector associated with the voucher
+    /// The url for Pix Qr code given by the connector associated with the voucher
     #[schema(value_type = Option<String>)]
     #[smithy(value_type = "Option<String>")]
     pub qr_code_url: Option<Url>,
-    /// The raw QR code data (EMV copy and paste) used for Brazilian payment methods like PixQr
+    /// The raw QR code data (EMV copy and paste) used for Brazilian payment methods like Pix
     #[smithy(value_type = "Option<String>")]
     #[schema(value_type = Option<String>)]
     pub raw_qr_data: Option<String>,
@@ -11512,9 +11512,9 @@ pub struct FeatureMetadata {
     pub apple_pay_recurring_details: Option<ApplePayRecurringDetails>,
     /// revenue recovery data for payment intent
     pub revenue_recovery: Option<PaymentRevenueRecoveryMetadata>,
-    /// PixQr Code expiry time for Merchants
+    /// Pix QR Code expiry time for Merchants
     pub pix_additional_details: Option<PixAdditionalDetails>,
-    /// Extra information like fine percentage, interest percentage etc required for PixQr payment method
+    /// Extra information like fine percentage, interest percentage etc required for Pix payment method
     pub boleto_additional_details: Option<BoletoAdditionalDetails>,
     /// Pix Automatico additional details for Push and QR flows
     pub pix_automatico_additional_details: Option<PixAutomaticoAdditionalDetails>,
@@ -11565,7 +11565,7 @@ impl FeatureMetadata {
             finix_additional_details: self.finix_additional_details,
         }
     }
-    /// Extracts the PixQr key and its secret value specifically from PixAdditionalDetails
+    /// Extracts the Pix key and its secret value specifically from PixAdditionalDetails
     pub fn get_pix_key_and_value(&self) -> (Option<enums::PixKey>, Option<Secret<String>>) {
         let pix_key = self
             .pix_additional_details
@@ -11578,7 +11578,7 @@ impl FeatureMetadata {
 
         (pix_key, value)
     }
-    /// Extracts the PixQr key and its secret value specifically from BoletoAdditionalDetails
+    /// Extracts the Pix key and its secret value specifically from BoletoAdditionalDetails
     pub fn get_boleto_pix_key_and_value(&self) -> (Option<enums::PixKey>, Option<Secret<String>>) {
         let pix_key = self
             .boleto_additional_details
@@ -11621,10 +11621,10 @@ pub struct FeatureMetadata {
     /// Recurring payment details required for apple pay Merchant Token
     #[smithy(value_type = "Option<ApplePayRecurringDetails>")]
     pub apple_pay_recurring_details: Option<ApplePayRecurringDetails>,
-    /// Extra information for PixQr Payment Method Type like fine expiry, pix key etc
+    /// Extra information for Pix Payment Method Type like fine expiry, pix key etc
     #[smithy(value_type = "Option<PixAdditionalDetails>")]
     pub pix_additional_details: Option<PixAdditionalDetails>,
-    /// Extra information like fine percentage, interest percentage etc required for PixQr payment method
+    /// Extra information like fine percentage, interest percentage etc required for Pix payment method
     #[smithy(value_type = "Option<BoletoAdditionalDetails>")]
     pub boleto_additional_details: Option<BoletoAdditionalDetails>,
     /// Pix Automatico additional details for Push Notification and QR based flows
@@ -11680,7 +11680,7 @@ impl FeatureMetadata {
             self
         }
     }
-    /// Extracts the PixQr key and its secret value specifically from PixAdditionalDetails
+    /// Extracts the Pix key and its secret value specifically from PixAdditionalDetails
     pub fn get_pix_key_and_value(&self) -> (Option<enums::PixKey>, Option<Secret<String>>) {
         let pix_key = self
             .pix_additional_details
@@ -11693,7 +11693,7 @@ impl FeatureMetadata {
 
         (pix_key, value)
     }
-    /// Extracts the PixQr key and its secret value specifically from BoletoAdditionalDetails
+    /// Extracts the Pix key and its secret value specifically from BoletoAdditionalDetails
     pub fn get_boleto_pix_key_and_value(&self) -> (Option<enums::PixKey>, Option<Secret<String>>) {
         let pix_key = self
             .boleto_additional_details
@@ -11737,7 +11737,7 @@ pub struct BoletoAdditionalDetails {
     // It is a number which shows a contract between merchant and bank
     #[schema(value_type = Option<String>, example="3568253")]
     pub covenant_code: Option<Secret<String>>,
-    /// PixQr identification details
+    /// Pix identification details
     #[schema(
         value_type = Option<PixKey>, example = json!({
             "type": "email",
@@ -11786,7 +11786,7 @@ pub struct ImmediateExpirationTime {
     /// Expiration time in seconds
     #[schema(value_type = u32)]
     pub time: u32,
-    /// PixQr identification details
+    /// Pix identification details
     #[schema(
         value_type = Option<PixKey>, example = json!({
             "type": "email",
@@ -11805,7 +11805,7 @@ pub struct ScheduledExpirationTime {
     /// Days after expiration date for which the QR code remains valid
     #[schema(value_type = Option<u32>, example=10)]
     pub validity_after_expiration: Option<u32>,
-    /// PixQr identification details
+    /// Pix identification details
     #[schema(
         value_type = Option<PixKey>, example = json!({
             "type": "email",
