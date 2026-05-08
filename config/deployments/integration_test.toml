@@ -117,6 +117,7 @@ opayo.base_url = "https://pi-test.sagepay.com/"
 opennode.base_url = "https://dev-api.opennode.com"
 paybox.base_url = "https://preprod-ppps.paybox.com/PPPS.php"
 paybox.secondary_base_url="https://preprod-tpeweb.paybox.com/"
+paydunya.base_url = "https://paydunya.com/"
 payeezy.base_url = "https://api-cert.payeezy.com/"
 payjustnow.base_url = "https://sandbox-checkout.payjustnow.io/v2"
 payjustnowinstore.base_url = "https://sandbox.payjustnow.com/api"
@@ -1042,4 +1043,3 @@ ucs_psync_disabled_connectors = "cashtocode, trustly"    # Comma-separated list 
 "28" = { description = "Retry after 6 days", recommended_action = "retry_after_6_days" }
 "29" = { description = "Retry after 8 days", recommended_action = "retry_after_8_days" }
 "30" = { description = "Retry after 10 days", recommended_action = "retry_after_10_days" }
-
