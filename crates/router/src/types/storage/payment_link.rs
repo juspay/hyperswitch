@@ -1,5 +1,5 @@
 use async_bb8_diesel::AsyncRunQueryDsl;
-use diesel::{associations::HasTable, ExpressionMethods, QueryDsl};
+use diesel::{associations::HasTable, BoolExpressionMethods, ExpressionMethods, QueryDsl};
 pub use diesel_models::{
     payment_link::{PaymentLink, PaymentLinkNew},
     schema::payment_link::dsl,
@@ -16,7 +16,7 @@ use crate::{
 pub trait PaymentLinkDbExt: Sized {
     async fn filter_by_constraints(
         conn: &PgPooledConn,
-        merchant_id: &common_utils::id_type::MerchantId,
+        processor_merchant_id: &common_utils::id_type::MerchantId,
         payment_link_list_constraints: api_models::payments::PaymentLinkListConstraints,
     ) -> CustomResult<Vec<Self>, errors::DatabaseError>;
 }
@@ -25,11 +25,17 @@ pub trait PaymentLinkDbExt: Sized {
 impl PaymentLinkDbExt for PaymentLink {
     async fn filter_by_constraints(
         conn: &PgPooledConn,
-        merchant_id: &common_utils::id_type::MerchantId,
+        processor_merchant_id: &common_utils::id_type::MerchantId,
         payment_link_list_constraints: api_models::payments::PaymentLinkListConstraints,
     ) -> CustomResult<Vec<Self>, errors::DatabaseError> {
         let mut filter = <Self as HasTable>::table()
-            .filter(dsl::merchant_id.eq(merchant_id.to_owned()))
+            .filter(
+                dsl::processor_merchant_id
+                    .eq(processor_merchant_id.to_owned())
+                    .or(dsl::processor_merchant_id
+                        .is_null()
+                        .and(dsl::merchant_id.eq(processor_merchant_id.to_owned()))),
+            )
             .order(dsl::created_at.desc())
             .into_boxed();
 
