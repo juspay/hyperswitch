@@ -1,15 +1,36 @@
 import * as fixtures from "../../../fixtures/imports";
 import State from "../../../utils/State";
 import { payment_methods_enabled } from "../../configs/Payment/Commons";
-import getConnectorDetails, * as utils from "../../configs/Payment/Utils";
+import getConnectorDetails, {
+  CONNECTOR_LISTS,
+  shouldIncludeConnector,
+} from "../../configs/Payment/Utils";
+import * as utils from "../../configs/Payment/Utils";
 
 let globalState;
 
 describe("Merchant Redirect Method Tests", () => {
-  before("seed global state", () => {
-    cy.task("getGlobalState").then((state) => {
-      globalState = new State(state);
-    });
+  before("seed global state", function () {
+    let skip = false;
+
+    cy.task("getGlobalState")
+      .then((state) => {
+        globalState = new State(state);
+
+        if (
+          shouldIncludeConnector(
+            globalState.get("connectorId"),
+            CONNECTOR_LISTS.INCLUDE.MERCHANT_REDIRECT
+          )
+        ) {
+          skip = true;
+        }
+      })
+      .then(() => {
+        if (skip) {
+          this.skip();
+        }
+      });
   });
 
   after("flush global state", () => {
