@@ -1,9 +1,6 @@
 pub mod transformers;
 
-use common_utils::{
-    errors::CustomResult,
-    ext_traits::BytesExt,
-};
+use common_utils::{errors::CustomResult, ext_traits::BytesExt};
 use error_stack::ResultExt;
 use hyperswitch_domain_models::{
     router_data::{AccessToken, ConnectorAuthType, ErrorResponse, RouterData},
