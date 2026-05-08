@@ -109,10 +109,12 @@ use crate::{
 
 const PAYMENT_METHOD_STATUS_UPDATE_TASK: &str = "PAYMENT_METHOD_STATUS_UPDATE";
 const PAYMENT_METHOD_STATUS_TAG: &str = "PAYMENT_METHOD_STATUS";
-const PAYMENT_METHOD_MODULAR_FORWARD_COMPAT_TASK: &str = "PAYMENT_METHOD_MODULAR_FORWARD_COMPAT";
-const PAYMENT_METHOD_MODULAR_FORWARD_COMPAT_TAG: &str = "PAYMENT_METHOD_MODULAR_FORWARD_COMPAT";
-const PAYMENT_METHOD_MODULAR_BACKWARD_COMPAT_TASK: &str = "PAYMENT_METHOD_MODULAR_BACKWARD_COMPAT";
-const PAYMENT_METHOD_MODULAR_BACKWARD_COMPAT_TAG: &str = "PAYMENT_METHOD_MODULAR_BACKWARD_COMPAT";
+const PAYMENT_METHOD_MODULAR_FORWARD_COMPAT_TASK: &str = "PM_MOD_FORWARD_COMPAT";
+const PAYMENT_METHOD_MODULAR_FORWARD_COMPAT_TAG: &str = "PM_MOD_FORWARD_COMPAT";
+#[cfg(feature = "v2")]
+const PAYMENT_METHOD_MODULAR_BACKWARD_COMPAT_TASK: &str = "PM_MOD_BACK_COMPAT";
+#[cfg(feature = "v2")]
+const PAYMENT_METHOD_MODULAR_BACKWARD_COMPAT_TAG: &str = "PM_MOD_BACK_COMPAT";
 #[cfg(feature = "v2")]
 const PAYMENT_METHOD_REDACTED_FINGERPRINT_ID: &str = "FINGERPRINT_ID_REDACTED";
 
@@ -563,7 +565,7 @@ pub async fn add_payment_method_modular_forward_compat_task(
         tracking_data,
         None,
         common_utils::date_time::now(),
-        common_types::consts::API_VERSION,
+        common_enums::ApiVersion::V1,
         application_source,
     )
     .change_context(errors::ApiErrorResponse::InternalServerError)
@@ -584,6 +586,7 @@ pub async fn add_payment_method_modular_forward_compat_task(
     Ok(())
 }
 
+#[cfg(feature = "v2")]
 pub async fn add_payment_method_modular_backward_compat_task(
     db: &dyn StorageInterface,
     payment_method: &domain::PaymentMethod,
@@ -591,9 +594,6 @@ pub async fn add_payment_method_modular_backward_compat_task(
     application_source: common_enums::ApplicationSource,
     initiator: Option<&hyperswitch_domain_models::platform::Initiator>,
 ) -> Result<(), ProcessTrackerError> {
-    #[cfg(feature = "v1")]
-    let payment_method_id = payment_method.get_id().to_owned();
-    #[cfg(feature = "v2")]
     let payment_method_id = payment_method.get_id().get_string_repr().to_owned();
 
     let tracking_data = storage::PaymentMethodModularCompatTrackingData {

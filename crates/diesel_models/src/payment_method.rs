@@ -76,7 +76,7 @@ pub struct PaymentMethod {
     pub payment_method_type_v2: Option<storage_enums::PaymentMethod>,
     // Compatibility-only field: backfilled by modular-compat PT for v2 interoperability.
     // Do not use this column in v1 business logic.
-    pub payment_method_subtype: Option<storage_enums::PaymentMethodType>,
+    pub payment_method_subtype: Option<String>,
 }
 
 #[cfg(feature = "v2")]
@@ -440,7 +440,9 @@ impl PaymentMethodUpdateInternal {
             updated_by: updated_by.or(source.updated_by),
             locker_fingerprint_id: locker_fingerprint_id.or(source.locker_fingerprint_id),
             payment_method_type_v2: payment_method_type_v2.or(source.payment_method_type_v2),
-            payment_method_subtype: payment_method_subtype.or(source.payment_method_subtype),
+            payment_method_subtype: payment_method_subtype
+                .map(|payment_method_subtype| payment_method_subtype.to_string())
+                .or(source.payment_method_subtype),
             id: source.id,
             payment_method_id: source.payment_method_id,
             version: source.version,
@@ -568,7 +570,9 @@ impl PaymentMethodUpdateInternal {
             network_tokenization_data: network_tokenization_data
                 .or(source.network_tokenization_data),
             payment_method_type_v2: payment_method_type_v2.or(source.payment_method_type_v2),
-            payment_method_subtype: payment_method_subtype.or(source.payment_method_subtype),
+            payment_method_subtype: payment_method_subtype
+                .map(|payment_method_subtype| payment_method_subtype.to_string())
+                .or(source.payment_method_subtype),
             id: id.or(source.id),
         }
     }
