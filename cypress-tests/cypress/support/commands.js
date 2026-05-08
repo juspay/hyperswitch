@@ -7820,23 +7820,54 @@ Cypress.Commands.add("initiatePaymentLinkTest", (data, globalState) => {
     return;
   }
 
-  cy.visit(paymentLinkUrl, { failOnStatusCode: false });
+  const runningInCI = RequestBodyUtils.isCI();
 
-  cy.get("body", { timeout: 30000 }).then(($body) => {
-    const bodyText = $body.text() || "";
-    const hasHyperLoader =
-      bodyText.includes("HyperLoader") ||
-      $body.find("#hyperloader-sdk").length > 0;
+  if (runningInCI) {
+    cy.request({
+      method: "GET",
+      url: paymentLinkUrl,
+      failOnStatusCode: false,
+      timeout: 30000,
+    }).then((response) => {
+      const contentType = response.headers["content-type"] || "";
+      const isHtml = contentType.includes("text/html");
 
-    if (hasHyperLoader) {
-      cy.task("cli_log", "Payment Link page loaded with HyperLoader SDK");
-    } else {
-      cy.task(
-        "cli_log",
-        `Payment Link page loaded (body length: ${bodyText.length})`
-      );
-    }
-  });
+      if (response.status >= 200 && response.status < 400 && isHtml) {
+        const bodyText = typeof response.body === "string" ? response.body : "";
+        const hasHyperLoader =
+          bodyText.includes("HyperLoader") || bodyText.includes("hyperloader-sdk");
+
+        if (hasHyperLoader) {
+          cy.task("cli_log", "Payment Link page validated (CI): contains HyperLoader SDK");
+        } else {
+          cy.task("cli_log", `Payment Link page validated (CI): status=${response.status}, body length=${bodyText.length}`);
+        }
+
+        expect(response.status).to.be.within(200, 399);
+        expect(isHtml).to.be.true;
+      } else {
+        cy.task("cli_log", `Payment Link non-HTML or error response (CI): status=${response.status}, content-type=${contentType}`);
+        expect(response.status).to.be.within(200, 399);
+      }
+    });
+  } else {
+    cy.visit(paymentLinkUrl, { failOnStatusCode: false });
+
+    cy.get("body", { timeout: 30000 }).then(($body) => {
+      const bodyText = $body.text() || "";
+      const hasHyperLoader =
+        bodyText.includes("HyperLoader") || $body.find("#hyperloader-sdk").length > 0;
+
+      if (hasHyperLoader) {
+        cy.task("cli_log", "Payment Link page loaded with HyperLoader SDK");
+      } else {
+        cy.task(
+          "cli_log",
+          `Payment Link page loaded (body length: ${bodyText.length})`
+        );
+      }
+    });
+  }
 });
 
 Cypress.Commands.add("retrievePaymentLinkTest", (data, globalState) => {
