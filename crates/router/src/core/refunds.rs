@@ -2025,10 +2025,14 @@ pub async fn sync_refund_with_gateway_workflow(
                 .await?;
         }
         _ => {
+            let processor_merchant_id = response
+                .processor_merchant_id
+                .clone()
+                .unwrap_or(response.merchant_id);
             _ = retry_refund_sync_task(
                 &*state.store,
                 response.connector,
-                response.merchant_id,
+                processor_merchant_id,
                 refund_tracker.to_owned(),
             )
             .await?;
@@ -2101,25 +2105,26 @@ pub async fn trigger_refund_execute_workflow(
 
     let processor_storage_scheme = platform.get_processor().get_account().storage_scheme;
 
+    let processor_merchant_id = refund_core
+        .processor_merchant_id
+        .as_ref()
+        .unwrap_or(&refund_core.merchant_id);
+
     let refund = db
         .find_refund_by_internal_reference_id_processor_merchant_id(
             &refund_core.refund_internal_reference_id,
-            &refund_core.merchant_id,
+            processor_merchant_id,
             processor_storage_scheme,
         )
         .await
         .to_not_found_response(errors::ApiErrorResponse::RefundNotFound)?;
-    let refund_processor_merchant_id = refund
-        .processor_merchant_id
-        .clone()
-        .unwrap_or_else(|| refund.merchant_id.clone());
     match (&refund.sent_to_gateway, &refund.refund_status) {
         (false, enums::RefundStatus::Pending) => {
             let payment_attempt = db
                 .find_payment_attempt_by_connector_transaction_id_payment_id_processor_merchant_id(
                     &refund.connector_transaction_id,
                     &refund_core.payment_id,
-                    &refund_processor_merchant_id,
+                    processor_merchant_id,
                     processor_storage_scheme,
                     platform.get_processor().get_key_store(),
                 )
@@ -2129,7 +2134,7 @@ pub async fn trigger_refund_execute_workflow(
             let payment_intent = db
                 .find_payment_intent_by_payment_id_processor_merchant_id(
                     &payment_attempt.payment_id,
-                    &refund_processor_merchant_id,
+                    processor_merchant_id,
                     platform.get_processor().get_key_store(),
                     processor_storage_scheme,
                 )
@@ -2208,8 +2213,12 @@ pub async fn add_refund_sync_task(
 ) -> RouterResult<storage::ProcessTracker> {
     let task = "SYNC_REFUND";
     let process_tracker_id = format!("{runner}_{task}_{}", refund.internal_reference_id);
+    let processor_merchant_id = refund
+        .processor_merchant_id
+        .as_ref()
+        .unwrap_or(&refund.merchant_id);
     let schedule_time =
-        get_refund_sync_process_schedule_time(db, &refund.connector, &refund.merchant_id, 0)
+        get_refund_sync_process_schedule_time(db, &refund.connector, processor_merchant_id, 0)
             .await
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to fetch schedule time for refund sync process")?
