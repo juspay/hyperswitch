@@ -295,4 +295,70 @@ describe("Authentication Service Eligibility", () => {
       );
     });
   });
+
+  context(
+    "Eligibility data storage enabled - data stored during UAS 3DS flow",
+    () => {
+      it("should set eligibility storage config to true", () => {
+        const merchantId = globalState.get("merchantId");
+        const key = `should_store_eligibility_check_data_for_authentication_${merchantId}`;
+        cy.setConfigs(globalState, key, "true", "CREATE");
+      });
+
+      it("should confirm 3DS payment with eligibility storage enabled", () => {
+        cy.task(
+          "cli_log",
+          "Note: Redis storage of eligibility data cannot be directly asserted via Cypress API"
+        );
+        const data = getConnectorDetails(globalState.get("connectorId"))
+          .auth_service_eligibility.EligibilityStorageEnabled;
+        cy.createConfirmPaymentTest(
+          fixtures.createConfirmPaymentBody,
+          data,
+          "three_ds",
+          "automatic",
+          globalState
+        );
+      });
+
+      after("cleanup eligibility storage config", () => {
+        const merchantId = globalState.get("merchantId");
+        const key = `should_store_eligibility_check_data_for_authentication_${merchantId}`;
+        cy.setConfigs(globalState, key, "true", "DELETE");
+      });
+    }
+  );
+
+  context(
+    "Eligibility data storage disabled - no data stored during UAS 3DS flow",
+    () => {
+      it("should set eligibility storage config to false", () => {
+        const merchantId = globalState.get("merchantId");
+        const key = `should_store_eligibility_check_data_for_authentication_${merchantId}`;
+        cy.setConfigs(globalState, key, "false", "CREATE");
+      });
+
+      it("should confirm 3DS payment with eligibility storage disabled", () => {
+        cy.task(
+          "cli_log",
+          "Note: Redis storage of eligibility data cannot be directly asserted via Cypress API"
+        );
+        const data = getConnectorDetails(globalState.get("connectorId"))
+          .auth_service_eligibility.EligibilityStorageDisabled;
+        cy.createConfirmPaymentTest(
+          fixtures.createConfirmPaymentBody,
+          data,
+          "three_ds",
+          "automatic",
+          globalState
+        );
+      });
+
+      after("cleanup eligibility storage config", () => {
+        const merchantId = globalState.get("merchantId");
+        const key = `should_store_eligibility_check_data_for_authentication_${merchantId}`;
+        cy.setConfigs(globalState, key, "false", "DELETE");
+      });
+    }
+  );
 });
