@@ -1491,7 +1491,11 @@ async fn test_stream_delete_entries() {
                 .await;
 
             let read_result = pool
-                .stream_read_entries(std::slice::from_ref(&stream), vec!["0-0".to_string()], Some(1))
+                .stream_read_entries(
+                    std::slice::from_ref(&stream),
+                    vec!["0-0".to_string()],
+                    Some(1),
+                )
                 .await
                 .expect("failed to read");
 
