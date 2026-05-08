@@ -112,6 +112,7 @@ export const connectorDetails = {
     },
     "3DSAutoCapture": {
       Request: {
+        currency: "EUR",
         payment_method: "card",
         billing: billingAddress,
         payment_method_data: {
@@ -129,6 +130,7 @@ export const connectorDetails = {
     },
     No3DSManualCapture: {
       Request: {
+        currency: "EUR",
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
@@ -773,7 +775,7 @@ export const connectorDetails = {
         },
       };
     },
-    SepaDebit: {
+    Sepa: {
       Request: {
         payment_method: "bank_debit",
         payment_method_type: "sepa",

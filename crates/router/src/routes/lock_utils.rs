@@ -133,6 +133,7 @@ impl From<Flow> for ApiIdentifier {
             | Flow::CustomerPaymentMethodsList
             | Flow::GetPaymentMethodTokenData
             | Flow::PaymentMethodsRetrieve
+            | Flow::PaymentMethodsRetrieveOlap
             | Flow::PaymentMethodsUpdate
             | Flow::PaymentMethodsDelete
             | Flow::NetworkTokenStatusCheck
@@ -386,9 +387,10 @@ impl From<Flow> for ApiIdentifier {
             Flow::MerchantConnectorWebhookRegister | Flow::MerchantConnectorWebhookList => {
                 Self::MerchantConnectorWebhookManagement
             }
-            Flow::AddCardIssuer | Flow::UpdateCardIssuer | Flow::ListCardIssuers => {
-                Self::CardIssuers
-            }
+            Flow::AddCardIssuer
+            | Flow::UpdateCardIssuer
+            | Flow::DeleteCardIssuer
+            | Flow::ListCardIssuers => Self::CardIssuers,
         }
     }
 }

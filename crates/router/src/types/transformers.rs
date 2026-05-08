@@ -403,6 +403,8 @@ impl ForeignFrom<api_enums::PaymentMethodType> for api_enums::PaymentMethod {
             | api_enums::PaymentMethodType::IndonesianBankTransfer
             | api_enums::PaymentMethodType::PixAutomaticoPush
             | api_enums::PaymentMethodType::PixAutomaticoQr
+            | api_enums::PaymentMethodType::PixKey
+            | api_enums::PaymentMethodType::PixEmv
             | api_enums::PaymentMethodType::Pix => Self::BankTransfer,
             api_enums::PaymentMethodType::Givex
             | api_enums::PaymentMethodType::PaySafeCard
@@ -1363,6 +1365,8 @@ impl ForeignFrom<&api_models::payouts::BankTransfer> for api_enums::PaymentMetho
             api_models::payouts::BankTransfer::Bacs(_) => Self::Bacs,
             api_models::payouts::BankTransfer::Sepa(_) => Self::SepaBankTransfer,
             api_models::payouts::BankTransfer::Pix(_) => Self::Pix,
+            api_models::payouts::BankTransfer::PixKey(_) => Self::PixKey,
+            api_models::payouts::BankTransfer::PixEmv(_) => Self::PixEmv,
             api_models::payouts::BankTransfer::Trustly(_) => Self::Trustly,
         }
     }
@@ -1762,6 +1766,7 @@ impl ForeignFrom<(storage::PaymentLink, payments::PaymentLinkStatus)>
         Self {
             payment_link_id: payment_link_config.payment_link_id,
             merchant_id: payment_link_config.merchant_id,
+            processor_merchant_id: payment_link_config.processor_merchant_id,
             link_to_pay: payment_link_config.link_to_pay,
             amount: payment_link_config.amount,
             created_at: payment_link_config.created_at,
