@@ -114,7 +114,7 @@ describe("Merchant Redirect Method Tests", () => {
             cy.task("cli_log", "Skipping step: Retrieve Payment");
             return;
           }
-          cy.retrievePaymentCallTest(globalState);
+          cy.retrievePaymentCallTest({ globalState });
         });
       });
     }
@@ -218,7 +218,7 @@ describe("Merchant Redirect Method Tests", () => {
             cy.task("cli_log", "Skipping step: Retrieve Payment");
             return;
           }
-          cy.retrievePaymentCallTest(globalState);
+          cy.retrievePaymentCallTest({ globalState });
         });
       });
     }
@@ -338,7 +338,7 @@ describe("Merchant Redirect Method Tests", () => {
             cy.task("cli_log", "Skipping step: Retrieve Payment");
             return;
           }
-          cy.retrievePaymentCallTest(globalState);
+          cy.retrievePaymentCallTest({ globalState });
         });
       });
     }
