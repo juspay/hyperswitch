@@ -7957,3 +7957,51 @@ Cypress.Commands.add("updateCardIssuer", (id, body, globalState) => {
     });
   });
 });
+
+/**
+ * Verifies that payment response hash is present in the merchant account response
+ * This command checks that enable_payment_response_hash is true and payment_response_hash_key is set
+ */
+Cypress.Commands.add("verifyPaymentResponseHash", (globalState) => {
+  const merchantId = globalState.get("merchantId");
+  const apiKey = globalState.get("adminApiKey");
+  const baseUrl = globalState.get("baseUrl");
+
+  cy.request({
+    method: "GET",
+    url: `${baseUrl}/accounts/${merchantId}`,
+    headers: {
+      "Content-Type": "application/json",
+      "api-key": apiKey,
+    },
+    failOnStatusCode: false,
+  }).then((response) => {
+    logRequestId(response.headers["x-request-id"]);
+
+    cy.wrap(response).then(() => {
+      expect(response.status).to.equal(200);
+      expect(response.body).to.have.property("enable_payment_response_hash");
+      expect(response.body).to.have.property("payment_response_hash_key");
+
+      // Verify enable_payment_response_hash is true (default behavior)
+      expect(
+        response.body.enable_payment_response_hash,
+        "enable_payment_response_hash should be true"
+      ).to.equal(true);
+
+      // Verify payment_response_hash_key exists and is a non-empty string
+      expect(
+        response.body.payment_response_hash_key,
+        "payment_response_hash_key should exist"
+      ).to.be.a("string").and.not.be.empty;
+
+      // Store the hash key in global state for potential future use
+      globalState.set("paymentResponseHashKey", response.body.payment_response_hash_key);
+
+      cy.task(
+        "cli_log",
+        `Payment response hash verified - key length: ${response.body.payment_response_hash_key.length}`
+      );
+    });
+  });
+});
