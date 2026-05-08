@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.04.02.0-hotfix7.3
+
+### Bug Fixes
+
+- **connector:** Add required fields for Trustly ([#12191](https://github.com/juspay/hyperswitch/pull/12191)) ([`8b12267`](https://github.com/juspay/hyperswitch/commit/8b12267c9c1fc34bbbeef132e44f4abcc9423f0e))
+
+**Full Changelog:** [`2026.04.02.0-hotfix7.2...2026.04.02.0-hotfix7.3`](https://github.com/juspay/hyperswitch/compare/2026.04.02.0-hotfix7.2...2026.04.02.0-hotfix7.3)
+
+- - -
+
 ## 2026.04.02.0-hotfix7.2
 
 ### Miscellaneous Tasks
