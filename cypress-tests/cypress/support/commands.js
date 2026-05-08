@@ -7827,6 +7827,7 @@ Cypress.Commands.add("initiatePaymentLinkTest", (data, globalState) => {
       method: "GET",
       url: paymentLinkUrl,
       failOnStatusCode: false,
+      followRedirect: true,
       timeout: 30000,
     }).then((response) => {
       const contentType = response.headers["content-type"] || "";

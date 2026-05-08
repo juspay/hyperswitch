@@ -280,5 +280,200 @@ describe("Core flows", () => {
     });
   });
 
-  // Payment Link tests moved to dedicated spec: 48-PaymentLink.cy.js
+  // Payment Link is a core platform feature — not connector specific
+  // Endpoint: POST /payments (payment_link=true) + GET /payment_link/{id}
+  // Source: business_profile.rs:payment_link_config
+  context("Payment Link - Basic creation and retrieval", () => {
+    before("seed global state", () => {
+      cy.task("getGlobalState").then((state) => {
+        globalState = new State(state);
+      });
+    });
+
+    after("flush global state", () => {
+      cy.task("setGlobalState", globalState.data);
+    });
+
+    it("Create Payment Intent with Payment Link", () => {
+      const data = {
+        Request: {
+          currency: "USD",
+          amount: 6000,
+          description: "Test Payment Link",
+          email: "test@example.com",
+        },
+        Response: {
+          status: 200,
+        },
+      };
+
+      cy.createPaymentIntentWithPaymentLinkTest(
+        fixtures.createPaymentBody,
+        data,
+        "no_three_ds",
+        "automatic",
+        globalState
+      );
+    });
+
+    it("Initiate Payment Link (Customer-Facing)", () => {
+      cy.initiatePaymentLinkTest({}, globalState);
+    });
+
+    it("Retrieve Payment Link (Merchant API)", () => {
+      cy.retrievePaymentLinkTest({}, globalState);
+    });
+
+    it("List Payment Links", () => {
+      cy.listPaymentLinksTest({}, globalState);
+    });
+  });
+
+  context("Payment Link - Configuration Variations", () => {
+    before("seed global state", () => {
+      cy.task("getGlobalState").then((state) => {
+        globalState = new State(state);
+      });
+    });
+
+    after("flush global state", () => {
+      cy.task("setGlobalState", globalState.data);
+    });
+
+    it("Create Payment Link with custom theme color", () => {
+      const data = {
+        Request: {
+          currency: "USD",
+          amount: 7000,
+          description: "Test with custom theme",
+          email: "test@example.com",
+          payment_link_config: {
+            theme: "#FF6B35",
+          },
+        },
+        Response: {
+          status: 200,
+        },
+      };
+
+      cy.createPaymentIntentWithPaymentLinkTest(
+        fixtures.createPaymentBody,
+        data,
+        "no_three_ds",
+        "automatic",
+        globalState
+      );
+    });
+
+    it("Create Payment Link with merchant logo", () => {
+      const data = {
+        Request: {
+          currency: "EUR",
+          amount: 8000,
+          description: "Test with merchant logo",
+          email: "test@example.com",
+          payment_link_config: {
+            logo: "https://example.com/logo.png",
+            seller_name: "Test Merchant Inc",
+          },
+        },
+        Response: {
+          status: 200,
+        },
+      };
+
+      cy.createPaymentIntentWithPaymentLinkTest(
+        fixtures.createPaymentBody,
+        data,
+        "no_three_ds",
+        "automatic",
+        globalState
+      );
+    });
+
+    it("Create Payment Link with accordion SDK layout", () => {
+      const data = {
+        Request: {
+          currency: "GBP",
+          amount: 5500,
+          description: "Test with accordion layout",
+          email: "test@example.com",
+          payment_link_config: {
+            sdk_layout: "accordion",
+            display_sdk_only: false,
+          },
+        },
+        Response: {
+          status: 200,
+        },
+      };
+
+      cy.createPaymentIntentWithPaymentLinkTest(
+        fixtures.createPaymentBody,
+        data,
+        "no_three_ds",
+        "automatic",
+        globalState
+      );
+    });
+  });
+
+  context("Payment Link - Edge Cases", () => {
+    before("seed global state", () => {
+      cy.task("getGlobalState").then((state) => {
+        globalState = new State(state);
+      });
+    });
+
+    after("flush global state", () => {
+      cy.task("setGlobalState", globalState.data);
+    });
+
+    it("Create Payment Intent without Payment Link - should not have payment_link in response", () => {
+      const profile_id =
+        globalState.get("profileId") || globalState.get("defaultProfileId");
+
+      const requestBody = {
+        ...fixtures.createPaymentBody,
+        currency: "USD",
+        amount: 6000,
+        description: "Test without Payment Link",
+        email: "test@example.com",
+        authentication_type: "no_three_ds",
+        capture_method: "automatic",
+        customer_id: globalState.get("customerId"),
+        profile_id: profile_id,
+      };
+
+      cy.request({
+        method: "POST",
+        url: `${globalState.get("baseUrl")}/payments`,
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+          "api-key": globalState.get("apiKey"),
+        },
+        failOnStatusCode: false,
+        body: requestBody,
+      }).then((response) => {
+        expect(response.status).to.equal(200);
+        expect(response.body).to.have.property("payment_id");
+        expect(response.body.payment_link).to.be.null;
+      });
+    });
+
+    it("Retrieve non-existent Payment Link - should return 404", () => {
+      cy.request({
+        method: "GET",
+        url: `${globalState.get("baseUrl")}/payment_link/non_existent_link_12345`,
+        headers: {
+          "Content-Type": "application/json",
+          "api-key": globalState.get("apiKey"),
+        },
+        failOnStatusCode: false,
+      }).then((response) => {
+        expect(response.status).to.equal(404);
+      });
+    });
+  });
 });
