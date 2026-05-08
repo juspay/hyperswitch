@@ -585,15 +585,8 @@ Cypress.Commands.add("merchantRetrieveCall", (globalState) => {
         "payment_response_hash_key"
       ).to.not.be.null;
       expect(response.body.publishable_key, "publishable_key").to.not.be.null;
-      cy.log("HI");
       expect(response.body.default_profile, "default_profile").to.not.be.null;
       expect(response.body.organization_id, "organization_id").to.not.be.null;
-      expect(response.body.is_recon_enabled, "is_recon_enabled").to.equal(
-        false
-      );
-      expect(response.body.recon_status, "recon_status").to.equal(
-        "not_requested"
-      );
       globalState.set("organizationId", response.body.organization_id);
 
       if (globalState.get("publishableKey") === undefined) {
@@ -619,6 +612,35 @@ Cypress.Commands.add("merchantDeleteCall", (globalState) => {
     cy.wrap(response).then(() => {
       expect(response.body.merchant_id).to.equal(merchant_id);
       expect(response.body.deleted).to.equal(true);
+    });
+  });
+});
+
+Cypress.Commands.add("merchantReconCallTest", (globalState) => {
+  const merchant_id = globalState.get("merchantId");
+  cy.request({
+    method: "GET",
+    url: `${globalState.get("baseUrl")}/accounts/${merchant_id}`,
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json",
+      "api-key": globalState.get("adminApiKey"),
+    },
+    failOnStatusCode: false,
+  }).then((response) => {
+    logRequestId(response.headers["x-request-id"]);
+
+    cy.wrap(response).then(() => {
+      expect(response.headers["content-type"], "content_headers").to.include(
+        "application/json"
+      );
+      expect(response.body.merchant_id, "merchant_id").to.equal(merchant_id);
+      expect(response.body.is_recon_enabled, "is_recon_enabled").to.equal(
+        false
+      );
+      expect(response.body.recon_status, "recon_status").to.equal(
+        "not_requested"
+      );
     });
   });
 });
