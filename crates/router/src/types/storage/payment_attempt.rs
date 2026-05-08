@@ -150,6 +150,7 @@ mod tests {
             StorageImpl::PostgresqlTest,
             tx,
             api_client,
+            env!("CARGO_PKG_NAME"),
         ))
         .await
     }

@@ -116,8 +116,6 @@ describe("Refund Webhook Tests", () => {
       connector = globalState.get("connectorId");
       merchantId = globalState.get("merchantId");
 
-      // Skip this context if connectorRefundId is not available
-      // (sandbox connectors may not return it)
       if (!globalState.get("connectorRefundId")) {
         this.skip();
       }

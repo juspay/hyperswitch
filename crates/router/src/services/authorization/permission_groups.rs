@@ -122,6 +122,7 @@ impl PermissionGroupExt for PermissionGroup {
             Self::ReconExceptionsManage => vec![
                 Self::ReconExceptionsManage,
                 Self::ReconExceptionsView,
+                Self::ReconSourcesView,
                 Self::ReconTransactionsView,
                 Self::ReconRulesView,
             ],
