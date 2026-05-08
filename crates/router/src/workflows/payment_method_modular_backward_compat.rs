@@ -129,11 +129,8 @@ async fn backfill_legacy_locker_card(
         };
 
         if !legacy_card_exists {
-            let vault_request = pm_types::VaultRetrieveRequest {
-                entity_id: hyperswitch_domain_models::vault::V1VaultEntityId::new(
-                    merchant_id.clone(),
-                    customer_id.clone(),
-                ),
+            let vault_request = pm_types::GenericVaultRetrieveRequest {
+                entity_id: customer_id.clone(),
                 vault_id: domain::VaultId::generate(card_reference.clone()),
             };
             let payload = vault_request
