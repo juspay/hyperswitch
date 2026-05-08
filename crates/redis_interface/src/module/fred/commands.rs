@@ -854,10 +854,13 @@ impl super::RedisConnectionPool {
         stream: &RedisKey,
         config: crate::types::StreamTrimConfig,
     ) -> CustomResult<usize, errors::RedisError> {
-        let xcap: fred::types::XCap = config.try_into().map_err(|err| {
-            error_stack::report!(errors::RedisError::StreamTrimFailed)
-                .attach_printable(format!("{err}"))
-        })?;
+        let xcap: fred::types::XCap = config
+            .try_into()
+            .map_err(|e| {
+                error_stack::report!(e)
+                    .attach_printable(format!("StreamTrimConfig to XCap conversion failed: {e}"))
+            })?
+            .change_context(errors::RedisError::StreamTrimFailed)?;
         self.pool
             .xtrim(stream.tenant_aware_key(self), xcap)
             .await
