@@ -62,7 +62,7 @@ const payment_method_data_3ds = {
     last4: "3155",
     card_type: "CREDIT",
     card_network: "Visa",
-    card_issuer: "Intl Hdqtrs Center Owned",
+    card_issuer: "INTL HDQTRS CENTER OWNED",
     card_issuing_country: "UNITED STATES OF AMERICA",
     card_isin: "400000",
     card_extended_bin: null,
@@ -81,7 +81,7 @@ const payment_method_data_no3ds = {
     last4: "0005",
     card_type: "CREDIT",
     card_network: "AmericanExpress",
-    card_issuer: "American Express US Cars",
+    card_issuer: "AMERICAN EXPRESS US CARS",
     card_issuing_country: "UNITED STATES OF AMERICA",
     card_isin: "378282",
     card_extended_bin: null,
@@ -1123,6 +1123,83 @@ export const connectorDetails = {
         },
       },
     },
+  },
+  pay_later_pm: {
+    AutoCapture: getCustomExchange({
+      Request: {
+        currency: "USD",
+        capture_method: "automatic",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+        },
+      },
+    }),
+    ManualCapture: getCustomExchange({
+      Request: {
+        currency: "USD",
+        capture_method: "manual",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+        },
+      },
+    }),
+    Klarna: getCustomExchange({
+      Request: {
+        payment_method: "pay_later",
+        payment_method_type: "klarna",
+        payment_experience: "redirect_to_url",
+        payment_method_data: {
+          pay_later: {
+            klarna_redirect: {
+              billing_email: "customer@email.com",
+              billing_country: "US",
+            },
+          },
+        },
+        billing: {
+          email: "customer@email.com",
+          address: {
+            line1: "1467 Harrison Street",
+            city: "San Francisco",
+            state: "California",
+            zip: "94122",
+            country: "US",
+            first_name: "Mock",
+            last_name: "Mock",
+          },
+        },
+        order_details: [
+          {
+            product_name: "Test Product",
+            quantity: 1,
+            amount: 6000,
+          },
+        ],
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+    }),
+    Capture: getCustomExchange({
+      Request: {
+        amount_to_capture: 6000,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    }),
   },
   pm_list: {
     PmListResponse: {

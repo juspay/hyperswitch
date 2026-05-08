@@ -1777,6 +1777,14 @@ impl TryFrom<payment_methods::PaymentMethodCreateData> for PaymentMethodData {
                 bank_type,
                 bank_holder_type,
             })),
+            payment_methods::PaymentMethodCreateData::BankRedirect(
+                payment_methods::BankRedirectDetail::BancontactCard {},
+            ) => Ok(Self::BankRedirect(BankRedirectData::BancontactCard {
+                card_number: None,
+                card_exp_month: None,
+                card_exp_year: None,
+                card_holder_name: None,
+            })),
             payment_methods::PaymentMethodCreateData::ProxyCard(_) => Err(
                 common_utils::errors::ValidationError::IncorrectValueProvided {
                     field_name: "Payment method data",
@@ -2504,9 +2512,9 @@ impl From<api_models::payments::BankRedirectData> for BankRedirectData {
                 country,
                 preferred_language,
             },
-            api_models::payments::BankRedirectData::Trustly { country } => Self::Trustly {
-                country: Some(country),
-            },
+            api_models::payments::BankRedirectData::Trustly { country } => {
+                Self::Trustly { country }
+            }
             api_models::payments::BankRedirectData::OnlineBankingFpx { issuer } => {
                 Self::OnlineBankingFpx { issuer }
             }

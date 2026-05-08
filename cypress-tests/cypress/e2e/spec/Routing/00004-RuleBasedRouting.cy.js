@@ -162,6 +162,10 @@ describe("Rule Based Routing Test", () => {
       // return_url is a static url (https://example.com) taken from confirm-body fixture and is not updated
       const expected_redirection = fixtures.confirmBody["return_url"];
       const payment_method_type = globalState.get("paymentMethodType");
+      // confirmBankRedirectCallTest overwrites connectorId via updateConnectorState; restore it
+      // to "adyen" here because the routing rule guarantees adyen for bank_redirect payments.
+      globalState.set("connectorId", "adyen");
+      globalState.set("merchantConnectorId", globalState.get("adyenMcaId"));
       cy.handleBankRedirectRedirection(
         globalState,
         payment_method_type,

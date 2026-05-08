@@ -191,7 +191,6 @@ impl From<&PaymentsMandateReferenceRecord> for RecurringMandatePaymentData {
     }
 }
 
-#[cfg(feature = "v2")]
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct ConnectorTokenReferenceRecord {
     pub connector_token: String,
@@ -230,7 +229,6 @@ impl std::ops::DerefMut for PayoutsMandateReference {
     }
 }
 
-#[cfg(feature = "v2")]
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct PaymentsTokenReference(
     pub HashMap<common_utils::id_type::MerchantConnectorAccountId, ConnectorTokenReferenceRecord>,
@@ -272,7 +270,6 @@ impl std::ops::DerefMut for PaymentsMandateReference {
     }
 }
 
-#[cfg(feature = "v2")]
 impl std::ops::Deref for PaymentsTokenReference {
     type Target =
         HashMap<common_utils::id_type::MerchantConnectorAccountId, ConnectorTokenReferenceRecord>;
@@ -282,7 +279,6 @@ impl std::ops::Deref for PaymentsTokenReference {
     }
 }
 
-#[cfg(feature = "v2")]
 impl std::ops::DerefMut for PaymentsTokenReference {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.0

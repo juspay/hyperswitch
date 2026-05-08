@@ -383,12 +383,14 @@ where
             | CallConnectorAction::HandleResponseWithoutBuildRequest
             | CallConnectorAction::Avoid
             | CallConnectorAction::StatusUpdate { .. } => {
-                // UCS is enabled, call decide function
-                decide_execution_path(
-                    connector_integration_type,
-                    previous_gateway,
-                    rollout_result.execution_mode,
-                )?
+                // If a rollout config key exists use its execution mode,
+                // otherwise default to Shadow so all traffic mirrors through UCS.
+                let execution_mode = if rollout_result.should_execute {
+                    rollout_result.execution_mode
+                } else {
+                    ExecutionMode::Shadow
+                };
+                decide_execution_path(connector_integration_type, previous_gateway, execution_mode)?
             }
         }
     };
