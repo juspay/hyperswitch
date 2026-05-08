@@ -44,6 +44,7 @@ async fn main() -> CustomResult<(), ProcessTrackerError> {
         conf,
         redis_shutdown_signal_tx,
         api_client,
+        router_env::service_name!(),
     ))
     .await;
     // channel to shutdown scheduler gracefully
@@ -71,7 +72,13 @@ async fn main() -> CustomResult<(), ProcessTrackerError> {
     let _guard = router_env::setup(
         &state.conf.log,
         &scheduler_flow_str,
-        [router_env::service_name!()],
+        [
+            router_env::service_name!(),
+            "actix_server",
+            "open_feature",
+            "superposition_provider",
+            "superposition_sdk",
+        ],
     );
 
     #[allow(clippy::expect_used)]

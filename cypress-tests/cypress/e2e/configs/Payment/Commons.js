@@ -368,6 +368,39 @@ export const payment_methods_enabled = [
     ],
   },
   {
+    payment_method: "bank_debit",
+    payment_method_types: [
+      {
+        payment_method_type: "ach",
+        minimum_amount: 1,
+        maximum_amount: 68607706,
+        recurring_enabled: true,
+        installment_payment_enabled: true,
+      },
+      {
+        payment_method_type: "sepa",
+        minimum_amount: 1,
+        maximum_amount: 68607706,
+        recurring_enabled: true,
+        installment_payment_enabled: true,
+      },
+      {
+        payment_method_type: "bacs",
+        minimum_amount: 1,
+        maximum_amount: 68607706,
+        recurring_enabled: true,
+        installment_payment_enabled: true,
+      },
+      {
+        payment_method_type: "becs",
+        minimum_amount: 1,
+        maximum_amount: 68607706,
+        recurring_enabled: true,
+        installment_payment_enabled: true,
+      },
+    ],
+  },
+  {
     payment_method: "card",
     payment_method_types: [
       {
@@ -1465,6 +1498,120 @@ export const connectorDetails = {
         },
       },
     }),
+    ManualRefundUpdate: getCustomExchange({
+      Request: {
+        status: "failed",
+      },
+      Response: {
+        status: 200,
+        body: {},
+      },
+    }),
+    ManualRefundUpdateErrorCode: getCustomExchange({
+      Request: {
+        status: "failed",
+        error_code: {
+          set: "TEST_ERROR_CODE",
+        },
+        error_message: {
+          set: "Test error message for manual update",
+        },
+      },
+      Response: {
+        status: 200,
+        body: {},
+      },
+    }),
+    ManualRefundUpdatePartialRefund: getCustomExchange({
+      Request: {
+        status: "failed",
+        error_code: {
+          set: "PARTIAL_REFUND_FAILED",
+        },
+        error_message: {
+          set: "Partial refund failed via manual update",
+        },
+      },
+      Response: {
+        status: 200,
+        body: {},
+      },
+    }),
+    ManualRefundUpdateIdempotency: getCustomExchange({
+      Request: {
+        status: "failed",
+        error_code: {
+          set: "IDEMPOTENCY_TEST",
+        },
+        error_message: {
+          set: "First manual update for idempotency test",
+        },
+      },
+      Response: {
+        status: 200,
+        body: {},
+      },
+    }),
+    ManualRefundUpdateUnset: getCustomExchange({
+      Request: {
+        error_code: {
+          unset: null,
+        },
+        error_message: {
+          unset: null,
+        },
+      },
+      Response: {
+        status: 200,
+        body: {},
+      },
+    }),
+    SyncRefundManualUpdateFailed: getCustomExchange({
+      Response: {
+        status: 200,
+        body: {
+          status: "failed",
+        },
+      },
+    }),
+    SyncRefundManualUpdateErrorCode: getCustomExchange({
+      Response: {
+        status: 200,
+        body: {
+          status: "failed",
+          error_code: "TEST_ERROR_CODE",
+          error_message: "Test error message for manual update",
+        },
+      },
+    }),
+    SyncRefundManualUpdatePartialRefund: getCustomExchange({
+      Response: {
+        status: 200,
+        body: {
+          status: "failed",
+          error_code: "PARTIAL_REFUND_FAILED",
+          error_message: "Partial refund failed via manual update",
+        },
+      },
+    }),
+    SyncRefundManualUpdateIdempotency: getCustomExchange({
+      Response: {
+        status: 200,
+        body: {
+          status: "failed",
+          error_code: "IDEMPOTENCY_TEST",
+          error_message: "First manual update for idempotency test",
+        },
+      },
+    }),
+    SyncRefundManualUpdateUnset: getCustomExchange({
+      Response: {
+        status: 200,
+        body: {
+          status: "failed",
+        },
+      },
+    }),
     PartialRefund: getCustomExchange({
       Request: {
         amount: 2000,
@@ -2479,6 +2626,24 @@ export const connectorDetails = {
           transaction_status: "Y",
           exemption_indicator: "low_value",
         },
+      },
+    }),
+    UseBillingAsPaymentMethodBilling: getCustomExchange({
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "USD",
+      },
+    }),
+    UseBillingAsPaymentMethodBillingDisabled: getCustomExchange({
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "USD",
       },
     }),
   },
