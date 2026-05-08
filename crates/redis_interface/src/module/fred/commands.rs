@@ -837,12 +837,12 @@ impl super::RedisConnectionPool {
     pub async fn stream_delete_entries(
         &self,
         stream: &RedisKey,
-        ids: &[String],
+        ids: Vec<String>,
     ) -> CustomResult<usize, errors::RedisError> {
         if ids.is_empty() {
             return Ok(0);
         }
-        let fred_ids: MultipleStrings = ids.to_vec().into();
+        let fred_ids: MultipleStrings = ids.into();
         self.pool
             .xdel(stream.tenant_aware_key(self), fred_ids)
             .await
@@ -870,12 +870,12 @@ impl super::RedisConnectionPool {
         &self,
         stream: &RedisKey,
         group: &str,
-        ids: &[String],
+        ids: Vec<String>,
     ) -> CustomResult<usize, errors::RedisError> {
         if ids.is_empty() {
             return Ok(0);
         }
-        let fred_ids: MultipleIDs = ids.to_vec().into();
+        let fred_ids: MultipleIDs = ids.into();
         self.pool
             .xack(stream.tenant_aware_key(self), group, fred_ids)
             .await

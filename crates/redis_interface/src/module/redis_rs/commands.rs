@@ -891,13 +891,13 @@ impl super::RedisConnectionPool {
     pub async fn stream_delete_entries(
         &self,
         stream: &RedisKey,
-        ids: &[String],
+        ids: Vec<String>,
     ) -> CustomResult<usize, errors::RedisError> {
         if ids.is_empty() {
             Ok(0)
         } else {
             let mut conn = self.pool.clone();
-            conn.xdel(stream.tenant_aware_key(self), ids)
+            conn.xdel(stream.tenant_aware_key(self), &ids)
                 .await
                 .change_context(errors::RedisError::StreamDeleteFailed)
         }
@@ -925,13 +925,13 @@ impl super::RedisConnectionPool {
         &self,
         stream: &RedisKey,
         group: &str,
-        ids: &[String],
+        ids: Vec<String>,
     ) -> CustomResult<usize, errors::RedisError> {
         if ids.is_empty() {
             Ok(0)
         } else {
             let mut conn = self.pool.clone();
-            conn.xack(stream.tenant_aware_key(self), group, ids)
+            conn.xack(stream.tenant_aware_key(self), group, &ids)
                 .await
                 .change_context(errors::RedisError::StreamAcknowledgeFailed)
         }
@@ -1201,7 +1201,7 @@ impl super::RedisConnectionPool {
         group: &str,
         consumer: &str,
         min_idle_time: u64,
-        ids: &[String],
+        ids: Vec<String>,
     ) -> CustomResult<R, errors::RedisError>
     where
         R: FromRedisValue + Send + 'static,
@@ -1212,7 +1212,7 @@ impl super::RedisConnectionPool {
             group,
             consumer,
             min_idle_time,
-            ids,
+            &ids,
         )
         .await
         .change_context(errors::RedisError::ConsumerGroupClaimFailed)

@@ -1463,7 +1463,7 @@ async fn test_stream_acknowledge_entries() {
                 .await;
 
             let ack_result = pool
-                .stream_acknowledge_entries(&stream, group, &["0-1".to_string()])
+                .stream_acknowledge_entries(&stream, group, vec!["0-1".to_string()])
                 .await;
 
             ack_result.is_ok()
@@ -1502,7 +1502,7 @@ async fn test_stream_delete_entries() {
             }
             let entry_id = entries.first().expect("checked non-empty").0.clone();
 
-            let delete_result = pool.stream_delete_entries(&stream, &[entry_id]).await;
+            let delete_result = pool.stream_delete_entries(&stream, vec![entry_id]).await;
 
             matches!(delete_result, Ok(count) if count >= 1)
         })

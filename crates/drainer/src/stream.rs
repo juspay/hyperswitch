@@ -94,7 +94,7 @@ impl Store {
                 // Since xtrim deletes entries below given id excluding the given id.
                 // Hence, deleting the minimum entry id
                 self.redis_conn
-                    .stream_delete_entries(&stream_name.into(), &[minimum_entry_id.to_string()])
+                    .stream_delete_entries(&stream_name.into(), vec![minimum_entry_id.to_string()])
                     .await
                     .map_err(errors::DrainerError::from)?;
 
@@ -119,7 +119,7 @@ impl Store {
         let (_trim_result, execution_time) =
             common_utils::date_time::time_it::<errors::DrainerResult<_>, _, _>(|| async {
                 self.redis_conn
-                    .stream_delete_entries(&stream_name.into(), &[entry_id.to_string()])
+                    .stream_delete_entries(&stream_name.into(), vec![entry_id.to_string()])
                     .await
                     .map_err(errors::DrainerError::from)?;
                 Ok(())
