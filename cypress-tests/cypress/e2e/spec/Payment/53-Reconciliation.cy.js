@@ -51,10 +51,9 @@ describe("Merchant Reconciliation fields test", () => {
       }).then((response) => {
         expect(response.status, "response status").to.equal(200);
         expect(response.body.merchant_id, "merchant_id").to.equal(merchant_id);
-        expect(
-          response.body.is_recon_enabled,
-          "is_recon_enabled"
-        ).to.equal(false);
+        expect(response.body.is_recon_enabled, "is_recon_enabled").to.equal(
+          false
+        );
         expect(response.body.recon_status, "recon_status").to.equal(
           "not_requested"
         );
