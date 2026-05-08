@@ -7835,18 +7835,28 @@ Cypress.Commands.add("initiatePaymentLinkTest", (data, globalState) => {
       if (response.status >= 200 && response.status < 400 && isHtml) {
         const bodyText = typeof response.body === "string" ? response.body : "";
         const hasHyperLoader =
-          bodyText.includes("HyperLoader") || bodyText.includes("hyperloader-sdk");
+          bodyText.includes("HyperLoader") ||
+          bodyText.includes("hyperloader-sdk");
 
         if (hasHyperLoader) {
-          cy.task("cli_log", "Payment Link page validated (CI): contains HyperLoader SDK");
+          cy.task(
+            "cli_log",
+            "Payment Link page validated (CI): contains HyperLoader SDK"
+          );
         } else {
-          cy.task("cli_log", `Payment Link page validated (CI): status=${response.status}, body length=${bodyText.length}`);
+          cy.task(
+            "cli_log",
+            `Payment Link page validated (CI): status=${response.status}, body length=${bodyText.length}`
+          );
         }
 
         expect(response.status).to.be.within(200, 399);
         expect(isHtml).to.be.true;
       } else {
-        cy.task("cli_log", `Payment Link non-HTML or error response (CI): status=${response.status}, content-type=${contentType}`);
+        cy.task(
+          "cli_log",
+          `Payment Link non-HTML or error response (CI): status=${response.status}, content-type=${contentType}`
+        );
         expect(response.status).to.be.within(200, 399);
       }
     });
@@ -7856,7 +7866,8 @@ Cypress.Commands.add("initiatePaymentLinkTest", (data, globalState) => {
     cy.get("body", { timeout: 30000 }).then(($body) => {
       const bodyText = $body.text() || "";
       const hasHyperLoader =
-        bodyText.includes("HyperLoader") || $body.find("#hyperloader-sdk").length > 0;
+        bodyText.includes("HyperLoader") ||
+        $body.find("#hyperloader-sdk").length > 0;
 
       if (hasHyperLoader) {
         cy.task("cli_log", "Payment Link page loaded with HyperLoader SDK");
