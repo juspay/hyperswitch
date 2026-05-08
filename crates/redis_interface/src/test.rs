@@ -944,7 +944,7 @@ async fn test_set_hash_fields() {
                 ("field3", "value3"),
             ];
 
-            pool.set_hash_fields(&key, &fields, Some(60)).await.is_ok()
+            pool.set_hash_fields(&key, fields, Some(60)).await.is_ok()
         })
     })
     .await
@@ -1000,7 +1000,7 @@ async fn test_increment_fields_in_hash() {
             let key: RedisKey = format!("test_hincr_{uid}").into();
 
             let fields: Vec<(&str, &str)> = vec![("counter", "10")];
-            let _ = pool.set_hash_fields(&key, &fields, Some(60)).await;
+            let _ = pool.set_hash_fields(&key, fields, Some(60)).await;
 
             let result = pool
                 .increment_fields_in_hash(&key, &[("counter".to_string(), 5)])
@@ -1033,7 +1033,7 @@ async fn test_hscan_returns_values() {
                 ("prefix_field2", "val2"),
                 ("other_field", "val3"),
             ];
-            let _ = pool.set_hash_fields(&key, &fields, Some(60)).await;
+            let _ = pool.set_hash_fields(&key, fields, Some(60)).await;
 
             let scan_result = pool.hscan(&key, "prefix_*", None).await;
 
@@ -1068,7 +1068,7 @@ async fn test_hscan_and_deserialize() {
                 ("item_b", "\"beta\""),
                 ("item_c", "\"gamma\""),
             ];
-            let _ = pool.set_hash_fields(&key, &fields, Some(60)).await;
+            let _ = pool.set_hash_fields(&key, fields, Some(60)).await;
 
             let result = pool
                 .hscan_and_deserialize::<String>(&key, "item_*", None)
@@ -2104,7 +2104,7 @@ async fn test_cluster_hash_operations() {
             let key: RedisKey = format!("test_cluster_hash_{uid}").into();
 
             let set_result = pool
-                .set_hash_fields(&key, &[("field1", "val1"), ("field2", "val2")], Some(60))
+                .set_hash_fields(&key, vec![("field1", "val1"), ("field2", "val2")], Some(60))
                 .await;
 
             let hsetnx_new = pool
