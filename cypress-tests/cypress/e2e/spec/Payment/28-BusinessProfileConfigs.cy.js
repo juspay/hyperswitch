@@ -386,9 +386,13 @@ describe("Config Tests", () => {
     });
 
     it("Update business profile with custom webhook headers and verify masked response", () => {
-      const webhookHeadersBody = JSON.parse(
-        JSON.stringify(fixtures.businessProfile.bpUpdateWebhookHeaders)
-      );
+      const webhookHeadersBody = {
+        outgoing_webhook_custom_http_headers: {
+          "X-Custom-Header": "long-custom-value-six-chars",
+          "X-Short": "secret",
+          "X-Tiny": "xy",
+        },
+      };
       cy.updateBusinessProfileWebhookCustomHeadersTest(
         webhookHeadersBody,
         globalState
@@ -396,9 +400,17 @@ describe("Config Tests", () => {
     });
 
     it("Update business profile with new custom webhook headers and verify updated masked response", () => {
-      const webhookHeadersBody = JSON.parse(
-        JSON.stringify(fixtures.businessProfile.bpUpdateWebhookHeadersUpdated)
-      );
+      const initialKeys = [
+        "X-Custom-Header",
+        "X-Short",
+        "X-Tiny",
+      ];
+      const webhookHeadersBody = {
+        outgoing_webhook_custom_http_headers: {
+          "X-Updated-Header": "updated-secret-value-long",
+          "X-Another-Header": "another-long-value-string",
+        },
+      };
       cy.updateBusinessProfileWebhookCustomHeadersTest(
         webhookHeadersBody,
         globalState
@@ -406,24 +418,33 @@ describe("Config Tests", () => {
         // Verify old header keys from previous update are absent
         const responseHeaders =
           globalState.get("lastResponseHeaders") || {};
-        const oldKeys = Object.keys(
-          fixtures.businessProfile.bpUpdateWebhookHeaders
-            .outgoing_webhook_custom_http_headers
-        );
-        oldKeys.forEach((key) => {
+        initialKeys.forEach((key) => {
           expect(responseHeaders).to.not.have.property(key);
         });
       });
     });
 
     it("Clear custom webhook headers with empty object", () => {
-      const webhookHeadersBody = JSON.parse(
-        JSON.stringify(fixtures.businessProfile.bpUpdateWebhookHeadersClear)
-      );
+      const webhookHeadersBody = {
+        outgoing_webhook_custom_http_headers: {},
+      };
       cy.updateBusinessProfileWebhookCustomHeadersTest(
         webhookHeadersBody,
         globalState
       );
     });
+
+    // TODO: Add outgoing webhook delivery verification.
+    // The reviewer requested verification that custom headers are actually
+    // sent in outgoing webhooks. However, the Hyperswitch codebase does not
+    // currently expose an API or mechanism to capture/intercept outgoing
+    // webhook deliveries within Cypress tests.
+    //
+    // To implement this, we would need:
+    // 1. A webhook event/events API that lists recent webhook deliveries
+    // 2. Or an external webhook catcher service integrated into the test flow
+    // 3. Or a way to configure a test endpoint that captures received headers
+    //
+    // Until such infrastructure exists, this verification is deferred.
   });
 });
