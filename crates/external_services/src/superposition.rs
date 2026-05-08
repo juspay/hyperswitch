@@ -436,7 +436,7 @@ impl SuperpositionClient {
             )))
         })
     }
-  
+
     /// Generic method to set a configuration value in Superposition
     ///
     /// # Type Parameters
