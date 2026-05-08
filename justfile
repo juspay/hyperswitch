@@ -25,9 +25,10 @@ clippy *FLAGS:
             [ ( .workspace_members | sort ) as $package_ids # Store workspace crate package IDs in `package_ids` array
             | .packages[] | select( IN(.id; $package_ids[]) ) | .features | keys[] ] | unique # Select all unique features from all workspace crates
             | del( .[] | select( any( . ; test("(([a-z_]+)_)?v2") ) ) ) # Exclude v2 features
-            | del( .[] | select( . == ("fred", "redis-rs") ) ) # Exclude backend flags (backend selected via redis_interface features)
+            | del( .[] | select( . == ("fred", "redis-rs") ) ) # Exclude backend flags
             | join(",") # Construct a comma-separated string of features for passing to `cargo`
     ')"
+    FEATURES="${FEATURES},redis-rs" # explicitly select redis-rs backend
 
     set -x
     cargo clippy {{ check_flags }} --features "${FEATURES}"  {{ FLAGS }}
