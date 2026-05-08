@@ -78,13 +78,17 @@ services:
       - DATABASE_URL=postgresql://db_user:db_pass@pg:5432/hyperswitch_db
 
   superposition:
-    image: ghcr.io/juspay/superposition-demo:latest
+    image: ghcr.io/juspay/superposition-demo:0.102.0
     ports:
       - "8081:8080"
     networks:
       - router_net
     environment:
       - API_HOSTNAME=http://localhost:8081
+      - REDIS_URL=redis://redis-standalone:6379
+    depends_on:
+      redis-standalone:
+        condition: service_healthy
 
   superposition-init:
     image: alpine:latest

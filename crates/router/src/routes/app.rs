@@ -422,6 +422,7 @@ impl AppState {
         storage_impl: StorageImpl,
         shut_down_signal: oneshot::Sender<()>,
         api_client: Box<dyn crate::services::ApiClient>,
+        service_name: &'static str,
     ) -> Self {
         #[allow(clippy::expect_used)]
         let secret_management_client = conf
@@ -512,7 +513,7 @@ impl AppState {
             let superposition_service = conf
                 .superposition
                 .get_inner()
-                .get_superposition_client()
+                .get_superposition_client(service_name)
                 .await
                 .expect("Failed to initialize superposition client");
             Self {
@@ -616,12 +617,14 @@ impl AppState {
         conf: settings::Settings<SecuredSecret>,
         shut_down_signal: oneshot::Sender<()>,
         api_client: Box<dyn crate::services::ApiClient>,
+        service_name: &'static str,
     ) -> Self {
         Box::pin(Self::with_storage(
             conf,
             StorageImpl::Postgresql,
             shut_down_signal,
             api_client,
+            service_name,
         ))
         .await
     }

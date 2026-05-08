@@ -6150,7 +6150,7 @@ options=["PAN_ONLY", "CRYPTOGRAM_3DS"]
   placeholder="Enter Payment Processing Details At"
   required=true
   type="Radio"
-  options=["Connector"]
+  options=["Connector","Hyperswitch"]
 
 [worldpayxml.connector_auth.SignatureKey]
 api_secret = "Merchant Code"
