@@ -825,16 +825,13 @@ export const connectorDetails = {
       },
     },
     CredsIdentifierMapping: {
-      Configs: { TRIGGER_SKIP: true },
+      Configs: { TRIGGER_SKIP: true, creds_identifier: "boa_prod_001" },
       Request: {
         payment_method: "card",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
         currency: "USD",
-        merchant_connector_details: {
-          creds_identifier: "test_cred_id",
-        },
         customer_acceptance: null,
         setup_future_usage: "on_session",
       },

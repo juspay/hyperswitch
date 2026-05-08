@@ -4,6 +4,7 @@ import getConnectorDetails, {
   CONNECTOR_LISTS,
   shouldIncludeConnector,
 } from "../../configs/Payment/Utils";
+import * as utils from "../../configs/Payment/Utils";
 
 let globalState;
 let connector;
@@ -32,6 +33,20 @@ describe("MCA Credentials Identifier Mapping Tests", () => {
           this.skip();
         }
       });
+  });
+
+  before("read creds_identifier from connector config", function () {
+    const connectorDetails = getConnectorDetails(connector);
+    const dynamicCredsIdentifier =
+      connectorDetails?.card_pm?.CredsIdentifierMapping?.Configs
+        ?.creds_identifier;
+    if (!dynamicCredsIdentifier) {
+      throw new Error(
+        `creds_identifier not found in connector config for ${connector}. Please configure card_pm.CredsIdentifierMapping.Configs.creds_identifier in the connector config.`
+      );
+    }
+    globalState.set("credsIdentifier", dynamicCredsIdentifier);
+    cy.task("cli_log", `Using creds_identifier: ${dynamicCredsIdentifier}`);
   });
 
   after("flush global state", () => {
@@ -75,10 +90,20 @@ describe("MCA Credentials Identifier Mapping Tests", () => {
           "card_pm"
         ]["CredsIdentifierMapping"];
 
-        cy.confirmCallTest(fixtures.confirmBody, data, true, globalState);
+        const dynamicData = {
+          ...data,
+          Request: {
+            ...data.Request,
+            merchant_connector_details: {
+              creds_identifier: globalState.get("credsIdentifier"),
+            },
+          },
+        };
+
+        cy.confirmCallTest(fixtures.confirmBody, dynamicData, true, globalState);
 
         if (shouldContinue)
-          shouldContinue = utils.should_continue_further(data);
+          shouldContinue = utils.should_continue_further(dynamicData);
       });
 
       it("Create Refund with creds_identifier", () => {
@@ -141,6 +166,12 @@ describe("MCA Credentials Identifier Mapping Tests", () => {
 
         const manualCaptureData = {
           ...data,
+          Request: {
+            ...data.Request,
+            merchant_connector_details: {
+              creds_identifier: globalState.get("credsIdentifier"),
+            },
+          },
           Response: {
             status: 200,
             body: {
