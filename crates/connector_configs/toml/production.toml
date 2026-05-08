@@ -6378,7 +6378,7 @@ label="Account Type"
 placeholder="Enter your Account Type"
 required=false
 type="Select"
-options=["Current", "Savings", "Payment"]
+options=["current", "savings", "payment"]
 [[santander.metadata.pix_automatico_push]]
 name="branch_code"
 label="Branch Code"
@@ -6423,7 +6423,7 @@ label="Account Type"
 placeholder="Enter your Account Type"
 required=false
 type="Select"
-options=["Current", "Savings", "Payment"]
+options=["current", "savings", "payment"]
 [[santander.metadata.pix_automatico_qr]]
 name="branch_code"
 label="Branch Code"
