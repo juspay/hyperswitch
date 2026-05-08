@@ -9,24 +9,5 @@
     "collect_billing_details_from_wallet_connector": true,
     "always_collect_billing_details_from_wallet_connector": true,
     "always_collect_shipping_details_from_wallet_connector": true
-  },
-
-  "bpUpdateWebhookHeaders": {
-    "outgoing_webhook_custom_http_headers": {
-      "X-Custom-Header": "long-custom-value-six-chars",
-      "X-Short": "secret",
-      "X-Tiny": "xy"
-    }
-  },
-
-  "bpUpdateWebhookHeadersUpdated": {
-    "outgoing_webhook_custom_http_headers": {
-      "X-Updated-Header": "updated-secret-value-long",
-      "X-Another-Header": "another-long-value-string"
-    }
-  },
-
-  "bpUpdateWebhookHeadersClear": {
-    "outgoing_webhook_custom_http_headers": {}
   }
 }

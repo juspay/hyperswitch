@@ -428,18 +428,5 @@ describe("Config Tests", () => {
         globalState
       );
     });
-
-    // TODO: Add outgoing webhook delivery verification.
-    // The reviewer requested verification that custom headers are actually
-    // sent in outgoing webhooks. However, the Hyperswitch codebase does not
-    // currently expose an API or mechanism to capture/intercept outgoing
-    // webhook deliveries within Cypress tests.
-    //
-    // To implement this, we would need:
-    // 1. A webhook event/events API that lists recent webhook deliveries
-    // 2. Or an external webhook catcher service integrated into the test flow
-    // 3. Or a way to configure a test endpoint that captures received headers
-    //
-    // Until such infrastructure exists, this verification is deferred.
   });
 });
