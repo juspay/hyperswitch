@@ -729,6 +729,10 @@ export const connectorDetails = {
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
+        billing_descriptor: {
+          name: "Juspay",
+          city: "San Francisco",
+        },
         order_tax_amount: 500,
         shipping_cost: 100,
         order_details: [
