@@ -197,7 +197,11 @@ impl HealthCheckInterface for Store {
         logger::debug!("Stream append succeeded");
 
         let output = redis_conn
-            .stream_read_entries(&[TEST_STREAM_NAME.into()], vec!["0-0".to_string()], Some(10))
+            .stream_read_entries(
+                &[TEST_STREAM_NAME.into()],
+                vec!["0-0".to_string()],
+                Some(10),
+            )
             .await
             .change_context(HealthCheckRedisError::StreamReadFailed)?;
         logger::debug!("Stream read succeeded");

@@ -666,8 +666,7 @@ impl super::RedisConnectionPool {
                 match value {
                     Ok(mut v) => {
                         let v = v.take_results()?;
-                        let v: Vec<String> =
-                            v.values().filter_map(|val| val.as_string()).collect();
+                        let v: Vec<String> = v.values().filter_map(|val| val.as_string()).collect();
                         Some(futures::stream::iter(v))
                     }
                     Err(err) => {
@@ -931,7 +930,10 @@ impl super::RedisConnectionPool {
                     .map(|(entry_id, field_pairs)| {
                         // Convert raw fred field values into the common RedisValue wrapper type.
                         // This preserves all data (strings, nulls, binary, etc.) in a backend-neutral form.
-                        let fields_by_redis_value: std::collections::HashMap<String, crate::RedisValue> = field_pairs
+                        let fields_by_redis_value: std::collections::HashMap<
+                            String,
+                            crate::RedisValue,
+                        > = field_pairs
                             .into_iter()
                             .map(|(field_name, field_value)| {
                                 (field_name, crate::RedisValue::new(field_value.into()))
@@ -980,17 +982,21 @@ impl super::RedisConnectionPool {
                     .map(|(entry_id, optional_field_pairs)| {
                         // Wrap fred's field values (Option<String>) into RedisValue.
                         // If the field has no value, we store Null to preserve the entry's presence.
-                        let fields_by_redis_value: std::collections::HashMap<String, crate::RedisValue> =
-                            optional_field_pairs
-                                .into_iter()
-                                .map(|(field_name, maybe_field_value)| {
-                                    let redis_value_inner = match maybe_field_value {
-                                        Some(string_value) => fred::types::RedisValue::String(string_value.into()),
-                                        None => fred::types::RedisValue::Null,
-                                    };
-                                    (field_name, crate::RedisValue::new(redis_value_inner))
-                                })
-                                .collect();
+                        let fields_by_redis_value: std::collections::HashMap<
+                            String,
+                            crate::RedisValue,
+                        > = optional_field_pairs
+                            .into_iter()
+                            .map(|(field_name, maybe_field_value)| {
+                                let redis_value_inner = match maybe_field_value {
+                                    Some(string_value) => {
+                                        fred::types::RedisValue::String(string_value.into())
+                                    }
+                                    None => fred::types::RedisValue::Null,
+                                };
+                                (field_name, crate::RedisValue::new(redis_value_inner))
+                            })
+                            .collect();
                         (entry_id, fields_by_redis_value)
                     })
                     .collect();

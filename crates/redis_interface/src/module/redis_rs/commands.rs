@@ -990,7 +990,10 @@ impl super::RedisConnectionPool {
                     .ids
                     .into_iter()
                     .map(|entry_response| {
-                        let fields_by_redis_value: std::collections::HashMap<String, crate::RedisValue> = entry_response
+                        let fields_by_redis_value: std::collections::HashMap<
+                            String,
+                            crate::RedisValue,
+                        > = entry_response
                             .map
                             .into_iter()
                             .map(|(field_name, raw_redis_value)| {
@@ -1061,7 +1064,10 @@ impl super::RedisConnectionPool {
                     .ids
                     .into_iter()
                     .map(|entry_response| {
-                        let fields_by_redis_value: std::collections::HashMap<String, crate::RedisValue> = entry_response
+                        let fields_by_redis_value: std::collections::HashMap<
+                            String,
+                            crate::RedisValue,
+                        > = entry_response
                             .map
                             .into_iter()
                             .map(|(field_name, raw_redis_value)| {
