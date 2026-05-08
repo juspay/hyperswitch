@@ -157,7 +157,7 @@ pub async fn insert_entry_into_blocklist(
     platform: &domain::Platform,
     to_block: api_blocklist::AddToBlocklistRequest,
 ) -> RouterResult<api_blocklist::AddToBlocklistResponse> {
-    let platform_merchant_id = platform.get_processor().get_account().get_id();
+    let processor_merchant_id = platform.get_processor().get_account().get_id();
 
     let blocklist_entry = match &to_block {
         api_blocklist::AddToBlocklistRequest::CardBin(bin) => {
@@ -186,7 +186,7 @@ pub async fn insert_entry_into_blocklist(
             let blocklist_entry_result = state
                 .store
                 .find_blocklist_entry_by_processor_merchant_id_fingerprint_id(
-                    platform_merchant_id,
+                    processor_merchant_id,
                     fingerprint_id,
                 )
                 .await;
@@ -217,7 +217,7 @@ pub async fn insert_entry_into_blocklist(
                     data_kind: api_models::enums::enums::BlocklistDataKind::PaymentMethod,
                     metadata: None,
                     created_at: common_utils::date_time::now(),
-                    processor_merchant_id: Some(platform_merchant_id.to_owned()),
+                    processor_merchant_id: Some(processor_merchant_id.to_owned()),
                     created_by: platform
                         .get_initiator()
                         .and_then(|initiator| initiator.to_created_by())
@@ -257,11 +257,11 @@ async fn duplicate_check_insert_bin(
     platform: &domain::Platform,
     data_kind: common_enums::BlocklistDataKind,
 ) -> RouterResult<storage::Blocklist> {
-    let platform_merchant_id = platform.get_processor().get_account().get_id();
+    let processor_merchant_id = platform.get_processor().get_account().get_id();
 
     let blocklist_entry_result = state
         .store
-        .find_blocklist_entry_by_processor_merchant_id_fingerprint_id(platform_merchant_id, bin)
+        .find_blocklist_entry_by_processor_merchant_id_fingerprint_id(processor_merchant_id, bin)
         .await;
 
     match blocklist_entry_result {
@@ -289,7 +289,7 @@ async fn duplicate_check_insert_bin(
             data_kind,
             metadata: None,
             created_at: common_utils::date_time::now(),
-            processor_merchant_id: Some(platform_merchant_id.to_owned()),
+            processor_merchant_id: Some(processor_merchant_id.to_owned()),
             created_by: platform
                 .get_initiator()
                 .and_then(|initiator| initiator.to_created_by())
