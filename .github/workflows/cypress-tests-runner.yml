@@ -479,6 +479,7 @@ jobs:
                   "name": "extended-payments-batch-1",
                   "payments_connectors": "'"${EXTENDED_PAYMENTS_CONNECTORS_BATCH_1}"'",
                   "payouts_connectors": "",
+                  "platform_connectors": "",
                   "parallel": 4,
                   "report_artifact_name": "cypress-extended-test-results-payments-1",
                   "server_logs_artifact": "extended-server-logs-payments-1"
@@ -487,6 +488,7 @@ jobs:
                   "name": "extended-payments-batch-2",
                   "payments_connectors": "'"${EXTENDED_PAYMENTS_CONNECTORS_BATCH_2}"'",
                   "payouts_connectors": "",
+                  "platform_connectors": "",
                   "parallel": 3,
                   "report_artifact_name": "cypress-extended-test-results-payments-2",
                   "server_logs_artifact": "extended-server-logs-payments-2"
@@ -495,6 +497,7 @@ jobs:
                   "name": "extended-payouts",
                   "payments_connectors": "",
                   "payouts_connectors": "'"${EXTENDED_PAYOUTS_CONNECTORS}"'",
+                  "platform_connectors": "",
                   "parallel": 2,
                   "report_artifact_name": "cypress-extended-test-results-payouts",
                   "server_logs_artifact": "extended-server-logs-payouts"
@@ -677,6 +680,7 @@ jobs:
           ROUTER__SERVER__WORKERS: 4
           PAYMENTS_CONNECTORS: "${{ matrix.batch.payments_connectors }}"
           PAYOUTS_CONNECTORS: "${{ matrix.batch.payouts_connectors }}"
+          PLATFORM_CONNECTORS: "${{ matrix.batch.platform_connectors }}"
         shell: bash -leuo pipefail {0}
         run: |
           scripts/execute_cypress.sh --parallel ${{ matrix.batch.parallel }}
