@@ -1104,8 +1104,8 @@ impl super::RedisConnectionPool {
             isize::try_from(start).change_context(errors::RedisError::GetListElementsFailed)?,
             isize::try_from(stop).change_context(errors::RedisError::GetListElementsFailed)?,
         )
-            .await
-            .change_context(errors::RedisError::GetListElementsFailed)
+        .await
+        .change_context(errors::RedisError::GetListElementsFailed)
     }
 
     #[instrument(level = "DEBUG", skip(self))]

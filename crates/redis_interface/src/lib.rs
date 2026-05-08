@@ -14,14 +14,10 @@
 
 // Compile-time guards: exactly one backend must be active.
 #[cfg(not(any(feature = "fred", feature = "redis-rs")))]
-compile_error!(
-    "Either feature \"fred\" or \"redis-rs\" must be enabled for this crate."
-);
+compile_error!("Either feature \"fred\" or \"redis-rs\" must be enabled for this crate.");
 
 #[cfg(all(feature = "fred", feature = "redis-rs"))]
-compile_error!(
-    "Features \"fred\" and \"redis-rs\" are mutually exclusive — enable only one."
-);
+compile_error!("Features \"fred\" and \"redis-rs\" are mutually exclusive — enable only one.");
 
 pub mod constant;
 pub mod errors;

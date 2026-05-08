@@ -676,7 +676,8 @@ impl super::RedisConnectionPool {
                 match value {
                     Ok(mut v) => {
                         let v = v.take_results()?;
-                        let v: Vec<String> = v.into_iter().filter_map(|val| val.into_string()).collect();
+                        let v: Vec<String> =
+                            v.into_iter().filter_map(|val| val.into_string()).collect();
                         Some(futures::stream::iter(v))
                     }
                     Err(err) => {
@@ -828,7 +829,9 @@ impl super::RedisConnectionPool {
         let fred_fields: Result<MultipleOrderedPairs, _> = pairs.try_into();
         let fred_fields = fred_fields
             .change_context(errors::RedisError::StreamAppendFailed)
-            .attach_printable("Failed to convert field pairs to fred::types::MultipleOrderedPairs")?;
+            .attach_printable(
+                "Failed to convert field pairs to fred::types::MultipleOrderedPairs",
+            )?;
 
         self.pool
             .xadd(
@@ -993,9 +996,7 @@ impl super::RedisConnectionPool {
                             .into_iter()
                             .map(|(field_name, maybe_field_value)| {
                                 let redis_value_inner = match maybe_field_value {
-                                    Some(string_value) => {
-                                        RedisValue::String(string_value.into())
-                                    }
+                                    Some(string_value) => RedisValue::String(string_value.into()),
                                     None => RedisValue::Null,
                                 };
                                 (field_name, crate::RedisValue::new(redis_value_inner))
