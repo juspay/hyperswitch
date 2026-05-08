@@ -7941,3 +7941,41 @@ Cypress.Commands.add("listPaymentLinksTest", (data, globalState) => {
     });
   });
 });
+
+Cypress.Commands.add(
+  "updateBusinessProfilePaymentLinkConfigTest",
+  (paymentLinkConfig, globalState) => {
+    const apiKey = globalState.get("apiKey");
+    const merchantId = globalState.get("merchantId");
+    const profileId =
+      globalState.get("profileId") || globalState.get("defaultProfileId");
+
+    cy.request({
+      method: "POST",
+      url: `${globalState.get("baseUrl")}/account/${merchantId}/business_profile/${profileId}`,
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json",
+        "api-key": apiKey,
+      },
+      body: {
+        payment_link_config: paymentLinkConfig,
+      },
+      failOnStatusCode: false,
+    }).then((response) => {
+      logRequestId(response.headers["x-request-id"]);
+
+      cy.wrap(response).then(() => {
+        expect(response.status).to.equal(200);
+        expect(response.body).to.have.property("payment_link_config");
+
+        cy.task(
+          "cli_log",
+          `Business profile payment_link_config updated: ${JSON.stringify(
+            response.body.payment_link_config
+          )}`
+        );
+      });
+    });
+  }
+);

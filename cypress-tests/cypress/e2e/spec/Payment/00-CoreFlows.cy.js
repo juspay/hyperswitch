@@ -280,51 +280,5 @@ describe("Core flows", () => {
     });
   });
 
-  // Payment Link is a core platform feature — not connector specific
-  // Endpoint: POST /payments (payment_link=true) + GET /payment_link/{id}
-  // Source: business_profile.rs:payment_link_config
-  context("Payment Link core flows", () => {
-    before("seed global state", () => {
-      cy.task("getGlobalState").then((state) => {
-        globalState = new State(state);
-      });
-    });
-
-    after("flush global state", () => {
-      cy.task("setGlobalState", globalState.data);
-    });
-
-    it("Create payment intent with payment link", () => {
-      const data = {
-        Request: {
-          currency: "USD",
-          amount: 6000,
-          description: "Test Payment Link",
-          email: "test@example.com",
-        },
-        Response: {
-          status: 200,
-        },
-      };
-      cy.createPaymentIntentWithPaymentLinkTest(
-        fixtures.createPaymentBody,
-        data,
-        "no_three_ds",
-        "automatic",
-        globalState
-      );
-    });
-
-    it("Initiate payment link (customer-facing)", () => {
-      cy.initiatePaymentLinkTest({}, globalState);
-    });
-
-    it("Retrieve payment link (merchant API)", () => {
-      cy.retrievePaymentLinkTest({}, globalState);
-    });
-
-    it("List payment links", () => {
-      cy.listPaymentLinksTest({}, globalState);
-    });
-  });
+  // Payment Link tests moved to dedicated spec: 48-PaymentLink.cy.js
 });
