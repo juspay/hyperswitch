@@ -777,6 +777,8 @@ pub enum ConnectorType {
     AuthenticationProcessor,
     /// Tax Calculation Processor
     TaxProcessor,
+    /// Surcharge Calculation Processor
+    SurchargeProcessor,
     /// Represents billing processors that handle subscription management, invoicing,
     /// and recurring payments. Examples include Chargebee, Recurly, and Stripe Billing.
     BillingProcessor,
@@ -10449,6 +10451,7 @@ pub enum HyperswitchConnectorCategory {
     AuthenticationProvider,
     FraudAndRiskManagementProvider,
     TaxCalculationProvider,
+    SurchargeCalculationProvider,
     RevenueGrowthManagementPlatform,
 }
 
