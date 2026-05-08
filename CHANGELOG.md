@@ -4,6 +4,16 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.02.02.0-hotfix16-6
+
+### Features
+
+- **connector:** [ACI] Add Apple Pay and Google Pay wallet support ([#12209](https://github.com/juspay/hyperswitch/pull/12209)) ([`3cdc2e2`](https://github.com/juspay/hyperswitch/commit/3cdc2e2145491d6bfc4825d07e6cf4fbc3d7b03d))
+
+**Full Changelog:** [`2026.02.02.0-hotfix16-5...2026.02.02.0-hotfix16-6`](https://github.com/juspay/hyperswitch/compare/2026.02.02.0-hotfix16-5...2026.02.02.0-hotfix16-6)
+
+- - -
+
 ## 2026.02.02.0-hotfix16-5
 
 ### Bug Fixes
