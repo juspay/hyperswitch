@@ -554,12 +554,12 @@ export const CONNECTOR_LISTS = {
     MIT_WITH_LIMITED_CARD_DATA: ["peachpayments"],
     REFUND_MANUAL_UPDATE: ["bankofamerica", "cybersource"],
     MERCHANT_REDIRECT: [
-      "Adyen",
-      "Authorizedotnet",
-      "Cybersource",
-      "Finix",
-      "Fiuu",
-      "Nexixpay",
+      "adyen",
+      "authorizedotnet",
+      "cybersource",
+      "finix",
+      "fiuu",
+      "nexixpay",
       "stripe",
     ],
     // Add more inclusion lists
