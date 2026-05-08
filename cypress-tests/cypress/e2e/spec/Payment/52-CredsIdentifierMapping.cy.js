@@ -100,7 +100,12 @@ describe("MCA Credentials Identifier Mapping Tests", () => {
           },
         };
 
-        cy.confirmCallTest(fixtures.confirmBody, dynamicData, true, globalState);
+        cy.confirmCallTest(
+          fixtures.confirmBody,
+          dynamicData,
+          true,
+          globalState
+        );
 
         if (shouldContinue)
           shouldContinue = utils.should_continue_further(dynamicData);
