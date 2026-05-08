@@ -201,7 +201,7 @@ pub async fn get_batches(
     let response = match conn
         .stream_read_with_options(
             &[stream_name.into()],
-            &[RedisEntryId::UndeliveredEntryID.to_stream_id()],
+            vec![RedisEntryId::UndeliveredEntryID.to_stream_id()],
             // Update logic for collecting to Vec and flattening, if count > 1 is provided
             Some(1),
             None,
@@ -224,7 +224,7 @@ pub async fn get_batches(
 
     metrics::BATCHES_CONSUMED.add(1, &[]);
 
-    // StreamReadResult: stream key → Vec<(entry_id, HashMap<String, String>)>
+    // StreamReadResult: stream key → Vec<(entry_id, HashMap<String, RedisValue>)>
     let (batches, entry_ids): (Vec<Vec<ProcessTrackerBatch>>, Vec<Vec<String>>) = response
         .into_values()
         .map(|entries| {
@@ -233,7 +233,7 @@ pub async fn get_batches(
                 |(mut batches, mut entry_ids), (entry_id, fields)| {
                     entry_ids.push(entry_id);
                     let fields: std::collections::HashMap<String, Option<String>> =
-                        fields.into_iter().map(|(k, v)| (k, Some(v))).collect();
+                        fields.into_iter().map(|(k, v)| (k, v.as_string())).collect();
                     batches.push(ProcessTrackerBatch::from_redis_stream_entry(fields)?);
                     Ok((batches, entry_ids))
                 },

@@ -864,15 +864,15 @@ impl super::RedisConnectionPool {
         &self,
         stream: &RedisKey,
         entry_id: &RedisEntryId,
-        fields: &[(F, V)],
+        fields: Vec<(F, V)>,
     ) -> CustomResult<(), errors::RedisError>
     where
-        F: Into<String> + Clone + Debug + Send + Sync,
-        V: Into<String> + Clone + Debug + Send + Sync,
+        F: Into<String> + Debug + Send + Sync,
+        V: Into<String> + Debug + Send + Sync,
     {
         let pairs: Vec<(String, String)> = fields
-            .iter()
-            .map(|(f, v)| (f.clone().into(), v.clone().into()))
+            .into_iter()
+            .map(|(f, v)| (f.into(), v.into()))
             .collect();
 
         let mut conn = self.pool.clone();
@@ -955,7 +955,7 @@ impl super::RedisConnectionPool {
     pub async fn stream_read_entries(
         &self,
         streams: &[RedisKey],
-        ids: &[String],
+        ids: Vec<String>,
         read_count: Option<u64>,
     ) -> CustomResult<StreamReadResult, errors::RedisError> {
         let mut conn = self.pool.clone();
@@ -970,7 +970,7 @@ impl super::RedisConnectionPool {
             .count(usize::try_from(count).change_context(errors::RedisError::StreamReadFailed)?);
 
         let reply: redis::streams::StreamReadReply = conn
-            .xread_options(&stream_keys, ids, &options)
+            .xread_options(&stream_keys, &ids, &options)
             .await
             .map_err(|err| {
                 let kind = err.kind();
@@ -985,23 +985,22 @@ impl super::RedisConnectionPool {
         Ok(reply
             .keys
             .into_iter()
-            .map(|stream_key| {
-                let entries: StreamEntries = stream_key
+            .map(|stream_response| {
+                let stream_entries: StreamEntries = stream_response
                     .ids
                     .into_iter()
-                    .map(|id| {
-                        let fields: std::collections::HashMap<String, String> = id
+                    .map(|entry_response| {
+                        let fields_by_redis_value: std::collections::HashMap<String, crate::RedisValue> = entry_response
                             .map
                             .into_iter()
-                            .filter_map(|(field_name, redis_value)| {
-                                redis_value_to_option_string(&redis_value)
-                                    .map(|field_value| (field_name, field_value))
+                            .map(|(field_name, raw_redis_value)| {
+                                (field_name, crate::RedisValue::new(raw_redis_value))
                             })
                             .collect();
-                        (id.id, fields)
+                        (entry_response.id, fields_by_redis_value)
                     })
                     .collect();
-                (stream_key.key, entries)
+                (stream_response.key, stream_entries)
             })
             .collect())
     }
@@ -1014,7 +1013,7 @@ impl super::RedisConnectionPool {
     pub async fn stream_read_with_options(
         &self,
         streams: &[RedisKey],
-        ids: &[String],
+        ids: Vec<String>,
         count: Option<u64>,
         block: Option<u64>,
         group: Option<(&str, &str)>,
@@ -1042,7 +1041,7 @@ impl super::RedisConnectionPool {
         }
 
         let reply: redis::streams::StreamReadReply = conn
-            .xread_options(&stream_keys, ids, &options)
+            .xread_options(&stream_keys, &ids, &options)
             .await
             .map_err(|err| {
                 let kind = err.kind();
@@ -1057,23 +1056,22 @@ impl super::RedisConnectionPool {
         Ok(reply
             .keys
             .into_iter()
-            .map(|stream_key| {
-                let entries: StreamEntries = stream_key
+            .map(|stream_response| {
+                let stream_entries: StreamEntries = stream_response
                     .ids
                     .into_iter()
-                    .map(|id| {
-                        let fields: std::collections::HashMap<String, String> = id
+                    .map(|entry_response| {
+                        let fields_by_redis_value: std::collections::HashMap<String, crate::RedisValue> = entry_response
                             .map
                             .into_iter()
-                            .filter_map(|(field_name, redis_value)| {
-                                redis_value_to_option_string(&redis_value)
-                                    .map(|field_value| (field_name, field_value))
+                            .map(|(field_name, raw_redis_value)| {
+                                (field_name, crate::RedisValue::new(raw_redis_value))
                             })
                             .collect();
-                        (id.id, fields)
+                        (entry_response.id, fields_by_redis_value)
                     })
                     .collect();
-                (stream_key.key, entries)
+                (stream_response.key, stream_entries)
             })
             .collect())
     }

@@ -629,14 +629,12 @@ impl super::RedisConnectionPool {
             .hscan::<&str, &str>(&key.tenant_aware_key(self), pattern, count)
             .filter_map(|value| async move {
                 match value {
-            Ok(mut v) => {
-                let results = v.take_results();
-                // Request the next page; without this fred closes the stream.
-                let _: Result<(), fred::error::RedisError> = v.next();
-                let v = results?;
-                let v: Vec<String> =
-                    v.iter().filter_map(|(_field, value)| value.as_string()).collect();
-                Some(futures::stream::iter(v))
+                    Ok(mut v) => {
+                        let v = v.take_results()?;
+
+                        let v: Vec<String> =
+                            v.values().filter_map(|val| val.as_string()).collect();
+                        Some(futures::stream::iter(v))
                     }
                     Err(err) => {
                         tracing::error!(redis_err=?err, "Redis error while executing hscan command");
@@ -667,12 +665,9 @@ impl super::RedisConnectionPool {
             .filter_map(|value| async move {
                 match value {
                     Ok(mut v) => {
-                        let results = v.take_results();
-                        // Request the next page; without this fred closes the stream.
-                        let _: Result<(), fred::error::RedisError> = v.next();
-                        let v = results?;
+                        let v = v.take_results()?;
                         let v: Vec<String> =
-                            v.into_iter().filter_map(|val| val.into_string()).collect();
+                            v.values().filter_map(|val| val.as_string()).collect();
                         Some(futures::stream::iter(v))
                     }
                     Err(err) => {
@@ -810,15 +805,15 @@ impl super::RedisConnectionPool {
         &self,
         stream: &RedisKey,
         entry_id: &RedisEntryId,
-        fields: &[(F, V)],
+        fields: Vec<(F, V)>,
     ) -> CustomResult<(), errors::RedisError>
     where
-        F: Into<String> + Clone + Debug + Send + Sync,
-        V: Into<String> + Clone + Debug + Send + Sync,
+        F: Into<String> + Debug + Send + Sync,
+        V: Into<String> + Debug + Send + Sync,
     {
         let pairs: Vec<(String, String)> = fields
-            .iter()
-            .map(|(f, v)| (f.clone().into(), v.clone().into()))
+            .into_iter()
+            .map(|(f, v)| (f.into(), v.into()))
             .collect();
 
         let fred_fields: MultipleOrderedPairs = pairs.try_into().map_err(|err| {
@@ -907,11 +902,11 @@ impl super::RedisConnectionPool {
     pub async fn stream_read_entries(
         &self,
         streams: &[RedisKey],
-        ids: &[String],
+        ids: Vec<String>,
         read_count: Option<u64>,
     ) -> CustomResult<StreamReadResult, errors::RedisError> {
         let strms = self.get_keys_with_prefix(streams);
-        let ids: MultipleIDs = ids.to_vec().into();
+        let ids: MultipleIDs = ids.into();
         let reply: XReadResponse<String, String, String, String> = self
             .pool
             .xread_map(
@@ -930,12 +925,22 @@ impl super::RedisConnectionPool {
 
         Ok(reply
             .into_iter()
-            .map(|(key, entries)| {
-                let parsed: StreamEntries = entries
+            .map(|(stream_key, stream_entries)| {
+                let parsed_entries: StreamEntries = stream_entries
                     .into_iter()
-                    .map(|(entry_id, fields)| (entry_id, fields.into_iter().collect()))
+                    .map(|(entry_id, field_pairs)| {
+                        // Convert raw fred field values into the common RedisValue wrapper type.
+                        // This preserves all data (strings, nulls, binary, etc.) in a backend-neutral form.
+                        let fields_by_redis_value: std::collections::HashMap<String, crate::RedisValue> = field_pairs
+                            .into_iter()
+                            .map(|(field_name, field_value)| {
+                                (field_name, crate::RedisValue::new(field_value.into()))
+                            })
+                            .collect();
+                        (entry_id, fields_by_redis_value)
+                    })
                     .collect();
-                (key, parsed)
+                (stream_key, parsed_entries)
             })
             .collect())
     }
@@ -944,13 +949,13 @@ impl super::RedisConnectionPool {
     pub async fn stream_read_with_options(
         &self,
         streams: &[RedisKey],
-        ids: &[String],
+        ids: Vec<String>,
         count: Option<u64>,
         block: Option<u64>,
         group: Option<(&str, &str)>,
     ) -> CustomResult<StreamReadResult, errors::RedisError> {
         let strms = self.get_keys_with_prefix(streams);
-        let ids: MultipleIDs = ids.to_vec().into();
+        let ids: MultipleIDs = ids.into();
 
         let reply: XReadResponse<String, String, String, Option<String>> = match group {
             Some((group_name, consumer_name)) => {
@@ -969,18 +974,27 @@ impl super::RedisConnectionPool {
 
         Ok(reply
             .into_iter()
-            .map(|(key, entries)| {
-                let parsed: StreamEntries = entries
+            .map(|(stream_key, stream_entries)| {
+                let parsed_entries: StreamEntries = stream_entries
                     .into_iter()
-                    .map(|(entry_id, fields)| {
-                        let fields = fields
-                            .into_iter()
-                            .filter_map(|(k, v)| v.map(|s| (k, s)))
-                            .collect();
-                        (entry_id, fields)
+                    .map(|(entry_id, optional_field_pairs)| {
+                        // Wrap fred's field values (Option<String>) into RedisValue.
+                        // If the field has no value, we store Null to preserve the entry's presence.
+                        let fields_by_redis_value: std::collections::HashMap<String, crate::RedisValue> =
+                            optional_field_pairs
+                                .into_iter()
+                                .map(|(field_name, maybe_field_value)| {
+                                    let redis_value_inner = match maybe_field_value {
+                                        Some(string_value) => fred::types::RedisValue::String(string_value.into()),
+                                        None => fred::types::RedisValue::Null,
+                                    };
+                                    (field_name, crate::RedisValue::new(redis_value_inner))
+                                })
+                                .collect();
+                        (entry_id, fields_by_redis_value)
                     })
                     .collect();
-                (key, parsed)
+                (stream_key, parsed_entries)
             })
             .collect())
     }

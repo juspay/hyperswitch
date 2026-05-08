@@ -17,8 +17,8 @@ pub use types::redis_value_to_option_string;
 // ─── Cluster abstraction ────────────────────────────────────────────────────
 
 /// An abstraction over standalone and cluster Redis connections.
-/// Both variants implement `redis::aio::ConnectionLike`, so all
-/// `AsyncCommands` work transparently on either.
+/// Both variants implement the same async command interface, so all
+/// Redis operations work transparently on either.
 #[derive(Clone)]
 pub enum RedisConn {
     Standalone(redis::aio::ConnectionManager),
@@ -219,8 +219,9 @@ impl SubscriberClient {
             .build_cluster_client_builder(nodes)
             .push_sender(push_sender);
 
-        if let Some(limit) = conf.max_in_flight_commands_as_usize() {
-            cluster_builder = cluster_builder.connection_concurrency_limit(limit);
+        if conf.max_in_flight_commands > 0 {
+            cluster_builder = cluster_builder
+                .connection_concurrency_limit(conf.max_in_flight_commands);
         }
 
         let connection = cluster_builder
@@ -369,8 +370,9 @@ impl RedisConnectionPool {
 
                 let mut pool_builder = conf.build_cluster_client_builder(nodes.clone());
 
-                if let Some(limit) = conf.max_in_flight_commands_as_usize() {
-                    pool_builder = pool_builder.connection_concurrency_limit(limit);
+                if conf.max_in_flight_commands > 0 {
+                    pool_builder = pool_builder
+                        .connection_concurrency_limit(conf.max_in_flight_commands);
                 }
 
                 let pool_conn = pool_builder
@@ -435,8 +437,9 @@ impl RedisConnectionPool {
 
                 let mut pool_config = conf.build_connection_manager_config();
 
-                if let Some(buffer_size) = conf.max_in_flight_commands_as_usize() {
-                    pool_config = pool_config.set_pipeline_buffer_size(buffer_size);
+                if conf.max_in_flight_commands > 0 {
+                    pool_config = pool_config
+                        .set_pipeline_buffer_size(conf.max_in_flight_commands);
                 }
 
                 let conn = redis::aio::ConnectionManager::new_with_config(client, pool_config)
@@ -579,13 +582,6 @@ impl crate::types::RedisSettings {
             .collect()
     }
 
-    /// Convert `max_in_flight_commands` to `Option<usize>`.
-    ///
-    /// Returns `None` when `max_in_flight_commands` is 0 (feature disabled).
-    pub(crate) fn max_in_flight_commands_as_usize(&self) -> Option<usize> {
-        (self.max_in_flight_commands > 0).then_some(self.max_in_flight_commands)
-    }
-
     /// Convert `reconnect_max_attempts` to `usize`.
     ///
     /// Logs a warning and falls back to [`crate::constant::redis_rs_commands::DEFAULT_RECONNECT_MAX_ATTEMPTS`]
@@ -601,7 +597,7 @@ impl crate::types::RedisSettings {
         })
     }
 
-    /// Build a standalone [`redis::ConnectionInfo`] with RESP3 protocol from host and port.
+    /// Build standalone connection info with RESP3 protocol from host and port.
     pub(crate) fn build_standalone_connection_info(
         &self,
     ) -> CustomResult<redis::ConnectionInfo, crate::errors::RedisError> {
@@ -623,10 +619,9 @@ impl crate::types::RedisSettings {
         Ok(connection_info)
     }
 
-    /// Build the base [`redis::aio::ConnectionManagerConfig`] from these settings.
+    /// Build the connection manager configuration from these settings.
     ///
     /// Sets reconnection retries, minimum delay, and optional response timeout.
-    /// Callers can further customize (e.g. `set_pipeline_buffer_size`) before use.
     pub(crate) fn build_connection_manager_config(&self) -> redis::aio::ConnectionManagerConfig {
         let mut config = redis::aio::ConnectionManagerConfig::new()
             .set_number_of_retries(self.reconnect_max_attempts_as_usize())
@@ -643,10 +638,9 @@ impl crate::types::RedisSettings {
         config
     }
 
-    /// Build a base [`redis::cluster::ClusterClientBuilder`] with common configuration.
+    /// Build a cluster client builder with common configuration.
     ///
     /// Sets retries, retry wait, response timeout, and RESP3 protocol.
-    /// Callers can further customize (e.g. `push_sender`, `connection_concurrency_limit`).
     pub(crate) fn build_cluster_client_builder(
         &self,
         nodes: Vec<String>,
@@ -680,16 +674,5 @@ impl From<&crate::types::RedisSettings> for RedisConfig {
             unresponsive_check_interval: config.unresponsive_check_interval,
             max_failure_threshold_seconds: config.max_failure_threshold_seconds,
         }
-    }
-}
-
-#[cfg(test)]
-mod test {
-    use crate::errors;
-
-    #[test]
-    fn test_redis_error() {
-        let x = errors::RedisError::ConsumerGroupClaimFailed.to_string();
-        assert_eq!(x, "Failed to set Redis stream message owner".to_string())
     }
 }

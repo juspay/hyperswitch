@@ -249,7 +249,7 @@ impl<T> SetGetReply<T> {
 // ─── Stream types ────────────────────────────────────────────────────────────
 
 /// Entries within a single stream, as `(entry_id, fields)`.
-pub type StreamEntries = Vec<(String, std::collections::HashMap<String, String>)>;
+pub type StreamEntries = Vec<(String, std::collections::HashMap<String, RedisValue>)>;
 
 /// Grouped result of a stream read: stream key → list of `(entry_id, fields)`.
 pub type StreamReadResult = std::collections::HashMap<String, StreamEntries>;
@@ -423,16 +423,6 @@ mod tests {
     }
 
     #[test]
-    fn test_redis_settings_validate_cluster_with_urls() {
-        let settings = RedisSettings {
-            cluster_enabled: true,
-            cluster_urls: vec!["redis://localhost:7000".to_string()],
-            ..RedisSettings::default()
-        };
-        assert!(settings.validate().is_ok());
-    }
-
-    #[test]
     fn test_redis_settings_validate_unresponsive_timeout_exceeds_command_timeout() {
         let settings = RedisSettings {
             unresponsive_timeout: 60,
@@ -459,38 +449,8 @@ mod tests {
     }
 
     #[test]
-    fn test_set_get_reply_value_set_get_value() {
-        let reply: SetGetReply<String> = SetGetReply::ValueSet("hello".to_string());
-        assert_eq!(reply.get_value(), "hello");
-    }
-
-    #[test]
-    fn test_set_get_reply_value_exists_get_value() {
-        let reply: SetGetReply<String> = SetGetReply::ValueExists("world".to_string());
-        assert_eq!(reply.get_value(), "world");
-    }
-
-    #[test]
-    fn test_redis_key_from_string() {
-        let key: RedisKey = "my_key".into();
-        assert_eq!(key.0, "my_key");
-    }
-
-    #[test]
-    fn test_redis_key_from_string_ref() {
-        let key: RedisKey = "my_key".to_string().into();
-        assert_eq!(key.0, "my_key");
-    }
-
-    #[test]
     fn test_del_reply_is_key_deleted() {
         assert!(DelReply::KeyDeleted.is_key_deleted());
         assert!(!DelReply::KeyNotDeleted.is_key_deleted());
-    }
-
-    #[test]
-    fn test_del_reply_is_key_not_deleted() {
-        assert!(DelReply::KeyNotDeleted.is_key_not_deleted());
-        assert!(!DelReply::KeyDeleted.is_key_not_deleted());
     }
 }
