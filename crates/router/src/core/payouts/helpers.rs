@@ -271,11 +271,11 @@ impl SourceBankDataOperation {
     ) -> RouterResult<Option<String>> {
         match source_bank_data {
             Some(source_bank_data) => {
-                let sourc_bank_data_token = Self::get_source_bank_data_token();
+                let source_bank_data_token = Self::get_source_bank_data_token();
 
                 let lookup_key = vault::Vault::store_payout_method_data_in_locker(
                     state,
-                    Some(sourc_bank_data_token),
+                    Some(source_bank_data_token),
                     &api::PayoutMethodData::BankTransfer(source_bank_data),
                     customer_id,
                     merchant_key_store,
