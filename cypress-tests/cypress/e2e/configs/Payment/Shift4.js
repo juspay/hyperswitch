@@ -826,6 +826,16 @@ export const connectorDetails = {
         },
       },
     },
+    sofort: {
+      Request: {},
+      Response: {
+        status: 200,
+        body: {
+          status: "processing",
+          error_code: "500",
+        },
+      },
+    },
     Eps: {
       Request: {
         payment_method: "bank_redirect",
@@ -922,16 +932,6 @@ export const connectorDetails = {
           status: "failed",
           error_code: null,
           error_message: "Payment method type sofort not supported",
-        },
-      },
-    },
-    sofort: {
-      Request: {},
-      Response: {
-        status: 200,
-        body: {
-          status: "processing",
-          error_code: "500",
         },
       },
     },

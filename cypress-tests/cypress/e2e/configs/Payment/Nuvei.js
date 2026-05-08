@@ -969,8 +969,8 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "failed",
-          error_code: "-1",
+          status: "requires_customer_action",
+          error_code: null,
           error_message: null,
         },
       },

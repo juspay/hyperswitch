@@ -719,9 +719,7 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "failed",
-          error_code: "800.900.300",
-          error_message: "invalid authentication information",
+          status: "requires_customer_action",
         },
       },
     },
@@ -820,7 +818,7 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "failed",
-          error_code: "800.900.300",
+          error_code: "200.100.103",
           error_message:
             "invalid Request Message. The request contains structural errors",
         },

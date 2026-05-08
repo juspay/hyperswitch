@@ -781,9 +781,7 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "failed",
-          error_code: "Unprocessable Entity",
-          error_message: "method",
+          status: "requires_customer_action",
         },
       },
     },
@@ -826,9 +824,7 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "failed",
-          error_code: "Unprocessable Entity",
-          error_message: "method",
+          status: "requires_customer_action",
         },
       },
     },
