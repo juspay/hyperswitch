@@ -285,8 +285,8 @@ pub const IRRELEVANT_PAYMENT_ATTEMPT_ID: &str = "irrelevant_payment_attempt_id";
 
 pub static PROFILE_ID_UNAVAILABLE: sync::LazyLock<id_type::ProfileId> = sync::LazyLock::new(|| {
     #[allow(clippy::expect_used)]
-    id_type::ProfileId::from_str("PROFILE_ID_UNAVAIABLE")
-        .expect("Failed to parse PROFILE_ID_UNAVAIABLE")
+    id_type::ProfileId::from_str("PROFILE_ID_UNAVAILABLE")
+        .expect("Failed to parse PROFILE_ID_UNAVAILABLE")
 });
 
 /// Default payment attempt id
@@ -357,6 +357,8 @@ pub mod superposition {
     pub const REQUIRES_CVV: &str = "requires_cvv";
     /// implicit customer update configuration key
     pub const IMPLICIT_CUSTOMER_UPDATE: &str = "implicit_customer_update";
+    /// Fingerprint secret configuration key
+    pub const FINGERPRINT_SECRET: &str = "fingerprint_secret";
     /// GSM (Global Status Map) call configuration key
     pub const SHOULD_CALL_GSM: &str = "should_call_gsm";
     /// Eligibility check configuration key
@@ -380,6 +382,9 @@ pub mod superposition {
         "should_return_raw_payment_method_details";
     /// Call PM modular service configuration key
     pub const SHOULD_CALL_PM_MODULAR_SERVICE: &str = "should_call_pm_modular_service";
+    /// Schedule PM modular forward compatibility PT configuration key
+    pub const SHOULD_SCHEDULE_MODULAR_FORWARD_COMPAT: &str =
+        "should_schedule_modular_forward_compat";
     /// dynamic fields configuration key for sdk config
     pub const DYNAMIC_FIELDS: &str = "dynamic_fields";
     /// payout sync tracker configuration key

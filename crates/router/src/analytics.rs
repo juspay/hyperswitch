@@ -34,7 +34,7 @@ pub mod routes {
     use router_env::logger;
 
     use crate::{
-        analytics_validator::request_validator,
+        analytics_validator::{request_validator, validate_report_request},
         consts::opensearch::SEARCH_INDEXES,
         core::{api_locking, errors::user::UserErrors, verification::utils},
         db::user_role::ListUserRolesByUserIdPayload,
@@ -1792,6 +1792,7 @@ pub mod routes {
                         (user_email, payload.emails)
                     }
                     None => {
+                        validate_report_request(&payload)?;
                         let (primary_email, other_emails) = payload
                             .emails
                             .and_then(|mut emails| {
@@ -1880,6 +1881,7 @@ pub mod routes {
                         (user_email, payload.emails)
                     }
                     None => {
+                        validate_report_request(&payload)?;
                         let (primary_email, other_emails) = payload
                             .emails
                             .and_then(|mut emails| {
@@ -1968,6 +1970,7 @@ pub mod routes {
                         (user_email, payload.emails)
                     }
                     None => {
+                        validate_report_request(&payload)?;
                         let (primary_email, other_emails) = payload
                             .emails
                             .and_then(|mut emails| {
@@ -2061,6 +2064,7 @@ pub mod routes {
                         (user_email, payload.emails)
                     }
                     None => {
+                        validate_report_request(&payload)?;
                         let (primary_email, other_emails) = payload
                             .emails
                             .and_then(|mut emails| {
@@ -2148,6 +2152,7 @@ pub mod routes {
                         (user_email, payload.emails)
                     }
                     None => {
+                        validate_report_request(&payload)?;
                         let (primary_email, other_emails) = payload
                             .emails
                             .and_then(|mut emails| {
@@ -2236,6 +2241,7 @@ pub mod routes {
                         (user_email, payload.emails)
                     }
                     None => {
+                        validate_report_request(&payload)?;
                         let (primary_email, other_emails) = payload
                             .emails
                             .and_then(|mut emails| {
@@ -2330,6 +2336,7 @@ pub mod routes {
                         (user_email, payload.emails)
                     }
                     None => {
+                        validate_report_request(&payload)?;
                         let (primary_email, other_emails) = payload
                             .emails
                             .and_then(|mut emails| {
@@ -2418,6 +2425,7 @@ pub mod routes {
                         (user_email, payload.emails)
                     }
                     None => {
+                        validate_report_request(&payload)?;
                         let (primary_email, other_emails) = payload
                             .emails
                             .and_then(|mut emails| {
@@ -2506,6 +2514,7 @@ pub mod routes {
                         (user_email, payload.emails)
                     }
                     None => {
+                        validate_report_request(&payload)?;
                         let (primary_email, other_emails) = payload
                             .emails
                             .and_then(|mut emails| {
@@ -2598,6 +2607,7 @@ pub mod routes {
                         (user_email, payload.emails)
                     }
                     None => {
+                        validate_report_request(&payload)?;
                         let (primary_email, other_emails) = payload
                             .emails
                             .and_then(|mut emails| {
@@ -2685,6 +2695,7 @@ pub mod routes {
                         (user_email, payload.emails)
                     }
                     None => {
+                        validate_report_request(&payload)?;
                         let (primary_email, other_emails) = payload
                             .emails
                             .and_then(|mut emails| {
@@ -2772,6 +2783,7 @@ pub mod routes {
                         (user_email, payload.emails)
                     }
                     None => {
+                        validate_report_request(&payload)?;
                         let (primary_email, other_emails) = payload
                             .emails
                             .and_then(|mut emails| {
@@ -2873,6 +2885,7 @@ pub mod routes {
                         (user_email, payload.emails)
                     }
                     None => {
+                        validate_report_request(&payload)?;
                         let (primary_email, other_emails) = payload
                             .emails
                             .and_then(|mut emails| {
@@ -2961,6 +2974,7 @@ pub mod routes {
                         (user_email, payload.emails)
                     }
                     None => {
+                        validate_report_request(&payload)?;
                         let (primary_email, other_emails) = payload
                             .emails
                             .and_then(|mut emails| {
@@ -3049,6 +3063,7 @@ pub mod routes {
                         (user_email, payload.emails)
                     }
                     None => {
+                        validate_report_request(&payload)?;
                         let (primary_email, other_emails) = payload
                             .emails
                             .and_then(|mut emails| {

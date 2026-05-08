@@ -94,6 +94,10 @@ impl<T: DatabaseStore> PayoutAttemptInterface for KVRouterStore<T> {
                     payout_connector_metadata: new_payout_attempt.payout_connector_metadata.clone(),
                     processor_merchant_id: new_payout_attempt.processor_merchant_id.clone(),
                     created_by: new_payout_attempt.created_by.clone(),
+                    source_bank_data_token: new_payout_attempt.source_bank_data_token.clone(),
+                    additional_source_bank_data: new_payout_attempt
+                        .additional_source_bank_data
+                        .clone(),
                 };
 
                 let redis_entry = kv::TypedSql {
@@ -580,6 +584,8 @@ impl DataModelExt for PayoutAttempt {
             payout_connector_metadata: self.payout_connector_metadata,
             processor_merchant_id: self.processor_merchant_id,
             created_by: self.created_by.map(|created_by| created_by.to_string()),
+            source_bank_data_token: self.source_bank_data_token,
+            additional_source_bank_data: self.additional_source_bank_data,
         }
     }
 
@@ -613,6 +619,8 @@ impl DataModelExt for PayoutAttempt {
             created_by: storage_model
                 .created_by
                 .and_then(|created_by| created_by.parse::<common_utils::types::CreatedBy>().ok()),
+            source_bank_data_token: storage_model.source_bank_data_token,
+            additional_source_bank_data: storage_model.additional_source_bank_data,
         }
     }
 }
@@ -647,6 +655,8 @@ impl DataModelExt for PayoutAttemptNew {
             payout_connector_metadata: self.payout_connector_metadata,
             processor_merchant_id: self.processor_merchant_id,
             created_by: self.created_by.map(|created_by| created_by.to_string()),
+            source_bank_data_token: self.source_bank_data_token,
+            additional_source_bank_data: self.additional_source_bank_data,
         }
     }
 
@@ -680,6 +690,8 @@ impl DataModelExt for PayoutAttemptNew {
             created_by: storage_model
                 .created_by
                 .and_then(|created_by| created_by.parse::<common_utils::types::CreatedBy>().ok()),
+            source_bank_data_token: storage_model.source_bank_data_token,
+            additional_source_bank_data: storage_model.additional_source_bank_data,
         }
     }
 }
@@ -729,10 +741,14 @@ impl DataModelExt for PayoutAttemptUpdate {
                 routing_info,
                 merchant_connector_id,
             },
-            Self::AdditionalPayoutMethodDataUpdate {
+            Self::AdditionalPayoutDataUpdate {
                 additional_payout_method_data,
-            } => DieselPayoutAttemptUpdate::AdditionalPayoutMethodDataUpdate {
+                additional_source_bank_data,
+                source_bank_data_token,
+            } => DieselPayoutAttemptUpdate::AdditionalPayoutDataUpdate {
                 additional_payout_method_data,
+                additional_source_bank_data,
+                source_bank_data_token,
             },
             Self::ManualUpdate {
                 status,
