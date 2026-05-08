@@ -16,6 +16,8 @@ pub enum AnalyticsError {
     ForexFetchFailed,
     #[error("Missing email")]
     MissingEmail,
+    #[error("Invalid URL scheme: {0}")]
+    InvalidReturnUrl(String),
 }
 
 impl ErrorSwitch<ApiErrorResponse> for AnalyticsError {
@@ -46,6 +48,12 @@ impl ErrorSwitch<ApiErrorResponse> for AnalyticsError {
                 "IR",
                 6,
                 "Missing or invalid merchant email address.",
+                None,
+            )),
+            Self::InvalidReturnUrl(invalid_url_err) => ApiErrorResponse::BadRequest(ApiError::new(
+                "IR",
+                6,
+                format!("Invalid return URL: {invalid_url_err}"),
                 None,
             )),
         }

@@ -31,6 +31,15 @@ const failedNo3DSCardDetails = {
   card_cvc: "737",
 };
 
+// Checkout.com partial authorization test card (provided via sandbox dashboard)
+const partialAuthCardDetails = {
+  card_number: "5518207720770101",
+  card_exp_month: "12",
+  card_exp_year: "2027",
+  card_holder_name: "CL-BRW2",
+  card_cvc: "152",
+};
+
 const singleUseMandateData = {
   customer_acceptance: customerAcceptance,
   mandate_type: {
@@ -710,6 +719,87 @@ export const connectorDetails = {
             statement_descriptor_suffix: null,
             reference: null,
           },
+        },
+      },
+    },
+    PartnerMerchantIdentifier: {
+      Request: {
+        currency: "USD",
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+        billing: {
+          address: {
+            line1: "1467",
+            line2: "Harrison Street",
+            line3: "Harrison Street",
+            city: "San Francisco",
+            state: "California",
+            zip: "94122",
+            country: "US",
+            first_name: "joseph",
+            last_name: "Doe",
+          },
+        },
+        partner_merchant_identifier_details: {
+          partner_details: {
+            name: "TestPartner",
+            version: "1.0.0",
+            integrator: "TestIntegrator123",
+          },
+          merchant_details: {
+            name: "TestMerchantApp",
+            version: "2.0.0",
+          },
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+          partner_merchant_identifier_details: {
+            partner_details: {
+              name: "TestPartner",
+              version: "1.0.0",
+              integrator: "TestIntegrator123",
+            },
+            merchant_details: {
+              name: "TestMerchantApp",
+              version: "2.0.0",
+            },
+          },
+        },
+      },
+    },
+    PartnerMerchantIdentifierConfirm: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    },
+    PartialAuth: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: partialAuthCardDetails,
+        },
+        enable_partial_authorization: true,
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "partially_captured",
         },
       },
     },
