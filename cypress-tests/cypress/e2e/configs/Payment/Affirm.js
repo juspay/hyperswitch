@@ -19,7 +19,7 @@ export const connectorDetails = {
     AffirmManualCapture: {
       Request: {
         payment_method: "pay_later",
-        payment_method_type: "affirm",
+        payment_method_type: "affirm_redirect",
         payment_experience: "redirect_to_url",
         payment_method_data: {
           pay_later: {
