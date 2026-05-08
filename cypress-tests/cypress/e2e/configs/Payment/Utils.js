@@ -36,13 +36,8 @@ import { connectorDetails as forteConnectorDetails } from "./Forte.js";
 import { connectorDetails as getnetConnectorDetails } from "./Getnet.js";
 import { connectorDetails as gigadatConnectorDetails } from "./Gigadat.js";
 import { connectorDetails as globalpayConnectorDetails } from "./Globalpay.js";
-import { connectorDetails as globepayConnectorDetails } from "./Globepay.js";
-import { connectorDetails as gocardlessConnectorDetails } from "./Gocardless.js";
-import { connectorDetails as helcimConnectorDetails } from "./Helcim.js";
 import { connectorDetails as hipayConnectorDetails } from "./Hipay.js";
-import { connectorDetails as hyperpgConnectorDetails } from "./Hyperpg.js";
 import { connectorDetails as iatapayConnectorDetails } from "./Iatapay.js";
-import { connectorDetails as inespayConnectorDetails } from "./Inespay.js";
 import { connectorDetails as itaubankConnectorDetails } from "./ItauBank.js";
 import { connectorDetails as jpmorganConnectorDetails } from "./Jpmorgan.js";
 import { connectorDetails as klarnaConnectorDetails } from "./Klarna.js";
@@ -116,13 +111,8 @@ const connectorDetails = {
   getnet: getnetConnectorDetails,
   gigadat: gigadatConnectorDetails,
   globalpay: globalpayConnectorDetails,
-  globepay: globepayConnectorDetails,
-  gocardless: gocardlessConnectorDetails,
-  helcim: helcimConnectorDetails,
   hipay: hipayConnectorDetails,
-  hyperpg: hyperpgConnectorDetails,
   iatapay: iatapayConnectorDetails,
-  inespay: inespayConnectorDetails,
   itaubank: itaubankConnectorDetails,
   jpmorgan: jpmorganConnectorDetails,
   klarna: klarnaConnectorDetails,
@@ -555,7 +545,6 @@ export const CONNECTOR_LISTS = {
     ],
     EXTERNAL_THREE_DS: ["stripe", "finix"],
     PARTNER_MERCHANT_IDENTIFIER: ["adyen", "checkout"],
-    POLL_CONFIG: ["archipel"],
     EXTEND_AUTHORIZATION: ["adyen", "paypal"],
     GIFT_CARD: ["adyen"],
     PAY_LATER: ["klarna", "adyen", "aci", "stripe"],
