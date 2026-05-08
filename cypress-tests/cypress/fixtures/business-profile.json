@@ -13,16 +13,16 @@
 
   "bpUpdateWebhookHeaders": {
     "outgoing_webhook_custom_http_headers": {
-      "X-Custom-Header": "custom-value",
-      "X-Short": "abcd",
-      "X-Tiny": "ab"
+      "X-Custom-Header": "long-custom-value-six-chars",
+      "X-Short": "secret",
+      "X-Tiny": "xy"
     }
   },
 
   "bpUpdateWebhookHeadersUpdated": {
     "outgoing_webhook_custom_http_headers": {
-      "X-Updated-Header": "updated-secret-value",
-      "X-Another-Header": "another-long-value"
+      "X-Updated-Header": "updated-secret-value-long",
+      "X-Another-Header": "another-long-value-string"
     }
   },
 

@@ -842,7 +842,7 @@ Cypress.Commands.add(
     const merchantId = globalState.get("merchantId");
     const profileId = globalState.get(`${profilePrefix}Id`);
 
-    cy.request({
+    return cy.request({
       method: "POST",
       url: `${globalState.get("baseUrl")}/account/${merchantId}/business_profile/${profileId}`,
       headers: {
