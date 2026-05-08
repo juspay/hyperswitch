@@ -851,7 +851,10 @@ describe("Merchant Category Code (MCC) Tests", () => {
       };
 
       cy.createBusinessProfileTest(createBody, globalState, "mcc4112");
-      cy.verifyBusinessProfileMcc(globalState, null, "4112");
+
+      cy.then(() => {
+        cy.verifyBusinessProfileMcc(globalState, null, "4112");
+      });
 
       cy.then(() => {
         globalState.set("mcc4112MerchantId", globalState.get("merchantId"));
@@ -877,7 +880,10 @@ describe("Merchant Category Code (MCC) Tests", () => {
       };
 
       cy.createBusinessProfileTest(createBody, globalState, "mcc4225");
-      cy.verifyBusinessProfileMcc(globalState, null, "4225");
+
+      cy.then(() => {
+        cy.verifyBusinessProfileMcc(globalState, null, "4225");
+      });
 
       cy.then(() => {
         globalState.set("mcc4225MerchantId", globalState.get("merchantId"));
@@ -903,7 +909,10 @@ describe("Merchant Category Code (MCC) Tests", () => {
       };
 
       cy.createBusinessProfileTest(createBody, globalState, "mcc5542");
-      cy.verifyBusinessProfileMcc(globalState, null, "5542");
+
+      cy.then(() => {
+        cy.verifyBusinessProfileMcc(globalState, null, "5542");
+      });
 
       cy.then(() => {
         globalState.set("mcc5542MerchantId", globalState.get("merchantId"));
@@ -1050,7 +1059,10 @@ describe("Merchant Category Code (MCC) Tests", () => {
       };
 
       cy.createBusinessProfileTest(createBody, globalState, "mcc9399");
-      cy.verifyBusinessProfileMcc(globalState, null, "9399");
+
+      cy.then(() => {
+        cy.verifyBusinessProfileMcc(globalState, null, "9399");
+      });
 
       cy.then(() => {
         globalState.set("mcc9399MerchantId", globalState.get("merchantId"));
@@ -1076,7 +1088,10 @@ describe("Merchant Category Code (MCC) Tests", () => {
       };
 
       cy.createBusinessProfileTest(createBody, globalState, "mcc8999");
-      cy.verifyBusinessProfileMcc(globalState, null, "8999");
+
+      cy.then(() => {
+        cy.verifyBusinessProfileMcc(globalState, null, "8999");
+      });
 
       cy.then(() => {
         globalState.set("mcc8999MerchantId", globalState.get("merchantId"));
@@ -1102,7 +1117,10 @@ describe("Merchant Category Code (MCC) Tests", () => {
       };
 
       cy.createBusinessProfileTest(createBody, globalState, "mcc6012");
-      cy.verifyBusinessProfileMcc(globalState, null, "6012");
+
+      cy.then(() => {
+        cy.verifyBusinessProfileMcc(globalState, null, "6012");
+      });
 
       cy.then(() => {
         globalState.set("mcc6012MerchantId", globalState.get("merchantId"));
