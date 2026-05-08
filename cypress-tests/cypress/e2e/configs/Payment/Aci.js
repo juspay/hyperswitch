@@ -719,7 +719,9 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "requires_customer_action",
+          status: "failed",
+          error_code: "800.900.300",
+          error_message: "invalid authentication information",
         },
       },
     },
@@ -768,7 +770,9 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "requires_customer_action",
+          status: "failed",
+          error_code: "800.900.300",
+          error_message: "invalid authentication information",
         },
       },
     },
@@ -841,7 +845,9 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "requires_customer_action",
+          status: "failed",
+          error_code: "800.900.300",
+          error_message: "invalid authentication information",
         },
       },
     },
