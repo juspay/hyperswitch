@@ -956,6 +956,8 @@ export const connectorDetails = {
       Request: {
         currency: "EUR",
         capture_method: "automatic",
+        description: "Test Order",
+        return_url: "https://example.com",
       },
       Response: {
         status: 200,
@@ -968,6 +970,8 @@ export const connectorDetails = {
       Request: {
         currency: "EUR",
         capture_method: "manual",
+        description: "Test Order",
+        return_url: "https://example.com",
       },
       Response: {
         status: 200,
@@ -993,6 +997,7 @@ export const connectorDetails = {
           email: "test@example.com",
           address: {
             line1: "123 Test St",
+            line2: "Apt 4B",
             city: "Berlin",
             zip: "10115",
             country: "DE",
@@ -1003,6 +1008,7 @@ export const connectorDetails = {
         shipping: {
           address: {
             line1: "123 Test St",
+            line2: "Apt 4B",
             city: "Berlin",
             zip: "10115",
             country: "DE",
@@ -1015,6 +1021,8 @@ export const connectorDetails = {
             product_name: "Test Product",
             quantity: 1,
             amount: 6000,
+            total_amount: 6000,
+            description: "Test Product Description",
             product_img_link: "https://example.com/product.jpg",
           },
         ],

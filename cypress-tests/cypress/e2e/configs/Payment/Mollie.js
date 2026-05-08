@@ -834,6 +834,8 @@ export const connectorDetails = {
       Request: {
         currency: "EUR",
         capture_method: "automatic",
+        description: "Test Order",
+        return_url: "https://example.com",
       },
       Response: {
         status: 200,
@@ -846,6 +848,8 @@ export const connectorDetails = {
       Request: {
         currency: "EUR",
         capture_method: "manual",
+        description: "Test Order",
+        return_url: "https://example.com",
       },
       Response: {
         status: 200,
@@ -872,7 +876,7 @@ export const connectorDetails = {
           email: "test@example.com",
           address: {
             line1: "123 Test St",
-            line2: "",
+            line2: "Apt 4B",
             city: "Amsterdam",
             zip: "1012 WX",
             country: "NL",
@@ -883,7 +887,7 @@ export const connectorDetails = {
         shipping: {
           address: {
             line1: "123 Test St",
-            line2: "",
+            line2: "Apt 4B",
             city: "Amsterdam",
             zip: "1012 WX",
             country: "NL",
