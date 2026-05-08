@@ -1006,11 +1006,18 @@ impl TryFrom<&SantanderRouterData<&PaymentsAuthorizeRouterData>>
                         // branch_code is optional
                         let final_branch = branch.or(push_metadata.branch_code);
 
-                        let final_account = account.unwrap_or(push_metadata.account_number);
+                        let final_account = account.or(push_metadata.account_number).ok_or(
+                            errors::ConnectorError::MissingRequiredField {
+                                field_name: "account_number",
+                            },
+                        )?;
 
                         let final_account_type = acc_type
                             .map(SantanderAccountType::from)
-                            .unwrap_or_else(|| push_metadata.account_type.into());
+                            .or_else(|| push_metadata.account_type.map(SantanderAccountType::from))
+                            .ok_or(errors::ConnectorError::MissingRequiredField {
+                                field_name: "account_type",
+                            })?;
 
                         (final_branch, final_account, final_account_type)
                     }
@@ -1022,11 +1029,18 @@ impl TryFrom<&SantanderRouterData<&PaymentsAuthorizeRouterData>>
                         // branch_code is optional
                         let final_branch = branch.or(qr_metadata.branch_code);
 
-                        let final_account = account.unwrap_or(qr_metadata.account_number);
+                        let final_account = account.or(qr_metadata.account_number).ok_or(
+                            errors::ConnectorError::MissingRequiredField {
+                                field_name: "account_number",
+                            },
+                        )?;
 
                         let final_account_type = acc_type
                             .map(SantanderAccountType::from)
-                            .unwrap_or_else(|| qr_metadata.account_type.into());
+                            .or_else(|| qr_metadata.account_type.map(SantanderAccountType::from))
+                            .ok_or(errors::ConnectorError::MissingRequiredField {
+                                field_name: "account_type",
+                            })?;
 
                         (final_branch, final_account, final_account_type)
                     }
@@ -1053,8 +1067,17 @@ impl TryFrom<&SantanderRouterData<&PaymentsAuthorizeRouterData>>
                         // branch_code is optional
                         (
                             push_metadata.branch_code,
-                            push_metadata.account_number,
-                            push_metadata.account_type.into(),
+                            push_metadata.account_number.ok_or(
+                                errors::ConnectorError::MissingRequiredField {
+                                    field_name: "account_number",
+                                },
+                            )?,
+                            push_metadata
+                                .account_type
+                                .map(SantanderAccountType::from)
+                                .ok_or(errors::ConnectorError::MissingRequiredField {
+                                    field_name: "account_type",
+                                })?,
                         )
                     }
                     Some(enums::PaymentMethodType::PixAutomaticoQr) => {
@@ -1065,8 +1088,17 @@ impl TryFrom<&SantanderRouterData<&PaymentsAuthorizeRouterData>>
                         // branch_code is optional
                         (
                             qr_metadata.branch_code,
-                            qr_metadata.account_number,
-                            qr_metadata.account_type.into(),
+                            qr_metadata.account_number.ok_or(
+                                errors::ConnectorError::MissingRequiredField {
+                                    field_name: "account_number",
+                                },
+                            )?,
+                            qr_metadata
+                                .account_type
+                                .map(SantanderAccountType::from)
+                                .ok_or(errors::ConnectorError::MissingRequiredField {
+                                    field_name: "account_type",
+                                })?,
                         )
                     }
                     _ => {

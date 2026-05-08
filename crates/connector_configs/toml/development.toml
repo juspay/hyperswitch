@@ -7339,25 +7339,50 @@ placeholder="Enter your Client Secret"
 required=true
 type="Text"
 [[santander.metadata.pix_automatico_push]]
+name="pix_key_type"
+label="Chave Key Type"
+placeholder="Enter your Chave/Pix Key Type"
+required=true
+type="Select"
+options=["CPF", "CNPJ", "EMAIL", "CELLULAR", "EVP"]
+[[santander.metadata.pix_automatico_push]]
+name="pix_key_value"
+label="Chave Key"
+placeholder="Enter your Chave/Pix Key"
+required=true
+type="Text"
+[[santander.metadata.pix_automatico_push]]
 name="account_number"
 label="Account Number"
 placeholder="Enter your Account Number"
-required=true
+required=false
 type="Text"
 [[santander.metadata.pix_automatico_push]]
 name="account_type"
 label="Account Type"
 placeholder="Enter your Account Type"
-required=true
+required=false
 type="Select"
 options=["Current", "Savings", "Payment"]
 [[santander.metadata.pix_automatico_push]]
 name="branch_code"
 label="Branch Code"
 placeholder="Enter your branch code"
-required=true
+required=false
 type="Text"
 
+[[santander.metadata.pix_automatico_qr]]
+name="client_id"
+label="Client ID"
+placeholder="Enter your Client Id"
+required=true
+type="Text"
+[[santander.metadata.pix_automatico_qr]]
+name="client_secret"
+label="Client Secret"
+placeholder="Enter your Client Secret"
+required=true
+type="Text"
 [[santander.metadata.pix_automatico_qr]]
 name="pix_key_type"
 label="Chave Key Type"
@@ -7372,35 +7397,23 @@ placeholder="Enter your Chave/Pix Key"
 required=true
 type="Text"
 [[santander.metadata.pix_automatico_qr]]
-name="client_id"
-label="Client ID"
-placeholder="Enter your Client Id"
-required=true
-type="Text"
-[[santander.metadata.pix_automatico_qr]]
-name="client_secret"
-label="Client Secret"
-placeholder="Enter your Client Secret"
-required=true
-type="Text"
-[[santander.metadata.pix_automatico_qr]]
 name="account_number"
 label="Account Number"
 placeholder="Enter your Account Number"
-required=true
+required=false
 type="Text"
 [[santander.metadata.pix_automatico_qr]]
 name="account_type"
 label="Account Type"
 placeholder="Enter your Account Type"
-required=true
+required=false
 type="Select"
 options=["Current", "Savings", "Payment"]
 [[santander.metadata.pix_automatico_qr]]
 name="branch_code"
 label="Branch Code"
 placeholder="Enter your branch code"
-required=true
+required=false
 type="Text"
 
 [[santander.metadata.boleto]]

@@ -85,9 +85,11 @@ pub struct PixMetadataObject {
 pub struct PixAutomaticoPushMetadataObject {
     pub client_id: Secret<String>,
     pub client_secret: Secret<String>,
-    pub account_number: Secret<String>,
+    pub account_number: Option<Secret<String>>,
     pub branch_code: Option<Secret<String>>,
-    pub account_type: AccountType,
+    pub account_type: Option<AccountType>,
+    pub pix_key_type: responses::SantanderPixKeyType,
+    pub pix_key_value: Secret<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -96,11 +98,11 @@ pub struct PixAutomaticoQrMetadataObject {
     pub client_secret: Secret<String>,
     pub pix_key_value: Secret<String>,
     pub pix_key_type: responses::SantanderPixKeyType,
-    pub merchant_name: String,
-    pub merchant_city: String,
-    pub account_number: Secret<String>,
+    pub merchant_name: Option<String>,
+    pub merchant_city: Option<String>,
+    pub account_number: Option<Secret<String>>,
     pub branch_code: Option<Secret<String>>,
-    pub account_type: AccountType,
+    pub account_type: Option<AccountType>,
 }
 
 pub struct SantanderRouterData<T> {
