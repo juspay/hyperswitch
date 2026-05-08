@@ -90,9 +90,8 @@ pub async fn list_initial_webhook_delivery_attempts_with_jwtauth(
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to fetch role info while listing webhook events")?;
 
-            request_internal.constraints.profile_id = (role_info.get_entity_type()
-                == EntityType::Profile)
-                .then_some(auth.profile_id);
+            request_internal.constraints.profile_id =
+                (role_info.get_entity_type() == EntityType::Profile).then_some(auth.profile_id);
 
             webhook_events::list_initial_delivery_attempts(
                 state,
