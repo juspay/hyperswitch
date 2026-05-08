@@ -43,7 +43,9 @@ describe("OIDC Route Mismatch - SAIAAAAAA-181", () => {
         globalState.set("oidcTokenEndpoint", response.body.token_endpoint);
         globalState.set("oidcJwksUri", response.body.jwks_uri);
 
-        cy.log(`Authorization endpoint: ${response.body.authorization_endpoint}`);
+        cy.log(
+          `Authorization endpoint: ${response.body.authorization_endpoint}`
+        );
         cy.log(`Token endpoint: ${response.body.token_endpoint}`);
         cy.log(`JWKS URI: ${response.body.jwks_uri}`);
       });
@@ -63,7 +65,9 @@ describe("OIDC Route Mismatch - SAIAAAAAA-181", () => {
         failOnStatusCode: false,
       }).then((response) => {
         expect(response.status).to.eq(404);
-        cy.log("BUG CONFIRMED: /oauth2/authorize returns 404 (advertised in discovery but not implemented)");
+        cy.log(
+          "BUG CONFIRMED: /oauth2/authorize returns 404 (advertised in discovery but not implemented)"
+        );
       });
     });
 
@@ -78,8 +82,12 @@ describe("OIDC Route Mismatch - SAIAAAAAA-181", () => {
         },
         failOnStatusCode: false,
       }).then((response) => {
-        expect(response.status).to.be.oneOf([200, 301, 302, 307, 308, 400, 401, 403]);
-        cy.log(`/oidc/authorize responded with status ${response.status} (route exists)`);
+        expect(response.status).to.be.oneOf([
+          200, 301, 302, 307, 308, 400, 401, 403,
+        ]);
+        cy.log(
+          `/oidc/authorize responded with status ${response.status} (route exists)`
+        );
       });
     });
   });
@@ -103,7 +111,9 @@ describe("OIDC Route Mismatch - SAIAAAAAA-181", () => {
 
         // 500 OI_05 = OIDC signing keys not configured (expected in sandbox/test environments)
         if (response.status === 500 && response.body?.error?.code === "OI_05") {
-          cy.log("OIDC signing keys not configured - JWKS unavailable (expected in sandbox)");
+          cy.log(
+            "OIDC signing keys not configured - JWKS unavailable (expected in sandbox)"
+          );
           return;
         }
 
@@ -132,7 +142,9 @@ describe("OIDC Route Mismatch - SAIAAAAAA-181", () => {
         }
 
         expect(response.status).to.be.oneOf([200, 400, 401, 403]);
-        cy.log(`/oauth2/token responded with status ${response.status} (route exists)`);
+        cy.log(
+          `/oauth2/token responded with status ${response.status} (route exists)`
+        );
       });
     });
   });
