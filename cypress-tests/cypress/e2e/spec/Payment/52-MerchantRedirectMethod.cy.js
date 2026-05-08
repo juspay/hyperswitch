@@ -59,9 +59,10 @@ describe("Merchant Redirect Method Tests", () => {
         });
 
         cy.step("Create Payment Intent with POST redirect enabled", () => {
-          const data = getConnectorDetails(globalState.get("connectorId"))[
-            "card_pm"
-          ]["PaymentIntent"];
+          const connectorId = globalState.get("connectorId");
+          const connectorDetails = getConnectorDetails(connectorId);
+          const data = connectorDetails?.["card_pm"]?.["PaymentIntent"];
+          expect(data, `card_pm.PaymentIntent not found for ${connectorId}`).to.exist;
 
           cy.createPaymentIntentTest(
             fixtures.createPaymentBody,
@@ -148,9 +149,10 @@ describe("Merchant Redirect Method Tests", () => {
         });
 
         cy.step("Create Payment Intent with GET redirect enabled", () => {
-          const data = getConnectorDetails(globalState.get("connectorId"))[
-            "card_pm"
-          ]["PaymentIntent"];
+          const connectorId = globalState.get("connectorId");
+          const connectorDetails = getConnectorDetails(connectorId);
+          const data = connectorDetails?.["card_pm"]?.["PaymentIntent"];
+          expect(data, `card_pm.PaymentIntent not found for ${connectorId}`).to.exist;
 
           cy.createPaymentIntentTest(
             fixtures.createPaymentBody,
@@ -172,9 +174,10 @@ describe("Merchant Redirect Method Tests", () => {
               cy.task("cli_log", "Skipping step: Confirm Payment");
               return;
             }
-            const data = getConnectorDetails(globalState.get("connectorId"))[
-              "card_pm"
-            ]["No3DSAutoCapture"];
+            const connectorId = globalState.get("connectorId");
+            const connectorDetails = getConnectorDetails(connectorId);
+            const data = connectorDetails?.["card_pm"]?.["No3DSAutoCapture"];
+            expect(data, `card_pm.No3DSAutoCapture not found for ${connectorId}`).to.exist;
 
             cy.confirmCallTest(fixtures.confirmBody, data, true, globalState);
             if (!utils.should_continue_further(data)) {
@@ -239,9 +242,10 @@ describe("Merchant Redirect Method Tests", () => {
         );
 
         cy.step("Create Payment Intent", () => {
-          const data = getConnectorDetails(globalState.get("connectorId"))[
-            "card_pm"
-          ]["PaymentIntent"];
+          const connectorId = globalState.get("connectorId");
+          const connectorDetails = getConnectorDetails(connectorId);
+          const data = connectorDetails?.["card_pm"]?.["PaymentIntent"];
+          expect(data, `card_pm.PaymentIntent not found for ${connectorId}`).to.exist;
 
           cy.createPaymentIntentTest(
             fixtures.createPaymentBody,
@@ -276,15 +280,16 @@ describe("Merchant Redirect Method Tests", () => {
         );
 
         cy.step("Confirm Payment after toggling redirect method", () => {
-          if (!shouldContinue) {
-            cy.task("cli_log", "Skipping step: Confirm Payment");
-            return;
-          }
-          const data = getConnectorDetails(globalState.get("connectorId"))[
-            "card_pm"
-          ]["No3DSAutoCapture"];
+            if (!shouldContinue) {
+              cy.task("cli_log", "Skipping step: Confirm Payment");
+              return;
+            }
+            const connectorId = globalState.get("connectorId");
+            const connectorDetails = getConnectorDetails(connectorId);
+            const data = connectorDetails?.["card_pm"]?.["No3DSAutoCapture"];
+            expect(data, `card_pm.No3DSAutoCapture not found for ${connectorId}`).to.exist;
 
-          cy.confirmCallTest(fixtures.confirmBody, data, true, globalState);
+            cy.confirmCallTest(fixtures.confirmBody, data, true, globalState);
           if (!utils.should_continue_further(data)) {
             shouldContinue = false;
           }
