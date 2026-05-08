@@ -1303,6 +1303,9 @@ diesel::table! {
         payment_method_id -> Nullable<Varchar>,
         created_at -> Timestamp,
         last_modified -> Timestamp,
+        payment_method -> Nullable<Varchar>,
+        #[max_length = 64]
+        payment_method_type -> Nullable<Varchar>,
         payment_method_data -> Nullable<Bytea>,
         #[max_length = 64]
         locker_id -> Nullable<Varchar>,
