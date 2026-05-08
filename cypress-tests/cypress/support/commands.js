@@ -588,8 +588,12 @@ Cypress.Commands.add("merchantRetrieveCall", (globalState) => {
       cy.log("HI");
       expect(response.body.default_profile, "default_profile").to.not.be.null;
       expect(response.body.organization_id, "organization_id").to.not.be.null;
-      expect(response.body.is_recon_enabled, "is_recon_enabled").to.equal(false);
-      expect(response.body.recon_status, "recon_status").to.equal("not_requested");
+      expect(response.body.is_recon_enabled, "is_recon_enabled").to.equal(
+        false
+      );
+      expect(response.body.recon_status, "recon_status").to.equal(
+        "not_requested"
+      );
       globalState.set("organizationId", response.body.organization_id);
 
       if (globalState.get("publishableKey") === undefined) {
