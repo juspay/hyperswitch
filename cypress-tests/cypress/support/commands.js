@@ -872,7 +872,8 @@ Cypress.Commands.add(
               expect(responseHeaders).to.have.property(key, masked);
             }
           }
-        });
+        }
+        globalState.set("lastResponseHeaders", responseHeaders);
       });
   }
 );
