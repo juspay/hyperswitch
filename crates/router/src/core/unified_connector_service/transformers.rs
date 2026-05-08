@@ -5861,6 +5861,7 @@ impl transformers::ForeignTryFrom<&RouterData<RSync, RefundsData, RefundsRespons
                     "Missing connector_refund_id for refund sync operation".to_string(),
                 ),
             )?,
+            refund_amount: None,
         })
     }
 }
@@ -6324,6 +6325,7 @@ impl
             webhook_url: router_data.request.webhook_url.clone(),
             browser_info,
             access_token,
+            source_bank_data: None,
         })
     }
 }
@@ -6435,6 +6437,7 @@ impl
             connector_payout_method_id: router_data.request.connector_transfer_method_id.clone(),
             webhook_url: router_data.request.webhook_url.clone(),
             browser_info,
+            source_bank_data: None,
         })
     }
 }
@@ -6978,7 +6981,7 @@ impl transformers::ForeignTryFrom<&api_models::payouts::PixBankTransfer>
             bank_name: None,
             bank_branch: item.bank_branch.clone(),
             bank_account_number: Some(item.bank_account_number.clone()),
-            pix_key: Some(item.pix_key.clone()),
+            ispb: Some(item.pix_key.clone()),
             tax_id: item.tax_id.clone(),
         })
     }
