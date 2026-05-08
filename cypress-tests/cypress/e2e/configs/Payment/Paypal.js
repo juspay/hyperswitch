@@ -686,100 +686,16 @@ export const connectorDetails = {
         },
       },
     },
-    PaymentMethodIdMandate3DSManualCapture: {
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
+    CompleteAuthorize: {
       Request: {
-        payment_method: "card",
-        payment_method_data: {
-          card: successfulNo3DSCardDetails,
-        },
-        mandate_data: null,
-        authentication_type: "three_ds",
-        customer_acceptance: customerAcceptance,
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "requires_customer_action",
-        },
-      },
-    },
-    No3DSFailPayment: {
-      Request: {
-        payment_method: "card",
-        payment_method_data: {
-          card: failedNo3DSCardDetails,
-        },
-        customer_acceptance: null,
-        setup_future_usage: "on_session",
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "failed",
-          error_code: "0500",
-          error_message: "DO_NOT_HONOR.",
-        },
-      },
-    },
-    ManualRetryPaymentDisabled: {
-      Request: {
-        payment_method: "card",
-        payment_method_data: {
-          card: successfulNo3DSCardDetails,
-        },
-        currency: "USD",
-        customer_acceptance: null,
-        setup_future_usage: "on_session",
-      },
-      Response: {
-        status: 400,
-        body: {
-          type: "invalid_request",
-          message:
-            "You cannot confirm this payment because it has status failed, you can enable `manual_retry` in profile to try this payment again",
-          code: "IR_16",
-        },
-      },
-    },
-    ManualRetryPaymentEnabled: {
-      Request: {
-        payment_method: "card",
-        payment_method_data: {
-          card: successfulNo3DSCardDetails,
-        },
-        currency: "USD",
-        customer_acceptance: null,
-        setup_future_usage: "on_session",
+        complete_authorize_url: "",
+        email: "hyperswitch_sdk_demo_id@gmail.com",
+        router_return_url: "https://example.com",
       },
       Response: {
         status: 200,
         body: {
           status: "succeeded",
-          payment_method: "card",
-          attempt_count: 2,
-        },
-      },
-    },
-    ManualRetryPaymentCutoffExpired: {
-      Request: {
-        payment_method: "card",
-        payment_method_data: {
-          card: successfulNo3DSCardDetails,
-        },
-        currency: "USD",
-        customer_acceptance: null,
-        setup_future_usage: "on_session",
-      },
-      Response: {
-        status: 400,
-        body: {
-          type: "invalid_request",
-          message:
-            "You cannot confirm this payment using `manual_retry` because the allowed duration has expired",
-          code: "IR_16",
         },
       },
     },

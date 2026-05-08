@@ -647,5 +647,18 @@ export const connectorDetails = {
         },
       },
     },
+    CompleteAuthorize: {
+      Request: {
+        complete_authorize_url: "",
+        email: "mauro.morandi@nexi.it",
+        router_return_url: "https://example.com",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    },
   },
 };

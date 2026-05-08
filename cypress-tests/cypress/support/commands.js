@@ -7732,3 +7732,49 @@ Cypress.Commands.add("updateCardIssuer", (id, body, globalState) => {
     });
   });
 });
+
+Cypress.Commands.add(
+  "completeAuthorizeCallTest",
+  (requestBody, data, globalState) => {
+    const {
+      Configs: configs = {},
+      Response: resData,
+      Request: reqData,
+    } = data || {};
+
+    const configInfo = execConfig(validateConfig(configs));
+    const payment_id = globalState.get("paymentID");
+    const publishableKey = globalState.get("publishableKey");
+
+    for (const key in reqData) {
+      requestBody[key] = reqData[key];
+    }
+
+    const headers = {
+      "Content-Type": "application/json",
+      "api-key": publishableKey,
+    };
+
+    cy.request({
+      method: "POST",
+      url: `${globalState.get("baseUrl")}/payments/${payment_id}/complete_authorize`,
+      headers,
+      failOnStatusCode: false,
+      body: requestBody,
+    }).then((response) => {
+      logRequestId(response.headers["x-request-id"]);
+      storeRequestId(response.headers["x-request-id"], globalState);
+
+      cy.wrap(response).then(() => {
+        expect(response.headers["content-type"]).to.include("application/json");
+
+        if (response.status === 200) {
+          expect(response.body.status).to.equal(resData.body.status);
+          globalState.set("paymentIntentStatus", response.body.status);
+        } else {
+          defaultErrorHandler(response, resData);
+        }
+      });
+    });
+  }
+);
