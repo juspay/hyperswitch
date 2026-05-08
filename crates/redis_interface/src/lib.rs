@@ -16,7 +16,7 @@ pub mod constant;
 pub mod errors;
 pub mod types;
 
-#[cfg(not(feature = "redis-rs"))]
+#[cfg(feature = "fred")]
 mod module {
     pub mod fred;
 }
@@ -30,9 +30,9 @@ mod module {
 // All external code imports `redis_interface::RedisConnectionPool` etc.
 // and is never aware of which backend is active.
 
-#[cfg(not(feature = "redis-rs"))]
+#[cfg(feature = "fred")]
 pub use fred::interfaces::{EventInterface, PubsubInterface};
-#[cfg(not(feature = "redis-rs"))]
+#[cfg(feature = "fred")]
 pub use module::fred::{
     PubSubMessage, RedisClient, RedisConfig, RedisConnectionPool, SubscriberClient,
 };

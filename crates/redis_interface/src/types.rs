@@ -17,7 +17,7 @@ use crate::errors;
 pub struct RedisValue {
     #[cfg(feature = "redis-rs")]
     pub(crate) inner: redis::Value,
-    #[cfg(not(feature = "redis-rs"))]
+    #[cfg(feature = "fred")]
     pub(crate) inner: fred::types::RedisValue,
 }
 
