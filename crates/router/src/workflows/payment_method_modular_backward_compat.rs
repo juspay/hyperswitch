@@ -32,21 +32,10 @@ async fn backfill_legacy_db_fields(
         legacy_payment_method.is_some() || legacy_payment_method_type.is_some();
 
     if should_update_legacy_db_fields {
-        let pm_update = storage::PaymentMethodUpdate::AdditionalDataUpdate {
-            payment_method_data: None,
-            status: None,
-            locker_id: None,
+        let pm_update = storage::PaymentMethodUpdate::PopulateLegacyCompatFields {
             payment_method: legacy_payment_method,
             payment_method_type: legacy_payment_method_type,
-            payment_method_issuer: None,
-            network_token_requestor_reference_id: None,
-            network_token_locker_id: None,
-            network_token_payment_method_data: None,
             last_modified_by: tracking_data.last_modified_by.clone(),
-            metadata: None,
-            last_used_at: None,
-            connector_mandate_details: None,
-            network_tokenization_data: None,
         };
 
         let updated_payment_method = db
@@ -239,7 +228,7 @@ impl ProcessTrackerWorkflow<SessionState> for PaymentMethodModularBackwardCompat
                 .parse_value("PaymentMethodModularCompatTrackingData")?;
         logger::info!(process_id=%process.id, ?tracking_data, "Parsed modular backward compatibility PT tracking data");
 
-        let merchant_id = tracking_data.merchant_id;
+        let merchant_id = tracking_data.merchant_id.clone();
         let key_store = state
             .store
             .get_merchant_key_store_by_merchant_id(

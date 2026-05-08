@@ -312,6 +312,13 @@ pub enum PaymentMethodUpdate {
         payment_method_subtype: Option<storage_enums::PaymentMethodType>,
         last_modified_by: Option<String>,
     },
+    // Compatibility-only update used by modular backward-compat PT.
+    // Do not use this for normal v1 payment method updates.
+    PopulateLegacyCompatFields {
+        payment_method: Option<storage_enums::PaymentMethod>,
+        payment_method_type: Option<storage_enums::PaymentMethodType>,
+        last_modified_by: Option<String>,
+    },
 }
 
 #[cfg(feature = "v2")]
@@ -440,9 +447,7 @@ impl PaymentMethodUpdateInternal {
             updated_by: updated_by.or(source.updated_by),
             locker_fingerprint_id: locker_fingerprint_id.or(source.locker_fingerprint_id),
             payment_method_type_v2: payment_method_type_v2.or(source.payment_method_type_v2),
-            payment_method_subtype: payment_method_subtype
-                .map(|payment_method_subtype| payment_method_subtype.to_string())
-                .or(source.payment_method_subtype),
+            payment_method_subtype: payment_method_subtype.or(source.payment_method_subtype),
             id: source.id,
             payment_method_id: source.payment_method_id,
             version: source.version,
@@ -930,6 +935,34 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
                 payment_method_type_v2,
                 payment_method_subtype,
                 id: Some(id),
+            },
+            PaymentMethodUpdate::PopulateLegacyCompatFields {
+                payment_method,
+                payment_method_type,
+                last_modified_by,
+            } => Self {
+                metadata: None,
+                payment_method_data: None,
+                last_used_at: None,
+                network_transaction_id: None,
+                status: None,
+                locker_id: None,
+                network_token_requestor_reference_id: None,
+                payment_method,
+                connector_mandate_details: None,
+                updated_by: None,
+                payment_method_issuer: None,
+                payment_method_type,
+                last_modified: common_utils::date_time::now(),
+                network_token_locker_id: None,
+                network_token_payment_method_data: None,
+                scheme: None,
+                last_modified_by,
+                customer_details: None,
+                network_tokenization_data: None,
+                payment_method_type_v2: None,
+                payment_method_subtype: None,
+                id: None,
             },
         }
     }
