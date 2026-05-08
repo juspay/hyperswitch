@@ -65,7 +65,6 @@ use crate::{core::webhooks as webhooks_core, types::storage};
 
 use analytics::{errors::AnalyticsError, enums::AuthInfo};
 use crate::db::StorageInterface;
-use api_models::analytics::MerchantWebhookUrl;
 
 pub mod error_parser {
     use std::fmt::Display;
@@ -1465,12 +1464,7 @@ pub async fn get_payment_response_hash_key(
     store: &dyn StorageInterface,
     key_store: &domain::MerchantKeyStore,
     auth: &AuthInfo,
-    return_url: &Option<MerchantWebhookUrl>,
 ) -> Result<Option<String>, error_stack::Report<AnalyticsError>> {
-    if return_url.is_none() {
-        return Ok(None);
-    }
-
     match auth {
         AuthInfo::ProfileLevel {
             merchant_id,
