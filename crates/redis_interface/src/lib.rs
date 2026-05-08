@@ -1,6 +1,6 @@
 //! Redis interface — compile-time backend selection via Cargo feature.
 //!
-//! By default the `fred` crate is used. Enable `redis-rs` to switch.
+//! By default the `redis-rs` crate is used. Enable `fred` to switch.
 //!
 //! # Examples
 //! ```
@@ -11,6 +11,17 @@
 //!     let redis_conn = RedisConnectionPool::new(&RedisSettings::default()).await;
 //! }
 //! ```
+
+// Compile-time guards: exactly one backend must be active.
+#[cfg(not(any(feature = "fred", feature = "redis-rs")))]
+compile_error!(
+    "Either feature \"fred\" or \"redis-rs\" must be enabled for this crate."
+);
+
+#[cfg(all(feature = "fred", feature = "redis-rs"))]
+compile_error!(
+    "Features \"fred\" and \"redis-rs\" are mutually exclusive — enable only one."
+);
 
 pub mod constant;
 pub mod errors;

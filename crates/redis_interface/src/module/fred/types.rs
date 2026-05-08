@@ -5,8 +5,8 @@
 //! redis-rs is the primary backend; fred is the fallback.
 
 use crate::types::{
-    DelReply, HsetnxReply, MsetnxReply, RedisEntryId, RedisScanType, RedisValue, SaddReply,
-    SetnxReply, StreamCapKind, StreamCapTrim, StreamTrimConfig,
+    ConsumerGroupDestroyReply, DelReply, HsetnxReply, MsetnxReply, RedisEntryId, RedisScanType,
+    RedisValue, SaddReply, SetnxReply, StreamCapKind, StreamCapTrim, StreamTrimConfig,
 };
 
 // ─── RedisValue impls ────────────────────────────────────────────────────────
@@ -44,7 +44,7 @@ impl RedisValue {
         }
     }
 
-    pub fn into_inner(self) -> fred::types::RedisValue {
+    pub(crate) fn into_inner(self) -> fred::types::RedisValue {
         self.inner
     }
 }
@@ -158,6 +158,20 @@ impl fred::types::FromRedis for SaddReply {
             _ => Err(fred::error::RedisError::new(
                 fred::error::RedisErrorKind::Unknown,
                 "Unexpected SADD reply",
+            )),
+        }
+    }
+}
+
+impl fred::types::FromRedis for ConsumerGroupDestroyReply {
+    fn from_value(value: fred::types::RedisValue) -> Result<Self, fred::error::RedisError> {
+        match value {
+            // XGROUP DESTROY returns 1 if the group was destroyed, 0 if it didn't exist
+            fred::types::RedisValue::Integer(1) => Ok(Self::Destroyed),
+            fred::types::RedisValue::Integer(0) => Ok(Self::NotFound),
+            _ => Err(fred::error::RedisError::new(
+                fred::error::RedisErrorKind::Unknown,
+                "Unexpected XGROUP DESTROY reply",
             )),
         }
     }

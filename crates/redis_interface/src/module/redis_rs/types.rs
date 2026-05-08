@@ -66,10 +66,6 @@ impl RedisValue {
             }
         }
     }
-
-    pub fn into_inner(self) -> redis::Value {
-        self.inner
-    }
 }
 
 impl std::ops::Deref for RedisValue {
@@ -96,9 +92,7 @@ impl redis::ToRedisArgs for RedisValue {
             redis::Value::VerbatimString { text, .. } => text.write_redis_args(out),
             redis::Value::Int(integer) => integer.write_redis_args(out),
             redis::Value::Double(double) => double.to_string().write_redis_args(out),
-            redis::Value::Boolean(boolean) => {
-                (if *boolean { 1i64 } else { 0i64 }).write_redis_args(out)
-            }
+            redis::Value::Boolean(boolean) => boolean.write_redis_args(out),
             redis::Value::Okay => "OK".write_redis_args(out),
             redis::Value::BigNumber(ref big_number) => big_number.to_string().write_redis_args(out),
             redis::Value::Nil => {

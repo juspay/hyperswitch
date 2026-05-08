@@ -76,14 +76,14 @@ impl super::RedisConnectionPool {
 
     pub async fn set_multiple_keys_if_not_exist<K, V>(
         &self,
-        items: &[(K, V)],
+        key_value_pairs: &[(K, V)],
     ) -> CustomResult<MsetnxReply, errors::RedisError>
     where
         K: redis::ToRedisArgs + Debug + Send + Sync,
         V: redis::ToRedisArgs + Debug + Send + Sync,
     {
         let mut conn = self.pool.clone();
-        conn.mset_nx(items)
+        conn.mset_nx(key_value_pairs)
             .await
             .change_context(errors::RedisError::SetFailed)
     }
@@ -508,7 +508,7 @@ impl super::RedisConnectionPool {
     pub async fn set_hash_fields<F, V>(
         &self,
         key: &RedisKey,
-        items: &[(F, V)],
+        field_value_pairs: Vec<(F, V)>,
         ttl: Option<i64>,
     ) -> CustomResult<(), errors::RedisError>
     where
@@ -517,7 +517,7 @@ impl super::RedisConnectionPool {
     {
         let mut conn = self.pool.clone();
         let _: () = conn
-            .hset_multiple(key.tenant_aware_key(self), items)
+            .hset_multiple(key.tenant_aware_key(self), &field_value_pairs)
             .await
             .change_context(errors::RedisError::SetHashFailed)?;
 
@@ -610,7 +610,7 @@ impl super::RedisConnectionPool {
     {
         let mut conn = self.pool.clone();
         let mut values_after_increment = Vec::with_capacity(fields_to_increment.len());
-        for (field, increment) in fields_to_increment.iter() {
+        for (field, increment) in fields_to_increment {
             values_after_increment.push(
                 conn.hincr::<_, _, _, usize>(
                     key.tenant_aware_key(self),
@@ -893,14 +893,10 @@ impl super::RedisConnectionPool {
         stream: &RedisKey,
         ids: Vec<String>,
     ) -> CustomResult<usize, errors::RedisError> {
-        if ids.is_empty() {
-            Ok(0)
-        } else {
-            let mut conn = self.pool.clone();
-            conn.xdel(stream.tenant_aware_key(self), &ids)
-                .await
-                .change_context(errors::RedisError::StreamDeleteFailed)
-        }
+        let mut conn = self.pool.clone();
+        conn.xdel(stream.tenant_aware_key(self), &ids)
+            .await
+            .change_context(errors::RedisError::StreamDeleteFailed)
     }
 
     #[instrument(level = "DEBUG", skip(self))]
@@ -927,14 +923,10 @@ impl super::RedisConnectionPool {
         group: &str,
         ids: Vec<String>,
     ) -> CustomResult<usize, errors::RedisError> {
-        if ids.is_empty() {
-            Ok(0)
-        } else {
-            let mut conn = self.pool.clone();
-            conn.xack(stream.tenant_aware_key(self), group, &ids)
-                .await
-                .change_context(errors::RedisError::StreamAcknowledgeFailed)
-        }
+        let mut conn = self.pool.clone();
+        conn.xack(stream.tenant_aware_key(self), group, &ids)
+            .await
+            .change_context(errors::RedisError::StreamAcknowledgeFailed)
     }
 
     #[instrument(level = "DEBUG", skip(self))]
@@ -1103,11 +1095,15 @@ impl super::RedisConnectionPool {
     pub async fn get_list_elements(
         &self,
         key: &RedisKey,
-        start: isize,
-        stop: isize,
+        start: i64,
+        stop: i64,
     ) -> CustomResult<Vec<String>, errors::RedisError> {
         let mut conn = self.pool.clone();
-        conn.lrange::<_, Vec<String>>(key.tenant_aware_key(self), start, stop)
+        conn.lrange::<_, Vec<String>>(
+            key.tenant_aware_key(self),
+            isize::try_from(start).change_context(errors::RedisError::GetListElementsFailed)?,
+            isize::try_from(stop).change_context(errors::RedisError::GetListElementsFailed)?,
+        )
             .await
             .change_context(errors::RedisError::GetListElementsFailed)
     }

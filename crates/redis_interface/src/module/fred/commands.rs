@@ -26,7 +26,7 @@ use crate::{
     errors,
     types::{
         DelReply, HsetnxReply, MsetnxReply, RedisEntryId, RedisKey, SaddReply, SetGetReply,
-        SetnxReply, StreamEntries, StreamReadResult,
+        SetnxReply, StreamEntries, StreamReadResult, StreamTrimConfig,
     },
 };
 
@@ -78,16 +78,26 @@ impl super::RedisConnectionPool {
             .change_context(errors::RedisError::SetFailed)
     }
 
-    pub async fn set_multiple_keys_if_not_exist<V>(
+    pub async fn set_multiple_keys_if_not_exist<K, V>(
         &self,
-        value: V,
+        key_value_pairs: &[(K, V)],
     ) -> CustomResult<MsetnxReply, errors::RedisError>
     where
-        V: TryInto<RedisMap> + Debug + Send + Sync,
-        V::Error: Into<fred::error::RedisError> + Send + Sync,
+        K: Clone + Into<String> + Debug + Send + Sync,
+        V: Clone + Into<String> + Debug + Send + Sync,
     {
+        let pairs: Vec<(String, String)> = key_value_pairs
+            .iter()
+            .map(|(k, v)| (k.clone().into(), v.clone().into()))
+            .collect();
+
+        let map: Result<RedisMap, _> = pairs.try_into();
+        let map = map
+            .change_context(errors::RedisError::SetFailed)
+            .attach_printable("Failed to convert key-value pairs to fred::types::RedisMap")?;
+
         self.pool
-            .msetnx(value)
+            .msetnx(map)
             .await
             .change_context(errors::RedisError::SetFailed)
     }
@@ -496,22 +506,22 @@ impl super::RedisConnectionPool {
     pub async fn set_hash_fields<F, V>(
         &self,
         key: &RedisKey,
-        items: &[(F, V)],
+        field_value_pairs: Vec<(F, V)>,
         ttl: Option<i64>,
     ) -> CustomResult<(), errors::RedisError>
     where
-        F: Into<String> + Clone + Debug + Send + Sync,
-        V: Into<String> + Clone + Debug + Send + Sync,
+        F: Into<String> + Debug + Send + Sync,
+        V: Into<String> + Debug + Send + Sync,
     {
-        let pairs: Vec<(String, String)> = items
-            .iter()
-            .map(|(f, v)| (f.clone().into(), v.clone().into()))
+        let pairs: Vec<(String, String)> = field_value_pairs
+            .into_iter()
+            .map(|(f, v)| (f.into(), v.into()))
             .collect();
 
-        let map: RedisMap = pairs.try_into().map_err(|err| {
-            error_stack::report!(errors::RedisError::SetHashFailed)
-                .attach_printable(format!("{err}"))
-        })?;
+        let map: Result<RedisMap, _> = pairs.try_into();
+        let map = map
+            .change_context(errors::RedisError::SetHashFailed)
+            .attach_printable("Failed to convert field pairs to fred::types::RedisMap")?;
 
         let output: Result<(), _> = self
             .pool
@@ -602,7 +612,7 @@ impl super::RedisConnectionPool {
         T: Debug + ToString,
     {
         let mut values_after_increment = Vec::with_capacity(fields_to_increment.len());
-        for (field, increment) in fields_to_increment.iter() {
+        for (field, increment) in fields_to_increment {
             values_after_increment.push(
                 self.pool
                     .hincrby(key.tenant_aware_key(self), field.to_string(), *increment)
@@ -666,7 +676,7 @@ impl super::RedisConnectionPool {
                 match value {
                     Ok(mut v) => {
                         let v = v.take_results()?;
-                        let v: Vec<String> = v.values().filter_map(|val| val.as_string()).collect();
+                        let v: Vec<String> = v.into_iter().filter_map(|val| val.into_string()).collect();
                         Some(futures::stream::iter(v))
                     }
                     Err(err) => {
@@ -815,10 +825,10 @@ impl super::RedisConnectionPool {
             .map(|(f, v)| (f.into(), v.into()))
             .collect();
 
-        let fred_fields: MultipleOrderedPairs = pairs.try_into().map_err(|err| {
-            error_stack::report!(errors::RedisError::StreamAppendFailed)
-                .attach_printable(format!("{err}"))
-        })?;
+        let fred_fields: Result<MultipleOrderedPairs, _> = pairs.try_into();
+        let fred_fields = fred_fields
+            .change_context(errors::RedisError::StreamAppendFailed)
+            .attach_printable("Failed to convert field pairs to fred::types::MultipleOrderedPairs")?;
 
         self.pool
             .xadd(
@@ -838,9 +848,6 @@ impl super::RedisConnectionPool {
         stream: &RedisKey,
         ids: Vec<String>,
     ) -> CustomResult<usize, errors::RedisError> {
-        if ids.is_empty() {
-            return Ok(0);
-        }
         let fred_ids: MultipleStrings = ids.into();
         self.pool
             .xdel(stream.tenant_aware_key(self), fred_ids)
@@ -852,15 +859,12 @@ impl super::RedisConnectionPool {
     pub async fn stream_trim_entries(
         &self,
         stream: &RedisKey,
-        config: crate::types::StreamTrimConfig,
+        config: StreamTrimConfig,
     ) -> CustomResult<usize, errors::RedisError> {
-        let xcap: fred::types::XCap = config
-            .try_into()
-            .map_err(|e| {
-                error_stack::report!(e)
-                    .attach_printable(format!("StreamTrimConfig to XCap conversion failed: {e}"))
-            })?
-            .change_context(errors::RedisError::StreamTrimFailed)?;
+        let xcap: Result<fred::types::XCap, _> = config.try_into();
+        let xcap = xcap
+            .change_context(errors::RedisError::StreamTrimFailed)
+            .attach_printable("Failed to convert StreamTrimConfig to fred::types::XCap")?;
         self.pool
             .xtrim(stream.tenant_aware_key(self), xcap)
             .await
@@ -874,9 +878,6 @@ impl super::RedisConnectionPool {
         group: &str,
         ids: Vec<String>,
     ) -> CustomResult<usize, errors::RedisError> {
-        if ids.is_empty() {
-            return Ok(0);
-        }
         let fred_ids: MultipleIDs = ids.into();
         self.pool
             .xack(stream.tenant_aware_key(self), group, fred_ids)
@@ -993,9 +994,9 @@ impl super::RedisConnectionPool {
                             .map(|(field_name, maybe_field_value)| {
                                 let redis_value_inner = match maybe_field_value {
                                     Some(string_value) => {
-                                        fred::types::RedisValue::String(string_value.into())
+                                        RedisValue::String(string_value.into())
                                     }
-                                    None => fred::types::RedisValue::Null,
+                                    None => RedisValue::Null,
                                 };
                                 (field_name, crate::RedisValue::new(redis_value_inner))
                             })
@@ -1085,11 +1086,13 @@ impl super::RedisConnectionPool {
         &self,
         stream: &RedisKey,
         group: &str,
-    ) -> CustomResult<usize, errors::RedisError> {
-        self.pool
-            .xgroup_destroy::<usize, _, _>(stream.tenant_aware_key(self), group)
+    ) -> CustomResult<crate::types::ConsumerGroupDestroyReply, errors::RedisError> {
+        let reply: crate::types::ConsumerGroupDestroyReply = self
+            .pool
+            .xgroup_destroy(stream.tenant_aware_key(self), group)
             .await
-            .change_context(errors::RedisError::ConsumerGroupDestroyFailed)
+            .change_context(errors::RedisError::ConsumerGroupDestroyFailed)?;
+        Ok(reply)
     }
 
     // the number of pending messages that the consumer had before it was deleted
@@ -1112,12 +1115,13 @@ impl super::RedisConnectionPool {
         stream: &RedisKey,
         group: &str,
         id: &RedisEntryId,
-    ) -> CustomResult<(), errors::RedisError> {
+    ) -> CustomResult<String, errors::RedisError> {
         let id_str = id.to_stream_id();
         self.pool
             .xgroup_setid::<(), _, _, _>(stream.tenant_aware_key(self), group, &id_str)
             .await
-            .change_context(errors::RedisError::ConsumerGroupSetIdFailed)
+            .change_context(errors::RedisError::ConsumerGroupSetIdFailed)?;
+        Ok(id_str)
     }
 
     #[instrument(level = "DEBUG", skip(self))]
@@ -1127,12 +1131,12 @@ impl super::RedisConnectionPool {
         group: &str,
         consumer: &str,
         min_idle_time: u64,
-        ids: &[String],
+        ids: Vec<String>,
     ) -> CustomResult<R, errors::RedisError>
     where
         R: FromRedis + Unpin + Send + 'static,
     {
-        let fred_ids: MultipleIDs = ids.to_vec().into();
+        let fred_ids: MultipleIDs = ids.into();
         self.pool
             .xclaim(
                 stream.tenant_aware_key(self),
