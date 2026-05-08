@@ -621,7 +621,7 @@ pub async fn add_payment_method_modular_backward_compat_task(
         tracking_data,
         None,
         common_utils::date_time::now(),
-        common_types::consts::API_VERSION,
+        common_enums::ApiVersion::V1,
         application_source,
     )
     .change_context(errors::ApiErrorResponse::InternalServerError)

@@ -10,12 +10,215 @@ use crate::{
     core::payment_methods::{cards, transformers, vault},
     errors,
     logger::{self, error},
-    routes::SessionState,
+    routes::{app::StorageInterface, SessionState},
     types::{
-        payment_methods as pm_types,
+        domain, payment_methods as pm_types,
         storage::{self, PaymentMethodModularCompatTrackingData},
     },
 };
+
+#[cfg(feature = "v1")]
+async fn backfill_legacy_db_fields(
+    db: &dyn StorageInterface,
+    key_store: &domain::MerchantKeyStore,
+    payment_method: domain::PaymentMethod,
+    storage_scheme: common_enums::MerchantStorageScheme,
+    tracking_data: &PaymentMethodModularCompatTrackingData,
+    process_id: &str,
+) -> Result<domain::PaymentMethod, errors::ProcessTrackerError> {
+    let legacy_payment_method = payment_method.get_payment_method_type();
+    let legacy_payment_method_type = payment_method.get_payment_method_subtype();
+    let should_update_legacy_db_fields =
+        legacy_payment_method.is_some() || legacy_payment_method_type.is_some();
+
+    if should_update_legacy_db_fields {
+        let pm_update = storage::PaymentMethodUpdate::AdditionalDataUpdate {
+            payment_method_data: None,
+            status: None,
+            locker_id: None,
+            payment_method: legacy_payment_method,
+            payment_method_type: legacy_payment_method_type,
+            payment_method_issuer: None,
+            network_token_requestor_reference_id: None,
+            network_token_locker_id: None,
+            network_token_payment_method_data: None,
+            last_modified_by: tracking_data.last_modified_by.clone(),
+            metadata: None,
+            last_used_at: None,
+            connector_mandate_details: None,
+            network_tokenization_data: None,
+        };
+
+        let updated_payment_method = db
+            .update_payment_method(key_store, payment_method, pm_update, storage_scheme)
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable(
+                "Failed to populate legacy payment method fields in backward compatibility PT",
+            )?;
+
+        Ok(updated_payment_method)
+    } else {
+        logger::info!(
+            process_id=%process_id,
+            payment_method_id=%tracking_data.payment_method_id,
+            "Skipping legacy DB field backfill in modular backward compatibility PT because fields are already populated"
+        );
+        Ok(payment_method)
+    }
+}
+
+#[cfg(feature = "v1")]
+async fn backfill_legacy_locker_card(
+    state: &SessionState,
+    merchant_id: &common_utils::id_type::MerchantId,
+    payment_method: &domain::PaymentMethod,
+    tracking_data: &PaymentMethodModularCompatTrackingData,
+    process_id: &str,
+) -> Result<(), errors::ProcessTrackerError> {
+    let legacy_locker_skip_reason = match (
+        payment_method.get_payment_method_type(),
+        payment_method.locker_id.as_ref(),
+        payment_method.customer_id.as_ref(),
+    ) {
+        (Some(common_enums::PaymentMethod::Card), Some(_), Some(_)) => None,
+        (Some(common_enums::PaymentMethod::Card), None, _) => Some("locker reference is missing"),
+        (Some(common_enums::PaymentMethod::Card), Some(_), None) => Some("customer_id is missing"),
+        _ => Some("payment method is not card"),
+    };
+
+    if let Some(skip_reason) = legacy_locker_skip_reason {
+        logger::info!(
+            process_id=%process_id,
+            payment_method_id=%tracking_data.payment_method_id,
+            skip_reason,
+            "Skipping legacy locker card backfill in modular backward compatibility PT"
+        );
+    } else {
+        let customer_id = payment_method
+            .customer_id
+            .clone()
+            .get_required_value("customer_id")
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable(
+                "customer_id not found for card payment method in backward compatibility PT",
+            )?;
+
+        let card_reference = payment_method
+            .locker_id
+            .clone()
+            .get_required_value("locker_id")?
+            .to_string();
+
+        let legacy_card_exists = match cards::get_card_from_vault(
+            state,
+            &customer_id,
+            merchant_id,
+            &card_reference,
+        )
+        .await
+        {
+            Ok(_) => {
+                logger::info!(
+                    process_id=%process_id,
+                    payment_method_id=%tracking_data.payment_method_id,
+                    card_reference=%card_reference,
+                    "Skipping legacy locker write in modular backward compatibility PT because card already exists"
+                );
+                true
+            }
+            Err(err) => {
+                logger::info!(
+                    ?err,
+                    process_id=%process_id,
+                    payment_method_id=%tracking_data.payment_method_id,
+                    card_reference=%card_reference,
+                    "Legacy locker card not found or not readable in modular backward compatibility PT; proceeding with legacy locker upsert"
+                );
+                false
+            }
+        };
+
+        if !legacy_card_exists {
+            let vault_request = pm_types::VaultRetrieveRequest {
+                entity_id: hyperswitch_domain_models::vault::V1VaultEntityId::new(
+                    merchant_id.clone(),
+                    customer_id.clone(),
+                ),
+                vault_id: domain::VaultId::generate(card_reference.clone()),
+            };
+            let payload = vault_request
+                .encode_to_vec()
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable(
+                    "Failed to encode generic locker retrieve request in backward compatibility PT",
+                )?;
+            let vault_response =
+                vault::call_to_vault::<pm_types::VaultRetrieve>(state, payload, None)
+                    .await
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable(
+                        "Failed to retrieve card from generic locker in backward compatibility PT",
+                    )?;
+            let stored_pm_resp: pm_types::VaultRetrieveResponse = vault_response
+                .parse_struct("VaultRetrieveResponse")
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable(
+                    "Failed to parse generic locker retrieve response in backward compatibility PT",
+                )?;
+            let locker_card_detail =
+                if let hyperswitch_domain_models::vault::PaymentMethodVaultingData::Card(card) =
+                    stored_pm_resp.data
+                {
+                    card
+                } else {
+                    Err(
+                        error_stack::report!(errors::ApiErrorResponse::InternalServerError)
+                            .attach_printable(
+                            "Generic locker returned non-card data in backward compatibility PT",
+                        ),
+                    )?
+                };
+
+            let card_isin = locker_card_detail.card_number.get_card_isin();
+            let locker_req = transformers::StoreLockerReq::LockerCard(transformers::StoreCardReq {
+                merchant_id: merchant_id.clone(),
+                merchant_customer_id: customer_id.clone(),
+                requestor_card_reference: Some(card_reference.to_owned()),
+                card: Card {
+                    card_number: locker_card_detail.card_number,
+                    name_on_card: locker_card_detail.card_holder_name,
+                    card_exp_month: locker_card_detail.card_exp_month,
+                    card_exp_year: locker_card_detail.card_exp_year,
+                    card_brand: locker_card_detail
+                        .card_network
+                        .map(|network| network.to_string()),
+                    card_isin: Some(card_isin),
+                    nick_name: locker_card_detail
+                        .nick_name
+                        .as_ref()
+                        .map(|nick_name| nick_name.peek().to_owned()),
+                },
+                ttl: state.conf.locker.ttl_for_storage_in_secs,
+            });
+
+            let _ = cards::add_card_to_vault(state, &locker_req, &customer_id)
+                .await
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable(
+                    "Failed to add card to legacy locker in backward compatibility PT",
+                )?;
+
+            logger::info!(
+                process_id=%process_id,
+                payment_method_id=%tracking_data.payment_method_id,
+                "Upserted card into legacy locker in modular backward compatibility PT"
+            );
+        }
+    }
+
+    Ok(())
+}
 
 pub struct PaymentMethodModularBackwardCompatWorkflow;
 
@@ -61,167 +264,30 @@ impl ProcessTrackerWorkflow<SessionState> for PaymentMethodModularBackwardCompat
                 "Failed to fetch payment method for modular backward compatibility PT",
             )?;
 
-        let payment_method_type = payment_method.get_payment_method_type();
-        let payment_method_subtype = payment_method.get_payment_method_subtype();
-        let payment_method = if payment_method_type.is_some() || payment_method_subtype.is_some() {
-            let pm_update = storage::PaymentMethodUpdate::AdditionalDataUpdate {
-                payment_method_data: None,
-                status: None,
-                locker_id: None,
-                payment_method: payment_method_type,
-                payment_method_type: payment_method_subtype,
-                payment_method_issuer: None,
-                network_token_requestor_reference_id: None,
-                network_token_locker_id: None,
-                network_token_payment_method_data: None,
-                last_modified_by: tracking_data.last_modified_by.clone(),
-                metadata: None,
-                last_used_at: None,
-                connector_mandate_details: None,
-                network_tokenization_data: None,
-            };
+        let payment_method = backfill_legacy_db_fields(
+            db,
+            &key_store,
+            payment_method,
+            merchant_account.storage_scheme,
+            &tracking_data,
+            &process.id,
+        )
+        .await?;
 
-            db.update_payment_method(
-                &key_store,
-                payment_method,
-                pm_update,
-                merchant_account.storage_scheme,
-            )
-            .await
-            .change_context(errors::ApiErrorResponse::InternalServerError)
-            .attach_printable(
-                "Failed to populate legacy payment method fields in backward compatibility PT",
-            )?
-        } else {
-            payment_method
-        };
-
-        let business_status = if payment_method.get_payment_method_type()
-            != Some(common_enums::PaymentMethod::Card)
-        {
-            logger::info!(
-                process_id=%process.id,
-                payment_method_id=%tracking_data.payment_method_id,
-                "Skipping legacy locker write for non-card payment method"
-            );
-            "COMPLETED_BY_PT"
-        } else if payment_method.locker_id.is_none() {
-            logger::info!(
-                process_id=%process.id,
-                payment_method_id=%tracking_data.payment_method_id,
-                "Skipping legacy locker write for card payment method as locker reference is missing"
-            );
-            "COMPLETED_BY_PT"
-        } else if payment_method.customer_id.is_none() {
-            logger::info!(
-                process_id=%process.id,
-                payment_method_id=%tracking_data.payment_method_id,
-                "Skipping legacy locker write for modular backward compatibility PT because customer_id is missing"
-            );
-            "COMPLETED_BY_PT"
-        } else {
-            let customer_id = payment_method
-                .customer_id
-                .clone()
-                .get_required_value("customer_id")
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable(
-                    "customer_id not found for card payment method in backward compatibility PT",
-                )?;
-
-            let card_reference = payment_method
-                .locker_id
-                .clone()
-                .get_required_value("locker_id")?
-                .to_string();
-            #[derive(Debug, serde::Serialize)]
-            struct ModularBackwardCompatVaultRetrieveRequest {
-                entity_id: common_utils::id_type::CustomerId,
-                vault_id: hyperswitch_domain_models::payment_methods::VaultId,
-            }
-
-            let vault_request = ModularBackwardCompatVaultRetrieveRequest {
-                entity_id: customer_id.clone(),
-                vault_id: hyperswitch_domain_models::payment_methods::VaultId::generate(
-                    card_reference.clone(),
-                ),
-            };
-            let payload = vault_request
-                .encode_to_vec()
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable(
-                    "Failed to encode generic locker retrieve request in backward compatibility PT",
-                )?;
-            let vault_response =
-                vault::call_to_vault::<pm_types::VaultRetrieve>(state, payload, None)
-                    .await
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable(
-                        "Failed to retrieve card from generic locker in backward compatibility PT",
-                    )?;
-            let stored_pm_resp: pm_types::VaultRetrieveResponse = vault_response
-                .parse_struct("VaultRetrieveResponse")
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable(
-                    "Failed to parse generic locker retrieve response in backward compatibility PT",
-                )?;
-            let locker_card_detail = match stored_pm_resp.data {
-                hyperswitch_domain_models::vault::PaymentMethodVaultingData::Card(card) => card,
-                hyperswitch_domain_models::vault::PaymentMethodVaultingData::NetworkToken(_)
-                | hyperswitch_domain_models::vault::PaymentMethodVaultingData::CardNumber(_)
-                | hyperswitch_domain_models::vault::PaymentMethodVaultingData::BankDebit(_) => {
-                    return Err(error_stack::report!(
-                        errors::ApiErrorResponse::InternalServerError
-                    )
-                    .attach_printable(
-                        "Generic locker returned non-card data in backward compatibility PT",
-                    )
-                    .into());
-                }
-            };
-
-            let card_isin = locker_card_detail.card_number.get_card_isin();
-            let locker_req = transformers::StoreLockerReq::LockerCard(transformers::StoreCardReq {
-                merchant_id,
-                merchant_customer_id: customer_id.clone(),
-                requestor_card_reference: Some(card_reference.to_owned()),
-                card: Card {
-                    card_number: locker_card_detail.card_number,
-                    name_on_card: locker_card_detail.card_holder_name,
-                    card_exp_month: locker_card_detail.card_exp_month,
-                    card_exp_year: locker_card_detail.card_exp_year,
-                    card_brand: locker_card_detail
-                        .card_network
-                        .map(|network| network.to_string()),
-                    card_isin: Some(card_isin),
-                    nick_name: locker_card_detail
-                        .nick_name
-                        .as_ref()
-                        .map(|nick_name| nick_name.peek().to_owned()),
-                },
-                ttl: state.conf.locker.ttl_for_storage_in_secs,
-            });
-
-            let _ = cards::add_card_to_vault(state, &locker_req, &customer_id)
-                .await
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable(
-                    "Failed to add card to legacy locker in backward compatibility PT",
-                )?;
-
-            logger::info!(
-                process_id=%process.id,
-                payment_method_id=%tracking_data.payment_method_id,
-                "Upserted card into legacy locker in modular backward compatibility PT"
-            );
-            "COMPLETED_BY_PT"
-        };
+        backfill_legacy_locker_card(
+            state,
+            &merchant_id,
+            &payment_method,
+            &tracking_data,
+            &process.id,
+        )
+        .await?;
 
         db.as_scheduler()
-            .finish_process_with_business_status(process, business_status)
+            .finish_process_with_business_status(process, "COMPLETED_BY_PT")
             .await?;
         crate::logger::info!(
-            business_status,
+            business_status = "COMPLETED_BY_PT",
             "Finished payment method modular backward compatibility PT"
         );
 
