@@ -920,7 +920,6 @@ pub async fn sync_relay_refund_with_gateway(
     connector_account: domain::MerchantConnectorAccount,
 ) -> RouterResult<relay::RelayUpdate> {
     let connector_id = &relay_record.connector_id;
-    let merchant_id = processor.get_account().get_id();
 
     let connector_name = &connector_account.get_connector_name_as_string();
 
@@ -935,7 +934,7 @@ pub async fn sync_relay_refund_with_gateway(
 
     let router_data = utils::construct_relay_refund_router_data(
         state,
-        merchant_id,
+        processor.get_account().get_id(),
         &connector_account,
         relay_record,
     )
