@@ -206,8 +206,7 @@ describe("Surcharge DSL Configuration Test", () => {
             },
           ],
           metadata: {
-            description:
-              "Complex surcharge with payment method conditions",
+            description: "Complex surcharge with payment method conditions",
           },
         },
       };

@@ -244,8 +244,7 @@ export const connectorDetails = {
             },
           ],
           metadata: {
-            description:
-              "Complex surcharge with payment method conditions",
+            description: "Complex surcharge with payment method conditions",
           },
         },
       },
