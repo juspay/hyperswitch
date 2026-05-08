@@ -304,9 +304,7 @@ function payLaterRedirection(
 
           case "airwallex":
             // Airwallex Klarna PayLater - follows similar pattern to other Klarna flows
-            cy.log(
-              `Handling Airwallex ${paymentMethodType} pay_later flow`
-            );
+            cy.log(`Handling Airwallex ${paymentMethodType} pay_later flow`);
 
             // Wait for the page to load
             cy.get("body", { timeout: constants.TIMEOUT }).should("exist");
