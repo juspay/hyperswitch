@@ -404,8 +404,7 @@ describe("Config Tests", () => {
         globalState
       ).then(() => {
         // Verify old header keys from previous update are absent
-        const responseHeaders =
-          globalState.data["lastResponseHeaders"] || {};
+        const responseHeaders = globalState.data["lastResponseHeaders"] || {};
         const oldKeys = Object.keys(
           fixtures.businessProfile.bpUpdateWebhookHeaders
             .outgoing_webhook_custom_http_headers

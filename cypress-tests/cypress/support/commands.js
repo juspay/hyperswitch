@@ -842,36 +842,38 @@ Cypress.Commands.add(
     const merchantId = globalState.get("merchantId");
     const profileId = globalState.get(`${profilePrefix}Id`);
 
-    return cy.request({
-      method: "POST",
-      url: `${globalState.get("baseUrl")}/account/${merchantId}/business_profile/${profileId}`,
-      headers: {
-        Accept: "application/json",
-        "Content-Type": "application/json",
-        "api-key": apiKey,
-      },
-      body: webhookHeadersBody,
-      failOnStatusCode: false,
-    }).then((response) => {
-      logRequestId(response.headers["x-request-id"]);
+    return cy
+      .request({
+        method: "POST",
+        url: `${globalState.get("baseUrl")}/account/${merchantId}/business_profile/${profileId}`,
+        headers: {
+          Accept: "application/json",
+          "Content-Type": "application/json",
+          "api-key": apiKey,
+        },
+        body: webhookHeadersBody,
+        failOnStatusCode: false,
+      })
+      .then((response) => {
+        logRequestId(response.headers["x-request-id"]);
 
-      cy.wrap(response).then(() => {
-        expect(response.status).to.equal(200);
-        const responseHeaders =
-          response.body.outgoing_webhook_custom_http_headers;
-        const requestHeaders =
-          webhookHeadersBody.outgoing_webhook_custom_http_headers;
+        cy.wrap(response).then(() => {
+          expect(response.status).to.equal(200);
+          const responseHeaders =
+            response.body.outgoing_webhook_custom_http_headers;
+          const requestHeaders =
+            webhookHeadersBody.outgoing_webhook_custom_http_headers;
 
-        if (Object.keys(requestHeaders).length === 0) {
-          expect(responseHeaders ?? {}).to.deep.equal({});
-        } else {
-          for (const [key, value] of Object.entries(requestHeaders)) {
-            const masked = maskValue(value);
-            expect(responseHeaders).to.have.property(key, masked);
+          if (Object.keys(requestHeaders).length === 0) {
+            expect(responseHeaders ?? {}).to.deep.equal({});
+          } else {
+            for (const [key, value] of Object.entries(requestHeaders)) {
+              const masked = maskValue(value);
+              expect(responseHeaders).to.have.property(key, masked);
+            }
           }
-        }
+        });
       });
-    });
   }
 );
 
