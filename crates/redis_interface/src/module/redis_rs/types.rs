@@ -35,7 +35,7 @@ impl RedisValue {
             redis::Value::VerbatimString { text, .. } => Some(text.as_bytes()),
             other => {
                 tracing::debug!(
-                    ?other,
+                    variant = value_variant_name(other),
                     "as_bytes() called on non-string RedisValue variant, returning None"
                 );
                 None
@@ -59,7 +59,7 @@ impl RedisValue {
             redis::Value::BigNumber(ref big_number) => Some(big_number.to_string()),
             other => {
                 tracing::debug!(
-                    ?other,
+                    variant = value_variant_name(other),
                     "as_string() called on non-string RedisValue variant, returning None"
                 );
                 None
@@ -251,6 +251,29 @@ impl redis::FromRedisValue for ConsumerGroupDestroyReply {
 }
 
 // ─── Redis-rs-specific helpers ───────────────────────────────────────────────
+
+/// Returns the variant name of a `redis::Value` without any inner data.
+/// Used for logging to avoid printing potentially large payloads.
+pub(crate) fn value_variant_name(value: &redis::Value) -> &'static str {
+    match value {
+        redis::Value::Nil => "Nil",
+        redis::Value::Int(_) => "Int",
+        redis::Value::BulkString(_) => "BulkString",
+        redis::Value::Array(_) => "Array",
+        redis::Value::Push { .. } => "Push",
+        redis::Value::Okay => "Okay",
+        redis::Value::SimpleString(_) => "SimpleString",
+        redis::Value::Map(_) => "Map",
+        redis::Value::Attribute { .. } => "Attribute",
+        redis::Value::Set(_) => "Set",
+        redis::Value::Double(_) => "Double",
+        redis::Value::Boolean(_) => "Boolean",
+        redis::Value::VerbatimString { .. } => "VerbatimString",
+        redis::Value::BigNumber(_) => "BigNumber",
+        redis::Value::ServerError(_) => "ServerError",
+        _ => "Unknown",
+    }
+}
 
 /// Converts a `redis::Value` to `Option<String>`.
 ///
