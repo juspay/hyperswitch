@@ -1933,13 +1933,7 @@ Cypress.Commands.add(
     }
     createPaymentBody.authentication_type = authentication_type;
     createPaymentBody.capture_method = capture_method;
-    const customerId = globalState.get("customerId");
-    if (customerId !== undefined) {
-      createPaymentBody.customer_id = customerId;
-    } else {
-      delete createPaymentBody.customer_id;
-      delete createPaymentBody.setup_future_usage;
-    }
+    createPaymentBody.customer_id = globalState.get("customerId");
     createPaymentBody.profile_id = profile_id;
 
     const headers = {
@@ -2146,13 +2140,7 @@ Cypress.Commands.add("paymentMethodsCallTest", (globalState, data = null) => {
 Cypress.Commands.add("createPaymentMethodTest", (globalState, data) => {
   const { Request: reqData, Response: resData } = data || {};
 
-  const customerIdPM = globalState.get("customerId");
-  if (customerIdPM !== undefined) {
-    reqData.customer_id = customerIdPM;
-  } else {
-    delete reqData.customer_id;
-    delete reqData.setup_future_usage;
-  }
+  reqData.customer_id = globalState.get("customerId");
   const merchant_id = globalState.get("merchantId");
 
   cy.request({
@@ -3643,13 +3631,7 @@ Cypress.Commands.add(
     requestBody.amount = amount;
     requestBody.capture_method = capture_method;
     requestBody.confirm = confirm;
-    const custId1 = globalState.get("customerId");
-    if (custId1 !== undefined) {
-      requestBody.customer_id = custId1;
-    } else {
-      delete requestBody.customer_id;
-      delete requestBody.setup_future_usage;
-    }
+    requestBody.customer_id = globalState.get("customerId");
     requestBody.payment_type = payment_type;
     requestBody.profile_id = profile_id;
 
@@ -3847,13 +3829,7 @@ Cypress.Commands.add(
     requestBody.amount = amount;
     requestBody.confirm = confirm;
     requestBody.capture_method = capture_method;
-    const custId2 = globalState.get("customerId");
-    if (custId2 !== undefined) {
-      requestBody.customer_id = custId2;
-    } else {
-      delete requestBody.customer_id;
-      delete requestBody.setup_future_usage;
-    }
+    requestBody.customer_id = globalState.get("customerId");
     requestBody.mandate_id = globalState.get("mandateId");
     requestBody.profile_id = profile_id;
 
@@ -4775,12 +4751,7 @@ Cypress.Commands.add(
     }
     createConfirmPayoutBody.auto_fulfill = auto_fulfill;
     createConfirmPayoutBody.confirm = confirm;
-    const payoutCustId1 = globalState.get("customerId");
-    if (payoutCustId1 !== undefined) {
-      createConfirmPayoutBody.customer_id = payoutCustId1;
-    } else {
-      delete createConfirmPayoutBody.customer_id;
-    }
+    createConfirmPayoutBody.customer_id = globalState.get("customerId");
 
     cy.request({
       method: "POST",
@@ -4818,12 +4789,7 @@ Cypress.Commands.add(
     for (const key in reqData) {
       createConfirmPayoutBody[key] = reqData[key];
     }
-    const payoutCustId2 = globalState.get("customerId");
-    if (payoutCustId2 !== undefined) {
-      createConfirmPayoutBody.customer_id = payoutCustId2;
-    } else {
-      delete createConfirmPayoutBody.customer_id;
-    }
+    createConfirmPayoutBody.customer_id = globalState.get("customerId");
     createConfirmPayoutBody.payout_token = globalState.get("paymentToken");
     createConfirmPayoutBody.auto_fulfill = auto_fulfill;
     createConfirmPayoutBody.confirm = confirm;
@@ -4865,12 +4831,7 @@ Cypress.Commands.add(
     for (const key in reqData) {
       createConfirmPayoutBody[key] = reqData[key];
     }
-    const payoutCustId3 = globalState.get("customerId");
-    if (payoutCustId3 !== undefined) {
-      createConfirmPayoutBody.customer_id = payoutCustId3;
-    } else {
-      delete createConfirmPayoutBody.customer_id;
-    }
+    createConfirmPayoutBody.customer_id = globalState.get("customerId");
     createConfirmPayoutBody.auto_fulfill = auto_fulfill;
     createConfirmPayoutBody.confirm = confirm;
     createConfirmPayoutBody.payout_method_id = globalState.data.paymentMethodId;
