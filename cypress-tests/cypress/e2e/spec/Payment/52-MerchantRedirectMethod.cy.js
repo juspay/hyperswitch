@@ -4,6 +4,7 @@ import { payment_methods_enabled } from "../../configs/Payment/Commons";
 import getConnectorDetails, {
   CONNECTOR_LISTS,
   shouldIncludeConnector,
+  should_continue_further,
 } from "../../configs/Payment/Utils";
 
 let globalState;
@@ -92,7 +93,7 @@ describe("Merchant Redirect Method Tests", () => {
             globalState
           );
 
-          if (!utils.should_continue_further(data)) {
+          if (!should_continue_further(data)) {
             shouldContinue = false;
           }
         });
@@ -122,7 +123,7 @@ describe("Merchant Redirect Method Tests", () => {
             }
 
             cy.confirmCallTest(fixtures.confirmBody, data, true, globalState);
-            if (!utils.should_continue_further(data)) {
+            if (!should_continue_further(data)) {
               shouldContinue = false;
             }
           }
@@ -195,7 +196,7 @@ describe("Merchant Redirect Method Tests", () => {
             globalState
           );
 
-          if (!utils.should_continue_further(data)) {
+          if (!should_continue_further(data)) {
             shouldContinue = false;
           }
         });
@@ -225,7 +226,7 @@ describe("Merchant Redirect Method Tests", () => {
             }
 
             cy.confirmCallTest(fixtures.confirmBody, data, true, globalState);
-            if (!utils.should_continue_further(data)) {
+            if (!should_continue_further(data)) {
               shouldContinue = false;
             }
           }
@@ -301,7 +302,7 @@ describe("Merchant Redirect Method Tests", () => {
             globalState
           );
 
-          if (!utils.should_continue_further(data)) {
+          if (!should_continue_further(data)) {
             shouldContinue = false;
           }
         });
@@ -346,7 +347,7 @@ describe("Merchant Redirect Method Tests", () => {
           }
 
           cy.confirmCallTest(fixtures.confirmBody, data, true, globalState);
-          if (!utils.should_continue_further(data)) {
+          if (!should_continue_further(data)) {
             shouldContinue = false;
           }
         });
