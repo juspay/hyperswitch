@@ -142,8 +142,6 @@ function createIndividualRolloutConfig(
     });
 }
 
-
-
 function parseMethodFlows(methodFlowInput) {
   if (!methodFlowInput) {
     throw new Error("methodFlow input is required");
