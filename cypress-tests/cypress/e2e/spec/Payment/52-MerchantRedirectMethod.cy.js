@@ -293,15 +293,15 @@ describe("Merchant Redirect Method Tests", () => {
         cy.step(
           "Set initial redirect_to_merchant_with_http_post to true",
           () => {
-          cy.UpdateBusinessProfileTest(
-            bpUpdateRedirectPost,
-            true,
-            false,
-            false,
-            false,
-            false,
-            globalState
-          );
+            cy.UpdateBusinessProfileTest(
+              bpUpdateRedirectPost,
+              true,
+              false,
+              false,
+              false,
+              false,
+              globalState
+            );
           }
         );
 
