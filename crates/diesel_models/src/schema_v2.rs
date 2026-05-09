@@ -1344,7 +1344,7 @@ diesel::table! {
         payment_method_subtype -> Nullable<Varchar>,
         external_vault_token_data -> Nullable<Bytea>,
         #[max_length = 64]
-        parent_fingerprint_id -> Nullable<Varchar>,
+        auxiliary_fingerprint_id -> Nullable<Varchar>,
     }
 }
 

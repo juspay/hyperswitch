@@ -130,7 +130,7 @@ pub struct PaymentMethod {
     pub payment_method_billing_address: Option<Encryptable<Address>>,
     pub updated_by: Option<String>,
     pub locker_fingerprint_id: Option<String>,
-    pub parent_fingerprint_id: Option<String>,
+    pub auxiliary_fingerprint_id: Option<String>,
     pub version: common_enums::ApiVersion,
     pub network_token_requestor_reference_id: Option<String>,
     pub network_token_locker_id: Option<String>,
@@ -764,7 +764,7 @@ impl super::behaviour::Conversion for PaymentMethod {
                 .map(|last_modified_by| last_modified_by.to_string()),
             customer_details: self.customer_details.map(|val| val.into()),
             network_tokenization_data: self.network_tokenization_data.map(|val| val.into()),
-            parent_fingerprint_id: self.parent_fingerprint_id,
+            auxiliary_fingerprint_id: self.auxiliary_fingerprint_id,
         })
     }
 
@@ -905,7 +905,7 @@ impl super::behaviour::Conversion for PaymentMethod {
                     .and_then(|last_modified_by| last_modified_by.parse::<CreatedBy>().ok()),
                 customer_details,
                 network_tokenization_data,
-                parent_fingerprint_id: storage_model.parent_fingerprint_id,
+                auxiliary_fingerprint_id: storage_model.auxiliary_fingerprint_id,
             })
         }
         .await
@@ -951,7 +951,7 @@ impl super::behaviour::Conversion for PaymentMethod {
                 .last_modified_by
                 .map(|last_modified_by| last_modified_by.to_string()),
             customer_details: self.customer_details.map(|val| val.into()),
-            parent_fingerprint_id: self.parent_fingerprint_id,
+            auxiliary_fingerprint_id: self.auxiliary_fingerprint_id,
         })
     }
 }

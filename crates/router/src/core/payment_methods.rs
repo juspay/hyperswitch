@@ -1482,7 +1482,7 @@ pub enum PaymentMethodResolution {
 #[cfg(feature = "v2")]
 pub struct FingerprintDetails {
     pub fingerprint_id: Option<String>,
-    pub parent_fingerprint_id: Option<String>,
+    pub auxiliary_fingerprint_id: Option<String>,
 }
 
 #[cfg(feature = "v2")]
@@ -1699,7 +1699,7 @@ impl LockerOperations for GenericLocker {
 
                 logger::debug!("Payment method not found, falling back to creation");
 
-                let parent_fingerprint_id = vault::get_parent_fingerprint_id_for_payment_method(
+                let auxiliary_fingerprint_id = vault::get_parent_fingerprint_id_for_payment_method(
                     state,
                     &payment_method_data,
                     customer_id.get_string_repr().to_owned(),
@@ -1717,7 +1717,7 @@ impl LockerOperations for GenericLocker {
 
                 let fingerprint_details = FingerprintDetails {
                     fingerprint_id: Some(fingerprint_id),
-                    parent_fingerprint_id: Some(parent_fingerprint_id.clone()),
+                    auxiliary_fingerprint_id: Some(auxiliary_fingerprint_id.clone()),
                 };
 
                 Ok(PaymentMethodResolver(PaymentMethodResolution::Create {
@@ -2380,8 +2380,8 @@ impl PaymentMethodResolver {
                     .as_ref()
                     .and_then(|details| details.fingerprint_id.clone());
 
-                let parent_fingerprint_id =
-                    fingerprint_details.and_then(|details| details.parent_fingerprint_id.clone());
+                let auxiliary_fingerprint_id = fingerprint_details
+                    .and_then(|details| details.auxiliary_fingerprint_id.clone());
 
                 let payment_method = create_payment_method_for_intent(
                     state,
@@ -2393,7 +2393,7 @@ impl PaymentMethodResolver {
                     platform.get_provider().get_account().storage_scheme,
                     billing_address.clone(),
                     platform.get_initiator(),
-                    parent_fingerprint_id,
+                    auxiliary_fingerprint_id,
                 )
                 .await?;
                 Box::pin(execute_payment_method_create(
@@ -3770,7 +3770,7 @@ pub async fn create_payment_method_for_intent(
         Encryptable<hyperswitch_domain_models::address::Address>,
     >,
     initiator: Option<&domain::Initiator>,
-    parent_fingerprint_id: Option<String>,
+    auxiliary_fingerprint_id: Option<String>,
 ) -> CustomResult<domain::PaymentMethod, errors::ApiErrorResponse> {
     use josekit::jwe::zip::deflate::DeflateJweCompression::Def;
 
@@ -3811,7 +3811,7 @@ pub async fn create_payment_method_for_intent(
                 last_modified_by: initiator.and_then(|initiator| initiator.to_created_by()),
                 customer_details: None,
                 network_tokenization_data: None,
-                parent_fingerprint_id,
+                auxiliary_fingerprint_id,
             },
             storage_scheme,
         )
@@ -3899,7 +3899,7 @@ pub async fn construct_payment_method_object(
         last_modified_by: initiator.and_then(|initiator| initiator.to_created_by()),
         customer_details: None,
         network_tokenization_data: None,
-        parent_fingerprint_id: None,
+        auxiliary_fingerprint_id: None,
     })
 }
 
@@ -3965,7 +3965,7 @@ pub async fn create_payment_method_for_confirm(
                 last_modified_by: initiator.and_then(|initiator| initiator.to_created_by()),
                 customer_details: None,
                 network_tokenization_data: None,
-                parent_fingerprint_id: None,
+                auxiliary_fingerprint_id: None,
             },
             storage_scheme,
         )
