@@ -402,7 +402,7 @@ where
 
             let direct_for_compare: Result<RouterData<F, Req, Resp>, String> = match &direct_result
             {
-                Ok(val) => Ok(val.get_router_data().clone()),
+                Ok(fo) => Ok(fo.get_router_data().clone()),
                 Err(e) => Err(format!("{:?}", e)),
             };
             let state_clone = state.clone();
@@ -433,7 +433,7 @@ where
                     }
 
                     let ucs_for_compare = match ucs_shadow_result {
-                        Ok(val) => Ok(val.get_router_data().clone()),
+                        Ok(fo) => Ok(fo.get_router_data().clone()),
                         Err(e) => Err(format!("{:?}", e)),
                     };
 
@@ -536,7 +536,7 @@ where
 
             let direct_for_compare: Result<RouterData<F, Req, Resp>, String> = match &direct_result
             {
-                Ok(val) => Ok(val.get_router_data().clone()),
+                Ok(fo) => Ok(fo.get_router_data().clone()),
                 Err(e) => Err(format!("{:?}", e)),
             };
             let state_clone = state.clone();
@@ -567,7 +567,7 @@ where
                     }
 
                     let ucs_for_compare = match ucs_shadow_result {
-                        Ok(val) => Ok(val.get_router_data().clone()),
+                        Ok(fo) => Ok(fo.get_router_data().clone()),
                         Err(e) => Err(format!("{:?}", e)),
                     };
 
