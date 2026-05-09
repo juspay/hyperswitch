@@ -5,7 +5,6 @@ import getConnectorDetails, {
   CONNECTOR_LISTS,
   shouldIncludeConnector,
 } from "../../configs/Payment/Utils";
-import * as utils from "../../configs/Payment/Utils";
 
 let globalState;
 
@@ -76,7 +75,6 @@ describe("Merchant Redirect Method Tests", () => {
             false,
             globalState
           );
-          globalState.set("redirectToMerchantWithHttpPost", true);
         });
 
         cy.step("Create Payment Intent with POST redirect enabled", () => {
@@ -180,7 +178,6 @@ describe("Merchant Redirect Method Tests", () => {
             false,
             globalState
           );
-          globalState.set("redirectToMerchantWithHttpPost", false);
         });
 
         cy.step("Create Payment Intent with GET redirect enabled", () => {
