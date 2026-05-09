@@ -5,10 +5,24 @@ import getConnectorDetails, * as utils from "../../configs/Payment/Utils";
 let globalState;
 
 describe("Payment Response Hash - Business Profile Configuration", () => {
+  let shouldContinue = true;
+
   before("seed global state", () => {
     cy.task("getGlobalState").then((state) => {
       globalState = new State(state);
+      const connectorId = globalState.get("connectorId");
+      if (
+        utils.CONNECTOR_LISTS.EXCLUDE.PAYMENT_RESPONSE_HASH.includes(connectorId)
+      ) {
+        shouldContinue = false;
+      }
     });
+  });
+
+  beforeEach(function () {
+    if (!shouldContinue) {
+      this.skip();
+    }
   });
 
   after("flush global state", () => {
