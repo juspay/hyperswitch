@@ -9,6 +9,24 @@ import getConnectorDetails, {
 
 let globalState;
 
+const bpUpdateRedirectPost = {
+  is_connector_agnostic_mit_enabled: true,
+  collect_shipping_details_from_wallet_connector: false,
+  collect_billing_details_from_wallet_connector: false,
+  always_collect_billing_details_from_wallet_connector: false,
+  always_collect_shipping_details_from_wallet_connector: false,
+  redirect_to_merchant_with_http_post: true,
+};
+
+const bpUpdateRedirectGet = {
+  is_connector_agnostic_mit_enabled: true,
+  collect_shipping_details_from_wallet_connector: false,
+  collect_billing_details_from_wallet_connector: false,
+  always_collect_billing_details_from_wallet_connector: false,
+  always_collect_shipping_details_from_wallet_connector: false,
+  redirect_to_merchant_with_http_post: false,
+};
+
 describe("Merchant Redirect Method Tests", () => {
   before("seed global state", function () {
     let skip = false;
@@ -68,7 +86,7 @@ describe("Merchant Redirect Method Tests", () => {
 
         cy.step("Update redirect_to_merchant_with_http_post to true", () => {
           cy.UpdateBusinessProfileTest(
-            fixtures.businessProfile.bpUpdateRedirectPost,
+            bpUpdateRedirectPost,
             true,
             false,
             false,
@@ -171,7 +189,7 @@ describe("Merchant Redirect Method Tests", () => {
 
         cy.step("Update redirect_to_merchant_with_http_post to false", () => {
           cy.UpdateBusinessProfileTest(
-            fixtures.businessProfile.bpUpdateRedirectGet,
+            bpUpdateRedirectGet,
             true,
             false,
             false,
@@ -275,15 +293,15 @@ describe("Merchant Redirect Method Tests", () => {
         cy.step(
           "Set initial redirect_to_merchant_with_http_post to true",
           () => {
-            cy.UpdateBusinessProfileTest(
-              fixtures.businessProfile.bpUpdateRedirectPost,
-              true,
-              false,
-              false,
-              false,
-              false,
-              globalState
-            );
+          cy.UpdateBusinessProfileTest(
+            bpUpdateRedirectPost,
+            true,
+            false,
+            false,
+            false,
+            false,
+            globalState
+          );
           }
         );
 
@@ -315,7 +333,7 @@ describe("Merchant Redirect Method Tests", () => {
               return;
             }
             cy.UpdateBusinessProfileTest(
-              fixtures.businessProfile.bpUpdateRedirectGet,
+              bpUpdateRedirectGet,
               true,
               false,
               false,
