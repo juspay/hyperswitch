@@ -2020,10 +2020,9 @@ Cypress.Commands.add(
           expect(createPaymentBody.email, "customer.email").to.equal(
             response.body.customer.email
           );
-          expect(
-            createPaymentBody.customer_id ?? null,
-            "customer.id"
-          ).to.equal(response.body.customer.id);
+          expect(createPaymentBody.customer_id ?? null, "customer.id").to.equal(
+            response.body.customer.id
+          );
           expect(createPaymentBody.metadata, "metadata").to.deep.equal(
             response.body.metadata
           );
@@ -2182,10 +2181,9 @@ Cypress.Commands.add("createPaymentMethodTest", (globalState, data) => {
           response.body.payment_method
         );
         expect(response.body.last_used_at, "last_used_at").to.not.be.null;
-        expect(
-          reqData.customer_id ?? null,
-          "customer_id"
-        ).to.equal(response.body.customer_id);
+        expect(reqData.customer_id ?? null, "customer_id").to.equal(
+          response.body.customer_id
+        );
         globalState.set("paymentMethodId", response.body.payment_method_id);
       } else {
         defaultErrorHandler(response, resData);

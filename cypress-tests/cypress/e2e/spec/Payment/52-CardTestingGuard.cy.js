@@ -64,7 +64,10 @@ describe("Card Testing Guard", () => {
 
       cy.step("Create Payment Intent - IP failure 1", () => {
         if (!shouldContinue) {
-          cy.task("cli_log", "Skipping step: Create Payment Intent - IP failure 1");
+          cy.task(
+            "cli_log",
+            "Skipping step: Create Payment Intent - IP failure 1"
+          );
           return;
         }
         globalState.set("customerId", `ctg_ip_1_${Date.now()}`);
@@ -99,7 +102,10 @@ describe("Card Testing Guard", () => {
 
       cy.step("Create Payment Intent - IP failure 2", () => {
         if (!shouldContinue) {
-          cy.task("cli_log", "Skipping step: Create Payment Intent - IP failure 2");
+          cy.task(
+            "cli_log",
+            "Skipping step: Create Payment Intent - IP failure 2"
+          );
           return;
         }
         globalState.set("customerId", `ctg_ip_2_${Date.now()}`);
@@ -131,7 +137,10 @@ describe("Card Testing Guard", () => {
 
       cy.step("Create Payment Intent - IP failure 3", () => {
         if (!shouldContinue) {
-          cy.task("cli_log", "Skipping step: Create Payment Intent - IP failure 3");
+          cy.task(
+            "cli_log",
+            "Skipping step: Create Payment Intent - IP failure 3"
+          );
           return;
         }
         globalState.set("customerId", `ctg_ip_3_${Date.now()}`);
@@ -163,7 +172,10 @@ describe("Card Testing Guard", () => {
 
       cy.step("Create Payment Intent - IP blocked attempt", () => {
         if (!shouldContinue) {
-          cy.task("cli_log", "Skipping step: Create Payment Intent - IP blocked attempt");
+          cy.task(
+            "cli_log",
+            "Skipping step: Create Payment Intent - IP blocked attempt"
+          );
           return;
         }
         globalState.set("customerId", `ctg_ip_4_${Date.now()}`);
@@ -181,7 +193,10 @@ describe("Card Testing Guard", () => {
 
       cy.step("Confirm Payment - should be blocked by IP", () => {
         if (!shouldContinue) {
-          cy.task("cli_log", "Skipping step: Confirm Payment - should be blocked by IP");
+          cy.task(
+            "cli_log",
+            "Skipping step: Confirm Payment - should be blocked by IP"
+          );
           return;
         }
         const data = getConnectorDetails(globalState.get("connectorId"))[
@@ -243,15 +258,15 @@ describe("Card Testing Guard", () => {
       });
 
       cy.step("Create Customer", () => {
-        cy.createCustomerCallTest(
-          fixtures.customerCreateBody,
-          globalState
-        );
+        cy.createCustomerCallTest(fixtures.customerCreateBody, globalState);
       });
 
       cy.step("Create Payment Intent - Customer ID failure 1", () => {
         if (!shouldContinue) {
-          cy.task("cli_log", "Skipping step: Create Payment Intent - Customer ID failure 1");
+          cy.task(
+            "cli_log",
+            "Skipping step: Create Payment Intent - Customer ID failure 1"
+          );
           return;
         }
         const data = getConnectorDetails(globalState.get("connectorId"))[
@@ -271,7 +286,10 @@ describe("Card Testing Guard", () => {
 
       cy.step("Confirm Payment - Customer ID failure 1", () => {
         if (!shouldContinue) {
-          cy.task("cli_log", "Skipping step: Confirm Payment - Customer ID failure 1");
+          cy.task(
+            "cli_log",
+            "Skipping step: Confirm Payment - Customer ID failure 1"
+          );
           return;
         }
         const data = getConnectorDetails(globalState.get("connectorId"))[
@@ -285,7 +303,10 @@ describe("Card Testing Guard", () => {
 
       cy.step("Create Payment Intent - Customer ID failure 2", () => {
         if (!shouldContinue) {
-          cy.task("cli_log", "Skipping step: Create Payment Intent - Customer ID failure 2");
+          cy.task(
+            "cli_log",
+            "Skipping step: Create Payment Intent - Customer ID failure 2"
+          );
           return;
         }
         const data = getConnectorDetails(globalState.get("connectorId"))[
@@ -302,7 +323,10 @@ describe("Card Testing Guard", () => {
 
       cy.step("Confirm Payment - Customer ID failure 2", () => {
         if (!shouldContinue) {
-          cy.task("cli_log", "Skipping step: Confirm Payment - Customer ID failure 2");
+          cy.task(
+            "cli_log",
+            "Skipping step: Confirm Payment - Customer ID failure 2"
+          );
           return;
         }
         const data = getConnectorDetails(globalState.get("connectorId"))[
@@ -316,7 +340,10 @@ describe("Card Testing Guard", () => {
 
       cy.step("Create Payment Intent - Customer ID blocked attempt", () => {
         if (!shouldContinue) {
-          cy.task("cli_log", "Skipping step: Create Payment Intent - Customer ID blocked attempt");
+          cy.task(
+            "cli_log",
+            "Skipping step: Create Payment Intent - Customer ID blocked attempt"
+          );
           return;
         }
         const data = getConnectorDetails(globalState.get("connectorId"))[
@@ -333,7 +360,10 @@ describe("Card Testing Guard", () => {
 
       cy.step("Confirm Payment - should be blocked by customer_id", () => {
         if (!shouldContinue) {
-          cy.task("cli_log", "Skipping step: Confirm Payment - should be blocked by customer_id");
+          cy.task(
+            "cli_log",
+            "Skipping step: Confirm Payment - should be blocked by customer_id"
+          );
           return;
         }
         const data = getConnectorDetails(globalState.get("connectorId"))[
@@ -371,32 +401,38 @@ describe("Card Testing Guard", () => {
     it("should block payment after guest_user_card_blocking threshold is reached", () => {
       let shouldContinue = true;
 
-      cy.step("Enable only guest_user_card_blocking on business profile", () => {
-        const updateBusinessProfileBody = {
-          card_testing_guard_config: {
-            card_ip_blocking_status: "disabled",
-            card_ip_blocking_threshold: 100,
-            guest_user_card_blocking_status: "enabled",
-            guest_user_card_blocking_threshold: 2,
-            customer_id_blocking_status: "disabled",
-            customer_id_blocking_threshold: 100,
-            card_testing_guard_expiry: 3600,
-          },
-        };
-        cy.UpdateBusinessProfileTest(
-          updateBusinessProfileBody,
-          false,
-          false,
-          false,
-          false,
-          false,
-          globalState
-        );
-      });
+      cy.step(
+        "Enable only guest_user_card_blocking on business profile",
+        () => {
+          const updateBusinessProfileBody = {
+            card_testing_guard_config: {
+              card_ip_blocking_status: "disabled",
+              card_ip_blocking_threshold: 100,
+              guest_user_card_blocking_status: "enabled",
+              guest_user_card_blocking_threshold: 2,
+              customer_id_blocking_status: "disabled",
+              customer_id_blocking_threshold: 100,
+              card_testing_guard_expiry: 3600,
+            },
+          };
+          cy.UpdateBusinessProfileTest(
+            updateBusinessProfileBody,
+            false,
+            false,
+            false,
+            false,
+            false,
+            globalState
+          );
+        }
+      );
 
       cy.step("Create Payment Intent - Guest failure 1", () => {
         if (!shouldContinue) {
-          cy.task("cli_log", "Skipping step: Create Payment Intent - Guest failure 1");
+          cy.task(
+            "cli_log",
+            "Skipping step: Create Payment Intent - Guest failure 1"
+          );
           return;
         }
         globalState.set("customerId", undefined);
@@ -417,7 +453,10 @@ describe("Card Testing Guard", () => {
 
       cy.step("Confirm Payment - Guest failure 1", () => {
         if (!shouldContinue) {
-          cy.task("cli_log", "Skipping step: Confirm Payment - Guest failure 1");
+          cy.task(
+            "cli_log",
+            "Skipping step: Confirm Payment - Guest failure 1"
+          );
           return;
         }
         const data = getConnectorDetails(globalState.get("connectorId"))[
@@ -431,7 +470,10 @@ describe("Card Testing Guard", () => {
 
       cy.step("Create Payment Intent - Guest failure 2", () => {
         if (!shouldContinue) {
-          cy.task("cli_log", "Skipping step: Create Payment Intent - Guest failure 2");
+          cy.task(
+            "cli_log",
+            "Skipping step: Create Payment Intent - Guest failure 2"
+          );
           return;
         }
         globalState.set("customerId", undefined);
@@ -449,7 +491,10 @@ describe("Card Testing Guard", () => {
 
       cy.step("Confirm Payment - Guest failure 2", () => {
         if (!shouldContinue) {
-          cy.task("cli_log", "Skipping step: Confirm Payment - Guest failure 2");
+          cy.task(
+            "cli_log",
+            "Skipping step: Confirm Payment - Guest failure 2"
+          );
           return;
         }
         const data = getConnectorDetails(globalState.get("connectorId"))[
@@ -463,7 +508,10 @@ describe("Card Testing Guard", () => {
 
       cy.step("Create Payment Intent - Guest blocked attempt", () => {
         if (!shouldContinue) {
-          cy.task("cli_log", "Skipping step: Create Payment Intent - Guest blocked attempt");
+          cy.task(
+            "cli_log",
+            "Skipping step: Create Payment Intent - Guest blocked attempt"
+          );
           return;
         }
         globalState.set("customerId", undefined);
@@ -481,7 +529,10 @@ describe("Card Testing Guard", () => {
 
       cy.step("Confirm Payment - should be blocked by guest user rule", () => {
         if (!shouldContinue) {
-          cy.task("cli_log", "Skipping step: Confirm Payment - should be blocked by guest user rule");
+          cy.task(
+            "cli_log",
+            "Skipping step: Confirm Payment - should be blocked by guest user rule"
+          );
           return;
         }
         const data = getConnectorDetails(globalState.get("connectorId"))[
@@ -519,39 +570,42 @@ describe("Card Testing Guard", () => {
     it("should allow payment when failures are below threshold", () => {
       let shouldContinue = true;
 
-      cy.step("Enable customer_id_blocking with threshold 2 on business profile", () => {
-        const updateBusinessProfileBody = {
-          card_testing_guard_config: {
-            card_ip_blocking_status: "disabled",
-            card_ip_blocking_threshold: 100,
-            guest_user_card_blocking_status: "disabled",
-            guest_user_card_blocking_threshold: 100,
-            customer_id_blocking_status: "enabled",
-            customer_id_blocking_threshold: 2,
-            card_testing_guard_expiry: 3600,
-          },
-        };
-        cy.UpdateBusinessProfileTest(
-          updateBusinessProfileBody,
-          false,
-          false,
-          false,
-          false,
-          false,
-          globalState
-        );
-      });
+      cy.step(
+        "Enable customer_id_blocking with threshold 2 on business profile",
+        () => {
+          const updateBusinessProfileBody = {
+            card_testing_guard_config: {
+              card_ip_blocking_status: "disabled",
+              card_ip_blocking_threshold: 100,
+              guest_user_card_blocking_status: "disabled",
+              guest_user_card_blocking_threshold: 100,
+              customer_id_blocking_status: "enabled",
+              customer_id_blocking_threshold: 2,
+              card_testing_guard_expiry: 3600,
+            },
+          };
+          cy.UpdateBusinessProfileTest(
+            updateBusinessProfileBody,
+            false,
+            false,
+            false,
+            false,
+            false,
+            globalState
+          );
+        }
+      );
 
       cy.step("Create Customer for below-threshold test", () => {
-        cy.createCustomerCallTest(
-          fixtures.customerCreateBody,
-          globalState
-        );
+        cy.createCustomerCallTest(fixtures.customerCreateBody, globalState);
       });
 
       cy.step("Create Payment Intent - single failure below threshold", () => {
         if (!shouldContinue) {
-          cy.task("cli_log", "Skipping step: Create Payment Intent - single failure below threshold");
+          cy.task(
+            "cli_log",
+            "Skipping step: Create Payment Intent - single failure below threshold"
+          );
           return;
         }
         const data = getConnectorDetails(globalState.get("connectorId"))[
@@ -571,7 +625,10 @@ describe("Card Testing Guard", () => {
 
       cy.step("Confirm Payment - single failure (below threshold)", () => {
         if (!shouldContinue) {
-          cy.task("cli_log", "Skipping step: Confirm Payment - single failure (below threshold)");
+          cy.task(
+            "cli_log",
+            "Skipping step: Confirm Payment - single failure (below threshold)"
+          );
           return;
         }
         const data = getConnectorDetails(globalState.get("connectorId"))[
@@ -585,7 +642,10 @@ describe("Card Testing Guard", () => {
 
       cy.step("Create Payment Intent - success attempt", () => {
         if (!shouldContinue) {
-          cy.task("cli_log", "Skipping step: Create Payment Intent - success attempt");
+          cy.task(
+            "cli_log",
+            "Skipping step: Create Payment Intent - success attempt"
+          );
           return;
         }
         const data = getConnectorDetails(globalState.get("connectorId"))[
@@ -602,7 +662,10 @@ describe("Card Testing Guard", () => {
 
       cy.step("Confirm Payment - should succeed below threshold", () => {
         if (!shouldContinue) {
-          cy.task("cli_log", "Skipping step: Confirm Payment - should succeed below threshold");
+          cy.task(
+            "cli_log",
+            "Skipping step: Confirm Payment - should succeed below threshold"
+          );
           return;
         }
         const data = getConnectorDetails(globalState.get("connectorId"))[
@@ -663,25 +726,31 @@ describe("Card Testing Guard", () => {
         );
       });
 
-      cy.step("Create Payment Intent - should succeed with guard disabled", () => {
-        const data = getConnectorDetails(globalState.get("connectorId"))[
-          "card_pm"
-        ]["PaymentIntent"];
-        cy.createPaymentIntentTest(
-          fixtures.createPaymentBody,
-          data,
-          "no_three_ds",
-          "automatic",
-          globalState
-        );
-        if (!utils.should_continue_further(data)) {
-          shouldContinue = false;
+      cy.step(
+        "Create Payment Intent - should succeed with guard disabled",
+        () => {
+          const data = getConnectorDetails(globalState.get("connectorId"))[
+            "card_pm"
+          ]["PaymentIntent"];
+          cy.createPaymentIntentTest(
+            fixtures.createPaymentBody,
+            data,
+            "no_three_ds",
+            "automatic",
+            globalState
+          );
+          if (!utils.should_continue_further(data)) {
+            shouldContinue = false;
+          }
         }
-      });
+      );
 
       cy.step("Confirm Payment - should succeed with guard disabled", () => {
         if (!shouldContinue) {
-          cy.task("cli_log", "Skipping step: Confirm Payment - should succeed with guard disabled");
+          cy.task(
+            "cli_log",
+            "Skipping step: Confirm Payment - should succeed with guard disabled"
+          );
           return;
         }
         const data = getConnectorDetails(globalState.get("connectorId"))[
