@@ -182,6 +182,9 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "requires_customer_action",
+          next_action: {
+            type: "redirect_to_url",
+          },
         },
       },
     },
