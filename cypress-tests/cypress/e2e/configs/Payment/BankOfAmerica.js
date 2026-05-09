@@ -35,6 +35,25 @@ const billing_with_newline = {
   },
 };
 
+const cardTestingGuardBilling = {
+  address: {
+    city: "sakilmostak",
+    country: "US",
+    line1: "here",
+    line2: "there",
+    line3: "anywhere",
+    zip: "560090",
+    state: "Washingtonr",
+    first_name: "One",
+    last_name: "Two",
+  },
+  phone: {
+    number: "1234567890",
+    country_code: "+1",
+  },
+  email: "guest@example.com",
+};
+
 const singleUseMandateData = {
   customer_acceptance: customerAcceptance,
   mandate_type: {
@@ -829,24 +848,7 @@ export const connectorDetails = {
         Request: {
           payment_method: "card",
           payment_method_data: {
-            billing: {
-              address: {
-                city: "sakilmostak",
-                country: "US",
-                line1: "here",
-                line2: "there",
-                line3: "anywhere",
-                zip: "560090",
-                state: "Washingtonr",
-                first_name: "One",
-                last_name: "Two",
-              },
-              phone: {
-                number: "1234567890",
-                country_code: "+1",
-              },
-              email: "guest@example.com",
-            },
+            billing: cardTestingGuardBilling,
             card: successfulNo3DSCardDetails,
           },
           customer_acceptance: null,
@@ -864,24 +866,7 @@ export const connectorDetails = {
         Request: {
           payment_method: "card",
           payment_method_data: {
-            billing: {
-              address: {
-                city: "sakilmostak",
-                country: "US",
-                line1: "here",
-                line2: "there",
-                line3: "anywhere",
-                zip: "560090",
-                state: "Washingtonr",
-                first_name: "One",
-                last_name: "Two",
-              },
-              phone: {
-                number: "1234567890",
-                country_code: "+1",
-              },
-              email: "guest@example.com",
-            },
+            billing: cardTestingGuardBilling,
             card: successfulNo3DSCardDetails,
           },
           customer_acceptance: null,

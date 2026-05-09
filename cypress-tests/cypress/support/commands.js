@@ -2020,9 +2020,17 @@ Cypress.Commands.add(
           expect(createPaymentBody.email, "customer.email").to.equal(
             response.body.customer.email
           );
-          expect(createPaymentBody.customer_id ?? null, "customer.id").to.equal(
-            response.body.customer.id
-          );
+          if (createPaymentBody.customer_id !== undefined) {
+            expect(
+              createPaymentBody.customer_id,
+              "customer.id"
+            ).to.equal(response.body.customer.id);
+          } else {
+            expect(
+              response.body.customer.id,
+              "customer.id"
+            ).to.be.null;
+          }
           expect(createPaymentBody.metadata, "metadata").to.deep.equal(
             response.body.metadata
           );

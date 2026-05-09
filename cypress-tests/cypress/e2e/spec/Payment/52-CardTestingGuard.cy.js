@@ -53,11 +53,11 @@ describe("Card Testing Guard", () => {
         };
         cy.UpdateBusinessProfileTest(
           updateBusinessProfileBody,
-          false,
-          false,
-          false,
-          false,
-          false,
+          false, // is_connector_agnostic_enabled
+          false, // collect_billing_address_from_wallet_connector
+          false, // collect_shipping_address_from_wallet_connector
+          false, // always_collect_billing_address_from_wallet_connector
+          false, // always_collect_shipping_address_from_wallet_connector
           globalState
         );
       });
@@ -219,11 +219,11 @@ describe("Card Testing Guard", () => {
         };
         cy.UpdateBusinessProfileTest(
           updateBusinessProfileBody,
-          false,
-          false,
-          false,
-          false,
-          false,
+          false, // is_connector_agnostic_enabled
+          false, // collect_billing_address_from_wallet_connector
+          false, // collect_shipping_address_from_wallet_connector
+          false, // always_collect_billing_address_from_wallet_connector
+          false, // always_collect_shipping_address_from_wallet_connector
           globalState
         );
       });
@@ -248,11 +248,11 @@ describe("Card Testing Guard", () => {
         };
         cy.UpdateBusinessProfileTest(
           updateBusinessProfileBody,
-          false,
-          false,
-          false,
-          false,
-          false,
+          false, // is_connector_agnostic_enabled
+          false, // collect_billing_address_from_wallet_connector
+          false, // collect_shipping_address_from_wallet_connector
+          false, // always_collect_billing_address_from_wallet_connector
+          false, // always_collect_shipping_address_from_wallet_connector
           globalState
         );
       });
@@ -386,11 +386,11 @@ describe("Card Testing Guard", () => {
         };
         cy.UpdateBusinessProfileTest(
           updateBusinessProfileBody,
-          false,
-          false,
-          false,
-          false,
-          false,
+          false, // is_connector_agnostic_enabled
+          false, // collect_billing_address_from_wallet_connector
+          false, // collect_shipping_address_from_wallet_connector
+          false, // always_collect_billing_address_from_wallet_connector
+          false, // always_collect_shipping_address_from_wallet_connector
           globalState
         );
       });
@@ -401,31 +401,28 @@ describe("Card Testing Guard", () => {
     it("should block payment after guest_user_card_blocking threshold is reached", () => {
       let shouldContinue = true;
 
-      cy.step(
-        "Enable only guest_user_card_blocking on business profile",
-        () => {
-          const updateBusinessProfileBody = {
-            card_testing_guard_config: {
-              card_ip_blocking_status: "disabled",
-              card_ip_blocking_threshold: 100,
-              guest_user_card_blocking_status: "enabled",
-              guest_user_card_blocking_threshold: 2,
-              customer_id_blocking_status: "disabled",
-              customer_id_blocking_threshold: 100,
-              card_testing_guard_expiry: 3600,
-            },
-          };
-          cy.UpdateBusinessProfileTest(
-            updateBusinessProfileBody,
-            false,
-            false,
-            false,
-            false,
-            false,
-            globalState
-          );
-        }
-      );
+      cy.step("Enable only guest_user_card_blocking on business profile", () => {
+        const updateBusinessProfileBody = {
+          card_testing_guard_config: {
+            card_ip_blocking_status: "disabled",
+            card_ip_blocking_threshold: 100,
+            guest_user_card_blocking_status: "enabled",
+            guest_user_card_blocking_threshold: 2,
+            customer_id_blocking_status: "disabled",
+            customer_id_blocking_threshold: 100,
+            card_testing_guard_expiry: 3600,
+          },
+        };
+        cy.UpdateBusinessProfileTest(
+          updateBusinessProfileBody,
+          false, // is_connector_agnostic_enabled
+          false, // collect_billing_address_from_wallet_connector
+          false, // collect_shipping_address_from_wallet_connector
+          false, // always_collect_billing_address_from_wallet_connector
+          false, // always_collect_shipping_address_from_wallet_connector
+          globalState
+        );
+      });
 
       cy.step("Create Payment Intent - Guest failure 1", () => {
         if (!shouldContinue) {
@@ -555,11 +552,11 @@ describe("Card Testing Guard", () => {
         };
         cy.UpdateBusinessProfileTest(
           updateBusinessProfileBody,
-          false,
-          false,
-          false,
-          false,
-          false,
+          false, // is_connector_agnostic_enabled
+          false, // collect_billing_address_from_wallet_connector
+          false, // collect_shipping_address_from_wallet_connector
+          false, // always_collect_billing_address_from_wallet_connector
+          false, // always_collect_shipping_address_from_wallet_connector
           globalState
         );
       });
@@ -570,31 +567,28 @@ describe("Card Testing Guard", () => {
     it("should allow payment when failures are below threshold", () => {
       let shouldContinue = true;
 
-      cy.step(
-        "Enable customer_id_blocking with threshold 2 on business profile",
-        () => {
-          const updateBusinessProfileBody = {
-            card_testing_guard_config: {
-              card_ip_blocking_status: "disabled",
-              card_ip_blocking_threshold: 100,
-              guest_user_card_blocking_status: "disabled",
-              guest_user_card_blocking_threshold: 100,
-              customer_id_blocking_status: "enabled",
-              customer_id_blocking_threshold: 2,
-              card_testing_guard_expiry: 3600,
-            },
-          };
-          cy.UpdateBusinessProfileTest(
-            updateBusinessProfileBody,
-            false,
-            false,
-            false,
-            false,
-            false,
-            globalState
-          );
-        }
-      );
+      cy.step("Enable customer_id_blocking with threshold 2 on business profile", () => {
+        const updateBusinessProfileBody = {
+          card_testing_guard_config: {
+            card_ip_blocking_status: "disabled",
+            card_ip_blocking_threshold: 100,
+            guest_user_card_blocking_status: "disabled",
+            guest_user_card_blocking_threshold: 100,
+            customer_id_blocking_status: "enabled",
+            customer_id_blocking_threshold: 2,
+            card_testing_guard_expiry: 3600,
+          },
+        };
+        cy.UpdateBusinessProfileTest(
+          updateBusinessProfileBody,
+          false, // is_connector_agnostic_enabled
+          false, // collect_billing_address_from_wallet_connector
+          false, // collect_shipping_address_from_wallet_connector
+          false, // always_collect_billing_address_from_wallet_connector
+          false, // always_collect_shipping_address_from_wallet_connector
+          globalState
+        );
+      });
 
       cy.step("Create Customer for below-threshold test", () => {
         cy.createCustomerCallTest(fixtures.customerCreateBody, globalState);
@@ -688,11 +682,11 @@ describe("Card Testing Guard", () => {
         };
         cy.UpdateBusinessProfileTest(
           updateBusinessProfileBody,
-          false,
-          false,
-          false,
-          false,
-          false,
+          false, // is_connector_agnostic_enabled
+          false, // collect_billing_address_from_wallet_connector
+          false, // collect_shipping_address_from_wallet_connector
+          false, // always_collect_billing_address_from_wallet_connector
+          false, // always_collect_shipping_address_from_wallet_connector
           globalState
         );
       });
@@ -717,11 +711,11 @@ describe("Card Testing Guard", () => {
         };
         cy.UpdateBusinessProfileTest(
           updateBusinessProfileBody,
-          false,
-          false,
-          false,
-          false,
-          false,
+          false, // is_connector_agnostic_enabled
+          false, // collect_billing_address_from_wallet_connector
+          false, // collect_shipping_address_from_wallet_connector
+          false, // always_collect_billing_address_from_wallet_connector
+          false, // always_collect_shipping_address_from_wallet_connector
           globalState
         );
       });
