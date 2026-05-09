@@ -553,15 +553,6 @@ export const CONNECTOR_LISTS = {
     USE_BILLING_AS_PAYMENT_METHOD_BILLING: ["bankofamerica"],
     MIT_WITH_LIMITED_CARD_DATA: ["peachpayments"],
     REFUND_MANUAL_UPDATE: ["bankofamerica", "cybersource"],
-    MERCHANT_CATEGORY_CODE: [
-      "stripe",
-      "cybersource",
-      "adyen",
-      "checkout",
-      "authorizedotnet",
-      "bankofamerica",
-      "wellsfargo",
-    ],
     // Add more inclusion lists
   },
 };
