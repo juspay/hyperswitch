@@ -16,11 +16,11 @@ concurrency:
 env:
   CARGO_INCREMENTAL: 0
   CARGO_NET_RETRY: 10
-  MANDATORY_PAYMENTS_CONNECTORS_BATCH_1: "cybersource stripe authorizedotnet cashtocode"
-  MANDATORY_PAYMENTS_CONNECTORS_BATCH_2: "adyen nexixpay finix fiuu"
-  OPTIONAL_PAYMENTS_CONNECTORS_BATCH_1: "worldpay braintree cryptopay paypal worldpayxml volt"
-  OPTIONAL_PAYMENTS_CONNECTORS_BATCH_2: "gigadat checkout redsys novalnet noon"
-  OPTIONAL_PAYMENTS_CONNECTORS_BATCH_3: "loonio zift airwallex fiuu"
+  MANDATORY_PAYMENTS_CONNECTORS_BATCH_1: "cybersource stripe authorizedotnet cashtocode paypal airwallex gigadat novalnet noon adyen nexixpay"
+  MANDATORY_PAYMENTS_CONNECTORS_BATCH_2: "finix fiuu"
+  OPTIONAL_PAYMENTS_CONNECTORS_BATCH_1: "worldpay braintree cryptopay  worldpayxml volt"
+  OPTIONAL_PAYMENTS_CONNECTORS_BATCH_2: "checkout redsys"
+  OPTIONAL_PAYMENTS_CONNECTORS_BATCH_3: "loonio zift  fiuu"
   ALPHA_PAYMENTS_CONNECTORS: "celero silverflow"
   PLATFORM_CONNECTORS: "stripe cybersource"
   EXTENDED_PAYMENTS_CONNECTORS_BATCH_1: "bluesnap gigadat loonio nmi"
@@ -170,24 +170,9 @@ jobs:
                 {
                   "name": "batch-1",
                   "connectors": "'"${MANDATORY_PAYMENTS_CONNECTORS_BATCH_1}"'",
-                  "parallel": 4,
+                  "parallel": 10,
                   "report_artifact_name": "cypress-mandatory-test-results-batch-1",
                   "server_logs_artifact": "mandatory-server-logs-batch-1"
-                },
-                {
-                  "name": "batch-2",
-                  "connectors": "'"${MANDATORY_PAYMENTS_CONNECTORS_BATCH_2}"'",
-                  "parallel": 4,
-                  "report_artifact_name": "cypress-mandatory-test-results-batch-2",
-                  "server_logs_artifact": "mandatory-server-logs-batch-2"
-                },
-                {
-                  "name": "platform",
-                  "connectors": "",
-                  "platform_connectors": "'"${PLATFORM_CONNECTORS}"'",
-                  "parallel": 2,
-                  "report_artifact_name": "cypress-mandatory-test-results-platform",
-                  "server_logs_artifact": "mandatory-server-logs-platform"
                 }
               ]
             }'

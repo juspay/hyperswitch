@@ -33,34 +33,35 @@ export default defineConfig({
           return null;
         },
       });
-      on("after:spec", (spec, results) => {
-        // Clean up resources after each spec
-        if (
-          results &&
-          results.video &&
-          !results.tests.some((test) =>
-            test.attempts.some((attempt) => attempt.state === "failed")
-          )
-        ) {
-          // Only try to delete if the video file exists
-          try {
-            if (fs.existsSync(results.video)) {
-              fs.unlinkSync(results.video);
-            }
-          } catch (error) {
-            // Log the error but don't fail the test
-            // eslint-disable-next-line no-console
-            console.warn(
-              `Warning: Could not delete video file: ${results.video}`
-            );
-            // eslint-disable-next-line no-console
-            console.warn(error);
-          }
-        }
-      });
+      // on("after:spec", (spec, results) => {
+      //   // Clean up resources after each spec
+      //   if (
+      //     results &&
+      //     results.video &&
+      //     !results.tests.some((test) =>
+      //       test.attempts.some((attempt) => attempt.state === "failed")
+      //     )
+      //   ) {
+      //     // Only try to delete if the video file exists
+      //     try {
+      //       if (fs.existsSync(results.video)) {
+      //         fs.unlinkSync(results.video);
+      //       }
+      //     } catch (error) {
+      //       // Log the error but don't fail the test
+      //       // eslint-disable-next-line no-console
+      //       console.warn(
+      //         `Warning: Could not delete video file: ${results.video}`
+      //       );
+      //       // eslint-disable-next-line no-console
+      //       console.warn(error);
+      //     }
+      //   }
+      // });
       return config;
     },
     experimentalRunAllSpecs: true,
+    experimentalMemoryManagement: true,
     retries: 2,
 
     specPattern: "cypress/e2e/**/*.cy.{js,jsx,ts,tsx}",
@@ -71,7 +72,7 @@ export default defineConfig({
       reportDir: `cypress/reports/${connectorId}`,
       reportFilename: reportName,
       reportPageTitle: `[${connectorId}] Cypress test report`,
-      embeddedScreenshots: true,
+      embeddedScreenshots: false,
       overwrite: false,
       inlineAssets: true,
       saveJson: true,
@@ -81,10 +82,10 @@ export default defineConfig({
     responseTimeout: Math.round(60000 * timeoutMultiplier),
     requestTimeout: Math.round(45000 * timeoutMultiplier),
     taskTimeout: Math.round(120000 * timeoutMultiplier),
-    screenshotsFolder: screenshotsFolderName,
-    video: true,
-    videoCompression: 32,
-    videosFolder: `cypress/videos/${connectorId}`,
+    // screenshotsFolder: screenshotsFolderName,
+    video: false,
+    // videoCompression: 32,
+    // videosFolder: `cypress/videos/${connectorId}`,
     chromeWebSecurity: false,
   },
 });
