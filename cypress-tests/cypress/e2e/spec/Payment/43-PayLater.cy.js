@@ -23,7 +23,7 @@ describe("PayLater tests", () => {
           shouldIncludeConnector(
             connector,
             CONNECTOR_LISTS.INCLUDE.PAY_LATER
-          ) &&
+          ) ||
           shouldIncludeConnector(
             connector,
             CONNECTOR_LISTS.INCLUDE.AFFIRM_PAY_LATER
