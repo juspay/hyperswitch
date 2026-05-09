@@ -183,7 +183,7 @@ export const connectorDetails = {
         body: {
           status: "requires_customer_action",
           next_action: {
-            type: "redirect_to_url",
+            type: "redirect_inside_popup",
           },
         },
       },
