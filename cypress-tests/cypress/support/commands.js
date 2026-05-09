@@ -7771,7 +7771,10 @@ Cypress.Commands.add("verifyPaymentResponseHash", (globalState) => {
       ).to.be.a("string").and.not.be.empty;
 
       // Store the hash key in global state for potential future use
-      globalState.set("paymentResponseHashKey", response.body.payment_response_hash_key);
+      globalState.set(
+        "paymentResponseHashKey",
+        response.body.payment_response_hash_key
+      );
 
       cy.task(
         "cli_log",

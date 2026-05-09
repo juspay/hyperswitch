@@ -12,7 +12,9 @@ describe("Payment Response Hash - Business Profile Configuration", () => {
       globalState = new State(state);
       const connectorId = globalState.get("connectorId");
       if (
-        utils.CONNECTOR_LISTS.EXCLUDE.PAYMENT_RESPONSE_HASH.includes(connectorId)
+        utils.CONNECTOR_LISTS.EXCLUDE.PAYMENT_RESPONSE_HASH.includes(
+          connectorId
+        )
       ) {
         shouldContinue = false;
       }
