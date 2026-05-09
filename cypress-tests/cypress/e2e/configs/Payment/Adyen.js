@@ -320,7 +320,7 @@ export const connectorDetails = {
           request_extended_authorization: true,
         },
       },
-      // Adyen: Extend Authorization is async (processing), capture is skipped
+      //Adyen: Extend Authorization is async (processing), capture is skipped
     },
     ExtendAuthorizationInvalidStatus: {
       Request: {
