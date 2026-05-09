@@ -2021,15 +2021,11 @@ Cypress.Commands.add(
             response.body.customer.email
           );
           if (createPaymentBody.customer_id !== undefined) {
-            expect(
-              createPaymentBody.customer_id,
-              "customer.id"
-            ).to.equal(response.body.customer.id);
+            expect(createPaymentBody.customer_id, "customer.id").to.equal(
+              response.body.customer.id
+            );
           } else {
-            expect(
-              response.body.customer.id,
-              "customer.id"
-            ).to.be.null;
+            expect(response.body.customer.id, "customer.id").to.be.null;
           }
           expect(createPaymentBody.metadata, "metadata").to.deep.equal(
             response.body.metadata
