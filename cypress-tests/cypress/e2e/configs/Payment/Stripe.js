@@ -187,7 +187,8 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "requires_payment_method",
-          setup_future_usage: "off_session",
+          shipping_cost: 50,
+          amount: 6000,
           connector_mandate_id: null,
         },
       },
