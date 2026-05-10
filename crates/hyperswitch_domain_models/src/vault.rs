@@ -26,7 +26,7 @@ pub enum FingerprintData {
     BankDebit(FingerprintBankDebitData),
 }
 #[derive(Debug, Deserialize, Serialize, Clone)]
-pub enum ParentFingerprintData {
+pub enum AuxiliaryFingerprintData {
     CardNumber(cards::CardNumber),
     NetworkToken(cards::NetworkToken),
     CardNumberData(cards::CardNumber),
@@ -227,18 +227,22 @@ impl PaymentMethodVaultingData {
     }
 
     #[cfg(feature = "v2")]
-    pub fn to_parent_fingerprint_data(&self) -> ParentFingerprintData {
+    pub fn to_auxiliary_fingerprint_data(&self) -> AuxiliaryFingerprintData {
         match self {
-            Self::Card(card) => ParentFingerprintData::CardNumber(card.card_number.clone()),
-            Self::NetworkToken(nt) => ParentFingerprintData::NetworkToken(nt.network_token.clone()),
-            Self::CardNumber(card_number) => ParentFingerprintData::CardNumber(card_number.clone()),
+            Self::Card(card) => AuxiliaryFingerprintData::CardNumber(card.card_number.clone()),
+            Self::NetworkToken(nt) => {
+                AuxiliaryFingerprintData::NetworkToken(nt.network_token.clone())
+            }
+            Self::CardNumber(card_number) => {
+                AuxiliaryFingerprintData::CardNumber(card_number.clone())
+            }
             Self::BankDebit(bank_debit) => {
                 let account_number = match bank_debit {
                     payment_method_data::BankDebitDetail::Ach { account_number, .. } => {
                         account_number.clone()
                     }
                 };
-                ParentFingerprintData::BankDebit(account_number)
+                AuxiliaryFingerprintData::BankDebit(account_number)
             }
         }
     }

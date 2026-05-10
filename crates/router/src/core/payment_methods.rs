@@ -1699,16 +1699,17 @@ impl LockerOperations for GenericLocker {
 
                 logger::debug!("Payment method not found, falling back to creation");
 
-                let auxiliary_fingerprint_id = vault::get_parent_fingerprint_id_for_payment_method(
-                    state,
-                    &payment_method_data,
-                    customer_id.get_string_repr().to_owned(),
-                )
-                .await
-                .change_context(errors::ApiErrorResponse::InternalServerError)
-                .attach_printable(
-                    "Failed to get parent fingerprint_id from vault using generic strategy",
-                )?;
+                let auxiliary_fingerprint_id =
+                    vault::get_auxiliary_fingerprint_id_for_payment_method(
+                        state,
+                        &payment_method_data,
+                        customer_id.get_string_repr().to_owned(),
+                    )
+                    .await
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable(
+                        "Failed to get auxiliary fingerprint_id from vault using generic strategy",
+                    )?;
 
                 let locker_resolver = LockerTypeResolver {
                     locker_type: LockerType::Generic,
