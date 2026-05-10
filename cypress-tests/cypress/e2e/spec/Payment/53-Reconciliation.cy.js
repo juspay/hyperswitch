@@ -35,9 +35,7 @@ describe("Merchant Reconciliation fields test", () => {
 
   context("Merchant retrieve - reconciliation fields", () => {
     it("Retrieve merchant and assert reconciliation fields", () => {
-      // Use cy.merchantRetrieveCall to retrieve merchant data
-      cy.merchantRetrieveCall(globalState);
-      // Use cy.assertReconFields for recon-specific assertions
+      // Use cy.assertReconFields to retrieve merchant data and assert recon fields
       cy.assertReconFields(globalState);
       // NOTE: This test only covers default reconciliation field values
       // (is_recon_enabled: false, recon_status: "not_requested")
