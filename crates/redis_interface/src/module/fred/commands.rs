@@ -91,8 +91,7 @@ impl super::RedisConnectionPool {
             .map(|(k, v)| (k.clone().into(), v.clone().into()))
             .collect();
 
-        let map: Result<RedisMap, _> = pairs.try_into();
-        let map = map
+        let map = RedisMap::try_from(pairs)
             .change_context(errors::RedisError::SetFailed)
             .attach_printable("Failed to convert key-value pairs to fred::types::RedisMap")?;
 
@@ -518,8 +517,7 @@ impl super::RedisConnectionPool {
             .map(|(f, v)| (f.into(), v.into()))
             .collect();
 
-        let map: Result<RedisMap, _> = pairs.try_into();
-        let map = map
+        let map = RedisMap::try_from(pairs)
             .change_context(errors::RedisError::SetHashFailed)
             .attach_printable("Failed to convert field pairs to fred::types::RedisMap")?;
 
@@ -826,8 +824,7 @@ impl super::RedisConnectionPool {
             .map(|(f, v)| (f.into(), v.into()))
             .collect();
 
-        let fred_fields: Result<MultipleOrderedPairs, _> = pairs.try_into();
-        let fred_fields = fred_fields
+        let fred_fields = MultipleOrderedPairs::try_from(pairs)
             .change_context(errors::RedisError::StreamAppendFailed)
             .attach_printable(
                 "Failed to convert field pairs to fred::types::MultipleOrderedPairs",
@@ -864,8 +861,7 @@ impl super::RedisConnectionPool {
         stream: &RedisKey,
         config: StreamTrimConfig,
     ) -> CustomResult<usize, errors::RedisError> {
-        let xcap: Result<fred::types::XCap, _> = config.try_into();
-        let xcap = xcap
+        let xcap = fred::types::XCap::try_from(config)
             .change_context(errors::RedisError::StreamTrimFailed)
             .attach_printable("Failed to convert StreamTrimConfig to fred::types::XCap")?;
         self.pool

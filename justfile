@@ -34,7 +34,8 @@ clippy *FLAGS:
     set +x
 
 # redis_interface_backend: pass "fred" to use the fred backend; omit for redis-rs (always-on default)
-clippy_v2 redis_interface_backend="" *FLAGS:
+# redis_interface_backend: "redis-rs" (default) or "fred"
+clippy_v2 redis_interface_backend="redis-rs" *FLAGS:
     #! /usr/bin/env bash
     set -euo pipefail
 
@@ -42,17 +43,17 @@ clippy_v2 redis_interface_backend="" *FLAGS:
         jq -r '
             [ ( .workspace_members | sort ) as $package_ids # Store workspace crate package IDs in `package_ids` array
             | .packages[] | select( IN(.id; $package_ids[]) ) | .features | keys[] ] | unique # Select all unique features from all workspace crates
-            | del( .[] | select( . == ("default", "v1", "fred") ) ) # Exclude default, v1, fred (redis-rs is always-on)
+            | del( .[] | select( . == ("default", "v1", "fred", "redis-rs") ) ) # Exclude default, v1, and both backend flags
             | join(",") # Construct a comma-separated string of features for passing to `cargo`
     ')"
-    if [ -n "{{ redis_interface_backend }}" ]; then FEATURES="${FEATURES},{{ redis_interface_backend }}"; fi
+    FEATURES="${FEATURES},{{ redis_interface_backend }}"
 
     set -x
     cargo clippy {{ check_flags }} --no-default-features --features "${FEATURES}" -- {{ v2_lints }} {{ FLAGS }}
     set +x
 
-# redis_interface_backend: pass "fred" to use the fred backend; omit for redis-rs (always-on default)
-check_v2 redis_interface_backend="" *FLAGS:
+# redis_interface_backend: "redis-rs" (default) or "fred"
+check_v2 redis_interface_backend="redis-rs" *FLAGS:
     #! /usr/bin/env bash
     set -euo pipefail
 
@@ -60,17 +61,17 @@ check_v2 redis_interface_backend="" *FLAGS:
         jq -r '
             [ ( .workspace_members | sort ) as $package_ids # Store workspace crate package IDs in `package_ids` array
             | .packages[] | select( IN(.id; $package_ids[]) ) | .features | keys[] ] | unique # Select all unique features from all workspace crates
-            | del( .[] | select( . == ("default", "v1", "fred") ) ) # Exclude default, v1, fred (redis-rs is always-on)
+            | del( .[] | select( . == ("default", "v1", "fred", "redis-rs") ) ) # Exclude default, v1, and both backend flags
             | join(",") # Construct a comma-separated string of features for passing to `cargo`
     ')"
-    if [ -n "{{ redis_interface_backend }}" ]; then FEATURES="${FEATURES},{{ redis_interface_backend }}"; fi
+    FEATURES="${FEATURES},{{ redis_interface_backend }}"
 
     set -x
     cargo check {{ check_flags }} --no-default-features --features "${FEATURES}" -- {{ FLAGS }}
     set +x
 
-# redis_interface_backend: pass "fred" to use the fred backend; omit for redis-rs (always-on default)
-build_v2 redis_interface_backend="" *FLAGS:
+# redis_interface_backend: "redis-rs" (default) or "fred"
+build_v2 redis_interface_backend="redis-rs" *FLAGS:
     #! /usr/bin/env bash
     set -euo pipefail
 
@@ -80,15 +81,15 @@ build_v2 redis_interface_backend="" *FLAGS:
             | select( any( . ; test("(([a-z_]+)_)?v2") ) ) ] # Select v2 features
             | join(",") # Construct a comma-separated string of features for passing to `cargo`
     ')"
-    if [ -n "{{ redis_interface_backend }}" ]; then FEATURES="${FEATURES},{{ redis_interface_backend }}"; fi
+    FEATURES="${FEATURES},{{ redis_interface_backend }}"
 
     set -x
     cargo build --package router --bin router --no-default-features --features "${FEATURES}" {{ FLAGS }}
     set +x
 
 
-# redis_interface_backend: pass "fred" to use the fred backend; omit for redis-rs (always-on default)
-run_v2 redis_interface_backend="":
+# redis_interface_backend: "redis-rs" (default) or "fred"
+run_v2 redis_interface_backend="redis-rs":
     #! /usr/bin/env bash
     set -euo pipefail
 
@@ -98,7 +99,7 @@ run_v2 redis_interface_backend="":
             | select( any( . ; test("(([a-z_]+)_)?v2") ) ) ] # Select v2 features
             | join(",") # Construct a comma-separated string of features for passing to `cargo`
     ')"
-    if [ -n "{{ redis_interface_backend }}" ]; then FEATURES="${FEATURES},{{ redis_interface_backend }}"; fi
+    FEATURES="${FEATURES},{{ redis_interface_backend }}"
 
     set -x
     cargo run --package router --no-default-features --features "${FEATURES}"
