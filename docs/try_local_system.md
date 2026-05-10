@@ -226,6 +226,21 @@ for your distribution and follow along.
    sudo apt install pkg-config libssl-dev
    ```
 
+6. Install `yq` (Mike Farah's yq), required for seeding
+   Superposition:
+
+   ```shell
+   sudo snap install yq
+   ```
+
+   If your system does not have `snap`, install it directly from GitHub releases:
+
+   ```shell
+   sudo wget -qO /usr/local/bin/yq \
+      https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64
+   sudo chmod +x /usr/local/bin/yq
+   ```
+
 Once you're done with setting up the dependencies, proceed with
 [setting up the database](#set-up-the-database).
 
@@ -319,6 +334,21 @@ packages for your distribution and follow along.
    sudo apt install pkg-config libssl-dev
    ```
 
+8. Install `yq` (Mike Farah's yq), required for seeding
+   Superposition:
+
+   ```shell
+   sudo snap install yq
+   ```
+
+   If your system does not have `snap`, install it directly from GitHub releases:
+
+   ```shell
+   sudo wget -qO /usr/local/bin/yq \
+      https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64
+   sudo chmod +x /usr/local/bin/yq
+   ```
+
 Once you're done with setting up the dependencies, proceed with
 [setting up the database](#set-up-the-database).
 
@@ -353,6 +383,13 @@ You can opt to use your favorite package manager instead.
 
    ```shell
    winget install openssl
+   ```
+
+6. Install `yq` (Mike Farah's yq), required for seeding
+   Superposition:
+
+   ```shell
+   winget install MikeFarah.yq
    ```
 
 Once you're done with setting up the dependencies, proceed with
@@ -432,6 +469,13 @@ You can opt to use your favorite package manager instead.
 
    ```shell
    cargo install just
+   ```
+
+6. Install `yq` (Mike Farah's yq), required for seeding
+   Superposition:
+
+   ```shell
+   brew install yq
    ```
 
 Once you're done with setting up the dependencies, proceed with
@@ -532,6 +576,10 @@ Once you're done with configuring the application, proceed with
 
 1. Start Superposition (configuration service) in Docker and seed it:
 
+   > **Important:** Superposition must be running before starting Hyperswitch.
+   > Merchant account creation writes configuration data to Superposition,
+   > so the service is **required**.
+
    ```shell
    just superposition-up
    just superposition-seed
@@ -541,7 +589,11 @@ Once you're done with configuring the application, proceed with
    (organization_id, merchant_id, profile_id, connector) and default configs
    (requires_cvv, implicit_customer_update, payout_tracker_mapping).
 
-   > **Note:** If you prefer to run Superposition locally instead of Docker, refer to the [Superposition setup guide](https://juspay.io/superposition/docs/setup).
+   > **Note:** `just superposition-seed` requires [`yq`](https://github.com/mikefarah/yq#install)
+   > (Mike Farah's yq) to be installed — see the prerequisites
+   > for your OS above. If you prefer to run Superposition natively instead of Docker,
+   > refer to the [Superposition setup guide](https://juspay.io/superposition/docs/setup)
+   > and set `SUPERPOSITION_URL` accordingly before running `just superposition-seed`.
 
    Available Superposition commands:
    - `just superposition-up` - Start Superposition in Docker
