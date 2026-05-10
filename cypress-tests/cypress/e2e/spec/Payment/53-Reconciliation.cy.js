@@ -1,3 +1,6 @@
+// NOTE: This test only covers default reconciliation field values
+// (is_recon_enabled: false, recon_status: "not_requested")
+// Full recon flow coverage should be a follow-up ticket.
 import State from "../../../utils/State";
 import * as utils from "../../configs/Payment/Utils";
 
