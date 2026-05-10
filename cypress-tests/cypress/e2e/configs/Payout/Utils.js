@@ -5,6 +5,7 @@ import { connectorDetails as adyenPlatformConnectorDetails } from "./AdyenPlatfo
 import { connectorDetails as CommonConnectorDetails } from "./Commons.js";
 import { connectorDetails as wiseConnectorDetails } from "./Wise.js";
 import { connectorDetails as nomupayConnectorDetails } from "./Nomupay.js";
+import { connectorDetails as stripeConnectorDetails } from "./Stripe.js";
 
 const connectorDetails = {
   adyen: adyenConnectorDetails,
@@ -12,6 +13,7 @@ const connectorDetails = {
   commons: CommonConnectorDetails,
   wise: wiseConnectorDetails,
   nomupay: nomupayConnectorDetails,
+  stripe: stripeConnectorDetails,
 };
 
 export function getConnectorDetails(connectorId) {

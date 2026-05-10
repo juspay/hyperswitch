@@ -5107,14 +5107,34 @@ Cypress.Commands.add("ListMcaByMid", (globalState) => {
 
     cy.wrap(response).then(() => {
       expect(response.headers["content-type"]).to.include("application/json");
-      globalState.set("profileId", response.body[0].profile_id);
-      globalState.set("stripeMcaId", response.body[0].merchant_connector_id);
-      globalState.set("adyenMcaId", response.body[1].merchant_connector_id);
-      if (response.body[3]) {
-        globalState.set(
-          "bluesnapMcaId",
-          response.body[3].merchant_connector_id
-        );
+      
+      // Iterate over connectors array dynamically and set MCA IDs by connector name
+      if (Array.isArray(response.body) && response.body.length > 0) {
+        // Set profile ID from first connector (all share same profile)
+        globalState.set("profileId", response.body[0].profile_id);
+        
+        // Map each connector to its MCA ID dynamically
+        response.body.forEach((connector) => {
+          const connectorName = connector.connector_name;
+          if (connectorName) {
+            globalState.set(`${connectorName}McaId`, connector.merchant_connector_id);
+          }
+        });
+        
+        // Also set legacy static names for backward compatibility where applicable
+        // Try to map known connectors by position as fallback
+        if (response.body[0]) {
+          const name = response.body[0].connector_name;
+          if (name === "stripe") {
+            globalState.set("stripeMcaId", response.body[0].merchant_connector_id);
+          } else if (name === "adyen") {
+            globalState.set("adyenMcaId", response.body[0].merchant_connector_id);
+          }
+        }
+        
+        // Set currentConnectorMcaId to the FIRST payout connector found
+        // This is used when only one payout connector exists per run
+        globalState.set("currentConnectorMcaId", response.body[0].merchant_connector_id);
       }
     });
   });

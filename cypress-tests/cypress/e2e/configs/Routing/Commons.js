@@ -1,4 +1,20 @@
 export const connectorDetails = {
+  payoutRouting: {
+    Request: {
+      name: "payout routing",
+      description: "payout routing config",
+      algorithm: {
+        type: "priority",
+        data: [],
+      },
+      profile_id: "{{profile_id}}",
+      transaction_type: "payout",
+    },
+    Response: {
+      status: 200,
+      body: {},
+    },
+  },
   priorityRouting: {
     Request: {
       name: "priority routing",
