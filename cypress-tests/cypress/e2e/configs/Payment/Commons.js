@@ -3063,6 +3063,9 @@ export const connectorDetails = {
         },
       },
     }),
+    // Storage flag does not affect authentication outcome — both enabled and
+    // disabled flows produce the same 3DS challenge. Distinction is only
+    // observable via Redis, which cannot be asserted through the API layer.
     EligibilityStorageEnabled: getCustomExchange({
       Request: {
         payment_method: "card",
@@ -3080,6 +3083,9 @@ export const connectorDetails = {
         },
       },
     }),
+    // Storage flag does not affect authentication outcome — both enabled and
+    // disabled flows produce the same 3DS challenge. Distinction is only
+    // observable via Redis, which cannot be asserted through the API layer.
     EligibilityStorageDisabled: getCustomExchange({
       Request: {
         payment_method: "card",
