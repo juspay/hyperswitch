@@ -1583,7 +1583,7 @@ where
         )
         .await?;
 
-    let dimensions = dimension_state::Dimensions::new()
+    let dimensions = Dimensions::new()
         .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id())
         .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
         .with_profile_id(business_profile.get_id().clone());
@@ -9910,7 +9910,7 @@ async fn get_eligible_connector_for_proxy<T: core_routing::GetRoutableConnectors
     key_store: &domain::MerchantKeyStore,
     payment_data: &mut D,
     connector_choice: T,
-    dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
+    dimensions: &DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
     business_profile: &domain::Profile,
 ) -> RouterResult<api::ConnectorData>
 where
@@ -9984,7 +9984,7 @@ pub async fn set_eligible_connector_for_proxy_in_payment_data<F, D>(
     state: &SessionState,
     business_profile: &domain::Profile,
     key_store: &domain::MerchantKeyStore,
-    dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
+    dimensions: &DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
     payment_data: &mut D,
     connector_choice: api::ConnectorChoice,
 ) -> RouterResult<api::ConnectorData>
@@ -11377,7 +11377,7 @@ pub async fn route_connector_v2_for_payments(
 #[allow(clippy::too_many_arguments)]
 pub async fn static_dynamic_routing_v1_for_payments(
     state: &SessionState,
-    dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
+    dimensions: &DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
     business_profile: &domain::Profile,
     payment_dsl_input: core_routing::PaymentsDslInput<'_>,
     backend_input: euclid::backend::BackendInput,
@@ -11431,7 +11431,7 @@ pub async fn route_connector_v1_for_payouts(
 pub async fn route_connector_v1_for_payouts(
     state: &SessionState,
     processor: &domain::Processor,
-    dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
+    dimensions: &DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
     business_profile: &domain::Profile,
     transaction_data: &payouts::PayoutData,
     routing_data: &mut storage::RoutingData,
@@ -11522,7 +11522,7 @@ pub async fn payment_external_authentication<F: Clone + Sync>(
     let db = &*state.store;
     let key_manager_state = &(&(state)).into();
 
-    let dimensions = dimension_state::Dimensions::new()
+    let dimensions = Dimensions::new()
         .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
         .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id())
         .with_organization_id(
