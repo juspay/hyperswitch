@@ -167,6 +167,20 @@ export const connectorDetails = {
         },
       },
     },
+    IframeRedirectionCreate: {
+      Request: {
+        currency: "USD",
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+        is_iframe_redirection_enabled: true,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+        },
+      },
+    },
     IframeRedirection: {
       Request: {
         payment_method: "card",
@@ -182,9 +196,6 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "requires_customer_action",
-          next_action: {
-            type: "redirect_inside_popup",
-          },
         },
       },
     },

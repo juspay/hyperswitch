@@ -36,7 +36,7 @@ describe("Iframe Redirection Payment Flow Tests", () => {
         () => {
           const data = getConnectorDetails(globalState.get("connectorId"))[
             "card_pm"
-          ]["PaymentIntent"];
+          ]["IframeRedirectionCreate"];
 
           cy.createPaymentIntentTest(
             fixtures.createPaymentBody,
