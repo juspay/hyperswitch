@@ -857,23 +857,21 @@ Cypress.Commands.add(
       .then((response) => {
         logRequestId(response.headers["x-request-id"]);
 
-        cy.wrap(response).then(() => {
-          expect(response.status).to.equal(200);
-          const responseHeaders =
-            response.body.outgoing_webhook_custom_http_headers;
-          const requestHeaders =
-            webhookHeadersBody.outgoing_webhook_custom_http_headers;
+        expect(response.status).to.equal(200);
+        const responseHeaders =
+          response.body.outgoing_webhook_custom_http_headers;
+        const requestHeaders =
+          webhookHeadersBody.outgoing_webhook_custom_http_headers;
 
-          if (Object.keys(requestHeaders).length === 0) {
-            expect(responseHeaders ?? {}).to.deep.equal({});
-          } else {
-            for (const [key, value] of Object.entries(requestHeaders)) {
-              const masked = maskValue(value);
-              expect(responseHeaders).to.have.property(key, masked);
-            }
+        if (Object.keys(requestHeaders).length === 0) {
+          expect(responseHeaders ?? {}).to.deep.equal({});
+        } else {
+          for (const [key, value] of Object.entries(requestHeaders)) {
+            const masked = maskValue(value);
+            expect(responseHeaders).to.have.property(key, masked);
           }
-          globalState.set("lastResponseHeaders", responseHeaders);
-        });
+        }
+        globalState.set("lastResponseHeaders", responseHeaders);
       });
   }
 );
