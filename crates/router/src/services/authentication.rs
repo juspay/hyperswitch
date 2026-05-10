@@ -425,7 +425,6 @@ impl UserFromToken {
     }
 }
 
-
 pub struct UserIdFromAuth {
     pub user_id: String,
     pub tenant_id: Option<id_type::TenantId>,
