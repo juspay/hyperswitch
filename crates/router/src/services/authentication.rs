@@ -11,7 +11,7 @@ use api_models::payouts;
 use async_trait::async_trait;
 use base64::Engine;
 use common_enums::{MerchantAccountType, TokenPurpose};
-use common_utils::{consts::ROLE_ID_ORGANIZATION_ADMIN, date_time, fp_utils, id_type};
+use common_utils::{self, date_time, fp_utils, id_type};
 #[cfg(feature = "v2")]
 use diesel_models::ephemeral_key;
 use error_stack::{report, ResultExt};
@@ -347,9 +347,84 @@ pub struct UserFromToken {
 impl UserFromToken {
     pub fn is_superposition_admin(&self) -> bool {
         self.role_id == consts::user_role::ROLE_ID_MERCHANT_ADMIN
-            || self.role_id == ROLE_ID_ORGANIZATION_ADMIN
+            || self.role_id == common_utils::consts::ROLE_ID_ORGANIZATION_ADMIN
+    }
+
+    pub fn validate_superposition_params(
+        &self,
+        params: &[(String, String)],
+    ) -> Result<(), error_stack::Report<errors::ApiErrorResponse>> {
+        let unauthorized = || {
+            error_stack::report!(errors::ApiErrorResponse::AccessForbidden {
+                resource: "superposition".to_string()
+            })
+        };
+        let is_merchant_admin_role = self.role_id == consts::user_role::ROLE_ID_MERCHANT_ADMIN;
+
+        for (key, value) in params {
+            match key.as_str() {
+                "dimension[organization_id]" => {
+                    if is_merchant_admin_role {
+                        return Err(unauthorized());
+                    }
+                    if value != self.org_id.get_string_repr() {
+                        return Err(unauthorized());
+                    }
+                }
+                "dimension[merchant_id]" if value != self.merchant_id.get_string_repr() => {
+                    return Err(unauthorized());
+                }
+                "dimension[profile_id]" if value != self.profile_id.get_string_repr() => {
+                    return Err(unauthorized());
+                }
+                _ => {}
+            }
+        }
+        Ok(())
+    }
+
+    pub fn require_superposition_context(
+        &self,
+        params: &[(String, String)],
+    ) -> Result<(), error_stack::Report<errors::ApiErrorResponse>> {
+        let scoping_dimensions = [
+            "dimension[organization_id]",
+            "dimension[provider_merchant_id]",
+            "dimension[processor_merchant_id]",
+            "dimension[merchant_id]",
+            "dimension[profile_id]",
+        ];
+        let has_scoping_dimension = params
+            .iter()
+            .any(|(k, _)| scoping_dimensions.contains(&k.as_str()));
+        if !has_scoping_dimension {
+            return Err(error_stack::report!(
+                errors::ApiErrorResponse::InvalidRequestData {
+                    message: "at least one dimension filter (organization_id, provider_merchant_id, processor_merchant_id, merchant_id, or profile_id) is required".to_string(),
+                }
+            ));
+        }
+        Ok(())
+    }
+
+    pub fn validate_superposition_context_body(
+        &self,
+        context: &serde_json::Value,
+    ) -> Result<(), error_stack::Report<errors::ApiErrorResponse>> {
+        let Some(context_obj) = context.as_object() else {
+            return Ok(());
+        };
+        let params: Vec<(String, String)> = context_obj
+            .iter()
+            .filter_map(|(k, v)| {
+                v.as_str()
+                    .map(|s| (format!("dimension[{k}]"), s.to_owned()))
+            })
+            .collect();
+        self.validate_superposition_params(&params)
     }
 }
+
 
 pub struct UserIdFromAuth {
     pub user_id: String,
