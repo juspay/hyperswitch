@@ -400,7 +400,12 @@ describe("Config Tests", () => {
     });
 
     it("Update business profile with new custom webhook headers and verify updated masked response", () => {
-      const initialKeys = ["X-Custom-Header", "X-Short", "X-Tiny"];
+      const initialHeaders = {
+        "X-Custom-Header": "long-custom-value-six-chars",
+        "X-Short": "secret",
+        "X-Tiny": "xy",
+      };
+      const initialKeys = Object.keys(initialHeaders);
       const webhookHeadersBody = {
         outgoing_webhook_custom_http_headers: {
           "X-Updated-Header": "updated-secret-value-long",
