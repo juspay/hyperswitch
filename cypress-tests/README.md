@@ -1,5 +1,7 @@
 # Hyperswitch Cypress Testing Framework <!-- omit in toc -->
 
+<!-- Triggering the CI Checks -->
+
 ## Overview
 
 This is a comprehensive testing framework built with [Cypress](https://cypress.io) to automate testing for [Hyperswitch](https://github.com/juspay/hyperswitch/). The framework supports API testing with features like multiple credential management, configuration management, global state handling, and extensive utility functions. The framework provides extensive support for API testing with advanced features including:
