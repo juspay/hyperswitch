@@ -4,6 +4,21 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.05.08.0
+
+### Features
+
+- **superposition:** Add support for create override macro to superposition ([#11454](https://github.com/juspay/hyperswitch/pull/11454)) ([`239a783`](https://github.com/juspay/hyperswitch/commit/239a7833193116c802ea2acd9c40150fb668ad44))
+- **worldpayxml:** Applepay predecrypted flow ([#12172](https://github.com/juspay/hyperswitch/pull/12172)) ([`b1db4c8`](https://github.com/juspay/hyperswitch/commit/b1db4c8f58721c07d16af6fe8434e199209f7ccc))
+
+### Bug Fixes
+
+- **connector:** Add required fields for Trustly ([#12182](https://github.com/juspay/hyperswitch/pull/12182)) ([`0dde472`](https://github.com/juspay/hyperswitch/commit/0dde472f9d9312b4a76fac2421b4750356dbd562))
+
+**Full Changelog:** [`2026.05.07.0...2026.05.08.0`](https://github.com/juspay/hyperswitch/compare/2026.05.07.0...2026.05.08.0)
+
+- - -
+
 ## 2026.05.07.0
 
 ### Features
