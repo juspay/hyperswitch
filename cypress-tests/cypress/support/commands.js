@@ -5331,6 +5331,54 @@ Cypress.Commands.add(
   }
 );
 
+Cypress.Commands.add(
+  "evaluateRoutingRule",
+  (data, evaluate_params, globalState) => {
+    const { Response: resData } = data || {};
+    const profileId = globalState.get("profileId");
+    const expectedConnector = evaluate_params.expectedConnector;
+
+    cy.request({
+      method: "POST",
+      url: `${globalState.get("baseUrl")}/routing/rule/evaluate`,
+      headers: {
+        "api-key": globalState.get("apiKey"),
+        "Content-Type": "application/json",
+      },
+      body: {
+        created_by: profileId,
+        parameters: evaluate_params.parameters,
+        fallback_output: evaluate_params.fallback_output || [],
+      },
+      failOnStatusCode: false,
+    }).then((response) => {
+      logRequestId(response.headers["x-request-id"]);
+
+      cy.wrap(response).then(() => {
+        expect(response.headers["content-type"]).to.include("application/json");
+
+        if (response.status === 200) {
+          expect(response.body).to.have.property("status", "success");
+          expect(response.body).to.have.property("evaluated_output");
+          expect(response.body).to.have.property("eligible_connectors");
+          expect(response.body.evaluated_output).to.be.an("array");
+
+          if (expectedConnector) {
+            const connectors = response.body.evaluated_output.map(
+              (c) => c.connector
+            );
+            expect(connectors).to.include(expectedConnector);
+          }
+
+          globalState.set("routingEvaluateResult", response.body);
+        } else {
+          defaultErrorHandler(response, resData);
+        }
+      });
+    });
+  }
+);
+
 Cypress.Commands.add("deactivateRoutingConfig", (data, globalState) => {
   const { Request: reqData, Response: resData } = data || {};
 
