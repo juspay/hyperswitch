@@ -2383,10 +2383,28 @@ Cypress.Commands.add(
                     "nextActionUrl",
                     response.body.next_action.ddc_data.iframe_url
                   );
+                } else if (response.body.next_action.type === "redirect_inside_popup") {
+                  expect(response.body.next_action)
+                    .to.have.property("type")
+                    .to.equal("redirect_inside_popup");
+                  expect(response.body.next_action)
+                    .to.have.property("popup_url");
+                  globalState.set(
+                    "nextActionType",
+                    response.body.next_action.type
+                  );
+                  globalState.set(
+                    "nextActionUrl",
+                    response.body.next_action.popup_url
+                  );
                 } else {
                   expect(response.body)
                     .to.have.property("next_action")
                     .to.have.property("redirect_to_url");
+                  globalState.set(
+                    "nextActionType",
+                    response.body.next_action.type
+                  );
                   globalState.set(
                     "nextActionUrl",
                     response.body.next_action.redirect_to_url
@@ -2429,9 +2447,27 @@ Cypress.Commands.add(
                     "nextActionUrl",
                     response.body.next_action.ddc_data.iframe_url
                   );
+                } else if (response.body.next_action.type === "redirect_inside_popup") {
+                  expect(response.body.next_action)
+                    .to.have.property("type")
+                    .to.equal("redirect_inside_popup");
+                  expect(response.body.next_action)
+                    .to.have.property("popup_url");
+                  globalState.set(
+                    "nextActionType",
+                    response.body.next_action.type
+                  );
+                  globalState.set(
+                    "nextActionUrl",
+                    response.body.next_action.popup_url
+                  );
                 } else {
                   expect(response.body.next_action).to.have.property(
                     "redirect_to_url"
+                  );
+                  globalState.set(
+                    "nextActionType",
+                    response.body.next_action.type
                   );
                   globalState.set(
                     "nextActionUrl",

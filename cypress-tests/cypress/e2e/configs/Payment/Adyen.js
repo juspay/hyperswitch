@@ -169,6 +169,7 @@ export const connectorDetails = {
     },
     IframeRedirectionCreate: {
       Request: {
+        amount: 6000,
         currency: "USD",
         customer_acceptance: null,
         setup_future_usage: "on_session",
@@ -184,6 +185,7 @@ export const connectorDetails = {
     IframeRedirection: {
       Request: {
         payment_method: "card",
+        payment_method_type: "debit",
         payment_method_data: {
           card: successfulThreeDSTestCardDetails,
         },

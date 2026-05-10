@@ -76,7 +76,7 @@ describe("Iframe Redirection Payment Flow Tests", () => {
         }
       });
 
-      cy.step("Verify Redirect Response Contains Iframe HTML", () => {
+      cy.step("Verify Redirect Response Contains Iframe URL", () => {
         if (!shouldContinue) {
           cy.task("cli_log", "Skipping step: Verify Redirect Response");
           return;
@@ -85,6 +85,10 @@ describe("Iframe Redirection Payment Flow Tests", () => {
         cy.wrap(globalState.get("paymentIntentStatus")).should(
           "equal",
           "requires_customer_action"
+        );
+        cy.wrap(globalState.get("nextActionType")).should(
+          "equal",
+          "redirect_inside_popup"
         );
         cy.wrap(globalState.get("nextActionUrl")).should("not.be.null");
       });
@@ -170,6 +174,10 @@ describe("Iframe Redirection Payment Flow Tests", () => {
         cy.wrap(globalState.get("paymentIntentStatus")).should(
           "equal",
           "requires_customer_action"
+        );
+        cy.wrap(globalState.get("nextActionType")).should(
+          "equal",
+          "redirect_to_url"
         );
         cy.wrap(globalState.get("nextActionUrl")).should("not.be.null");
       });
