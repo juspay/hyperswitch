@@ -596,6 +596,38 @@ Cypress.Commands.add("merchantRetrieveCall", (globalState) => {
   });
 });
 
+/**
+ * Asserts reconciliation fields in merchant/account response.
+ * Validates that is_recon_enabled and recon_status are present with expected values.
+ *
+ * @param {object} globalState - The global state object with merchantId
+ */
+Cypress.Commands.add("assertReconFields", (globalState) => {
+  const merchant_id = globalState.get("merchantId");
+
+  cy.request({
+    method: "GET",
+    url: `${globalState.get("baseUrl")}/accounts/${merchant_id}`,
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json",
+      "api-key": globalState.get("adminApiKey"),
+    },
+    failOnStatusCode: false,
+  }).then((response) => {
+    logRequestId(response.headers["x-request-id"]);
+
+    cy.wrap(response).then(() => {
+      expect(response.status, "response status").to.equal(200);
+      expect(response.body.merchant_id, "merchant_id").to.equal(merchant_id);
+      expect(response.body.is_recon_enabled, "is_recon_enabled").to.equal(false);
+      expect(response.body.recon_status, "recon_status").to.equal(
+        "not_requested"
+      );
+    });
+  });
+});
+
 Cypress.Commands.add("merchantDeleteCall", (globalState) => {
   const merchant_id = globalState.get("merchantId");
   cy.request({

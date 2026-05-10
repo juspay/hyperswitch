@@ -1,6 +1,4 @@
-// NOTE: This test only covers default reconciliation field values
-// (is_recon_enabled: false, recon_status: "not_requested")
-// Full recon flow coverage should be a follow-up ticket.
+// Reconciliation field verification test
 import State from "../../../utils/State";
 import * as utils from "../../configs/Payment/Utils";
 
@@ -37,27 +35,13 @@ describe("Merchant Reconciliation fields test", () => {
 
   context("Merchant retrieve - reconciliation fields", () => {
     it("Retrieve merchant and assert reconciliation fields", () => {
-      const merchant_id = globalState.get("merchantId");
-
-      cy.request({
-        method: "GET",
-        url: `${globalState.get("baseUrl")}/accounts/${merchant_id}`,
-        headers: {
-          Accept: "application/json",
-          "Content-Type": "application/json",
-          "api-key": globalState.get("adminApiKey"),
-        },
-        failOnStatusCode: false,
-      }).then((response) => {
-        expect(response.status, "response status").to.equal(200);
-        expect(response.body.merchant_id, "merchant_id").to.equal(merchant_id);
-        expect(response.body.is_recon_enabled, "is_recon_enabled").to.equal(
-          false
-        );
-        expect(response.body.recon_status, "recon_status").to.equal(
-          "not_requested"
-        );
-      });
+      // Use cy.merchantRetrieveCall to retrieve merchant data
+      cy.merchantRetrieveCall(globalState);
+      // Use cy.assertReconFields for recon-specific assertions
+      cy.assertReconFields(globalState);
+      // NOTE: This test only covers default reconciliation field values
+      // (is_recon_enabled: false, recon_status: "not_requested")
+      // Full recon flow coverage should be a follow-up ticket.
     });
   });
 });
