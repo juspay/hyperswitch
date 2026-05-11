@@ -3651,6 +3651,25 @@ pub enum PaymentMethodData {
     /// When this variant is used, the payment will be routed through the external vault proxy flow.
     #[schema(title = "VaultDataCard")]
     VaultDataCard(Box<ProxyCardData>),
+    /// Used in the payment method session confirm flow for a saved card (repeat CIT).
+    /// Only `card_cvc` and `card_holder_name` are provided here; the card number and expiry
+    /// come from the internal PM service via `payment_token`. These two fields are stored
+    /// in Redis under a temporary token and retrieved at payment confirm time.
+    #[schema(title = "SessionCardToken")]
+    SessionCardToken(SessionCardTokenData),
+}
+
+/// CVC-only payment method data used in the payment method session confirm flow.
+/// The card number / expiry are fetched from the internal PM service; only the CVC
+/// (and optionally the card holder name) are supplied by the client here.
+#[derive(Default, Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+pub struct SessionCardTokenData {
+    /// The card CVC / CVV
+    #[schema(value_type = Option<String>, example = "123")]
+    pub card_cvc: Option<Secret<String>>,
+    /// The card holder's name
+    #[schema(value_type = Option<String>, example = "John Doe")]
+    pub card_holder_name: Option<Secret<String>>,
 }
 
 pub trait GetAddressFromPaymentMethodData {
@@ -3678,7 +3697,8 @@ impl GetAddressFromPaymentMethodData for PaymentMethodData {
             | Self::MandatePayment
             | Self::MobilePayment(_)
             | Self::NetworkToken(_)
-            | Self::VaultDataCard(_) => None,
+            | Self::VaultDataCard(_)
+            | Self::SessionCardToken(_) => None,
         }
     }
 }
@@ -3704,6 +3724,7 @@ impl PaymentMethodData {
             Self::NetworkToken(_) => Some(api_enums::PaymentMethod::NetworkToken),
             Self::CardToken(_) | Self::MandatePayment => None,
             Self::VaultDataCard(_) => Some(api_enums::PaymentMethod::Card),
+            Self::SessionCardToken(_) => Some(api_enums::PaymentMethod::Card),
         }
     }
 }

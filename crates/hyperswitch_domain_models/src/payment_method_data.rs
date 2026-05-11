@@ -1845,6 +1845,11 @@ impl From<api_models::payments::PaymentMethodData> for PaymentMethodData {
                 // Falling back to MandatePayment as a safe no-op sentinel value.
                 Self::MandatePayment
             }
+            api_models::payments::PaymentMethodData::SessionCardToken(_) => {
+                // SessionCardToken is handled at the payment methods session confirm layer
+                // and should not reach the domain payment method data conversion.
+                Self::MandatePayment
+            }
         }
     }
 }
