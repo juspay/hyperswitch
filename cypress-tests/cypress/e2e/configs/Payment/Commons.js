@@ -967,26 +967,6 @@ export const connectorDetails = {
         },
       });
     },
-    SepaDebit: getCustomExchange({
-      Request: {
-        payment_method: "bank_debit",
-        payment_method_type: "sepa",
-        payment_method_data: {
-          bank_debit: {
-            sepa_bank_debit: {
-              iban: "DE89370400440532013000",
-              bank_account_holder_name: "Test Account",
-            },
-          },
-        },
-        billing: {
-          address: {
-            country: "DE",
-          },
-          email: "test@example.com",
-        },
-      },
-    }),
     Sepa: getCustomExchange({
       Request: {
         payment_method: "bank_debit",
