@@ -135,11 +135,9 @@ describe("Merchant Redirect Method Tests - UPI", () => {
               expected_redirection
             );
 
-            // After redirect, verify the return URL parameters
             cy.url().then((url) => {
               const urlParams = new URLSearchParams(new URL(url).search);
-              // POST mode: amount should NOT be in params
-              expect(urlParams.has("amount")).to.be.false;
+              expect(urlParams.has("amount"), "amount").to.be.false;
               cy.task(
                 "cli_log",
                 "Verified: amount parameter is excluded (POST mode)"
@@ -250,11 +248,9 @@ describe("Merchant Redirect Method Tests - UPI", () => {
               expected_redirection
             );
 
-            // After redirect, verify the return URL parameters
             cy.url().then((url) => {
               const urlParams = new URLSearchParams(new URL(url).search);
-              // GET mode: amount SHOULD be in params
-              expect(urlParams.has("amount")).to.be.true;
+              expect(urlParams.has("amount"), "amount").to.be.true;
               cy.task(
                 "cli_log",
                 "Verified: amount parameter is included (GET mode)"
@@ -287,26 +283,7 @@ describe("Merchant Redirect Method Tests - UPI", () => {
             always_collect_shipping_details_from_wallet_connector: false,
             redirect_to_merchant_with_http_post: "invalid_value",
           };
-
-          cy.request({
-            method: "POST",
-            url: `${globalState.get("baseUrl")}/account/${globalState.get(
-              "merchantId"
-            )}/business_profile/${globalState.get("profileId")}`,
-            headers: {
-              Accept: "application/json",
-              "Content-Type": "application/json",
-              "api-key": globalState.get("apiKey"),
-            },
-            body: invalidBody,
-            failOnStatusCode: false,
-          }).then((response) => {
-            expect(response.status).to.not.equal(200);
-            cy.task(
-              "cli_log",
-              `Expected error for invalid redirect method value: ${response.status}`
-            );
-          });
+          cy.updateBusinessProfileWithInvalidData(invalidBody, globalState);
         }
       );
     });
