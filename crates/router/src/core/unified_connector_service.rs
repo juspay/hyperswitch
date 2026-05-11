@@ -46,11 +46,12 @@ use crate::{
         errors::{self, RouterResult},
         payments::{
             helpers::{
-                get_default_execution_mode, is_ucs_enabled, should_execute_based_on_rollout,
+                is_ucs_enabled, should_execute_based_on_rollout,
                 MerchantConnectorAccountType, ProxyOverride,
             },
             OperationSessionGetters, OperationSessionSetters,
         },
+        configs::{dimension_config::UcsDefaultExecutionMode, dimension_state},
         utils::get_flow_name,
     },
     events::connector_api_logs::ConnectorEvent,
@@ -340,7 +341,9 @@ where
     let rollout_result = should_execute_based_on_rollout(state, &rollout_key).await?;
 
     // Single decision point using pattern matching
-    let (gateway_system, mut execution_path) = if ucs_availability == UcsAvailability::Disabled {
+    let (gateway_system, mut execution_path, selected_proxy_override) = if ucs_availability
+        == UcsAvailability::Disabled
+    {
         match call_connector_action {
             CallConnectorAction::UCSConsumeResponse(_)
             | CallConnectorAction::UCSHandleResponse(_) => {
@@ -353,7 +356,7 @@ where
             | CallConnectorAction::HandleResponseWithoutBuildRequest
             | CallConnectorAction::StatusUpdate { .. } => {
                 router_env::logger::debug!("UCS is disabled, using Direct gateway");
-                (GatewaySystem::Direct, ExecutionPath::Direct)
+                (GatewaySystem::Direct, ExecutionPath::Direct, None)
             }
         }
     } else {
@@ -364,6 +367,7 @@ where
                 (
                     GatewaySystem::UnifiedConnectorService,
                     ExecutionPath::UnifiedConnectorService,
+                    None,
                 )
             }
             CallConnectorAction::HandleResponse(_) => {
@@ -374,25 +378,55 @@ where
                     (
                         GatewaySystem::Direct,
                         ExecutionPath::ShadowUnifiedConnectorService,
+                        None,
                     )
                 } else {
-                    (GatewaySystem::Direct, ExecutionPath::Direct)
+                    (GatewaySystem::Direct, ExecutionPath::Direct, None)
                 }
             }
             CallConnectorAction::Trigger
             | CallConnectorAction::HandleResponseWithoutBuildRequest
             | CallConnectorAction::Avoid
             | CallConnectorAction::StatusUpdate { .. } => {
-                // If a rollout config key exists use its execution mode.
-                // Otherwise look up `ucs_rollout_config_default`; if absent fall back to NotApplicable.
-                let execution_mode = if rollout_result.should_execute {
-                    rollout_result.execution_mode
+                let (execution_mode, selected_proxy_override) = if rollout_result.should_execute {
+                    (
+                        rollout_result.execution_mode,
+                        rollout_result.proxy_override.clone(),
+                    )
                 } else {
-                    get_default_execution_mode(state)
-                        .await?
-                        .unwrap_or(ExecutionMode::NotApplicable)
+                    // Look up `ucs_rollout_config_default` via the dimension config pattern
+                    // (Superposition → DB → hardcoded "{\"execution_mode\":\"not_applicable\"}").
+                    let dimensions = dimension_state::Dimensions::new();
+                    let config_str =
+                        crate::core::configs::fetch_db_config_for_dimensions::<UcsDefaultExecutionMode>(
+                            state.store.as_ref(),
+                            state.superposition_service.as_ref(),
+                            &dimensions,
+                            None,
+                        )
+                        .await;
+                    use crate::core::payments::helpers::{
+                        create_proxy_override, DefaultExecutionMode, DefaultExecutionModeConfig,
+                    };
+                    serde_json::from_str::<DefaultExecutionModeConfig>(&config_str)
+                    .map(|config| {
+                        let mode = match config.execution_mode {
+                            DefaultExecutionMode::Shadow => ExecutionMode::Shadow,
+                            DefaultExecutionMode::NotApplicable => ExecutionMode::NotApplicable,
+                        };
+                        let proxy_override =
+                            create_proxy_override(config.http_url, config.https_url);
+                        (mode, proxy_override)
+                    })
+                    .unwrap_or_else(|_| (ExecutionMode::NotApplicable, None))
                 };
-                decide_execution_path(connector_integration_type, previous_gateway, execution_mode)?
+
+                let (gateway_system, execution_path) = decide_execution_path(
+                    connector_integration_type,
+                    previous_gateway,
+                    execution_mode,
+                )?;
+                (gateway_system, execution_path, selected_proxy_override)
             }
         }
     };
@@ -400,8 +434,9 @@ where
     // Handle proxy configuration for Shadow UCS flows
     let session_state = match execution_path {
         ExecutionPath::ShadowUnifiedConnectorService => {
-            // For shadow UCS, use rollout_result for proxy configuration since it takes priority
-            match &rollout_result.proxy_override {
+            // Use the selected proxy configuration for shadow UCS. This can come from either
+            // the rollout-specific config or the default DB config.
+            match &selected_proxy_override {
                 Some(proxy_override) => {
                     router_env::logger::debug!(
                         proxy_override = ?proxy_override,

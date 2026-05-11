@@ -392,6 +392,8 @@ pub mod superposition {
     pub const PAYOUT_TRACKER_MAPPING: &str = "payout_tracker_mapping";
     /// client session validation enabled configuration key
     pub const CLIENT_SESSION_VALIDATION_ENABLED: &str = "client_session_validation_enabled";
+    /// UCS default execution mode configuration key
+    pub const UCS_DEFAULT_EXECUTION_MODE: &str = "ucs_rollout_config_default";
 }
 
 #[cfg(test)]

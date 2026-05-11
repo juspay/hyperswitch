@@ -2498,7 +2498,7 @@ fn validate_proxy_url(url: Option<String>, url_type: &str) -> Option<String> {
 }
 
 /// Creates proxy override with validated URLs and logging
-fn create_proxy_override(
+pub(crate) fn create_proxy_override(
     http_url: Option<String>,
     https_url: Option<String>,
 ) -> Option<ProxyOverride> {
@@ -2613,39 +2613,51 @@ pub enum DefaultExecutionMode {
 #[derive(Debug, Clone, Deserialize)]
 pub struct DefaultExecutionModeConfig {
     pub execution_mode: DefaultExecutionMode,
+    pub http_url: Option<String>,
+    pub https_url: Option<String>,
+}
+
+#[derive(Debug, Clone)]
+pub struct DefaultExecutionConfig {
+    pub execution_mode: ExecutionMode,
+    pub proxy_override: Option<ProxyOverride>,
 }
 
 /// Looks up `ucs_rollout_config_default` from the config table.
 /// Returns the configured `ExecutionMode` if present and valid.
 /// Returns `None` if the key is absent — caller should fall back to `NotApplicable`.
-pub async fn get_default_execution_mode(
+pub async fn get_default_execution_config(
     state: &SessionState,
-) -> RouterResult<Option<ExecutionMode>> {
+) -> RouterResult<Option<DefaultExecutionConfig>> {
     let key = consts::UCS_DEFAULT_EXECUTION_MODE_KEY;
     match state.store.find_config_by_key(key).await {
-        Ok(config_row) => {
-            match serde_json::from_str::<DefaultExecutionModeConfig>(&config_row.config) {
-                Ok(default_config) => {
-                    let mode = match default_config.execution_mode {
-                        DefaultExecutionMode::Shadow => ExecutionMode::Shadow,
-                        DefaultExecutionMode::NotApplicable => ExecutionMode::NotApplicable,
-                    };
-                    logger::info!(
-                        execution_mode = ?mode,
-                        "Using default execution mode from config table"
-                    );
-                    Ok(Some(mode))
-                }
-                Err(err) => {
-                    logger::error!(
-                        error = ?err,
-                        config = %config_row.config,
-                        "Failed to parse ucs_rollout_config_default. Falling back to NotApplicable."
-                    );
-                    Ok(None)
-                }
+        Ok(config_row) => match serde_json::from_str::<DefaultExecutionModeConfig>(&config_row.config) {
+            Ok(default_config) => {
+                let mode = match default_config.execution_mode {
+                    DefaultExecutionMode::Shadow => ExecutionMode::Shadow,
+                    DefaultExecutionMode::NotApplicable => ExecutionMode::NotApplicable,
+                };
+                let proxy_override =
+                    create_proxy_override(default_config.http_url, default_config.https_url);
+                logger::info!(
+                    execution_mode = ?mode,
+                    has_proxy_override = proxy_override.is_some(),
+                    "Using default execution config from config table"
+                );
+                Ok(Some(DefaultExecutionConfig {
+                    execution_mode: mode,
+                    proxy_override,
+                }))
             }
-        }
+            Err(err) => {
+                logger::error!(
+                    error = ?err,
+                    config = %config_row.config,
+                    "Failed to parse ucs_rollout_config_default. Falling back to NotApplicable."
+                );
+                Ok(None)
+            }
+        },
         Err(_) => {
             logger::debug!("ucs_rollout_config_default not set, falling back to NotApplicable");
             Ok(None)
