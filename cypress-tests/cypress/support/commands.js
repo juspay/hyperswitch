@@ -4267,6 +4267,12 @@ Cypress.Commands.add(
     const connectorId = globalState.get("connectorId");
     const nextActionUrl = globalState.get("nextActionUrl");
 
+    if (!nextActionUrl) {
+      throw new Error(
+        `handleRedirection: nextActionUrl is not set in globalState. Confirm step may not have returned a valid next_action URL.`
+      );
+    }
+
     const expectedUrl = new URL(expectedRedirection);
     const redirectionUrl = new URL(nextActionUrl);
 
