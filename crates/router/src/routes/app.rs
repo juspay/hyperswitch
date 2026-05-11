@@ -1860,6 +1860,15 @@ impl Blocklist {
             .service(
                 web::resource("/toggle").route(web::post().to(blocklist::toggle_blocklist_guard)),
             )
+            .service(
+                web::resource("/batch")
+                    .route(web::post().to(blocklist::upload_batch_blocklist))
+                    .route(web::get().to(blocklist::list_batch_blocklist_jobs)),
+            )
+            .service(
+                web::resource("/batch/{job_id}")
+                    .route(web::get().to(blocklist::get_batch_blocklist_job_status)),
+            )
     }
 }
 
