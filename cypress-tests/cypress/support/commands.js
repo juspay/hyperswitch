@@ -5105,34 +5105,28 @@ Cypress.Commands.add("ListMcaByMid", (globalState) => {
   }).then((response) => {
     logRequestId(response.headers["x-request-id"]);
 
-    cy.wrap(response).then(() => {
-      expect(response.headers["content-type"]).to.include("application/json");
-      
-      // Iterate over connectors array dynamically and set MCA IDs by connector name
-      if (Array.isArray(response.body) && response.body.length > 0) {
-        // Set profile ID from first connector (all share same profile)
-        globalState.set("profileId", response.body[0].profile_id);
-        
-        let payoutMcaId = null;
+    expect(response.headers["content-type"]).to.include("application/json");
 
-        response.body.forEach((connector) => {
-          const connectorName = connector.connector_name;
-          if (connectorName) {
-            globalState.set(`${connectorName}McaId`, connector.merchant_connector_id);
-          }
-          if (connector.connector_type === "payout_processor" && !payoutMcaId) {
-            payoutMcaId = connector.merchant_connector_id;
-          }
-        });
+    if (Array.isArray(response.body) && response.body.length > 0) {
+      globalState.set("profileId", response.body[0].profile_id);
 
-        // Set currentConnectorMcaId to the FIRST payout connector found
-        // Falls back to the first connector if no payout processor exists
-        globalState.set(
-          "currentConnectorMcaId",
-          payoutMcaId || response.body[0].merchant_connector_id
-        );
-      }
-    });
+      let payoutMcaId = null;
+
+      response.body.forEach((connector) => {
+        const connectorName = connector.connector_name;
+        if (connectorName) {
+          globalState.set(`${connectorName}McaId`, connector.merchant_connector_id);
+        }
+        if (connector.connector_type === "payout_processor" && !payoutMcaId) {
+          payoutMcaId = connector.merchant_connector_id;
+        }
+      });
+
+      globalState.set(
+        "currentConnectorMcaId",
+        payoutMcaId || response.body[0].merchant_connector_id
+      );
+    }
   });
 });
 

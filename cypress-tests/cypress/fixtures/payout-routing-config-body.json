@@ -1,6 +1,5 @@
 {
   "name": "payout routing config",
   "description": "Payout priority routing config",
-  "algorithm": {},
-  "transaction_type": "payout"
+  "algorithm": {}
 }

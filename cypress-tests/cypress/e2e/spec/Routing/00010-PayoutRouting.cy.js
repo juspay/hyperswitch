@@ -107,10 +107,7 @@ describe("Payout Priority Routing Test", () => {
 
     before("setup alternate payout context", () => {
       shouldContinue = true;
-      // MCAs already listed in first context, but ensure mapping exists
-      if (!globalState.get("currentConnectorMcaId")) {
-        cy.ListMcaByMid(globalState);
-      }
+      cy.ListMcaByMid(globalState);
     });
 
     it("add-payout-routing-config-alternate", () => {
