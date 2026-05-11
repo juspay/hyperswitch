@@ -219,9 +219,13 @@ jobs:
         with:
           save-if: ${{ github.event_name == 'push' }}
 
-      - name: Run clippy
+      - name: Run clippy (redis-rs backend)
         shell: bash
         run: just clippy
+
+      - name: Run clippy (fred backend)
+        shell: bash
+        run: just clippy fred
 
       - name: Cargo hack
         if: ${{ github.event_name == 'push' }}

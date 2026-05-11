@@ -35,7 +35,6 @@ clippy redis_interface_backend="redis-rs" *FLAGS:
     cargo clippy {{ check_flags }} --no-default-features --features "${FEATURES}" {{ FLAGS }}
     set +x
 
-# redis_interface_backend: pass "fred" to use the fred backend; omit for redis-rs (always-on default)
 # redis_interface_backend: "redis-rs" (default) or "fred"
 clippy_v2 redis_interface_backend="redis-rs" *FLAGS:
     #! /usr/bin/env bash
