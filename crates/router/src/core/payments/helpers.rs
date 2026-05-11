@@ -2631,33 +2631,35 @@ pub async fn get_default_execution_config(
 ) -> RouterResult<Option<DefaultExecutionConfig>> {
     let key = consts::UCS_DEFAULT_EXECUTION_MODE_KEY;
     match state.store.find_config_by_key(key).await {
-        Ok(config_row) => match serde_json::from_str::<DefaultExecutionModeConfig>(&config_row.config) {
-            Ok(default_config) => {
-                let mode = match default_config.execution_mode {
-                    DefaultExecutionMode::Shadow => ExecutionMode::Shadow,
-                    DefaultExecutionMode::NotApplicable => ExecutionMode::NotApplicable,
-                };
-                let proxy_override =
-                    create_proxy_override(default_config.http_url, default_config.https_url);
-                logger::info!(
-                    execution_mode = ?mode,
-                    has_proxy_override = proxy_override.is_some(),
-                    "Using default execution config from config table"
-                );
-                Ok(Some(DefaultExecutionConfig {
-                    execution_mode: mode,
-                    proxy_override,
-                }))
+        Ok(config_row) => {
+            match serde_json::from_str::<DefaultExecutionModeConfig>(&config_row.config) {
+                Ok(default_config) => {
+                    let mode = match default_config.execution_mode {
+                        DefaultExecutionMode::Shadow => ExecutionMode::Shadow,
+                        DefaultExecutionMode::NotApplicable => ExecutionMode::NotApplicable,
+                    };
+                    let proxy_override =
+                        create_proxy_override(default_config.http_url, default_config.https_url);
+                    logger::info!(
+                        execution_mode = ?mode,
+                        has_proxy_override = proxy_override.is_some(),
+                        "Using default execution config from config table"
+                    );
+                    Ok(Some(DefaultExecutionConfig {
+                        execution_mode: mode,
+                        proxy_override,
+                    }))
+                }
+                Err(err) => {
+                    logger::error!(
+                        error = ?err,
+                        config = %config_row.config,
+                        "Failed to parse ucs_rollout_config_default. Falling back to NotApplicable."
+                    );
+                    Ok(None)
+                }
             }
-            Err(err) => {
-                logger::error!(
-                    error = ?err,
-                    config = %config_row.config,
-                    "Failed to parse ucs_rollout_config_default. Falling back to NotApplicable."
-                );
-                Ok(None)
-            }
-        },
+        }
         Err(_) => {
             logger::debug!("ucs_rollout_config_default not set, falling back to NotApplicable");
             Ok(None)
