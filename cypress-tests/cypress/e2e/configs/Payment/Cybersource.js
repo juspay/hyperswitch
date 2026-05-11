@@ -1218,7 +1218,7 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "requires_confirmation",
+          status: "requires_customer_action",
           authentication_type: "three_ds",
         },
       },
