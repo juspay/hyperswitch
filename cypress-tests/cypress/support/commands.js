@@ -846,7 +846,10 @@ Cypress.Commands.add(
     const apiKey = globalState.get("apiKey");
     const merchantId = globalState.get("merchantId");
     const profileId = globalState.get(`${profilePrefix}Id`);
-    expect(profileId, "profileId must be set in globalState before calling this command").to.not.be.undefined;
+    expect(
+      profileId,
+      "profileId must be set in globalState before calling this command"
+    ).to.not.be.undefined;
 
     return cy
       .request({
@@ -863,8 +866,10 @@ Cypress.Commands.add(
       .then((response) => {
         logRequestId(response.headers["x-request-id"]);
         expect(response.status).to.equal(200);
-        const responseHeaders = response.body.outgoing_webhook_custom_http_headers;
-        const requestHeaders = webhookHeadersBody.outgoing_webhook_custom_http_headers;
+        const responseHeaders =
+          response.body.outgoing_webhook_custom_http_headers;
+        const requestHeaders =
+          webhookHeadersBody.outgoing_webhook_custom_http_headers;
 
         if (Object.keys(requestHeaders).length === 0) {
           expect(responseHeaders ?? {}).to.deep.equal({});
