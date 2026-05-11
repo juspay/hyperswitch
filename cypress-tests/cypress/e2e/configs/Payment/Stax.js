@@ -4,6 +4,7 @@ import {
   multiUseMandateData,
   singleUseMandateData,
 } from "./Commons";
+import { getCustomExchange } from "./Modifiers";
 
 // Test card details for stax SnapPay
 const successfulNo3DSCardDetails = {
@@ -96,6 +97,32 @@ export const connectorDetails = {
     },
   },
   bank_debit_pm: {
-    // Uses Commons.js defaults for Ach and AchMandate
+    Ach: getCustomExchange({
+      Request: {
+        payment_method: "bank_debit",
+        payment_method_type: "ach",
+        payment_method_data: {
+          bank_debit: {
+            ach_bank_debit: {
+              account_number: "000123456789",
+              routing_number: "110000000",
+              bank_account_holder_name: "Test Account",
+            },
+          },
+        },
+        billing: {
+          address: {
+            country: "US",
+            first_name: "Test",
+            last_name: "Account",
+          },
+          email: "test@example.com",
+        },
+      },
+      Response: {
+        status: 200,
+        body: { status: "processing" },
+      },
+    }),
   },
 };

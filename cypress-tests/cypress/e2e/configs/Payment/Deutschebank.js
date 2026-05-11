@@ -1,4 +1,5 @@
 import { customerAcceptance } from "./Commons";
+import { getCustomExchange } from "./Modifiers";
 
 const successful3DSCardDetails = {
   card_number: "4761739090000088",
@@ -289,6 +290,75 @@ export const connectorDetails = {
     },
   },
   bank_debit_pm: {
-    // Uses Commons.js defaults for Ach and AchMandate
+    Sepa: getCustomExchange({
+      Request: {
+        payment_method: "bank_debit",
+        payment_method_type: "sepa",
+        payment_method_data: {
+          bank_debit: {
+            sepa_bank_debit: {
+              iban: "DE89370400440532013000",
+              bank_account_holder_name: "Test Account",
+            },
+          },
+        },
+        billing: {
+          address: {
+            country: "DE",
+            first_name: "Test",
+            last_name: "Account",
+          },
+          email: "test@example.com",
+        },
+      },
+      Response: {
+        status: 200,
+        body: { status: "processing" },
+      },
+    }),
+    SepaDebitMandate: getCustomExchange({
+      Request: {
+        payment_method: "bank_debit",
+        payment_method_type: "sepa",
+        payment_method_data: {
+          bank_debit: {
+            sepa_bank_debit: {
+              iban: "DE89370400440532013000",
+              bank_account_holder_name: "Test Account",
+            },
+          },
+        },
+        billing: {
+          address: {
+            country: "DE",
+            first_name: "Test",
+            last_name: "Account",
+          },
+          email: "test@example.com",
+        },
+        setup_future_usage: "off_session",
+        mandate_data: {
+          customer_acceptance: {
+            acceptance_type: "online",
+            accepted_at: "1963-05-03T04:07:52.723Z",
+            online: {
+              ip_address: "127.0.0.1",
+              user_agent:
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/70.0.3538.110 Safari/537.36",
+            },
+          },
+          mandate_type: {
+            multi_use: {
+              amount: 8000,
+              currency: "EUR",
+            },
+          },
+        },
+      },
+      Response: {
+        status: 200,
+        body: { status: "processing" },
+      },
+    }),
   },
 };
