@@ -3309,18 +3309,5 @@ export const connectorDetails = {
         body: { status: "failed" },
       },
     }),
-    CompleteAuthorize: getCustomExchange({
-      Request: {
-        complete_authorize_url: "",
-        email: "hyperswitch_sdk_demo_id@gmail.com",
-        router_return_url: "https://example.com",
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "succeeded",
-        },
-      },
-    }),
   },
 };
