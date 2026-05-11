@@ -28,7 +28,7 @@ mod module {
     pub mod fred;
 }
 
-#[cfg(not(feature = "fred"))]
+#[cfg(feature = "redis-rs")]
 mod module {
     pub mod redis_rs;
 }
@@ -43,7 +43,7 @@ pub use fred::interfaces::{EventInterface, PubsubInterface};
 pub use module::fred::{
     PubSubMessage, RedisClient, RedisConfig, RedisConnectionPool, SubscriberClient,
 };
-#[cfg(not(feature = "fred"))]
+#[cfg(feature = "redis-rs")]
 pub use module::redis_rs::{
     redis_value_to_option_string, PubSubMessage, PublisherClient, RedisConfig, RedisConn,
     RedisConnectionPool, SubscriberClient,

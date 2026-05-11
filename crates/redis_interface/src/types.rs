@@ -15,7 +15,7 @@ use crate::errors;
 
 #[derive(Clone, Debug)]
 pub struct RedisValue {
-    #[cfg(not(feature = "fred"))]
+    #[cfg(feature = "redis-rs")]
     pub(crate) inner: redis::Value,
     #[cfg(feature = "fred")]
     pub(crate) inner: fred::types::RedisValue,
@@ -306,7 +306,7 @@ impl StreamTrimConfig {
     ///
     /// Returns an error if `kind` is `MaxLen` and the threshold
     /// cannot be parsed as a `usize`.
-    #[cfg(not(feature = "fred"))]
+    #[cfg(feature = "redis-rs")]
     pub fn to_trim_options(
         self,
     ) -> Result<redis::streams::StreamTrimOptions, StreamTrimThresholdError> {

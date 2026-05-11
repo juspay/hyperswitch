@@ -16,7 +16,8 @@ alias c := check
 # Check compilation of Rust code and catch common mistakes
 # We cannot run --all-features because v1 and v2 are mutually exclusive features
 # Create a list of features by excluding certain features
-clippy *FLAGS:
+# redis_interface_backend: "redis-rs" (default) or "fred"
+clippy redis_interface_backend="redis-rs" *FLAGS:
     #! /usr/bin/env bash
     set -euo pipefail
 
@@ -25,12 +26,13 @@ clippy *FLAGS:
             [ ( .workspace_members | sort ) as $package_ids # Store workspace crate package IDs in `package_ids` array
             | .packages[] | select( IN(.id; $package_ids[]) ) | .features | keys[] ] | unique # Select all unique features from all workspace crates
             | del( .[] | select( any( . ; test("(([a-z_]+)_)?v2") ) ) ) # Exclude v2 features
-            | del( .[] | select( . == "fred" ) ) # Exclude fred (redis-rs is always-on, not a feature)
+            | del( .[] | select( . == ("default", "fred", "redis-rs") ) ) # Exclude default and both backend flags
             | join(",") # Construct a comma-separated string of features for passing to `cargo`
     ')"
+    FEATURES="${FEATURES},{{ redis_interface_backend }}"
 
     set -x
-    cargo clippy {{ check_flags }} --features "${FEATURES}"  {{ FLAGS }}
+    cargo clippy {{ check_flags }} --no-default-features --features "${FEATURES}" {{ FLAGS }}
     set +x
 
 # redis_interface_backend: pass "fred" to use the fred backend; omit for redis-rs (always-on default)
@@ -105,7 +107,8 @@ run_v2 redis_interface_backend="redis-rs":
     cargo run --package router --no-default-features --features "${FEATURES}"
     set +x
 
-check *FLAGS:
+# redis_interface_backend: "redis-rs" (default) or "fred"
+check redis_interface_backend="redis-rs" *FLAGS:
     #! /usr/bin/env bash
     set -euo pipefail
 
@@ -114,12 +117,13 @@ check *FLAGS:
             [ ( .workspace_members | sort ) as $package_ids # Store workspace crate package IDs in `package_ids` array
             | .packages[] | select( IN(.id; $package_ids[]) ) | .features | keys[] ] | unique # Select all unique features from all workspace crates
             | del( .[] | select( any( . ; test("(([a-z_]+)_)?v2") ) ) ) # Exclude v2 features
-            | del( .[] | select( . == "fred" ) ) # Exclude fred (redis-rs is always-on, not a feature)
+            | del( .[] | select( . == ("default", "fred", "redis-rs") ) ) # Exclude default and both backend flags
             | join(",") # Construct a comma-separated string of features for passing to `cargo`
     ')"
+    FEATURES="${FEATURES},{{ redis_interface_backend }}"
 
     set -x
-    cargo check {{ check_flags }} --features "${FEATURES}" {{ FLAGS }}
+    cargo check {{ check_flags }} --no-default-features --features "${FEATURES}" {{ FLAGS }}
     set +x
 
 alias cl := clippy
