@@ -827,35 +827,35 @@ Cypress.Commands.add(
     });
   }
 );
-Cypress.Commands.add(  
-  "updateBusinessProfileWithInvalidData",  
-  (invalidBody, globalState, profilePrefix = "profile") => {  
-    const apiKey = globalState.get("apiKey");  
-    const merchantId = globalState.get("merchantId");  
-    const profileId = globalState.get(`${profilePrefix}Id`);  
-  
-    cy.request({  
-      method: "POST",  
-      url: `${globalState.get("baseUrl")}/account/${merchantId}/business_profile/${profileId}`,  
-      headers: {  
-        Accept: "application/json",  
-        "Content-Type": "application/json",  
-        "api-key": apiKey,  
-      },  
-      body: invalidBody,  
-      failOnStatusCode: false,  
-    }).then((response) => {  
-      logRequestId(response.headers["x-request-id"]);  
-  
-      cy.wrap(response).then(() => {  
-        expect(response.status).to.not.equal(200);  
-        cy.task(  
-          "cli_log",  
-          `Expected error for invalid redirect method value: ${response.status}`  
-        );  
-      });  
-    });  
-  }  
+Cypress.Commands.add(
+  "updateBusinessProfileWithInvalidData",
+  (invalidBody, globalState, profilePrefix = "profile") => {
+    const apiKey = globalState.get("apiKey");
+    const merchantId = globalState.get("merchantId");
+    const profileId = globalState.get(`${profilePrefix}Id`);
+
+    cy.request({
+      method: "POST",
+      url: `${globalState.get("baseUrl")}/account/${merchantId}/business_profile/${profileId}`,
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json",
+        "api-key": apiKey,
+      },
+      body: invalidBody,
+      failOnStatusCode: false,
+    }).then((response) => {
+      logRequestId(response.headers["x-request-id"]);
+
+      cy.wrap(response).then(() => {
+        expect(response.status).to.not.equal(200);
+        cy.task(
+          "cli_log",
+          `Expected error for invalid redirect method value: ${response.status}`
+        );
+      });
+    });
+  }
 );
 // API Key API calls
 Cypress.Commands.add("apiKeyCreateTest", (apiKeyCreateBody, globalState) => {
