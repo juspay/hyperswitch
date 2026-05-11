@@ -161,6 +161,7 @@ impl TryFrom<PayoneRouterData<&PayoutsRouterData<PoFulfill>>> for PayonePayoutFu
                             )?,
                         },
                         PayoutMethodData::Bank(_)
+                        | PayoutMethodData::BankTransfer(_)
                         | PayoutMethodData::Wallet(_)
                         | PayoutMethodData::BankRedirect(_)
                         | PayoutMethodData::Passthrough(_) => Err(ConnectorError::NotImplemented(

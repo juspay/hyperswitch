@@ -144,6 +144,7 @@ impl ConstructFlowSpecificData<RecordReturn, FraudCheckRecordReturnData, FraudCh
                 .attach_printable(
                     "Failed to extract customer document details from payment_intent",
                 )?,
+            feature_data: None,
         };
 
         Ok(router_data)

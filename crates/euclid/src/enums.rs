@@ -1,7 +1,7 @@
 use common_enums::connector_enums::Connector;
 pub use common_enums::{
-    AuthenticationType, CaptureMethod, CardNetwork, Country, CountryAlpha2, Currency,
-    FutureUsage as SetupFutureUsage, PaymentMethod, PaymentMethodType,
+    AuthenticationType, CaptureMethod, CardDiscovery, CardNetwork, Country, CountryAlpha2,
+    Currency, FutureUsage as SetupFutureUsage, PaymentMethod, PaymentMethodType,
 };
 use strum::VariantNames;
 use utoipa::ToSchema;
@@ -36,6 +36,7 @@ collect_variants!(CaptureMethod);
 collect_variants!(Currency);
 collect_variants!(Country);
 collect_variants!(SetupFutureUsage);
+collect_variants!(CardDiscovery);
 #[cfg(feature = "payouts")]
 collect_variants!(PayoutType);
 #[cfg(feature = "payouts")]
@@ -281,6 +282,7 @@ pub enum RoutableConnectors {
     Helcim,
     Hyperpg,
     Iatapay,
+    Imerchantsolutions,
     Inespay,
     Itaubank,
     Jpmorgan,
@@ -323,6 +325,7 @@ pub enum RoutableConnectors {
     Redsys,
     Revolv3,
     Riskified,
+    Sanlam,
     Santander,
     Shift4,
     Signifyd,
@@ -404,6 +407,7 @@ impl TryFrom<Connector> for RoutableConnectors {
             Connector::Bluesnap => Ok(Self::Bluesnap),
             Connector::Blackhawknetwork => Ok(Self::Blackhawknetwork),
             Connector::Calida => Ok(Self::Calida),
+            Connector::Sanlam => Ok(Self::Sanlam),
             Connector::Boku => Ok(Self::Boku),
             Connector::Braintree => Ok(Self::Braintree),
             Connector::Breadpay => Ok(Self::Breadpay),
@@ -440,6 +444,7 @@ impl TryFrom<Connector> for RoutableConnectors {
             Connector::Helcim => Ok(Self::Helcim),
             Connector::Hyperpg => Ok(Self::Hyperpg),
             Connector::Iatapay => Ok(Self::Iatapay),
+            Connector::Imerchantsolutions => Ok(Self::Imerchantsolutions),
             Connector::Itaubank => Ok(Self::Itaubank),
             Connector::Jpmorgan => Ok(Self::Jpmorgan),
             Connector::Klarna => Ok(Self::Klarna),
@@ -599,8 +604,10 @@ impl From<RoutableConnectors> for Connector {
             RoutableConnectors::Globepay => Self::Globepay,
             RoutableConnectors::Gocardless => Self::Gocardless,
             RoutableConnectors::Helcim => Self::Helcim,
+            RoutableConnectors::Sanlam => Self::Sanlam,
             RoutableConnectors::Hyperpg => Self::Hyperpg,
             RoutableConnectors::Iatapay => Self::Iatapay,
+            RoutableConnectors::Imerchantsolutions => Self::Imerchantsolutions,
             RoutableConnectors::Itaubank => Self::Itaubank,
             RoutableConnectors::Jpmorgan => Self::Jpmorgan,
             RoutableConnectors::Klarna => Self::Klarna,

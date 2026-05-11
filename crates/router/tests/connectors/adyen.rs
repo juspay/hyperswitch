@@ -113,8 +113,8 @@ impl AdyenTest {
                         card_network: None,
                     },
                 )),
-                enums::PayoutType::Bank => Some(types::api::PayoutMethodData::Bank(
-                    types::api::payouts::BankPayout::Sepa(types::api::SepaBankTransfer {
+                enums::PayoutType::Bank => Some(types::api::PayoutMethodData::BankTransfer(
+                    types::api::payouts::BankTransferPayout::Sepa(types::api::SepaBankTransfer {
                         iban: "NL46TEST0136169112".to_string().into(),
                         bic: Some("ABNANL2A".to_string().into()),
                         bank_name: Some("Deutsche Bank".to_string()),

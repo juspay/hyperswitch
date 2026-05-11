@@ -7,6 +7,7 @@ pub mod authentication;
 #[cfg(feature = "v1")]
 pub mod blocklist;
 pub mod cache;
+pub mod card_issuer;
 pub mod card_testing_guard;
 pub mod cards_info;
 pub mod chat;
@@ -52,8 +53,6 @@ pub mod poll;
 pub mod profile_acquirer;
 #[cfg(feature = "v2")]
 pub mod proxy;
-#[cfg(feature = "recon")]
-pub mod recon;
 #[cfg(feature = "v1")]
 pub mod refunds;
 #[cfg(feature = "v2")]
@@ -64,6 +63,7 @@ pub mod revenue_recovery;
 #[cfg(feature = "v2")]
 pub mod revenue_recovery_data_backfill;
 pub mod routing;
+pub mod superposition_sdk_config;
 pub mod surcharge_decision_config;
 pub mod three_ds_decision_rule;
 pub mod tokenization;

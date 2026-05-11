@@ -56,7 +56,7 @@
 
 </details>
 
-<summary><h2> What Can I Do with Hyperswitch?</h2></summary>
+<summary><h2>What Can I Do with Hyperswitch?</h2></summary>
 
 Hyperswitch offers a modular, open-source payments infrastructure designed for flexibility and control. Apart from our Payment Suite offering, this solution allows businesses to pick and integrate only the modules they need on top of their existing payment stack — without unnecessary complexity or vendor lock-in.
 
@@ -74,11 +74,11 @@ Each module is independent and purpose-built to optimize different aspects of pa
   _[Read more](https://docs.hyperswitch.io/about-hyperswitch/payments-modules/revenue-recovery)_
 
 - **Vault**  
-  A PCI-compliant vault service to store cards, tokens, wallets, and bank credentials. Provides a unified, secure, and reusable store of customer-linked payment methods.  
+  A PCI-compliant vault service to store cards, tokens, wallets, and bank credentials. Provides a unified, secure, and reusable store of customer-linked payment methods. Also supports bring-your-own-vault to connect existing providers including VGS and TokenEx without re-tokenizing or migrating stored cards.  
   _[Read more](https://docs.hyperswitch.io/about-hyperswitch/payments-modules/vault)_
 
 - **Intelligent Routing**  
-  Route each transaction to the PSP with the highest predicted auth rate. Reduce retries, avoid downtime, and minimize latency while maximizing first attempt success.  
+  Route each transaction across Stripe, Adyen, Braintree, Worldpay, Checkout.com, and 120+ others to the PSP with the highest predicted auth rate. Reduce retries, avoid downtime, and minimize latency while maximizing first attempt success. 
   _[Read more](https://docs.hyperswitch.io/about-hyperswitch/payments-modules/intelligent-routing)_
 
 - **Reconciliation**  
@@ -140,25 +140,9 @@ Hyperswitch offers a fully hosted sandbox environment that requires no setup. Yo
 
 <h3><strong>Cloud Deployment</strong></h3>
 
-You can deploy to AWS, GCP, or Azure using Helm or CDK scripts. Fastest path:
+You can deploy to AWS, GCP, or Azure using Helm Charts.
 
-Click to deploy via AWS:
-
-   <a href="https://console.aws.amazon.com/cloudformation/home?region=us-east-1#/stacks/new?stackName=HyperswitchBootstarp&templateURL=https://hyperswitch-synth.s3.eu-central-1.amazonaws.com/hs-starter-config.yaml">
-     <img src="https://github.com/juspay/hyperswitch/blob/main/docs/imgs/aws_button.png?raw=true" height="35">
-   </a>
-
-<details>
-  <summary><strong>Cloud Deployment Instructions</strong></summary>
-
-  1. Click the AWS deployment button above to launch the stack.  
-  2. Follow the guided steps in the AWS Console (approx. 30–45 mins).  
-
-  ✅ This setup provisions Hyperswitch on your cloud account using CloudFormation.  
-
-  📘 For full instructions and Helm-based deployments, check out the  
-  <a href="https://docs.hyperswitch.io/hyperswitch-open-source/deploy-on-kubernetes-using-helm">Cloud Install Guide</a>.
-</details>
+<a href="https://docs.hyperswitch.io/hyperswitch-open-source/deploy-on-kubernetes-using-helm">Cloud Deployment Instructions</a>.
 
 
 <a href="#architectural-overview">
@@ -172,7 +156,9 @@ Click to deploy via AWS:
 
 Hyperswitch is a commercial open-source payments stack purpose-built for scale, flexibility, and developer experience. Designed with a modular architecture, Hyperswitch lets you pick only the components you need—whether it’s routing, retries, vaulting, or observability—without vendor lock-in or bloated integrations.
 
-Built in Rust for performance and reliability, Hyperswitch supports global payment methods (cards, wallets, BNPL, UPI, Pay by Bank), exposes smart routing and retry logic, and provides a visual workflow builder in the Control Center. Whether you're integrating a full payment suite or augmenting an existing stack with a single module, Hyperswitch meets you where you are.
+Built in Rust for performance and reliability, Hyperswitch connects to Stripe, Adyen, Braintree, Worldpay, Checkout.com, Cybersource, and 120+ processors — exposing smart routing and retry logic, and provides a visual workflow builder in the Control Center. Whether you're integrating a full payment suite or augmenting an existing stack with a single module, Hyperswitch meets you where you are.
+
+Common starting points: teams moving from a single Stripe/ Stripe connect or Braintree integration to multi-PSP routing, merchants replacing a payment gateway with direct acquirer connections to TSYS, JP Morgan Payments, or other acquirers, and merchants rearchitecting their payments platform through Hyperswitch while keeping their existing VGS, TokenEx or other existing vault intact.
 
 <strong>“Linux for Payments”</strong> — Hyperswitch is a well-architected reference for teams who want to own their payments stack.
 
@@ -217,13 +203,3 @@ Check the [CHANGELOG.md](./CHANGELOG.md) file for details.
 </a>
 
 This product is licensed under the [Apache 2.0 License](LICENSE).
-
-<a href="#team-behind-hyperswitch">
-  <h2 id="team-behind-hyperswitch">Team behind Hyperswitch</h2>
-</a>
-
-The core team of 150+ engineers building Hyperswitch. Keep up the great work! 🥂
-
-<a href="https://github.com/juspay/hyperswitch/graphs/contributors">
-  <img src="https://contributors-img.web.app/image?repo=juspay/hyperswitch" alt="Contributors"/>
-</a>

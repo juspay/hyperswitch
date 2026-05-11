@@ -93,7 +93,7 @@ adyen.dispute_base_url = "https://ca-test.adyen.com/"
 adyen.management_base_url = "https://management-test.adyen.com/"
 airwallex.base_url = "https://api-demo.airwallex.com/"
 amazonpay.base_url = "https://pay-api.amazon.com/sandbox/v2"
-applepay.base_url = "https://apple-pay-gateway.apple.com/"
+applepay.base_url = "https://apple-pay-gateway-cert.apple.com/"
 archipel.base_url = "https://{{merchant_endpoint_prefix}}/ArchiPEL/Transaction/v1"
 authipay.base_url = "https://prod.emea.api.fiservapps.com/sandbox/ipp/payments-gateway/v2/"
 authorizedotnet.base_url = "https://apitest.authorize.net/xml/v1/request.api"
@@ -155,6 +155,7 @@ hyperwallet.base_url = "https://uat-api.paylution.com"
 hipay.secondary_base_url = "https://stage-secure2-vault.hipay-tpp.com/rest/"
 hipay.third_base_url = "https://stage-api-gateway.hipay.com/"
 iatapay.base_url = "https://sandbox.iata-pay.iata.org/api/v1"
+imerchantsolutions.base_url = "https://imerchantsolutions.com/api"
 inespay.base_url = "https://apiflow.inespay.com/san/v21"
 itaubank.base_url = "https://sandbox.devportal.itau.com.br/"
 jpmorgan.base_url = "https://api-mock.payments.jpmorgan.com/api/v2"
@@ -174,7 +175,7 @@ nexinets.base_url = "https://apitest.payengine.de/v1"
 nexixpay.base_url = "https://xpaysandbox.nexigroup.com/api/phoenix-0.0/psp/api/v1"
 nmi.base_url = "https://secure.nmi.com/"
 nomupay.base_url = "https://payout-api.sandbox.nomupay.com"
-noon.base_url = "https://api-test{{noon_region}}.noonpayments.com/"
+noon.base_url = "https://api-test{{region}}.noonpayments.com/"
 nordea.base_url = "https://api.nordeaopenbanking.com"
 noon.key_mode = "Test"
 novalnet.base_url = "https://payport.novalnet.de/v2"
@@ -205,6 +206,7 @@ razorpay.base_url = "https://api.razorpay.com/"
 recurly.base_url = "https://v3.recurly.com"
 redsys.base_url = "https://sis-t.redsys.es:25443"
 revolv3.base_url = "https://api-sandbox.revolv3.com"
+sanlam.base_url = "dev"
 riskified.base_url = "https://sandbox.riskified.com/api"
 santander.base_url = "https://trust-pix-h.santander.com.br/"
 santander.secondary_base_url = "https://trust-open-h.api.santander.com.br/"
@@ -244,7 +246,7 @@ worldpayvantiv.base_url = "https://transact.vantivprelive.com/vap/communicator/o
 worldpayvantiv.secondary_base_url = "https://onlinessr.vantivprelive.com"
 worldpayvantiv.third_base_url = "https://services.vantivprelive.com"
 worldpayxml.base_url = "https://secure-test.worldpay.com/jsp/merchant/xml/paymentService.jsp"
-worldpayxml.secondary_base_url = "https://centinelapistag.cardinalcommerce.com/V2/Cruise/StepUp"
+worldpayxml.secondary_base_url = "https://centinelapistag.cardinalcommerce.com"
 xendit.base_url = "https://api.xendit.co"
 zift.base_url = "https://sandbox-secure.zift.io/"
 wise.base_url = "https://api.sandbox.transferwise.tech/"
@@ -452,12 +454,15 @@ credit = { currency = "INR,USD,GBP,EUR" }
 debit = { currency = "INR,USD,GBP,EUR" }
 
 [pm_filters.truelayer]
-open_banking_uk = { currency = "GBP,EUR" }
+open_banking = { currency = "GBP,EUR" }
 
 [payout_method_filters.truelayer]
 open_banking_uk = { currency = "GBP,EUR,PLN" }
 
 [payout_method_filters.trustly]
+trustly = { currency = "BGN,GBP,EUR,PLN,CZK,DKK,HRK,HUF,NOK,PLN,RON,SEK" }
+
+[pm_filters.trustly]
 trustly = { currency = "BGN,GBP,EUR,PLN,CZK,DKK,HRK,HUF,NOK,PLN,RON,SEK" }
 
 [pm_filters.adyen]
@@ -468,7 +473,7 @@ klarna = { country = "AU,AT,BE,CA,CZ,DK,FI,FR,DE,GR,IE,IT,NO,PL,PT,RO,ES,SE,CH,N
 ideal = { country = "NL", currency = "EUR" }
 
 [pm_filters.affirm]
-affirm = { country = "CA,US", currency = "CAD,USD" }
+affirm = { currency = "USD" }
 
 [pm_filters.amazonpay]
 amazon_pay = { country = "US", currency = "USD" }
@@ -634,7 +639,9 @@ interac = { country = "CA", currency = "CAD,USD" }
 przelewy24 = { country = "PL", currency = "CZK,EUR,GBP,PLN" }
 trustly = { country = "ES,GB,SE,NO,AT,NL,DE,DK,FI,EE,LT,LV", currency = "CZK,DKK,EUR,GBP,NOK,SEK" }
 klarna = { country = "AU,AT,BE,CA,CZ,DK,FI,FR,DE,GR,IE,IT,NL,NZ,NO,PL,PT,ES,SE,CH,GB,US", currency = "CHF,DKK,EUR,GBP,NOK,PLN,SEK,USD,AUD,NZD,CAD" }
-
+apple_pay = { country = "AU,CN,HK,JP,MO,MY,NZ,SG,TW,AM,AT,AZ,BY,BE,BG,HR,CY,CZ,DK,EE,FO,FI,FR,GE,DE,GR,GL,GG,HU,IS,IE,IM,IT,KZ,JE,LV,LI,LT,LU,MT,MD,MC,ME,NL,NO,PL,PT,RO,SM,RS,SK,SI,ES,SE,CH,UA,GB,AR,CO,CR,BR,MX,PE,BH,IL,JO,KW,PS,QA,SA,AE,CA,US,KR,VN,MA,ZA", currency = "AED,AUD,CAD,CHF,EUR,GBP,HKD,SGD,USD" }
+google_pay = { country = "AL,DZ,AS,AO,AG,AR,AU,AT,AZ,BH,BY,BE,BR,BG,CA,CL,CO,HR,CZ,DK,DO,EG,EE,FI,FR,DE,GR,HK,HU,IN,ID,IE,IL,IT,JP,JO,KZ,KE,KW,LV,LB,LT,LU,MY,MX,NL,NZ,NO,OM,PK,PA,PE,PH,PL,PT,QA,RO,SA,SG,SK,ZA,ES,LK,SE,CH,TW,TH,TR,UA,AE,GB,US,UY,VN" }
+samsung_pay = { country = "AU,BH,BR,CA,CN,DK,FI,FR,DE,HK,IN,IT,JP,KZ,KR,KW,MY,NZ,NO,OM,QA,SA,SG,ZA,ES,SE,CH,TW,AE,GB,US", currency = "AED,AUD,CAD,CHF,EUR,GBP,HKD,SGD,USD" }
 
 [pm_filters.gigadat]
 interac = { currency = "CAD"}
@@ -804,9 +811,9 @@ bank_debit.sepa = { connector_list = "gocardless,adyen,stripe,deutschebank" }
 card.credit.connector_list = "aci,checkout,stripe,adyen,authorizedotnet,cybersource,datatrans,globalpay,worldpay,multisafepay,nmi,nexinets,noon,bankofamerica,braintree,nuvei,payme,wellsfargo,bamboraapac,elavon,fiuu,nexixpay,novalnet,paybox,paypal,xendit,moneris,worldpayvantiv,payload,mollie,airwallex"
 card.debit.connector_list = "aci,checkout,stripe,adyen,authorizedotnet,cybersource,datatrans,globalpay,worldpay,multisafepay,nmi,nexinets,noon,bankofamerica,braintree,nuvei,payme,wellsfargo,bamboraapac,elavon,fiuu,nexixpay,novalnet,paybox,paypal,xendit,moneris,worldpayvantiv,payload,mollie,airwallex"
 pay_later.klarna.connector_list = "adyen,aci"
-wallet.apple_pay.connector_list = "stripe,adyen,braintree,cybersource,noon,bankofamerica,nexinets,novalnet,authorizedotnet,worldpayxml"
-wallet.samsung_pay.connector_list = "cybersource"
-wallet.google_pay.connector_list = "stripe,adyen,cybersource,bankofamerica,noon,globalpay,multisafepay,novalnet,authorizedotnet,worldpayxml"
+wallet.apple_pay.connector_list = "aci,stripe,adyen,braintree,cybersource,noon,bankofamerica,nexinets,novalnet,authorizedotnet,worldpayxml"
+wallet.samsung_pay.connector_list = "aci,cybersource"
+wallet.google_pay.connector_list = "aci,stripe,adyen,cybersource,bankofamerica,noon,globalpay,multisafepay,novalnet,authorizedotnet,worldpayxml"
 wallet.paypal.connector_list = "adyen,globalpay,nexinets,novalnet,paypal,authorizedotnet"
 wallet.momo.connector_list = "adyen"
 wallet.kakao_pay.connector_list = "adyen"
@@ -842,10 +849,13 @@ card.credit = { connector_list = "cybersource" }
 card.debit = { connector_list = "cybersource" }
 
 [network_transaction_id_supported_connectors]
-connector_list = "adyen,archipel,checkout,cybersource,novalnet,stripe,worldpay,worldpayvantiv"
+connector_list = "adyen,archipel,checkout,cybersource,novalnet,stripe,worldpay,worldpayvantiv,revolv3"
 
 [card_only_mit_supported_connectors]
 connector_list = "peachpayments" # Supported connectors for card only mit
+
+[notify_iframe_exit_and_redirect]
+connector_list = "worldpayxml"
 
 [analytics]
 source = "sqlx"
@@ -903,6 +913,7 @@ sts_role_session_name = ""
 paybox = { payment_method = "card" }
 redsys = { payment_method = "card" }
 barclaycard = { payment_method = "card" }
+worldpayxml = { payment_method = "card" }
 
 [billing_connectors_payment_sync]
 billing_connectors_which_require_payment_sync = "stripebilling, recurly"

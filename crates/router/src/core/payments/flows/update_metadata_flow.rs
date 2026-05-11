@@ -112,6 +112,7 @@ impl Feature<api::UpdateMetadata, types::PaymentsUpdateMetadataData>
             self,
             creds_identifier,
             gateway_context,
+            None,
         ))
         .await
     }

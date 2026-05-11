@@ -150,6 +150,7 @@ impl TryFrom<api_models::payouts::PayoutMethodData> for PayoutInstrument {
             })),
             api_models::payouts::PayoutMethodData::Card(_)
             | api_models::payouts::PayoutMethodData::Bank(_)
+            | api_models::payouts::PayoutMethodData::BankTransfer(_)
             | api_models::payouts::PayoutMethodData::Wallet(_)
             | api_models::payouts::PayoutMethodData::BankRedirect(_)
             | api_models::payouts::PayoutMethodData::Passthrough(_) => {

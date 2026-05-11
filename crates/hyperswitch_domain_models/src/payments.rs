@@ -51,6 +51,7 @@ use error_stack::ResultExt;
 use hyperswitch_masking::ExposeInterface;
 
 use self::{payment_attempt::PaymentAttempt, payment_intent::CustomerData};
+use crate::ext_traits::OptionExt;
 #[cfg(feature = "v2")]
 use crate::{
     address::Address, business_profile, customer, errors, merchant_connector_account,
@@ -59,7 +60,7 @@ use crate::{
     ApiModelToDieselModelConvertor,
 };
 #[cfg(feature = "v1")]
-use crate::{errors, ext_traits::OptionExt, payment_method_data, RemoteStorageObject};
+use crate::{errors, payment_method_data, RemoteStorageObject};
 
 #[cfg(feature = "v1")]
 #[derive(Clone, Debug, PartialEq, serde::Serialize, ToEncryption)]
@@ -441,6 +442,17 @@ impl PaymentIntent {
             .transpose()
     }
 
+    pub fn get_intent_customer_details(
+        &self,
+    ) -> CustomResult<Option<CustomerData>, common_utils::errors::ParsingError> {
+        self.customer_details
+            .as_ref()
+            .map(|details| {
+                let decrypted_value = details.clone().into_inner().expose();
+                ValueExt::parse_value::<CustomerData>(decrypted_value, "CustomerData")
+            })
+            .transpose()
+    }
     #[cfg(feature = "v1")]
     pub fn get_optional_feature_metadata(
         &self,
@@ -464,6 +476,7 @@ impl PaymentIntent {
         self,
         net_amount: MinorUnit,
         show_installments: bool,
+        capture_method: Option<common_enums::CaptureMethod>,
     ) -> CustomResult<PaymentMethodListIntentData, errors::api_error_response::ApiErrorResponse>
     {
         let billing: Option<Address> = self
@@ -528,7 +541,14 @@ impl PaymentIntent {
             merchant_order_reference_id: self.merchant_order_reference_id,
             attempt_count: self.attempt_count,
             installment_options,
+            capture_method,
         })
+    }
+
+    #[cfg(feature = "v1")]
+    pub fn is_setup_mandate(&self) -> bool {
+        self.amount == MinorUnit::zero()
+            && self.setup_future_usage == Some(common_enums::FutureUsage::OffSession)
     }
 }
 
@@ -595,7 +615,7 @@ impl AmountDetails {
         let order_tax_amount = match self.skip_external_tax_calculation {
             common_enums::TaxCalculationOverride::Skip => {
                 self.tax_details.as_ref().and_then(|tax_details| {
-                    tax_details.get_tax_amount(Some(confirm_intent_request.payment_method_subtype))
+                    tax_details.get_tax_amount(confirm_intent_request.payment_method_subtype)
                 })
             }
             common_enums::TaxCalculationOverride::Calculate => None,
@@ -649,7 +669,7 @@ impl AmountDetails {
         let order_tax_amount = match self.skip_external_tax_calculation {
             common_enums::TaxCalculationOverride::Skip => {
                 self.tax_details.as_ref().and_then(|tax_details| {
-                    tax_details.get_tax_amount(Some(confirm_intent_request.payment_method_subtype))
+                    tax_details.get_tax_amount(confirm_intent_request.payment_method_subtype)
                 })
             }
             common_enums::TaxCalculationOverride::Calculate => None,
@@ -1483,7 +1503,14 @@ where
                             .clone(),
                     },
                 payment_method_type: self.payment_attempt.payment_method_type,
-                payment_method_subtype: self.payment_attempt.payment_method_subtype,
+                payment_method_subtype: self
+                    .payment_attempt
+                    .payment_method_subtype
+                    .get_required_value("payment_method_subtype")
+                    .change_context(
+                        errors::api_error_response::ApiErrorResponse::InternalServerError,
+                    )
+                    .attach_printable("Failed to construct revenue recovery metadata")?,
                 connector: connector.parse().map_err(|err| {
                     router_env::logger::error!(?err, "Failed to parse connector string to enum");
                     errors::api_error_response::ApiErrorResponse::InternalServerError
@@ -1517,6 +1544,12 @@ where
             boleto_additional_details: payment_intent_feature_metadata
                 .as_ref()
                 .and_then(|data| data.boleto_additional_details.clone()),
+            pix_automatico_additional_details: payment_intent_feature_metadata
+                .as_ref()
+                .and_then(|data| data.pix_automatico_additional_details.clone()),
+            finix_additional_details: payment_intent_feature_metadata
+                .as_ref()
+                .and_then(|data| data.finix_additional_details.clone()),
         }))
     }
 }

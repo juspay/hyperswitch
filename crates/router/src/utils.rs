@@ -237,7 +237,7 @@ pub async fn find_payment_intent_from_refund_id_type(
     let db = &*state.store;
     let refund = match refund_id_type {
         webhooks::RefundIdType::RefundId(id) => db
-            .find_refund_by_merchant_id_refund_id(
+            .find_refund_by_processor_merchant_id_refund_id(
                 platform.get_processor().get_account().get_id(),
                 &id,
                 platform.get_processor().get_account().storage_scheme,
@@ -245,7 +245,7 @@ pub async fn find_payment_intent_from_refund_id_type(
             .await
             .to_not_found_response(errors::ApiErrorResponse::RefundNotFound)?,
         webhooks::RefundIdType::ConnectorRefundId(id) => db
-            .find_refund_by_merchant_id_connector_refund_id_connector(
+            .find_refund_by_processor_merchant_id_connector_refund_id_connector(
                 platform.get_processor().get_account().get_id(),
                 &id,
                 connector_name,

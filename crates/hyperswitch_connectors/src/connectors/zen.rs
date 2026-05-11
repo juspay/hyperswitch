@@ -689,6 +689,7 @@ impl IncomingWebhook for Zen {
         &self,
         _request: &IncomingWebhookRequestDetails<'_>,
         _error_kind: Option<IncomingWebhookFlowError>,
+        _connector_authentication_type: Option<crypto::Encryptable<Secret<serde_json::Value>>>,
     ) -> CustomResult<ApplicationResponse<serde_json::Value>, errors::ConnectorError> {
         Ok(ApplicationResponse::Json(serde_json::json!({
             "status": "ok"

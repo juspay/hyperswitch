@@ -586,6 +586,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
                         | common_enums::PaymentMethodType::DirectCarrierBilling
                         | common_enums::PaymentMethodType::Efecty
                         | common_enums::PaymentMethodType::Eft
+                        | common_enums::PaymentMethodType::EftDebitOrder
                         | common_enums::PaymentMethodType::Eps
                         | common_enums::PaymentMethodType::Evoucher
                         | common_enums::PaymentMethodType::Giropay
@@ -620,6 +621,10 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
                         | common_enums::PaymentMethodType::Paypal
                         | common_enums::PaymentMethodType::Paze
                         | common_enums::PaymentMethodType::Pix
+                        | common_enums::PaymentMethodType::PixKey
+                        | common_enums::PaymentMethodType::PixEmv
+                        | common_enums::PaymentMethodType::PixAutomaticoPush
+                        | common_enums::PaymentMethodType::PixAutomaticoQr
                         | common_enums::PaymentMethodType::PaySafeCard
                         | common_enums::PaymentMethodType::Przelewy24
                         | common_enums::PaymentMethodType::Pse
@@ -716,6 +721,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
                         | common_enums::PaymentMethodType::DirectCarrierBilling
                         | common_enums::PaymentMethodType::Efecty
                         | common_enums::PaymentMethodType::Eft
+                        | common_enums::PaymentMethodType::EftDebitOrder
                         | common_enums::PaymentMethodType::Eps
                         | common_enums::PaymentMethodType::Evoucher
                         | common_enums::PaymentMethodType::Giropay
@@ -750,6 +756,10 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
                         | common_enums::PaymentMethodType::Paypal
                         | common_enums::PaymentMethodType::Paze
                         | common_enums::PaymentMethodType::Pix
+                        | common_enums::PaymentMethodType::PixKey
+                        | common_enums::PaymentMethodType::PixEmv
+                        | common_enums::PaymentMethodType::PixAutomaticoPush
+                        | common_enums::PaymentMethodType::PixAutomaticoQr
                         | common_enums::PaymentMethodType::PaySafeCard
                         | common_enums::PaymentMethodType::Przelewy24
                         | common_enums::PaymentMethodType::Pse
@@ -834,6 +844,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
                         | common_enums::PaymentMethodType::Bacs
                         | common_enums::PaymentMethodType::BancontactCard
                         | common_enums::PaymentMethodType::Becs
+                        | common_enums::PaymentMethodType::EftDebitOrder
                         | common_enums::PaymentMethodType::Benefit
                         | common_enums::PaymentMethodType::Bizum
                         | common_enums::PaymentMethodType::Blik
@@ -888,6 +899,10 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
                         | common_enums::PaymentMethodType::Paypal
                         | common_enums::PaymentMethodType::Paze
                         | common_enums::PaymentMethodType::Pix
+                        | common_enums::PaymentMethodType::PixKey
+                        | common_enums::PaymentMethodType::PixEmv
+                        | common_enums::PaymentMethodType::PixAutomaticoPush
+                        | common_enums::PaymentMethodType::PixAutomaticoQr
                         | common_enums::PaymentMethodType::PaySafeCard
                         | common_enums::PaymentMethodType::Przelewy24
                         | common_enums::PaymentMethodType::Pse
@@ -984,6 +999,7 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
                         | common_enums::PaymentMethodType::DirectCarrierBilling
                         | common_enums::PaymentMethodType::Efecty
                         | common_enums::PaymentMethodType::Eft
+                        | common_enums::PaymentMethodType::EftDebitOrder
                         | common_enums::PaymentMethodType::Eps
                         | common_enums::PaymentMethodType::Evoucher
                         | common_enums::PaymentMethodType::Giropay
@@ -1018,6 +1034,10 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
                         | common_enums::PaymentMethodType::Paypal
                         | common_enums::PaymentMethodType::Paze
                         | common_enums::PaymentMethodType::Pix
+                        | common_enums::PaymentMethodType::PixKey
+                        | common_enums::PaymentMethodType::PixEmv
+                        | common_enums::PaymentMethodType::PixAutomaticoPush
+                        | common_enums::PaymentMethodType::PixAutomaticoQr
                         | common_enums::PaymentMethodType::PaySafeCard
                         | common_enums::PaymentMethodType::Przelewy24
                         | common_enums::PaymentMethodType::Pse
@@ -1090,6 +1110,8 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
             | PaymentMethodData::CardToken(_)
             | PaymentMethodData::NetworkToken(_)
             | PaymentMethodData::CardDetailsForNetworkTransactionId(_)
+            | PaymentMethodData::CardWithOptionalCVC(_)
+            | PaymentMethodData::CardWithNetworkTokenDetails(_)
             | PaymentMethodData::CardWithLimitedDetails(_)
             | PaymentMethodData::DecryptedWalletTokenDetailsForNetworkTransactionId(_)
             | PaymentMethodData::NetworkTokenDetailsForNetworkTransactionId(_) => {

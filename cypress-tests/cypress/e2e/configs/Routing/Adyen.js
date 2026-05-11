@@ -135,6 +135,26 @@ export const connectorDetails = {
         },
       },
     },
+    EURNo3DSAutoCapture: {
+      Request: {
+        payment_method: "card",
+        payment_method_type: "credit",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        currency: "EUR",
+        amount: 900,
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+          connector: "adyen",
+        },
+      },
+    },
     Capture: {
       Request: {
         payment_method: "card",

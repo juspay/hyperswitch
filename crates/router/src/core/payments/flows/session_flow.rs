@@ -142,6 +142,7 @@ impl Feature<api::Session, types::PaymentsSessionData> for types::PaymentsSessio
             self,
             creds_identifier,
             gateway_context,
+            None,
         ))
         .await
     }
@@ -491,6 +492,14 @@ async fn create_applepay_session_token(
             required_shipping_contact_fields
         };
 
+        #[cfg(feature = "v1")]
+        let wallet_blocking_config = business_profile
+            .payment_method_blocking
+            .as_ref()
+            .and_then(|config| config.wallet.as_ref());
+        #[cfg(feature = "v2")]
+        let wallet_blocking_config = None;
+
         // Get apple pay payment request
         let applepay_payment_request = get_apple_pay_payment_request(
             amount_info,
@@ -500,6 +509,7 @@ async fn create_applepay_session_token(
             merchant_business_country,
             required_billing_contact_fields,
             required_shipping_contact_fields_updated,
+            wallet_blocking_config,
         )?;
 
         let apple_pay_session_response = match (
@@ -859,6 +869,7 @@ fn get_apple_pay_amount_info(
     Ok(amount_info)
 }
 
+#[allow(clippy::too_many_arguments)]
 fn get_apple_pay_payment_request(
     amount_info: payment_types::AmountInfo,
     payment_request_data: payment_types::PaymentRequestMetadata,
@@ -867,7 +878,13 @@ fn get_apple_pay_payment_request(
     merchant_business_country: Option<api_models::enums::CountryAlpha2>,
     required_billing_contact_fields: Option<payment_types::ApplePayBillingContactFields>,
     required_shipping_contact_fields: Option<payment_types::ApplePayShippingContactFields>,
+    wallet_blocking_config: Option<&diesel_models::business_profile::WalletBlockingConfig>,
 ) -> RouterResult<payment_types::ApplePayPaymentRequest> {
+    let merchant_capabilities = apply_wallet_blocking_to_apple_pay_capabilities(
+        payment_request_data.merchant_capabilities,
+        wallet_blocking_config,
+    );
+
     let applepay_payment_request = payment_types::ApplePayPaymentRequest {
         country_code: merchant_business_country.or(session_data.country).ok_or(
             errors::ApiErrorResponse::MissingRequiredField {
@@ -876,7 +893,7 @@ fn get_apple_pay_payment_request(
         )?,
         currency_code: session_data.currency,
         total: amount_info,
-        merchant_capabilities: Some(payment_request_data.merchant_capabilities),
+        merchant_capabilities: Some(merchant_capabilities),
         supported_networks: Some(payment_request_data.supported_networks),
         merchant_identifier: Some(merchant_identifier.to_string()),
         required_billing_contact_fields,
@@ -884,6 +901,31 @@ fn get_apple_pay_payment_request(
         recurring_payment_request: session_data.apple_pay_recurring_details,
     };
     Ok(applepay_payment_request)
+}
+
+/// If credit cards are blocked, add "supportsDebit" capability
+fn apply_wallet_blocking_to_apple_pay_capabilities(
+    mut capabilities: Vec<String>,
+    wallet_blocking_config: Option<&diesel_models::business_profile::WalletBlockingConfig>,
+) -> Vec<String> {
+    if let Some(wallet_config) = wallet_blocking_config {
+        if wallet_config.is_credit_blocked() {
+            capabilities.push("supportsDebit".to_string());
+        }
+    }
+    capabilities
+}
+
+fn get_google_pay_card_type_restrictions(
+    wallet_blocking_config: Option<&diesel_models::business_profile::WalletBlockingConfig>,
+) -> Option<bool> {
+    wallet_blocking_config.and_then(|wallet_config| {
+        if wallet_config.is_credit_blocked() {
+            Some(false)
+        } else {
+            None
+        }
+    })
 }
 
 fn create_apple_pay_session_response(
@@ -1028,6 +1070,14 @@ fn create_gpay_session_token(
                 enums::PaymentMethodType::GooglePay,
             );
 
+        #[cfg(feature = "v1")]
+        let wallet_blocking_config = business_profile
+            .payment_method_blocking
+            .as_ref()
+            .and_then(|config| config.wallet.as_ref());
+        #[cfg(feature = "v2")]
+        let wallet_blocking_config = None;
+
         if google_pay_wallets_details.is_some() {
             let gpay_data = router_data
                 .connector_wallets_details
@@ -1054,6 +1104,7 @@ fn create_gpay_session_token(
                 cards,
                 &gpay_info.merchant_info.tokenization_specification,
                 is_billing_details_required,
+                wallet_blocking_config,
             )?;
 
             Ok(types::PaymentsSessionRouterData {
@@ -1126,6 +1177,9 @@ fn create_gpay_session_token(
                     .into());
                 }
             };
+
+            let allow_credit_cards = get_google_pay_card_type_restrictions(wallet_blocking_config);
+
             let gpay_allowed_payment_methods = gpay_data
                 .allowed_payment_methods
                 .into_iter()
@@ -1134,6 +1188,7 @@ fn create_gpay_session_token(
                         parameters: payment_types::GpayAllowedMethodsParameters {
                             billing_address_required: Some(is_billing_details_required),
                             billing_address_parameters: billing_address_parameters.clone(),
+                            allow_credit_cards,
                             ..allowed_payment_methods.parameters
                         },
                         tokenization_specification: payment_types::GpayTokenizationSpecification {
@@ -1197,6 +1252,7 @@ fn get_allowed_payment_methods_from_cards(
     gpay_cards: payment_types::GpayAllowedMethodsParameters,
     gpay_token_specific_data: &payment_types::GooglePayTokenizationSpecification,
     is_billing_details_required: bool,
+    wallet_blocking_config: Option<&diesel_models::business_profile::WalletBlockingConfig>,
 ) -> RouterResult<payment_types::GpayAllowedPaymentMethods> {
     let billing_address_parameters =
         is_billing_details_required.then_some(payment_types::GpayBillingAddressParameters {
@@ -1210,10 +1266,13 @@ fn get_allowed_payment_methods_from_cards(
         .as_ref()
         .map(|_| PROTOCOL.to_string());
 
+    let allow_credit_cards = get_google_pay_card_type_restrictions(wallet_blocking_config);
+
     Ok(payment_types::GpayAllowedPaymentMethods {
         parameters: payment_types::GpayAllowedMethodsParameters {
             billing_address_required: Some(is_billing_details_required),
             billing_address_parameters: billing_address_parameters.clone(),
+            allow_credit_cards,
             ..gpay_cards
         },
         payment_method_type: CARD.to_string(),
@@ -1339,6 +1398,7 @@ fn create_paypal_sdk_session_token(
                     sdk_next_action: payment_types::SdkNextAction {
                         next_action: payment_types::NextActionCall::PostSessionTokens,
                     },
+                    data_user_id_token: None,
                     client_token: None,
                     transaction_info: None,
                 },

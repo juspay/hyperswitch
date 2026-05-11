@@ -102,7 +102,7 @@ pub async fn remove_entry_from_blocklist(
         ("data_kind" = BlocklistDataKind, Query, description = "Kind of the fingerprint list requested"),
     ),
     responses(
-        (status = 200, description = "Blocked Fingerprints", body = BlocklistResponse),
+        (status = 200, description = "Blocked Fingerprints", body = ListBlocklistResponse),
         (status = 400, description = "Invalid Data")
     ),
     tag = "Blocklist",

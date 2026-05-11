@@ -79,9 +79,9 @@ fn build_region_specific_endpoint(
     let noon_metadata_object =
         transformers::NoonConnectorMetadataObject::try_from(connector_metadata)?;
 
-    let noon_region = String::from(noon_metadata_object.noon_region);
+    let region = String::from(noon_metadata_object.region);
 
-    Ok(base_url.replace("{{noon_region}}", &noon_region))
+    Ok(base_url.replace("{{region}}", &region))
 }
 
 impl api::Payment for Noon {}

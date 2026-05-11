@@ -235,14 +235,12 @@ pub(crate) async fn extract_data_and_perform_action(
 #[cfg(feature = "v2")]
 pub(crate) async fn get_schedule_time_to_retry_mit_payments(
     db: &dyn StorageInterface,
-    superposition_client: Option<&external_services::superposition::SuperpositionClient>,
-    merchant_id: &id_type::MerchantId,
+    superposition_client: &external_services::superposition::SuperpositionClient,
+    dimensions: &crate::core::configs::dimension_state::DimensionsWithProcessorMerchantIdAndConnector,
     retry_count: i32,
 ) -> Option<time::PrimitiveDateTime> {
-    let dimensions = crate::core::configs::dimension_state::Dimensions::new()
-        .with_merchant_id(merchant_id.clone());
     let mapping = dimensions
-        .get_pt_mapping_pcr_retries(db, superposition_client, Some(merchant_id))
+        .get_pt_mapping_pcr_retries(db, superposition_client, dimensions.get_processor_merchant_id())
         .await;
 
     let time_delta =
@@ -636,6 +634,7 @@ pub async fn get_token_with_schedule_time_based_on_retry_algorithm_type(
     state: &SessionState,
     connector_customer_id: &str,
     payment_intent: &PaymentIntent,
+    billing_connector: common_enums::connector_enums::Connector,
     retry_algorithm_type: RevenueRecoveryAlgorithmType,
     retry_count: i32,
 ) -> CustomResult<PaymentProcessorTokenResponse, errors::ProcessTrackerError> {
@@ -646,10 +645,13 @@ pub async fn get_token_with_schedule_time_based_on_retry_algorithm_type(
         }
 
         RevenueRecoveryAlgorithmType::Cascading => {
+            let dimensions = crate::core::configs::dimension_state::Dimensions::new()
+                .with_processor_merchant_id(payment_intent.merchant_id.clone().into())
+                .with_connector(billing_connector);
             let time = get_schedule_time_to_retry_mit_payments(
                 state.store.as_ref(),
-                state.superposition_service.as_deref(),
-                &payment_intent.merchant_id,
+                state.superposition_service.as_ref(),
+                &dimensions,
                 retry_count,
             )
             .await

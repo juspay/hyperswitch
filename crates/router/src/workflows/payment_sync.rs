@@ -1,11 +1,11 @@
 #[cfg(feature = "v2")]
 use common_utils::ext_traits::AsyncExt;
-use common_utils::ext_traits::{OptionExt, StringExt, ValueExt};
+use common_utils::ext_traits::{OptionExt, ValueExt};
 use diesel_models::process_tracker::business_status;
 use error_stack::ResultExt;
 use router_env::logger;
 use scheduler::{
-    consumer::{self, types::process_data, workflows::ProcessTrackerWorkflow},
+    consumer::{self, workflows::ProcessTrackerWorkflow},
     errors as sch_errors, utils as scheduler_utils,
 };
 
@@ -14,7 +14,7 @@ use crate::workflows::revenue_recovery::update_token_expiry_based_on_schedule_ti
 use crate::{
     consts,
     core::{
-        configs,
+        configs::dimension_state,
         errors::StorageErrorExt,
         payments::{self as payment_flows, operations},
     },
@@ -80,8 +80,9 @@ impl ProcessTrackerWorkflow<SessionState> for PaymentsSyncWorkflow {
             key_store.clone(),
             None,
         );
-        let dimensions = configs::dimension_state::Dimensions::new()
-            .with_merchant_id(platform.get_processor().get_account().get_id().clone());
+        let dimensions = dimension_state::Dimensions::new()
+            .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
+            .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id());
         // TODO: Add support for ReqState in PT flows
         let (mut payment_data, _, _, _) = Box::pin(payment_flows::payments_operation_core::<
             api::PSync,
@@ -101,7 +102,7 @@ impl ProcessTrackerWorkflow<SessionState> for PaymentsSyncWorkflow {
             services::AuthFlow::Client,
             None,
             hyperswitch_domain_models::payments::HeaderPayload::default(),
-            dimensions,
+            &dimensions,
         ))
         .await?;
 
@@ -131,7 +132,7 @@ impl ProcessTrackerWorkflow<SessionState> for PaymentsSyncWorkflow {
 
                 let is_last_retry = retry_sync_task(
                     db,
-                    state.superposition_service.as_deref(),
+                    state.superposition_service.as_ref(),
                     connector,
                     payment_data.payment_attempt.merchant_id.clone(),
                     process,
@@ -173,6 +174,7 @@ impl ProcessTrackerWorkflow<SessionState> for PaymentsSyncWorkflow {
                             issuer_error_message: None,
                             network_details: None,
                             network_error_message: None,
+                            advice_message: None,
                             encrypted_payment_method_data: None,
                             recommended_action: None,
                             card_network: payment_data.payment_attempt.extract_card_network(),
@@ -260,19 +262,16 @@ impl ProcessTrackerWorkflow<SessionState> for PaymentsSyncWorkflow {
 ///
 /// `start_after`: The first psync should happen after 60 seconds
 ///
-/// `frequency` and `count`: The next 5 retries should have an interval of 300 seconds between them
+/// `frequencies`: Do 5 retries with an interval of 300 seconds between them.
+///     After than do 2 retries with an interval of 1800 seconds.
 pub async fn get_sync_process_schedule_time(
     db: &dyn StorageInterface,
-    superposition_client: Option<&external_services::superposition::SuperpositionClient>,
-    connector: common_enums::connector_enums::Connector,
-    merchant_id: &common_utils::id_type::MerchantId,
+    superposition_client: &external_services::superposition::SuperpositionClient,
+    dimensions: &dimension_state::DimensionsWithProcessorMerchantIdAndConnector,
     retry_count: i32,
 ) -> Result<Option<time::PrimitiveDateTime>, errors::ProcessTrackerError> {
-    let dimensions = crate::core::configs::dimension_state::Dimensions::new()
-        .with_merchant_id(merchant_id.clone())
-        .with_connector(connector);
     let mapping = dimensions
-        .get_pt_mapping_payment_sync(db, superposition_client, Some(merchant_id))
+        .get_pt_mapping_payment_sync(db, superposition_client, dimensions.get_processor_merchant_id())
         .await;
     let time_delta = scheduler_utils::get_schedule_time(mapping, retry_count);
 
@@ -284,7 +283,7 @@ pub async fn get_sync_process_schedule_time(
 /// Returns bool which indicates whether this was the last retry or not
 pub async fn retry_sync_task(
     db: &dyn StorageInterface,
-    superposition_client: Option<&external_services::superposition::SuperpositionClient>,
+    superposition_client: &external_services::superposition::SuperpositionClient,
     connector: String,
     merchant_id: common_utils::id_type::MerchantId,
     pt: storage::ProcessTracker,
@@ -292,8 +291,11 @@ pub async fn retry_sync_task(
     let connector_enum = connector
         .parse::<common_enums::connector_enums::Connector>()
         .map_err(|_| sch_errors::ProcessTrackerError::UnexpectedFlow)?;
+    let dimensions = dimension_state::Dimensions::new()
+        .with_processor_merchant_id(merchant_id.into())
+        .with_connector(connector_enum);
     let schedule_time =
-        get_sync_process_schedule_time(db, superposition_client, connector_enum, &merchant_id, pt.retry_count + 1).await?;
+        get_sync_process_schedule_time(db, superposition_client, &dimensions, pt.retry_count + 1).await?;
 
     match schedule_time {
         Some(s_time) => {
@@ -324,8 +326,11 @@ pub async fn recovery_retry_sync_task(
     let connector_enum = connector
         .parse::<common_enums::connector_enums::Connector>()
         .map_err(|_| sch_errors::ProcessTrackerError::UnexpectedFlow)?;
+    let dimensions = dimension_state::Dimensions::new()
+        .with_processor_merchant_id(merchant_id.into())
+        .with_connector(connector_enum);
     let schedule_time =
-        get_sync_process_schedule_time(db, state.superposition_service.as_deref(), connector_enum, &merchant_id, pt.retry_count + 1).await?;
+        get_sync_process_schedule_time(db, state.superposition_service.as_ref(), &dimensions, pt.retry_count + 1).await?;
 
     match schedule_time {
         Some(s_time) => {
@@ -359,6 +364,8 @@ pub async fn recovery_retry_sync_task(
 
 #[cfg(test)]
 mod tests {
+    use scheduler::consumer::types::process_data;
+
     use super::*;
 
     #[test]

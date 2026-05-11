@@ -427,8 +427,8 @@ impl<F> TryFrom<&PayoutsRouterData<F>> for OnboardTransferMethodRequest {
     fn try_from(item: &PayoutsRouterData<F>) -> Result<Self, Self::Error> {
         let payout_method_data = item.get_payout_method_data()?;
         match payout_method_data {
-            api_models::payouts::PayoutMethodData::Bank(bank) => match bank {
-                api_models::payouts::Bank::Sepa(bank_details) => {
+            api_models::payouts::PayoutMethodData::BankTransfer(bank) => match bank {
+                api_models::payouts::BankTransfer::Sepa(bank_details) => {
                     let bank_account = BankAccount {
                         bank_id: bank_details.bic,
                         account_id: bank_details.iban,

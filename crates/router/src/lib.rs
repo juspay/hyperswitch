@@ -182,7 +182,8 @@ pub fn mk_app(
             server_app = server_app
                 .service(routes::Refunds::server(state.clone()))
                 .service(routes::Mandates::server(state.clone()))
-                .service(routes::Authentication::server(state.clone()));
+                .service(routes::Authentication::server(state.clone()))
+                .service(routes::SdkConfig::server(state.clone()));
         }
     }
 
@@ -216,6 +217,7 @@ pub fn mk_app(
                 .service(routes::Files::server(state.clone()))
                 .service(routes::Disputes::server(state.clone()))
                 .service(routes::Blocklist::server(state.clone()))
+                .service(routes::CardIssuers::server(state.clone()))
                 .service(routes::Subscription::server(state.clone()))
                 .service(routes::Gsm::server(state.clone()))
                 .service(routes::ApplePayCertificatesMigration::server(state.clone()))
@@ -258,11 +260,6 @@ pub fn mk_app(
         server_app = server_app.service(routes::Proxy::server(state.clone()));
     }
 
-    #[cfg(all(feature = "recon", feature = "v1"))]
-    {
-        server_app = server_app.service(routes::Recon::server(state.clone()));
-    }
-
     server_app = server_app.service(routes::Cache::server(state.clone()));
     server_app = server_app.service(routes::Health::server(state.clone()));
     // Registered at the end because this entry has an empty scope
@@ -279,14 +276,17 @@ pub fn mk_app(
 ///
 ///  Unwrap used because without the value we can't start the server
 #[allow(clippy::expect_used, clippy::unwrap_used)]
-pub async fn start_server(conf: settings::Settings<SecuredSecret>) -> ApplicationResult<Server> {
+pub async fn start_server(
+    conf: settings::Settings<SecuredSecret>,
+    service_name: &'static str,
+) -> ApplicationResult<Server> {
     logger::debug!(startup_config=?conf);
     let server = conf.server.clone();
     let (tx, rx) = oneshot::channel();
     let api_client = Box::new(services::ProxyClient::new(&conf.proxy).map_err(|error| {
         errors::ApplicationError::ApiClientError(error.current_context().clone())
     })?);
-    let state = Box::pin(AppState::new(conf, tx, api_client)).await;
+    let state = Box::pin(AppState::new(conf, tx, api_client, service_name)).await;
     let request_body_limit = server.request_body_limit;
 
     let server_builder =

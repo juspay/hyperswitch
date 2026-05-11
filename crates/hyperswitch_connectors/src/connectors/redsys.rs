@@ -1076,7 +1076,7 @@ static REDSYS_CONNECTOR_INFO: ConnectorInfo = ConnectorInfo {
 static REDSYS_SUPPORTED_WEBHOOK_FLOWS: [common_enums::EventClass; 0] = [];
 
 impl ConnectorSpecifications for Redsys {
-    fn is_pre_authentication_flow_required(&self, current_flow: api::CurrentFlowInfo<'_>) -> bool {
+    fn is_pre_authentication_flow_required(&self, current_flow: api::CurrentFlowInfo) -> bool {
         match current_flow {
             api::CurrentFlowInfo::Authorize {
                 auth_type,
@@ -1084,10 +1084,11 @@ impl ConnectorSpecifications for Redsys {
             } => auth_type.is_three_ds() && request_data.is_card(),
             api::CurrentFlowInfo::CompleteAuthorize { .. } => false,
             api::CurrentFlowInfo::SetupMandate { .. } => false,
+            api::CurrentFlowInfo::Psync { .. } => false,
         }
     }
 
-    fn is_authentication_flow_required(&self, current_flow: api::CurrentFlowInfo<'_>) -> bool {
+    fn is_authentication_flow_required(&self, current_flow: api::CurrentFlowInfo) -> bool {
         match current_flow {
             api::CurrentFlowInfo::Authorize {
                 auth_type,
@@ -1120,6 +1121,7 @@ impl ConnectorSpecifications for Redsys {
                 }
             }
             api::CurrentFlowInfo::SetupMandate { .. } => false,
+            api::CurrentFlowInfo::Psync { .. } => false,
         }
     }
 

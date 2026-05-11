@@ -55,10 +55,16 @@ impl RevenueRecoveryPaymentData {
             }
             enums::RevenueRecoveryAlgorithmType::Cascading => {
                 logger::info!("Cascading type found for Revenue Recovery retry payment");
+                let connector = payment_attempt.connector.as_ref().and_then(|c| {
+                    c.parse::<common_enums::connector_enums::Connector>().ok()
+                })?;
+                let dimensions = crate::core::configs::dimension_state::Dimensions::new()
+                    .with_processor_merchant_id(merchant_id.clone().into())
+                    .with_connector(connector);
                 revenue_recovery::get_schedule_time_to_retry_mit_payments(
                     state.store.as_ref(),
-                    state.superposition_service.as_deref(),
-                    merchant_id,
+                    state.superposition_service.as_ref(),
+                    &dimensions,
                     retry_count,
                 )
                 .await

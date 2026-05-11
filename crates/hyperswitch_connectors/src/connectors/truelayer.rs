@@ -1063,12 +1063,15 @@ impl webhooks::IncomingWebhook for Truelayer {
 
 static TRUELAYER_SUPPORTED_PAYMENT_METHODS: LazyLock<SupportedPaymentMethods> =
     LazyLock::new(|| {
-        let supported_capture_methods = vec![enums::CaptureMethod::Automatic];
+        let supported_capture_methods = vec![
+            enums::CaptureMethod::Automatic,
+            enums::CaptureMethod::Manual,
+        ];
 
         let mut truelayer_supported_payment_methods = SupportedPaymentMethods::new();
         truelayer_supported_payment_methods.add(
             enums::PaymentMethod::BankRedirect,
-            enums::PaymentMethodType::OpenBankingUk,
+            enums::PaymentMethodType::OpenBanking,
             PaymentMethodDetails {
                 mandates: common_enums::FeatureStatus::NotSupported,
                 refunds: common_enums::FeatureStatus::Supported,

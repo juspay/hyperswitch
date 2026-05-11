@@ -272,6 +272,9 @@ export const connectorDetails = {
       },
     },
     PartialRefund: {
+      Configs: {
+        TRIGGER_SKIP: true, // Skip this test as multiple partial refunds are not supported for Bambora
+      },
       Request: {
         amount: 2000,
       },

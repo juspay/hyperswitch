@@ -34,6 +34,7 @@ use crate::types::transformers::ForeignFrom;
 use crate::{
     consts,
     core::{
+        configs::dimension_state,
         connector_validation::ConnectorAuthTypeAndMetadataValidation,
         disputes,
         encryption::transfer_encryption_key,
@@ -76,26 +77,12 @@ pub fn create_merchant_publishable_key() -> String {
 /// Insert merchant configs using Superposition for fingerprint_secret
 pub async fn insert_merchant_configs_with_superposition(
     state: &SessionState,
-    merchant_id: &id_type::MerchantId,
+    dimensions: &dimension_state::DimensionsWithProcessorMerchantId,
 ) -> RouterResult<()> {
-    use crate::core::configs::dimension_config::DimensionsWithMerchantId;
     let fingerprint_secret = utils::generate_id(consts::FINGERPRINT_SECRET_LENGTH, "fs");
-    let dimensions = DimensionsWithMerchantId::from_merchant_id(merchant_id.clone());
-
-    // Get org_id and workspace_id from state config
-    let conf = state.conf();
-    let superposition_config = conf.superposition.get_inner();
-    let org_id = &superposition_config.org_id;
-    let workspace_id = &superposition_config.workspace_id;
 
     dimensions
-        .set_fingerprint_secret(
-            state.superposition_service.as_deref(),
-            &fingerprint_secret,
-            org_id,
-            workspace_id,
-            None,
-        )
+        .set_fingerprint_secret(state.superposition_service.as_ref(), &fingerprint_secret)
         .await
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Failed to create fingerprint_secret in Superposition")?;
@@ -222,6 +209,7 @@ fn create_platform_merchant_account_request(
         payout_routing_algorithm: None,
         pm_collect_link_config: None,
         product_type: Some(consts::user::DEFAULT_PRODUCT_TYPE),
+        network_tokenization_credentials: None,
     }
 }
 
@@ -408,9 +396,17 @@ pub async fn create_merchant_account(
         key_store.clone(),
         None,
     );
+
+    let dimensions = dimension_state::Dimensions::new()
+        .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id());
+
     add_publishable_key_to_decision_service(&state, &platform);
 
-    insert_merchant_configs_with_superposition(&state, &merchant_id).await?;
+    Box::pin(insert_merchant_configs_with_superposition(
+        &state,
+        &dimensions,
+    ))
+    .await?;
 
     Ok(service_api::ApplicationResponse::Json(
         api::MerchantAccountResponse::foreign_try_from(merchant_account)
@@ -573,6 +569,14 @@ impl MerchantAccountCreateBridge for api::MerchantAccountCreate {
         let key = key_store.key.clone().into_inner();
         let key_manager_state = state.into();
 
+        let network_tokenization_credentials = self
+            .network_tokenization_credentials
+            .async_map(|value| cards::create_encrypted_data(&key_manager_state, &key_store, value))
+            .await
+            .transpose()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Unable to encrypt network_tokenization_credentials")?;
+
         let merchant_account = async {
             Ok::<_, error_stack::Report<common_utils::errors::CryptoError>>(
                 domain::MerchantAccountSetter {
@@ -640,6 +644,7 @@ impl MerchantAccountCreateBridge for api::MerchantAccountCreate {
                     is_platform_account: false,
                     product_type: self.product_type,
                     merchant_account_type,
+                    network_tokenization_credentials,
                 },
             )
         }
@@ -1194,6 +1199,14 @@ impl MerchantAccountUpdateBridge for api::MerchantAccountUpdate {
             })
             .await;
 
+        let network_tokenization_credentials = self
+            .network_tokenization_credentials
+            .async_map(|value| cards::create_encrypted_data(key_manager_state, key_store, value))
+            .await
+            .transpose()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Unable to encrypt network_tokenization_credentials")?;
+
         let identifier = km_types::Identifier::Merchant(key_store.merchant_id.clone());
         Ok(storage::MerchantAccountUpdate::Update {
             merchant_name: self
@@ -1249,6 +1262,7 @@ impl MerchantAccountUpdateBridge for api::MerchantAccountUpdate {
             payment_link_config: None,
             pm_collect_link_config,
             routing_algorithm: self.routing_algorithm,
+            network_tokenization_credentials,
         })
     }
 }
@@ -1671,6 +1685,8 @@ struct MerchantDefaultConfigUpdate<'a> {
     merchant_id: &'a id_type::MerchantId,
     profile_id: &'a id_type::ProfileId,
     transaction_type: &'a api_enums::TransactionType,
+    business_profile: &'a domain::Profile,
+    key_store: &'a domain::MerchantKeyStore,
 }
 #[cfg(feature = "v1")]
 impl MerchantDefaultConfigUpdate<'_> {
@@ -1708,7 +1724,7 @@ impl MerchantDefaultConfigUpdate<'_> {
                 .await?;
             }
             if !default_routing_config_for_profile.contains(&choice.clone()) {
-                default_routing_config_for_profile.push(choice);
+                default_routing_config_for_profile.push(choice.clone());
                 routing::helpers::update_merchant_default_config(
                     self.store,
                     self.profile_id.get_string_repr(),
@@ -1716,6 +1732,44 @@ impl MerchantDefaultConfigUpdate<'_> {
                     self.transaction_type,
                 )
                 .await?;
+            }
+            // Update the business_profile.default_fallback_routing column
+            let mut profile_fallback_config = if let Some(default_fallback_routing) =
+                &self.business_profile.default_fallback_routing
+            {
+                default_fallback_routing
+                    .clone()
+                    .expose()
+                    .parse_value::<Vec<routing_types::RoutableConnectorChoice>>(
+                        "Vec<RoutableConnectorChoice>",
+                    )
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Business Profile default config has invalid structure")?
+            } else {
+                Vec::new()
+            };
+            if !profile_fallback_config.contains(&choice) {
+                profile_fallback_config.push(choice);
+                let default_fallback_routing = Secret::from(
+                    profile_fallback_config
+                        .encode_to_value()
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable("Failed to convert routing ref to value")?,
+                );
+                let profile_update = domain::ProfileUpdate::DefaultRoutingFallbackUpdate {
+                    default_fallback_routing: Some(default_fallback_routing),
+                };
+                self.store
+                    .update_profile_by_profile_id(
+                        self.key_store,
+                        self.business_profile.clone(),
+                        profile_update,
+                    )
+                    .await
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable(
+                        "Failed to update routing algorithm ref in business profile",
+                    )?;
             }
         }
         Ok(())
@@ -1767,6 +1821,46 @@ impl MerchantDefaultConfigUpdate<'_> {
                     self.transaction_type,
                 )
                 .await?;
+            }
+            // Update the business_profile.default_fallback_routing column
+            let mut profile_fallback_config = if let Some(default_fallback_routing) =
+                &self.business_profile.default_fallback_routing
+            {
+                default_fallback_routing
+                    .clone()
+                    .expose()
+                    .parse_value::<Vec<routing_types::RoutableConnectorChoice>>(
+                        "Vec<RoutableConnectorChoice>",
+                    )
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable("Business Profile default config has invalid structure")?
+            } else {
+                Vec::new()
+            };
+            if profile_fallback_config.contains(&choice) {
+                profile_fallback_config.retain(|mca| {
+                    mca.merchant_connector_id.as_ref() != Some(self.merchant_connector_id)
+                });
+                let default_fallback_routing = Secret::from(
+                    profile_fallback_config
+                        .encode_to_value()
+                        .change_context(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable("Failed to convert routing ref to value")?,
+                );
+                let profile_update = domain::ProfileUpdate::DefaultRoutingFallbackUpdate {
+                    default_fallback_routing: Some(default_fallback_routing),
+                };
+                self.store
+                    .update_profile_by_profile_id(
+                        self.key_store,
+                        self.business_profile.clone(),
+                        profile_update,
+                    )
+                    .await
+                    .change_context(errors::ApiErrorResponse::InternalServerError)
+                    .attach_printable(
+                        "Failed to update routing algorithm ref in business profile",
+                    )?;
             }
         }
         Ok(())
@@ -2719,6 +2813,8 @@ pub async fn create_connector(
         merchant_id,
         profile_id: business_profile.get_id(),
         transaction_type: &req.get_transaction_type(),
+        business_profile: &business_profile,
+        key_store: processor.get_key_store(),
     };
 
     #[cfg(feature = "v2")]
@@ -2969,6 +3065,15 @@ pub async fn update_connector(
     // redact cgraph cache on connector updation
     redact_cgraph_cache(&state, &merchant_id, &profile_id).await?;
 
+    // Fetch business profile for routing update
+    #[cfg(feature = "v1")]
+    let business_profile = db
+        .find_business_profile_by_profile_id(&key_store, &mca.profile_id)
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {
+            id: mca.profile_id.get_string_repr().to_owned(),
+        })?;
+
     // redact routing cache on connector updation
     #[cfg(feature = "v1")]
     let merchant_config = MerchantDefaultConfigUpdate {
@@ -2984,6 +3089,8 @@ pub async fn update_connector(
         merchant_id: &merchant_id,
         profile_id: &mca.profile_id,
         transaction_type: &mca.connector_type.into(),
+        business_profile: &business_profile,
+        key_store: &key_store,
     };
 
     #[cfg(feature = "v1")]
@@ -3040,6 +3147,14 @@ pub async fn delete_connector(
             id: merchant_connector_id.get_string_repr().to_string(),
         })?;
 
+    // Fetch business profile for routing update
+    let business_profile = db
+        .find_business_profile_by_profile_id(&key_store, &mca.profile_id)
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::ProfileNotFound {
+            id: mca.profile_id.get_string_repr().to_owned(),
+        })?;
+
     // delete the mca from the config as well
     let merchant_default_config_delete = MerchantDefaultConfigUpdate {
         routable_connector: &Some(
@@ -3054,6 +3169,8 @@ pub async fn delete_connector(
         merchant_id: &merchant_id,
         profile_id: &mca.profile_id,
         transaction_type: &mca.connector_type.into(),
+        business_profile: &business_profile,
+        key_store: &key_store,
     };
 
     merchant_default_config_delete
@@ -3382,12 +3499,27 @@ impl ProfileCreateBridge for api::ProfileCreate {
         let outgoing_webhook_custom_http_headers = self
             .outgoing_webhook_custom_http_headers
             .async_map(|headers| {
-                cards::create_encrypted_data(&key_manager_state, processor.get_key_store(), headers)
+                core_utils::create_encrypted_data(
+                    &key_manager_state,
+                    processor.get_key_store(),
+                    headers,
+                    type_name!(payment_method::PaymentMethod),
+                )
             })
             .await
             .transpose()
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Unable to encrypt outgoing webhook custom HTTP headers")?;
+
+        let network_tokenization_credentials = self
+            .network_tokenization_credentials
+            .async_map(|headers| {
+                cards::create_encrypted_data(&key_manager_state, processor.get_key_store(), headers)
+            })
+            .await
+            .transpose()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Unable to encrypt network_tokenization_credentials")?;
 
         let payout_link_config = self
             .payout_link_config
@@ -3549,7 +3681,9 @@ impl ProfileCreateBridge for api::ProfileCreate {
             .attach_printable("error while generating external vault details")?,
             billing_processor_id: self.billing_processor_id,
             is_l2_l3_enabled: self.is_l2_l3_enabled.unwrap_or(false),
+            network_tokenization_credentials,
             payment_method_blocking: self.payment_method_blocking.map(ForeignInto::foreign_into),
+            default_fallback_routing: None,
         }))
     }
 
@@ -3582,7 +3716,12 @@ impl ProfileCreateBridge for api::ProfileCreate {
         let outgoing_webhook_custom_http_headers = self
             .outgoing_webhook_custom_http_headers
             .async_map(|headers| {
-                cards::create_encrypted_data(&key_manager_state, key_store, headers)
+                core_utils::create_encrypted_data(
+                    &key_manager_state,
+                    key_store,
+                    headers,
+                    type_name!(payment_method::PaymentMethod),
+                )
             })
             .await
             .transpose()
@@ -3903,12 +4042,25 @@ impl ProfileUpdateBridge for api::ProfileUpdate {
         let outgoing_webhook_custom_http_headers = self
             .outgoing_webhook_custom_http_headers
             .async_map(|headers| {
-                cards::create_encrypted_data(&key_manager_state, key_store, headers)
+                core_utils::create_encrypted_data(
+                    &key_manager_state,
+                    key_store,
+                    headers,
+                    type_name!(payment_method::PaymentMethod),
+                )
             })
             .await
             .transpose()
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Unable to encrypt outgoing webhook custom HTTP headers")?;
+
+        let network_tokenization_credentials = self
+            .network_tokenization_credentials
+            .async_map(|value| cards::create_encrypted_data(&key_manager_state, key_store, value))
+            .await
+            .transpose()
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Unable to encrypt network_tokenization_credentials")?;
 
         let payout_link_config = self
             .payout_link_config
@@ -4053,6 +4205,7 @@ impl ProfileUpdateBridge for api::ProfileUpdate {
                     .map(ForeignInto::foreign_into),
                 billing_processor_id: self.billing_processor_id,
                 is_l2_l3_enabled: self.is_l2_l3_enabled,
+                network_tokenization_credentials,
                 payment_method_blocking: self
                     .payment_method_blocking
                     .map(ForeignInto::foreign_into),
@@ -4102,7 +4255,12 @@ impl ProfileUpdateBridge for api::ProfileUpdate {
         let outgoing_webhook_custom_http_headers = self
             .outgoing_webhook_custom_http_headers
             .async_map(|headers| {
-                cards::create_encrypted_data(&key_manager_state, key_store, headers)
+                core_utils::create_encrypted_data(
+                    &key_manager_state,
+                    key_store,
+                    headers,
+                    type_name!(payment_method::PaymentMethod),
+                )
             })
             .await
             .transpose()

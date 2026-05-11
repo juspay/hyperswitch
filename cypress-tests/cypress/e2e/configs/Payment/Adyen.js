@@ -1,5 +1,5 @@
-import { customerAcceptance } from "./Commons";
-import { getCustomExchange } from "./Modifiers";
+import { customerAcceptance, multiUseMandateData } from "./Commons";
+import { getCurrency, getCustomExchange } from "./Modifiers";
 
 const successfulNo3DSCardDetails = {
   card_number: "4111111111111111",
@@ -29,16 +29,6 @@ const singleUseMandateData = {
   customer_acceptance: customerAcceptance,
   mandate_type: {
     single_use: {
-      amount: 8000,
-      currency: "USD",
-    },
-  },
-};
-
-const multiUseMandateData = {
-  customer_acceptance: customerAcceptance,
-  mandate_type: {
-    multi_use: {
       amount: 8000,
       currency: "USD",
     },
@@ -92,7 +82,6 @@ export const connectorDetails = {
     PaymentConfirmWithShippingCost: {
       Request: {
         payment_method: "card",
-        payment_method_type: "credit",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
@@ -113,7 +102,6 @@ export const connectorDetails = {
     "3DSManualCapture": {
       Request: {
         payment_method: "card",
-        payment_method_type: "debit",
         payment_method_data: {
           card: successfulThreeDSTestCardDetails,
         },
@@ -131,7 +119,6 @@ export const connectorDetails = {
     "3DSAutoCapture": {
       Request: {
         payment_method: "card",
-        payment_method_type: "debit",
         payment_method_data: {
           card: successfulThreeDSTestCardDetails,
         },
@@ -149,7 +136,6 @@ export const connectorDetails = {
     No3DSManualCapture: {
       Request: {
         payment_method: "card",
-        payment_method_type: "credit",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
@@ -167,7 +153,6 @@ export const connectorDetails = {
     No3DSAutoCapture: {
       Request: {
         payment_method: "card",
-        payment_method_type: "credit",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
@@ -321,10 +306,41 @@ export const connectorDetails = {
         },
       },
     },
+    ExtendAuthorizationNo3DSManual: {
+      Request: {
+        extended_authorization_days: 7,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "processing", // Adyen: Extend Authorization is async, returns processing
+          amount: 6000,
+          amount_capturable: 6000,
+          amount_received: null,
+          request_extended_authorization: true,
+        },
+      },
+      // Adyen: Extend Authorization is async (processing), capture is skipped
+    },
+    ExtendAuthorizationInvalidStatus: {
+      Request: {
+        extended_authorization_days: 7,
+      },
+      Response: {
+        status: 400,
+        body: {
+          error: {
+            type: "invalid_request",
+            message:
+              "You cannot extend authorization this payment because it has status succeeded",
+            code: "IR_16",
+          },
+        },
+      },
+    },
     MandateSingleUse3DSAutoCapture: {
       Request: {
         payment_method: "card",
-        payment_method_type: "debit",
         payment_method_data: {
           card: successfulThreeDSTestCardDetails,
         },
@@ -341,7 +357,6 @@ export const connectorDetails = {
     MandateSingleUse3DSManualCapture: {
       Request: {
         payment_method: "card",
-        payment_method_type: "debit",
         payment_method_data: {
           card: successfulThreeDSTestCardDetails,
         },
@@ -358,7 +373,6 @@ export const connectorDetails = {
     MandateSingleUseNo3DSAutoCapture: {
       Request: {
         payment_method: "card",
-        payment_method_type: "credit",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
@@ -375,7 +389,6 @@ export const connectorDetails = {
     MandateSingleUseNo3DSManualCapture: {
       Request: {
         payment_method: "card",
-        payment_method_type: "credit",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
@@ -392,7 +405,6 @@ export const connectorDetails = {
     MandateMultiUseNo3DSAutoCapture: {
       Request: {
         payment_method: "card",
-        payment_method_type: "credit",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
@@ -409,7 +421,6 @@ export const connectorDetails = {
     MandateMultiUseNo3DSManualCapture: {
       Request: {
         payment_method: "card",
-        payment_method_type: "credit",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
@@ -426,7 +437,6 @@ export const connectorDetails = {
     MandateMultiUse3DSAutoCapture: {
       Request: {
         payment_method: "card",
-        payment_method_type: "debit",
         payment_method_data: {
           card: successfulThreeDSTestCardDetails,
         },
@@ -443,7 +453,6 @@ export const connectorDetails = {
     MandateMultiUse3DSManualCapture: {
       Request: {
         payment_method: "card",
-        payment_method_type: "debit",
         payment_method_data: {
           card: successfulThreeDSTestCardDetails,
         },
@@ -478,7 +487,6 @@ export const connectorDetails = {
     ZeroAuthMandate: {
       Request: {
         payment_method: "card",
-        payment_method_type: "credit",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
@@ -528,7 +536,6 @@ export const connectorDetails = {
     SaveCardUseNo3DSAutoCapture: {
       Request: {
         payment_method: "card",
-        payment_method_type: "credit",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
@@ -581,7 +588,6 @@ export const connectorDetails = {
     SaveCardUseNo3DSManualCaptureOffSession: {
       Request: {
         payment_method: "card",
-        payment_method_type: "credit",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
@@ -620,7 +626,6 @@ export const connectorDetails = {
     SaveCardUseNo3DSManualCapture: {
       Request: {
         payment_method: "card",
-        payment_method_type: "credit",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
@@ -638,7 +643,6 @@ export const connectorDetails = {
     PaymentMethodIdMandateNo3DSAutoCapture: {
       Request: {
         payment_method: "card",
-        payment_method_type: "credit",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
@@ -656,7 +660,6 @@ export const connectorDetails = {
     PaymentMethodIdMandateNo3DSManualCapture: {
       Request: {
         payment_method: "card",
-        payment_method_type: "credit",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
@@ -674,7 +677,6 @@ export const connectorDetails = {
     PaymentMethodIdMandate3DSAutoCapture: {
       Request: {
         payment_method: "card",
-        payment_method_type: "debit",
         payment_method_data: {
           card: successfulThreeDSTestCardDetails,
         },
@@ -693,7 +695,6 @@ export const connectorDetails = {
     PaymentMethodIdMandate3DSManualCapture: {
       Request: {
         payment_method: "card",
-        payment_method_type: "debit",
         payment_method_data: {
           card: successfulThreeDSTestCardDetails,
         },
@@ -711,7 +712,6 @@ export const connectorDetails = {
     ManualRetryPaymentDisabled: {
       Request: {
         payment_method: "card",
-        payment_method_type: "credit",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
@@ -732,7 +732,6 @@ export const connectorDetails = {
     ManualRetryPaymentEnabled: {
       Request: {
         payment_method: "card",
-        payment_method_type: "credit",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
@@ -752,7 +751,6 @@ export const connectorDetails = {
     ManualRetryPaymentCutoffExpired: {
       Request: {
         payment_method: "card",
-        payment_method_type: "credit",
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
@@ -772,6 +770,7 @@ export const connectorDetails = {
     },
     PaymentIntentWithInstallments: {
       Request: {
+        amount: 6000,
         currency: "BRL",
         installment_options: [
           {
@@ -790,6 +789,8 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "requires_payment_method",
+          amount: 6000,
+          currency: "BRL",
         },
       },
     },
@@ -809,7 +810,7 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "succeeded",
-          net_amount: 6300,
+          net_amount: 6610,
         },
       },
     },
@@ -839,6 +840,160 @@ export const connectorDetails = {
               "installment_options and installment_data are not supported when confirm is true.",
             code: "IR_06",
           },
+        },
+      },
+    },
+    PaymentIntentWithBillingDescriptor: {
+      Request: {
+        currency: "USD",
+        billing_descriptor: {
+          name: "Juspay",
+          city: "San Francisco",
+          phone: "8056594427",
+          statement_descriptor: "QA-BillingDesc",
+          statement_descriptor_suffix: "SUFFIX1",
+          reference: "ref-qa-001",
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+        },
+      },
+    },
+    PaymentConfirmWithBillingDescriptor: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+          billing_descriptor: {
+            name: "Juspay",
+            city: "San Francisco",
+            phone: "8056594427",
+            statement_descriptor: "QA-BillingDesc",
+            statement_descriptor_suffix: "SUFFIX1",
+            reference: "ref-qa-001",
+          },
+        },
+      },
+    },
+    PartnerMerchantIdentifier: {
+      Request: {
+        currency: "USD",
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+        billing: {
+          address: {
+            line1: "1467",
+            line2: "Harrison Street",
+            line3: "Harrison Street",
+            city: "San Francisco",
+            state: "California",
+            zip: "94122",
+            country: "US",
+            first_name: "joseph",
+            last_name: "Doe",
+          },
+        },
+        partner_merchant_identifier_details: {
+          partner_details: {
+            name: "TestPartner",
+            version: "1.0.0",
+            integrator: "TestIntegrator123",
+          },
+          merchant_details: {
+            name: "TestMerchantApp",
+            version: "2.0.0",
+          },
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+          partner_merchant_identifier_details: {
+            partner_details: {
+              name: "TestPartner",
+              version: "1.0.0",
+              integrator: "TestIntegrator123",
+            },
+            merchant_details: {
+              name: "TestMerchantApp",
+              version: "2.0.0",
+            },
+          },
+        },
+      },
+    },
+    PartnerMerchantIdentifierConfirm: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    },
+    ConnectorTestingData: {
+      Request: {
+        currency: "USD",
+        connector_metadata: {
+          adyen: {
+            testing: {
+              holder_name: "Test Holder Name Override",
+            },
+          },
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+        },
+      },
+    },
+    ConnectorTestingDataConfirm: {
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: {
+            card_number: "4111111111111111",
+            card_exp_month: "12",
+            card_exp_year: "2030",
+            card_cvc: "123",
+            card_holder_name: "Original Card Holder",
+          },
+        },
+        connector_metadata: {
+          adyen: {
+            testing: {
+              holder_name: "Test Holder Name Override",
+            },
+          },
+        },
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "failed",
         },
       },
     },
@@ -1048,10 +1203,232 @@ export const connectorDetails = {
       },
     },
   },
+  wallet_pm: {
+    PaymentIntent: (paymentMethodType) =>
+      getCustomExchange({
+        Request: {
+          currency: getCurrency(paymentMethodType),
+        },
+        Response: {
+          status: 200,
+          body: {
+            status: "requires_payment_method",
+          },
+        },
+      }),
+    AliPayHk: getCustomExchange({
+      Request: {
+        payment_method: "wallet",
+        payment_method_type: "ali_pay_hk",
+        payment_method_data: {
+          wallet: {
+            ali_pay_hk_redirect: {},
+          },
+        },
+        billing: {
+          address: {
+            line1: "1467",
+            line2: "Harrison Street",
+            line3: "Harrison Street",
+            city: "Hong Kong",
+            state: "HK",
+            zip: "999077",
+            country: "HK",
+            first_name: "joseph",
+            last_name: "Doe",
+          },
+          phone: {
+            number: "9123456789",
+            country_code: "+852",
+          },
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+    }),
+  },
+
+  gift_card_pm: {
+    GivexGiftCard: getCustomExchange({
+      Request: {
+        payment_method: "gift_card",
+        payment_method_type: "givex",
+        payment_method_data: {
+          gift_card: {
+            givex: {
+              number: "6006490000000000",
+              cvc: "737",
+            },
+          },
+        },
+        amount: 1100,
+        currency: "EUR",
+        customer_acceptance: null,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    }),
+    GivexGiftCardInsufficientBalance: getCustomExchange({
+      Request: {
+        payment_method: "gift_card",
+        payment_method_type: "givex",
+        payment_method_data: {
+          gift_card: {
+            givex: {
+              number: "6006490000000000",
+              cvc: "737",
+            },
+          },
+        },
+        amount: 14100,
+        currency: "EUR",
+        customer_acceptance: null,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "failed",
+          error_message: "Insufficient balance in the payment method",
+        },
+      },
+    }),
+    GivexGiftCardCurrencyMismatch: getCustomExchange({
+      Request: {
+        payment_method: "gift_card",
+        payment_method_type: "givex",
+        payment_method_data: {
+          gift_card: {
+            givex: {
+              number: "6006490000000000",
+              cvc: "737",
+            },
+          },
+        },
+        currency: "USD",
+        customer_acceptance: null,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "failed",
+          error_message:
+            "Payment Method currency does not match the payment currency",
+        },
+      },
+    }),
+  },
+
+  pay_later_pm: {
+    Klarna: getCustomExchange({
+      Request: {
+        payment_method: "pay_later",
+        payment_method_type: "klarna",
+        payment_experience: "redirect_to_url",
+        payment_method_data: {
+          pay_later: {
+            klarna_redirect: {
+              billing_email: "guest@juspay.in",
+              billing_country: "DE",
+            },
+          },
+        },
+        billing: {
+          email: "guest@juspay.in",
+          address: {
+            line1: "1467",
+            line2: "Harrison Street",
+            line3: "Harrison Street",
+            city: "San Fransico",
+            state: "California",
+            zip: "94122",
+            country: "DE",
+            first_name: "joseph",
+            last_name: "Doe",
+          },
+        },
+        order_details: [
+          {
+            product_name: "Test Product",
+            quantity: 1,
+            amount: 6000,
+          },
+        ],
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+    }),
+    Capture: getCustomExchange({
+      Request: {
+        amount_to_capture: 6000,
+      },
+    }),
+  },
+
   pm_list: {
     PmListResponse: {
       PmListNull: {
         payment_methods: [],
+      },
+      PmListWithInstallmentsNull: {
+        intent_data: {
+          status: "requires_payment_method",
+          amount: 6000,
+          currency: "USD",
+          installment_options: null,
+        },
+      },
+      PmListWithInstallmentsBRL: {
+        intent_data: {
+          status: "requires_payment_method",
+          amount: 6000,
+          currency: "BRL",
+          installment_options: [
+            {
+              payment_method: "card",
+              available_plans: [
+                {
+                  number_of_installments: 3,
+                  billing_frequency: "month",
+                  interest_rate: 5,
+                  amount_details: {
+                    amount_per_installment: 22.04,
+                    total_amount: 66.1,
+                  },
+                },
+                {
+                  number_of_installments: 6,
+                  billing_frequency: "month",
+                  interest_rate: 5,
+                  amount_details: {
+                    amount_per_installment: 11.83,
+                    total_amount: 70.93,
+                  },
+                },
+                {
+                  number_of_installments: 12,
+                  billing_frequency: "month",
+                  interest_rate: 5,
+                  amount_details: {
+                    amount_per_installment: 6.77,
+                    total_amount: 81.24,
+                  },
+                },
+              ],
+            },
+          ],
+        },
       },
       pmListDynamicFieldWithoutBilling: {
         payment_methods: [
@@ -1256,6 +1633,215 @@ export const connectorDetails = {
             ],
           },
         ],
+      },
+    },
+  },
+  bank_debit_pm: {
+    PaymentIntent: (paymentMethodType) => {
+      if (paymentMethodType === "Ach") {
+        return {
+          Configs: {
+            TRIGGER_SKIP: true,
+          },
+          Request: {
+            currency: "USD",
+            setup_future_usage: "off_session",
+          },
+          Response: {
+            status: 200,
+            body: {
+              status: "requires_payment_method",
+            },
+          },
+        };
+      }
+      if (paymentMethodType === "Sepa") {
+        return {
+          Request: {
+            currency: "EUR",
+          },
+          Response: {
+            status: 200,
+            body: {
+              status: "requires_payment_method",
+            },
+          },
+        };
+      }
+      const currencyMap = {
+        Becs: "AUD",
+        Bacs: "GBP",
+      };
+      return {
+        Request: {
+          currency: currencyMap[paymentMethodType] || "USD",
+          setup_future_usage: "off_session",
+        },
+        Response: {
+          status: 200,
+          body: {
+            status: "requires_payment_method",
+          },
+        },
+      };
+    },
+    Sepa: {
+      Request: {
+        payment_method: "bank_debit",
+        payment_method_type: "sepa",
+        payment_method_data: {
+          bank_debit: {
+            sepa_bank_debit: {
+              iban: "DE89370400440532013000",
+              bank_account_holder_name: "John Doe",
+            },
+          },
+        },
+        billing: {
+          address: {
+            line1: "1467",
+            line2: "Harrison Street",
+            line3: "Harrison Street",
+            city: "Amsterdam",
+            state: "North Holland",
+            zip: "1012",
+            country: "NL",
+            first_name: "John",
+            last_name: "Doe",
+          },
+        },
+        customer_acceptance: customerAcceptance,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    },
+    Ach: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+      Request: {
+        payment_method: "bank_debit",
+        payment_method_type: "ach",
+        payment_method_data: {
+          bank_debit: {
+            ach_bank_debit: {
+              account_number: "000123456789",
+              routing_number: "121000358",
+              bank_type: "checking",
+              bank_account_holder_name: "John Doe",
+            },
+          },
+        },
+        billing: {
+          address: {
+            line1: "1467",
+            line2: "Harrison Street",
+            line3: "Harrison Street",
+            city: "San Francisco",
+            state: "California",
+            zip: "94122",
+            country: "US",
+            first_name: "John",
+            last_name: "Doe",
+          },
+        },
+        customer_acceptance: customerAcceptance,
+        mandate_data: {
+          customer_acceptance: customerAcceptance,
+          mandate_type: {
+            multi_use: {
+              amount: 8000,
+              currency: "USD",
+            },
+          },
+        },
+        payment_type: "new_mandate",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    },
+    Bacs: {
+      Request: {
+        payment_method: "bank_debit",
+        payment_method_type: "bacs",
+        payment_method_data: {
+          bank_debit: {
+            bacs_bank_debit: {
+              account_number: "09083055",
+              sort_code: "560036",
+              bank_account_holder_name: "David Archer",
+            },
+          },
+        },
+        billing: {
+          address: {
+            line1: "1467",
+            line2: "Harrison Street",
+            line3: "Harrison Street",
+            city: "London",
+            state: "England",
+            zip: "SW1A 1AA",
+            country: "GB",
+            first_name: "John",
+            last_name: "Doe",
+          },
+        },
+        customer_acceptance: customerAcceptance,
+        mandate_data: {
+          customer_acceptance: customerAcceptance,
+          mandate_type: {
+            multi_use: {
+              amount: 8000,
+              currency: "GBP",
+            },
+          },
+        },
+        payment_type: "new_mandate",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "processing",
+        },
+      },
+    },
+    Becs: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
+      Request: {
+        payment_method: "bank_debit",
+        payment_method_type: "becs",
+        payment_method_data: {
+          bank_debit: {
+            becs_bank_debit: {
+              account_number: "000123456",
+              bsb_number: "000000",
+              bank_account_holder_name: "John Doe",
+            },
+          },
+        },
+        currency: "AUD",
+        customer_acceptance: customerAcceptance,
+        setup_future_usage: "off_session",
+      },
+      Response: {
+        status: 400,
+        body: {
+          error: {
+            type: "invalid_request",
+            message: "Selected payment method through Adyen is not implemented",
+            code: "IR_00",
+          },
+        },
       },
     },
   },

@@ -2,7 +2,7 @@
 use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 
 use crate::{
-    consts::MAX_ALLOWED_MERCHANT_NAME_LENGTH,
+    consts::{MAX_ALLOWED_CARD_ISSUER_NAME_LENGTH, MAX_ALLOWED_MERCHANT_NAME_LENGTH},
     pii::{Email, UpiVpaMaskingStrategy},
     transformers::ForeignFrom,
 };
@@ -14,6 +14,14 @@ use crate::{
 pub struct MerchantName(String);
 
 impl hyperswitch_masking::SerializableSecret for MerchantName {}
+
+#[nutype::nutype(
+    derive(Clone, Serialize, Deserialize, Debug, PartialEq, Eq, Hash),
+    validate(len_char_min = 1, len_char_max = MAX_ALLOWED_CARD_ISSUER_NAME_LENGTH)
+)]
+pub struct CardIssuerName(String);
+
+impl hyperswitch_masking::SerializableSecret for CardIssuerName {}
 
 /// Function for masking alphanumeric characters in a string.
 ///
@@ -85,6 +93,21 @@ impl From<String> for MaskedSortCode {
     }
 }
 impl From<Secret<String>> for MaskedSortCode {
+    fn from(secret: Secret<String>) -> Self {
+        Self::from(secret.expose())
+    }
+}
+
+/// Masked branch code
+#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
+pub struct MaskedBranchCode(Secret<String>);
+impl From<String> for MaskedBranchCode {
+    fn from(src: String) -> Self {
+        let masked_value = apply_mask(src.as_ref(), 2, 2);
+        Self(Secret::from(masked_value))
+    }
+}
+impl From<Secret<String>> for MaskedBranchCode {
     fn from(secret: Secret<String>) -> Self {
         Self::from(secret.expose())
     }

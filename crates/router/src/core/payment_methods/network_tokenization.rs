@@ -26,8 +26,6 @@ use hyperswitch_masking::{ErasedMaskSerialize, ExposeInterface, Mask, PeekInterf
 use josekit::jwe;
 
 use super::transformers::DeleteCardResp;
-#[cfg(feature = "v2")]
-use crate::utils::ext_traits::OptionExt;
 use crate::{
     core::{errors, payment_methods, payments::helpers},
     headers, logger,
@@ -35,6 +33,7 @@ use crate::{
     services::{self, encryption},
     settings,
     types::{api, domain, payment_methods as pm_types},
+    utils::ext_traits::OptionExt,
 };
 
 pub const NETWORK_TOKEN_SERVICE: &str = "NETWORK_TOKEN";
@@ -611,7 +610,7 @@ pub async fn get_token_from_tokenization_service(
                 async {
                     get_network_token(
                 state,
-                pm_data.customer_id.clone(),
+                pm_data.customer_id.clone().get_required_value("customer_id")?,
                 network_token_requestor_ref_id,
                 network_tokenization_service.get_inner(),
             )
@@ -780,7 +779,7 @@ pub async fn do_status_check_for_network_token(
                     async {
                         check_token_status_with_tokenization_service(
                             state,
-                            &payment_method_info.customer_id.clone(),
+                            &payment_method_info.customer_id.clone().get_required_value("customer_id")?,
                             ref_id,
                             network_tokenization_service.get_inner(),
                         )

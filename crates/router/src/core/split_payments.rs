@@ -94,7 +94,12 @@ async fn get_payment_method_amount_split(
                 field_name: "payment_method_data",
             })?,
         payment_method_type: request.payment_method_type,
-        payment_method_subtype: request.payment_method_subtype,
+        payment_method_subtype: request
+            .payment_method_subtype
+            .get_required_value("payment_method_subtype")
+            .change_context(errors::ApiErrorResponse::MissingRequiredField {
+                field_name: "payment_method_subtype",
+            })?,
     };
 
     let combined_pm_data: Vec<_> = split_payment_method_data
@@ -576,7 +581,7 @@ pub async fn create_domain_model_for_split_payment(
         payment_method_type,
         payment_method_id: request.payment_method_id.clone(),
         connector_payment_id: None,
-        payment_method_subtype,
+        payment_method_subtype: Some(payment_method_subtype),
         authentication_applied: None,
         external_reference_id: None,
         payment_method_billing_address,

@@ -569,6 +569,7 @@ pub trait ConnectorActions: Connector {
             minor_amount_capturable: None,
             authorized_amount: None,
             customer_document_details: None,
+            feature_data: None,
         }
     }
 
@@ -620,6 +621,7 @@ pub trait ConnectorActions: Connector {
             StorageImpl::PostgresqlTest,
             tx,
             Box::new(services::MockApiClient),
+            env!("CARGO_PKG_NAME"),
         ))
         .await;
         let state = Arc::new(app_state)
@@ -665,6 +667,7 @@ pub trait ConnectorActions: Connector {
             StorageImpl::PostgresqlTest,
             tx,
             Box::new(services::MockApiClient),
+            env!("CARGO_PKG_NAME"),
         ))
         .await;
         let state = Arc::new(app_state)
@@ -711,6 +714,7 @@ pub trait ConnectorActions: Connector {
             StorageImpl::PostgresqlTest,
             tx,
             Box::new(services::MockApiClient),
+            env!("CARGO_PKG_NAME"),
         ))
         .await;
         let state = Arc::new(app_state)
@@ -756,6 +760,7 @@ pub trait ConnectorActions: Connector {
             StorageImpl::PostgresqlTest,
             tx,
             Box::new(services::MockApiClient),
+            env!("CARGO_PKG_NAME"),
         ))
         .await;
         let state = Arc::new(app_state)
@@ -852,6 +857,7 @@ pub trait ConnectorActions: Connector {
             StorageImpl::PostgresqlTest,
             tx,
             Box::new(services::MockApiClient),
+            env!("CARGO_PKG_NAME"),
         ))
         .await;
         let state = Arc::new(app_state)
@@ -894,6 +900,7 @@ async fn call_connector<
         StorageImpl::PostgresqlTest,
         tx,
         Box::new(services::MockApiClient),
+        env!("CARGO_PKG_NAME"),
     ))
     .await;
     let state = Arc::new(app_state)

@@ -148,6 +148,7 @@ pub async fn construct_relay_refund_router_data<F>(
         minor_amount_capturable: None,
         authorized_amount: None,
         customer_document_details: None,
+        feature_data: None,
     };
 
     Ok(router_data)
@@ -285,6 +286,7 @@ pub async fn construct_relay_capture_router_data(
         minor_amount_capturable: None,
         authorized_amount: None,
         customer_document_details: None,
+        feature_data: None,
     };
 
     Ok(router_data)
@@ -407,6 +409,7 @@ pub async fn construct_relay_incremental_authorization_router_data(
         minor_amount_capturable: None,
         authorized_amount: None,
         customer_document_details: None,
+        feature_data: None,
     };
 
     Ok(router_data)
@@ -538,6 +541,7 @@ pub async fn construct_relay_void_router_data(
         minor_amount_capturable: None,
         authorized_amount: None,
         customer_document_details: None,
+        feature_data: None,
     };
 
     Ok(router_data)
@@ -644,6 +648,7 @@ pub async fn construct_relay_payments_retrieve_router_data(
             connector_reference_id: None,
             setup_future_usage: None,
             feature_metadata: None,
+            connector_mandate_id: None,
         },
 
         response: Err(ErrorResponse::default()),
@@ -682,6 +687,7 @@ pub async fn construct_relay_payments_retrieve_router_data(
         minor_amount_capturable: None,
         authorized_amount: None,
         customer_document_details: None,
+        feature_data: None,
     };
 
     Ok(router_data)
