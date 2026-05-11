@@ -52,6 +52,7 @@ import { connectorDetails as noonConnectorDetails } from "./Noon.js";
 import { connectorDetails as novalnetConnectorDetails } from "./Novalnet.js";
 import { connectorDetails as nuveiConnectorDetails } from "./Nuvei.js";
 import { connectorDetails as payboxConnectorDetails } from "./Paybox.js";
+import { connectorDetails as payjustnowConnectorDetails } from "./Payjustnow.js";
 import { connectorDetails as payloadConnectorDetails } from "./Payload.js";
 import { connectorDetails as paypalConnectorDetails } from "./Paypal.js";
 import { connectorDetails as paysafeConnectorDetails } from "./Paysafe.js";
@@ -126,6 +127,7 @@ const connectorDetails = {
   novalnet: novalnetConnectorDetails,
   nuvei: nuveiConnectorDetails,
   paybox: payboxConnectorDetails,
+  payjustnow: payjustnowConnectorDetails,
   payload: payloadConnectorDetails,
   paypal: paypalConnectorDetails,
   paysafe: paysafeConnectorDetails,
@@ -547,7 +549,7 @@ export const CONNECTOR_LISTS = {
     PARTNER_MERCHANT_IDENTIFIER: ["adyen", "checkout"],
     EXTEND_AUTHORIZATION: ["adyen", "paypal"],
     GIFT_CARD: ["adyen"],
-    PAY_LATER: ["klarna", "adyen", "aci", "stripe", "airwallex", "mollie"],
+    PAY_LATER: ["klarna", "adyen", "aci", "stripe", "airwallex", "mollie", "payjustnow"],
     AUTH_SERVICE_ELIGIBILITY: ["stripe", "cybersource"],
     PARTIAL_AUTH: ["nuvei", "checkout", "worldpay", "worldpayvantiv"],
     USE_BILLING_AS_PAYMENT_METHOD_BILLING: ["bankofamerica"],

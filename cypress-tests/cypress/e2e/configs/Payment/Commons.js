@@ -617,6 +617,23 @@ export const payment_methods_enabled = [
         recurring_enabled: false,
         installment_payment_enabled: false,
       },
+      {
+        payment_method_type: "payjustnow",
+        payment_experience: "redirect_to_url",
+        card_networks: null,
+        accepted_currencies: {
+          type: "enable_only",
+          list: ["ZAR"],
+        },
+        accepted_countries: {
+          type: "enable_only",
+          list: ["ZA"],
+        },
+        minimum_amount: 100,
+        maximum_amount: 100000000,
+        recurring_enabled: false,
+        installment_payment_enabled: false,
+      },
     ],
   },
 ];
@@ -3330,5 +3347,55 @@ export const connectorDetails = {
         body: { status: "failed" },
       },
     }),
+  },
+  pay_later_pm: {
+    PaymentIntent: (paymentMethodType) =>
+      getCustomExchange({
+        Request: {
+          currency: getCurrency(paymentMethodType),
+        },
+        Response: {
+          status: 200,
+          body: {
+            status: "requires_payment_method",
+          },
+        },
+      }),
+    Payjustnow: getCustomExchange({
+      Request: {
+        payment_method: "pay_later",
+        payment_method_type: "payjustnow",
+        payment_method_data: {
+          pay_later: {
+            payjustnow_redirect: {},
+          },
+        },
+        billing: {
+          email: "customer@payjustnow.co.za",
+          address: {
+            line1: "123 Main Street",
+            line2: "",
+            line3: "",
+            city: "Johannesburg",
+            state: "Gauteng",
+            zip: "2001",
+            country: "ZA",
+            first_name: "Test",
+            last_name: "Customer",
+          },
+        },
+      },
+    }),
+    Refund: getCustomExchange({
+      Request: {
+        amount: 10000,
+      },
+    }),
+    PartialRefund: getCustomExchange({
+      Request: {
+        amount: 5000,
+      },
+    }),
+    SyncRefund: getCustomExchange({}),
   },
 };

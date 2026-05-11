@@ -1182,6 +1182,32 @@ function bankRedirectRedirection(
             }
             break;
 
+          case "payjustnow":
+            if (paymentMethodType === "payjustnow") {
+              cy.log("Handling PayJustNow redirect flow");
+
+              cy.get("body").then(($body) => {
+                if ($body.find('button:contains("Complete Payment")').length > 0) {
+                  cy.contains("button", "Complete Payment", {
+                    timeout: constants.WAIT_TIME,
+                  })
+                    .should("be.visible")
+                    .click();
+                } else {
+                  cy.log(
+                    "No Complete Payment button found, waiting for auto-redirect"
+                  );
+                }
+              });
+
+              verifyUrl = true;
+            } else {
+              throw new Error(
+                `Unsupported PayJustNow payment method type: ${paymentMethodType}`
+              );
+            }
+            break;
+
           default:
             throw new Error(
               `Unsupported connector in handleFlow: ${connectorId}`

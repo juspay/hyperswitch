@@ -132,6 +132,7 @@ const CURRENCY_MAP = {
   OnlineBankingFpx: "MYR", // Malaysian payment methods
   Interac: "CAD", // Canadian payment method
   AliPayHk: "HKD", // Hong Kong payment method
+  Payjustnow: "ZAR", // South African BNPL
 };
 
 export const getCurrency = (paymentMethodType) => {
