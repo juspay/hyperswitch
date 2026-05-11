@@ -377,12 +377,15 @@ describe("Config Tests", () => {
     }
   );
 
+  // Connector-agnostic: webhook headers are Business Profile config, not connector-specific
   context("Outgoing Webhook Custom HTTP Headers", () => {
     it("Create Business Profile", () => {
       cy.createBusinessProfileTest(
         fixtures.businessProfile.bpCreate,
         globalState
-      );
+      ).then(() => {
+        expect(globalState.get("profileId")).to.not.be.undefined;
+      });
     });
 
     it("Update business profile with custom webhook headers and verify masked response", () => {
@@ -400,12 +403,7 @@ describe("Config Tests", () => {
     });
 
     it("Update business profile with new custom webhook headers and verify updated masked response", () => {
-      const initialHeaders = {
-        "X-Custom-Header": "long-custom-value-six-chars",
-        "X-Short": "secret",
-        "X-Tiny": "xy",
-      };
-      const initialKeys = Object.keys(initialHeaders);
+      const initialKeys = Object.keys(globalState.get("lastResponseHeaders"));
       const webhookHeadersBody = {
         outgoing_webhook_custom_http_headers: {
           "X-Updated-Header": "updated-secret-value-long",
@@ -416,8 +414,8 @@ describe("Config Tests", () => {
         webhookHeadersBody,
         globalState
       ).then(() => {
-        // Verify old header keys from previous update are absent
-        const responseHeaders = globalState.get("lastResponseHeaders") || {};
+        expect(globalState.get("lastResponseHeaders")).to.not.be.undefined;
+        const responseHeaders = globalState.get("lastResponseHeaders");
         initialKeys.forEach((key) => {
           expect(responseHeaders).to.not.have.property(key);
         });
