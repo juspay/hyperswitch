@@ -7867,10 +7867,7 @@ Cypress.Commands.add("oidcJwksCallTest", (globalState) => {
       }
 
       // 500 OI_05 = OIDC signing keys not configured (expected in sandbox/test environments)
-      if (
-        response.status === 500 &&
-        response.body?.error?.code === "OI_05"
-      ) {
+      if (response.status === 500 && response.body?.error?.code === "OI_05") {
         cy.task(
           "cli_log",
           "OIDC signing keys not configured - JWKS unavailable (expected in sandbox)"
