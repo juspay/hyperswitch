@@ -294,7 +294,7 @@ describe("Merchant Redirect Method Tests - UPI", () => {
             globalState,
             "profile",
             undefined,
-            400  // expectedStatus for negative test  
+            400 // expectedStatus for negative test
           );
         }
       );
