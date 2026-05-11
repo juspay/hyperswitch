@@ -3531,6 +3531,31 @@ impl
         ))
         .await
     }
+
+    #[cfg(feature = "v1")]
+    async fn update_modular_pm_and_mandate<'b>(
+        &self,
+        state: &SessionState,
+        resp: &types::RouterData<
+            hyperswitch_domain_models::router_flow_types::ExternalVaultProxy,
+            types::ExternalVaultProxyPaymentsData,
+            types::PaymentsResponseData,
+        >,
+        _platform: &domain::Platform,
+        payment_data: &mut PaymentData<
+            hyperswitch_domain_models::router_flow_types::ExternalVaultProxy,
+        >,
+        _business_profile: &domain::Profile,
+        request_payment_method_data: Option<&domain::PaymentMethodData>,
+    ) -> CustomResult<(), errors::ApiErrorResponse>
+    where
+        hyperswitch_domain_models::router_flow_types::ExternalVaultProxy: 'b + Clone + Send + Sync,
+    {
+        update_modular_pm_and_mandate_impl(state, resp, request_payment_method_data, payment_data)
+            .await
+            .change_context(errors::ApiErrorResponse::InternalServerError)
+            .attach_printable("Failed to update modular payment method and mandate")
+    }
 }
 
 #[cfg(feature = "v2")]

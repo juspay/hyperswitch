@@ -12,7 +12,7 @@ use crate::{
     core::{
         configs::dimension_state,
         errors::{self, CustomResult, RouterResult, StorageErrorExt},
-        payment_methods::{self, transformers as pm_transformers},
+        payment_methods::{transformers as pm_transformers},
         payments::{
             helpers, operations,
             CustomerDetails, OperationSessionSetters, PaymentAddress, PaymentData,
@@ -219,6 +219,25 @@ impl<F: Send + Clone + Sync>
         // Otherwise, if payment_token is present and no wrapper yet, fetch from modular service now.
         let payment_method_wrapper = if payment_method_wrapper.is_none() {
             if let Some(payment_token) = &request.payment_token {
+                // Extract CVC/holder name from CardTokenData for the retry path
+                let card_token_from_request = request
+                    .payment_method_data
+                    .payment_method_data
+                    .as_ref()
+                    .and_then(|pmd| {
+                        if let api_models::payments::ProxyPaymentMethodData::CardTokenData(
+                            ref token_data,
+                        ) = pmd
+                        {
+                            Some(domain::CardToken {
+                                card_cvc: token_data.card_cvc.clone(),
+                                card_holder_name: token_data.card_holder_name.clone(),
+                            })
+                        } else {
+                            None
+                        }
+                    });
+
                 router_env::logger::info!(
                     "Fetching payment method from modular service for external vault proxy (token: {})",
                     payment_token
@@ -228,7 +247,7 @@ impl<F: Send + Clone + Sync>
                     platform,
                     profile_id,
                     payment_token,
-                    None,
+                    card_token_from_request,
                 )
                 .await
                 {
@@ -252,42 +271,92 @@ impl<F: Send + Clone + Sync>
         };
 
         // Derive external_vault_pmd:
-        // 1. If we have a ProxyCard from the modular service retrieve, use it as ExternalVaultCard.
+        // 1. If we have a ProxyCard vault token from the modular service retrieve, build ExternalVaultCard.
         // 2. Otherwise, parse from the request's payment_method_data (VaultDataCard flow).
         let external_vault_pmd = if let Some(ref wrapper) = payment_method_wrapper {
-            // Check if raw data is a ProxyCard (vault token reference from modular service)
-            let from_proxy_card = wrapper.raw_payment_method_data.as_ref().and_then(|raw| {
-                match raw {
-                    hyperswitch_domain_models::payment_method_data::PaymentMethodData::CardWithOptionalCVC(card) => {
-                        // Build ExternalVaultCard from the retrieved card data
+            // Check if vault token data is present (repeat CIT / proxy-card path)
+            let from_vault_token = wrapper.vault_payment_method_token_data.as_ref().and_then(|vault_data| {
+                match vault_data {
+                    pm_transformers::VaultPaymentMethodData::VaultCardData(vault_card) => {
+                        let card_cvc = wrapper.raw_payment_method_data.as_ref().and_then(|_| None)
+                            .or_else(|| {
+                                // CVC comes from the request CardTokenData
+                                request.payment_method_data
+                                    .payment_method_data
+                                    .as_ref()
+                                    .and_then(|pmd| {
+                                        if let api_models::payments::ProxyPaymentMethodData::CardTokenData(ref token_data) = pmd {
+                                            token_data.card_cvc.clone()
+                                        } else {
+                                            None
+                                        }
+                                    })
+                            })
+                            .unwrap_or_default();
+                        let card_holder_name = request.payment_method_data
+                            .payment_method_data
+                            .as_ref()
+                            .and_then(|pmd| {
+                                if let api_models::payments::ProxyPaymentMethodData::CardTokenData(ref token_data) = pmd {
+                                    token_data.card_holder_name.clone()
+                                } else {
+                                    None
+                                }
+                            });
                         Some(hyperswitch_domain_models::payment_method_data::ExternalVaultPaymentMethodData::Card(
                             Box::new(hyperswitch_domain_models::payment_method_data::ExternalVaultCard {
-                                card_number: hyperswitch_masking::Secret::new(card.card_number.get_card_no()),
-                                card_exp_month: card.card_exp_month.clone(),
-                                card_exp_year: card.card_exp_year.clone(),
-                                card_cvc: card.card_cvc.clone().unwrap_or_default(),
+                                card_number: vault_card.card_number.clone(),
+                                card_exp_month: vault_card.card_exp_month.clone().unwrap_or_default(),
+                                card_exp_year: vault_card.card_exp_year.clone().unwrap_or_default(),
+                                card_cvc,
                                 bin_number: None,
                                 last_four: None,
-                                card_issuer: card.card_issuer.clone(),
-                                card_network: card.card_network.clone(),
-                                card_type: card.card_type.clone(),
-                                card_issuing_country: card.card_issuing_country.clone(),
-                                bank_code: card.bank_code.clone(),
-                                nick_name: card.nick_name.clone(),
-                                card_holder_name: card.card_holder_name.clone(),
-                                co_badged_card_data: card.co_badged_card_data.clone(),
+                                card_issuer: None,
+                                card_network: None,
+                                card_type: None,
+                                card_issuing_country: None,
+                                bank_code: None,
+                                nick_name: None,
+                                card_holder_name,
+                                co_badged_card_data: None,
                             }),
                         ))
                     }
-                    _ => None,
                 }
             });
-            from_proxy_card.or_else(|| {
-                request
-                    .payment_method_data
-                    .payment_method_data
-                    .clone()
-                    .map(hyperswitch_domain_models::payment_method_data::ExternalVaultPaymentMethodData::from)
+            from_vault_token.or_else(|| {
+                // No vault token — check raw card data (Card / CardWithNT path)
+                wrapper.raw_payment_method_data.as_ref().and_then(|raw| {
+                    match raw {
+                        hyperswitch_domain_models::payment_method_data::PaymentMethodData::CardWithOptionalCVC(card) => {
+                            Some(hyperswitch_domain_models::payment_method_data::ExternalVaultPaymentMethodData::Card(
+                                Box::new(hyperswitch_domain_models::payment_method_data::ExternalVaultCard {
+                                    card_number: hyperswitch_masking::Secret::new(card.card_number.get_card_no()),
+                                    card_exp_month: card.card_exp_month.clone(),
+                                    card_exp_year: card.card_exp_year.clone(),
+                                    card_cvc: card.card_cvc.clone().unwrap_or_default(),
+                                    bin_number: None,
+                                    last_four: None,
+                                    card_issuer: card.card_issuer.clone(),
+                                    card_network: card.card_network.clone(),
+                                    card_type: card.card_type.clone(),
+                                    card_issuing_country: card.card_issuing_country.clone(),
+                                    bank_code: card.bank_code.clone(),
+                                    nick_name: card.nick_name.clone(),
+                                    card_holder_name: card.card_holder_name.clone(),
+                                    co_badged_card_data: card.co_badged_card_data.clone(),
+                                }),
+                            ))
+                        }
+                        _ => None,
+                    }
+                }).or_else(|| {
+                    request
+                        .payment_method_data
+                        .payment_method_data
+                        .clone()
+                        .map(hyperswitch_domain_models::payment_method_data::ExternalVaultPaymentMethodData::from)
+                })
             })
         } else {
             // No wrapper: parse from request
@@ -740,6 +809,26 @@ impl<F: Clone + Send + Sync>
         let Some(payment_token) = &req.payment_token else {
             return Ok(None);
         };
+
+        // Extract CVC/holder name from CardTokenData if present — these will be merged
+        // with the vault tokens returned by the internal PM service.
+        let card_token_from_request = req
+            .payment_method_data
+            .payment_method_data
+            .as_ref()
+            .and_then(|pmd| {
+                if let api_models::payments::ProxyPaymentMethodData::CardTokenData(ref token_data) =
+                    pmd
+                {
+                    Some(domain::CardToken {
+                        card_cvc: token_data.card_cvc.clone(),
+                        card_holder_name: token_data.card_holder_name.clone(),
+                    })
+                } else {
+                    None
+                }
+            });
+
         // Try to get profile_id from the platform (best-effort; may not be available yet)
         let profile_id = platform
             .get_processor()
@@ -760,7 +849,7 @@ impl<F: Clone + Send + Sync>
             platform,
             &profile_id,
             payment_token,
-            None,
+            card_token_from_request,
         )
         .await
         {
@@ -783,11 +872,20 @@ impl<F: Clone + Send + Sync>
         business_profile: &domain::Profile,
         feature_config: &core_utils::FeatureConfig,
     ) -> RouterResult<()> {
-        if !feature_config.is_payment_method_modular_allowed {
-            return Ok(());
-        }
+        router_env::logger::info!(
+            is_payment_method_modular_allowed = feature_config.is_payment_method_modular_allowed,
+            has_customer_acceptance = payment_data.customer_acceptance.is_some(),
+            has_external_vault_pmd = payment_data.external_vault_pmd.is_some(),
+            has_customer_id = payment_data.payment_intent.customer_id.is_some(),
+            "create_payment_method called for external vault proxy"
+        );
+
+        // if !feature_config.is_payment_method_modular_allowed {
+        //     return Ok(());
+        // }
         // Only create if customer has given acceptance
         if payment_data.customer_acceptance.is_none() {
+            router_env::logger::info!("Skipping PM creation: customer_acceptance is None");
             return Ok(());
         }
         // Only create for ExternalVaultCard (proxy card flow)
@@ -797,7 +895,14 @@ impl<F: Clone + Send + Sync>
                     card,
                 ),
             ) => *card,
-            _ => return Ok(()),
+            Some(other) => {
+                router_env::logger::info!(?other, "Skipping PM creation: external_vault_pmd is not a Card variant");
+                return Ok(());
+            }
+            None => {
+                router_env::logger::info!("Skipping PM creation: external_vault_pmd is None");
+                return Ok(());
+            }
         };
         let customer_id = payment_data
             .payment_intent
@@ -809,6 +914,9 @@ impl<F: Clone + Send + Sync>
             .payment_method
             .unwrap_or(common_enums::PaymentMethod::Card);
         let payment_method_type = payment_data.payment_attempt.payment_method_type;
+
+        println!("Creating proxy card payment method in modular service for external vault proxy. Customer ID: {:?}, Payment Method: {:?}, Payment Method Type: {:?}",
+            customer_id, payment_method, payment_method_type);
 
         match pm_transformers::create_proxy_card_payment_method_in_modular_service(
             state,

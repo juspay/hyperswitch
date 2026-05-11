@@ -1319,11 +1319,33 @@ pub struct DomainPaymentMethodWrapper(pub domain::PaymentMethod);
 #[cfg(feature = "v1")]
 pub struct DomainPaymentMethodDataWrapper(pub domain::PaymentMethodData);
 
+/// Vault token data returned by the internal PM service for a proxy card (repeat CIT flow).
+/// Fields are vault token references (opaque strings), not real card data.
+#[cfg(feature = "v1")]
+#[derive(Clone, Debug)]
+pub struct VaultCardData {
+    pub card_number: Secret<String>,
+    pub card_exp_year: Option<Secret<String>>,
+    pub card_exp_month: Option<Secret<String>>,
+}
+
+/// Domain-level vault payment method token data (populated only for the repeat CIT / proxy-card
+/// path where the PM service returns vault token references instead of real card data).
+#[cfg(feature = "v1")]
+#[derive(Clone, Debug)]
+pub enum VaultPaymentMethodData {
+    VaultCardData(VaultCardData),
+}
+
 #[derive(Clone, Debug)]
 #[cfg(feature = "v1")]
 pub struct PaymentMethodWithRawData {
     pub payment_method: DomainPaymentMethodWrapper,
+    /// Populated when the PM service returns real card data (Card / CardWithNT variants).
     pub raw_payment_method_data: Option<domain::PaymentMethodData>,
+    /// Populated when the PM service returns proxy/vault token references (ProxyCard variant).
+    /// Mutually exclusive with `raw_payment_method_data`.
+    pub vault_payment_method_token_data: Option<VaultPaymentMethodData>,
 }
 
 #[cfg(feature = "v1")]
@@ -1695,10 +1717,10 @@ impl
                 }
             }
             payment_methods::types::RawPaymentMethodData::ProxyCard(_proxy_card_data) => {
-                // ProxyCard is not applicable for v1 flows
-                // This variant exists in v2 retrieve responses for external vault token data
+                // ProxyCard (vault token reference) should not be converted to domain PaymentMethodData.
+                // It is handled separately via VaultPaymentMethodData in fetch_payment_method_from_modular_service.
                 Err(error_stack::report!(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("ProxyCard raw payment method data is not supported in v1 flows"))
+                    .attach_printable("ProxyCard should not be converted via DomainPaymentMethodDataWrapper; use vault_payment_method_token_data instead"))
             }
         }
     }
@@ -1859,15 +1881,32 @@ pub async fn fetch_payment_method_from_modular_service(
     .await
     .attach_printable("Failed to transform payment method retrieve response")?;
 
-    let raw_payment_method_data = pm_response
-        .raw_payment_method_data
-        .map(|raw_data| DomainPaymentMethodDataWrapper::try_from((raw_data, pmd_card_token)))
-        .transpose()
-        .attach_printable("Failed to convert raw payment method data")?;
+    // Split raw data based on variant:
+    // - ProxyCard → vault_payment_method_token_data (raw_payment_method_data stays None)
+    // - Card / CardWithNT / BankDebit → raw_payment_method_data (vault_payment_method_token_data stays None)
+    let (raw_payment_method_data, vault_payment_method_token_data) =
+        match pm_response.raw_payment_method_data {
+            Some(payment_methods::types::RawPaymentMethodData::ProxyCard(proxy_card)) => {
+                let vault_data = VaultPaymentMethodData::VaultCardData(VaultCardData {
+                    card_number: proxy_card.card_number,
+                    card_exp_year: proxy_card.card_exp_year,
+                    card_exp_month: proxy_card.card_exp_month,
+                });
+                (None, Some(vault_data))
+            }
+            Some(other_raw) => {
+                let domain_wrapper =
+                    DomainPaymentMethodDataWrapper::try_from((other_raw, pmd_card_token))
+                        .attach_printable("Failed to convert raw payment method data")?;
+                (Some(domain_wrapper.0), None)
+            }
+            None => (None, None),
+        };
 
     let pm_wrapper = PaymentMethodWithRawData {
         payment_method,
-        raw_payment_method_data: raw_payment_method_data.map(|wrapper| wrapper.0),
+        raw_payment_method_data,
+        vault_payment_method_token_data,
     };
     Ok(pm_wrapper)
 }

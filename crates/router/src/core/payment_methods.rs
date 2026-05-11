@@ -5080,7 +5080,7 @@ pub async fn payment_methods_session_create(
     .change_context(errors::ApiErrorResponse::InternalServerError)
     .attach_printable("Failed to insert payment methods session in db")?;
 
-    let external_vault_details = payments_core::vault_session::fetch_external_vault_details(
+    let external_vault_details = payments_core::vault_session::(
         &state, &platform, &profile, &customer,
     )
     .await

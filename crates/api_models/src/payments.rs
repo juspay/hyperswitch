@@ -3373,6 +3373,24 @@ pub enum ProxyPaymentMethodData {
     #[schema(title = "ProxyCardData")]
     VaultDataCard(Box<ProxyCardData>),
     VaultToken(VaultToken),
+    /// Used for repeat CIT flow with an internal PM service token.
+    /// The card number, expiry tokens come from the PM service (via `payment_token`),
+    /// and only the CVC (and optional card holder name) are supplied here.
+    CardTokenData(CardTokenData),
+}
+
+/// Card token data used in the repeat CIT flow with an internal PM service token.
+/// The `payment_token` field in the confirm request carries the internal PM token;
+/// this struct carries only the fields that are NOT stored in the vault.
+#[derive(Default, Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
+pub struct CardTokenData {
+    /// The card CVC / CVV token (plain value, not vaulted)
+    #[schema(value_type = Option<String>, example = "123")]
+    pub card_cvc: Option<Secret<String>>,
+
+    /// The card holder's name
+    #[schema(value_type = Option<String>, example = "John Doe")]
+    pub card_holder_name: Option<Secret<String>>,
 }
 
 #[derive(Default, Eq, PartialEq, Clone, Debug, serde::Deserialize, serde::Serialize, ToSchema)]
@@ -10352,6 +10370,24 @@ pub enum SessionToken {
     NoSessionTokenReceived,
 }
 
+/// Top-level vault details returned in the session-tokens response.
+/// For v1: contains both internal vault (SDK authorization) and external vault details.
+/// For v2: contains only external vault details.
+#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema)]
+pub struct VaultDetails {
+    /// Internal vault details containing the SDK authorization token (v1 only)
+    pub internal_vault: Option<InternalVaultDetails>,
+    /// External vault details (e.g. VGS or Hyperswitch Vault)
+    pub external_vault_details: Option<VaultSessionDetails>,
+}
+
+/// Internal vault details for SDK authorization
+#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema)]
+pub struct InternalVaultDetails {
+    /// Base64-encoded SDK authorization token for the internal vault session
+    pub sdk_authorization: String,
+}
+
 #[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, ToSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum VaultSessionDetails {
@@ -11125,8 +11161,8 @@ pub struct PaymentsSessionResponse {
     pub client_secret: Secret<String, pii::ClientSecret>,
     /// The list of session token object
     pub session_token: Vec<SessionToken>,
-    /// External vault session details
-    pub vault_details: Option<VaultSessionDetails>,
+    /// Vault details containing internal vault (SDK auth) and external vault info
+    pub vault_details: Option<VaultDetails>,
 }
 
 #[cfg(feature = "v2")]
@@ -11138,7 +11174,7 @@ pub struct PaymentsSessionResponse {
     /// The list of session token object
     pub session_token: Vec<SessionToken>,
     /// External vault session details
-    pub vault_details: Option<VaultSessionDetails>,
+    pub vault_details: Option<VaultDetails>,
 }
 
 #[cfg(feature = "v1")]
