@@ -161,23 +161,6 @@ export const connectorDetails = {
         },
       },
     },
-    "3DSChallengeAutoCapture": {
-      Request: {
-        payment_method: "card",
-        billing: billingAddress,
-        payment_method_data: {
-          card: successfulThreeDSTestCardDetails,
-        },
-        customer_acceptance: null,
-        setup_future_usage: "on_session",
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "succeeded",
-        },
-      },
-    },
     No3DSManualCapture: {
       Request: {
         payment_method: "card",
