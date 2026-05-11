@@ -460,7 +460,7 @@ export const CONNECTOR_LISTS = {
       // "stripe",
     ],
     DDC_RACE_CONDITION: ["worldpay"],
-    CONNECTOR_TESTING_DATA: ["adyen", "noon", "airwallex", "braintree"],
+    CONNECTOR_TESTING_DATA: ["adyen", "airwallex", "braintree", "noon"],
     // ucs connectors
     UCS_CONNECTORS: ["authorizedotnet"],
     OVERCAPTURE: ["adyen"],
@@ -510,6 +510,7 @@ export const CONNECTOR_LISTS = {
       "paypal",
       "stripe",
     ],
+    BANK_DEBIT: ["adyen", "novalnet"],
     CARD_INSTALLMENTS: ["adyen"],
     BILLING_DESCRIPTOR: [
       "adyen",
@@ -542,15 +543,17 @@ export const CONNECTOR_LISTS = {
       "worldpay",
       "worldpayvantiv",
     ],
-    EXTERNAL_THREE_DS: ["stripe"],
-    BANK_DEBIT: ["novalnet"],
+    EXTERNAL_THREE_DS: ["stripe", "finix"],
     PARTNER_MERCHANT_IDENTIFIER: ["adyen", "checkout"],
+    EXTEND_AUTHORIZATION: ["adyen", "paypal"],
     GIFT_CARD: ["adyen"],
-    PAY_LATER: ["klarna", "adyen", "aci", "stripe"],
+    PAY_LATER: ["klarna", "adyen", "aci", "stripe", "airwallex", "mollie"],
     AUTH_SERVICE_ELIGIBILITY: ["stripe", "cybersource"],
     PARTIAL_AUTH: ["nuvei", "checkout", "worldpay", "worldpayvantiv"],
     USE_BILLING_AS_PAYMENT_METHOD_BILLING: ["bankofamerica"],
     MIT_WITH_LIMITED_CARD_DATA: ["peachpayments"],
+    L2L3DATA: ["checkout", "nuvei", "worldpayvantiv"],
+    REFUND_MANUAL_UPDATE: ["bankofamerica", "cybersource"],
     // Add more inclusion lists
   },
 };
