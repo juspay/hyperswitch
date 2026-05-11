@@ -2,7 +2,8 @@ import { getCustomExchange } from "./Modifiers";
 
 export const connectorDetails = {
   pay_later_pm: {
-    PaymentIntent: (paymentMethodType) =>
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    PaymentIntent: (_paymentMethodType) =>
       getCustomExchange({
         Request: {
           currency: "ZAR",

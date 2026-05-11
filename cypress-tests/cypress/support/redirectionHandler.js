@@ -1187,7 +1187,9 @@ function bankRedirectRedirection(
               cy.log("Handling PayJustNow redirect flow");
 
               cy.get("body").then(($body) => {
-                if ($body.find('button:contains("Complete Payment")').length > 0) {
+                if (
+                  $body.find('button:contains("Complete Payment")').length > 0
+                ) {
                   cy.contains("button", "Complete Payment", {
                     timeout: constants.WAIT_TIME,
                   })

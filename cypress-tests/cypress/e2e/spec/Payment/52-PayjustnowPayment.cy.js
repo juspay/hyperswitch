@@ -4,18 +4,7 @@ import getConnectorDetails, * as utils from "../../configs/Payment/Utils";
 
 let globalState;
 
-function retrievePaymentForPayLater(globalState, data) {
-  const { Configs: configs = {} } = data || {};
-  const configInfo = (() => {
-    const cfg = configs;
-    const dualMerchant = cfg.dualMerchant;
-    const merchantPrefix = dualMerchant ? "dualMerchant" : "merchant";
-    const profilePrefix = dualMerchant ? "dualProfile" : "profile";
-    const merchantConnectorPrefix = dualMerchant
-      ? "dualMerchantConnector"
-      : "merchantConnector";
-    return { merchantPrefix, profilePrefix, merchantConnectorPrefix };
-  })();
+function retrievePaymentForPayLater(globalState) {
   const payment_id = globalState.get("paymentID");
 
   cy.request({
@@ -103,13 +92,13 @@ describe("Pay Later tests", () => {
         const confirmData = getConnectorDetails(globalState.get("connectorId"))[
           "pay_later_pm"
         ]["Payjustnow"];
-        
+
         // Update return_url to use ngrok URL for external accessibility
         const confirmBodyWithReturnUrl = {
           ...fixtures.confirmBody,
-          return_url: Cypress.env("NGROK_URL") || "https://example.com/return"
+          return_url: Cypress.env("NGROK_URL") || "https://example.com/return",
         };
-        
+
         cy.confirmBankRedirectCallTest(
           confirmBodyWithReturnUrl,
           confirmData,
@@ -123,13 +112,11 @@ describe("Pay Later tests", () => {
 
       cy.step("Handle Bank Redirect Redirection", () => {
         if (!shouldContinue) {
-          cy.task(
-            "cli_log",
-            "Skipping step: Handle Bank Redirect Redirection"
-          );
+          cy.task("cli_log", "Skipping step: Handle Bank Redirect Redirection");
           return;
         }
-        const expected_redirection = Cypress.env("NGROK_URL") || "https://example.com/return";
+        const expected_redirection =
+          Cypress.env("NGROK_URL") || "https://example.com/return";
         const payment_method_type = globalState.get("paymentMethodType");
         cy.handleBankRedirectRedirection(
           globalState,
@@ -143,10 +130,7 @@ describe("Pay Later tests", () => {
           cy.task("cli_log", "Skipping step: Retrieve Payment");
           return;
         }
-        const confirmData = getConnectorDetails(globalState.get("connectorId"))[
-          "pay_later_pm"
-        ]["Payjustnow"];
-        retrievePaymentForPayLater(globalState, confirmData);
+        retrievePaymentForPayLater(globalState);
       });
     });
   });
@@ -187,13 +171,13 @@ describe("Pay Later tests", () => {
         const confirmData = getConnectorDetails(globalState.get("connectorId"))[
           "pay_later_pm"
         ]["Payjustnow"];
-        
+
         // Update return_url to use ngrok URL for external accessibility
         const confirmBodyWithReturnUrl = {
           ...fixtures.confirmBody,
-          return_url: Cypress.env("NGROK_URL") || "https://example.com/return"
+          return_url: Cypress.env("NGROK_URL") || "https://example.com/return",
         };
-        
+
         cy.confirmBankRedirectCallTest(
           confirmBodyWithReturnUrl,
           confirmData,
@@ -207,13 +191,11 @@ describe("Pay Later tests", () => {
 
       cy.step("Handle Bank Redirect Redirection", () => {
         if (!shouldContinue) {
-          cy.task(
-            "cli_log",
-            "Skipping step: Handle Bank Redirect Redirection"
-          );
+          cy.task("cli_log", "Skipping step: Handle Bank Redirect Redirection");
           return;
         }
-        const expected_redirection = Cypress.env("NGROK_URL") || "https://example.com/return";
+        const expected_redirection =
+          Cypress.env("NGROK_URL") || "https://example.com/return";
         const payment_method_type = globalState.get("paymentMethodType");
         cy.handleBankRedirectRedirection(
           globalState,
@@ -230,7 +212,7 @@ describe("Pay Later tests", () => {
         const confirmData = getConnectorDetails(globalState.get("connectorId"))[
           "pay_later_pm"
         ]["Payjustnow"];
-        retrievePaymentForPayLater(globalState, confirmData);
+        retrievePaymentForPayLater(globalState);
         if (!utils.should_continue_further(confirmData)) {
           shouldContinue = false;
         }
@@ -299,13 +281,13 @@ describe("Pay Later tests", () => {
         const confirmData = getConnectorDetails(globalState.get("connectorId"))[
           "pay_later_pm"
         ]["Payjustnow"];
-        
+
         // Update return_url to use ngrok URL for external accessibility
         const confirmBodyWithReturnUrl = {
           ...fixtures.confirmBody,
-          return_url: Cypress.env("NGROK_URL") || "https://example.com/return"
+          return_url: Cypress.env("NGROK_URL") || "https://example.com/return",
         };
-        
+
         cy.confirmBankRedirectCallTest(
           confirmBodyWithReturnUrl,
           confirmData,
@@ -319,13 +301,11 @@ describe("Pay Later tests", () => {
 
       cy.step("Handle Bank Redirect Redirection", () => {
         if (!shouldContinue) {
-          cy.task(
-            "cli_log",
-            "Skipping step: Handle Bank Redirect Redirection"
-          );
+          cy.task("cli_log", "Skipping step: Handle Bank Redirect Redirection");
           return;
         }
-        const expected_redirection = Cypress.env("NGROK_URL") || "https://example.com/return";
+        const expected_redirection =
+          Cypress.env("NGROK_URL") || "https://example.com/return";
         const payment_method_type = globalState.get("paymentMethodType");
         cy.handleBankRedirectRedirection(
           globalState,
@@ -342,7 +322,7 @@ describe("Pay Later tests", () => {
         const confirmData = getConnectorDetails(globalState.get("connectorId"))[
           "pay_later_pm"
         ]["Payjustnow"];
-        retrievePaymentForPayLater(globalState, confirmData);
+        retrievePaymentForPayLater(globalState);
         if (!utils.should_continue_further(confirmData)) {
           shouldContinue = false;
         }
@@ -356,11 +336,7 @@ describe("Pay Later tests", () => {
         const partialRefundData = getConnectorDetails(
           globalState.get("connectorId")
         )["pay_later_pm"]["PartialRefund"];
-        cy.refundCallTest(
-          fixtures.refundBody,
-          partialRefundData,
-          globalState
-        );
+        cy.refundCallTest(fixtures.refundBody, partialRefundData, globalState);
         if (!utils.should_continue_further(partialRefundData)) {
           shouldContinue = false;
         }

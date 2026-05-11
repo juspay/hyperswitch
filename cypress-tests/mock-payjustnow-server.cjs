@@ -3,6 +3,8 @@
  * Mock PayJustNow Server
  * Simulates PayJustNow API endpoints for local testing
  */
+/* eslint-disable @typescript-eslint/no-require-imports */
+/* eslint-disable no-console */
 
 const http = require("http");
 const url = require("url");
@@ -83,7 +85,7 @@ const server = http.createServer((req, res) => {
     }
 
     // Get checkout status (sync)
-    const syncMatch = path.match(/^\/api\/v1\/checkouts\/([^\/]+)$/);
+    const syncMatch = path.match(/^\/api\/v1\/checkouts\/([^/]+)$/);
     if (syncMatch && req.method === "GET") {
       const checkoutToken = syncMatch[1];
       const checkout = checkouts.get(checkoutToken);
@@ -123,7 +125,7 @@ const server = http.createServer((req, res) => {
     }
 
     // Refund
-    const refundMatch = path.match(/^\/api\/v1\/checkouts\/([^\/]+)\/refund$/);
+    const refundMatch = path.match(/^\/api\/v1\/checkouts\/([^/]+)\/refund$/);
     if (refundMatch && req.method === "POST") {
       const checkoutToken = refundMatch[1];
       const checkout = checkouts.get(checkoutToken);
@@ -165,7 +167,9 @@ const server = http.createServer((req, res) => {
       checkout.status = "PAID";
       checkout.payment_reference = Math.floor(Math.random() * 1000000000);
 
-      const returnUrl = checkout.payjustnow?.confirm_redirect_url || "https://example.com/return";
+      const returnUrl =
+        checkout.payjustnow?.confirm_redirect_url ||
+        "https://example.com/return";
 
       res.writeHead(200, { "Content-Type": "text/html" });
       res.end(`
