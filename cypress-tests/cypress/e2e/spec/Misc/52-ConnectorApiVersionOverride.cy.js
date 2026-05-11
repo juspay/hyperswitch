@@ -14,7 +14,7 @@ describe("[Platform] Connector API Version Override", () => {
   });
 
   context("Happy Path Tests", () => {
-    const connectorName = Cypress.env("CONNECTOR") || "bankofamerica";
+    const connectorName = Cypress.env("CONNECTOR");
     const configKey = `connector_api_version_${connectorName}`;
     const initialVersion = "2023-10";
     const updatedVersion = "2024-01";
@@ -45,7 +45,7 @@ describe("[Platform] Connector API Version Override", () => {
   });
 
   context("Negative Tests", () => {
-    const connectorName = Cypress.env("CONNECTOR") || "bankofamerica";
+    const connectorName = Cypress.env("CONNECTOR");
     const configKey = `connector_api_version_${connectorName}`;
     const apiVersion = "2023-10";
 
