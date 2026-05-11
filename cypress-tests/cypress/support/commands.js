@@ -5183,8 +5183,12 @@ Cypress.Commands.add(
 );
 
 Cypress.Commands.add("activateRoutingConfig", (data, globalState) => {
-  const { Response: resData } = data || {};
+  const { Request: reqData, Response: resData } = data || {};
   const routing_config_id = globalState.get("routingConfigId");
+  const body = {};
+  if (reqData && reqData.transaction_type) {
+    body.transaction_type = reqData.transaction_type;
+  }
 
   cy.request({
     method: "POST",
@@ -5193,7 +5197,7 @@ Cypress.Commands.add("activateRoutingConfig", (data, globalState) => {
       "api-key": globalState.get("apiKey"),
       "Content-Type": "application/json",
     },
-    body: {},
+    body: body,
     failOnStatusCode: false,
   }).then((response) => {
     logRequestId(response.headers["x-request-id"]);

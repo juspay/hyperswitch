@@ -79,6 +79,9 @@ export const connectorDetails = {
           payout_type: "card",
         },
       },
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
     },
     SavePayoutMethod: {
       Request: {

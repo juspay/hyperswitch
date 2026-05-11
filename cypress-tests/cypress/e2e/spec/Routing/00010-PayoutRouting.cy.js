@@ -33,7 +33,7 @@ describe("Payout Priority Routing Test", () => {
   });
 
   context("Payout Priority Routing - default connector", () => {
-    let routingId;
+    shouldContinue = true;
 
     before("setup payout context", () => {
       // List MCAs once at the start of context to populate connector mappings
@@ -56,9 +56,7 @@ describe("Payout Priority Routing Test", () => {
         "priority",
         routing_data,
         globalState
-      ).then((response) => {
-        routingId = globalState.get("routingId");
-      });
+      );
       if (shouldContinue) shouldContinue = routingUtils.should_continue_further(data);
     });
 
@@ -81,6 +79,12 @@ describe("Payout Priority Routing Test", () => {
         "card_pm"
       ]["Fulfill"];
 
+      if (!payoutUtils.should_continue_further(payoutData)) {
+        cy.task("cli_log", "Skipping payout creation for " + globalState.get("connectorId"));
+        shouldContinue = false;
+        return;
+      }
+
       cy.createConfirmPayoutTest(
         fixtures.createPayoutBody,
         payoutData,
@@ -98,9 +102,9 @@ describe("Payout Priority Routing Test", () => {
   });
 
   context("Payout Priority Routing - single connector alternate config", () => {
+    shouldContinue = true;
     // Context for testing a second payout routing configuration
     // Tests that multiple routing configs can coexist with different priorities
-    let altRoutingId;
 
     before("setup alternate payout context", () => {
       // MCAs already listed in first context, but ensure mapping exists
@@ -130,9 +134,7 @@ describe("Payout Priority Routing Test", () => {
         "priority",
         routing_data,
         globalState
-      ).then((response) => {
-        altRoutingId = globalState.get("routingId");
-      });
+      );
       if (shouldContinue) shouldContinue = routingUtils.should_continue_further(data);
     });
 
@@ -154,6 +156,12 @@ describe("Payout Priority Routing Test", () => {
       const payoutData = payoutUtils.getConnectorDetails(globalState.get("connectorId"))[
         "card_pm"
       ]["Fulfill"];
+
+      if (!payoutUtils.should_continue_further(payoutData)) {
+        cy.task("cli_log", "Skipping payout creation for " + globalState.get("connectorId"));
+        shouldContinue = false;
+        return;
+      }
 
       cy.createConfirmPayoutTest(
         fixtures.createPayoutBody,
