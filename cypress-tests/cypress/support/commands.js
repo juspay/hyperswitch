@@ -1393,7 +1393,7 @@ Cypress.Commands.add(
   (requestBody, data, globalState) => {
     const { Request: reqData, Response: resData } = data || {};
     const paymentId = globalState.get("paymentID");
-    const apiKey = globalState.get("publishableKey");
+    const publishableKey = globalState.get("publishableKey");
 
     const body = { ...requestBody };
     for (const key in reqData) {
@@ -1406,7 +1406,7 @@ Cypress.Commands.add(
       url: `${globalState.get("baseUrl")}/payments/${paymentId}/3ds/authentication`,
       headers: {
         "Content-Type": "application/json",
-        "api-key": apiKey,
+        "api-key": publishableKey,
       },
       body: body,
       failOnStatusCode: false,
