@@ -784,24 +784,6 @@ export const connectorDetails = {
         },
       },
     },
-    PaymentResponseHash: {
-      Request: {
-        payment_method: "card",
-        payment_method_data: {
-          card: successfulNo3DSCardDetails,
-        },
-        currency: "MYR",
-        customer_acceptance: null,
-        setup_future_usage: "on_session",
-        billing: billingAddress,
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "succeeded",
-        },
-      },
-    },
     PaymentIntentWithShippingCost: {
       Request: {
         currency: "MYR",
