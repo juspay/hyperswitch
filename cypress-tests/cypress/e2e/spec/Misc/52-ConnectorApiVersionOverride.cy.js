@@ -16,8 +16,8 @@ describe("[Platform] Connector API Version Override", () => {
   context("Happy Path Tests", () => {
     const connectorName = "bankofamerica";
     const configKey = `connector_api_version_${connectorName}`;
-    const initialVersion = "2023-10-01";
-    const updatedVersion = "2024-01-01";
+    const initialVersion = "2023-10";
+    const updatedVersion = "2024-01";
 
     it("should create config for connector API version override", () => {
       cy.setConfigs(globalState, configKey, initialVersion, "CREATE");
@@ -47,7 +47,7 @@ describe("[Platform] Connector API Version Override", () => {
   context("Negative Tests", () => {
     const connectorName = "bankofamerica";
     const configKey = `connector_api_version_${connectorName}`;
-    const apiVersion = "2023-10-01";
+    const apiVersion = "2023-10";
 
     it("should fail to create duplicate key with 400 error", () => {
       // First create the config
