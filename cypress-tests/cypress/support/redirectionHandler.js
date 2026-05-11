@@ -1323,6 +1323,15 @@ function threeDsRedirection(redirectionUrl, expectedUrl, connectorId) {
     return;
   }
 
+  // PayPal sandbox 3DS auto-approves and immediately redirects to the return URL
+  // before any cy.origin() commands can run. Handle it here to avoid the cross-origin crash.
+  if (connectorId === "paypal") {
+    cy.visit(redirectionUrl.href, { failOnStatusCode: false });
+    cy.url({ timeout: CONSTANTS.TIMEOUT }).should("include", expectedUrl.host);
+    verifyReturnUrl(redirectionUrl, expectedUrl, true);
+    return;
+  }
+
   // For all other connectors, use the standard flow
   waitForRedirect(redirectionUrl.href);
 
@@ -1591,7 +1600,9 @@ function threeDsRedirection(redirectionUrl, expectedUrl, connectorId) {
           break;
 
         case "nexixpay":
-          // NexixPay 3DS challenge: enter OTP on the ACS simulator page and submit
+          // NexixPay 3DS challenge: screenshot the ACS page first to capture actual elements,
+          // then try broad selectors including Italian labels (Conferma/Procedi) used by Nexi Group
+          cy.screenshot("nexixpay-3ds-acs-page");
           cy.get("body", { timeout: constants.TIMEOUT }).then(($body) => {
             const passwordInput = $body.find('input[type="password"]');
             const textInput = $body.find('input[type="text"]');
@@ -1610,36 +1621,9 @@ function threeDsRedirection(redirectionUrl, expectedUrl, connectorId) {
             }
 
             cy.get(
-              'button[type="submit"], input[type="submit"], button:contains("Submit"), button:contains("Continue")',
-              { timeout: constants.TIMEOUT }
-            )
-              .first()
-              .should("be.visible")
-              .click();
-          });
-          break;
-
-        case "paypal":
-          // PayPal card 3DS challenge: enter OTP/password on the ACS simulator page and submit
-          cy.get("body", { timeout: constants.TIMEOUT }).then(($body) => {
-            const passwordInput = $body.find('input[type="password"]');
-            const textInput = $body.find('input[type="text"]');
-
-            if (passwordInput.length > 0) {
-              cy.get('input[type="password"]', { timeout: constants.TIMEOUT })
-                .should("be.visible")
-                .clear()
-                .type("1234");
-            } else if (textInput.length > 0) {
-              cy.get('input[type="text"]', { timeout: constants.TIMEOUT })
-                .first()
-                .should("be.visible")
-                .clear()
-                .type("1234");
-            }
-
-            cy.get(
-              'button[type="submit"], input[type="submit"], button:contains("Submit"), button:contains("Authenticate")',
+              "form button:first, form input[type=submit], button.btn, " +
+                "a.btn, a:contains(Conferma), a:contains(Submit), " +
+                "button:contains(Conferma), button:contains(Procedi)",
               { timeout: constants.TIMEOUT }
             )
               .first()
