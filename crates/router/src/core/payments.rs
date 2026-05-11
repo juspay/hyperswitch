@@ -11329,7 +11329,7 @@ pub async fn route_connector_v2_for_payments(
         .as_ref()
         .or(business_profile.routing_algorithm_id.as_ref());
 
-    let dimensions = dimension_state::Dimensions::new()
+    let dimensions = Dimensions::new()
         .with_provider_merchant_id(platform.get_provider().get_provider_merchant_id())
         .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
         .with_profile_id(business_profile.get_id().clone());
