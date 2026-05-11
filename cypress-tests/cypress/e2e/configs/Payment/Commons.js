@@ -3365,7 +3365,7 @@ export const connectorDetails = {
         body: {
           error: {
             type: "invalid_request",
-            code: "IR_04",
+            code: "IR_16",
             message:
               "You cannot authenticate this payment because payment_attempt.external_three_ds_authentication_attempted is false",
           },
