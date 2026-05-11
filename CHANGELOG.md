@@ -4,6 +4,18 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.05.11.0
+
+### Testing
+
+- **cypress:**
+  - Add routing evaluate coverage ([#12133](https://github.com/juspay/hyperswitch/pull/12133)) ([`5e50bf9`](https://github.com/juspay/hyperswitch/commit/5e50bf91cf620b34141b0ed6d7529ee8997afcbf))
+  - Add pay_later_pm configs for Airwallex and Mollie ([#12183](https://github.com/juspay/hyperswitch/pull/12183)) ([`6ac0cd8`](https://github.com/juspay/hyperswitch/commit/6ac0cd81db0d998fed381fb9507ff3ae5cf74a1c))
+
+**Full Changelog:** [`2026.05.08.0...2026.05.11.0`](https://github.com/juspay/hyperswitch/compare/2026.05.08.0...2026.05.11.0)
+
+- - -
+
 ## 2026.05.08.0
 
 ### Features
