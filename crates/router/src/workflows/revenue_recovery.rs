@@ -240,11 +240,14 @@ pub(crate) async fn get_schedule_time_to_retry_mit_payments(
     retry_count: i32,
 ) -> Option<time::PrimitiveDateTime> {
     let mapping = dimensions
-        .get_pt_mapping_pcr_retries(db, superposition_client, dimensions.get_processor_merchant_id())
+        .get_pt_mapping_pcr_retries(
+            db,
+            superposition_client,
+            dimensions.get_processor_merchant_id(),
+        )
         .await;
 
-    let time_delta =
-        scheduler_utils::get_pcr_payments_retry_schedule_time(mapping, retry_count);
+    let time_delta = scheduler_utils::get_pcr_payments_retry_schedule_time(mapping, retry_count);
 
     scheduler_utils::get_time_from_delta(time_delta)
 }

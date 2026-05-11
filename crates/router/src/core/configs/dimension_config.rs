@@ -9,7 +9,7 @@ pub use super::dimension_state::{
     DimensionsWithProcessorAndProviderMerchantIdAndConnector,
     DimensionsWithProcessorAndProviderMerchantIdAndPayoutRetryType,
     DimensionsWithProcessorAndProviderMerchantIdAndProfileId, DimensionsWithProcessorMerchantId,
-    DimensionsWithProviderMerchantId, DimensionsWithProcessorMerchantIdAndConnector
+    DimensionsWithProcessorMerchantIdAndConnector, DimensionsWithProviderMerchantId,
 };
 use super::{fetch_db_config_for_dimensions, DatabaseBackedConfig};
 use crate::{consts::superposition as superposition_consts, db::StorageInterface, utils::id_type};

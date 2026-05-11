@@ -968,12 +968,17 @@ where
                     .map_err(|e| logger::error!(routable_connector_error=?e))
                     .unwrap_or_default();
                     let schedule_time = if should_add_task_to_process_tracker {
-                        let connector_enum = connector.connector_data.connector.id()
+                        let connector_enum = connector
+                            .connector_data
+                            .connector
+                            .id()
                             .parse::<common_enums::connector_enums::Connector>()
                             .change_context(errors::ApiErrorResponse::InternalServerError)
                             .attach_printable("Invalid connector name")?;
                         let dimensions = Dimensions::new()
-                            .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
+                            .with_processor_merchant_id(
+                                platform.get_processor().get_processor_merchant_id(),
+                            )
                             .with_connector(connector_enum);
                         payment_sync::get_sync_process_schedule_time(
                             &*state.store,
@@ -1149,12 +1154,16 @@ where
                         )?;
 
                     let schedule_time = if should_add_task_to_process_tracker {
-                        let connector_enum = connector_data.connector.id()
+                        let connector_enum = connector_data
+                            .connector
+                            .id()
                             .parse::<common_enums::connector_enums::Connector>()
                             .change_context(errors::ApiErrorResponse::InternalServerError)
                             .attach_printable("Invalid connector name")?;
                         let dimensions = Dimensions::new()
-                            .with_processor_merchant_id(platform.get_processor().get_processor_merchant_id())
+                            .with_processor_merchant_id(
+                                platform.get_processor().get_processor_merchant_id(),
+                            )
                             .with_connector(connector_enum);
                         payment_sync::get_sync_process_schedule_time(
                             &*state.store,
@@ -1611,7 +1620,9 @@ where
     let locale = header_payload.locale.clone();
 
     let schedule_time = if should_add_task_to_process_tracker {
-        let connector_enum = connector.connector.id()
+        let connector_enum = connector
+            .connector
+            .id()
             .parse::<common_enums::connector_enums::Connector>()
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Invalid connector name")?;

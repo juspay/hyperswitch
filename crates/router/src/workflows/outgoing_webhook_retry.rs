@@ -275,13 +275,15 @@ pub(crate) async fn get_webhook_delivery_retry_schedule_time(
     retry_count: i32,
 ) -> Option<time::PrimitiveDateTime> {
     let mapping = dimensions
-        .get_pt_mapping_outgoing_webhooks(db, superposition_client, dimensions.get_processor_merchant_id())
+        .get_pt_mapping_outgoing_webhooks(
+            db,
+            superposition_client,
+            dimensions.get_processor_merchant_id(),
+        )
         .await;
 
-    let time_delta = scheduler_utils::get_outgoing_webhook_retry_schedule_time(
-        mapping,
-        retry_count,
-    );
+    let time_delta =
+        scheduler_utils::get_outgoing_webhook_retry_schedule_time(mapping, retry_count);
 
     scheduler_utils::get_time_from_delta(time_delta)
 }
@@ -297,8 +299,13 @@ pub(crate) async fn retry_webhook_delivery_task(
 ) -> errors::CustomResult<(), errors::StorageError> {
     let dimensions = crate::core::configs::dimension_state::Dimensions::new()
         .with_processor_merchant_id(merchant_id.clone().into());
-    let schedule_time =
-        get_webhook_delivery_retry_schedule_time(db, superposition_client, &dimensions, process.retry_count + 1).await;
+    let schedule_time = get_webhook_delivery_retry_schedule_time(
+        db,
+        superposition_client,
+        &dimensions,
+        process.retry_count + 1,
+    )
+    .await;
 
     match schedule_time {
         Some(schedule_time) => {

@@ -20,9 +20,7 @@ use hyperswitch_interfaces::{
     integrity::{CheckIntegrity, FlowIntegrity, GetIntegrityObject},
 };
 use router_env::{instrument, tracing, tracing::Instrument};
-use scheduler::{
-    errors as sch_errors, utils as process_tracker_utils,
-};
+use scheduler::{errors as sch_errors, utils as process_tracker_utils};
 #[cfg(feature = "olap")]
 use strum::IntoEnumIterator;
 
@@ -2061,9 +2059,13 @@ pub async fn retry_refund_sync_task(
     let dimensions = crate::core::configs::dimension_state::Dimensions::new()
         .with_processor_merchant_id(merchant_id.into())
         .with_connector(connector_enum);
-    let schedule_time =
-        get_refund_sync_process_schedule_time(db, superposition_client, &dimensions, pt.retry_count + 1)
-            .await?;
+    let schedule_time = get_refund_sync_process_schedule_time(
+        db,
+        superposition_client,
+        &dimensions,
+        pt.retry_count + 1,
+    )
+    .await?;
 
     match schedule_time {
         Some(s_time) => {
@@ -2225,7 +2227,8 @@ pub async fn add_refund_sync_task(
 ) -> RouterResult<storage::ProcessTracker> {
     let task = "SYNC_REFUND";
     let process_tracker_id = format!("{runner}_{task}_{}", refund.internal_reference_id);
-    let connector_enum = refund.connector
+    let connector_enum = refund
+        .connector
         .parse::<common_enums::connector_enums::Connector>()
         .change_context(errors::ApiErrorResponse::InternalServerError)
         .attach_printable("Invalid connector name in refund")?;
@@ -2315,7 +2318,11 @@ pub async fn get_refund_sync_process_schedule_time(
     retry_count: i32,
 ) -> Result<Option<time::PrimitiveDateTime>, errors::ProcessTrackerError> {
     let mapping = dimensions
-        .get_pt_mapping_refund_sync(db, superposition_client, dimensions.get_processor_merchant_id())
+        .get_pt_mapping_refund_sync(
+            db,
+            superposition_client,
+            dimensions.get_processor_merchant_id(),
+        )
         .await;
 
     let time_delta = process_tracker_utils::get_schedule_time(mapping, retry_count);
