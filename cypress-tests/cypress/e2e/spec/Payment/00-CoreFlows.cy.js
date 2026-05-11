@@ -208,17 +208,9 @@ describe("Core flows", () => {
       cy.task("setGlobalState", globalState.data);
     });
     it("Create Payment Intent with Payment Link", () => {
-      const data = {
-        Request: {
-          currency: "USD",
-          amount: 6000,
-          description: "Test Payment Link",
-          email: "test@example.com",
-        },
-        Response: {
-          status: 200,
-        },
-      };
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "payment_link_pm"
+      ]["PaymentLinkBasic"];
       cy.createPaymentIntentWithPaymentLinkTest(
         fixtures.createPaymentBody,
         data,
@@ -247,20 +239,9 @@ describe("Core flows", () => {
       cy.task("setGlobalState", globalState.data);
     });
     it("Create Payment Link with custom theme color", () => {
-      const data = {
-        Request: {
-          currency: "USD",
-          amount: 7000,
-          description: "Test with custom theme",
-          email: "test@example.com",
-          payment_link_config: {
-            theme: "#FF6B35",
-          },
-        },
-        Response: {
-          status: 200,
-        },
-      };
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "payment_link_pm"
+      ]["PaymentLinkWithTheme"];
       cy.createPaymentIntentWithPaymentLinkTest(
         fixtures.createPaymentBody,
         data,
@@ -270,21 +251,9 @@ describe("Core flows", () => {
       );
     });
     it("Create Payment Link with merchant logo", () => {
-      const data = {
-        Request: {
-          currency: "EUR",
-          amount: 8000,
-          description: "Test with merchant logo",
-          email: "test@example.com",
-          payment_link_config: {
-            logo: "https://example.com/logo.png",
-            seller_name: "Test Merchant Inc",
-          },
-        },
-        Response: {
-          status: 200,
-        },
-      };
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "payment_link_pm"
+      ]["PaymentLinkWithLogo"];
       cy.createPaymentIntentWithPaymentLinkTest(
         fixtures.createPaymentBody,
         data,
@@ -294,21 +263,9 @@ describe("Core flows", () => {
       );
     });
     it("Create Payment Link with accordion SDK layout", () => {
-      const data = {
-        Request: {
-          currency: "GBP",
-          amount: 5500,
-          description: "Test with accordion layout",
-          email: "test@example.com",
-          payment_link_config: {
-            sdk_layout: "accordion",
-            display_sdk_only: false,
-          },
-        },
-        Response: {
-          status: 200,
-        },
-      };
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "payment_link_pm"
+      ]["PaymentLinkWithSdkLayout"];
       cy.createPaymentIntentWithPaymentLinkTest(
         fixtures.createPaymentBody,
         data,
