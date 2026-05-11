@@ -1,7 +1,6 @@
 use async_bb8_diesel::AsyncRunQueryDsl;
 use diesel::{
-    associations::HasTable, debug_query, pg::Pg, BoolExpressionMethods, ExpressionMethods,
-    JoinOnDsl, QueryDsl,
+    associations::HasTable, debug_query, pg::Pg, BoolExpressionMethods, ExpressionMethods, QueryDsl,
 };
 use error_stack::{report, ResultExt};
 
@@ -103,14 +102,19 @@ impl Payouts {
         payout_type: Option<Vec<enums::PayoutType>>,
     ) -> StorageResult<i64> {
         let mut filter = <Self as HasTable>::table()
-            .inner_join(payout_attempt::table.on(payout_attempt::dsl::payout_id.eq(dsl::payout_id)))
             .count()
             .filter(dsl::merchant_id.eq(merchant_id.to_owned()))
             .filter(dsl::payout_id.eq_any(active_payout_ids.to_vec()))
             .into_boxed();
-
         if let Some(connector) = connector {
-            filter = filter.filter(payout_attempt::dsl::connector.eq_any(connector));
+            // we must use a subquery here to filter by `connector` inside `payout_attempt`.
+            filter = filter.filter(
+                dsl::payout_id.eq_any(
+                    payout_attempt::table
+                        .select(payout_attempt::dsl::payout_id)
+                        .filter(payout_attempt::dsl::connector.eq_any(connector)),
+                ),
+            );
         }
         if let Some(currency) = currency {
             filter = filter.filter(dsl::destination_currency.eq_any(currency));

@@ -6,7 +6,7 @@ use common_utils::ext_traits::Encode;
 #[cfg(feature = "olap")]
 use diesel::{associations::HasTable, ExpressionMethods, QueryDsl};
 #[cfg(all(feature = "v1", feature = "olap"))]
-use diesel::{JoinOnDsl, NullableExpressionMethods};
+use diesel::{BoolExpressionMethods, JoinOnDsl, NullableExpressionMethods};
 #[cfg(feature = "olap")]
 use diesel_models::{
     address::Address as DieselAddress, customers::Customer as DieselCustomer,
@@ -593,52 +593,46 @@ impl<T: DatabaseStore> PayoutsInterface for crate::RouterStore<T> {
     > {
         let conn = connection::pg_connection_read(self).await?;
         let conn = async_bb8_diesel::Connection::as_async_conn(&conn);
-        let mut query = DieselPayouts::table()
-            .inner_join(
-                diesel_models::schema::payout_attempt::table
-                    .on(poa_dsl::payout_id.eq(po_dsl::payout_id)),
-            )
-            .left_join(
-                diesel_models::schema::customers::table
-                    .on(cust_dsl::customer_id.nullable().eq(po_dsl::customer_id)),
-            )
-            .filter(cust_dsl::merchant_id.eq(merchant_id.to_owned()))
-            .left_outer_join(
-                diesel_models::schema::address::table
-                    .on(add_dsl::address_id.nullable().eq(po_dsl::address_id)),
-            )
+        let mut id_query = DieselPayouts::table()
+            .select(po_dsl::payout_id)
             .filter(po_dsl::merchant_id.eq(merchant_id.to_owned()))
             .order(po_dsl::created_at.desc())
             .into_boxed();
 
-        query = match filters {
+        match filters {
             PayoutFetchConstraints::Single { payout_id } => {
-                query.filter(po_dsl::payout_id.eq(payout_id.to_owned()))
+                id_query = id_query.filter(po_dsl::payout_id.eq(payout_id.to_owned()));
             }
             PayoutFetchConstraints::List(params) => {
                 if let Some(limit) = params.limit {
-                    query = query.limit(limit.into());
+                    id_query = id_query.limit(limit.into());
                 }
 
                 if let Some(customer_id) = &params.customer_id {
-                    query = query.filter(po_dsl::customer_id.eq(customer_id.clone()));
+                    id_query = id_query.filter(po_dsl::customer_id.eq(customer_id.clone()));
                 }
 
                 if let Some(profile_id) = &params.profile_id {
-                    query = query.filter(po_dsl::profile_id.eq(profile_id.clone()));
+                    id_query = id_query.filter(po_dsl::profile_id.eq(profile_id.clone()));
                 }
 
                 if let Some(merchant_order_reference_id_filter) =
                     &params.merchant_order_reference_id
                 {
-                    query = query.filter(
-                        poa_dsl::merchant_order_reference_id
-                            .eq(merchant_order_reference_id_filter.clone()),
+                    id_query = id_query.filter(
+                        po_dsl::payout_id.eq_any(
+                            diesel_models::schema::payout_attempt::table
+                                .select(poa_dsl::payout_id)
+                                .filter(
+                                    poa_dsl::merchant_order_reference_id
+                                        .eq(merchant_order_reference_id_filter.clone()),
+                                ),
+                        ),
                     );
                 }
 
-                query = match (params.starting_at, params.starting_after_id.as_ref()) {
-                    (Some(starting_at), _) => query.filter(po_dsl::created_at.ge(starting_at)),
+                id_query = match (params.starting_at, params.starting_after_id.as_ref()) {
+                    (Some(starting_at), _) => id_query.filter(po_dsl::created_at.ge(starting_at)),
                     (None, Some(starting_after_id)) => {
                         let starting_at = self
                             .find_payout_by_merchant_id_payout_id(
@@ -648,13 +642,13 @@ impl<T: DatabaseStore> PayoutsInterface for crate::RouterStore<T> {
                             )
                             .await?
                             .created_at;
-                        query.filter(po_dsl::created_at.ge(starting_at))
+                        id_query.filter(po_dsl::created_at.ge(starting_at))
                     }
-                    (None, None) => query,
+                    (None, None) => id_query,
                 };
 
-                query = match (params.ending_at, params.ending_before_id.as_ref()) {
-                    (Some(ending_at), _) => query.filter(po_dsl::created_at.le(ending_at)),
+                id_query = match (params.ending_at, params.ending_before_id.as_ref()) {
+                    (Some(ending_at), _) => id_query.filter(po_dsl::created_at.le(ending_at)),
                     (None, Some(ending_before_id)) => {
                         let ending_at = self
                             .find_payout_by_merchant_id_payout_id(
@@ -664,15 +658,16 @@ impl<T: DatabaseStore> PayoutsInterface for crate::RouterStore<T> {
                             )
                             .await?
                             .created_at;
-                        query.filter(po_dsl::created_at.le(ending_at))
+                        id_query.filter(po_dsl::created_at.le(ending_at))
                     }
-                    (None, None) => query,
+                    (None, None) => id_query,
                 };
 
-                query = query.offset(params.offset.into());
+                id_query = id_query.offset(params.offset.into());
 
                 if let Some(currency) = &params.currency {
-                    query = query.filter(po_dsl::destination_currency.eq_any(currency.clone()));
+                    id_query =
+                        id_query.filter(po_dsl::destination_currency.eq_any(currency.clone()));
                 }
 
                 let connectors = params
@@ -680,32 +675,54 @@ impl<T: DatabaseStore> PayoutsInterface for crate::RouterStore<T> {
                     .as_ref()
                     .map(|c| c.iter().map(|c| c.to_string()).collect::<Vec<String>>());
 
-                query = match connectors {
-                    Some(conn_filters) if !conn_filters.is_empty() => {
-                        query.filter(poa_dsl::connector.eq_any(conn_filters))
+                if let Some(conn_filters) = connectors {
+                    if !conn_filters.is_empty() {
+                        id_query = id_query.filter(
+                            po_dsl::payout_id.eq_any(
+                                diesel_models::schema::payout_attempt::table
+                                    .select(poa_dsl::payout_id)
+                                    .filter(poa_dsl::connector.eq_any(conn_filters)),
+                            ),
+                        );
                     }
-                    _ => query,
-                };
+                }
 
-                query = match &params.status {
-                    Some(status_filters) if !status_filters.is_empty() => {
-                        query.filter(po_dsl::status.eq_any(status_filters.clone()))
+                if let Some(status_filters) = &params.status {
+                    if !status_filters.is_empty() {
+                        id_query = id_query.filter(po_dsl::status.eq_any(status_filters.clone()));
                     }
-                    _ => query,
-                };
+                }
 
-                query = match &params.payout_method {
-                    Some(payout_method) if !payout_method.is_empty() => {
-                        query.filter(po_dsl::payout_type.eq_any(payout_method.clone()))
+                if let Some(payout_method) = &params.payout_method {
+                    if !payout_method.is_empty() {
+                        id_query =
+                            id_query.filter(po_dsl::payout_type.eq_any(payout_method.clone()));
                     }
-                    _ => query,
-                };
-
-                query
+                }
             }
         };
 
-        logger::debug!(filter = %diesel::debug_query::<diesel::pg::Pg,_>(&query).to_string());
+        logger::debug!(filter = %diesel::debug_query::<diesel::pg::Pg,_>(&id_query).to_string());
+
+        let query = DieselPayouts::table()
+            .inner_join(
+                diesel_models::schema::payout_attempt::table
+                    .on(poa_dsl::payout_id.eq(po_dsl::payout_id)),
+            )
+            .left_join(
+                diesel_models::schema::customers::table.on(cust_dsl::customer_id
+                    .nullable()
+                    .eq(po_dsl::customer_id)
+                    .and(cust_dsl::merchant_id.eq(po_dsl::merchant_id))),
+            )
+            .left_outer_join(
+                diesel_models::schema::address::table
+                    .on(add_dsl::address_id.nullable().eq(po_dsl::address_id)),
+            )
+            .filter(po_dsl::merchant_id.eq(merchant_id.to_owned()))
+            .filter(po_dsl::payout_id.eq_any(id_query))
+            .order(po_dsl::created_at.desc())
+            .into_boxed();
 
         query
             .select((
