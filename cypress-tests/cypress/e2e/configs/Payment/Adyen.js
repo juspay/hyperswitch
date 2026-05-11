@@ -47,7 +47,6 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "requires_payment_method",
-          
         },
       },
     },
@@ -165,7 +164,6 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "succeeded",
-          connector_mandate_id: null,
         },
       },
     },
