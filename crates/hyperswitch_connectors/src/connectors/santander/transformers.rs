@@ -2388,8 +2388,7 @@ impl
                 if end_date.date() < current_date {
                     return Err(errors::ConnectorError::InvalidDataFormat {
                         field_name: "mandate_details.end_date",
-                    }
-                    .into());
+                    });
                 }
                 format_as_date_only(Some(end_date))
             })
