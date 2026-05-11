@@ -1393,12 +1393,13 @@ Cypress.Commands.add(
   (requestBody, data, globalState) => {
     const { Request: reqData, Response: resData } = data || {};
     const paymentId = globalState.get("paymentID");
-    const apiKey = globalState.get("apiKey");
+    const apiKey = globalState.get("publishableKey");
 
     const body = { ...requestBody };
     for (const key in reqData) {
       body[key] = reqData[key];
     }
+    body.client_secret = globalState.get("clientSecret");
 
     cy.request({
       method: "POST",
