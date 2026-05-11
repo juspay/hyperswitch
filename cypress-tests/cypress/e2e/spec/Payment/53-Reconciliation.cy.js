@@ -34,16 +34,7 @@ describe("Merchant Reconciliation fields test", () => {
 
   context("Merchant retrieve - reconciliation fields", () => {
     it("Retrieve merchant and assert reconciliation fields", () => {
-      cy.request({
-        method: "GET",
-        url: `${globalState.get("baseUrl")}/accounts/${globalState.get("merchantId")}`,
-        headers: {
-          Accept: "application/json",
-          "Content-Type": "application/json",
-          "api-key": globalState.get("adminApiKey"),
-        },
-        failOnStatusCode: false,
-      }).then((response) => {
+      cy.merchantRetrieveCall(globalState).then((response) => {
         cy.assertReconFields(response);
       });
     });
