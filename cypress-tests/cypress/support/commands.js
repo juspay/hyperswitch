@@ -837,7 +837,7 @@ function maskValue(value) {
 
 Cypress.Commands.add(
   "updateBusinessProfileWebhookCustomHeadersTest",
-  (webhookHeadersBody, globalState, profilePrefix = "profile") => {
+  (webhookHeadersBody, globalState, profilePrefix = "profile", previousHeaderKeys = null) => {
     const apiKey = globalState.get("apiKey");
     const merchantId = globalState.get("merchantId");
     const profileId = globalState.get(`${profilePrefix}Id`);
@@ -873,6 +873,12 @@ Cypress.Commands.add(
             }
           }
           globalState.set("lastResponseHeaders", responseHeaders);
+          expect(responseHeaders).to.not.be.undefined;
+          if (previousHeaderKeys) {
+            previousHeaderKeys.forEach((key) => {
+              expect(responseHeaders).to.not.have.property(key);
+            });
+          }
         });
       });
   }
