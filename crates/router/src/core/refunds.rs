@@ -637,8 +637,6 @@ async fn execute_refund_execute_via_direct_with_ucs_shadow(
     let ucs_state = state.clone();
 
     // Capture direct result for comparison (Ok or Err) so the diff is sent in both cases.
-    // error_stack::Report doesn't implement Clone, so we can't use .clone() on the whole Result.
-    #[allow(clippy::useless_asref)]
     let direct_for_compare: Result<types::RefundExecuteRouterData, String> = direct_result
         .as_ref()
         .map(|rd| rd.clone())
@@ -1196,8 +1194,6 @@ async fn execute_refund_sync_via_direct_with_ucs_shadow(
     let state = state.clone();
     let processor = processor.clone();
     let merchant_connector_account = merchant_connector_account.clone();
-    // error_stack::Report doesn't implement Clone, so we can't use .clone() on the whole Result.
-    #[allow(clippy::useless_asref)]
     let direct_for_compare: Result<types::RefundSyncRouterData, String> = direct_result
         .as_ref()
         .map(|rd| rd.clone())

@@ -380,20 +380,12 @@ mod tests {
 
     #[test]
     fn test_get_default_schedule_time() {
-        let merchant_id =
-            common_utils::id_type::MerchantId::try_from(std::borrow::Cow::from("-")).unwrap();
-        let schedule_time_delta = scheduler_utils::get_schedule_time(
-            process_data::ConnectorPTMapping::default(),
-            &merchant_id,
-            0,
-        )
-        .unwrap();
-        let first_retry_time_delta = scheduler_utils::get_schedule_time(
-            process_data::ConnectorPTMapping::default(),
-            &merchant_id,
-            1,
-        )
-        .unwrap();
+        let schedule_time_delta =
+            scheduler_utils::get_schedule_time(process_data::ConnectorPTMapping::default(), 0)
+                .unwrap();
+        let first_retry_time_delta =
+            scheduler_utils::get_schedule_time(process_data::ConnectorPTMapping::default(), 1)
+                .unwrap();
         let cpt_default = process_data::ConnectorPTMapping::default().default_mapping;
         assert_eq!(
             vec![schedule_time_delta, first_retry_time_delta],
