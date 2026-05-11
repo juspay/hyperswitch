@@ -202,7 +202,7 @@ impl ApiEventMetric for AuthenticationRetrieveEligibilityCheckResponse {
 }
 
 #[cfg(feature = "v1")]
-#[derive(Debug, Serialize, Deserialize, ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct AuthenticationEligibilityRequest {
     /// Payment method-specific data such as card details, wallet info, etc.
     /// This holds the raw information required to process the payment method.
@@ -277,7 +277,7 @@ impl AuthenticationEligibilityRequest {
 }
 
 #[cfg(feature = "v1")]
-#[derive(Debug, Serialize, ToSchema)]
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
 pub struct AuthenticationEligibilityResponse {
     /// The unique identifier for this authentication.
     #[schema(value_type = String, example = "auth_mbabizu24mvu3mela5njyhpit4")]
@@ -449,12 +449,12 @@ pub struct MasterCardEligibilityCheckData {
     pub last_used_card_timestamp: Option<String>,
 }
 
-#[derive(Debug, Serialize, ToSchema)]
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
 pub enum EligibilityResponseParams {
     ThreeDsData(ThreeDsData),
 }
 
-#[derive(Debug, Serialize, ToSchema)]
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
 pub struct ThreeDsData {
     /// The unique identifier for this authentication from the 3DS server.
     #[schema(value_type = String)]
@@ -479,7 +479,7 @@ pub struct ThreeDsData {
     pub directory_server_id: Option<String>,
 }
 
-#[derive(Debug, Serialize, ToSchema)]
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
 pub struct NextAction {
     /// The URL for authenticatating the user.
     #[schema(value_type = String)]
@@ -593,7 +593,7 @@ impl ApiEventMetric for AuthenticationAuthenticateResponse {
 }
 
 #[cfg(feature = "v1")]
-#[derive(Debug, Clone, Serialize, ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct AuthenticationSyncResponse {
     // Core Authentication Fields (from AuthenticationResponse)
     /// The unique identifier for this authentication.
@@ -747,7 +747,7 @@ pub struct AuthenticationSyncResponse {
     pub profile_acquirer_id: Option<id_type::ProfileAcquirerId>,
 }
 
-#[derive(Debug, Clone, Serialize, ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct AuthenticationDetails {
     // Three Ds Data after external authentication
     pub three_ds_data: Option<ExternalThreeDsData>,
@@ -785,7 +785,7 @@ pub enum Cryptogram {
 }
 
 #[cfg(feature = "v1")]
-#[derive(Debug, Clone, Serialize, ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum AuthenticationPaymentMethodDataResponse {
     CardData {
@@ -809,7 +809,7 @@ pub enum AuthenticationPaymentMethodDataResponse {
 }
 
 #[cfg(feature = "v1")]
-#[derive(Debug, Clone, Serialize, ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum AuthenticationVaultTokenData {
     CardData {

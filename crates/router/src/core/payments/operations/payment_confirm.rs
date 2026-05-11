@@ -2021,6 +2021,39 @@ impl<F: Clone + Send + Sync> Domain<F, api::PaymentsRequest, PaymentData<F>> for
             .change_context(errors::ApiErrorResponse::InternalServerError)
             .attach_printable("Failed to fetch routing path")?;
 
+            if let Some(auth_config) = state.conf.authentication_service.as_ref() {
+                if let Some(currency) = payment_data.payment_intent.currency {
+                    let req_identifier = router_env::RequestIdentifier::new("x-request-id");
+                    if let Ok(client) = crate::core::authentication_client::AuthenticationServiceClient::new(
+                        auth_config.get_inner(),
+                        &req_identifier,
+                    ) {
+                        println!("test flow entered");
+                        let auth_req = api_models::authentication::AuthenticationCreateRequest {
+                            authentication_id: Some(authentication.authentication_id.clone()),
+                            profile_id: payment_data.payment_intent.profile_id.clone(),
+                            amount: payment_data.payment_intent.amount,
+                            authentication_connector: authentication_connector_name.parse().ok(),
+                            currency,
+                            return_url: payment_data.payment_intent.return_url.clone(),
+                            force_3ds_challenge: None,
+                            psd2_sca_exemption_type: None,
+                            profile_acquirer_id: None,
+                            acquirer_details: None,
+                            customer_details: None,
+                        };
+
+                        let response = crate::core::authentication_client::AuthenticationCreateFlow::call(
+                            state,
+                            &client,
+                            auth_req,
+                        ).await;
+
+                        println!("uwqhduhwqP{:?}", response);
+                    }
+                }
+            }
+
             let pre_auth_response = uas_utils::types::ExternalAuthentication::pre_authentication(
                         state,
                         &payment_data.payment_attempt.merchant_id,

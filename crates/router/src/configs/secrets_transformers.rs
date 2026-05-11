@@ -388,6 +388,23 @@ impl SecretsHandler for settings::OidcSettings {
     }
 }
 
+#[async_trait::async_trait]
+impl SecretsHandler for settings::AuthenticationServiceConfig {
+    async fn convert_to_raw_secret(
+        value: SecretStateContainer<Self, SecuredSecret>,
+        secret_management_client: &dyn SecretManagementInterface,
+    ) -> CustomResult<SecretStateContainer<Self, RawSecret>, SecretsManagementError> {
+        let auth_config = value.get_inner();
+        let api_key = secret_management_client
+            .get_secret(auth_config.api_key.clone())
+            .await?;
+        Ok(value.transition_state(|auth_config| Self {
+            api_key,
+            ..auth_config
+        }))
+    }
+}
+
 /// # Panics
 ///
 /// Will panic even if kms decryption fails for at least one field
@@ -529,7 +546,21 @@ pub(crate) async fn fetch_raw_secrets(
         .await
         .expect("Failed to decrypt oidc configs");
 
+    #[allow(clippy::expect_used)]
+    let authentication_service = conf
+        .authentication_service
+        .async_map(|authentication_service| async {
+            settings::AuthenticationServiceConfig::convert_to_raw_secret(
+                authentication_service,
+                secret_management_client,
+            )
+            .await
+            .expect("Failed to decrypt authentication_service configs")
+        })
+        .await;
+
     Settings {
+        authentication_service,
         server: conf.server,
         application_source: conf.application_source,
         chat,
