@@ -298,7 +298,9 @@ describe("Authentication Service Eligibility", () => {
       });
 
       it("should confirm 3DS payment with eligibility storage enabled", () => {
-        cy.log("Note: Redis storage of eligibility data cannot be directly asserted via Cypress API");
+        cy.log(
+          "Note: Redis storage of eligibility data cannot be directly asserted via Cypress API"
+        );
         const data = getConnectorDetails(globalState.get("connectorId"))
           .auth_service_eligibility.EligibilityStorageEnabled;
         cy.createConfirmPaymentTest(
@@ -328,7 +330,9 @@ describe("Authentication Service Eligibility", () => {
       });
 
       it("should confirm 3DS payment with eligibility storage disabled", () => {
-        cy.log("Note: Redis storage of eligibility data cannot be directly asserted via Cypress API");
+        cy.log(
+          "Note: Redis storage of eligibility data cannot be directly asserted via Cypress API"
+        );
         const data = getConnectorDetails(globalState.get("connectorId"))
           .auth_service_eligibility.EligibilityStorageDisabled;
         cy.createConfirmPaymentTest(
