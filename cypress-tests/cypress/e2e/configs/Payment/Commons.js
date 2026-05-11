@@ -2628,6 +2628,27 @@ export const connectorDetails = {
         },
       },
     }),
+    L2L3Data: getCustomExchange({
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        metadata: {
+          order_tax_amount: 500,
+          shipping_cost: 100,
+          order_po_number: "PO-12345",
+        },
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    }),
     UseBillingAsPaymentMethodBilling: getCustomExchange({
       Request: {
         payment_method: "card",
