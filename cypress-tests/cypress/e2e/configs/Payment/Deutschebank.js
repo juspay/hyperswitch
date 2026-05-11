@@ -288,4 +288,7 @@ export const connectorDetails = {
       },
     },
   },
+  bank_debit_pm: {
+    // Uses Commons.js defaults for Ach and AchMandate
+  },
 };
