@@ -989,7 +989,7 @@ impl
                             year: expiry_year,
                         },
                     },
-                    card_holder_name: item.customer_name.clone(),
+                    card_holder_name: None, // card holder name not returned in apple pay decrypt response
                     cryptogram: apple_pay_decrypt_data
                         .payment_data
                         .online_payment_cryptogram,
