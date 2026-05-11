@@ -77,6 +77,14 @@ describe("Card - NoThreeDS payment flow test", () => {
 
         cy.retrievePaymentCallTest({ globalState, data: confirmData });
       });
+
+      cy.step("Verify Payment Response Hash", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: Verify Payment Response Hash");
+          return;
+        }
+        cy.verifyPaymentResponseHash(globalState);
+      });
     });
   });
 
@@ -112,6 +120,14 @@ describe("Card - NoThreeDS payment flow test", () => {
         ]["No3DSAutoCapture"];
 
         cy.retrievePaymentCallTest({ globalState, data });
+      });
+
+      cy.step("Verify Payment Response Hash", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: Verify Payment Response Hash");
+          return;
+        }
+        cy.verifyPaymentResponseHash(globalState);
       });
     });
   });
