@@ -34,37 +34,40 @@ describe("Step-Up Auth payment flow test", () => {
     cy.task("setGlobalState", globalState.data);
   });
 
-  context("Step-Up Auth setup - create auth processor and update profile", () => {
-    let shouldContinue = true;
+  context(
+    "Step-Up Auth setup - create auth processor and update profile",
+    () => {
+      const shouldContinue = true;
 
-    afterEach("flush global state", () => {
-      cy.task("setGlobalState", globalState.data);
-    });
+      afterEach("flush global state", () => {
+        cy.task("setGlobalState", globalState.data);
+      });
 
-    it("create authentication processor connector", () => {
-      const createConnectorBody = { ...fixtures.createConnectorBody };
-      createConnectorBody.connector_name = "netcetera";
+      it("create authentication processor connector", () => {
+        const createConnectorBody = { ...fixtures.createConnectorBody };
+        createConnectorBody.connector_name = "netcetera";
 
-      cy.createAuthenticationProcessorConnectorTest(
-        createConnectorBody,
-        globalState
-      );
-    });
-
-    it("update business profile with auth connector", () => {
-      if (!shouldContinue) {
-        cy.task(
-          "cli_log",
-          "Skipping step: update business profile with auth connector"
+        cy.createAuthenticationProcessorConnectorTest(
+          createConnectorBody,
+          globalState
         );
-        return;
-      }
-      cy.updateBusinessProfileAuthConnectorTest(
-        fixtures.businessProfile.bpUpdateAuthConnector,
-        globalState
-      );
-    });
-  });
+      });
+
+      it("update business profile with auth connector", () => {
+        if (!shouldContinue) {
+          cy.task(
+            "cli_log",
+            "Skipping step: update business profile with auth connector"
+          );
+          return;
+        }
+        cy.updateBusinessProfileAuthConnectorTest(
+          fixtures.businessProfile.bpUpdateAuthConnector,
+          globalState
+        );
+      });
+    }
+  );
 
   context(
     "Step-Up Auth happy path - create, confirm, authenticate and retrieve",
@@ -95,7 +98,10 @@ describe("Step-Up Auth payment flow test", () => {
 
       it("confirm payment with three_ds card", () => {
         if (!shouldContinue) {
-          cy.task("cli_log", "Skipping step: confirm payment with three_ds card");
+          cy.task(
+            "cli_log",
+            "Skipping step: confirm payment with three_ds card"
+          );
           return;
         }
         const data = getConnectorDetails(globalState.get("connectorId"))[
@@ -117,10 +123,7 @@ describe("Step-Up Auth payment flow test", () => {
 
       it("call 3ds authentication endpoint", () => {
         if (!shouldContinue) {
-          cy.task(
-            "cli_log",
-            "Skipping step: call 3ds authentication endpoint"
-          );
+          cy.task("cli_log", "Skipping step: call 3ds authentication endpoint");
           return;
         }
         const data = getConnectorDetails(globalState.get("connectorId"))[
@@ -144,51 +147,48 @@ describe("Step-Up Auth payment flow test", () => {
     }
   );
 
-  context(
-    "Step-Up Auth negative - 3ds auth without confirmed payment",
-    () => {
-      let shouldContinue = true;
+  context("Step-Up Auth negative - 3ds auth without confirmed payment", () => {
+    let shouldContinue = true;
 
-      afterEach("flush global state", () => {
-        cy.task("setGlobalState", globalState.data);
-      });
+    afterEach("flush global state", () => {
+      cy.task("setGlobalState", globalState.data);
+    });
 
-      it("create payment intent with three_ds only", () => {
-        const data = getConnectorDetails(globalState.get("connectorId"))[
-          "step_up_auth"
-        ]["PaymentIntentOnly"];
+    it("create payment intent with three_ds only", () => {
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "step_up_auth"
+      ]["PaymentIntentOnly"];
 
-        cy.createPaymentIntentTest(
-          fixtures.createPaymentBody,
-          data,
-          "three_ds",
-          "automatic",
-          globalState
+      cy.createPaymentIntentTest(
+        fixtures.createPaymentBody,
+        data,
+        "three_ds",
+        "automatic",
+        globalState
+      );
+
+      if (!utils.should_continue_further(data)) {
+        shouldContinue = false;
+      }
+    });
+
+    it("call 3ds authentication - should fail with IR_04", () => {
+      if (!shouldContinue) {
+        cy.task(
+          "cli_log",
+          "Skipping step: call 3ds authentication - should fail with IR_04"
         );
+        return;
+      }
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "step_up_auth"
+      ]["ThreeDSAuthenticationUnconfirmed"];
 
-        if (!utils.should_continue_further(data)) {
-          shouldContinue = false;
-        }
-      });
-
-      it("call 3ds authentication - should fail with IR_04", () => {
-        if (!shouldContinue) {
-          cy.task(
-            "cli_log",
-            "Skipping step: call 3ds authentication - should fail with IR_04"
-          );
-          return;
-        }
-        const data = getConnectorDetails(globalState.get("connectorId"))[
-          "step_up_auth"
-        ]["ThreeDSAuthenticationUnconfirmed"];
-
-        cy.threeDSAuthenticationCallTest(
-          fixtures.threeDSAuthenticationBody,
-          data,
-          globalState
-        );
-      });
-    }
-  );
+      cy.threeDSAuthenticationCallTest(
+        fixtures.threeDSAuthenticationBody,
+        data,
+        globalState
+      );
+    });
+  });
 });

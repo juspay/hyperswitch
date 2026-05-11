@@ -1374,7 +1374,8 @@ Cypress.Commands.add(
             ).to.have.property("authentication_connectors");
             globalState.set(
               "authConnectors",
-              response.body.authentication_connector_details.authentication_connectors
+              response.body.authentication_connector_details
+                .authentication_connectors
             );
           }
         } else {
@@ -3207,7 +3208,6 @@ Cypress.Commands.add(
         }
       });
     });
-
   }
 );
 
