@@ -76,6 +76,7 @@ describe("Core flows", () => {
     it("Customer create call", () => {
       cy.createCustomerCallTest(fixtures.customerCreateBody, globalState);
     });
+
     it("Customer list call", () => {
       cy.customerListCall(globalState);
     });
@@ -106,7 +107,6 @@ describe("Core flows", () => {
 
     context("Create Multiple Merchant Connector Accounts", () => {
       it("1st Connector create call", () => {
-        // `globalState` can only be accessed in the `it` block
         const connector_id = globalState.data.connectorId;
         cy.createNamedConnectorCallTest(
           "payment_processor",
@@ -119,7 +119,6 @@ describe("Core flows", () => {
       });
 
       it("2nd Connector create call", () => {
-        // `globalState` can only be accessed in the `it` block
         const connector_id = globalState.data.connectorId;
         cy.createNamedConnectorCallTest(
           "payment_processor",
@@ -233,22 +232,6 @@ describe("Core flows", () => {
       );
 
       if (shouldContinue) shouldContinue = utils.should_continue_further(data);
-    });
-  });
-
-  context("List Connector Feature Matrix", () => {
-    before("seed global state", () => {
-      cy.task("getGlobalState").then((state) => {
-        globalState = new State(state);
-      });
-    });
-
-    after("flush global state", () => {
-      cy.task("setGlobalState", globalState.data);
-    });
-
-    it("List connector feature matrix call", () => {
-      cy.ListConnectorsFeatureMatrixCall(globalState);
     });
   });
 
@@ -446,6 +429,22 @@ describe("Core flows", () => {
       }).then((response) => {
         expect(response.status).to.equal(404);
       });
+    });
+  });
+
+  context("List Connector Feature Matrix", () => {
+    before("seed global state", () => {
+      cy.task("getGlobalState").then((state) => {
+        globalState = new State(state);
+      });
+    });
+
+    after("flush global state", () => {
+      cy.task("setGlobalState", globalState.data);
+    });
+
+    it("List connector feature matrix call", () => {
+      cy.ListConnectorsFeatureMatrixCall(globalState);
     });
   });
 
