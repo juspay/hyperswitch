@@ -198,11 +198,17 @@ jobs:
           tool: just
           checksum: true
 
-      - name: Run clippy
+      - name: Run clippy (redis-rs backend)
         shell: bash
         env:
           CARGO_BUILD_JOBS: 3
         run: just clippy
+
+      - name: Run clippy (fred backend)
+        shell: bash
+        env:
+          CARGO_BUILD_JOBS: 3
+        run: just clippy fred
 
       - name: Check Cargo.lock changed
         if: ${{ (github.event.pull_request.head.repo.full_name == github.event.pull_request.base.repo.full_name) }}
