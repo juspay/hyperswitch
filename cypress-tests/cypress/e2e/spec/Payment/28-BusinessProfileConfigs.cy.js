@@ -401,7 +401,9 @@ describe("Config Tests", () => {
     });
 
     it("Update business profile with new custom webhook headers and verify updated masked response", () => {
-      const previousHeaderKeys = Object.keys(globalState.get("lastResponseHeaders") || {});
+      const previousHeaderKeys = Object.keys(
+        globalState.get("lastResponseHeaders") || {}
+      );
       const webhookHeadersBody = {
         outgoing_webhook_custom_http_headers: {
           "X-Updated-Header": "updated-secret-value-long",
