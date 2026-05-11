@@ -31,7 +31,7 @@ const singleUseMandateData = {
   mandate_type: {
     single_use: {
       amount: 8000,
-      currency: "EUR",
+      currency: "USD",
     },
   },
 };
@@ -41,7 +41,7 @@ const multiUseMandateData = {
   mandate_type: {
     multi_use: {
       amount: 8000,
-      currency: "EUR",
+      currency: "USD",
     },
   },
 };
@@ -68,7 +68,7 @@ export const connectorDetails = {
   card_pm: {
     PaymentIntent: {
       Request: {
-        currency: "EUR",
+        currency: "USD",
         customer_acceptance: null,
         setup_future_usage: "on_session",
       },
@@ -84,7 +84,7 @@ export const connectorDetails = {
       Request: {
         amount: 6000,
         authentication_type: "no_three_ds",
-        currency: "EUR",
+        currency: "USD",
         customer_acceptance: null,
         setup_future_usage: "off_session",
       },
@@ -101,7 +101,7 @@ export const connectorDetails = {
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
-        currency: "EUR",
+        currency: "USD",
         customer_acceptance: null,
         setup_future_usage: "on_session",
       },
@@ -120,7 +120,7 @@ export const connectorDetails = {
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
-        currency: "EUR",
+        currency: "USD",
         customer_acceptance: null,
         setup_future_usage: "on_session",
       },
@@ -139,7 +139,7 @@ export const connectorDetails = {
         payment_method_data: {
           card: successfulThreeDSTestCardDetails,
         },
-        currency: "EUR",
+        currency: "USD",
         customer_acceptance: null,
         setup_future_usage: "on_session",
       },
@@ -156,7 +156,7 @@ export const connectorDetails = {
         payment_method_data: {
           card: successfulThreeDSTestCardDetails,
         },
-        currency: "EUR",
+        currency: "USD",
         customer_acceptance: null,
         setup_future_usage: "on_session",
       },
@@ -169,7 +169,7 @@ export const connectorDetails = {
     },
     PaymentIntentWithShippingCost: {
       Request: {
-        currency: "EUR",
+        currency: "USD",
         shipping_cost: 50,
         amount: 6000,
       },
@@ -186,7 +186,7 @@ export const connectorDetails = {
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
-        currency: "EUR",
+        currency: "USD",
         customer_acceptance: null,
         setup_future_usage: "on_session",
       },
@@ -283,7 +283,7 @@ export const connectorDetails = {
         payment_method_data: {
           card: successfulThreeDSTestCardDetails,
         },
-        currency: "EUR",
+        currency: "USD",
         mandate_data: singleUseMandateData,
       },
       Response: {
@@ -302,7 +302,7 @@ export const connectorDetails = {
         payment_method_data: {
           card: successfulThreeDSTestCardDetails,
         },
-        currency: "EUR",
+        currency: "USD",
         mandate_data: singleUseMandateData,
       },
       Response: {
@@ -321,7 +321,7 @@ export const connectorDetails = {
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
-        currency: "EUR",
+        currency: "USD",
         mandate_data: singleUseMandateData,
       },
       Response: {
@@ -359,7 +359,7 @@ export const connectorDetails = {
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
-        currency: "EUR",
+        currency: "USD",
         mandate_data: multiUseMandateData,
       },
       Response: {
@@ -397,7 +397,7 @@ export const connectorDetails = {
         payment_method_data: {
           card: successfulThreeDSTestCardDetails,
         },
-        currency: "EUR",
+        currency: "USD",
         mandate_data: multiUseMandateData,
       },
       Response: {
@@ -416,7 +416,7 @@ export const connectorDetails = {
         payment_method_data: {
           card: successfulThreeDSTestCardDetails,
         },
-        currency: "EUR",
+        currency: "USD",
         mandate_data: multiUseMandateData,
       },
       Response: {
@@ -432,7 +432,7 @@ export const connectorDetails = {
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
-        currency: "EUR",
+        currency: "USD",
         mandate_data: singleUseMandateData,
       },
       Response: {
@@ -446,7 +446,7 @@ export const connectorDetails = {
       Request: {
         amount: 0,
         setup_future_usage: "off_session",
-        currency: "EUR",
+        currency: "USD",
       },
       Response: {
         status: 200,
@@ -480,7 +480,7 @@ export const connectorDetails = {
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
-        currency: "EUR",
+        currency: "USD",
         setup_future_usage: "on_session",
         customer_acceptance: customerAcceptance,
       },
@@ -497,7 +497,7 @@ export const connectorDetails = {
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
-        currency: "EUR",
+        currency: "USD",
         setup_future_usage: "on_session",
         customer_acceptance: customerAcceptance,
       },
@@ -584,7 +584,7 @@ export const connectorDetails = {
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
-        currency: "EUR",
+        currency: "USD",
         mandate_data: null,
         customer_acceptance: customerAcceptance,
       },
@@ -601,7 +601,7 @@ export const connectorDetails = {
         payment_method_data: {
           card: successfulNo3DSCardDetails,
         },
-        currency: "EUR",
+        currency: "USD",
         mandate_data: null,
         customer_acceptance: customerAcceptance,
       },
@@ -618,7 +618,7 @@ export const connectorDetails = {
         payment_method_data: {
           card: successfulThreeDSTestCardDetails,
         },
-        currency: "EUR",
+        currency: "USD",
         mandate_data: null,
         authentication_type: "three_ds",
         customer_acceptance: customerAcceptance,
@@ -636,7 +636,7 @@ export const connectorDetails = {
         payment_method_data: {
           card: successfulThreeDSTestCardDetails,
         },
-        currency: "EUR",
+        currency: "USD",
         mandate_data: null,
         authentication_type: "three_ds",
         customer_acceptance: customerAcceptance,
@@ -650,7 +650,7 @@ export const connectorDetails = {
     },
     MITManualCapture: {
       Request: {
-        currency: "EUR",
+        currency: "USD",
       },
       Response: {
         status: 200,
@@ -661,7 +661,7 @@ export const connectorDetails = {
     },
     MITAutoCapture: {
       Request: {
-        currency: "EUR",
+        currency: "USD",
       },
       Response: {
         status: 200,
@@ -726,6 +726,37 @@ export const connectorDetails = {
               billing_details: {
                 email: "guest@juspay.in",
               },
+            },
+          },
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "failed",
+          error_code: "200.100.103",
+          error_message:
+            "invalid Request Message. The request contains structural errors",
+        },
+      },
+    },
+    Interac: {
+      Request: {
+        currency: "CAD",
+        payment_method: "bank_redirect",
+        payment_method_type: "interac",
+        capture_method: "automatic",
+        return_url: "https://venkatakarthik-maker/return",
+        payment_method_data: {
+          billing: {
+            email: "guest@juspay.in",
+            address: {
+              country: "CA",
+            },
+          },
+          bank_redirect: {
+            interac: {
+              billing_details: {},
             },
           },
         },
