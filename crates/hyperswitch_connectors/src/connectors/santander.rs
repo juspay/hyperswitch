@@ -830,19 +830,18 @@ impl ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsRespons
         let min_rec_amount = min_rec_amount_in_minor
             .map(|amount| convert_amount(self.amount_converter, amount, req.request.currency))
             .transpose()?;
-        let connector_router_data = SantanderRouterData::from((
-            fixed_rec_amount.unwrap_or_else(|| {
-                convert_amount(
-                    self.amount_converter,
-                    MinorUnit::zero(),
-                    req.request.currency,
-                )
-                .unwrap_or_default()
-            }),
-            req,
-        ));
-        let connector_req =
-            SantanderSetupMandateRequest::try_from((&connector_router_data, min_rec_amount))?;
+        let amount = convert_amount(
+            self.amount_converter,
+            req.request.minor_amount,
+            req.request.currency,
+        )?;
+
+        let connector_router_data = SantanderRouterData::from((amount, req));
+        let connector_req = SantanderSetupMandateRequest::try_from((
+            &connector_router_data,
+            fixed_rec_amount,
+            min_rec_amount,
+        ))?;
         Ok(RequestContent::Json(Box::new(connector_req)))
     }
 

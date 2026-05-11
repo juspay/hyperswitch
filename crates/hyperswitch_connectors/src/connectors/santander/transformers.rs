@@ -2259,6 +2259,7 @@ impl
             &RouterData<SetupMandate, SetupMandateRequestData, PaymentsResponseData>,
         >,
         Option<StringMajorUnit>,
+        Option<StringMajorUnit>,
     )> for SantanderSetupMandateRequest
 {
     type Error = error_stack::Report<errors::ConnectorError>;
@@ -2269,10 +2270,12 @@ impl
                 &RouterData<SetupMandate, SetupMandateRequestData, PaymentsResponseData>,
             >,
             Option<StringMajorUnit>,
+            Option<StringMajorUnit>,
         ),
     ) -> Result<Self, Self::Error> {
         let item = value.0.router_data;
-        let min_rec_amount = value.1;
+        let fixed_rec_amount = value.1;
+        let min_rec_amount = value.2;
         let pix_automatico_meta = item
             .request
             .feature_metadata
@@ -2359,10 +2362,20 @@ impl
             .as_ref()
             .and_then(|token| token.parse::<i64>().ok());
 
+        let current_date = time::OffsetDateTime::now_utc().date();
+
         let data_inicial = match mandate_details.as_ref().and_then(|md| md.start_date) {
-            Some(start_date) => format_as_date_only(Some(start_date))?,
-            None => time::OffsetDateTime::now_utc()
-                .date()
+            Some(start_date) => {
+                // Validate that start_date is not before current date
+                if start_date.date() < current_date {
+                    return Err(errors::ConnectorError::InvalidDataFormat {
+                        field_name: "mandate_details.start_date",
+                    }
+                    .into());
+                }
+                format_as_date_only(Some(start_date))?
+            }
+            None => current_date
                 .format(&time::macros::format_description!("[year]-[month]-[day]"))
                 .change_context(errors::ConnectorError::DateFormattingFailed)?,
         };
@@ -2370,7 +2383,16 @@ impl
         let data_final = mandate_details
             .as_ref()
             .and_then(|md| md.end_date)
-            .map(|end_date| format_as_date_only(Some(end_date)))
+            .map(|end_date| {
+                // Validate that end_date is not before current date
+                if end_date.date() < current_date {
+                    return Err(errors::ConnectorError::InvalidDataFormat {
+                        field_name: "mandate_details.end_date",
+                    }
+                    .into());
+                }
+                format_as_date_only(Some(end_date))
+            })
             .transpose()?;
 
         let periodicidade = mandate_details
@@ -2380,15 +2402,22 @@ impl
             .unwrap_or(Periodicidade::Semanal);
 
         // either of valor_rec or valor_minimo_recebedor can be passed at one time, not both
-        let valor = match (value.0.amount.clone(), min_rec_amount.as_ref()) {
-            (_, Some(_)) => Some(RecurrenceValue {
-                valor_rec: None,
-                valor_minimo_recebedor: min_rec_amount,
-            }),
-            (fixed_amount, None) => Some(RecurrenceValue {
+        let valor = match (fixed_rec_amount, min_rec_amount.as_ref()) {
+            (Some(fixed_amount), None) => Some(RecurrenceValue {
                 valor_rec: Some(fixed_amount),
                 valor_minimo_recebedor: None,
             }),
+            (None, Some(_)) => Some(RecurrenceValue {
+                valor_rec: None,
+                valor_minimo_recebedor: min_rec_amount,
+            }),
+            (None, None) => None,
+            (Some(_), Some(_)) => {
+                return Err(errors::ConnectorError::InvalidDataFormat {
+                    field_name: "mandate_details.fixed_recurring_amount & mandate_details.min_recurring_amount cannot be present at the same time",
+                }
+                .into());
+            }
         };
 
         let is_immediate = item
