@@ -6820,18 +6820,16 @@ impl transformers::ForeignTryFrom<&api_models::payouts::PayoutMethodData>
                             ),
                         ))?
                     }
-                    api_models::payouts::BankTransfer::PixKey(_) => Err(error_stack::Report::new(
-                        UnifiedConnectorServiceError::RequestEncodingFailedWithReason(
-                            "Pix Key bank transfer not supported for Unified Connector Service"
-                                .to_string(),
-                        ),
-                    ))?,
-                    api_models::payouts::BankTransfer::PixEmv(_) => Err(error_stack::Report::new(
-                        UnifiedConnectorServiceError::RequestEncodingFailedWithReason(
-                            "Pix EMV bank transfer not supported for Unified Connector Service"
-                                .to_string(),
-                        ),
-                    ))?,
+                    api_models::payouts::BankTransfer::PixKey(pix_key) => {
+                        payments_grpc::payout_method::PayoutMethodData::PixKey(
+                            payments_grpc::PixKeyBankTransferPayout::foreign_from(pix_key),
+                        )
+                    }
+                    api_models::payouts::BankTransfer::PixEmv(pix_emv) => {
+                        payments_grpc::payout_method::PayoutMethodData::PixEmv(
+                            payments_grpc::PixEmvBankTransferPayout::foreign_from(pix_emv),
+                        )
+                    }
                 }
             }
             api_models::payouts::PayoutMethodData::Wallet(wallet) => match wallet {
@@ -7121,12 +7119,12 @@ impl transformers::ForeignTryFrom<&api_models::payouts::BankTransfer>
             }
             api_models::payouts::BankTransfer::PixKey(pix_key) => {
                 Some(payments_grpc::source_bank_data::SourceBankData::PixKey(
-                    payments_grpc::PixKeyBankTransferPayout::foreign_try_from(pix_key)?,
+                    payments_grpc::PixKeyBankTransferPayout::foreign_from(pix_key),
                 ))
             }
             api_models::payouts::BankTransfer::PixEmv(pix_emv) => {
                 Some(payments_grpc::source_bank_data::SourceBankData::PixEmv(
-                    payments_grpc::PixEmvBankTransferPayout::foreign_try_from(pix_emv)?,
+                    payments_grpc::PixEmvBankTransferPayout::foreign_from(pix_emv),
                 ))
             }
             api_models::payouts::BankTransfer::Trustly(_) => Err(error_stack::Report::new(
@@ -7140,31 +7138,23 @@ impl transformers::ForeignTryFrom<&api_models::payouts::BankTransfer>
 }
 
 #[cfg(feature = "payouts")]
-impl transformers::ForeignTryFrom<&api_models::payouts::PixKeyBankTransfer>
+impl  ForeignFrom<&api_models::payouts::PixKeyBankTransfer>
     for payments_grpc::PixKeyBankTransferPayout
 {
-    type Error = error_stack::Report<UnifiedConnectorServiceError>;
-
-    fn foreign_try_from(
-        item: &api_models::payouts::PixKeyBankTransfer,
-    ) -> Result<Self, Self::Error> {
-        Ok(Self {
+    fn foreign_from(item: &api_models::payouts::PixKeyBankTransfer) -> Self {
+        Self {
             pix_key: Some(item.pix_key.clone()),
-        })
+        }
     }
 }
 
 #[cfg(feature = "payouts")]
-impl transformers::ForeignTryFrom<&api_models::payouts::PixEmvBankTransfer>
+impl ForeignFrom<&api_models::payouts::PixEmvBankTransfer>
     for payments_grpc::PixEmvBankTransferPayout
 {
-    type Error = error_stack::Report<UnifiedConnectorServiceError>;
-
-    fn foreign_try_from(
-        item: &api_models::payouts::PixEmvBankTransfer,
-    ) -> Result<Self, Self::Error> {
-        Ok(Self {
+    fn foreign_from(item: &api_models::payouts::PixEmvBankTransfer) -> Self {
+        Self {
             emv: Some(item.emv.clone()),
-        })
+        }
     }
 }
