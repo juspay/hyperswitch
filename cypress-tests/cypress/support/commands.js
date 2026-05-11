@@ -1274,6 +1274,12 @@ Cypress.Commands.add(
     const profileId = globalState.get(`${profilePrefix}Id`);
     const url = `${baseUrl}/account/${merchantId}/connectors`;
 
+    if (!profileId) {
+      throw new Error(
+        `createAuthenticationProcessorConnectorTest: profile_id is not available in globalState (key: ${profilePrefix}Id). Ensure the AccountCreate prereq has completed successfully.`
+      );
+    }
+
     createConnectorBody.connector_type = "authentication_processor";
     createConnectorBody.profile_id = profileId;
 

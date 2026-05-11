@@ -37,9 +37,24 @@ describe("Step-Up Auth payment flow test", () => {
   context(
     "Step-Up Auth setup - create auth processor and update profile",
     () => {
-      const shouldContinue = true;
+      let shouldContinue = true;
+
+      before(function () {
+        if (!globalState.get("profileId")) {
+          shouldContinue = false;
+        }
+      });
+
+      beforeEach(function () {
+        if (!shouldContinue) {
+          this.skip();
+        }
+      });
 
       afterEach("flush global state", () => {
+        if (!globalState.get("authProcessorConnectorId")) {
+          shouldContinue = false;
+        }
         cy.task("setGlobalState", globalState.data);
       });
 
@@ -54,13 +69,6 @@ describe("Step-Up Auth payment flow test", () => {
       });
 
       it("update business profile with auth connector", () => {
-        if (!shouldContinue) {
-          cy.task(
-            "cli_log",
-            "Skipping step: update business profile with auth connector"
-          );
-          return;
-        }
         cy.updateBusinessProfileAuthConnectorTest(
           fixtures.businessProfile.bpUpdateAuthConnector,
           globalState
@@ -73,6 +81,18 @@ describe("Step-Up Auth payment flow test", () => {
     "Step-Up Auth happy path - create, confirm, authenticate and retrieve",
     () => {
       let shouldContinue = true;
+
+      before(function () {
+        if (!globalState.get("authProcessorConnectorId")) {
+          shouldContinue = false;
+        }
+      });
+
+      beforeEach(function () {
+        if (!shouldContinue) {
+          this.skip();
+        }
+      });
 
       afterEach("flush global state", () => {
         cy.task("setGlobalState", globalState.data);
@@ -149,6 +169,18 @@ describe("Step-Up Auth payment flow test", () => {
 
   context("Step-Up Auth negative - 3ds auth without confirmed payment", () => {
     let shouldContinue = true;
+
+    before(function () {
+      if (!globalState.get("authProcessorConnectorId")) {
+        shouldContinue = false;
+      }
+    });
+
+    beforeEach(function () {
+      if (!shouldContinue) {
+        this.skip();
+      }
+    });
 
     afterEach("flush global state", () => {
       cy.task("setGlobalState", globalState.data);
