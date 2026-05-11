@@ -236,34 +236,6 @@ describe("Core flows", () => {
     });
   });
 
-  context("Delete calls", () => {
-    before("seed global state", () => {
-      cy.task("getGlobalState").then((state) => {
-        globalState = new State(state);
-      });
-    });
-
-    after("flush global state", () => {
-      cy.task("setGlobalState", globalState.data);
-    });
-
-    it("Customer delete call", () => {
-      cy.customerDeleteCall(globalState);
-    });
-
-    it("API key delete call", () => {
-      cy.apiKeyDeleteCall(globalState);
-    });
-
-    it("Connector delete call", () => {
-      cy.connectorDeleteCall(globalState);
-    });
-
-    it("Merchant delete call", () => {
-      cy.merchantDeleteCall(globalState);
-    });
-  });
-
   context("List Connector Feature Matrix", () => {
     before("seed global state", () => {
       cy.task("getGlobalState").then((state) => {
@@ -474,6 +446,34 @@ describe("Core flows", () => {
       }).then((response) => {
         expect(response.status).to.equal(404);
       });
+    });
+  });
+
+  context("Delete calls", () => {
+    before("seed global state", () => {
+      cy.task("getGlobalState").then((state) => {
+        globalState = new State(state);
+      });
+    });
+
+    after("flush global state", () => {
+      cy.task("setGlobalState", globalState.data);
+    });
+
+    it("Customer delete call", () => {
+      cy.customerDeleteCall(globalState);
+    });
+
+    it("API key delete call", () => {
+      cy.apiKeyDeleteCall(globalState);
+    });
+
+    it("Connector delete call", () => {
+      cy.connectorDeleteCall(globalState);
+    });
+
+    it("Merchant delete call", () => {
+      cy.merchantDeleteCall(globalState);
     });
   });
 });
