@@ -606,6 +606,7 @@ async fn process_webhook_business_logic(
                 connector,
                 request_details,
                 event_type,
+                webhook_resource_data,
             ))
             .await
             .attach_printable("Incoming webhook flow for disputes failed"),
@@ -2245,6 +2246,7 @@ async fn disputes_incoming_webhook_flow(
     connector: &ConnectorEnum,
     request_details: &IncomingWebhookRequestDetails<'_>,
     event_type: webhooks::IncomingWebhookEvent,
+    webhook_resource_data: Option<WebhookResourceData>,
 ) -> CustomResult<WebhookResponseTracker, errors::ApiErrorResponse> {
     metrics::INCOMING_DISPUTE_WEBHOOK_METRIC.add(1, &[]);
     if source_verified {

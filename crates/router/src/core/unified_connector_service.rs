@@ -10,21 +10,13 @@ use common_enums::{
 #[cfg(feature = "v2")]
 use common_utils::consts::BASE64_ENGINE;
 use common_utils::{
-    consts::{X_CONNECTOR_NAME, X_FLOW_NAME, X_REQUEST_ID, X_SUB_FLOW_NAME},
-    errors::CustomResult,
-    ext_traits::ValueExt,
-    id_type,
-    request::{Method, RequestBuilder, RequestContent},
-    ucs_types,
+    errors::CustomResult, ext_traits::ValueExt, id_type, request::Method, ucs_types,
 };
 use diesel_models::types::FeatureMetadata;
 use error_stack::ResultExt;
-use external_services::{
-    grpc_client::{
-        unified_connector_service::{ConnectorAuthMetadata, UnifiedConnectorServiceError},
-        LineageIds,
-    },
-    http_client,
+use external_services::grpc_client::{
+    unified_connector_service::{ConnectorAuthMetadata, UnifiedConnectorServiceError},
+    LineageIds,
 };
 use hyperswitch_connectors::utils::CardData;
 #[cfg(feature = "v2")]
@@ -62,7 +54,6 @@ use crate::{
         utils::get_flow_name,
     },
     events::connector_api_logs::ConnectorEvent,
-    headers::CONTENT_TYPE,
     routes::SessionState,
     types::{
         transformers::{ForeignFrom, ForeignTryFrom},
