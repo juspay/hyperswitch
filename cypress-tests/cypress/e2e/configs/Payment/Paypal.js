@@ -16,14 +16,6 @@ const successfulThreeDSTestCardDetails = {
   card_cvc: "123",
 };
 
-const failedNo3DSCardDetails = {
-  card_number: "4012888888881881",
-  card_exp_month: "01",
-  card_exp_year: "35",
-  card_holder_name: "CCREJECT-REFUSED",
-  card_cvc: "123",
-};
-
 const customerAcceptance = {
   acceptance_type: "offline",
   accepted_at: "1963-05-03T04:07:52.723Z",
@@ -102,9 +94,6 @@ export const connectorDetails = {
       },
     },
     "3DSManualCapture": {
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
       Request: {
         payment_method: "card",
         payment_method_data: {
@@ -122,9 +111,6 @@ export const connectorDetails = {
       },
     },
     "3DSAutoCapture": {
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
       Request: {
         payment_method: "card",
         payment_method_data: {

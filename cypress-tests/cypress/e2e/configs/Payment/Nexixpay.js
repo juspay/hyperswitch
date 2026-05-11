@@ -128,9 +128,6 @@ export const connectorDetails = {
       },
     },
     "3DSManualCapture": {
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
       Request: {
         payment_method: "card",
         billing: billingAddress,
@@ -148,9 +145,6 @@ export const connectorDetails = {
       },
     },
     "3DSAutoCapture": {
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
       Request: {
         payment_method: "card",
         billing: billingAddress,

@@ -7736,13 +7736,8 @@ Cypress.Commands.add("updateCardIssuer", (id, body, globalState) => {
 Cypress.Commands.add(
   "completeAuthorizeCallTest",
   (requestBody, data, globalState) => {
-    const {
-      Configs: configs = {},
-      Response: resData,
-      Request: reqData,
-    } = data || {};
+    const { Response: resData, Request: reqData } = data || {};
 
-    const configInfo = execConfig(validateConfig(configs));
     const payment_id = globalState.get("paymentID");
     const publishableKey = globalState.get("publishableKey");
 
