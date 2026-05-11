@@ -809,7 +809,6 @@ pub enum CallConnectorAction {
         event_type: Option<IncomingWebhookEventType>,
     },
     UCSConsumeResponse(Vec<u8>),
-    UCSHandleResponse(Vec<u8>),
     HandleResponseWithoutBuildRequest,
 }
 
