@@ -1600,36 +1600,18 @@ function threeDsRedirection(redirectionUrl, expectedUrl, connectorId) {
           break;
 
         case "nexixpay":
-          // NexixPay 3DS challenge: screenshot the ACS page first to capture actual elements,
-          // then try broad selectors including Italian labels (Conferma/Procedi) used by Nexi Group
-          cy.screenshot("nexixpay-3ds-acs-page");
-          cy.get("body", { timeout: constants.TIMEOUT }).then(($body) => {
-            const passwordInput = $body.find('input[type="password"]');
-            const textInput = $body.find('input[type="text"]');
-
-            if (passwordInput.length > 0) {
-              cy.get('input[type="password"]', { timeout: constants.TIMEOUT })
-                .should("be.visible")
-                .clear()
-                .type("1234");
-            } else if (textInput.length > 0) {
-              cy.get('input[type="text"]', { timeout: constants.TIMEOUT })
-                .first()
-                .should("be.visible")
-                .clear()
-                .type("1234");
-            }
-
-            cy.get(
-              "form button:first, form input[type=submit], button.btn, " +
-                "a.btn, a:contains(Conferma), a:contains(Submit), " +
-                "button:contains(Conferma), button:contains(Procedi)",
-              { timeout: constants.TIMEOUT }
-            )
-              .first()
-              .should("be.visible")
-              .click();
-          });
+          // NexixPay ACS shows an INTESA SANPAOLO | nexi branded loading spinner
+          // ("Operazione in corso. Attendi...") then transitions to a DemoBank challenge
+          // modal with two buttons: "AUTENTICAZIONE RIUSCITA" (success) and
+          // "AUTENTICAZIONE FALLITA" (failure). No OTP input exists on this page.
+          cy.contains("button", "AUTENTICAZIONE RIUSCITA", {
+            timeout: constants.TIMEOUT,
+          })
+            .should("be.visible")
+            .then(() => {
+              cy.screenshot("nexixpay-3ds-acs-page");
+            });
+          cy.contains("button", "AUTENTICAZIONE RIUSCITA").click();
           break;
 
         default:
