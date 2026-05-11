@@ -122,6 +122,7 @@ impl ApiModelToDieselModelConvertor<ApiFeatureMetadata> for FeatureMetadata {
             pix_additional_details,
             boleto_additional_details,
             pix_automatico_additional_details,
+            finix_additional_details,
             ..
         } = from;
 
@@ -137,6 +138,8 @@ impl ApiModelToDieselModelConvertor<ApiFeatureMetadata> for FeatureMetadata {
                 .map(diesel_models::types::BoletoAdditionalDetails::convert_from),
             pix_automatico_additional_details: pix_automatico_additional_details
                 .map(diesel_models::types::PixAutomaticoAdditionalDetails::convert_from),
+            finix_additional_details: finix_additional_details
+                .map(diesel_models::types::FinixAdditionalDetails::convert_from),
         }
     }
 
@@ -148,6 +151,7 @@ impl ApiModelToDieselModelConvertor<ApiFeatureMetadata> for FeatureMetadata {
             pix_additional_details,
             boleto_additional_details,
             pix_automatico_additional_details,
+            finix_additional_details,
             ..
         } = self;
 
@@ -159,6 +163,7 @@ impl ApiModelToDieselModelConvertor<ApiFeatureMetadata> for FeatureMetadata {
             boleto_additional_details: boleto_additional_details.map(|v| v.convert_back()),
             pix_automatico_additional_details: pix_automatico_additional_details
                 .map(|v| v.convert_back()),
+            finix_additional_details: finix_additional_details.map(|v| v.convert_back()),
         }
     }
 }
@@ -183,6 +188,22 @@ impl ApiModelToDieselModelConvertor<api_models::payments::BoletoAdditionalDetail
             payment_type: self.payment_type,
             covenant_code: self.covenant_code,
             pix_key: self.pix_key,
+        }
+    }
+}
+
+impl ApiModelToDieselModelConvertor<api_models::payments::FinixAdditionalDetails>
+    for diesel_models::types::FinixAdditionalDetails
+{
+    fn convert_from(from: api_models::payments::FinixAdditionalDetails) -> Self {
+        Self {
+            fraud_session_id: from.fraud_session_id,
+        }
+    }
+
+    fn convert_back(self) -> api_models::payments::FinixAdditionalDetails {
+        api_models::payments::FinixAdditionalDetails {
+            fraud_session_id: self.fraud_session_id,
         }
     }
 }
@@ -262,6 +283,7 @@ impl ApiModelToDieselModelConvertor<ApiFeatureMetadata> for FeatureMetadata {
             pix_additional_details,
             boleto_additional_details,
             pix_automatico_additional_details,
+            finix_additional_details,
         } = from;
 
         Self {
@@ -277,6 +299,8 @@ impl ApiModelToDieselModelConvertor<ApiFeatureMetadata> for FeatureMetadata {
                 .map(diesel_models::types::BoletoAdditionalDetails::convert_from),
             pix_automatico_additional_details: pix_automatico_additional_details
                 .map(diesel_models::types::PixAutomaticoAdditionalDetails::convert_from),
+            finix_additional_details: finix_additional_details
+                .map(diesel_models::types::FinixAdditionalDetails::convert_from),
         }
     }
 
@@ -289,6 +313,7 @@ impl ApiModelToDieselModelConvertor<ApiFeatureMetadata> for FeatureMetadata {
             pix_additional_details,
             boleto_additional_details,
             pix_automatico_additional_details,
+            finix_additional_details,
         } = self;
 
         ApiFeatureMetadata {
@@ -302,6 +327,7 @@ impl ApiModelToDieselModelConvertor<ApiFeatureMetadata> for FeatureMetadata {
             boleto_additional_details: boleto_additional_details.map(|v| v.convert_back()),
             pix_automatico_additional_details: pix_automatico_additional_details
                 .map(|v| v.convert_back()),
+            finix_additional_details: finix_additional_details.map(|v| v.convert_back()),
         }
     }
 }

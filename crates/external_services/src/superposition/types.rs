@@ -2,11 +2,39 @@
 
 use std::{collections::HashMap, sync::Arc};
 
+use aws_smithy_types::Document;
 use common_utils::{errors::CustomResult, fp_utils::when};
 use error_stack::ResultExt;
 use hyperswitch_masking::{ExposeInterface, Secret};
 
 use super::SuperpositionClient;
+
+/// Trait for converting Rust types to Superposition Document for write operations
+pub trait ToDocument {
+    /// Convert the value to a Document for storage in Superposition
+    fn to_document(&self) -> Document;
+}
+
+impl ToDocument for String {
+    fn to_document(&self) -> Document {
+        Document::String(self.clone())
+    }
+}
+
+impl ToDocument for bool {
+    fn to_document(&self) -> Document {
+        Document::Bool(*self)
+    }
+}
+
+impl ToDocument for i64 {
+    fn to_document(&self) -> Document {
+        match *self {
+            n if n >= 0 => Document::Number(aws_smithy_types::Number::PosInt(n.unsigned_abs())),
+            n => Document::Number(aws_smithy_types::Number::NegInt(n)),
+        }
+    }
+}
 
 /// Wrapper type for JSON values from Superposition
 #[derive(Debug, Clone)]
@@ -42,8 +70,6 @@ impl TryFrom<open_feature::StructValue> for JsonValue {
 #[derive(Debug, Clone, serde::Deserialize)]
 #[serde(default)]
 pub struct SuperpositionClientConfig {
-    /// Whether Superposition is enabled
-    pub enabled: bool,
     /// Superposition API endpoint
     pub endpoint: String,
     /// Authentication token for Superposition
@@ -64,7 +90,6 @@ pub struct SuperpositionClientConfig {
 impl Default for SuperpositionClientConfig {
     fn default() -> Self {
         Self {
-            enabled: false,
             endpoint: String::new(),
             token: Secret::new(String::new()),
             org_id: String::new(),
@@ -101,11 +126,12 @@ pub struct ConfigContext {
 }
 
 impl SuperpositionClientConfig {
-    /// Create and return a Superposition client
+    /// Create and return a Superposition client.
     pub async fn get_superposition_client(
         &self,
+        service_name: &'static str,
     ) -> CustomResult<Arc<SuperpositionClient>, SuperpositionError> {
-        let client = SuperpositionClient::new(self.clone())
+        let client = SuperpositionClient::new(self.clone(), service_name)
             .await
             .change_context(SuperpositionError::ClientInitError(
                 "Failed to create Superposition client".to_string(),
@@ -115,10 +141,6 @@ impl SuperpositionClientConfig {
 
     /// Validate the Superposition configuration
     pub fn validate(&self) -> Result<(), SuperpositionError> {
-        if !self.enabled {
-            return Ok(());
-        }
-
         when(self.endpoint.is_empty(), || {
             Err(SuperpositionError::InvalidConfiguration(
                 "Superposition endpoint cannot be empty".to_string(),
@@ -185,13 +207,9 @@ impl hyperswitch_interfaces::secrets_interface::secret_handler::SecretsHandler
         hyperswitch_interfaces::secrets_interface::SecretsManagementError,
     > {
         let superposition_config = value.get_inner();
-        let token = if superposition_config.enabled {
-            secret_management_client
-                .get_secret(superposition_config.token.clone())
-                .await?
-        } else {
-            superposition_config.token.clone()
-        };
+        let token = secret_management_client
+            .get_secret(superposition_config.token.clone())
+            .await?;
 
         Ok(value.transition_state(|superposition_config| Self {
             token,
