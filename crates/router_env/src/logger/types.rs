@@ -321,6 +321,12 @@ pub enum Flow {
     ListBlocklist,
     /// Toggle blocklist for merchant
     ToggleBlocklistGuard,
+    /// Bulk upload blocklist entries via CSV
+    BatchBlocklistUpload,
+    /// Get status of a batch blocklist upload job
+    GetBatchBlocklistJobStatus,
+    /// List batch blocklist upload jobs for a merchant
+    ListBatchBlocklistJobs,
     /// Incoming Webhook Receive
     IncomingWebhookReceive,
     /// Recovery incoming webhook receive
