@@ -8160,11 +8160,39 @@ pub fn update_additional_payment_data_with_connector_response_pm_data(
 pub async fn get_payment_method_details_from_payment_token(
     state: &SessionState,
     payment_attempt: &PaymentAttempt,
-    payment_intent: &PaymentIntent,
-    key_store: &domain::MerchantKeyStore,
-    storage_scheme: enums::MerchantStorageScheme,
+    _payment_intent: &PaymentIntent,
+    _key_store: &domain::MerchantKeyStore,
+    _storage_scheme: enums::MerchantStorageScheme,
 ) -> RouterResult<Option<(domain::PaymentMethodData, enums::PaymentMethod)>> {
-    todo!()
+    let token = match payment_attempt.payment_token.clone() {
+        Some(t) => t,
+        None => return Ok(None),
+    };
+
+    let token_data =
+        payment_methods_handler::ParentPaymentMethodToken::create_key_for_token(&token)
+            .get_data_for_token(state)
+            .await?;
+
+    match token_data {
+        storage::PaymentTokenData::TemporaryCardToken(card_token_data) => {
+            let card_token = domain::CardToken {
+                card_cvc: card_token_data.card_cvc,
+                card_holder_name: card_token_data.card_holder_name,
+            };
+            Ok(Some((
+                domain::PaymentMethodData::CardToken(card_token),
+                enums::PaymentMethod::Card,
+            )))
+        }
+        _ => {
+            router_env::logger::warn!(
+                "Unexpected payment token data type for v2 payment confirm token: {:?}",
+                token
+            );
+            Ok(None)
+        }
+    }
 }
 
 #[cfg(feature = "v1")]
