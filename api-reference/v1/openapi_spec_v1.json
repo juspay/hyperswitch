@@ -34228,6 +34228,14 @@
             ],
             "nullable": true
           },
+          "source_bank_data": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/BankTransfer"
+              }
+            ],
+            "nullable": true
+          },
           "billing": {
             "allOf": [
               {
@@ -34530,6 +34538,14 @@
             "nullable": true
           },
           "payout_method_data": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PayoutMethodDataResponse"
+              }
+            ],
+            "nullable": true
+          },
+          "source_bank_data": {
             "allOf": [
               {
                 "$ref": "#/components/schemas/PayoutMethodDataResponse"
@@ -35275,6 +35291,14 @@
             ],
             "nullable": true
           },
+          "source_bank_data": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/BankTransfer"
+              }
+            ],
+            "nullable": true
+          },
           "billing": {
             "allOf": [
               {
@@ -35509,6 +35533,14 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/PayoutMethodData"
+              }
+            ],
+            "nullable": true
+          },
+          "source_bank_data": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/BankTransfer"
               }
             ],
             "nullable": true
