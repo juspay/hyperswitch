@@ -2034,6 +2034,10 @@ impl transformers::ForeignTryFrom<&RouterData<Session, PaymentsSessionData, Paym
             domain_context: Some(
                 payments_grpc::merchant_authentication_service_create_client_authentication_token_request::DomainContext::Payment(payment_sdk_session_context),
             ),
+            // Permissions are not passed from Hyperswitch to UCS.
+            // Connector-specific permissions (e.g., "PMT_POST_Create_Single" for GlobalPay)
+            // are handled by the connector's JavaScript transformer with a default fallback.
+            permissions: None
         })
     }
 }
@@ -5821,6 +5825,11 @@ impl transformers::ForeignTryFrom<&RouterData<RSync, RefundsData, RefundsRespons
             test_mode: router_data.test_mode,
             payment_method_type,
             connector_feature_data: None,
+            connector_refund_id: router_data.request.connector_refund_id.clone().ok_or(
+                error_stack::Report::new(UnifiedConnectorServiceError::MissingRequiredField {
+                    field_name: "connector_refund_id",
+                }),
+            )?,
         })
     }
 }
