@@ -7732,3 +7732,170 @@ Cypress.Commands.add("updateCardIssuer", (id, body, globalState) => {
     });
   });
 });
+
+// ============================================
+// OIDC Authentication Commands
+// ============================================
+
+/**
+ * OIDC Discovery Document call - GET /.well-known/openid-configuration
+ * Validates that the discovery document contains required OIDC fields
+ * Stores discovered endpoints in globalState for subsequent calls
+ */
+Cypress.Commands.add("oidcDiscoveryCallTest", (globalState) => {
+  const baseUrl = globalState.get("baseUrl");
+
+  cy.request({
+    method: "GET",
+    url: `${baseUrl}/.well-known/openid-configuration`,
+    headers: {
+      Accept: "application/json",
+    },
+    failOnStatusCode: false,
+  }).then((response) => {
+    logRequestId(response.headers["x-request-id"]);
+
+    cy.wrap(response).then(() => {
+      if (response.status === 404) {
+        cy.task("cli_log", "OIDC feature not enabled - skipping test");
+        return;
+      }
+
+      expect(response.status).to.eq(200);
+      expect(response.body).to.have.property("issuer");
+      expect(response.body).to.have.property("authorization_endpoint");
+      expect(response.body).to.have.property("token_endpoint");
+      expect(response.body).to.have.property("jwks_uri");
+
+      globalState.set(
+        "oidcAuthorizationEndpoint",
+        response.body.authorization_endpoint
+      );
+      globalState.set("oidcTokenEndpoint", response.body.token_endpoint);
+      globalState.set("oidcJwksUri", response.body.jwks_uri);
+
+      cy.task(
+        "cli_log",
+        `Authorization endpoint: ${response.body.authorization_endpoint}`
+      );
+      cy.task("cli_log", `Token endpoint: ${response.body.token_endpoint}`);
+      cy.task("cli_log", `JWKS URI: ${response.body.jwks_uri}`);
+    });
+  });
+});
+
+/**
+ * OIDC Route Check call - Generic route validator for OIDC endpoints
+ * Checks if a specific OIDC route responds with an expected status code
+ * @param {string} path - The path to check (e.g., "/oauth2/authorize" or "/oidc/authorize")
+ * @param {number|number[]} expectedStatuses - Single status or array of acceptable statuses
+ */
+Cypress.Commands.add(
+  "oidcRouteCheckCallTest",
+  (globalState, path, expectedStatuses) => {
+    const baseUrl = globalState.get("baseUrl");
+    const url = path.startsWith("http") ? path : `${baseUrl}${path}`;
+
+    cy.request({
+      method: "GET",
+      url: url,
+      headers: {
+        Accept: "application/json",
+      },
+      failOnStatusCode: false,
+    }).then((response) => {
+      logRequestId(response.headers["x-request-id"]);
+
+      cy.wrap(response).then(() => {
+        if (Array.isArray(expectedStatuses)) {
+          expect(response.status).to.be.oneOf(expectedStatuses);
+        } else {
+          expect(response.status).to.eq(expectedStatuses);
+        }
+
+        cy.task(
+          "cli_log",
+          `${path} responded with status ${response.status}`
+        );
+      });
+    });
+  }
+);
+
+/**
+ * OIDC JWKS Endpoint call - GET /oauth2/jwks
+ * Fetches the JSON Web Key Set for OIDC token validation
+ * Handles cases where OIDC is not enabled or keys are not configured
+ */
+Cypress.Commands.add("oidcJwksCallTest", (globalState) => {
+  const baseUrl = globalState.get("baseUrl");
+
+  cy.request({
+    method: "GET",
+    url: `${baseUrl}/oauth2/jwks`,
+    headers: {
+      Accept: "application/json",
+    },
+    failOnStatusCode: false,
+  }).then((response) => {
+    logRequestId(response.headers["x-request-id"]);
+
+    cy.wrap(response).then(() => {
+      if (response.status === 404) {
+        cy.task("cli_log", "OIDC feature not enabled - skipping test");
+        return;
+      }
+
+      // 500 OI_05 = OIDC signing keys not configured (expected in sandbox/test environments)
+      if (
+        response.status === 500 &&
+        response.body?.error?.code === "OI_05"
+      ) {
+        cy.task(
+          "cli_log",
+          "OIDC signing keys not configured - JWKS unavailable (expected in sandbox)"
+        );
+        return;
+      }
+
+      expect(response.status).to.eq(200);
+      expect(response.body).to.have.property("keys");
+      expect(response.body.keys).to.be.an("array");
+    });
+  });
+});
+
+/**
+ * OIDC Token Endpoint Probe call - POST /oauth2/token
+ * Probes the token endpoint to verify it exists and responds appropriately
+ * Does not perform actual token exchange (requires valid auth code)
+ */
+Cypress.Commands.add("oidcTokenEndpointProbeCallTest", (globalState) => {
+  const baseUrl = globalState.get("baseUrl");
+
+  cy.request({
+    method: "POST",
+    url: `${baseUrl}/oauth2/token`,
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/x-www-form-urlencoded",
+    },
+    body: "grant_type=authorization_code&code=invalid&redirect_uri=http://localhost/callback",
+    failOnStatusCode: false,
+  }).then((response) => {
+    logRequestId(response.headers["x-request-id"]);
+
+    cy.wrap(response).then(() => {
+      if (response.status === 404) {
+        cy.task("cli_log", "OIDC feature not enabled - skipping test");
+        return;
+      }
+
+      expect(response.status).to.be.oneOf([200, 400, 401, 403]);
+      cy.task(
+        "cli_log",
+        `/oauth2/token responded with status ${response.status} (route exists)`
+      );
+    });
+  });
+});
