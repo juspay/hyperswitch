@@ -291,11 +291,18 @@ impl ConnectorIntegration<SetupMandate, SetupMandateRequestData, PaymentsRespons
 
                 let xml_config = XmlConfig {
                     xml_version: worldpayxml::worldpayxml_constants::XML_VERSION.to_string(),
-                    xml_encoding: Some(worldpayxml::worldpayxml_constants::XML_ENCODING.to_string()),
+                    xml_encoding: Some(
+                        worldpayxml::worldpayxml_constants::XML_ENCODING.to_string(),
+                    ),
                     xml_standalone: None,
-                    xml_doc_type: Some(worldpayxml::worldpayxml_constants::WORLDPAYXML_DOC_TYPE.to_string()),
+                    xml_doc_type: Some(
+                        worldpayxml::worldpayxml_constants::WORLDPAYXML_DOC_TYPE.to_string(),
+                    ),
                 };
-                Ok(RequestContent::Xml(Box::new(connector_req_object), Some(xml_config)))
+                Ok(RequestContent::Xml(
+                    Box::new(connector_req_object),
+                    Some(xml_config),
+                ))
             }
             _ => Err(errors::ConnectorError::FlowNotSupported {
                 flow: "Setup Mandate flow is not implemented for this payment method".to_string(),
@@ -399,9 +406,14 @@ impl ConnectorIntegration<Authorize, PaymentsAuthorizeData, PaymentsResponseData
             xml_version: worldpayxml::worldpayxml_constants::XML_VERSION.to_string(),
             xml_encoding: Some(worldpayxml::worldpayxml_constants::XML_ENCODING.to_string()),
             xml_standalone: None,
-            xml_doc_type: Some(worldpayxml::worldpayxml_constants::WORLDPAYXML_DOC_TYPE.to_string()),
+            xml_doc_type: Some(
+                worldpayxml::worldpayxml_constants::WORLDPAYXML_DOC_TYPE.to_string(),
+            ),
         };
-        Ok(RequestContent::Xml(Box::new(connector_req_object), Some(xml_config)))
+        Ok(RequestContent::Xml(
+            Box::new(connector_req_object),
+            Some(xml_config),
+        ))
     }
 
     fn build_request(
@@ -489,9 +501,14 @@ impl ConnectorIntegration<PSync, PaymentsSyncData, PaymentsResponseData> for Wor
             xml_version: worldpayxml::worldpayxml_constants::XML_VERSION.to_string(),
             xml_encoding: Some(worldpayxml::worldpayxml_constants::XML_ENCODING.to_string()),
             xml_standalone: None,
-            xml_doc_type: Some(worldpayxml::worldpayxml_constants::WORLDPAYXML_DOC_TYPE.to_string()),
+            xml_doc_type: Some(
+                worldpayxml::worldpayxml_constants::WORLDPAYXML_DOC_TYPE.to_string(),
+            ),
         };
-        Ok(RequestContent::Xml(Box::new(connector_req_object), Some(xml_config)))
+        Ok(RequestContent::Xml(
+            Box::new(connector_req_object),
+            Some(xml_config),
+        ))
     }
 
     fn build_request(
@@ -587,9 +604,14 @@ impl ConnectorIntegration<Capture, PaymentsCaptureData, PaymentsResponseData> fo
             xml_version: worldpayxml::worldpayxml_constants::XML_VERSION.to_string(),
             xml_encoding: Some(worldpayxml::worldpayxml_constants::XML_ENCODING.to_string()),
             xml_standalone: None,
-            xml_doc_type: Some(worldpayxml::worldpayxml_constants::WORLDPAYXML_DOC_TYPE.to_string()),
+            xml_doc_type: Some(
+                worldpayxml::worldpayxml_constants::WORLDPAYXML_DOC_TYPE.to_string(),
+            ),
         };
-        Ok(RequestContent::Xml(Box::new(connector_req_object), Some(xml_config)))
+        Ok(RequestContent::Xml(
+            Box::new(connector_req_object),
+            Some(xml_config),
+        ))
     }
 
     fn build_request(
@@ -672,9 +694,14 @@ impl ConnectorIntegration<Void, PaymentsCancelData, PaymentsResponseData> for Wo
             xml_version: worldpayxml::worldpayxml_constants::XML_VERSION.to_string(),
             xml_encoding: Some(worldpayxml::worldpayxml_constants::XML_ENCODING.to_string()),
             xml_standalone: None,
-            xml_doc_type: Some(worldpayxml::worldpayxml_constants::WORLDPAYXML_DOC_TYPE.to_string()),
+            xml_doc_type: Some(
+                worldpayxml::worldpayxml_constants::WORLDPAYXML_DOC_TYPE.to_string(),
+            ),
         };
-        Ok(RequestContent::Xml(Box::new(connector_req_object), Some(xml_config)))
+        Ok(RequestContent::Xml(
+            Box::new(connector_req_object),
+            Some(xml_config),
+        ))
     }
 
     fn build_request(
@@ -759,9 +786,14 @@ impl ConnectorIntegration<Execute, RefundsData, RefundsResponseData> for Worldpa
             xml_version: worldpayxml::worldpayxml_constants::XML_VERSION.to_string(),
             xml_encoding: Some(worldpayxml::worldpayxml_constants::XML_ENCODING.to_string()),
             xml_standalone: None,
-            xml_doc_type: Some(worldpayxml::worldpayxml_constants::WORLDPAYXML_DOC_TYPE.to_string()),
+            xml_doc_type: Some(
+                worldpayxml::worldpayxml_constants::WORLDPAYXML_DOC_TYPE.to_string(),
+            ),
         };
-        Ok(RequestContent::Xml(Box::new(connector_req_object), Some(xml_config)))
+        Ok(RequestContent::Xml(
+            Box::new(connector_req_object),
+            Some(xml_config),
+        ))
     }
 
     fn build_request(
@@ -843,9 +875,14 @@ impl ConnectorIntegration<RSync, RefundsData, RefundsResponseData> for Worldpayx
             xml_version: worldpayxml::worldpayxml_constants::XML_VERSION.to_string(),
             xml_encoding: Some(worldpayxml::worldpayxml_constants::XML_ENCODING.to_string()),
             xml_standalone: None,
-            xml_doc_type: Some(worldpayxml::worldpayxml_constants::WORLDPAYXML_DOC_TYPE.to_string()),
+            xml_doc_type: Some(
+                worldpayxml::worldpayxml_constants::WORLDPAYXML_DOC_TYPE.to_string(),
+            ),
         };
-        Ok(RequestContent::Xml(Box::new(connector_req_object), Some(xml_config)))
+        Ok(RequestContent::Xml(
+            Box::new(connector_req_object),
+            Some(xml_config),
+        ))
     }
 
     fn build_request(
@@ -966,9 +1003,14 @@ impl ConnectorIntegration<CompleteAuthorize, CompleteAuthorizeData, PaymentsResp
             xml_version: worldpayxml::worldpayxml_constants::XML_VERSION.to_string(),
             xml_encoding: Some(worldpayxml::worldpayxml_constants::XML_ENCODING.to_string()),
             xml_standalone: None,
-            xml_doc_type: Some(worldpayxml::worldpayxml_constants::WORLDPAYXML_DOC_TYPE.to_string()),
+            xml_doc_type: Some(
+                worldpayxml::worldpayxml_constants::WORLDPAYXML_DOC_TYPE.to_string(),
+            ),
         };
-        Ok(RequestContent::Xml(Box::new(connector_req_object), Some(xml_config)))
+        Ok(RequestContent::Xml(
+            Box::new(connector_req_object),
+            Some(xml_config),
+        ))
     }
 
     fn build_request(
@@ -1074,9 +1116,14 @@ impl ConnectorIntegration<PoFulfill, PayoutsData, PayoutsResponseData> for World
             xml_version: worldpayxml::worldpayxml_constants::XML_VERSION.to_string(),
             xml_encoding: Some(worldpayxml::worldpayxml_constants::XML_ENCODING.to_string()),
             xml_standalone: None,
-            xml_doc_type: Some(worldpayxml::worldpayxml_constants::WORLDPAYXML_DOC_TYPE.to_string()),
+            xml_doc_type: Some(
+                worldpayxml::worldpayxml_constants::WORLDPAYXML_DOC_TYPE.to_string(),
+            ),
         };
-        Ok(RequestContent::Xml(Box::new(connector_req_object), Some(xml_config)))
+        Ok(RequestContent::Xml(
+            Box::new(connector_req_object),
+            Some(xml_config),
+        ))
     }
 
     fn build_request(
@@ -1167,9 +1214,14 @@ impl ConnectorIntegration<PoSync, PayoutsData, PayoutsResponseData> for Worldpay
             xml_version: worldpayxml::worldpayxml_constants::XML_VERSION.to_string(),
             xml_encoding: Some(worldpayxml::worldpayxml_constants::XML_ENCODING.to_string()),
             xml_standalone: None,
-            xml_doc_type: Some(worldpayxml::worldpayxml_constants::WORLDPAYXML_DOC_TYPE.to_string()),
+            xml_doc_type: Some(
+                worldpayxml::worldpayxml_constants::WORLDPAYXML_DOC_TYPE.to_string(),
+            ),
         };
-        Ok(RequestContent::Xml(Box::new(connector_req_object), Some(xml_config)))
+        Ok(RequestContent::Xml(
+            Box::new(connector_req_object),
+            Some(xml_config),
+        ))
     }
 
     fn build_request(
@@ -1259,9 +1311,14 @@ impl ConnectorIntegration<PoCancel, PayoutsData, PayoutsResponseData> for Worldp
             xml_version: worldpayxml::worldpayxml_constants::XML_VERSION.to_string(),
             xml_encoding: Some(worldpayxml::worldpayxml_constants::XML_ENCODING.to_string()),
             xml_standalone: None,
-            xml_doc_type: Some(worldpayxml::worldpayxml_constants::WORLDPAYXML_DOC_TYPE.to_string()),
+            xml_doc_type: Some(
+                worldpayxml::worldpayxml_constants::WORLDPAYXML_DOC_TYPE.to_string(),
+            ),
         };
-        Ok(RequestContent::Xml(Box::new(connector_req_object), Some(xml_config)))
+        Ok(RequestContent::Xml(
+            Box::new(connector_req_object),
+            Some(xml_config),
+        ))
     }
 
     fn build_request(
