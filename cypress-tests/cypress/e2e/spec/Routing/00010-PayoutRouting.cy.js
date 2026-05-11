@@ -33,7 +33,6 @@ describe("Payout Priority Routing Test", () => {
   });
 
   context("Payout Priority Routing - default connector", () => {
-
     before("setup payout context", () => {
       shouldContinue = true;
       // List MCAs once at the start of context to populate connector mappings
@@ -57,30 +56,35 @@ describe("Payout Priority Routing Test", () => {
         routing_data,
         globalState
       );
-      if (shouldContinue) shouldContinue = routingUtils.should_continue_further(data);
+      if (shouldContinue)
+        shouldContinue = routingUtils.should_continue_further(data);
     });
 
     it("retrieve-payout-routing-config-test", () => {
       const data = routingUtils.getConnectorDetails("common")["payoutRouting"];
 
       cy.retrieveRoutingConfig(data, globalState);
-      if (shouldContinue) shouldContinue = routingUtils.should_continue_further(data);
+      if (shouldContinue)
+        shouldContinue = routingUtils.should_continue_further(data);
     });
 
     it("activate-payout-routing-config-test", () => {
       const data = routingUtils.getConnectorDetails("common")["payoutRouting"];
 
       cy.activateRoutingConfig(data, globalState);
-      if (shouldContinue) shouldContinue = routingUtils.should_continue_further(data);
+      if (shouldContinue)
+        shouldContinue = routingUtils.should_continue_further(data);
     });
 
     it("payout-routing-test", () => {
-      const payoutData = payoutUtils.getConnectorDetails(globalState.get("connectorId"))[
-        "bank_transfer_pm"
-      ]["sepa_bank_transfer"]["Fulfill"];
+      const payoutData = payoutUtils.getConnectorDetails(
+        globalState.get("connectorId")
+      )["bank_transfer_pm"]["sepa_bank_transfer"]["Fulfill"];
 
       if (!payoutUtils.should_continue_further(payoutData)) {
-        cy.log("Skipping payout creation for " + globalState.get("connectorId"));
+        cy.log(
+          "Skipping payout creation for " + globalState.get("connectorId")
+        );
         shouldContinue = false;
         return;
       }
@@ -93,7 +97,8 @@ describe("Payout Priority Routing Test", () => {
         globalState
       );
 
-      if (shouldContinue) shouldContinue = payoutUtils.should_continue_further(payoutData);
+      if (shouldContinue)
+        shouldContinue = payoutUtils.should_continue_further(payoutData);
     });
 
     it("retrieve-payout-call-test", () => {
@@ -120,42 +125,43 @@ describe("Payout Priority Routing Test", () => {
           merchant_connector_id: globalState.get("currentConnectorMcaId"),
         },
       ];
-      
+
       // Modify the body to use a different name for this alternate config
-      const altBody = JSON.parse(JSON.stringify(fixtures.payoutRoutingConfigBody));
-      altBody.name = `${altBody.name}_alternate`;
-      
-      cy.addRoutingConfig(
-        altBody,
-        data,
-        "priority",
-        routing_data,
-        globalState
+      const altBody = JSON.parse(
+        JSON.stringify(fixtures.payoutRoutingConfigBody)
       );
-      if (shouldContinue) shouldContinue = routingUtils.should_continue_further(data);
+      altBody.name = `${altBody.name}_alternate`;
+
+      cy.addRoutingConfig(altBody, data, "priority", routing_data, globalState);
+      if (shouldContinue)
+        shouldContinue = routingUtils.should_continue_further(data);
     });
 
     it("retrieve-payout-routing-config-alternate-test", () => {
       const data = routingUtils.getConnectorDetails("common")["payoutRouting"];
 
       cy.retrieveRoutingConfig(data, globalState);
-      if (shouldContinue) shouldContinue = routingUtils.should_continue_further(data);
+      if (shouldContinue)
+        shouldContinue = routingUtils.should_continue_further(data);
     });
 
     it("activate-payout-routing-config-alternate-test", () => {
       const data = routingUtils.getConnectorDetails("common")["payoutRouting"];
 
       cy.activateRoutingConfig(data, globalState);
-      if (shouldContinue) shouldContinue = routingUtils.should_continue_further(data);
+      if (shouldContinue)
+        shouldContinue = routingUtils.should_continue_further(data);
     });
 
     it("payout-routing-alternate-test", () => {
-      const payoutData = payoutUtils.getConnectorDetails(globalState.get("connectorId"))[
-        "bank_transfer_pm"
-      ]["sepa_bank_transfer"]["Fulfill"];
+      const payoutData = payoutUtils.getConnectorDetails(
+        globalState.get("connectorId")
+      )["bank_transfer_pm"]["sepa_bank_transfer"]["Fulfill"];
 
       if (!payoutUtils.should_continue_further(payoutData)) {
-        cy.log("Skipping payout creation for " + globalState.get("connectorId"));
+        cy.log(
+          "Skipping payout creation for " + globalState.get("connectorId")
+        );
         shouldContinue = false;
         return;
       }
@@ -168,7 +174,8 @@ describe("Payout Priority Routing Test", () => {
         globalState
       );
 
-      if (shouldContinue) shouldContinue = payoutUtils.should_continue_further(payoutData);
+      if (shouldContinue)
+        shouldContinue = payoutUtils.should_continue_further(payoutData);
     });
 
     it("retrieve-payout-alternate-call-test", () => {

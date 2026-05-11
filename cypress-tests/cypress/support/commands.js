@@ -5115,7 +5115,10 @@ Cypress.Commands.add("ListMcaByMid", (globalState) => {
       response.body.forEach((connector) => {
         const connectorName = connector.connector_name;
         if (connectorName) {
-          globalState.set(`${connectorName}McaId`, connector.merchant_connector_id);
+          globalState.set(
+            `${connectorName}McaId`,
+            connector.merchant_connector_id
+          );
         }
         if (connector.connector_type === "payout_processor" && !payoutMcaId) {
           payoutMcaId = connector.merchant_connector_id;
