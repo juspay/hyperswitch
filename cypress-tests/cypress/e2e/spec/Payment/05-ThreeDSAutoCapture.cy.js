@@ -11,11 +11,11 @@ describe("Card - ThreeDS payment flow test", () => {
     });
   });
 
-  afterEach("flush global state", () => {
-    cy.task("setGlobalState", globalState.data);
-  });
-
   context("Card-ThreeDS payment flow test Create and Confirm", () => {
+    afterEach("flush global state", () => {
+      cy.task("setGlobalState", globalState.data);
+    });
+
     it("create payment intent -> payment methods call -> confirm payment intent -> handle redirection", () => {
       let shouldContinue = true;
 
@@ -73,6 +73,66 @@ describe("Card - ThreeDS payment flow test", () => {
         }
         const expected_redirection = fixtures.confirmBody["return_url"];
         cy.handleRedirection(globalState, expected_redirection);
+      });
+    });
+  });
+
+  context("Card-ThreeDS Challenge payment flow - Auto Capture", () => {
+    let shouldContinue = true;
+
+    beforeEach(function () {
+      if (!shouldContinue) {
+        this.skip();
+      }
+    });
+
+    afterEach("flush global state", () => {
+      cy.task("setGlobalState", globalState.data);
+    });
+
+    it("create-payment-intent-test", () => {
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "card_pm"
+      ]["PaymentIntent"];
+
+      cy.createPaymentIntentTest(
+        fixtures.createPaymentBody,
+        data,
+        "three_ds",
+        "automatic",
+        globalState
+      );
+
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
+    });
+
+    it("payment-methods-call-test", () => {
+      cy.paymentMethodsCallTest(globalState);
+    });
+
+    it("confirm-3ds-payment-test", () => {
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "card_pm"
+      ]["3DSAutoCapture"];
+
+      cy.confirmCallTest(fixtures.confirmBody, data, true, globalState);
+
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
+    });
+
+    it("handle-3ds-challenge-redirection-test", () => {
+      const expected_redirection = fixtures.confirmBody["return_url"];
+      cy.handleRedirection(globalState, expected_redirection);
+    });
+
+    it("retrieve-payment-verify-succeeded-test", () => {
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "card_pm"
+      ]["3DSChallengeAutoCapture"];
+
+      cy.retrievePaymentCallTest({
+        globalState,
+        expectedIntentStatus: data.Response.body.status,
       });
     });
   });

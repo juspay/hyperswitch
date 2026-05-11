@@ -1589,6 +1589,65 @@ function threeDsRedirection(redirectionUrl, expectedUrl, connectorId) {
             .should("be.visible")
             .click();
           break;
+
+        case "nexixpay":
+          // NexixPay 3DS challenge: enter OTP on the ACS simulator page and submit
+          cy.get("body", { timeout: constants.TIMEOUT }).then(($body) => {
+            const passwordInput = $body.find('input[type="password"]');
+            const textInput = $body.find('input[type="text"]');
+
+            if (passwordInput.length > 0) {
+              cy.get('input[type="password"]', { timeout: constants.TIMEOUT })
+                .should("be.visible")
+                .clear()
+                .type("1234");
+            } else if (textInput.length > 0) {
+              cy.get('input[type="text"]', { timeout: constants.TIMEOUT })
+                .first()
+                .should("be.visible")
+                .clear()
+                .type("1234");
+            }
+
+            cy.get(
+              'button[type="submit"], input[type="submit"], button:contains("Submit"), button:contains("Continue")',
+              { timeout: constants.TIMEOUT }
+            )
+              .first()
+              .should("be.visible")
+              .click();
+          });
+          break;
+
+        case "paypal":
+          // PayPal card 3DS challenge: enter OTP/password on the ACS simulator page and submit
+          cy.get("body", { timeout: constants.TIMEOUT }).then(($body) => {
+            const passwordInput = $body.find('input[type="password"]');
+            const textInput = $body.find('input[type="text"]');
+
+            if (passwordInput.length > 0) {
+              cy.get('input[type="password"]', { timeout: constants.TIMEOUT })
+                .should("be.visible")
+                .clear()
+                .type("1234");
+            } else if (textInput.length > 0) {
+              cy.get('input[type="text"]', { timeout: constants.TIMEOUT })
+                .first()
+                .should("be.visible")
+                .clear()
+                .type("1234");
+            }
+
+            cy.get(
+              'button[type="submit"], input[type="submit"], button:contains("Submit"), button:contains("Authenticate")',
+              { timeout: constants.TIMEOUT }
+            )
+              .first()
+              .should("be.visible")
+              .click();
+          });
+          break;
+
         default:
           cy.wait(constants.WAIT_TIME);
       }
