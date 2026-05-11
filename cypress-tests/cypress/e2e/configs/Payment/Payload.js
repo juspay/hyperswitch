@@ -687,12 +687,6 @@ export const connectorDetails = {
     },
   },
   bank_debit_pm: {
-    Sepa: getCustomExchange({
-      Configs: {
-        TRIGGER_SKIP: true,
-      },
-      Request: {},
-    }),
     Ach: getCustomExchange({
       Request: {
         payment_method: "bank_debit",
