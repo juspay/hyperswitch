@@ -345,7 +345,7 @@ pub struct UserFromToken {
 }
 
 impl UserFromToken {
-    pub fn is_superposition_admin(&self) -> bool {
+    pub fn is_merchant_or_org_admin(&self) -> bool {
         self.role_id == consts::user_role::ROLE_ID_MERCHANT_ADMIN
             || self.role_id == common_utils::consts::ROLE_ID_ORGANIZATION_ADMIN
     }

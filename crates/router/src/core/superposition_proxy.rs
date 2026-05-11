@@ -36,7 +36,7 @@ pub async fn list_contexts(
         "superposition list_contexts request"
     );
 
-    if !auth.is_superposition_admin() {
+    if !auth.is_merchant_or_org_admin() {
         logger::warn!(
             user_id = %auth.user_id,
             role_id = %auth.role_id,
@@ -96,7 +96,7 @@ pub async fn list_default_configs(
         "superposition list_default_configs request"
     );
 
-    if !auth.is_superposition_admin() {
+    if !auth.is_merchant_or_org_admin() {
         logger::warn!(
             user_id = %auth.user_id,
             role_id = %auth.role_id,
@@ -135,7 +135,7 @@ pub async fn list_dimensions(
         "superposition list_dimensions request"
     );
 
-    if !auth.is_superposition_admin() {
+    if !auth.is_merchant_or_org_admin() {
         logger::warn!(
             user_id = %auth.user_id,
             role_id = %auth.role_id,
@@ -173,7 +173,7 @@ pub async fn create_context(
         "superposition create_context request"
     );
 
-    if !auth.is_superposition_admin() {
+    if !auth.is_merchant_or_org_admin() {
         logger::warn!(
             user_id = %auth.user_id,
             role_id = %auth.role_id,
