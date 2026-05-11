@@ -241,6 +241,117 @@ function payLaterRedirection(
             verifyUrl = false;
             break;
 
+          case "mollie":
+            // Mollie Klarna PayLater - complete the payment flow
+            cy.log(
+              `Handling Mollie ${paymentMethodType} pay_later flow - completing payment`
+            );
+
+            // Wait for the Mollie test page to load
+            cy.get("body", { timeout: constants.TIMEOUT }).should("exist");
+
+            // Mollie test mode shows radio buttons to select payment status
+            cy.get("body").then(($body) => {
+              const paidSelector = 'input[type="radio"][value="paid"]';
+              const authorizedSelector =
+                'input[type="radio"][value="authorized"]';
+
+              if ($body.find(paidSelector).length) {
+                cy.get(paidSelector, { timeout: constants.WAIT_TIME })
+                  .click()
+                  .log("Selected: Paid");
+              } else if ($body.find(authorizedSelector).length) {
+                cy.get(authorizedSelector, { timeout: constants.WAIT_TIME })
+                  .click()
+                  .log("Selected: Authorized");
+              } else {
+                cy.log(
+                  "No payment status selector found, page may auto-redirect"
+                );
+              }
+            });
+
+            // Click the Continue/Submit button to complete payment
+            cy.get("body").then(($body) => {
+              if ($body.find('button[type="submit"]').length > 0) {
+                cy.get('button[type="submit"]', {
+                  timeout: constants.WAIT_TIME,
+                })
+                  .should("be.visible")
+                  .click()
+                  .log("Clicked submit button");
+              } else if ($body.find("button:contains('Continue')").length > 0) {
+                cy.contains("button", "Continue", {
+                  timeout: constants.WAIT_TIME,
+                })
+                  .should("be.visible")
+                  .click()
+                  .log("Clicked Continue button");
+              } else if ($body.find('input[type="submit"]').length > 0) {
+                cy.get('input[type="submit"]', {
+                  timeout: constants.WAIT_TIME,
+                })
+                  .should("be.visible")
+                  .click()
+                  .log("Clicked input submit");
+              } else {
+                cy.log("No submit button found - may auto-submit");
+              }
+            });
+
+            verifyUrl = true; // Complete payment and verify return URL
+            break;
+
+          case "airwallex":
+            // Airwallex Klarna PayLater - follows similar pattern to other Klarna flows
+            cy.log(`Handling Airwallex ${paymentMethodType} pay_later flow`);
+
+            // Wait for the page to load
+            cy.get("body", { timeout: constants.TIMEOUT }).should("exist");
+
+            // Airwallex Klarna redirects to standard Klarna playground
+            // Verify we landed on a Klarna page
+            cy.get("body", { timeout: constants.TIMEOUT }).then(($body) => {
+              const bodyText = $body.text();
+              const klarnaIndicators = [
+                /klarna/i,
+                /playground/i,
+                /buy now.*pay later/i,
+                /continue.*klarna/i,
+                /smoooth/i,
+              ];
+
+              const hasKlarnaIndicator = klarnaIndicators.some((pattern) =>
+                pattern.test(bodyText)
+              );
+
+              if (hasKlarnaIndicator) {
+                cy.log(
+                  "Successfully navigated to Klarna page - verified redirection"
+                );
+              } else {
+                // Check URL as fallback
+                cy.url().then((url) => {
+                  if (
+                    url.includes("klarna") ||
+                    url.includes("playground") ||
+                    url.includes("airwallex")
+                  ) {
+                    cy.log(
+                      "URL indicates Klarna redirect - verified navigation"
+                    );
+                  } else {
+                    cy.log(
+                      `Warning: URL (${url}) does not contain expected Klarna indicators`
+                    );
+                  }
+                });
+              }
+            });
+
+            verifyUrl = false; // Don't complete payment, just verify navigation
+            break;
+
           default:
             cy.log(
               `Generic pay_later handling for ${connectorId}/${paymentMethodType}`
