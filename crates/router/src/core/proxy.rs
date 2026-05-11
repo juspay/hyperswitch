@@ -9,22 +9,45 @@ use common_utils::{
 use error_stack::ResultExt;
 use hyperswitch_interfaces::types::Response;
 use serde_json::Value;
+use std::collections::HashMap;
 
 pub async fn proxy_core(
     state: SessionState,
     platform: domain::Platform,
     req: proxy_api_models::ProxyRequest,
 ) -> RouterResponse<proxy_api_models::ProxyResponse> {
+    let processed_body = if let Some(ref token) = req.token {
+        // ── Single-token mode ──────────────────────────────────────────────
+        // Fetch vault data for the one token, then replace {{$field}} placeholders.
+        let req_wrapper = utils::ProxyRequestWrapper(req.clone());
+        let proxy_record = req_wrapper
+            .get_proxy_record(&state, platform.get_provider())
+            .await?;
+        let vault_data = proxy_record.get_vault_data(&state, platform).await?;
+        interpolate_single_token(req.request_body.clone(), &vault_data)?
+    } else {
+        // ── Multi-token mode ───────────────────────────────────────────────
+        // Scan request_body for {{$field: token}} placeholders, fetch vault data
+        // per unique token, then replace each placeholder with the corresponding field.
+        let tokens = utils::collect_tokens_from_value(&req.request_body);
+
+        // Build a map: token_value → vault_data
+        let mut token_vault_map: HashMap<String, Value> = HashMap::new();
+        for token in tokens {
+            let vault_data = utils::get_vault_data_for_token(
+                &state,
+                &platform,
+                &token,
+                &req.token_type,
+            )
+            .await?;
+            token_vault_map.insert(token, vault_data);
+        }
+
+        interpolate_multi_token(req.request_body.clone(), &token_vault_map)?
+    };
+
     let req_wrapper = utils::ProxyRequestWrapper(req.clone());
-    let proxy_record = req_wrapper
-        .get_proxy_record(&state, platform.get_provider())
-        .await?;
-
-    let vault_data = proxy_record.get_vault_data(&state, platform).await?;
-
-    let processed_body =
-        interpolate_token_references_with_vault_data(req.request_body.clone(), &vault_data)?;
-
     let res = execute_proxy_request(&state, &req_wrapper, processed_body).await?;
 
     let proxy_response = proxy_api_models::ProxyResponse::try_from(ProxyResponseWrapper(res))?;
@@ -32,7 +55,8 @@ pub async fn proxy_core(
     Ok(services::ApplicationResponse::Json(proxy_response))
 }
 
-fn interpolate_token_references_with_vault_data(
+/// Single-token mode: replace `{{$field}}` with the matching field from vault_data.
+fn interpolate_single_token(
     value: Value,
     vault_data: &Value,
 ) -> RouterResult<Value> {
@@ -40,14 +64,65 @@ fn interpolate_token_references_with_vault_data(
         Value::Object(obj) => {
             let new_obj = obj
                 .into_iter()
-                .map(|(key, val)| interpolate_token_references_with_vault_data(val, vault_data).map(|processed| (key, processed)))
-                .collect::<Result<serde_json::Map<_, _>, error_stack::Report<errors::ApiErrorResponse>>>()?;
-
+                .map(|(key, val)| {
+                    interpolate_single_token(val, vault_data).map(|v| (key, v))
+                })
+                .collect::<Result<serde_json::Map<_, _>, _>>()?;
             Ok(Value::Object(new_obj))
         }
-        Value::String(s) => utils::parse_token(&s)
+        Value::Array(arr) => {
+            let new_arr = arr
+                .into_iter()
+                .map(|val| interpolate_single_token(val, vault_data))
+                .collect::<Result<Vec<_>, _>>()?;
+            Ok(Value::Array(new_arr))
+        }
+        Value::String(s) => utils::parse_token(&s.clone())
             .map(|(_, token_ref)| extract_field_from_vault_data(vault_data, &token_ref.field))
-            .unwrap_or(Ok(Value::String(s.clone()))),
+            .unwrap_or(Ok(Value::String(s))),
+        _ => Ok(value),
+    }
+}
+
+/// Multi-token mode: replace `{{$field: token_value}}` with the matching field
+/// from the vault data fetched for that specific token.
+fn interpolate_multi_token(
+    value: Value,
+    token_vault_map: &HashMap<String, Value>,
+) -> RouterResult<Value> {
+    match value {
+        Value::Object(obj) => {
+            let new_obj = obj
+                .into_iter()
+                .map(|(key, val)| {
+                    interpolate_multi_token(val, token_vault_map).map(|v| (key, v))
+                })
+                .collect::<Result<serde_json::Map<_, _>, _>>()?;
+            Ok(Value::Object(new_obj))
+        }
+        Value::Array(arr) => {
+            let new_arr = arr
+                .into_iter()
+                .map(|val| interpolate_multi_token(val, token_vault_map))
+                .collect::<Result<Vec<_>, _>>()?;
+            Ok(Value::Array(new_arr))
+        }
+        Value::String(ref s) if utils::contains_multi_token(s) => {
+            match utils::parse_multi_token(s) {
+                Ok((_, multi_ref)) => {
+                    let vault_data =
+                        token_vault_map
+                            .get(&multi_ref.token)
+                            .ok_or_else(|| errors::ApiErrorResponse::InternalServerError)
+                            .attach_printable(format!(
+                                "No vault data found for token '{}'",
+                                multi_ref.token
+                            ))?;
+                    extract_field_from_vault_data(vault_data, &multi_ref.field)
+                }
+                Err(_) => Ok(value),
+            }
+        }
         _ => Ok(value),
     }
 }

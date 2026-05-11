@@ -40,9 +40,13 @@ pub struct ProxyRequest {
     /// The method that needs to be used for the request
     #[schema(value_type = Method, example = "Post")]
     pub method: Method,
-    /// The vault token that is used to fetch sensitive data from the vault
-    pub token: String,
-    /// The type of token that is used to fetch sensitive data from the vault
+    /// The vault token used to fetch sensitive data (single-token mode).
+    /// When present, placeholders in request_body use `{{$field_name}}` syntax.
+    /// When absent, multi-token mode is used: placeholders use `{{$field_name: token_value}}` syntax.
+    #[serde(default)]
+    pub token: Option<String>,
+    /// The type of token that is used to fetch sensitive data from the vault.
+    /// In multi-token mode this type applies to all tokens embedded in request_body.
     #[schema(value_type = TokenType, example = "payment_method_id")]
     pub token_type: TokenType,
 }

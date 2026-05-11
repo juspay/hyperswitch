@@ -629,8 +629,19 @@ async fn get_or_create_vault_connector_customer(
     );
 
     if !should_create {
+        router_env::logger::info!(
+            vault_mca_id = %merchant_connector_id.get_string_repr(),
+            has_existing_connector_customer_id = existing_id.is_some(),
+            "Vault connector customer already exists for MCA, skipping creation"
+        );
         return Ok(existing_id.map(ToOwned::to_owned));
     }
+
+    router_env::logger::info!(
+        vault_mca_id = %merchant_connector_id.get_string_repr(),
+        has_customer = customer.is_some(),
+        "No existing vault connector customer for MCA, creating one now"
+    );
 
     // No existing connector customer – create one now.
     let gateway_context = gateway_context::RouterGatewayContext::direct(
