@@ -29,7 +29,7 @@ describe("Merchant Account Product Type Tests", () => {
       });
 
       // Verify product_type persists on retrieve
-      cy.merchantRetrieveCallTest(globalState, {
+      cy.merchantRetrieveCall(globalState, {
         expectedProductType: "vault",
       });
 
@@ -51,7 +51,7 @@ describe("Merchant Account Product Type Tests", () => {
         expectedProductType: "recon",
       });
 
-      cy.merchantRetrieveCallTest(globalState, {
+      cy.merchantRetrieveCall(globalState, {
         expectedProductType: "recon",
       });
 
@@ -72,7 +72,7 @@ describe("Merchant Account Product Type Tests", () => {
         expectedProductType: "recovery",
       });
 
-      cy.merchantRetrieveCallTest(globalState, {
+      cy.merchantRetrieveCall(globalState, {
         expectedProductType: "recovery",
       });
 
@@ -93,7 +93,7 @@ describe("Merchant Account Product Type Tests", () => {
         expectedProductType: "cost_observability",
       });
 
-      cy.merchantRetrieveCallTest(globalState, {
+      cy.merchantRetrieveCall(globalState, {
         expectedProductType: "cost_observability",
       });
 
@@ -114,7 +114,7 @@ describe("Merchant Account Product Type Tests", () => {
         expectedProductType: "dynamic_routing",
       });
 
-      cy.merchantRetrieveCallTest(globalState, {
+      cy.merchantRetrieveCall(globalState, {
         expectedProductType: "dynamic_routing",
       });
 
@@ -133,7 +133,7 @@ describe("Merchant Account Product Type Tests", () => {
           expectedProductType: "orchestration",
         });
 
-        cy.merchantRetrieveCallTest(globalState, {
+        cy.merchantRetrieveCall(globalState, {
           expectedProductType: "orchestration",
         });
 
@@ -151,7 +151,7 @@ describe("Merchant Account Product Type Tests", () => {
         product_type: "invalid_product_type",
       };
 
-      cy.merchantCreateFailCall(merchantCreateBody, globalState, {
+      cy.merchantCreateCallTest(merchantCreateBody, globalState, {
         expectedStatus: 400,
         expectedErrorCode: "IR_06",
       });

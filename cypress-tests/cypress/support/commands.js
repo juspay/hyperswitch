@@ -525,6 +525,8 @@ Cypress.Commands.add("healthCheck", (globalState) => {
  * @param {Object} options - Options for merchant creation
  * @param {string|null} [options.expectedMerchantAccountType=null] - Expected merchant_account_type to validate (optional)
  * @param {string} [options.expectedProductType="orchestration"] - Expected product_type to validate. Pass a string value like "vault", "recon", "recovery", etc. to validate the response contains this product_type. Defaults to "orchestration".
+ * @param {number} [options.expectedStatus=200] - Expected HTTP status code. Use 400 for negative test cases.
+ * @param {string} [options.expectedErrorCode=null] - Expected error code in response body (for negative test cases, e.g. "IR_06")
  * @param {string} [options.merchantIdStateKey="merchantId"] - Key to store merchant ID in global state
  * @param {string} [options.profileIdStateKey="profileId"] - Key to store profile ID in global state
  * @param {string} [options.publishableKeyStateKey="publishableKey"] - Key to store publishable key in global state
@@ -535,6 +537,8 @@ Cypress.Commands.add(
     const {
       expectedMerchantAccountType = null,
       expectedProductType = "orchestration",
+      expectedStatus = 200,
+      expectedErrorCode = null,
       merchantIdStateKey = "merchantId",
       profileIdStateKey = "profileId",
       publishableKeyStateKey = "publishableKey",
@@ -553,10 +557,21 @@ Cypress.Commands.add(
         "api-key": globalState.get("adminApiKey"),
       },
       body: merchantCreateBody,
+      failOnStatusCode: false,
     }).then((response) => {
       logRequestId(response.headers["x-request-id"]);
 
       cy.wrap(response).then(() => {
+        expect(response.status).to.equal(expectedStatus);
+
+        if (expectedStatus !== 200) {
+          if (expectedErrorCode) {
+            expect(response.body).to.have.property("error");
+            expect(response.body.error.code).to.equal(expectedErrorCode);
+          }
+          return;
+        }
+
         if (expectedMerchantAccountType) {
           expect(response.body).to.have.property(
             "merchant_account_type",
@@ -580,57 +595,11 @@ Cypress.Commands.add(
   }
 );
 
-Cypress.Commands.add("merchantRetrieveCall", (globalState) => {
-  const merchant_id = globalState.get("merchantId");
-  cy.request({
-    method: "GET",
-    url: `${globalState.get("baseUrl")}/accounts/${merchant_id}`,
-    headers: {
-      Accept: "application/json",
-      "Content-Type": "application/json",
-      "api-key": globalState.get("adminApiKey"),
-    },
-    failOnStatusCode: false,
-  }).then((response) => {
-    logRequestId(response.headers["x-request-id"]);
-
-    cy.wrap(response).then(() => {
-      expect(response.headers["content-type"], "content_headers").to.include(
-        "application/json"
-      );
-      expect(response.body.merchant_id, "merchant_id").to.equal(merchant_id);
-      expect(
-        response.body.payment_response_hash_key,
-        "payment_response_hash_key"
-      ).to.not.be.null;
-      expect(response.body.publishable_key, "publishable_key").to.not.be.null;
-      cy.log("HI");
-      expect(response.body.default_profile, "default_profile").to.not.be.null;
-      expect(response.body.organization_id, "organization_id").to.not.be.null;
-      globalState.set("organizationId", response.body.organization_id);
-
-      if (globalState.get("publishableKey") === undefined) {
-        globalState.set("publishableKey", response.body.publishable_key);
-      }
-    });
-  });
-});
-
-/**
- * Retrieves a merchant account and optionally validates the product_type field.
- * @param {Object} globalState - The global state object containing baseUrl and adminApiKey
- * @param {Object} options - Options for the retrieval
- * @param {string} [options.merchantId] - The merchant ID to retrieve (defaults to globalState.merchantId)
- * @param {string} [options.expectedProductType="orchestration"] - Expected product_type value to validate
- */
 Cypress.Commands.add(
-  "merchantRetrieveCallTest",
+  "merchantRetrieveCall",
   (globalState, options = {}) => {
-    const { expectedProductType = "orchestration", merchantId = null } =
-      options;
-
-    const merchant_id = merchantId ?? globalState.get("merchantId");
-
+    const { expectedProductType = null } = options;
+    const merchant_id = globalState.get("merchantId");
     cy.request({
       method: "GET",
       url: `${globalState.get("baseUrl")}/accounts/${merchant_id}`,
@@ -643,12 +612,35 @@ Cypress.Commands.add(
     }).then((response) => {
       logRequestId(response.headers["x-request-id"]);
 
-      if (expectedProductType) {
-        expect(response.body).to.have.property(
-          "product_type",
-          expectedProductType
+      cy.wrap(response).then(() => {
+        expect(response.headers["content-type"], "content_headers").to.include(
+          "application/json"
         );
-      }
+        expect(response.body.merchant_id, "merchant_id").to.equal(merchant_id);
+        expect(
+          response.body.payment_response_hash_key,
+          "payment_response_hash_key"
+        ).to.not.be.null;
+        expect(response.body.publishable_key, "publishable_key").to.not.be
+          .null;
+        cy.log("HI");
+        expect(response.body.default_profile, "default_profile").to.not.be
+          .null;
+        expect(response.body.organization_id, "organization_id").to.not.be
+          .null;
+        globalState.set("organizationId", response.body.organization_id);
+
+        if (globalState.get("publishableKey") === undefined) {
+          globalState.set("publishableKey", response.body.publishable_key);
+        }
+
+        if (expectedProductType) {
+          expect(response.body).to.have.property(
+            "product_type",
+            expectedProductType
+          );
+        }
+      });
     });
   }
 );
@@ -672,45 +664,6 @@ Cypress.Commands.add("merchantDeleteCall", (globalState) => {
     });
   });
 });
-
-/**
- * Attempts to create a merchant with invalid data and validates the error response.
- * Used for negative test cases (e.g., invalid product_type).
- * @param {Object} merchantCreateBody - The invalid merchant creation request body
- * @param {Object} globalState - The global state object
- * @param {Object} options - Options for error validation
- * @param {number} [options.expectedStatus=400] - Expected HTTP status code
- * @param {string} [options.expectedErrorCode="IR_06"] - Expected error code in response
- */
-Cypress.Commands.add(
-  "merchantCreateFailCall",
-  (merchantCreateBody, globalState, options = {}) => {
-    const { expectedStatus = 400, expectedErrorCode = "IR_06" } = options;
-
-    const merchantId = RequestBodyUtils.generateRandomString();
-    RequestBodyUtils.setMerchantId(merchantCreateBody, merchantId);
-
-    cy.request({
-      method: "POST",
-      url: `${globalState.get("baseUrl")}/accounts`,
-      headers: {
-        Accept: "application/json",
-        "Content-Type": "application/json",
-        "api-key": globalState.get("adminApiKey"),
-      },
-      body: merchantCreateBody,
-      failOnStatusCode: false,
-    }).then((response) => {
-      logRequestId(response.headers["x-request-id"]);
-
-      cy.wrap(response).then(() => {
-        expect(response.status).to.equal(expectedStatus);
-        expect(response.body).to.have.property("error");
-        expect(response.body.error.code).to.equal(expectedErrorCode);
-      });
-    });
-  }
-);
 
 Cypress.Commands.add("ListConnectorsFeatureMatrixCall", (globalState) => {
   const baseUrl = globalState.get("baseUrl");
