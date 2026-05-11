@@ -92,6 +92,10 @@ pub struct PayoutCreateRequest {
     #[schema(value_type = Option<PayoutMethodData>)]
     pub payout_method_data: Option<PayoutMethodData>,
 
+    /// The source bank data required for carrying out a payout
+    #[schema(value_type = Option<BankTransfer>)]
+    pub source_bank_data: Option<BankTransfer>,
+
     /// The billing address for the payout
     #[schema(value_type = Option<Address>, example = json!(r#"{
         "address": {
@@ -699,6 +703,18 @@ pub struct PayoutCreateResponse {
         }
     }"#))]
     pub payout_method_data: Option<PayoutMethodDataResponse>,
+
+    /// Masked source bank data for the payout
+    #[schema(value_type = Option<PayoutMethodDataResponse>, example = json!(r#"{
+        {
+            "iban": "NL46T********69112",
+            "bank_name": "Test Bank",
+            "bank_country_code": "NL",
+            "bank_city": "Amsterdam",
+            "bic": "ABN**L2A"
+        }
+    }"#))]
+    pub source_bank_data: Option<payout_method_utils::BankAdditionalData>,
 
     /// The billing address for the payout
     #[schema(value_type = Option<Address>, example = json!(r#"{
