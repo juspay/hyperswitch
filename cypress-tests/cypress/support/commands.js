@@ -5121,17 +5121,6 @@ Cypress.Commands.add("ListMcaByMid", (globalState) => {
           }
         });
         
-        // Also set legacy static names for backward compatibility where applicable
-        // Try to map known connectors by position as fallback
-        if (response.body[0]) {
-          const name = response.body[0].connector_name;
-          if (name === "stripe") {
-            globalState.set("stripeMcaId", response.body[0].merchant_connector_id);
-          } else if (name === "adyen") {
-            globalState.set("adyenMcaId", response.body[0].merchant_connector_id);
-          }
-        }
-        
         // Set currentConnectorMcaId to the FIRST payout connector found
         // This is used when only one payout connector exists per run
         globalState.set("currentConnectorMcaId", response.body[0].merchant_connector_id);

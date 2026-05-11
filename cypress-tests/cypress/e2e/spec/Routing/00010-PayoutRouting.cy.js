@@ -12,7 +12,7 @@ describe("Payout Priority Routing Test", () => {
     cy.task("getGlobalState").then((state) => {
       globalState = new State(state);
       if (
-        !routingUtils.shouldIncludeConnector(
+        !routingUtils.shouldRunForConnectorList(
           globalState.get("connectorId"),
           routingUtils.CONNECTOR_LISTS.INCLUDE.PAYOUT_ROUTING
         )
@@ -33,9 +33,9 @@ describe("Payout Priority Routing Test", () => {
   });
 
   context("Payout Priority Routing - default connector", () => {
-    shouldContinue = true;
 
     before("setup payout context", () => {
+      shouldContinue = true;
       // List MCAs once at the start of context to populate connector mappings
       cy.ListMcaByMid(globalState);
     });
@@ -76,11 +76,11 @@ describe("Payout Priority Routing Test", () => {
 
     it("payout-routing-test", () => {
       const payoutData = payoutUtils.getConnectorDetails(globalState.get("connectorId"))[
-        "card_pm"
-      ]["Fulfill"];
+        "bank_transfer_pm"
+      ]["sepa_bank_transfer"]["Fulfill"];
 
       if (!payoutUtils.should_continue_further(payoutData)) {
-        cy.task("cli_log", "Skipping payout creation for " + globalState.get("connectorId"));
+        cy.log("Skipping payout creation for " + globalState.get("connectorId"));
         shouldContinue = false;
         return;
       }
@@ -102,11 +102,11 @@ describe("Payout Priority Routing Test", () => {
   });
 
   context("Payout Priority Routing - single connector alternate config", () => {
-    shouldContinue = true;
     // Context for testing a second payout routing configuration
     // Tests that multiple routing configs can coexist with different priorities
 
     before("setup alternate payout context", () => {
+      shouldContinue = true;
       // MCAs already listed in first context, but ensure mapping exists
       if (!globalState.get("currentConnectorMcaId")) {
         cy.ListMcaByMid(globalState);
@@ -125,7 +125,7 @@ describe("Payout Priority Routing Test", () => {
       ];
       
       // Modify the body to use a different name for this alternate config
-      const altBody = { ...fixtures.payoutRoutingConfigBody };
+      const altBody = JSON.parse(JSON.stringify(fixtures.payoutRoutingConfigBody));
       altBody.name = `${altBody.name}_alternate`;
       
       cy.addRoutingConfig(
@@ -154,11 +154,11 @@ describe("Payout Priority Routing Test", () => {
 
     it("payout-routing-alternate-test", () => {
       const payoutData = payoutUtils.getConnectorDetails(globalState.get("connectorId"))[
-        "card_pm"
-      ]["Fulfill"];
+        "bank_transfer_pm"
+      ]["sepa_bank_transfer"]["Fulfill"];
 
       if (!payoutUtils.should_continue_further(payoutData)) {
-        cy.task("cli_log", "Skipping payout creation for " + globalState.get("connectorId"));
+        cy.log("Skipping payout creation for " + globalState.get("connectorId"));
         shouldContinue = false;
         return;
       }

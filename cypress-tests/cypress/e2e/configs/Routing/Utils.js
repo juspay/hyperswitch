@@ -46,6 +46,6 @@ export const CONNECTOR_LISTS = {
   },
 };
 
-export const shouldIncludeConnector = (connectorId, list) => {
+export const shouldRunForConnectorList = (connectorId, list) => {
   return list.includes(connectorId);
 };
