@@ -149,7 +149,6 @@ export const connectorDetails = {
         status: 200,
         body: {
           status: "requires_payment_method",
-          setup_future_usage: "on_session",
         },
       },
     },
