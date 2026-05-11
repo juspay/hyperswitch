@@ -752,6 +752,9 @@ pub enum AdditionalPaymentMethodConnectorResponse {
         debitor_name: Option<Secret<String>>,
         debitor_email: Option<Secret<String>>,
     },
+    Paypal {
+        payer_id: Option<String>,
+    },
 }
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ExtendedAuthorizationResponseData {

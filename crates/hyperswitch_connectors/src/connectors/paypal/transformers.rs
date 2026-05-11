@@ -17,8 +17,9 @@ use hyperswitch_domain_models::{
         PayLaterData, PaymentMethodData, VoucherData, WalletData,
     },
     router_data::{
-        AccessToken, ConnectorAuthType, ConnectorResponseData, ErrorResponse,
-        ExtendedAuthorizationResponseData, FeatureData, RouterData,
+        AccessToken, AdditionalPaymentMethodConnectorResponse, ConnectorAuthType,
+        ConnectorResponseData, ErrorResponse, ExtendedAuthorizationResponseData, FeatureData,
+        RouterData,
     },
     router_flow_types::{
         payments::{Authorize, PostSessionTokens},
@@ -2219,6 +2220,12 @@ pub struct PaypalOrdersResponse {
     status: PaypalOrderStatus,
     purchase_units: Vec<PurchaseUnitItem>,
     payment_source: Option<PaymentSourceItemResponse>,
+    payer: Option<Payer>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Payer {
+    payer_id: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -2490,6 +2497,19 @@ where
                 authentication_data: None,
                 charges: None,
             }),
+            connector_response: match item.response.payment_source.clone() {
+                Some(PaymentSourceItemResponse::Paypal(_)) => {
+                    let payer_id = item
+                        .response
+                        .payer
+                        .as_ref()
+                        .and_then(|p| p.payer_id.clone());
+                    Some(ConnectorResponseData::with_additional_payment_method_data(
+                        AdditionalPaymentMethodConnectorResponse::Paypal { payer_id },
+                    ))
+                }
+                _ => None,
+            },
             ..item.data
         })
     }
@@ -3789,6 +3809,7 @@ impl TryFrom<(PaypalRedirectsWebhooks, PaypalWebhookEventType)> for PaypalOrders
             status: PaypalOrderStatus::try_from(webhook_event)?,
             purchase_units: webhook_body.purchase_units,
             payment_source: None,
+            payer: None,
         })
     }
 }

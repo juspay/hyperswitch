@@ -364,6 +364,7 @@ pub enum TesouroAutomaticCapture {
 pub enum TesouroWalletType {
     ApplePay,
     GooglePay,
+    PayPal,
 }
 
 #[derive(Debug, Serialize)]
@@ -399,6 +400,7 @@ impl TesouroPaymentMethodDetails {
                 apple_pay,
                 google_pay,
                 samsung_pay: _,
+                paypal,
             } => {
                 if let Some(google_pay_token) = google_pay {
                     Ok((
@@ -412,6 +414,8 @@ impl TesouroPaymentMethodDetails {
                         Some(apple_pay_token.get_card_expiry_year_4_digit()?),
                         Some(TesouroWalletType::ApplePay),
                     ))
+                } else if let Some(_paypal_data) = paypal {
+                    Ok((None, None, Some(TesouroWalletType::PayPal)))
                 } else {
                     Err(errors::ConnectorError::MissingRequiredField {
                         field_name: "expiration date and expiration year",

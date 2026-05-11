@@ -5995,6 +5995,7 @@ pub async fn get_additional_payment_data(
                     })),
                     google_pay: None,
                     samsung_pay: None,
+                    paypal: None,
                 }))
             }
             domain::WalletData::GooglePay(google_pay_pm_data) => {
@@ -6021,6 +6022,7 @@ pub async fn get_additional_payment_data(
                         },
                     )),
                     samsung_pay: None,
+                    paypal: None,
                 }))
             }
             domain::WalletData::SamsungPay(samsung_pay_pm_data) => {
@@ -6049,12 +6051,14 @@ pub async fn get_additional_payment_data(
                             email: None,
                         },
                     )),
+                    paypal: None,
                 }))
             }
             _ => Ok(Some(api_models::payments::AdditionalPaymentData::Wallet {
                 apple_pay: None,
                 google_pay: None,
                 samsung_pay: None,
+                paypal: None,
             })),
         },
         domain::PaymentMethodData::PayLater(_) => Ok(Some(
@@ -8010,6 +8014,7 @@ pub fn add_connector_response_to_additional_payment_data(
                 apple_pay,
                 google_pay,
                 samsung_pay,
+                paypal,
             },
             AdditionalPaymentMethodConnectorResponse::GooglePay { auth_code, .. }
             | AdditionalPaymentMethodConnectorResponse::ApplePay { auth_code, .. },
@@ -8027,6 +8032,23 @@ pub fn add_connector_response_to_additional_payment_data(
                 })
             }),
             samsung_pay: samsung_pay.clone(),
+            paypal: paypal.clone(),
+        },
+        (
+            api_models::payments::AdditionalPaymentData::Wallet {
+                apple_pay: None,
+                google_pay: None,
+                samsung_pay: None,
+                paypal: _,
+            },
+            AdditionalPaymentMethodConnectorResponse::Paypal { payer_id },
+        ) => api_models::payments::AdditionalPaymentData::Wallet {
+            apple_pay: None,
+            google_pay: None,
+            samsung_pay: None,
+            paypal: Some(Box::new(
+                api_models::payments::additional_info::PaypalAdditionalData { payer_id },
+            )),
         },
         #[cfg(feature = "v2")]
         (

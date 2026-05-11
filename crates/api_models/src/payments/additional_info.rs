@@ -461,3 +461,15 @@ pub struct WalletAdditionalDataForCard {
     #[schema(value_type = Option<String>, example = "johntest@test.com")]
     pub email: Option<common_utils::pii::Email>,
 }
+
+/// Additional data for PayPal wallet
+#[derive(
+    Debug, Clone, Eq, PartialEq, serde::Deserialize, serde::Serialize, ToSchema, SmithyModel,
+)]
+#[smithy(namespace = "com.hyperswitch.smithy.types")]
+pub struct PaypalAdditionalData {
+    /// PayPal payer identifier
+    #[schema(value_type = Option<String>, example = "2J6QB8YJQSJRJ")]
+    #[smithy(value_type = "Option<String>")]
+    pub payer_id: Option<String>,
+}

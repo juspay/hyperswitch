@@ -1491,6 +1491,7 @@ impl PaymentCreate {
                                     .ok(),
                                     google_pay: None,
                                     samsung_pay: None,
+                                    paypal: None,
                                 })
                             }
                             Some(enums::PaymentMethodType::GooglePay) => {
@@ -1498,6 +1499,7 @@ impl PaymentCreate {
                                     apple_pay: None,
                                     google_pay: Some(Box::new(wallet.into())),
                                     samsung_pay: None,
+                                    paypal: None,
                                 })
                             }
                             Some(enums::PaymentMethodType::SamsungPay) => {
@@ -1505,6 +1507,7 @@ impl PaymentCreate {
                                     apple_pay: None,
                                     google_pay: None,
                                     samsung_pay: Some(Box::new(wallet.into())),
+                                    paypal: None,
                                 })
                             }
                             _ => None,
@@ -1517,6 +1520,7 @@ impl PaymentCreate {
                                 apple_pay: None,
                                 google_pay: None,
                                 samsung_pay: None,
+                                paypal: None,
                             })
                         }
                         _ => None,
