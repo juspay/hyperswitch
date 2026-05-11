@@ -75,9 +75,8 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "failed",
+          status: "initiated",
           payout_type: "card",
-          error_message: "HTTP Status Response - Unauthorized",
         },
       },
     },
