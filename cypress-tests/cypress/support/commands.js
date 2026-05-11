@@ -754,78 +754,91 @@ Cypress.Commands.add(
   }
 );
 
-Cypress.Commands.add(
-  "UpdateBusinessProfileTest",
-  (
-    updateBusinessProfileBody,
-    is_connector_agnostic_mit_enabled,
-    collect_billing_details_from_wallet_connector,
-    collect_shipping_details_from_wallet_connector,
-    always_collect_billing_details_from_wallet_connector,
-    always_collect_shipping_details_from_wallet_connector,
-    globalState,
-    profilePrefix = "profile",
-    use_billing_as_payment_method_billing = undefined
-  ) => {
-    updateBusinessProfileBody.is_connector_agnostic_mit_enabled =
-      is_connector_agnostic_mit_enabled;
-    updateBusinessProfileBody.collect_shipping_details_from_wallet_connector =
-      collect_shipping_details_from_wallet_connector;
-    updateBusinessProfileBody.collect_billing_details_from_wallet_connector =
-      collect_billing_details_from_wallet_connector;
-    updateBusinessProfileBody.always_collect_billing_details_from_wallet_connector =
-      always_collect_billing_details_from_wallet_connector;
-    updateBusinessProfileBody.always_collect_shipping_details_from_wallet_connector =
-      always_collect_shipping_details_from_wallet_connector;
-
-    if (typeof use_billing_as_payment_method_billing !== "undefined") {
-      updateBusinessProfileBody.use_billing_as_payment_method_billing =
-        use_billing_as_payment_method_billing;
-    }
-
-    const apiKey = globalState.get("apiKey");
-    const merchantId = globalState.get("merchantId");
-    const profileId = globalState.get(`${profilePrefix}Id`);
-
-    cy.request({
-      method: "POST",
-      url: `${globalState.get("baseUrl")}/account/${merchantId}/business_profile/${profileId}`,
-      headers: {
-        Accept: "application/json",
-        "Content-Type": "application/json",
-        "api-key": apiKey,
-      },
-      body: updateBusinessProfileBody,
-      failOnStatusCode: false,
-    }).then((response) => {
-      logRequestId(response.headers["x-request-id"]);
-
-      cy.wrap(response).then(() => {
-        if (response.status === 200) {
-          globalState.set(
-            "collectBillingDetails",
-            response.body.collect_billing_details_from_wallet_connector
-          );
-          globalState.set(
-            "collectShippingDetails",
-            response.body.collect_shipping_details_from_wallet_connector
-          );
-          globalState.set(
-            "alwaysCollectBillingDetails",
-            response.body.always_collect_billing_details_from_wallet_connector
-          );
-          globalState.set(
-            "alwaysCollectShippingDetails",
-            response.body.always_collect_shipping_details_from_wallet_connector
-          );
-          globalState.set(
-            "useBillingAsPaymentMethodBilling",
-            response.body.use_billing_as_payment_method_billing
-          );
-        }
-      });
-    });
-  }
+Cypress.Commands.add(  
+  "UpdateBusinessProfileTest",  
+  (  
+    updateBusinessProfileBody,  
+    is_connector_agnostic_mit_enabled,  
+    collect_billing_details_from_wallet_connector,  
+    collect_shipping_details_from_wallet_connector,  
+    always_collect_billing_details_from_wallet_connector,  
+    always_collect_shipping_details_from_wallet_connector,  
+    globalState,  
+    profilePrefix = "profile",  
+    use_billing_as_payment_method_billing = undefined,  
+    expectedStatus = 200  
+  ) => {  
+    updateBusinessProfileBody.is_connector_agnostic_mit_enabled =  
+      is_connector_agnostic_mit_enabled;  
+    updateBusinessProfileBody.collect_shipping_details_from_wallet_connector =  
+      collect_shipping_details_from_wallet_connector;  
+    updateBusinessProfileBody.collect_billing_details_from_wallet_connector =  
+      collect_billing_details_from_wallet_connector;  
+    updateBusinessProfileBody.always_collect_billing_details_from_wallet_connector =  
+      always_collect_billing_details_from_wallet_connector;  
+    updateBusinessProfileBody.always_collect_shipping_details_from_wallet_connector =  
+      always_collect_shipping_details_from_wallet_connector;  
+  
+    if (typeof use_billing_as_payment_method_billing !== "undefined") {  
+      updateBusinessProfileBody.use_billing_as_payment_method_billing =  
+        use_billing_as_payment_method_billing;  
+    }  
+  
+    const apiKey = globalState.get("apiKey");  
+    const merchantId = globalState.get("merchantId");  
+    const profileId = globalState.get(`${profilePrefix}Id`);  
+  
+    cy.request({  
+      method: "POST",  
+      url: `${globalState.get("baseUrl")}/account/${merchantId}/business_profile/${profileId}`,  
+      headers: {  
+        Accept: "application/json",  
+        "Content-Type": "application/json",  
+        "api-key": apiKey,  
+      },  
+      body: updateBusinessProfileBody,  
+      failOnStatusCode: false,  
+    }).then((response) => {  
+      logRequestId(response.headers["x-request-id"]);  
+  
+      cy.wrap(response).then(() => {  
+        if (expectedStatus === 200) {  
+          if (response.status === 200) {  
+            globalState.set(  
+              "collectBillingDetails",  
+              response.body.collect_billing_details_from_wallet_connector  
+            );  
+            globalState.set(  
+              "collectShippingDetails",  
+              response.body.collect_shipping_details_from_wallet_connector  
+            );  
+            globalState.set(  
+              "alwaysCollectBillingDetails",  
+              response.body.always_collect_billing_details_from_wallet_connector  
+            );  
+            globalState.set(  
+              "alwaysCollectShippingDetails",  
+              response.body.always_collect_shipping_details_from_wallet_connector  
+            );  
+            globalState.set(  
+              "useBillingAsPaymentMethodBilling",  
+              response.body.use_billing_as_payment_method_billing  
+            );  
+          } else {  
+            throw new Error(  
+              `Business Profile update failed ${response.body.error.message}`  
+            );  
+          }  
+        } else {  
+          expect(response.status).to.equal(expectedStatus);  
+          cy.task(  
+            "cli_log",  
+            `Expected error for invalid business profile data: ${response.status}`  
+          );  
+        }  
+      });  
+    });  
+  }  
 );
 Cypress.Commands.add(
   "updateBusinessProfileWithInvalidData",

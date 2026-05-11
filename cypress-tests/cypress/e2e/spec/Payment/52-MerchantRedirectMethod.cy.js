@@ -283,7 +283,19 @@ describe("Merchant Redirect Method Tests - UPI", () => {
             always_collect_shipping_details_from_wallet_connector: false,
             redirect_to_merchant_with_http_post: "invalid_value",
           };
-          cy.updateBusinessProfileWithInvalidData(invalidBody, globalState);
+
+          cy.UpdateBusinessProfileTest(
+            invalidBody,
+            false,
+            false,
+            false,
+            false,
+            false,
+            globalState,
+            "profile",
+            undefined,
+            400  // expectedStatus for negative test  
+          );
         }
       );
     });
