@@ -3,7 +3,7 @@
 use api_models::webhooks::{IncomingWebhookEvent, ObjectReferenceId};
 use async_trait::async_trait;
 use common_enums::{ExecutionMode, ExecutionPath};
-use common_utils::errors::ReportSwitchExt;
+use common_utils::{errors::ReportSwitchExt, ext_traits::Encode};
 use error_stack::ResultExt;
 use external_services::grpc_client::LineageIds;
 use hyperswitch_interfaces::webhooks::{
@@ -14,15 +14,17 @@ use router_env::{logger, tracing::Instrument};
 use time::OffsetDateTime;
 use unified_connector_service_client::payments as payments_grpc;
 
+#[cfg(feature = "v1")]
+use crate::core::payments::helpers::MerchantConnectorAccountType;
 use crate::{
     consts,
     core::{
         errors::{self, utils::ConnectorErrorExt, RouterResult},
         metrics,
-        payments::helpers::MerchantConnectorAccountType,
         unified_connector_service::{
             self, build_unified_connector_service_auth_metadata,
-            build_webhook_secrets_from_merchant_connector_account, transformers::HandleEventInputs,
+            build_webhook_secrets_from_merchant_connector_account,
+            transformers::build_handle_event_request,
         },
         webhooks::{
             incoming::get_payment_attempt_from_object_reference_id, utils as webhook_utils,
@@ -71,6 +73,15 @@ pub enum WebhookOutcome {
         event_type: IncomingWebhookEvent,
         source_verified: bool,
         content: WebhookContent,
+        /// Full decoded body bytes for the gateway's connector. Direct path sets
+        /// this to the decoded body so that downstream connector calls
+        /// (get_dispute_details, get_webhook_mandate_details, etc.) see the
+        /// structured payload they expect.
+        decoded_body: Option<Vec<u8>>,
+        /// Pre-fetched resource data (e.g. PaymentAttempt for payment events).
+        /// Carried forward so downstream flows can reuse it instead of
+        /// issuing an additional DB round-trip.
+        webhook_resource_data: Box<Option<WebhookResourceData>>,
         masked_log_payload: common_utils::pii::SecretSerdeValue,
         merchant_connector_account: Box<domain::MerchantConnectorAccount>,
         ack_response: services::ApplicationResponse<serde_json::Value>,
@@ -176,14 +187,15 @@ impl IncomingWebhookGateway for DirectIncomingWebhookGateway {
             .get_webhook_object_reference_id(&decoded_request)
             .ok();
 
-        let mca = resolve_mca(ctx, reference.as_ref()).await?;
+        // Pre-fetch resource data (payment attempt for PaymentId references) so
+        // event-type classification has context and downstream flows can reuse it
+        // without an extra DB round-trip.
+        let webhook_resource_data =
+            build_webhook_resource_data(&ctx.state, &ctx.platform, reference.as_ref()).await?;
+        let webhook_context = webhook_resource_data.as_ref().map(WebhookContext::from);
 
-        let webhook_context = build_webhook_context(&ctx.state, &ctx.platform, reference.as_ref())
-            .await
-            .ok()
-            .flatten();
-
-        let event_type = ctx
+        // Error on failed event-type identification (parity with main branch).
+        let event_type = match ctx
             .connector
             .get_webhook_event_type(&decoded_request, webhook_context.as_ref())
             .allow_webhook_event_type_not_found(
@@ -196,7 +208,9 @@ impl IncomingWebhookGateway for DirectIncomingWebhookGateway {
             )
             .switch()
             .attach_printable("Could not find event type in incoming webhook body")?
-            .unwrap_or_else(|| {
+        {
+            Some(et) => et,
+            None => {
                 metrics::WEBHOOK_EVENT_TYPE_IDENTIFICATION_FAILURE_COUNT.add(
                     1,
                     router_env::metric_attributes!(
@@ -207,16 +221,20 @@ impl IncomingWebhookGateway for DirectIncomingWebhookGateway {
                         ("connector", ctx.connector_name.to_string())
                     ),
                 );
-                IncomingWebhookEvent::EventNotSupported
-            });
+                return Err(error_stack::report!(
+                    errors::ApiErrorResponse::WebhookProcessingFailure
+                )
+                .attach_printable("Failed to identify event type in incoming webhook body"));
+            }
+        };
 
+        let ack_creds = ctx
+            .merchant_connector_account
+            .as_ref()
+            .map(|m| m.connector_account_details.clone());
         let ack_response = ctx
             .connector
-            .get_webhook_api_response(
-                &decoded_request,
-                None,
-                Some(mca.connector_account_details.clone()),
-            )
+            .get_webhook_api_response(&decoded_request, None, ack_creds)
             .switch()
             .attach_printable("Failed to build webhook ack via connector")?;
 
@@ -233,6 +251,7 @@ impl IncomingWebhookGateway for DirectIncomingWebhookGateway {
                             "Could not find object reference id in incoming webhook body",
                         )
                 })?;
+                let mca = resolve_mca(ctx, &reference).await?;
                 let source_verified =
                     verify_webhook_source_via_connector(ctx, &decoded_request, &mca).await?;
                 let resource_object = ctx
@@ -257,6 +276,8 @@ impl IncomingWebhookGateway for DirectIncomingWebhookGateway {
                     event_type,
                     source_verified,
                     content: WebhookContent::Direct(bytes),
+                    decoded_body: Some(decoded_body.to_vec()),
+                    webhook_resource_data: Box::new(webhook_resource_data),
                     masked_log_payload,
                     merchant_connector_account: Box::new(mca),
                     ack_response,
@@ -290,7 +311,6 @@ impl IncomingWebhookGateway for UcsIncomingWebhookGateway {
             .clone();
 
         let connector_name = ctx.connector_name.clone();
-        let merchant_id = ctx.platform.get_processor().get_account().get_id().clone();
         let merchant_event_id = build_merchant_event_id(ctx);
 
         let parse_request = payments_grpc::EventServiceParseRequest::foreign_try_from(request)
@@ -303,11 +323,8 @@ impl IncomingWebhookGateway for UcsIncomingWebhookGateway {
             &ctx.state,
             connector_name.clone(),
             "EventServiceParseEvent",
-            merchant_id.clone(),
-            merchant_event_id.clone(),
             parse_request,
             parse_headers,
-            ctx.execution_mode,
             |request, headers| async move {
                 parse_client
                     .incoming_webhook_parse_event(request, parse_auth, headers)
@@ -341,7 +358,8 @@ impl IncomingWebhookGateway for UcsIncomingWebhookGateway {
                             "UCS ParseEvent produced no object reference for a non-filtered event",
                         )
                 })?;
-                let mca = resolve_mca(ctx, Some(&reference)).await?;
+                let mca = resolve_mca(ctx, &reference).await?;
+                #[cfg(feature = "v1")]
                 let webhook_secrets = build_webhook_secrets_from_merchant_connector_account(
                     &MerchantConnectorAccountType::DbVal(Box::new(mca.clone())),
                 )
@@ -349,18 +367,27 @@ impl IncomingWebhookGateway for UcsIncomingWebhookGateway {
                 .attach_printable(
                     "Failed to resolve webhook secrets from merchant connector account",
                 )?;
+                #[cfg(feature = "v2")]
+                let webhook_secrets = build_webhook_secrets_from_merchant_connector_account(
+                    &domain::MerchantConnectorAccountTypeDetails::MerchantConnectorAccount(
+                        Box::new(mca.clone()),
+                    ),
+                )
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable(
+                    "Failed to resolve webhook secrets from merchant connector account",
+                )?;
 
-                let event_context = build_event_context(ctx, Some(&reference)).await;
+                let event_context = build_event_context(ctx, &reference).await;
 
-                let handle_request =
-                    payments_grpc::EventServiceHandleRequest::foreign_try_from(HandleEventInputs {
-                        request_details: request,
-                        webhook_secrets,
-                        event_context,
-                        merchant_event_id: merchant_event_id.clone(),
-                    })
-                    .change_context(errors::ApiErrorResponse::InternalServerError)
-                    .attach_printable("Failed to build UCS EventServiceHandleRequest")?;
+                let handle_request = build_handle_event_request(
+                    request,
+                    webhook_secrets,
+                    event_context,
+                    merchant_event_id.clone(),
+                )
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to build UCS EventServiceHandleRequest")?;
                 let handle_auth = build_ucs_auth_metadata(ctx, Some(&mca))?;
                 let handle_headers = build_ucs_headers_builder(ctx, Some(&mca), ctx.execution_mode);
                 let handle_client = client.clone();
@@ -368,11 +395,8 @@ impl IncomingWebhookGateway for UcsIncomingWebhookGateway {
                     &ctx.state,
                     connector_name.clone(),
                     "EventServiceHandleEvent",
-                    merchant_id.clone(),
-                    merchant_event_id.clone(),
                     handle_request,
                     handle_headers,
-                    ctx.execution_mode,
                     |request, headers| async move {
                         handle_client
                             .incoming_webhook_handle_event(request, handle_auth, headers)
@@ -390,7 +414,8 @@ impl IncomingWebhookGateway for UcsIncomingWebhookGateway {
                             "UCS HandleEvent returned no event_content for a non-filtered event",
                         )
                 })?;
-                let bytes = serde_json::to_vec(&event_content)
+                let bytes = event_content
+                    .encode_to_vec()
                     .change_context(errors::ApiErrorResponse::InternalServerError)
                     .attach_printable("Failed to encode unified event content")?;
                 let masked_log_payload =
@@ -412,6 +437,11 @@ impl IncomingWebhookGateway for UcsIncomingWebhookGateway {
                     event_type,
                     source_verified: handle_response.source_verified,
                     content: WebhookContent::UnifiedConnectorService(bytes),
+                    // UCS uses the raw request body — no decoded_body needed.
+                    decoded_body: None,
+                    // UCS path does not pre-fetch resource data; the downstream
+                    // flow will fetch it on demand.
+                    webhook_resource_data: Box::new(None),
                     masked_log_payload,
                     merchant_connector_account: Box::new(mca),
                     ack_response,
@@ -601,31 +631,27 @@ async fn report_shadow_diff(
 
 async fn resolve_mca(
     ctx: &WebhookGatewayContext,
-    reference: Option<&ObjectReferenceId>,
+    reference: &ObjectReferenceId,
 ) -> RouterResult<domain::MerchantConnectorAccount> {
-    match (ctx.merchant_connector_account.as_ref(), reference) {
-        (Some(mca), _) => Ok(mca.clone()),
-        (None, Some(reference)) => Box::pin(helper_utils::get_mca_from_object_reference_id(
-            &ctx.state,
-            reference.clone(),
-            &ctx.platform,
-            &ctx.connector_name,
-        ))
-        .await,
-        (None, None) => Err(error_stack::report!(
-            errors::ApiErrorResponse::WebhookResourceNotFound
-        )
-        .attach_printable(
-            "Webhook URL did not include a merchant-connector id and the event carries no resource reference",
-        )),
+    match ctx.merchant_connector_account.as_ref() {
+        Some(mca) => Ok(mca.clone()),
+        None => {
+            Box::pin(helper_utils::get_mca_from_object_reference_id(
+                &ctx.state,
+                reference.clone(),
+                &ctx.platform,
+                &ctx.connector_name,
+            ))
+            .await
+        }
     }
 }
 
-async fn build_webhook_context(
+async fn build_webhook_resource_data(
     state: &SessionState,
     platform: &domain::Platform,
     reference: Option<&ObjectReferenceId>,
-) -> RouterResult<Option<WebhookContext>> {
+) -> RouterResult<Option<WebhookResourceData>> {
     match reference {
         Some(reference @ ObjectReferenceId::PaymentId(_)) => {
             let payment_attempt = get_payment_attempt_from_object_reference_id(
@@ -633,18 +659,8 @@ async fn build_webhook_context(
                 reference.clone(),
                 platform.get_processor(),
             )
-            .await
-            .inspect_err(|error| {
-                logger::warn!(
-                    ?error,
-                    "Failed to fetch payment_attempt for webhook context"
-                );
-            })
-            .ok();
-            Ok(payment_attempt.map(|payment_attempt| {
-                let data = WebhookResourceData::Payment { payment_attempt };
-                WebhookContext::from(&data)
-            }))
+            .await?;
+            Ok(Some(WebhookResourceData::Payment { payment_attempt }))
         }
         _ => Ok(None),
     }
@@ -723,13 +739,25 @@ fn build_ucs_auth_metadata(
 ) -> RouterResult<external_services::grpc_client::unified_connector_service::ConnectorAuthMetadata>
 {
     match mca {
-        Some(mca) => build_unified_connector_service_auth_metadata(
-            MerchantConnectorAccountType::DbVal(Box::new(mca.clone())),
-            ctx.platform.get_processor(),
-            ctx.connector_name.to_string(),
-        )
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to build UCS auth metadata"),
+        Some(mca) => {
+            #[cfg(feature = "v1")]
+            let auth_metadata = build_unified_connector_service_auth_metadata(
+                MerchantConnectorAccountType::DbVal(Box::new(mca.clone())),
+                ctx.platform.get_processor(),
+                ctx.connector_name.to_string(),
+            );
+            #[cfg(feature = "v2")]
+            let auth_metadata = build_unified_connector_service_auth_metadata(
+                domain::MerchantConnectorAccountTypeDetails::MerchantConnectorAccount(Box::new(
+                    mca.clone(),
+                )),
+                ctx.platform.get_processor(),
+                ctx.connector_name.to_string(),
+            );
+            auth_metadata
+                .change_context(errors::ApiErrorResponse::InternalServerError)
+                .attach_printable("Failed to build UCS auth metadata")
+        }
         None => {
             let merchant_id = ctx
                 .platform
@@ -857,10 +885,10 @@ fn event_reference_to_object_ref(
 
 async fn build_event_context(
     ctx: &WebhookGatewayContext,
-    reference: Option<&ObjectReferenceId>,
+    reference: &ObjectReferenceId,
 ) -> Option<payments_grpc::EventContext> {
     let payment_attempt = match reference {
-        Some(reference @ ObjectReferenceId::PaymentId(_)) => {
+        reference @ ObjectReferenceId::PaymentId(_) => {
             get_payment_attempt_from_object_reference_id(
                 &ctx.state,
                 reference.clone(),

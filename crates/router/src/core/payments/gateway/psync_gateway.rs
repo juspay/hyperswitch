@@ -151,12 +151,9 @@ where
                     .attach_printable("Failed to fetch Unified Connector Service client")?;
 
                 let payment_get_request =
-                    payments_grpc::PaymentServiceGetRequest::foreign_try_from((
-                        router_data,
-                        call_connector_action,
-                    ))
-                    .change_context(ConnectorError::RequestEncodingFailed)
-                    .attach_printable("Failed to construct Payment Get Request")?;
+                    payments_grpc::PaymentServiceGetRequest::foreign_try_from(router_data)
+                        .change_context(ConnectorError::RequestEncodingFailed)
+                        .attach_printable("Failed to construct Payment Get Request")?;
 
                 let connector_auth_metadata =
                     unified_connector_service::build_unified_connector_service_auth_metadata(

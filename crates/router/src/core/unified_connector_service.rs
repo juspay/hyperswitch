@@ -1093,12 +1093,10 @@ pub fn build_unified_connector_service_payment_method(
             hyperswitch_domain_models::payment_method_data::BankRedirectData::Eft {
                 provider,
             } => {
-                let eft = payments_grpc::EftBankRedirect {
-                    provider,
-                };
+                let eft_bank_redirect = payments_grpc::EftBankRedirect { provider };
 
                 Ok(payments_grpc::PaymentMethod {
-                    payment_method: Some(PaymentMethod::EftBankRedirect(eft)),
+                    payment_method: Some(PaymentMethod::EftBankRedirect(eft_bank_redirect)),
                 })
             }
             hyperswitch_domain_models::payment_method_data::BankRedirectData::BancontactCard {
@@ -1732,7 +1730,7 @@ pub fn build_unified_connector_service_payment_method_for_external_proxy(
                 .clone()
                 .map(payments_grpc::CardNetwork::foreign_from);
             let card_details = payments_grpc::ProxyCardDetails {
-                card_number: Some(external_vault_card.card_number.peek().clone().into()),
+                card_number: Some(external_vault_card.card_number.expose().into()),
                 card_exp_month: Some(external_vault_card.card_exp_month.expose().into()),
                 card_exp_year: Some(external_vault_card.card_exp_year.expose().into()),
                 card_cvc: Some(external_vault_card.card_cvc.expose().into()),
@@ -2831,22 +2829,18 @@ where
     })
 }
 
-/// UCS event-logging wrapper for webhook flows. Mirrors `ucs_logging_wrapper_granular`
-/// (metrics, latency, masked request/response, connector-event emission) but takes no
+/// UCS wrapper for webhook flows. It centralizes header building and handler
+/// invocation plus masked request/response logging, and takes no
 /// `RouterData` — incoming webhooks don't have one at the UCS call site. `flow` is
-/// the gRPC method label (e.g. `"EventServiceParseEvent"`), `event_id` is the stable
-/// per-invocation id recorded as the connector event's payment_id.
+/// the gRPC method label (e.g. `"EventServiceParseEvent"`).
 #[allow(clippy::too_many_arguments)]
 #[instrument(skip_all, fields(connector_name, flow_type))]
 pub async fn ucs_webhook_logging_wrapper<F, Fut, GrpcReq, GrpcResp>(
-    state: &SessionState,
+    _state: &SessionState,
     connector_name: String,
     flow: &'static str,
-    merchant_id: id_type::MerchantId,
-    event_id: String,
     grpc_request: GrpcReq,
     grpc_header_builder: external_services::grpc_client::GrpcHeadersUcsBuilderFinal,
-    execution_mode: ExecutionMode,
     handler: F,
 ) -> RouterResult<GrpcResp>
 where
@@ -2863,183 +2857,50 @@ where
         hyperswitch_masking::masked_serialize(&grpc_request).unwrap_or_else(|error| {
             logger::warn!(
                 ?error,
-                "Failed to mask-serialize UCS gRPC request for logging"
+                "Failed to mask-serialize UCS webhook gRPC request for logging"
             );
             serde_json::json!({"error": "failed_to_serialize_grpc_request"})
         });
-
-    crate::routes::metrics::CONNECTOR_CALL_COUNT.add(
-        1,
-        router_env::metric_attributes!(("connector", connector_name.clone()), ("flow", flow),),
+    logger::info!(
+        flow,
+        ucs_webhook_grpc_request = ?grpc_request_body,
+        "UCS webhook gRPC request"
     );
 
     let start_time = Instant::now();
     let result = handler(grpc_request, grpc_header).await;
     let external_latency = start_time.elapsed().as_millis();
 
-    let (status_code, response_body, router_result) = match result {
+    let router_result = match result {
         Ok(grpc_response) => {
             let grpc_response_body = hyperswitch_masking::masked_serialize(&grpc_response)
                 .unwrap_or_else(|error| {
                     logger::warn!(
                         ?error,
-                        "Failed to mask-serialize UCS gRPC response for logging"
+                        "Failed to mask-serialize UCS webhook gRPC response for logging"
                     );
                     serde_json::json!({"error": "failed_to_serialize_grpc_response"})
                 });
-            (200u16, Some(grpc_response_body), Ok(grpc_response))
+            logger::info!(
+                flow,
+                external_latency,
+                ucs_webhook_grpc_response = ?grpc_response_body,
+                "UCS webhook gRPC response"
+            );
+            Ok(grpc_response)
         }
         Err(error) => {
-            crate::routes::metrics::CONNECTOR_ERROR_RESPONSE_COUNT.add(
-                1,
-                router_env::metric_attributes!(("connector", connector_name.clone())),
+            logger::warn!(
+                flow,
+                external_latency,
+                ?error,
+                "UCS webhook gRPC call failed"
             );
-            let error_body = serde_json::json!({
-                "error": error.to_string(),
-                "error_type": "ucs_call_failed",
-            });
-            (
-                extract_ucs_error_http_status(error.current_context()),
-                Some(error_body),
-                Err(error),
-            )
+            Err(error)
         }
     };
-
-    if let ExecutionMode::Primary = execution_mode {
-        let mut connector_event = ConnectorEvent::new(
-            state.tenant.tenant_id.clone(),
-            connector_name,
-            flow,
-            grpc_request_body,
-            "grpc://unified-connector-service".to_string(),
-            Method::Post,
-            event_id,
-            merchant_id,
-            state.request_id.as_ref(),
-            external_latency,
-            None,
-            None,
-            None,
-            status_code,
-        );
-
-        if let Some(body) = response_body {
-            match status_code {
-                400..=599 => connector_event.set_error_response_body(&body),
-                _ => connector_event.set_response_body(&body),
-            }
-        }
-
-        state.event_handler.log_event(&connector_event);
-    }
 
     router_result
-}
-
-#[derive(serde::Serialize)]
-pub struct ComparisonData {
-    pub hyperswitch_data: Secret<serde_json::Value>,
-    pub unified_connector_service_data: Secret<serde_json::Value>,
-}
-
-/// Generic function to serialize router data and send comparison to external service
-/// Works for both payments and refunds
-#[cfg(feature = "v1")]
-pub async fn serialize_router_data_and_send_to_comparison_service<F, RouterDReq, RouterDResp>(
-    state: &SessionState,
-    hyperswitch_router_data: RouterData<F, RouterDReq, RouterDResp>,
-    unified_connector_service_router_data: RouterData<F, RouterDReq, RouterDResp>,
-) -> RouterResult<()>
-where
-    F: Send + Clone + Sync + 'static,
-    RouterDReq: Send + Sync + Clone + 'static + serde::Serialize,
-    RouterDResp: Send + Sync + Clone + 'static + serde::Serialize,
-{
-    logger::info!("Simulating UCS call for shadow mode comparison");
-
-    let connector_name = hyperswitch_router_data.connector.clone();
-    let sub_flow_name = get_flow_name::<F>().ok();
-
-    let [hyperswitch_data, unified_connector_service_data] = [
-        (hyperswitch_router_data, "hyperswitch"),
-        (unified_connector_service_router_data, "ucs"),
-    ]
-    .map(|(data, source)| {
-        serde_json::to_value(data)
-            .map(Secret::new)
-            .unwrap_or_else(|e| {
-                Secret::new(serde_json::json!({
-                    "error": e.to_string(),
-                    "source": source
-                }))
-            })
-    });
-
-    let comparison_data = ComparisonData {
-        hyperswitch_data,
-        unified_connector_service_data,
-    };
-    let _ = send_comparison_data(state, comparison_data, connector_name, sub_flow_name)
-        .await
-        .map_err(|e| {
-            logger::debug!("Failed to send comparison data: {:?}", e);
-        });
-    Ok(())
-}
-
-/// Sends router data comparison to external service
-pub async fn send_comparison_data(
-    state: &SessionState,
-    comparison_data: ComparisonData,
-    connector_name: String,
-    sub_flow_name: Option<String>,
-) -> RouterResult<()> {
-    // Check if comparison service is enabled
-    let comparison_config = match state.conf.comparison_service.as_ref() {
-        Some(comparison_config) => comparison_config,
-        None => {
-            tracing::warn!(
-                "Comparison service configuration missing, skipping comparison data send"
-            );
-            return Ok(());
-        }
-    };
-
-    let mut request = RequestBuilder::new()
-        .method(Method::Post)
-        .url(comparison_config.url.get_string_repr())
-        .header(CONTENT_TYPE, "application/json")
-        .header(X_FLOW_NAME, "router-data")
-        .set_body(RequestContent::Json(Box::new(comparison_data)))
-        .build();
-
-    request.add_header(
-        X_CONNECTOR_NAME,
-        hyperswitch_masking::Maskable::Normal(connector_name),
-    );
-
-    if let Some(sub_flow_name) = sub_flow_name.filter(|name| !name.is_empty()) {
-        request.add_header(
-            X_SUB_FLOW_NAME,
-            hyperswitch_masking::Maskable::Normal(sub_flow_name),
-        );
-    }
-
-    if let Some(req_id) = &state.request_id {
-        request.add_header(
-            X_REQUEST_ID,
-            hyperswitch_masking::Maskable::Normal(req_id.to_string()),
-        );
-    }
-
-    let _ = http_client::send_request(&state.conf.proxy, request, comparison_config.timeout_secs)
-        .await
-        .map_err(|e| {
-            tracing::debug!("Error sending comparison data: {:?}", e);
-        });
-
-    Ok(())
 }
 
 // ============================================================================

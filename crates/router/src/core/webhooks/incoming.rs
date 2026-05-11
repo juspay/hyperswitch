@@ -255,14 +255,15 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
             let (uas_connector, _) =
                 get_connector_by_connector_name(&state, UNIFIED_AUTHENTICATION_SERVICE, None)?;
 
-            let outcome = Box::pin(process_uas_incoming_webhook(
-                &state,
-                &platform,
-                &request_details,
-                connector_name.clone(),
-                uas_connector.clone(),
-            ))
-            .await;
+            let outcome: errors::RouterResult<super::gateway::WebhookOutcome> =
+                Box::pin(process_uas_incoming_webhook(
+                    &state,
+                    &platform,
+                    &request_details,
+                    connector_name.clone(),
+                    uas_connector.clone(),
+                ))
+                .await;
 
             (uas_connector, connector_name, outcome)
         }
@@ -347,10 +348,33 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
             event_type,
             source_verified,
             content,
+            decoded_body,
+            webhook_resource_data,
             masked_log_payload,
             merchant_connector_account: processed_mca,
             ack_response,
         }) => {
+            // Reconstruct request_details with the decoded body when available
+            // (Direct and UAS paths), so downstream connector methods that parse
+            // request_details.body (get_dispute_details, get_webhook_mandate_details,
+            // etc.) receive the structured payload they expect.
+            // UCS path leaves decoded_body as None and uses the raw request body.
+            let decoded_request_details;
+            let request_for_biz: &IncomingWebhookRequestDetails<'_> = match decoded_body.as_deref()
+            {
+                Some(body) => {
+                    decoded_request_details = IncomingWebhookRequestDetails {
+                        method: request_details.method.clone(),
+                        uri: request_details.uri.clone(),
+                        headers: request_details.headers,
+                        query_params: request_details.query_params.clone(),
+                        body,
+                    };
+                    &decoded_request_details
+                }
+                None => &request_details,
+            };
+
             let effect = match Box::pin(process_webhook_business_logic(
                 &state,
                 req_state,
@@ -360,10 +384,11 @@ async fn incoming_webhooks_core<W: types::OutgoingWebhookType>(
                 event_type,
                 source_verified,
                 content,
-                &request_details,
+                request_for_biz,
                 is_relay_webhook,
                 reference,
                 *processed_mca,
+                *webhook_resource_data,
             ))
             .await
             {
@@ -471,6 +496,7 @@ async fn process_webhook_business_logic(
     is_relay_webhook: bool,
     object_reference_id: api::ObjectReferenceId,
     merchant_connector_account: domain::MerchantConnectorAccount,
+    webhook_resource_data: Option<WebhookResourceData>,
 ) -> errors::RouterResult<WebhookResponseTracker> {
     let object_ref_id = object_reference_id;
 
@@ -554,6 +580,7 @@ async fn process_webhook_business_logic(
                 request_details,
                 event_type,
                 &content,
+                webhook_resource_data,
             ))
             .await
             .attach_printable("Incoming webhook flow for payments failed"),
@@ -823,6 +850,7 @@ async fn payments_incoming_webhook_flow(
     request_details: &IncomingWebhookRequestDetails<'_>,
     event_type: webhooks::IncomingWebhookEvent,
     content: &super::gateway::WebhookContent,
+    webhook_resource_data: Option<WebhookResourceData>,
 ) -> CustomResult<WebhookResponseTracker, errors::ApiErrorResponse> {
     let consume_or_trigger_flow = if source_verified {
         let resource_object = webhook_details.resource_object.clone();
@@ -840,12 +868,18 @@ async fn payments_incoming_webhook_flow(
 
     let shadow_ucs_call_connector_action: Option<payments::CallConnectorAction> = None;
 
-    let payment_attempt = get_payment_attempt_from_object_reference_id(
-        &state,
-        webhook_details.object_reference_id.clone(),
-        platform.get_processor(),
-    )
-    .await?;
+    // Reuse the pre-fetched payment attempt when available; otherwise fetch now.
+    let payment_attempt =
+        if let Some(WebhookResourceData::Payment { payment_attempt }) = webhook_resource_data {
+            payment_attempt
+        } else {
+            get_payment_attempt_from_object_reference_id(
+                &state,
+                webhook_details.object_reference_id.clone(),
+                platform.get_processor(),
+            )
+            .await?
+        };
 
     let payments_response = match webhook_details.object_reference_id {
         webhooks::ObjectReferenceId::PaymentId(ref id) => {
@@ -2215,12 +2249,18 @@ async fn disputes_incoming_webhook_flow(
     metrics::INCOMING_DISPUTE_WEBHOOK_METRIC.add(1, &[]);
     if source_verified {
         let db = &*state.store;
-        let payment_attempt = get_payment_attempt_from_object_reference_id(
-            &state,
-            webhook_details.object_reference_id.clone(),
-            platform.get_processor(),
-        )
-        .await?;
+        // Reuse the pre-fetched payment attempt when available; otherwise fetch now.
+        let payment_attempt =
+            if let Some(WebhookResourceData::Payment { payment_attempt }) = webhook_resource_data {
+                payment_attempt
+            } else {
+                get_payment_attempt_from_object_reference_id(
+                    &state,
+                    webhook_details.object_reference_id.clone(),
+                    platform.get_processor(),
+                )
+                .await?
+            };
         let resource_data = WebhookResourceData::Payment {
             payment_attempt: payment_attempt.clone(),
         };
@@ -2747,18 +2787,9 @@ fn insert_mandate_details(
     Ok(connector_mandate_details)
 }
 
-/// Runs the Unified Authentication Service path and produces the same
-/// `WebhookOutcome` shape the Direct and UCS gateway implementations
-/// return, so `incoming_webhooks_core` has a single `Skipped`/`Processed`
-/// call site for all three paths. UAS is not a connector and doesn't fit the
-/// `IncomingWebhookGateway` trait (it runs an external auth-service call and
-/// uses the UAS connector for parsing/verification while the ack goes back
-/// through the merchant's connector), so it stays as a plain function.
-///
-/// Flow: UAS gRPC call → event classification on the inbound request →
-/// filter on event type → reference fetch on the UAS response body → MCA
-/// resolution via `get_mca_from_object_reference_id` → source verification
-/// on the UAS connector → resource-object extraction.
+/// Runs the Unified Authentication Service path and returns `WebhookOutcome`
+/// so `incoming_webhooks_core` handles all paths through one
+/// `Skipped`/`Processed` call site.
 #[cfg(feature = "v1")]
 pub async fn process_uas_incoming_webhook<'a>(
     state: &'a SessionState,
@@ -2854,12 +2885,8 @@ pub async fn process_uas_incoming_webhook<'a>(
         execution_mode: common_enums::ExecutionMode::NotApplicable,
     };
 
-    // Reference fetch, MCA resolution, source verification, and resource-object
-    // extraction all run against the UAS response body: the inbound request is
-    // just the trigger, and the substantive payload — what identifies the
-    // payment, what the connector integration expects to parse — lives in the
-    // response returned by the UAS gRPC call.
-    let uas_request = IncomingWebhookRequestDetails {
+    // Reuse inbound request metadata, but parse using UAS response body.
+    let uas_webhook_request = IncomingWebhookRequestDetails {
         method: request_details.method.clone(),
         uri: request_details.uri.clone(),
         headers: request_details.headers,
@@ -2872,7 +2899,7 @@ pub async fn process_uas_incoming_webhook<'a>(
         super::gateway::FilterDecision::Skip
     ) {
         let ack_response = uas_connector
-            .get_webhook_api_response(&uas_request, None, None)
+            .get_webhook_api_response(&uas_webhook_request, None, None)
             .switch()
             .attach_printable("Failed to build UAS webhook ack")?;
         return Ok(super::gateway::WebhookOutcome::Skipped {
@@ -2883,7 +2910,7 @@ pub async fn process_uas_incoming_webhook<'a>(
     }
 
     let reference = uas_connector
-        .get_webhook_object_reference_id(&uas_request)
+        .get_webhook_object_reference_id(&uas_webhook_request)
         .switch()
         .attach_printable("Could not find object reference id in UAS webhook body")?;
 
@@ -2896,10 +2923,11 @@ pub async fn process_uas_incoming_webhook<'a>(
     .await?;
 
     let source_verified =
-        super::gateway::verify_webhook_source_via_connector(&ctx, &uas_request, &mca).await?;
+        super::gateway::verify_webhook_source_via_connector(&ctx, &uas_webhook_request, &mca)
+            .await?;
 
     let resource_object = uas_connector
-        .get_webhook_resource_object(&uas_request)
+        .get_webhook_resource_object(&uas_webhook_request)
         .switch()
         .attach_printable("Failed to extract UAS webhook resource object")?;
     let masked_log_payload = hyperswitch_masking::Secret::new(
@@ -2914,7 +2942,7 @@ pub async fn process_uas_incoming_webhook<'a>(
 
     let ack_response = uas_connector
         .get_webhook_api_response(
-            &uas_request,
+            &uas_webhook_request,
             None,
             Some(mca.connector_account_details.clone()),
         )
@@ -2925,7 +2953,12 @@ pub async fn process_uas_incoming_webhook<'a>(
         reference,
         event_type,
         source_verified,
-        content: super::gateway::WebhookContent::Direct(body_bytes),
+        content: super::gateway::WebhookContent::Direct(body_bytes.clone()),
+        // Carry the UAS response body so downstream connector calls that parse
+        // request_details.body receive the correct structured payload.
+        decoded_body: Some(body_bytes),
+        // UAS path does not pre-fetch resource data here.
+        webhook_resource_data: Box::new(None),
         masked_log_payload,
         merchant_connector_account: Box::new(mca),
         ack_response,
