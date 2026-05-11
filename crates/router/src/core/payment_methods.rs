@@ -3269,6 +3269,13 @@ pub async fn get_external_vault_token(
                 ),
             })?
         }
+        storage::PaymentTokenData::TemporaryCardToken(_) => {
+            Err(errors::ApiErrorResponse::NotImplemented {
+                message: errors::NotImplementedMessage::Reason(
+                    "TemporaryCardToken does not have a vaulted payment method".to_string(),
+                ),
+            })?
+        }
     };
 
     let payment_method = db
@@ -4430,7 +4437,8 @@ pub async fn resolve_storage_type_from_token(
                 // Any token kind other than PermanentCard is invalid for retrieving a saved payment method.
                 // Only PermanentCard is currently supported; all other enum variants should be removed.
                 storage::PaymentTokenData::TemporaryGeneric(_)
-                | storage::PaymentTokenData::AuthBankDebit(_) => {
+                | storage::PaymentTokenData::AuthBankDebit(_)
+                | storage::PaymentTokenData::TemporaryCardToken(_) => {
                     Err(report!(errors::ApiErrorResponse::PaymentMethodNotFound))
                 }
             }
@@ -4480,7 +4488,8 @@ impl RawPaymentMethodFetchAccess {
                     .map(|enc| enc.into_inner());
                 match proxy_card_data {
                     Some(external_vault_token_data) => {
-                        Ok(Some(payment_methods::RawPaymentMethodData::ProxyCard(
+                        Ok(Some(
+                        payment_methods::RawPaymentMethodData::ProxyCard(
                             payment_methods::RawProxyCardDataResponse {
                                 card_number: external_vault_token_data.tokenized_card_number,
                                 card_exp_year: None,
@@ -4994,7 +5003,7 @@ pub async fn payment_methods_session_create(
 ) -> RouterResponse<payment_methods::PaymentMethodSessionResponse> {
     let db = state.store.as_ref();
     let key_manager_state = &(&state).into();
-    let provider = platform.get_provider();
+    let _provider = platform.get_provider();
 
     let customer = if let Some(customer_id) = &request.customer_id {
         let customer = db
@@ -5498,6 +5507,71 @@ async fn create_zero_auth_payment(
 }
 
 #[cfg(feature = "v2")]
+async fn handle_session_card_token_confirm(
+    state: SessionState,
+    db: &dyn StorageInterface,
+    platform: domain::Platform,
+    payment_method_session_id: id_type::GlobalPaymentMethodSessionId,
+    payment_method_session: hyperswitch_domain_models::payment_methods::PaymentMethodSession,
+    token_data: api_models::payments::SessionCardTokenData,
+) -> RouterResponse<payment_methods::PaymentMethodSessionResponse> {
+    let parent_payment_method_token = generate_id(consts::ID_LENGTH, "token");
+
+    let redis_token_data = storage::PaymentTokenData::temporary_card_token(
+        token_data.card_cvc,
+        token_data.card_holder_name,
+    );
+
+    let intent_fulfillment_time = common_utils::consts::DEFAULT_INTENT_FULFILLMENT_TIME;
+    pm_routes::ParentPaymentMethodToken::create_key_for_token(&parent_payment_method_token)
+        .insert(intent_fulfillment_time, redis_token_data, &state)
+        .await?;
+
+    let associated_payment_methods = common_types::payment_methods::AssociatedPaymentMethods {
+        payment_method_token:
+            common_types::payment_methods::AssociatedPaymentMethodTokenType::PaymentMethodSessionToken(
+                parent_payment_method_token,
+            ),
+    };
+
+    let update_payment_method_session = hyperswitch_domain_models::payment_methods::PaymentMethodsSessionUpdateEnum::UpdateAssociatedPaymentMethods {
+        associated_payment_methods: Some(vec![associated_payment_methods]),
+    };
+
+    let payment_method_session = db
+        .update_payment_method_session(
+            platform.get_provider().get_key_store(),
+            &payment_method_session_id,
+            update_payment_method_session,
+            payment_method_session,
+        )
+        .await
+        .to_not_found_response(errors::ApiErrorResponse::GenericNotFoundError {
+            message: "payment methods session does not exist or has expired".to_string(),
+        })
+        .attach_printable("Failed to update payment methods session from db")?;
+
+    let storage_type = payment_method_session.storage_type;
+
+    let payment_method_session_response = transformers::generate_payment_method_session_response(
+        payment_method_session,
+        Secret::new("CLIENT_SECRET_REDACTED".to_string()),
+        None,
+        None,
+        None,
+        storage_type,
+        None,
+        None,
+        None,
+        None,
+    );
+
+    Ok(services::ApplicationResponse::Json(
+        payment_method_session_response,
+    ))
+}
+
+#[cfg(feature = "v2")]
 pub async fn payment_methods_session_confirm(
     state: SessionState,
     req_state: routes::app::ReqState,
@@ -5539,6 +5613,22 @@ pub async fn payment_methods_session_confirm(
         .or_else(|| payment_method_session_billing.clone());
 
     let storage_type = payment_method_session.storage_type;
+
+    // Early-return path for SessionCardToken: no PM creation in the vault.
+    // Store only CVC + card_holder_name in Redis and return a temp token.
+    if let Some(api_models::payments::PaymentMethodData::SessionCardToken(ref token_data)) =
+        request.payment_method_data.payment_method_data
+    {
+        return handle_session_card_token_confirm(
+            state.clone(),
+            db,
+            platform,
+            payment_method_session_id,
+            payment_method_session,
+            token_data.clone(),
+        )
+        .await;
+    }
 
     let create_payment_method_request = get_payment_method_create_request(
         request

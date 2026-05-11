@@ -1845,6 +1845,11 @@ impl From<api_models::payments::PaymentMethodData> for PaymentMethodData {
                 // Falling back to MandatePayment as a safe no-op sentinel value.
                 Self::MandatePayment
             }
+            api_models::payments::PaymentMethodData::SessionCardToken(_) => {
+                // SessionCardToken is handled at the payment methods session confirm layer
+                // and should not reach the domain payment method data conversion.
+                Self::MandatePayment
+            }
         }
     }
 }
@@ -1857,6 +1862,15 @@ impl From<api_models::payments::ProxyPaymentMethodData> for ExternalVaultPayment
             }
             api_models::payments::ProxyPaymentMethodData::VaultToken(vault_data) => {
                 Self::VaultToken(VaultToken::from(vault_data))
+            }
+            api_models::payments::ProxyPaymentMethodData::CardTokenData(token_data) => {
+                // CardTokenData means the vault card will be fetched from the internal PM service.
+                // We store a VaultToken placeholder; the real ExternalVaultCard is built in
+                // fetch_payment_method using the PM service raw data + the cvc from this token.
+                Self::VaultToken(VaultToken {
+                    card_cvc: token_data.card_cvc.unwrap_or_default(),
+                    card_holder_name: token_data.card_holder_name,
+                })
             }
         }
     }
