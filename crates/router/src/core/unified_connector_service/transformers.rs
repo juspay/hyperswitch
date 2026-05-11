@@ -7138,7 +7138,7 @@ impl transformers::ForeignTryFrom<&api_models::payouts::BankTransfer>
 }
 
 #[cfg(feature = "payouts")]
-impl  ForeignFrom<&api_models::payouts::PixKeyBankTransfer>
+impl ForeignFrom<&api_models::payouts::PixKeyBankTransfer>
     for payments_grpc::PixKeyBankTransferPayout
 {
     fn foreign_from(item: &api_models::payouts::PixKeyBankTransfer) -> Self {
