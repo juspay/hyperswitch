@@ -3,15 +3,7 @@ use common_utils::errors::CustomResult;
 use external_services::superposition;
 use scheduler::consumer::types::process_data::RetryMapping;
 
-// Re-export dimension types for convenience
-pub use super::dimension_state::{
-    self, DimensionsWithProcessorAndProviderMerchantId,
-    DimensionsWithProcessorAndProviderMerchantIdAndConnector,
-    DimensionsWithProcessorAndProviderMerchantIdAndPayoutRetryType,
-    DimensionsWithProcessorAndProviderMerchantIdAndProfileId, DimensionsWithProcessorMerchantId,
-    DimensionsWithProcessorMerchantIdAndConnector, DimensionsWithProviderMerchantId,
-};
-use super::{fetch_db_config_for_dimensions, DatabaseBackedConfig};
+use super::{dimension_state, fetch_db_config_for_dimensions, DatabaseBackedConfig};
 use crate::{consts::superposition as superposition_consts, db::StorageInterface, utils::id_type};
 /// This adds `WritableConfig` trait implementation and `set_<key>()` method.
 ///
@@ -166,7 +158,7 @@ config! {
     superposition_key = REQUIRES_CVV,
     output = bool,
     default = true,
-    requires = DimensionsWithProcessorAndProviderMerchantId,
+    requires = dimension_state::DimensionsWithProcessorAndProviderMerchantId,
     targeting_key = id_type::CustomerId
 }
 
@@ -183,7 +175,7 @@ config! {
     superposition_key = IMPLICIT_CUSTOMER_UPDATE,
     output = bool,
     default = false,
-    requires = DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
+    requires = dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
     targeting_key = id_type::CustomerId
 }
 
@@ -197,10 +189,27 @@ impl DatabaseBackedConfig for ImplicitCustomerUpdate {
 }
 
 config! {
+    superposition_key = FINGERPRINT_SECRET,
+    output = String,
+    default = String::new(),
+    requires = dimension_state::DimensionsWithProcessorMerchantId,
+    targeting_key = id_type::MerchantId
+}
+
+impl DatabaseBackedConfig for FingerprintSecret {
+    const KEY: &'static str = "fingerprint_secret";
+    fn db_key(dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
+        dimensions
+            .get_processor_merchant_id()
+            .map(|id| format!("{}_{}", id.get_string_repr(), Self::KEY))
+    }
+}
+
+config! {
     superposition_key = SHOULD_CALL_GSM,
     output = bool,
     default = false,
-    requires = DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
+    requires = dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
     targeting_key = id_type::CustomerId
 }
 
@@ -218,7 +227,7 @@ config! {
     superposition_key = SHOULD_PERFORM_ELIGIBILITY,
     output = bool,
     default = false,
-    requires = DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
+    requires = dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
     targeting_key = id_type::CustomerId
 }
 
@@ -237,7 +246,7 @@ config! {
     superposition_key = SHOULD_ENABLE_MIT_WITH_LIMITED_CARD_DATA,
     output = bool,
     default = false,
-    requires = DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
+    requires = dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
     targeting_key = id_type::PaymentId
 }
 
@@ -255,7 +264,7 @@ config! {
     superposition_key = SHOULD_STORE_ELIGIBILITY_CHECK_DATA_FOR_AUTHENTICATION,
     output = bool,
     default = false,
-    requires = DimensionsWithProcessorAndProviderMerchantId,
+    requires = dimension_state::DimensionsWithProcessorAndProviderMerchantId,
     targeting_key = id_type::AuthenticationId
 }
 
@@ -274,7 +283,7 @@ config! {
     superposition_key = ENABLE_EXTENDED_CARD_BIN,
     output = bool,
     default = false,
-    requires = DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
+    requires = dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
     targeting_key = id_type::CustomerId
 }
 
@@ -289,11 +298,18 @@ impl DatabaseBackedConfig for EnableExtendedCardBin {
     }
 }
 
+// Write support for FingerprintSecret
+writable_config! {
+    superposition_key = FINGERPRINT_SECRET,
+    input = String,
+    requires = dimension_state::DimensionsWithProcessorMerchantId
+}
+
 config! {
     superposition_key = GSM_PAYOUT_CALL,
     output = bool,
     default = false,
-    requires = DimensionsWithProcessorAndProviderMerchantIdAndPayoutRetryType,
+    requires = dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndPayoutRetryType,
     targeting_key = id_type::CustomerId
 }
 
@@ -324,7 +340,7 @@ config! {
     superposition_key = SHOULD_DISABLE_VAULT_TOKENIZATION,
     output = bool,
     default = false,
-    requires = DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
+    requires = dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndProfileId,
     targeting_key = id_type::CustomerId
 }
 
@@ -343,7 +359,7 @@ config! {
     superposition_key = SHOULD_RETURN_RAW_PAYMENT_METHOD_DETAILS,
     output = bool,
     default = false,
-    requires = DimensionsWithProviderMerchantId,
+    requires = dimension_state::DimensionsWithProviderMerchantId,
     targeting_key = id_type::GlobalCustomerId
 }
 
@@ -380,7 +396,7 @@ config! {
     superposition_key = SHOULD_SCHEDULE_MODULAR_FORWARD_COMPAT,
     output = bool,
     default = false,
-    requires = DimensionsWithProviderMerchantId,
+    requires = dimension_state::DimensionsWithProviderMerchantId,
     targeting_key = id_type::CustomerId
 }
 
@@ -399,7 +415,7 @@ config! {
     output = RetryMapping,
     default = RetryMapping::default(),
     object = true,
-    requires = DimensionsWithProcessorAndProviderMerchantIdAndConnector,
+    requires = dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndConnector,
     targeting_key = id_type::PayoutId
 }
 
@@ -407,7 +423,7 @@ config! {
     superposition_key = CLIENT_SESSION_VALIDATION_ENABLED,
     output = bool,
     default = true,
-    requires = DimensionsWithProcessorAndProviderMerchantId,
+    requires = dimension_state::DimensionsWithProcessorAndProviderMerchantId,
     targeting_key = id_type::PaymentId
 }
 
@@ -422,7 +438,7 @@ config! {
     superposition_key = MAX_AUTO_PAYOUT_RETRIES,
     output = u32,
     default = 0u32,
-    requires = DimensionsWithProcessorAndProviderMerchantIdAndPayoutRetryType,
+    requires = dimension_state::DimensionsWithProcessorAndProviderMerchantIdAndPayoutRetryType,
     targeting_key = id_type::CustomerId
 }
 
@@ -449,37 +465,11 @@ impl DatabaseBackedConfig for MaxAutoPayoutRetries {
 }
 
 config! {
-    superposition_key = FINGERPRINT_SECRET,
-    output = String,
-    default = String::new(),
-    requires = DimensionsWithProcessorMerchantId,
-    targeting_key = id_type::MerchantId
-}
-
-impl DatabaseBackedConfig for FingerprintSecret {
-    const KEY: &'static str = "fingerprint_secret";
-    fn db_key(dimensions: &impl dimension_state::DimensionsBase) -> Option<String> {
-        let merchant_id = dimensions
-            .get_processor_merchant_id()
-            .map(|id| id.get_string_repr())
-            .unwrap_or_default();
-        Some(format!("{}_{}", merchant_id, Self::KEY))
-    }
-}
-
-// Write support for FingerprintSecret
-writable_config! {
-    superposition_key = FINGERPRINT_SECRET,
-    input = String,
-    requires = DimensionsWithProcessorMerchantId
-}
-
-config! {
     superposition_key = POLL_CONFIG_EXTERNAL_THREE_DS,
     output = crate::types::PollConfig,
     default = crate::types::PollConfig::default(),
     object = true,
-    requires = DimensionsWithProcessorMerchantIdAndConnector,
+    requires = dimension_state::DimensionsWithProcessorMerchantIdAndConnector,
     targeting_key = id_type::MerchantId
 }
 
@@ -488,7 +478,7 @@ config! {
     output = scheduler::types::process_data::OutgoingWebhookRetryProcessTrackerMapping,
     default = scheduler::types::process_data::OutgoingWebhookRetryProcessTrackerMapping::default(),
     object = true,
-    requires = DimensionsWithProcessorMerchantId,
+    requires = dimension_state::DimensionsWithProcessorMerchantId,
     targeting_key = id_type::MerchantId
 }
 
@@ -497,7 +487,7 @@ config! {
     output = scheduler::types::process_data::RevenueRecoveryPaymentProcessTrackerMapping,
     default = scheduler::types::process_data::RevenueRecoveryPaymentProcessTrackerMapping::default(),
     object = true,
-    requires = DimensionsWithProcessorMerchantIdAndConnector,
+    requires = dimension_state::DimensionsWithProcessorMerchantIdAndConnector,
     targeting_key = id_type::MerchantId
 }
 
@@ -506,7 +496,7 @@ config! {
     output = scheduler::types::process_data::ConnectorPTMapping,
     default = scheduler::types::process_data::ConnectorPTMapping::default(),
     object = true,
-    requires = DimensionsWithProcessorMerchantIdAndConnector,
+    requires = dimension_state::DimensionsWithProcessorMerchantIdAndConnector,
     targeting_key = id_type::MerchantId
 }
 
@@ -515,7 +505,7 @@ config! {
     output = scheduler::types::process_data::ConnectorPTMapping,
     default = scheduler::types::process_data::ConnectorPTMapping::default(),
     object = true,
-    requires = DimensionsWithProcessorMerchantIdAndConnector,
+    requires = dimension_state::DimensionsWithProcessorMerchantIdAndConnector,
     targeting_key = id_type::MerchantId
 }
 
@@ -524,6 +514,6 @@ config! {
     output = scheduler::types::process_data::ConnectorPTMapping,
     default = scheduler::types::process_data::ConnectorPTMapping::default(),
     object = true,
-    requires = DimensionsWithProcessorMerchantIdAndConnector,
+    requires = dimension_state::DimensionsWithProcessorMerchantIdAndConnector,
     targeting_key = id_type::MerchantId
 }

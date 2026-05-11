@@ -198,6 +198,7 @@ pub(crate) async fn create_event_and_trigger_outgoing_webhook(
         &business_profile,
         &event,
         state.conf.application_source,
+        processor.clone(),
     )
     .await
     .inspect_err(|error| {
@@ -567,9 +568,10 @@ pub(crate) async fn add_outgoing_webhook_retry_task_to_process_tracker(
     business_profile: &domain::Profile,
     event: &domain::Event,
     application_source: common_enums::ApplicationSource,
+    processor: domain::Processor,
 ) -> CustomResult<storage::ProcessTracker, errors::StorageError> {
     let dimensions = crate::core::configs::dimension_state::Dimensions::new()
-        .with_processor_merchant_id(business_profile.merchant_id.clone().into());
+        .with_processor_merchant_id(processor.get_processor_merchant_id());
     let schedule_time = outgoing_webhook_retry::get_webhook_delivery_retry_schedule_time(
         db,
         superposition_client,
