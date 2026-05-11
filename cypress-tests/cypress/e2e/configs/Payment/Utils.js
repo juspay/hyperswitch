@@ -447,7 +447,6 @@ export const CONNECTOR_LISTS = {
       "zift",
     ],
     MANDATE_ID_TEST: ["airwallex", "payload"],
-    PAYMENT_RESPONSE_HASH: ["cashtocode"],
     // Add more exclusion lists
   },
 
