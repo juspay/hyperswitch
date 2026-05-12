@@ -967,7 +967,7 @@ export const connectorDetails = {
         },
       });
     },
-    SepaDebit: getCustomExchange({
+    Sepa: getCustomExchange({
       Request: {
         payment_method: "bank_debit",
         payment_method_type: "sepa",
@@ -2625,6 +2625,27 @@ export const connectorDetails = {
           eci: "05",
           transaction_status: "Y",
           exemption_indicator: "low_value",
+        },
+      },
+    }),
+    L2L3Data: getCustomExchange({
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        metadata: {
+          order_tax_amount: 500,
+          shipping_cost: 100,
+          order_po_number: "PO-12345",
+        },
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
         },
       },
     }),
