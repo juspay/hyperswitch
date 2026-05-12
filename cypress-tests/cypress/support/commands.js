@@ -7791,94 +7791,59 @@ Cypress.Commands.add("updateCardIssuer", (id, body, globalState) => {
 });
 
 /**
- * Verifies that payment response hash is present in both merchant account config and payment response
+ * Verifies that the payment response hash feature is properly configured on the merchant account.
+ *
+ * The payment_response_hash feature adds HMAC-SHA512 signatures to redirect URLs (as
+ * `signature` and `signature_algorithm` query params) and to outgoing webhook headers
+ * (as `Stripe-Signature` or `X-Webhook-Signature`). It does NOT add a field to the
+ * payment response JSON body.
+ *
  * This command checks:
- * 1. Merchant account: enable_payment_response_hash is true and payment_response_hash_key is set
- * 2. Payment response: payment_response_hash field exists and is a non-empty string
+ * 1. Merchant account: enable_payment_response_hash is true
+ * 2. Merchant account: payment_response_hash_key is a non-empty string
+ *
  * @param {Object} globalState - The global state object
- * @param {string} [expectedHash] - Optional expected hash value for future extensibility
  */
-Cypress.Commands.add(
-  "verifyPaymentResponseHash",
-  (globalState, expectedHash = null) => {
-    const merchantId = globalState.get("merchantId");
-    const apiKey = globalState.get("adminApiKey");
-    const baseUrl = globalState.get("baseUrl");
+Cypress.Commands.add("verifyPaymentResponseHash", (globalState) => {
+  const merchantId = globalState.get("merchantId");
+  const apiKey = globalState.get("adminApiKey");
+  const baseUrl = globalState.get("baseUrl");
 
-    // Step 1: Verify merchant account configuration
-    cy.request({
-      method: "GET",
-      url: `${baseUrl}/accounts/${merchantId}`,
-      headers: {
-        "Content-Type": "application/json",
-        "api-key": apiKey,
-      },
-      failOnStatusCode: false,
-    }).then((response) => {
-      logRequestId(response.headers["x-request-id"]);
+  cy.request({
+    method: "GET",
+    url: `${baseUrl}/accounts/${merchantId}`,
+    headers: {
+      "Content-Type": "application/json",
+      "api-key": apiKey,
+    },
+    failOnStatusCode: false,
+  }).then((response) => {
+    logRequestId(response.headers["x-request-id"]);
 
-      cy.wrap(response).then(() => {
-        expect(response.status).to.equal(200);
-        expect(response.body).to.have.property("enable_payment_response_hash");
-        expect(response.body).to.have.property("payment_response_hash_key");
+    cy.wrap(response).then(() => {
+      expect(response.status).to.equal(200);
+      expect(response.body).to.have.property("enable_payment_response_hash");
+      expect(response.body).to.have.property("payment_response_hash_key");
 
-        // Verify enable_payment_response_hash is true (default behavior)
-        expect(
-          response.body.enable_payment_response_hash,
-          "enable_payment_response_hash should be true"
-        ).to.equal(true);
-
-        // Verify payment_response_hash_key exists and is a non-empty string
-        expect(
-          response.body.payment_response_hash_key,
-          "payment_response_hash_key should exist"
-        ).to.be.a("string").and.not.be.empty;
-
-        // Store the hash key in global state for potential future use
-        globalState.set(
-          "paymentResponseHashKey",
-          response.body.payment_response_hash_key
-        );
-
-        cy.task(
-          "cli_log",
-          `Merchant config verified - payment_response_hash_key length: ${response.body.payment_response_hash_key.length}`
-        );
-      });
-    });
-
-    // Step 2: Verify payment response contains payment_response_hash
-    const lastPaymentResponse = globalState.get("lastPaymentResponse");
-
-    if (!lastPaymentResponse) {
-      throw new Error(
-        "lastPaymentResponse not found in globalState. Ensure retrievePaymentCallTest was called before verifyPaymentResponseHash."
-      );
-    }
-
-    // Verify payment_response_hash property exists in the response
-    expect(
-      lastPaymentResponse,
-      "payment response should have payment_response_hash property"
-    ).to.have.property("payment_response_hash");
-
-    // Verify payment_response_hash is a non-empty string
-    expect(
-      lastPaymentResponse.payment_response_hash,
-      "payment_response_hash should be a non-empty string"
-    ).to.be.a("string").and.not.be.empty;
-
-    cy.task(
-      "cli_log",
-      `Payment response hash verified - hash present: ${Boolean(lastPaymentResponse.payment_response_hash)}`
-    );
-
-    // Future extensibility: verify against expected hash if provided
-    if (expectedHash !== null) {
       expect(
-        lastPaymentResponse.payment_response_hash,
-        "payment_response_hash should match expected value"
-      ).to.equal(expectedHash);
-    }
-  }
-);
+        response.body.enable_payment_response_hash,
+        "enable_payment_response_hash should be true"
+      ).to.equal(true);
+
+      expect(
+        response.body.payment_response_hash_key,
+        "payment_response_hash_key should exist"
+      ).to.be.a("string").and.not.be.empty;
+
+      globalState.set(
+        "paymentResponseHashKey",
+        response.body.payment_response_hash_key
+      );
+
+      cy.task(
+        "cli_log",
+        `Payment response hash config verified - enable_payment_response_hash: true, key length: ${response.body.payment_response_hash_key.length}`
+      );
+    });
+  });
+});
