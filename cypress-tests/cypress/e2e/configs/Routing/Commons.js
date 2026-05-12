@@ -14,7 +14,6 @@ export const connectorDetails = {
       status: 200,
       body: {
         algorithm_for: "payout",
-        transaction_type: "payout",
       },
     },
   },
