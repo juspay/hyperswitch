@@ -19,9 +19,9 @@ describe("OIDC Route Mismatch - SAIAAAAAA-181", () => {
     });
   });
 
-  context("OIDC Route Consistency", () => {
-    it("should return 404 for /oauth2/authorize (BUG: advertised but not registered)", () => {
-      cy.oidcOauth2AuthorizeRouteCheck(globalState);
+  context("OIDC Advertised Endpoint Reachability", () => {
+    it("should respond at the discovery-advertised authorization endpoint", () => {
+      cy.oidcAdvertisedAuthorizeRouteCheck(globalState);
     });
 
     it("should respond at /oidc/authorize (actual registered route)", () => {

@@ -7834,16 +7834,17 @@ Cypress.Commands.add("oidcDiscoveryCallTest", (globalState) => {
 });
 
 /**
- * OIDC OAuth2 Authorize Route Check - Tests /oauth2/authorize endpoint
- * This endpoint is advertised in discovery but not registered (BUG confirmation)
- * Hardcoded to expect 404 status
+ * OIDC Advertised Authorize Route Check - Tests the authorization_endpoint
+ * advertised in the OIDC discovery document.
+ * Uses the URL from globalState (stored by oidcDiscoveryCallTest).
+ * Asserts that the advertised endpoint responds (any non-404 status is acceptable).
  */
-Cypress.Commands.add("oidcOauth2AuthorizeRouteCheck", (globalState) => {
-  const baseUrl = globalState.get("baseUrl");
+Cypress.Commands.add("oidcAdvertisedAuthorizeRouteCheck", (globalState) => {
+  const authorizationEndpoint = globalState.get("oidcAuthorizationEndpoint");
 
   cy.request({
     method: "GET",
-    url: `${baseUrl}/oauth2/authorize`,
+    url: authorizationEndpoint,
     headers: {
       Accept: "application/json",
     },
@@ -7852,19 +7853,20 @@ Cypress.Commands.add("oidcOauth2AuthorizeRouteCheck", (globalState) => {
     logRequestId(response.headers["x-request-id"]);
 
     cy.wrap(response).then(() => {
-      expect(response.status).to.eq(404);
+      expect(response.status).to.be.oneOf([
+        200, 301, 302, 307, 308, 400, 401, 403,
+      ]);
 
       cy.task(
         "cli_log",
-        "BUG CONFIRMED: /oauth2/authorize returns 404 (advertised in discovery but not implemented)"
+        `Discovery-advertised authorize endpoint responded with status ${response.status}`
       );
     });
   });
 });
 
 /**
- * OIDC Authorize Route Check - Tests /oidc/authorize endpoint (actual registered route)
- * The actual registered authorization endpoint for OIDC
+ * Tests the /oidc/authorize route on the API server (not the discovery-advertised route)
  * Hardcoded path with query params and expected success/redirect statuses
  */
 Cypress.Commands.add("oidcAuthorizeRouteCheck", (globalState) => {
@@ -7897,11 +7899,12 @@ Cypress.Commands.add("oidcAuthorizeRouteCheck", (globalState) => {
  * Accepts 200 with valid JWKS or 500 OI_05 when OIDC signing keys are not configured
  */
 Cypress.Commands.add("oidcJwksCallTest", (globalState) => {
-  const baseUrl = globalState.get("baseUrl");
+  const jwksUri = globalState.get("oidcJwksUri");
+  const url = jwksUri || `${globalState.get("baseUrl")}/oauth2/jwks`;
 
   cy.request({
     method: "GET",
-    url: `${baseUrl}/oauth2/jwks`,
+    url: url,
     headers: {
       Accept: "application/json",
     },
@@ -7910,18 +7913,10 @@ Cypress.Commands.add("oidcJwksCallTest", (globalState) => {
     logRequestId(response.headers["x-request-id"]);
 
     cy.wrap(response).then(() => {
-      // 500 OI_05 = OIDC signing keys not configured (expected in sandbox/test environments)
-      if (response.status === 500 && response.body?.error?.code === "OI_05") {
-        cy.task(
-          "cli_log",
-          "OIDC signing keys not configured - JWKS unavailable (expected in sandbox)"
-        );
-        return;
-      }
-
       expect(response.status).to.eq(200);
       expect(response.body).to.have.property("keys");
       expect(response.body.keys).to.be.an("array");
+      cy.task("cli_log", `JWKS endpoint responded with ${response.body.keys.length} key(s)`);
     });
   });
 });
@@ -7932,11 +7927,9 @@ Cypress.Commands.add("oidcJwksCallTest", (globalState) => {
  * Does not perform actual token exchange (requires valid auth code)
  */
 Cypress.Commands.add("oidcTokenEndpointProbeCallTest", (globalState) => {
-  const baseUrl = globalState.get("baseUrl");
-
   cy.request({
     method: "POST",
-    url: `${baseUrl}/oauth2/token`,
+    url: globalState.get("oidcTokenEndpoint"),
     headers: {
       Accept: "application/json",
       "Content-Type": "application/x-www-form-urlencoded",
