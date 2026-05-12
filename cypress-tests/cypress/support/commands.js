@@ -802,42 +802,35 @@ Cypress.Commands.add(
       logRequestId(response.headers["x-request-id"]);
 
       cy.wrap(response).then(() => {
-        if (expectedStatus === 200) {
-          if (response.status === 200) {
-            globalState.set(
-              "collectBillingDetails",
-              response.body.collect_billing_details_from_wallet_connector
-            );
-            globalState.set(
-              "collectShippingDetails",
-              response.body.collect_shipping_details_from_wallet_connector
-            );
-            globalState.set(
-              "alwaysCollectBillingDetails",
-              response.body.always_collect_billing_details_from_wallet_connector
-            );
-            globalState.set(
-              "alwaysCollectShippingDetails",
-              response.body
-                .always_collect_shipping_details_from_wallet_connector
-            );
-            globalState.set(
-              "useBillingAsPaymentMethodBilling",
-              response.body.use_billing_as_payment_method_billing
-            );
-          } else {
-            throw new Error(
-              `Business Profile update failed ${response.body.error.message}`
-            );
-          }
-        } else {
-          expect(response.status).to.equal(expectedStatus);
-          cy.task(
-            "cli_log",
-            `Expected error for invalid business profile data: ${response.status}`
-          );
-        }
-      });
+  expect(response.status).to.equal(expectedStatus);
+
+  if (response.status === 200) {
+    globalState.set(
+      "collectBillingDetails",
+      response.body.collect_billing_details_from_wallet_connector
+    );
+
+    globalState.set(
+      "collectShippingDetails",
+      response.body.collect_shipping_details_from_wallet_connector
+    );
+
+    globalState.set(
+      "alwaysCollectBillingDetails",
+      response.body.always_collect_billing_details_from_wallet_connector
+    );
+
+    globalState.set(
+      "alwaysCollectShippingDetails",
+      response.body.always_collect_shipping_details_from_wallet_connector
+    );
+
+    globalState.set(
+      "useBillingAsPaymentMethodBilling",
+      response.body.use_billing_as_payment_method_billing
+    );
+  }
+});
     });
   }
 );
