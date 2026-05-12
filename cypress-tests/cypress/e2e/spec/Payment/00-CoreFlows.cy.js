@@ -229,6 +229,43 @@ describe("Core flows", () => {
       cy.listPaymentLinksTest({}, globalState);
     });
   });
+  context("Payment Link - Create and Pay with Card", () => {
+    before("seed global state", () => {
+      cy.task("getGlobalState").then((state) => {
+        globalState = new State(state);
+      });
+    });
+    after("flush global state", () => {
+      cy.task("setGlobalState", globalState.data);
+    });
+    it("Create Payment Intent with Payment Link", () => {
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "payment_link_pm"
+      ]["PaymentLinkConfirmCard"];
+      cy.createPaymentIntentWithPaymentLinkTest(
+        fixtures.createPaymentBody,
+        data,
+        "no_three_ds",
+        "automatic",
+        globalState
+      );
+    });
+    it("Handle payment page and confirm with card", () => {
+      cy.initiatePaymentLinkTest({}, globalState);
+      const confirmData = getConnectorDetails(globalState.get("connectorId"))[
+        "payment_link_pm"
+      ]["PaymentLinkConfirmCardData"];
+      cy.confirmCallTest(
+        fixtures.confirmBody,
+        confirmData,
+        true,
+        globalState
+      );
+    });
+    it("Retrieve Payment after card payment", () => {
+      cy.retrievePaymentCallTest({ globalState });
+    });
+  });
   context("Payment Link - Configuration Variations", () => {
     before("seed global state", () => {
       cy.task("getGlobalState").then((state) => {

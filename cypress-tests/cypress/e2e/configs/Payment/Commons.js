@@ -3322,6 +3322,27 @@ export const connectorDetails = {
         status: 200,
       },
     }),
+    PaymentLinkConfirmCard: getCustomExchange({
+      Request: {
+        currency: "USD",
+        amount: 6000,
+        description: "Test Payment Link",
+        email: "test@example.com",
+      },
+      Response: {
+        status: 200,
+      },
+    }),
+    PaymentLinkConfirmCardData: getCustomExchange({
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulNo3DSCardDetails,
+        },
+        customer_acceptance: null,
+        setup_future_usage: "on_session",
+      },
+    }),
     PaymentLinkWithTheme: getCustomExchange({
       Request: {
         currency: "USD",
