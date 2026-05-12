@@ -185,18 +185,11 @@ pub struct ScheduledExpirationTime {
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize, FromSqlRow, AsExpression)]
 #[diesel(sql_type = Json)]
-#[serde(rename_all = "snake_case")]
+#[serde(tag = "type", rename_all = "snake_case")]
 pub enum PixAutomaticoAdditionalDetails {
-    Cit(PixAutomaticoCitData),
-    Mit(PixAutomaticoMitData),
-}
-
-#[derive(Debug, Clone, PartialEq, Deserialize, Serialize, FromSqlRow, AsExpression)]
-#[diesel(sql_type = Json)]
-#[serde(rename_all = "snake_case")]
-pub enum PixAutomaticoCitData {
     PixAutomaticoPush(PixAutomaticoPushData),
     PixAutomaticoQr(PixAutomaticoQrData),
+    PixAutomaticoMit(PixAutomaticoMitData),
 }
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize, FromSqlRow, AsExpression)]

@@ -26402,55 +26402,73 @@
       "PixAutomaticoAdditionalDetails": {
         "oneOf": [
           {
-            "type": "object",
-            "required": [
-              "cit"
-            ],
-            "properties": {
-              "cit": {
-                "$ref": "#/components/schemas/PixAutomaticoCitData"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PixAutomaticoPushData"
+              },
+              {
+                "type": "object",
+                "required": [
+                  "type"
+                ],
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "enum": [
+                      "pix_automatico_push"
+                    ]
+                  }
+                }
               }
-            }
+            ]
           },
           {
-            "type": "object",
-            "required": [
-              "mit"
-            ],
-            "properties": {
-              "mit": {
-                "$ref": "#/components/schemas/PixAutomaticoMitData"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PixAutomaticoQrData"
+              },
+              {
+                "type": "object",
+                "required": [
+                  "type"
+                ],
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "enum": [
+                      "pix_automatico_qr"
+                    ]
+                  }
+                }
               }
-            }
+            ]
+          },
+          {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PixAutomaticoMitData"
+              },
+              {
+                "type": "object",
+                "required": [
+                  "type"
+                ],
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "enum": [
+                      "pix_automatico_mit"
+                    ]
+                  }
+                }
+              }
+            ]
           }
         ],
-        "description": "Represents the specific data for Santander Pix Automatico (recurring PIX payments)\nSplit into CIT (Customer Initiated Transaction) and MIT (Merchant Initiated Transaction) variants"
-      },
-      "PixAutomaticoCitData": {
-        "oneOf": [
-          {
-            "type": "object",
-            "required": [
-              "pix_automatico_push"
-            ],
-            "properties": {
-              "pix_automatico_push": {
-                "$ref": "#/components/schemas/PixAutomaticoPushData"
-              }
-            }
-          },
-          {
-            "type": "object",
-            "required": [
-              "pix_automatico_qr"
-            ],
-            "properties": {
-              "pix_automatico_qr": {
-                "$ref": "#/components/schemas/PixAutomaticoQrData"
-              }
-            }
-          }
-        ]
+        "description": "Represents the specific data for Santander Pix Automatico (recurring PIX payments)\nSplit into CIT (Customer Initiated Transaction) and MIT (Merchant Initiated Transaction) variants",
+        "discriminator": {
+          "propertyName": "type"
+        }
       },
       "PixAutomaticoMitData": {
         "type": "object",

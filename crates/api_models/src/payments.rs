@@ -11502,18 +11502,18 @@ impl FeatureMetadata {
                 field_name: "feature_metadata.pix_automatico_additional_details".to_string(),
             })
             .and_then(|details| match details {
-                PixAutomaticoAdditionalDetails::Cit(cit_data) => match cit_data {
-                    PixAutomaticoCitData::PixAutomaticoPush(push) => Ok(push.time),
-                    PixAutomaticoCitData::PixAutomaticoQr(_) => {
-                        Err(ValidationError::InvalidValue {
-                            message: "Expected PixAutomaticoPush, found PixAutomaticoQr"
-                                .to_string(),
-                        })
-                    }
-                },
-                PixAutomaticoAdditionalDetails::Mit(_) => Err(ValidationError::InvalidValue {
-                    message: "Expected CIT flow (PixAutomaticoPush), found MIT flow".to_string(),
-                }),
+                PixAutomaticoAdditionalDetails::PixAutomaticoPush(push) => Ok(push.time),
+                PixAutomaticoAdditionalDetails::PixAutomaticoQr(_) => {
+                    Err(ValidationError::InvalidValue {
+                        message: "Expected PixAutomaticoPush, found PixAutomaticoQr".to_string(),
+                    })
+                }
+                PixAutomaticoAdditionalDetails::PixAutomaticoMit(_) => {
+                    Err(ValidationError::InvalidValue {
+                        message: "Expected CIT flow (PixAutomaticoPush), found MIT flow"
+                            .to_string(),
+                    })
+                }
             })
     }
 
@@ -11527,18 +11527,16 @@ impl FeatureMetadata {
             },
         )?;
 
-        let cit_data = match pix_automatico {
-            PixAutomaticoAdditionalDetails::Cit(cit) => cit,
-            PixAutomaticoAdditionalDetails::Mit(_) => {
+        let mandate_details = match pix_automatico {
+            PixAutomaticoAdditionalDetails::PixAutomaticoPush(push) => {
+                push.mandate_details.as_ref()
+            }
+            PixAutomaticoAdditionalDetails::PixAutomaticoQr(qr) => qr.mandate_details.as_ref(),
+            PixAutomaticoAdditionalDetails::PixAutomaticoMit(_) => {
                 return Err(error_stack::report!(ValidationError::InvalidValue {
                     message: "Expected CIT flow, found MIT flow".to_string(),
                 }))
             }
-        };
-
-        let mandate_details = match cit_data {
-            PixAutomaticoCitData::PixAutomaticoPush(push) => push.mandate_details.as_ref(),
-            PixAutomaticoCitData::PixAutomaticoQr(qr) => qr.mandate_details.as_ref(),
         };
 
         let mandate_details = mandate_details.ok_or(ValidationError::MissingRequiredField {
@@ -11558,18 +11556,16 @@ impl FeatureMetadata {
             },
         )?;
 
-        let cit_data = match pix_automatico {
-            PixAutomaticoAdditionalDetails::Cit(cit) => cit,
-            PixAutomaticoAdditionalDetails::Mit(_) => {
+        let mandate_details = match pix_automatico {
+            PixAutomaticoAdditionalDetails::PixAutomaticoPush(push) => {
+                push.mandate_details.as_ref()
+            }
+            PixAutomaticoAdditionalDetails::PixAutomaticoQr(qr) => qr.mandate_details.as_ref(),
+            PixAutomaticoAdditionalDetails::PixAutomaticoMit(_) => {
                 return Err(error_stack::report!(ValidationError::InvalidValue {
                     message: "Expected CIT flow, found MIT flow".to_string(),
                 }))
             }
-        };
-
-        let mandate_details = match cit_data {
-            PixAutomaticoCitData::PixAutomaticoPush(push) => push.mandate_details.as_ref(),
-            PixAutomaticoCitData::PixAutomaticoQr(qr) => qr.mandate_details.as_ref(),
         };
 
         let mandate_details = mandate_details.ok_or(ValidationError::MissingRequiredField {
@@ -11680,18 +11676,18 @@ impl FeatureMetadata {
                 field_name: "feature_metadata.pix_automatico_additional_details".to_string(),
             })
             .and_then(|details| match details {
-                PixAutomaticoAdditionalDetails::Cit(cit_data) => match cit_data {
-                    PixAutomaticoCitData::PixAutomaticoPush(push) => Ok(push.time),
-                    PixAutomaticoCitData::PixAutomaticoQr(_) => {
-                        Err(ValidationError::InvalidValue {
-                            message: "Expected PixAutomaticoPush, found PixAutomaticoQr"
-                                .to_string(),
-                        })
-                    }
-                },
-                PixAutomaticoAdditionalDetails::Mit(_) => Err(ValidationError::InvalidValue {
-                    message: "Expected CIT flow (PixAutomaticoPush), found MIT flow".to_string(),
-                }),
+                PixAutomaticoAdditionalDetails::PixAutomaticoPush(push) => Ok(push.time),
+                PixAutomaticoAdditionalDetails::PixAutomaticoQr(_) => {
+                    Err(ValidationError::InvalidValue {
+                        message: "Expected PixAutomaticoPush, found PixAutomaticoQr".to_string(),
+                    })
+                }
+                PixAutomaticoAdditionalDetails::PixAutomaticoMit(_) => {
+                    Err(ValidationError::InvalidValue {
+                        message: "Expected CIT flow (PixAutomaticoPush), found MIT flow"
+                            .to_string(),
+                    })
+                }
             })
     }
     pub fn merge(self, other: Option<Self>) -> Self {
@@ -11770,18 +11766,16 @@ impl FeatureMetadata {
             },
         )?;
 
-        let cit_data = match pix_automatico {
-            PixAutomaticoAdditionalDetails::Cit(cit) => cit,
-            PixAutomaticoAdditionalDetails::Mit(_) => {
+        let mandate_details = match pix_automatico {
+            PixAutomaticoAdditionalDetails::PixAutomaticoPush(push) => {
+                push.mandate_details.as_ref()
+            }
+            PixAutomaticoAdditionalDetails::PixAutomaticoQr(qr) => qr.mandate_details.as_ref(),
+            PixAutomaticoAdditionalDetails::PixAutomaticoMit(_) => {
                 return Err(error_stack::report!(ValidationError::InvalidValue {
                     message: "Expected CIT flow, found MIT flow".to_string(),
                 }))
             }
-        };
-
-        let mandate_details = match cit_data {
-            PixAutomaticoCitData::PixAutomaticoPush(push) => push.mandate_details.as_ref(),
-            PixAutomaticoCitData::PixAutomaticoQr(qr) => qr.mandate_details.as_ref(),
         };
 
         let mandate_details = mandate_details.ok_or(ValidationError::MissingRequiredField {
@@ -11801,18 +11795,16 @@ impl FeatureMetadata {
             },
         )?;
 
-        let cit_data = match pix_automatico {
-            PixAutomaticoAdditionalDetails::Cit(cit) => cit,
-            PixAutomaticoAdditionalDetails::Mit(_) => {
+        let mandate_details = match pix_automatico {
+            PixAutomaticoAdditionalDetails::PixAutomaticoPush(push) => {
+                push.mandate_details.as_ref()
+            }
+            PixAutomaticoAdditionalDetails::PixAutomaticoQr(qr) => qr.mandate_details.as_ref(),
+            PixAutomaticoAdditionalDetails::PixAutomaticoMit(_) => {
                 return Err(error_stack::report!(ValidationError::InvalidValue {
                     message: "Expected CIT flow, found MIT flow".to_string(),
                 }))
             }
-        };
-
-        let mandate_details = match cit_data {
-            PixAutomaticoCitData::PixAutomaticoPush(push) => push.mandate_details.as_ref(),
-            PixAutomaticoCitData::PixAutomaticoQr(qr) => qr.mandate_details.as_ref(),
         };
 
         let mandate_details = mandate_details.ok_or(ValidationError::MissingRequiredField {
@@ -11922,20 +11914,14 @@ pub struct ScheduledExpirationTime {
 /// Split into CIT (Customer Initiated Transaction) and MIT (Merchant Initiated Transaction) variants
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
 #[smithy(namespace = "com.hyperswitch.smithy.types")]
-#[serde(rename_all = "snake_case")]
+#[serde(tag = "type", rename_all = "snake_case")]
 pub enum PixAutomaticoAdditionalDetails {
-    /// Customer Initiated Transaction - used during mandate setup
-    Cit(PixAutomaticoCitData),
-    /// Merchant Initiated Transaction - used during recurring charge creation
-    Mit(PixAutomaticoMitData),
-}
-
-#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, ToSchema, SmithyModel)]
-#[smithy(namespace = "com.hyperswitch.smithy.types")]
-#[serde(rename_all = "snake_case")]
-pub enum PixAutomaticoCitData {
+    /// Customer Initiated Transaction - used during mandate setup for PixAutomaticoPush Payment Method Type
     PixAutomaticoPush(PixAutomaticoPushData),
+    /// Customer Initiated Transaction - used during mandate setup + non 0$ mandate setup for PixAutomaticoQr Payment Method Type
     PixAutomaticoQr(PixAutomaticoQrData),
+    /// Merchant Initiated Transaction - used during recurring charge creation
+    PixAutomaticoMit(PixAutomaticoMitData),
 }
 
 /// Data for PixAutomaticoPush Payment Method Type CIT (Customer Initiated Transaction) - used during mandate setup

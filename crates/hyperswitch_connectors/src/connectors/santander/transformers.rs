@@ -979,7 +979,9 @@ impl TryFrom<&SantanderRouterData<&PaymentsAuthorizeRouterData>>
             .clone()
             .and_then(|metadata| metadata.pix_automatico_additional_details)
             .and_then(|pix_automatico| match pix_automatico {
-                api_models::payments::PixAutomaticoAdditionalDetails::Mit(mit) => Some(mit),
+                api_models::payments::PixAutomaticoAdditionalDetails::PixAutomaticoMit(mit) => {
+                    Some(mit)
+                }
                 _ => None,
             })
             .ok_or(errors::ConnectorError::MissingRequiredField {
@@ -2285,21 +2287,18 @@ impl
                 field_name: "feature_metadata.pix_automatico_additional_details",
             })?;
 
-        let cit_data = match pix_automatico_meta {
-            api_models::payments::PixAutomaticoAdditionalDetails::Cit(cit) => cit,
-            _ => {
-                return Err(errors::ConnectorError::MissingRequiredField {
-                    field_name: "feature_metadata.pix_automatico_additional_details.cit",
-                })?;
-            }
-        };
-
-        let (retry_policy, mandate_details) = match cit_data {
-            api_models::payments::PixAutomaticoCitData::PixAutomaticoPush(push) => {
+        let (retry_policy, mandate_details) = match pix_automatico_meta {
+            api_models::payments::PixAutomaticoAdditionalDetails::PixAutomaticoPush(push) => {
                 (&push.retry_policy, &push.mandate_details)
             }
-            api_models::payments::PixAutomaticoCitData::PixAutomaticoQr(qr) => {
+            api_models::payments::PixAutomaticoAdditionalDetails::PixAutomaticoQr(qr) => {
                 (&qr.retry_policy, &qr.mandate_details)
+            }
+            api_models::payments::PixAutomaticoAdditionalDetails::PixAutomaticoMit(_) => {
+                return Err(errors::ConnectorError::MissingRequiredField {
+                    field_name:
+                        "feature_metadata.pix_automatico_additional_details (expected CIT flow)",
+                })?;
             }
         };
 
