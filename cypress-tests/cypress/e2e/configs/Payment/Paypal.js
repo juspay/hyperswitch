@@ -934,6 +934,37 @@ export const connectorDetails = {
       },
     },
   },
+  wallet_pm: {
+    PaymentIntent: (paymentMethodType) =>
+      getCustomExchange({
+        Request: {
+          currency: paymentMethodType === "PayPal" ? "USD" : "EUR",
+        },
+        Response: {
+          status: 200,
+          body: {
+            status: "requires_payment_method",
+          },
+        },
+      }),
+    PayPal: {
+      Request: {
+        payment_method: "wallet",
+        payment_method_type: "paypal",
+        payment_method_data: {
+          wallet: {
+            paypal_redirect: {},
+          },
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+    },
+  },
   webhook: {
     TransactionIdConfig: {
       path: "resource.supplementary_data.related_ids.order_id",
