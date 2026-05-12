@@ -99,7 +99,6 @@ Corse-du-Sud = "Corse-du-Sud" # Is a state in France
 Haute-Corse = "Haute-Corse" # Is a state in France
 Fram = "Fram" # Is a state in Slovenia
 typ = "typ" # Token.io JWT header required parameter
-verifyPaymentResponseHash = "verifyPaymentResponseHash" # Cypress command for payment response hash verification
 
 
 [default.extend-words]
@@ -119,67 +118,13 @@ requestor = "requestor" #Used in external 3ds flows
 substituters = "substituters" # Present in `flake.nix`
 unsuccess = "unsuccess" # Used in cryptopay request
 automatico = "automatico" # Pix Automático (Portuguese for Automatic) - payment method name
-aliase = "aliase" # pre-existing typo in grpc_client.rs comment
-astericks = "astericks" # pre-existing typo in santander transformers comment
-attmept = "attmept" # pre-existing typo in revenue_recovery.rs comment
-authroize = "authroize" # pre-existing typo in router_data.rs comment
-connnector = "connnector" # pre-existing typo in fiuu transformers comment
-construcing = "construcing" # pre-existing typo in payment_response.rs comment
-conume = "conume" # pre-existing typo in adyen transformers comment
-depricated = "depricated" # pre-existing typo in unified_connector_service comment
-mutlithreading = "mutlithreading" # pre-existing typo in router_env formatter comment
-sepearte = "sepearte" # pre-existing typo in gigadat transformers comment
-succesful = "succesful" # pre-existing typo in split_payments.rs comment
-supoorted = "supoorted" # pre-existing typo in adyen.rs comment
-UNSUPPORT = "UNSUPPORT" # paypal connector string literal
-addtional = "addtional" # pre-existing typo in payment_methods.rs
-sourc = "sourc" # pre-existing typo in payouts/helpers.rs
-differnt = "differnt" # pre-existing typo in worldpaymodular transformers
-parmas = "parmas" # pre-existing typo in middleware.rs
-Anual = "Anual" # Portuguese enum variant in santander connector
-Calcultion = "Calcultion" # pre-existing typo in router_env logger types
-Correspondente = "Correspondente" # Portuguese word in santander connector enum
-ETO = "ETO" # gigadat connector string literal
-Eto = "Eto" # gigadat connector enum variant
-Guarentee = "Guarentee" # novalnet connector comment
-IOF = "IOF" # Portuguese: Imposto sobre Operações Financeiras
-Occurence = "Occurence" # pre-existing typo in paysafe connector
-RTO = "RTO" # gigadat connector string literal
-Recieved = "Recieved" # pre-existing typo in UCS transformers comment
-Registeration = "Registeration" # pre-existing typo in MerchantConnectorAccountUpdate
-Rounting = "Rounting" # pre-existing typo in ListRountingAlgorithmsRequest
-Tansfer = "Tansfer" # pre-existing typo in AchBankTansfer/MultibancoBankTansfer
-tak = "tak" # match arm in hyperswitch_connectors utils.rs
-certifiactes = "certifiactes" # pre-existing typo
-connetors = "connetors" # pre-existing typo
-cutomer = "cutomer" # pre-existing typo in app.rs
-dimesnions = "dimesnions" # pre-existing typo in payouts.rs
-featrue = "featrue" # pre-existing typo
-fo = "fo" # closure parameter in gateway.rs
-iof = "iof" # Portuguese: Imposto sobre Operações Financeiras
-inicial = "inicial" # Portuguese word for initial (santander connector)
-nd = "nd" # closure parameter in unified_connector_service transformers
-participante = "participante" # Portuguese word (santander connector)
-recieved = "recieved" # pre-existing typo
-resonse = "resonse" # pre-existing typo in subscriptions/core.rs
-respone = "respone" # pre-existing typo in session_token.rs
-retrieveing = "retrieveing" # pre-existing typo
-threed = "threed" # field name info_threed_secure in worldpayxml
-updator = "updator" # variable name in user_role.rs
-validade = "validade" # Portuguese word (santander connector)
-Aribitrary = "Aribitrary" # pre-existing typo in euclid dir.rs
-workng = "workng" # pre-existing typo in euclid graph.rs
 
 [files]
 extend-exclude = [
     "config/redis.conf", # `typos` also checked "AKE" in the file, which is present as a quoted string
     "openapi/open_api_spec.yaml", # no longer updated
-    "api-reference/v1/openapi_spec_v1.json", # generated OpenAPI spec
-    "api-reference/v2/openapi_spec_v2.json", # generated OpenAPI spec
     "crates/router/src/utils/user/blocker_emails.txt", # this file contains various email domains
     "CHANGELOG.md", # This file contains all the commits
     "crates/router/locales/*.yml", # locales
     "crates/router/src/core/payment_link/locale.js", # this file contains conversion of static strings in various languages
-    "cypress-tests/cypress/support/commands.js", # Contains test function names that may trigger false positives
-    "cypress-tests/cypress/e2e/spec/**/*.cy.js", # Cypress spec files with test function names
 ]
