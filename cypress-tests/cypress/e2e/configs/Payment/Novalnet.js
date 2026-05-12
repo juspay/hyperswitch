@@ -803,6 +803,7 @@ export const connectorDetails = {
     },
   },
   wallet_pm: {
+    // eslint-disable-next-line no-unused-vars, @typescript-eslint/no-unused-vars
     PaymentIntent: (paymentMethodType) => {
       return {
         Request: {
@@ -817,6 +818,9 @@ export const connectorDetails = {
       };
     },
     PaypalRedirect: {
+      Configs: {
+        TRIGGER_SKIP: true,
+      },
       Request: {
         payment_method: "wallet",
         payment_method_type: "paypal",

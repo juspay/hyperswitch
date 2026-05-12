@@ -187,6 +187,33 @@ describe("Wallet tests", () => {
       });
     });
   });
+});
+
+describe("PayPal Wallet tests", () => {
+  let shouldContinue = true;
+
+  before("seed global state", () => {
+    cy.task("getGlobalState").then((state) => {
+      globalState = new State(state);
+      if (
+        !utils.CONNECTOR_LISTS.INCLUDE.WALLET?.includes(
+          globalState.get("connectorId")
+        )
+      ) {
+        shouldContinue = false;
+      }
+    });
+  });
+
+  beforeEach(function () {
+    if (!shouldContinue) {
+      this.skip();
+    }
+  });
+
+  afterEach("flush global state", () => {
+    cy.task("setGlobalState", globalState.data);
+  });
 
   context("PayPal Redirect Create and Confirm flow test", () => {
     let shouldContinue = true;
