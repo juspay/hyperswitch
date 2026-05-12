@@ -14,8 +14,15 @@ describe("Merchant Account Product Type Tests", () => {
     cy.task("setGlobalState", globalState.data);
   });
 
+  afterEach("cleanup merchant after each test", () => {
+    const merchantId = globalState.get("merchantId");
+    if (merchantId) {
+      cy.merchantDeleteCall(globalState);
+    }
+  });
+
   context("Create merchant with product_type=vault", () => {
-    it("should create merchant with vault product type and verify persistence", () => {
+    it("should create merchant with vault product type", () => {
       const baseBody = { ...fixtures.merchantCreateBody };
       delete baseBody.merchant_id;
       const merchantCreateBody = {
@@ -23,23 +30,24 @@ describe("Merchant Account Product Type Tests", () => {
         product_type: "vault",
       };
 
-      // Create merchant with vault product_type
       cy.merchantCreateCallTest(merchantCreateBody, globalState, {
         expectedProductType: "vault",
       });
+    });
 
-      // Verify product_type persists on retrieve
+    it("should verify vault product_type persists on retrieve", function () {
+      const merchantId = globalState.get("merchantId");
+      if (!merchantId) {
+        this.skip();
+      }
       cy.merchantRetrieveCall(globalState, {
         expectedProductType: "vault",
       });
-
-      // Cleanup merchant
-      cy.merchantDeleteCall(globalState);
     });
   });
 
   context("Create merchant with product_type=recon", () => {
-    it("should create merchant with recon product type and verify persistence", () => {
+    it("should create merchant with recon product type", () => {
       const baseBody = { ...fixtures.merchantCreateBody };
       delete baseBody.merchant_id;
       const merchantCreateBody = {
@@ -50,17 +58,21 @@ describe("Merchant Account Product Type Tests", () => {
       cy.merchantCreateCallTest(merchantCreateBody, globalState, {
         expectedProductType: "recon",
       });
+    });
 
+    it("should verify recon product_type persists on retrieve", function () {
+      const merchantId = globalState.get("merchantId");
+      if (!merchantId) {
+        this.skip();
+      }
       cy.merchantRetrieveCall(globalState, {
         expectedProductType: "recon",
       });
-
-      cy.merchantDeleteCall(globalState);
     });
   });
 
   context("Create merchant with product_type=recovery", () => {
-    it("should create merchant with recovery product type and verify persistence", () => {
+    it("should create merchant with recovery product type", () => {
       const baseBody = { ...fixtures.merchantCreateBody };
       delete baseBody.merchant_id;
       const merchantCreateBody = {
@@ -71,17 +83,21 @@ describe("Merchant Account Product Type Tests", () => {
       cy.merchantCreateCallTest(merchantCreateBody, globalState, {
         expectedProductType: "recovery",
       });
+    });
 
+    it("should verify recovery product_type persists on retrieve", function () {
+      const merchantId = globalState.get("merchantId");
+      if (!merchantId) {
+        this.skip();
+      }
       cy.merchantRetrieveCall(globalState, {
         expectedProductType: "recovery",
       });
-
-      cy.merchantDeleteCall(globalState);
     });
   });
 
   context("Create merchant with product_type=cost_observability", () => {
-    it("should create merchant with cost_observability product type and verify persistence", () => {
+    it("should create merchant with cost_observability product type", () => {
       const baseBody = { ...fixtures.merchantCreateBody };
       delete baseBody.merchant_id;
       const merchantCreateBody = {
@@ -92,17 +108,21 @@ describe("Merchant Account Product Type Tests", () => {
       cy.merchantCreateCallTest(merchantCreateBody, globalState, {
         expectedProductType: "cost_observability",
       });
+    });
 
+    it("should verify cost_observability product_type persists on retrieve", function () {
+      const merchantId = globalState.get("merchantId");
+      if (!merchantId) {
+        this.skip();
+      }
       cy.merchantRetrieveCall(globalState, {
         expectedProductType: "cost_observability",
       });
-
-      cy.merchantDeleteCall(globalState);
     });
   });
 
   context("Create merchant with product_type=dynamic_routing", () => {
-    it("should create merchant with dynamic_routing product type and verify persistence", () => {
+    it("should create merchant with dynamic_routing product type", () => {
       const baseBody = { ...fixtures.merchantCreateBody };
       delete baseBody.merchant_id;
       const merchantCreateBody = {
@@ -113,12 +133,16 @@ describe("Merchant Account Product Type Tests", () => {
       cy.merchantCreateCallTest(merchantCreateBody, globalState, {
         expectedProductType: "dynamic_routing",
       });
+    });
 
+    it("should verify dynamic_routing product_type persists on retrieve", function () {
+      const merchantId = globalState.get("merchantId");
+      if (!merchantId) {
+        this.skip();
+      }
       cy.merchantRetrieveCall(globalState, {
         expectedProductType: "dynamic_routing",
       });
-
-      cy.merchantDeleteCall(globalState);
     });
   });
 
@@ -132,12 +156,16 @@ describe("Merchant Account Product Type Tests", () => {
         cy.merchantCreateCallTest(merchantCreateBody, globalState, {
           expectedProductType: "orchestration",
         });
+      });
 
+      it("should verify orchestration product_type persists on retrieve", function () {
+        const merchantId = globalState.get("merchantId");
+        if (!merchantId) {
+          this.skip();
+        }
         cy.merchantRetrieveCall(globalState, {
           expectedProductType: "orchestration",
         });
-
-        cy.merchantDeleteCall(globalState);
       });
     }
   );

@@ -546,7 +546,6 @@ Cypress.Commands.add(
 
     const merchantId = RequestBodyUtils.generateRandomString();
     RequestBodyUtils.setMerchantId(merchantCreateBody, merchantId);
-    globalState.set(merchantIdStateKey, merchantId);
 
     cy.request({
       method: "POST",
@@ -571,6 +570,8 @@ Cypress.Commands.add(
           }
           return;
         }
+
+        globalState.set(merchantIdStateKey, merchantId);
 
         if (expectedMerchantAccountType) {
           expect(response.body).to.have.property(
