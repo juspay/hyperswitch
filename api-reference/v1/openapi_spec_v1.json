@@ -5898,6 +5898,133 @@
         ]
       }
     },
+    "/blocklist/batch": {
+      "post": {
+        "tags": [
+          "Blocklist"
+        ],
+        "operationId": "Upload a batch blocklist CSV",
+        "requestBody": {
+          "description": "A multipart/form-data request with a `file` field containing a UTF-8 CSV (max 5 MB). The CSV must have a header row: `type,data,metadata`. `type`: one of `card_bin` (6 digits), `extended_card_bin` (8 digits), `fingerprint`. `metadata`: optional, `key=value` pairs separated by `;` (e.g. `reason=fraud;source=manual`). Maximum 100,000 data rows.",
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "string"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "description": "Batch blocklist job initiated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BatchBlocklistUploadResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "CSV validation error or file exceeds 5 MB limit"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          }
+        ]
+      },
+      "get": {
+        "tags": [
+          "Blocklist"
+        ],
+        "operationId": "List batch blocklist jobs",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "Maximum number of jobs to return (default 10, max 100)",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "nullable": true,
+              "minimum": 0
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "description": "Zero-based offset for pagination (default 0)",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "nullable": true,
+              "minimum": 0
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of batch blocklist jobs",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListBatchBlocklistJobsResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          }
+        ]
+      }
+    },
+    "/blocklist/batch/{job_id}": {
+      "get": {
+        "tags": [
+          "Blocklist"
+        ],
+        "operationId": "Get batch blocklist job status",
+        "parameters": [
+          {
+            "name": "job_id",
+            "in": "path",
+            "description": "The job ID returned by the batch upload endpoint",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Batch blocklist job status",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BatchBlocklistJobStatusResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Job not found"
+          }
+        },
+        "security": [
+          {
+            "api_key": []
+          }
+        ]
+      }
+    },
     "/payouts/create": {
       "post": {
         "tags": [
@@ -13503,6 +13630,85 @@
           "savings"
         ]
       },
+      "BatchBlocklistJobStatus": {
+        "type": "string",
+        "enum": [
+          "initiated",
+          "processing",
+          "completed",
+          "failed"
+        ]
+      },
+      "BatchBlocklistJobStatusResponse": {
+        "type": "object",
+        "description": "Response for `GET /blocklist/batch/{job_id}`.",
+        "required": [
+          "job_id",
+          "merchant_id",
+          "status",
+          "total_rows",
+          "succeeded_rows",
+          "failed_rows",
+          "created_at",
+          "updated_at"
+        ],
+        "properties": {
+          "job_id": {
+            "type": "string"
+          },
+          "merchant_id": {
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/BatchBlocklistJobStatus"
+          },
+          "total_rows": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          },
+          "succeeded_rows": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          },
+          "failed_rows": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "BatchBlocklistUploadResponse": {
+        "type": "object",
+        "description": "Response returned on a successful `POST /blocklist/batch`.",
+        "required": [
+          "job_id",
+          "total_rows",
+          "status"
+        ],
+        "properties": {
+          "job_id": {
+            "type": "string"
+          },
+          "total_rows": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          },
+          "status": {
+            "$ref": "#/components/schemas/BatchBlocklistJobStatus"
+          }
+        }
+      },
       "BecsBankDebitAdditionalData": {
         "type": "object",
         "required": [
@@ -13696,6 +13902,32 @@
           "created_at": {
             "type": "string",
             "format": "date-time"
+          }
+        }
+      },
+      "BlocklistRowError": {
+        "type": "object",
+        "description": "A single validation error found in a batch-upload CSV row.",
+        "required": [
+          "row_index",
+          "data_kind",
+          "data",
+          "reason"
+        ],
+        "properties": {
+          "row_index": {
+            "type": "integer",
+            "description": "0-based row index in the CSV (excluding header).",
+            "minimum": 0
+          },
+          "data_kind": {
+            "$ref": "#/components/schemas/BlocklistDataKind"
+          },
+          "data": {
+            "type": "string"
+          },
+          "reason": {
+            "type": "string"
           }
         }
       },
@@ -22876,6 +23108,31 @@
             }
           }
         ]
+      },
+      "ListBatchBlocklistJobsResponse": {
+        "type": "object",
+        "description": "Response for `GET /blocklist/batch`.",
+        "required": [
+          "count",
+          "total_count",
+          "data"
+        ],
+        "properties": {
+          "count": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "total_count": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BatchBlocklistJobStatusResponse"
+            }
+          }
+        }
       },
       "ListBlocklistQuery": {
         "type": "object",
