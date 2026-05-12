@@ -3502,7 +3502,7 @@ impl behaviour::Conversion for PaymentAttempt {
                     .and_then(|created_by| created_by.parse::<CreatedBy>().ok()),
                 connector_request_reference_id: storage_model.connector_request_reference_id,
                 network_transaction_id: storage_model.network_transaction_id,
-                network_transaction_link_id: network_transaction_link_id,
+                network_transaction_link_id: storage_model.network_transaction_link_id,
                 authorized_amount: storage_model.authorized_amount,
             })
         }
