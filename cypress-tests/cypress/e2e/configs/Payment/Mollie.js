@@ -829,108 +829,86 @@ export const connectorDetails = {
       },
     },
   },
-  pay_later_pm: {
-    AutoCapture: getCustomExchange({
+  webhook: {
+    TransactionIdConfig: {
+      // Defines how to locate and parse the payment reference ID from connector-specific webhook payloads
+      path: "id",
+      // Type of payment reference ID
+      type: "string",
+    },
+    // Mollie webhook handler uses serde_qs (form-encoded), not JSON
+    contentType: "application/x-www-form-urlencoded",
+  },
+  bank_debit_pm: {
+    Sepa: getCustomExchange({
       Request: {
-        currency: "EUR",
-        capture_method: "automatic",
-        description: "Test Order",
-        return_url: "https://example.com",
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "requires_payment_method",
-        },
-      },
-    }),
-    ManualCapture: getCustomExchange({
-      Request: {
-        currency: "EUR",
-        capture_method: "manual",
-        description: "Test Order",
-        return_url: "https://example.com",
-      },
-      Response: {
-        status: 200,
-        body: {
-          status: "requires_payment_method",
-        },
-      },
-    }),
-    Klarna: {
-      Request: {
-        payment_method: "pay_later",
-        payment_method_type: "klarna",
-        payment_experience: "redirect_to_url",
-        description: "Test Order",
+        payment_method: "bank_debit",
+        payment_method_type: "sepa",
         payment_method_data: {
-          pay_later: {
-            klarna_redirect: {
-              billing_email: "test@example.com",
-              billing_country: "NL",
+          bank_debit: {
+            sepa_bank_debit: {
+              iban: "DE89370400440532013000",
+              bank_account_holder_name: "Test Account",
             },
           },
         },
         billing: {
+          address: {
+            country: "DE",
+            first_name: "Test",
+            last_name: "Account",
+          },
           email: "test@example.com",
-          address: {
-            line1: "123 Test St",
-            line2: "Apt 4B",
-            city: "Amsterdam",
-            zip: "1012 WX",
-            country: "NL",
-            first_name: "Test",
-            last_name: "User",
-          },
         },
-        shipping: {
-          address: {
-            line1: "123 Test St",
-            line2: "Apt 4B",
-            city: "Amsterdam",
-            zip: "1012 WX",
-            country: "NL",
-            first_name: "Test",
-            last_name: "User",
-          },
-        },
-        order_details: [
-          {
-            product_name: "Test Product",
-            quantity: 1,
-            amount: 6000,
-            total_amount: 6000,
-            description: "Test Product Description",
-            product_img_link: "https://example.com/product.jpg",
-          },
-        ],
-        browser_info: {
-          java_enabled: false,
-          java_script_enabled: true,
-          language: "en-US",
-          color_depth: 24,
-          screen_width: 1920,
-          screen_height: 1080,
-          time_zone: 3600,
-          user_agent: "Mozilla/5.0",
-          accept_header: "text/html",
-        },
-        return_url: "https://example.com",
       },
       Response: {
         status: 200,
-        body: {
-          status: "requires_customer_action",
+        body: { status: "processing" },
+      },
+    }),
+    SepaDebitMandate: getCustomExchange({
+      Request: {
+        payment_method: "bank_debit",
+        payment_method_type: "sepa",
+        payment_method_data: {
+          bank_debit: {
+            sepa_bank_debit: {
+              iban: "DE89370400440532013000",
+              bank_account_holder_name: "Test Account",
+            },
+          },
+        },
+        billing: {
+          address: {
+            country: "DE",
+            first_name: "Test",
+            last_name: "Account",
+          },
+          email: "test@example.com",
+        },
+        setup_future_usage: "off_session",
+        mandate_data: {
+          customer_acceptance: {
+            acceptance_type: "online",
+            accepted_at: "1963-05-03T04:07:52.723Z",
+            online: {
+              ip_address: "127.0.0.1",
+              user_agent:
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/70.0.3538.110 Safari/537.36",
+            },
+          },
+          mandate_type: {
+            multi_use: {
+              amount: 8000,
+              currency: "EUR",
+            },
+          },
         },
       },
-    },
-  },
-  webhook: {
-    TransactionIdConfig: {
-      path: "id",
-      type: "string",
-    },
-    contentType: "application/x-www-form-urlencoded",
+      Response: {
+        status: 200,
+        body: { status: "processing" },
+      },
+    }),
   },
 };
