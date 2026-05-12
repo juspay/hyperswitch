@@ -4,6 +4,27 @@ All notable changes to HyperSwitch will be documented here.
 
 - - -
 
+## 2026.05.12.0
+
+### Features
+
+- **blocklist:** Add batch blocklist CSV upload with async processing ([#12149](https://github.com/juspay/hyperswitch/pull/12149)) ([`de54c81`](https://github.com/juspay/hyperswitch/commit/de54c8108c0edc14d756c630b1476680bdfdf7fb))
+
+### Refactors
+
+- **payouts:** Propagate source_bank_data to prism ([#12236](https://github.com/juspay/hyperswitch/pull/12236)) ([`56aaece`](https://github.com/juspay/hyperswitch/commit/56aaece554991ec95bec0fd01b40ac0febf58326))
+- Incoming webhook core to trait based and bumping up ucs new parseEvent webhook changes, adding shadow mode diff ([#11922](https://github.com/juspay/hyperswitch/pull/11922)) ([`162d2f8`](https://github.com/juspay/hyperswitch/commit/162d2f8a4ba25b6179ccc3bb9a537c95048a74b8))
+
+### Testing
+
+- **cypress:**
+  - Add 3DS decision rule algorithm routing test cases ([#12089](https://github.com/juspay/hyperswitch/pull/12089)) ([`73b2ea4`](https://github.com/juspay/hyperswitch/commit/73b2ea4cf9436679ff88e0d644c13bf6a6f86e45))
+  - Add L2/L3 Data Processing coverage for checkout, nuvei, worldpayvantiv ([#11932](https://github.com/juspay/hyperswitch/pull/11932)) ([`8c309f7`](https://github.com/juspay/hyperswitch/commit/8c309f77365acca1ae4aec08e0f5409dee5f197a))
+
+**Full Changelog:** [`2026.05.11.0...2026.05.12.0`](https://github.com/juspay/hyperswitch/compare/2026.05.11.0...2026.05.12.0)
+
+- - -
+
 ## 2026.05.11.0
 
 ### Testing
