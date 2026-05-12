@@ -7,6 +7,7 @@ let globalState;
 
 describe("Payout Priority Routing Test", () => {
   let shouldContinue = true;
+  let outerGuardPassed = true;
 
   before("seed global state", () => {
     cy.task("getGlobalState").then((state) => {
@@ -18,6 +19,7 @@ describe("Payout Priority Routing Test", () => {
         )
       ) {
         shouldContinue = false;
+        outerGuardPassed = false;
       }
     });
   });
@@ -34,8 +36,9 @@ describe("Payout Priority Routing Test", () => {
 
   context("Payout Priority Routing - default connector", () => {
     before("setup payout context", () => {
-      shouldContinue = true;
-      // List MCAs once at the start of context to populate connector mappings
+      if (outerGuardPassed) {
+        shouldContinue = true;
+      }
       cy.ListMcaByMid(globalState);
     });
 
@@ -102,6 +105,9 @@ describe("Payout Priority Routing Test", () => {
     });
 
     it("retrieve-payout-call-test", () => {
+      if (!shouldContinue) {
+        return;
+      }
       cy.retrievePayoutCallTest(globalState);
     });
   });
@@ -111,7 +117,9 @@ describe("Payout Priority Routing Test", () => {
     // Tests that multiple routing configs can coexist with different priorities
 
     before("setup alternate payout context", () => {
-      shouldContinue = true;
+      if (outerGuardPassed) {
+        shouldContinue = true;
+      }
       cy.ListMcaByMid(globalState);
     });
 
@@ -179,6 +187,9 @@ describe("Payout Priority Routing Test", () => {
     });
 
     it("retrieve-payout-alternate-call-test", () => {
+      if (!shouldContinue) {
+        return;
+      }
       cy.retrievePayoutCallTest(globalState);
     });
   });

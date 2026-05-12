@@ -105,7 +105,7 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "success",
+          status: "initiated",
           payout_type: "card",
         },
       },
@@ -200,6 +200,82 @@ export const connectorDetails = {
           status: 200,
           body: {
             status: "success",
+            payout_type: "bank",
+          },
+        },
+      },
+    },
+    sepa_bank_transfer: {
+      Create: {
+        Request: {
+          payout_type: "bank",
+          priority: "regular",
+          payout_method_data: {
+            bank: {
+              iban: "DE89370400440532013000",
+            },
+          },
+          billing: billing,
+        },
+        Response: {
+          status: 200,
+          body: {
+            status: "requires_confirmation",
+            payout_type: "bank",
+          },
+        },
+      },
+      Confirm: {
+        Request: {
+          payout_type: "bank",
+          priority: "regular",
+          payout_method_data: {
+            bank: {
+              iban: "DE89370400440532013000",
+            },
+          },
+          billing: billing,
+        },
+        Response: {
+          status: 200,
+          body: {
+            status: "requires_fulfillment",
+            payout_type: "bank",
+          },
+        },
+      },
+      Fulfill: {
+        Request: {
+          payout_type: "bank",
+          priority: "regular",
+          payout_method_data: {
+            bank: {
+              iban: "DE89370400440532013000",
+            },
+          },
+          billing: billing,
+          recurring: true,
+        },
+        Response: {
+          status: 200,
+          body: {
+            status: "initiated",
+            payout_type: "bank",
+          },
+        },
+        Configs: {
+          TRIGGER_SKIP: true,
+        },
+      },
+      Token: {
+        Request: {
+          payout_token: "token",
+          payout_type: "bank",
+        },
+        Response: {
+          status: 200,
+          body: {
+            status: "initiated",
             payout_type: "bank",
           },
         },

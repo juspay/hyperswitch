@@ -5108,9 +5108,8 @@ Cypress.Commands.add("ListMcaByMid", (globalState) => {
     expect(response.headers["content-type"]).to.include("application/json");
 
     if (Array.isArray(response.body) && response.body.length > 0) {
-      globalState.set("profileId", response.body[0].profile_id);
-
       let payoutMcaId = null;
+      let payoutProfileId = null;
 
       response.body.forEach((connector) => {
         const connectorName = connector.connector_name;
@@ -5122,12 +5121,17 @@ Cypress.Commands.add("ListMcaByMid", (globalState) => {
         }
         if (connector.connector_type === "payout_processor" && !payoutMcaId) {
           payoutMcaId = connector.merchant_connector_id;
+          payoutProfileId = connector.profile_id;
         }
       });
 
       globalState.set(
         "currentConnectorMcaId",
         payoutMcaId || response.body[0].merchant_connector_id
+      );
+      globalState.set(
+        "profileId",
+        payoutProfileId || response.body[0].profile_id
       );
     }
   });
