@@ -1,6 +1,5 @@
 import * as fixtures from "../../../fixtures/imports";
 import State from "../../../utils/State";
-import { payment_methods_enabled } from "../../configs/Payment/Commons";
 import getConnectorDetails, {
   should_continue_further,
 } from "../../configs/Payment/Utils";
@@ -39,18 +38,8 @@ describe("Merchant Redirect Method Tests - UPI", () => {
   context(
     "Test redirect_to_merchant_with_http_post enabled - POST redirect flow",
     () => {
-      it("Create Business Profile → Create Connector → Enable POST redirect → Create UPI Payment → Confirm → Handle Redirect → Verify Return URL", () => {
+      it("Enable POST redirect → Create UPI Payment → Confirm → Handle Redirect → Verify Return URL", () => {
         let shouldContinue = true;
-
-        cy.step(
-          "Create Business Profile with redirect_to_merchant_with_http_post enabled",
-          () => {
-            cy.createBusinessProfileTest(
-              fixtures.businessProfile.bpCreate,
-              globalState
-            );
-          }
-        );
 
         cy.step("Update redirect_to_merchant_with_http_post to true", () => {
           cy.UpdateBusinessProfileTest(
@@ -139,18 +128,8 @@ describe("Merchant Redirect Method Tests - UPI", () => {
   context(
     "Test redirect_to_merchant_with_http_post disabled - GET redirect flow",
     () => {
-      it("Create Business Profile → Enable GET redirect → Create UPI Payment → Confirm → Handle Redirect → Verify Return URL", () => {
+      it("Enable GET redirect → Create UPI Payment → Confirm → Handle Redirect → Verify Return URL", () => {
         let shouldContinue = true;
-
-        cy.step(
-          "Create Business Profile with redirect_to_merchant_with_http_post disabled",
-          () => {
-            cy.createBusinessProfileTest(
-              fixtures.businessProfile.bpCreate,
-              globalState
-            );
-          }
-        );
 
         cy.step("Update redirect_to_merchant_with_http_post to false", () => {
           cy.UpdateBusinessProfileTest(
