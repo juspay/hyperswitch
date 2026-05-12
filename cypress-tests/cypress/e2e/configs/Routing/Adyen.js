@@ -150,7 +150,7 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "succeeded",
+          status: "processing",
           connector: "adyen",
         },
       },
