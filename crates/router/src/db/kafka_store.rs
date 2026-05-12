@@ -3166,13 +3166,16 @@ impl RoutingAlgorithmInterface for KafkaStore {
             .await
     }
 
-    async fn find_routing_algorithm_by_algorithm_id_merchant_id(
+    async fn find_routing_algorithm_by_algorithm_id_processor_merchant_id(
         &self,
         algorithm_id: &id_type::RoutingId,
-        merchant_id: &id_type::MerchantId,
+        processor_merchant_id: &id_type::MerchantId,
     ) -> CustomResult<storage::RoutingAlgorithm, errors::StorageError> {
         self.diesel_store
-            .find_routing_algorithm_by_algorithm_id_merchant_id(algorithm_id, merchant_id)
+            .find_routing_algorithm_by_algorithm_id_processor_merchant_id(
+                algorithm_id,
+                processor_merchant_id,
+            )
             .await
     }
 
