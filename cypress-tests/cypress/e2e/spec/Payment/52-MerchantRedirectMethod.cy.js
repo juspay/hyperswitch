@@ -52,15 +52,6 @@ describe("Merchant Redirect Method Tests - UPI", () => {
           }
         );
 
-        cy.step("Create Connector", () => {
-          cy.createConnectorCallTest(
-            "payment_processor",
-            fixtures.createConnectorBody,
-            payment_methods_enabled,
-            globalState
-          );
-        });
-
         cy.step("Update redirect_to_merchant_with_http_post to true", () => {
           cy.UpdateBusinessProfileTest(
             bpUpdateRedirectPost,
@@ -160,15 +151,6 @@ describe("Merchant Redirect Method Tests - UPI", () => {
             );
           }
         );
-
-        cy.step("Create Connector", () => {
-          cy.createConnectorCallTest(
-            "payment_processor",
-            fixtures.createConnectorBody,
-            payment_methods_enabled,
-            globalState
-          );
-        });
 
         cy.step("Update redirect_to_merchant_with_http_post to false", () => {
           cy.UpdateBusinessProfileTest(
