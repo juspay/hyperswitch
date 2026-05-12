@@ -1250,6 +1250,39 @@ export const connectorDetails = {
         },
       },
     }),
+    StepUpAuthWithMerchantCodes: getCustomExchange({
+      Request: {
+        payment_method: "card",
+        payment_method_data: {
+          card: successfulThreeDSTestCardDetails,
+        },
+        currency: "USD",
+        authentication_type: "three_ds",
+        request_external_three_ds_authentication: true,
+        setup_future_usage: "off_session",
+        merchant_country_code: "US",
+        merchant_category_code: "5999",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+          authentication_type: "three_ds",
+        },
+      },
+    }),
+    ThreeDSAuthenticationWithMerchantCodes: getCustomExchange({
+      Request: {
+        device_channel: "BRW",
+        threeds_method_comp_ind: "Y",
+        merchant_country_code: "US",
+        merchant_category_code: "5999",
+      },
+      Response: {
+        status: 200,
+        body: {},
+      },
+    }),
   },
   pm_list: {
     PmListResponse: {

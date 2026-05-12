@@ -223,4 +223,97 @@ describe("Step-Up Auth payment flow test", () => {
       );
     });
   });
+
+  context(
+    "Step-Up Auth with merchant_country_code and merchant_category_code",
+    () => {
+      let shouldContinue = true;
+
+      before(function () {
+        if (!globalState.get("authProcessorConnectorId")) {
+          shouldContinue = false;
+        }
+      });
+
+      beforeEach(function () {
+        if (!shouldContinue) {
+          this.skip();
+        }
+      });
+
+      afterEach("flush global state", () => {
+        cy.task("setGlobalState", globalState.data);
+      });
+
+      it("create payment intent with three_ds and merchant codes", () => {
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "step_up_auth"
+        ]["PaymentIntentOnly"];
+
+        cy.createPaymentIntentTest(
+          fixtures.createPaymentBody,
+          data,
+          "three_ds",
+          "automatic",
+          globalState
+        );
+
+        if (!utils.should_continue_further(data)) {
+          shouldContinue = false;
+        }
+      });
+
+      it("confirm payment with three_ds card and merchant codes", () => {
+        if (!shouldContinue) {
+          cy.task(
+            "cli_log",
+            "Skipping step: confirm payment with three_ds card and merchant codes"
+          );
+          return;
+        }
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "step_up_auth"
+        ]["StepUpAuthWithMerchantCodes"];
+
+        cy.createConfirmPaymentTest(
+          fixtures.createConfirmPaymentBody,
+          data,
+          "three_ds",
+          "automatic",
+          globalState
+        );
+
+        if (!utils.should_continue_further(data)) {
+          shouldContinue = false;
+        }
+      });
+
+      it("call 3ds authentication endpoint with merchant codes", () => {
+        if (!shouldContinue) {
+          cy.task(
+            "cli_log",
+            "Skipping step: call 3ds authentication endpoint with merchant codes"
+          );
+          return;
+        }
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "step_up_auth"
+        ]["ThreeDSAuthenticationWithMerchantCodes"];
+
+        cy.threeDSAuthenticationCallTest(
+          fixtures.threeDSAuthenticationBody,
+          data,
+          globalState
+        );
+      });
+
+      it("retrieve payment with merchant codes", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: retrieve payment with merchant codes");
+          return;
+        }
+        cy.retrievePaymentCallTest({ globalState });
+      });
+    }
+  );
 });
