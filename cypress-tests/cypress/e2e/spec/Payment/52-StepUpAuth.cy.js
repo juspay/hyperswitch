@@ -309,7 +309,10 @@ describe("Step-Up Auth payment flow test", () => {
 
       it("retrieve payment with merchant codes", () => {
         if (!shouldContinue) {
-          cy.task("cli_log", "Skipping step: retrieve payment with merchant codes");
+          cy.task(
+            "cli_log",
+            "Skipping step: retrieve payment with merchant codes"
+          );
           return;
         }
         cy.retrievePaymentCallTest({ globalState });
