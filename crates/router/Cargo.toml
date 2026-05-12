@@ -9,7 +9,7 @@ readme = "README.md"
 license.workspace = true
 
 [features]
-default = ["common_default", "v1"]
+default = ["common_default", "v1", "redis-rs"]
 common_default = ["kv_store", "stripe", "oltp", "olap", "accounts_cache", "dummy_connector", "payouts", "payout_retry", "retry", "frm", "tls", "partial-auth", "km_forward_x_request_id", "external_services/superposition"]
 olap = ["hyperswitch_domain_models/olap", "storage_impl/olap", "scheduler/olap", "api_models/olap", "dep:analytics"]
 tls = ["actix-web/rustls-0_22"]
@@ -40,6 +40,8 @@ tokenization_v2 = ["api_models/tokenization_v2", "diesel_models/tokenization_v2"
 # The feature reduces the overhead of the router authenticating the merchant for every request, and trusts on `x-merchant-id` header to be present in the request.
 # This is named as partial-auth because the router will still try to authenticate if the `x-merchant-id` header is not present.
 partial-auth = []
+fred    = ["redis_interface/fred",     "storage_impl/fred",    "scheduler/fred"]
+redis-rs = ["redis_interface/redis-rs", "storage_impl/redis-rs", "scheduler/redis-rs"]
 
 [dependencies]
 actix-cors = "0.6.5"
@@ -136,7 +138,7 @@ injector = { version = "0.1.0", path = "../injector", optional = true }
 kgraph_utils = { version = "0.1.0", path = "../kgraph_utils" }
 hyperswitch_masking = "0.0.1"
 pm_auth = { version = "0.1.0", path = "../pm_auth", package = "pm_auth" }
-redis_interface = { version = "0.1.0", path = "../redis_interface" }
+redis_interface = { version = "0.1.0", path = "../redis_interface", default-features = false }
 router_derive = { version = "0.1.0", path = "../router_derive" }
 router_env = { version = "0.1.0", path = "../router_env", features = ["log_extra_implicit_fields", "log_custom_entries_to_extra"] }
 scheduler = { version = "0.1.0", path = "../scheduler", default-features = false }
