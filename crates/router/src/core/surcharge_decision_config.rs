@@ -57,10 +57,7 @@ pub async fn upsert_surcharge_decision_config(
             message: "Invalid Request Data".to_string(),
         })
         .attach_printable("The Request has an Invalid Comparison")?;
-    let surcharge_cache_key = processor
-        .get_account()
-        .get_id()
-        .get_surcharge_dsk_key();
+    let surcharge_cache_key = processor.get_account().get_id().get_surcharge_dsk_key();
     match read_config_key {
         Ok(config) => {
             let previous_record: SurchargeDecisionManagerRecord = config
@@ -187,20 +184,12 @@ pub async fn delete_surcharge_decision_config(
         .attach_printable("Could not decode the surcharge conditional_config algorithm")?
         .unwrap_or_default();
     algo_id.surcharge_config_algo_id = None;
-    let surcharge_cache_key = processor
-        .get_account()
-        .get_id()
-        .get_surcharge_dsk_key();
+    let surcharge_cache_key = processor.get_account().get_id().get_surcharge_dsk_key();
     let config_key = cache::CacheKind::Surcharge(surcharge_cache_key.into());
-    update_merchant_active_algorithm_ref(
-        &state,
-        processor.get_key_store(),
-        config_key,
-        algo_id,
-    )
-    .await
-    .change_context(errors::ApiErrorResponse::InternalServerError)
-    .attach_printable("Failed to update deleted algorithm ref")?;
+    update_merchant_active_algorithm_ref(&state, processor.get_key_store(), config_key, algo_id)
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to update deleted algorithm ref")?;
 
     db.delete_config_by_key(&key)
         .await

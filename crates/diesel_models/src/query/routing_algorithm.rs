@@ -198,11 +198,11 @@ impl RoutingAlgorithm {
                 dsl::algorithm_for,
             ))
             .filter(
-                dsl::processor_merchant_id
-                    .eq(merchant_id.to_owned())
-                    .or(dsl::processor_merchant_id
+                dsl::processor_merchant_id.eq(merchant_id.to_owned()).or(
+                    dsl::processor_merchant_id
                         .is_null()
-                        .and(dsl::merchant_id.eq(merchant_id.to_owned()))),
+                        .and(dsl::merchant_id.eq(merchant_id.to_owned())),
+                ),
             )
             .limit(limit)
             .offset(offset)
@@ -265,11 +265,11 @@ impl RoutingAlgorithm {
                 dsl::algorithm_for,
             ))
             .filter(
-                dsl::processor_merchant_id
-                    .eq(merchant_id.to_owned())
-                    .or(dsl::processor_merchant_id
+                dsl::processor_merchant_id.eq(merchant_id.to_owned()).or(
+                    dsl::processor_merchant_id
                         .is_null()
-                        .and(dsl::merchant_id.eq(merchant_id.to_owned()))),
+                        .and(dsl::merchant_id.eq(merchant_id.to_owned())),
+                ),
             )
             .filter(dsl::algorithm_for.eq(transaction_type.to_owned()))
             .limit(limit)

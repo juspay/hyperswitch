@@ -248,15 +248,10 @@ pub async fn delete_conditional_config(
         .unwrap_or_default();
     algo_id.config_algo_id = None;
     let config_key = cache::CacheKind::DecisionManager(key.clone().into());
-    update_merchant_active_algorithm_ref(
-        &state,
-        processor.get_key_store(),
-        config_key,
-        algo_id,
-    )
-    .await
-    .change_context(errors::ApiErrorResponse::InternalServerError)
-    .attach_printable("Failed to update deleted algorithm ref")?;
+    update_merchant_active_algorithm_ref(&state, processor.get_key_store(), config_key, algo_id)
+        .await
+        .change_context(errors::ApiErrorResponse::InternalServerError)
+        .attach_printable("Failed to update deleted algorithm ref")?;
 
     db.delete_config_by_key(&key)
         .await

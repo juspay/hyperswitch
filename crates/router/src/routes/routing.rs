@@ -709,7 +709,10 @@ pub async fn delete_surcharge_decision_manager_config(
         &req,
         (),
         |state, auth: auth::AuthenticationData, (), _| {
-            surcharge_decision_config::delete_surcharge_decision_config(state, auth.platform.get_processor().clone())
+            surcharge_decision_config::delete_surcharge_decision_config(
+                state,
+                auth.platform.get_processor().clone(),
+            )
         },
         #[cfg(not(feature = "release"))]
         auth::auth_type(
@@ -748,7 +751,10 @@ pub async fn retrieve_surcharge_decision_manager_config(
         &req,
         (),
         |state, auth: auth::AuthenticationData, _, _| {
-            surcharge_decision_config::retrieve_surcharge_decision_config(state, auth.platform.get_processor().clone())
+            surcharge_decision_config::retrieve_surcharge_decision_config(
+                state,
+                auth.platform.get_processor().clone(),
+            )
         },
         #[cfg(not(feature = "release"))]
         auth::auth_type(
@@ -788,7 +794,11 @@ pub async fn upsert_decision_manager_config(
         &req,
         json_payload.into_inner(),
         |state, auth: auth::AuthenticationData, update_decision, _| {
-            conditional_config::upsert_conditional_config(state, auth.platform.get_processor().clone(), update_decision)
+            conditional_config::upsert_conditional_config(
+                state,
+                auth.platform.get_processor().clone(),
+                update_decision,
+            )
         },
         #[cfg(not(feature = "release"))]
         auth::auth_type(
@@ -830,7 +840,11 @@ pub async fn upsert_decision_manager_config(
         |state, auth: auth::AuthenticationData, update_decision, _| {
             conditional_config::upsert_conditional_config(
                 state,
-                auth.platform.get_processor().clone().get_key_store().clone(),
+                auth.platform
+                    .get_processor()
+                    .clone()
+                    .get_key_store()
+                    .clone(),
                 update_decision,
                 auth.profile,
             )
@@ -872,7 +886,10 @@ pub async fn delete_decision_manager_config(
         &req,
         (),
         |state, auth: auth::AuthenticationData, (), _| {
-            conditional_config::delete_conditional_config(state, auth.platform.get_processor().clone())
+            conditional_config::delete_conditional_config(
+                state,
+                auth.platform.get_processor().clone(),
+            )
         },
         #[cfg(not(feature = "release"))]
         auth::auth_type(
@@ -914,7 +931,11 @@ pub async fn retrieve_decision_manager_config(
         |state, auth: auth::AuthenticationData, _, _| {
             conditional_config::retrieve_conditional_config(
                 state,
-                auth.platform.get_processor().clone().get_key_store().clone(),
+                auth.platform
+                    .get_processor()
+                    .clone()
+                    .get_key_store()
+                    .clone(),
                 auth.profile,
             )
         },
@@ -956,7 +977,10 @@ pub async fn retrieve_decision_manager_config(
         &req,
         (),
         |state, auth: auth::AuthenticationData, _, _| {
-            conditional_config::retrieve_conditional_config(state, auth.platform.get_processor().clone())
+            conditional_config::retrieve_conditional_config(
+                state,
+                auth.platform.get_processor().clone(),
+            )
         },
         #[cfg(not(feature = "release"))]
         auth::auth_type(
@@ -1584,7 +1608,11 @@ pub async fn get_dynamic_routing_volume_split(
         &req,
         payload.clone(),
         |state, auth: auth::AuthenticationData, payload, _| {
-            routing::retrieve_dynamic_routing_volume_split(state, auth.platform.get_processor().clone(), payload.profile_id)
+            routing::retrieve_dynamic_routing_volume_split(
+                state,
+                auth.platform.get_processor().clone(),
+                payload.profile_id,
+            )
         },
         auth::auth_type(
             &auth::HeaderAuth(auth::ApiKeyAuth {
