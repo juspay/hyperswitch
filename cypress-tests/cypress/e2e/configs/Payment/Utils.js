@@ -511,7 +511,7 @@ export const CONNECTOR_LISTS = {
       "stripe",
     ],
     BANK_DEBIT: ["adyen", "novalnet", "payload"], // payload verified as working
-    PAYPAL_WALLET: ["novalnet"],
+    PAYPAL_WALLET: ["novalnet", "paypal"],
     CARD_INSTALLMENTS: ["adyen"],
     BILLING_DESCRIPTOR: [
       "adyen",
