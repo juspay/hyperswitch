@@ -7955,6 +7955,10 @@ Cypress.Commands.add("setExtendedCardInfoConfigTest", (globalState) => {
   const merchantId = globalState.get("merchantId");
   const profileId = globalState.get("profileId");
 
+  // NOTE: This is a test RSA public key used for encrypting extended card info.
+  // In production, the merchant would provide their own public key (typically via dashboard/API).
+  // The corresponding private key is required to decrypt the encrypted card data.
+  // For testing purposes, we use a generated key pair that the test runner has access to.
   const publicKey =
     "-----BEGIN PUBLIC KEY-----\n" +
     "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAwa6siKaSYqD1o4J3AbHq\n" +
