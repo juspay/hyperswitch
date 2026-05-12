@@ -54,7 +54,6 @@ pub struct PaymentMethod {
     pub customer_acceptance: Option<pii::SecretSerdeValue>,
     pub status: storage_enums::PaymentMethodStatus,
     pub network_transaction_id: Option<String>,
-    pub network_transaction_link_id: Option<String>,
     pub client_secret: Option<String>,
     pub payment_method_billing_address: Option<Encryption>,
     pub updated_by: Option<String>,
@@ -78,6 +77,7 @@ pub struct PaymentMethod {
     // Compatibility-only field: backfilled by modular-compat PT for v2 interoperability.
     // Do not use this column in v1 business logic.
     pub payment_method_subtype: Option<storage_enums::PaymentMethodType>,
+    pub network_transaction_link_id: Option<String>,
 }
 
 #[cfg(feature = "v2")]
@@ -1094,6 +1094,7 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
                 connector_mandate_details,
                 external_vault_source,
                 network_transaction_id,
+                network_transaction_link_id,
                 last_modified_by,
             } => Self {
                 payment_method_data,
@@ -1111,6 +1112,7 @@ impl From<PaymentMethodUpdate> for PaymentMethodUpdateInternal {
                 locker_fingerprint_id,
                 external_vault_source,
                 network_transaction_id,
+                network_transaction_link_id,
                 last_modified_by,
                 customer_details: None,
             },
@@ -1240,6 +1242,10 @@ impl From<&PaymentMethodNew> for PaymentMethod {
             status: payment_method_new.status,
             network_transaction_id: payment_method_new
                 .network_transaction_id
+                .clone()
+                .map(Secret::new),
+            network_transaction_link_id: payment_method_new
+                .network_transaction_link_id
                 .clone()
                 .map(Secret::new),
             client_secret: payment_method_new.client_secret.clone(),

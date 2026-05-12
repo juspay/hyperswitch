@@ -1252,8 +1252,8 @@ pub struct NetworkTransactionIdAndDecryptedWalletTokenDetails {
     #[smithy(value_type = "String")]
     pub network_transaction_id: Secret<String>,
 
-    /// Mastercard Transaction Link Identifier (TLID).
-    /// Required for Mastercard recurring/stored-credential MITs from Oct 23, 2026.
+    /// The Mastercard Transaction Link Identifier (TLID) provided by the card network during a CIT (Customer Initiated Transaction),
+    /// when `setup_future_usage` is set to `off_session`.
     #[schema(value_type = Option<String>)]
     #[smithy(value_type = "Option<String>")]
     pub transaction_link_id: Option<String>,

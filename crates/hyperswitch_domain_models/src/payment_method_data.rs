@@ -128,7 +128,8 @@ pub struct NetworkTransactionIdAndCardDetails {
     /// when `setup_future_usage` is set to `off_session`.
     pub network_transaction_id: Secret<String>,
 
-    /// Mastercard Transaction Link Identifier (TLID).
+    /// The Mastercard Transaction Link Identifier (TLID) provided by the card network during a CIT (Customer Initiated Transaction),
+    /// when `setup_future_usage` is set to `off_session`.
     pub transaction_link_id: Option<String>,
 }
 
@@ -171,7 +172,8 @@ pub struct NetworkTransactionIdAndNetworkTokenDetails {
     /// when `setup_future_usage` is set to `off_session`.
     pub network_transaction_id: Secret<String>,
 
-    /// Mastercard Transaction Link Identifier (TLID).
+    /// The Mastercard Transaction Link Identifier (TLID) provided by the card network during a CIT (Customer Initiated Transaction),
+    /// when `setup_future_usage` is set to `off_session`.
     pub transaction_link_id: Option<String>,
 }
 

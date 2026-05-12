@@ -3091,7 +3091,7 @@ async fn update_payment_method_status_and_ntid<F: Clone>(
                 .map(|info| info.status = updated_pm_status);
             storage::PaymentMethodUpdate::NetworkTransactionIdAndStatusUpdate {
                 network_transaction_id,
-                network_transaction_link_id: network_transaction_link_id,
+                network_transaction_link_id,
                 status: Some(updated_pm_status),
                 last_modified_by: initiator
                     .and_then(|initiator| initiator.to_created_by())

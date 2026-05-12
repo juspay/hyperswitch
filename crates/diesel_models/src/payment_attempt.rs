@@ -288,7 +288,6 @@ pub struct PaymentAttempt {
     pub routing_approach: Option<storage_enums::RoutingApproach>,
     pub connector_request_reference_id: Option<String>,
     pub network_transaction_id: Option<String>,
-    pub network_transaction_link_id: Option<String>,
     pub is_overcapture_enabled: Option<OvercaptureEnabledBool>,
     pub network_details: Option<NetworkDetails>,
     pub is_stored_credential: Option<bool>,
@@ -302,6 +301,7 @@ pub struct PaymentAttempt {
     /// Indicates the type of retry for this payment attempt (None for initial attempt)
     pub retry_type: Option<storage_enums::RetryType>,
     pub installment_data: Option<common_types::payments::InstallmentData>,
+    pub network_transaction_link_id: Option<String>,
 }
 
 #[cfg(feature = "v1")]
@@ -539,7 +539,6 @@ pub struct PaymentAttemptNew {
     pub routing_approach: Option<storage_enums::RoutingApproach>,
     pub connector_request_reference_id: Option<String>,
     pub network_transaction_id: Option<String>,
-    pub network_transaction_link_id: Option<String>,
     pub network_details: Option<NetworkDetails>,
     pub is_stored_credential: Option<bool>,
     pub authorized_amount: Option<MinorUnit>,
@@ -551,6 +550,7 @@ pub struct PaymentAttemptNew {
     /// Indicates the type of retry for this payment attempt (None for initial attempt)
     pub retry_type: Option<storage_enums::RetryType>,
     pub installment_data: Option<common_types::payments::InstallmentData>,
+    pub network_transaction_link_id: Option<String>,
 }
 
 #[cfg(feature = "v1")]
