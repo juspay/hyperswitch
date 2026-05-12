@@ -93,6 +93,7 @@ impl
             priority: payout.priority,
             billing: address,
             payout_method_data: payout_attempt.additional_payout_method_data.map(From::from),
+            source_bank_data: payout_attempt.additional_source_bank_data,
             client_secret: None,
             payout_link: None,
             unified_code: attempt.unified_code.clone(),

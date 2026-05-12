@@ -101,7 +101,7 @@ pub use self::{
 };
 use super::{helpers, CustomerDetails, OperationSessionGetters, OperationSessionSetters};
 #[cfg(feature = "v1")]
-use crate::core::payment_methods::transformers::PaymentMethodWithRawData;
+pub use crate::core::payment_methods::transformers::PaymentMethodFetchData;
 #[cfg(feature = "v2")]
 use crate::core::payments;
 use crate::{
@@ -222,7 +222,7 @@ pub trait GetTracker<F: Clone, D, R>: Send {
         platform: &domain::Platform,
         auth_flow: services::AuthFlow,
         header_payload: &hyperswitch_domain_models::payments::HeaderPayload,
-        payment_method_with_raw_data: Option<PaymentMethodWithRawData>,
+        payment_method_fetch_data: PaymentMethodFetchData,
         dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
     ) -> RouterResult<GetTrackerResponse<'a, F, R, D>>;
 
@@ -335,8 +335,8 @@ pub trait Domain<F: Clone, R, D>: Send + Sync {
         _request: &R,
         _platform: &domain::Platform,
         _feature_config: &core_utils::FeatureConfig,
-    ) -> RouterResult<Option<PaymentMethodWithRawData>> {
-        Ok(None)
+    ) -> RouterResult<PaymentMethodFetchData> {
+        Ok(PaymentMethodFetchData::default())
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -451,6 +451,7 @@ pub trait Domain<F: Clone, R, D>: Send + Sync {
         &'a self,
         _state: &SessionState,
         _processor: &domain::Processor,
+        _dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
         _payment_data: &mut D,
         _business_profile: &domain::Profile,
     ) -> CustomResult<bool, errors::ApiErrorResponse> {
@@ -723,6 +724,7 @@ where
         &'a self,
         _state: &SessionState,
         _processor: &domain::Processor,
+        _dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
         _payment_data: &mut D,
         _business_profile: &domain::Profile,
     ) -> CustomResult<bool, errors::ApiErrorResponse> {
@@ -816,6 +818,7 @@ where
         &'a self,
         _state: &SessionState,
         _processor: &domain::Processor,
+        _dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
         _payment_data: &mut D,
         _business_profile: &domain::Profile,
     ) -> CustomResult<bool, errors::ApiErrorResponse> {
@@ -935,6 +938,7 @@ where
         &'a self,
         _state: &SessionState,
         _processor: &domain::Processor,
+        _dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
         _payment_data: &mut D,
         _business_profile: &domain::Profile,
     ) -> CustomResult<bool, errors::ApiErrorResponse> {
@@ -1020,6 +1024,7 @@ where
         &'a self,
         _state: &SessionState,
         _processor: &domain::Processor,
+        _dimensions: &dimension_state::DimensionsWithProcessorAndProviderMerchantId,
         _payment_data: &mut D,
         _business_profile: &domain::Profile,
     ) -> CustomResult<bool, errors::ApiErrorResponse> {

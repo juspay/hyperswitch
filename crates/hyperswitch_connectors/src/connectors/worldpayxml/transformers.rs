@@ -19,7 +19,7 @@ use hyperswitch_domain_models::{
     payment_method_data::{
         ApplePayWalletData, Card, GooglePayWalletData, PaymentMethodData, WalletData,
     },
-    router_data::{ConnectorAuthType, ErrorResponse, RouterData},
+    router_data::{ConnectorAuthType, ErrorResponse, PaymentMethodToken, RouterData},
     router_flow_types::refunds::{Execute, RSync},
     router_request_types::{
         CompleteAuthorizeData, PaymentsAuthorizeData, PaymentsSyncData, ResponseId,
@@ -581,6 +581,9 @@ enum PaymentMethod {
 
     #[serde(rename = "TOKEN-SSL")]
     TokenSSL(TokenData),
+
+    #[serde(rename = "EMVCO_TOKEN-SSL")]
+    EmvcoTokenSSL(EmvcoTokenData),
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -669,6 +672,24 @@ struct ApplePayHeader {
     ephemeral_public_key: Secret<String>,
     public_key_hash: Secret<String>,
     transaction_id: Secret<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+enum EmvcoTokenType {
+    Applepay,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct EmvcoTokenData {
+    #[serde(rename = "@type")]
+    token_type: EmvcoTokenType,
+    token_number: cards::CardNumber,
+    expiry_date: ExpiryDate,
+    card_holder_name: Option<Secret<String>>,
+    cryptogram: Secret<String>,
+    eci_indicator: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -920,30 +941,21 @@ impl TryFrom<(&GooglePayWalletData, PaymentsAuthorizeData)> for PaymentDetails {
     }
 }
 
-impl TryFrom<(&ApplePayWalletData, PaymentsAuthorizeData)> for PaymentDetails {
+impl
+    TryFrom<(
+        &ApplePayWalletData,
+        PaymentsAuthorizeData,
+        Option<PaymentMethodToken>,
+    )> for PaymentDetails
+{
     type Error = error_stack::Report<errors::ConnectorError>;
     fn try_from(
-        (apple_pay_wallet_data, item): (&ApplePayWalletData, PaymentsAuthorizeData),
+        (apple_pay_wallet_data, item, payment_method_token): (
+            &ApplePayWalletData,
+            PaymentsAuthorizeData,
+            Option<PaymentMethodToken>,
+        ),
     ) -> Result<Self, Self::Error> {
-        let applepay_encrypt_data = apple_pay_wallet_data
-            .payment_data
-            .get_encrypted_apple_pay_payment_data_mandatory()
-            .change_context(errors::ConnectorError::MissingRequiredField {
-                field_name: "Apple pay encrypted data",
-            })?;
-
-        let decoded_data = base64::prelude::BASE64_STANDARD
-            .decode(applepay_encrypt_data)
-            .change_context(errors::ConnectorError::InvalidDataFormat {
-                field_name: "apple_pay_encrypted_data",
-            })?;
-
-        let apple_pay_token: ApplePayData = serde_json::from_slice(&decoded_data).change_context(
-            errors::ConnectorError::InvalidDataFormat {
-                field_name: "apple_pay_token_json",
-            },
-        )?;
-
         let stored_credentials = if item.is_cit_mandate_payment() {
             Some(StoredCredentials {
                 usage: UsageType::First,
@@ -955,13 +967,59 @@ impl TryFrom<(&ApplePayWalletData, PaymentsAuthorizeData)> for PaymentDetails {
             None
         };
 
-        Ok(Self {
-            action: if connector_utils::is_manual_capture(item.capture_method) {
-                Some(Action::Authorise)
+        let action = if connector_utils::is_manual_capture(item.capture_method) {
+            Some(Action::Authorise)
+        } else {
+            Some(Action::Sale)
+        };
+
+        let payment_method =
+            if let Some(PaymentMethodToken::ApplePayDecrypt(apple_pay_decrypt_data)) =
+                payment_method_token
+            {
+                let expiry_month = apple_pay_decrypt_data.application_expiration_month.clone();
+                let expiry_year = apple_pay_decrypt_data.get_four_digit_expiry_year();
+
+                PaymentMethod::EmvcoTokenSSL(EmvcoTokenData {
+                    token_type: EmvcoTokenType::Applepay,
+                    token_number: apple_pay_decrypt_data.application_primary_account_number,
+                    expiry_date: ExpiryDate {
+                        date: Date {
+                            month: expiry_month,
+                            year: expiry_year,
+                        },
+                    },
+                    card_holder_name: item.customer_name.clone(),
+                    cryptogram: apple_pay_decrypt_data
+                        .payment_data
+                        .online_payment_cryptogram,
+                    eci_indicator: apple_pay_decrypt_data.payment_data.eci_indicator,
+                })
             } else {
-                Some(Action::Sale)
-            },
-            payment_method: PaymentMethod::PayWithAppleSSL(apple_pay_token),
+                let applepay_encrypt_data = apple_pay_wallet_data
+                    .payment_data
+                    .get_encrypted_apple_pay_payment_data_mandatory()
+                    .change_context(errors::ConnectorError::MissingRequiredField {
+                        field_name: "Apple pay encrypted data",
+                    })?;
+
+                let decoded_data = base64::prelude::BASE64_STANDARD
+                    .decode(applepay_encrypt_data)
+                    .change_context(errors::ConnectorError::InvalidDataFormat {
+                        field_name: "apple_pay_encrypted_data",
+                    })?;
+
+                let apple_pay_token: ApplePayData = serde_json::from_slice(&decoded_data)
+                    .change_context(errors::ConnectorError::InvalidDataFormat {
+                        field_name: "apple_pay_token_json",
+                    })?;
+
+                PaymentMethod::PayWithAppleSSL(apple_pay_token)
+            };
+
+        Ok(Self {
+            action,
+            payment_method,
             session: None,
             stored_credentials,
         })
@@ -1207,9 +1265,11 @@ impl TryFrom<&WorldpayxmlRouterData<&PaymentsAuthorizeRouterData>> for PaymentSe
                 WalletData::GooglePay(google_pay_data) => {
                     PaymentDetails::try_from((&google_pay_data, item.router_data.request.clone()))?
                 }
-                WalletData::ApplePay(apple_pay_data) => {
-                    PaymentDetails::try_from((&apple_pay_data, item.router_data.request.clone()))?
-                }
+                WalletData::ApplePay(apple_pay_data) => PaymentDetails::try_from((
+                    &apple_pay_data,
+                    item.router_data.request.clone(),
+                    item.router_data.payment_method_token.clone(),
+                ))?,
                 _ => Err(errors::ConnectorError::NotImplemented(
                     connector_utils::get_unimplemented_payment_method_error_message("Worldpayxml"),
                 ))?,
