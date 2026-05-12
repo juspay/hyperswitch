@@ -1582,6 +1582,8 @@ pub async fn migrate_customers(
     platform: domain::Platform,
 ) -> errors::CustomerResponse<()> {
     for customer_migration in customers_migration {
+        let customer_id = customer_migration.customer.customer_id.clone();
+        let connector_customer_details = customer_migration.connector_customer_details.clone();
         match create_customer(
             state.clone(),
             platform.get_provider().clone(),
@@ -1593,10 +1595,97 @@ pub async fn migrate_customers(
         {
             Ok(_) => (),
             Err(e) => match e.current_context() {
-                errors::CustomersErrorResponse::CustomerAlreadyExists => (),
+                // Customer already exists in Hyperswitch: still merge the migrated
+                // connector_customer_id(s) into the existing customer's connector_customer.
+                errors::CustomersErrorResponse::CustomerAlreadyExists => {
+                    sync_connector_customer_for_migrated_customer(
+                        &state,
+                        &platform,
+                        customer_id,
+                        connector_customer_details,
+                    )
+                    .await?;
+                }
                 _ => return Err(e),
             },
         }
     }
     Ok(services::ApplicationResponse::Json(()))
+}
+
+// Merges the migrated connector_customer_id(s) into an already-existing customer's
+// connector_customer map (create_customer skips them when the customer is a duplicate).
+#[cfg(feature = "v1")]
+async fn sync_connector_customer_for_migrated_customer(
+    state: &SessionState,
+    platform: &domain::Platform,
+    customer_id: Option<id_type::CustomerId>,
+    connector_customer_details: Option<Vec<payment_methods_domain::ConnectorCustomerDetails>>,
+) -> errors::CustomResult<(), errors::CustomersErrorResponse> {
+    let (Some(customer_id), Some(connector_customer_details)) =
+        (customer_id, connector_customer_details)
+    else {
+        return Ok(());
+    };
+    if connector_customer_details.is_empty() {
+        return Ok(());
+    }
+
+    let db: &dyn StorageInterface = state.store.as_ref();
+    let provider = platform.get_provider();
+    let merchant_id = provider.get_account().get_id();
+    let storage_scheme = provider.get_account().storage_scheme;
+
+    let existing_customer = db
+        .find_customer_by_customer_id_merchant_id(
+            &customer_id,
+            merchant_id,
+            provider.get_key_store(),
+            storage_scheme,
+        )
+        .await
+        .switch()?;
+
+    let mut connector_customer_map = existing_customer
+        .connector_customer
+        .as_ref()
+        .and_then(|connector_customer| connector_customer.peek().as_object().cloned())
+        .unwrap_or_default();
+    for details in &connector_customer_details {
+        connector_customer_map.insert(
+            details.merchant_connector_id.get_string_repr().to_string(),
+            details.connector_customer_id.clone().into(),
+        );
+    }
+
+    db.update_customer_by_customer_id_merchant_id(
+        customer_id,
+        merchant_id.clone(),
+        existing_customer,
+        storage::CustomerUpdate::ConnectorCustomer {
+            connector_customer: Some(pii::SecretSerdeValue::new(serde_json::Value::Object(
+                connector_customer_map,
+            ))),
+            last_modified_by: platform
+                .get_initiator()
+                .and_then(|initiator| initiator.to_created_by())
+                .map(|last_modified_by| last_modified_by.to_string()),
+        },
+        provider.get_key_store(),
+        storage_scheme,
+    )
+    .await
+    .switch()?;
+
+    Ok(())
+}
+
+#[cfg(not(feature = "v1"))]
+async fn sync_connector_customer_for_migrated_customer(
+    _state: &SessionState,
+    _platform: &domain::Platform,
+    _customer_id: Option<id_type::CustomerId>,
+    _connector_customer_details: Option<Vec<payment_methods_domain::ConnectorCustomerDetails>>,
+) -> errors::CustomResult<(), errors::CustomersErrorResponse> {
+    Ok(())
 }
