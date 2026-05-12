@@ -85,7 +85,7 @@ impl PubSubInterface for std::sync::Arc<redis_interface::RedisConnectionPool> {
 
             match channel_name.as_str() {
                 super::cache::IMC_INVALIDATION_CHANNEL => {
-                    let message = match CacheRedact::try_from(RedisValue::new(message.value))
+                    let message = match CacheRedact::try_from(message.value)
                         .change_context(redis_errors::RedisError::OnMessageError)
                     {
                         Ok(value) => value,

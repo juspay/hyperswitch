@@ -488,9 +488,9 @@ dependencies = [
 
 [[package]]
 name = "arc-swap"
-version = "1.9.1"
+version = "1.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6a3a1fd6f75306b68087b831f025c712524bcb19aad54e557b1129cfa0a2b207"
+checksum = "a07d1f37ff60921c83bdfc7407723bdefe89b44b98a9b772f225c8f9d67141a6"
 dependencies = [
  "rustversion",
 ]
@@ -7611,6 +7611,37 @@ dependencies = [
 ]
 
 [[package]]
+name = "redis-protocol"
+version = "4.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f44e94c96d8870a387d88ce3de3fdd608cbfc0705f03cb343cdde91509d3e49a"
+dependencies = [
+ "arc-swap",
+ "arcstr",
+ "async-lock",
+ "backon",
+ "bytes 1.10.1",
+ "cfg-if 1.0.0",
+ "combine",
+ "crc16",
+ "futures-channel",
+ "futures-util",
+ "itoa",
+ "log 0.4.27",
+ "num-bigint",
+ "percent-encoding 2.3.1",
+ "pin-project-lite",
+ "rand 0.9.2",
+ "ryu",
+ "sha1_smol",
+ "socket2 0.6.1",
+ "tokio 1.48.0",
+ "tokio-util",
+ "url 2.5.4",
+ "xxhash-rust",
+]
+
+[[package]]
 name = "redis_interface"
 version = "0.1.0"
 dependencies = [
@@ -7618,7 +7649,6 @@ dependencies = [
  "error-stack 0.4.1",
  "futures 0.3.31",
  "redis",
- "router_env",
  "serde",
  "thiserror 1.0.69",
  "tokio 1.48.0",
