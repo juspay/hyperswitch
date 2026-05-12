@@ -7916,7 +7916,10 @@ Cypress.Commands.add("oidcJwksCallTest", (globalState) => {
       expect(response.status).to.eq(200);
       expect(response.body).to.have.property("keys");
       expect(response.body.keys).to.be.an("array");
-      cy.task("cli_log", `JWKS endpoint responded with ${response.body.keys.length} key(s)`);
+      cy.task(
+        "cli_log",
+        `JWKS endpoint responded with ${response.body.keys.length} key(s)`
+      );
     });
   });
 });
