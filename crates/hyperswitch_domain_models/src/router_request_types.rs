@@ -1752,6 +1752,8 @@ pub struct PaymentsTaxCalculationData {
 pub struct PaymentsSurchargeCalculationData {
     /// Amount in major units for surcharge calculation
     pub amount: MinorUnit,
+    /// Currency for surcharge calculation
+    pub currency: storage_enums::Currency,
     /// Billing region/postal code for regional fee calculation
     pub postal_code: Option<Secret<String>>,
     /// Card BIN (first 6-8 digits, also called nicn)

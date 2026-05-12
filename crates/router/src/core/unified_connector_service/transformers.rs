@@ -7159,10 +7159,6 @@ impl ForeignFrom<&api_models::payouts::PixEmvBankTransfer>
     }
 }
 
-// =============================================================================
-// SURCHARGE SERVICE TRANSFORMATIONS
-// =============================================================================
-
 use hyperswitch_domain_models::{
     router_flow_types::payments::CalculateSurcharge,
     router_request_types::PaymentsSurchargeCalculationData,
@@ -7210,11 +7206,22 @@ impl
                 .request
                 .previous_external_surcharge_id
                 .clone(),
-            country: router_data
-                .request
-                .country
-                .map(|c| c.to_string())
-                .unwrap_or_default(),
+            country: router_data.request.country.map(|c| {
+                i32::from(
+                    payments_grpc::CountryAlpha2::from_str_name(&c.to_string()).unwrap_or_default(),
+                )
+            }),
+            surcharge_strategy: router_data.request.surcharge_strategy.clone().map(|s| {
+                match s {
+                    router_request_types::SurchargeStrategy::Apply => {
+                        payments_grpc::SurchargeStrategy::Apply
+                    }
+                    router_request_types::SurchargeStrategy::Waive => {
+                        payments_grpc::SurchargeStrategy::Waive
+                    }
+                }
+                .into()
+            }),
         })
     }
 }
@@ -7238,8 +7245,8 @@ impl transformers::ForeignTryFrom<payments_grpc::SurchargeServiceCalculateRespon
         let surcharge_fee_percent = grpc_response
             .surcharge_percentage
             .map(|percent| {
-                common_utils::types::Percentage::from_float(percent)
-                    .map_err(|_| UnifiedConnectorServiceError::ParsingFailed)
+                types::Percentage::<2>::from_string(percent.to_string())
+                    .change_context(UnifiedConnectorServiceError::ParsingFailed)
                     .attach_printable("Failed to parse surcharge percentage")
             })
             .transpose()?;
@@ -7248,8 +7255,18 @@ impl transformers::ForeignTryFrom<payments_grpc::SurchargeServiceCalculateRespon
             surcharge_amount,
             external_surcharge_transaction_id,
             surcharge_fee_percent,
-            error_code: grpc_response.error_code,
-            error_message: grpc_response.error_message,
+            error_code: grpc_response.error.as_ref().and_then(|error_info| {
+                error_info
+                    .connector_details
+                    .as_ref()
+                    .and_then(|cd| cd.code.clone())
+            }),
+            error_message: grpc_response.error.as_ref().and_then(|error_info| {
+                error_info
+                    .connector_details
+                    .as_ref()
+                    .and_then(|cd| cd.message.clone())
+            }),
         })
     }
 }
