@@ -1666,6 +1666,7 @@ pub struct PayoutsData {
     pub browser_info: Option<BrowserInformation>,
     pub payout_connector_metadata: Option<pii::SecretSerdeValue>,
     pub additional_payout_method_data: Option<payout_method_utils::AdditionalPayoutMethodData>,
+    pub source_bank_data: Option<api_models::payouts::BankTransfer>,
 }
 
 #[derive(Debug, Default, Clone, Serialize)]
