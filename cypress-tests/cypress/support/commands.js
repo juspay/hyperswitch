@@ -765,7 +765,8 @@ Cypress.Commands.add(
     always_collect_shipping_details_from_wallet_connector,
     globalState,
     profilePrefix = "profile",
-    use_billing_as_payment_method_billing = undefined
+    use_billing_as_payment_method_billing = undefined,
+    expectedStatus = 200
   ) => {
     updateBusinessProfileBody.is_connector_agnostic_mit_enabled =
       is_connector_agnostic_mit_enabled;
@@ -801,6 +802,8 @@ Cypress.Commands.add(
       logRequestId(response.headers["x-request-id"]);
 
       cy.wrap(response).then(() => {
+        expect(response.status).to.equal(expectedStatus);
+
         if (response.status === 200) {
           globalState.set(
             "collectBillingDetails",

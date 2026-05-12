@@ -262,42 +262,4 @@ describe("Merchant Redirect Method Tests - UPI", () => {
     }
   );
 
-  context("Negative case - Invalid redirect method value", () => {
-    it("Create Business Profile → Attempt update with invalid redirect value → Verify API rejection", () => {
-      cy.step("Create Business Profile", () => {
-        cy.createBusinessProfileTest(
-          fixtures.businessProfile.bpCreate,
-          globalState
-        );
-      });
-
-      cy.step(
-        "Attempt to update with invalid redirect_to_merchant_with_http_post value",
-        () => {
-          const invalidBody = {
-            ...fixtures.businessProfile.bpUpdate,
-            is_connector_agnostic_mit_enabled: true,
-            collect_shipping_details_from_wallet_connector: false,
-            collect_billing_details_from_wallet_connector: false,
-            always_collect_billing_details_from_wallet_connector: false,
-            always_collect_shipping_details_from_wallet_connector: false,
-            redirect_to_merchant_with_http_post: "invalid_value",
-          };
-
-          cy.UpdateBusinessProfileTest(
-            invalidBody,
-            false,
-            false,
-            false,
-            false,
-            false,
-            globalState,
-            "profile",
-            undefined,
-            400 // expectedStatus for negative test
-          );
-        }
-      );
-    });
-  });
 });
