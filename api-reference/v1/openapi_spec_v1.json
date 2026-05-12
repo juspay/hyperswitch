@@ -25572,7 +25572,7 @@
           },
           "transaction_link_id": {
             "type": "string",
-            "description": "Mastercard Transaction Link Identifier (TLID).\nwhen `setup_future_usage` is set to `off_session`.",
+            "description": "The Mastercard Transaction Link Identifier (TLID) provided by the card network during a CIT (Customer Initiated Transaction),\nwhen `setup_future_usage` is set to `off_session`.",
             "nullable": true
           }
         }
@@ -25614,7 +25614,7 @@
           },
           "transaction_link_id": {
             "type": "string",
-            "description": "Mastercard Transaction Link Identifier (TLID).\nRequired for Mastercard recurring/stored-credential MITs from Oct 23, 2026.",
+            "description": "The Mastercard Transaction Link Identifier (TLID) provided by the card network during a CIT (Customer Initiated Transaction),\nwhen `setup_future_usage` is set to `off_session`.",
             "nullable": true
           },
           "eci": {
@@ -25719,7 +25719,7 @@
           },
           "transaction_link_id": {
             "type": "string",
-            "description": "Mastercard Transaction Link Identifier (TLID).\nRequired for Mastercard recurring/stored-credential MITs from Oct 23, 2026.",
+            "description": "The Mastercard Transaction Link Identifier (TLID) provided by the card network during a CIT (Customer Initiated Transaction),\nwhen `setup_future_usage` is set to `off_session`.",
             "nullable": true
           }
         }
