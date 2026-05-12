@@ -803,8 +803,7 @@ export const connectorDetails = {
     },
   },
   wallet_pm: {
-    // eslint-disable-next-line no-unused-vars, @typescript-eslint/no-unused-vars
-    PaymentIntent: (paymentMethodType) => {
+    PaymentIntent: () => {
       return {
         Request: {
           currency: "EUR",

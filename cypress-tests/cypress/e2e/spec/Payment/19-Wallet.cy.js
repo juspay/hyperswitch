@@ -1,31 +1,14 @@
 import * as fixtures from "../../../fixtures/imports";
 import State from "../../../utils/State";
-import getConnectorDetails, * as utils from "../../configs/Payment/Utils";
+import getConnectorDetails, {
+  CONNECTOR_LISTS,
+  shouldIncludeConnector,
+  should_continue_further,
+} from "../../configs/Payment/Utils";
 
 let globalState;
 
 describe("Wallet tests", () => {
-  let shouldContinue = true;
-
-  before("seed global state", () => {
-    cy.task("getGlobalState").then((state) => {
-      globalState = new State(state);
-      if (
-        !utils.CONNECTOR_LISTS.INCLUDE.WALLET?.includes(
-          globalState.get("connectorId")
-        )
-      ) {
-        shouldContinue = false;
-      }
-    });
-  });
-
-  beforeEach(function () {
-    if (!shouldContinue) {
-      this.skip();
-    }
-  });
-
   afterEach("flush global state", () => {
     cy.task("setGlobalState", globalState.data);
   });
@@ -57,7 +40,7 @@ describe("Wallet tests", () => {
         "automatic",
         globalState
       );
-      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
+      if (shouldContinue) shouldContinue = should_continue_further(data);
     });
 
     it("payment_methods-call-test", () => {
@@ -76,7 +59,7 @@ describe("Wallet tests", () => {
         globalState
       );
 
-      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
+      if (shouldContinue) shouldContinue = should_continue_further(data);
     });
 
     it("Handle wallet redirection", () => {
@@ -136,7 +119,7 @@ describe("Wallet tests", () => {
         "automatic",
         globalState
       );
-      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
+      if (shouldContinue) shouldContinue = should_continue_further(data);
     });
 
     it("payment_methods-call-test", () => {
@@ -155,7 +138,7 @@ describe("Wallet tests", () => {
         globalState
       );
 
-      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
+      if (shouldContinue) shouldContinue = should_continue_further(data);
     });
 
     it("Handle wallet redirection", () => {
@@ -196,8 +179,9 @@ describe("PayPal Wallet tests", () => {
     cy.task("getGlobalState").then((state) => {
       globalState = new State(state);
       if (
-        !utils.CONNECTOR_LISTS.INCLUDE.WALLET?.includes(
-          globalState.get("connectorId")
+        !shouldIncludeConnector(
+          globalState.get("connectorId"),
+          CONNECTOR_LISTS.INCLUDE.PAYPAL_WALLET
         )
       ) {
         shouldContinue = false;
@@ -242,7 +226,7 @@ describe("PayPal Wallet tests", () => {
         "automatic",
         globalState
       );
-      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
+      if (shouldContinue) shouldContinue = should_continue_further(data);
     });
 
     it("payment_methods-call-test", () => {
@@ -261,7 +245,7 @@ describe("PayPal Wallet tests", () => {
         globalState
       );
 
-      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
+      if (shouldContinue) shouldContinue = should_continue_further(data);
     });
 
     it("Handle wallet redirection", () => {
