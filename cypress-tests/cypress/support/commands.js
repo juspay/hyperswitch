@@ -7992,38 +7992,61 @@ Cypress.Commands.add("listPaymentLinksTest", (data, globalState) => {
 });
 
 Cypress.Commands.add(
-  "updateBusinessProfilePaymentLinkConfigTest",
-  (paymentLinkConfig, globalState) => {
-    const apiKey = globalState.get("apiKey");
-    const merchantId = globalState.get("merchantId");
-    const profileId =
+  "createPaymentWithoutPaymentLinkTest",
+  (createPaymentBody, globalState) => {
+    const profile_id =
       globalState.get("profileId") || globalState.get("defaultProfileId");
+
+    const requestBody = {
+      ...createPaymentBody,
+      currency: "USD",
+      amount: 6000,
+      description: "Test without Payment Link",
+      email: "test@example.com",
+      authentication_type: "no_three_ds",
+      capture_method: "automatic",
+      customer_id: globalState.get("customerId"),
+      profile_id: profile_id,
+    };
 
     cy.request({
       method: "POST",
-      url: `${globalState.get("baseUrl")}/account/${merchantId}/business_profile/${profileId}`,
+      url: `${globalState.get("baseUrl")}/payments`,
       headers: {
-        Accept: "application/json",
         "Content-Type": "application/json",
-        "api-key": apiKey,
+        Accept: "application/json",
+        "api-key": globalState.get("apiKey"),
       },
-      body: {
-        payment_link_config: paymentLinkConfig,
+      failOnStatusCode: false,
+      body: requestBody,
+    }).then((response) => {
+      logRequestId(response.headers["x-request-id"]);
+
+      cy.wrap(response).then(() => {
+        expect(response.status).to.equal(200);
+        expect(response.body).to.have.property("payment_id");
+        expect(response.body.payment_link).to.be.null;
+      });
+    });
+  }
+);
+
+Cypress.Commands.add(
+  "retrieveNonExistentPaymentLinkTest",
+  (globalState) => {
+    cy.request({
+      method: "GET",
+      url: `${globalState.get("baseUrl")}/payment_link/non_existent_link_12345`,
+      headers: {
+        "Content-Type": "application/json",
+        "api-key": globalState.get("apiKey"),
       },
       failOnStatusCode: false,
     }).then((response) => {
       logRequestId(response.headers["x-request-id"]);
 
       cy.wrap(response).then(() => {
-        expect(response.status).to.equal(200);
-        expect(response.body).to.have.property("payment_link_config");
-
-        cy.task(
-          "cli_log",
-          `Business profile payment_link_config updated: ${JSON.stringify(
-            response.body.payment_link_config
-          )}`
-        );
+        expect(response.status).to.equal(404);
       });
     });
   }

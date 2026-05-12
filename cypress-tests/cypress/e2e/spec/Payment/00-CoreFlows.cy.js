@@ -285,47 +285,13 @@ describe("Core flows", () => {
       cy.task("setGlobalState", globalState.data);
     });
     it("Create Payment Intent without Payment Link - should not have payment_link in response", () => {
-      const profile_id =
-        globalState.get("profileId") || globalState.get("defaultProfileId");
-      const requestBody = {
-        ...fixtures.createPaymentBody,
-        currency: "USD",
-        amount: 6000,
-        description: "Test without Payment Link",
-        email: "test@example.com",
-        authentication_type: "no_three_ds",
-        capture_method: "automatic",
-        customer_id: globalState.get("customerId"),
-        profile_id: profile_id,
-      };
-      cy.request({
-        method: "POST",
-        url: `${globalState.get("baseUrl")}/payments`,
-        headers: {
-          "Content-Type": "application/json",
-          Accept: "application/json",
-          "api-key": globalState.get("apiKey"),
-        },
-        failOnStatusCode: false,
-        body: requestBody,
-      }).then((response) => {
-        expect(response.status).to.equal(200);
-        expect(response.body).to.have.property("payment_id");
-        expect(response.body.payment_link).to.be.null;
-      });
+      cy.createPaymentWithoutPaymentLinkTest(
+        fixtures.createPaymentBody,
+        globalState
+      );
     });
     it("Retrieve non-existent Payment Link - should return 404", () => {
-      cy.request({
-        method: "GET",
-        url: `${globalState.get("baseUrl")}/payment_link/non_existent_link_12345`,
-        headers: {
-          "Content-Type": "application/json",
-          "api-key": globalState.get("apiKey"),
-        },
-        failOnStatusCode: false,
-      }).then((response) => {
-        expect(response.status).to.equal(404);
-      });
+      cy.retrieveNonExistentPaymentLinkTest(globalState);
     });
   });
   context("List Connector Feature Matrix", () => {
