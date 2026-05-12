@@ -255,12 +255,7 @@ describe("Core flows", () => {
       const confirmData = getConnectorDetails(globalState.get("connectorId"))[
         "payment_link_pm"
       ]["PaymentLinkConfirmCardData"];
-      cy.confirmCallTest(
-        fixtures.confirmBody,
-        confirmData,
-        true,
-        globalState
-      );
+      cy.confirmCallTest(fixtures.confirmBody, confirmData, true, globalState);
     });
     it("Retrieve Payment after card payment", () => {
       cy.retrievePaymentCallTest({ globalState });
