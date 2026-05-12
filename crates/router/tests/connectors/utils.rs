@@ -482,6 +482,7 @@ pub trait ConnectorActions: Connector {
                 browser_info: None,
                 payout_connector_metadata: None,
                 additional_payout_method_data: None,
+                source_bank_data: None,
             },
             payment_info,
         )
