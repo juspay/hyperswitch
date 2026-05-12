@@ -95,7 +95,7 @@ pub async fn list_blocklist_entries_for_merchant(
         .store
         .list_blocklist_entries_by_merchant_id_data_kind(
             merchant_id,
-            query.data_kind.clone(),
+            query.data_kind,
             query.limit.into(),
             query.offset.into(),
         )
