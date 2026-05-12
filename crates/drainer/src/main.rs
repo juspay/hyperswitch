@@ -32,7 +32,13 @@ async fn main() -> DrainerResult<()> {
     let _guard = router_env::setup(
         &conf.log,
         router_env::service_name!(),
-        [router_env::service_name!()],
+        [
+            router_env::service_name!(),
+            "actix_server",
+            "open_feature",
+            "superposition_provider",
+            "superposition_sdk",
+        ],
     );
 
     #[allow(clippy::expect_used)]

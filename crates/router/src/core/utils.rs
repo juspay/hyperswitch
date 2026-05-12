@@ -73,6 +73,16 @@ pub struct FeatureConfig {
     pub is_payment_method_modular_allowed: bool,
 }
 
+impl FeatureConfig {
+    pub fn is_modular_with_pm_version(
+        &self,
+        payment_method_version: Option<common_enums::ApiVersion>,
+    ) -> bool {
+        self.is_payment_method_modular_allowed
+            || payment_method_version == Some(common_enums::ApiVersion::V2)
+    }
+}
+
 pub async fn get_feature_config(
     state: &SessionState,
     platform: &domain::Platform,
@@ -279,6 +289,7 @@ pub async fn construct_payout_router_data<'a, F>(
             browser_info,
             payout_connector_metadata: payout_attempt.payout_connector_metadata.to_owned(),
             additional_payout_method_data: payout_attempt.additional_payout_method_data.to_owned(),
+            source_bank_data: payout_data.source_bank_data.clone(),
         },
         response: Ok(types::PayoutsResponseData::default()),
         access_token: None,

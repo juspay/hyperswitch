@@ -210,6 +210,86 @@ pub async fn make_payout_method_data(
     Ok(payout_method_data)
 }
 
+pub struct SourceBankDataOperation;
+
+impl SourceBankDataOperation {
+    fn get_source_bank_data_token() -> String {
+        common_utils::generate_id_with_default_len("temporary_token")
+    }
+
+    #[cfg(feature = "v1")]
+    pub async fn get_temp_source_bank_data(
+        state: &SessionState,
+        source_bank_data_token: Option<String>,
+        customer_id: Option<id_type::CustomerId>,
+        merchant_key_store: &domain::MerchantKeyStore,
+    ) -> RouterResult<Option<payouts::BankTransfer>> {
+        match source_bank_data_token {
+            Some(source_bank_data_token) => {
+                let (payout_method_data, supplementary_data) = vault::Vault::get_payout_method_data_from_temporary_locker(
+                    state,
+                    &source_bank_data_token,
+                    merchant_key_store,
+                )
+                .await
+                .attach_printable(
+                    "Source Bank Data for given token not found or there was a problem fetching it",
+                )?;
+
+                utils::when(supplementary_data.customer_id.ne(&customer_id), || {
+                    Err(errors::ApiErrorResponse::PreconditionFailed { message: "customer associated with payout method and customer passed in payout are not same".into() })
+                })?;
+
+                match payout_method_data {
+                    Some(api::PayoutMethodData::BankTransfer(bank_transfer)) => {
+                        Ok(Some(bank_transfer))
+                    }
+                    _ => Err(errors::ApiErrorResponse::InternalServerError)
+                        .attach_printable("Payout method data fetched is not of type BankTransfer"),
+                }
+            }
+            None => Ok(None),
+        }
+    }
+
+    #[cfg(not(feature = "v1"))]
+    pub async fn get_temp_source_bank_data(
+        state: &SessionState,
+        source_bank_data_token: Option<String>,
+        customer_id: Option<id_type::GlobalCustomerId>,
+        merchant_key_store: &domain::MerchantKeyStore,
+    ) -> RouterResult<Option<payouts::BankTransfer>> {
+        todo!()
+    }
+
+    pub async fn temp_store_source_bank_data(
+        state: &SessionState,
+        source_bank_data: Option<payouts::BankTransfer>,
+        customer_id: Option<id_type::CustomerId>,
+        intent_fulfillment_time: Option<i64>,
+        merchant_key_store: &domain::MerchantKeyStore,
+    ) -> RouterResult<Option<String>> {
+        match source_bank_data {
+            Some(source_bank_data) => {
+                let sourc_bank_data_token = Self::get_source_bank_data_token();
+
+                let lookup_key = vault::Vault::store_payout_method_data_in_locker(
+                    state,
+                    Some(sourc_bank_data_token),
+                    &api::PayoutMethodData::BankTransfer(source_bank_data),
+                    customer_id,
+                    merchant_key_store,
+                    intent_fulfillment_time,
+                )
+                .await?;
+
+                Ok(Some(lookup_key))
+            }
+            _ => Ok(None),
+        }
+    }
+}
+
 pub fn should_create_connector_transfer_method(
     payout_data: &PayoutData,
     connector_data: &api::ConnectorData,

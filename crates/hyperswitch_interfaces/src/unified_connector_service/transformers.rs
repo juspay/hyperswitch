@@ -154,6 +154,10 @@ pub enum UnifiedConnectorServiceError {
     #[error("Failed to handle incoming webhook event from gRPC Server")]
     IncomingWebhookHandleEventFailure,
 
+    /// Failed to parse incoming webhook event from gRPC Server
+    #[error("Failed to parse incoming webhook event from gRPC Server")]
+    IncomingWebhookParseEventFailure,
+
     /// Failed to perform Payment Void from gRPC Server
     #[error("Failed to perform Void from gRPC Server")]
     PaymentVoidFailure,
@@ -193,26 +197,6 @@ pub enum UnifiedConnectorServiceError {
     /// Failed to perform Payout Enroll Disburse Account from gRPC Server
     #[error("Failed to perform Payout Enroll Disburse Account from gRPC Server")]
     PayoutEnrollDisburseAccountFailure,
-}
-
-/// UCS Webhook transformation status
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-pub enum WebhookTransformationStatus {
-    /// Transformation completed successfully, no further action needed
-    Complete,
-    /// Transformation incomplete, requires second call for final status
-    Incomplete,
-}
-
-#[allow(missing_docs)]
-/// Webhook transform data structure containing UCS response information
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-pub struct WebhookTransformData {
-    pub event_type: api_models::webhooks::IncomingWebhookEvent,
-    pub source_verified: bool,
-    pub webhook_content: Option<payments_grpc::EventContent>,
-    pub response_ref_id: Option<String>,
-    pub webhook_transformation_status: WebhookTransformationStatus,
 }
 
 impl ForeignTryFrom<(payments_grpc::PaymentServiceGetResponse, AttemptStatus)>

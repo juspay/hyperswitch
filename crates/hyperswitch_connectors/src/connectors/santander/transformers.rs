@@ -159,12 +159,14 @@ impl
             .unwrap_or(AttemptStatus::Pending);
         let resource_id =
             ResponseId::ConnectorTransactionId(item.data.connector_request_reference_id.clone());
-        let connector_response_reference_id = Some(item.response.id_rec.clone().expose());
+        let connector_response_reference_id = Some(item.response.id_solic_rec.clone().expose());
         let mandate_reference = Some(MandateReference {
             connector_mandate_id: Some(item.response.id_rec.clone().expose()),
             payment_method_id: None,
             mandate_metadata: None,
-            connector_mandate_request_reference_id: Some(item.response.id_solic_rec.expose()),
+            connector_mandate_request_reference_id: Some(
+                item.response.id_solic_rec.clone().expose(),
+            ),
         });
 
         Ok(Self {
@@ -233,7 +235,6 @@ impl
         }));
         let resource_id =
             ResponseId::ConnectorTransactionId(item.data.connector_request_reference_id.clone());
-        let connector_response_reference_id = Some(item.response.id_rec.clone().expose());
 
         Ok(Self {
             status,
@@ -244,7 +245,7 @@ impl
                 connector_metadata,
                 network_txn_id: None,
                 network_txn_link_id: None,
-                connector_response_reference_id,
+                connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
                 authentication_data: None,
                 charges: None,
@@ -906,6 +907,31 @@ impl
                     .collect::<Vec<_>>()
             });
 
+        if let Some(ref info_list) = info_adicionais {
+            for info in info_list {
+                let nome_str: &str = &info.nome.clone().expose();
+                let valor_str: &str = &info.valor;
+                if nome_str.len() > 50 {
+                    return Err(errors::ConnectorError::MaxFieldLengthViolated {
+                        connector: "Santander".to_string(),
+                        field_name: "metadata.key".to_string(),
+                        max_length: 50,
+                        received_length: nome_str.len(),
+                    }
+                    .into());
+                }
+                if valor_str.len() > 150 {
+                    return Err(errors::ConnectorError::MaxFieldLengthViolated {
+                        connector: "Santander".to_string(),
+                        field_name: "metadata.value".to_string(),
+                        max_length: 150,
+                        received_length: valor_str.len(),
+                    }
+                    .into());
+                }
+            }
+        }
+
         let chave = value
             .0
             .router_data
@@ -915,6 +941,26 @@ impl
             .and_then(|data| data.get_pix_key_and_value().1)
             .or(mca_chave);
 
+        let solicitacao_pagador = value
+            .0
+            .router_data
+            .request
+            .billing_descriptor
+            .clone()
+            .and_then(|data| data.statement_descriptor);
+
+        if let Some(ref solicitacao) = solicitacao_pagador {
+            if solicitacao.len() > 140 {
+                return Err(errors::ConnectorError::MaxFieldLengthViolated {
+                    connector: "Santander".to_string(),
+                    field_name: "statement_descriptor".to_string(),
+                    max_length: 140,
+                    received_length: solicitacao.len(),
+                }
+                .into());
+            }
+        }
+
         Ok(Self::PixQR(Box::new(SantanderPixQRPaymentRequest {
             calendario: calendar,
             devedor: debtor,
@@ -922,13 +968,7 @@ impl
                 original: value.0.amount.to_owned(),
             }),
             chave,
-            solicitacao_pagador: value
-                .0
-                .router_data
-                .request
-                .billing_descriptor
-                .clone()
-                .and_then(|data| data.statement_descriptor),
+            solicitacao_pagador,
             info_adicionais,
         })))
     }
@@ -1017,14 +1057,32 @@ impl TryFrom<&SantanderRouterData<&PaymentsAuthorizeRouterData>>
             original: value.amount.to_owned(),
         };
 
-        let info_adicional = value.router_data.description.clone().or_else(|| {
-            value
+        let (info_adicional, info_source) =
+            if let Some(desc) = value.router_data.description.clone() {
+                (Some(desc), "description")
+            } else if let Some(stmt_desc) = value
                 .router_data
                 .request
                 .billing_descriptor
                 .as_ref()
                 .and_then(|bd| bd.statement_descriptor.clone())
-        });
+            {
+                (Some(stmt_desc), "statement_descriptor")
+            } else {
+                (None, "")
+            };
+
+        if let Some(ref info) = info_adicional {
+            if info.len() > 140 {
+                return Err(errors::ConnectorError::MaxFieldLengthViolated {
+                    connector: "Santander".to_string(),
+                    field_name: info_source.to_string(),
+                    max_length: 140,
+                    received_length: info.len(),
+                }
+                .into());
+            }
+        }
 
         let devedor = Some(SantanderDebtor {
             cpf: None,
@@ -1221,22 +1279,37 @@ impl<F, T> TryFrom<ResponseRouterData<F, SantanderPaymentsSyncResponse, T, Payme
                                     .change_context(errors::ConnectorError::ParsingFailed)
                             })
                             .transpose()?;
-                        Ok(Self {
-                            status: AttemptStatus::from(pix_data.status),
-                            response: Ok(PaymentsResponseData::TransactionResponse {
+                        // Preserve existing `TransactionResponse` fields and only update `resource_id` and `connector_metadata`
+                        let response = match item.data.response.clone() {
+                            Ok(PaymentsResponseData::TransactionResponse {
+                                redirection_data,
+                                mandate_reference,
+                                network_txn_id,
+                                connector_response_reference_id,
+                                incremental_authorization_allowed,
+                                authentication_data,
+                                charges,
+                                ..
+                            }) => Ok(PaymentsResponseData::TransactionResponse {
                                 resource_id: ResponseId::ConnectorTransactionId(
                                     pix_data.txid.clone(),
                                 ),
-                                redirection_data: Box::new(None),
-                                mandate_reference: Box::new(None),
+                                redirection_data,
+                                mandate_reference,
                                 connector_metadata,
-                                network_txn_id: None,
+                                network_txn_id,
                                 network_txn_link_id: None,
-                                connector_response_reference_id: None,
-                                incremental_authorization_allowed: None,
-                                authentication_data: None,
-                                charges: None,
+                                connector_response_reference_id,
+                                incremental_authorization_allowed,
+                                authentication_data,
+                                charges,
                             }),
+                            other => other,
+                        };
+
+                        Ok(Self {
+                            status: AttemptStatus::from(pix_data.status),
+                            response,
                             ..item.data
                         })
                     }
@@ -1461,7 +1534,7 @@ impl<F, T> TryFrom<ResponseRouterData<F, SantanderPaymentsResponse, T, PaymentsR
                         connector_metadata: None,
                         network_txn_id: None,
                         network_txn_link_id: None,
-                        connector_response_reference_id: Some(cobr_data.id_rec.clone().expose()),
+                        connector_response_reference_id: None,
                         incremental_authorization_allowed: None,
                         authentication_data: None,
                         charges: None,
@@ -2138,10 +2211,11 @@ impl
             }
         };
 
-        let contrato = cit_data
-            .contract_id
-            .clone()
-            .unwrap_or_else(|| item.payment_id.clone());
+        let contrato = item.request.merchant_order_reference_id.clone().ok_or(
+            errors::ConnectorError::MissingRequiredField {
+                field_name: "merchant_order_reference_id",
+            },
+        )?;
 
         let politica_retentativa = if cit_data.retry_policy.unwrap_or(false) {
             RetryPolicy::Permite3r7d
@@ -2180,6 +2254,16 @@ impl
                 .ok_or(errors::ConnectorError::MissingRequiredField {
                     field_name: "description",
                 })?;
+
+        if objeto.len() > 35 {
+            return Err(errors::ConnectorError::MaxFieldLengthViolated {
+                connector: "Santander".to_string(),
+                field_name: "description".to_string(),
+                max_length: 35,
+                received_length: objeto.len(),
+            }
+            .into());
+        }
 
         let loc = item
             .session_token
@@ -2286,12 +2370,6 @@ impl<F>
             PaymentsResponseData,
         >,
     ) -> Result<Self, Self::Error> {
-        if !matches!(router_env::env::which(), router_env::env::Env::Production) {
-            router_env::logger::info!(
-                "Santander Recurrence Id: {:?}",
-                item.response.id_rec.clone().expose()
-            );
-        }
         Ok(Self {
             status: AttemptStatus::from(item.response.status.clone()),
             response: Ok(PaymentsResponseData::TransactionResponse {
@@ -2423,14 +2501,16 @@ impl TryFrom<&PaymentsPushNotificationRouterData> for SantanderPixAutomaticSolic
                     .ok_or(errors::ConnectorError::MissingRequiredField {
                         field_name: "payment_method_data.bank_transfer.branch_code",
                     })?
-                    .expose(),
+                    .expose()
+                    .into(),
                 conta: bank_transfer_data
                     .0
                     .clone()
                     .ok_or(errors::ConnectorError::MissingRequiredField {
                         field_name: "payment_method_data.bank_transfer.account_number",
                     })?
-                    .expose(),
+                    .expose()
+                    .into(),
                 cpf,
                 cnpj,
                 ispb_participante: bank_transfer_data
@@ -2439,7 +2519,8 @@ impl TryFrom<&PaymentsPushNotificationRouterData> for SantanderPixAutomaticSolic
                     .ok_or(errors::ConnectorError::MissingRequiredField {
                         field_name: "payment_method_data.bank_transfer.bank_identifier",
                     })?
-                    .expose(),
+                    .expose()
+                    .into(),
             },
         })
     }
