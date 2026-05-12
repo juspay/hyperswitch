@@ -1,5 +1,6 @@
 import * as fixtures from "../../../fixtures/imports";
 import State from "../../../utils/State";
+import { payment_methods_enabled } from "../../configs/Payment/Commons";
 import getConnectorDetails, {
   should_continue_further,
 } from "../../configs/Payment/Utils";
@@ -25,10 +26,22 @@ const bpUpdateRedirectGet = {
 };
 
 describe("Merchant Redirect Method Tests - UPI", () => {
-  before("seed global state", function () {
+  before("seed global state and create business profile with connector", function () {
     cy.task("getGlobalState").then((state) => {
       globalState = new State(state);
     });
+
+    cy.createBusinessProfileTest(
+      fixtures.businessProfile.bpCreate,
+      globalState
+    );
+
+    cy.createConnectorCallTest(
+      "payment_processor",
+      fixtures.createConnectorBody,
+      payment_methods_enabled,
+      globalState
+    );
   });
 
   after("flush global state", () => {
