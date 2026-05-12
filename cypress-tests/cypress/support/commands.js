@@ -7756,11 +7756,6 @@ Cypress.Commands.add("oidcDiscoveryCallTest", (globalState) => {
     logRequestId(response.headers["x-request-id"]);
 
     cy.wrap(response).then(() => {
-      if (response.status === 404) {
-        cy.task("cli_log", "OIDC feature not enabled - skipping test");
-        return;
-      }
-
       expect(response.status).to.eq(200);
       expect(response.body).to.have.property("issuer");
       expect(response.body).to.have.property("authorization_endpoint");
@@ -7845,7 +7840,7 @@ Cypress.Commands.add("oidcAuthorizeRouteCheck", (globalState) => {
 /**
  * OIDC JWKS Endpoint call - GET /oauth2/jwks
  * Fetches the JSON Web Key Set for OIDC token validation
- * Handles cases where OIDC is not enabled or keys are not configured
+ * Accepts 200 with valid JWKS or 500 OI_05 when OIDC signing keys are not configured
  */
 Cypress.Commands.add("oidcJwksCallTest", (globalState) => {
   const baseUrl = globalState.get("baseUrl");
@@ -7861,11 +7856,6 @@ Cypress.Commands.add("oidcJwksCallTest", (globalState) => {
     logRequestId(response.headers["x-request-id"]);
 
     cy.wrap(response).then(() => {
-      if (response.status === 404) {
-        cy.task("cli_log", "OIDC feature not enabled - skipping test");
-        return;
-      }
-
       // 500 OI_05 = OIDC signing keys not configured (expected in sandbox/test environments)
       if (response.status === 500 && response.body?.error?.code === "OI_05") {
         cy.task(
@@ -7903,11 +7893,6 @@ Cypress.Commands.add("oidcTokenEndpointProbeCallTest", (globalState) => {
     logRequestId(response.headers["x-request-id"]);
 
     cy.wrap(response).then(() => {
-      if (response.status === 404) {
-        cy.task("cli_log", "OIDC feature not enabled - skipping test");
-        return;
-      }
-
       expect(response.status).to.be.oneOf([200, 400, 401, 403]);
       cy.task(
         "cli_log",
