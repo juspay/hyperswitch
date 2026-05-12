@@ -1582,7 +1582,9 @@ pub async fn migrate_customers(
     platform: domain::Platform,
 ) -> errors::CustomerResponse<()> {
     for customer_migration in customers_migration {
+        #[cfg(feature = "v1")]
         let customer_id = customer_migration.customer.customer_id.clone();
+        #[cfg(feature = "v1")]
         let connector_customer_details = customer_migration.connector_customer_details.clone();
         match create_customer(
             state.clone(),
@@ -1598,6 +1600,7 @@ pub async fn migrate_customers(
                 // Customer already exists in Hyperswitch: still merge the migrated
                 // connector_customer_id(s) into the existing customer's connector_customer.
                 errors::CustomersErrorResponse::CustomerAlreadyExists => {
+                    #[cfg(feature = "v1")]
                     sync_connector_customer_for_migrated_customer(
                         &state,
                         &platform,
@@ -1696,17 +1699,5 @@ async fn sync_connector_customer_for_migrated_customer(
     .await
     .switch()?;
 
-    Ok(())
-}
-
-// No-op for non-v1 builds: `migrate_customers` is not feature-gated, so it still needs this
-// symbol to exist even though the customer batch-migration flow is v1-only today.
-#[cfg(not(feature = "v1"))]
-async fn sync_connector_customer_for_migrated_customer(
-    _state: &SessionState,
-    _platform: &domain::Platform,
-    _customer_id: Option<id_type::CustomerId>,
-    _connector_customer_details: Option<Vec<payment_methods_domain::ConnectorCustomerDetails>>,
-) -> errors::CustomResult<(), errors::CustomersErrorResponse> {
     Ok(())
 }
