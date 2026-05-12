@@ -830,7 +830,22 @@ Cypress.Commands.add(
     });
   }
 );
-// API Key API calls
+Cypress.Commands.add("verifyUrlParamExcluded", (paramName, message) => {
+  cy.url().then((url) => {
+    const urlParams = new URLSearchParams(new URL(url).search);
+    expect(urlParams.has(paramName), paramName).to.be.false;
+    cy.task("cli_log", message);
+  });
+});
+
+Cypress.Commands.add("verifyUrlParamIncluded", (paramName, message) => {
+  cy.url().then((url) => {
+    const urlParams = new URLSearchParams(new URL(url).search);
+    expect(urlParams.has(paramName), paramName).to.be.true;
+    cy.task("cli_log", message);
+  });
+});
+
 Cypress.Commands.add("apiKeyCreateTest", (apiKeyCreateBody, globalState) => {
   // Define the necessary variables and constant
 

@@ -135,14 +135,10 @@ describe("Merchant Redirect Method Tests - UPI", () => {
               expected_redirection
             );
 
-            cy.url().then((url) => {
-              const urlParams = new URLSearchParams(new URL(url).search);
-              expect(urlParams.has("amount"), "amount").to.be.false;
-              cy.task(
-                "cli_log",
-                "Verified: amount parameter is excluded (POST mode)"
-              );
-            });
+            cy.verifyUrlParamExcluded(
+              "amount",
+              "Verified: amount parameter is excluded (POST mode)"
+            );
           }
         );
       });
@@ -248,14 +244,10 @@ describe("Merchant Redirect Method Tests - UPI", () => {
               expected_redirection
             );
 
-            cy.url().then((url) => {
-              const urlParams = new URLSearchParams(new URL(url).search);
-              expect(urlParams.has("amount"), "amount").to.be.true;
-              cy.task(
-                "cli_log",
-                "Verified: amount parameter is included (GET mode)"
-              );
-            });
+            cy.verifyUrlParamIncluded(
+              "amount",
+              "Verified: amount parameter is included (GET mode)"
+            );
           }
         );
       });
