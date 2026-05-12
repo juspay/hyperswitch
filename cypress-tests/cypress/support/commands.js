@@ -874,18 +874,18 @@ Cypress.Commands.add(
         if (Object.keys(requestHeaders).length === 0) {
           expect(responseHeaders ?? {}).to.deep.equal({});
         } else {
+          expect(responseHeaders).to.not.be.undefined;
           for (const [key, value] of Object.entries(requestHeaders)) {
             const masked = maskValue(value);
             expect(responseHeaders).to.have.property(key, masked);
           }
+          if (previousHeaderKeys) {
+            previousHeaderKeys.forEach((key) => {
+              expect(responseHeaders).to.not.have.property(key);
+            });
+          }
         }
         globalState.set("lastResponseHeaders", responseHeaders);
-        expect(responseHeaders).to.not.be.undefined;
-        if (previousHeaderKeys) {
-          previousHeaderKeys.forEach((key) => {
-            expect(responseHeaders).to.not.have.property(key);
-          });
-        }
       });
   }
 );
