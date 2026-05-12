@@ -231,6 +231,28 @@ describe("Step-Up Auth payment flow test", () => {
       if (!globalState.get("authProcessorConnectorId")) {
         shouldContinue = false;
       }
+
+      if (shouldContinue) {
+        const apiKey = globalState.get("apiKey");
+        const merchantId = globalState.get("merchantId");
+        const profileId = globalState.get("profileId");
+
+        cy.request({
+          method: "POST",
+          url: `${globalState.get("baseUrl")}/account/${merchantId}/business_profile/${profileId}`,
+          headers: {
+            Accept: "application/json",
+            "Content-Type": "application/json",
+            "api-key": apiKey,
+          },
+          body: fixtures.businessProfile.bpUpdateMerchantCodes,
+          failOnStatusCode: false,
+        }).then((response) => {
+          if (response.status !== 200) {
+            shouldContinue = false;
+          }
+        });
+      }
     });
 
     beforeEach(function () {

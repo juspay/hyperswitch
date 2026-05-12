@@ -16,5 +16,10 @@
       "authentication_connectors": ["netcetera"],
       "three_ds_requestor_url": "https://example.com"
     }
+  },
+
+  "bpUpdateMerchantCodes": {
+    "merchant_country_code": "US",
+    "merchant_category_code": "5411"
   }
 }
