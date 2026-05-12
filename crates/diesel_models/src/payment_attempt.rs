@@ -156,7 +156,6 @@ pub struct PaymentAttempt {
     pub created_by: Option<String>,
     pub connector_request_reference_id: Option<String>,
     pub network_transaction_id: Option<String>,
-    pub network_transaction_link_id: Option<String>,
     pub is_overcapture_enabled: Option<OvercaptureEnabledBool>,
     pub network_details: Option<NetworkDetails>,
     pub is_stored_credential: Option<bool>,
@@ -169,6 +168,7 @@ pub struct PaymentAttempt {
     pub error_details: Option<ErrorDetails>,
     pub retry_type: Option<storage_enums::RetryType>,
     pub installment_data: Option<common_types::payments::InstallmentData>,
+    pub network_transaction_link_id: Option<String>,
     #[diesel(deserialize_as = RequiredFromNullable<storage_enums::PaymentMethod>)]
     pub payment_method_type_v2: storage_enums::PaymentMethod,
     pub connector_payment_id: Option<ConnectorTransactionId>,

@@ -98,7 +98,6 @@ pub struct PaymentMethod {
     pub customer_acceptance: Option<pii::SecretSerdeValue>,
     pub status: storage_enums::PaymentMethodStatus,
     pub network_transaction_id: Option<Secret<String>>,
-    pub network_transaction_link_id: Option<Secret<String>>,
     pub client_secret: Option<String>,
     pub payment_method_billing_address: Option<Encryption>,
     pub updated_by: Option<String>,
@@ -116,6 +115,7 @@ pub struct PaymentMethod {
     pub id: common_utils::id_type::GlobalPaymentMethodId,
     pub payment_method_type_v2: Option<storage_enums::PaymentMethod>,
     pub payment_method_subtype: Option<storage_enums::PaymentMethodType>,
+    pub network_transaction_link_id: Option<Secret<String>>,
     pub external_vault_token_data: Option<Encryption>,
 }
 
