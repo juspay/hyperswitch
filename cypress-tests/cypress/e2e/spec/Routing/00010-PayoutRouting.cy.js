@@ -231,4 +231,379 @@ describe("Payout Priority Routing Test", () => {
       cy.retrievePayoutCallTest(globalState);
     });
   });
+
+  context("Payout Volume Based Routing", () => {
+    before("setup volume routing context", () => {
+      if (outerGuardPassed) {
+        shouldContinue = true;
+      }
+      cy.ListMcaByMid(globalState);
+    });
+
+    it("add-payout-volume-routing-config", () => {
+      const data =
+        routingUtils.getConnectorDetails("common")["payoutVolumeRouting"];
+      const routing_data = [
+        {
+          connector: {
+            connector: globalState.get("connectorId"),
+            merchant_connector_id: globalState.get("currentConnectorMcaId"),
+          },
+          split: 100,
+        },
+      ];
+      cy.addRoutingConfig(
+        fixtures.payoutRoutingConfigBody,
+        data,
+        "volume_split",
+        routing_data,
+        globalState
+      );
+      if (shouldContinue)
+        shouldContinue = routingUtils.should_continue_further(data);
+    });
+
+    it("retrieve-payout-volume-routing-config-test", () => {
+      const data =
+        routingUtils.getConnectorDetails("common")["payoutVolumeRouting"];
+
+      cy.retrieveRoutingConfig(data, globalState);
+      if (shouldContinue)
+        shouldContinue = routingUtils.should_continue_further(data);
+    });
+
+    it("activate-payout-volume-routing-config-test", () => {
+      const data =
+        routingUtils.getConnectorDetails("common")["payoutVolumeRouting"];
+
+      cy.activateRoutingConfig(data, globalState);
+      if (shouldContinue)
+        shouldContinue = routingUtils.should_continue_further(data);
+    });
+
+    it("payout-volume-routing-test", () => {
+      const payoutData = payoutUtils.getConnectorDetails(
+        globalState.get("connectorId")
+      )["bank_transfer_pm"]["sepa_bank_transfer"]["Fulfill"];
+
+      if (!payoutUtils.should_continue_further(payoutData)) {
+        cy.log(
+          "Skipping payout creation for " + globalState.get("connectorId")
+        );
+        shouldContinue = false;
+        return;
+      }
+
+      cy.createConfirmPayoutTest(
+        fixtures.createPayoutBody,
+        payoutData,
+        true,
+        true,
+        globalState
+      );
+
+      cy.then(() => {
+        cy.request({
+          method: "GET",
+          url: `${globalState.get("baseUrl")}/payouts/${globalState.get("payoutID")}`,
+          headers: {
+            "Content-Type": "application/json",
+            "api-key": globalState.get("apiKey"),
+          },
+          failOnStatusCode: false,
+        }).then((response) => {
+          expect(response.body.connector).to.equal(
+            globalState.get("connectorId")
+          );
+          expect(response.body.merchant_connector_id).to.equal(
+            globalState.get("currentConnectorMcaId")
+          );
+        });
+      });
+
+      if (shouldContinue)
+        shouldContinue = payoutUtils.should_continue_further(payoutData);
+    });
+
+    it("retrieve-payout-volume-call-test", () => {
+      if (!shouldContinue) {
+        return;
+      }
+      cy.retrievePayoutCallTest(globalState);
+    });
+  });
+
+  context("Payout Rule Based Routing", () => {
+    before("setup rule routing context", () => {
+      if (outerGuardPassed) {
+        shouldContinue = true;
+      }
+      cy.ListMcaByMid(globalState);
+    });
+
+    it("add-payout-rule-routing-config", () => {
+      const data =
+        routingUtils.getConnectorDetails("common")["payoutRuleBasedRouting"];
+      // Rule matches payout_type = "bank", routes to current connector
+      const routing_data = {
+        defaultSelection: {
+          type: "priority",
+          data: [
+            {
+              connector: globalState.get("connectorId"),
+              merchant_connector_id: globalState.get("currentConnectorMcaId"),
+            },
+          ],
+        },
+        metadata: {},
+        rules: [
+          {
+            name: "payout_rule_1",
+            connectorSelection: {
+              type: "priority",
+              data: [
+                {
+                  connector: globalState.get("connectorId"),
+                  merchant_connector_id: globalState.get(
+                    "currentConnectorMcaId"
+                  ),
+                },
+              ],
+            },
+            statements: [
+              {
+                condition: [
+                  {
+                    lhs: "payout_type",
+                    comparison: "equal",
+                    value: { type: "enum_variant", value: "bank" },
+                    metadata: {},
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      };
+      cy.addRoutingConfig(
+        fixtures.payoutRoutingConfigBody,
+        data,
+        "advanced",
+        routing_data,
+        globalState
+      );
+      if (shouldContinue)
+        shouldContinue = routingUtils.should_continue_further(data);
+    });
+
+    it("retrieve-payout-rule-routing-config-test", () => {
+      const data =
+        routingUtils.getConnectorDetails("common")["payoutRuleBasedRouting"];
+
+      cy.retrieveRoutingConfig(data, globalState);
+      if (shouldContinue)
+        shouldContinue = routingUtils.should_continue_further(data);
+    });
+
+    it("activate-payout-rule-routing-config-test", () => {
+      const data =
+        routingUtils.getConnectorDetails("common")["payoutRuleBasedRouting"];
+
+      cy.activateRoutingConfig(data, globalState);
+      if (shouldContinue)
+        shouldContinue = routingUtils.should_continue_further(data);
+    });
+
+    it("payout-rule-routing-test", () => {
+      const payoutData = payoutUtils.getConnectorDetails(
+        globalState.get("connectorId")
+      )["bank_transfer_pm"]["sepa_bank_transfer"]["Fulfill"];
+
+      if (!payoutUtils.should_continue_further(payoutData)) {
+        cy.log(
+          "Skipping payout creation for " + globalState.get("connectorId")
+        );
+        shouldContinue = false;
+        return;
+      }
+
+      cy.createConfirmPayoutTest(
+        fixtures.createPayoutBody,
+        payoutData,
+        true,
+        true,
+        globalState
+      );
+
+      cy.then(() => {
+        cy.request({
+          method: "GET",
+          url: `${globalState.get("baseUrl")}/payouts/${globalState.get("payoutID")}`,
+          headers: {
+            "Content-Type": "application/json",
+            "api-key": globalState.get("apiKey"),
+          },
+          failOnStatusCode: false,
+        }).then((response) => {
+          expect(response.body.connector).to.equal(
+            globalState.get("connectorId")
+          );
+          expect(response.body.merchant_connector_id).to.equal(
+            globalState.get("currentConnectorMcaId")
+          );
+        });
+      });
+
+      if (shouldContinue)
+        shouldContinue = payoutUtils.should_continue_further(payoutData);
+    });
+
+    it("retrieve-payout-rule-call-test", () => {
+      if (!shouldContinue) {
+        return;
+      }
+      cy.retrievePayoutCallTest(globalState);
+    });
+  });
+
+  context("Payout Default Fallback Routing", () => {
+    before("setup default fallback routing context", () => {
+      if (outerGuardPassed) {
+        shouldContinue = true;
+      }
+      cy.ListMcaByMid(globalState);
+    });
+
+    it("add-payout-default-fallback-routing-config", () => {
+      const data =
+        routingUtils.getConnectorDetails("common")[
+          "payoutDefaultFallbackRouting"
+        ];
+      // Rule amount > 999999 will never match for a test payout
+      // defaultSelection routes to current connector as the fallback
+      const routing_data = {
+        defaultSelection: {
+          type: "priority",
+          data: [
+            {
+              connector: globalState.get("connectorId"),
+              merchant_connector_id: globalState.get("currentConnectorMcaId"),
+            },
+          ],
+        },
+        metadata: {},
+        rules: [
+          {
+            name: "payout_fallback_rule",
+            connectorSelection: {
+              type: "priority",
+              data: [
+                {
+                  connector: globalState.get("connectorId"),
+                  merchant_connector_id: globalState.get(
+                    "currentConnectorMcaId"
+                  ),
+                },
+              ],
+            },
+            statements: [
+              {
+                condition: [
+                  {
+                    lhs: "amount",
+                    comparison: "greater_than",
+                    value: { type: "number", value: 999999 },
+                    metadata: {},
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      };
+      cy.addRoutingConfig(
+        fixtures.payoutRoutingConfigBody,
+        data,
+        "advanced",
+        routing_data,
+        globalState
+      );
+      if (shouldContinue)
+        shouldContinue = routingUtils.should_continue_further(data);
+    });
+
+    it("retrieve-payout-default-fallback-routing-config-test", () => {
+      const data =
+        routingUtils.getConnectorDetails("common")[
+          "payoutDefaultFallbackRouting"
+        ];
+
+      cy.retrieveRoutingConfig(data, globalState);
+      if (shouldContinue)
+        shouldContinue = routingUtils.should_continue_further(data);
+    });
+
+    it("activate-payout-default-fallback-routing-config-test", () => {
+      const data =
+        routingUtils.getConnectorDetails("common")[
+          "payoutDefaultFallbackRouting"
+        ];
+
+      cy.activateRoutingConfig(data, globalState);
+      if (shouldContinue)
+        shouldContinue = routingUtils.should_continue_further(data);
+    });
+
+    // amount does NOT match rule (amount > 999999), routed to current connector via defaultSelection
+    it("payout-default-fallback-routing-test", () => {
+      const payoutData = payoutUtils.getConnectorDetails(
+        globalState.get("connectorId")
+      )["bank_transfer_pm"]["sepa_bank_transfer"]["Fulfill"];
+
+      if (!payoutUtils.should_continue_further(payoutData)) {
+        cy.log(
+          "Skipping payout creation for " + globalState.get("connectorId")
+        );
+        shouldContinue = false;
+        return;
+      }
+
+      cy.createConfirmPayoutTest(
+        fixtures.createPayoutBody,
+        payoutData,
+        true,
+        true,
+        globalState
+      );
+
+      cy.then(() => {
+        cy.request({
+          method: "GET",
+          url: `${globalState.get("baseUrl")}/payouts/${globalState.get("payoutID")}`,
+          headers: {
+            "Content-Type": "application/json",
+            "api-key": globalState.get("apiKey"),
+          },
+          failOnStatusCode: false,
+        }).then((response) => {
+          expect(response.body.connector).to.equal(
+            globalState.get("connectorId")
+          );
+          expect(response.body.merchant_connector_id).to.equal(
+            globalState.get("currentConnectorMcaId")
+          );
+        });
+      });
+
+      if (shouldContinue)
+        shouldContinue = payoutUtils.should_continue_further(payoutData);
+    });
+
+    it("retrieve-payout-default-fallback-call-test", () => {
+      if (!shouldContinue) {
+        return;
+      }
+      cy.retrievePayoutCallTest(globalState);
+    });
+  });
 });

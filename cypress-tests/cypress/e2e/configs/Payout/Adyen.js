@@ -75,7 +75,7 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "initiated",
+          status: "success",
           payout_type: "card",
         },
       },
@@ -102,7 +102,7 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "initiated",
+          status: "success",
           payout_type: "card",
         },
       },
@@ -163,7 +163,7 @@ export const connectorDetails = {
         Response: {
           status: 200,
           body: {
-            status: "failed",
+            status: "initiated",
             payout_type: "bank",
           },
         },
