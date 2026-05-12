@@ -257,6 +257,16 @@ impl KafkaSettings {
             ))
         })?;
 
+        Ok(())
+    }
+
+    pub fn validate_external_service_call_topic(
+        &self,
+    ) -> Result<(), crate::core::errors::ApplicationError> {
+        use common_utils::ext_traits::ConfigExt;
+
+        use crate::core::errors::ApplicationError;
+
         common_utils::fp_utils::when(
             self.external_service_call_topic.is_default_or_empty(),
             || {
@@ -264,9 +274,7 @@ impl KafkaSettings {
                     "Kafka External Service Call topic must not be empty".into(),
                 ))
             },
-        )?;
-
-        Ok(())
+        )
     }
 }
 

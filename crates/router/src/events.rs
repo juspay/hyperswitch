@@ -104,7 +104,13 @@ impl EventsConfig {
 
     pub fn validate(&self) -> Result<(), ApplicationError> {
         match &self.source {
-            EventsSource::Kafka { kafka } => kafka.validate(),
+            EventsSource::Kafka { kafka } => {
+                kafka.validate()?;
+                if self.emit_external_service_call_events {
+                    kafka.validate_external_service_call_topic()?;
+                }
+                Ok(())
+            }
             EventsSource::Logs => Ok(()),
         }
     }
