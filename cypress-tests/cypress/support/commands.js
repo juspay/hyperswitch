@@ -5129,10 +5129,10 @@ Cypress.Commands.add("ListMcaByMid", (globalState) => {
         "currentConnectorMcaId",
         payoutMcaId || response.body[0].merchant_connector_id
       );
-      globalState.set(
-        "profileId",
-        payoutProfileId || response.body[0].profile_id
-      );
+      globalState.set("profileId", response.body[0].profile_id);
+      if (payoutProfileId) {
+        globalState.set("payoutProfileId", payoutProfileId);
+      }
     }
   });
 });
@@ -5145,8 +5145,16 @@ Cypress.Commands.add(
     for (const key in reqData) {
       routingBody[key] = reqData[key];
     }
-    // set profile id from env
-    routingBody.profile_id = globalState.get("profileId");
+    // use payout profile for payout routing configs, otherwise use payment profile
+    if (
+      reqData &&
+      reqData.transaction_type === "payout" &&
+      globalState.get("payoutProfileId")
+    ) {
+      routingBody.profile_id = globalState.get("payoutProfileId");
+    } else {
+      routingBody.profile_id = globalState.get("profileId");
+    }
     routingBody.algorithm.type = type;
     routingBody.algorithm.data = routing_data;
 
