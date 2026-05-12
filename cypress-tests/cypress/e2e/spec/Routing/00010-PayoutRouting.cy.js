@@ -100,6 +100,25 @@ describe("Payout Priority Routing Test", () => {
         globalState
       );
 
+      cy.then(() => {
+        cy.request({
+          method: "GET",
+          url: `${globalState.get("baseUrl")}/payouts/${globalState.get("payoutID")}`,
+          headers: {
+            "Content-Type": "application/json",
+            "api-key": globalState.get("apiKey"),
+          },
+          failOnStatusCode: false,
+        }).then((response) => {
+          expect(response.body.connector).to.equal(
+            globalState.get("connectorId")
+          );
+          expect(response.body.merchant_connector_id).to.equal(
+            globalState.get("currentConnectorMcaId")
+          );
+        });
+      });
+
       if (shouldContinue)
         shouldContinue = payoutUtils.should_continue_further(payoutData);
     });
@@ -181,6 +200,25 @@ describe("Payout Priority Routing Test", () => {
         true,
         globalState
       );
+
+      cy.then(() => {
+        cy.request({
+          method: "GET",
+          url: `${globalState.get("baseUrl")}/payouts/${globalState.get("payoutID")}`,
+          headers: {
+            "Content-Type": "application/json",
+            "api-key": globalState.get("apiKey"),
+          },
+          failOnStatusCode: false,
+        }).then((response) => {
+          expect(response.body.connector).to.equal(
+            globalState.get("connectorId")
+          );
+          expect(response.body.merchant_connector_id).to.equal(
+            globalState.get("currentConnectorMcaId")
+          );
+        });
+      });
 
       if (shouldContinue)
         shouldContinue = payoutUtils.should_continue_further(payoutData);

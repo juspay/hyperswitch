@@ -1,3 +1,5 @@
+// Card data for payout_method_data.card — uses payout-specific field names
+// (card_number, expiry_month, expiry_year, card_holder_name)
 const card_data = {
   card_number: "4000000000000077",
   expiry_month: "3",
@@ -5,6 +7,8 @@ const card_data = {
   card_holder_name: "John Smith",
 };
 
+// Card data for SavePayoutMethod — uses payment-method field names
+// (card_number, card_exp_month, card_exp_year, card_holder_name)
 const payment_card_data = {
   card_number: "4000000000000077",
   card_exp_month: "03",
@@ -75,7 +79,7 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "success",
+          status: "initiated",
           payout_type: "card",
         },
       },
@@ -169,9 +173,12 @@ export const connectorDetails = {
         Response: {
           status: 200,
           body: {
-            status: "success",
+            status: "initiated",
             payout_type: "bank",
           },
+        },
+        Configs: {
+          TRIGGER_SKIP: true,
         },
       },
       SavePayoutMethod: {

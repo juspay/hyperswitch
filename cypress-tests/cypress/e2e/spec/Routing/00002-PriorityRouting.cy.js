@@ -9,7 +9,8 @@ describe("Priority Based Routing Test", () => {
   before("seed global state and list MCA IDs", () => {
     cy.task("getGlobalState").then((state) => {
       globalState = new State(state);
-      cy.ListMcaByMid(globalState).then(() => {
+      cy.ListMcaByMid(globalState);
+      cy.then(() => {
         if (!globalState.get("stripeMcaId") || !globalState.get("adyenMcaId")) {
           shouldContinue = false;
         }
