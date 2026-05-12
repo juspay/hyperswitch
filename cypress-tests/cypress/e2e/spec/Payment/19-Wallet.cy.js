@@ -5,6 +5,27 @@ import getConnectorDetails, * as utils from "../../configs/Payment/Utils";
 let globalState;
 
 describe("Wallet tests", () => {
+  let shouldContinue = true;
+
+  before("seed global state", () => {
+    cy.task("getGlobalState").then((state) => {
+      globalState = new State(state);
+      if (
+        !utils.CONNECTOR_LISTS.INCLUDE.WALLET?.includes(
+          globalState.get("connectorId")
+        )
+      ) {
+        shouldContinue = false;
+      }
+    });
+  });
+
+  beforeEach(function () {
+    if (!shouldContinue) {
+      this.skip();
+    }
+  });
+
   afterEach("flush global state", () => {
     cy.task("setGlobalState", globalState.data);
   });
@@ -163,6 +184,85 @@ describe("Wallet tests", () => {
         globalState,
         data,
         expectedIntentStatus: "succeeded",
+      });
+    });
+  });
+
+  context("PayPal Redirect Create and Confirm flow test", () => {
+    let shouldContinue = true;
+
+    before("seed global state", () => {
+      cy.task("getGlobalState").then((state) => {
+        globalState = new State(state);
+      });
+    });
+
+    beforeEach(function () {
+      if (!shouldContinue) {
+        this.skip();
+      }
+    });
+
+    it("create-payment-call-test", () => {
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "wallet_pm"
+      ]["PaymentIntent"]("PaypalRedirect");
+
+      cy.createPaymentIntentTest(
+        fixtures.createPaymentBody,
+        data,
+        "no_three_ds",
+        "automatic",
+        globalState
+      );
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
+    });
+
+    it("payment_methods-call-test", () => {
+      cy.paymentMethodsCallTest(globalState);
+    });
+
+    it("Confirm PayPal redirect", () => {
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "wallet_pm"
+      ]["PaypalRedirect"];
+
+      cy.confirmBankRedirectCallTest(
+        fixtures.confirmBody,
+        data,
+        true,
+        globalState
+      );
+
+      if (shouldContinue) shouldContinue = utils.should_continue_further(data);
+    });
+
+    it("Handle wallet redirection", () => {
+      const expected_redirection = fixtures.confirmBody["return_url"];
+      const payment_method_type = globalState.get("paymentMethodType");
+      const nextActionUrl = globalState.get("nextActionUrl");
+
+      expect(
+        nextActionUrl,
+        "nextActionUrl should be defined before handling wallet redirection"
+      ).to.be.a("string");
+
+      cy.handleWalletRedirection(
+        globalState,
+        payment_method_type,
+        expected_redirection
+      );
+    });
+
+    it("Sync payment status", () => {
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "wallet_pm"
+      ]["PaypalRedirect"];
+
+      cy.retrievePaymentCallTest({
+        globalState,
+        data,
+        expectedIntentStatus: "requires_customer_action",
       });
     });
   });
