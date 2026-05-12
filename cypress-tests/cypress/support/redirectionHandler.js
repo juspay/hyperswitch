@@ -503,43 +503,6 @@ function bankRedirectRedirection(
       }
     );
     verifyUrl = false;
-  } else if (connectorId === "airwallex" && paymentMethodType === "trustly") {
-    const trustlyOrigin = "https://checkout.test.trustly.com";
-
-    cy.origin(
-      trustlyOrigin,
-      { args: { constants: CONSTANTS } },
-      ({ constants }) => {
-        cy.log("Executing on Airwallex Trustly Origin");
-        cy.wait(constants.TIMEOUT / 10);
-
-        cy.get("body", { timeout: constants.TIMEOUT }).then(($body) => {
-          if (
-            $body.find(
-              '[data-testid="bank-item"], .bank-list li, [class*="bank"]'
-            ).length > 0
-          ) {
-            cy.get('[data-testid="bank-item"], .bank-list li, [class*="bank"]')
-              .first()
-              .click();
-          }
-
-          cy.get("body").then(($innerBody) => {
-            if (
-              $innerBody.find(
-                'button:contains("Continue"), button:contains("Confirm"), button:contains("Next")'
-              ).length > 0
-            ) {
-              cy.contains("button", /Continue|Confirm|Next/i)
-                .should("be.visible")
-                .click();
-            }
-          });
-        });
-      }
-    );
-
-    verifyUrl = false;
   } else if (connectorId === "trustpay" && paymentMethodType === "ideal") {
     // TrustPay iDEAL: aapi.finby.eu JS auto-redirects to pay.ideal.nl with no user interaction.
     // Cypress does not support nested cy.origin, so we handle origins sequentially.
