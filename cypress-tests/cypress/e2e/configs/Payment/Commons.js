@@ -967,7 +967,7 @@ export const connectorDetails = {
         },
       });
     },
-    SepaDebit: getCustomExchange({
+    Sepa: getCustomExchange({
       Request: {
         payment_method: "bank_debit",
         payment_method_type: "sepa",
