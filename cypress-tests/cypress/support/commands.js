@@ -1477,11 +1477,7 @@ Cypress.Commands.add(
 
       cy.wrap(response).then(() => {
         if (response.status === 200) {
-          if (
-            resData &&
-            resData.body &&
-            Object.keys(resData.body).length > 0
-          ) {
+          if (resData && resData.body && Object.keys(resData.body).length > 0) {
             const paymentId = globalState.get("paymentID");
             cy.request({
               method: "GET",
