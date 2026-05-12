@@ -98,12 +98,53 @@ pub struct ConnectorAuthMetadata {
     pub connector_config: Option<Secret<String>>,
 }
 
+/// Type of the vault connector
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum VaultConnectorType {
+    /// Proxy vault - forwards requests through a proxy (e.g., VGS forward proxy)
+    Proxy,
+    /// Transformation vault - transforms/tokenizes data (e.g., HyperswitchVault)
+    Transformation,
+}
+
+/// Authentication credentials for vault connectors
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+pub struct VaultConnectorAuth {
+    /// API key for authenticating with the vault connector
+    pub api_key: Secret<String>,
+    /// API secret for authenticating with the vault connector
+    pub profile_id: Secret<String>,
+}
+
 /// External Vault Proxy Related Metadata
 #[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
 #[serde(untagged)]
 pub enum ExternalVaultProxyMetadata {
     /// VGS proxy data variant
     VgsMetadata(VgsMetadata),
+    /// HyperswitchVault data variant
+    HyperswitchVaultMetadata(HyperswitchVaultMetadata),
+}
+
+/// Complete external vault proxy configuration to be serialized and sent to UCS
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+pub struct ExternalVaultProxyConfig {
+    /// Type of the vault connector (e.g., Proxy or Transformation)
+    pub vault_connector_type: VaultConnectorType,
+    /// Name/ID of the vault connector (e.g., "vgs", "hyperswitch_vault")
+    pub vault_connector_id: Option<String>,
+    /// Metadata specific to the vault connector type
+    pub metadata: ExternalVaultProxyMetadata,
+}
+
+/// HyperswitchVault proxy data
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+pub struct HyperswitchVaultMetadata {
+    /// External vault url
+    pub vault_endpoint: Url,
+    /// Authentication data for the vault connector
+    pub vault_auth_data: VaultConnectorAuth,
 }
 
 /// Builds a gRPC client with timeout handling
@@ -766,6 +807,41 @@ impl UnifiedConnectorServiceClient {
                     method="incoming_webhook_handle_event",
                     connector_name=?connector_name,
                     "UCS incoming webhook handle event gRPC call failed"
+                )
+            })
+    }
+
+    /// Phase 1 of the two-phase UCS webhook API.
+    ///
+    /// Parses the raw inbound webhook payload to extract a typed `EventReference` and the
+    /// `WebhookEventType`, without requiring credentials or making any outbound connector
+    /// call. The caller uses the returned reference to resolve the merchant-connector
+    /// account (and thus the webhook secret) before invoking `incoming_webhook_handle_event`.
+    pub async fn incoming_webhook_parse_event(
+        &self,
+        incoming_webhook_parse_event_request: payments_grpc::EventServiceParseRequest,
+        connector_auth_metadata: ConnectorAuthMetadata,
+        grpc_headers: GrpcHeadersUcs,
+    ) -> UnifiedConnectorServiceResult<tonic::Response<payments_grpc::EventServiceParseResponse>>
+    {
+        let mut request = tonic::Request::new(incoming_webhook_parse_event_request);
+
+        let connector_name = connector_auth_metadata.connector_name.clone();
+        let metadata =
+            build_unified_connector_service_grpc_headers(connector_auth_metadata, grpc_headers)?;
+        *request.metadata_mut() = metadata;
+
+        self.event_service_client
+            .clone()
+            .parse_event(request)
+            .await
+            .change_context(UnifiedConnectorServiceError::IncomingWebhookParseEventFailure)
+            .inspect_err(|error| {
+                logger::error!(
+                    grpc_error=?error,
+                    method="incoming_webhook_parse_event",
+                    connector_name=?connector_name,
+                    "UCS incoming webhook parse event gRPC call failed"
                 )
             })
     }

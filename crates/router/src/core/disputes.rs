@@ -571,7 +571,7 @@ pub async fn submit_evidence(
 
 pub async fn attach_evidence(
     state: SessionState,
-    processor: domain::Processor,
+    platform: domain::Platform,
     profile_id: Option<common_utils::id_type::ProfileId>,
     attach_evidence_request: api::AttachEvidenceRequest,
 ) -> RouterResponse<files_api_models::CreateFileResponse> {
@@ -583,7 +583,7 @@ pub async fn attach_evidence(
         .ok_or(errors::ApiErrorResponse::MissingDisputeId)?;
     let dispute = db
         .find_dispute_by_processor_merchant_id_dispute_id(
-            processor.get_account().get_id(),
+            platform.get_processor().get_account().get_id(),
             &dispute_id,
         )
         .await
@@ -606,7 +606,7 @@ pub async fn attach_evidence(
     )?;
     let create_file_response = Box::pin(files::files_create_core(
         state.clone(),
-        processor,
+        platform,
         attach_evidence_request.create_file_request,
     ))
     .await?;

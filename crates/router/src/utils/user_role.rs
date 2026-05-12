@@ -20,7 +20,7 @@ use crate::{
     consts,
     core::errors::{UserErrors, UserResult},
     db::{
-        domain::role::RoleProductCategory,
+        domain::role::get_accessible_product_categories,
         errors::StorageErrorExt,
         user_role::{ListUserRolesByOrgIdPayload, ListUserRolesByUserIdPayload},
     },
@@ -48,12 +48,9 @@ pub fn validate_role_groups(
     }
 
     if let Some(product_type) = merchant_product_type {
-        if !groups.iter().all(|group| {
-            let role_product_category = group.get_role_product_category();
-            match role_product_category {
-                RoleProductCategory::Dashboard => true,
-                _ => role_product_category == RoleProductCategory::from(product_type),
-            }
+        let accessible_product_categories = get_accessible_product_categories(product_type);
+        if groups.iter().any(|group| {
+            !accessible_product_categories.contains(&group.get_role_product_category())
         }) {
             return Err(report!(UserErrors::InvalidRoleOperation))
                 .attach_printable("Permission groups of different product types found");

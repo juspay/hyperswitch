@@ -104,6 +104,18 @@ impl ConfigType for i64 {
     }
 }
 
+impl ConfigType for u32 {
+    fn from_config_str(config_str: &str) -> CustomResult<Self, errors::StorageError> {
+        config_str
+            .parse::<Self>()
+            .change_context(errors::StorageError::DeserializationFailed)
+    }
+
+    fn to_config_string(&self) -> CustomResult<String, errors::StorageError> {
+        Ok(self.to_string())
+    }
+}
+
 impl ConfigType for f64 {
     fn from_config_str(config_str: &str) -> CustomResult<Self, errors::StorageError> {
         config_str
@@ -183,7 +195,7 @@ where
 
     let superposition_result = C::fetch(superposition_client, context, targeting_key).await;
 
-    let resolved_value = match superposition_result {
+    match superposition_result {
         Ok(value) => {
             router_env::logger::info!(
                 config_key = %config_type,
@@ -250,8 +262,7 @@ where
                 default_value
             }
         },
-    };
-    resolved_value
+    }
 }
 
 /// Fetch object-type config with JSON-to-Type conversion.

@@ -38,10 +38,7 @@ use hyperswitch_domain_models::{
 };
 pub use hyperswitch_interfaces::{
     helpers::ForeignTryFrom,
-    unified_connector_service::{
-        transformers::convert_connector_service_status_code, WebhookTransformData,
-        WebhookTransformationStatus,
-    },
+    unified_connector_service::transformers::convert_connector_service_status_code,
 };
 use hyperswitch_masking::{ExposeInterface, PeekInterface, Secret};
 use router_env::tracing;
@@ -49,11 +46,11 @@ use time::{Duration, OffsetDateTime};
 use unified_connector_service_cards::{CardNumber, NetworkToken};
 use unified_connector_service_client::payments::{
     self as payments_grpc, client_authentication_token_data, ConnectorState,
-    EventServiceHandleRequest, EventServiceHandleResponse,
+    EventServiceHandleRequest, EventServiceParseRequest,
 };
 
 use crate::{
-    core::{errors, mandate::MandateBehaviour, unified_connector_service},
+    core::{mandate::MandateBehaviour, unified_connector_service},
     types::{
         api,
         transformers::{self, ForeignFrom},
@@ -649,19 +646,13 @@ impl
     }
 }
 
-impl
-    transformers::ForeignTryFrom<(
-        &RouterData<PSync, PaymentsSyncData, PaymentsResponseData>,
-        common_enums::CallConnectorAction,
-    )> for payments_grpc::PaymentServiceGetRequest
+impl transformers::ForeignTryFrom<&RouterData<PSync, PaymentsSyncData, PaymentsResponseData>>
+    for payments_grpc::PaymentServiceGetRequest
 {
     type Error = error_stack::Report<UnifiedConnectorServiceError>;
 
     fn foreign_try_from(
-        (router_data, call_connector_action): (
-            &RouterData<PSync, PaymentsSyncData, PaymentsResponseData>,
-            common_enums::CallConnectorAction,
-        ),
+        router_data: &RouterData<PSync, PaymentsSyncData, PaymentsResponseData>,
     ) -> Result<Self, Self::Error> {
         let connector_transaction_id = router_data
             .request
@@ -681,21 +672,6 @@ impl
         let merchant_transaction_id = Some(router_data.connector_request_reference_id.clone());
 
         let currency = payments_grpc::Currency::foreign_try_from(router_data.request.currency)?;
-
-        let handle_response = match call_connector_action {
-            common_enums::CallConnectorAction::UCSHandleResponse(res) => Some(res),
-            common_enums::CallConnectorAction::Trigger
-            | common_enums::CallConnectorAction::HandleResponseWithoutBuildRequest => None,
-            common_enums::CallConnectorAction::HandleResponse(_)
-            | common_enums::CallConnectorAction::UCSConsumeResponse(_)
-            | common_enums::CallConnectorAction::Avoid
-            | common_enums::CallConnectorAction::StatusUpdate { .. } => Err(
-                UnifiedConnectorServiceError::RequestEncodingFailedWithReason(
-                    "Invalid CallConnectorAction for payment sync call via UCS Gateway system"
-                        .to_string(),
-                ),
-            )?,
-        };
 
         let capture_method = router_data
             .request
@@ -719,7 +695,6 @@ impl
             merchant_transaction_id,
             encoded_data: router_data.request.encoded_data.clone(),
             capture_method: capture_method.map(|capture_method| capture_method.into()),
-            handle_response,
             setup_future_usage: setup_future_usage.map(|s| s.into()),
             connector_order_reference_id,
             amount: Some(payments_grpc::Money {
@@ -2048,8 +2023,8 @@ impl transformers::ForeignTryFrom<&RouterData<Session, PaymentsSessionData, Paym
                 phone_number: None,
                 phone_country_code: None,
             }),
-            metadata: None,
             return_url: None,
+            metadata: None,
         };
 
         Ok(Self {
@@ -2059,6 +2034,7 @@ impl transformers::ForeignTryFrom<&RouterData<Session, PaymentsSessionData, Paym
             domain_context: Some(
                 payments_grpc::merchant_authentication_service_create_client_authentication_token_request::DomainContext::Payment(payment_sdk_session_context),
             ),
+            permissions: None,
         })
     }
 }
@@ -3045,6 +3021,7 @@ impl transformers::ForeignTryFrom<common_enums::PaymentMethodType>
             common_enums::PaymentMethodType::Paypal => Ok(Self::PayPal),
             common_enums::PaymentMethodType::RevolutPay => Ok(Self::RevolutPay),
             common_enums::PaymentMethodType::NetworkToken => Ok(Self::NetworkToken),
+            common_enums::PaymentMethodType::OpenBanking => Ok(Self::OpenBanking),
             _ => Err(
                 UnifiedConnectorServiceError::RequestEncodingFailedWithReason(
                     "Payment Method Type not yet supported".to_string(),
@@ -3948,6 +3925,7 @@ impl transformers::ForeignTryFrom<common_enums::BankNames> for payments_grpc::Ba
             common_enums::BankNames::Yoursafe => Ok(Self::Yoursafe),
             common_enums::BankNames::N26 => Ok(Self::N26),
             common_enums::BankNames::NationaleNederlanden => Ok(Self::NationaleNederlanden),
+            common_enums::BankNames::Absa => Ok(Self::Absa),
         }
     }
 }
@@ -5657,56 +5635,41 @@ impl
     }
 }
 
-/// Transform UCS webhook response into webhook event data
-pub fn transform_ucs_webhook_response(
-    response: EventServiceHandleResponse,
-) -> Result<WebhookTransformData, error_stack::Report<errors::ApiErrorResponse>> {
-    let event_type =
-        api_models::webhooks::IncomingWebhookEvent::from_ucs_event_type(response.event_type);
+impl
+    transformers::ForeignTryFrom<
+        &hyperswitch_interfaces::webhooks::IncomingWebhookRequestDetails<'_>,
+    > for EventServiceParseRequest
+{
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
 
-    let webhook_transformation_status = if matches!(
-        response.event_status(),
-        payments_grpc::EventStatus::Incomplete
-    ) {
-        WebhookTransformationStatus::Incomplete
-    } else {
-        WebhookTransformationStatus::Complete
-    };
-
-    Ok(WebhookTransformData {
-        event_type,
-        source_verified: response.source_verified,
-        webhook_content: response.event_content,
-        response_ref_id: response.merchant_event_id,
-        webhook_transformation_status,
-    })
+    fn foreign_try_from(
+        request_details: &hyperswitch_interfaces::webhooks::IncomingWebhookRequestDetails<'_>,
+    ) -> Result<Self, Self::Error> {
+        let request_details_grpc =
+            <payments_grpc::RequestDetails as transformers::ForeignTryFrom<_>>::foreign_try_from(
+                request_details,
+            )?;
+        Ok(Self {
+            request_details: Some(request_details_grpc),
+        })
+    }
 }
 
-/// Build UCS webhook transform request from webhook components
-pub fn build_webhook_transform_request(
-    _webhook_body: &[u8],
+pub fn build_handle_event_request(
     request_details: &hyperswitch_interfaces::webhooks::IncomingWebhookRequestDetails<'_>,
     webhook_secrets: Option<payments_grpc::WebhookSecrets>,
-    merchant_id: &str,
-    connector_id: &str,
-) -> Result<EventServiceHandleRequest, error_stack::Report<errors::ApiErrorResponse>> {
-    let request_details_grpc =
-        <payments_grpc::RequestDetails as transformers::ForeignTryFrom<_>>::foreign_try_from(
-            request_details,
-        )
-        .change_context(errors::ApiErrorResponse::InternalServerError)
-        .attach_printable("Failed to transform webhook request details to gRPC format")?;
-
+    event_context: Option<payments_grpc::EventContext>,
+    merchant_event_id: String,
+) -> Result<EventServiceHandleRequest, error_stack::Report<UnifiedConnectorServiceError>> {
+    let request_details_grpc = <payments_grpc::RequestDetails as transformers::ForeignTryFrom<
+        _,
+    >>::foreign_try_from(request_details)?;
     Ok(EventServiceHandleRequest {
-        merchant_event_id: Some(format!(
-            "{}_{}_{}",
-            merchant_id,
-            connector_id,
-            OffsetDateTime::now_utc().unix_timestamp()
-        )),
+        merchant_event_id: Some(merchant_event_id),
         request_details: Some(request_details_grpc),
         webhook_secrets,
-        state: None,
+        access_token: None,
+        event_context,
     })
 }
 
@@ -5831,6 +5794,17 @@ impl transformers::ForeignTryFrom<&RouterData<RSync, RefundsData, RefundsRespons
             merchant_refund_id: Some(router_data.connector_request_reference_id.clone()),
             connector_transaction_id: router_data.request.connector_transaction_id.clone(),
             refund_id: router_data.request.connector_refund_id.clone().ok_or(
+                UnifiedConnectorServiceError::RequestEncodingFailedWithReason(
+                    "Missing connector_refund_id for refund sync operation".to_string(),
+                ),
+            )?,
+            refund_amount: Some(payments_grpc::Money {
+                minor_amount: router_data.request.minor_refund_amount.get_amount_as_i64(),
+                currency: i32::from(payments_grpc::Currency::foreign_try_from(
+                    router_data.request.currency,
+                )?),
+            }),
+            connector_refund_id: router_data.request.connector_refund_id.clone().ok_or(
                 UnifiedConnectorServiceError::RequestEncodingFailedWithReason(
                     "Missing connector_refund_id for refund sync operation".to_string(),
                 ),
@@ -6322,6 +6296,12 @@ impl
             webhook_url: router_data.request.webhook_url.clone(),
             browser_info,
             access_token,
+            source_bank_data: router_data
+                .request
+                .source_bank_data
+                .as_ref()
+                .map(payments_grpc::SourceBankData::foreign_try_from)
+                .transpose()?,
         })
     }
 }
@@ -6433,6 +6413,12 @@ impl
             connector_payout_method_id: router_data.request.connector_transfer_method_id.clone(),
             webhook_url: router_data.request.webhook_url.clone(),
             browser_info,
+            source_bank_data: router_data
+                .request
+                .source_bank_data
+                .as_ref()
+                .map(payments_grpc::SourceBankData::foreign_try_from)
+                .transpose()?,
         })
     }
 }
@@ -6834,6 +6820,16 @@ impl transformers::ForeignTryFrom<&api_models::payouts::PayoutMethodData>
                             ),
                         ))?
                     }
+                    api_models::payouts::BankTransfer::PixKey(pix_key) => {
+                        payments_grpc::payout_method::PayoutMethodData::PixKey(
+                            payments_grpc::PixKeyBankTransferPayout::foreign_from(pix_key),
+                        )
+                    }
+                    api_models::payouts::BankTransfer::PixEmv(pix_emv) => {
+                        payments_grpc::payout_method::PayoutMethodData::PixEmv(
+                            payments_grpc::PixEmvBankTransferPayout::foreign_from(pix_emv),
+                        )
+                    }
                 }
             }
             api_models::payouts::PayoutMethodData::Wallet(wallet) => match wallet {
@@ -6975,9 +6971,28 @@ impl transformers::ForeignTryFrom<&api_models::payouts::PixBankTransfer>
         Ok(Self {
             bank_name: None,
             bank_branch: item.bank_branch.clone(),
-            bank_account_number: Some(item.bank_account_number.clone()),
-            pix_key: Some(item.pix_key.clone()),
+            bank_account_number: item.bank_account_number.clone(),
             tax_id: item.tax_id.clone(),
+            ispb: None,
+        })
+    }
+}
+
+#[cfg(feature = "payouts")]
+impl transformers::ForeignTryFrom<&api_models::payouts::PixAccountBankTransfer>
+    for payments_grpc::PixBankTransferPayout
+{
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+
+    fn foreign_try_from(
+        item: &api_models::payouts::PixAccountBankTransfer,
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            bank_name: None,
+            bank_branch: item.bank_branch.clone(),
+            bank_account_number: Some(item.bank_account_number.clone()),
+            tax_id: item.tax_id.clone(),
+            ispb: None,
         })
     }
 }
@@ -7072,5 +7087,74 @@ impl transformers::ForeignTryFrom<&api_models::payouts::Passthrough>
             psp_token: item.psp_token.clone().expose(),
             token_type: payments_grpc::PaymentMethodType::foreign_from(item.token_type).into(),
         })
+    }
+}
+#[cfg(feature = "payouts")]
+impl transformers::ForeignTryFrom<&api_models::payouts::BankTransfer>
+    for payments_grpc::SourceBankData
+{
+    type Error = error_stack::Report<UnifiedConnectorServiceError>;
+
+    fn foreign_try_from(item: &api_models::payouts::BankTransfer) -> Result<Self, Self::Error> {
+        let source_bank_data = match item {
+            api_models::payouts::BankTransfer::Ach(ach) => {
+                Some(payments_grpc::source_bank_data::SourceBankData::Ach(
+                    payments_grpc::AchBankTransferPayout::foreign_try_from(ach)?,
+                ))
+            }
+            api_models::payouts::BankTransfer::Bacs(bacs) => {
+                Some(payments_grpc::source_bank_data::SourceBankData::Bacs(
+                    payments_grpc::BacsBankTransferPayout::foreign_try_from(bacs)?,
+                ))
+            }
+            api_models::payouts::BankTransfer::Sepa(sepa) => {
+                Some(payments_grpc::source_bank_data::SourceBankData::Sepa(
+                    payments_grpc::SepaBankTransferPayout::foreign_try_from(sepa)?,
+                ))
+            }
+            api_models::payouts::BankTransfer::Pix(pix) => {
+                Some(payments_grpc::source_bank_data::SourceBankData::Pix(
+                    payments_grpc::PixBankTransferPayout::foreign_try_from(pix)?,
+                ))
+            }
+            api_models::payouts::BankTransfer::PixKey(pix_key) => {
+                Some(payments_grpc::source_bank_data::SourceBankData::PixKey(
+                    payments_grpc::PixKeyBankTransferPayout::foreign_from(pix_key),
+                ))
+            }
+            api_models::payouts::BankTransfer::PixEmv(pix_emv) => {
+                Some(payments_grpc::source_bank_data::SourceBankData::PixEmv(
+                    payments_grpc::PixEmvBankTransferPayout::foreign_from(pix_emv),
+                ))
+            }
+            api_models::payouts::BankTransfer::Trustly(_) => Err(error_stack::Report::new(
+                UnifiedConnectorServiceError::RequestEncodingFailedWithReason(
+                    "Trustly bank transfer not supported for Unified Connector Service".to_string(),
+                ),
+            ))?,
+        };
+        Ok(Self { source_bank_data })
+    }
+}
+
+#[cfg(feature = "payouts")]
+impl ForeignFrom<&api_models::payouts::PixKeyBankTransfer>
+    for payments_grpc::PixKeyBankTransferPayout
+{
+    fn foreign_from(item: &api_models::payouts::PixKeyBankTransfer) -> Self {
+        Self {
+            pix_key: Some(item.pix_key.clone()),
+        }
+    }
+}
+
+#[cfg(feature = "payouts")]
+impl ForeignFrom<&api_models::payouts::PixEmvBankTransfer>
+    for payments_grpc::PixEmvBankTransferPayout
+{
+    fn foreign_from(item: &api_models::payouts::PixEmvBankTransfer) -> Self {
+        Self {
+            emv: Some(item.emv.clone()),
+        }
     }
 }

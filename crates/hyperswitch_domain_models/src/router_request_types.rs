@@ -1120,6 +1120,7 @@ pub struct PaymentsSyncData {
     pub connector_reference_id: Option<String>,
     pub setup_future_usage: Option<storage_enums::FutureUsage>,
     pub feature_metadata: Option<api_models::payments::FeatureMetadata>,
+    pub connector_mandate_id: Option<String>,
 }
 
 #[derive(Debug, Default, Clone, Serialize)]
@@ -1665,6 +1666,7 @@ pub struct PayoutsData {
     pub browser_info: Option<BrowserInformation>,
     pub payout_connector_metadata: Option<pii::SecretSerdeValue>,
     pub additional_payout_method_data: Option<payout_method_utils::AdditionalPayoutMethodData>,
+    pub source_bank_data: Option<api_models::payouts::BankTransfer>,
 }
 
 #[derive(Debug, Default, Clone, Serialize)]
@@ -1820,6 +1822,7 @@ pub struct SetupMandateRequestData {
         Option<common_types::payments::PartnerMerchantIdentifierDetails>,
     pub authentication_data: Option<AuthenticationData>,
     pub connector_intent_metadata: Option<ConnectorMetadata>,
+    pub merchant_order_reference_id: Option<String>,
 }
 
 #[derive(Debug, Clone)]
