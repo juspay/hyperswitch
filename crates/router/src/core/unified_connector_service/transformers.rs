@@ -6973,7 +6973,7 @@ impl transformers::ForeignTryFrom<&api_models::payouts::PixBankTransfer>
             bank_branch: item.bank_branch.clone(),
             bank_account_number: item.bank_account_number.clone(),
             tax_id: item.tax_id.clone(),
-            ispb: None,
+            ispb: item.ispb.clone().map(Secret::new),
         })
     }
 }
@@ -6992,7 +6992,7 @@ impl transformers::ForeignTryFrom<&api_models::payouts::PixAccountBankTransfer>
             bank_branch: item.bank_branch.clone(),
             bank_account_number: Some(item.bank_account_number.clone()),
             tax_id: item.tax_id.clone(),
-            ispb: None,
+            ispb: item.ispb.clone().map(Secret::new),
         })
     }
 }
