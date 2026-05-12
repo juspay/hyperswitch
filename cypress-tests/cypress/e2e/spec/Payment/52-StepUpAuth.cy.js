@@ -225,7 +225,7 @@ describe("Step-Up Auth payment flow test", () => {
   });
 
   context(
-    "Step-Up Auth with merchant_country_code and merchant_category_code",
+    "Step-Up Auth with merchant codes from business profile",
     () => {
       let shouldContinue = true;
 
@@ -245,7 +245,7 @@ describe("Step-Up Auth payment flow test", () => {
         cy.task("setGlobalState", globalState.data);
       });
 
-      it("create payment intent with three_ds and merchant codes", () => {
+      it("create payment intent with three_ds", () => {
         const data = getConnectorDetails(globalState.get("connectorId"))[
           "step_up_auth"
         ]["PaymentIntentOnly"];
@@ -263,11 +263,11 @@ describe("Step-Up Auth payment flow test", () => {
         }
       });
 
-      it("confirm payment with three_ds card and merchant codes", () => {
+      it("confirm payment with three_ds card", () => {
         if (!shouldContinue) {
           cy.task(
             "cli_log",
-            "Skipping step: confirm payment with three_ds card and merchant codes"
+            "Skipping step: confirm payment with three_ds card"
           );
           return;
         }
@@ -288,11 +288,11 @@ describe("Step-Up Auth payment flow test", () => {
         }
       });
 
-      it("call 3ds authentication endpoint with merchant codes", () => {
+      it("call 3ds authentication endpoint", () => {
         if (!shouldContinue) {
           cy.task(
             "cli_log",
-            "Skipping step: call 3ds authentication endpoint with merchant codes"
+            "Skipping step: call 3ds authentication endpoint"
           );
           return;
         }
@@ -307,11 +307,200 @@ describe("Step-Up Auth payment flow test", () => {
         );
       });
 
-      it("retrieve payment with merchant codes", () => {
+      it("retrieve payment", () => {
+        if (!shouldContinue) {
+          cy.task("cli_log", "Skipping step: retrieve payment");
+          return;
+        }
+        cy.retrievePaymentCallTest({ globalState });
+      });
+    }
+  );
+
+  context(
+    "Step-Up Auth Visa frictionless - create, confirm, authenticate and retrieve",
+    () => {
+      let shouldContinue = true;
+
+      before(function () {
+        if (!globalState.get("authProcessorConnectorId")) {
+          shouldContinue = false;
+        }
+      });
+
+      beforeEach(function () {
+        if (!shouldContinue) {
+          this.skip();
+        }
+      });
+
+      afterEach("flush global state", () => {
+        cy.task("setGlobalState", globalState.data);
+      });
+
+      it("create payment intent with three_ds for visa frictionless", () => {
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "step_up_auth"
+        ]["PaymentIntentOnly"];
+
+        cy.createPaymentIntentTest(
+          fixtures.createPaymentBody,
+          data,
+          "three_ds",
+          "automatic",
+          globalState
+        );
+
+        if (!utils.should_continue_further(data)) {
+          shouldContinue = false;
+        }
+      });
+
+      it("confirm payment with visa frictionless card", () => {
         if (!shouldContinue) {
           cy.task(
             "cli_log",
-            "Skipping step: retrieve payment with merchant codes"
+            "Skipping step: confirm payment with visa frictionless card"
+          );
+          return;
+        }
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "step_up_auth"
+        ]["ConfirmPaymentVisaFrictionless"];
+
+        cy.createConfirmPaymentTest(
+          fixtures.createConfirmPaymentBody,
+          data,
+          "three_ds",
+          "automatic",
+          globalState
+        );
+
+        if (!utils.should_continue_further(data)) {
+          shouldContinue = false;
+        }
+      });
+
+      it("call 3ds authentication endpoint for visa frictionless", () => {
+        if (!shouldContinue) {
+          cy.task(
+            "cli_log",
+            "Skipping step: call 3ds authentication endpoint for visa frictionless"
+          );
+          return;
+        }
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "step_up_auth"
+        ]["ThreeDSAuthentication"];
+
+        cy.threeDSAuthenticationCallTest(
+          fixtures.threeDSAuthenticationBody,
+          data,
+          globalState
+        );
+      });
+
+      it("retrieve payment for visa frictionless", () => {
+        if (!shouldContinue) {
+          cy.task(
+            "cli_log",
+            "Skipping step: retrieve payment for visa frictionless"
+          );
+          return;
+        }
+        cy.retrievePaymentCallTest({ globalState });
+      });
+    }
+  );
+
+  context(
+    "Step-Up Auth Mastercard challenge - create, confirm, authenticate and retrieve",
+    () => {
+      let shouldContinue = true;
+
+      before(function () {
+        if (!globalState.get("authProcessorConnectorId")) {
+          shouldContinue = false;
+        }
+      });
+
+      beforeEach(function () {
+        if (!shouldContinue) {
+          this.skip();
+        }
+      });
+
+      afterEach("flush global state", () => {
+        cy.task("setGlobalState", globalState.data);
+      });
+
+      it("create payment intent with three_ds for mastercard challenge", () => {
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "step_up_auth"
+        ]["PaymentIntentOnly"];
+
+        cy.createPaymentIntentTest(
+          fixtures.createPaymentBody,
+          data,
+          "three_ds",
+          "automatic",
+          globalState
+        );
+
+        if (!utils.should_continue_further(data)) {
+          shouldContinue = false;
+        }
+      });
+
+      it("confirm payment with mastercard challenge card", () => {
+        if (!shouldContinue) {
+          cy.task(
+            "cli_log",
+            "Skipping step: confirm payment with mastercard challenge card"
+          );
+          return;
+        }
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "step_up_auth"
+        ]["ConfirmPaymentMastercardChallenge"];
+
+        cy.createConfirmPaymentTest(
+          fixtures.createConfirmPaymentBody,
+          data,
+          "three_ds",
+          "automatic",
+          globalState
+        );
+
+        if (!utils.should_continue_further(data)) {
+          shouldContinue = false;
+        }
+      });
+
+      it("call 3ds authentication endpoint for mastercard challenge", () => {
+        if (!shouldContinue) {
+          cy.task(
+            "cli_log",
+            "Skipping step: call 3ds authentication endpoint for mastercard challenge"
+          );
+          return;
+        }
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "step_up_auth"
+        ]["ThreeDSAuthentication"];
+
+        cy.threeDSAuthenticationCallTest(
+          fixtures.threeDSAuthenticationBody,
+          data,
+          globalState
+        );
+      });
+
+      it("retrieve payment for mastercard challenge", () => {
+        if (!shouldContinue) {
+          cy.task(
+            "cli_log",
+            "Skipping step: retrieve payment for mastercard challenge"
           );
           return;
         }
