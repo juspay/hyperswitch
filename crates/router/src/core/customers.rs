@@ -1613,8 +1613,21 @@ pub async fn migrate_customers(
     Ok(services::ApplicationResponse::Json(()))
 }
 
-// Merges the migrated connector_customer_id(s) into an already-existing customer's
-// connector_customer map (create_customer skips them when the customer is a duplicate).
+/// Saves the connector's customer id (from the migration CSV) onto a customer that already
+/// exists in Hyperswitch.
+///
+/// Background, in plain terms:
+/// - Each customer row has a `connector_customer` field. Think of it as a small lookup table:
+///   "for connector account X, this customer is known as Y on that connector's side".
+/// - When the migration creates a brand-new customer, that field is filled in right away.
+/// - But when the customer was already in Hyperswitch, the create step is skipped — and so the
+///   connector customer id from the CSV would be thrown away. This function handles that case:
+///   it opens the existing customer and adds the id in.
+///
+/// We *add to* the lookup table, we don't wipe it: ids saved for other connector accounts stay,
+/// and if there was already an id for this connector account it gets replaced with the one from
+/// the CSV. If the CSV row had no connector customer id (or nothing to attach it to), we do
+/// nothing.
 #[cfg(feature = "v1")]
 async fn sync_connector_customer_for_migrated_customer(
     state: &SessionState,
@@ -1622,20 +1635,22 @@ async fn sync_connector_customer_for_migrated_customer(
     customer_id: Option<id_type::CustomerId>,
     connector_customer_details: Option<Vec<payment_methods_domain::ConnectorCustomerDetails>>,
 ) -> errors::CustomResult<(), errors::CustomersErrorResponse> {
-    let (Some(customer_id), Some(connector_customer_details)) =
-        (customer_id, connector_customer_details)
+    // If the CSV row didn't give us a customer id, or gave no connector customer ids to save,
+    // there's nothing to do.
+    let Some((customer_id, connector_customer_details)) = customer_id
+        .zip(connector_customer_details)
+        .filter(|(_, details)| !details.is_empty())
     else {
         return Ok(());
     };
-    if connector_customer_details.is_empty() {
-        return Ok(());
-    }
 
     let db: &dyn StorageInterface = state.store.as_ref();
     let provider = platform.get_provider();
     let merchant_id = provider.get_account().get_id();
     let storage_scheme = provider.get_account().storage_scheme;
 
+    // Load the customer that already exists, so we can add to its current list of connector
+    // customer ids instead of replacing it.
     let existing_customer = db
         .find_customer_by_customer_id_merchant_id(
             &customer_id,
@@ -1646,6 +1661,8 @@ async fn sync_connector_customer_for_migrated_customer(
         .await
         .switch()?;
 
+    // Take the customer's current "connector account -> connector customer id" list (empty if
+    // it had none yet) and add/overwrite the entries coming from the migration row.
     let mut connector_customer_map = existing_customer
         .connector_customer
         .as_ref()
@@ -1658,6 +1675,8 @@ async fn sync_connector_customer_for_migrated_customer(
         );
     }
 
+    // Save the updated list back onto the customer. This only changes the `connector_customer`
+    // field (and the "last modified" bookkeeping) — the rest of the customer is untouched.
     db.update_customer_by_customer_id_merchant_id(
         customer_id,
         merchant_id.clone(),
@@ -1680,6 +1699,8 @@ async fn sync_connector_customer_for_migrated_customer(
     Ok(())
 }
 
+// No-op for non-v1 builds: `migrate_customers` is not feature-gated, so it still needs this
+// symbol to exist even though the customer batch-migration flow is v1-only today.
 #[cfg(not(feature = "v1"))]
 async fn sync_connector_customer_for_migrated_customer(
     _state: &SessionState,
