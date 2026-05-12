@@ -224,98 +224,89 @@ describe("Step-Up Auth payment flow test", () => {
     });
   });
 
-  context(
-    "Step-Up Auth with merchant codes from business profile",
-    () => {
-      let shouldContinue = true;
+  context("Step-Up Auth with merchant codes from business profile", () => {
+    let shouldContinue = true;
 
-      before(function () {
-        if (!globalState.get("authProcessorConnectorId")) {
-          shouldContinue = false;
-        }
-      });
+    before(function () {
+      if (!globalState.get("authProcessorConnectorId")) {
+        shouldContinue = false;
+      }
+    });
 
-      beforeEach(function () {
-        if (!shouldContinue) {
-          this.skip();
-        }
-      });
+    beforeEach(function () {
+      if (!shouldContinue) {
+        this.skip();
+      }
+    });
 
-      afterEach("flush global state", () => {
-        cy.task("setGlobalState", globalState.data);
-      });
+    afterEach("flush global state", () => {
+      cy.task("setGlobalState", globalState.data);
+    });
 
-      it("create payment intent with three_ds", () => {
-        const data = getConnectorDetails(globalState.get("connectorId"))[
-          "step_up_auth"
-        ]["PaymentIntentOnly"];
+    it("create payment intent with three_ds", () => {
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "step_up_auth"
+      ]["PaymentIntentOnly"];
 
-        cy.createPaymentIntentTest(
-          fixtures.createPaymentBody,
-          data,
-          "three_ds",
-          "automatic",
-          globalState
-        );
+      cy.createPaymentIntentTest(
+        fixtures.createPaymentBody,
+        data,
+        "three_ds",
+        "automatic",
+        globalState
+      );
 
-        if (!utils.should_continue_further(data)) {
-          shouldContinue = false;
-        }
-      });
+      if (!utils.should_continue_further(data)) {
+        shouldContinue = false;
+      }
+    });
 
-      it("confirm payment with three_ds card", () => {
-        if (!shouldContinue) {
-          cy.task(
-            "cli_log",
-            "Skipping step: confirm payment with three_ds card"
-          );
-          return;
-        }
-        const data = getConnectorDetails(globalState.get("connectorId"))[
-          "step_up_auth"
-        ]["StepUpAuthWithMerchantCodes"];
+    it("confirm payment with three_ds card", () => {
+      if (!shouldContinue) {
+        cy.task("cli_log", "Skipping step: confirm payment with three_ds card");
+        return;
+      }
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "step_up_auth"
+      ]["StepUpAuthWithMerchantCodes"];
 
-        cy.createConfirmPaymentTest(
-          fixtures.createConfirmPaymentBody,
-          data,
-          "three_ds",
-          "automatic",
-          globalState
-        );
+      cy.createConfirmPaymentTest(
+        fixtures.createConfirmPaymentBody,
+        data,
+        "three_ds",
+        "automatic",
+        globalState
+      );
 
-        if (!utils.should_continue_further(data)) {
-          shouldContinue = false;
-        }
-      });
+      if (!utils.should_continue_further(data)) {
+        shouldContinue = false;
+      }
+    });
 
-      it("call 3ds authentication endpoint", () => {
-        if (!shouldContinue) {
-          cy.task(
-            "cli_log",
-            "Skipping step: call 3ds authentication endpoint"
-          );
-          return;
-        }
-        const data = getConnectorDetails(globalState.get("connectorId"))[
-          "step_up_auth"
-        ]["ThreeDSAuthenticationWithMerchantCodes"];
+    it("call 3ds authentication endpoint", () => {
+      if (!shouldContinue) {
+        cy.task("cli_log", "Skipping step: call 3ds authentication endpoint");
+        return;
+      }
+      const data = getConnectorDetails(globalState.get("connectorId"))[
+        "step_up_auth"
+      ]["ThreeDSAuthenticationWithMerchantCodes"];
 
-        cy.threeDSAuthenticationCallTest(
-          fixtures.threeDSAuthenticationBody,
-          data,
-          globalState
-        );
-      });
+      cy.threeDSAuthenticationCallTest(
+        fixtures.threeDSAuthenticationBody,
+        data,
+        globalState
+      );
+    });
 
-      it("retrieve payment", () => {
-        if (!shouldContinue) {
-          cy.task("cli_log", "Skipping step: retrieve payment");
-          return;
-        }
-        cy.retrievePaymentCallTest({ globalState });
-      });
-    }
-  );
+    it("retrieve payment", () => {
+      if (!shouldContinue) {
+        cy.task("cli_log", "Skipping step: retrieve payment");
+        return;
+      }
+      cy.retrievePaymentCallTest({ globalState });
+    });
+  });
 
   context(
     "Step-Up Auth Visa frictionless - create, confirm, authenticate and retrieve",
