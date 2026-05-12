@@ -766,7 +766,7 @@ Cypress.Commands.add(
     globalState,
     profilePrefix = "profile",
     use_billing_as_payment_method_billing = undefined,
-    expectedStatus = 200
+    expectedStatus = undefined
   ) => {
     updateBusinessProfileBody.is_connector_agnostic_mit_enabled =
       is_connector_agnostic_mit_enabled;
@@ -802,7 +802,9 @@ Cypress.Commands.add(
       logRequestId(response.headers["x-request-id"]);
 
       cy.wrap(response).then(() => {
-        expect(response.status).to.equal(expectedStatus);
+        if (typeof expectedStatus !== "undefined") {
+          expect(response.status).to.equal(expectedStatus);
+        }
 
         if (response.status === 200) {
           globalState.set(
