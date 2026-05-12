@@ -19,7 +19,7 @@
   },
 
   "bpUpdateMerchantCodes": {
-    "merchant_country_code": "US",
+    "merchant_country_code": "840",
     "merchant_category_code": "5411"
   }
 }
