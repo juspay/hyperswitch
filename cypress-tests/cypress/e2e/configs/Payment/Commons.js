@@ -3393,5 +3393,14 @@ export const connectorDetails = {
         },
       },
     }),
+    AuthorizeAfterFrictionlessAuth: getCustomExchange({
+      Request: {},
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    }),
   },
 };

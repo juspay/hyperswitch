@@ -7988,3 +7988,45 @@ Cypress.Commands.add("updateCardIssuer", (id, body, globalState) => {
     });
   });
 });
+
+Cypress.Commands.add(
+  "updateBusinessProfileMerchantCodesTest",
+  (updateBusinessProfileBody, globalState) => {
+    const apiKey = globalState.get("apiKey");
+    const merchantId = globalState.get("merchantId");
+    const profileId = globalState.get("profileId");
+
+    cy.request({
+      method: "POST",
+      url: `${globalState.get("baseUrl")}/account/${merchantId}/business_profile/${profileId}`,
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json",
+        "api-key": apiKey,
+      },
+      body: updateBusinessProfileBody,
+      failOnStatusCode: false,
+    }).then((response) => {
+      logRequestId(response.headers["x-request-id"]);
+
+      cy.wrap(response).then(() => {
+        if (response.status === 200) {
+          if (updateBusinessProfileBody.merchant_country_code) {
+            expect(response.body.merchant_country_code).to.equal(
+              updateBusinessProfileBody.merchant_country_code
+            );
+          }
+          if (updateBusinessProfileBody.merchant_category_code) {
+            expect(response.body.merchant_category_code).to.equal(
+              updateBusinessProfileBody.merchant_category_code
+            );
+          }
+        } else {
+          throw new Error(
+            `Business Profile Merchant Codes Update Failed: ${response.body.error?.message || response.status}`
+          );
+        }
+      });
+    });
+  }
+);

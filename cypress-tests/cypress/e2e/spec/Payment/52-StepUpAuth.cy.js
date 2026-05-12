@@ -233,25 +233,10 @@ describe("Step-Up Auth payment flow test", () => {
       }
 
       if (shouldContinue) {
-        const apiKey = globalState.get("apiKey");
-        const merchantId = globalState.get("merchantId");
-        const profileId = globalState.get("profileId");
-
-        cy.request({
-          method: "POST",
-          url: `${globalState.get("baseUrl")}/account/${merchantId}/business_profile/${profileId}`,
-          headers: {
-            Accept: "application/json",
-            "Content-Type": "application/json",
-            "api-key": apiKey,
-          },
-          body: fixtures.businessProfile.bpUpdateMerchantCodes,
-          failOnStatusCode: false,
-        }).then((response) => {
-          if (response.status !== 200) {
-            shouldContinue = false;
-          }
-        });
+        cy.updateBusinessProfileMerchantCodesTest(
+          fixtures.businessProfile.bpUpdateMerchantCodes,
+          globalState
+        );
       }
     });
 
@@ -411,6 +396,25 @@ describe("Step-Up Auth payment flow test", () => {
           data,
           globalState
         );
+
+        if (!utils.should_continue_further(data)) {
+          shouldContinue = false;
+        }
+      });
+
+      it("authorize payment after visa frictionless authentication", () => {
+        if (!shouldContinue) {
+          cy.task(
+            "cli_log",
+            "Skipping step: authorize payment after visa frictionless authentication"
+          );
+          return;
+        }
+        const data = getConnectorDetails(globalState.get("connectorId"))[
+          "step_up_auth"
+        ]["AuthorizeAfterFrictionlessAuth"];
+
+        cy.confirmCallTest(fixtures.confirmBody, data, true, globalState);
       });
 
       it("retrieve payment for visa frictionless", () => {
