@@ -83,6 +83,7 @@ pub struct PaymentMethod {
     pub customer_acceptance: Option<pii::SecretSerdeValue>,
     pub status: storage_enums::PaymentMethodStatus,
     pub network_transaction_id: Option<String>,
+    pub network_transaction_link_id: Option<String>,
     pub client_secret: Option<String>,
     pub payment_method_billing_address: OptionalEncryptableValue,
     pub updated_by: Option<String>,
@@ -125,6 +126,7 @@ pub struct PaymentMethod {
     pub customer_acceptance: Option<pii::SecretSerdeValue>,
     pub status: storage_enums::PaymentMethodStatus,
     pub network_transaction_id: Option<String>,
+    pub network_transaction_link_id: Option<String>,
     pub client_secret: Option<String>,
     #[encrypt(ty = Value)]
     pub payment_method_billing_address: Option<Encryptable<Address>>,
@@ -476,6 +478,7 @@ impl super::behaviour::Conversion for PaymentMethod {
             customer_acceptance: self.customer_acceptance,
             status: self.status,
             network_transaction_id: self.network_transaction_id,
+            network_transaction_link_id: self.network_transaction_link_id,
             client_secret: self.client_secret,
             payment_method_billing_address: self
                 .payment_method_billing_address
@@ -642,6 +645,7 @@ impl super::behaviour::Conversion for PaymentMethod {
             customer_acceptance: item.customer_acceptance,
             status: item.status,
             network_transaction_id: item.network_transaction_id,
+            network_transaction_link_id: item.network_transaction_link_id,
             client_secret: item.client_secret,
             payment_method_billing_address,
             updated_by: item.updated_by,
@@ -694,6 +698,7 @@ impl super::behaviour::Conversion for PaymentMethod {
             customer_acceptance: self.customer_acceptance,
             status: self.status,
             network_transaction_id: self.network_transaction_id,
+            network_transaction_link_id: self.network_transaction_link_id,
             client_secret: self.client_secret,
             payment_method_billing_address: self
                 .payment_method_billing_address
@@ -740,6 +745,7 @@ impl super::behaviour::Conversion for PaymentMethod {
             customer_acceptance: self.customer_acceptance,
             status: self.status,
             network_transaction_id: self.network_transaction_id.map(Secret::new),
+            network_transaction_link_id: self.network_transaction_link_id.map(Secret::new),
             client_secret: self.client_secret,
             payment_method_billing_address: self
                 .payment_method_billing_address
@@ -881,6 +887,9 @@ impl super::behaviour::Conversion for PaymentMethod {
                 network_transaction_id: storage_model
                     .network_transaction_id
                     .map(ExposeInterface::expose),
+                network_transaction_link_id: storage_model
+                    .network_transaction_link_id
+                    .map(ExposeInterface::expose),
                 client_secret: storage_model.client_secret,
                 payment_method_billing_address,
                 updated_by: storage_model.updated_by,
@@ -925,6 +934,7 @@ impl super::behaviour::Conversion for PaymentMethod {
             customer_acceptance: self.customer_acceptance,
             status: self.status,
             network_transaction_id: self.network_transaction_id,
+            network_transaction_link_id: self.network_transaction_link_id,
             client_secret: self.client_secret,
             payment_method_billing_address: self
                 .payment_method_billing_address
@@ -1679,6 +1689,7 @@ mod tests {
             customer_acceptance: None,
             status: storage_enums::PaymentMethodStatus::Active,
             network_transaction_id: None,
+            network_transaction_link_id: None,
             client_secret: None,
             payment_method_billing_address: None,
             updated_by: None,

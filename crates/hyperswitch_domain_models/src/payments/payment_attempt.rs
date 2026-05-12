@@ -828,6 +828,7 @@ pub struct PaymentAttempt {
     pub created_by: Option<CreatedBy>,
     pub connector_request_reference_id: Option<String>,
     pub network_transaction_id: Option<String>,
+    pub network_transaction_link_id: Option<String>,
     /// stores the authorized amount in case of partial authorization
     pub authorized_amount: Option<MinorUnit>,
 }
@@ -994,6 +995,7 @@ impl PaymentAttempt {
             created_by: initiator.and_then(|initiator| initiator.to_created_by()),
             connector_request_reference_id: None,
             network_transaction_id: None,
+            network_transaction_link_id: None,
             authorized_amount: None,
         })
     }
@@ -1086,6 +1088,7 @@ impl PaymentAttempt {
             created_by: initiator.and_then(|initiator| initiator.to_created_by()),
             connector_request_reference_id: None,
             network_transaction_id: None,
+            network_transaction_link_id: None,
             authorized_amount: None,
         })
     }
@@ -1185,6 +1188,7 @@ impl PaymentAttempt {
             created_by: initiator.and_then(|initiator| initiator.to_created_by()),
             connector_request_reference_id: None,
             network_transaction_id: None,
+            network_transaction_link_id: None,
             authorized_amount: None,
         })
     }
@@ -1309,6 +1313,7 @@ impl PaymentAttempt {
             created_by: initiator.and_then(|initiator| initiator.to_created_by()),
             connector_request_reference_id,
             network_transaction_id: None,
+            network_transaction_link_id: None,
             authorized_amount: None,
         })
     }
@@ -1413,6 +1418,7 @@ pub struct PaymentAttempt {
     pub connector_request_reference_id: Option<String>,
     pub debit_routing_savings: Option<MinorUnit>,
     pub network_transaction_id: Option<String>,
+    pub network_transaction_link_id: Option<String>,
     pub is_overcapture_enabled: Option<OvercaptureEnabledBool>,
     pub network_details: Option<NetworkDetails>,
     pub is_stored_credential: Option<bool>,
@@ -1907,6 +1913,7 @@ pub enum PaymentAttemptUpdate {
         payment_method_billing_address_id: Option<String>,
         updated_by: String,
         network_transaction_id: Option<String>,
+        network_transaction_link_id: Option<String>,
         shipping_cost: Option<MinorUnit>,
         order_tax_amount: Option<MinorUnit>,
     },
@@ -1961,6 +1968,7 @@ pub enum PaymentAttemptUpdate {
         routing_approach: Option<storage_enums::RoutingApproach>,
         connector_request_reference_id: Option<String>,
         network_transaction_id: Option<String>,
+        network_transaction_link_id: Option<String>,
         is_stored_credential: Option<bool>,
         request_extended_authorization: Option<RequestExtendedAuthorizationBool>,
     },
@@ -1995,6 +2003,7 @@ pub enum PaymentAttemptUpdate {
         connector: Option<String>,
         connector_transaction_id: Option<String>,
         network_transaction_id: Option<String>,
+        network_transaction_link_id: Option<String>,
         authentication_type: Option<storage_enums::AuthenticationType>,
         payment_method_id: Option<String>,
         mandate_id: Option<String>,
@@ -2156,6 +2165,7 @@ impl PaymentAttemptUpdate {
                 capture_method,
                 fingerprint_id,
                 network_transaction_id,
+                network_transaction_link_id,
                 payment_method_billing_address_id,
                 updated_by,
                 order_tax_amount,
@@ -2178,6 +2188,7 @@ impl PaymentAttemptUpdate {
                 fingerprint_id,
                 payment_method_billing_address_id,
                 network_transaction_id,
+                network_transaction_link_id,
                 updated_by,
                 order_tax_amount,
                 shipping_cost,
@@ -2281,6 +2292,7 @@ impl PaymentAttemptUpdate {
                 routing_approach,
                 connector_request_reference_id,
                 network_transaction_id,
+                network_transaction_link_id,
                 is_stored_credential,
                 request_extended_authorization,
             } => DieselPaymentAttemptUpdate::ConfirmUpdate {
@@ -2329,6 +2341,7 @@ impl PaymentAttemptUpdate {
                 }),
                 connector_request_reference_id,
                 network_transaction_id,
+                network_transaction_link_id,
                 is_stored_credential,
                 request_extended_authorization,
             },
@@ -2373,6 +2386,7 @@ impl PaymentAttemptUpdate {
                 charges,
                 setup_future_usage_applied,
                 network_transaction_id,
+                network_transaction_link_id,
                 debit_routing_savings: _,
                 is_overcapture_enabled,
                 authorized_amount,
@@ -2442,6 +2456,7 @@ impl PaymentAttemptUpdate {
                     charges,
                     setup_future_usage_applied,
                     network_transaction_id,
+                    network_transaction_link_id,
                     is_overcapture_enabled,
                     authorized_amount,
                     encrypted_payment_method_data: encrypted_payment_method_data
@@ -2933,6 +2948,7 @@ impl behaviour::Conversion for PaymentAttempt {
             routing_approach: self.routing_approach,
             connector_request_reference_id: self.connector_request_reference_id,
             network_transaction_id: self.network_transaction_id,
+            network_transaction_link_id: self.network_transaction_link_id,
             is_overcapture_enabled: self.is_overcapture_enabled,
             network_details: self.network_details,
             is_stored_credential: self.is_stored_credential,
@@ -3064,6 +3080,7 @@ impl behaviour::Conversion for PaymentAttempt {
                 connector_request_reference_id: storage_model.connector_request_reference_id,
                 debit_routing_savings: None,
                 network_transaction_id: storage_model.network_transaction_id,
+                network_transaction_link_id: storage_model.network_transaction_link_id,
                 is_overcapture_enabled: storage_model.is_overcapture_enabled,
                 network_details: storage_model.network_details,
                 is_stored_credential: storage_model.is_stored_credential,
@@ -3165,6 +3182,7 @@ impl behaviour::Conversion for PaymentAttempt {
             routing_approach: self.routing_approach,
             connector_request_reference_id: self.connector_request_reference_id,
             network_transaction_id: self.network_transaction_id,
+            network_transaction_link_id: self.network_transaction_link_id,
             network_details: self.network_details,
             is_stored_credential: self.is_stored_credential,
             authorized_amount: self.authorized_amount,
@@ -3246,6 +3264,7 @@ impl behaviour::Conversion for PaymentAttempt {
             created_by,
             connector_request_reference_id,
             network_transaction_id,
+            network_transaction_link_id,
             authorized_amount,
         } = self;
 
@@ -3345,6 +3364,7 @@ impl behaviour::Conversion for PaymentAttempt {
             created_by: created_by.map(|created_by| created_by.to_string()),
             connector_request_reference_id,
             network_transaction_id,
+            network_transaction_link_id,
             is_overcapture_enabled: None,
             network_details: None,
             attempts_group_id,
@@ -3482,6 +3502,7 @@ impl behaviour::Conversion for PaymentAttempt {
                     .and_then(|created_by| created_by.parse::<CreatedBy>().ok()),
                 connector_request_reference_id: storage_model.connector_request_reference_id,
                 network_transaction_id: storage_model.network_transaction_id,
+                network_transaction_link_id: network_transaction_link_id,
                 authorized_amount: storage_model.authorized_amount,
             })
         }
@@ -3544,6 +3565,7 @@ impl behaviour::Conversion for PaymentAttempt {
             created_by,
             connector_request_reference_id,
             network_transaction_id,
+            network_transaction_link_id,
             authorized_amount,
         } = self;
 
@@ -3563,6 +3585,7 @@ impl behaviour::Conversion for PaymentAttempt {
             merchant_id,
             status,
             network_transaction_id,
+            network_transaction_link_id,
             error_message: error_details
                 .as_ref()
                 .map(|details| details.message.clone()),

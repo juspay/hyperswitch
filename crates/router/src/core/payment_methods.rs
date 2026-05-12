@@ -4160,6 +4160,7 @@ pub async fn create_pm_additional_data_update(
         locker_fingerprint_id: vault_fingerprint_id,
         external_vault_source,
         network_transaction_id,
+        network_transaction_link_id: None,
         last_modified_by: initiator
             .and_then(|initiator| initiator.to_created_by())
             .map(|last_modified_by| last_modified_by.to_string()),

@@ -1260,6 +1260,7 @@ impl TryFrom<PaymentsResponseRouterData<PaymentsResponse>> for PaymentsAuthorize
             mandate_reference: Box::new(mandate_reference),
             connector_metadata: Some(connector_meta),
             network_txn_id: item.response.scheme_id.clone(),
+            network_txn_link_id: None,
             connector_response_reference_id: Some(
                 item.response.reference.unwrap_or(item.response.id),
             ),
@@ -1376,6 +1377,7 @@ impl
             mandate_reference: Box::new(mandate_reference),
             connector_metadata: Some(connector_meta),
             network_txn_id: item.response.scheme_id.clone(),
+            network_txn_link_id: None,
             connector_response_reference_id: Some(
                 item.response.reference.unwrap_or(item.response.id),
             ),
@@ -1457,6 +1459,7 @@ impl TryFrom<PaymentsSyncResponseRouterData<PaymentsResponse>> for PaymentsSyncR
             mandate_reference: Box::new(mandate_reference),
             connector_metadata: None,
             network_txn_id: item.response.scheme_id.clone(),
+            network_txn_link_id: None,
             connector_response_reference_id: Some(
                 item.response.reference.unwrap_or(item.response.id),
             ),
@@ -1537,6 +1540,7 @@ impl TryFrom<PaymentsCancelResponseRouterData<PaymentVoidResponse>> for Payments
                 mandate_reference: Box::new(None),
                 connector_metadata: None,
                 network_txn_id: item.response.scheme_id.clone(),
+                network_txn_link_id: None,
                 connector_response_reference_id: None,
                 incremental_authorization_allowed: None,
                 authentication_data: None,
@@ -1640,6 +1644,7 @@ impl TryFrom<PaymentsCaptureResponseRouterData<PaymentCaptureResponse>>
                 mandate_reference: Box::new(None),
                 connector_metadata: Some(connector_meta),
                 network_txn_id: item.response.scheme_id.clone(),
+                network_txn_link_id: None,
                 connector_response_reference_id: item.response.reference,
                 incremental_authorization_allowed: None,
                 authentication_data: None,
