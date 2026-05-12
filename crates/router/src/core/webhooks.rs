@@ -1,4 +1,6 @@
 #[cfg(feature = "v1")]
+pub mod gateway;
+#[cfg(feature = "v1")]
 pub mod incoming;
 #[cfg(feature = "v2")]
 mod incoming_v2;
