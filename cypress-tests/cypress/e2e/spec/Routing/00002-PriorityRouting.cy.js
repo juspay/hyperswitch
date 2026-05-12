@@ -6,29 +6,21 @@ let globalState;
 let shouldContinue = true;
 
 describe("Priority Based Routing Test", () => {
-  before("seed global state and list MCA IDs", () => {
-    cy.task("getGlobalState").then((state) => {
-      globalState = new State(state);
-      cy.ListMcaByMid(globalState);
-      cy.then(() => {
-        if (!globalState.get("stripeMcaId") || !globalState.get("adyenMcaId")) {
-          shouldContinue = false;
-        }
+  context("Routing with Stripe as top priority", () => {
+    before("seed global state", () => {
+      cy.task("getGlobalState").then((state) => {
+        globalState = new State(state);
       });
     });
-  });
 
-  beforeEach(function () {
-    if (!shouldContinue) {
-      this.skip();
-    }
-  });
+    afterEach("flush global state", () => {
+      cy.task("setGlobalState", globalState.data);
+    });
 
-  afterEach("flush global state", () => {
-    cy.task("setGlobalState", globalState.data);
-  });
+    it("list-mca-by-mid", () => {
+      cy.ListMcaByMid(globalState);
+    });
 
-  context("Routing with Stripe as top priority", () => {
     it("add-routing-config", () => {
       const data = utils.getConnectorDetails("common")["priorityRouting"];
       const routing_data = [
@@ -88,6 +80,20 @@ describe("Priority Based Routing Test", () => {
   });
 
   context("Routing with adyen as top priority", () => {
+    before("seed global state", () => {
+      cy.task("getGlobalState").then((state) => {
+        globalState = new State(state);
+      });
+    });
+
+    afterEach("flush global state", () => {
+      cy.task("setGlobalState", globalState.data);
+    });
+
+    it("list-mca-by-mid", () => {
+      cy.ListMcaByMid(globalState);
+    });
+
     it("add-routing-config", () => {
       const data = utils.getConnectorDetails("common")["priorityRouting"];
       const routing_data = [
