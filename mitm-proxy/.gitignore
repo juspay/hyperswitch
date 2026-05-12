@@ -1,0 +1,18 @@
+# mitmproxy runtime artifacts
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Cassette recordings (stored in S3 for CI, not committed)
+captures/
+
+# mitmproxy cert store
+.mitmproxy/
+
+# macOS
+.DS_Store
+
+# Environment files
+.env
+.envrc

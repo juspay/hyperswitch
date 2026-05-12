@@ -1,0 +1,172 @@
+"""
+mitmproxy replay addon.
+
+Intercepts connector requests from Hyperswitch and returns the recorded
+cassette response for the propagated `x-request-id` instead of forwarding
+to the real connector.
+
+The admin server is still alive for capture-mode compatibility and useful
+logging, but replay does not depend on the active test — matching is based
+on `x-request-id` alone (plus method+path as a tie-breaker for the rare
+case of multiple connector outbounds sharing one request_id):
+
+  Matching key: (connector, request_id, method, path)
+  Tie-break:    FIFO within that key
+
+Run with:
+  mitmdump -s mitm_replay.py --listen-port 8888
+"""
+
+import base64
+import glob
+import json
+import os
+import threading
+from collections import defaultdict, deque
+from http.server import BaseHTTPRequestHandler, HTTPServer
+
+from mitmproxy import http
+
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+CAPTURE_DIR = os.environ.get("CAPTURE_DIR") or os.path.join(SCRIPT_DIR, "captures")
+ADMIN_PORT = int(os.environ.get("ADMIN_PORT", "8081"))
+
+# Headers mitmproxy manages itself — don't copy from recording
+_SKIP_HEADERS = {"content-length", "transfer-encoding", "connection"}
+
+
+# ───── shared state ─────
+class State:
+    current_test = None
+    lock = threading.Lock()
+
+
+state = State()
+
+# (connector, test, method, path) -> deque[response_dict]
+_cassettes: dict[tuple, deque] = defaultdict(deque)
+
+
+def _load_cassettes():
+    pattern = os.path.join(CAPTURE_DIR, "**", "*.json")
+    files = sorted(glob.glob(pattern, recursive=True))  # sort keeps 000 < 001
+
+    skipped = 0
+    for fpath in files:
+        with open(fpath) as f:
+            record = json.load(f)
+
+        request_id = record.get("request_id", "").strip()
+        if not request_id:
+            skipped += 1
+            continue
+
+        connector = record["connector"]
+        method = record["request"]["method"]
+        path = record["request"]["path"]
+
+        key = (connector, request_id, method, path)
+        _cassettes[key].append(record["response"])
+
+    total = sum(len(v) for v in _cassettes.values())
+    connectors = sorted({k[0] for k in _cassettes})
+    print(f"[replay] Loaded {total} cassettes from {CAPTURE_DIR}/")
+    print(f"[replay] Connectors : {connectors}")
+    if skipped:
+        print(f"[replay] Skipped {skipped} cassettes with no request_id "
+              f"(re-record with use_incoming trace_header and Cypress wrapper)")
+
+
+# ───── admin server ─────
+class AdminHandler(BaseHTTPRequestHandler):
+    def _send(self, code, body):
+        self.send_response(code)
+        self.send_header("Content-Type", "application/json")
+        self.end_headers()
+        self.wfile.write(json.dumps(body).encode())
+
+    def do_POST(self):
+        length = int(self.headers.get("Content-Length", 0))
+        raw = self.rfile.read(length).decode() if length else "{}"
+        try:
+            body = json.loads(raw)
+        except json.JSONDecodeError:
+            body = {}
+
+        with state.lock:
+            if self.path == "/test/start":
+                state.current_test = body.get("test", "unknown")
+                print(f"[replay] ▶ {state.current_test}")
+                self._send(200, {"ok": True})
+            elif self.path == "/test/end":
+                state.current_test = None
+                self._send(200, {"ok": True})
+            else:
+                self._send(404, {"error": "unknown path"})
+
+    def log_message(self, fmt, *args):
+        return  # silence per-request logs
+
+
+def _start_admin_server():
+    server = HTTPServer(("127.0.0.1", ADMIN_PORT), AdminHandler)
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+    print(f"[replay] admin server  http://127.0.0.1:{ADMIN_PORT}")
+
+
+# ───── mitmproxy hook ─────
+def request(flow: http.HTTPFlow):
+    connector = flow.request.headers.get("x-connector", "").strip()
+    if not connector:
+        return  # not a connector call — pass through
+
+    request_id = flow.request.headers.get("x-request-id", "").strip()
+    method = flow.request.method
+    path = flow.request.path.split("?", 1)[0]
+
+    if not request_id:
+        print(f"[replay] WARN  no x-request-id  [{connector}] {method} {path} — going LIVE")
+        flow.request.headers["X-Cassette"] = "LIVE-no-request-id"
+        return
+
+    key = (connector, request_id, method, path)
+
+    with state.lock:
+        queue = _cassettes.get(key)
+        recorded = queue.popleft() if queue else None
+
+    if recorded is None:
+        print(f"[replay] MISS  [{connector}] {method} {path} (rid={request_id}) — going LIVE")
+        flow.request.headers["X-Cassette"] = "LIVE-no-cassette"
+        return
+
+    # Reconstruct response body
+    body = recorded.get("body")
+    encoding = recorded.get("body_encoding")
+
+    if encoding == "json":
+        body_bytes = json.dumps(body, separators=(",", ":")).encode("utf-8")
+    elif encoding == "base64":
+        body_bytes = base64.b64decode(body)
+    else:
+        body_bytes = (body or "").encode("utf-8")
+
+    # Copy headers, skip ones mitmproxy controls
+    headers = {
+        k: v
+        for k, v in recorded.get("headers", {}).items()
+        if k.lower() not in _SKIP_HEADERS
+    }
+    headers["X-Cassette"] = "HIT"
+
+    flow.response = http.Response.make(
+        recorded["status"],
+        body_bytes,
+        headers,
+    )
+
+    print(f"[replay] HIT   [{connector}] {method} {path} (rid={request_id}) → {recorded['status']}")
+
+
+_load_cassettes()
+_start_admin_server()
