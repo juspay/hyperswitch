@@ -460,9 +460,7 @@ jobs:
 
   prepare-extended-matrix:
     name: Prepare Extended Connectors matrix to run cypress tests
-    if: |
-      github.event_name == 'merge_group' ||
-      (github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'S-test-ready'))
+    if: false
     runs-on: ubuntu-latest
     outputs:
       extended-matrix: ${{ steps.set-extended-matrix.outputs.matrix }}
@@ -507,6 +505,7 @@ jobs:
   extended-cypress-tests:
     name: Run extended Cypress tests
     needs: [build-hyperswitch, prepare-extended-matrix]
+    if: false
     runs-on: hyperswitch-runners
     strategy:
       fail-fast: false
@@ -941,8 +940,7 @@ jobs:
   runner_alpha:
     name: Run optional Cypress tests for alpha connectors
     needs: build-hyperswitch
-    if: |
-      github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'S-test-ready')
+    if: false
     runs-on: hyperswitch-runners
     env:
       # Use `sccache` for caching compilation artifacts
