@@ -753,7 +753,7 @@ pub enum AdditionalPaymentMethodConnectorResponse {
         debitor_email: Option<Secret<String>>,
     },
     Paypal {
-        payer_id: Option<String>,
+        paypal_id: Option<Secret<String>>,
     },
 }
 #[derive(Debug, Clone, Serialize, Deserialize)]

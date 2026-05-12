@@ -471,5 +471,5 @@ pub struct PaypalAdditionalData {
     /// PayPal payer identifier
     #[schema(value_type = Option<String>, example = "2J6QB8YJQSJRJ")]
     #[smithy(value_type = "Option<String>")]
-    pub payer_id: Option<String>,
+    pub paypal_id: Option<Secret<String>>,
 }

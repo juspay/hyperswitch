@@ -2225,7 +2225,7 @@ pub struct PaypalOrdersResponse {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Payer {
-    payer_id: Option<String>,
+    payer_id: Option<Secret<String>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -2499,13 +2499,13 @@ where
             }),
             connector_response: match item.response.payment_source.clone() {
                 Some(PaymentSourceItemResponse::Paypal(_)) => {
-                    let payer_id = item
+                    let paypal_id = item
                         .response
                         .payer
                         .as_ref()
                         .and_then(|p| p.payer_id.clone());
                     Some(ConnectorResponseData::with_additional_payment_method_data(
-                        AdditionalPaymentMethodConnectorResponse::Paypal { payer_id },
+                        AdditionalPaymentMethodConnectorResponse::Paypal { paypal_id },
                     ))
                 }
                 _ => None,

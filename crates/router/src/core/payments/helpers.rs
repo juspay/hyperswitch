@@ -8041,13 +8041,13 @@ pub fn add_connector_response_to_additional_payment_data(
                 samsung_pay: None,
                 paypal: _,
             },
-            AdditionalPaymentMethodConnectorResponse::Paypal { payer_id },
+            AdditionalPaymentMethodConnectorResponse::Paypal { paypal_id },
         ) => api_models::payments::AdditionalPaymentData::Wallet {
             apple_pay: None,
             google_pay: None,
             samsung_pay: None,
             paypal: Some(Box::new(
-                api_models::payments::additional_info::PaypalAdditionalData { payer_id },
+                api_models::payments::additional_info::PaypalAdditionalData { paypal_id },
             )),
         },
         #[cfg(feature = "v2")]
