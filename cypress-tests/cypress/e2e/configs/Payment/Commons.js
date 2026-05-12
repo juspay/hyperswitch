@@ -1103,6 +1103,24 @@ export const connectorDetails = {
         TRIGGER_SKIP: true,
       },
     }),
+    PayPal: getCustomExchange({
+      Request: {
+        payment_method: "wallet",
+        payment_method_type: "paypal",
+        billing: standardBillingAddress,
+        payment_method_data: {
+          wallet: {
+            paypal_redirect: {},
+          },
+        },
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+    }),
   },
   pay_later_pm: {
     PaymentIntent: (paymentMethodType) =>
