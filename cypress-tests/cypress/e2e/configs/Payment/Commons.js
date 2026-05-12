@@ -3397,7 +3397,9 @@ export const connectorDetails = {
       Request: {},
       Response: {
         status: 200,
-        body: {},
+        body: {
+          status: "succeeded",
+        },
       },
     }),
   },

@@ -1477,23 +1477,39 @@ Cypress.Commands.add(
 
       cy.wrap(response).then(() => {
         if (response.status === 200) {
-          if (resData && resData.body) {
-            for (const key in resData.body) {
-              if (
-                typeof resData.body[key] === "object" &&
-                resData.body[key] !== null
-              ) {
-                expect(
-                  response.body[key],
-                  `Expected ${key} to deep equal`
-                ).to.deep.eq(resData.body[key]);
-              } else {
-                expect(resData.body[key]).to.equal(
-                  response.body[key],
-                  `Expected ${resData.body[key]} but got ${response.body[key]}`
-                );
+          if (
+            resData &&
+            resData.body &&
+            Object.keys(resData.body).length > 0
+          ) {
+            const paymentId = globalState.get("paymentID");
+            cy.request({
+              method: "GET",
+              url: `${globalState.get("baseUrl")}/payments/${paymentId}?force_sync=true`,
+              headers: {
+                "Content-Type": "application/json",
+                "api-key": globalState.get("apiKey"),
+              },
+              failOnStatusCode: false,
+            }).then((retrieveResponse) => {
+              logRequestId(retrieveResponse.headers["x-request-id"]);
+              for (const key in resData.body) {
+                if (
+                  typeof resData.body[key] === "object" &&
+                  resData.body[key] !== null
+                ) {
+                  expect(
+                    retrieveResponse.body[key],
+                    `Expected ${key} to deep equal`
+                  ).to.deep.eq(resData.body[key]);
+                } else {
+                  expect(resData.body[key]).to.equal(
+                    retrieveResponse.body[key],
+                    `Expected ${resData.body[key]} but got ${retrieveResponse.body[key]}`
+                  );
+                }
               }
-            }
+            });
           }
         } else {
           defaultErrorHandler(response, resData);
