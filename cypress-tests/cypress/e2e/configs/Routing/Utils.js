@@ -42,7 +42,7 @@ export const should_continue_further = (data) => {
 
 export const CONNECTOR_LISTS = {
   INCLUDE: {
-    PAYOUT_ROUTING: ["adyen", "stripe", "wise"],
+    PAYOUT_ROUTING: ["adyen", "wise"],
   },
 };
 
