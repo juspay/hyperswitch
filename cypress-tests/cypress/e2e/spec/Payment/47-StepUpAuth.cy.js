@@ -414,7 +414,7 @@ describe("Step-Up Auth payment flow test", () => {
           "step_up_auth"
         ]["AuthorizeAfterFrictionlessAuth"];
 
-        cy.confirmCallTest(fixtures.confirmBody, data, true, globalState);
+        cy.authorizeViaThreeDsAuthorizeUrlTest(data, globalState);
       });
 
       it("retrieve payment for visa frictionless", () => {

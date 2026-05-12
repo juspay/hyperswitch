@@ -1337,9 +1337,7 @@ export const connectorDetails = {
       Request: {},
       Response: {
         status: 200,
-        body: {
-          status: "succeeded",
-        },
+        body: {},
       },
     }),
   },

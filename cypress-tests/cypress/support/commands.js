@@ -1452,6 +1452,58 @@ Cypress.Commands.add(
 );
 
 Cypress.Commands.add(
+  "authorizeViaThreeDsAuthorizeUrlTest",
+  (data, globalState) => {
+    const { Response: resData } = data || {};
+    const threeDsData = globalState.get("threeDsData");
+    const authorizeUrl = threeDsData?.three_ds_authorize_url;
+
+    if (!authorizeUrl) {
+      throw new Error(
+        "three_ds_authorize_url not found in globalState. Ensure the confirm call returned next_action.three_ds_data."
+      );
+    }
+
+    cy.request({
+      method: "POST",
+      url: authorizeUrl,
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+      },
+      body: {},
+      failOnStatusCode: false,
+    }).then((response) => {
+      logRequestId(response.headers["x-request-id"]);
+
+      cy.wrap(response).then(() => {
+        if (response.status === 200) {
+          if (resData && resData.body) {
+            for (const key in resData.body) {
+              if (
+                typeof resData.body[key] === "object" &&
+                resData.body[key] !== null
+              ) {
+                expect(
+                  response.body[key],
+                  `Expected ${key} to deep equal`
+                ).to.deep.eq(resData.body[key]);
+              } else {
+                expect(resData.body[key]).to.equal(
+                  response.body[key],
+                  `Expected ${resData.body[key]} but got ${response.body[key]}`
+                );
+              }
+            }
+          }
+        } else {
+          defaultErrorHandler(response, resData);
+        }
+      });
+    });
+  }
+);
+
+Cypress.Commands.add(
   "createPayoutConnectorCallTest",
   (connectorType, createConnectorBody, globalState) => {
     const merchantId = globalState.get("merchantId");
