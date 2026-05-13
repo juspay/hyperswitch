@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use api_models::{
-    admin::{PaymentMethodsEnabled},
+    admin::PaymentMethodsEnabled,
     enums::{self as api_enums, Connector},
     payment_methods::RequestPaymentMethodTypes,
     superposition_sdk_config::{
@@ -19,7 +19,6 @@ use crate::{
     routes::SessionState,
     types::domain,
 };
-
 
 /// Type alias for required fields grouped by payment method type.
 type RequiredFieldsByPmType = HashMap<
