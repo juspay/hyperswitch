@@ -86,6 +86,7 @@ pub mod nuvei;
 pub mod opayo;
 pub mod opennode;
 pub mod paybox;
+pub mod paydunya;
 pub mod payeezy;
 pub mod payjustnow;
 pub mod payjustnowinstore;
@@ -169,17 +170,17 @@ pub use self::{
     klarna::Klarna, loonio::Loonio, mifinity::Mifinity, mollie::Mollie, moneris::Moneris,
     mpgs::Mpgs, multisafepay::Multisafepay, netcetera::Netcetera, nexinets::Nexinets,
     nexixpay::Nexixpay, nmi::Nmi, nomupay::Nomupay, noon::Noon, nordea::Nordea, novalnet::Novalnet,
-    nuvei::Nuvei, opayo::Opayo, opennode::Opennode, paybox::Paybox, payeezy::Payeezy,
-    payjustnow::Payjustnow, payjustnowinstore::Payjustnowinstore, payload::Payload, payme::Payme,
-    payone::Payone, paypal::Paypal, paysafe::Paysafe, paystack::Paystack, paytm::Paytm, payu::Payu,
-    peachpayments::Peachpayments, phonepe::Phonepe, placetopay::Placetopay, plaid::Plaid,
-    powertranz::Powertranz, prophetpay::Prophetpay, rapyd::Rapyd, razorpay::Razorpay,
-    recurly::Recurly, redsys::Redsys, revolv3::Revolv3, riskified::Riskified, sanlam::Sanlam,
-    santander::Santander, shift4::Shift4, sift::Sift, signifyd::Signifyd, silverflow::Silverflow,
-    square::Square, stax::Stax, stripe::Stripe, stripebilling::Stripebilling, taxjar::Taxjar,
-    tesouro::Tesouro, threedsecureio::Threedsecureio, thunes::Thunes, tokenex::Tokenex,
-    tokenio::Tokenio, truelayer::Truelayer, trustly::Trustly, trustpay::Trustpay,
-    trustpayments::Trustpayments, tsys::Tsys,
+    nuvei::Nuvei, opayo::Opayo, opennode::Opennode, paybox::Paybox, paydunya::Paydunya,
+    payeezy::Payeezy, payjustnow::Payjustnow, payjustnowinstore::Payjustnowinstore,
+    payload::Payload, payme::Payme, payone::Payone, paypal::Paypal, paysafe::Paysafe,
+    paystack::Paystack, paytm::Paytm, payu::Payu, peachpayments::Peachpayments, phonepe::Phonepe,
+    placetopay::Placetopay, plaid::Plaid, powertranz::Powertranz, prophetpay::Prophetpay,
+    rapyd::Rapyd, razorpay::Razorpay, recurly::Recurly, redsys::Redsys, revolv3::Revolv3,
+    riskified::Riskified, sanlam::Sanlam, santander::Santander, shift4::Shift4, sift::Sift,
+    signifyd::Signifyd, silverflow::Silverflow, square::Square, stax::Stax, stripe::Stripe,
+    stripebilling::Stripebilling, taxjar::Taxjar, tesouro::Tesouro, threedsecureio::Threedsecureio,
+    thunes::Thunes, tokenex::Tokenex, tokenio::Tokenio, truelayer::Truelayer, trustly::Trustly,
+    trustpay::Trustpay, trustpayments::Trustpayments, tsys::Tsys,
     unified_authentication_service::UnifiedAuthenticationService, vgs::Vgs, volt::Volt,
     wellsfargo::Wellsfargo, wellsfargopayout::Wellsfargopayout, wise::Wise, worldline::Worldline,
     worldpay::Worldpay, worldpaymodular::Worldpaymodular, worldpayvantiv::Worldpayvantiv,

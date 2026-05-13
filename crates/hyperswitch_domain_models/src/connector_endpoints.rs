@@ -101,6 +101,7 @@ pub struct Connectors {
     pub opayo: ConnectorParams,
     pub opennode: ConnectorParams,
     pub paybox: ConnectorParamsWithSecondaryBaseUrl,
+    pub paydunya: ConnectorParams,
     pub payeezy: ConnectorParams,
     pub payjustnow: ConnectorParams,
     pub payjustnowinstore: ConnectorParams,

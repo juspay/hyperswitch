@@ -340,6 +340,7 @@ pub struct ConnectorConfig {
     pub nuvei_payout: Option<ConnectorTomlConfig>,
     pub nuvei: Option<ConnectorTomlConfig>,
     pub paybox: Option<ConnectorTomlConfig>,
+    pub paydunya: Option<ConnectorTomlConfig>,
     pub payload: Option<ConnectorTomlConfig>,
     pub payme: Option<ConnectorTomlConfig>,
     #[cfg(feature = "payouts")]
