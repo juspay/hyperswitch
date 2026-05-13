@@ -1568,4 +1568,4 @@ use_legacy_locker = false
 
 [micro_services.authentication_service]
 base_url = "http://localhost:8080"
-api_key = "dev_vpjKXGpeup0tQsPgm3OLEYtAddexjg2OxcLiWcfJScJ7fSHM7wbGFYm8AzHFRtzd"
+api_key = "api-key"
