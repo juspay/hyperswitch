@@ -379,6 +379,14 @@ describe("Config Tests", () => {
 
   // Connector-agnostic: webhook headers are Business Profile config, not connector-specific
   context("Outgoing Webhook Custom HTTP Headers", () => {
+    let shouldContinue = true;
+
+    beforeEach(function () {
+      if (!shouldContinue) {
+        this.skip();
+      }
+    });
+
     it("Create Business Profile", () => {
       cy.createBusinessProfileTest(
         fixtures.businessProfile.bpCreate,
@@ -402,7 +410,7 @@ describe("Config Tests", () => {
 
     it("Update business profile with new custom webhook headers and verify updated masked response", () => {
       const previousHeaderKeys = Object.keys(
-        globalState.get("lastResponseHeaders")
+        globalState.get("lastResponseHeaders") ?? {}
       );
       const webhookHeadersBody = {
         outgoing_webhook_custom_http_headers: {
