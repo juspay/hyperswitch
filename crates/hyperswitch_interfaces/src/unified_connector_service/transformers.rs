@@ -613,28 +613,6 @@ pub fn convert_connector_service_status_code(
     })
 }
 
-/// Determines if a UCS response represents a connector error or UCS validation error.
-/// Returns Some(UnifiedConnectorServiceError) if it's a connector error that should
-/// bypass normal ErrorResponse handling, None otherwise.
-pub fn resolve_ucs_connector_error(
-    status_code: u16,
-    error_code: String,
-    error_message: String,
-    error_reason: Option<String>,
-) -> Option<UnifiedConnectorServiceError> {
-    // Connector errors have status codes in the 4xx or 5xx range
-    if (400..600).contains(&status_code) {
-        Some(UnifiedConnectorServiceError::ConnectorError {
-            code: error_code,
-            message: error_message,
-            status_code,
-            reason: error_reason,
-        })
-    } else {
-        None
-    }
-}
-
 // Bank Debit Reverse Transformations: Proto -> Hyperswitch
 
 impl ForeignTryFrom<payments_grpc::Ach>
