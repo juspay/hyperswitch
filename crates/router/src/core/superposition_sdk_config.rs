@@ -171,7 +171,7 @@ fn convert_to_response(grouped_data: GroupedPaymentMethods) -> DynamicFields {
                 .map(
                     |(payment_method_type, fields_map)| PaymentMethodTypeWithFields {
                         payment_method_type,
-                        required_fields: vec![fields_map],
+                        required_fields: fields_map,
                     },
                 )
                 .collect(),
@@ -245,9 +245,9 @@ pub async fn get_superposition_sdk_config(
             Some(dimension_filter.clone()),
         )
         .await
-        .map_err(|e| {
-            router_env::logger::warn!(error=%e, "Failed to fetch cached superposition config");
-            e
+        .map_err(|err| {
+            router_env::logger::warn!(error=%err, "Failed to fetch cached superposition config");
+            err
         })
         .ok();
 

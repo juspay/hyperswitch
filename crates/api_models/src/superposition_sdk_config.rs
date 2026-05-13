@@ -30,5 +30,5 @@ pub struct PaymentMethodGroup {
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct PaymentMethodTypeWithFields {
     pub payment_method_type: api_enums::PaymentMethodType,
-    pub required_fields: Vec<HashMap<String, crate::payment_methods::RequiredFieldInfo>>,
+    pub required_fields: HashMap<String, crate::payment_methods::RequiredFieldInfo>,
 }
