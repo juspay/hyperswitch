@@ -3,6 +3,11 @@ use reqwest::multipart::Form;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
+/// Default XML version
+pub const DEFAULT_XML_VERSION: &str = "1.0";
+/// Default XML encoding
+pub const DEFAULT_XML_ENCODING: &str = "UTF-8";
+
 /// Configuration for XML serialization
 #[derive(Debug, Clone)]
 pub struct XmlConfig {
@@ -19,8 +24,8 @@ pub struct XmlConfig {
 impl Default for XmlConfig {
     fn default() -> Self {
         Self {
-            xml_version: "1.0".to_string(),
-            xml_encoding: Some("UTF-8".to_string()),
+            xml_version: DEFAULT_XML_VERSION.to_string(),
+            xml_encoding: Some(DEFAULT_XML_ENCODING.to_string()),
             xml_standalone: None,
             xml_doc_type: None,
         }
