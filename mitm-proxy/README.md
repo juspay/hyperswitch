@@ -320,73 +320,91 @@ shouldn't have.
 
 ## What's been validated so far (Stripe)
 
-All 18 Payment specs (`00-CoreFlows` through `17-BankTransfers`) —
-**153 tests passing** in replay mode with **174 HIT / 0 MISS / 0 LIVE**
-after the manual curation steps below.
+Full Payment-spec suite (`00-CoreFlows` through `19-Wallet` plus
+`44-ExternalThreeDS`) — **172 tests, 168 passing, 4 pending** (4 are
+Stripe-unsupported wallets that skip themselves) in replay mode with
+**182 HIT / 0 MISS / 0 LIVE** after the manual curation steps below.
 
-Replay timing: **1:40** vs **6:00** capture (~3.6× speedup, with zero
+Replay timing: **1:41** vs **6:36** capture (~4× speedup, with zero
 live Stripe traffic).
 
 ### Manual curation currently required
 
-After running `normalize_captures.py` (which auto-quarantines the obvious
-server-UUID noise), three small manual steps are needed for the full
-Payment-spec suite to replay cleanly. All three are deterministic — same
-fixes apply per recapture.
+After `normalize_captures.py` auto-quarantines the obvious server-UUID
+noise, there are two more mechanical-but-manual steps needed for the
+full Payment-spec suite to replay cleanly.
 
-**1. Quarantine spec 16's orphan confirm cassette.** Caused by Cypress's
-beforeEach refire on `cy.visit`. Two cassettes end up under the same rid;
-keep the later one, quarantine the earlier:
+Two kinds of operation, applied per test:
+
+#### A. Orphan-quarantine (move earlier-of-duplicate to quarantine)
+
+Some rid folders end up with multiple cassettes — Cypress's `beforeEach`
+refires on `cy.visit`, the same test re-runs partially, and HS creates a
+fresh Stripe PI each time. Subsequent cassettes (retrieves, captures,
+refunds) reference the **latest** PI. FIFO would serve the earliest, so
+HS state would diverge — fix is to quarantine all but the latest in each
+duplicate group:
 
 ```
-mitm-proxy/captures/stripe/Card_-_ThreeDS_Manual_..._Full_Capture_payme/9002d8cd-003/
-├── 000.json   ← earlier captured_at — orphan, quarantine
-└── 001.json   ← later — keep (the post-3DS retrieve cassette references its response.id)
+mitm-proxy/captures/stripe/<test>/<rid>/
+├── 000.json   ← earlier captured_at — orphan, move to captures_quarantine
+└── 001.json   ← latest — keep
 ```
 
-**2 & 3. Relocate the quarantined server-UUID cassette for each 3DS-refund test.**
-During capture, the post-3DS sync was triggered by the browser's ACS
-callback and so was recorded under a server-minted UUID. In replay our
-webhook bypass skips the browser, but HS still does a force_sync on the
-subsequent retrieve step. That retrieve fires under Cypress's deterministic
-`-003` rid, which has no cassette → MISS → LIVE.
+#### B. Server-UUID-relocate (move quarantined cassette back to the right rid)
 
-Fix: take each server-UUID cassette out of `captures_quarantine/`, move
-it back under the captures tree at `<test>/<expected-rid>/000.json`, and
-update its `request_id` field to match the folder name. Example one-liner:
+The post-redirect connector sync (for 3DS-refund and bank-redirect flows)
+is triggered by the browser's ACS callback in capture, so it gets a
+server-UUID rid. In replay, our bypass triggers the same HS endpoint
+with a Cypress-deterministic rid. The cassette content is right but
+the key is wrong. We move the cassette out of quarantine back into
+the captures tree at the expected rid, and update its `request_id`
+JSON field to match.
+
+One-liner pattern:
 
 ```bash
-jq --arg rid "a310a589-003" '.request_id = $rid' \
-  captures_quarantine/.../<server-uuid>/000.json \
-  > captures/.../a310a589-003/000.json
-rm captures_quarantine/.../<server-uuid>/000.json
+jq --arg rid "TARGET-RID" '.request_id = $rid' \
+  captures_quarantine/stripe/<test>/<server-uuid>/000.json \
+  > captures/stripe/<test>/TARGET-RID/000.json
+rm captures_quarantine/stripe/<test>/<server-uuid>/000.json
 ```
 
-The two tests + target rids are:
+### Specific manual curation for the validated Stripe Payment suite
 
-| Test folder | Target rid |
+Confirmed working set (re-apply after each recapture):
+
+**Relocations** (move quarantined server-UUID cassette → captures at given rid):
+
+| Test folder prefix | Target rid |
 |---|---|
-| `Refund_flow_-_3DS_Fully_Refund_Card-ThreeDS_..._Create_Conf` | `a310a589-003` |
-| `Refund_flow_-_3DS_Partially_Refund_Card-ThreeDS_..._Create_` | `3787a59a-003` |
+| `Card_-_Refund_flow_-_3DS_Fully_Refund_Card-ThreeDS_..._Create_Conf` | `a310a589-003` |
+| `Card_-_Refund_flow_-_3DS_Partially_Refund_Card-ThreeDS_..._Create_` | `3787a59a-003` |
+| `Bank_Redirect_tests_EPS_Create_and_Confirm_flow_test_..._Lis` | `94eb78f0-004` |
+| `Bank_Redirect_tests_iDEAL_Create_and_Confirm_flow_test_..._L` | `bc1e7453-004` |
+| `Bank_Redirect_tests_Przelewy24_Create_and_Confirm_flow_test_..._Inten` | `ced8176a-004` |
 
-(The `a310a589` / `3787a59a` hashes are stable across runs since
-they're `djb2(testTitle)`. The pi inside each cassette will vary per
-capture, but that doesn't matter — HS uses whatever it gets back.)
+**Orphan quarantines** (move earlier cassette to quarantine):
+
+| Test folder prefix | rid | Files to quarantine |
+|---|---|---|
+| `Card_-_ThreeDS_Manual_..._Full_Capture_payme` | `9002d8cd-003` | `000.json` |
+| `Card_-_Refund_flow_-_3DS_Partially_Refund_..._Create_` | `3787a59a-001` | `000.json` |
+| `Bank_Redirect_tests_EPS_..._Lis` | `94eb78f0-003` | `001.json`, `002.json` |
+| `Bank_Redirect_tests_Przelewy24_..._Inten` | `ced8176a-003` | `000.json` |
 
 ### How we identified these
 
-For spec 16's orphan: look at any rid folder with more than 1 cassette;
-the one whose `response.body.id` does NOT appear in any later cassette's
-`request.path` is the orphan.
+For orphans: look at any rid folder with more than 1 cassette. Check the
+`response.body.id` of each. The cassette whose id does NOT appear in any
+*later* cassette's `request.path` is the orphan — quarantine it.
 
-For the 3DS-refund relocations: when replay logs a `MISS` for a GET
-with a deterministic rid, find the matching server-UUID cassette in
-quarantine (same `request.path` shape, response_id matches what
-appears in the recorded POST cassette of the same test) and relocate.
+For relocations: when replay logs a `MISS` for a GET with a deterministic
+rid, find the matching server-UUID cassette in `captures_quarantine/`
+(same `request.path` shape) and relocate.
 
-These are mechanical enough that future automation is plausible — a
-smarter `normalize_captures.py` could detect them — but for the pilot
-the manual fix is small and explicit.
+These are mechanical enough that future automation could do them, but
+for the pilot the manual fix is explicit and traceable.
 
 ## What's NOT yet validated (known unknowns)
 
