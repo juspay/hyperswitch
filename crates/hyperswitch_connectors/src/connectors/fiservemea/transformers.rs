@@ -329,12 +329,6 @@ fn map_status(
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct PaymentToken {
-    pub reusable: Option<bool>,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
 pub struct FiservemeaPaymentsResponse {
     response_type: Option<ResponseType>,
     #[serde(rename = "type")]
@@ -360,7 +354,6 @@ pub struct FiservemeaPaymentsResponse {
     transaction_state: Option<String>,
     scheme_transaction_id: Option<String>,
     processor: Option<Processor>,
-    payment_token: Option<PaymentToken>,
 }
 
 impl<F, T> TryFrom<ResponseRouterData<F, FiservemeaPaymentsResponse, T, PaymentsResponseData>>
@@ -380,11 +373,9 @@ impl<F, T> TryFrom<ResponseRouterData<F, FiservemeaPaymentsResponse, T, Payments
                 resource_id: ResponseId::ConnectorTransactionId(item.response.ipg_transaction_id),
                 redirection_data: Box::new(None),
                 mandate_reference: Box::new(None),
-                connector_metadata: item.response.payment_token.as_ref().map(|pt| {
-                    serde_json::json!({"token_reusable": pt.reusable.map(|v| v.to_string()).unwrap_or_default()})
-                }),
-                network_txn_id: item.response.api_trace_id,
-                connector_response_reference_id: item.response.client_request_id.or(item.response.order_id),
+                connector_metadata: None,
+                network_txn_id: item.response.scheme_transaction_id,
+                connector_response_reference_id: item.response.order_id.or(item.response.client_request_id),
                 incremental_authorization_allowed: None,
                 authentication_data: None,
                 charges: None,
