@@ -375,7 +375,10 @@ impl<F, T> TryFrom<ResponseRouterData<F, FiservemeaPaymentsResponse, T, Payments
                 mandate_reference: Box::new(None),
                 connector_metadata: None,
                 network_txn_id: item.response.scheme_transaction_id,
-                connector_response_reference_id: item.response.order_id.or(item.response.client_request_id),
+                connector_response_reference_id: item
+                    .response
+                    .order_id
+                    .or(item.response.client_request_id),
                 incremental_authorization_allowed: None,
                 authentication_data: None,
                 charges: None,
