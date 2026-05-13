@@ -927,6 +927,17 @@ pub fn get_split_refunds(
                         Ok(None)
                     }
                 }
+                // If charges data is unavailable, pass through merchant-provided split refund data without validation
+                (
+                    None,
+                    Some(common_types::refunds::SplitRefund::XenditSplitRefund(
+                        split_refund_request,
+                    )),
+                ) => Ok(Some(
+                    router_request_types::SplitRefundsRequest::XenditSplitRefund(
+                        split_refund_request.clone(),
+                    ),
+                )),
                 _ => Ok(None),
             }
         }
@@ -1032,6 +1043,164 @@ mod tests {
             Object::new("p5"),
         ];
         assert_eq!(filtered_list, expected_result);
+    }
+
+    // ─── Tests for get_split_refunds – Xendit pass-through fix (issue #11485) ───
+
+    #[test]
+    fn test_xendit_split_refund_passthrough_when_charges_unavailable() {
+        // Scenario: payment_charges is None (e.g. async-capture / webhook delay)
+        // but the merchant provided split_refunds.xendit_split_refund in the
+        // refund request.
+        // Expected: for_user_id is forwarded – NOT silently dropped.
+        let for_user_id = "sub_merchant_abc123".to_string();
+        let input = refunds_transformers::SplitRefundInput {
+            refund_request: Some(common_types::refunds::SplitRefund::XenditSplitRefund(
+                common_types::domain::XenditSplitSubMerchantData {
+                    for_user_id: for_user_id.clone(),
+                },
+            )),
+            payment_charges: None,
+            split_payment_request: Some(
+                common_types::payments::SplitPaymentsRequest::XenditSplitPayment(
+                    common_types::payments::XenditSplitRequest::SingleSplit(
+                        common_types::domain::XenditSplitSubMerchantData {
+                            for_user_id: for_user_id.clone(),
+                        },
+                    ),
+                ),
+            ),
+            charge_id: None,
+        };
+
+        let result = get_split_refunds(input);
+
+        assert!(result.is_ok(), "Expected Ok result but got: {:?}", result);
+        let split_refund = result.unwrap();
+        assert!(
+            split_refund.is_some(),
+            "Expected Some(XenditSplitRefund) but got None – merchant split data was dropped!"
+        );
+        if let Some(router_request_types::SplitRefundsRequest::XenditSplitRefund(data)) =
+            split_refund
+        {
+            assert_eq!(data.for_user_id, for_user_id);
+        } else {
+            panic!("Expected XenditSplitRefund variant");
+        }
+    }
+
+    #[test]
+    fn test_xendit_split_refund_returns_none_when_no_refund_data_and_charges_unavailable() {
+        // Scenario: payment_charges is None AND merchant did not provide
+        // split_refunds – nothing to forward.
+        // Expected: Ok(None).
+        let input = refunds_transformers::SplitRefundInput {
+            refund_request: None,
+            payment_charges: None,
+            split_payment_request: Some(
+                common_types::payments::SplitPaymentsRequest::XenditSplitPayment(
+                    common_types::payments::XenditSplitRequest::SingleSplit(
+                        common_types::domain::XenditSplitSubMerchantData {
+                            for_user_id: "sub_merchant_abc123".to_string(),
+                        },
+                    ),
+                ),
+            ),
+            charge_id: None,
+        };
+
+        let result = get_split_refunds(input);
+
+        assert!(result.is_ok());
+        assert!(
+            result.unwrap().is_none(),
+            "Expected None when no refund split data is provided"
+        );
+    }
+
+    #[test]
+    fn test_xendit_split_refund_errors_when_charges_present_but_no_refund_request() {
+        // Scenario: the original payment had a split (for_user_id recorded in
+        // charges), but the merchant forgot to provide split_refunds.
+        // Expected: error – refund MUST carry for_user_id when payment was split.
+        let for_user_id = "sub_merchant_abc123".to_string();
+        let input = refunds_transformers::SplitRefundInput {
+            refund_request: None,
+            payment_charges: Some(
+                common_types::payments::ConnectorChargeResponseData::XenditSplitPayment(
+                    common_types::payments::XenditChargeResponseData::SingleSplit(
+                        common_types::domain::XenditSplitSubMerchantData {
+                            for_user_id: for_user_id.clone(),
+                        },
+                    ),
+                ),
+            ),
+            split_payment_request: Some(
+                common_types::payments::SplitPaymentsRequest::XenditSplitPayment(
+                    common_types::payments::XenditSplitRequest::SingleSplit(
+                        common_types::domain::XenditSplitSubMerchantData {
+                            for_user_id: for_user_id.clone(),
+                        },
+                    ),
+                ),
+            ),
+            charge_id: None,
+        };
+
+        let result = get_split_refunds(input);
+
+        assert!(
+            result.is_err(),
+            "Expected error when payment was split but refund provides no split data"
+        );
+    }
+
+    #[test]
+    fn test_xendit_split_refund_validates_and_forwards_when_charges_and_refund_match() {
+        // Scenario: Both payment_charges and refund_request are present with the
+        // same for_user_id.
+        // Expected: validation passes and the split refund is forwarded.
+        let for_user_id = "sub_merchant_abc123".to_string();
+        let input = refunds_transformers::SplitRefundInput {
+            refund_request: Some(common_types::refunds::SplitRefund::XenditSplitRefund(
+                common_types::domain::XenditSplitSubMerchantData {
+                    for_user_id: for_user_id.clone(),
+                },
+            )),
+            payment_charges: Some(
+                common_types::payments::ConnectorChargeResponseData::XenditSplitPayment(
+                    common_types::payments::XenditChargeResponseData::SingleSplit(
+                        common_types::domain::XenditSplitSubMerchantData {
+                            for_user_id: for_user_id.clone(),
+                        },
+                    ),
+                ),
+            ),
+            split_payment_request: Some(
+                common_types::payments::SplitPaymentsRequest::XenditSplitPayment(
+                    common_types::payments::XenditSplitRequest::SingleSplit(
+                        common_types::domain::XenditSplitSubMerchantData {
+                            for_user_id: for_user_id.clone(),
+                        },
+                    ),
+                ),
+            ),
+            charge_id: None,
+        };
+
+        let result = get_split_refunds(input);
+
+        assert!(result.is_ok(), "Expected Ok result but got: {:?}", result);
+        let split_refund = result.unwrap();
+        assert!(split_refund.is_some(), "Expected Some split refund");
+        if let Some(router_request_types::SplitRefundsRequest::XenditSplitRefund(data)) =
+            split_refund
+        {
+            assert_eq!(data.for_user_id, for_user_id);
+        } else {
+            panic!("Expected XenditSplitRefund variant");
+        }
     }
 }
 
