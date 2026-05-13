@@ -20,6 +20,7 @@ pub struct ListCustomerPaymentMethods;
 pub struct ListCustomerPaymentMethodsV1Request {
     pub customer_id: id_type::CustomerId,
     pub query_params: PaymentMethodListRequest,
+    pub modular_service_prefix: String,
 }
 
 impl TryFrom<&ListCustomerPaymentMethodsV1Request> for ModularListCustomerPaymentMethodsRequest {
@@ -94,10 +95,13 @@ impl ListCustomerPaymentMethods {
         &self,
         request: &ListCustomerPaymentMethodsV1Request,
     ) -> Vec<(&'static str, String)> {
-        vec![(
-            "customer_id",
-            request.customer_id.get_string_repr().to_string(),
-        )]
+        vec![
+            ("prefix", request.modular_service_prefix.clone()),
+            (
+                "customer_id",
+                request.customer_id.get_string_repr().to_string(),
+            ),
+        ]
     }
 
     fn query_params(
@@ -146,10 +150,27 @@ impl ListCustomerPaymentMethods {
     }
 }
 
+impl ListCustomerPaymentMethods {
+    /// Execute the flow and return the raw V2 (modular service) response without
+    /// converting it to the V1 shape.  Use this when the caller needs fields that
+    /// would be lost or transformed by the `TryFrom<ModularListCustomerPaymentMethodsResponse>`
+    /// implementation (e.g. the permanent payment-method id for token construction).
+    pub async fn call_raw(
+        state: &dyn hyperswitch_interfaces::api_client::ApiClientWrapper,
+        client: &crate::client::PaymentMethodClient<'_>,
+        request: ListCustomerPaymentMethodsV1Request,
+    ) -> Result<ModularListCustomerPaymentMethodsResponse, MicroserviceClientError> {
+        hyperswitch_interfaces::micro_service::execute_microservice_operation_raw::<Self>(
+            state, client, request,
+        )
+        .await
+    }
+}
+
 hyperswitch_interfaces::impl_microservice_flow!(
     ListCustomerPaymentMethods,
     method = Method::Get,
-    path = "/v2/customers/{customer_id}/saved-payment-methods",
+    path = "/{prefix}/customers/{customer_id}/saved-payment-methods",
     v1_request = ListCustomerPaymentMethodsV1Request,
     v2_request = ModularListCustomerPaymentMethodsRequest,
     v2_response = ModularListCustomerPaymentMethodsResponse,

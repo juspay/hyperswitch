@@ -42,7 +42,7 @@ mod state;
 
 use common_utils::request::Headers;
 pub use error::{MicroserviceClientError, MicroserviceClientErrorKind};
-pub use executor::execute_microservice_operation;
+pub use executor::{execute_microservice_operation, execute_microservice_operation_raw};
 use router_env::RequestIdentifier;
 pub use state::{ClientOperation, Executed, TransformedRequest, TransformedResponse, Validated};
 use url::Url;
