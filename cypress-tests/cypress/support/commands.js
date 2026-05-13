@@ -4402,6 +4402,44 @@ Cypress.Commands.add("fireConnectorWebhook", (globalState) => {
   });
 });
 
+// MITM proxy / replay-mode helper for non-card redirection flows.
+// For bank-redirect, wallet, and similar flows, the confirm response doesn't
+// include connector_transaction_id (no PI is authorised yet — only a redirect
+// URL exists), so we can't construct a Stripe-signed webhook here. Instead
+// we simulate what the browser's bank-redirect-callback would do: POST to
+// HS's /payments/{id}/{merchant_id}/redirect/response/{connector} endpoint.
+// HS's handler runs PaymentRedirectSync (force_sync=true), which fires a
+// connector outbound that mitm matches from cassette. The Cypress
+// X-Request-ID injected on this cy.request propagates onto the outbound,
+// keying the cassette deterministically across runs.
+Cypress.Commands.add("simulateRedirectCallback", (globalState) => {
+  const connectorId = globalState.get("connectorId");
+  const merchantId = globalState.get("merchantId");
+  const paymentId = globalState.get("paymentID");
+  const baseUrl = globalState.get("baseUrl");
+  const apiKey = globalState.get("apiKey");
+
+  if (!paymentId || !merchantId) {
+    throw new Error(
+      `simulateRedirectCallback: paymentID or merchantId missing in globalState`
+    );
+  }
+  const url = `${baseUrl}/payments/${paymentId}/${merchantId}/redirect/response/${connectorId}`;
+  cy.task("cli_log", `[redirect-callback] firing POST ${url}`);
+  cy.request({
+    method: "POST",
+    url,
+    headers: { "api-key": apiKey },
+    failOnStatusCode: false,
+    followRedirect: false,
+  }).then((resp) => {
+    cy.task(
+      "cli_log",
+      `[redirect-callback] HS responded status=${resp.status}`
+    );
+  });
+});
+
 Cypress.Commands.add(
   "handleBankRedirectRedirection",
   (globalState, paymentMethodType, expectedRedirection) => {
@@ -4410,6 +4448,15 @@ Cypress.Commands.add(
 
     const expectedUrl = new URL(expectedRedirection);
     const redirectionUrl = new URL(nextActionUrl);
+
+    if (Cypress.env("PROXY_MODE") === "replay") {
+      // Skip the bank-redirect browser dance. Instead of firing a webhook
+      // (which needs a Stripe pi we don't have yet for these flows), we
+      // simulate the post-bank-auth callback to HS. HS then force-syncs
+      // the connector, which mitm matches from a cassette.
+      cy.simulateRedirectCallback(globalState);
+      return;
+    }
 
     // explicitly restricting `sofort` payment method by adyen from running as it stops other tests from running
     // trying to handle that specific case results in stripe 3ds tests to fail
@@ -4495,6 +4542,13 @@ Cypress.Commands.add(
 
     const expectedUrl = new URL(expectedRedirection);
     const redirectionUrl = new URL(nextActionUrl);
+
+    if (Cypress.env("PROXY_MODE") === "replay") {
+      // Same approach as bank-redirect: simulate the post-wallet-auth
+      // callback to HS rather than firing a webhook.
+      cy.simulateRedirectCallback(globalState);
+      return;
+    }
 
     handleRedirection(
       "bank_redirect",
