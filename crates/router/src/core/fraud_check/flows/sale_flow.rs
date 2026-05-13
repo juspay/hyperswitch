@@ -88,18 +88,18 @@ impl ConstructFlowSpecificData<frm_api::Sale, FraudCheckSaleData, FraudCheckResp
             })
             .and_then(|browser_info| browser_info.ip_address);
 
-        let payment_method_data = self
-            .payment_attempt
-            .payment_method_data
-            .as_ref()
-            .and_then(|pm_data| {
-                pm_data
-                    .clone()
-                    .parse_value::<api_models::payments::AdditionalPaymentData>(
-                        "AdditionalPaymentData",
-                    )
-                    .ok()
-            });
+        let payment_method_data =
+            self.payment_attempt
+                .payment_method_data
+                .as_ref()
+                .and_then(|pm_data| {
+                    pm_data
+                        .clone()
+                        .parse_value::<api_models::payments::AdditionalPaymentData>(
+                            "AdditionalPaymentData",
+                        )
+                        .ok()
+                });
 
         let email = customer_details.as_ref().and_then(|c| c.email.clone());
         let phone = customer_details.as_ref().and_then(|c| c.phone.clone());

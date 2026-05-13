@@ -2,12 +2,12 @@ use api_models::{payments::AdditionalPaymentData, webhooks::IncomingWebhookEvent
 use common_enums::{AttemptStatus, Currency, FraudCheckStatus, PaymentMethod, PaymentMethodType};
 use common_utils::{
     ext_traits::ValueExt,
+    id_type,
     pii::{Email, IpAddress},
     types::{FloatMajorUnit, MinorUnit},
 };
 use error_stack::{self, ResultExt};
 pub use hyperswitch_domain_models::router_request_types::fraud_check::RefundMethod;
-use common_utils::id_type;
 use hyperswitch_domain_models::{
     address::Address as DomainAddress,
     router_data::RouterData,
@@ -333,18 +333,20 @@ fn build_user_account(
 impl TryFrom<&FrmSaleRouterData> for SignifydPaymentsSaleRequest {
     type Error = error_stack::Report<ConnectorError>;
     fn try_from(item: &FrmSaleRouterData) -> Result<Self, Self::Error> {
-        let currency =
-            item.request
-                .currency
-                .ok_or(ConnectorError::MissingRequiredField {
-                    field_name: "currency",
-                })?;
+        let currency = item
+            .request
+            .currency
+            .ok_or(ConnectorError::MissingRequiredField {
+                field_name: "currency",
+            })?;
         let products = item
             .request
             .get_order_details()?
             .iter()
             .map(|order_detail| {
-                let item_price = order_detail.amount.to_major_unit_as_f64(currency)
+                let item_price = order_detail
+                    .amount
+                    .to_major_unit_as_f64(currency)
                     .change_context(ConnectorError::ParsingFailed)
                     .attach_printable("Failed to convert order_detail.amount to major unit")?;
                 Ok::<_, error_stack::Report<ConnectorError>>(Products {
@@ -425,10 +427,7 @@ impl TryFrom<&FrmSaleRouterData> for SignifydPaymentsSaleRequest {
                 .phone
                 .and_then(|phone_data| phone_data.number),
         };
-        let client_ip_address = item
-            .request
-            .client_ip
-            .map(|ip| Secret::new(ip.to_string()));
+        let client_ip_address = item.request.client_ip.map(|ip| Secret::new(ip.to_string()));
         let session_id = metadata.session_id.clone();
         let device = match (client_ip_address.clone(), session_id.clone()) {
             (None, None) => None,
@@ -625,18 +624,20 @@ pub struct SignifydPaymentsCheckoutRequest {
 impl TryFrom<&FrmCheckoutRouterData> for SignifydPaymentsCheckoutRequest {
     type Error = error_stack::Report<ConnectorError>;
     fn try_from(item: &FrmCheckoutRouterData) -> Result<Self, Self::Error> {
-        let currency =
-            item.request
-                .currency
-                .ok_or(ConnectorError::MissingRequiredField {
-                    field_name: "currency",
-                })?;
+        let currency = item
+            .request
+            .currency
+            .ok_or(ConnectorError::MissingRequiredField {
+                field_name: "currency",
+            })?;
         let products = item
             .request
             .get_order_details()?
             .iter()
             .map(|order_detail| {
-                let item_price = order_detail.amount.to_major_unit_as_f64(currency)
+                let item_price = order_detail
+                    .amount
+                    .to_major_unit_as_f64(currency)
                     .change_context(ConnectorError::ParsingFailed)
                     .attach_printable("Failed to convert order_detail.amount to major unit")?;
                 Ok::<_, error_stack::Report<ConnectorError>>(Products {
@@ -717,10 +718,7 @@ impl TryFrom<&FrmCheckoutRouterData> for SignifydPaymentsCheckoutRequest {
                 .phone
                 .and_then(|phone_data| phone_data.number),
         };
-        let client_ip_address = item
-            .request
-            .client_ip
-            .map(|ip| Secret::new(ip.to_string()));
+        let client_ip_address = item.request.client_ip.map(|ip| Secret::new(ip.to_string()));
         let session_id = metadata.session_id.clone();
         let device = match (client_ip_address.clone(), session_id.clone()) {
             (None, None) => None,
