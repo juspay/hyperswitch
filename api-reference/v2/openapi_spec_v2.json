@@ -8626,6 +8626,17 @@
           {
             "type": "object",
             "required": [
+              "pix_emv"
+            ],
+            "properties": {
+              "pix_emv": {
+                "type": "object"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
               "pix_automatico_push"
             ],
             "properties": {
@@ -9009,6 +9020,17 @@
                     "nullable": true
                   }
                 }
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "pix_emv"
+            ],
+            "properties": {
+              "pix_emv": {
+                "type": "object"
               }
             }
           },
