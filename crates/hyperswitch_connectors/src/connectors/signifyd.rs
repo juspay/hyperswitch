@@ -709,7 +709,10 @@ impl IncomingWebhook for Signifyd {
             .body
             .parse_struct("SignifydWebhookBody")
             .change_context(ConnectorError::WebhookEventTypeNotFound)?;
-        Ok(IncomingWebhookEvent::from(resource.review_disposition))
+        Ok(resource
+            .review_disposition
+            .map(IncomingWebhookEvent::from)
+            .unwrap_or(IncomingWebhookEvent::EventNotSupported))
     }
 
     fn get_webhook_resource_object(
