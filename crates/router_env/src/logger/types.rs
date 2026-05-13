@@ -309,6 +309,8 @@ pub enum Flow {
     AddCardIssuer,
     /// Update a card issuer in the catalog
     UpdateCardIssuer,
+    /// Delete a card issuer from the catalog
+    DeleteCardIssuer,
     /// List card issuers from the catalog
     ListCardIssuers,
     /// Add record to blocklist
@@ -319,6 +321,12 @@ pub enum Flow {
     ListBlocklist,
     /// Toggle blocklist for merchant
     ToggleBlocklistGuard,
+    /// Bulk upload blocklist entries via CSV
+    BatchBlocklistUpload,
+    /// Get status of a batch blocklist upload job
+    GetBatchBlocklistJobStatus,
+    /// List batch blocklist upload jobs for a merchant
+    ListBatchBlocklistJobs,
     /// Incoming Webhook Receive
     IncomingWebhookReceive,
     /// Recovery incoming webhook receive

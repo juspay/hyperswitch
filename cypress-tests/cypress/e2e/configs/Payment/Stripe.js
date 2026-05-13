@@ -1124,6 +1124,121 @@ export const connectorDetails = {
       },
     },
   },
+  pay_later_pm: {
+    AutoCapture: getCustomExchange({
+      Request: {
+        currency: "USD",
+        capture_method: "automatic",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+        },
+      },
+    }),
+    ManualCapture: getCustomExchange({
+      Request: {
+        currency: "USD",
+        capture_method: "manual",
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_payment_method",
+        },
+      },
+    }),
+    Klarna: getCustomExchange({
+      Request: {
+        payment_method: "pay_later",
+        payment_method_type: "klarna",
+        payment_experience: "redirect_to_url",
+        payment_method_data: {
+          pay_later: {
+            klarna_redirect: {
+              billing_email: "customer@email.com",
+              billing_country: "US",
+            },
+          },
+        },
+        billing: {
+          email: "customer@email.com",
+          address: {
+            line1: "1467 Harrison Street",
+            city: "San Francisco",
+            state: "California",
+            zip: "94122",
+            country: "US",
+            first_name: "Mock",
+            last_name: "Mock",
+          },
+        },
+        order_details: [
+          {
+            product_name: "Test Product",
+            quantity: 1,
+            amount: 6000,
+          },
+        ],
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+        },
+      },
+    }),
+    Capture: getCustomExchange({
+      Request: {
+        amount_to_capture: 6000,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "succeeded",
+        },
+      },
+    }),
+  },
+  auth_service_eligibility: {
+    // Storage flag does not affect authentication outcome — both enabled and
+    // disabled flows produce the same 3DS challenge. Distinction is only
+    // observable via Redis, which cannot be asserted through the API layer.
+    EligibilityStorageEnabled: getCustomExchange({
+      Request: {
+        payment_method: "card",
+        payment_method_data: { card: successfulThreeDSTestCardDetails },
+        currency: "USD",
+        amount: 6500,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+          authentication_type: "three_ds",
+        },
+      },
+    }),
+    // Storage flag does not affect authentication outcome — both enabled and
+    // disabled flows produce the same 3DS challenge. Distinction is only
+    // observable via Redis, which cannot be asserted through the API layer.
+    EligibilityStorageDisabled: getCustomExchange({
+      Request: {
+        payment_method: "card",
+        payment_method_data: { card: successfulThreeDSTestCardDetails },
+        currency: "USD",
+        amount: 6500,
+      },
+      Response: {
+        status: 200,
+        body: {
+          status: "requires_customer_action",
+          authentication_type: "three_ds",
+        },
+      },
+    }),
+  },
   pm_list: {
     PmListResponse: {
       PmListNull: {

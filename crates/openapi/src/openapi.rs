@@ -189,6 +189,9 @@ Never share your secret api keys. Keep them guarded and secure.
         routes::blocklist::list_blocked_payment_methods,
         routes::blocklist::add_entry_to_blocklist,
         routes::blocklist::toggle_blocklist_guard,
+        routes::blocklist::upload_batch_blocklist,
+        routes::blocklist::get_batch_blocklist_job_status,
+        routes::blocklist::list_batch_blocklist_jobs,
 
         // Routes for payouts
         routes::payouts::payouts_create,
@@ -252,6 +255,7 @@ Never share your secret api keys. Keep them guarded and secure.
         // Routes for card issuers
         routes::card_issuer::add_card_issuer,
         routes::card_issuer::update_card_issuer,
+        routes::card_issuer::delete_card_issuer,
         routes::card_issuer::list_card_issuers,
     ),
     components(schemas(
@@ -503,6 +507,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::card_issuer::CardIssuerRequest,
         api_models::card_issuer::CardIssuerResponse,
         api_models::card_issuer::CardIssuerUpdateRequest,
+        api_models::card_issuer::CardIssuerDeleteResponse,
         api_models::card_issuer::CardIssuerListQuery,
         api_models::card_issuer::CardIssuerListResponse,
         api_models::gsm::GsmCreateRequest,
@@ -557,6 +562,7 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::payments::ConnectorMetadataResponse,
         api_models::payments::SantanderData,
         api_models::payments::FeatureMetadata,
+        api_models::payments::FinixAdditionalDetails,
         api_models::payments::ApplepayConnectorMetadataRequest,
         api_models::payments::SessionTokenInfo,
         api_models::payments::PixAdditionalDetails,
@@ -922,6 +928,11 @@ Never share your secret api keys. Keep them guarded and secure.
         api_models::blocklist::BlocklistResponse,
         api_models::blocklist::ToggleBlocklistResponse,
         api_models::blocklist::ListBlocklistQuery,
+        api_models::blocklist::BatchBlocklistUploadResponse,
+        api_models::blocklist::BatchBlocklistJobStatusResponse,
+        api_models::blocklist::ListBatchBlocklistJobsResponse,
+        api_models::blocklist::BlocklistRowError,
+        api_models::enums::BatchBlocklistJobStatus,
         api_models::enums::BlocklistDataKind,
         api_models::enums::ErrorCategory,
         api_models::webhook_events::EventListConstraints,

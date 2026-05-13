@@ -105,6 +105,9 @@ impl From<Flow> for ApiIdentifier {
             Flow::DeleteFromBlocklist => Self::Blocklist,
             Flow::ListBlocklist => Self::Blocklist,
             Flow::ToggleBlocklistGuard => Self::Blocklist,
+            Flow::BatchBlocklistUpload => Self::Blocklist,
+            Flow::GetBatchBlocklistJobStatus => Self::Blocklist,
+            Flow::ListBatchBlocklistJobs => Self::Blocklist,
             Flow::MerchantConnectorsCreate
             | Flow::MerchantConnectorsRetrieve
             | Flow::MerchantConnectorsUpdate
@@ -387,9 +390,10 @@ impl From<Flow> for ApiIdentifier {
             Flow::MerchantConnectorWebhookRegister | Flow::MerchantConnectorWebhookList => {
                 Self::MerchantConnectorWebhookManagement
             }
-            Flow::AddCardIssuer | Flow::UpdateCardIssuer | Flow::ListCardIssuers => {
-                Self::CardIssuers
-            }
+            Flow::AddCardIssuer
+            | Flow::UpdateCardIssuer
+            | Flow::DeleteCardIssuer
+            | Flow::ListCardIssuers => Self::CardIssuers,
         }
     }
 }
