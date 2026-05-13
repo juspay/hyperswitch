@@ -5180,8 +5180,11 @@ Cypress.Commands.add(
   (routingBody, data, type, routing_data, globalState) => {
     const { Request: reqData, Response: resData } = data || {};
 
+    // clone to avoid mutating the shared fixture object across tests
+    const body = JSON.parse(JSON.stringify(routingBody));
+
     for (const key in reqData) {
-      routingBody[key] = reqData[key];
+      body[key] = reqData[key];
     }
     // use payout profile for payout routing configs, otherwise use payment profile
     if (
@@ -5189,12 +5192,12 @@ Cypress.Commands.add(
       reqData.transaction_type === "payout" &&
       globalState.get("payoutProfileId")
     ) {
-      routingBody.profile_id = globalState.get("payoutProfileId");
+      body.profile_id = globalState.get("payoutProfileId");
     } else {
-      routingBody.profile_id = globalState.get("profileId");
+      body.profile_id = globalState.get("profileId");
     }
-    routingBody.algorithm.type = type;
-    routingBody.algorithm.data = routing_data;
+    body.algorithm.type = type;
+    body.algorithm.data = routing_data;
 
     cy.request({
       method: "POST",
@@ -5204,7 +5207,7 @@ Cypress.Commands.add(
         "Content-Type": "application/json",
       },
       failOnStatusCode: false,
-      body: routingBody,
+      body: body,
     }).then((response) => {
       logRequestId(response.headers["x-request-id"]);
 

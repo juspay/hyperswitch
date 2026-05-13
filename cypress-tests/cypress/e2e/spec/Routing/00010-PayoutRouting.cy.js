@@ -127,8 +127,8 @@ describe("Payout Priority Routing Test", () => {
 
     it("add-payout-routing-config-alternate", () => {
       const data = routingUtils.getConnectorDetails("common")["payoutRouting"];
-      // Create an alternate configuration with same connector but different config name
-      // This validates that multiple payout routing configs can be managed independently
+      // Create an alternate configuration with same connector to validate
+      // that multiple payout routing configs can be managed independently
       const routing_data = [
         {
           connector: globalState.get("connectorId"),
@@ -136,13 +136,13 @@ describe("Payout Priority Routing Test", () => {
         },
       ];
 
-      // Modify the body to use a different name for this alternate config
-      const altBody = JSON.parse(
-        JSON.stringify(fixtures.payoutRoutingConfigBody)
+      cy.addRoutingConfig(
+        fixtures.payoutRoutingConfigBody,
+        data,
+        "priority",
+        routing_data,
+        globalState
       );
-      altBody.name = `${altBody.name}_alternate`;
-
-      cy.addRoutingConfig(altBody, data, "priority", routing_data, globalState);
       if (shouldContinue)
         shouldContinue = routingUtils.should_continue_further(data);
     });
