@@ -996,7 +996,7 @@ export const connectorDetails = {
       Response: {
         status: 200,
         body: {
-          status: "requires_customer_action", // Bank redirect requires customer action
+          status: "requires_customer_action",
           error_code: null,
           error_message: null,
         },
