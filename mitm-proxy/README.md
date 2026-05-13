@@ -320,11 +320,30 @@ shouldn't have.
 
 ## What's been validated so far (Stripe)
 
-- ✅ `Payment/05-ThreeDSAutoCapture.cy.js` — single it() block, 3DS auto-capture
-- ✅ `Payment/16-ThreeDSManualCapture.cy.js` — 4 contexts, 3DS manual capture with
-  separate capture call
+All 18 Payment specs (`00-CoreFlows` through `17-BankTransfers`) — **153
+tests passing** in replay mode with 172 HIT / 2 MISS. The 2 MISSes are
+3DS-refund retrieves where HS's force_sync after the webhook still calls
+the connector; they fall back to LIVE Stripe (which 404s) but the tests
+pass because the assertions are tolerant. Worth fixing eventually but
+not blocking.
 
-Both pass with 100% HIT rate, 0 MISS, 0 LIVE fallbacks.
+### Manual handpick currently required
+
+After running `normalize_captures.py`, **one cassette** needs to be
+quarantined by hand for the full Payment suite to replay cleanly:
+
+```
+mitm-proxy/captures/stripe/Card_-_ThreeDS_Manual_..._Full_Capture_payme/9002d8cd-003/
+├── 000.json   ← orphan from spec 16's cy.visit refire — quarantine
+└── 001.json   ← keep (subsequent retrieve references its response.id)
+```
+
+How to identify the orphan more generally: look at any rid folder with
+more than 1 cassette, check the `response.body.id` of each, and see if
+that ID appears in any later cassette's `request.path`. The one that
+doesn't is the orphan.
+
+Replay timing: **1:40** vs 6:00 capture (~3.6× speedup).
 
 ## What's NOT yet validated (known unknowns)
 
